@@ -1,7 +1,7 @@
 import os
 
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, render_template
 from flask_migrate import Migrate
 from flask_sqlalchemy import SQLAlchemy
 
@@ -19,9 +19,10 @@ migrate = Migrate(app, db)
 
 
 # Test route
-@app.route('/')
-def home():
-    return "Hello, Flask with Database!"
+@app.route("/")
+def homepage():
+    return render_template("index.html")
+
 
 from models import *
 
