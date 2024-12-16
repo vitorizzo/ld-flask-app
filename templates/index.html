@@ -25,8 +25,11 @@
 
         .navbar {
             background-color: #4A2C2A; /* Marrone simile a quello del sito */
-            height: 110px; /* altezza fissa per la navbar */
-            position: relative;
+            background-image: url('/static/images/bg-bottom-pattern.png'); /* Separatore in alto */
+            background-repeat: repeat-x;
+            background-position: bottom; /* Posiziona l'immagine in basso */
+            background-size: contain;height: 150px; /* altezza fissa per la navbar */
+            padding: 20px 0 40px 0;
         }
 
         .navbar-brand img {
@@ -80,40 +83,6 @@
         .navbar-nav .nav-link-enabled:hover::before,
         .navbar-nav .nav-link-enabled:hover::after {
             width:100%;
-        }
-
-/*
-        .navbar-nav .nav-link-disabled:hover {
-            border: 2px solid #805f5d !important;
-
-        }
-
-
-        .navbar-nav .nav-link-enabled:hover {
-            border: 2px solid #fff !important;
-
-        }
-*/
-        .up-separator {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: url('/static/images/bg-bottom-pattern.png') repeat-x;
-            height: 20px; /* Altezza del separatore */
-            background-size: contain;
-            background-color: #4A2C2A; /* Marrone simile a quello del sito */
-        }
-
-        .down-separator {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%
-            background: url('/static/images/bg-top-pattern.png') repeat-x;
-            height: 20px; /* Altezza del separatore */
-            background-size: contain;
-            /*background-color: #4A2C2A; /* Marrone simile a quello del sito */
         }
 
         .welcome-section {
@@ -198,7 +167,6 @@
                 </ul>
             </div>
         </div>
-        <div class="up-separator"></div> <!-- Separatore all'interno della navbar -->
     </nav>
 
     <!-- Welcome Section -->
