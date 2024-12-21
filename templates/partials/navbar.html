@@ -1,0 +1,60 @@
+<nav class="navbar navbar-expand-lg">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="/">
+            <img src="/static/images/logo-ldenoteca-bianco.png" alt="LD Enoteca Logo">
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav mx-auto justify-content-center">
+                <li class="nav-item"><a class="nav-link nav-link-disabled" href="#">Funzione 1</a></li>
+                <li class="nav-item"><a class="nav-link nav-link-disabled" href="#">Funzione 2</a></li>
+                <li class="nav-item"><a class="nav-link nav-link-disabled" href="#">Funzione 3</a></li>
+                <li class="nav-item"><a class="nav-link nav-link-disabled" href="#">Funzione 4</a></li>
+            </ul>
+            <ul class="navbar-nav align-items-center">
+                <!-- Se l'utente è loggato -->
+                {% if current_user.is_authenticated %}
+                <li class="nav-item dropdown d-flex align-items-center">
+                    <span style="color: white; margin-right: 10px; font-size: 1.1rem;">
+                        Ciao, {{ current_user.name }} {{ current_user.surname }}
+                    </span>
+                    <a href="#" class="nav-link dropdown-toggle p-0" id="navbarDropdown" role="button"
+                       data-bs-toggle="dropdown" aria-expanded="false">
+                        {% if current_user.foto_profilo %}
+                            <img src="{{ url_for('static', filename=current_user.foto_profilo.split('static/', 1)[1]) }}"
+                                alt="Foto Profilo" class="rounded-circle" style="width: 50px; height: 50px;">
+                        {% elif current_user.sex == 1 %}
+                            <img src="{{ url_for('static', filename='icons/male_profile.png') }}"
+                                 alt="Profilo Male" class="rounded-circle" style="width: 50px; height: 50px;">
+                        {% elif current_user.sex == 2 %}
+                            <img src="{{ url_for('static', filename='icons/female_profile.png') }}"
+                                 alt="Profilo Female" class="rounded-circle" style="width: 50px; height: 50px;">
+                        {% else %}
+                            <img src="{{ url_for('static', filename='icons/genderless_profile.png') }}"
+                                 alt="Profilo Genderless" class="rounded-circle" style="width: 50px; height: 50px;">
+                        {% endif %}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
+                        <li><a class="dropdown-item" href="{{ url_for('auth.edit_profile') }}">Modifica Informazioni</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.upload_photo') }}">Gestisci Foto Profilo</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">Log Out</a></li>
+                    </ul>
+                </li>
+                {% else %}
+                <!-- Se l'utente non è loggato -->
+                <li class="nav-item d-flex align-items-center">
+                    <a class="nav-link nav-link-enabled" href="{{ url_for('auth.login') }}"
+                       style="margin-right: 10px; font-size: 1.1rem;">Accedi</a>
+                    <a href="#">
+                        <img src="{{ url_for('static', filename='icons/genderless_profile.png') }}"
+                             alt="Profilo" class="rounded-circle" style="width: 50px; height: 50px; opacity: 0.8;">
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</nav>

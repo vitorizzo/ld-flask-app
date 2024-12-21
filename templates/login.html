@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Accedi{% endblock %}
+
+{% block content %}
+<section class="welcome-section">
+    <h1>Accedi</h1>
+    <form method="POST" action="{{ url_for('auth.login') }}" class="mx-auto" style="max-width: 400px;">
+        {{ form.hidden_tag() }}
+
+        <!-- Campo Email -->
+        <div class="mb-3">
+            <label for="email" class="form-label">Email</label>
+            {{ form.email(class="form-control", placeholder="Inserisci la tua email") }}
+        </div>
+
+        <!-- Campo Password -->
+        <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            {{ form.password(class="form-control", placeholder="Inserisci la tua password") }}
+        </div>
+
+        <!-- Check Ricordami -->
+        <div class="form-check">
+            {{ form.remember(class="form-check-input") }}
+            {{ form.remember.label(class="form-check-label") }}
+        </div>
+
+        <!-- Pulsante di Login -->
+        <div class="d-grid">
+            <button type="submit" class="btn-enabled-custom">Accedi</button>
+        </div>
+    </form>
+
+    <!-- Link Aggiuntivi -->
+    <div class="text-center mt-3">
+        <p>
+            Non sei ancora iscritto?
+            <a href="{{ url_for('auth.register') }}">Clicca qui per registrarti.</a>
+        </p>
+        <p>
+            Password dimenticata?
+            <a href="{{ url_for('auth.reset_password') }}">Clicca qui per ripristinarla.</a>
+        </p>
+    </div>
+</section>
+{% endblock %}

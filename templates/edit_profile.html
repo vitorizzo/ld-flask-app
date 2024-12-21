@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}Modifica Profilo{% endblock %}
+
+{% block content %}
+<section class="welcome-section">
+    <h1>Modifica il tuo Profilo</h1>
+    <form method="POST">
+        {{ form.hidden_tag() }}
+        <div class="mb-3">
+            {{ form.name.label(class="form-label") }}
+            {{ form.name(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.surname.label(class="form-label") }}
+            {{ form.surname(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.phone.label(class="form-label") }}
+            {{ form.phone(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.birth_date.label(class="form-label") }}
+            {{ form.birth_date(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.city.label(class="form-label") }}
+            {{ form.city(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.province.label(class="form-label") }}
+            {{ form.province(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.sex.label(class="form-label") }}
+            {{ form.sex(class="form-select") }}
+        </div>
+        <div class="d-fle justify-content-between">
+            {{ form.submit(class="btn btn-enabled-custom") }}
+            <a href="{{ url_for('home') }}" class="btn-enabled-custom ml-2">Annulla</a>
+        </div>
+    </form>
+</section>
+{% endblock %}
