@@ -1,0 +1,175 @@
+body {
+    background-image: url('/static/images/background-homepage.jpg');
+    background-size: auto;
+    background-repeat: repeat;
+    background-position: center;
+    background-attachment: fixed;
+    color: #fff;
+    min-height: 50vh;
+    display: flex;
+    flex-direction: column;
+    font-family: "Oswald", Helvetica, sans-serif;
+}
+
+a {
+    color: #CD1520; /* Rosso principale */
+    text-decoration: none;
+    font-weight: 400;
+    transition: color 0.3s ease;
+}
+
+a:hover {
+    color: #B91C1C; /* Rosso più scuro al passaggio del mouse */
+    text-decoration: underline;
+}
+
+/* Elimina margini verticali */
+body, html {
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden; /* Evita scroll orizzontali */
+}
+
+section {
+    margin: 0;
+    padding: 0;
+    box-shadow: none; /* Se ci fossero effetti indesiderati */
+}
+
+
+.navbar, .footer, welcome-sections:{
+    margin: 0;
+    border: none; /* Rimuove qualsiasi bordo */
+    box-shadow: none; /* Elimina eventuali ombre */
+}
+
+
+.navbar {
+    background-color: #4A2C2A; /* Marrone simile a quello del sito */
+    background-image: url('/static/images/bg-bottom-pattern.png'); /* Separatore in alto */
+    background-repeat: repeat-x;
+    background-position: bottom; /* Posiziona l'immagine in basso */
+    background-size: fixed;
+    height: 140px; /* altezza fissa per la navbar */
+    padding: 0 0 20px 0;
+}
+
+.navbar-brand img {
+    height: 80px; /* Occupa tutta l'altezza della navbar */
+    max-height: 100%; /* Garantisce che l'immagine rimanga proporzionata */
+    object-fit: contain; /* Adatta l'immagine mantenendo le proporzioni */
+    display: fixed;
+    background: transparent;
+}
+
+    .navbar-nav .nav-link-enabled {
+    color: #fff !important;
+    text-transform: uppercase;
+    font-family: "Oswald", Helvetica, sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.8px;
+    padding: 10px 20px !important;
+    position: relative;
+}
+
+.navbar-nav .nav-link-disabled {
+    color: #805f5d !important;
+    text-transform: uppercase;
+    font-family: "Oswald", Helvetica, sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.8px;
+    padding: 10px 20px !important;
+    position: relative;
+}
+
+.navbar-nav .nav-link-enabled::before,
+.navbar-nav .nav-link-enabled::after {
+  content: '';
+  position: absolute;
+  height: 2px;
+  width: 0;
+  background-color: #CD1520;
+  transition: width 0.5s ease;
+}
+
+/* Bordo superiore */
+.navbar-nav .nav-link-enabled::before {
+  top: 0;
+  left: 0;
+}
+
+/* Bordo inferiore */
+.navbar-nav .nav-link-enabled::after {
+  bottom: 0;
+  left: 0;
+}
+
+/* Effetto hover: espande i bordi */
+.navbar-nav .nav-link-enabled:hover::before,
+.navbar-nav .nav-link-enabled:hover::after {
+    width:100%;
+}
+
+.welcome-section {
+    text-align: center;
+    padding: 50px 30px;
+    background-color: rgba(74, 44, 42, 0.8);
+    color: #fff;
+    border-radius: 10px;
+    margin: 50px auto;
+    max-width: 60%;
+    max-eight: 80%;
+    box-shadow: -3px 5px 15px 5px rgba(88,64,31,0.45);
+}
+
+.welcome-section h1 {
+    font-family: "Oswald", Helvetica, sans-serif;
+    font-weight: 400;
+    letter-spacing: 0.8px;
+    margin-bottom: 20px;
+    color: #fff;
+}
+
+.btn-enabled-custom {
+    border: 2px solid #fff; /* Rosso per bordi */
+    color: #fff;
+    background-color: transparent;
+    margin: 10px;
+    width: 150px;
+    transition: all 0.3s ease;
+}
+
+.btn-disabled-custom {
+    border: 2px solid #a1a1a1; /* Rosso per bordi */
+    color: #a1a1a1;
+    background-color: transparent;
+    margin: 10px;
+    width: 150px;
+    transition: all 0.3s ease;
+}
+
+.btn-enabled-custom:hover {
+    background-color: #B91C1C;
+    color: #fff;
+}
+
+.btn-disabled-custom:hover {
+    border: 2px solid #a1a1a1; /* Rosso per bordi */
+    background-color: transparent;
+    color: #a1a1a1;
+}
+
+.footer {
+    text-align: center;
+    background-color: #4A2C2A; /* Marrone simile a quello del sito */
+    background-image: url('/static/images/bg-top-pattern.png'); /* Separatore in alto */
+    background-repeat: repeat-x;
+    background-position: top; /* Posiziona l'immagine in alto */
+    background-size: contain;
+    color: #ddd;
+    padding: 60px 0 10px 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+}

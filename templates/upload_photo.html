@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestione Foto Profilo{% endblock %}
+
+{% block content %}
+<section class="welcome-section">
+    <h1>Gestione Foto Profilo</h1>
+
+    {% if current_user.foto_profilo %}
+        <div class="mb-3">
+            <p>Immagine attuale:</p>
+            <img src="{{ url_for('static', filename=current_user.foto_profilo.split('static/', 1)[1]) }}"
+                 alt="Foto Profilo" class="rounded-circle" style="width: 150px; height: 150px;">
+        </div>
+    {% endif %}
+
+    <!-- Caricamento Nuova Immagine -->
+    <form method="POST" enctype="multipart/form-data">
+        <div class="mb-3">
+            <input type="file" name="photo" class="form-control">
+        </div>
+        <div class="d-grid mb-3">
+            <button type="submit" class="btn btn-enabled-custom">Carica Nuova Foto</button>
+        </div>
+    </form>
+
+    <!-- Eliminazione Immagine -->
+    {% if current_user.foto_profilo %}
+    <form method="POST" action="{{ url_for('auth.delete_photo') }}">
+        <div class="d-grid">
+            <button type="submit" class="btn btn-danger">Elimina Foto Profilo</button>
+        </div>
+    </form>
+    {% endif %}
+</section>
+{% endblock %}

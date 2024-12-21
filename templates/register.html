@@ -1,0 +1,57 @@
+{% extends 'base.html' %}
+
+{% block title %}Registrazione - LD Enoteca{% endblock %}
+
+{% block content %}
+<section class="welcome-section">
+    <h1>Registrati</h1>
+    <form method="POST" action="{{ url_for('auth.register') }}" class="mx-auto" style="max-width: 400px;">
+        {{ form.hidden_tag() }}
+
+        <div class="mb-3">
+            {{ form.name.label(class="form-label") }}
+            {{ form.name(class="form-control", placeholder="Inserisci il tuo nome") }}
+        </div>
+        <div class="mb-3">
+            {{ form.surname.label(class="form-label") }}
+            {{ form.surname(class="form-control", placeholder="Inserisci il tuo cognome") }}
+        </div>
+        <div class="mb-3">
+            {{ form.email.label(class="form-label") }}
+            {{ form.email(class="form-control", placeholder="Inserisci la tua email") }}
+        </div>
+        <div class="mb-3">
+            {{ form.phone.label(class="form-label") }}
+            {{ form.phone(class="form-control", placeholder="Inserisci il tuo telefono") }}
+        </div>
+        <div class="mb-3">
+            {{ form.birth_date.label(class="form-label") }}
+            {{ form.birth_date(class="form-control") }}
+        </div>
+        <div class="mb-3">
+            {{ form.city.label(class="form-label") }}
+            {{ form.city(class="form-control", placeholder="Inserisci la tua città") }}
+        </div>
+        <div class="mb-3">
+            {{ form.province.label(class="form-label") }}
+            {{ form.province(class="form-control", placeholder="Inserisci la tua provincia") }}
+        </div>
+        <div class="mb-3">
+            {{ form.sex.label(class="form-label") }}
+            {{ form.sex(class="form-select") }}
+        </div>
+        <div class="mb-3">
+            {{ form.password.label(class="form-label") }}
+            {{ form.password(class="form-control", placeholder="Inserisci la tua password") }}
+        </div>
+        <div class="mb-3">
+            {{ form.confirm_password.label(class="form-label") }}
+            {{ form.confirm_password(class="form-control", placeholder="Conferma la tua password") }}
+        </div>
+
+        <div class="d-grid">
+            {{ form.submit(class="btn-enabled-custom") }}
+        </div>
+    </form>
+</section>
+{% endblock %}
