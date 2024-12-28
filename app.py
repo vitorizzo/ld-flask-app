@@ -1,11 +1,17 @@
+import json
+import logging
+import os
+
+from dotenv import load_dotenv
+from extensions import db  # Importa db da extensions.py
 from flask import Flask, render_template
 from flask_login import LoginManager, current_user
-from models import User
 from flask_migrate import Migrate
-from extensions import db  # Importa db da extensions.py
+from models import User, Menu, Role
+from pprint import pprint
 from routes.auth import auth_bp
-from dotenv import load_dotenv
-import os
+from routes.settings import settings_bp
+from routes.tools import get_user_menu
 
 load_dotenv()
 
@@ -36,12 +42,31 @@ migrate = Migrate(app, db)
 
 # Registrazione Blueprint
 app.register_blueprint(auth_bp, url_prefix='/auth')
+app.register_blueprint(settings_bp, url_prefix='/settings')
 
 
-@app.context_processor
-def inject_user():
-    return {'current_user': current_user}
+def build_menu_tree(menus):
+    menu_dict = {menu.id: menu for menu in menus}
+    tree = []
+    for menu in menus:
+        if menu.parent_id is None:
+            tree.append(build_menu_item(menu, menu_dict))
+    return tree
 
+
+def build_menu_item(menu, menu_dict):
+    item = {
+        'id': menu.id,
+        'name': menu.name,
+        'route': menu.route,
+        'weight': menu.weight,
+        'children': []
+    }
+    for potential_child in menu_dict.values():
+        if potential_child.parent_id == menu.id:
+            item['children'].append(build_menu_item(potential_child, menu_dict))
+    item['children'].sort(key=lambda x: x['weight'])
+    return item
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -54,9 +79,20 @@ def home():
     return render_template('home.html')
 
 
-@app.route('/prova', methods=['GET'])
-def prova():
-    return render_template('prova.html')
+@app.context_processor
+def inject_user_menu():
+    return {'user_menu': get_user_menu()}
+
+
+@app.context_processor
+def inject_user():
+    return {'current_user': current_user}
+
+@app.context_processor
+def inject_menus():
+    menus = Menu.query.filter_by(is_active=True).order_by(Menu.weight).all()
+    menu_tree = build_menu_tree(menus)
+    return {"menu_tree": menu_tree}
 
 
 if __name__ == '__main__':

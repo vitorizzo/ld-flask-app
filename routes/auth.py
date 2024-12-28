@@ -1,14 +1,14 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, g
 from flask_login import current_user, login_user, logout_user
-from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from extensions import db
 from forms.forms import LoginForm, RegistrationForm, EditProfileForm
 from models import User
 import os
-from werkzeug.utils import secure_filename
 from PIL import Image
 import shutil
+from routes.decorators import role_required
 
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -94,11 +94,6 @@ def edit_profile():
         return redirect(url_for('home'))  # Redirect alla homepage
 
     return render_template('edit_profile.html', form=form)
-
-
-@auth_bp.route('/prova', methods=['GET', 'POST'])
-def prova():
-    return render_template('prova.html')
 
 
 @auth_bp.route('/upload_photo', methods=['GET', 'POST'])

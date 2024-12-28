@@ -12,15 +12,11 @@ body {
 }
 
 a {
-    color: #CD1520; /* Rosso principale */
+    color: #fff; /* Rosso principale */
+    font-family: "Oswald", Helvetica, sans-serif;
     text-decoration: none;
     font-weight: 400;
     transition: color 0.3s ease;
-}
-
-a:hover {
-    color: #B91C1C; /* Rosso più scuro al passaggio del mouse */
-    text-decoration: underline;
 }
 
 /* Elimina margini verticali */
@@ -36,13 +32,69 @@ section {
     box-shadow: none; /* Se ci fossero effetti indesiderati */
 }
 
+.dropdown-menu {
+    background: #4A2C2A !important; /* Colore di sfondo */
+    border-radius: 5px; /* Angoli arrotondati */
+    min-width: 200px;
+    display: none;
+    text-align: left;
+    position: absolute;
+    top: 100%;
+    left: 0;
+}
 
-.navbar, .footer, welcome-sections:{
+.dropdown-item {
+    font-family: "Oswald", Helvetica, sans-serif;
+    color: #fff !important;
+    padding: 10px 15px;
+    text-align: left;
+}
+
+.dropdown:hover > .dropdown-menu {
+    display: block;
+}
+
+.dropdown-menu .dropdown-menu {
+    top: 0;
+    left: 100%;
+    text-align: left;
+}
+
+.dropdown-menu .dropdown-item {
+    color: #fff !important; /* Colore del testo */
+    padding: 10px 15px; /* Spaziatura interna */
+    text-align: left;
+}
+
+.dropdown {
+    position: relative;
+    text-align: left;
+}
+
+
+.dropdown:hover .dropdown-menu {
+    display: block;
+    position: absolute; /* Assicura il posizionamento assoluto */
+    /*transform: translate(0, 100%); /* Posiziona sotto il pulsante */
+    margin-top: 0; /* Elimina eventuali margini */
+    text-align: left;
+}
+
+.dropdown-menu .dropdown-item:hover {
+    background-color: lightgrey !important; /* Colore di sfondo al passaggio del mouse */
+    color: #4A2C2A !important; /* Colore del testo al passaggio del mouse */
+}
+
+.dropdown-toggle::after {
+    display: none;
+}
+
+
+.navbar, .footer:{
     margin: 0;
     border: none; /* Rimuove qualsiasi bordo */
     box-shadow: none; /* Elimina eventuali ombre */
 }
-
 
 .navbar {
     background-color: #4A2C2A; /* Marrone simile a quello del sito */
@@ -50,8 +102,99 @@ section {
     background-repeat: repeat-x;
     background-position: bottom; /* Posiziona l'immagine in basso */
     background-size: fixed;
+    text-align: left;
+    align-items: center;
     height: 140px; /* altezza fissa per la navbar */
     padding: 0 0 20px 0;
+}
+
+.navbar-nav .dropdown-menu {
+    background-color: #4A2C2A;
+    display: none;
+    text-align: left;
+    position: absolute;
+    top: 100%;
+    left: 0;
+}
+
+.navbar-nav .dropdown:hover > .dropdown-menu,
+.navbar-nav .dropdown-menu.show {
+    display: block;
+    /*background-color: #bbb;*/
+}
+.navbar-nav .dropdown:hover > .dropdown-menu,
+.navbar-nav .dropdown-menu.show: hover{
+    background-color: #bbb !important;
+}
+
+.navbar-nav .dropdown-menu .dropdown-menu {
+    display: none;
+    top: 0;
+    left: 100%;
+    text-align: left;
+}
+
+.navbar-nav .nav-item.level-0 > .nav-link {
+    color: #fff;
+    text-transform: uppercase;
+}
+
+.navbar-nav .dropdown-menu .dropdown-item {
+    text-align: left;
+    color: #fff;
+}
+
+.navbar-nav .dropdown-menu .dropdown-item:hover {
+    /* background-color: #CD1520; */
+    background-color: green !important;
+    display: block;
+}
+
+.navbar-nav .dropdown-item:hover {
+    background-color: purple !important;
+}
+
+.dropdown-item:hover, .dropdown-item:focus {
+    /*background-color: #CD1520;*/
+    background-color: #bbb;
+    color: #fff;
+}
+
+.navbar-nav .dropdown-menu-end {
+    right: 0;
+    left: auto;
+}
+
+#profileDropdown + .dropdown-menu {
+    display: block;
+    opacity: 1;
+    visibility: visible;
+    z-index: 1050;
+    background-color: #4A2C2A;
+    color: #fff;
+}
+
+#profileDropdown + .dropdown-menu .dropdown-item {
+    color: #fff !important;
+    background-color: #4A2C2A !important;
+    display: block !important;
+    padding: 10px 15px;
+}
+
+#profileDropdown + .dropdown-menu .dropdown-item:hover {
+    background-color: #CD1520 !important;
+}
+
+.navbar-nav > li {
+    display: flex;
+    align-items: center;
+    text-align: left;
+}
+
+.navbar-nav > li > a {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    text-align: left;
 }
 
 .navbar-brand img {
