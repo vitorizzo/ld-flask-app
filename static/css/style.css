@@ -32,199 +32,121 @@ section {
     box-shadow: none; /* Se ci fossero effetti indesiderati */
 }
 
-.dropdown-menu {
-    background: #4A2C2A !important; /* Colore di sfondo */
-    border-radius: 5px; /* Angoli arrotondati */
-    min-width: 200px;
-    display: none;
-    text-align: left;
-    position: absolute;
-    top: 100%;
-    left: 0;
-}
-
-.dropdown-item {
-    font-family: "Oswald", Helvetica, sans-serif;
-    color: #fff !important;
-    padding: 10px 15px;
-    text-align: left;
-}
-
-.dropdown:hover > .dropdown-menu {
-    display: block;
-}
-
-.dropdown-menu .dropdown-menu {
-    top: 0;
-    left: 100%;
-    text-align: left;
-}
-
-.dropdown-menu .dropdown-item {
-    color: #fff !important; /* Colore del testo */
-    padding: 10px 15px; /* Spaziatura interna */
-    text-align: left;
-}
-
-.dropdown {
-    position: relative;
-    text-align: left;
-}
-
-
-.dropdown:hover .dropdown-menu {
-    display: block;
-    position: absolute; /* Assicura il posizionamento assoluto */
-    /*transform: translate(0, 100%); /* Posiziona sotto il pulsante */
-    margin-top: 0; /* Elimina eventuali margini */
-    text-align: left;
-}
-
-.dropdown-menu .dropdown-item:hover {
-    background-color: lightgrey !important; /* Colore di sfondo al passaggio del mouse */
-    color: #4A2C2A !important; /* Colore del testo al passaggio del mouse */
-}
-
-.dropdown-toggle::after {
-    display: none;
-}
-
-
-.navbar, .footer:{
-    margin: 0;
-    border: none; /* Rimuove qualsiasi bordo */
-    box-shadow: none; /* Elimina eventuali ombre */
+/****************************************************************************
+ *                               NAVBAR & FOOTER
+ ****************************************************************************/
+.navbar,
+.footer {
+  margin: 0;
+  border: none;
+  box-shadow: none;
 }
 
 .navbar {
-    background-color: #4A2C2A; /* Marrone simile a quello del sito */
-    background-image: url('/static/images/bg-bottom-pattern.png'); /* Separatore in alto */
-    background-repeat: repeat-x;
-    background-position: bottom; /* Posiziona l'immagine in basso */
-    background-size: fixed;
-    text-align: left;
-    align-items: center;
-    height: 140px; /* altezza fissa per la navbar */
-    padding: 0 0 20px 0;
+  background-color: #4A2C2A; /* Marrone principale */
+  background-image: url('/static/images/bg-bottom-pattern.png'); /* Separatore in alto */
+  background-repeat: repeat-x;
+  background-position: bottom;
+  background-size: fixed;
+  text-align: left;  /* Allinea a sinistra (nel caso la navbar sia flex, regola i justify-content) */
+  align-items: center;
+  height: 140px;     /* Altezza fissa */
+  padding: 0 0 20px 0;
 }
 
-.navbar-nav .dropdown-menu {
-    background-color: #4A2C2A;
-    display: none;
-    text-align: left;
-    position: absolute;
-    top: 100%;
-    left: 0;
-}
-
-.navbar-nav .dropdown:hover > .dropdown-menu,
-.navbar-nav .dropdown-menu.show {
-    display: block;
-    /*background-color: #bbb;*/
-}
-.navbar-nav .dropdown:hover > .dropdown-menu,
-.navbar-nav .dropdown-menu.show: hover{
-    background-color: #bbb !important;
-}
-
-.navbar-nav .dropdown-menu .dropdown-menu {
-    display: none;
-    top: 0;
-    left: 100%;
-    text-align: left;
-}
-
-.navbar-nav .nav-item.level-0 > .nav-link {
-    color: #fff;
-    text-transform: uppercase;
-}
-
-.navbar-nav .dropdown-menu .dropdown-item {
-    text-align: left;
-    color: #fff;
-}
-
-.navbar-nav .dropdown-menu .dropdown-item:hover {
-    /* background-color: #CD1520; */
-    background-color: green !important;
-    display: block;
-}
-
-.navbar-nav .dropdown-item:hover {
-    background-color: purple !important;
-}
-
-.dropdown-item:hover, .dropdown-item:focus {
-    /*background-color: #CD1520;*/
-    background-color: #bbb;
-    color: #fff;
-}
-
-.navbar-nav .dropdown-menu-end {
-    right: 0;
-    left: auto;
-}
-
-#profileDropdown + .dropdown-menu {
-    display: block;
-    opacity: 1;
-    visibility: visible;
-    z-index: 1050;
-    background-color: #4A2C2A;
-    color: #fff;
-}
-
-#profileDropdown + .dropdown-menu .dropdown-item {
-    color: #fff !important;
-    background-color: #4A2C2A !important;
-    display: block !important;
-    padding: 10px 15px;
-}
-
-#profileDropdown + .dropdown-menu .dropdown-item:hover {
-    background-color: #CD1520 !important;
-}
-
-.navbar-nav > li {
-    display: flex;
-    align-items: center;
-    text-align: left;
-}
-
-.navbar-nav > li > a {
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-    text-align: left;
-}
-
+/* Logo all’interno della .navbar */
 .navbar-brand img {
-    height: 80px; /* Occupa tutta l'altezza della navbar */
-    max-height: 100%; /* Garantisce che l'immagine rimanga proporzionata */
-    object-fit: contain; /* Adatta l'immagine mantenendo le proporzioni */
-    display: fixed;
-    background: transparent;
+  height: 80px;       /* Mantiene dimensioni coerenti */
+  object-fit: contain;
+  background: transparent;
 }
 
-    .navbar-nav .nav-link-enabled {
-    color: #fff !important;
-    text-transform: uppercase;
-    font-family: "Oswald", Helvetica, sans-serif;
-    font-weight: 400;
-    letter-spacing: 0.8px;
-    padding: 10px 20px !important;
-    position: relative;
+/****************************************************************************
+ *                                 DROPDOWN
+ *      Apertura SOLO on hover: .dropdown:hover > .dropdown-menu { ... }
+ ****************************************************************************/
+.dropdown {
+  position: relative; /* Importante per posizionare il .dropdown-menu */
+  text-align: left;
 }
 
+/* Stile generale del menu */
+.dropdown-menu {
+  background: #4A2C2A;
+  border-radius: 5px;  /* Angoli arrotondati */
+  min-width: 200px;
+  display: none;       /* Di base è nascosto */
+  position: absolute;
+  top: 100%;
+  left: 0;
+  text-align: left;
+}
+
+/* Elementi di lista/link nel menu */
+.dropdown-item {
+  font-family: "Oswald", Helvetica, sans-serif;
+  color: #fff;
+  padding: 10px 15px;
+}
+
+/* Al passaggio del mouse sul .dropdown, mostra il .dropdown-menu */
+.dropdown:hover > .dropdown-menu {
+  display: block;
+}
+
+/* Submenu di secondo livello: .dropdown-menu annidato dentro un altro .dropdown-menu */
+.dropdown-menu .dropdown-menu {
+  top: 0;
+  left: 100%;
+  display: none; /* Rimane nascosto finché non si hovera il suo .dropdown-genitore */
+}
+
+/* Effetto hover su item */
+.dropdown-menu .dropdown-item:hover {
+  background-color: #b18b77;
+  color: #4A2C2A;
+}
+
+/* Rimuove la freccetta/caret di Bootstrap (se presente) */
+.dropdown-toggle::after {
+  display: none;
+}
+
+/****************************************************************************
+ *                             NAVBAR-NAV & LINKS
+ ****************************************************************************/
+/* Allinea i <li> e i loro <a> nella navbar */
+.navbar-nav > li {
+  display: flex;
+  align-items: center;
+  text-align: left;
+}
+
+/* LINK abilitati (stile generico) */
+.navbar-nav .nav-link-enabled {
+  color: #fff;
+  text-transform: uppercase;
+  font-family: "Oswald", Helvetica, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.8px;
+  padding: 10px 20px;
+  position: relative;
+  text-decoration: none; /* se vuoi rimuovere sottolineature */
+}
+
+/* LINK disabilitati */
 .navbar-nav .nav-link-disabled {
-    color: #805f5d !important;
-    text-transform: uppercase;
-    font-family: "Oswald", Helvetica, sans-serif;
-    font-weight: 400;
-    letter-spacing: 0.8px;
-    padding: 10px 20px !important;
-    position: relative;
+  color: #805f5d; /* Una variante “spenta” */
+  text-transform: uppercase;
+  font-family: "Oswald", Helvetica, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.8px;
+  padding: 10px 20px;
+  position: relative;
+  cursor: not-allowed; /* Per comunicare disabilitazione */
 }
 
+/* Effetto hover con bordi animati per i link abilitati */
 .navbar-nav .nav-link-enabled::before,
 .navbar-nav .nav-link-enabled::after {
   content: '';
@@ -247,11 +169,12 @@ section {
   left: 0;
 }
 
-/* Effetto hover: espande i bordi */
+/* In hover: i bordi si espandono */
 .navbar-nav .nav-link-enabled:hover::before,
 .navbar-nav .nav-link-enabled:hover::after {
-    width:100%;
+  width: 100%;
 }
+
 
 .welcome-section {
     text-align: center;
@@ -261,8 +184,34 @@ section {
     border-radius: 10px;
     margin: 50px auto;
     max-width: 60%;
-    max-eight: 80%;
+    max-height: 80%;
     box-shadow: -3px 5px 15px 5px rgba(88,64,31,0.45);
+}
+
+.central-section {
+    text-align: left;
+    padding: 50px 30px;
+    background-color: rgba(74, 44, 42, 0.8);
+    color: #fff;
+    border-radius: 10px;
+    margin: 50px auto;
+    max-width: 90%;
+    max-height: 80%;
+    box-shadow: -3px 5px 15px 5px rgba(88,64,31,0.45);
+}
+
+.side-section {
+    text-align: left;
+    padding: 50px 30px;
+    background-color: rgba(74, 44, 42, 0.8);
+    color: #fff;
+    border-radius: 10px;
+    margin: 50px auto;
+    box-shadow: -3px 5px 15px 5px rgba(88,64,31,0.45);
+}
+
+h1,h2,h3,h4{
+    text-align: center;
 }
 
 .welcome-section h1 {
@@ -311,7 +260,6 @@ section {
     background-size: contain;
     color: #ddd;
     padding: 60px 0 10px 0;
-    position: fixed;
     bottom: 0;
     left: 0;
     width: 100%;

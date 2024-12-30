@@ -1,25 +1,79 @@
-<h1>Gestione Menu</h1>
-<form method="POST">
-    <input type="text" name="name" placeholder="Nome menu" required>
-    <input type="text" name="route" placeholder="Route (es. /eventi)">
-    <select name="parent_id">
-        <option value="">Menu principale</option>
+{% extends "base.html" %}
+
+{% block title %}Accedi{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/menu_management.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+
+{% macro trova_rami(menu_id) %}
+    <ul>
         {% for menu in menus %}
-        <option value="{{ menu.id }}">{{ menu.name }}</option>
+            {% if menu.parent_id == menu_id %}
+            <li class="menu-item">
+                <span class="menu-name">{{ menu.name }}</span> (<span class="menu-id">{{ menu.id }}</span>)
+                {{ trova_rami(menu.id) }}
+            </li>
+            {% endif %}
         {% endfor %}
-    </select>
-    <input type="number" name="weight" placeholder="Ordine" min="0">
-    <button type="submit">Salva</button>
-</form>
-<ul>
-    {% for menu in menus %}
-    <li>
-        {{ menu.name }} ({{ menu.route or "Nessuna route" }})
-        <ul>
-            {% for child in menu.children %}
-            <li>{{ child.name }} ({{ child.route }})</li>
-            {% endfor %}
-        </ul>
-    </li>
-    {% endfor %}
-</ul>
+    </ul>
+{% endmacro %}
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- Pannello laterale sinistro -->
+        <div class="col-md-3">
+            <div class="panel">
+                <section class="side-section">
+                        <div class="panel">
+                            <h1>Ruoli</h1>
+                            <ul>
+                                {% for role in roles %}
+                                    <li>{{ role.name }} (Peso: {{ role.weight }})</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+
+                </section> <!-- Contenuto del pannello destro -->
+            </div>
+        </div>
+
+        <!-- Sezione centrale -->
+        <div class="col-md-6">
+            <section class="central-section">
+                <h1>Gestione Menu</h1>
+                <ul>
+                    {% for menu in menus %}
+                        {% if menu.parent_id == None %}
+                            <li>
+                                {{ menu.name }} ({{ menu.id }})
+                                {{ trova_rami(menu.id) }}
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            </section>
+        </div>
+
+        <!-- Pannello laterale destro -->
+        <div class="col-md-3">
+            <div class="panel">
+                <section class="side-section">
+                    <h1>Modifica Menu</h1>
+                    <form method="POST" action="{{ url_for('settings.update_menu') }}">
+                        {% for field in menu_fields %}
+                            <div class="form-group">
+                                <label for="{{ field }}">{{ field|capitalize }}</label>
+                                <input type="text" class="form-control" id="{{ field }}" name="{{ field }}" value="{{ menu[field] if menu else '' }}">
+                            </div>
+                        {% endfor %}
+                        <button type="submit" class="btn btn-primary">Salva</button>
+                    </form>
+                </section> <!-- Contenuto del pannello destro -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

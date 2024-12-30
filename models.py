@@ -13,6 +13,17 @@ class Menu(db.Model):
     is_active = db.Column(db.Boolean, default=True)  # Indica se è visibile
     parent = db.relationship('Menu', remote_side=[id], backref='children')  # Relazione per sottomenu
 
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'weight': self.weight,
+            'parent_id': self.parent_id,
+            'route': self.route,
+            'is_active': self.is_active,
+            'parent': self.parent.name if self.parent else None,
+        }
+
     def __repr__(self):
         return f"<Menu {self.name}>"
 
