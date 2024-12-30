@@ -1,10 +1,10 @@
 {% macro render_menu(menu, is_root=True) %}
     {% set has_children = menu.children and (menu.children | length > 0) %}
 
-    <li class="nav-item {% if has_children %}dropdown{% endif %}">
+    <li class="dropdown-item {% if has_children %}dropdown{% endif %}">
         <a
             href="{{ menu.route or '#' }}"
-            class="{% if is_root %}nav-link-enabled{% endif %} {% if has_children %}dropdown-toggle{% endif %}"
+            class="{% if is_root %}nav-link-enabled {% endif %}dropdown-item"
             id="menu-{{ menu.id }}"
             {% if has_children %}data-bs-toggle="dropdown" aria-expanded="false"{% endif %}
         >

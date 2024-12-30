@@ -90,9 +90,28 @@ def inject_user():
 
 @app.context_processor
 def inject_menus():
-    menus = Menu.query.filter_by(is_active=True).order_by(Menu.weight).all()
-    menu_tree = build_menu_tree(menus)
+    def build_menu_tree(roots, all_menus, user_role_weight):
+        result = []
+        for root in roots:
+            if root.weight <= user_role_weight:
+                children = [m for m in all_menus if m.parent_id == root.id and m.weight <= user_role_weight]
+                children_tree = build_menu_tree(children, all_menus, user_role_weight)
+                result.append({
+                    "id": root.id,
+                    "name": root.name,
+                    "weight": root.weight,
+                    "route": root.route,
+                    "is_active": root.is_active,
+                    "children": children_tree
+                })
+        return result
+
+    user_role_weight = current_user.role.weight if current_user.is_authenticated else 0
+    roots_menu = Menu.query.filter_by(parent_id=None).all()
+    childs_menu = Menu.query.filter(Menu.parent_id.isnot(None)).all()
+    menu_tree = build_menu_tree(roots_menu, childs_menu, user_role_weight)
     return {"menu_tree": menu_tree}
+
 
 
 if __name__ == '__main__':
