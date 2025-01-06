@@ -7,6 +7,9 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      - name: Debug SSH key
+        run: ssh -T ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} -p ${{ secrets.SERVER_PORT }}
+    
       - name: Checkout code
         uses: actions/checkout@v3
 
@@ -22,12 +25,10 @@ jobs:
           pip install -r requirements.txt
 
       - name: Deploy to server
-        uses: appleboy/ssh-action@v0.1.7 # Azione per eseguire comandi SSH sul server
-        with:
-          host: ${{ secrets.SERVER_HOST }} # Indirizzo IP o hostname del server
-          username: ${{ secrets.SERVER_USERNAME }} # Nome utente sul server
-          key: ${{ secrets.SERVER_KEY }} # Chiave SSH privata per accedere al server
-          port: ${{ secrets.SERVER_PORT }} # Porta SSH (default 22)
+        - uses: shimataro/ssh-key-action@v2
+          with:
+          key: ${{ secrets.SERVER_KEY }}
+          known_hosts: 'just-a-placeholder-so-known_hosts-is-not-empty'uses: appleboy/ssh-action@v0.1.7 # Azione per eseguire comandi SSH sul server
           script: |
             cd /home/tecno/ld-flask-app-working # Percorso della tua app sul server
             git pull origin main # Aggiorna il codice dal branch main
