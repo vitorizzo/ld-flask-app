@@ -23,15 +23,10 @@ jobs:
           python -m venv venv
           source venv/bin/activate
           pip install -r requirements.txt
+          sudo systemctl restart ld-flask-app
 
       - name: Deploy to server
         uses: shimataro/ssh-key-action@v2
         with:
-        key: ${{ secrets.SERVER_KEY }}
-        known_hosts: 'just-a-placeholder-so-known_hosts-is-not-empty'
-        script: |
-          cd /home/tecno/ld-flask-app-working # Percorso della tua app sul server
-          git pull origin main # Aggiorna il codice dal branch main
-          source venv/bin/activate # Attiva l'ambiente virtuale
-          pip install -r requirements.txt # Aggiorna le dipendenze
-          sudo systemctl restart ld-flask-app
+          key: ${{ secrets.SERVER_KEY }}
+          known_hosts: 'just-a-placeholder-so-known_hosts-is-not-empty'
