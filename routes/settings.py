@@ -8,16 +8,44 @@ from routes.decorators import role_required
 settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 
 
-@settings_bp.route('/update_menus', methods=['POST'])
+@settings_bp.route('/update_menu', methods=['POST'])
 @login_required
 @role_required('menus')  # Use a string identifier instead
 def update_menu():
-    # Aggiorna i menu
-    for menu in Menu.query.all():
-        menu.weight = request.form.get(f'weight_{menu.id}', 0)
-    db.session.commit()
-    flash('Menu aggiornati con successo!', 'success')
-    return render_template('settings/menus.html', menus=Menu.query.order_by(Menu.weight).all())
+    try:
+        menu_id = request.form.get('menu_id')
+        if not menu_id:
+            return jsonify({'success': False, 'error': 'Menu ID is missing'}), 400
+
+        menu = Menu.query.get(menu_id)
+        if not menu:
+            return jsonify({'success': False, 'error': f'No menu found with ID {menu_id}'}), 404
+
+        # Extract form data
+        name = request.form.get('name')
+        route = request.form.get('route')
+        is_active = request.form.get('is_active') == 'true'
+        weight = request.form.get('weight')
+        parent_id = request.form.get('parent_id')
+
+        # Update the menu in the database
+        menu = Menu.query.get(menu_id)
+        if menu:
+            menu.name = name
+            menu.route = route
+            menu.is_active = is_active
+            menu.weight = weight
+            menu.parent_id = parent_id
+            db.session.commit()
+            # flash('Menu aggiornati con successo!', 'success')
+            # return render_template('settings/menus.html', menus=Menu.query.all())
+            return jsonify({'success': True, 'message': 'Menu updated successfully'})
+        else:
+            return jsonify({'success': False, 'error': f'No menu read with ID {menu_id}'}), 404
+    except Exception as e:
+        db.session.rollback()
+        print(f"Error updating menu: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @settings_bp.route('/menu/<int:menu_id>')
