@@ -1,0 +1,36 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch: # Permette l'esecuzione manuale del workflow
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12' # Sostituisci con la tua versione di Python
+
+      - name: Install dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v0.1.7 # Azione per eseguire comandi SSH sul server
+        with:
+          host: ${{ secrets.SERVER_HOST }} # Indirizzo IP o hostname del server
+          username: ${{ secrets.SERVER_USERNAME }} # Nome utente sul server
+          key: ${{ secrets.SERVER_KEY }} # Chiave SSH privata per accedere al server
+          port: ${{ secrets.SERVER_PORT }} # Porta SSH (default 22)
+          script: |
+            cd /home/tecno/ld-flask-app-working # Percorso della tua app sul server
+            git pull origin main # Aggiorna il codice dal branch main
+            source venv/bin/activate # Attiva l'ambiente virtuale
+            pip install -r requirements.txt # Aggiorna le dipendenze
+            sudo systemctl restart ld-flask-app
