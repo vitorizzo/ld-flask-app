@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+
+{% block title %}Elaborazioni Sconti{% endblock %}
+
+{% block content %}
+<section class="welcome-section">
+    <h1>Elaborazione Sconti</h1>
+    <!-- Combo Box -->
+    <label for="funzione">Seleziona la funzione:</label><br>
+    <select id="funzione" onchange="mostraSezione()">
+        <option value="">-- Seleziona --</option>
+        <option value="sconto-equivalente">Calcolo Sconto Equivalente</option>
+        <option value="sconto-complementare">Calcolo Sconto Complementare</option>
+    </select>
+
+    <!-- Moduli -->
+    <div id="sconto-equivalente" class="form-section">
+        <h3>Sconto Equivalente</h3>
+        <label for="sconti">Inserisci gli sconti separati da virgola:</label><br>
+        <input type="text" id="sconti-equivalente" placeholder="Es: 11,3">
+        <button onclick="calcolaScontoEquivalente()">Calcola</button>
+        <p><h2>Risultato: <span id="risultato-equivalente"></span></h2></p>
+    </div>
+
+    <div id="sconto-complementare" class="form-section">
+        <h3>Sconto Complementare</h3>
+        <label for="sconto-finale">Sconto Finale (%):</label><br>
+        <input type="number" id="sconto-finale"><br><br>
+        <label for="sconti-fissi">Inserisci gli sconti fissi separati da virgola:</label><br>
+        <input type="text" id="sconti-fissi" placeholder="Es: 3,5">
+        <button onclick="calcolaScontoComplementare()">Calcola</button>
+        <p><h2>Risultato: <span id="risultato-complementare"></span></h2></p>
+    </div>
+
+    <script>
+        function mostraSezione() {
+            // Nasconde tutte le sezioni
+            document.querySelectorAll('.form-section').forEach(section => {
+                section.style.display = 'none';
+            });
+            // Mostra la sezione selezionata
+            const selezione = document.getElementById('funzione').value;
+            if (selezione) {
+                document.getElementById(selezione).style.display = 'block';
+            }
+        }
+
+        async function calcolaScontoEquivalente() {
+            const sconti = document.getElementById('sconti-equivalente').value.split(',').map(Number);
+            const response = await fetch('/sconti/calcola-sconto-equivalente', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sconti })
+            });
+            const data = await response.json();
+            document.getElementById('risultato-equivalente').textContent = data.sconto_equivalente + '%';
+        }
+
+        async function calcolaScontoComplementare() {
+            const scontoFinale = Number(document.getElementById('sconto-finale').value);
+            const scontiFissi = document.getElementById('sconti-fissi').value.split(',').map(Number);
+            const response = await fetch('/sconti/calcola-sconto-complementare', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sconto_finale: scontoFinale, sconti_fissi: scontiFissi })
+            });
+            const data = await response.json();
+            document.getElementById('risultato-complementare').textContent = data.sconto_complementare + '%';
+        }
+    </script>
+</section>
+{% endblock %}
