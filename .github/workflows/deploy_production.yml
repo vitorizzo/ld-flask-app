@@ -1,0 +1,45 @@
+name: Deploy to Production
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12' # Replace with your Python version
+
+      - name: Install dependencies
+        run: |
+          python -m venv venv
+          source venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Add SSH key to agent
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SERVER_KEY }}
+          known_hosts: 'just-a-placeholder-so-known_hosts-is-not-empty'
+
+      - name: Debug SSH connection (optional)
+        run: ssh -T ${{ secrets.SERVER_USERNAME }}@${{ secrets.SERVER_HOST }} -p ${{ secrets.SERVER_PORT }}
+
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USERNAME }}
+          port: ${{ secrets.SERVER_PORT }}
+          key: ${{ secrets.SERVER_KEY }}
+          script: |
+            cd /home/***/ld-flask-app-working # Replace with your project path
+            git pull origin main
+            source venv/bin/activate
+            pip install -r requirements.txt
+            sudo systemctl restart ld-flask-app # Replace with your app restart command

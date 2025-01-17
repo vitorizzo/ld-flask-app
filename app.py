@@ -1,5 +1,3 @@
-import json
-import logging
 import os
 
 from dotenv import load_dotenv
@@ -8,9 +6,9 @@ from flask import Flask, render_template
 from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from models import User, Menu, Role
-from pprint import pprint
 from routes.auth import auth_bp
 from routes.settings import settings_bp
+from routes.elaborazioni_sconti import sconti_bp
 from routes.tools import get_user_menu
 
 load_dotenv()
@@ -43,6 +41,7 @@ migrate = Migrate(app, db)
 # Registrazione Blueprint
 app.register_blueprint(auth_bp, url_prefix='/auth')
 app.register_blueprint(settings_bp, url_prefix='/settings')
+app.register_blueprint(sconti_bp, url_prefix='/sconti')
 
 
 def build_menu_tree(menus):
@@ -67,6 +66,7 @@ def build_menu_item(menu, menu_dict):
             item['children'].append(build_menu_item(potential_child, menu_dict))
     item['children'].sort(key=lambda x: x['weight'])
     return item
+
 
 @login_manager.user_loader
 def load_user(user_id):

@@ -11,6 +11,10 @@ body {
     font-family: "Oswald", Helvetica, sans-serif;
 }
 
+.py-4{
+    min-height: 700px;
+}
+
 a {
     color: #fff; /* Rosso principale */
     font-family: "Oswald", Helvetica, sans-serif;
@@ -175,6 +179,9 @@ section {
   width: 100%;
 }
 
+.menu-item.clickable {
+    cursor: pointer;
+}
 
 .welcome-section {
     text-align: center;
@@ -186,6 +193,10 @@ section {
     max-width: 60%;
     max-height: 80%;
     box-shadow: -3px 5px 15px 5px rgba(88,64,31,0.45);
+}
+
+.form-section {
+    display: none;
 }
 
 .central-section {

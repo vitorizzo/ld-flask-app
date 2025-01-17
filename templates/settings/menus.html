@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Accedi{% endblock %}
+{% block title %}LD Enoteca - Gestione Menù{% endblock %}
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/menu_management.js') }}"></script>
@@ -8,11 +8,12 @@
 
 {% block content %}
 
+
 {% macro trova_rami(menu_id) %}
     <ul>
         {% for menu in menus %}
             {% if menu.parent_id == menu_id %}
-            <li class="menu-item">
+            <li class="menu-item clickable">
                 <span class="menu-name">{{ menu.name }}</span> (<span class="menu-id">{{ menu.id }}</span>)
                 {{ trova_rami(menu.id) }}
             </li>
@@ -47,8 +48,8 @@
                 <ul>
                     {% for menu in menus %}
                         {% if menu.parent_id == None %}
-                            <li>
-                                {{ menu.name }} ({{ menu.id }})
+                            <li class="menu-item clickable">
+                                <span class="menu-name">{{ menu.name }}</span> (<span class="menu-id">{{ menu.id }}</span>)
                                 {{ trova_rami(menu.id) }}
                             </li>
                         {% endif %}
@@ -63,13 +64,15 @@
                 <section class="side-section">
                     <h1>Modifica Menu</h1>
                     <form method="POST" action="{{ url_for('settings.update_menu') }}">
+                        <input type="hidden" id="menu_id" name="menu_id">
                         {% for field in menu_fields %}
                             <div class="form-group">
                                 <label for="{{ field }}">{{ field|capitalize }}</label>
                                 <input type="text" class="form-control" id="{{ field }}" name="{{ field }}" value="{{ menu[field] if menu else '' }}">
                             </div>
                         {% endfor %}
-                        <button type="submit" class="btn btn-primary">Salva</button>
+                        <button type="submit" class="btn-enabled-custom">Salva</button>
+                        <button type="button" class="btn-enabled-custom" id="cancelButton">Annulla</button>
                     </form>
                 </section> <!-- Contenuto del pannello destro -->
             </div>
