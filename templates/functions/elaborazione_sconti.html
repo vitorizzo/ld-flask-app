@@ -11,15 +11,51 @@
         <option value="">-- Seleziona --</option>
         <option value="sconto-equivalente">Calcolo Sconto Equivalente</option>
         <option value="sconto-complementare">Calcolo Sconto Complementare</option>
+        <option value="sconto-combinazioni">Calcolo Sconto Combinazioni</option>
+        <option value="sconto-merce">Imputazione Sconto in Merce</option>
     </select>
 
     <!-- Moduli -->
+    <div id="sconto-combinazioni" class="form-section">
+        <h3>Sconto Combinazioni</h3>
+        <h4>Casi comuni</h4>
+        <table border="1" style="width: 50%; text-align: center; margin-top: 20px;">
+            <thead>
+                <tr>
+                    <th>Pezzi Acquistati</th>
+                    <th>Pezzi Omaggio</th>
+                    <th>Sconto (%)</th>
+                </tr>
+            </thead>
+            <tbody id="tabella-casi-comuni">
+                <!-- Le righe saranno generate dinamicamente -->
+            </tbody>
+        </table>
+        <h4>Combinazione Personalizzata</h4>
+        <label for="acquistati">Inserisci i pezzi acquistati:</label><br>
+        <input type="text" id="acquistati"><br><br>
+        <label for="omaggio">Inserisci i pezzi in omaggio:</label><br>
+        <input type="text" id="omaggio"><br>
+        <button onclick="calcolaScontoCombinazione()">Calcola</button>
+        <br><h2>Risultato: <span id="risultato-combinazione"></span></h2>
+    </div>
+
+    <div id="sconto-merce" class="form-section">
+        <h3>Imputazione Sconto in Merce</h3>
+        <label for="merce_acquistata">Inserisci la merce acquistata: (Qta1:Val1; Qta2:Val2; ...)</label><br>
+        <input type="text" id="merce_acquistata" placeholder="es: 10:1.00; 2:2.00"><br><br>
+        <label for="merce_omaggio">Inserisci la merce omaggio: (Qta1:Val1; Qta2:Val2; ...)</label><br>
+        <input type="text" id="merce_omaggio" placeholder="es: 10:1.00; 2:2.00"><br>
+        <button onclick="calcolaScontoMerce()">Calcola</button>
+        <br><h2>Risultato: <span id="risultato-sconto-merce"></span></h2>
+    </div>
+
     <div id="sconto-equivalente" class="form-section">
         <h3>Sconto Equivalente</h3>
-        <label for="sconti">Inserisci gli sconti separati da virgola:</label><br>
+        <label for="sconti-equivalente">Inserisci gli sconti separati da virgola:</label><br>
         <input type="text" id="sconti-equivalente" placeholder="Es: 11,3">
         <button onclick="calcolaScontoEquivalente()">Calcola</button>
-        <p><h2>Risultato: <span id="risultato-equivalente"></span></h2></p>
+        <br><h2>Risultato: <span id="risultato-equivalente"></span></h2>
     </div>
 
     <div id="sconto-complementare" class="form-section">
@@ -29,10 +65,52 @@
         <label for="sconti-fissi">Inserisci gli sconti fissi separati da virgola:</label><br>
         <input type="text" id="sconti-fissi" placeholder="Es: 3,5">
         <button onclick="calcolaScontoComplementare()">Calcola</button>
-        <p><h2>Risultato: <span id="risultato-complementare"></span></h2></p>
+        <br><h2>Risultato: <span id="risultato-complementare"></span></h2>
     </div>
 
     <script>
+
+        // Casi comuni (array di oggetti)
+        const casiComuni = [
+            { acquistati: 1, omaggio: 1, sconto: '50.00%' },
+            { acquistati: 2, omaggio: 1, sconto: '33.33%' },
+            { acquistati: 3, omaggio: 1, sconto: '25.00%' },
+            { acquistati: 10, omaggio: 3, sconto: '23.08%' },
+            { acquistati: 4, omaggio: 1, sconto: '20.00%' },
+            { acquistati: 5, omaggio: 1, sconto: '16.67%' },
+            { acquistati: 10, omaggio: 1, sconto: '9.09%' },
+            { acquistati: 11, omaggio: 1, sconto: '8.33%' }
+        ];
+
+        // Funzione per generare dinamicamente la tabella
+        function popolaTabellaCasiComuni() {
+            const tbody = document.getElementById('tabella-casi-comuni'); // Trova il corpo della tabella
+            tbody.innerHTML = ''; // Pulisci la tabella esistente
+
+            // Genera le righe della tabella
+            casiComuni.forEach(caso => {
+                const row = document.createElement('tr');
+
+                // Crea celle per ogni proprietà
+                const cellAcquistati = document.createElement('td');
+                cellAcquistati.textContent = caso.acquistati;
+
+                const cellOmaggio = document.createElement('td');
+                cellOmaggio.textContent = caso.omaggio;
+
+                const cellSconto = document.createElement('td');
+                cellSconto.textContent = caso.sconto;
+
+                // Aggiungi le celle alla riga
+                row.appendChild(cellAcquistati);
+                row.appendChild(cellOmaggio);
+                row.appendChild(cellSconto);
+
+                // Aggiungi la riga al corpo della tabella
+                tbody.appendChild(row);
+            });
+        }
+
         function mostraSezione() {
             // Nasconde tutte le sezioni
             document.querySelectorAll('.form-section').forEach(section => {
@@ -44,6 +122,52 @@
                 document.getElementById(selezione).style.display = 'block';
             }
         }
+
+        async function calcolaScontoCombinazione() {
+            const acquistati = document.getElementById('acquistati').value;
+            const omaggio = document.getElementById('omaggio').value;
+            try {
+                const response = await fetch('/sconti/calcola-sconto-combinazioni', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ acquistati: Number(acquistati), omaggio: Number(omaggio) }) // Converti in numeri
+                });
+
+                if (!response.ok) {
+                    throw new Error('Errore nella risposta del server');
+                }
+
+                const data = await response.json();
+                document.getElementById('risultato-combinazione').textContent = data.sconto_combinazione + '%';
+            } catch (error) {
+                console.error('Errore:', error);
+            }
+        }
+
+        async function calcolaScontoMerce() {
+            const merce_acquistata = document.getElementById('merce_acquistata').value.split(';');
+            const merce_omaggio = document.getElementById('merce_omaggio').value.split(';');
+            const val_acquisto = calcolaValore(merce_acquistata);
+            const val_omaggio = calcolaValore(merce_omaggio);
+            response = await fetch('/sconti/calcola-sconto-merce', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ val_acquisto: val_acquisto, val_omaggio: val_omaggio })
+            });
+            const data = await response.json();
+            document.getElementById('risultato-sconto-merce').textContent = data.sconto_merce + '%';
+        }
+
+        function calcolaValore(valori) {
+            let val_totale = 0.0; // Valore totale
+            for (let val of valori) { // Itera sui valori
+                if (val.trim() === '') continue; // Salta valori vuoti
+                const [qta_x, val_x] = val.split(':').map(Number); // Dividi e converte in numeri
+                val_totale += qta_x * val_x;
+            }
+            return val_totale;
+        }
+
 
         async function calcolaScontoEquivalente() {
             const sconti = document.getElementById('sconti-equivalente').value.split(',').map(Number);
@@ -67,6 +191,10 @@
             const data = await response.json();
             document.getElementById('risultato-complementare').textContent = data.sconto_complementare + '%';
         }
+
+        // Popola la tabella al caricamento della pagina
+        document.addEventListener('DOMContentLoaded', popolaTabellaCasiComuni);
+
     </script>
 </section>
 {% endblock %}

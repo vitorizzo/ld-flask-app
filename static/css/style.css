@@ -195,8 +195,30 @@ section {
     box-shadow: -3px 5px 15px 5px rgba(88,64,31,0.45);
 }
 
+.form-section table {
+    margin: 0 auto; /* Centra la tabella orizzontalmente */
+    box-shadow: -3px 5px 15px 5px rgba(88,64,31,0.45);
+}
+
 .form-section {
     display: none;
+}
+
+table {
+    border-collapse: collapse;
+    width: 60%;
+    margin: 20px auto;
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+th {
+    background-color: #f4f4f4;
+    color: #4A2C2A;
+    font-weight: bold;
 }
 
 .central-section {
