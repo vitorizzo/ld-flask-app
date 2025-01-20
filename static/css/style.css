@@ -70,6 +70,7 @@ section {
  *      Apertura SOLO on hover: .dropdown:hover > .dropdown-menu { ... }
  ****************************************************************************/
 .dropdown {
+  background: #4A2C2A;
   position: relative; /* Importante per posizionare il .dropdown-menu */
   text-align: left;
 }
@@ -88,6 +89,7 @@ section {
 
 /* Elementi di lista/link nel menu */
 .dropdown-item {
+  background: #4A2C2A;
   font-family: "Oswald", Helvetica, sans-serif;
   color: #fff;
   padding: 10px 15px;
