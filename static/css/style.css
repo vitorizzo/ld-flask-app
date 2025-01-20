@@ -153,32 +153,35 @@ section {
 }
 
 /* Effetto hover con bordi animati per i link abilitati */
-.navbar-nav .nav-link-enabled::before,
-.navbar-nav .nav-link-enabled::after {
-  content: '';
-  position: absolute;
-  height: 2px;
-  width: 0;
-  background-color: #CD1520;
-  transition: width 0.5s ease;
-}
+@media screen and (min-width: 768px){
+    .navbar-nav .nav-link-enabled::before,
+    .navbar-nav .nav-link-enabled::after {
+      content: '';
+      position: absolute;
+      height: 2px;
+      width: 0;
+      background-color: #CD1520;
+      transition: width 0.5s ease;
+    }
 
-/* Bordo superiore */
-.navbar-nav .nav-link-enabled::before {
-  top: 0;
-  left: 0;
-}
 
-/* Bordo inferiore */
-.navbar-nav .nav-link-enabled::after {
-  bottom: 0;
-  left: 0;
-}
+    /* Bordo superiore */
+    .navbar-nav .nav-link-enabled::before {
+      top: 0;
+      left: 0;
+    }
 
-/* In hover: i bordi si espandono */
-.navbar-nav .nav-link-enabled:hover::before,
-.navbar-nav .nav-link-enabled:hover::after {
-  width: 100%;
+    /* Bordo inferiore */
+    .navbar-nav .nav-link-enabled::after {
+      bottom: 0;
+      left: 0;
+    }
+
+    /* In hover: i bordi si espandono */
+    .navbar-nav .nav-link-enabled:hover::before,
+    .navbar-nav .nav-link-enabled:hover::after {
+      width: 100%;
+    }
 }
 
 .menu-item.clickable {
