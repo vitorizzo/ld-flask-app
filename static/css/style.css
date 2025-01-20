@@ -128,6 +128,11 @@ section {
   text-align: left;
 }
 
+@media screen and (max-width: 768px) {
+.dropdown-item {padding: 0!important;}
+
+}
+
 /* LINK abilitati (stile generico) */
 .navbar-nav .nav-link-enabled {
   color: #fff;
