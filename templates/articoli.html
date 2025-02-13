@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+
+{% block title %}LD Enoteca - Home{% endblock %}
+
+{% block content %}
+<section class="welcome-section">
+    <h1>Benvenuto sul Pannello dei Servizi di <br>LD Enoteca</h1>
+    <p>
+        Qui puoi accedere a servizi esclusivi come la gestione del profilo, schede prodotto, offerte speciali e calendario eventi.
+        Registrati o effettua il login per vivere un'esperienza completa!
+    </p>
+    <div class="d-flex justify-content-center flex-wrap">
+        <button class="btn btn-enabled-custom">Ricerca Prezzi</button>
+        <button class="btn btn-disabled-custom">Calendario Eventi</button>
+        <button class="btn btn-disabled-custom">Schede Prodotti</button>
+        <button class="btn btn-disabled-custom">Offerte Esclusive</button>
+    </div>
+</section>
+{% endblock %}

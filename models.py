@@ -28,6 +28,26 @@ class Menu(db.Model):
         return f"<Menu {self.name}>"
 
 
+class Articoli(db.Model):
+    cod_art = db.Column(db.String(255), primary_key=True)
+    descrizione = db.Column(db.String(255))
+    descrizione_aggiuntiva = db.Column(db.Text)
+    prezzo = db.Column(db.Numeric)
+    giacenza = db.Column(db.Integer)
+
+    def to_dict(self):
+        return {
+            'cod_art': self.cod_art,
+            'descrizione': self.descrizione,
+            'descrizione_aggiuntiva': self.descrizione_aggiuntiva,
+            'prezzo': self.prezzo,
+            'giacenza': self.giacenza,
+        }
+
+    def __repr__(self):
+        return f"<Articoli {self.cod_art}>"
+
+
 class Role(db.Model):
     __tablename__ = 'roles'
     id = db.Column(db.Integer, primary_key=True)
@@ -49,8 +69,8 @@ class User(db.Model, UserMixin):
     sex = db.Column(db.Integer, default=0)  # 0 = neutro, 1 = maschio, 2 = femmina
     foto_profilo = db.Column(db.String(255), nullable=True)  # Percorso foto profilo
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now())
+    updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now())
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False, default=1)  # Ruolo predefinito
     role = db.relationship('Role', backref='users')  # Relazione con Role
 

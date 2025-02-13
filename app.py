@@ -5,18 +5,27 @@ from extensions import db  # Importa db da extensions.py
 from flask import Flask, render_template
 from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
-from models import User, Menu, Role
+from models import User, Menu
 from routes.auth import auth_bp
 from routes.settings import settings_bp
 from routes.elaborazioni_sconti import sconti_bp
+from routes.articoli import articoli_bp
 from routes.tools import get_user_menu
+from routes.esportazioni_teamsystem import file_bp
 
-load_dotenv()
+# Carica prima `.env`, poi `.env.local` (se esiste), poi `.env.default`
+load_dotenv(".env")
+load_dotenv(".env.local", override=True)
+load_dotenv(".env.default", override=False)
+
+FLASK_ENV = os.getenv("FLASK_ENV", "production")
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'fallback_key')
 
-UPLOAD_FOLDER = os.path.join(os.getcwd(), 'ld-flask-app', 'static', 'uploads').replace("\\", "/")
+EXPORT_FOLDER = os.getenv("EXPORT_FOLDER")
+EXPORT_FOLDER_URL = os.getenv("EXPORT_FOLDER_URL")
+UPLOAD_FOLDER = os.path.normpath(os.path.join(os.getcwd(), 'ld-flask-app', 'static', 'uploads'))
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)  # Crea la cartella principale se non esiste
 
@@ -42,6 +51,8 @@ migrate = Migrate(app, db)
 app.register_blueprint(auth_bp, url_prefix='/auth')
 app.register_blueprint(settings_bp, url_prefix='/settings')
 app.register_blueprint(sconti_bp, url_prefix='/sconti')
+app.register_blueprint(articoli_bp, url_prefix='/articoli')
+app.register_blueprint(file_bp, url_prefix='/exported')
 
 
 def build_menu_tree(menus):
@@ -88,6 +99,7 @@ def inject_user_menu():
 def inject_user():
     return {'current_user': current_user}
 
+
 @app.context_processor
 def inject_menus():
     def build_menu_tree(roots, all_menus, user_role_weight):
@@ -111,7 +123,6 @@ def inject_menus():
     childs_menu = Menu.query.filter(Menu.parent_id.isnot(None)).all()
     menu_tree = build_menu_tree(roots_menu, childs_menu, user_role_weight)
     return {"menu_tree": menu_tree}
-
 
 
 if __name__ == '__main__':

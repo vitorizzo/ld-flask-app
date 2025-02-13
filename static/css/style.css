@@ -102,8 +102,9 @@ section {
 
 /* Submenu di secondo livello: .dropdown-menu annidato dentro un altro .dropdown-menu */
 .dropdown-menu .dropdown-menu {
-  top: 0;
+  top: 0%;
   left: 100%;
+  padding: 0;
   display: none; /* Rimane nascosto finché non si hovera il suo .dropdown-genitore */
 }
 
@@ -131,6 +132,10 @@ section {
 @media screen and (max-width: 768px) {
 .dropdown-item {padding: 0!important;}
 
+}
+
+.navbar-collapse {
+    background: #4A2C2A;
 }
 
 /* LINK abilitati (stile generico) */
@@ -293,6 +298,35 @@ h1,h2,h3,h4{
     background-color: transparent;
     color: #a1a1a1;
 }
+
+    #status-bar {
+        position: fixed;
+        bottom: 0;
+        width: 100%;
+        background-color: #f8f9fa;
+        border-top: 1px solid #dee2e6;
+        padding: 5px;
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+    }
+
+    #progress-container {
+        position: relative;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    #progress-bar {
+        width: 200px;
+        height: 10px;
+    }
+
+    #progress-label {
+        font-size: 0.9em;
+        color: #495057;
+    }
 
 .footer {
     text-align: center;
