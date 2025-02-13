@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, g
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
 from flask_login import current_user, login_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -8,7 +8,6 @@ from models import User
 import os
 from PIL import Image
 import shutil
-from routes.decorators import role_required
 
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -101,7 +100,7 @@ def edit_profile():
 def upload_photo():
     if request.method == 'POST':
         file = request.files.get('photo')
-        print ( f"File: {file}")
+        print(f"File: {file}")
         if file and allowed_file(file.filename):
             # Percorso della cartella base
             base_upload_folder = current_app.config['UPLOAD_FOLDER']
@@ -113,10 +112,10 @@ def upload_photo():
 
             # Crea la cartella dell'utente se non esiste
             if not os.path.exists(user_folder):
-                print (f"la directory {user_folder} non esiste: procedo con la creazione!")
+                print(f"la directory {user_folder} non esiste: procedo con la creazione!")
                 os.makedirs(user_folder)
             else:
-                print (f"la directory {user_folder} esiste!")
+                print(f"la directory {user_folder} esiste!")
 
             # Salva l'immagine con nome incrementale
             filename = secure_filename(f"profile_{len(os.listdir(user_folder)) + 1}.jpg")
