@@ -38,3 +38,8 @@ def serve_risorsa(filename):
 
     print("❌ File non trovato né in locale né su remoto!")
     abort(404)
+
+
+    @file_bp.route('/test/<filename>')
+    def get_exported_file(filename):
+        return send_from_directory(current_app.config('EXPORT_FOLDER'), filename)
