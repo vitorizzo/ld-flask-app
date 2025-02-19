@@ -25,7 +25,7 @@ def serve_risorsa(filename):
     if os.path.exists(local_file_path):
         message = f"File trovato in locale: {local_file_path}"
     elif os.path.exists(local_folder):
-        message = f"❌ File non trovato localmente. 📡 Tentativo di download da: {remote_file_url}"
+        message = f"❌ File non trovato localmente in {local_file_path}. 📡 Tentativo di download da: {remote_file_url}"
         try:
             response = requests.get(remote_file_url, stream=True)
             response.raise_for_status()  # Se il download fallisce, genera un'eccezione
