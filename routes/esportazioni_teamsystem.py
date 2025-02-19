@@ -16,16 +16,17 @@ ESTRAZIONI_FOLDER = "/dati/discorete/estrazioni"
 def serve_risorsa(filename):
     """Serve il file dal percorso locale o lo scarica dal server se non presente."""
 
-    local_file_path = os.path.join(current_app.config('EXPORT_FOLDER'), filename)
+    local_file_path = os.path.join(current_app.config['EXPORT_FOLDER'], filename)
+    print(f"DEBUG: local_file_path = {local_file_path}")
 
-    if current_app.config('EXPORT_FOLDER') and os.path.exists(local_file_path):
+    if current_app.config['EXPORT_FOLDER'] and os.path.exists(local_file_path):
         # 📂 Serve il file locale se esiste
         print(f"📂 Servendo file locale: {local_file_path}")  # Debug
-        return send_from_directory(current_app.config('EXPORT_FOLDER'), filename)
+        return send_from_directory(current_app.config['EXPORT_FOLDER'], filename)
 
-    elif current_app.config('EXPORT_FOLDER_URL'):
+    elif current_app.config['EXPORT_FOLDER_URL']:
         # 📡 Scarica il file da remoto se non trovato in locale
-        remote_file_url = current_app.config('EXPORT_FOLDER_URL') + filename
+        remote_file_url = current_app.config['EXPORT_FOLDER_URL'] + filename
         print(f"📡 Scaricando file da remoto: {remote_file_url}")  # Debug
 
         try:
@@ -42,4 +43,4 @@ def serve_risorsa(filename):
 
     @file_bp.route('/test/<filename>')
     def get_exported_file(filename):
-        return send_from_directory(current_app.config('EXPORT_FOLDER'), filename)
+        return send_from_directory(current_app.config['EXPORT_FOLDER'], filename)

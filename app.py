@@ -1,6 +1,6 @@
 import os
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
 from extensions import db  # Importa db da extensions.py
 from flask import Flask, render_template
 from flask_login import LoginManager, current_user
@@ -13,10 +13,20 @@ from routes.articoli import articoli_bp
 from routes.tools import get_user_menu
 from routes.esportazioni_teamsystem import file_bp
 
+dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
+dotenvlocal_path = os.path.join(os.path.dirname(__file__), ".env.local")
+dotenvdefaults_path = os.path.join(os.path.dirname(__file__), ".env.defaults")
+print("DEBUG: Cerco di caricare il file:", dotenv_path)
+
 # Carica prima `.env`, poi `.env.local` (se esiste), poi `.env.default`
-load_dotenv(".env")
-load_dotenv(".env.local", override=True)
-load_dotenv(".env.default", override=False)
+load_dotenv(dotenv_path, override=False)
+load_dotenv(dotenvlocal_path, override=True)
+load_dotenv(dotenvdefaults_path, override=False)
+
+# Carica le variabili di ambiente
+print("DEBUG: DATABASE_URL =", os.getenv("DATABASE_URL"))
+print("DEBUG: SECRET_KEY =", os.getenv("SECRET_KEY"))
+print("DEBUG: FLASK_ENV =", os.getenv("FLASK_ENV"))
 
 FLASK_ENV = os.getenv("FLASK_ENV", "production")
 
@@ -29,6 +39,8 @@ UPLOAD_FOLDER = os.path.normpath(os.path.join(os.getcwd(), 'ld-flask-app', 'stat
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)  # Crea la cartella principale se non esiste
 
+app.config['EXPORT_FOLDER'] = EXPORT_FOLDER
+app.config['EXPORT_FOLDER_URL'] = EXPORT_FOLDER_URL
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Configurazione del Login Manager
