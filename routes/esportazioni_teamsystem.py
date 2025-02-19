@@ -1,4 +1,4 @@
-from flask import Blueprint, send_from_directory, abort, current_app, Response
+from flask import Blueprint, send_from_directory, abort, current_app, Response, render_template
 from routes.decorators import role_required
 from flask_login import login_required
 import requests
@@ -15,32 +15,49 @@ ESTRAZIONI_FOLDER = "/dati/discorete/estrazioni"
 @role_required(100)
 def serve_risorsa(filename):
     """Serve il file dal percorso locale o lo scarica dal server se non presente."""
-
-    local_file_path = os.path.join(current_app.config['EXPORT_FOLDER'], filename)
+    local_folder = current_app.config['EXPORT_FOLDER']
+    local_file_path = os.path.join(local_folder, filename)
+    remote_file_url = current_app.config['EXPORT_FOLDER_URL'] + filename
+    message = ""
     print(f"DEBUG: local_file_path = {local_file_path}")
-
-    if current_app.config['EXPORT_FOLDER'] and os.path.exists(local_file_path):
-        # 📂 Serve il file locale se esiste
-        print(f"📂 Servendo file locale: {local_file_path}")  # Debug
-        return send_from_directory(current_app.config['EXPORT_FOLDER'], filename)
-
-    elif current_app.config['EXPORT_FOLDER_URL']:
-        # 📡 Scarica il file da remoto se non trovato in locale
-        remote_file_url = current_app.config['EXPORT_FOLDER_URL'] + filename
-        print(f"📡 Scaricando file da remoto: {remote_file_url}")  # Debug
-
+    if os.path.exists(local_file_path):
+        message = f"File trovato in locale: {local_file_path}"
+    elif os.path.exists(local_folder):
+        message = f"❌ File non trovato localmente. 📡 Tentativo di download da: {remote_file_url}"
         try:
             response = requests.get(remote_file_url, stream=True)
-            response.raise_for_status()
-            return Response(response.content, content_type="text/csv")
+            response.raise_for_status()  # Se il download fallisce, genera un'eccezione
+
+            # 📌 **Salva il file scaricato nella cartella locale**
+            with open(local_file_path, 'wb') as file:
+                for chunk in response.iter_content(chunk_size=8192):
+                    file.write(chunk)
+
+            message += f"\n ✅ File scaricato e salvato in: {local_file_path}"
+
         except requests.exceptions.RequestException as e:
-            print(f"❌ Errore nel download del file: {e}")
-            abort(404)
+            message += f"\n ❌ Errore nel download del file: {e}"
+            return render_template('test.html', message=message)
+    else:
+        message = "\n ❌ La cartella di esportazione non esiste. Procedo alla creazione."
+        os.makedirs(local_folder, exist_ok=True)
+        message += f"\n 📁 Cartella creata: {local_folder}\n"
+        try:
+            response = requests.get(remote_file_url, stream=True)
+            response.raise_for_status()  # Se il download fallisce, genera un'eccezione
 
-    print("❌ File non trovato né in locale né su remoto!")
-    abort(404)
+            # 📌 **Salva il file scaricato nella cartella locale**
+            with open(local_file_path, 'wb') as file:
+                for chunk in response.iter_content(chunk_size=8192):
+                    file.write(chunk)
 
+            message += f"\n ✅ File scaricato e salvato in: {local_file_path}"
 
-    @file_bp.route('/test/<filename>')
-    def get_exported_file(filename):
-        return send_from_directory(current_app.config['EXPORT_FOLDER'], filename)
+        except requests.exceptions.RequestException as e:
+            message += f"\n ❌ Errore nel download del file: {e}"
+            return render_template('test.html', message=message)
+    return render_template('test.html', message=message)
+
+@file_bp.route('/test/<filename>')
+def get_exported_file(filename):
+    return send_from_directory(current_app.config['EXPORT_FOLDER'], filename)
