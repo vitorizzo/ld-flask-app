@@ -17,7 +17,8 @@ def serve_risorsa(filename):
     """Serve il file dal percorso locale o lo scarica dal server se non presente."""
     local_folder = current_app.config['EXPORT_FOLDER']
     local_file_path = os.path.join(local_folder, filename)
-    remote_file_url = current_app.config['EXPORT_FOLDER_URL'] + "\\" + filename
+    remote_file_url = current_app.config['EXPORT_FOLDER_URL'].rstrip('/') + '/' + filename
+
     message = ""
     print(f"DEBUG: local_file_path = {local_file_path}")
     if os.path.exists(local_file_path):
