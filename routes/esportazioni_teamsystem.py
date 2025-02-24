@@ -127,10 +127,19 @@ def serve_risorsa(filename):
     else:
         # Scarica il file remoto
         print(f"restituisco il file remoto: {remote_file_url}")
-        response = requests.get(remote_file_url)
+        response = requests.get(remote_file_url, stream=True)
         pprint(response.content)
         if response.status_code != 200:
             return f"Errore: impossibile scaricare il file {remote_file_url}", 404
+            # Debug: Stampiamo cosa restituisce il server
+        print(f"DEBUG: HTTP Status Code: {response.status_code}")
+        print(f"DEBUG: Content-Type: {response.headers.get('Content-Type', 'N/A')}")
+        print(f"DEBUG: Risposta ricevuta (primi 500 caratteri):\n{response.text[:500]}")
+
+        # Se la risposta è solo un percorso e non il contenuto, allora il file non viene servito direttamente
+        if response.text.strip().startswith("/") and ".CSV" in response.text.upper():
+            print("❌ Il server sta restituendo solo il percorso, non il file. Devi scaricarlo manualmente.")
+            raise ValueError("Il server ha restituito solo il percorso, non il file. Modifica la richiesta.")
 
         # Verifica se il contenuto è veramente un CSV
         # content_type = response.headers.get("Content-Type", "")
@@ -139,13 +148,14 @@ def serve_risorsa(filename):
         #    print(response.text[:500])  # Mostra il contenuto della risposta
         #    raise ValueError("Il server ha restituito una pagina HTML invece del file CSV.")
 
-        # Salva il file temporaneamente
-        temp_file = tempfile.NamedTemporaryFile(delete=False)
-        temp_file.write(response.content)
-        temp_file.close()
-        print(f"restituisco il file remoto: {temp_file.name}")
-        # Invia il file al client
-        return temp_file.name
+        # ✅ Se il contenuto è corretto, salviamo il file
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".csv", mode='wb') as temp_file:
+            for chunk in response.iter_content(chunk_size=8192):
+                temp_file.write(chunk)
+            temp_file_path = temp_file.name
+
+        print(f"✅ File scaricato correttamente in: {temp_file_path}")
+        return temp_file_path
 
 
 @file_bp.route('/get/<filename>')
