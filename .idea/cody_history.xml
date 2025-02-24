@@ -1941,6 +1941,9 @@
                   </llm>
                 </llm>
               </chat>
+              <chat>
+                <internalId value="0e5332b8-12a6-4e09-b482-592597531d07" />
+              </chat>
             </list>
           </chats>
           <defaultLlm>
