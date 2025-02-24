@@ -1,12 +1,14 @@
 import csv
+import os
 
-from flask import request, flash, render_template, Blueprint, jsonify
+from flask import request, flash, render_template, Blueprint, jsonify, current_app
 from flask_login import login_required
 from flask_socketio import emit
 
 from extensions import db
 from models import Menu, Role, Articoli
 from routes.decorators import role_required
+from routes.esportazioni_teamsystem import serve_risorsa
 
 
 settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
@@ -86,10 +88,13 @@ def clean_text(text):
 
 
 @settings_bp.route('/import_articoli', methods=['GET', 'POST'])
-@login_required
+# @login_required
 @role_required(100)
 def import_articoli():
-    file_csv = r"C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\esportazioni\articoli.csv"
+    print("Importazione articoli avviata...")
+#    file_csv = r"C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\esportazioni\articoli.csv"
+    file_csv = serve_risorsa("ARTICOLI.CSV")
+    print(f"File CSV: {file_csv}")
     try:
         with open(file_csv, 'r', encoding='utf-8', errors='ignore') as csvfile:
             reader = list(csv.reader(csvfile, delimiter='\t'))  # Converti il reader in lista per calcolare il progresso
