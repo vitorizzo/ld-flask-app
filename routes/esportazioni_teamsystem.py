@@ -123,7 +123,7 @@ def serve_risorsa(filename):
 
     if os.path.exists(local_file_path):
         print(f"restituisco il file locale: {local_file_path}")
-        return local_file_path
+        return get_exported_file(filename)
     else:
         # Scarica il file remoto
         print(f"restituisco il file remoto: {remote_file_url}")
