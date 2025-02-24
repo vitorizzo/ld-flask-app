@@ -133,11 +133,11 @@ def serve_risorsa(filename):
             return f"Errore: impossibile scaricare il file {remote_file_url}", 404
 
         # Verifica se il contenuto è veramente un CSV
-        content_type = response.headers.get("Content-Type", "")
-        if "text/html" in content_type:
-            print("❌ Errore: il server ha restituito una pagina HTML invece del file CSV!")
-            print(response.text[:500])  # Mostra il contenuto della risposta
-            raise ValueError("Il server ha restituito una pagina HTML invece del file CSV.")
+        # content_type = response.headers.get("Content-Type", "")
+        # if "text/html" in content_type:
+        #    print("❌ Errore: il server ha restituito una pagina HTML invece del file CSV!")
+        #    print(response.text[:500])  # Mostra il contenuto della risposta
+        #    raise ValueError("Il server ha restituito una pagina HTML invece del file CSV.")
 
         # Salva il file temporaneamente
         temp_file = tempfile.NamedTemporaryFile(delete=False)
