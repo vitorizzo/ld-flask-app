@@ -1948,15 +1948,16 @@
           </chats>
           <defaultLlm>
             <llm>
-              <model value="google/gemini-1.5-pro-latest" />
-              <provider value="Google" />
+              <model value="ollama/llama3.1:latest" />
+              <provider value="Ollama" />
               <tags>
                 <list>
-                  <option value="gateway" />
-                  <option value="accuracy" />
+                  <option value="local" />
+                  <option value="ollama" />
+                  <option value="experimental" />
                 </list>
               </tags>
-              <title value="Gemini 1.5 Pro" />
+              <title value="llama3.1:latest" />
               <usage>
                 <list>
                   <option value="chat" />

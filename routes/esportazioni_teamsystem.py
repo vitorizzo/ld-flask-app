@@ -1,5 +1,6 @@
 import tempfile
 
+from pprint import pprint
 from flask import Blueprint, send_from_directory, current_app, render_template, send_file
 from routes.decorators import role_required
 from flask_login import login_required
@@ -127,6 +128,7 @@ def serve_risorsa(filename):
         # Scarica il file remoto
         print(f"restituisco il file remoto: {remote_file_url}")
         response = requests.get(remote_file_url)
+        pprint(response.content)
         if response.status_code != 200:
             return f"Errore: impossibile scaricare il file {remote_file_url}", 404
 
