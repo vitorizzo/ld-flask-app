@@ -13,9 +13,9 @@ file_bp = Blueprint("file_bp", __name__)
 ESTRAZIONI_FOLDER = "/dati/discorete/estrazioni"
 
 
-@file_bp.route("/<filename>")
-@login_required
-@role_required(100)
+#@file_bp.route("/<filename>")
+#@login_required
+#@role_required(100)
 def get_risorsa(filename):
     """Serve il file dal percorso locale o lo scarica dal server se non presente."""
     local_folder = current_app.config['EXPORT_FOLDER']
