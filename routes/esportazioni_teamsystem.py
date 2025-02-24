@@ -111,7 +111,7 @@ def test_risorsa(filename):
     return render_template('test.html', message=message)
 
 @file_bp.route("/<filename>")
-@login_required
+# @login_required
 @role_required(100)
 def serve_risorsa(filename):
     """Serve il file dal percorso locale o lo scarica dal server se non presente."""
