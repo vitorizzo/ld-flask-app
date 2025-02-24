@@ -129,8 +129,8 @@ def serve_risorsa(filename):
         print(f"restituisco il file remoto: {remote_file_url}")
         response = requests.get(remote_file_url, stream=True)
         pprint(response.content)
-        if response.status_code != 200:
-            return f"Errore: impossibile scaricare il file {remote_file_url}", 404
+        #if response.status_code != 200:
+        #    return f"Errore: impossibile scaricare il file {remote_file_url}", 404
             # Debug: Stampiamo cosa restituisce il server
         print(f"DEBUG: HTTP Status Code: {response.status_code}")
         print(f"DEBUG: Content-Type: {response.headers.get('Content-Type', 'N/A')}")
