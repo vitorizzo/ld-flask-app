@@ -29,8 +29,7 @@
 <div id="scanner-modal" class="modal" style="display:none;">
   <div class="modal-content">
     <span id="close-scanner" class="close">&times;</span>
-    <div id="video-container">
-      <video id="scanner-video" autoplay></video>
+    <div id="video-container" style="position: relative">
       <!-- Overlay per evidenziare l'area di scansione -->
       <div id="scanner-overlay"></div>
     </div>
@@ -110,13 +109,13 @@ document.addEventListener("DOMContentLoaded", function() {
         target: document.querySelector('#video-container'),
         constraints: {
           facingMode: "environment"
-        },
+        }
       },
       decoder: {
-        readers: ["ean_reader", "code_128_reader", "qr_reader"] // Aggiungi i decoder necessari
+        readers: ["ean_reader", "code_128_reader", "qr_reader"]
       },
-      locate: true // Aiuta a individuare il codice nell'immagine
-    }, function(err) {
+      locate: true
+    }, function (err) {
       if (err) {
         console.error(err);
         alert("Errore nell'avvio dello scanner.");
@@ -124,7 +123,6 @@ document.addEventListener("DOMContentLoaded", function() {
       }
       Quagga.start();
     });
-
     // Evento per rilevare il codice scansionato
     Quagga.onDetected(function(data) {
       var code = data.codeResult.code;
@@ -169,22 +167,30 @@ document.addEventListener("DOMContentLoaded", function() {
   color: #fff;
   cursor: pointer;
 }
+
 #video-container {
   position: relative;
-}
-#scanner-video {
   width: 100%;
-  height: auto;
+  max-width: 400px;  /* Larghezza massima */
+  height: 600px;     /* Altezza fissa (esempio) */
+  margin: 0 auto;
+  overflow: hidden;
 }
-/* Overlay per evidenziare l'area di scansione */
+
+#video-container video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Riempi il container ritagliando l'eccesso */
+}
+
 #scanner-overlay {
   position: absolute;
   border: 2px solid #00FF00;
-  width: 80%;
-  height: 50%;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  width: 60%;
+  height: 30%;
+  top: 35%;
+  left: 20%;
 }
+
 </style>
 {% endblock %}
