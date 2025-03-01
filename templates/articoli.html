@@ -9,6 +9,8 @@
     <label for="barcode">Inserisci il codice a barre:</label>
     <input type="text" id="barcode" placeholder="Codice a barre">
     <button id="search-button">Cerca</button>
+    <!-- Pulsante per avviare la scansione tramite fotocamera -->
+    <button id="scan-button">Scansiona Codice</button>
   </div>
 
   <!-- Scheda prodotto -->
@@ -22,13 +24,27 @@
     </div>
   </div>
 </section>
+
+<!-- Modal per la scansione -->
+<div id="scanner-modal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <span id="close-scanner" class="close">&times;</span>
+    <div id="video-container">
+      <video id="scanner-video" autoplay></video>
+      <!-- Overlay per evidenziare l'area di scansione -->
+      <div id="scanner-overlay"></div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
   var searchButton = document.getElementById("search-button");
-  console.log("Hai premuto Cerca")
+  console.log("Hai premuto Cerca");
   if (!searchButton) {
     console.error("Il bottone non è stato trovato nel DOM.");
     return;
@@ -46,11 +62,11 @@ document.addEventListener("DOMContentLoaded", function() {
     // Esegui la richiesta al backend (assicurati che l'URL sia corretto)
     fetch('/search/articolo_by_barcode?barcode=' + encodeURIComponent(barcode))
       .then(response => {
-        console.log("Risposta ricevuta:", response); // Log della risposta grezza
+        console.log("Risposta ricevuta:", response);
         return response.json();
       })
       .then(data => {
-        console.log("Dati ricevuti:", data); // Log dei dati parsati
+        console.log("Dati ricevuti:", data);
         if(data && data.success){
           // Popola la scheda prodotto
           document.getElementById("product-image").src = data.product.image;
@@ -69,6 +85,106 @@ document.addEventListener("DOMContentLoaded", function() {
         alert("Errore durante la ricerca del prodotto.");
       });
   });
+
+  // Gestione del modal per la scansione
+  var scanButton = document.getElementById("scan-button");
+  var modal = document.getElementById("scanner-modal");
+  var closeModal = document.getElementById("close-scanner");
+
+  scanButton.addEventListener("click", function(){
+    modal.style.display = "block";
+    startScanner();
+  });
+
+  closeModal.addEventListener("click", function(){
+    modal.style.display = "none";
+    Quagga.stop();
+  });
+
+  // Funzione per iniziare la scansione con QuaggaJS
+  function startScanner() {
+    Quagga.init({
+      inputStream: {
+        name: "Live",
+        type: "LiveStream",
+        target: document.querySelector('#scanner-video'),
+        constraints: {
+          facingMode: "environment"
+        },
+      },
+      decoder: {
+        readers: ["ean_reader", "code_128_reader", "qr_reader"] // Aggiungi i decoder necessari
+      },
+      locate: true // Aiuta a individuare il codice nell'immagine
+    }, function(err) {
+      if (err) {
+        console.error(err);
+        alert("Errore nell'avvio dello scanner.");
+        return;
+      }
+      Quagga.start();
+    });
+
+    // Evento per rilevare il codice scansionato
+    Quagga.onDetected(function(data) {
+      var code = data.codeResult.code;
+      console.log("Codice rilevato:", code);
+      // Arresta lo scanner e chiudi il modal
+      Quagga.stop();
+      modal.style.display = "none";
+      // Popola l'input per la ricerca o invia direttamente la richiesta al backend
+      document.getElementById("barcode").value = code;
+      // Simula il click sul pulsante di ricerca
+      searchButton.click();
+    });
+  }
 });
 </script>
+<style>
+/* Stili per il modal */
+.modal {
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: rgba(0,0,0,0.7);
+}
+.modal-content {
+  position: relative;
+  margin: 5% auto;
+  padding: 0;
+  width: 80%;
+  max-width: 400px;
+  background-color: #000;
+}
+.close {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+  font-size: 30px;
+  font-weight: bold;
+  color: #fff;
+  cursor: pointer;
+}
+#video-container {
+  position: relative;
+}
+#scanner-video {
+  width: 100%;
+  height: auto;
+}
+/* Overlay per evidenziare l'area di scansione */
+#scanner-overlay {
+  position: absolute;
+  border: 2px solid #00FF00;
+  width: 80%;
+  height: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+</style>
 {% endblock %}
