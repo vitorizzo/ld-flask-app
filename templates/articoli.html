@@ -29,33 +29,41 @@
 <div id="scanner-modal" class="modal" style="display:none;">
   <div class="modal-content">
     <span id="close-scanner" class="close">&times;</span>
-    <div id="video-container" style="position: relative">
-      <!-- Overlay per evidenziare l'area di scansione -->
-      <div id="scanner-overlay"></div>
+
+    <!-- Selettore fotocamera -->
+    <div style="margin: 10px 0;">
+      <label for="videoSource">Seleziona la fotocamera:</label>
+      <select id="videoSource"></select>
+      <button id="startScannerBtn">Avvia Scanner</button>
+      <button id="stopScannerBtn" style="display:none;">Ferma Scanner</button>
+    </div>
+
+    <!-- Contenitore dove Quagga inietterà il suo <video> -->
+    <div id="video-container" style="width: 100%; max-width: 400px; height: 300px; margin: 0 auto; background-color: #666; position: relative;">
+      <!-- Quagga aggiungerà qui il video in tempo reale -->
     </div>
   </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<!-- Carica la libreria QuaggaJS -->
+<!-- Carichiamo la libreria QuaggaJS (versione 0.12.1) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-  var searchButton = document.getElementById("search-button");
-  console.log("Hai premuto Cerca");
+  // ---------------------
+  // 1) RICERCA MANUALE
+  // ---------------------
+  const searchButton = document.getElementById("search-button");
   if (!searchButton) {
-    console.error("Il bottone non è stato trovato nel DOM.");
+    console.error("Il bottone 'Cerca' non è stato trovato nel DOM.");
     return;
   }
 
-  // --- Ricerca manuale del codice a barre ---
   searchButton.addEventListener("click", function(){
-    var barcode = document.getElementById("barcode").value;
-    console.log("Barcode inserito:", barcode);
-
-    if (!barcode.trim()) {
+    const barcode = document.getElementById("barcode").value.trim();
+    if (!barcode) {
       alert("Inserisci un codice a barre valido.");
       return;
     }
@@ -82,93 +90,148 @@ document.addEventListener("DOMContentLoaded", function() {
       });
   });
 
-  // --- Gestione del modal per la scansione ---
-  var scanButton = document.getElementById("scan-button");
-  var modal = document.getElementById("scanner-modal");
-  var closeModal = document.getElementById("close-scanner");
+  // ---------------------
+  // 2) SCANSIONE LIVE
+  // ---------------------
+  const scanButton     = document.getElementById("scan-button");
+  const modal          = document.getElementById("scanner-modal");
+  const closeModal     = document.getElementById("close-scanner");
+  const videoSelect    = document.getElementById("videoSource");
+  const startScannerBtn= document.getElementById("startScannerBtn");
+  const stopScannerBtn = document.getElementById("stopScannerBtn");
+  const videoContainer = document.getElementById("video-container");
 
-  scanButton.addEventListener("click", function(){
+  // Mostra il modal e popola la lista delle fotocamere
+  scanButton.addEventListener("click", function() {
     modal.style.display = "block";
-    startScanner();
+    listCameras(); // enumeriamo i dispositivi
   });
 
+  // Chiude il modal e ferma lo scanner
   closeModal.addEventListener("click", function(){
     modal.style.display = "none";
-    Quagga.stop();
+    stopScanner();
   });
 
-  // --- Funzione per iniziare la scansione con QuaggaJS ---
-  function startScanner() {
-    Quagga.init({
+  // Avvia lo scanner con la fotocamera selezionata
+  startScannerBtn.addEventListener("click", function() {
+    if (!videoSelect.value) {
+      alert("Nessuna fotocamera selezionata!");
+      return;
+    }
+    startScannerBtn.disabled = true;
+    stopScannerBtn.style.display = "inline-block";
+    initQuagga(videoSelect.value);
+  });
+
+  // Ferma lo scanner manualmente
+  stopScannerBtn.addEventListener("click", function() {
+    stopScanner();
+  });
+
+  // Elenca le fotocamere
+  function listCameras() {
+    navigator.mediaDevices.enumerateDevices()
+      .then(function(deviceInfos) {
+        // Svuota il <select>
+        while (videoSelect.firstChild) {
+          videoSelect.removeChild(videoSelect.firstChild);
+        }
+        let foundCam = false;
+        deviceInfos.forEach(function(deviceInfo) {
+          if (deviceInfo.kind === 'videoinput') {
+            foundCam = true;
+            const option = document.createElement('option');
+            option.value = deviceInfo.deviceId;
+            option.text  = deviceInfo.label || ("Fotocamera " + (videoSelect.length + 1));
+            videoSelect.appendChild(option);
+          }
+        });
+        if (!foundCam) {
+          alert("Nessuna fotocamera trovata!");
+        }
+      })
+      .catch(function(err) {
+        console.error("Errore durante l'enumerazione dei dispositivi:", err);
+        alert("Impossibile accedere alla fotocamera!");
+      });
+  }
+
+  // Inizializza Quagga con la fotocamera selezionata
+  function initQuagga(deviceId) {
+    // Se Quagga stava già girando, stop
+    if (Quagga.initialized) {
+      Quagga.stop();
+    }
+
+    const config = {
       inputStream: {
         name: "Live",
         type: "LiveStream",
-        target: document.querySelector('#video-container'),
+        target: videoContainer,
         constraints: {
-          // Su smartphone, "environment" usa la fotocamera posteriore
-          // Se sei su PC, valuta di rimuovere facingMode o usare "user"
-          facingMode: "environment"
+          deviceId: { exact: deviceId }
+          // facingMode: "environment" // se vuoi forzare la fotocamera posteriore
         }
       },
       decoder: {
-        // Aggiungi i formati che vuoi decodificare
         readers: [
-          { format: "ean_reader",     config: {} },
-          { format: "code_128_reader",config: {} }
-          //{ format: "qr_reader",      config: {} }
-        ],
-        multiple: false
+          "code_128_reader",
+          "ean_reader",
+          "ean_8_reader",
+          "upc_reader",
+          "upc_e_reader"
+        ]
       },
-      locate: true,
-      locator: {
-        halfSample: false,   // Se "true", Quagga elabora l'immagine a metà risoluzione (più veloce, ma meno preciso)
-        patchSize: "large"   // Possibili valori: "x-small", "small", "medium", "large"
-      },
-      // Se hai problemi di prestazioni, puoi aumentare numOfWorkers
-      // Se vuoi debug più immediato, metti 0 (usa thread principale)
-      numOfWorkers: 0,
-      // Frequenza con cui vengono analizzati i frame
-      frequency: 10,
-      debug: {
-        drawBoundingBox: true,
-        showFrequency: true,
-        drawScanline: true,
-        showPattern: true
-      }
-    }, function (err) {
+      locate: true
+    };
+
+    Quagga.init(config, function(err) {
       if (err) {
-        console.error(err);
-        alert("Errore nell'avvio dello scanner.");
+        console.error("Errore init Quagga:", err);
+        alert("Impossibile avviare lo scanner!");
+        startScannerBtn.disabled = false;
+        stopScannerBtn.style.display = "none";
         return;
       }
-
-      // Avvia la scansione
+      Quagga.initialized = true;
       Quagga.start();
+      console.log("Quagga avviato.");
 
-      // Debug: mostra informazioni su ogni frame elaborato
-      Quagga.onProcessed(function (result) {
-        console.log("Frame analizzato:", result);
-      });
-
-      // Quando viene rilevato un codice valido
-      Quagga.onDetected(function (data) {
-        var code = data.codeResult.code;
-        console.log("Codice rilevato:", code);
-
-        // Ferma lo scanner e chiudi il modal
-        Quagga.stop();
-        document.getElementById("scanner-modal").style.display = "none";
-
-        // Inserisci il codice rilevato nell'input e lancia la ricerca
-        document.getElementById("barcode").value = code;
-        document.getElementById("search-button").click();
-      });
+      // Callback quando rileva un codice
+      Quagga.onDetected(onDetectedHandler);
     });
+  }
+
+  // Quando rileva un codice a barre
+  function onDetectedHandler(data) {
+    const code = data.codeResult.code;
+    console.log("Codice rilevato:", code);
+
+    // Inseriamo il codice nell'input
+    document.getElementById("barcode").value = code;
+
+    // Simuliamo il click su "Cerca"
+    document.getElementById("search-button").click();
+
+    // Ferma lo scanner e chiudi il modal
+    stopScanner();
+    modal.style.display = "none";
+  }
+
+  // Ferma lo scanner
+  function stopScanner() {
+    if (Quagga.initialized) {
+      Quagga.stop();
+      Quagga.initialized = false;
+      console.log("Scanner fermato.");
+    }
+    startScannerBtn.disabled = false;
+    stopScannerBtn.style.display = "none";
   }
 });
 </script>
 
-<!-- Stili inline: puoi spostarli in un file CSS a parte -->
 <style>
 /* --- Stili per il modal --- */
 .modal {
@@ -184,10 +247,10 @@ document.addEventListener("DOMContentLoaded", function() {
 .modal-content {
   position: relative;
   margin: 5% auto;
-  padding: 0;
+  padding: 20px;
   width: 80%;
-  max-width: 400px;
-  background-color: #000;
+  max-width: 500px;
+  background-color: #fff;
 }
 .close {
   position: absolute;
@@ -195,33 +258,16 @@ document.addEventListener("DOMContentLoaded", function() {
   right: 10px;
   font-size: 30px;
   font-weight: bold;
-  color: #fff;
   cursor: pointer;
 }
-
-/* --- Container del video e overlay --- */
+/* Contenitore per il video di Quagga */
 #video-container {
   position: relative;
   width: 100%;
-  max-width: 400px;  /* Larghezza massima */
-  height: 600px;     /* Altezza fissa */
+  max-width: 400px;
+  height: 300px;
   margin: 0 auto;
-  overflow: hidden;
-}
-
-#video-container video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover; /* Riempi il container ritagliando l'eccesso */
-}
-
-#scanner-overlay {
-  position: absolute;
-  border: 2px solid #00FF00;
-  width: 60%;
-  height: 30%;
-  top: 35%;
-  left: 20%;
+  background-color: #666;
 }
 </style>
 {% endblock %}

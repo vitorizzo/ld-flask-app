@@ -1,0 +1,187 @@
+{% extends 'base.html' %}
+
+{% block title %}LD Enoteca - Home{% endblock %}
+
+{% block content %}
+<section class="welcome-section">
+  <!-- Sezione di ricerca barcode -->
+  <div class="barcode-search">
+    <label for="barcode">Inserisci il codice a barre:</label>
+    <input type="text" id="barcode" placeholder="Codice a barre">
+    <button id="search-button">Cerca</button>
+    <!-- Pulsante per avviare la scansione tramite fotocamera -->
+    <button id="scan-button">Scansiona Codice</button>
+  </div>
+
+  <!-- Scheda prodotto -->
+  <div id="product-card" style="display: none; margin-top:20px;">
+    <img id="product-image" src="" alt="Immagine Prodotto" style="max-width: 200px;">
+    <div id="product-details">
+      <p id="product-code"></p>
+      <p id="product-description"></p>
+      <p id="product-price"></p>
+      <p id="product-stock"></p>
+    </div>
+  </div>
+</section>
+
+<!-- Modal per la scansione -->
+<div id="scanner-modal" class="modal" style="display:none;">
+  <div class="modal-content">
+    <span id="close-scanner" class="close">&times;</span>
+    <div id="video-container">
+      <video id="scanner-video" style="width: 100%; height: 100%; object-fit: cover;" autoplay></video>
+      <div id="scanner-overlay"></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Carica la libreria ZXing-JS (browser) -->
+<script src="https://unpkg.com/@zxing/browser@latest"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  // --- Ricerca manuale ---
+  const searchButton = document.getElementById("search-button");
+  if (!searchButton) {
+    console.error("Il bottone non è stato trovato nel DOM.");
+    return;
+  }
+
+  searchButton.addEventListener("click", function() {
+    const barcode = document.getElementById("barcode").value.trim();
+    if (!barcode) {
+      alert("Inserisci un codice a barre valido.");
+      return;
+    }
+
+    fetch('/search/articolo_by_barcode?barcode=' + encodeURIComponent(barcode))
+      .then(response => response.json())
+      .then(data => {
+        if(data && data.success){
+          document.getElementById("product-image").src = data.product.image;
+          document.getElementById("product-code").textContent = data.product.codice;
+          document.getElementById("product-description").textContent = data.product.descrizione;
+          document.getElementById("product-price").textContent = "Prezzo: " + data.product.prezzo;
+          document.getElementById("product-stock").textContent = "Giacenza: " + data.product.instore;
+          document.getElementById("product-card").style.display = "block";
+        } else {
+          alert("Prodotto non trovato!");
+          document.getElementById("product-card").style.display = "none";
+        }
+      })
+      .catch(err => {
+        console.error("Errore durante la fetch:", err);
+        alert("Errore durante la ricerca del prodotto.");
+      });
+  });
+
+  // --- Gestione modal ---
+  const scanButton = document.getElementById("scan-button");
+  const modal = document.getElementById("scanner-modal");
+  const closeModal = document.getElementById("close-scanner");
+
+  // Inizializza il lettore
+  const codeReader = new ZXingBrowser.BrowserMultiFormatReader();
+
+  scanButton.addEventListener("click", function() {
+    modal.style.display = "block";
+    startScanner();
+  });
+
+  closeModal.addEventListener("click", function(){
+    modal.style.display = "none";
+    codeReader.reset();
+  });
+
+  // --- Funzione per avviare la scansione con ZXing-JS ---
+  function startScanner() {
+    codeReader.listVideoInputDevices()
+      .then(videoInputDevices => {
+        let selectedDeviceId;
+        for (const device of videoInputDevices) {
+          const label = device.label.toLowerCase();
+          if (label.includes('back') || label.includes('rear') || label.includes('environment')) {
+            selectedDeviceId = device.deviceId;
+            break;
+          }
+        }
+        // Se non troviamo una fotocamera posteriore, usiamo la prima disponibile
+        if (!selectedDeviceId && videoInputDevices.length > 0) {
+          selectedDeviceId = videoInputDevices[0].deviceId;
+        }
+
+        codeReader.decodeFromVideoDevice(selectedDeviceId, 'scanner-video', (result, err) => {
+          if (result) {
+            console.log("Codice rilevato:", result.text);
+            codeReader.reset();
+            modal.style.display = "none";
+            document.getElementById("barcode").value = result.text;
+            searchButton.click();
+          }
+          if (err && !(err instanceof ZXingBrowser.NotFoundException)) {
+            console.error(err);
+          }
+        });
+      })
+      .catch(err => {
+        console.error("Impossibile accedere alle fotocamere:", err);
+        alert("Errore nell'avvio dello scanner.");
+      });
+  }
+});
+</script>
+
+<style>
+.modal {
+  position: fixed;
+  z-index: 1000;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: rgba(0,0,0,0.7);
+}
+.modal-content {
+  position: relative;
+  margin: 5% auto;
+  padding: 0;
+  width: 80%;
+  max-width: 400px;
+  background-color: #000;
+}
+.close {
+  position: absolute;
+  top: 5px;
+  right: 10px;
+  font-size: 30px;
+  font-weight: bold;
+  color: #fff;
+  cursor: pointer;
+}
+#video-container {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+  height: 600px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+#scanner-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+#scanner-overlay {
+  position: absolute;
+  border: 2px solid #00FF00;
+  width: 60%;
+  height: 30%;
+  top: 35%;
+  left: 20%;
+}
+</style>
+{% endblock %}
