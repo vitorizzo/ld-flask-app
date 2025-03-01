@@ -35,11 +35,12 @@
     </div>
   </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
+<!-- Carica la libreria QuaggaJS -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+
 <script>
 document.addEventListener("DOMContentLoaded", function() {
   var searchButton = document.getElementById("search-button");
@@ -49,25 +50,21 @@ document.addEventListener("DOMContentLoaded", function() {
     return;
   }
 
+  // --- Ricerca manuale del codice a barre ---
   searchButton.addEventListener("click", function(){
     var barcode = document.getElementById("barcode").value;
-    console.log("Barcode inserito:", barcode); // Log del valore inserito
+    console.log("Barcode inserito:", barcode);
 
     if (!barcode.trim()) {
       alert("Inserisci un codice a barre valido.");
       return;
     }
 
-    // Esegui la richiesta al backend (assicurati che l'URL sia corretto)
+    // Esegui la richiesta al backend
     fetch('/search/articolo_by_barcode?barcode=' + encodeURIComponent(barcode))
-      .then(response => {
-        console.log("Risposta ricevuta:", response);
-        return response.json();
-      })
+      .then(response => response.json())
       .then(data => {
-        console.log("Dati ricevuti:", data);
         if(data && data.success){
-          // Popola la scheda prodotto
           document.getElementById("product-image").src = data.product.image;
           document.getElementById("product-code").textContent = data.product.codice;
           document.getElementById("product-description").textContent = data.product.descrizione;
@@ -85,7 +82,7 @@ document.addEventListener("DOMContentLoaded", function() {
       });
   });
 
-  // Gestione del modal per la scansione
+  // --- Gestione del modal per la scansione ---
   var scanButton = document.getElementById("scan-button");
   var modal = document.getElementById("scanner-modal");
   var closeModal = document.getElementById("close-scanner");
@@ -100,7 +97,7 @@ document.addEventListener("DOMContentLoaded", function() {
     Quagga.stop();
   });
 
-  // Funzione per iniziare la scansione con QuaggaJS
+  // --- Funzione per iniziare la scansione con QuaggaJS ---
   function startScanner() {
     Quagga.init({
       inputStream: {
@@ -108,38 +105,72 @@ document.addEventListener("DOMContentLoaded", function() {
         type: "LiveStream",
         target: document.querySelector('#video-container'),
         constraints: {
+          // Su smartphone, "environment" usa la fotocamera posteriore
+          // Se sei su PC, valuta di rimuovere facingMode o usare "user"
           facingMode: "environment"
         }
       },
       decoder: {
-        readers: ["ean_reader", "code_128_reader", "qr_reader"]
+        // Aggiungi i formati che vuoi decodificare
+        readers: [
+          { format: "ean_reader",     config: {} },
+          { format: "code_128_reader",config: {} }
+          //{ format: "qr_reader",      config: {} }
+        ],
+        multiple: false
       },
-      locate: true
+      locate: true,
+      locator: {
+        halfSample: false,   // Se "true", Quagga elabora l'immagine a metà risoluzione (più veloce, ma meno preciso)
+        patchSize: "large"   // Possibili valori: "x-small", "small", "medium", "large"
+      },
+      // Se hai problemi di prestazioni, puoi aumentare numOfWorkers
+      // Se vuoi debug più immediato, metti 0 (usa thread principale)
+      numOfWorkers: 0,
+      // Frequenza con cui vengono analizzati i frame
+      frequency: 10,
+      debug: {
+        drawBoundingBox: true,
+        showFrequency: true,
+        drawScanline: true,
+        showPattern: true
+      }
     }, function (err) {
       if (err) {
         console.error(err);
         alert("Errore nell'avvio dello scanner.");
         return;
       }
+
+      // Avvia la scansione
       Quagga.start();
-    });
-    // Evento per rilevare il codice scansionato
-    Quagga.onDetected(function(data) {
-      var code = data.codeResult.code;
-      console.log("Codice rilevato:", code);
-      // Arresta lo scanner e chiudi il modal
-      Quagga.stop();
-      modal.style.display = "none";
-      // Popola l'input per la ricerca o invia direttamente la richiesta al backend
-      document.getElementById("barcode").value = code;
-      // Simula il click sul pulsante di ricerca
-      searchButton.click();
+
+      // Debug: mostra informazioni su ogni frame elaborato
+      Quagga.onProcessed(function (result) {
+        console.log("Frame analizzato:", result);
+      });
+
+      // Quando viene rilevato un codice valido
+      Quagga.onDetected(function (data) {
+        var code = data.codeResult.code;
+        console.log("Codice rilevato:", code);
+
+        // Ferma lo scanner e chiudi il modal
+        Quagga.stop();
+        document.getElementById("scanner-modal").style.display = "none";
+
+        // Inserisci il codice rilevato nell'input e lancia la ricerca
+        document.getElementById("barcode").value = code;
+        document.getElementById("search-button").click();
+      });
     });
   }
 });
 </script>
+
+<!-- Stili inline: puoi spostarli in un file CSS a parte -->
 <style>
-/* Stili per il modal */
+/* --- Stili per il modal --- */
 .modal {
   position: fixed;
   z-index: 1000;
@@ -168,11 +199,12 @@ document.addEventListener("DOMContentLoaded", function() {
   cursor: pointer;
 }
 
+/* --- Container del video e overlay --- */
 #video-container {
   position: relative;
   width: 100%;
   max-width: 400px;  /* Larghezza massima */
-  height: 600px;     /* Altezza fissa (esempio) */
+  height: 600px;     /* Altezza fissa */
   margin: 0 auto;
   overflow: hidden;
 }
@@ -191,6 +223,5 @@ document.addEventListener("DOMContentLoaded", function() {
   top: 35%;
   left: 20%;
 }
-
 </style>
 {% endblock %}
