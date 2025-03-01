@@ -4,16 +4,71 @@
 
 {% block content %}
 <section class="welcome-section">
-    <h1>Benvenuto sul Pannello dei Servizi di <br>LD Enoteca</h1>
-    <p>
-        Qui puoi accedere a servizi esclusivi come la gestione del profilo, schede prodotto, offerte speciali e calendario eventi.
-        Registrati o effettua il login per vivere un'esperienza completa!
-    </p>
-    <div class="d-flex justify-content-center flex-wrap">
-        <button class="btn btn-enabled-custom">Ricerca Prezzi</button>
-        <button class="btn btn-disabled-custom">Calendario Eventi</button>
-        <button class="btn btn-disabled-custom">Schede Prodotti</button>
-        <button class="btn btn-disabled-custom">Offerte Esclusive</button>
+  <!-- Sezione di ricerca barcode -->
+  <div class="barcode-search">
+    <label for="barcode">Inserisci il codice a barre:</label>
+    <input type="text" id="barcode" placeholder="Codice a barre">
+    <button id="search-button">Cerca</button>
+  </div>
+
+  <!-- Scheda prodotto -->
+  <div id="product-card" style="display: none; margin-top:20px;">
+    <img id="product-image" src="" alt="Immagine Prodotto" style="max-width: 200px;">
+    <div id="product-details">
+      <p id="product-code"></p>
+      <p id="product-description"></p>
+      <p id="product-price"></p>
+      <p id="product-stock"></p>
     </div>
+  </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  var searchButton = document.getElementById("search-button");
+  console.log("Hai premuto Cerca")
+  if (!searchButton) {
+    console.error("Il bottone non è stato trovato nel DOM.");
+    return;
+  }
+
+  searchButton.addEventListener("click", function(){
+    var barcode = document.getElementById("barcode").value;
+    console.log("Barcode inserito:", barcode); // Log del valore inserito
+
+    if (!barcode.trim()) {
+      alert("Inserisci un codice a barre valido.");
+      return;
+    }
+
+    // Esegui la richiesta al backend (assicurati che l'URL sia corretto)
+    fetch('/search/articolo_by_barcode?barcode=' + encodeURIComponent(barcode))
+      .then(response => {
+        console.log("Risposta ricevuta:", response); // Log della risposta grezza
+        return response.json();
+      })
+      .then(data => {
+        console.log("Dati ricevuti:", data); // Log dei dati parsati
+        if(data && data.success){
+          // Popola la scheda prodotto
+          document.getElementById("product-image").src = data.product.image;
+          document.getElementById("product-code").textContent = data.product.codice;
+          document.getElementById("product-description").textContent = data.product.descrizione;
+          document.getElementById("product-price").textContent = "Prezzo: " + data.product.prezzo;
+          document.getElementById("product-stock").textContent = "Giacenza: " + data.product.instore;
+          document.getElementById("product-card").style.display = "block";
+        } else {
+          alert("Prodotto non trovato!");
+          document.getElementById("product-card").style.display = "none";
+        }
+      })
+      .catch(err => {
+        console.error("Errore durante la fetch:", err);
+        alert("Errore durante la ricerca del prodotto.");
+      });
+  });
+});
+</script>
 {% endblock %}

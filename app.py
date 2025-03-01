@@ -1,10 +1,8 @@
 import os
 
-from dotenv import dotenv_values, load_dotenv
-from extensions import db  # Importa db da extensions.py
-from flask import Flask, render_template
+from dotenv import load_dotenv
+from flask import render_template
 from flask_login import LoginManager, current_user
-from flask_migrate import Migrate
 from models import User, Menu
 from routes.auth import auth_bp
 from routes.settings import settings_bp
@@ -12,6 +10,8 @@ from routes.elaborazioni_sconti import sconti_bp
 from routes.articoli import articoli_bp
 from routes.tools import get_user_menu
 from routes.esportazioni_teamsystem import file_bp
+from routes.search import search_bp
+from tools.app_factory import create_app
 
 dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
 dotenvlocal_path = os.path.join(os.path.dirname(__file__), ".env.local")
@@ -23,25 +23,23 @@ load_dotenv(dotenv_path, override=False)
 load_dotenv(dotenvlocal_path, override=True)
 load_dotenv(dotenvdefaults_path, override=False)
 
-# Carica le variabili di ambiente
-print("DEBUG: DATABASE_URL =", os.getenv("DATABASE_URL"))
-print("DEBUG: SECRET_KEY =", os.getenv("SECRET_KEY"))
-print("DEBUG: FLASK_ENV =", os.getenv("FLASK_ENV"))
-
 FLASK_ENV = os.getenv("FLASK_ENV", "production")
-
-app = Flask(__name__)
-app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'fallback_key')
-
 EXPORT_FOLDER = os.getenv("EXPORT_FOLDER")
 EXPORT_FOLDER_URL = os.getenv("EXPORT_FOLDER_URL")
 UPLOAD_FOLDER = os.path.normpath(os.path.join(os.getcwd(), 'ld-flask-app', 'static', 'uploads'))
+SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL'),
+SQLALCHEMY_TRACK_MODIFICATIONS = False,
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)  # Crea la cartella principale se non esiste
 
-app.config['EXPORT_FOLDER'] = EXPORT_FOLDER
-app.config['EXPORT_FOLDER_URL'] = EXPORT_FOLDER_URL
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+app = create_app()
+
+# app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'fallback_key')
+
+# app.config['EXPORT_FOLDER'] = EXPORT_FOLDER
+# app.config['EXPORT_FOLDER_URL'] = EXPORT_FOLDER_URL
+# app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 # Configurazione del Login Manager
 login_manager = LoginManager()
@@ -49,15 +47,8 @@ login_manager.init_app(app)
 login_manager.login_view = "auth.login"  # Route di login
 
 # Configurazione database
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-if not app.config['SQLALCHEMY_DATABASE_URI']:
-    raise RuntimeError("DATABASE_URL is not set. Check your .env file.")
-
-# Inizializzazione estensioni
-db.init_app(app)
-migrate = Migrate(app, db)
+# app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Registrazione Blueprint
 app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -65,6 +56,7 @@ app.register_blueprint(settings_bp, url_prefix='/settings')
 app.register_blueprint(sconti_bp, url_prefix='/sconti')
 app.register_blueprint(articoli_bp, url_prefix='/articoli')
 app.register_blueprint(file_bp, url_prefix='/exported')
+app.register_blueprint(search_bp, url_prefix='/search')
 
 
 def build_menu_tree(menus):

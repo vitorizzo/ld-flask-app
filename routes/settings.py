@@ -1,17 +1,13 @@
-import csv
-import os
-
-from flask import request, flash, render_template, Blueprint, jsonify, current_app
+from flask import request, flash, render_template, Blueprint, jsonify
 from flask_login import login_required
-from flask_socketio import emit
-
+from flask_socketio import SocketIO
 from extensions import db
-from models import Menu, Role, Articoli
+from models import Menu, Role
 from routes.decorators import role_required
-from routes.esportazioni_teamsystem import serve_risorsa
-
+from config.task import import_articoli_task, import_barcode_task, import_giacenze_task
 
 settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
+socketio = SocketIO()
 
 
 @settings_bp.route('/update_menu', methods=['POST'])
@@ -80,76 +76,28 @@ def manage_menus():
     return render_template('settings/menus.html', menus=menus, roles=roles, menu_fields=menu_fields)
 
 
-# Funzione per pulire i caratteri non validi
-def clean_text(text):
-    if text:
-        return text.encode('ascii', 'ignore').decode('ascii')  # Rimuove caratteri non validi
-    return text
-
-
 @settings_bp.route('/import_articoli', methods=['GET', 'POST'])
-# @login_required
+@login_required
 @role_required(100)
-def import_articoli():
-    print("Importazione articoli avviata...")
-#    file_csv = r"C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\esportazioni\articoli.csv"
-    file_csv = serve_risorsa("ARTICOLI.CSV")
-    print(f"File CSV: {file_csv}")
-    try:
-        with open(file_csv, 'r', encoding='utf-8', errors='ignore') as csvfile:
-            reader = list(csv.reader(csvfile, delimiter='\t'))  # Converti il reader in lista per calcolare il progresso
-            total_rows = len(reader)
+def lancia_import_articoli():
+    print("Richiesta per importazione articoli ricevuta, attivo il task in background...")
+    task = import_articoli_task.delay()
+    return jsonify({'message': 'Importazione avviata in background', 'task_id': task.id})
 
-            with db.session.no_autoflush:  # Blocca il flush automatico durante l'elaborazione
-                for index, row in enumerate(reader):
-                    if len(row) >= 5:  # Assicurati che la riga abbia abbastanza colonne
-                        cod_art = clean_text(row[0])
-                        descrizione = clean_text(row[1])
-                        descrizione_aggiuntiva = clean_text(row[2])
-                        prezzo = float(row[3]) if row[3].strip() else 0.0  # Converti prezzo a float
 
-                        if cod_art and descrizione:  # Verifica che cod_art e descrizione non siano vuoti
-                            articolo_esistente = Articoli.query.filter_by(cod_art=cod_art).first()
+@settings_bp.route('/import_giacenze', methods=['GET', 'POST'])
+@login_required
+@role_required(100)
+def lancia_import_giacenze():
+    print("Richiesta per importazione giacenze ricevuta, attivo il task in background...")
+    task = import_giacenze_task.delay()
+    return jsonify({'message': 'Importazione avviata in background', 'task_id': task.id})
 
-                            if articolo_esistente:
-                                modifiche = []
 
-                                if articolo_esistente.descrizione != descrizione:
-                                    modifiche.append(("descrizione", articolo_esistente.descrizione, descrizione))
-                                if articolo_esistente.descrizione_aggiuntiva != descrizione_aggiuntiva:
-                                    modifiche.append(("descrizione_aggiuntiva",
-                                                      articolo_esistente.descrizione_aggiuntiva,
-                                                      descrizione_aggiuntiva))
-                                if float(articolo_esistente.prezzo) != prezzo:
-                                    modifiche.append(("prezzo", articolo_esistente.prezzo, prezzo))
-
-                                if modifiche:
-                                    for campo, valore_vecchio, valore_nuovo in modifiche:
-                                        scelta = input(f"Differenza trovata per {campo}: vecchio='{valore_vecchio}'" 
-                                                       f" nuovo='{valore_nuovo}'. Quale valore vuoi mantenere? " 
-                                                       f"(v=vecchio, n=nuovo): ").strip().lower()
-                                        if scelta == 'n':
-                                            setattr(articolo_esistente, campo, valore_nuovo)
-
-                            else:
-                                nuovo_articolo = Articoli(
-                                    cod_art=cod_art,
-                                    descrizione=descrizione,
-                                    descrizione_aggiuntiva=descrizione_aggiuntiva,
-                                    prezzo=prezzo
-                                )
-                                db.session.add(nuovo_articolo)
-
-                    progress = (index + 1) / total_rows * 100
-                    emit('progress_update', {'progress': progress}, namespace='/import')
-
-        db.session.commit()
-        emit('progress_update', {'progress': 100}, namespace='/import')
-        print("Dati importati con successo!")
-
-        return jsonify({'message': 'Dati importati con successo!', 'progress': 100}), 200
-
-    except Exception as e:
-        print("Errore durante l'importazione:", e)
-        db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+@settings_bp.route('/import_barcode', methods=['GET', 'POST'])
+@login_required
+@role_required(100)
+def lancia_import_barcode():
+    print("Richiesta per importazione codici a barre ricevuta, attivo il task in background...")
+    task = import_barcode_task.delay()
+    return jsonify({'message': 'Importazione avviata in background', 'task_id': task.id})

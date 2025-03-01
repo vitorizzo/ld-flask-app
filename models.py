@@ -33,7 +33,6 @@ class Articoli(db.Model):
     descrizione = db.Column(db.String(255))
     descrizione_aggiuntiva = db.Column(db.Text)
     prezzo = db.Column(db.Numeric)
-    giacenza = db.Column(db.Integer)
 
     def to_dict(self):
         return {
@@ -41,11 +40,40 @@ class Articoli(db.Model):
             'descrizione': self.descrizione,
             'descrizione_aggiuntiva': self.descrizione_aggiuntiva,
             'prezzo': self.prezzo,
-            'giacenza': self.giacenza,
         }
 
     def __repr__(self):
-        return f"<Articoli {self.cod_art}>"
+        return f"<Articolo {self.cod_art}>"
+
+
+class Barcode(db.Model):
+    cod_bar = db.Column(db.String(255), primary_key=True)
+    cod_art = db.Column(db.String(255))
+
+    def to_dict(self):
+        return {
+            'cod_bar': self.cod_bar,
+            'cod_art': self.cod_art
+        }
+
+    def __repr__(self):
+        return f"<Codice a Barre {self.cod_bar}>"
+
+
+class Giacenza(db.Model):
+    cod_art = db.Column(db.String(255), primary_key=True)
+    giac_neg = db.Column(db.Integer, default=0)
+    giac_www = db.Column(db.Integer, default=0)
+
+    def to_dict(self):
+        return {
+            'cod_art': self.cod_art,
+            'giac_neg': self.giac_neg,
+            'giac_www': self.giac_www
+        }
+
+    def __repr__(self):
+        return f"<Articolo {self.cod_art}>"
 
 
 class Role(db.Model):
