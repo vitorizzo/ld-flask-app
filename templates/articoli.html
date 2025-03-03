@@ -50,7 +50,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- Carichiamo Quagga2 (versione advanced) dal CDN. Assicurati che funzioni (200 OK). -->
+<!-- Carichiamo Quagga2 dal CDN (assicurati che funzioni: 200 OK) -->
 <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
 
 <script>
@@ -110,7 +110,6 @@ document.addEventListener("DOMContentLoaded", function() {
   // Mostra il modal
   scanButton.addEventListener("click", function() {
     modal.style.display = "block";
-    // Disabilitiamo "Avvia Scanner" finché non abbiamo i permessi e la lista fotocamere
     startScannerBtn.disabled = true;
   });
 
@@ -122,11 +121,16 @@ document.addEventListener("DOMContentLoaded", function() {
 
   // --- Fase 1: Richiesta permessi (iOS-friendly) ---
   requestPermissionBtn.addEventListener("click", function() {
+    alert("Richiesta di accesso alla fotocamera in corso...");
+    console.log("Chiamo getUserMedia({ video: true }) per forzare il prompt su iOS.");
+
     navigator.mediaDevices.getUserMedia({ video: true })
       .then(stream => {
-        // Chiudiamo subito lo stream, ci serviva solo per far apparire il prompt
+        console.log("Permesso fotocamera ottenuto o già concesso.");
+        alert("Permesso fotocamera ottenuto o già concesso!");
+        // Chiudiamo subito lo stream
         stream.getTracks().forEach(track => track.stop());
-        console.log("Permesso fotocamera ottenuto. Ora enumeriamo i dispositivi.");
+        // Ora enumeriamo i dispositivi
         listCameras();
       })
       .catch(err => {
@@ -154,7 +158,7 @@ document.addEventListener("DOMContentLoaded", function() {
           }
         });
         if (!foundCam) {
-          alert("Nessuna fotocamera trovata!");
+          alert("Nessuna fotocamera trovata! Controlla i permessi in Impostazioni > Safari > Fotocamera.");
         } else {
           // Abilitiamo "Avvia Scanner"
           startScannerBtn.disabled = false;
@@ -162,7 +166,7 @@ document.addEventListener("DOMContentLoaded", function() {
       })
       .catch(err => {
         console.error("Errore enumerazione dispositivi:", err);
-        alert("Impossibile elencare le fotocamere!");
+        alert("Impossibile elencare le fotocamere! Verifica i permessi o la connessione HTTPS.");
       });
   }
 
@@ -203,21 +207,11 @@ document.addEventListener("DOMContentLoaded", function() {
         }
       },
       locator: {
-        patchSize: "large",  // x-small, small, medium, large
+        patchSize: "large",
         halfSample: false
       },
       locate: true,
-      // Se vuoi limitare l'area di scansione, scommenta:
-      /*
-      area: {
-        top: "20%",
-        right: "20%",
-        left: "20%",
-        bottom: "20%"
-      },
-      */
       decoder: {
-        // Formati di codice a barre che vuoi riconoscere
         readers: [
           "code_128_reader",
           "ean_reader",
@@ -226,8 +220,8 @@ document.addEventListener("DOMContentLoaded", function() {
           "upc_e_reader"
         ]
       },
-      numOfWorkers: 2,  // se il dispositivo è multicore
-      frequency: 10,    // analizza un frame ogni ~10ms
+      numOfWorkers: 2,
+      frequency: 10,
       debug: {
         drawBoundingBox: true,
         showFrequency: true,
@@ -255,7 +249,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
       Quagga.onDetected(data => {
         const code = data.codeResult.code;
-        // Se il codice è lo stesso dell'ultimo frame, incrementa contatore
         if (code === lastCode) {
           count++;
         } else {
@@ -263,7 +256,6 @@ document.addEventListener("DOMContentLoaded", function() {
           count = 1;
         }
 
-        // Se raggiungiamo la soglia di conferma, consideriamo il codice affidabile
         if (count >= REQUIRED_COUNT) {
           console.log("Codice confermato:", code);
 
