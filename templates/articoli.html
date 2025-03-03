@@ -30,17 +30,6 @@
   <div class="modal-content">
     <span id="close-scanner" class="close">&times;</span>
 
-    <!-- Selettore fotocamera e pulsanti -->
-    <div style="margin: 10px 0;">
-      <button id="requestPermissionBtn">1) Richiedi Permesso Fotocamera</button>
-      <br><br>
-      <label for="videoSource">2) Seleziona fotocamera:</label>
-      <select id="videoSource"></select>
-      <br><br>
-      <button id="startScannerBtn" disabled>3) Avvia Scanner</button>
-      <button id="stopScannerBtn" style="display:none;">Ferma Scanner</button>
-    </div>
-
     <!-- Contenitore dove Quagga2 inietterà il suo <video> -->
     <div id="video-container" style="width: 100%; max-width: 400px; height: 300px; margin: 0 auto; background-color: #666; position: relative;">
       <!-- Quagga2 creerà qui il video in tempo reale -->
@@ -96,21 +85,17 @@ document.addEventListener("DOMContentLoaded", function() {
   // =========================
   // 2) SCANSIONE LIVE QUAGGA2
   // =========================
+  const scanButton     = document.getElementById("scan-button");
+  const modal          = document.getElementById("scanner-modal");
+  const closeModal     = document.getElementById("close-scanner");
+  const videoContainer = document.getElementById("video-container");
 
-  // Elementi UI
-  const scanButton          = document.getElementById("scan-button");
-  const modal               = document.getElementById("scanner-modal");
-  const closeModal          = document.getElementById("close-scanner");
-  const requestPermissionBtn= document.getElementById("requestPermissionBtn");
-  const videoSelect         = document.getElementById("videoSource");
-  const startScannerBtn     = document.getElementById("startScannerBtn");
-  const stopScannerBtn      = document.getElementById("stopScannerBtn");
-  const videoContainer      = document.getElementById("video-container");
-
-  // Mostra il modal
+  // Quando clicchiamo "Scansiona Codice":
+  // 1) Mostriamo il modal
+  // 2) Avviamo SUBITO la scansione (Quagga2)
   scanButton.addEventListener("click", function() {
     modal.style.display = "block";
-    startScannerBtn.disabled = true;
+    startScanner();
   });
 
   // Chiude il modal e ferma lo scanner
@@ -119,95 +104,26 @@ document.addEventListener("DOMContentLoaded", function() {
     stopScanner();
   });
 
-  // --- Fase 1: Richiesta permessi (iOS-friendly) ---
-  requestPermissionBtn.addEventListener("click", function() {
-    alert("Richiesta di accesso alla fotocamera in corso...");
-    console.log("Chiamo getUserMedia({ video: true }) per forzare il prompt su iOS.");
-
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then(stream => {
-        console.log("Permesso fotocamera ottenuto o già concesso.");
-        alert("Permesso fotocamera ottenuto o già concesso!");
-        // Chiudiamo subito lo stream
-        stream.getTracks().forEach(track => track.stop());
-        // Ora enumeriamo i dispositivi
-        listCameras();
-      })
-      .catch(err => {
-        console.error("Errore permessi fotocamera:", err);
-        alert("Permesso fotocamera negato o impossibile da ottenere!");
-      });
-  });
-
-  // --- Fase 2: Elenca fotocamere e avvia scanner ---
-  function listCameras() {
-    navigator.mediaDevices.enumerateDevices()
-      .then(deviceInfos => {
-        // Svuota il <select>
-        while (videoSelect.firstChild) {
-          videoSelect.removeChild(videoSelect.firstChild);
-        }
-        let foundCam = false;
-        deviceInfos.forEach(function(deviceInfo) {
-          if (deviceInfo.kind === 'videoinput') {
-            foundCam = true;
-            const option = document.createElement('option');
-            option.value = deviceInfo.deviceId;
-            option.text  = deviceInfo.label || ("Fotocamera " + (videoSelect.length + 1));
-            videoSelect.appendChild(option);
-          }
-        });
-        if (!foundCam) {
-          alert("Nessuna fotocamera trovata! Controlla i permessi in Impostazioni > Safari > Fotocamera.");
-        } else {
-          // Abilitiamo "Avvia Scanner"
-          startScannerBtn.disabled = false;
-        }
-      })
-      .catch(err => {
-        console.error("Errore enumerazione dispositivi:", err);
-        alert("Impossibile elencare le fotocamere! Verifica i permessi o la connessione HTTPS.");
-      });
-  }
-
-  // Clic su "Avvia Scanner"
-  startScannerBtn.addEventListener("click", function() {
-    if (!videoSelect.value) {
-      alert("Nessuna fotocamera selezionata!");
-      return;
-    }
-    startScannerBtn.disabled = true;
-    stopScannerBtn.style.display = "inline-block";
-    initQuagga2(videoSelect.value);
-  });
-
-  // Ferma manualmente lo scanner
-  stopScannerBtn.addEventListener("click", function() {
-    stopScanner();
-  });
-
-  // =========================
-  // 3) Configurazione Avanzata Quagga2
-  // =========================
-  function initQuagga2(deviceId) {
+  // Avvia Quagga2 con config avanzata e facingMode environment
+  function startScanner() {
     // Se Quagga stava già girando, stop
     if (window._quaggaRunning) {
       Quagga.stop();
       window._quaggaRunning = false;
     }
 
-    // Config avanzato
     const config = {
       inputStream: {
         name: "Live",
         type: "LiveStream",
         target: videoContainer,
         constraints: {
-          deviceId: { exact: deviceId }
+          // Tenta la fotocamera posteriore
+          facingMode: { ideal: "environment" }
         }
       },
       locator: {
-        patchSize: "large",
+        patchSize: "large",  // x-small, small, medium, large
         halfSample: false
       },
       locate: true,
@@ -234,15 +150,13 @@ document.addEventListener("DOMContentLoaded", function() {
       if (err) {
         console.error("Errore init Quagga2:", err);
         alert("Impossibile avviare lo scanner!");
-        startScannerBtn.disabled = false;
-        stopScannerBtn.style.display = "none";
         return;
       }
       Quagga.start();
       window._quaggaRunning = true;
-      console.log("Quagga2 avviato con config avanzata.");
+      console.log("Quagga2 avviato con config semplificata.");
 
-      // Meccanismo di “conferma multipla”
+      // Meccanismo di conferma multipla
       let lastCode = null;
       let count = 0;
       const REQUIRED_COUNT = 3;
@@ -279,8 +193,6 @@ document.addEventListener("DOMContentLoaded", function() {
       window._quaggaRunning = false;
       console.log("Scanner fermato.");
     }
-    startScannerBtn.disabled = false;
-    stopScannerBtn.style.display = "none";
   }
 });
 </script>
