@@ -32,7 +32,7 @@
     <span id="close-scanner" class="close">&times;</span>
     <!-- Pulsante per fermare la scansione -->
     <button id="stopScannerBtn" class="stop-scanner-btn">Ferma Scansione</button>
-    <!-- Pulsante per switchare il lato della fotocamera -->
+    <!-- Pulsante per switchare il comparto (lato) della fotocamera -->
     <button id="switchSideBtn" class="switch-camera-btn">Switch Side</button>
 
     <!-- Wrapper per il video e l'overlay -->
@@ -70,6 +70,7 @@ let currentCameraMode = "back"; // "back" o "front"
 let codeReader = new ZXing.BrowserMultiFormatReader();
 
 document.addEventListener("DOMContentLoaded", function() {
+
   // =========================
   // 1) RICERCA MANUALE
   // =========================
@@ -133,13 +134,16 @@ document.addEventListener("DOMContentLoaded", function() {
     stopScanner();
   });
   switchSideBtn.addEventListener("click", function(){
-    // Inverte il comparto
+    // Inverte il comparto: se back, passa a front e viceversa
     currentCameraMode = (currentCameraMode === "back") ? "front" : "back";
     currentSideLabel.textContent = currentCameraMode;
     updateCameraSelectOptions();
+    // Seleziona la prima fotocamera disponibile nel nuovo gruppo
     const available = videoDevices.filter(device => device.label.toLowerCase().includes(currentCameraMode));
     if(available.length > 0) {
-      selectedCameraId = available[0].deviceId;
+      // Cerca di dare la priorità a quella con "0" nella label, se presente
+      const candidate = available.find(device => device.label.toLowerCase().includes("0"));
+      selectedCameraId = candidate ? candidate.deviceId : available[0].deviceId;
     } else if(videoDevices.length > 0) {
       selectedCameraId = videoDevices[0].deviceId;
     }
@@ -155,12 +159,16 @@ document.addEventListener("DOMContentLoaded", function() {
     startScanner();
   });
 
+  // Enumerazione dei dispositivi video
   function enumerateVideoDevices() {
     return navigator.mediaDevices.enumerateDevices().then(devices => {
       videoDevices = devices.filter(device => device.kind === "videoinput");
       if(videoDevices.length > 0) {
+        // Filtra i dispositivi per il comparto corrente ("back" o "front")
         const available = videoDevices.filter(device => device.label.toLowerCase().includes(currentCameraMode));
-        selectedCameraId = available.length > 0 ? available[0].deviceId : videoDevices[0].deviceId;
+        // Se possibile, seleziona quella con "0" nel label
+        const candidate = available.find(device => device.label.toLowerCase().includes("0"));
+        selectedCameraId = candidate ? candidate.deviceId : (available.length > 0 ? available[0].deviceId : videoDevices[0].deviceId);
       }
       displaySelectedCameraInfo();
     }).catch(err => {
@@ -168,6 +176,7 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 
+  // Aggiorna la combobox con le fotocamere del comparto attuale
   function updateCameraSelectOptions() {
     cameraSelect.innerHTML = "";
     const filteredDevices = videoDevices.filter(device => device.label.toLowerCase().includes(currentCameraMode));
@@ -184,6 +193,7 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   }
 
+  // Avvia lo scanner usando ZXing
   function startScanner() {
     codeReader.reset();
     codeReader.decodeFromVideoDevice(selectedCameraId, 'video-container', (result, err) => {
@@ -200,11 +210,13 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 
+  // Ferma lo scanner
   function stopScanner() {
     codeReader.reset();
     console.log("Scanner fermato.");
   }
 
+  // Mostra informazioni sulla fotocamera attualmente selezionata
   function displaySelectedCameraInfo() {
     const infoDiv = document.getElementById("selected-camera-info");
     const selectedDevice = videoDevices.find(device => device.deviceId === selectedCameraId);
