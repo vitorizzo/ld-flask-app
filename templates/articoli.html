@@ -37,8 +37,8 @@
 
     <!-- Wrapper per il video e l'overlay -->
     <div id="video-wrapper" style="position: relative; width: 100%; height: calc(100% - 240px);">
-      <!-- Contenitore dove Quagga2 inietterà il video -->
-      <div id="video-container"></div>
+      <!-- Elemento video: ZXing attacca il flusso qui -->
+      <video id="video-container" autoplay muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>
       <!-- Overlay per evidenziare l'area di scansione -->
       <div id="scanner-overlay"></div>
     </div>
@@ -61,13 +61,14 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- Carichiamo Quagga2 dal CDN -->
-<script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
+<!-- Includiamo ZXing.js dalla distribuzione su unpkg.com -->
+<script src="https://unpkg.com/@zxing/library@latest"></script>
 <script>
 // Variabili globali per la gestione della fotocamera
 let videoDevices = [];
 let selectedCameraId = null;
 let currentCameraMode = "back"; // "back" o "front"
+let codeReader = new ZXing.BrowserMultiFormatReader();
 
 document.addEventListener("DOMContentLoaded", function() {
   // =========================
@@ -106,7 +107,7 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   // =========================
-  // 2) SCANSIONE LIVE CON QUAGGA2
+  // 2) SCANSIONE LIVE CON ZXing
   // =========================
   const scanButton       = document.getElementById("scan-button");
   const modal            = document.getElementById("scanner-modal");
@@ -125,7 +126,6 @@ document.addEventListener("DOMContentLoaded", function() {
       startScanner();
     });
   });
-
   closeModal.addEventListener("click", function(){
     modal.style.display = "none";
     stopScanner();
@@ -139,7 +139,6 @@ document.addEventListener("DOMContentLoaded", function() {
     currentCameraMode = (currentCameraMode === "back") ? "front" : "back";
     currentSideLabel.textContent = currentCameraMode;
     updateCameraSelectOptions();
-    // Seleziona la prima fotocamera disponibile per il comparto corrente
     const available = videoDevices.filter(device => device.label.toLowerCase().includes(currentCameraMode));
     if(available.length > 0) {
       selectedCameraId = available[0].deviceId;
@@ -150,7 +149,6 @@ document.addEventListener("DOMContentLoaded", function() {
     stopScanner();
     startScanner();
   });
-
   cameraSelect.addEventListener("change", function(){
     console.log("Combobox change event:", this.value);
     selectedCameraId = this.value;
@@ -189,86 +187,26 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
   function startScanner() {
-    if (window._quaggaRunning) {
-      Quagga.stop();
-      window._quaggaRunning = false;
-    }
-    const config = {
-      inputStream: {
-        name: "Live",
-        type: "LiveStream",
-        target: videoContainer,
-        constraints: {
-          deviceId: { exact: selectedCameraId },
-          facingMode: { ideal: "environment" }
-        },
-        area: {
-          top: "25%",
-          right: "10%",
-          left: "10%",
-          bottom: "25%"
-        }
-      },
-      locator: {
-        patchSize: "large",
-        halfSample: false
-      },
-      locate: true,
-      decoder: {
-        readers: [
-          "code_128_reader",
-          "ean_reader",
-          "ean_8_reader",
-          "upc_reader",
-          "upc_e_reader"
-        ]
-      },
-      numOfWorkers: 2,
-      frequency: 10,
-      debug: {
-        drawBoundingBox: true,
-        showFrequency: true,
-        drawScanline: true,
-        showPattern: true
+    // Se è già attivo, lo resettiamo
+    codeReader.reset();
+    // Avviamo lo scanner usando ZXing
+    codeReader.decodeFromVideoDevice(selectedCameraId, 'video-container', (result, err) => {
+      if(result) {
+        console.log("Barcode trovato:", result.text);
+        document.getElementById("barcode").value = result.text;
+        document.getElementById("search-button").click();
+        stopScanner();
+        modal.style.display = "none";
       }
-    };
-    Quagga.init(config, function(err) {
-      if (err) {
-        console.error("Errore init Quagga2:", err);
-        alert("Impossibile avviare lo scanner!");
-        return;
+      if(err && !(err instanceof ZXing.NotFoundException)) {
+        console.error(err);
       }
-      Quagga.start();
-      window._quaggaRunning = true;
-      console.log("Quagga2 avviato.");
-      let lastCode = null;
-      let count = 0;
-      const REQUIRED_COUNT = 3;
-      Quagga.onDetected(data => {
-        const code = data.codeResult.code;
-        if (code === lastCode) {
-          count++;
-        } else {
-          lastCode = code;
-          count = 1;
-        }
-        if (count >= REQUIRED_COUNT) {
-          console.log("Codice confermato:", code);
-          document.getElementById("barcode").value = code;
-          document.getElementById("search-button").click();
-          stopScanner();
-          modal.style.display = "none";
-        }
-      });
     });
   }
 
   function stopScanner() {
-    if (window._quaggaRunning) {
-      Quagga.stop();
-      window._quaggaRunning = false;
-      console.log("Scanner fermato.");
-    }
+    codeReader.reset();
+    console.log("Scanner fermato.");
   }
 
   function displaySupportedConstraints() {
@@ -359,14 +297,8 @@ document.addEventListener("DOMContentLoaded", function() {
   width: 100%;
   height: calc(100% - 240px);
 }
-/* Contenitore dove Quagga2 inietterà il video */
+/* Elemento video */
 #video-container {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-}
-#video-container video {
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -393,7 +325,7 @@ document.addEventListener("DOMContentLoaded", function() {
   background-size: contain;
   opacity: 0.2;
 }
-/* Pannello di controllo della fotocamera */
+/* Controlli della fotocamera (combobox) */
 #camera-controls {
   position: absolute;
   bottom: 80px;
@@ -406,6 +338,10 @@ document.addEventListener("DOMContentLoaded", function() {
   border: 1px solid #ccc;
   margin-bottom: 5px;
 }
+#camera-select {
+  pointer-events: auto;
+  cursor: pointer;
+}
 /* Pannello di debug */
 #debug-panel {
   position: absolute;
@@ -417,11 +353,6 @@ document.addEventListener("DOMContentLoaded", function() {
   font-size: 12px;
   color: #333;
   border: 1px solid #ccc;
-}
-/* Specifico per la combobox */
-#camera-select {
-  pointer-events: auto;
-  cursor: pointer;
 }
 </style>
 {% endblock %}
