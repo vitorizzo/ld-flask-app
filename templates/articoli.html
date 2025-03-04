@@ -28,12 +28,17 @@
 <!-- Modal per la scansione -->
 <div id="scanner-modal" class="modal" style="display:none;">
   <div class="modal-content">
+    <!-- Pulsante di chiusura in alto a destra -->
     <span id="close-scanner" class="close">&times;</span>
+    <!-- Pulsante per fermare la scansione -->
+    <button id="stopScannerBtn" class="stop-scanner-btn">Ferma Scansione</button>
 
     <!-- Contenitore dove Quagga2 inietterà il suo <video> -->
-    <div id="video-container" style="width: 100%; max-width: 400px; height: 300px; margin: 0 auto; background-color: #666; position: relative;">
-      <!-- Quagga2 creerà qui il video in tempo reale -->
+    <div id="video-container">
+      <!-- Eventuale overlay verde -->
+      <div id="scanner-overlay"></div>
     </div>
+    <span id="scan-message" class="hint">Posiziona il codice a barre all'interno del rettangolo verde.</span>
   </div>
 </div>
 {% endblock %}
@@ -88,25 +93,28 @@ document.addEventListener("DOMContentLoaded", function() {
   const scanButton     = document.getElementById("scan-button");
   const modal          = document.getElementById("scanner-modal");
   const closeModal     = document.getElementById("close-scanner");
+  const stopScannerBtn = document.getElementById("stopScannerBtn");
   const videoContainer = document.getElementById("video-container");
 
-  // Quando clicchiamo "Scansiona Codice":
-  // 1) Mostriamo il modal
-  // 2) Avviamo SUBITO la scansione (Quagga2)
   scanButton.addEventListener("click", function() {
     modal.style.display = "block";
     startScanner();
   });
 
-  // Chiude il modal e ferma lo scanner
+  // Chiude la modale e ferma lo scanner
   closeModal.addEventListener("click", function(){
     modal.style.display = "none";
     stopScanner();
   });
 
-  // Avvia Quagga2 con config avanzata e facingMode environment
+  // Ferma la scansione manualmente
+  stopScannerBtn.addEventListener("click", function(){
+    modal.style.display = "none";
+    stopScanner();
+  });
+
+  // Avvia Quagga2 con config semplificata (facingMode environment)
   function startScanner() {
-    // Se Quagga stava già girando, stop
     if (window._quaggaRunning) {
       Quagga.stop();
       window._quaggaRunning = false;
@@ -118,12 +126,11 @@ document.addEventListener("DOMContentLoaded", function() {
         type: "LiveStream",
         target: videoContainer,
         constraints: {
-          // Tenta la fotocamera posteriore
           facingMode: { ideal: "environment" }
         }
       },
       locator: {
-        patchSize: "large",  // x-small, small, medium, large
+        patchSize: "large",
         halfSample: false
       },
       locate: true,
@@ -154,9 +161,9 @@ document.addEventListener("DOMContentLoaded", function() {
       }
       Quagga.start();
       window._quaggaRunning = true;
-      console.log("Quagga2 avviato con config semplificata.");
+      console.log("Quagga2 avviato.");
 
-      // Meccanismo di conferma multipla
+      // Conferma multipla
       let lastCode = null;
       let count = 0;
       const REQUIRED_COUNT = 3;
@@ -172,13 +179,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
         if (count >= REQUIRED_COUNT) {
           console.log("Codice confermato:", code);
-
-          // Inseriamo il codice nell'input
           document.getElementById("barcode").value = code;
-          // Simuliamo il click su "Cerca"
           document.getElementById("search-button").click();
 
-          // Ferma lo scanner e chiudi il modal
           stopScanner();
           modal.style.display = "none";
         }
@@ -198,41 +201,97 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 
 <style>
-/* --- Stili per il modal --- */
+/* Posizionamento e dimensioni della modale */
 .modal {
   position: fixed;
   z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  overflow: hidden;
+  left: 40%;
+  top: 10%;
+  width: 400px;
+  height: 600px;
+  overflow: hidden; /* Nasconde overflow */
   background-color: rgba(0,0,0,0.7);
 }
 .modal-content {
   position: relative;
-  margin: 5% auto;
-  padding: 20px;
-  width: 80%;
-  max-width: 500px;
+  width: 100%;
+  height: 100%;
   background-color: #fff;
 }
+
+/* Pulsante di chiusura in alto a destra */
 .close {
   position: absolute;
-  top: 5px;
+  top: 10px;
   right: 10px;
   font-size: 30px;
   font-weight: bold;
   cursor: pointer;
 }
-/* Contenitore per il video di Quagga2 */
-#video-container {
-  position: relative;
+
+.hint {
+  position: absolute;
+  bottom: 10px;
+  left: 0;
   width: 100%;
-  max-width: 400px;
-  height: 300px;
-  margin: 0 auto;
+  height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 18px;
+  color: blue
+}
+
+/* Pulsante "Ferma Scansione" in alto a sinistra */
+.stop-scanner-btn {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 16px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+/* Contenitore per il video Quagga2 */
+#video-container {
+  position: absolute;
+  top: 60px; /* lascio spazio per i bottoni */
+  left: 0;
+  width: 100%;
+  height: calc(100% - 120px);
   background-color: #666;
+  overflow: hidden;
+}
+
+/* Forziamo il video a riempire l'area */
+#video-container video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Ritaglia l'immagine per riempire l'area */
+}
+
+/* Rettangolo verde di overlay fisso (se lo desideri) */
+#scanner-overlay {
+  position: absolute;
+  border: 2px solid #00FF00;
+  width: 60%;
+  height: 40%;
+  top: 30%;
+  left: 20%;
+  pointer-events: none; /* Non interferisce col clic */
+}
+
+/* Spettro barcode */
+#scanner-overlay::before{
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url("{{ url_for('static', filename='images/barcode.png') }}") no-repeat center center;
+  background-size: contain;
+  opacity: 0.2;
 }
 </style>
 {% endblock %}
