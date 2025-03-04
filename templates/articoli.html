@@ -49,9 +49,8 @@
       <select id="camera-select"></select>
     </div>
 
-    <!-- Pannello di debug -->
+    <!-- Pannello di debug: informazioni sulla fotocamera selezionata -->
     <div id="debug-panel">
-      <div id="constraints-info"></div>
       <div id="selected-camera-info"></div>
     </div>
 
@@ -121,7 +120,6 @@ document.addEventListener("DOMContentLoaded", function() {
   scanButton.addEventListener("click", function() {
     modal.style.display = "block";
     enumerateVideoDevices().then(() => {
-      displaySupportedConstraints();
       updateCameraSelectOptions();
       startScanner();
     });
@@ -187,9 +185,7 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
   function startScanner() {
-    // Se è già attivo, lo resettiamo
     codeReader.reset();
-    // Avviamo lo scanner usando ZXing
     codeReader.decodeFromVideoDevice(selectedCameraId, 'video-container', (result, err) => {
       if(result) {
         console.log("Barcode trovato:", result.text);
@@ -207,12 +203,6 @@ document.addEventListener("DOMContentLoaded", function() {
   function stopScanner() {
     codeReader.reset();
     console.log("Scanner fermato.");
-  }
-
-  function displaySupportedConstraints() {
-    const constraints = navigator.mediaDevices.getSupportedConstraints();
-    const infoDiv = document.getElementById("constraints-info");
-    infoDiv.innerHTML = "<strong>Supported Constraints:</strong> " + JSON.stringify(constraints);
   }
 
   function displaySelectedCameraInfo() {
