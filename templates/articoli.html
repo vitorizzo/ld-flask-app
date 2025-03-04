@@ -34,8 +34,8 @@
     <button id="stopScannerBtn" class="stop-scanner-btn">Ferma Scansione</button>
 
     <!-- Contenitore dove Quagga2 inietterà il suo <video> -->
-    <div id="video-container">
-      <!-- Eventuale overlay verde -->
+    <div id="video-wrapper" style="position: relative; width: 100%; height: calc(100% - 120px);">
+      <div id="video-container"></div>
       <div id="scanner-overlay"></div>
     </div>
     <span id="scan-message" class="hint">Posiziona il codice a barre all'interno del rettangolo verde.</span>
@@ -124,7 +124,7 @@ document.addEventListener("DOMContentLoaded", function() {
       inputStream: {
         name: "Live",
         type: "LiveStream",
-        target: videoContainer,
+        target: document.getElementById("video-container"),
         constraints: {
           facingMode: { ideal: "environment" }
         }
@@ -255,15 +255,20 @@ document.addEventListener("DOMContentLoaded", function() {
   cursor: pointer;
 }
 
-/* Contenitore per il video Quagga2 */
-#video-container {
-  position: absolute;
-  top: 60px; /* lascio spazio per i bottoni */
-  left: 0;
+/* Contenitore wrapper per il video e l'overlay */
+#video-wrapper {
+  position: relative;
+  top: 60px;
   width: 100%;
   height: calc(100% - 120px);
-  background-color: #666;
-  overflow: hidden;
+}
+
+/* Contenitore per il video Quagga2 */
+#video-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
 }
 
 /* Forziamo il video a riempire l'area */
@@ -273,19 +278,20 @@ document.addEventListener("DOMContentLoaded", function() {
   object-fit: cover; /* Ritaglia l'immagine per riempire l'area */
 }
 
-/* Rettangolo verde di overlay fisso (se lo desideri) */
+/* Overlay con grafica del barcode */
 #scanner-overlay {
   position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2; /* Sopra il video */
+  pointer-events: none; /* Non interferisce con il video */
   border: 2px solid #00FF00;
-  width: 60%;
-  height: 40%;
-  top: 30%;
-  left: 20%;
-  pointer-events: none; /* Non interferisce col clic */
 }
 
-/* Spettro barcode */
-#scanner-overlay::before{
+/* Pseudo-elemento per l'immagine barcode in trasparenza */
+#scanner-overlay::before {
   content: "";
   position: absolute;
   top: 0;
