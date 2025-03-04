@@ -141,7 +141,8 @@ document.addEventListener("DOMContentLoaded", function() {
           constraints: {
             // Forza l'uso del dispositivo selezionato tramite deviceId
             deviceId: { exact: backCamera.deviceId },
-            facingMode: { ideal: "environment" }
+            facingMode: { ideal: "environment" },
+            advanced: [{ focusMode: "continuous" }]
           },
           // Configurazione dell'area di scansione (ROI)
           area: {
