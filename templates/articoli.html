@@ -30,13 +30,15 @@
   <div class="modal-content">
     <!-- Pulsante di chiusura in alto a destra -->
     <span id="close-scanner" class="close">&times;</span>
-    <!-- Pulsante per fermare la scansione -->
+    <!-- Pulsante per fermare la scansione (assicurato con z-index elevato) -->
     <button id="stopScannerBtn" class="stop-scanner-btn">Ferma Scansione</button>
 
-    <!-- Contenitore dove Quagga2 inietterà il suo <video> -->
+    <!-- Wrapper per il video e l'overlay -->
     <div id="video-wrapper" style="position: relative; width: 100%; height: calc(100% - 120px);">
+      <!-- Contenitore dove Quagga2 inietterà il video -->
       <div id="video-container"></div>
-      <!-- <div id="scanner-overlay"></div> -->
+      <!-- Overlay ripristinato per evidenziare l'area di scansione -->
+      <div id="scanner-overlay"></div>
     </div>
     <span id="scan-message" class="hint">Posiziona il codice a barre all'interno del rettangolo verde.</span>
   </div>
@@ -44,7 +46,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<!-- Carichiamo Quagga2 dal CDN (assicurati che funzioni: 200 OK) -->
+<!-- Carichiamo Quagga2 dal CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
 
 <script>
@@ -65,7 +67,7 @@ document.addEventListener("DOMContentLoaded", function() {
       return;
     }
 
-    // Esegui la richiesta al backend
+    // Richiesta al backend
     fetch('/search/articolo_by_barcode?barcode=' + encodeURIComponent(barcode))
       .then(response => response.json())
       .then(data => {
@@ -88,7 +90,7 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   // =========================
-  // 2) SCANSIONE LIVE QUAGGA2
+  // 2) SCANSIONE LIVE CON QUAGGA2
   // =========================
   const scanButton     = document.getElementById("scan-button");
   const modal          = document.getElementById("scanner-modal");
@@ -101,19 +103,19 @@ document.addEventListener("DOMContentLoaded", function() {
     startScanner();
   });
 
-  // Chiude la modale e ferma lo scanner
+  // Chiusura della modale e fermata dello scanner
   closeModal.addEventListener("click", function(){
     modal.style.display = "none";
     stopScanner();
   });
 
-  // Ferma la scansione manualmente
+  // Ferma lo scanner manualmente
   stopScannerBtn.addEventListener("click", function(){
     modal.style.display = "none";
     stopScanner();
   });
 
-  // Avvia Quagga2 con config semplificata (facingMode environment)
+  // Avvia Quagga2 con configurazione avanzata per l'area di interesse (ROI)
   function startScanner() {
     if (window._quaggaRunning) {
       Quagga.stop();
@@ -124,9 +126,16 @@ document.addEventListener("DOMContentLoaded", function() {
       inputStream: {
         name: "Live",
         type: "LiveStream",
-        target: document.getElementById("video-container"),
+        target: videoContainer,
         constraints: {
           facingMode: { ideal: "environment" }
+        },
+        // Advanced configuration: limita l'area di scansione alla parte centrale del video
+        area: {
+          top: "25%",    // Spazio dal bordo superiore
+          right: "10%",  // Spazio dal bordo destro
+          left: "10%",   // Spazio dal bordo sinistro
+          bottom: "25%"  // Spazio dal bordo inferiore
         }
       },
       locator: {
@@ -163,7 +172,7 @@ document.addEventListener("DOMContentLoaded", function() {
       window._quaggaRunning = true;
       console.log("Quagga2 avviato.");
 
-      // Conferma multipla
+      // Logica per la conferma multipla del codice
       let lastCode = null;
       let count = 0;
       const REQUIRED_COUNT = 3;
@@ -189,7 +198,7 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 
-  // Ferma lo scanner
+  // Funzione per fermare lo scanner
   function stopScanner() {
     if (window._quaggaRunning) {
       Quagga.stop();
@@ -201,7 +210,7 @@ document.addEventListener("DOMContentLoaded", function() {
 </script>
 
 <style>
-/* Posizionamento e dimensioni della modale */
+/* Modal: posizionamento e dimensioni */
 .modal {
   position: absolute;
   display: flex;
@@ -212,7 +221,7 @@ document.addEventListener("DOMContentLoaded", function() {
   height: 80%;
   top: 10%;
   left: 10%;
-  overflow: hidden; /* Nasconde overflow */
+  overflow: hidden;
   background-color: rgba(0,0,0,0.7);
 }
 .modal-content {
@@ -222,7 +231,7 @@ document.addEventListener("DOMContentLoaded", function() {
   background-color: #fff;
 }
 
-/* Pulsante di chiusura in alto a destra */
+/* Bottone di chiusura in alto a destra */
 .close {
   position: absolute;
   top: 10px;
@@ -232,6 +241,7 @@ document.addEventListener("DOMContentLoaded", function() {
   cursor: pointer;
 }
 
+/* Messaggio di aiuto in basso */
 .hint {
   position: absolute;
   bottom: 10px;
@@ -242,10 +252,10 @@ document.addEventListener("DOMContentLoaded", function() {
   justify-content: center;
   align-items: center;
   font-size: 18px;
-  color: blue
+  color: blue;
 }
 
-/* Pulsante "Ferma Scansione" in alto a sinistra */
+/* Bottone "Ferma Scansione" con z-index elevato per rimanere cliccabile */
 .stop-scanner-btn {
   position: absolute;
   top: 10px;
@@ -253,9 +263,10 @@ document.addEventListener("DOMContentLoaded", function() {
   font-size: 16px;
   padding: 6px 12px;
   cursor: pointer;
+  z-index: 3;
 }
 
-/* Contenitore wrapper per il video e l'overlay */
+/* Wrapper per il video e l'overlay */
 #video-wrapper {
   position: relative;
   top: 60px;
@@ -263,34 +274,30 @@ document.addEventListener("DOMContentLoaded", function() {
   height: calc(100% - 120px);
 }
 
-/* Contenitore per il video Quagga2 */
+/* Contenitore dove Quagga2 inietterà il video */
 #video-container {
   position: relative;
   width: 100%;
   height: 100%;
   z-index: 1;
 }
-
-/* Forziamo il video a riempire l'area */
 #video-container video {
   width: 100%;
   height: 100%;
-  object-fit: cover; /* Ritaglia l'immagine per riempire l'area */
+  object-fit: cover;
 }
 
-/* Overlay con grafica del barcode */
+/* Overlay: evidenzia l'area di scansione (stessa area elaborata da Quagga2) */
 #scanner-overlay {
   position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  z-index: 2; /* Sopra il video */
-  pointer-events: none; /* Non interferisce con il video */
+  z-index: 2;
+  pointer-events: none;
   border: 2px solid #00FF00;
 }
-
-/* Pseudo-elemento per l'immagine barcode in trasparenza */
 #scanner-overlay::before {
   content: "";
   position: absolute;
