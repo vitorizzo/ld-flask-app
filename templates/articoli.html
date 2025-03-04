@@ -44,16 +44,18 @@
     </div>
 
     <!-- Pannello di debug: controlli e informazioni -->
-    <div id="camera-controls">
+    <div id="camera-controls" style="height: 200px">
       <h4>Seleziona fotocamera</h4>
       <div id="camera-options"></div>
     </div>
-    <div id="debug-panel">
+    <div id="debug-panel" style="height: 200px">
       <div id="constraints-info"></div>
       <div id="selected-camera-info"></div>
     </div>
-
-    <span id="scan-message" class="hint">Posiziona il codice a barre all'interno del rettangolo verde.</span>
+    <div id="selected-camera" style="height: 60px"></div>
+    <div id="scan-message" class="hint" style="height: 60px">
+      Posiziona il codice a barre all'interno del rettangolo verde.
+    </div>
   </div>
 </div>
 {% endblock %}
