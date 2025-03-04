@@ -126,21 +126,21 @@ document.addEventListener("DOMContentLoaded", function() {
       inputStream: {
         name: "Live",
         type: "LiveStream",
-        target: videoContainer,
+        target: document.getElementById("video-container"),
         constraints: {
           facingMode: { ideal: "environment" }
         },
-        // Advanced configuration: limita l'area di scansione alla parte centrale del video
+        // Aumentiamo leggermente l'area di scansione per facilitare la rilevazione
         area: {
-          top: "35%",    // Spazio dal bordo superiore
-          right: "20%",  // Spazio dal bordo destro
-          left: "20%",   // Spazio dal bordo sinistro
-          bottom: "35%"  // Spazio dal bordo inferiore
+          top: "20%",    // Ridotto da 25% per ampliare l'area verticale
+          right: "5%",   // Ridotto da 10% per aumentare la larghezza dell'area
+          left: "5%",
+          bottom: "20%"  // Ridotto da 25%
         }
       },
       locator: {
-        patchSize: "large",
-        halfSample: false
+        patchSize: "medium", // Modificato da "large" per un bilanciamento migliore tra velocità e accuratezza
+        halfSample: true     // Abilitato per processare meno pixel per frame, migliorando le performance
       },
       locate: true,
       decoder: {
@@ -152,8 +152,8 @@ document.addEventListener("DOMContentLoaded", function() {
           "upc_e_reader"
         ]
       },
-      numOfWorkers: 2,
-      frequency: 10,
+      numOfWorkers: 4, // Aumentato da 2, se il dispositivo lo supporta, per elaborare più frame contemporaneamente
+      frequency: 15,   // Aumentato da 10 per processare più frame al secondo
       debug: {
         drawBoundingBox: true,
         showFrequency: true,
