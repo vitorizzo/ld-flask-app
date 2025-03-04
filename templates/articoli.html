@@ -36,7 +36,7 @@
     <button id="switchCameraBtn" class="switch-camera-btn">Switch Camera</button>
 
     <!-- Wrapper per il video e l'overlay -->
-    <div id="video-wrapper" style="position: relative; width: 100%; height: calc(100% - 220px);">
+    <div id="video-wrapper" style="position: relative; width: 100%; height: calc(100% - 610px);">
       <!-- Contenitore dove Quagga2 inietterà il video -->
       <div id="video-container"></div>
       <!-- Overlay per evidenziare l'area di scansione -->
@@ -162,7 +162,7 @@ document.addEventListener("DOMContentLoaded", function() {
       inputStream: {
         name: "Live",
         type: "LiveStream",
-        target: videoContainer,
+        target: document.getElementById("video-container"),
         constraints: {
           deviceId: { exact: selectedCameraId },
           facingMode: { ideal: "environment" }
