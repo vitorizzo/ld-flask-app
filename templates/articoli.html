@@ -115,86 +115,103 @@ document.addEventListener("DOMContentLoaded", function() {
     stopScanner();
   });
 
-  // Avvia Quagga2 con configurazione avanzata per l'area di interesse (ROI)
+  // Funzione di avvio dello scanner con enumerazione dei dispositivi video
   function startScanner() {
     if (window._quaggaRunning) {
       Quagga.stop();
       window._quaggaRunning = false;
     }
 
-    const config = {
-      inputStream: {
-        name: "Live",
-        type: "LiveStream",
-        target: document.getElementById("video-container"),
-        constraints: {
-          facingMode: { ideal: "environment" }
+    // Enumeriamo i dispositivi video per selezionare esplicitamente la fotocamera posteriore
+    navigator.mediaDevices.enumerateDevices().then(devices => {
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      // Cerca un dispositivo che contenga 'back' nel label (in minuscolo)
+      let backCamera = videoDevices.find(device => device.label.toLowerCase().includes('back'));
+      if (!backCamera) {
+        // Se non viene trovato, usa il primo disponibile
+        backCamera = videoDevices[0];
+      }
+      console.log("Camera selezionata:", backCamera);
+
+      const config = {
+        inputStream: {
+          name: "Live",
+          type: "LiveStream",
+          target: videoContainer,
+          constraints: {
+            // Forza l'uso del dispositivo selezionato tramite deviceId
+            deviceId: { exact: backCamera.deviceId },
+            facingMode: { ideal: "environment" }
+          },
+          // Configurazione dell'area di scansione (ROI)
+          area: {
+            top: "20%",    // Amplia l'area verticale (da 25% ridotto a 20%)
+            right: "5%",   // Amplia l'area orizzontale (da 10% a 5%)
+            left: "5%",
+            bottom: "20%"  // Analogamente per il bordo inferiore
+          }
         },
-        // Aumentiamo leggermente l'area di scansione per facilitare la rilevazione
-        area: {
-          top: "20%",    // Ridotto da 25% per ampliare l'area verticale
-          right: "5%",   // Ridotto da 10% per aumentare la larghezza dell'area
-          left: "5%",
-          bottom: "20%"  // Ridotto da 25%
+        locator: {
+          patchSize: "medium", // Bilanciamento tra velocità e accuratezza
+          halfSample: true     // Processa meno pixel per frame migliorando le performance
+        },
+        locate: true,
+        decoder: {
+          readers: [
+            "code_128_reader",
+            "ean_reader",
+            "ean_8_reader",
+            "upc_reader",
+            "upc_e_reader"
+          ]
+        },
+        numOfWorkers: 4, // Maggiore numero di workers per elaborare più frame contemporaneamente
+        frequency: 15,   // Più frame al secondo
+        debug: {
+          drawBoundingBox: true,
+          showFrequency: true,
+          drawScanline: true,
+          showPattern: true
         }
-      },
-      locator: {
-        patchSize: "medium", // Modificato da "large" per un bilanciamento migliore tra velocità e accuratezza
-        halfSample: true     // Abilitato per processare meno pixel per frame, migliorando le performance
-      },
-      locate: true,
-      decoder: {
-        readers: [
-          "code_128_reader",
-          "ean_reader",
-          "ean_8_reader",
-          "upc_reader",
-          "upc_e_reader"
-        ]
-      },
-      numOfWorkers: 4, // Aumentato da 2, se il dispositivo lo supporta, per elaborare più frame contemporaneamente
-      frequency: 15,   // Aumentato da 10 per processare più frame al secondo
-      debug: {
-        drawBoundingBox: true,
-        showFrequency: true,
-        drawScanline: true,
-        showPattern: true
-      }
-    };
+      };
 
-    Quagga.init(config, function(err) {
-      if (err) {
-        console.error("Errore init Quagga2:", err);
-        alert("Impossibile avviare lo scanner!");
-        return;
-      }
-      Quagga.start();
-      window._quaggaRunning = true;
-      console.log("Quagga2 avviato.");
-
-      // Logica per la conferma multipla del codice
-      let lastCode = null;
-      let count = 0;
-      const REQUIRED_COUNT = 3;
-
-      Quagga.onDetected(data => {
-        const code = data.codeResult.code;
-        if (code === lastCode) {
-          count++;
-        } else {
-          lastCode = code;
-          count = 1;
+      Quagga.init(config, function(err) {
+        if (err) {
+          console.error("Errore init Quagga2:", err);
+          alert("Impossibile avviare lo scanner!");
+          return;
         }
+        Quagga.start();
+        window._quaggaRunning = true;
+        console.log("Quagga2 avviato.");
 
-        if (count >= REQUIRED_COUNT) {
-          console.log("Codice confermato:", code);
-          document.getElementById("barcode").value = code;
-          document.getElementById("search-button").click();
+        // Logica per la conferma multipla del codice
+        let lastCode = null;
+        let count = 0;
+        const REQUIRED_COUNT = 3;
 
-          stopScanner();
-          modal.style.display = "none";
-        }
+        Quagga.onDetected(data => {
+          const code = data.codeResult.code;
+          if (code === lastCode) {
+            count++;
+          } else {
+            lastCode = code;
+            count = 1;
+          }
+
+          if (count >= REQUIRED_COUNT) {
+            console.log("Codice confermato:", code);
+            document.getElementById("barcode").value = code;
+            document.getElementById("search-button").click();
+
+            stopScanner();
+            modal.style.display = "none";
+          }
+        });
       });
+    }).catch(err => {
+      console.error("Errore durante l'enumerazione dei dispositivi video:", err);
+      alert("Errore nel recupero delle camere.");
     });
   }
 
