@@ -30,16 +30,29 @@
   <div class="modal-content">
     <!-- Pulsante di chiusura in alto a destra -->
     <span id="close-scanner" class="close">&times;</span>
-    <!-- Pulsante per fermare la scansione (assicurato con z-index elevato) -->
+    <!-- Pulsante per fermare la scansione -->
     <button id="stopScannerBtn" class="stop-scanner-btn">Ferma Scansione</button>
+    <!-- Pulsante per switchare la fotocamera -->
+    <button id="switchCameraBtn" class="switch-camera-btn">Switch Camera</button>
 
     <!-- Wrapper per il video e l'overlay -->
-    <div id="video-wrapper" style="position: relative; width: 100%; height: calc(100% - 120px);">
+    <div id="video-wrapper" style="position: relative; width: 100%; height: calc(100% - 180px);">
       <!-- Contenitore dove Quagga2 inietterà il video -->
       <div id="video-container"></div>
-      <!-- Overlay ripristinato per evidenziare l'area di scansione -->
+      <!-- Overlay per evidenziare l'area di scansione -->
       <div id="scanner-overlay"></div>
     </div>
+
+    <!-- Pannello di debug -->
+    <div id="camera-controls">
+      <h4>Seleziona fotocamera</h4>
+      <div id="camera-options"></div>
+    </div>
+    <div id="debug-panel">
+      <div id="constraints-info"></div>
+      <div id="selected-camera-info"></div>
+    </div>
+
     <span id="scan-message" class="hint">Posiziona il codice a barre all'interno del rettangolo verde.</span>
   </div>
 </div>
@@ -50,6 +63,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
 
 <script>
+// Variabili globali per la gestione della fotocamera
+let videoDevices = [];
+let selectedCameraId = null;
+
 document.addEventListener("DOMContentLoaded", function() {
   // =========================
   // 1) RICERCA MANUALE
@@ -66,8 +83,6 @@ document.addEventListener("DOMContentLoaded", function() {
       alert("Inserisci un codice a barre valido.");
       return;
     }
-
-    // Richiesta al backend
     fetch('/search/articolo_by_barcode?barcode=' + encodeURIComponent(barcode))
       .then(response => response.json())
       .then(data => {
@@ -96,123 +111,122 @@ document.addEventListener("DOMContentLoaded", function() {
   const modal          = document.getElementById("scanner-modal");
   const closeModal     = document.getElementById("close-scanner");
   const stopScannerBtn = document.getElementById("stopScannerBtn");
+  const switchCameraBtn = document.getElementById("switchCameraBtn");
   const videoContainer = document.getElementById("video-container");
 
   scanButton.addEventListener("click", function() {
     modal.style.display = "block";
-    startScanner();
+    enumerateVideoDevices().then(() => {
+      // Visualizza le informazioni di debug
+      displaySupportedConstraints();
+      displayCameraOptions();
+      startScanner();
+    });
   });
 
-  // Chiusura della modale e fermata dello scanner
   closeModal.addEventListener("click", function(){
     modal.style.display = "none";
     stopScanner();
   });
-
-  // Ferma lo scanner manualmente
   stopScannerBtn.addEventListener("click", function(){
     modal.style.display = "none";
     stopScanner();
   });
+  switchCameraBtn.addEventListener("click", function(){
+    switchCamera();
+  });
 
-  // Funzione di avvio dello scanner con enumerazione dei dispositivi video
+  // Enumerazione dei dispositivi video e impostazione predefinita
+  function enumerateVideoDevices() {
+    return navigator.mediaDevices.enumerateDevices().then(devices => {
+      videoDevices = devices.filter(device => device.kind === "videoinput");
+      if(videoDevices.length > 0) {
+        // Se possibile, scegli la fotocamera con "back" nel label, altrimenti la prima
+        let backCamera = videoDevices.find(device => device.label.toLowerCase().includes("back"));
+        selectedCameraId = backCamera ? backCamera.deviceId : videoDevices[0].deviceId;
+      }
+      displaySelectedCameraInfo();
+    }).catch(err => {
+      console.error("Errore durante l'enumerazione dei dispositivi video:", err);
+    });
+  }
+
+  // Funzione per avviare Quagga2 utilizzando il dispositivo selezionato
   function startScanner() {
     if (window._quaggaRunning) {
       Quagga.stop();
       window._quaggaRunning = false;
     }
-
-    // Enumeriamo i dispositivi video per selezionare esplicitamente la fotocamera posteriore
-    navigator.mediaDevices.enumerateDevices().then(devices => {
-      const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      // Cerca un dispositivo che contenga 'back' nel label (in minuscolo)
-      let backCamera = videoDevices.find(device => device.label.toLowerCase().includes('back'));
-      if (!backCamera) {
-        // Se non viene trovato, usa il primo disponibile
-        backCamera = videoDevices[0];
+    const config = {
+      inputStream: {
+        name: "Live",
+        type: "LiveStream",
+        target: videoContainer,
+        constraints: {
+          deviceId: { exact: selectedCameraId },
+          facingMode: { ideal: "environment" }
+        },
+        // Definisce l'area di scansione (ROI)
+        area: {
+          top: "25%",
+          right: "10%",
+          left: "10%",
+          bottom: "25%"
+        }
+      },
+      locator: {
+        patchSize: "large",
+        halfSample: false
+      },
+      locate: true,
+      decoder: {
+        readers: [
+          "code_128_reader",
+          "ean_reader",
+          "ean_8_reader",
+          "upc_reader",
+          "upc_e_reader"
+        ]
+      },
+      numOfWorkers: 2,
+      frequency: 10,
+      debug: {
+        drawBoundingBox: true,
+        showFrequency: true,
+        drawScanline: true,
+        showPattern: true
       }
-      console.log("Camera selezionata:", backCamera);
+    };
 
-      const config = {
-        inputStream: {
-          name: "Live",
-          type: "LiveStream",
-          target: videoContainer,
-          constraints: {
-            // Forza l'uso del dispositivo selezionato tramite deviceId
-            deviceId: { exact: backCamera.deviceId },
-            facingMode: { ideal: "environment" },
-            advanced: [{ focusMode: "continuous" }]
-          },
-          // Configurazione dell'area di scansione (ROI)
-          area: {
-            top: "20%",    // Amplia l'area verticale (da 25% ridotto a 20%)
-            right: "5%",   // Amplia l'area orizzontale (da 10% a 5%)
-            left: "5%",
-            bottom: "20%"  // Analogamente per il bordo inferiore
-          }
-        },
-        locator: {
-          patchSize: "medium", // Bilanciamento tra velocità e accuratezza
-          halfSample: true     // Processa meno pixel per frame migliorando le performance
-        },
-        locate: true,
-        decoder: {
-          readers: [
-            "code_128_reader",
-            "ean_reader",
-            "ean_8_reader",
-            "upc_reader",
-            "upc_e_reader"
-          ]
-        },
-        numOfWorkers: 4, // Maggiore numero di workers per elaborare più frame contemporaneamente
-        frequency: 15,   // Più frame al secondo
-        debug: {
-          drawBoundingBox: true,
-          showFrequency: true,
-          drawScanline: true,
-          showPattern: true
+    Quagga.init(config, function(err) {
+      if (err) {
+        console.error("Errore init Quagga2:", err);
+        alert("Impossibile avviare lo scanner!");
+        return;
+      }
+      Quagga.start();
+      window._quaggaRunning = true;
+      console.log("Quagga2 avviato.");
+      // Logica per la conferma multipla del codice
+      let lastCode = null;
+      let count = 0;
+      const REQUIRED_COUNT = 3;
+      Quagga.onDetected(data => {
+        const code = data.codeResult.code;
+        if (code === lastCode) {
+          count++;
+        } else {
+          lastCode = code;
+          count = 1;
         }
-      };
-
-      Quagga.init(config, function(err) {
-        if (err) {
-          console.error("Errore init Quagga2:", err);
-          alert("Impossibile avviare lo scanner!");
-          return;
+        if (count >= REQUIRED_COUNT) {
+          console.log("Codice confermato:", code);
+          document.getElementById("barcode").value = code;
+          document.getElementById("search-button").click();
+          stopScanner();
+          modal.style.display = "none";
         }
-        Quagga.start();
-        window._quaggaRunning = true;
-        console.log("Quagga2 avviato.");
-
-        // Logica per la conferma multipla del codice
-        let lastCode = null;
-        let count = 0;
-        const REQUIRED_COUNT = 3;
-
-        Quagga.onDetected(data => {
-          const code = data.codeResult.code;
-          if (code === lastCode) {
-            count++;
-          } else {
-            lastCode = code;
-            count = 1;
-          }
-
-          if (count >= REQUIRED_COUNT) {
-            console.log("Codice confermato:", code);
-            document.getElementById("barcode").value = code;
-            document.getElementById("search-button").click();
-
-            stopScanner();
-            modal.style.display = "none";
-          }
-        });
       });
-    }).catch(err => {
-      console.error("Errore durante l'enumerazione dei dispositivi video:", err);
-      alert("Errore nel recupero delle camere.");
     });
   }
 
@@ -222,6 +236,78 @@ document.addEventListener("DOMContentLoaded", function() {
       Quagga.stop();
       window._quaggaRunning = false;
       console.log("Scanner fermato.");
+    }
+  }
+
+  // Switcha alla fotocamera successiva nell'elenco
+  function switchCamera() {
+    if(videoDevices.length === 0) return;
+    // Trova l'indice dell'attuale camera selezionata
+    let currentIndex = videoDevices.findIndex(device => device.deviceId === selectedCameraId);
+    // Passa al successivo, ciclando se necessario
+    let nextIndex = (currentIndex + 1) % videoDevices.length;
+    selectedCameraId = videoDevices[nextIndex].deviceId;
+    console.log("Switching camera. Nuovo deviceId:", selectedCameraId);
+    displaySelectedCameraInfo();
+    // Riavvia lo scanner con il nuovo dispositivo
+    stopScanner();
+    startScanner();
+    // Aggiorna la selezione dei radio button
+    updateCameraRadioSelection();
+  }
+
+  // Visualizza le opzioni di fotocamere (radio button)
+  function displayCameraOptions() {
+    const container = document.getElementById("camera-options");
+    container.innerHTML = "";
+    videoDevices.forEach((device, index) => {
+      const radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = "cameraOption";
+      radio.value = device.deviceId;
+      radio.id = "camera_" + index;
+      if(device.deviceId === selectedCameraId) {
+        radio.checked = true;
+      }
+      radio.addEventListener("change", function(){
+        selectedCameraId = this.value;
+        displaySelectedCameraInfo();
+        stopScanner();
+        startScanner();
+      });
+      const label = document.createElement("label");
+      label.htmlFor = radio.id;
+      label.textContent = device.label || "Camera " + (index + 1);
+      const wrapper = document.createElement("div");
+      wrapper.appendChild(radio);
+      wrapper.appendChild(label);
+      container.appendChild(wrapper);
+    });
+  }
+
+  // Aggiorna la selezione dei radio button (usata dallo switch)
+  function updateCameraRadioSelection() {
+    const radios = document.getElementsByName("cameraOption");
+    radios.forEach(radio => {
+      radio.checked = (radio.value === selectedCameraId);
+    });
+  }
+
+  // Visualizza le constraint supportate nel debug panel
+  function displaySupportedConstraints() {
+    const constraints = navigator.mediaDevices.getSupportedConstraints();
+    const infoDiv = document.getElementById("constraints-info");
+    infoDiv.innerHTML = "<strong>Supported Constraints:</strong> " + JSON.stringify(constraints);
+  }
+
+  // Visualizza informazioni sulla fotocamera selezionata
+  function displaySelectedCameraInfo() {
+    const infoDiv = document.getElementById("selected-camera-info");
+    const selectedDevice = videoDevices.find(device => device.deviceId === selectedCameraId);
+    if(selectedDevice) {
+      infoDiv.innerHTML = "<strong>Selected Camera:</strong> " + (selectedDevice.label || "Camera sconosciuta") + " (" + selectedCameraId + ")";
+    } else {
+      infoDiv.innerHTML = "<strong>Selected Camera:</strong> nessuna";
     }
   }
 });
@@ -259,6 +345,28 @@ document.addEventListener("DOMContentLoaded", function() {
   cursor: pointer;
 }
 
+/* Bottone "Ferma Scansione" */
+.stop-scanner-btn {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 16px;
+  padding: 6px 12px;
+  cursor: pointer;
+  z-index: 3;
+}
+
+/* Bottone "Switch Camera" */
+.switch-camera-btn {
+  position: absolute;
+  top: 10px;
+  left: 150px;
+  font-size: 16px;
+  padding: 6px 12px;
+  cursor: pointer;
+  z-index: 3;
+}
+
 /* Messaggio di aiuto in basso */
 .hint {
   position: absolute;
@@ -273,23 +381,12 @@ document.addEventListener("DOMContentLoaded", function() {
   color: blue;
 }
 
-/* Bottone "Ferma Scansione" con z-index elevato per rimanere cliccabile */
-.stop-scanner-btn {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  font-size: 16px;
-  padding: 6px 12px;
-  cursor: pointer;
-  z-index: 3;
-}
-
 /* Wrapper per il video e l'overlay */
 #video-wrapper {
   position: relative;
   top: 60px;
   width: 100%;
-  height: calc(100% - 120px);
+  height: calc(100% - 180px);
 }
 
 /* Contenitore dove Quagga2 inietterà il video */
@@ -305,7 +402,7 @@ document.addEventListener("DOMContentLoaded", function() {
   object-fit: cover;
 }
 
-/* Overlay: evidenzia l'area di scansione (stessa area elaborata da Quagga2) */
+/* Overlay: evidenzia l'area di scansione */
 #scanner-overlay {
   position: absolute;
   top: 0;
@@ -326,6 +423,26 @@ document.addEventListener("DOMContentLoaded", function() {
   background: url("{{ url_for('static', filename='images/barcode.png') }}") no-repeat center center;
   background-size: contain;
   opacity: 0.2;
+}
+
+/* Pannello di debug e controlli */
+#camera-controls, #debug-panel {
+  position: absolute;
+  bottom: 60px;
+  left: 10px;
+  right: 10px;
+  background: rgba(255,255,255,0.8);
+  padding: 5px;
+  font-size: 12px;
+  color: #333;
+  overflow-y: auto;
+  max-height: 100px;
+  border: 1px solid #ccc;
+  margin-bottom: 5px;
+}
+#camera-controls h4 {
+  margin: 0 0 5px;
+  font-size: 14px;
 }
 </style>
 {% endblock %}
