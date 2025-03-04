@@ -32,22 +32,24 @@
     <span id="close-scanner" class="close">&times;</span>
     <!-- Pulsante per fermare la scansione -->
     <button id="stopScannerBtn" class="stop-scanner-btn">Ferma Scansione</button>
-    <!-- Pulsante per switchare il comparto della fotocamera (back/front) -->
-    <button id="switchCameraBtn" class="switch-camera-btn">Switch Camera</button>
+    <!-- Pulsante per switchare il lato (comparto) della fotocamera -->
+    <button id="switchSideBtn" class="switch-camera-btn">Switch Side</button>
 
     <!-- Wrapper per il video e l'overlay -->
-    <div id="video-wrapper" style="position: relative; width: 100%; height: calc(100% - 220px);">
+    <div id="video-wrapper" style="position: relative; width: 100%; height: calc(100% - 240px);">
       <!-- Contenitore dove Quagga2 inietterà il video -->
       <div id="video-container"></div>
       <!-- Overlay per evidenziare l'area di scansione -->
       <div id="scanner-overlay"></div>
     </div>
 
-    <!-- Pannello di debug: controlli e informazioni -->
+    <!-- Sezione di selezione della fotocamera tramite combobox -->
     <div id="camera-controls">
-      <h4>Seleziona fotocamera ({{ currentCameraMode|default("back") }})</h4>
-      <div id="camera-options"></div>
+      <h4>Select camera (<span id="current-side">back</span>):</h4>
+      <select id="camera-select"></select>
     </div>
+
+    <!-- Pannello di debug -->
     <div id="debug-panel">
       <div id="constraints-info"></div>
       <div id="selected-camera-info"></div>
@@ -61,7 +63,6 @@
 {% block extra_js %}
 <!-- Carichiamo Quagga2 dal CDN -->
 <script src="https://cdn.jsdelivr.net/npm/@ericblade/quagga2@1.8.4/dist/quagga.min.js"></script>
-
 <script>
 // Variabili globali per la gestione della fotocamera
 let videoDevices = [];
@@ -111,17 +112,20 @@ document.addEventListener("DOMContentLoaded", function() {
   const modal            = document.getElementById("scanner-modal");
   const closeModal       = document.getElementById("close-scanner");
   const stopScannerBtn   = document.getElementById("stopScannerBtn");
-  const switchCameraBtn  = document.getElementById("switchCameraBtn");
+  const switchSideBtn    = document.getElementById("switchSideBtn");
   const videoContainer   = document.getElementById("video-container");
+  const cameraSelect     = document.getElementById("camera-select");
+  const currentSideLabel = document.getElementById("current-side");
 
   scanButton.addEventListener("click", function() {
     modal.style.display = "block";
     enumerateVideoDevices().then(() => {
       displaySupportedConstraints();
-      displayCameraOptions();
+      updateCameraSelectOptions();
       startScanner();
     });
   });
+
   closeModal.addEventListener("click", function(){
     modal.style.display = "none";
     stopScanner();
@@ -130,42 +134,64 @@ document.addEventListener("DOMContentLoaded", function() {
     modal.style.display = "none";
     stopScanner();
   });
-  switchCameraBtn.addEventListener("click", function(){
-    // Switch tra i comparti: se "back", passa a "front", altrimenti a "back"
+  switchSideBtn.addEventListener("click", function(){
+    // Inverte il comparto
     currentCameraMode = (currentCameraMode === "back") ? "front" : "back";
-    // Seleziona la prima fotocamera disponibile del nuovo gruppo
-    const availableGroup = videoDevices.filter(device => {
-      return device.label.toLowerCase().includes(currentCameraMode);
-    });
-    if (availableGroup.length > 0) {
-      selectedCameraId = availableGroup[0].deviceId;
+    currentSideLabel.textContent = currentCameraMode;
+    // Aggiorna la combobox con le fotocamere disponibili per il nuovo comparto
+    updateCameraSelectOptions();
+    // Seleziona la prima fotocamera disponibile per il comparto corrente
+    const available = videoDevices.filter(device => device.label.toLowerCase().includes(currentCameraMode));
+    if(available.length > 0) {
+      selectedCameraId = available[0].deviceId;
+    } else if(videoDevices.length > 0) {
+      selectedCameraId = videoDevices[0].deviceId;
     }
-    console.log("Switching camera mode to:", currentCameraMode, "New deviceId:", selectedCameraId);
     displaySelectedCameraInfo();
     stopScanner();
     startScanner();
-    displayCameraOptions();
   });
 
-  // Enumerazione dei dispositivi video filtrando per comparto corrente
+  // Quando l'utente cambia la selezione nella combobox
+  cameraSelect.addEventListener("change", function(){
+    selectedCameraId = this.value;
+    displaySelectedCameraInfo();
+    stopScanner();
+    startScanner();
+  });
+
+  // Enumerazione dei dispositivi video
   function enumerateVideoDevices() {
     return navigator.mediaDevices.enumerateDevices().then(devices => {
       videoDevices = devices.filter(device => device.kind === "videoinput");
       if(videoDevices.length > 0) {
-        const availableGroup = videoDevices.filter(device => {
-          return device.label.toLowerCase().includes(currentCameraMode);
-        });
-        if(availableGroup.length > 0) {
-          selectedCameraId = availableGroup[0].deviceId;
-        } else {
-          // Fallback: se non ci sono dispositivi per il comparto attuale, usa il primo
-          selectedCameraId = videoDevices[0].deviceId;
-        }
+        // Seleziona per default la prima fotocamera del comparto attuale
+        const available = videoDevices.filter(device => device.label.toLowerCase().includes(currentCameraMode));
+        selectedCameraId = available.length > 0 ? available[0].deviceId : videoDevices[0].deviceId;
       }
       displaySelectedCameraInfo();
     }).catch(err => {
       console.error("Errore durante l'enumerazione dei dispositivi video:", err);
     });
+  }
+
+  // Aggiorna la combobox con le fotocamere del comparto attuale
+  function updateCameraSelectOptions() {
+    cameraSelect.innerHTML = "";
+    const filteredDevices = videoDevices.filter(device => device.label.toLowerCase().includes(currentCameraMode));
+    if(filteredDevices.length > 0) {
+      filteredDevices.forEach(device => {
+        const option = document.createElement("option");
+        option.value = device.deviceId;
+        option.textContent = device.label || "Camera " + device.deviceId;
+        cameraSelect.appendChild(option);
+      });
+      // Imposta il valore della combobox sul device attualmente selezionato
+      cameraSelect.value = selectedCameraId;
+    } else {
+      // Se non ci sono dispositivi per il comparto corrente, svuota la combobox
+      cameraSelect.innerHTML = "<option value=''>Nessuna fotocamera " + currentCameraMode + " trovata</option>";
+    }
   }
 
   // Avvia Quagga2 utilizzando il dispositivo selezionato
@@ -223,7 +249,7 @@ document.addEventListener("DOMContentLoaded", function() {
       Quagga.start();
       window._quaggaRunning = true;
       console.log("Quagga2 avviato.");
-      // Logica per confermare il codice (multipla conferma)
+      // Logica per la conferma multipla del codice
       let lastCode = null;
       let count = 0;
       const REQUIRED_COUNT = 3;
@@ -253,52 +279,6 @@ document.addEventListener("DOMContentLoaded", function() {
       window._quaggaRunning = false;
       console.log("Scanner fermato.");
     }
-  }
-
-  // Visualizza le opzioni di fotocamere (radio button) per il comparto corrente
-  function displayCameraOptions() {
-    const container = document.getElementById("camera-options");
-    container.innerHTML = "";
-    container.style.maxHeight = "150px";
-    container.style.overflowY = "auto";
-    const filteredDevices = videoDevices.filter(device => {
-      return device.label.toLowerCase().includes(currentCameraMode);
-    });
-    if (filteredDevices.length > 0) {
-      filteredDevices.forEach((device, index) => {
-        const radio = document.createElement("input");
-        radio.type = "radio";
-        radio.name = "cameraOption";
-        radio.value = device.deviceId;
-        radio.id = currentCameraMode + "_camera_" + index;
-        if(device.deviceId === selectedCameraId) {
-          radio.checked = true;
-        }
-        radio.addEventListener("change", function(){
-          selectedCameraId = this.value;
-          displaySelectedCameraInfo();
-          stopScanner();
-          startScanner();
-        });
-        const label = document.createElement("label");
-        label.htmlFor = radio.id;
-        label.textContent = device.label || (currentCameraMode === "back" ? "Back Camera " : "Front Camera ") + (index + 1);
-        const wrapper = document.createElement("div");
-        wrapper.appendChild(radio);
-        wrapper.appendChild(label);
-        container.appendChild(wrapper);
-      });
-    } else {
-      container.textContent = "Nessuna fotocamera " + currentCameraMode + " trovata.";
-    }
-  }
-
-  // Aggiorna la selezione dei radio button
-  function updateCameraRadioSelection() {
-    const radios = document.getElementsByName("cameraOption");
-    radios.forEach(radio => {
-      radio.checked = (radio.value === selectedCameraId);
-    });
   }
 
   // Mostra le constraint supportate nel pannello di debug
@@ -361,7 +341,7 @@ document.addEventListener("DOMContentLoaded", function() {
   cursor: pointer;
   z-index: 3;
 }
-/* Bottone "Switch Camera" */
+/* Bottone "Switch Side" */
 .switch-camera-btn {
   position: absolute;
   top: 10px;
@@ -389,7 +369,7 @@ document.addEventListener("DOMContentLoaded", function() {
   position: relative;
   top: 60px;
   width: 100%;
-  height: calc(100% - 220px);
+  height: calc(100% - 240px);
 }
 /* Contenitore dove Quagga2 inietterà il video */
 #video-container {
@@ -425,7 +405,7 @@ document.addEventListener("DOMContentLoaded", function() {
   background-size: contain;
   opacity: 0.2;
 }
-/* Pannello di debug e controlli */
+/* Pannello di controllo della fotocamera */
 #camera-controls {
   position: absolute;
   bottom: 80px;
@@ -438,6 +418,7 @@ document.addEventListener("DOMContentLoaded", function() {
   border: 1px solid #ccc;
   margin-bottom: 5px;
 }
+/* Pannello di debug */
 #debug-panel {
   position: absolute;
   bottom: 10px;
