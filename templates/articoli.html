@@ -43,7 +43,7 @@
       <div id="scanner-overlay"></div>
     </div>
 
-    <!-- Pannello di debug -->
+    <!-- Pannello di debug: controlli e informazioni -->
     <div id="camera-controls">
       <h4>Seleziona fotocamera</h4>
       <div id="camera-options"></div>
@@ -107,17 +107,16 @@ document.addEventListener("DOMContentLoaded", function() {
   // =========================
   // 2) SCANSIONE LIVE CON QUAGGA2
   // =========================
-  const scanButton     = document.getElementById("scan-button");
-  const modal          = document.getElementById("scanner-modal");
-  const closeModal     = document.getElementById("close-scanner");
-  const stopScannerBtn = document.getElementById("stopScannerBtn");
-  const switchCameraBtn = document.getElementById("switchCameraBtn");
-  const videoContainer = document.getElementById("video-container");
+  const scanButton       = document.getElementById("scan-button");
+  const modal            = document.getElementById("scanner-modal");
+  const closeModal       = document.getElementById("close-scanner");
+  const stopScannerBtn   = document.getElementById("stopScannerBtn");
+  const switchCameraBtn  = document.getElementById("switchCameraBtn");
+  const videoContainer   = document.getElementById("video-container");
 
   scanButton.addEventListener("click", function() {
     modal.style.display = "block";
     enumerateVideoDevices().then(() => {
-      // Visualizza le informazioni di debug
       displaySupportedConstraints();
       displayCameraOptions();
       startScanner();
@@ -136,12 +135,12 @@ document.addEventListener("DOMContentLoaded", function() {
     switchCamera();
   });
 
-  // Enumerazione dei dispositivi video e impostazione predefinita
+  // Enumerazione dei dispositivi video con filtraggio tra back e front
   function enumerateVideoDevices() {
     return navigator.mediaDevices.enumerateDevices().then(devices => {
       videoDevices = devices.filter(device => device.kind === "videoinput");
       if(videoDevices.length > 0) {
-        // Se possibile, scegli la fotocamera con "back" nel label, altrimenti la prima
+        // Prova a scegliere di default una fotocamera "back" se presente
         let backCamera = videoDevices.find(device => device.label.toLowerCase().includes("back"));
         selectedCameraId = backCamera ? backCamera.deviceId : videoDevices[0].deviceId;
       }
@@ -151,7 +150,7 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 
-  // Funzione per avviare Quagga2 utilizzando il dispositivo selezionato
+  // Avvia Quagga2 utilizzando il dispositivo selezionato
   function startScanner() {
     if (window._quaggaRunning) {
       Quagga.stop();
@@ -166,7 +165,7 @@ document.addEventListener("DOMContentLoaded", function() {
           deviceId: { exact: selectedCameraId },
           facingMode: { ideal: "environment" }
         },
-        // Definisce l'area di scansione (ROI)
+        // Area di scansione (ROI)
         area: {
           top: "25%",
           right: "10%",
@@ -207,7 +206,7 @@ document.addEventListener("DOMContentLoaded", function() {
       Quagga.start();
       window._quaggaRunning = true;
       console.log("Quagga2 avviato.");
-      // Logica per la conferma multipla del codice
+      // Logica per confermare il codice (multipla conferma)
       let lastCode = null;
       let count = 0;
       const REQUIRED_COUNT = 3;
@@ -230,7 +229,7 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 
-  // Funzione per fermare lo scanner
+  // Ferma lo scanner
   function stopScanner() {
     if (window._quaggaRunning) {
       Quagga.stop();
@@ -239,50 +238,88 @@ document.addEventListener("DOMContentLoaded", function() {
     }
   }
 
-  // Switcha alla fotocamera successiva nell'elenco
+  // Switcha alla fotocamera successiva (tra quelle filtrate)
   function switchCamera() {
     if(videoDevices.length === 0) return;
-    // Trova l'indice dell'attuale camera selezionata
-    let currentIndex = videoDevices.findIndex(device => device.deviceId === selectedCameraId);
-    // Passa al successivo, ciclando se necessario
-    let nextIndex = (currentIndex + 1) % videoDevices.length;
-    selectedCameraId = videoDevices[nextIndex].deviceId;
+    // Crea due array filtrati per back e front
+    const backCameras = videoDevices.filter(device => device.label.toLowerCase().includes("back"));
+    const frontCameras = videoDevices.filter(device => device.label.toLowerCase().includes("front"));
+    // Combina i due array mantenendo l'ordine (back prima, poi front)
+    const filteredDevices = backCameras.concat(frontCameras);
+    // Trova l'indice dell'attuale dispositivo selezionato
+    let currentIndex = filteredDevices.findIndex(device => device.deviceId === selectedCameraId);
+    let nextIndex = (currentIndex + 1) % filteredDevices.length;
+    selectedCameraId = filteredDevices[nextIndex].deviceId;
     console.log("Switching camera. Nuovo deviceId:", selectedCameraId);
     displaySelectedCameraInfo();
-    // Riavvia lo scanner con il nuovo dispositivo
     stopScanner();
     startScanner();
-    // Aggiorna la selezione dei radio button
     updateCameraRadioSelection();
   }
 
-  // Visualizza le opzioni di fotocamere (radio button)
+  // Visualizza le opzioni di fotocamere, filtrate per "back" e "front"
   function displayCameraOptions() {
     const container = document.getElementById("camera-options");
     container.innerHTML = "";
-    videoDevices.forEach((device, index) => {
-      const radio = document.createElement("input");
-      radio.type = "radio";
-      radio.name = "cameraOption";
-      radio.value = device.deviceId;
-      radio.id = "camera_" + index;
-      if(device.deviceId === selectedCameraId) {
-        radio.checked = true;
-      }
-      radio.addEventListener("change", function(){
-        selectedCameraId = this.value;
-        displaySelectedCameraInfo();
-        stopScanner();
-        startScanner();
+    const backCameras = videoDevices.filter(device => device.label.toLowerCase().includes("back"));
+    const frontCameras = videoDevices.filter(device => device.label.toLowerCase().includes("front"));
+
+    if (backCameras.length > 0) {
+      const backTitle = document.createElement("div");
+      backTitle.textContent = "Back Cameras:";
+      container.appendChild(backTitle);
+      backCameras.forEach((device, index) => {
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "cameraOption";
+        radio.value = device.deviceId;
+        radio.id = "back_camera_" + index;
+        if(device.deviceId === selectedCameraId) {
+          radio.checked = true;
+        }
+        radio.addEventListener("change", function(){
+          selectedCameraId = this.value;
+          displaySelectedCameraInfo();
+          stopScanner();
+          startScanner();
+        });
+        const label = document.createElement("label");
+        label.htmlFor = radio.id;
+        label.textContent = device.label || "Back Camera " + (index + 1);
+        const wrapper = document.createElement("div");
+        wrapper.appendChild(radio);
+        wrapper.appendChild(label);
+        container.appendChild(wrapper);
       });
-      const label = document.createElement("label");
-      label.htmlFor = radio.id;
-      label.textContent = device.label || "Camera " + (index + 1);
-      const wrapper = document.createElement("div");
-      wrapper.appendChild(radio);
-      wrapper.appendChild(label);
-      container.appendChild(wrapper);
-    });
+    }
+    if (frontCameras.length > 0) {
+      const frontTitle = document.createElement("div");
+      frontTitle.textContent = "Front Cameras:";
+      container.appendChild(frontTitle);
+      frontCameras.forEach((device, index) => {
+        const radio = document.createElement("input");
+        radio.type = "radio";
+        radio.name = "cameraOption";
+        radio.value = device.deviceId;
+        radio.id = "front_camera_" + index;
+        if(device.deviceId === selectedCameraId) {
+          radio.checked = true;
+        }
+        radio.addEventListener("change", function(){
+          selectedCameraId = this.value;
+          displaySelectedCameraInfo();
+          stopScanner();
+          startScanner();
+        });
+        const label = document.createElement("label");
+        label.htmlFor = radio.id;
+        label.textContent = device.label || "Front Camera " + (index + 1);
+        const wrapper = document.createElement("div");
+        wrapper.appendChild(radio);
+        wrapper.appendChild(label);
+        container.appendChild(wrapper);
+      });
+    }
   }
 
   // Aggiorna la selezione dei radio button (usata dallo switch)
@@ -293,14 +330,14 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 
-  // Visualizza le constraint supportate nel debug panel
+  // Mostra le constraint supportate nel pannello di debug
   function displaySupportedConstraints() {
     const constraints = navigator.mediaDevices.getSupportedConstraints();
     const infoDiv = document.getElementById("constraints-info");
     infoDiv.innerHTML = "<strong>Supported Constraints:</strong> " + JSON.stringify(constraints);
   }
 
-  // Visualizza informazioni sulla fotocamera selezionata
+  // Mostra informazioni sulla fotocamera attualmente selezionata
   function displaySelectedCameraInfo() {
     const infoDiv = document.getElementById("selected-camera-info");
     const selectedDevice = videoDevices.find(device => device.deviceId === selectedCameraId);
@@ -402,7 +439,7 @@ document.addEventListener("DOMContentLoaded", function() {
   object-fit: cover;
 }
 
-/* Overlay: evidenzia l'area di scansione */
+/* Overlay per l'area di scansione */
 #scanner-overlay {
   position: absolute;
   top: 0;
@@ -426,9 +463,9 @@ document.addEventListener("DOMContentLoaded", function() {
 }
 
 /* Pannello di debug e controlli */
-#camera-controls, #debug-panel {
+#camera-controls {
   position: absolute;
-  bottom: 60px;
+  bottom: 80px;
   left: 10px;
   right: 10px;
   background: rgba(255,255,255,0.8);
@@ -436,13 +473,26 @@ document.addEventListener("DOMContentLoaded", function() {
   font-size: 12px;
   color: #333;
   overflow-y: auto;
-  max-height: 100px;
+  max-height: 80px;
   border: 1px solid #ccc;
   margin-bottom: 5px;
 }
 #camera-controls h4 {
   margin: 0 0 5px;
   font-size: 14px;
+}
+#debug-panel {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  right: 10px;
+  background: rgba(255,255,255,0.8);
+  padding: 5px;
+  font-size: 12px;
+  color: #333;
+  overflow-y: auto;
+  max-height: 60px;
+  border: 1px solid #ccc;
 }
 </style>
 {% endblock %}
