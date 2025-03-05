@@ -44,6 +44,7 @@
 
 {% block extra_js %}
 <!-- Carichiamo la libreria ZXing-JS (browser) in formato UMD -->
+<!-- ATTENZIONE: decodeFromConstraints NON esiste in versioni vecchie, usiamo decodeFromVideoConstraints -->
 <script src="https://unpkg.com/@zxing/browser@0.1.0-rc.3/umd/index.js"></script>
 
 <script>
@@ -51,14 +52,9 @@ document.addEventListener("DOMContentLoaded", function() {
   // =========================
   // 1) RICERCA MANUALE
   // =========================
-  const searchButton = document.getElementById("search-button");
-  const barcodeInput = document.getElementById("barcode");
-  const productCard  = document.getElementById("product-card");
-
-  if (!searchButton) {
-    console.error("Il bottone 'Cerca' non è stato trovato nel DOM.");
-    return;
-  }
+  const searchButton  = document.getElementById("search-button");
+  const barcodeInput  = document.getElementById("barcode");
+  const productCard   = document.getElementById("product-card");
 
   searchButton.addEventListener("click", function() {
     const barcode = barcodeInput.value.trim();
@@ -67,7 +63,6 @@ document.addEventListener("DOMContentLoaded", function() {
       return;
     }
 
-    // Esegui la richiesta al backend
     fetch('/search/articolo_by_barcode?barcode=' + encodeURIComponent(barcode))
       .then(response => response.json())
       .then(data => {
@@ -97,8 +92,11 @@ document.addEventListener("DOMContentLoaded", function() {
   const closeModal      = document.getElementById("close-scanner");
   const videoContainer  = document.getElementById("video-container");
   const scannerVideo    = document.getElementById("scanner-video");
-  let codeReader;       // istanza di BrowserMultiFormatReader
-  let scanning = false; // flag per indicare se stiamo scansionando
+  let codeReader        = null;
+  let scanning          = false;
+
+  // Inizializziamo il reader
+  codeReader = new window.ZXingBrowser.BrowserMultiFormatReader();
 
   scanButton.addEventListener("click", function() {
     modal.style.display = "block";
@@ -106,34 +104,30 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   // Chiude il modal e ferma lo scanner
-  closeModal.addEventListener("click", function(){
+  closeModal.addEventListener("click", function() {
     modal.style.display = "none";
     stopScanner();
   });
 
-  // Inizializziamo il reader
-  // (lo facciamo una sola volta, non ad ogni click, per ottimizzare)
-  document.addEventListener('DOMContentLoaded', () => {
-    codeReader = new window.ZXingBrowser.BrowserMultiFormatReader();
-  });
-
-  // 2.1) PRIMO TENTATIVO: facingMode environment
+  // --- 2.1) PRIMO TENTATIVO: facingMode environment, con decodeFromVideoConstraints ---
   function startScannerFirstPass() {
     stopScanner(); // se c'era già uno scanner attivo
 
+    // Constraints "primo pass"
     const constraints = {
       video: {
         facingMode: { ideal: "environment" }
       }
     };
 
-    codeReader.decodeFromConstraints(constraints, scannerVideo, (result, err) => {
+    // decodeFromVideoConstraints(constraints, videoElement, callback)
+    codeReader.decodeFromVideoConstraints(constraints, scannerVideo, (result, err) => {
       if (result) {
         console.log("Codice rilevato (first pass):", result.text);
         handleCodeResult(result.text);
       } else if (err && !(err instanceof window.ZXingBrowser.NotFoundException)) {
         console.error("Errore first pass:", err);
-        // Se c'è un errore "serio" (non semplicemente "codice non trovato in questo frame"), fallback
+        // Se c'è un errore "serio", fallback
         fallbackEnumeration();
       }
     }).then(() => {
@@ -145,7 +139,7 @@ document.addEventListener("DOMContentLoaded", function() {
     });
   }
 
-  // 2.2) FALLBACK: enumerazione dispositivi
+  // --- 2.2) FALLBACK: enumerazione dispositivi
   function fallbackEnumeration() {
     stopScanner();
 
@@ -173,7 +167,7 @@ document.addEventListener("DOMContentLoaded", function() {
           }
         }
 
-        // Se non troviamo "back", prendiamo la prima
+        // Se non troviamo "back/posteriore", prendiamo la prima
         const selectedDeviceId = backDeviceId || videoInputDevices[0].deviceId;
         decodeFromDeviceId(selectedDeviceId);
       })
@@ -183,7 +177,7 @@ document.addEventListener("DOMContentLoaded", function() {
       });
   }
 
-  // 2.3) Avvio scanner con deviceId specifico
+  // --- 2.3) Avvio scanner con deviceId specifico
   function decodeFromDeviceId(deviceId) {
     stopScanner();
 
@@ -218,7 +212,7 @@ document.addEventListener("DOMContentLoaded", function() {
   // Ferma lo scanner
   function stopScanner() {
     if (scanning && codeReader) {
-      codeReader.reset(); // Chiude stream e interrompe la scansione
+      codeReader.reset();
       scanning = false;
       console.log("Scanner fermato.");
     }
@@ -256,7 +250,7 @@ document.addEventListener("DOMContentLoaded", function() {
 /* Contenitore video + overlay */
 #video-container {
   position: absolute;
-  top: 50px; /* spazio per il pulsante di chiusura */
+  top: 50px;
   left: 0;
   width: 100%;
   height: calc(100% - 50px);
