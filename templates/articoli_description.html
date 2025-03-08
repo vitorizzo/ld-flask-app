@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block title %}LD Enoteca - Ricerca Prodotto per Descrizione{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="text-center">Ricerca Prodotto</h2>
+
+    <!-- Input di ricerca con icona -->
+    <div class="input-group mb-3">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" id="descrizione" class="form-control" placeholder="Inserisci parte della descrizione...">
+    </div>
+
+    <!-- Lista dei prodotti trovati -->
+    <ul id="prodotti_trovati" class="list-group"></ul>
+
+    <!-- Paginazione -->
+    <div id="pagination-controls" class="d-flex justify-content-center mt-3">
+        <button id="prev-page" class="btn btn-outline-primary me-2" disabled>◀ Precedente</button>
+        <span id="pagina-info" class="align-self-center"></span>
+        <button id="next-page" class="btn btn-outline-primary ms-2">Successiva ▶</button>
+    </div>
+
+    <!-- Scheda prodotto -->
+    <div id="product-card" class="card mt-4 shadow-sm d-none">
+        <div class="row g-0">
+            <div class="col-md-4">
+                <img id="product-image" class="img-fluid rounded-start" alt="Immagine Prodotto">
+            </div>
+            <div class="col-md-8">
+                <div class="card-body">
+                    <h5 class="card-title" id="product-description"></h5>
+                    <p class="card-text"><span id="product-description-ext"></span></p>
+                    <p class="card-text"><strong>Codice:</strong> <span id="product-code"></span></p>
+                    <p class="card-text"><strong>Prezzo:</strong> <span id="product-price"></span> €</p>
+                    <p class="card-text"><strong>Disponibilità:</strong> <span id="product-stock"></span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Bootstrap & jQuery -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    let pagina_corrente = 1;
+    let per_page = 10;
+
+    function caricaProdotti(query = '', page = 1) {
+        $.ajax({
+            url: '/search/lista_articoli',
+            type: 'GET',
+            data: { filter: query, page: page, per_page: per_page },
+            success: function(response) {
+                let lista = $("#prodotti_trovati");
+                lista.hide().empty();
+
+                if (response.prodotti.length === 0) {
+                    lista.append(`<li class="list-group-item text-muted text-center">Nessun prodotto trovato</li>`);
+                }
+
+                response.prodotti.forEach(function(prodotto) {
+                    lista.append(
+                        `<li class="list-group-item list-group-item-action prodotto-item"
+                            data-id="${prodotto.id}"
+                            data-codice="${prodotto.codice}"
+                            data-descrizione="${prodotto.descrizione}"
+                            data-descrizione-aggiuntiva="${prodotto.descrizione_aggiuntiva}"
+                            data-prezzo="${prodotto.prezzo}"
+                            data-stock="${prodotto.giacenza.instore}"
+                            data-online="${prodotto.giacenza.online}"
+                            data-isonline="${prodotto.giacenza.isonline}"
+                            data-immagine="${prodotto.immagine}">
+                            <div>
+                                <div class="fw-bold">${prodotto.descrizione}</div>
+                                <small class="text-muted">${prodotto.descrizione_aggiuntiva}</small>
+                            </div>
+                            <span class="badge bg-primary">${prodotto.codice}</span>
+                        </li>`
+                    );
+                });
+
+                lista.fadeIn(); // Effetto di apparizione
+
+                // Gestione pulsanti di navigazione
+                $("#pagina-info").text(`Pagina ${response.pagina_corrente} di ${response.pagine_totali}`);
+                $("#prev-page").prop("disabled", response.pagina_corrente === 1);
+                $("#next-page").prop("disabled", response.pagina_corrente >= response.pagine_totali);
+
+                pagina_corrente = response.pagina_corrente;
+            }
+        });
+    }
+
+    // Caricamento iniziale
+    caricaProdotti();
+
+    // Ricerca dinamica
+    $("#descrizione").on("input", function() {
+        let testo = $(this).val();
+        pagina_corrente = 1;
+        caricaProdotti(testo, pagina_corrente);
+    });
+
+    // Navigazione tra le pagine
+    $("#prev-page").click(function() {
+        if (pagina_corrente > 1) {
+            caricaProdotti($("#descrizione").val(), pagina_corrente - 1);
+        }
+    });
+
+    $("#next-page").click(function() {
+        caricaProdotti($("#descrizione").val(), pagina_corrente + 1);
+    });
+
+    // Mostra dettagli del prodotto
+    $("#prodotti_trovati").on("click", ".prodotto-item", function() {
+        let codice = $(this).data("codice");
+        let descrizione = $(this).data("descrizione");
+        let descrizione_aggiuntiva = $(this).data("descrizione_aggiuntiva");
+        let prezzo = $(this).data("prezzo");
+        let stock = $(this).data("stock");
+        let online = $(this).data("online");
+        let isonline = $(this).data("isonline");
+        let stockText = isonline ? `${stock} (${online})` : `${stock}`;
+        let immagine = $(this).data("immagine");
+
+        $("#product-code").text(codice);
+        $("#product-description").text(descrizione);
+        $("#product-description-ext").text(descrizione_aggiuntiva);
+        $("#product-price").text(prezzo);
+        $("#product-stock").text(stockText);
+        $("#product-image").attr("src", immagine);
+
+        $("#product-card").hide().removeClass("d-none").fadeIn();
+    });
+});
+</script>
+{% endblock %}
