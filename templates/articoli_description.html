@@ -12,6 +12,12 @@
         <input type="text" id="descrizione" class="form-control" placeholder="Inserisci parte della descrizione...">
     </div>
 
+    <!-- Checkbox per visualizzare tutti i prodotti -->
+    <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="show-all-products">
+        <label class="form-check-label" for="show-all-products">Tutti i prodotti</label>
+    </div>
+
     <!-- Lista dei prodotti trovati -->
     <ul id="prodotti_trovati" class="list-group"></ul>
 
@@ -54,6 +60,8 @@ $(document).ready(function() {
     let per_page = 10;
 
     function caricaProdotti(query = '', page = 1) {
+        let mostra_tutti = $("#show-all-products").prop("checked"); // Controlla se la checkbox è selezionata
+
         $.ajax({
             url: '/search/lista_articoli',
             type: 'GET',
@@ -62,11 +70,16 @@ $(document).ready(function() {
                 let lista = $("#prodotti_trovati");
                 lista.hide().empty();
 
-                if (response.prodotti.length === 0) {
+                let prodotti_filtrati = response.prodotti.filter(prodotto => {
+                    let totale_giacenza = prodotto.giacenza.instore + prodotto.giacenza.online;
+                    return mostra_tutti || totale_giacenza > 0; // Mostra tutti solo se la checkbox è attiva
+                });
+
+                if (prodotti_filtrati.length === 0) {
                     lista.append(`<li class="list-group-item text-muted text-center">Nessun prodotto trovato</li>`);
                 }
 
-                response.prodotti.forEach(function(prodotto) {
+                prodotti_filtrati.forEach(function(prodotto) {
                     lista.append(
                         `<li class="list-group-item list-group-item-action prodotto-item"
                             data-id="${prodotto.id}"
@@ -87,7 +100,7 @@ $(document).ready(function() {
                     );
                 });
 
-                lista.fadeIn(); // Effetto di apparizione
+                lista.fadeIn();
 
                 // Gestione pulsanti di navigazione
                 $("#pagina-info").text(`Pagina ${response.pagina_corrente} di ${response.pagine_totali}`);
@@ -120,25 +133,32 @@ $(document).ready(function() {
         caricaProdotti($("#descrizione").val(), pagina_corrente + 1);
     });
 
-    // Mostra dettagli del prodotto
+    // Quando cambia la checkbox, ricarica i prodotti con il filtro corretto
+    $("#show-all-products").change(function() {
+        caricaProdotti($("#descrizione").val(), 1);
+    });
+
+    // Mostra dettagli del prodotto quando viene cliccato
     $("#prodotti_trovati").on("click", ".prodotto-item", function() {
         let codice = $(this).data("codice");
         let descrizione = $(this).data("descrizione");
-        let descrizione_aggiuntiva = $(this).data("descrizione_aggiuntiva");
+        let descrizione_aggiuntiva = $(this).data("descrizione-aggiuntiva");
         let prezzo = $(this).data("prezzo");
         let stock = $(this).data("stock");
         let online = $(this).data("online");
         let isonline = $(this).data("isonline");
-        let stockText = isonline ? `${stock} (${online})` : `${stock}`;
         let immagine = $(this).data("immagine");
 
         $("#product-code").text(codice);
         $("#product-description").text(descrizione);
         $("#product-description-ext").text(descrizione_aggiuntiva);
         $("#product-price").text(prezzo);
-        $("#product-stock").text(stockText);
-        $("#product-image").attr("src", immagine);
 
+        // Se il prodotto è disponibile online, mostra anche la giacenza online
+        let stockText = isonline ? `${stock} (${online})` : `${stock}`;
+        $("#product-stock").text(stockText);
+
+        $("#product-image").attr("src", immagine);
         $("#product-card").hide().removeClass("d-none").fadeIn();
     });
 });
