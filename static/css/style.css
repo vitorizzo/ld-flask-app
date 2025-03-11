@@ -73,6 +73,7 @@ section {
 
     .navbar-collapse{
         background: #4A2C2A;
+        z-index: 9999 !important; /* Estremamente alto per evitare problemi */
     }
 
     /* LINK abilitati (stile generico) */
@@ -85,7 +86,6 @@ section {
         letter-spacing: 0.8px;
         padding: 10px 20px;
         position: relative !important;
-        z-index: 9999 !important; /* Estremamente alto per evitare problemi */
         text-decoration: none; /* se vuoi rimuovere sottolineature */
     }
 
@@ -99,7 +99,6 @@ section {
         letter-spacing: 0.8px;
         padding: 10px 20px;
         position: relative !important;
-        z-index: 9999 !important; /* Estremamente alto per evitare problemi */
         cursor: not-allowed; /* Per comunicare disabilitazione */
     }
 
