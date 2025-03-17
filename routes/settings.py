@@ -4,7 +4,7 @@ from flask_socketio import SocketIO
 from extensions import db
 from models import Menu, Role
 from routes.decorators import role_required
-from config.task import import_articoli_task, import_barcode_task, import_giacenze_task
+from config.task import import_articoli_task, import_barcode_task, import_giacenze_task, import_ps_task
 
 settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 socketio = SocketIO()
@@ -83,6 +83,16 @@ def lancia_import_articoli():
     print("Richiesta per importazione articoli ricevuta, attivo il task in background...")
     task = import_articoli_task.delay()
     return jsonify({'message': 'Importazione avviata in background', 'task_id': task.id})
+
+
+@settings_bp.route('/import_ps_data', methods=['GET', 'POST'])
+@login_required
+@role_required(500)
+def lancia_import_prestashop():
+    print("Richiesta per importazione dati da Prestashop ricevuta, attivo il task in background...")
+    task = import_ps_task.delay()
+    return jsonify({'message': 'Importazione avviata in background', 'task_id': task.id})
+
 
 
 @settings_bp.route('/import_giacenze', methods=['GET', 'POST'])

@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+
+{% block title %}LD Enoteca - Scheda Articolo{% endblock %}
+
+{% block content %}
+<section class="welcome-section">
+  <div class="container mt-4">
+    <h2 class="text-center">{{ product.descrizione }}</h2>
+    <h3 class="text-center">{{ product.descrizione_aggiuntiva }}</h3>
+
+    <!-- Carosello e informazioni affiancate -->
+    <div class="row my-4">
+      <!-- Carosello sulla sinistra -->
+      <div class="col-md-6">
+        <div id="productCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-touch="true">
+          <!-- Indicatori -->
+          <div class="carousel-indicators">
+            {% for immagine in product.immagini %}
+              <button type="button"
+                      data-bs-target="#productCarousel"
+                      data-bs-slide-to="{{ loop.index0 }}"
+                      {% if loop.first %}class="active" aria-current="true"{% endif %}
+                      aria-label="Slide {{ loop.index }}"></button>
+            {% endfor %}
+          </div>
+          <!-- Immagini -->
+          <div class="carousel-inner">
+            {% for immagine in product.immagini %}
+              <div class="carousel-item {% if loop.first %}active{% endif %}">
+                <img src="{{ url_for('static', filename='images/products/' ~ immagine) }}"
+                     class="d-block w-100" alt="Immagine {{ loop.index }}">
+              </div>
+            {% endfor %}
+          </div>
+          <!-- Controlli frecce -->
+          <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Precedente</span>
+          </button>
+          <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Successiva</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Informazioni prodotto sulla destra -->
+      <div class="col-md-6">
+        <ul class="list-group">
+          <li class="list-group-item"><strong>Codice:</strong> {{ product.codice }}</li>
+          <li class="list-group-item"><strong>Prezzo:</strong> {{ product.prezzo }} €</li>
+          <li class="list-group-item">
+            <strong>Giacenza:</strong>
+            {{ product.inStore }} in negozio, {{ product.www }} online
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Scheda Tecnica centrata in fondo -->
+    <div class="row my-4">
+      <div class="col-12 text-center">
+        <h4>Scheda Tecnica</h4>
+        <p>{{ product.scheda_tecnica or "Nessuna scheda tecnica disponibile." }}</p>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

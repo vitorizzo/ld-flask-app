@@ -100,12 +100,13 @@ document.addEventListener("DOMContentLoaded", function() {
       .then(response => response.json())
       .then(data => {
         if(data && data.success){
-          document.getElementById("product-image").src = data.product.image;
-          document.getElementById("product-code").textContent = data.product.codice;
-          document.getElementById("product-description").textContent = data.product.descrizione;
-          document.getElementById("product-price").textContent = "Prezzo: " + data.product.prezzo;
-          document.getElementById("product-stock").textContent = "Giacenza: " + data.product.instore;
-          document.getElementById("product-card").style.display = "block";
+          window.location.href = '/search/scheda_articolo/' + data.product;
+          // document.getElementById("product-image").src = data.product.image;
+          // document.getElementById("product-code").textContent = data.product.codice;
+          // document.getElementById("product-description").textContent = data.product.descrizione;
+          // document.getElementById("product-price").textContent = "Prezzo: " + data.product.prezzo;
+          // document.getElementById("product-stock").textContent = "Giacenza: " + data.product.instore;
+          // document.getElementById("product-card").style.display = "block";
         } else {
           alert("Prodotto non trovato!");
           document.getElementById("product-card").style.display = "none";

@@ -60,6 +60,49 @@ class Barcode(db.Model):
         return f"<Codice a Barre {self.cod_bar}>"
 
 
+class Immagini(db.Model):
+    file_img = db.Column(db.String(255), primary_key=True)
+    cod_art = db.Column(db.String(255))
+
+    def to_dict(self):
+        return {
+            'file_img': self.file_img,
+            'cod_art': self.cod_art
+        }
+
+    def __repr__(self):
+        return f"<Immagine {self.file_img}>"
+
+
+class SchedeProdotti(db.Model):
+    descrizione = db.Column(db.String(255), primary_key=True)
+    cod_art = db.Column(db.String(255))
+
+    def to_dict(self):
+        return {
+            'descrizione': self.descrizione,
+            'cod_art': self.cod_art
+        }
+
+    def __repr__(self):
+        return f"<Scheda Prodotto {self.descrizione}>"
+
+
+class Sincro(db.Model):
+    cod_art = db.Column(db.String(255), primary_key=True)
+    prestashop = db.Column(db.Boolean)
+    poleepo = db.Column(db.Boolean)
+    teamsystem = db.Column(db.Boolean)
+
+    def to_dict(self):
+        return {
+            'cod_art': self.cod_art,
+            'prestashop': self.prestashop,
+            'poleepo': self.poleepo,
+            'teamsystem': self.teamsystem
+        }
+
+
 class Giacenza(db.Model):
     cod_art = db.Column(db.String(255), primary_key=True)
     giac_neg = db.Column(db.Integer, default=0)

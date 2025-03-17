@@ -1,4 +1,7 @@
+from pprint import pprint
+
 from routes.esportazioni_teamsystem import serve_risorsa
+from tools.ps_util import get_all_products, get_product_images
 from extensions import db
 from models import Articoli, Barcode, Giacenza
 from flask import jsonify
@@ -10,6 +13,37 @@ def clean_text(text):
     if text:
         return text.encode('ascii', 'ignore').decode('ascii')  # Rimuove caratteri non validi
     return text
+
+
+def import_ps():
+    print("Importazione Prestashop avviata...")
+
+    for prodotto in get_all_products():
+        cod_art = prodotto['cod_art']
+        pid = prodotto['id']
+
+        # Controlla se l'articolo esiste già
+        existing_articolo = Articoli.query.filter_by(cod_art=cod_art).first()
+        if not existing_articolo:
+            nuovo_articolo = Articoli(
+                cod_art=cod_art,
+                descrizione=prodotto['name'],  # oppure un altro campo se preferisci
+                prezzo=float(prodotto['price'])
+            )
+            db.session.add(nuovo_articolo)
+            db.session.commit()
+            print(f"Articolo {cod_art} inserito.")
+        else:
+            print(f"ℹ️ Articolo {cod_art} già presente, salto inserimento.")
+
+        # Recupera la scheda prodotto e aggiorna la tabella Sincro (o SchedeProdotti)
+        # Puoi fare anche un controllo simile per evitare duplicati
+
+        # Recupera e salva le immagini per il prodotto
+        p_images = get_product_images(pid, cod_art)
+        prodotto['images'] = p_images
+
+        print(f"Prodotto {cod_art} importato: {prodotto['name']} con {len(p_images)} immagini.")
 
 
 def import_articoli():

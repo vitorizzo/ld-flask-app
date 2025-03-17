@@ -32,23 +32,15 @@ SQLALCHEMY_TRACK_MODIFICATIONS = False,
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)  # Crea la cartella principale se non esiste
 
+PS_URL = os.getenv("PRESTASHOP_URL")
+PS_KEY = os.getenv("PRESTASHOP_KEY")
+PS_USER = os.getenv("PRESTASHOP_USER")
+PS_PSWD = os.getenv("PRESTASHOP_PASSWORD")
 
 app = create_app()
-
-# app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'fallback_key')
-
-# app.config['EXPORT_FOLDER'] = EXPORT_FOLDER
-# app.config['EXPORT_FOLDER_URL'] = EXPORT_FOLDER_URL
-# app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# Configurazione del Login Manager
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "auth.login"  # Route di login
-
-# Configurazione database
-# app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
-# app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # Registrazione Blueprint
 app.register_blueprint(auth_bp, url_prefix='/auth')

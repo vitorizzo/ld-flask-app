@@ -1,8 +1,42 @@
-from flask import Blueprint, render_template, jsonify, request
-from models import Barcode, Articoli, Giacenza
+from flask import Blueprint, render_template, jsonify, request, abort
+from models import Barcode, Articoli, Giacenza, Immagini, SchedeProdotti
 
 # Creazione del blueprint
 search_bp = Blueprint('search', __name__, template_folder='../templates')
+
+
+# Funzione esempio per recuperare il prodotto dal database
+def get_product_by_code(cod_art):
+    # Logica per accedere al database e recuperare il prodotto
+    # Restituisci un dizionario con i dati del prodotto o None se non trovato
+    prod = Articoli.query.filter_by(cod_art=cod_art).first()
+    immagini = []
+    giacenze = Giacenza.query.filter_by(cod_art=cod_art).first()
+
+    for img in Immagini.query.filter_by(cod_art=cod_art).all():
+        immagini.append(img.file_img)
+    if prod:
+        prodotto = {
+            "codice": cod_art,
+            "descrizione": prod.descrizione,
+            "descrizione_aggiuntiva": prod.descrizione_aggiuntiva,
+            "prezzo": prod.prezzo,
+            "immagini": immagini,
+            "inStore": giacenze.giac_neg,
+            "www": giacenze.giac_www,
+            "scheda_tecnica": SchedeProdotti.query.filter_by(cod_art=cod_art).first()
+        }
+        return prodotto
+    else:
+        return None
+
+
+@search_bp.route('/scheda_articolo/<cod_art>')
+def scheda_articolo(cod_art):
+    product = get_product_by_code(cod_art)
+    if product is None:
+        abort(404)  # Prodotto non trovato
+    return render_template('scheda_articolo.html', product=product)
 
 
 @search_bp.route('/ricerca_x_barcode', methods=['GET', 'POST'])
@@ -22,24 +56,24 @@ def articolo_per_barcode():
         return jsonify({'success': False, 'error': 'Barcode mancante.'})
     cb_esistente = Barcode.query.filter_by(cod_bar=barcode).first()
     if cb_esistente:
-        cod_art = cb_esistente.cod_art
-        art_esistente = Articoli.query.filter_by(cod_art=cod_art).first()
-        descrizione = art_esistente.descrizione + " " + art_esistente.descrizione_aggiuntiva
-        prezzo = art_esistente.prezzo
-        giac_esistente = Giacenza.query.filter_by(cod_art=cod_art).first()
-        instore = giac_esistente.giac_neg
-        isonline = True if giac_esistente.giac_www>0 else False
-        online = giac_esistente.giac_www
-        articolo = {
-            'codice': cod_art,
-            'descrizione': descrizione,
-            'instore': instore,
-            'online': online,
-            'isonline': isonline,
-            'prezzo': prezzo
-        }
-        print(f"articolo trovato: \n{articolo}")
-        return jsonify({'success': True, 'product': articolo})
+#         cod_art = cb_esistente.cod_art
+#         art_esistente = Articoli.query.filter_by(cod_art=cod_art).first()
+#         descrizione = art_esistente.descrizione + " " + art_esistente.descrizione_aggiuntiva
+#         prezzo = art_esistente.prezzo
+#         giac_esistente = Giacenza.query.filter_by(cod_art=cod_art).first()
+#         instore = giac_esistente.giac_neg
+#         isonline = True if giac_esistente.giac_www>0 else False
+#         online = giac_esistente.giac_www
+#         articolo = {
+#             'codice': cod_art,
+#             'descrizione': descrizione,
+#             'instore': instore,
+#             'online': online,
+#             'isonline': isonline,
+#             'prezzo': prezzo
+#         }
+        print(f"articolo trovato: \n{cb_esistente.cod_art}")
+        return jsonify({'success': True, 'product': cb_esistente.cod_art})
     else:
         print("Articolo non trovato")
         return jsonify({'success': False, 'error': 'Prodotto non trovato.'})

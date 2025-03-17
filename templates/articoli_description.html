@@ -46,6 +46,21 @@
         </div>
     </div>
 </div>
+<!-- Modal per visualizzare la Scheda Articolo -->
+<div class="modal fade" id="product-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Scheda Articolo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body p-0">
+        <iframe id="product-modal-iframe" src="" style="width: 100%; height: 500px; border: none;"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -139,28 +154,36 @@ $(document).ready(function() {
     });
 
     // Mostra dettagli del prodotto quando viene cliccato
+    // $("#prodotti_trovati").on("click", ".prodotto-item", function() {
+    //    let codice = $(this).data("codice");
+    //    let descrizione = $(this).data("descrizione");
+    //    let descrizione_aggiuntiva = $(this).data("descrizione-aggiuntiva");
+    //    let prezzo = $(this).data("prezzo");
+    //    let stock = $(this).data("stock");
+    //    let online = $(this).data("online");
+    //    let isonline = $(this).data("isonline");
+    //    let immagine = $(this).data("immagine");
+
     $("#prodotti_trovati").on("click", ".prodotto-item", function() {
         let codice = $(this).data("codice");
-        let descrizione = $(this).data("descrizione");
-        let descrizione_aggiuntiva = $(this).data("descrizione-aggiuntiva");
-        let prezzo = $(this).data("prezzo");
-        let stock = $(this).data("stock");
-        let online = $(this).data("online");
-        let isonline = $(this).data("isonline");
-        let immagine = $(this).data("immagine");
+        $('#product-modal-iframe').attr('src', '/search/scheda_articolo/' + codice);
+        // Crea e mostra la modale Bootstrap
+        var modal = new bootstrap.Modal(document.getElementById('product-modal'));
+        modal.show();
+    });
 
-        $("#product-code").text(codice);
-        $("#product-description").text(descrizione);
-        $("#product-description-ext").text(descrizione_aggiuntiva);
-        $("#product-price").text(prezzo);
+        // $("#product-code").text(codice);
+        // $("#product-description").text(descrizione);
+        // $("#product-description-ext").text(descrizione_aggiuntiva);
+        // $("#product-price").text(prezzo);
 
         // Se il prodotto è disponibile online, mostra anche la giacenza online
-        let stockText = isonline ? `${stock} (${online})` : `${stock}`;
-        $("#product-stock").text(stockText);
+        // let stockText = isonline ? `${stock} (${online})` : `${stock}`;
+        // $("#product-stock").text(stockText);
 
-        $("#product-image").attr("src", immagine);
-        $("#product-card").hide().removeClass("d-none").fadeIn();
-    });
+        // $("#product-image").attr("src", immagine);
+       //  $("#product-card").hide().removeClass("d-none").fadeIn();
+    // });
 });
 </script>
 {% endblock %}
