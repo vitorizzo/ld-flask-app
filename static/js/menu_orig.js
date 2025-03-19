@@ -83,33 +83,3 @@ document.addEventListener("DOMContentLoaded", function () {
         console.log("Stato aggiornato del menu:", menu.classList.contains("show"));
     });
 });
-
-document.addEventListener("DOMContentLoaded", function () {
-    var profileDropdown = document.getElementById("profileDropdown");
-    var profileMenu = document.querySelector(".dropdown-menu[aria-labelledby='profileDropdown']");
-
-    if (!profileDropdown) {
-        console.error("❌ Errore: #profileDropdown non trovato nel DOM!");
-        return;
-    }
-    if (!profileMenu) {
-        console.error("❌ Errore: dropdown-menu non trovata per #profileDropdown!");
-        return;
-    }
-
-    console.log("✅ Inizializzazione del menu profilo...");
-
-    // Associa manualmente il menu profilo a Bootstrap
-    var dropdownInstance = bootstrap.Dropdown.getOrCreateInstance(profileDropdown);
-    dropdownInstance._menu = profileMenu; // FORZA l'associazione del menu
-
-    profileDropdown.addEventListener("click", function (event) {
-        event.preventDefault();
-        console.log("✅ Click su profileDropdown, avvio toggle...");
-
-        // Riassegna la dropdown-menu prima di eseguire toggle
-        var instance = bootstrap.Dropdown.getOrCreateInstance(profileDropdown);
-        instance._menu = profileMenu;
-        instance.toggle();
-    });
-});

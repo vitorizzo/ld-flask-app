@@ -1,10 +1,9 @@
 {% macro render_menu(menu, is_root=True) %}
     {% set has_children = menu.children and (menu.children | length > 0) %}
-
-    <li class="dropdown-item {% if has_children %}dropdown{% endif %}">
+    <li class="{% if is_root %}nav-item{% else %}dropdown-item{% endif %}{% if has_children %} dropdown{% endif %}">
         <a
             href="{{ menu.route or '#' }}"
-            class="{% if is_root %}nav-link-enabled {% endif %}dropdown-item"
+            class="{% if is_root %}nav-link-enabled{% else %}dropdown-item{% endif %}{% if has_children %} dropdown-toggle{% endif %}"
             id="menu-{{ menu.id }}"
             {% if has_children %}data-bs-toggle="dropdown" aria-expanded="false"{% endif %}
         >
@@ -34,50 +33,51 @@
                     {{ render_menu(menu, is_root=True) }}
                 {% endfor %}
             </ul>
-        <ul class="navbar-nav align-items-center">
-            <!-- Se l'utente è loggato -->
-            {% if current_user.is_authenticated %}
-            <li class="nav-item dropdown">
-                <div class="d-flex align-items-center">
-                    <span style="color: white; margin-right: 10px; font-size: 1.1rem;">
-                        Ciao, {{ current_user.name }} {{ current_user.surname }}
-                    </span>
-                    <a href="#" class="nav-link dropdown-toggle p-0" id="profileDropdown" role="button"
-                       data-bs-toggle="dropdown" aria-expanded="false">
-                        {% if current_user.foto_profilo %}
-                            <img src="{{ url_for('static', filename=current_user.foto_profilo.split('static/', 1)[1]) }}"
-                                alt="Foto Profilo" class="rounded-circle" style="width: 50px; height: 50px;">
-                        {% elif current_user.sex == 1 %}
-                            <img src="{{ url_for('static', filename='icons/male_profile.png') }}"
-                                 alt="Profilo Male" class="rounded-circle" style="width: 50px; height: 50px;">
-                        {% elif current_user.sex == 2 %}
-                            <img src="{{ url_for('static', filename='icons/female_profile.png') }}"
-                                 alt="Profilo Female" class="rounded-circle" style="width: 50px; height: 50px;">
-                        {% else %}
-                            <img src="{{ url_for('static', filename='icons/genderless_profile.png') }}"
-                                 alt="Profilo Genderless" class="rounded-circle" style="width: 50px; height: 50px;">
-                        {% endif %}
+            <ul class="navbar-nav align-items-center">
+                <!-- Se l'utente è loggato -->
+                {% if current_user.is_authenticated %}
+                <li class="nav-item dropdown">
+                    <div class="d-flex align-items-center">
+                        <span style="color: white; margin-right: 10px; font-size: 1.1rem;">
+                            Ciao, {{ current_user.name }} {{ current_user.surname }}
+                        </span>
+                        <a href="#" class="nav-link dropdown-toggle p-0"
+                           id="profileDropdown" role="button"
+                           data-bs-toggle="dropdown" aria-expanded="false">
+                            {% if current_user.foto_profilo %}
+                                <img src="{{ url_for('static', filename=current_user.foto_profilo.split('static/', 1)[1]) }}"
+                                     alt="Foto Profilo" class="rounded-circle" style="width: 50px; height: 50px;">
+                            {% elif current_user.sex == 1 %}
+                                <img src="{{ url_for('static', filename='icons/male_profile.png') }}"
+                                     alt="Profilo Male" class="rounded-circle" style="width: 50px; height: 50px;">
+                            {% elif current_user.sex == 2 %}
+                                <img src="{{ url_for('static', filename='icons/female_profile.png') }}"
+                                     alt="Profilo Female" class="rounded-circle" style="width: 50px; height: 50px;">
+                            {% else %}
+                                <img src="{{ url_for('static', filename='icons/genderless_profile.png') }}"
+                                     alt="Profilo Genderless" class="rounded-circle" style="width: 50px; height: 50px;">
+                            {% endif %}
+                        </a>
+                    </div>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
+                        <li><a class="dropdown-item" href="{{ url_for('auth.edit_profile') }}">Modifica Informazioni</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('auth.upload_photo') }}">Gestisci Foto Profilo</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">Log Out</a></li>
+                    </ul>
+                </li>
+                {% else %}
+                <!-- Se l'utente non è loggato -->
+                <li class="nav-item d-flex align-items-center">
+                    <a class="nav-link nav-link-enabled" href="{{ url_for('auth.login') }}"
+                       style="margin-right: 10px; font-size: 1.1rem;">Accedi</a>
+                    <a href="#">
+                        <img src="{{ url_for('static', filename='icons/genderless_profile.png') }}"
+                             alt="Profilo" class="rounded-circle" style="width: 50px; height: 50px; opacity: 0.8;">
                     </a>
-                </div>
-                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
-                    <li><a class="dropdown-item" href="{{ url_for('auth.edit_profile') }}">Modifica Informazioni</a></li>
-                    <li><a class="dropdown-item" href="{{ url_for('auth.upload_photo') }}">Gestisci Foto Profilo</a></li>
-                    <li><hr class="dropdown-divider"></li>
-                    <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">Log Out</a></li>
-                </ul>
-            </li>
-            {% else %}
-            <!-- Se l'utente non è loggato -->
-            <li class="nav-item d-flex align-items-center">
-                <a class="nav-link nav-link-enabled" href="{{ url_for('auth.login') }}"
-                   style="margin-right: 10px; font-size: 1.1rem;">Accedi</a>
-                <a href="#">
-                    <img src="{{ url_for('static', filename='icons/genderless_profile.png') }}"
-                         alt="Profilo" class="rounded-circle" style="width: 50px; height: 50px; opacity: 0.8;">
-                </a>
-            </li>
-            {% endif %}
-        </ul>
+                </li>
+                {% endif %}
+            </ul>
         </div>
     </div>
 </nav>

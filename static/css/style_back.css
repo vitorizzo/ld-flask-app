@@ -27,7 +27,7 @@ a {
 body, html {
     margin: 0;
     padding: 0;
-    overflow-x: hidden; /* Evita scroll orizzontali */
+    /*overflow-x: hidden; /* Evita scroll orizzontali */
 }
 
 section {
@@ -66,43 +66,29 @@ section {
 }
 
 @media (max-width: 992px){
-    .dropdown-item {
-        padding: 0!important;
-    }
-
+    .dropdown-item {padding: 0!important;}
     .menu-item.clickable {
         cursor: pointer;
     }
 
-    .navbar-nav .nav-item {
-        margin: 0 !important;
-        padding: 0 !important;
+    .dropdown-toggle::after {
+      display: none;
     }
 
     .navbar-collapse{
         background: #4A2C2A;
         z-index: 9999 !important; /* Estremamente alto per evitare problemi */
-        padding-top: 0 !important;
-        padding-bottom: 0 !important;
-    }
-
-    .navbar-nav {
-        padding: 0 !important;
-        margin: 0 !important;
     }
 
     /* LINK abilitati (stile generico) */
     .navbar-nav .nav-link-enabled {
         color: #fff;
-        margin: 0 !important;
+        margin-left: 15px;
         text-transform: uppercase;
         font-family: "Oswald", Helvetica, sans-serif;
         font-weight: 400;
         letter-spacing: 0.8px;
         padding: 10px 20px;
-        /*padding-top: 0px !important;*/
-        padding-bottom: 0px !important;
-        line-height: normal !important;
         position: relative !important;
         text-decoration: none; /* se vuoi rimuovere sottolineature */
     }
@@ -115,14 +101,12 @@ section {
         font-family: "Oswald", Helvetica, sans-serif;
         font-weight: 400;
         letter-spacing: 0.8px;
-        padding: 0 20px;
+        padding: 10px 20px;
         position: relative !important;
         cursor: not-allowed; /* Per comunicare disabilitazione */
     }
 
     .dropdown-menu {
-        margin-top:-2px !important;
-        padding: 10px 10px !important;
         margin-left: 15px;
         top: 100%;
         position: relative !important;
@@ -133,16 +117,11 @@ section {
     }
 
     .dropdown-item {
-        color: #b18b77;
+        color: #b18b77
     }
 
     .dropdown-menu .dropdown-item:hover {
-        background: #b18b77;
-        color: #4A2C2A;
-    }
-
-    .dropdown-menu: hover {
-        background: #b18b77;
+        background: #b18b77
         color: #4A2C2A;
     }
 
@@ -150,25 +129,22 @@ section {
         position: relative !important;
     }
 
-    /* Al passaggio del mouse sul .dropdown, mostra il .dropdown-menu
-    .dropdown:click > .dropdown-menu {
+    /* Al passaggio del mouse sul .dropdown, mostra il .dropdown-menu*/
+    /*.dropdown:click > .dropdown-menu {
       display: block;
     }*/
 
     .dropdown-menu .dropdown-menu {
-        /*margin-left: 15px;*/
+        margin-left: 15px;
         top: 100%;
-        color: #b18b77;
-        /*color: #fff;*/
+        color: #b18b77:
         background: #fff;
-        /*background: #b18b77;*/
     }
 
 }
 
 .navbar-toggler-icon {
   background-image: url("data:image/svg+xml;charset=utf8,%3Csvg viewBox='0 0 30 30' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath stroke='rgba(255,255,255,1)' stroke-width='2' stroke-linecap='round' stroke-miterlimit='10' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E") !important;
-  color: #fff;
 }
 
 @media (min-width: 993px){
@@ -268,6 +244,7 @@ section {
 
     .navbar-nav .nav-link-enabled::before,
     .navbar-nav .nav-link-enabled::after {
+      z-index: 19999 !important;
       content: '';
       position: absolute;
       height: 2px;
@@ -278,12 +255,14 @@ section {
 
     /* Bordo superiore */
     .navbar-nav .nav-link-enabled::before {
+      z-index: 19999 !important;
       top: 0;
       left: 0;
     }
 
     /* Bordo inferiore */
     .navbar-nav .nav-link-enabled::after {
+      z-index: 19999 !important;
       bottom: 0;
       left: 0;
     }
@@ -298,29 +277,6 @@ section {
         cursor: pointer;
     }
 }
-
-/* Forza la visibilità del menu profilo */
-.dropdown-menu[aria-labelledby="profileDropdown"] {
-    position: absolute !important;
-    right: 0;
-    left: auto;
-    top: 100%;
-    display: none;
-    background-color: white/*#4A2C2A; /* Stesso colore della navbar */
-    color: white;
-    box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.1);
-    z-index: 1050; /* Assicura che sia sopra altri elementi */
-}
-
-/* Mostra il menu profilo quando è attivo */
-.dropdown-menu.show[aria-labelledby="profileDropdown"] {
-    display: block !important;
-}
-
-.dropdown-menu[aria-labelledby="profileDropdown"] .dropdown-item:hover {
-      background-color: #b18b77;
-      color: #4A2C2A;
-    }
 
 .welcome-section {
     text-align: center;
