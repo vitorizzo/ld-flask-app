@@ -28,7 +28,7 @@
             {% for immagine in product.immagini %}
               <div class="carousel-item {% if loop.first %}active{% endif %}">
                 <img src="{{ url_for('static', filename='images/products/' ~ immagine) }}"
-                     class="d-block w-100" alt="Immagine {{ loop.index }}">
+                     class="d-block w-100 product-img" alt="Immagine {{ loop.index }}">
               </div>
             {% endfor %}
           </div>
@@ -66,4 +66,32 @@
     </div>
   </div>
 </section>
+
+<!-- Modal Full-Screen per il Carosello -->
+<div class="modal fade" id="fullscreen-carousel-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Galleria Immagini</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div id="fullscreen-carousel" class="carousel slide" data-bs-ride="carousel">
+          <div class="carousel-inner" id="fullscreen-carousel-images">
+            <!-- Le immagini vengono aggiunte dinamicamente -->
+          </div>
+          <button class="carousel-control-prev" type="button" data-bs-target="#fullscreen-carousel" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Previous</span>
+          </button>
+          <button class="carousel-control-next" type="button" data-bs-target="#fullscreen-carousel" data-bs-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Next</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
