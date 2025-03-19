@@ -113,3 +113,22 @@ document.addEventListener("DOMContentLoaded", function () {
         instance.toggle();
     });
 });
+
+document.addEventListener("DOMContentLoaded", function () {
+    var navbarToggler = document.querySelector(".navbar-toggler");
+    var navbarCollapse = document.querySelector(".navbar-collapse");
+
+    if (navbarToggler && navbarCollapse) {
+        navbarToggler.addEventListener("click", function () {
+            if (navbarCollapse.classList.contains("show")) {
+                // Se il menu è aperto, chiudilo
+                bootstrap.Collapse.getInstance(navbarCollapse).hide();
+            } else {
+                // Se il menu è chiuso, aprilo
+                bootstrap.Collapse.getOrCreateInstance(navbarCollapse).show();
+            }
+        });
+    }
+});
+
+
