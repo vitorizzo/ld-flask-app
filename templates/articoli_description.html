@@ -153,17 +153,6 @@ $(document).ready(function() {
         caricaProdotti($("#descrizione").val(), 1);
     });
 
-    // Mostra dettagli del prodotto quando viene cliccato
-    // $("#prodotti_trovati").on("click", ".prodotto-item", function() {
-    //    let codice = $(this).data("codice");
-    //    let descrizione = $(this).data("descrizione");
-    //    let descrizione_aggiuntiva = $(this).data("descrizione-aggiuntiva");
-    //    let prezzo = $(this).data("prezzo");
-    //    let stock = $(this).data("stock");
-    //    let online = $(this).data("online");
-    //    let isonline = $(this).data("isonline");
-    //    let immagine = $(this).data("immagine");
-
     $("#prodotti_trovati").on("click", ".prodotto-item", function() {
         let codice = $(this).data("codice");
         $('#product-modal-iframe').attr('src', '/search/scheda_articolo/' + codice);
@@ -171,19 +160,6 @@ $(document).ready(function() {
         var modal = new bootstrap.Modal(document.getElementById('product-modal'));
         modal.show();
     });
-
-        // $("#product-code").text(codice);
-        // $("#product-description").text(descrizione);
-        // $("#product-description-ext").text(descrizione_aggiuntiva);
-        // $("#product-price").text(prezzo);
-
-        // Se il prodotto è disponibile online, mostra anche la giacenza online
-        // let stockText = isonline ? `${stock} (${online})` : `${stock}`;
-        // $("#product-stock").text(stockText);
-
-        // $("#product-image").attr("src", immagine);
-       //  $("#product-card").hide().removeClass("d-none").fadeIn();
-    // });
 });
 </script>
 {% endblock %}

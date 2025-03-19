@@ -5,6 +5,7 @@ from extensions import db
 from models import Menu, Role
 from routes.decorators import role_required
 from config.task import import_articoli_task, import_barcode_task, import_giacenze_task, import_ps_task
+from tools.ps_util import get_product_by_code
 
 settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 socketio = SocketIO()
@@ -94,6 +95,13 @@ def lancia_import_prestashop():
     return jsonify({'message': 'Importazione avviata in background', 'task_id': task.id})
 
 
+@settings_bp.route('/import_art_descr', methods=['GET', 'POST'])
+@login_required
+@role_required(500)
+def lancia_import_descr_prestashop():
+    print("Richiesta per importazione descrizione da Prestashop articolo tralcetto...")
+    get_product_by_code('VB075133-21')
+    return jsonify({'success': True, 'message': 'Interrogazione conclusa.'})
 
 @settings_bp.route('/import_giacenze', methods=['GET', 'POST'])
 @login_required

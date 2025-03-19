@@ -75,12 +75,14 @@ class Immagini(db.Model):
 
 
 class SchedeProdotti(db.Model):
-    descrizione = db.Column(db.String(255), primary_key=True)
-    cod_art = db.Column(db.String(255))
+    descrizione = db.Column(db.String(5000))
+    short = db.Column(db.String(5000))
+    cod_art = db.Column(db.String(255), primary_key=True)
 
     def to_dict(self):
         return {
             'descrizione': self.descrizione,
+            'short': self.short,
             'cod_art': self.cod_art
         }
 

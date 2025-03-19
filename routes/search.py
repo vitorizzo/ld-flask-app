@@ -1,5 +1,6 @@
 from flask import Blueprint, render_template, jsonify, request, abort
 from models import Barcode, Articoli, Giacenza, Immagini, SchedeProdotti
+from routes.tools import clean_text
 
 # Creazione del blueprint
 search_bp = Blueprint('search', __name__, template_folder='../templates')
@@ -16,6 +17,11 @@ def get_product_by_code(cod_art):
     for img in Immagini.query.filter_by(cod_art=cod_art).all():
         immagini.append(img.file_img)
     if prod:
+        scheda = SchedeProdotti.query.filter_by(cod_art=cod_art).first()
+        if scheda:
+            scheda_art = clean_text(scheda.descrizione)
+        else:
+            scheda_art = "---"
         prodotto = {
             "codice": cod_art,
             "descrizione": prod.descrizione,
@@ -24,7 +30,7 @@ def get_product_by_code(cod_art):
             "immagini": immagini,
             "inStore": giacenze.giac_neg,
             "www": giacenze.giac_www,
-            "scheda_tecnica": SchedeProdotti.query.filter_by(cod_art=cod_art).first()
+            "scheda_tecnica": scheda_art
         }
         return prodotto
     else:
@@ -56,22 +62,6 @@ def articolo_per_barcode():
         return jsonify({'success': False, 'error': 'Barcode mancante.'})
     cb_esistente = Barcode.query.filter_by(cod_bar=barcode).first()
     if cb_esistente:
-#         cod_art = cb_esistente.cod_art
-#         art_esistente = Articoli.query.filter_by(cod_art=cod_art).first()
-#         descrizione = art_esistente.descrizione + " " + art_esistente.descrizione_aggiuntiva
-#         prezzo = art_esistente.prezzo
-#         giac_esistente = Giacenza.query.filter_by(cod_art=cod_art).first()
-#         instore = giac_esistente.giac_neg
-#         isonline = True if giac_esistente.giac_www>0 else False
-#         online = giac_esistente.giac_www
-#         articolo = {
-#             'codice': cod_art,
-#             'descrizione': descrizione,
-#             'instore': instore,
-#             'online': online,
-#             'isonline': isonline,
-#             'prezzo': prezzo
-#         }
         print(f"articolo trovato: \n{cb_esistente.cod_art}")
         return jsonify({'success': True, 'product': cb_esistente.cod_art})
     else:
