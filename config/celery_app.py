@@ -1,25 +1,35 @@
 from celery import Celery
 from tools.app_factory import create_app
+from tools.log_utils import get_logger
 
-# Crea l'app Flask
+logger = get_logger('main')
+
+logger.info("Creazione dell'app Flask per Celery...")
 flask_app = create_app()
 
-# Inizializza Celery con il nome dell'app e le configurazioni prese dalla Flask app
+logger.info("Inizializzazione di Celery...")
 celery = Celery(
     flask_app.import_name,
     broker=flask_app.config['CELERY_BROKER_URL'],
     backend=flask_app.config['CELERY_RESULT_BACKEND']
 )
 
-# Carica la configurazione aggiuntiva per Celery (dal file celeryconfig.py)
+logger.info("Caricamento configurazione da config.celeryconfig...")
 celery.config_from_object('config.celeryconfig')
 
 
-# Definisce una classe Task che esegue il task nel contesto dell'app Flask
 class FlaskContextTask(celery.Task):
     def __call__(self, *args, **kwargs):
+        logger.info(f"Esecuzione task Celery: {self.name}")
         with flask_app.app_context():
-            return super().__call__(*args, **kwargs)
+            result = super().__call__(*args, **kwargs)
+            logger.info(f"Task completato: {self.name}")
+            return result
 
 
+celery.Task = FlaskContextTask
+
+logger.info("Autodiscovery dei task Celery...")
 celery.autodiscover_tasks(['config.task.py'])
+
+logger.info("Celery pronto.")

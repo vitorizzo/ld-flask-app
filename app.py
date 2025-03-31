@@ -1,3 +1,5 @@
+import logging, sys
+from tools.log_utils import get_logger
 import os
 
 from dotenv import load_dotenv
@@ -12,13 +14,20 @@ from routes.tools import get_user_menu
 from routes.esportazioni_teamsystem import file_bp
 from routes.search import search_bp
 from tools.app_factory import create_app
+from tools.log_utils import debug_loggers
+
+
+# Inizializza il logger globale (ad esempio "main") prima di altri import
+logger = get_logger("main", level=logging.DEBUG)
+# Imposta anche una configurazione base per il root logger (opzionale)
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
 dotenvlocal_path = os.path.join(os.path.dirname(__file__), ".env.local")
 dotenvdefaults_path = os.path.join(os.path.dirname(__file__), ".env.defaults")
-print("DEBUG: Cerco di caricare il file:", dotenv_path)
 
-# Carica prima `.env`, poi `.env.local` (se esiste), poi `.env.default`
+logger.info(f"Caricamento .env da {dotenv_path}")
 load_dotenv(dotenv_path, override=False)
 load_dotenv(dotenvlocal_path, override=True)
 load_dotenv(dotenvdefaults_path, override=False)
@@ -27,10 +36,13 @@ FLASK_ENV = os.getenv("FLASK_ENV", "production")
 EXPORT_FOLDER = os.getenv("EXPORT_FOLDER")
 EXPORT_FOLDER_URL = os.getenv("EXPORT_FOLDER_URL")
 UPLOAD_FOLDER = os.path.normpath(os.path.join(os.getcwd(), 'ld-flask-app', 'static', 'uploads'))
+
 SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL'),
 SQLALCHEMY_TRACK_MODIFICATIONS = False,
+
 if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)  # Crea la cartella principale se non esiste
+    os.makedirs(UPLOAD_FOLDER)
+    logger.info(f"Cartella upload creata: {UPLOAD_FOLDER}")
 
 PS_URL = os.getenv("PRESTASHOP_URL")
 PS_KEY = os.getenv("PRESTASHOP_KEY")
@@ -38,9 +50,18 @@ PS_USER = os.getenv("PRESTASHOP_USER")
 PS_PSWD = os.getenv("PRESTASHOP_PASSWORD")
 
 app = create_app()
+werkzeug_logger = logging.getLogger('werkzeug')
+werkzeug_logger.handlers = []      # rimuove gli handler predefiniti
+werkzeug_logger.propagate = True     # fa propagare i messaggi al logger root
+app.logger.handlers = logger.handlers  # Usa i nostri handler
+app.logger.setLevel(logging.DEBUG)
+app.logger.propagate = False
+
+logger.info("Flask app creata.")
+
 login_manager = LoginManager()
 login_manager.init_app(app)
-login_manager.login_view = "auth.login"  # Route di login
+login_manager.login_view = "auth.login"
 
 # Registrazione Blueprint
 app.register_blueprint(auth_bp, url_prefix='/auth')
@@ -49,6 +70,9 @@ app.register_blueprint(sconti_bp, url_prefix='/sconti')
 app.register_blueprint(articoli_bp, url_prefix='/articoli')
 app.register_blueprint(file_bp, url_prefix='/exported')
 app.register_blueprint(search_bp, url_prefix='/search')
+
+logger.info("Blueprint registrati.")
+debug_loggers()
 
 
 def build_menu_tree(menus):
@@ -77,7 +101,6 @@ def build_menu_item(menu, menu_dict):
 
 @login_manager.user_loader
 def load_user(user_id):
-    # Funzione per caricare l'utente dalla sessione
     return User.query.get(int(user_id))
 
 
@@ -122,4 +145,5 @@ def inject_menus():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True)
+    logger.info("Avvio server Flask in modalità standalone...")
+    app.run(host='0.0.0.0', debug=True, use_reloader=False)

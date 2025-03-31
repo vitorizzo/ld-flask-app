@@ -1,61 +1,52 @@
 import os
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
+from tools.log_utils import get_logger
+# Logger
+logger = get_logger('db_utils')
 
 # Carica la configurazione dal file .env
 load_dotenv()
 DB_CONNECTION_STRING = os.getenv("DB_CONNECTION_STRING")
+
+if not DB_CONNECTION_STRING:
+    logger.critical("DB_CONNECTION_STRING non trovata nel file .env!")
+    raise ValueError("DB_CONNECTION_STRING non trovata nel file .env!")
 
 # Crea un engine globale
 engine = create_engine(DB_CONNECTION_STRING, echo=False)
 
 
 def execute_query(query, params=None):
-    """
-    Esegue una query generica sul database.
-    :param query: La query SQL da eseguire.
-    :param params: Parametri opzionali per la query.
-    :return: Risultato della query.
-    """
     try:
         with engine.connect() as connection:
-            if params:
-                result = connection.execute(text(query), params)
-            else:
-                result = connection.execute(text(query))
-            return result.fetchall()
+            logger.debug(f"Eseguo query: {query} | Parametri: {params}")
+            result = connection.execute(text(query), params) if params else connection.execute(text(query))
+            fetched = result.fetchall()
+            logger.debug(f"Risultato: {fetched}")
+            return fetched
     except Exception as e:
-        print(f"Errore nell'esecuzione della query: {e}")
+        logger.exception("Errore nell'esecuzione della query:")
         return None
 
 
 def insert_data(query, params):
-    """
-    Inserisce dati nel database.
-    :param query: La query SQL di INSERT.
-    :param params: Parametri per la query.
-    :return: True se l'inserimento è riuscito, False altrimenti.
-    """
     try:
         with engine.connect() as connection:
+            logger.debug(f"Eseguo INSERT: {query} | Parametri: {params}")
             connection.execute(text(query), params)
         return True
     except Exception as e:
-        print(f"Errore nell'inserimento dei dati: {e}")
+        logger.exception("Errore nell'inserimento dei dati:")
         return False
 
 
 def update_data(query, params):
-    """
-    Aggiorna dati nel database.
-    :param query: La query SQL di UPDATE.
-    :param params: Parametri per la query.
-    :return: True se l'aggiornamento è riuscito, False altrimenti.
-    """
     try:
         with engine.connect() as connection:
+            logger.debug(f"Eseguo UPDATE: {query} | Parametri: {params}")
             connection.execute(text(query), params)
         return True
     except Exception as e:
-        print(f"Errore nell'aggiornamento dei dati: {e}")
+        logger.exception("Errore nell'aggiornamento dei dati:")
         return False

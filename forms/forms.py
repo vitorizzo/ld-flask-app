@@ -1,7 +1,10 @@
 from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField, DateField, SelectField, BooleanField
 from wtforms.validators import DataRequired, Email, EqualTo, Length
+from tools.log_utils import get_logger
 
+logger = get_logger('forms')
+logger.info("Form caricati.")
 
 class RegistrationForm(FlaskForm):
     name = StringField('Nome', validators=[DataRequired(), Length(min=2, max=150)])
@@ -21,7 +24,7 @@ class RegistrationForm(FlaskForm):
 class LoginForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
     password = PasswordField('Password', validators=[DataRequired()])
-    remember = BooleanField('Ricordami')  # Nuovo campo
+    remember = BooleanField('Ricordami')
     submit = SubmitField('Accedi')
 
 
