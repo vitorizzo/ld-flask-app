@@ -1,4 +1,5 @@
-import logging, sys
+import logging
+import sys
 from tools.log_utils import get_logger
 import os
 
@@ -10,11 +11,12 @@ from routes.auth import auth_bp
 from routes.settings import settings_bp
 from routes.elaborazioni_sconti import sconti_bp
 from routes.articoli import articoli_bp
+from routes.inventario import inventario_bp
 from routes.tools import get_user_menu
 from routes.esportazioni_teamsystem import file_bp
 from routes.search import search_bp
 from tools.app_factory import create_app
-from tools.log_utils import debug_loggers
+# from tools.log_utils import debug_loggers
 
 
 # Inizializza il logger globale (ad esempio "main") prima di altri import
@@ -70,9 +72,10 @@ app.register_blueprint(sconti_bp, url_prefix='/sconti')
 app.register_blueprint(articoli_bp, url_prefix='/articoli')
 app.register_blueprint(file_bp, url_prefix='/exported')
 app.register_blueprint(search_bp, url_prefix='/search')
+app.register_blueprint(inventario_bp, url_prefix='/inventario')
 
 logger.info("Blueprint registrati.")
-debug_loggers()
+# debug_loggers()
 
 
 def build_menu_tree(menus):

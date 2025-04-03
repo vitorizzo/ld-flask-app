@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<section class="welcome-section">
+    <h2>Gestione Inventario</h2>
+
+    <form method="POST" action="{{ url_for('inventario.inventario') }}">
+        {{ form.hidden_tag() }}
+
+        <div class="form-group">
+            {{ form.data_inventario.label(class='form-label') }}
+            {{ form.data_inventario(class='form-control') }}
+        </div>
+
+        <div class="form-group">
+            {{ form.barcode_articolo.label(class='form-label') }}
+            <div class="input-group">
+                {{ form.barcode_articolo(class='form-control', placeholder='Scansiona codice a barre', id='barcode') }}
+                <button type="button" class="btn btn-outline-secondary" id="scan-button">📷</button>
+            </div>
+        </div>
+
+        <div class="form-group">
+            {{ form.descrizione_articolo.label(class='form-label') }}
+            {{ form.descrizione_articolo(class='form-control', placeholder='Cerca per descrizione') }}
+        </div>
+
+        <div class="form-group">
+            {{ form.quantita_inserita.label(class='form-label') }}
+            {{ form.quantita_inserita(class='form-control', id='quantita_inserita') }}
+        </div>
+
+        <div class="form-group mt-3">
+            <label>Inserimento quantità tramite formula:</label>
+
+            <div class="row">
+                <div class="col-md-4">
+                    <label id="cpp-label" for="num_pedane">
+                        N. Pedane (<span id="cpp" class="editable">1</span>) <i class="fas fa-pencil-alt editable"></i>
+                    </label>
+                    {{ form.num_pedane(class="form-control", id="num_pedane") }}
+                </div>
+                <div class="col-md-4">
+                    <label id="pcc-label" for="num_cartoni">
+                        N. Cartoni (<span id="ppc" class="editable">1</span>) <i class="fas fa-pencil-alt editable"></i>
+                    </label>
+                    {{ form.num_cartoni(class="form-control", id="num_cartoni") }}
+                </div>
+                <div class="col-md-4">{{ form.num_pezzi_sciolti.label }} {{ form.num_pezzi_sciolti(class="form-control", id="num_pezzi_sciolti") }}</div>
+
+                <!-- Questi sono campi hidden per il backend -->
+                <input type="hidden" name="hidden_cpp" id="hidden_cpp" value="1">
+                <input type="hidden" name="hidden_ppc" id="hidden_ppc" value="1">
+            </div>
+            <div class="mt-2">
+                {{ form.calcola(class="btn btn-secondary", id="calcola-formula") }}
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary mt-2">{{ form.submit.label.text }}</button>
+    </form>
+
+    <hr>
+
+    <h4>Inventari eseguiti:</h4>
+    <table class="table table-striped mt-3">
+        <thead>
+            <tr>
+                <th>ID Inventario</th>
+                <th>Data Inventario</th>
+                <th>Numero righe inserite</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for inv in inventari %}
+                <tr>
+                    <td>{{ inv.id }}</td>
+                    <td>{{ inv.data_inventario.strftime('%d-%m-%Y') }}</td>
+                    <td>{{ inv.righe|length }}</td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="3">Nessun inventario disponibile.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/@zxing/library@latest"></script>
+<script src="{{ url_for('static', filename='js/scanner.js') }}"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+    ['cpp', 'ppc'].forEach(id => {
+        const span = document.getElementById(id);
+        const icon = span.nextElementSibling;
+
+        [span, icon].forEach(el => {
+            el.addEventListener("click", () => {
+                const nuovo = prompt(`Inserisci nuovo valore per ${id.toUpperCase()}:`, span.textContent);
+                if (nuovo !== null && !isNaN(nuovo)) {
+                    span.textContent = parseInt(nuovo);
+                    document.getElementById(`hidden_${id}`).value = parseInt(nuovo);
+                }
+            });
+        });
+    });
+
+    // Inizializza scanner per codice a barre
+    initScanner('scan-button', 'barcode');
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const articoloInput = document.getElementById('cod_art');
+    const cppLabel = document.getElementById('cpp-label');
+    const ppcLabel = document.getElementById('ppc-label');
+    const cppSpan = document.getElementById('cpp');
+    const ppcSpan = document.getElementById('ppc');
+    const cppHidden = document.getElementById('hidden_cpp');
+    const ppcHidden = document.getElementById('hidden_ppc');
+    const calcolaBtn = document.getElementById('calcola-formula');
+    const campoQuantita = document.getElementById('quantita_inserita');
+    const pedane = document.getElementById('num_pedane');
+    const cartoni = document.getElementById('num_cartoni');
+    const pezziSciolti = document.getElementById('num_pezzi_sciolti');
+
+    function aggiornaValoriArticolo(cod_art) {
+        fetch(`/dati_articolo/${cod_art}`)
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    alert("Articolo non trovato");
+                    return;
+                }
+
+                const cpp = data.cpp || 1;
+                const ppc = data.ppc || 1;
+
+                cppSpan.textContent = cpp;
+                ppcSpan.textContent = ppc;
+
+                cppHidden.value = cpp;
+                ppcHidden.value = ppc;
+            });
+    }
+
+    if (articoloInput) {
+        articoloInput.addEventListener('change', function () {
+            const cod_art = this.value;
+            if (cod_art) {
+                aggiornaValoriArticolo(cod_art);
+            }
+        });
+    }
+
+    calcolaBtn.addEventListener('click', function (e) {
+        e.preventDefault();
+
+        const cpp = parseInt(cppHidden.value || 1);
+        const ppc = parseInt(ppcHidden.value || 1);
+
+        const np = parseInt(pedane.value || 0);
+        const ct = parseInt(cartoni.value || 0);
+        const ps = parseInt(pezziSciolti.value || 0);
+
+        const totale = ps + ((np * cpp + ct) * ppc);
+
+        campoQuantita.value = totale;
+    });
+});
+</script>
+{% endblock %}

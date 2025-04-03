@@ -37,12 +37,18 @@ class Articoli(db.Model):
     descrizione_aggiuntiva = db.Column(db.Text)
     prezzo = db.Column(db.Numeric)
 
+    # ⚙️ Nuove colonne
+    pezzi_per_collo = db.Column(db.Integer, default=1)  # ppc
+    colli_per_pedana = db.Column(db.Integer, default=1)  # cpp
+
     def to_dict(self):
         return {
             'cod_art': self.cod_art,
             'descrizione': self.descrizione,
             'descrizione_aggiuntiva': self.descrizione_aggiuntiva,
             'prezzo': self.prezzo,
+            'pezzi_per_collo': self.pezzi_per_collo,
+            'colli_per_pedana': self.colli_per_pedana
         }
 
     def __repr__(self):
@@ -78,8 +84,8 @@ class Immagini(db.Model):
 
 
 class SchedeProdotti(db.Model):
-    descrizione = db.Column(db.String(5000))
-    short = db.Column(db.String(5000))
+    descrizione = db.Column(db.String(5000), nullable=True)
+    short = db.Column(db.String(5000), nullable=True)
     cod_art = db.Column(db.String(255), primary_key=True)
 
     def to_dict(self):
@@ -152,3 +158,37 @@ class User(db.Model, UserMixin):
 
     def get_id(self):
         return str(self.id)
+
+
+class Inventario(db.Model):
+    __tablename__ = 'inventari'
+
+    id = db.Column(db.Integer, primary_key=True)
+    data_inventario = db.Column(db.Date, unique=True, nullable=False)
+
+    # relazione con righe inventario
+    righe = db.relationship('InventarioRiga', backref='inventario', cascade='all, delete-orphan')
+
+
+class InventarioRiga(db.Model):
+    __tablename__ = 'inventario_righe'
+
+    id = db.Column(db.Integer, primary_key=True)
+    inventario_id = db.Column(db.Integer, db.ForeignKey('inventari.id', ondelete='CASCADE'))
+    articolo_id = db.Column(db.String(255), db.ForeignKey('articoli.cod_art', ondelete='SET NULL'), nullable=True)
+    descrizione_articolo = db.Column(db.String(255), nullable=True)
+    barcode_articolo = db.Column(db.String(50), nullable=True)
+    quantita_inserita = db.Column(db.Integer, nullable=False)
+
+    # 🆕 Campi aggiuntivi
+    num_pedane = db.Column(db.Integer)
+    num_cartoni = db.Column(db.Integer)
+    num_pezzi_sciolti = db.Column(db.Integer)
+    pezzi_per_collo = db.Column(db.Integer)
+    colli_per_pedana = db.Column(db.Integer)
+
+    utente_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    articolo = db.relationship('Articoli', backref='righe_inventario')
+    utente = db.relationship('User', backref='righe_inventario')

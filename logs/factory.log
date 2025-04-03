@@ -80,3 +80,175 @@
 2025-03-31 21:36:19,916 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
 2025-03-31 21:36:19,923 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
 2025-03-31 21:36:20,010 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-01 18:42:15,747 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-01 18:42:15,759 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-01 18:42:15,925 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-01 18:42:17,544 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-01 18:43:38,298 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-01 18:43:38,306 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-01 18:43:38,464 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-01 18:43:39,595 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-01 18:44:26,495 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-01 18:44:26,503 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-01 18:44:26,645 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-01 18:44:27,957 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-01 18:47:02,756 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-01 18:47:02,785 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-01 18:47:02,980 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-01 18:47:04,473 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-01 18:47:15,649 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-01 18:47:15,662 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-01 18:47:15,900 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-01 18:47:17,301 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 08:44:49,946 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 08:44:49,957 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 08:44:50,178 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 08:44:51,801 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 08:48:32,269 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 08:48:32,289 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 08:48:32,519 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 08:48:34,582 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 08:48:54,461 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 08:48:54,471 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 08:48:54,665 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 08:48:56,231 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 08:54:05,312 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 08:54:05,323 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 08:54:05,436 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 08:54:14,929 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 08:54:14,942 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 08:54:15,092 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 08:54:56,109 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 08:54:56,122 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 08:54:56,323 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 08:54:57,824 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 08:55:26,905 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 08:55:26,915 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 08:55:27,096 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 08:55:28,512 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:11:06,265 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 09:11:06,273 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 09:11:06,437 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:11:07,766 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:12:32,887 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 09:12:32,899 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 09:12:33,063 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:12:34,411 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:17:00,041 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 09:17:00,058 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 09:17:00,226 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:17:01,491 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:17:20,790 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 09:17:20,798 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 09:17:20,939 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:17:22,128 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:17:44,912 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 09:17:44,921 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 09:17:45,053 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:17:46,184 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:19:02,562 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 09:19:02,570 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 09:19:02,714 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:19:03,814 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:19:36,449 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 09:19:36,458 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 09:19:36,637 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:19:38,004 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:20:01,778 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 09:20:01,787 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 09:20:01,961 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:20:03,323 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:34:35,991 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 09:34:36,002 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 09:34:36,167 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:34:37,467 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:34:38,145 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 09:34:38,155 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 09:34:38,255 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:34:42,754 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 09:34:42,767 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 09:34:42,882 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:40:50,155 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 09:40:50,164 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 09:40:50,309 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:40:51,604 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:40:54,850 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 09:40:54,865 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 09:40:54,975 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 09:46:16,301 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 09:46:16,311 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 09:46:16,416 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 10:52:22,425 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 10:52:22,436 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 10:52:22,547 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 10:53:24,184 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 10:53:24,195 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 10:53:24,304 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 10:53:31,241 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 10:53:31,256 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 10:53:31,411 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 10:53:32,672 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 11:06:24,011 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 11:06:24,021 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 11:06:24,184 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 11:06:25,543 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 11:06:51,352 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 11:06:51,361 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 11:06:51,497 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 11:06:52,728 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 11:10:26,903 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 11:10:26,911 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 11:10:27,031 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 11:10:28,308 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 12:27:01,787 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 12:27:01,802 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 12:27:01,958 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 12:27:03,031 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 12:36:29,475 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 12:36:29,487 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 12:36:29,653 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 12:36:30,946 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 12:37:23,800 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 12:37:23,806 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 12:37:23,963 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 12:37:25,454 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 12:37:45,284 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 12:37:45,293 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 12:37:45,409 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 12:37:46,303 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 17:51:35,859 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 17:51:35,875 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 17:51:36,046 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 17:51:37,350 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 17:53:16,518 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 17:53:16,528 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 17:53:16,689 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 17:53:17,687 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 19:20:59,783 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-02 19:20:59,795 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-02 19:20:59,925 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-02 19:21:01,128 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-03 09:39:19,580 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-03 09:39:19,590 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-03 09:39:19,738 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-03 09:39:21,467 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-03 10:00:47,806 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-03 10:00:47,823 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-03 10:00:48,052 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-03 10:00:49,209 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-03 10:13:41,327 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-03 10:13:41,337 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-03 10:13:41,473 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-03 10:13:42,535 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-03 10:18:12,068 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-03 10:18:12,078 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-03 10:18:12,199 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-03 10:18:13,235 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-03 12:27:06,623 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-03 12:27:06,636 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-03 12:27:06,807 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-03 12:27:08,996 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-03 12:32:58,227 - factory - DEBUG - Cerco di caricare il file: C:\Users\EliteBook\OneDrive\Documents\MEGAsync\PycharmProjects\ld-flask-app\.env
+2025-04-03 12:32:58,256 - factory - INFO - DATABASE_URL rilevato: postgresql://tech_admin:GinnyLD%401402@100.120.25.12:5432/ld_flask_app
+2025-04-03 12:32:58,807 - factory - INFO - App Flask creata e database inizializzato correttamente.
+2025-04-03 12:33:04,361 - factory - INFO - App Flask creata e database inizializzato correttamente.

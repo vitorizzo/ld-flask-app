@@ -85,6 +85,6 @@ def get_logger(name, level=logging.DEBUG, also_main_log=True):
         logger.addHandler(main_handler)
 
     caller = inspect.stack()[1].filename
-    print(f"🛠 Logger '{name}' creato da: {caller}")
+    # print(f"🛠 Logger '{name}' creato da: {caller}")
 
     return logger

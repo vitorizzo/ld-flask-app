@@ -42,3 +42,19 @@
 2025-03-31 21:36:15,066 - celeryconfig - INFO - Scheduler Celery (beat) configurato con 3 task giornalieri.
 2025-03-31 21:36:20,104 - celeryconfig - INFO - Configurazione Celery: broker_url=redis://localhost:6379/0, result_backend=redis://localhost:6379/0
 2025-03-31 21:36:20,107 - celeryconfig - INFO - Scheduler Celery (beat) configurato con 3 task giornalieri.
+2025-04-02 08:54:05,624 - celeryconfig - INFO - Configurazione Celery: broker_url=redis://localhost:6379/0, result_backend=redis://localhost:6379/0
+2025-04-02 08:54:05,628 - celeryconfig - INFO - Scheduler Celery (beat) configurato con 3 task giornalieri.
+2025-04-02 08:54:15,195 - celeryconfig - INFO - Configurazione Celery: broker_url=redis://localhost:6379/0, result_backend=redis://localhost:6379/0
+2025-04-02 08:54:15,198 - celeryconfig - INFO - Scheduler Celery (beat) configurato con 3 task giornalieri.
+2025-04-02 09:34:38,386 - celeryconfig - INFO - Configurazione Celery: broker_url=redis://localhost:6379/0, result_backend=redis://localhost:6379/0
+2025-04-02 09:34:38,388 - celeryconfig - INFO - Scheduler Celery (beat) configurato con 3 task giornalieri.
+2025-04-02 09:34:43,001 - celeryconfig - INFO - Configurazione Celery: broker_url=redis://localhost:6379/0, result_backend=redis://localhost:6379/0
+2025-04-02 09:34:43,004 - celeryconfig - INFO - Scheduler Celery (beat) configurato con 3 task giornalieri.
+2025-04-02 09:40:55,070 - celeryconfig - INFO - Configurazione Celery: broker_url=redis://localhost:6379/0, result_backend=redis://localhost:6379/0
+2025-04-02 09:40:55,074 - celeryconfig - INFO - Scheduler Celery (beat) configurato con 3 task giornalieri.
+2025-04-02 09:46:16,551 - celeryconfig - INFO - Configurazione Celery: broker_url=redis://localhost:6379/0, result_backend=redis://localhost:6379/0
+2025-04-02 09:46:16,554 - celeryconfig - INFO - Scheduler Celery (beat) configurato con 3 task giornalieri.
+2025-04-02 10:52:22,657 - celeryconfig - INFO - Configurazione Celery: broker_url=redis://localhost:6379/0, result_backend=redis://localhost:6379/0
+2025-04-02 10:52:22,660 - celeryconfig - INFO - Scheduler Celery (beat) configurato con 3 task giornalieri.
+2025-04-02 10:53:24,428 - celeryconfig - INFO - Configurazione Celery: broker_url=redis://localhost:6379/0, result_backend=redis://localhost:6379/0
+2025-04-02 10:53:24,431 - celeryconfig - INFO - Scheduler Celery (beat) configurato con 3 task giornalieri.

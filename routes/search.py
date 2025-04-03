@@ -53,6 +53,35 @@ def ricerca_x_descrizione():
     return render_template('articoli_description.html')
 
 
+@search_bp.route('/dati_articolo/<cod_art>', methods=['GET'])
+def dati_articolo(cod_art):
+    logger.info(f">>> Chiamata a /dati_articolo/{cod_art}")
+    articolo = Articoli.query.filter_by(cod_art=cod_art).first()
+
+    if not articolo:
+        return jsonify({'success': False, 'error': 'Articolo non trovato.'})
+
+    immagini = [img.file_img for img in Immagini.query.filter_by(cod_art=cod_art).all()]
+    giacenze = Giacenza.query.filter_by(cod_art=cod_art).first()
+    scheda = SchedeProdotti.query.filter_by(cod_art=cod_art).first()
+
+    return jsonify({
+        'success': True,
+        'codice': articolo.cod_art,
+        'descrizione': articolo.descrizione,
+        'descrizione_aggiuntiva': articolo.descrizione_aggiuntiva,
+        'prezzo': articolo.prezzo,
+        'immagini': immagini,
+        'giacenza': {
+            'inStore': giacenze.giac_neg if giacenze else 0,
+            'online': giacenze.giac_www if giacenze else 0
+        },
+        'scheda_tecnica': clean_text(scheda.descrizione) if scheda else "---",
+        'ppc': articolo.pezzi_per_collo if hasattr(articolo, 'pezzi_per_collo') else 1,
+        'cpp': articolo.colli_per_pedana if hasattr(articolo, 'colli_per_pedana') else 1
+    })
+
+
 @search_bp.route('/articolo_by_barcode', methods=['GET'])
 def articolo_per_barcode():
     barcode = request.args.get('barcode')

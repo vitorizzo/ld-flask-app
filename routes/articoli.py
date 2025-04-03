@@ -7,6 +7,7 @@ logger = get_logger('articoli')
 # Creazione del blueprint
 articoli_bp = Blueprint('articoli', __name__, template_folder='../templates')
 
+
 @articoli_bp.route('/articoli')
 @log_task(logger)
 def articoli():
