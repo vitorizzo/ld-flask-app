@@ -99,9 +99,15 @@ function onScanSuccess(decodedText, decodedResult) {
     if (barcodeInput) {
         barcodeInput.value = decodedText;
 
-        // 👉 Genera evento 'input' per attivare eventuali listener
-        const event = new Event("input", { bubbles: true });
-        barcodeInput.dispatchEvent(event);
+        // 👉 Simula la pressione del tasto Enter
+        const enterEvent = new KeyboardEvent("keydown", {
+            bubbles: true,
+            cancelable: true,
+            key: "Enter",
+            code: "Enter",
+            keyCode: 13
+        });
+        barcodeInput.dispatchEvent(enterEvent);
     }
 }
 
