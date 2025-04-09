@@ -3,66 +3,52 @@
 let codeReader;
 let selectedDeviceId = null;
 
-window.initScanner = function (buttonId, inputId, onScan = null) {
-    const codeReader = new ZXing.BrowserMultiFormatReader();
-    const button = document.getElementById(buttonId);
+function initScanner(buttonId, inputId, onScan = null) {
+    const scanButton = document.getElementById(buttonId);
+    const inputField = document.getElementById(inputId);
 
-    button.addEventListener('click', () => {
+    // Crea dinamicamente il modal solo se non esiste già
+    if (!document.getElementById('scanner-modal')) {
         const modal = document.createElement('div');
-        modal.classList.add('modal', 'fade');
-        modal.setAttribute('tabindex', '-1');
+        modal.id = 'scanner-modal';
+        modal.style = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1000;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center';
+
         modal.innerHTML = `
-          <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title">Scannerizza codice</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-              </div>
-              <div class="modal-body">
-                <video id="video-preview" style="width: 100%;"></video>
-              </div>
+          <div style="position:relative;width:90%;max-width:600px;background:#fff;padding:10px;display:flex;flex-direction:column;align-items:center;gap:10px;">
+            <div style="display:flex;justify-content:space-between;width:100%;">
+              <button id="close-scanner" style="font-size:16px;">❌ Chiudi</button>
+              <button id="switch-camera" style="font-size:16px;">🔄 Switch</button>
             </div>
+            <video id="barcode-video" style="width:100%;height:auto;border:2px solid #00FF00;" autoplay muted playsinline></video>
+            <select id="camera-select" style="width:100%;padding:5px;"></select>
+            <p style="text-align:center;color:#333;margin:0;">Posiziona il codice a barre davanti alla fotocamera</p>
           </div>
         `;
+
         document.body.appendChild(modal);
 
-        const bootstrapModal = new bootstrap.Modal(modal);
-        bootstrapModal.show();
+        // Eventi dei pulsanti
+        document.getElementById("close-scanner").addEventListener("click", () => {
+            stopScanner();
+            modal.style.display = "none";
+        });
 
-        codeReader
-            .listVideoInputDevices()
-            .then(videoInputDevices => {
-                const videoId = videoInputDevices[0].deviceId;
-                return codeReader.decodeOnceFromVideoDevice(videoId, 'video-preview');
-            })
-            .then(result => {
-                const input = document.getElementById(inputId);
-                if (input) {
-                    input.value = result.text;
+        document.getElementById("switch-camera").addEventListener("click", () => {
+            if (!codeReader || !codeReader.videoInputDevices || codeReader.videoInputDevices.length < 2) return;
+            const devices = codeReader.videoInputDevices;
+            const currentIndex = devices.findIndex(d => d.deviceId === selectedDeviceId);
+            const nextIndex = (currentIndex + 1) % devices.length;
+            selectedDeviceId = devices[nextIndex].deviceId;
+            stopScanner();
+            startScanner(inputField, selectedDeviceId);
+        });
+    }
 
-                    // ✨ Chiamata alla callback, se presente
-                    if (typeof onScan === 'function') {
-                        onScan(result.text);
-                    }
-                }
-
-                bootstrapModal.hide();
-                codeReader.reset();
-                setTimeout(() => {
-                    modal.remove();
-                }, 500);
-            })
-            .catch(err => {
-                console.error(err);
-                alert('Errore durante la scansione');
-                bootstrapModal.hide();
-                codeReader.reset();
-                setTimeout(() => {
-                    modal.remove();
-                }, 500);
-            });
+    scanButton.addEventListener("click", () => {
+        startScanner(inputField);
+        document.getElementById("scanner-modal").style.display = "flex";
     });
-};
+}
 
 function startScanner(inputField, deviceIdOverride = null) {
     codeReader = new ZXing.BrowserMultiFormatReader();
@@ -89,6 +75,9 @@ function startScanner(inputField, deviceIdOverride = null) {
         return codeReader.decodeFromVideoDevice(selectedDeviceId, 'barcode-video', (result, err) => {
             if (result) {
                 inputField.value = result.text;
+                if (typeof onScan === 'function') {
+                        onScan(result.text);
+                    }
                 stopScanner();
                 document.getElementById("scanner-modal").style.display = "none";
             }
