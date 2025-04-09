@@ -45,12 +45,12 @@ function initScanner(buttonId, inputId, onScan = null) {
     }
 
     scanButton.addEventListener("click", () => {
-        startScanner(inputField);
-        document.getElementById("scanner-modal").style.display = "flex";
-    });
-}
+        startScanner(inputField, null, onScan);  // <-- aggiunto onScan
+            document.getElementById("scanner-modal").style.display = "flex";
+        });
+    }
 
-function startScanner(inputField, deviceIdOverride = null) {
+function startScanner(inputField, deviceIdOverride = null, onScan = null) {
     codeReader = new ZXing.BrowserMultiFormatReader();
 
     codeReader.listVideoInputDevices().then(videoInputDevices => {
