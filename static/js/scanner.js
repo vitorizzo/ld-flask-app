@@ -94,5 +94,16 @@ function stopScanner() {
     }
 }
 
+function onScanSuccess(decodedText, decodedResult) {
+    const barcodeInput = document.getElementById("barcode");
+    if (barcodeInput) {
+        barcodeInput.value = decodedText;
+
+        // 👉 Genera evento 'input' per attivare eventuali listener
+        const event = new Event("input", { bubbles: true });
+        barcodeInput.dispatchEvent(event);
+    }
+}
+
 // Esponi globalmente
 window.initScanner = initScanner;
