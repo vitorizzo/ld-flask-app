@@ -38,8 +38,8 @@ class Articoli(db.Model):
     prezzo = db.Column(db.Numeric)
 
     # ⚙️ Nuove colonne
-    pezzi_per_collo = db.Column(db.Integer, default=1)  # ppc
-    colli_per_pedana = db.Column(db.Integer, default=1)  # cpp
+    ppc = db.Column(db.Integer, default=1)  # ppc
+    cpp = db.Column(db.Integer, default=1)  # cpp
 
     def to_dict(self):
         return {
@@ -47,8 +47,8 @@ class Articoli(db.Model):
             'descrizione': self.descrizione,
             'descrizione_aggiuntiva': self.descrizione_aggiuntiva,
             'prezzo': self.prezzo,
-            'pezzi_per_collo': self.pezzi_per_collo,
-            'colli_per_pedana': self.colli_per_pedana
+            'ppc': self.pezzi_per_collo,
+            'cpp': self.colli_per_pedana
         }
 
     def __repr__(self):
@@ -184,8 +184,8 @@ class InventarioRiga(db.Model):
     num_pedane = db.Column(db.Integer)
     num_cartoni = db.Column(db.Integer)
     num_pezzi_sciolti = db.Column(db.Integer)
-    pezzi_per_collo = db.Column(db.Integer)
-    colli_per_pedana = db.Column(db.Integer)
+    ppc = db.Column(db.Integer)
+    cpp = db.Column(db.Integer)
 
     utente_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())

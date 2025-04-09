@@ -4,25 +4,73 @@
 <section class="welcome-section">
     <h2>Gestione Inventario</h2>
 
-    <form method="POST" action="{{ url_for('inventario.inventario') }}">
+    <!-- Selezione inventario -->
+    <div class="form-group">
+        <label for="inventario-select">Seleziona inventario:</label>
+        <div class="input-group">
+            <select id="inventario-select" class="form-select">
+                <option value="" disabled selected>-- Seleziona inventario --</option>
+                {% for inv in inventari %}
+                    <option value="{{ inv.id }}" data-data="{{ inv.data_inventario.strftime('%d-%m-%Y') }}">
+                        Inventario del {{ inv.data_inventario.strftime('%d-%m-%Y') }}
+                    </option>
+                {% endfor %}
+            </select>
+            <button type="button" class="btn btn-outline-success" id="nuovo-inventario-btn">Nuovo</button>
+        </div>
+    </div>
+
+    <div class="form-group mt-3" id="inventario-data-group" style="display: none;">
+        <label for="data-inventario-attiva">Inventario del...</label>
+        <input type="text" id="data-inventario-attiva" class="form-control" disabled>
+    </div>
+
+    <form method="POST" action="{{ url_for('inventario.inventario') }}" id="form-inventario">
         {{ form.hidden_tag() }}
 
-        <div class="form-group">
-            {{ form.data_inventario.label(class='form-label') }}
-            {{ form.data_inventario(class='form-control') }}
-        </div>
+        <fieldset id="fieldset-inserimento" disabled>
+        <input type="hidden" id="inventario-id-attivo" name="inventario_id_attivo">
 
         <div class="form-group">
             {{ form.barcode_articolo.label(class='form-label') }}
             <div class="input-group">
                 {{ form.barcode_articolo(class='form-control', placeholder='Scansiona codice a barre', id='barcode') }}
                 <button type="button" class="btn btn-outline-secondary" id="scan-button">📷</button>
+                <button type="button" class="btn btn-outline-secondary" id="btn-cerca-barcode">
+                    <i class="bi bi-search"></i>
+                </button>
             </div>
         </div>
 
         <div class="form-group">
-            {{ form.descrizione_articolo.label(class='form-label') }}
-            {{ form.descrizione_articolo(class='form-control', placeholder='Cerca per descrizione') }}
+            <label for="cod_art">Codice Articolo</label>
+            <div class="input-group">
+                <input type="text" id="cod_art" name="cod_art" class="form-control" placeholder="Codice articolo">
+                <button type="button" class="btn btn-outline-secondary" id="btn-cerca-articolo">
+                    <i class="bi bi-search"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Ricerca alternativa per descrizione -->
+        <div class="mt-4 border rounded p-3 bg-light">
+            <h5>Oppure seleziona articolo da elenco:</h5>
+            <div class="input-group mb-2">
+                <span class="input-group-text"><i class="bi bi-search"></i></span>
+                <input type="text" id="inv-search-input" class="form-control" placeholder="Cerca per descrizione...">
+            </div>
+            <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" id="inv-search-show-all">
+                <label class="form-check-label" for="inv-search-show-all">Mostra anche prodotti non disponibili</label>
+            </div>
+            <div id="inv-search-wrapper" class="card shadow-sm mb-3" style="display: none;">
+                <ul id="inv-search-list" class="list-group list-group-flush"></ul>
+            </div>
+            <div id="inv-search-pagination" class="d-flex justify-content-center" style="display: none;">
+                <button id="inv-search-prev" class="btn btn-outline-secondary me-2">◀</button>
+                <span id="inv-search-pageinfo" class="align-self-center"></span>
+                <button id="inv-search-next" class="btn btn-outline-secondary ms-2">▶</button>
+            </div>
         </div>
 
         <div class="form-group">
@@ -32,7 +80,6 @@
 
         <div class="form-group mt-3">
             <label>Inserimento quantità tramite formula:</label>
-
             <div class="row">
                 <div class="col-md-4">
                     <label id="cpp-label" for="num_pedane">
@@ -46,9 +93,10 @@
                     </label>
                     {{ form.num_cartoni(class="form-control", id="num_cartoni") }}
                 </div>
-                <div class="col-md-4">{{ form.num_pezzi_sciolti.label }} {{ form.num_pezzi_sciolti(class="form-control", id="num_pezzi_sciolti") }}</div>
-
-                <!-- Questi sono campi hidden per il backend -->
+                <div class="col-md-4">
+                    {{ form.num_pezzi_sciolti.label }}
+                    {{ form.num_pezzi_sciolti(class="form-control", id="num_pezzi_sciolti") }}
+                </div>
                 <input type="hidden" name="hidden_cpp" id="hidden_cpp" value="1">
                 <input type="hidden" name="hidden_ppc" id="hidden_ppc" value="1">
             </div>
@@ -58,10 +106,10 @@
         </div>
 
         <button type="submit" class="btn btn-primary mt-2">{{ form.submit.label.text }}</button>
+        </fieldset>
     </form>
 
     <hr>
-
     <h4>Inventari eseguiti:</h4>
     <table class="table table-striped mt-3">
         <thead>
@@ -79,27 +127,192 @@
                     <td>{{ inv.righe|length }}</td>
                 </tr>
             {% else %}
-                <tr>
-                    <td colspan="3">Nessun inventario disponibile.</td>
-                </tr>
+                <tr><td colspan="3">Nessun inventario disponibile.</td></tr>
             {% endfor %}
         </tbody>
     </table>
 </section>
+
+<!-- Modal per scheda articolo -->
+<div class="modal fade" id="product-modal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Scheda Articolo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body p-0">
+        <iframe id="product-modal-iframe" src="" style="width: 100%; height: 500px; border: none;"></iframe>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal per selezione annata -->
+<div class="modal fade" id="annate-modal" tabindex="-1" aria-labelledby="annateModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Seleziona annata</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <ul class="list-group" id="lista-articoli-annate"></ul>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="https://unpkg.com/@zxing/library@latest"></script>
 <script src="{{ url_for('static', filename='js/scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/search_by_description.js') }}"></script>
 
 <script>
 document.addEventListener("DOMContentLoaded", () => {
+    const selectInventario = document.getElementById("inventario-select");
+    const btnNuovoInventario = document.getElementById("nuovo-inventario-btn");
+    const campoDataInventario = document.getElementById("data-inventario-attiva");
+    const hiddenInventarioId = document.getElementById("inventario-id-attivo");
+    const gruppoData = document.getElementById("inventario-data-group");
+    const fieldset = document.getElementById("fieldset-inserimento");
+
+    const btnCercaBarcode = document.getElementById("btn-cerca-barcode");
+
+    function abilitaInserimento(data, id) {
+        campoDataInventario.value = data;
+        hiddenInventarioId.value = id;
+        gruppoData.style.display = "block";
+        fieldset.disabled = false;
+    }
+
+    selectInventario.addEventListener("change", () => {
+        const selected = selectInventario.selectedOptions[0];
+        if (selected) {
+            abilitaInserimento(selected.dataset.data, selected.value);
+        }
+    });
+
+
+    btnCercaBarcode.addEventListener('click', () => {
+        const barcode = document.getElementById('barcode').value.trim();
+        if (!barcode) {
+            alert("Inserisci un codice a barre.");
+            return;
+        }
+
+        fetch(`/search/articoli_by_barcode_multipli?barcode=${encodeURIComponent(barcode)}`)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.success) {
+                    alert(data.error || "Articolo non trovato per il barcode inserito.");
+                    return;
+                }
+
+                // ✅ Se il backend dice che è un singolo articolo, popola subito
+                if (data.singolo === true && data.articolo) {
+                    const a = data.articolo;
+                    popolaCampiArticolo({
+                        cod_art: a.cod_art,
+                        descrizione: a.descrizione,
+                        cpp: a.cpp,
+                        ppc: a.ppc
+                    });
+                    return;
+                }
+
+                // ✅ Se c'è una lista di articoli (più annate), mostra modale
+                if (Array.isArray(data.articoli) && data.articoli.length > 0) {
+                    const elencoConvertito = data.articoli.map(a => ({
+                        cod_art: a.cod_art,
+                        descrizione: a.descrizione,
+                        cpp: a.cpp,
+                        ppc: a.ppc
+                    }));
+                    mostraScelteArticoli(elencoConvertito);
+                    return;
+                }
+
+                alert("Nessun articolo disponibile.");
+            })
+            .catch(err => {
+                console.error("Errore durante la ricerca barcode:", err);
+                alert("Errore nella ricerca dell'articolo tramite codice a barre.");
+            });
+    });
+
+
+    document.getElementById("barcode").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            document.getElementById("btn-cerca-barcode").click();
+        }
+    });
+
+    document.getElementById("cod_art").addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            document.getElementById("btn-cerca-articolo").click();
+        }
+    });
+
+    // Hook per attivare funzionalità non legate al fieldset
+    const observer = new MutationObserver(() => {
+        if (!fieldset.disabled) {
+            abilitaPulsanti();
+        }
+    });
+    observer.observe(fieldset, { attributes: true, attributeFilter: ['disabled'] });
+
+    // Inizializza scanner
+    initScanner("scan-button", "barcode");
+
+    // Inizializza ricerca per descrizione
+    if (typeof initSearchByDescription === "function") {
+        initSearchByDescription({
+            inputId: 'inv-search-input',
+            showAllCheckboxId: 'inv-search-show-all',
+            listId: 'inv-search-list',
+            wrapperId: 'inv-search-wrapper',
+            pagination: {
+                prevId: 'inv-search-prev',
+                nextId: 'inv-search-next',
+                infoId: 'inv-search-pageinfo',
+                containerId: 'inv-search-pagination'
+            },
+            modalIframeId: 'product-modal-iframe',
+            modalTriggerId: 'product-modal',
+            showButton: true,
+            onSelect: function(articolo) {
+                // Codice a barre
+                fetch(`/search/barcode_by_codart/${articolo.cod_art}`)
+                    .then(res => res.json())
+                    .then(barcodeData => {
+                        document.getElementById("barcode").value = barcodeData.barcode || "";
+                    });
+
+                document.getElementById("cod_art").value = articolo.cod_art;
+                document.getElementById("hidden_cpp").value = articolo.cpp || 1;
+                document.getElementById("hidden_ppc").value = articolo.ppc || 1;
+                document.getElementById("cpp").textContent = articolo.cpp || 1;
+                document.getElementById("ppc").textContent = articolo.ppc || 1;
+
+                // Abilita blocchi se non lo sono già
+                document.getElementById("fieldset-inserimento").disabled = false;
+                abilitaPulsanti();
+            }
+        });
+    }
+
+    // Matitine per modificare cpp/ppc
     ['cpp', 'ppc'].forEach(id => {
         const span = document.getElementById(id);
         const icon = span.nextElementSibling;
 
         [span, icon].forEach(el => {
             el.addEventListener("click", () => {
+                if (fieldset.disabled) return;
                 const nuovo = prompt(`Inserisci nuovo valore per ${id.toUpperCase()}:`, span.textContent);
                 if (nuovo !== null && !isNaN(nuovo)) {
                     span.textContent = parseInt(nuovo);
@@ -109,28 +322,30 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    // Inizializza scanner per codice a barre
-    initScanner('scan-button', 'barcode');
-});
-</script>
+    // Calcolo formula quantità
+    calcolaBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        if (fieldset.disabled) return;
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    const articoloInput = document.getElementById('cod_art');
-    const cppLabel = document.getElementById('cpp-label');
-    const ppcLabel = document.getElementById('ppc-label');
-    const cppSpan = document.getElementById('cpp');
-    const ppcSpan = document.getElementById('ppc');
-    const cppHidden = document.getElementById('hidden_cpp');
-    const ppcHidden = document.getElementById('hidden_ppc');
-    const calcolaBtn = document.getElementById('calcola-formula');
-    const campoQuantita = document.getElementById('quantita_inserita');
-    const pedane = document.getElementById('num_pedane');
-    const cartoni = document.getElementById('num_cartoni');
-    const pezziSciolti = document.getElementById('num_pezzi_sciolti');
+        const cpp = parseInt(document.getElementById("hidden_cpp").value || 1);
+        const ppc = parseInt(document.getElementById("hidden_ppc").value || 1);
+        const np = parseInt(document.getElementById("num_pedane").value || 0);
+        const ct = parseInt(document.getElementById("num_cartoni").value || 0);
+        const ps = parseInt(document.getElementById("num_pezzi_sciolti").value || 0);
+        const totale = ps + ((np * cpp + ct) * ppc);
 
-    function aggiornaValoriArticolo(cod_art) {
-        fetch(`/dati_articolo/${cod_art}`)
+        document.getElementById("quantita_inserita").value = totale;
+    });
+
+    // Cerca per codice articolo
+    btnCercaArticolo.addEventListener('click', () => {
+        const cod_art = document.getElementById('cod_art').value.trim();
+        if (!cod_art) {
+            alert("Inserisci un codice articolo.");
+            return;
+        }
+
+        fetch(`/search/dati_articolo/${cod_art}`)
             .then(response => response.json())
             .then(data => {
                 if (!data.success) {
@@ -138,40 +353,161 @@ document.addEventListener('DOMContentLoaded', function () {
                     return;
                 }
 
-                const cpp = data.cpp || 1;
-                const ppc = data.ppc || 1;
+                // Codice a barre
+                fetch(`/search/barcode_by_codart/${data.cod_art}`)
+                    .then(res => res.json())
+                    .then(barcodeData => {
+                        document.getElementById("barcode").value = barcodeData.barcode || "";
+                    });
 
-                cppSpan.textContent = cpp;
-                ppcSpan.textContent = ppc;
+                // Popola dati
+                document.getElementById("cod_art").value = data.cod_art;
+                document.getElementById("hidden_cpp").value = data.cpp || 1;
+                document.getElementById("hidden_ppc").value = data.ppc || 1;
+                document.getElementById("cpp").textContent = data.cpp || 1;
+                document.getElementById("ppc").textContent = data.ppc || 1;
 
-                cppHidden.value = cpp;
-                ppcHidden.value = ppc;
+                // Forza visibilità blocchi se presenti
+                document.getElementById("fieldset-inserimento").disabled = false;
+                abilitaPulsanti();
+            })
+            .catch(err => {
+                console.error("Errore durante il recupero dell'articolo:", err);
+                alert("Errore nella ricerca dell'articolo.");
             });
-    }
-
-    if (articoloInput) {
-        articoloInput.addEventListener('change', function () {
-            const cod_art = this.value;
-            if (cod_art) {
-                aggiornaValoriArticolo(cod_art);
-            }
-        });
-    }
-
-    calcolaBtn.addEventListener('click', function (e) {
-        e.preventDefault();
-
-        const cpp = parseInt(cppHidden.value || 1);
-        const ppc = parseInt(ppcHidden.value || 1);
-
-        const np = parseInt(pedane.value || 0);
-        const ct = parseInt(cartoni.value || 0);
-        const ps = parseInt(pezziSciolti.value || 0);
-
-        const totale = ps + ((np * cpp + ct) * ppc);
-
-        campoQuantita.value = totale;
     });
+
 });
+
+// Riabilita i pulsanti disabilitati via JS
+function abilitaPulsanti() {
+    scanBtn.disabled = false;
+    btnCercaArticolo.disabled = false;
+    calcolaBtn.disabled = false;
+    matitine.forEach(el => el.classList.remove("disabled"));
+}
+
+const scanBtn = document.getElementById("scan-button");
+const btnCercaArticolo = document.getElementById("btn-cerca-articolo");
+const matitine = document.querySelectorAll(".editable, .editable + i");
+const calcolaBtn = document.getElementById("calcola-formula");
+
+function popolaCampiArticolo(articolo) {
+        console.log("Articolo selezionato dalla modale:", articolo);
+        document.getElementById("cod_art").value = articolo.cod_art;
+        document.getElementById("hidden_cpp").value = articolo.cpp || 1;
+        document.getElementById("hidden_ppc").value = articolo.ppc || 1;
+        document.getElementById("cpp").textContent = articolo.cpp || 1;
+        document.getElementById("ppc").textContent = articolo.ppc || 1;
+        document.getElementById("inv-search-input").value = articolo.descrizione || "";
+        document.getElementById("fieldset-inserimento").disabled = false;
+        abilitaPulsanti();
+
+        const triggerEvent = new Event("input", { bubbles: true });
+        document.getElementById("inv-search-input").dispatchEvent(triggerEvent);
+
+        setTimeout(() => {
+            const item = [...document.querySelectorAll(".prodotto-item")]
+                .find(el => el.dataset.cod_art === articolo.cod_art);
+            if (item) {
+                item.classList.add("active");
+                item.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        }, 500);
+    }
+
+btnCercaArticolo.addEventListener('click', () => {
+        const cod_art = document.getElementById('cod_art').value.trim();
+        if (!cod_art) {
+            alert("Inserisci un codice articolo.");
+            return;
+        }
+
+        fetch(`/search/dati_articolo/${cod_art}`)
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    alert("Articolo non trovato");
+                    return;
+                }
+
+                // Codice a barre
+                fetch(`/search/barcode_by_codart/${data.cod_art}`)
+                    .then(res => res.json())
+                    .then(barcodeData => {
+                        document.getElementById("barcode").value = barcodeData.barcode || "";
+                    });
+
+                const articolo = {
+                    cod_art: data.cod_art,
+                    descrizione: data.descrizione,
+                    descrizione_aggiuntiva: data.descrizione_aggiuntiva,
+                    cpp: data.cpp || 1,
+                    ppc: data.ppc || 1
+                };
+
+                popolaCampiArticolo(articolo);  // usa la funzione centralizzata
+
+                // Lancia la ricerca per selezionare l'articolo in elenco
+                if (typeof initSearchByDescription === "function") {
+                    const triggerEvent = new Event("input", { bubbles: true });
+                    document.getElementById("inv-search-input").dispatchEvent(triggerEvent);
+
+                    let tentativi = 0;
+                    const maxTentativi = 3;
+                    const attesa = 300;
+
+                    function evidenziaArticolo() {
+                        const item = [...document.querySelectorAll(".prodotto-item")]
+                            .find(el => el.dataset.cod_art === data.cod_art);
+
+                        if (item) {
+                            item.classList.add("active");
+                            item.scrollIntoView({ behavior: "smooth", block: "center" });
+                        } else if (tentativi < maxTentativi) {
+                            tentativi++;
+                            setTimeout(evidenziaArticolo, attesa * tentativi);
+                        }
+                    }
+
+                    setTimeout(evidenziaArticolo, attesa);
+                }
+            })
+            .catch(err => {
+                console.error("Errore durante il recupero dell'articolo:", err);
+                alert("Errore nella ricerca dell'articolo.");
+            });
+    });
+
+function mostraScelteArticoli(lista) {
+    const listaElement = document.getElementById("lista-articoli-annate");
+    listaElement.innerHTML = '';
+
+    lista.forEach(art => {
+        const li = document.createElement("li");
+        li.className = "list-group-item list-group-item-action";
+        li.textContent = `${art.cod_art} — ${art.descrizione}`;
+        li.style.cursor = "pointer";
+        li.addEventListener("click", () => {
+            console.log("Articolo selezionato dalla modale:", art);
+            const modal = bootstrap.Modal.getInstance(document.getElementById('annate-modal'));
+            modal.hide();
+
+            // Recupera barcode dell'articolo selezionato
+            //fetch(`/search/barcode_by_codart/${art.cod_art}`)
+            //    .then(res => res.json())
+            //    .then(barcodeData => {
+            //        document.getElementById("barcode").value = barcodeData.barcode || "";
+            //    });
+
+            // Popola tutti i campi
+            popolaCampiArticolo(art);
+        });
+        listaElement.appendChild(li);
+    });
+
+    const modal = new bootstrap.Modal(document.getElementById('annate-modal'));
+    modal.show();
+}
 </script>
 {% endblock %}

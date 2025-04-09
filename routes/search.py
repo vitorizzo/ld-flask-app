@@ -2,6 +2,8 @@ from flask import Blueprint, render_template, jsonify, request, abort
 from models import Barcode, Articoli, Giacenza, Immagini, SchedeProdotti
 from routes.tools import clean_text
 from tools.log_utils import log_task, get_logger
+from sqlalchemy import or_
+
 
 logger = get_logger('search')
 
@@ -18,7 +20,7 @@ def get_product_by_code(cod_art):
         scheda = SchedeProdotti.query.filter_by(cod_art=cod_art).first()
         scheda_art = clean_text(scheda.descrizione) if scheda else "---"
         return {
-            "codice": cod_art,
+            "cod_art": cod_art,
             "descrizione": prod.descrizione,
             "descrizione_aggiuntiva": prod.descrizione_aggiuntiva,
             "prezzo": prod.prezzo,
@@ -67,7 +69,7 @@ def dati_articolo(cod_art):
 
     return jsonify({
         'success': True,
-        'codice': articolo.cod_art,
+        'cod_art': articolo.cod_art,
         'descrizione': articolo.descrizione,
         'descrizione_aggiuntiva': articolo.descrizione_aggiuntiva,
         'prezzo': articolo.prezzo,
@@ -77,8 +79,34 @@ def dati_articolo(cod_art):
             'online': giacenze.giac_www if giacenze else 0
         },
         'scheda_tecnica': clean_text(scheda.descrizione) if scheda else "---",
-        'ppc': articolo.pezzi_per_collo if hasattr(articolo, 'pezzi_per_collo') else 1,
-        'cpp': articolo.colli_per_pedana if hasattr(articolo, 'colli_per_pedana') else 1
+        'ppc': articolo.ppc if hasattr(articolo, 'ppc') else 1,
+        'cpp': articolo.cpp if hasattr(articolo, 'cpp') else 1
+    })
+
+
+@search_bp.route('/dati_articolo_by_barcode', methods=['GET'])
+def dati_articolo_by_barcode():
+    barcode = request.args.get('barcode')
+    if not barcode:
+        return jsonify({'success': False, 'error': 'Barcode mancante'})
+
+    cb = Barcode.query.filter_by(cod_bar=barcode).first()
+    if not cb:
+        return jsonify({'success': False, 'error': 'Prodotto non trovato per barcode'})
+    logger.info(f"Codice articolo trovato per barcode {barcode}: {cb.cod_art}")
+    articolo = Articoli.query.filter_by(cod_art=cb.cod_art).first()
+    logger.info(f"Articolo trovato per codice articolo {cb.cod_art}: {articolo}")
+
+    if not articolo:
+        return jsonify({'success': False, 'error': 'Articolo non trovato'})
+
+    return jsonify({
+        'success': True,
+        'cod_art': articolo.cod_art,
+        'descrizione': articolo.descrizione,
+        'descrizione_aggiuntiva': articolo.descrizione_aggiuntiva,
+        'cpp': articolo.cpp or 1,
+        'ppc': articolo.ppc or 1
     })
 
 
@@ -119,7 +147,7 @@ def lista_articoli():
     for p in paginated.items:
         giacenza = Giacenza.query.filter_by(cod_art=p.cod_art).first()
         prodotti_json.append({
-            'codice': p.cod_art,
+            'cod_art': p.cod_art,
             'descrizione': p.descrizione,
             'descrizione_aggiuntiva': p.descrizione_aggiuntiva,
             'prezzo': p.prezzo,
@@ -139,3 +167,133 @@ def lista_articoli():
         'totale_prodotti': paginated.total,
         'per_page': per_page
     })
+
+
+@search_bp.route('/barcode_by_codart/<cod_art>')
+def barcode_by_codart(cod_art):
+    codice_bar = Barcode.query.filter_by(cod_art=cod_art).first()
+    if codice_bar:
+        return jsonify(success=True, barcode=codice_bar.cod_bar)
+    else:
+        return jsonify(success=False)
+
+
+@search_bp.route('/articoli_by_barcode_multipli_funz', methods=['GET'])
+def articoli_by_barcode_multipli_funz():
+    barcode = request.args.get('barcode')
+    if not barcode:
+        return jsonify({'success': False, 'error': 'Barcode mancante'})
+
+    cb = Barcode.query.filter_by(cod_bar=barcode).first()
+    if not cb:
+        return jsonify({'success': False, 'error': 'Nessun articolo associato al barcode'})
+
+    codice_base = cb.cod_art.split("-")[0]
+    condizioni = or_(
+        Articoli.cod_art == codice_base,
+        Articoli.cod_art.like(f"{codice_base}-%")
+    )
+    articoli = Articoli.query.filter(condizioni).order_by(Articoli.cod_art.desc()).all()
+
+    lista = [{
+        "cod_art": a.cod_art,
+        "descrizione": a.descrizione,
+        "cpp": a.cpp or 1,
+        "ppc": a.ppc or 1
+    } for a in articoli]
+
+    return jsonify({'success': True, 'lista_articoli': lista})
+
+
+def serialize_articolo(articolo):
+    return {
+        'cod_art': articolo.cod_art,
+        'descrizione': articolo.descrizione,
+        'descrizione_aggiuntiva': articolo.descrizione_aggiuntiva,
+        'cpp': articolo.cpp or 1,
+        'ppc': articolo.ppc or 1
+    }
+
+
+@search_bp.route('/articoli_by_barcode_multipli', methods=['GET'])
+def articoli_by_barcode_multipli():
+    barcode = request.args.get('barcode')
+    if not barcode:
+        return jsonify({'success': False, 'error': 'Barcode mancante'})
+
+    cb = Barcode.query.filter_by(cod_bar=barcode).first()
+    if not cb:
+        return jsonify({'success': False, 'error': 'Nessun articolo associato al barcode'})
+
+    codice_articolo = cb.cod_art
+    codice_prefisso = codice_articolo.split('-')[0]
+
+    # Caso 1: codice senza "-", verifica se ha varianti
+    if '-' not in codice_articolo:
+        varianti = Articoli.query.filter(Articoli.cod_art.like(f"{codice_prefisso}-%")).all()
+        if not varianti:
+            # Nessuna variante → restituisci direttamente l'articolo
+            articolo = Articoli.query.filter_by(cod_art=codice_articolo).first()
+            if articolo:
+                return jsonify({
+                    'success': True,
+                    'singolo': True,
+                    'articolo': {
+                        'cod_art': articolo.cod_art,
+                        'descrizione': articolo.descrizione,
+                        'descrizione_aggiuntiva': articolo.descrizione_aggiuntiva,
+                        'cpp': articolo.cpp or 1,
+                        'ppc': articolo.ppc or 1
+                    }
+                })
+            return jsonify({'success': False, 'error': 'Articolo non trovato nel database'})
+
+        # Ha varianti → includi anche l'articolo base
+        articoli_simili = [Articoli.query.filter_by(cod_art=codice_prefisso).first()] + varianti
+
+    else:
+        # Caso 2: codice con "-", trova tutte le varianti e l'articolo base
+        articoli_simili = Articoli.query.filter(
+            or_(
+                Articoli.cod_art == codice_prefisso,
+                Articoli.cod_art.like(f"{codice_prefisso}-%")
+            )
+        ).all()
+
+    if not articoli_simili:
+        return jsonify({'success': False, 'error': 'Nessuna variante trovata per il codice'})
+
+    if len(articoli_simili) == 1:
+        a = articoli_simili[0]
+        return jsonify({
+            'success': True,
+            'singolo': True,
+            'articolo': {
+                'cod_art': a.cod_art,
+                'descrizione': a.descrizione,
+                'descrizione_aggiuntiva': a.descrizione_aggiuntiva,
+                'cpp': a.cpp or 1,
+                'ppc': a.ppc or 1
+            }
+        })
+
+    return jsonify({'success': True, 'singolo': False,
+                    'articoli': [serialize_articolo(a) for a in articoli_simili]})
+
+
+@search_bp.route('/articoli_by_barcode', methods=['GET'])
+def articoli_by_barcode():
+    barcode = request.args.get('barcode')
+    if not barcode:
+        return jsonify({'success': False, 'error': 'Barcode mancante'})
+
+    barcode_entry = Barcode.query.filter_by(cod_bar=barcode).first()
+    if not barcode_entry:
+        return jsonify({'success': False, 'error': 'Nessun articolo trovato per questo barcode'})
+
+    # Ricavo prefisso codice (es. VB07550 da VB07550-24)
+    prefisso = barcode_entry.cod_art.split('-')[0]
+
+    articoli = Articoli.query.filter(Articoli.cod_art.ilike(f"{prefisso}-%")).all()
+
+    return jsonify({'success': True, 'articoli': serialize_articolo(articoli)})

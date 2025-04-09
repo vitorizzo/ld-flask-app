@@ -7,90 +7,22 @@
   <!-- Sezione di ricerca barcode -->
   <div class="barcode-search">
     <label for="barcode">Inserisci il codice a barre:</label>
-    <input type="text" id="barcode" placeholder="Codice a barre">
-    <button id="search-button">Cerca</button>
-    <!-- Pulsante per avviare la scansione tramite fotocamera -->
-    <button id="scan-button">Scansiona Codice</button>
-  </div>
-
-  <!-- Scheda prodotto -->
-  <div id="product-card" style="display: none; margin-top:20px;">
-    <img id="product-image" src="" alt="Immagine Prodotto" style="max-width: 200px;">
-    <div id="product-details">
-      <p id="product-code"></p>
-      <p id="product-description"></p>
-      <p id="product-price"></p>
-      <p id="product-stock"></p>
+    <div class="input-group">
+      <input type="text" id="barcode" placeholder="Codice a barre" class="form-control">
+      <button id="search-button" class="btn btn-primary">Cerca</button>
+      <button id="scan-button" class="btn btn-outline-secondary">📷</button>
     </div>
   </div>
 </section>
-
-<!-- Modal per la scansione -->
-<div id="scanner-modal" class="modal" style="display:none;">
-  <div class="modal-content">
-    <!-- Pulsante di chiusura in alto a destra -->
-    <span id="close-scanner" class="close">&times;</span>
-    <!-- Pulsante per fermare la scansione -->
-    <button id="stopScannerBtn" class="stop-scanner-btn">Ferma Scansione</button>
-    <!-- Pulsante per switchare il lato della fotocamera -->
-    <button id="switchSideBtn" class="switch-camera-btn">Switch Side</button>
-
-    <!-- Wrapper per il video e l'overlay -->
-    <div id="video-wrapper" style="position: relative; width: 100%; height: calc(100% - 240px);">
-      <!-- Elemento video: ZXing attacca il flusso qui -->
-      <video id="video-container" autoplay muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>
-      <!-- Overlay per evidenziare l'area di scansione -->
-      <div id="scanner-overlay"></div>
-    </div>
-
-    <!-- Sezione di selezione della fotocamera tramite combobox -->
-    <div id="camera-controls">
-      <h4>Select camera (<span id="current-side">back</span>):</h4>
-      <select id="camera-select"></select>
-    </div>
-
-    <!-- Pannello di debug: informazioni sulla fotocamera selezionata -->
-    <div id="debug-panel">
-      <div id="selected-camera-info"></div>
-    </div>
-
-    <span id="scan-message" class="hint">Posiziona il codice a barre all'interno del rettangolo verde.</span>
-  </div>
-</div>
 {% endblock %}
 
 {% block extra_js %}
-<!-- Includiamo ZXing.js dalla distribuzione su unpkg.com -->
 <script src="https://unpkg.com/@zxing/library@latest"></script>
+<script src="{{ url_for('static', filename='js/scanner.js') }}"></script>
 <script>
-// Funzione helper per filtrare i dispositivi in base al lato
-function isCameraInMode(device, mode) {
-  const label = device.label.toLowerCase();
-  if(mode === "back") {
-    return label.includes("back") || label.includes("rear") || label.includes("posteriore");
-  } else if(mode === "front") {
-    return label.includes("front") || label.includes("anterior") || label.includes("anteriore");
-  }
-  return false;
-}
-
-// Variabili globali per la gestione della fotocamera
-let videoDevices = [];
-let selectedCameraId = null;
-let currentCameraMode = "back"; // "back" o "front"
-let codeReader = new ZXing.BrowserMultiFormatReader();
-
 document.addEventListener("DOMContentLoaded", function() {
-
-  // =========================
-  // 1) RICERCA MANUALE
-  // =========================
   const searchButton = document.getElementById("search-button");
-  if (!searchButton) {
-    console.error("Il bottone 'Cerca' non è stato trovato nel DOM.");
-    return;
-  }
-  searchButton.addEventListener("click", function(){
+  searchButton.addEventListener("click", function() {
     const barcode = document.getElementById("barcode").value.trim();
     if (!barcode) {
       alert("Inserisci un codice a barre valido.");
@@ -99,17 +31,10 @@ document.addEventListener("DOMContentLoaded", function() {
     fetch('/search/articolo_by_barcode?barcode=' + encodeURIComponent(barcode))
       .then(response => response.json())
       .then(data => {
-        if(data && data.success){
+        if (data && data.success) {
           window.location.href = '/search/scheda_articolo/' + data.product;
-          // document.getElementById("product-image").src = data.product.image;
-          // document.getElementById("product-code").textContent = data.product.codice;
-          // document.getElementById("product-description").textContent = data.product.descrizione;
-          // document.getElementById("product-price").textContent = "Prezzo: " + data.product.prezzo;
-          // document.getElementById("product-stock").textContent = "Giacenza: " + data.product.instore;
-          // document.getElementById("product-card").style.display = "block";
         } else {
           alert("Prodotto non trovato!");
-          document.getElementById("product-card").style.display = "none";
         }
       })
       .catch(err => {
@@ -118,246 +43,13 @@ document.addEventListener("DOMContentLoaded", function() {
       });
   });
 
-  // =========================
-  // 2) SCANSIONE LIVE CON ZXing
-  // =========================
-  const scanButton       = document.getElementById("scan-button");
-  const modal            = document.getElementById("scanner-modal");
-  const closeModal       = document.getElementById("close-scanner");
-  const stopScannerBtn   = document.getElementById("stopScannerBtn");
-  const switchSideBtn    = document.getElementById("switchSideBtn");
-  const videoContainer   = document.getElementById("video-container");
-  const cameraSelect     = document.getElementById("camera-select");
-  const currentSideLabel = document.getElementById("current-side");
-
-  scanButton.addEventListener("click", function() {
-    modal.style.display = "block";
-    enumerateVideoDevices().then(() => {
-      updateCameraSelectOptions();
-      startScanner();
-    });
-  });
-  closeModal.addEventListener("click", function(){
-    modal.style.display = "none";
-    stopScanner();
-  });
-  stopScannerBtn.addEventListener("click", function(){
-    modal.style.display = "none";
-    stopScanner();
-  });
-  switchSideBtn.addEventListener("click", function(){
-    // Inverte il comparto: se back passa a front, altrimenti back
-    currentCameraMode = (currentCameraMode === "back") ? "front" : "back";
-    currentSideLabel.textContent = currentCameraMode;
-    updateCameraSelectOptions();
-    const available = videoDevices.filter(device => isCameraInMode(device, currentCameraMode));
-    if(available.length > 0) {
-      // Priorità a quella con "0" nella label, se presente
-      const candidate = available.find(device => device.label.toLowerCase().includes("0"));
-      selectedCameraId = candidate ? candidate.deviceId : available[0].deviceId;
-    } else if(videoDevices.length > 0) {
-      selectedCameraId = videoDevices[0].deviceId;
+  // Inizializza scanner con il nuovo modulo
+  initScanner("scan-button", "barcode", {
+    autoSubmit: true,
+    onSuccess: (val) => {
+      searchButton.click();
     }
-    displaySelectedCameraInfo();
-    stopScanner();
-    startScanner();
   });
-  cameraSelect.addEventListener("change", function(){
-    console.log("Combobox change event:", this.value);
-    selectedCameraId = this.value;
-    displaySelectedCameraInfo();
-    stopScanner();
-    startScanner();
-  });
-
-  function enumerateVideoDevices() {
-    return navigator.mediaDevices.enumerateDevices().then(devices => {
-      videoDevices = devices.filter(device => device.kind === "videoinput");
-      if(videoDevices.length > 0) {
-        const available = videoDevices.filter(device => isCameraInMode(device, currentCameraMode));
-        selectedCameraId = available.length > 0 ? available[0].deviceId : videoDevices[0].deviceId;
-      }
-      displaySelectedCameraInfo();
-    }).catch(err => {
-      console.error("Errore durante l'enumerazione dei dispositivi video:", err);
-    });
-  }
-
-  function updateCameraSelectOptions() {
-    cameraSelect.innerHTML = "";
-    const filteredDevices = videoDevices.filter(device => isCameraInMode(device, currentCameraMode));
-    if(filteredDevices.length > 0) {
-      filteredDevices.forEach(device => {
-        const option = document.createElement("option");
-        option.value = device.deviceId;
-        option.textContent = device.label || "Camera " + device.deviceId;
-        cameraSelect.appendChild(option);
-      });
-      cameraSelect.value = selectedCameraId;
-    } else {
-      cameraSelect.innerHTML = "<option value=''>Nessuna fotocamera " + currentCameraMode + " trovata</option>";
-    }
-  }
-
-  function startScanner() {
-    codeReader.reset();
-    codeReader.decodeFromVideoDevice(selectedCameraId, 'video-container', (result, err) => {
-      if(result) {
-        console.log("Barcode trovato:", result.text);
-        document.getElementById("barcode").value = result.text;
-        document.getElementById("search-button").click();
-        stopScanner();
-        modal.style.display = "none";
-      }
-      if(err && !(err instanceof ZXing.NotFoundException)) {
-        console.error(err);
-      }
-    });
-  }
-
-  function stopScanner() {
-    codeReader.reset();
-    console.log("Scanner fermato.");
-  }
-
-  function displaySelectedCameraInfo() {
-    const infoDiv = document.getElementById("selected-camera-info");
-    const selectedDevice = videoDevices.find(device => device.deviceId === selectedCameraId);
-    if(selectedDevice) {
-      infoDiv.innerHTML = "<strong>Selected Camera:</strong> " + (selectedDevice.label || "Camera sconosciuta") + " (" + selectedCameraId + ")";
-    } else {
-      infoDiv.innerHTML = "<strong>Selected Camera:</strong> nessuna";
-    }
-  }
 });
 </script>
-
-<style>
-/* Modal: posizionamento e dimensioni */
-.modal {
-  position: absolute;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  width: 80%;
-  height: 80%;
-  top: 10%;
-  left: 10%;
-  overflow: hidden;
-  background-color: rgba(0,0,0,0.7);
-}
-.modal-content {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  background-color: #fff;
-}
-/* Bottone di chiusura in alto a destra */
-.close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  font-size: 30px;
-  font-weight: bold;
-  cursor: pointer;
-}
-/* Bottone "Ferma Scansione" */
-.stop-scanner-btn {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  font-size: 16px;
-  padding: 6px 12px;
-  cursor: pointer;
-  z-index: 3;
-}
-/* Bottone "Switch Side" */
-.switch-camera-btn {
-  position: absolute;
-  top: 10px;
-  left: 150px;
-  font-size: 16px;
-  padding: 6px 12px;
-  cursor: pointer;
-  z-index: 3;
-}
-/* Messaggio di aiuto in basso */
-.hint {
-  position: absolute;
-  bottom: 10px;
-  left: 0;
-  width: 100%;
-  height: 50px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 18px;
-  color: blue;
-}
-/* Wrapper per il video e l'overlay */
-#video-wrapper {
-  position: relative;
-  top: 60px;
-  width: 100%;
-  height: calc(100% - 240px);
-}
-/* Elemento video */
-#video-container {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-/* Overlay per l'area di scansione */
-#scanner-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 2;
-  pointer-events: none;
-  border: 2px solid #00FF00;
-}
-#scanner-overlay::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: url("{{ url_for('static', filename='images/barcode.png') }}") no-repeat center center;
-  background-size: contain;
-  opacity: 0.2;
-}
-/* Controlli della fotocamera (combobox) */
-#camera-controls {
-  position: absolute;
-  bottom: 80px;
-  left: 10px;
-  right: 10px;
-  background: rgba(255,255,255,0.8);
-  padding: 5px;
-  font-size: 12px;
-  color: #333;
-  border: 1px solid #ccc;
-  margin-bottom: 5px;
-}
-#camera-select {
-  pointer-events: auto;
-  cursor: pointer;
-}
-/* Pannello di debug */
-#debug-panel {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  right: 10px;
-  background: rgba(255,255,255,0.8);
-  padding: 5px;
-  font-size: 12px;
-  color: #333;
-  border: 1px solid #ccc;
-}
-</style>
 {% endblock %}

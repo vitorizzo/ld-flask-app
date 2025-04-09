@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from forms.forms import InventarioForm
 from extensions import db
@@ -6,6 +6,31 @@ from models import Inventario, InventarioRiga, Articoli, Barcode
 from datetime import date
 
 inventario_bp = Blueprint('inventario', __name__)
+
+
+@inventario_bp.route("/nuovo", methods=["POST"])
+def nuovo_inventario():
+    oggi = date.today()
+    esistente = Inventario.query.filter_by(data_inventario=oggi).first()
+
+    if esistente:
+        return jsonify({
+            "success": True,
+            "id": esistente.id,
+            "data": esistente.data_inventario.strftime("%d-%m-%Y"),
+            "gia_esiste": True
+        })
+
+    nuovo = Inventario(data_inventario=oggi)
+    db.session.add(nuovo)
+    db.session.commit()
+
+    return jsonify({
+        "success": True,
+        "id": nuovo.id,
+        "data": nuovo.data_inventario.strftime("%d-%m-%Y"),
+        "gia_esiste": False
+    })
 
 
 @inventario_bp.route('/inventario', methods=['GET', 'POST'])
