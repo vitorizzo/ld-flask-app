@@ -266,7 +266,10 @@ document.addEventListener("DOMContentLoaded", () => {
     observer.observe(fieldset, { attributes: true, attributeFilter: ['disabled'] });
 
     // Inizializza scanner
-    initScanner("scan-button", "barcode");
+    initScanner("scan-button", "barcode", (decodedText) => {
+        document.getElementById("btn-cerca-barcode").click();
+    });
+
 
     // Inizializza ricerca per descrizione
     if (typeof initSearchByDescription === "function") {
