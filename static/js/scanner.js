@@ -75,9 +75,22 @@ function startScanner(inputField, deviceIdOverride = null, onScan = null) {
         return codeReader.decodeFromVideoDevice(selectedDeviceId, 'barcode-video', (result, err) => {
             if (result) {
                 inputField.value = result.text;
+
+                // 🔁 Simula pressione del tasto Enter sull’input
+                const enterEvent = new KeyboardEvent("keydown", {
+                    bubbles: true,
+                    cancelable: true,
+                    key: "Enter",
+                    code: "Enter",
+                    keyCode: 13
+                });
+                inputField.dispatchEvent(enterEvent);
+
+                // ⚙️ Chiama eventualmente il callback onScan
                 if (typeof onScan === 'function') {
-                        onScan(result.text);
-                    }
+                    onScan(result.text);
+                }
+
                 stopScanner();
                 document.getElementById("scanner-modal").style.display = "none";
             }
