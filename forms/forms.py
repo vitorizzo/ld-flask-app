@@ -3,6 +3,8 @@ from wtforms import StringField, PasswordField, SubmitField, DateField, SelectFi
     HiddenField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional
 from tools.log_utils import get_logger
+from wtforms.fields import DateField
+from datetime import date
 
 
 logger = get_logger('forms')
@@ -44,18 +46,18 @@ class EditProfileForm(FlaskForm):
 
 
 class InventarioForm(FlaskForm):
-    data_inventario = DateField('Data Inventario', validators=[DataRequired()])
-    descrizione_articolo = StringField('Descrizione articolo', validators=[Optional()])
-    barcode_articolo = StringField('Codice a barre articolo', validators=[Optional()])
-    quantita_inserita = IntegerField('Quantità trovata', validators=[DataRequired()])
+    barcode_articolo = StringField("Barcode")
+    descrizione_articolo = StringField("Descrizione", validators=[Optional()])
+    quantita_inserita = IntegerField("Quantità Inserita")
+    num_pedane = IntegerField("N. Pedane", default=0)
+    num_cartoni = IntegerField("N. Cartoni", default=0)
+    num_pezzi_sciolti = IntegerField("N. Pezzi Sciolti", default=0)
+    data_inventario = DateField("Data Inventario", default=date.today)
 
-    # Nuovi campi per calcolo automatico
-    num_pedane = IntegerField('N. Pedane', validators=[Optional()])
-    num_cartoni = IntegerField('N. Cartoni', validators=[Optional()])
-    num_pezzi_sciolti = IntegerField('N. Pezzi sciolti', validators=[Optional()])
-    calcola = SubmitField('Calcola da formula')
-
+    # 👇 Aggiungi questi nuovi campi
+    cod_art = StringField("Codice Articolo")
     hidden_cpp = HiddenField()
     hidden_ppc = HiddenField()
 
-    submit = SubmitField('Salva')
+    calcola = SubmitField("Calcola")
+    submit = SubmitField("Inserisci")

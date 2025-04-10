@@ -39,76 +39,55 @@ def inventario():
     form = InventarioForm()
 
     if form.validate_on_submit():
-        data_inv = form.data_inventario.data
+        data_inv = form.data_inventario.data or date.today()
 
-        # Controlla se esiste già un inventario per quella data
         inventario = Inventario.query.filter_by(data_inventario=data_inv).first()
         if not inventario:
             inventario = Inventario(data_inventario=data_inv)
             db.session.add(inventario)
             db.session.commit()
 
-        # Cerca articolo per barcode o descrizione
-        articolo = None
-        if form.barcode_articolo.data:
+        cod_art = form.cod_art.data
+        articolo = Articoli.query.get(cod_art) if cod_art else None
+
+        if not articolo and form.barcode_articolo.data:
             barcode = Barcode.query.filter_by(cod_bar=form.barcode_articolo.data).first()
             if barcode:
                 articolo = Articoli.query.get(barcode.cod_art)
 
-        if not articolo and form.descrizione_articolo.data:
-            articolo = Articoli.query.filter(
-                Articoli.descrizione.ilike(f"%{form.descrizione_articolo.data}%")
-            ).first()
-
-        # Qui sotto inserisci il controllo e salvataggio dei valori aggiornati
-        if 'hidden_ppc' in request.form and articolo:
-            nuovo_ppc = int(request.form['hidden_ppc'])
-            if nuovo_ppc != articolo.pezzi_per_collo:
-                articolo.pezzi_per_collo = nuovo_ppc
+        # Aggiorna PPC e CPP
+        try:
+            nuovo_ppc = int(form.hidden_ppc.data or 1)
+            nuovo_cpp = int(form.hidden_cpp.data or 1)
+            if articolo:
+                if articolo.pezzi_per_collo != nuovo_ppc:
+                    articolo.pezzi_per_collo = nuovo_ppc
+                if articolo.colli_per_pedana != nuovo_cpp:
+                    articolo.colli_per_pedana = nuovo_cpp
                 db.session.commit()
+        except:
+            pass  # valori non validi o mancanti
 
-        if 'hidden_cpp' in request.form and articolo:
-            nuovo_cpp = int(request.form['hidden_cpp'])
-            if nuovo_cpp != articolo.colli_per_pedana:
-                articolo.colli_per_pedana = nuovo_cpp
-                db.session.commit()
-
-        # Inserimento riga inventario
-        riga_inventario = InventarioRiga(
+        # Salva riga inventario
+        riga = InventarioRiga(
             inventario_id=inventario.id,
-            articolo_id=articolo.cod_art if articolo else None,
-            descrizione_articolo=form.descrizione_articolo.data if not articolo else articolo.descrizione,
+            articolo_id=cod_art if articolo else None,
+            descrizione_articolo=articolo.descrizione if articolo else form.descrizione_articolo.data,
             barcode_articolo=form.barcode_articolo.data,
             quantita_inserita=form.quantita_inserita.data,
+            num_pedane=form.num_pedane.data,
+            num_cartoni=form.num_cartoni.data,
+            num_pezzi_sciolti=form.num_pezzi_sciolti.data,
+            cpp=nuovo_cpp,
+            ppc=nuovo_ppc,
             utente_id=current_user.id
         )
-        # Se l’utente preme “calcola”
-        if form.calcola.data and request.method == 'POST':
-            try:
-                pedane = form.num_pedane.data or 0
-                cartoni = form.num_cartoni.data or 0
-                pezzi_sciolti = form.num_pezzi_sciolti.data or 0
 
-                articolo = Articoli.query.filter_by(cod_art=form.barcode_articolo.data).first()
-
-                if not articolo:
-                    flash("Articolo non trovato per il calcolo automatico.", "danger")
-                else:
-                    ppc = articolo.pezzi_per_collo if articolo.pezzi_per_collo and articolo.pezzi_per_collo > 0 else 1
-                    cpp = articolo.colli_per_pedana if articolo.colli_per_pedana and articolo.colli_per_pedana > 0 else 1
-
-                    totale = pezzi_sciolti + (pedane * cpp + cartoni) * ppc
-                    form.quantita_inserita.data = totale
-                    flash(f"Quantità calcolata: {totale}", "success")
-
-            except Exception as e:
-                flash("Errore nel calcolo quantità.", "danger")
-
-        db.session.add(riga_inventario)
+        db.session.add(riga)
         db.session.commit()
 
-        flash('Conteggio inventario inserito con successo!', 'success')
-        return redirect(url_for('inventario.inventario'))
+        flash("Conteggio inventario inserito con successo!", "success")
+        return redirect(url_for("inventario.inventario"))
 
     inventari = Inventario.query.order_by(Inventario.data_inventario.desc()).all()
     return render_template('inventario.html', form=form, inventari=inventari)

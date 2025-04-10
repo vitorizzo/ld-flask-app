@@ -99,6 +99,7 @@
                 </div>
                 <input type="hidden" name="hidden_cpp" id="hidden_cpp" value="1">
                 <input type="hidden" name="hidden_ppc" id="hidden_ppc" value="1">
+                <input type="hidden" id="data_inventario" name="data_inventario">
             </div>
             <div class="mt-2">
                 {{ form.calcola(class="btn btn-secondary", id="calcola-formula") }}
@@ -183,6 +184,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function abilitaInserimento(data, id) {
         campoDataInventario.value = data;
         hiddenInventarioId.value = id;
+        document.getElementById("data_inventario").value = data.split("-").reverse().join("-"); // da dd-mm-yyyy a yyyy-mm-dd
         gruppoData.style.display = "block";
         fieldset.disabled = false;
     }
