@@ -11,7 +11,8 @@
             <select id="inventario-select" class="form-select">
                 <option value="" disabled selected>-- Seleziona inventario --</option>
                 {% for inv in inventari %}
-                    <option value="{{ inv.id }}" data-data="{{ inv.data_inventario.strftime('%d-%m-%Y') }}">
+                    <option value="{{ inv.id }}" data-data="{{ inv.data_inventario.strftime('%d-%m-%Y') }}"
+                        {% if inv.id == selected_inventario_id %}selected{% endif %}>
                         Inventario del {{ inv.data_inventario.strftime('%d-%m-%Y') }}
                     </option>
                 {% endfor %}
@@ -190,9 +191,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     selectInventario.addEventListener("change", () => {
-        const selected = selectInventario.selectedOptions[0];
-        if (selected) {
-            abilitaInserimento(selected.dataset.data, selected.value);
+        const optionSelezionata = selectInventario.selectedOptions[0];
+        if (optionSelezionata && optionSelezionata.value) {
+            abilitaInserimento(optionSelezionata.dataset.data, optionSelezionata.value);
         }
     });
 
@@ -382,6 +383,11 @@ document.addEventListener("DOMContentLoaded", () => {
             });
     });
 
+    // Se è già selezionato un inventario all'avvio, attivalo
+    const selected = selectInventario.selectedOptions[0];
+    if (selected && selected.value) {
+        abilitaInserimento(selected.dataset.data, selected.value);
+    }
 });
 
 // Riabilita i pulsanti disabilitati via JS

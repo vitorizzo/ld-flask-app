@@ -37,6 +37,7 @@ def nuovo_inventario():
 @login_required
 def inventario():
     form = InventarioForm()
+    selected_inventario_id = request.args.get("inv_id", type=int)
 
     if form.validate_on_submit():
         data_inv = form.data_inventario.data or date.today()
@@ -87,7 +88,8 @@ def inventario():
         db.session.commit()
 
         flash("Conteggio inventario inserito con successo!", "success")
-        return redirect(url_for("inventario.inventario"))
+        return redirect(url_for('inventario.inventario', inv_id=inventario.id))
 
     inventari = Inventario.query.order_by(Inventario.data_inventario.desc()).all()
-    return render_template('inventario.html', form=form, inventari=inventari)
+    return render_template('inventario.html', form=form, inventari=inventari,
+                           selected_inventario_id=selected_inventario_id)
