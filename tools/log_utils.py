@@ -1,3 +1,4 @@
+import json
 from functools import wraps
 import logging
 from config.paths_config import LOGS_FOLDER
@@ -11,7 +12,14 @@ def log_task(logger):
             logger.info(f">>> Avvio task: {task_func.__name__}")
             try:
                 result = task_func(*args, **kwargs)
-                logger.info(f"✅ Task completato: {task_func.__name__}")
+
+                # Proviamo a trasformare il risultato in stringa per il log
+                try:
+                    loggable_result = json.dumps(result) if isinstance(result, (dict, list)) else str(result)
+                except Exception:
+                    loggable_result = "<Non serializzabile>"
+
+                logger.info(f"✅ Task completato: {task_func.__name__} - Risultato: {loggable_result}")
                 return result
             except Exception as e:
                 logger.exception(f"❌ Errore nel task {task_func.__name__}: {e}")

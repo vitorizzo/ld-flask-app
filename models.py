@@ -192,3 +192,16 @@ class InventarioRiga(db.Model):
 
     articolo = db.relationship('Articoli', backref='righe_inventario')
     utente = db.relationship('User', backref='righe_inventario')
+
+
+class InventarioExport(db.Model):
+    __tablename__ = 'inventario_export'
+
+    id = db.Column(db.Integer, primary_key=True)
+    inventario_id = db.Column(db.Integer, db.ForeignKey('inventari.id', ondelete='CASCADE'))
+    articolo_id = db.Column(db.String(255), db.ForeignKey('articoli.cod_art', ondelete='SET NULL'), nullable=True)
+    descrizione_articolo = db.Column(db.String(255), nullable=True)
+    barcode_articolo = db.Column(db.String(50), nullable=True)
+    giacenza = db.Column(db.Integer, nullable=False)
+
+    articolo = db.relationship('Articoli', backref='inventario_export')

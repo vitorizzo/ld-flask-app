@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, jsonify, request, abort
+from flask import Blueprint, render_template, jsonify, request, abort, url_for
 from models import Barcode, Articoli, Giacenza, Immagini, SchedeProdotti
 from routes.tools import clean_text
 from tools.log_utils import log_task, get_logger
@@ -297,3 +297,14 @@ def articoli_by_barcode():
     articoli = Articoli.query.filter(Articoli.cod_art.ilike(f"{prefisso}-%")).all()
 
     return jsonify({'success': True, 'articoli': serialize_articolo(articoli)})
+
+
+@search_bp.route('/immagine_articolo/<cod_art>')
+def immagine_articolo(cod_art):
+    immagini = Immagini.query.filter_by(cod_art=cod_art).all()
+    print(f"🔍 Immagini trovate per {cod_art}: {[img.file_img for img in immagini]}")
+    if immagini:
+        img_urls = [url_for('static', filename=f'images/products/{img.file_img}') for img in immagini]
+    else:
+        img_urls = [url_for('static', filename='images/no_image.png')]
+    return jsonify({"img_urls": img_urls})

@@ -177,7 +177,13 @@ def import_giacenze():
 
 @log_task(logger)
 def import_barcode():
-    logger.info(">>> Entrata nella funzione: import_barcode()")
+    result = run_import_barcode()
+    status_code = 200 if result.get("success", True) else 500
+    return jsonify(result), status_code
+
+
+def run_import_barcode():
+    logger.info(">>> Entrata nella funzione: run_import_barcode()")
     logger.info("Importazione codici a barre avviata...")
     db.create_all()
     db.session.query(Barcode).delete()
@@ -198,10 +204,9 @@ def import_barcode():
                         cod_bar = clean_text(row[3])
                         cod_art = clean_text(row[0])
                         cod_bar = cod_bar.strip()
-                        logger.debug(f"DEBUG: contenuto senza spazi di cod_bar: {cod_bar}")
-                        logger.debug(f"DEBUG: contenuto senza spazi di cod_art: {cod_art}")
+                        logger.debug("DEBUG: contenuto senza spazi di cod_bar: %s", cod_bar)
+                        logger.debug("DEBUG: contenuto senza spazi di cod_art: %s", cod_art)
                         if cod_bar and cod_art:
-                            logger.debug(f"DEBUG: contenuto di cod_bar: {cod_bar}")
                             nuovo_barcode = Barcode(
                                 cod_bar=cod_bar,
                                 cod_art=cod_art
@@ -210,8 +215,8 @@ def import_barcode():
                             db.session.flush()
         db.session.commit()
         logger.info("Codici a Barre importati con successo!")
-        return jsonify({'message': 'Codici a Barre importati con successo!', 'progress': 100}), 200
+        return {'success': True, 'message': 'Codici a Barre importati con successo!', 'progress': 100}
     except Exception as e:
         logger.exception("Errore durante l'importazione dei codici a barre:")
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return {'success': False, 'error': str(e)}
