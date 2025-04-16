@@ -1,0 +1,50 @@
+#task-status-wrapper {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1050;
+    background-color: #343a40;
+    color: white;
+    font-size: 0.9rem;
+}
+
+#task-status-bar {
+    height: 30px;
+    background-color: #495057;
+    cursor: pointer;
+}
+
+#task-status-progress-container {
+    width: 200px;
+    height: 6px;
+    background-color: #6c757d;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+#task-status-progress {
+    height: 6px;
+    width: 0;
+    background-color: #17a2b8;
+    transition: width 0.5s;
+}
+
+#task-status-expand {
+    font-size: 1rem;
+}
+
+#task-status-details {
+    background-color: #212529;
+    padding: 0.5rem 1rem;
+    border-top: 1px solid #444;
+}
+
+#task-status-list li {
+    color: #f8f9fa;
+    border-bottom: 1px solid #444;
+}
+
+.clickable {
+    cursor: pointer;
+}

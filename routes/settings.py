@@ -81,7 +81,9 @@ def manage_menus():
 def lancia_import_articoli():
     logger.info("Importazione articoli richiesta.")
     task = import_articoli_task.delay()
-    return jsonify({'message': 'Importazione avviata in background', 'task_id': task.id})
+    from tools.redis_utils import update_task, status_string
+    update_task(task.id, "Importazione articoli", 0, status_string['attached'])
+    return '', 204
 
 
 @settings_bp.route('/import_ps_data', methods=['GET', 'POST'])
@@ -91,7 +93,9 @@ def lancia_import_articoli():
 def lancia_import_prestashop():
     logger.info("Importazione Prestashop richiesta.")
     task = import_ps_task.delay()
-    return jsonify({'message': 'Importazione avviata in background', 'task_id': task.id})
+    from tools.redis_utils import update_task, status_string
+    update_task(task.id, "Importazione dati da Prestashop", 0, status_string['attached'])
+    return '', 204
 
 
 @settings_bp.route('/import_art_descr', methods=['GET', 'POST'])
@@ -111,7 +115,9 @@ def lancia_import_descr_prestashop():
 def lancia_import_giacenze():
     logger.info("Importazione giacenze richiesta.")
     task = import_giacenze_task.delay()
-    return jsonify({'message': 'Importazione avviata in background', 'task_id': task.id})
+    from tools.redis_utils import update_task, status_string
+    update_task(task.id, "Importazione giacenze da gestionale", 0, status_string['attached'])
+    return '', 204
 
 
 @settings_bp.route('/import_barcode', methods=['GET', 'POST'])
@@ -121,4 +127,6 @@ def lancia_import_giacenze():
 def lancia_import_barcode():
     logger.info("Importazione codici a barre richiesta.")
     task = import_barcode_task.delay()
-    return jsonify({'message': 'Importazione avviata in background', 'task_id': task.id})
+    from tools.redis_utils import update_task, status_string
+    update_task(task.id, "Importazione codici a barre articoli da gestionale", 0, status_string['attached'])
+    return '', 204
