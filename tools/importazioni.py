@@ -17,13 +17,21 @@ def clean_text(text):
 
 
 @log_task(logger)
-def import_ps():
+def import_ps(task_id=None):
+    from tools.redis_utils import update_task, status_string
+    task_name = "Importazione dati da Prestashop"
+    update_task(task_id, task_name, 0, status_string['start'])
+
     logger.info(">>> Entrata nella funzione: import_ps()")
     logger.info("Importazione Prestashop avviata...")
 
-    for prodotto in get_all_products():
+    products = get_all_products()
+    total_rows = len(products)
+
+    for index, prodotto in enumerate(products):
         cod_art = prodotto['cod_art']
         pid = prodotto['id']
+
         existing_articolo = Articoli.query.filter_by(cod_art=cod_art).first()
         if not existing_articolo:
             nuovo_articolo = Articoli(
@@ -39,13 +47,25 @@ def import_ps():
 
         p_images = get_product_images(pid, cod_art)
         prodotto['images'] = p_images
+
+        # 🔁 Aggiorna progresso ogni 50 righe
+        if index % 50 == 0:
+            progresso = int((index / total_rows) * 100)
+            update_task(task_id, task_name, progresso, status_string['update'])
+
         logger.info(f"Prodotto {cod_art} importato: {prodotto['name']} con {len(p_images)} immagini.")
+
+    update_task(task_id, task_name, 100, status_string['end'])
 
 
 @log_task(logger)
-def import_articoli():
+def import_articoli(task_id=None):
+    from tools.redis_utils import update_task, status_string, clear_task_status
+    task_name = "Importazione articoli"
+    update_task(task_id, task_name, 0, status_string['start'])
     logger.info(">>> Entrata nella funzione: import_articoli()")
     logger.info("Importazione articoli avviata...")
+
     db.create_all()
     db.session.query(Articoli).delete()
     db.session.commit()
@@ -53,15 +73,23 @@ def import_articoli():
 
     file_csv = serve_risorsa("ARTICOLI.CSV")
     logger.info(f"File CSV: {file_csv}")
+
     try:
         with open(file_csv, 'r', encoding='utf-8', errors='ignore') as csvfile:
             reader = list(csv.reader(csvfile, delimiter='\t'))
             total_rows = len(reader)
             logger.info(f"Righe totali: {total_rows}")
 
+            # Evita divisione per zero
+            if total_rows <= 1:
+                raise Exception("Il file CSV non contiene dati validi")
+
             with db.session.no_autoflush:
                 for index, row in enumerate(reader):
-                    if index > 0 and len(row) >= 5:
+                    if index == 0:
+                        continue  # skip header
+
+                    if len(row) >= 5:
                         cod_art = clean_text(row[0])
                         descrizione = clean_text(row[1])
                         descrizione_aggiuntiva = clean_text(row[2])
@@ -81,9 +109,7 @@ def import_articoli():
                                     modifiche.append(("prezzo", articolo_esistente.prezzo, prezzo))
                                 if modifiche:
                                     for campo, valore_vecchio, valore_nuovo in modifiche:
-                                        scelta = input(f"Differenza trovata per {campo}: vecchio='{valore_vecchio}'"
-                                                       f" nuovo='{valore_nuovo}'. Quale valore vuoi mantenere? "
-                                                       f"(v=vecchio, n=nuovo): ").strip().lower()
+                                        scelta = 'n'  # oppure 'v' di default o gestito via policy
                                         if scelta == 'n':
                                             setattr(articolo_esistente, campo, valore_nuovo)
                             else:
@@ -95,17 +121,35 @@ def import_articoli():
                                 )
                                 db.session.add(nuovo_articolo)
                                 db.session.flush()
+
+                    # 🔁 Aggiorna progresso ogni 50 righe
+                    if index % 50 == 0:
+                        progresso = int((index / total_rows) * 100)
+                        update_task(task_id, task_name, progresso, status_string['update'])
+
         db.session.commit()
+        update_task(task_id, task_name, 100, status_string['end'])
         logger.info("Articoli importati con successo!")
-        return jsonify({'message': 'Articoli importati con successo!', 'progress': 100}), 200
+
+        if task_id:
+            clear_task_status(task_id)
+
+        return {'message': 'Articoli importati con successo!', 'progress': 100}
+
     except Exception as e:
         logger.exception("Errore durante l'importazione degli Articoli:")
         db.session.rollback()
-        return jsonify({'success': False, 'error': str(e)}), 500
+
+        update_task(task_id, task_name, 0, status_string['error'], e)
+
+        return {'success': False, 'error': str(e)}
 
 
 @log_task(logger)
-def import_giacenze():
+def import_giacenze(task_id=None):
+    from tools.redis_utils import update_task, clear_task_status, status_string
+    task_name = "Importazione giacenze da gestionale"
+    update_task(task_id, task_name, 0, status_string['start'])
     logger.info(">>> Entrata nella funzione: import_giacenze()")
     logger.info("Importazione giacenze avviata...")
     db.create_all()
@@ -138,17 +182,20 @@ def import_giacenze():
                                         if giacenza_esistente.giac_neg == 0:
                                             setattr(giacenza_esistente, "giac_neg", giacenza)
                                         else:
-                                            modifiche.append((cod_art, "giac_neg", giacenza_esistente.giac_neg, giacenza))
+                                            modifiche.append((cod_art, "giac_neg", giacenza_esistente.giac_neg,
+                                                              giacenza))
                                     case 400:
                                         if giacenza_esistente.giac_www == 0:
                                             setattr(giacenza_esistente, "giac_www", giacenza)
                                         else:
-                                            modifiche.append((cod_art, "giac_www", giacenza_esistente.giac_www, giacenza))
+                                            modifiche.append((cod_art, "giac_www", giacenza_esistente.giac_www,
+                                                              giacenza))
                                 if modifiche:
                                     for articolo, campo, valore_vecchio, valore_nuovo in modifiche:
                                         scelta = input(f"Differenza trovata per il campo {campo} dell'articolo "
                                                        f"{articolo}: vecchio='{valore_vecchio}', "
-                                                       f" nuovo='{valore_nuovo}'. (v=vecchio, n=nuovo): ").strip().lower()
+                                                       f" nuovo='{valore_nuovo}'. "
+                                                       f"(v=vecchio, n=nuovo): ").strip().lower()
                                         if scelta == 'n':
                                             setattr(giacenza_esistente, campo, valore_nuovo)
                             else:
@@ -165,24 +212,36 @@ def import_giacenze():
                                 )
                                 db.session.add(nuova_giacenza)
                                 db.session.flush()
+                    # 🔁 Aggiorna progresso ogni 50 righe
+                    if index % 50 == 0:
+                        progresso = int((index / total_rows) * 100)
+                        update_task(task_id, task_name, progresso, status_string['update'])
         logger.info("Ciclo di filtraggio terminato!")
         db.session.commit()
+        update_task(task_id, task_name, 100, status_string['end'])
         logger.info("Giacenze importate con successo!")
+        if task_id:
+            clear_task_status(task_id)
         return jsonify({'message': 'Giacenze importate con successo!', 'progress': 100}), 200
     except Exception as e:
         logger.exception("Errore durante l'importazione delle Giacenze:")
         db.session.rollback()
+        update_task(task_id, task_name, 0, status_string['error'], e)
+
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @log_task(logger)
-def import_barcode():
-    result = run_import_barcode()
+def import_barcode(task_id=None):
+    result = run_import_barcode(task_id)
     status_code = 200 if result.get("success", True) else 500
     return jsonify(result), status_code
 
 
-def run_import_barcode():
+def run_import_barcode(task_id=None):
+    from tools.redis_utils import update_task, clear_task_status, status_string
+    task_name = "Importazione codici a barre articoli da gestionale"
+    update_task(task_id, task_name, 0, status_string['start'])
     logger.info(">>> Entrata nella funzione: run_import_barcode()")
     logger.info("Importazione codici a barre avviata...")
     db.create_all()
@@ -213,10 +272,19 @@ def run_import_barcode():
                             )
                             db.session.add(nuovo_barcode)
                             db.session.flush()
+                    # 🔁 Aggiorna progresso ogni 50 righe
+                    if index % 50 == 0:
+                        progresso = int((index / total_rows) * 100)
+                        update_task(task_id, task_name, progresso, status_string['update'])
         db.session.commit()
         logger.info("Codici a Barre importati con successo!")
+        update_task(task_id, task_name, 100, status_string['end'])
+        if task_id:
+            clear_task_status(task_id)
         return {'success': True, 'message': 'Codici a Barre importati con successo!', 'progress': 100}
     except Exception as e:
         logger.exception("Errore durante l'importazione dei codici a barre:")
         db.session.rollback()
+        update_task(task_id, task_name, 0, status_string['error'], e)
+
         return {'success': False, 'error': str(e)}

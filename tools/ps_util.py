@@ -61,6 +61,7 @@ def get_product_details(product_id):
         logger.exception("Errore generico nella get_product_details")
     return None
 
+
 def get_all_products():
     logger.info("get_all_products(): Inizio recupero lista prodotti da Prestashop")
     db.create_all()
