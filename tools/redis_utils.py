@@ -18,7 +18,7 @@ def update_task(task_id, descrizione, progress, status, exception=None):
     if not task_id:
         return
     data = {
-        "descrizione": descrizione,
+        "name": descrizione,
         "progress": progress,
         "stato": status
     }
@@ -28,18 +28,20 @@ def update_task(task_id, descrizione, progress, status, exception=None):
 
 
 def set_task_status(task_id, status_dict):
-    """Salva/aggiorna lo stato del task"""
-    r.set(f"task_status: {task_id}", json.dumps(status_dict))
+    if "name" not in status_dict:
+        status_dict["name"] = task_id  # fallback se non viene fornito
+    r.set(f"task_status:{task_id}", json.dumps(status_dict))
 
 
 def get_all_tasks_status():
-    """Recupera tutti i task attivi"""
     keys = r.keys("task_status:*")
     task_list = []
     for key in keys:
         task = json.loads(r.get(key))
         task['task_id'] = key.replace("task_status:", "")
-        task_list.append(task)
+        stato = task.get("stato", "").lower()
+        if stato not in ("completato", "errore", "fallito"):
+            task_list.append(task)
     return task_list
 
 

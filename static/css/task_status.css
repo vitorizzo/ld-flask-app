@@ -40,11 +40,21 @@
     border-top: 1px solid #444;
 }
 
+.clickable {
+    cursor: pointer;
+}
+
 #task-status-list li {
     color: #f8f9fa;
     border-bottom: 1px solid #444;
+    background-color: #343a40;
+    padding: 0.5rem 0.75rem;
 }
 
-.clickable {
-    cursor: pointer;
+#task-status-list li span {
+    display: block;
+}
+
+#task-status-list .btn {
+    margin-left: 0.25rem;
 }
