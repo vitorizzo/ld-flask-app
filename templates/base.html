@@ -56,6 +56,19 @@
         <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
         <script src="/static/js/progress.js"></script>
         <script src="{{ url_for('static', filename='js/task_status.js') }}"></script>
+
+        <!-- Script per rimozione automatica dei flash -->
+        <script>
+          document.addEventListener("DOMContentLoaded", function () {
+            const flashes = document.querySelectorAll(".alert");
+            flashes.forEach(flash => {
+              setTimeout(() => {
+                flash.classList.add("fade-out");
+                setTimeout(() => flash.remove(), 1000);
+              }, 5000); // Dopo 5 secondi
+            });
+          });
+        </script>
     {% endblock %}
 
     {% block extra_js %}{% endblock %}

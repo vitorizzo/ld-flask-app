@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="welcome-section">
+    <h2>🧾 Storico aggiornamenti archivi</h2>
+
+    <!-- Form di filtro -->
+    <form method="get" class="row g-3 mb-4">
+        <div class="col-md-3">
+            <label for="modulo" class="form-label">Modulo</label>
+            <select name="modulo" id="modulo" class="form-select">
+                <option value="">Tutti</option>
+                {% for m in moduli %}
+                    <option value="{{ m.nome }}" {% if request.args.get('modulo') == m.nome %}selected{% endif %}>{{ m.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="esito" class="form-label">Esito</label>
+            <select name="esito" id="esito" class="form-select">
+                <option value="">Tutti</option>
+                <option value="successo" {% if request.args.get('esito') == 'successo' %}selected{% endif %}>✅ Successo</option>
+                <option value="errore" {% if request.args.get('esito') == 'errore' %}selected{% endif %}>❌ Errore</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="ultimi" class="form-label">Ultimi</label>
+            <select name="ultimi" id="ultimi" class="form-select">
+                <option value="">Tutti</option>
+                <option value="10" {% if request.args.get('ultimi') == '10' %}selected{% endif %}>Ultimi 10</option>
+                <option value="50" {% if request.args.get('ultimi') == '50' %}selected{% endif %}>Ultimi 50</option>
+                <option value="100" {% if request.args.get('ultimi') == '100' %}selected{% endif %}>Ultimi 100</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="da_data" class="form-label">Da data</label>
+            <input type="date" name="da_data" id="da_data" class="form-control" value="{{ request.args.get('da_data', '') }}">
+        </div>
+        <div class="col-md-2">
+            <label for="a_data" class="form-label">A data</label>
+            <input type="date" name="a_data" id="a_data" class="form-control" value="{{ request.args.get('a_data', '') }}">
+        </div>
+        <div class="col-md-1 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">Filtra</button>
+        </div>
+    </form>
+
+    <!-- Tabella risultati -->
+    <table class="table table-bordered table-striped mt-3">
+        <thead class="thead-dark">
+            <tr>
+                <th>Archivio</th>
+                <th>Data</th>
+                <th>Esito</th>
+                <th>Messaggio</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in storico %}
+            <tr class="{{ 'table-success' if r.esito else 'table-danger' }}">
+                <td>{{ r.modulo }}</td>
+                <td>{{ r.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+                <td>{{ '✅ Successo' if r.esito else '❌ Errore' }}</td>
+                <td>{{ r.messaggio or '-' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

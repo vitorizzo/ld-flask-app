@@ -1,6 +1,7 @@
 import logging
 import sys
 
+from routes.importazioni_routes import importazioni_bp
 from routes.status_routes import status_bp
 from routes.task_routes import task_bp
 from tools.log_utils import get_logger
@@ -78,6 +79,7 @@ app.register_blueprint(search_bp, url_prefix='/search')
 app.register_blueprint(inventario_bp, url_prefix='/inventario')
 app.register_blueprint(status_bp, url_prefix='/task')
 app.register_blueprint(task_bp, url_prefix='/task_manage')
+app.register_blueprint(importazioni_bp, url_prefix='/importazioni')
 
 logger.info("Blueprint registrati.")
 # debug_loggers()

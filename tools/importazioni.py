@@ -1,9 +1,10 @@
 import csv
+from datetime import datetime
 
 from routes.esportazioni_teamsystem import serve_risorsa
 from tools.ps_util import get_all_products, get_product_images
 from extensions import db
-from models import Articoli, Barcode, Giacenza
+from models import Articoli, Barcode, Giacenza, Importazione, ModuloImportazione
 from flask import jsonify
 from tools.log_utils import log_task, get_logger
 
@@ -19,43 +20,50 @@ def clean_text(text):
 @log_task(logger)
 def import_ps(task_id=None):
     from tools.redis_utils import update_task, status_string
+
     task_name = "Importazione dati da Prestashop"
     update_task(task_id, task_name, 0, status_string['start'])
-
     logger.info(">>> Entrata nella funzione: import_ps()")
     logger.info("Importazione Prestashop avviata...")
 
-    products = get_all_products()
-    total_rows = len(products)
+    try:
+        products = get_all_products()
+        total_rows = len(products)
 
-    for index, prodotto in enumerate(products):
-        cod_art = prodotto['cod_art']
-        pid = prodotto['id']
+        for index, prodotto in enumerate(products):
+            cod_art = prodotto['cod_art']
+            pid = prodotto['id']
 
-        existing_articolo = Articoli.query.filter_by(cod_art=cod_art).first()
-        if not existing_articolo:
-            nuovo_articolo = Articoli(
-                cod_art=cod_art,
-                descrizione=prodotto['name'],
-                prezzo=float(prodotto['price'])
-            )
-            db.session.add(nuovo_articolo)
-            db.session.commit()
-            logger.info(f"Articolo {cod_art} inserito.")
-        else:
-            logger.info(f"Articolo {cod_art} già presente, salto inserimento.")
+            existing_articolo = Articoli.query.filter_by(cod_art=cod_art).first()
+            if not existing_articolo:
+                nuovo_articolo = Articoli(
+                    cod_art=cod_art,
+                    descrizione=prodotto['name'],
+                    prezzo=float(prodotto['price'])
+                )
+                db.session.add(nuovo_articolo)
+                db.session.commit()
+                logger.info(f"Articolo {cod_art} inserito.")
+            else:
+                logger.info(f"Articolo {cod_art} già presente, salto inserimento.")
 
-        p_images = get_product_images(pid, cod_art)
-        prodotto['images'] = p_images
+            p_images = get_product_images(pid, cod_art)
+            prodotto['images'] = p_images
 
-        # 🔁 Aggiorna progresso ogni 50 righe
-        if index % 50 == 0:
-            progresso = int((index / total_rows) * 100)
-            update_task(task_id, task_name, progresso, status_string['update'])
+            if index % 50 == 0:
+                progresso = int((index / total_rows) * 100)
+                update_task(task_id, task_name, progresso, status_string['update'])
 
-        logger.info(f"Prodotto {cod_art} importato: {prodotto['name']} con {len(p_images)} immagini.")
+            logger.info(f"Prodotto {cod_art} importato: {prodotto['name']} con {len(p_images)} immagini.")
 
-    update_task(task_id, task_name, 100, status_string['end'])
+        update_task(task_id, task_name, 100, status_string['end'])
+        registra_importazione("prestashop", esito=True)
+
+    except Exception as e:
+        logger.exception("Errore durante l'importazione Prestashop")
+        update_task(task_id, task_name, 0, status_string['error'], e)
+        registra_importazione("prestashop", esito=False, messaggio=str(e))
+        raise
 
 
 @log_task(logger)
@@ -133,7 +141,7 @@ def import_articoli(task_id=None):
 
         if task_id:
             clear_task_status(task_id)
-
+        registra_importazione("articoli", esito=True)
         return {'message': 'Articoli importati con successo!', 'progress': 100}
 
     except Exception as e:
@@ -141,7 +149,7 @@ def import_articoli(task_id=None):
         db.session.rollback()
 
         update_task(task_id, task_name, 0, status_string['error'], e)
-
+        registra_importazione("articoli", esito=False, messaggio=str(e))
         return {'success': False, 'error': str(e)}
 
 
@@ -222,12 +230,13 @@ def import_giacenze(task_id=None):
         logger.info("Giacenze importate con successo!")
         if task_id:
             clear_task_status(task_id)
+        registra_importazione("giacenze", esito=True)
         return jsonify({'message': 'Giacenze importate con successo!', 'progress': 100}), 200
     except Exception as e:
         logger.exception("Errore durante l'importazione delle Giacenze:")
         db.session.rollback()
         update_task(task_id, task_name, 0, status_string['error'], e)
-
+        registra_importazione("giacenze", esito=False, messaggio=str(e))
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -281,10 +290,22 @@ def run_import_barcode(task_id=None):
         update_task(task_id, task_name, 100, status_string['end'])
         if task_id:
             clear_task_status(task_id)
+        registra_importazione("barcode", esito=True)
         return {'success': True, 'message': 'Codici a Barre importati con successo!', 'progress': 100}
     except Exception as e:
         logger.exception("Errore durante l'importazione dei codici a barre:")
         db.session.rollback()
         update_task(task_id, task_name, 0, status_string['error'], e)
-
+        registra_importazione("barcode", esito=False, messaggio=str(e))
         return {'success': False, 'error': str(e)}
+
+
+def registra_importazione(modulo, esito=True, messaggio=None):
+    nuova_import = Importazione(
+        modulo=modulo,
+        timestamp=datetime.now(),
+        esito=esito,
+        messaggio=messaggio
+    )
+    db.session.add(nuova_import)
+    db.session.commit()

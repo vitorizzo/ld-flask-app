@@ -205,3 +205,21 @@ class InventarioExport(db.Model):
     giacenza = db.Column(db.Integer, nullable=False)
 
     articolo = db.relationship('Articoli', backref='inventario_export')
+
+
+class Importazione(db.Model):
+    __tablename__ = 'importazioni'
+
+    id = db.Column(db.Integer, primary_key=True)
+    modulo = db.Column(db.String(50), nullable=False)  # es. 'articoli', 'barcode', 'giacenze'
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    esito = db.Column(db.Boolean, default=True)  # True = successo, False = errore
+    messaggio = db.Column(db.String(255), nullable=True)  # messaggio opzionale, utile in caso di errore
+
+
+class ModuloImportazione(db.Model):
+    __tablename__ = 'moduli_importazione'
+
+    id = db.Column(db.Integer, primary_key=True)
+    nome = db.Column(db.String(100), nullable=False, unique=True)
+    descrizione = db.Column(db.String(255), nullable=True)

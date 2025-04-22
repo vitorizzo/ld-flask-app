@@ -610,3 +610,8 @@ h1,h2,h3,h4{
     border: none;
     cursor: pointer;
 }
+
+.fade-out {
+    opacity: 0;
+    transition: opacity 1s ease-out;
+}
