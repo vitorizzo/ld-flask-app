@@ -48,3 +48,10 @@ def get_all_tasks_status():
 def clear_task_status(task_id):
     """Rimuove lo stato del task (quando completato)"""
     r.delete(f"task_status: {task_id}")
+
+
+def clear_all_task_statuses():
+    """Elimina tutte le chiavi Redis dei task_status"""
+    keys = r.keys("task_status:*")
+    for key in keys:
+        r.delete(key)

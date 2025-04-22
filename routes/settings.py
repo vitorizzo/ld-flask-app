@@ -16,7 +16,7 @@ socketio = SocketIO()
 
 @settings_bp.route('/update_menu', methods=['POST'])
 @login_required
-@role_required('menus')
+@role_required(500)
 @log_task(logger)
 def update_menu():
     try:
