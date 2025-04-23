@@ -12,9 +12,7 @@ file_bp = Blueprint("file_bp", __name__)
 ESTRAZIONI_FOLDER = "/dati/discorete/estrazioni"
 
 
-@file_bp.route("/<filename>")
-@log_task(logger)
-def serve_risorsa(filename):
+def serve_risorsa_back(filename):
     local_folder = current_app.config['EXPORT_FOLDER']
     local_file_path = os.path.join(local_folder, filename.upper())
     remote_file_url = current_app.config['EXPORT_FOLDER_URL'].rstrip('/') + '/' + filename.upper()
@@ -41,6 +39,21 @@ def serve_risorsa(filename):
 
         logger.info(f"✅ File scaricato in: {temp_file_path}")
         return temp_file_path
+
+
+@file_bp.route("/<filename>")
+@log_task(logger)
+def serve_risorsa(filename):
+    """
+    Funzione compatibile anche fuori dal contesto Flask (es. nei Celery task)
+    """
+    local_folder = os.getenv("FOLDER_EXPORT", "/percorso/di/default")
+    file_path = os.path.join(local_folder, filename.upper())
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"File non trovato: {file_path}")
+
+    return file_path  # restituisce il path, non l'oggetto file o una response Flask
 
 
 @file_bp.route('/get/<filename>')
