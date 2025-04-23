@@ -2,7 +2,8 @@ import json
 from functools import wraps
 import logging
 from config.paths_config import LOGS_FOLDER
-from logging.handlers import RotatingFileHandler
+from concurrent_log_handler import ConcurrentRotatingFileHandler as RotatingFileHandler
+# from logging.handlers import RotatingFileHandler
 
 
 def log_task(logger):
@@ -78,7 +79,8 @@ def get_logger(name, level=logging.DEBUG, also_main_log=True):
 
     # Handler per il file specifico del modulo
     log_file = os.path.join(LOGS_FOLDER, f"{name}.log")
-    file_handler = AutoFlushRotatingFileHandler(log_file, maxBytes=2 * 1024 * 1024, backupCount=5, encoding='utf-8')
+    file_handler = AutoFlushRotatingFileHandler(log_file, maxBytes=2 * 1024 * 1024, backupCount=5, encoding='utf-8',
+                                                delay=True)
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
     file_handler.setFormatter(formatter)
     file_handler.setLevel(level)
@@ -87,7 +89,8 @@ def get_logger(name, level=logging.DEBUG, also_main_log=True):
     # Handler per il file main.log se richiesto
     if also_main_log and name != 'main':
         main_log_file = os.path.join(LOGS_FOLDER, "main.log")
-        main_handler = AutoFlushRotatingFileHandler(main_log_file, maxBytes=1048576, backupCount=3, encoding='utf-8')
+        main_handler = AutoFlushRotatingFileHandler(main_log_file, maxBytes=1048576, backupCount=3, encoding='utf-8',
+                                                    delay=True)
         main_handler.setFormatter(formatter)
         main_handler.setLevel(level)
         logger.addHandler(main_handler)

@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="welcome-section">
+  <h2>📜 Visualizzazione Log</h2>
+
+  <form method="get" class="row g-3 mb-4 align-items-end">
+    <div class="col-md-4">
+      <label for="file" class="form-label">Seleziona log</label>
+      <select name="file" id="file" class="form-select" onchange="this.form.submit()">
+        {% for f in files %}
+          <option value="{{ f }}" {% if f == selected_file %}selected{% endif %}>{{ f }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label for="level" class="form-label">Livello</label>
+      <select name="level" id="level" class="form-select" onchange="this.form.submit()">
+        <option value="">Tutti</option>
+        {% for lvl in ['DEBUG', 'INFO', 'WARNING', 'ERROR'] %}
+          <option value="{{ lvl }}" {% if lvl == request.args.get('level') %}selected{% endif %}>{{ lvl }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </form>
+
+  {% if log_content %}
+    <div class="log-viewer border rounded p-3 bg-black text-light shadow-sm"
+         style="max-height: 65vh; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 0.9rem; white-space: pre-wrap; line-height: 1.4; text-align: left;">
+      <style>
+        .log-line {
+          display: grid;
+          grid-template-columns: 170px 140px 100px auto;
+          gap: 8px;
+          padding: 2px 0;
+          align-items: center;
+        }
+        .log-line:hover {
+          background-color: rgba(255,255,255,0.05);
+        }
+      </style>
+
+      {% for log in log_content %}
+        {% if log.match %}
+          <div class="log-line">
+            <span class="text-secondary">{{ log.timestamp }}</span>
+            <span class="text-info">{{ log.module }}</span>
+            {% if log.level == 'INFO' %}
+              <span class="badge bg-success">{{ log.level }}</span>
+            {% elif log.level == 'DEBUG' %}
+              <span class="badge bg-primary">{{ log.level }}</span>
+            {% elif log.level == 'WARNING' %}
+              <span class="badge bg-warning text-dark">{{ log.level }}</span>
+            {% elif log.level == 'ERROR' %}
+              <span class="badge bg-danger">{{ log.level }}</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ log.level }}</span>
+            {% endif %}
+            <span>{{ log.message }}</span>
+          </div>
+        {% else %}
+          <div class="text-muted" style="margin-left: 10px; font-style: italic;">{{ log.raw }}</div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-warning">Nessun contenuto disponibile per il file selezionato.</div>
+  {% endif %}
+
+  {% block extra_js %}
+  <script>
+    function scrollLogToBottom() {
+      const logDiv = document.querySelector('.log-viewer');
+      if (logDiv) logDiv.scrollTop = logDiv.scrollHeight;
+    }
+    window.onload = scrollLogToBottom;
+  </script>
+  {% endblock %}
+</section>
+{% endblock %}

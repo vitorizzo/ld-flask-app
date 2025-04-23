@@ -2,10 +2,12 @@ import logging
 import sys
 
 from routes.importazioni_routes import importazioni_bp
+from routes.logs_display import logs_bp
 from routes.status_routes import status_bp
 from routes.task_routes import task_bp
 from tools.log_utils import get_logger
 import os
+import re
 
 from dotenv import load_dotenv
 from flask import render_template
@@ -56,6 +58,15 @@ PS_USER = os.getenv("PRESTASHOP_USER")
 PS_PSWD = os.getenv("PRESTASHOP_PASSWORD")
 
 app = create_app()
+
+
+def regex_search(s, pattern):
+    match = re.search(pattern, s)
+    return match.groups() if match else None
+
+
+app.jinja_env.filters['regex_search'] = regex_search
+
 werkzeug_logger = logging.getLogger('werkzeug')
 werkzeug_logger.handlers = []      # rimuove gli handler predefiniti
 werkzeug_logger.propagate = True     # fa propagare i messaggi al logger root
@@ -80,6 +91,7 @@ app.register_blueprint(inventario_bp, url_prefix='/inventario')
 app.register_blueprint(status_bp, url_prefix='/task')
 app.register_blueprint(task_bp, url_prefix='/task_manage')
 app.register_blueprint(importazioni_bp, url_prefix='/importazioni')
+app.register_blueprint(logs_bp, url_prefix='/logs')
 
 logger.info("Blueprint registrati.")
 # debug_loggers()
