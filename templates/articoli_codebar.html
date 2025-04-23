@@ -28,7 +28,7 @@ document.addEventListener("DOMContentLoaded", function() {
       alert("Inserisci un codice a barre valido.");
       return;
     }
-    fetch('/search/articolo_by_barcode?barcode=' + encodeURIComponent(barcode))
+    fetch('/search/articoli_by_barcode_multipli?barcode=' + encodeURIComponent(barcode))
       .then(response => response.json())
       .then(data => {
         if (data && data.success) {
