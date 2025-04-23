@@ -47,7 +47,7 @@ def serve_risorsa(filename):
     """
     Funzione compatibile anche fuori dal contesto Flask (es. nei Celery task)
     """
-    local_folder = os.getenv("FOLDER_EXPORT", "/percorso/di/default")
+    local_folder = os.getenv("EXPORT_FOLDER", ESTRAZIONI_FOLDER)
     file_path = os.path.join(local_folder, filename.upper())
 
     if not os.path.exists(file_path):
