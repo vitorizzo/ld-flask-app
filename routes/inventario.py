@@ -5,6 +5,7 @@ from extensions import db
 from models import Inventario, InventarioRiga, Articoli, Barcode
 from datetime import date
 
+
 inventario_bp = Blueprint('inventario', __name__)
 
 

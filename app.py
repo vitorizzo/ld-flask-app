@@ -5,6 +5,7 @@ from routes.importazioni_routes import importazioni_bp
 from routes.logs_display import logs_bp
 from routes.status_routes import status_bp
 from routes.task_routes import task_bp
+from routes.trello import trello_bp
 from tools.log_utils import get_logger
 import os
 import re
@@ -56,6 +57,9 @@ PS_URL = os.getenv("PRESTASHOP_URL")
 PS_KEY = os.getenv("PRESTASHOP_KEY")
 PS_USER = os.getenv("PRESTASHOP_USER")
 PS_PSWD = os.getenv("PRESTASHOP_PASSWORD")
+TRELLO_KEY = os.getenv("APIKEY")
+TRELLO_SECRET = os.getenv("SECRET")
+TRELLO_TOKEN = os.getenv("TOKEN")
 
 app = create_app()
 
@@ -92,6 +96,7 @@ app.register_blueprint(status_bp, url_prefix='/task')
 app.register_blueprint(task_bp, url_prefix='/task_manage')
 app.register_blueprint(importazioni_bp, url_prefix='/importazioni')
 app.register_blueprint(logs_bp, url_prefix='/logs')
+app.register_blueprint(trello_bp, url_prefix='/trello')
 
 logger.info("Blueprint registrati.")
 # debug_loggers()
