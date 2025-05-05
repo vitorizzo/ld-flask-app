@@ -45,7 +45,6 @@ FLASK_ENV = os.getenv("FLASK_ENV", "production")
 EXPORT_FOLDER = os.getenv("EXPORT_FOLDER")
 EXPORT_FOLDER_URL = os.getenv("EXPORT_FOLDER_URL")
 UPLOAD_FOLDER = os.path.normpath(os.path.join(os.getcwd(), 'ld-flask-app', 'static', 'uploads'))
-
 SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL'),
 SQLALCHEMY_TRACK_MODIFICATIONS = False,
 
@@ -62,6 +61,8 @@ TRELLO_SECRET = os.getenv("SECRET")
 TRELLO_TOKEN = os.getenv("TOKEN")
 
 app = create_app()
+
+app.config['FERNET_KEY'] = os.getenv('FERNET_KEY')
 
 
 def regex_search(s, pattern):

@@ -1,6 +1,10 @@
+from future.backports.datetime import datetime
+
 from extensions import db
 from flask_login import UserMixin
-from datetime import datetime
+from datetime import datetime, UTC
+
+from tools.crypto import EncryptedString
 from tools.log_utils import get_logger
 
 logger = get_logger('models')
@@ -223,3 +227,15 @@ class ModuloImportazione(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     nome = db.Column(db.String(100), nullable=False, unique=True)
     descrizione = db.Column(db.String(255), nullable=True)
+
+
+class TrelloConfig(db.Model):
+    __tablename__ = 'trello_configs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    api_key = db.Column(EncryptedString(256), nullable=False)
+    token = db.Column(EncryptedString(256), nullable=False)
+    id_model = db.Column(db.String(64), nullable=False)
+    callback_url = db.Column(db.String(256), nullable=False)
+    webhook_id = db.Column(db.String(64), nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))

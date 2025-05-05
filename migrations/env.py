@@ -1,5 +1,6 @@
 import logging
 from logging.config import fileConfig
+from tools.crypto import EncryptedString
 
 from flask import current_app
 
