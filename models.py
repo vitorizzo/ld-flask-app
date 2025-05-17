@@ -2,7 +2,7 @@ from future.backports.datetime import datetime
 
 from extensions import db
 from flask_login import UserMixin
-from datetime import datetime, UTC
+from datetime import datetime, timezone
 
 from tools.crypto import EncryptedString
 from tools.log_utils import get_logger
@@ -216,7 +216,7 @@ class Importazione(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     modulo = db.Column(db.String(50), nullable=False)  # es. 'articoli', 'barcode', 'giacenze'
-    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    timestamp = db.Column(db.DateTime, default=datetime.now(timezone.utc))
     esito = db.Column(db.Boolean, default=True)  # True = successo, False = errore
     messaggio = db.Column(db.String(255), nullable=True)  # messaggio opzionale, utile in caso di errore
 
@@ -238,4 +238,34 @@ class TrelloConfig(db.Model):
     id_model = db.Column(db.String(64), nullable=False)
     callback_url = db.Column(db.String(256), nullable=False)
     webhook_id = db.Column(db.String(64), nullable=True)
-    updated_at = db.Column(db.DateTime, default=datetime.now(UTC), onupdate=datetime.now(UTC))
+    updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc))
+
+
+class TrelloConnection(db.Model):
+    __tablename__ = 'trello_connections'
+
+    id = db.Column(db.Integer, primary_key=True)
+    board_id = db.Column(db.String(128), nullable=False, unique=True)
+    board_name = db.Column(db.String(255), nullable=False)
+    api_key = db.Column(db.String(255), nullable=False)
+    token = db.Column(db.String(255), nullable=False)
+    callback_url = db.Column(db.String(256), nullable=False)
+    webhook_id = db.Column(db.String(255), nullable=True)
+    schema_json = db.Column(db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc), nullable=False)
+
+    actions = db.relationship('TrelloAction', back_populates='connection', cascade='all, delete-orphan')
+
+
+class TrelloAction(db.Model):
+    __tablename__ = 'trello_actions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    connection_id = db.Column(db.Integer, db.ForeignKey('trello_connections.id', ondelete='CASCADE'), nullable=False)
+    trigger_type = db.Column(db.String(64), nullable=False)
+    action_type = db.Column(db.String(64), nullable=False)
+    config_json = db.Column(db.JSON, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), nullable=False)
+
+    connection = db.relationship('TrelloConnection', back_populates='actions')

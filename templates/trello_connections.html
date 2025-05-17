@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+
+{% block title %}LD Enoteca - Gestione connessioni Trello{% endblock %}
+
+{% block content %}
+<section class="welcome-section">
+  <div id="meta-form-container" style="margin-bottom:1em; display:none;">
+    <h3>Dati Connessione</h3>
+    <form id="meta-form">
+      <label>Board ID:     <input type="text" name="board_id"    id="in-board_id"    required></label>
+      <label>Board Name:   <input type="text" name="board_name"  id="in-board_name"  required></label>
+      <label>API Key:      <input type="text" name="api_key"     id="in-api_key"     required></label>
+      <label>Token:        <input type="text" name="token"       id="in-token"       required></label>
+      <label>Callback URL: <input type="url"  name="callback_url" id="in-callback_url" required></label>
+      <button type="submit" id="saveMeta">Salva Dati Connessione</button>
+    </form>
+    <hr>
+  </div>  <form id="conn-selector">
+
+    <label>Connessione:
+      <select id="connection_id">
+        <option value="">-- Nuova --</option>
+      </select>
+    </label>
+    <button type="button" id="btn-new">Nuova</button>
+    <button type="button" id="btn-edit-meta" disabled>Modifica dati</button>
+  </form>
+
+  <div id="editor" style="width:100%; height:600px; border:1px solid #ccc; position:relative;"></div>
+  <button id="saveBtn">Salva Schema</button>
+</section>
+{% endblock %}
+
+
+{% block extra_js %}
+  <script src="https://unpkg.com/jsplumb@2.15.6/dist/js/jsplumb.min.js"></script>
+  <script>
+  document.addEventListener('DOMContentLoaded', () => {
+    // --- 1) riferimenti DOM ---
+    const sel       = document.getElementById('connection_id');
+    const btnNew    = document.getElementById('btn-new');
+    const btnEdit   = document.getElementById('btn-edit-meta');
+    const saveBtn   = document.getElementById('saveBtn');
+    const editor    = document.getElementById('editor');
+    const metaCon   = document.getElementById('meta-form-container');
+    const metaForm  = document.getElementById('meta-form');
+    // questi sono gli input della meta‐form
+    const inputs = {
+      board_id:     document.getElementById('in-board_id'),
+      board_name:   document.getElementById('in-board_name'),
+      api_key:      document.getElementById('in-api_key'),
+      token:        document.getElementById('in-token'),
+      callback_url: document.getElementById('in-callback_url'),
+    };
+
+    let currentId     = null;
+    let instance      = null;
+    let currentSchema = { nodes: [], connections: [] };
+
+    // --- 2) funzione per creare un nodo ---
+    function addNode(id, label, x, y) {
+      const n = document.createElement('div');
+      n.className = 'node';
+      n.id        = id;
+      n.innerText = label;
+      n.style.cssText = `
+        position:absolute;
+        left:${x}px; top:${y}px;
+        width:150px; padding:8px;
+        border:1px solid #333;
+        background:#fff;
+        color:#333;
+        text-align:center;
+        cursor:move;
+      `;
+      editor.appendChild(n);
+      instance.draggable(n, { containment: 'parent' });
+      instance.makeSource(n, { anchor: "BottomCenter", maxConnections: -1 });
+      instance.makeTarget(n, { anchor: "TopCenter",   maxConnections: -1 });
+    }
+
+    // --- 3) inizializza jsPlumb e (ri)disegna ---
+    function initJsPlumb(schema, isNew=false) {
+      editor.innerHTML = '';
+      if (instance) instance.reset();
+      instance = jsPlumb.getInstance({
+        Connector: ["Straight"],
+        Anchors: ["BottomCenter","TopCenter"],
+        Endpoint: ["Dot", { radius: 4 }],
+        PaintStyle: { strokeWidth: 2 },
+        ConnectionOverlays: [
+          ["Arrow", { width:10, length:10, location:1 }]
+        ]
+      });
+
+      // nodi di default se nuova connessione
+      if (isNew && schema.nodes.length === 0) {
+        addNode('trigger', 'Trigger Trello', 50,  50);
+        addNode('action',  'Azione',        300, 200);
+      }
+
+      // ridisegna nodi salvati
+      schema.nodes.forEach(n => addNode(n.id, n.label, n.x, n.y));
+      // ridisegna connessioni salvate
+      schema.connections.forEach(c =>
+        instance.connect({ source: c.sourceId, target: c.targetId })
+      );
+    }
+
+    // --- 4) carica la tendina connections ---
+    fetch('/trello/connection')
+      .then(r => r.json())
+      .then(list => {
+        list.forEach(c => {
+          const o = document.createElement('option');
+          o.value = c.id;
+          o.text  = `${c.board_name} (ID:${c.id})`;
+          sel.appendChild(o);
+        });
+      });
+
+    // --- 5) quando cambio selezione nella tendina ---
+    sel.addEventListener('change', () => {
+      currentId = sel.value || null;
+      btnEdit.disabled = !currentId;
+
+      if (currentId) {
+        // carica i metadati e lo schema esistente
+        fetch(`/trello/connection/${currentId}`)
+          .then(r => r.json())
+          .then(data => {
+            currentSchema = data.schema;
+            // popola la meta‐form e la mostra
+            metaCon.style.display = 'block';
+            Object.keys(inputs).forEach(f => {
+              inputs[f].value = data[f];
+            });
+            // disegna lo schema salvato
+            initJsPlumb(currentSchema, false);
+          });
+      }
+      else {
+        // nuova connessione: nascondi meta-form e crea i nodi base
+        metaCon.style.display = 'none';
+        initJsPlumb({nodes:[], connections:[]}, true);
+      }
+    });
+
+    // --- 6) handler salvataggio metadata ---
+    metaForm.addEventListener('submit', e => {
+      e.preventDefault();
+      const payload = {};
+      Object.keys(inputs).forEach(f => {
+        payload[f] = inputs[f].value;
+      });
+      fetch(`/trello/connection/${currentId}`, {
+        method: 'PUT',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      })
+      .then(r=>{
+        if (!r.ok) throw new Error('Errore salvando dati');
+        alert('Dati connessione aggiornati!');
+      });
+    });
+
+    // --- 7) pulsanti Nuova, Modifica Meta e Salva Schema ---
+    btnNew.addEventListener('click', () =>
+      window.location = '/trello/connection/editor/new'
+    );
+    btnEdit.addEventListener('click', () =>
+      window.location = `/trello/connection/editor/${currentId}`
+    );
+    saveBtn.addEventListener('click', () => {
+      const nodes = Array.from(editor.querySelectorAll('.node')).map(n=>({
+        id:n.id, x:parseInt(n.style.left), y:parseInt(n.style.top), label:n.innerText
+      }));
+      const connections = instance.getAllConnections().map(c=>({
+        sourceId:c.sourceId, targetId:c.targetId
+      }));
+      const schema = { nodes, connections };
+      let url    = '/trello/connection';
+      let method = 'POST';
+      if (currentId) {
+        url    += `/${currentId}`;
+        method  = 'PUT';
+      } else {
+        // se POST, raccogli i meta con prompt (o potrai poi sostituire con un form)
+        schema.board_id     = prompt("Board ID:");
+        schema.board_name   = prompt("Board name:");
+        schema.api_key      = prompt("API key:");
+        schema.token        = prompt("Token:");
+        schema.callback_url = prompt("Callback URL:");
+      }
+      fetch(url, {
+        method, headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ schema })
+      })
+      .then(r=> r.ok ? r.json() : r.json().then(e=>Promise.reject(e)))
+      .then(res=>{
+        alert(currentId ? 'Schema aggiornato' : 'Connessione creata ID '+res.id);
+        if (!currentId) window.location = '/trello/connections';
+      })
+      .catch(e=> alert("Errore: "+(e.error||JSON.stringify(e))));
+    });
+
+    // --- 8) primo init: NUOVO con nodi di default ---
+    initJsPlumb({nodes:[],connections:[]}, true);
+  });
+</script>
+
+  <style>
+    #editor .node {
+      background: #fff !important;
+      color: #333 !important;
+      border: 1px solid #333;
+    }
+  </style>
+
+
+{% endblock %}

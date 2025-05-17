@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Gestione Connessioni Trello{% endblock %}
+
+{% block content %}
+  <h1>Connessioni Trello</h1>
+  <button id="new-conn">+ Nuova Connessione</button>
+  <table border="1" cellpadding="5" style="margin-top:1em; width:100%;">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Board name</th>
+        <th>Webhook</th>
+        <th>Azioni</th>
+      </tr>
+    </thead>
+    <tbody id="conns-body">
+      <!-- popolato da JS -->
+    </tbody>
+  </table>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const tbody = document.getElementById('conns-body');
+
+      function loadConns() {
+        fetch('/trello/connection')
+          .then(r => r.json())
+          .then(conns => {
+            tbody.innerHTML = '';
+            conns.forEach(c => {
+              const tr = document.createElement('tr');
+              tr.innerHTML = `
+                <td>${c.id}</td>
+                <td>${c.board_name}</td>
+                <td>${c.webhook_id ? '✅ ' + c.webhook_id : '❌'}</td>
+                <td>
+                  <button class="edit-btn" data-id="${c.id}">Modifica</button>
+                  <button class="delete-btn" data-id="${c.id}">Elimina</button>
+                  <button class="actions-btn" data-id="${c.id}">Azioni</button>
+                </td>`;
+              tbody.appendChild(tr);
+            });
+          });
+      }
+
+      // Gestione click su pulsanti
+      tbody.addEventListener('click', e => {
+        const id = e.target.dataset.id;
+        if (e.target.classList.contains('delete-btn')) {
+          if (!confirm('Sei sicuro di voler eliminare questa connessione?')) return;
+          fetch(`/trello/connection/${id}`, { method: 'DELETE' })
+            .then(() => loadConns());
+        }
+        else if (e.target.classList.contains('edit-btn')) {
+          window.location = `/trello/connection/editor/${id}`;
+        }
+        else if (e.target.classList.contains('actions-btn')) {
+          window.location = `/trello/connection/${id}/actions`;
+        }
+      });
+
+      // Nuova connessione
+      document.getElementById('new-conn').addEventListener('click', () => {
+        window.location = '/trello/connection/editor/new';
+      });
+
+      // Carica iniziale
+      loadConns();
+    });
+  </script>
+{% endblock %}
