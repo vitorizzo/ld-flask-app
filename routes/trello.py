@@ -101,16 +101,18 @@ def get_connection(id):
 @trello_bp.route('/connection', methods=['POST'])
 def create_connection():
     data = request.get_json()
-    # validazione minima
-    for f in ('board_id', 'board_name', 'api_key', 'token', 'callback_url'):
+    # validazione minima …
+    for f in ('board_id','board_name','api_key','token','callback_url'):
         if f not in data:
             return jsonify({'error': f"Campo mancante: {f}"}), 400
 
+    # ← qui includi anche callback_url
     conn = TrelloConnection(
         board_id=data['board_id'],
         board_name=data['board_name'],
         api_key=data['api_key'],
-        token=data['token']
+        token=data['token'],
+        callback_url=data['callback_url']
     )
     db.session.add(conn)
     db.session.commit()
@@ -124,6 +126,7 @@ def create_connection():
 
     conn.webhook_id = webhook_id
     db.session.commit()
+
     return jsonify({'id': conn.id, 'webhook_id': webhook_id}), 201
 
 
