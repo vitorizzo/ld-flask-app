@@ -249,7 +249,7 @@ class TrelloConnection(db.Model):
     board_name = db.Column(db.String(255), nullable=False)
     api_key = db.Column(db.String(255), nullable=False)
     token = db.Column(db.String(255), nullable=False)
-    callback_url = db.Column(db.String(256), nullable=False)
+    callback_url = db.Column(db.String(256), nullable=True)
     webhook_id = db.Column(db.String(255), nullable=True)
     schema_json = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), nullable=False)

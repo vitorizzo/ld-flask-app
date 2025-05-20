@@ -93,7 +93,7 @@ def get_connection(id):
         'board_name':   conn.board_name,
         'api_key':      conn.api_key,
         'token':        conn.token,
-        'callback_url': conn.webhook_callback_url,  # o come lo chiami
+        'callback_url': conn.callback_url,  # o come lo chiami
         'schema':       conn.schema_json or {'nodes': [], 'connections': []}
     }), 200
 
