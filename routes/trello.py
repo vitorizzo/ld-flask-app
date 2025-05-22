@@ -4,11 +4,11 @@ import hmac
 import logging
 import json
 
-from flask import Blueprint, request, abort, current_app, jsonify, render_template
+from flask import Blueprint, request, abort, current_app, jsonify, render_template, url_for
 from sqlalchemy.orm.exc import NoResultFound
 
 from extensions import db
-from models import TrelloConnection
+from models import TrelloConnection, TrelloAction
 from tools.log_utils import get_logger
 from tools.trello_client import create_webhook, delete_webhook, TrelloClientError
 from tools.processor import process_trello_event  # da implementare al punto 6
@@ -17,51 +17,26 @@ logger = get_logger("trello", level=logging.DEBUG)
 trello_bp = Blueprint('trello', __name__, url_prefix='/trello')
 
 
-#
-# Webhook endpoint
-#
-@trello_bp.route('/webhook', methods=['HEAD', 'POST'])
-def handle_webhook():
+@trello_bp.route('/webhook/<int:conn_id>', methods=['HEAD', 'POST'])
+def handle_webhook(conn_id):
+    # HEAD is Trello’s ping-check
     if request.method == 'HEAD':
-        current_app.logger.info("Trello webhook verification received")
         return '', 200
 
+    # load the exact connection
+    conn = TrelloConnection.query.get_or_404(conn_id)
+
+    # now validate HMAC
     raw_body = request.get_data()
-    wh_id = request.headers.get('X-Trello-Webhook')
-    if not wh_id:
-        current_app.logger.error("Manca header X-Trello-Webhook")
-        abort(400)
-
-    # Recupero la connessione per calcolare HMAC e per dispatch
-    conn = TrelloConnection.query.filter_by(webhook_id=wh_id).first()
-    if not conn:
-        current_app.logger.error(f"Nessuna connessione per webhook_id={wh_id}")
-        abort(404)
-
-    # Calcolo HMAC-SHA1 e confronto (Trello invia signature in Base64)
+    signature = request.headers.get('X-Trello-Webhook') or ''
     secret = f"{conn.api_key}{conn.token}".encode('utf-8')
-    digest = hmac.new(secret, raw_body, hashlib.sha1).digest()
-    computed_sig = base64.b64encode(digest).decode('utf-8')
+    expected = base64.b64encode(hmac.new(secret, raw_body, hashlib.sha1).digest()).decode('utf-8')
 
-    # signature_header è la stessa stringa inviata in X-Trello-Webhook
-    if not hmac.compare_digest(computed_sig, wh_id):
-        current_app.logger.warning("Firma Trello NON valida")
+    if not hmac.compare_digest(signature, expected):
         abort(401)
 
-    # Parsing JSON e dispatch
-    try:
-        payload = request.get_json(force=True)
-    except Exception as e:
-        current_app.logger.error(f"Invalid JSON: {e}")
-        abort(400)
-
-    current_app.logger.debug("Trello payload: %s", json.dumps(payload))
-    try:
-        process_trello_event(connection=conn, payload=payload)
-    except Exception:
-        current_app.logger.exception("Errore dispatch evento")
-        abort(500)
-
+    payload = request.get_json(force=True)
+    process_trello_event(connection=conn, payload=payload)
     return '', 200
 
 
@@ -101,24 +76,25 @@ def get_connection(id):
 @trello_bp.route('/connection', methods=['POST'])
 def create_connection():
     data = request.get_json()
-    # validazione minima …
-    for f in ('board_id','board_name','api_key','token','callback_url'):
-        if f not in data:
-            return jsonify({'error': f"Campo mancante: {f}"}), 400
-
-    # ← qui includi anche callback_url
+    # … your validation …
     conn = TrelloConnection(
-        board_id=data['board_id'],
-        board_name=data['board_name'],
-        api_key=data['api_key'],
-        token=data['token'],
-        callback_url=data['callback_url']
+      board_id=data['board_id'],
+      board_name=data['board_name'],
+      api_key=data['api_key'],
+      token=data['token'],
     )
+    for f in ('board_id', 'board_name', 'api_key', 'token'):
+        if not data.get(f):
+            return jsonify({'error': f"Campo mancante: {f}"}), 400
     db.session.add(conn)
     db.session.commit()
 
+    # build and store the per-connection callback URL
+    cb = url_for('trello.handle_webhook', conn_id=conn.id, _external=True)
+    conn.callback_url = cb
+
     try:
-        webhook_id = create_webhook(conn.board_id, data['callback_url'])
+        webhook_id = create_webhook(conn.board_id, cb)
     except TrelloClientError as e:
         db.session.delete(conn)
         db.session.commit()
@@ -133,28 +109,23 @@ def create_connection():
 @trello_bp.route('/connection/<int:id>', methods=['PUT'])
 def update_connection(id):
     data = request.get_json()
-    try:
-        conn = TrelloConnection.query.filter_by(id=id).one()
-    except NoResultFound:
-        abort(404)
+    conn  = TrelloConnection.query.get_or_404(id)
 
-    # Aggiorna board_name, api_key, token
-    for attr in ('board_name', 'api_key', 'token'):
+    # update board_name, api_key, token
+    for attr in ('board_name','api_key','token'):
         if attr in data:
             setattr(conn, attr, data[attr])
 
-    # Se cambia callback_url, ricrea il webhook
+    # if they supplied a new callback_url, rotate the webhook *and* save it
     if 'callback_url' in data:
         if conn.webhook_id:
             try:
                 delete_webhook(conn.webhook_id)
             except TrelloClientError:
-                logger.warning(f"Non ho potuto cancellare webhook {conn.webhook_id}")
-        try:
-            new_wh = create_webhook(conn.board_id, data['callback_url'])
-        except TrelloClientError as e:
-            return jsonify({'error': str(e)}), 400
-        conn.webhook_id = new_wh
+                logger.warning(f"Couldn’t delete old webhook {conn.webhook_id}")
+        new_wh = create_webhook(conn.board_id, data['callback_url'])
+        conn.webhook_id    = new_wh
+        conn.callback_url = data['callback_url']
 
     db.session.commit()
     return jsonify({'message': 'Connessione aggiornata'}), 200
@@ -193,8 +164,6 @@ def edit_connection(conn_id):
         existingSchema=json.dumps(existing_schema)
     )
 
-
-from models import TrelloAction
 
 #
 # Actions CRUD
