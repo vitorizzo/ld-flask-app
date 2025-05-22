@@ -163,6 +163,7 @@
       e.preventDefault();
       const payload = {};
       Object.keys(inputs).forEach(f => payload[f] = inputs[f].value);
+
       fetch(`/trello/connection/${currentId}`, {
         method: 'PUT',
         headers: {'Content-Type':'application/json'},
@@ -171,9 +172,17 @@
       .then(r => {
         if (!r.ok) throw new Error('Errore salvando dati');
         alert('Dati connessione aggiornati!');
+        // qui nascondi il form meta‐dati
+        const metaCon = document.getElementById('meta-form-container');
+        metaCon.style.display = 'none';
+        // ed eventualmente resetti currentId
+        currentId = null;
       })
-      .catch(err => alert(err));
+      .catch(err => {
+        alert(err);
+      });
     });
+
 
     // 7) Pulsanti di controllo
     btnNew.addEventListener('click', () => {
