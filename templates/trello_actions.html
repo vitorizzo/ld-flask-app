@@ -1,114 +1,22 @@
-{% extends "base.html" %}
-{% block title %}Gestione Azioni Trello{% endblock %}
+{% extends 'base.html' %}
+
+{% block title %}LD Enoteca – Gestione Azioni{% endblock %}
 
 {% block content %}
-  <h1>Azioni per Connection {{ connection.board_name }}</h1>
-
-  <!-- Lista esistente -->
-  <table border="1" cellpadding="5">
+<section class="welcome-section">
+  <h2>Azioni per Connessione {{ connection.board_name }} (ID:{{ connection.id }})</h2>
+  <button id="btn-add-action">Nuova Azione</button>
+  <table id="actions-table">
     <thead>
       <tr>
-        <th>ID</th>
-        <th>Trigger</th>
-        <th>Azione</th>
-        <th>Config</th>
-        <th>Created</th>
-        <th>Azioni</th>
+        <th>ID</th><th>Trigger</th><th>Azione</th><th>Config</th><th>Azioni</th>
       </tr>
     </thead>
-    <tbody id="actions-body">
-      <!-- popolato da JS -->
-    </tbody>
+    <tbody></tbody>
   </table>
+</section>
+{% endblock %}
 
-  <h2>Nuova Azione</h2>
-  <form id="action-form">
-    <input type="hidden" name="connection_id" value="{{ connection.id }}">
-    <label>Trigger type:
-      <select name="trigger_type" required>
-        <option value="createCard">createCard</option>
-        <option value="updateCard">updateCard</option>
-        <!-- aggiungi altri se vuoi -->
-      </select>
-    </label>
-    <br>
-    <label>Action type:
-      <select name="action_type" required>
-        <option value="sendEmail">sendEmail</option>
-        <option value="internalCall">internalCall</option>
-      </select>
-    </label>
-    <br>
-    <label>Config JSON:
-      <textarea name="config_json" rows="4" cols="40" required>
-{"to":"user@example.com","subject":"Nuova Card","body":"È stata creata una card"}
-      </textarea>
-    </label>
-    <br>
-    <button type="submit">Crea Azione</button>
-  </form>
-
-  <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const connId = {{ connection.id }};
-    const listUrl = `/trello/actions?connection_id=${connId}`;
-
-    // Funzione per caricare la lista
-    function loadActions() {
-      fetch(listUrl)
-        .then(r => r.json())
-        .then(actions => {
-          const tbody = document.getElementById('actions-body');
-          tbody.innerHTML = '';
-          actions.forEach(a => {
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-              <td>${a.id}</td>
-              <td>${a.trigger_type}</td>
-              <td>${a.action_type}</td>
-              <td><pre>${JSON.stringify(a.config_json,null,2)}</pre></td>
-              <td>${new Date(a.created_at).toLocaleString()}</td>
-              <td>
-                <button data-id="${a.id}" class="delete-btn">Elimina</button>
-              </td>`;
-            tbody.appendChild(tr);
-          });
-        });
-    }
-
-    // Submit form
-    document.getElementById('action-form').addEventListener('submit', e => {
-      e.preventDefault();
-      const form = e.target;
-      const payload = {
-        connection_id: connId,
-        trigger_type: form.trigger_type.value,
-        action_type: form.action_type.value,
-        config_json: JSON.parse(form.config_json.value)
-      };
-      fetch('/trello/actions', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify(payload)
-      })
-      .then(r => r.json())
-      .then(res => {
-        if (res.error) return alert("Errore: "+res.error);
-        form.reset();
-        loadActions();
-      });
-    });
-
-    // Delete button delegation
-    document.getElementById('actions-body').addEventListener('click', e => {
-      if (!e.target.classList.contains('delete-btn')) return;
-      const id = e.target.dataset.id;
-      fetch(`/trello/actions/${id}`, { method: 'DELETE' })
-        .then(() => loadActions());
-    });
-
-    // caricamento iniziale
-    loadActions();
-  });
-  </script>
+{% block extra_js %}
+  <script src="{{ url_for('static', filename='js/trello_actions.js') }}"></script>
 {% endblock %}
