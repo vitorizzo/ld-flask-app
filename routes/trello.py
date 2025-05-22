@@ -111,19 +111,26 @@ def update_connection(id):
     data = request.get_json()
     conn  = TrelloConnection.query.get_or_404(id)
 
-    # update board_name, api_key, token
+    # 1) aggiorno solo se è cambiato (evito di ricreare webhook a ogni PUT)
     for attr in ('board_name','api_key','token'):
         if attr in data:
             setattr(conn, attr, data[attr])
 
-    # if they supplied a new callback_url, rotate the webhook *and* save it
-    if 'callback_url' in data:
+    # 2) se callback_url è stata modificata davvero, allora ricreo il webhook
+    if 'callback_url' in data and data['callback_url'] != conn.callback_url:
+        # cancelliamo l’eventuale vecchio
         if conn.webhook_id:
             try:
                 delete_webhook(conn.webhook_id)
             except TrelloClientError:
-                logger.warning(f"Couldn’t delete old webhook {conn.webhook_id}")
-        new_wh = create_webhook(conn.board_id, data['callback_url'])
+                logger.warning(f"Non ho potuto cancellare il vecchio webhook {conn.webhook_id}")
+        # creiamo il nuovo, **dentro un try** per NON far esplodere tutto
+        try:
+            new_wh = create_webhook(conn.board_id, data['callback_url'])
+        except TrelloClientError as e:
+            # restituisco un 400 con l’errore di Trello, così vedi causa e non 500
+            return jsonify({'error': str(e)}), 400
+
         conn.webhook_id    = new_wh
         conn.callback_url = data['callback_url']
 
