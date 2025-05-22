@@ -18,5 +18,10 @@
 {% endblock %}
 
 {% block extra_js %}
+  <!-- espongo l’ID della connessione a JS -->
+  <script>
+    window.TRELLO_CONN_ID = {{ connection.id }};
+  </script>
+  <!-- importo solo il file esterno -->
   <script src="{{ url_for('static', filename='js/trello_actions.js') }}"></script>
 {% endblock %}
