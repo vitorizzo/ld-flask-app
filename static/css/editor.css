@@ -1,0 +1,7 @@
+/* editor.css */
+/* Rende sempre visibile il testo sui nodi */
+#editor .node {
+  background: #fff !important;
+  color: #333 !important;
+  border: 1px solid #333;
+}
