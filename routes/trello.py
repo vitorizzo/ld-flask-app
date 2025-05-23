@@ -36,6 +36,7 @@ def handle_webhook(conn_id):
         abort(401)
 
     payload = request.get_json(force=True)
+    logger.info(f"Payload ricevuto: \n {payload}")
     process_trello_event(connection=conn, payload=payload)
     return '', 200
 
