@@ -17,37 +17,33 @@ logger = get_logger("trello", level=logging.DEBUG)
 trello_bp = Blueprint('trello', __name__, url_prefix='/trello')
 
 
-@trello_bp.route('/webhook/<int:conn_id>', methods=['HEAD', 'POST'])
+@trello_bp.route('/webhook/<int:conn_id>', methods=['HEAD','POST'])
 def handle_webhook(conn_id):
-    # log di ingresso (HEAD e POST)
-    logger.info(f"🔔 Webhook hit for conn_id={conn_id}, method={request.method}")
-    # HEAD is Trello’s ping-check
     if request.method == 'HEAD':
-        logger.info("↔️  Trello HEAD check, OK")
+        current_app.logger.info("↔️  Trello HEAD check, OK")
         return '', 200
 
-    # load the exact connection
     conn = TrelloConnection.query.get_or_404(conn_id)
+    raw_body = request.get_data()               # bytes
+    signature = request.headers.get('X-Trello-Webhook','')
 
-    # now validate HMAC
-    raw_body = request.get_data()
-    logger.debug(f"   Raw payload: {raw_body!r}")
-    signature = request.headers.get('X-Trello-Webhook') or ''
-    logger.debug(f"   Signature header: {signature}")
-    secret = f"{conn.api_key}{conn.token}".encode('utf-8')
-    expected = base64.b64encode(hmac.new(secret, raw_body, hashlib.sha1).digest()).decode('utf-8')
+    # Carica il tuo secret dal .env
+    secret = current_app.config['TRELLO_SECRET'].encode('utf-8')
+
+    # Usa raw_body + callbackURL
+    cb_url = conn.callback_url.encode('utf-8')
+    mac = hmac.new(secret, raw_body + cb_url, hashlib.sha1).digest()
+    expected = base64.b64encode(mac).decode('utf-8')
 
     if not hmac.compare_digest(signature, expected):
-        logger.warning(f"❌ HMAC mismatch (got {signature}, expected {expected})")
+        current_app.logger.warning(
+            f"❌ HMAC mismatch (got {signature!r}, expected {expected!r})"
+        )
         abort(401)
 
     payload = request.get_json(force=True)
-    logger.info(f"✅ Valid webhook payload: {json.dumps(payload)}")
-    try:
-        process_trello_event(connection=conn, payload=payload)
-    except Exception:
-        logger.exception("Errore dispatch evento")
-        abort(500)
+    current_app.logger.info(f"🎯 Ricevuto evento Trello per conn_id={conn_id}")
+    process_trello_event(connection=conn, payload=payload)
     return '', 200
 
 
