@@ -60,9 +60,9 @@ PS_PSWD = os.getenv("PRESTASHOP_PASSWORD")
 app = create_app()
 
 app.config['FERNET_KEY'] = os.getenv('FERNET_KEY')
-app.config['TRELLO_KEY'] = os.getenv("APIKEY")
-app.config['TRELLO_SECRET'] = os.getenv("SECRET")
-app.config['TRELLO_TOKEN'] = os.getenv("TOKEN")
+app.config['TRELLO_KEY'] = os.getenv("TRELLO_KEY")
+app.config['TRELLO_SECRET'] = os.getenv("TRELLO_SECRET")
+app.config['TRELLO_TOKEN'] = os.getenv("TRELLO_TOKEN")
 
 
 def regex_search(s, pattern):
