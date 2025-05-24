@@ -53,7 +53,7 @@ def process_trello_event(connection, payload):
             logger.exception(f"Errore eseguendo azione {act.id}: {e}")
 
 
-def send_email(cfg):
+def _send_email(cfg):
     from app import mail
     """
     Invia un'email usando un servizio esterno o SMTP.
