@@ -1,6 +1,8 @@
 import logging
 import sys
 
+from flask_mail import Mail
+
 from routes.importazioni_routes import importazioni_bp
 from routes.logs_display import logs_bp
 from routes.status_routes import status_bp
@@ -58,6 +60,8 @@ PS_USER = os.getenv("PRESTASHOP_USER")
 PS_PSWD = os.getenv("PRESTASHOP_PASSWORD")
 
 app = create_app()
+
+mail = Mail(app)
 
 app.config['FERNET_KEY'] = os.getenv('FERNET_KEY')
 app.config['TRELLO_KEY'] = os.getenv("TRELLO_KEY")

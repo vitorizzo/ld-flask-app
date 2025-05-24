@@ -29,6 +29,12 @@ SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
 SQLALCHEMY_TRACK_MODIFICATIONS = False
 PROJECT_FOLDER = os.path.dirname(os.path.abspath(__file__))
 LOGS_FOLDER = os.path.join(project_root, "logs")
+MAIL_SERVER = os.getenv('MAIL_SERVER')
+MAIL_PORT = int(os.getenv('MAIL_PORT', 25))
+MAIL_USE_TLS = os.getenv('MAIL_USE_TLS') == 'true'
+MAIL_USERNAME = os.getenv('MAIL_USERNAME')
+MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER')
 
 logger.info("DATABASE_URL rilevato: %s", SQLALCHEMY_DATABASE_URI)
 
@@ -50,7 +56,13 @@ def create_app():
         CELERY_BROKER_URL='redis://localhost:6379/0',
         CELERY_RESULT_BACKEND='redis://localhost:6379/0',
         PROJECT_FOLDER=PROJECT_FOLDER,
-        LOGS_FOLDER=LOGS_FOLDER
+        LOGS_FOLDER=LOGS_FOLDER,
+        MAIL_SERVER=MAIL_SERVER,
+        MAIL_PORT=MAIL_PORT,
+        MAIL_USE_TLS=MAIL_USE_TLS,
+        MAIL_USERNAME=MAIL_USERNAME,
+        MAIL_PASSWORD=MAIL_PASSWORD,
+        MAIL_DEFAULT_SENDER=MAIL_DEFAULT_SENDER
     )
     if not app.config['SQLALCHEMY_DATABASE_URI']:
         logger.critical("DATABASE_URL non impostato! Verifica il file .env.")
