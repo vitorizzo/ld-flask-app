@@ -5,7 +5,32 @@
 {% block content %}
 <section class="welcome-section">
   <h2>Azioni per Connessione {{ connection.board_name }} (ID:{{ connection.id }})</h2>
+
+  <!-- … dentro <section class="welcome-section"> … -->
   <button id="btn-add-action">Nuova Azione</button>
+
+  <!-- FORM PER CREARE/MODIFICARE UN’AZIONE -->
+  <div id="action-form-container" style="display:none; margin-top:1em; padding:1em; border:1px solid #ccc;">
+    <h3 id="action-form-title">Nuova Azione</h3>
+    <form id="action-form">
+      <div>
+        <label for="trigger-type">Trigger:</label>
+        <select id="trigger-type" required>
+          <option value="">— scegli trigger —</option>
+        </select>
+      </div>
+      <div>
+        <label for="action-type">Azione:</label>
+        <select id="action-type" required>
+          <option value="">— scegli azione —</option>
+        </select>
+      </div>
+      <!-- Qui dentro inseriremo dinamicamente i campi specifici -->
+      <div id="action-params" style="margin:0.5em 0;"></div>
+      <button type="submit" id="save-action">Salva</button>
+      <button type="button" id="cancel-action">Annulla</button>
+    </form>
+  </div>
   <table id="actions-table">
     <thead>
       <tr>

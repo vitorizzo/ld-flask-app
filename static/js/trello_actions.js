@@ -70,3 +70,112 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(err => console.error('Errore creating action:', err));
     });
 });
+// 0) Lista di trigger e azioni supportate
+const AVAILABLE_TRIGGERS = [
+  'createCard',
+  'updateCard',
+  'moveCard',
+  'commentCard'
+];
+
+const AVAILABLE_ACTIONS = [
+  'sendEmail',
+  'addComment',
+  'mirrorCard'
+];
+
+// 1) Riferimenti al form
+const formContainer = document.getElementById('action-form-container');
+const triggerSelect = document.getElementById('trigger-type');
+const actionSelect  = document.getElementById('action-type');
+const paramsDiv     = document.getElementById('action-params');
+const formTitle     = document.getElementById('action-form-title');
+const saveActionBtn = document.getElementById('save-action');
+const cancelAction  = document.getElementById('cancel-action');
+const actionForm    = document.getElementById('action-form');
+
+// 2) Popola le tendine
+AVAILABLE_TRIGGERS.forEach(t => {
+  const o = document.createElement('option');
+  o.value = t;
+  o.text  = t;
+  triggerSelect.appendChild(o);
+});
+
+AVAILABLE_ACTIONS.forEach(a => {
+  const o = document.createElement('option');
+  o.value = a;
+  o.text  = a;
+  actionSelect.appendChild(o);
+});
+
+// 3) Show/Hide form
+document.getElementById('btn-add-action').addEventListener('click', () => {
+  formTitle.textContent = 'Nuova Azione';
+  actionForm.reset();
+  paramsDiv.innerHTML = '';
+  formContainer.style.display = 'block';
+});
+
+cancelAction.addEventListener('click', () => {
+  formContainer.style.display = 'none';
+});
+
+// 4) Al cambio di “azione” mostriamo i campi necessari (davvero minimal; aggiorneremo presto)
+actionSelect.addEventListener('change', () => {
+  paramsDiv.innerHTML = '';
+  const at = actionSelect.value;
+  if (!at) return;
+  if (at === 'sendEmail') {
+    paramsDiv.innerHTML = `
+      <div>
+        <label>To:      <input type="email" name="to"     required></label>
+      </div>
+      <div>
+        <label>Subject: <input type="text"  name="subject" required></label>
+      </div>
+      <div>
+        <label>Body:    <textarea name="body" rows="3" required></textarea></label>
+      </div>
+    `;
+  }
+  else if (at === 'addComment') {
+    paramsDiv.innerHTML = `
+      <div>
+        <label>Commento:<textarea name="comment" rows="2" required></textarea></label>
+      </div>
+    `;
+  }
+  else if (at === 'mirrorCard') {
+    paramsDiv.innerHTML = `
+      <div>
+        <label>Board ID destinazione: <input type="text" name="target_board_id" required></label>
+      </div>
+      <div>
+        <label>Lista destinazione:     <input type="text" name="target_list_id" required></label>
+      </div>
+    `;
+  }
+});
+
+// 5) Submit del form: serializziamo in JSON e inviamo al server
+actionForm.addEventListener('submit', e => {
+  e.preventDefault();
+  const cfg = { connection_id: connId, trigger_type: triggerSelect.value, action_type: actionSelect.value };
+  // raccogliamo tutti gli input/textarea
+  Array.from(paramsDiv.querySelectorAll('input,textarea')).forEach(fld => {
+    cfg[fld.name] = fld.value;
+  });
+
+  fetch('/trello/actions', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(cfg)
+  })
+  .then(r => {
+    if (!r.ok) throw new Error('Errore creando action');
+    return r.json();
+  })
+  .then(() => location.reload())
+  .catch(err => alert(err));
+});
