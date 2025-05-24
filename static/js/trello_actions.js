@@ -1,6 +1,6 @@
 // trello_actions.js
 document.addEventListener('DOMContentLoaded', () => {
-  const connId = {{ connection.id }};
+  const connId = window.TRELLO_CONN_ID;
   const tbody  = document.querySelector('#actions-table tbody');
 
   // 1) FETCH lista azioni e popola la tabella
