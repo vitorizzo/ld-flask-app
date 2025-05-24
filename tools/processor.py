@@ -45,7 +45,7 @@ def process_trello_event(connection, payload):
         try:
             if act.action_type == 'sendEmail':
                 # Config_json expected: { to, subject, body }
-                _send_email(cfg)
+                _send_email(cfg, payload)
             elif act.action_type == 'internalCall':
                 # Config_json expected: { url, method, headers?, payload? }
                 _internal_call(cfg, context)
@@ -55,7 +55,7 @@ def process_trello_event(connection, payload):
             logger.exception(f"Errore eseguendo azione {act.id}: {e}")
 
 
-def _send_email(cfg):
+def _send_email(cfg, payload):
     from app import mail
     """
     Invia un'email usando un servizio esterno o SMTP.
