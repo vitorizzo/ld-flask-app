@@ -56,13 +56,13 @@ PS_URL = os.getenv("PRESTASHOP_URL")
 PS_KEY = os.getenv("PRESTASHOP_KEY")
 PS_USER = os.getenv("PRESTASHOP_USER")
 PS_PSWD = os.getenv("PRESTASHOP_PASSWORD")
-TRELLO_KEY = os.getenv("APIKEY")
-TRELLO_SECRET = os.getenv("SECRET")
-TRELLO_TOKEN = os.getenv("TOKEN")
 
 app = create_app()
 
 app.config['FERNET_KEY'] = os.getenv('FERNET_KEY')
+app.config['TRELLO_KEY'] = os.getenv("APIKEY")
+app.config['TRELLO_SECRET'] = os.getenv("SECRET")
+app.config['TRELLO_TOKEN'] = os.getenv("TOKEN")
 
 
 def regex_search(s, pattern):
