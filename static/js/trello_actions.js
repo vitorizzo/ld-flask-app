@@ -121,28 +121,35 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 3.6) Submit del form: invia la POST e ricarica
-  actionForm.addEventListener('submit', e => {
-    e.preventDefault();
-    const cfg = {
-      connection_id: connId,
-      trigger_type:  triggerSelect.value,
-      action_type:   actionSelect.value
-    };
-    // raccogliamo i parametri
-    Array.from(paramsDiv.querySelectorAll('input,textarea'))
-      .forEach(fld => cfg[fld.name] = fld.value);
+    actionForm.addEventListener('submit', e => {
+      e.preventDefault();
 
-    fetch('/trello/actions', {
-      method: 'POST',
-      headers: {'Content-Type':'application/json'},
-      body: JSON.stringify(cfg)
-    })
-    .then(r => {
-      if (!r.ok) throw new Error('Errore creando action');
-      return r.json();
-    })
-    .then(() => location.reload())
-    .catch(err => alert(err));
-  });
+      // 1) raccogli i parametri nel “config_json”
+      const params = {};
+      Array.from(paramsDiv.querySelectorAll('input,textarea')).forEach(fld => {
+        params[fld.name] = fld.value;
+      });
+
+      // 2) costruisci il payload completo
+      const payload = {
+        connection_id: connId,
+        trigger_type:  triggerSelect.value,
+        action_type:   actionSelect.value,
+        config_json:   params      // <— qui!
+      };
+
+      // 3) invia
+      fetch('/trello/actions', {
+        method:  'POST',
+        headers: {'Content-Type':'application/json'},
+        body:    JSON.stringify(payload)
+      })
+      .then(r => {
+        if (!r.ok) return r.json().then(err=>Promise.reject(err));
+        return r.json();
+      })
+      .then(() => location.reload())
+      .catch(err => alert(JSON.stringify(err)));
+    });
 
 });
