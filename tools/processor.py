@@ -1,7 +1,6 @@
 import logging
 import requests
 from flask_mail import Message
-from app import mail
 from models import TrelloAction
 
 logger = logging.getLogger(__name__)
@@ -55,6 +54,7 @@ def process_trello_event(connection, payload):
 
 
 def send_email(cfg):
+    from app import mail
     """
     Invia un'email usando un servizio esterno o SMTP.
     cfg: dict con chiavi 'to', 'subject', 'body'
