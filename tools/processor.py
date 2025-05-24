@@ -1,6 +1,8 @@
 import logging
 import requests
 from flask_mail import Message
+from jinja2 import Template
+
 from models import TrelloAction
 
 logger = logging.getLogger(__name__)
@@ -59,10 +61,19 @@ def _send_email(cfg):
     Invia un'email usando un servizio esterno o SMTP.
     cfg: dict con chiavi 'to', 'subject', 'body'
     """
+
+    # ─────────── RENDER TEMPLATE ───────────
+    rendered_cfg = {}
+    for key, val in cfg.items():
+        # val è tipo "Nuova scheda: {{payload.action.data.card.name}}"
+        tpl = Template(val)
+        rendered_cfg[key] = tpl.render(payload=payload)
+    # ────────────────────────────────────────
+
     # Placeholder: integra con il tuo mailer
-    to = cfg.get('to')
-    subject = cfg.get('subject')
-    body = cfg.get('body')
+    to = rendered_cfg.get('to')
+    subject = rendered_cfg.get('subject')
+    body = rendered_cfg.get('body')
     msg = Message(subject,
                   recipients=[to],
                   body=body)
