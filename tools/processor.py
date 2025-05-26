@@ -23,6 +23,7 @@ def process_trello_event(connection, payload):
     trigger_type = action.get('type')
     data = action.get('data', {})
 
+    trigger_type = elabora_trigger(trigger_type, payload)
     # Recupera le azioni configurate in DB
     actions = TrelloAction.query.filter_by(
         connection_id=connection.id,
@@ -53,12 +54,23 @@ def process_trello_event(connection, payload):
                 case 'internalCall':
                     # Config_json expected: { url, method, headers?, payload? }
                     _internal_call(cfg, context)
-                case 'commentFromTo':
+                case 'addComment':
                     comment_from_to(payload)
                 case _:
                     logger.warning(f"Action type non riconosciuto: {act.action_type}")
         except Exception as e:
             logger.exception(f"Errore eseguendo azione {act.id}: {e}")
+
+
+def elabora_trigger(type, payload):
+    match type:
+        case 'updateCard':
+            if is_moved(payload):
+                return 'moveCard'
+            else:
+                return type
+        case _:
+            return type
 
 
 def is_moved(payload):
