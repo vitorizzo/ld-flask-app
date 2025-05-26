@@ -74,9 +74,13 @@ def elabora_trigger(type, payload):
 
 
 def is_moved(payload):
-    da_list = payload.action.data.listBefore.id
-    a_list = payload.action.data.listAfter.id
-    return da_list == a_list
+    try:
+        b = payload['action']['data']['listBefore']['id']
+        a = payload['action']['data']['listAfter']['id']
+    except KeyError:
+        return False
+    return b != a
+
 
 
 def comment_from_to(payload):
