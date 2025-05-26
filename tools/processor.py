@@ -82,13 +82,12 @@ def is_moved(payload):
     return b != a
 
 
-
 def comment_from_to(payload):
-    provenienza = payload.action.data.listBefore.name
-    destinazione = payload.action.data.listAfter.name
-    membro = payload.action.memberCreator.username
+    provenienza = payload['action']['data']['listBefore']['name']
+    destinazione = payload['action']['data']['listAfter']['name']
+    membro = payload['action']['memberCreator']['username']
     message = f"{membro} ha spostato la card da {provenienza} a {destinazione}."
-    trello.add_comment_to_card(payload.action.data.card.id, message)
+    trello.add_comment_to_card(payload['action']['data']['card']['id'], message)
 
 
 def _send_email(cfg, payload):
