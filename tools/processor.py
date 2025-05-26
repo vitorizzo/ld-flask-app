@@ -4,8 +4,11 @@ from flask_mail import Message
 from jinja2 import Template
 
 from models import TrelloAction
+from tools.trello_api import TrelloAPI
 
 logger = logging.getLogger(__name__)
+
+trello = TrelloAPI()  # legge TRELLO_KEY e TRELLO_TOKEN dall'env
 
 
 def process_trello_event(connection, payload):
@@ -43,16 +46,33 @@ def process_trello_event(connection, payload):
         logger.info(f"Esecuzione azione {act.action_type} per trigger {trigger_type}")
         cfg = act.config_json or {}
         try:
-            if act.action_type == 'sendEmail':
-                # Config_json expected: { to, subject, body }
-                _send_email(cfg, payload)
-            elif act.action_type == 'internalCall':
-                # Config_json expected: { url, method, headers?, payload? }
-                _internal_call(cfg, context)
-            else:
-                logger.warning(f"Action type non riconosciuto: {act.action_type}")
+            match act.action_type:
+                case 'sendEmail':
+                    # Config_json expected: { to, subject, body }
+                    _send_email(cfg, payload)
+                case 'internalCall':
+                    # Config_json expected: { url, method, headers?, payload? }
+                    _internal_call(cfg, context)
+                case 'commentFromTo':
+                    comment_from_to(payload)
+                case _:
+                    logger.warning(f"Action type non riconosciuto: {act.action_type}")
         except Exception as e:
             logger.exception(f"Errore eseguendo azione {act.id}: {e}")
+
+
+def is_moved(payload):
+    da_list = payload.action.data.listBefore.id
+    a_list = payload.action.data.listAfter.id
+    return da_list == a_list
+
+
+def comment_from_to(payload):
+    provenienza = payload.action.data.listBefore.name
+    destinazione = payload.action.data.listAfter.name
+    membro = payload.action.memberCreator.username
+    message = f"{membro} ha spostato la card da {provenienza} a {destinazione}."
+    trello.add_comment_to_card(payload.action.data.card.id, message)
 
 
 def _send_email(cfg, payload):
