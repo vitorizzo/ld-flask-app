@@ -66,7 +66,7 @@ def list_connections():
     ]), 200
 
 
-@trello_bp.route('/connection/reset_webhooks', methods=['POST'])
+@trello_bp.route('/connection/reset_webhooks', methods=['POST', 'GET'])
 def reset_all_webhooks():
     """
     Per ogni TrelloConnection in DB:
