@@ -66,6 +66,53 @@ def list_connections():
     ]), 200
 
 
+@trello_bp.route('/connection/reset_webhooks', methods=['POST'])
+def reset_all_webhooks():
+    """
+    Per ogni TrelloConnection in DB:
+    - cancella il vecchio webhook (se presente)
+    - ricrea un nuovo webhook puntando allo stesso callback_url
+    - aggiorna webhook_id in tabella
+    Restituisce un report JSON con id di connessione, webhook vecchio/nuovo e eventuali errori.
+    """
+    results = []
+    conns = TrelloConnection.query.all()
+    for conn in conns:
+        old_wh = conn.webhook_id
+        # 1) cancello il vecchio
+        if old_wh:
+            try:
+                delete_webhook(old_wh)
+            except TrelloClientError as e:
+                logger.warning(f"Non ho potuto cancellare webhook {old_wh}: {e}")
+
+        # 2) (ri)costruisco il callback (in genere non cambia)
+        cb = url_for('trello.handle_webhook', conn_id=conn.id, _external=True)
+        conn.callback_url = cb
+
+        # 3) provo a creare il nuovo webhook
+        try:
+            new_wh = create_webhook(conn.board_id, cb)
+            conn.webhook_id = new_wh
+            db.session.commit()
+            results.append({
+                'connection_id': conn.id,
+                'old_webhook':   old_wh,
+                'new_webhook':   new_wh,
+                'status':        'ok'
+            })
+        except TrelloClientError as e:
+            db.session.rollback()
+            results.append({
+                'connection_id': conn.id,
+                'old_webhook':   old_wh,
+                'error':         str(e),
+                'status':        'error'
+            })
+
+    return jsonify(results), 200
+
+
 @trello_bp.route('/connection/<int:id>', methods=['GET'])
 def get_connection(id):
     conn = TrelloConnection.query.get_or_404(id)
@@ -83,33 +130,41 @@ def get_connection(id):
 @trello_bp.route('/connection', methods=['POST'])
 def create_connection():
     data = request.get_json()
-    # … your validation …
-    conn = TrelloConnection(
-      board_id=data['board_id'],
-      board_name=data['board_name'],
-      api_key=data['api_key'],
-      token=data['token'],
-    )
+
+    # 1) Validazione minima
     for f in ('board_id', 'board_name', 'api_key', 'token'):
         if not data.get(f):
             return jsonify({'error': f"Campo mancante: {f}"}), 400
-    db.session.add(conn)
-    db.session.commit()
 
-    # build and store the per-connection callback URL
+    # 2) Creo il record in DB (senza callback_url né webhook_id per ora)
+    conn = TrelloConnection(
+        board_id   = data['board_id'],
+        board_name = data['board_name'],
+        api_key    = data['api_key'],
+        token      = data['token']
+    )
+    db.session.add(conn)
+    db.session.commit()   # <-- qui conn.id viene assegnato dal DB
+
+    # 3) Genero automaticamente il callback_url basato su conn.id
     cb = url_for('trello.handle_webhook', conn_id=conn.id, _external=True)
     conn.callback_url = cb
+    db.session.commit()   # <-- salvo il campo callback_url
 
+    # 4) Chiamo l’API di Trello per creare il webhook
     try:
         webhook_id = create_webhook(conn.board_id, cb)
     except TrelloClientError as e:
+        # se fallisce, rollback: rimuovo il record DB
         db.session.delete(conn)
         db.session.commit()
         return jsonify({'error': str(e)}), 400
 
+    # 5) Se va a buon fine, salvo anche l’ID del webhook
     conn.webhook_id = webhook_id
     db.session.commit()
 
+    # 6) Rispondo con il nuovo ID di connessione e di webhook
     return jsonify({'id': conn.id, 'webhook_id': webhook_id}), 201
 
 
