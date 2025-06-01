@@ -104,7 +104,8 @@ document.addEventListener('DOMContentLoaded', () => {
     btnAdd.addEventListener('click', () => {
         formTitle.textContent = 'Nuova Azione';
         actionForm.reset();
-        paramsDiv.innerHTML = '';
+        triggerParamsDiv.innerHTML = '';
+        actionParamsDiv.innerHTML = '';
         formContainer.style.display = 'block';
     });
     cancelAction.addEventListener('click', () => {
