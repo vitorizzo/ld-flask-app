@@ -97,9 +97,9 @@ def reset_all_webhooks():
             db.session.commit()
             results.append({
                 'connection_id': conn.id,
-                'old_webhook':   old_wh,
-                'new_webhook':   new_wh,
-                'status':        'ok'
+                'old_webhook': old_wh,
+                'new_webhook': new_wh,
+                'status': 'ok'
             })
         except TrelloClientError as e:
             db.session.rollback()
@@ -138,10 +138,10 @@ def create_connection():
 
     # 2) Creo il record in DB (senza callback_url né webhook_id per ora)
     conn = TrelloConnection(
-        board_id   = data['board_id'],
-        board_name = data['board_name'],
-        api_key    = data['api_key'],
-        token      = data['token']
+        board_id=data['board_id'],
+        board_name=data['board_name'],
+        api_key=data['api_key'],
+        token=data['token']
     )
     db.session.add(conn)
     db.session.commit()   # <-- qui conn.id viene assegnato dal DB
@@ -171,7 +171,7 @@ def create_connection():
 @trello_bp.route('/connection/<int:id>', methods=['PUT'])
 def update_connection(id):
     data = request.get_json()
-    conn  = TrelloConnection.query.get_or_404(id)
+    conn = TrelloConnection.query.get_or_404(id)
 
     # 1) aggiorno solo se è cambiato (evito di ricreare webhook a ogni PUT)
     for attr in ('board_name','api_key','token'):
@@ -193,7 +193,7 @@ def update_connection(id):
             # restituisco un 400 con l’errore di Trello, così vedi causa e non 500
             return jsonify({'error': str(e)}), 400
 
-        conn.webhook_id    = new_wh
+        conn.webhook_id = new_wh
         conn.callback_url = data['callback_url']
 
     db.session.commit()

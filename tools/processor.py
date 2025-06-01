@@ -56,6 +56,8 @@ def process_trello_event(connection, payload):
                     _internal_call(cfg, context)
                 case 'addComment':
                     comment_from_to(payload)
+                case 'sendSlackMessage':
+                    _send_slack_message(payload)
                 case _:
                     logger.warning(f"Action type non riconosciuto: {act.action_type}")
         except Exception as e:
@@ -63,14 +65,17 @@ def process_trello_event(connection, payload):
 
 
 def elabora_trigger(type, payload):
+    trigger_type = []
+
     match type:
         case 'updateCard':
             if is_moved(payload):
-                return 'moveCard'
+                trigger_type.append('moveCard')
             else:
-                return type
+                trigger_type.append(type)
         case _:
-            return type
+            trigger_type.append(type)
+    return trigger_type
 
 
 def is_moved(payload):
@@ -119,6 +124,10 @@ def _send_email(cfg, payload):
     #     'https://api.mailservice.local/send',
     #     json={'to': to, 'subject': subject, 'body': body}
     # )
+
+
+def _send_slack_message(payload):
+    pass
 
 
 def _internal_call(cfg, context):
