@@ -285,6 +285,18 @@ def create_action():
     return jsonify({'id': action.id}), 201
 
 
+@trello_bp.route('/actions/<int:action_id>')
+def get_action(action_id):
+    action = TrelloAction.query.get_or_404(action_id)
+    return jsonify({
+        'id': action.id,
+        'connection_id': action.connection_id,
+        'trigger_type': action.trigger_type,
+        'action_type': action.action_type,
+        'config_json': action.config_json
+    })
+
+
 @trello_bp.route('/actions/<int:id>', methods=['PUT'])
 def update_action(id):
     """

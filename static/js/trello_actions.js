@@ -33,8 +33,37 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(() => location.reload());
         }
         if (btn.classList.contains('btn-edit')) {
-            alert('Implementa qui la modifica per action ' + id);
+          fetch(`/trello/actions/${id}`)
+            .then(r => r.json())
+            .then(action => {
+              editingActionId = id;
+              formTitle.textContent = 'Modifica Azione';
+              formContainer.style.display = 'block';
+
+              // imposta valori trigger/action
+              triggerSelect.value = action.trigger_type;
+              actionSelect.value  = action.action_type;
+
+              // disegna i campi
+              renderFields(TRIGGER_FIELDS[action.trigger_type] || [], triggerParamsDiv);
+              renderFields(ACTION_FIELDS[action.action_type]  || [], actionParamsDiv);
+
+              // riempi i valori nei campi
+              const config = action.config_json || {};
+              [triggerParamsDiv, actionParamsDiv].forEach(container => {
+                Array.from(container.querySelectorAll('input,textarea')).forEach(fld => {
+                  if (config[fld.name] !== undefined) {
+                    fld.value = config[fld.name];
+                  }
+                });
+              });
+
+              // mostra pulsante corretto
+              document.getElementById('save-action').style.display = 'none';
+              document.getElementById('update-action').style.display = 'inline-block';
+            });
         }
+
     });
 
     //
@@ -87,6 +116,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const actionParamsDiv = document.getElementById('action-params');
     const actionForm = document.getElementById('action-form');
     const cancelAction = document.getElementById('cancel-action');
+    let editingActionId = null;
+
 
     // 3.3) Popola le tendine
     AVAILABLE_TRIGGERS.forEach(t => {
@@ -110,7 +141,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     cancelAction.addEventListener('click', () => {
         formContainer.style.display = 'none';
+        editingActionId = null;
+        triggerParamsDiv.innerHTML = '';
+        actionParamsDiv.innerHTML = '';
+        document.getElementById('save-action').style.display = 'inline-block';
+        document.getElementById('update-action').style.display = 'none';
     });
+
 
     // 3.5) Al cambio di “azione”, disegna i campi specifici
     function renderFields(fieldDefs, container) {
@@ -153,7 +190,6 @@ document.addEventListener('DOMContentLoaded', () => {
     actionForm.addEventListener('submit', e => {
         e.preventDefault();
 
-        // 1) raccogli i parametri nel “config_json”
         const params = {};
         [triggerParamsDiv, actionParamsDiv].forEach(container => {
             Array.from(container.querySelectorAll('input,textarea')).forEach(fld => {
@@ -161,27 +197,28 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
-
-        // 2) costruisci il payload completo
         const payload = {
             connection_id: connId,
             trigger_type:  triggerSelect.value,
             action_type:   actionSelect.value,
-            config_json:   params      // <— qui!
+            config_json:   params
         };
 
-        // 3) invia
-        fetch('/trello/actions', {
-            method:  'POST',
-            headers: {'Content-Type':'application/json'},
-            body:    JSON.stringify(payload)
+        const url = editingActionId ? `/trello/actions/${editingActionId}` : '/trello/actions';
+        const method = editingActionId ? 'PUT' : 'POST';
+
+        fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
         })
         .then(r => {
-            if (!r.ok) return r.json().then(err=>Promise.reject(err));
-                return r.json();
-            })
+            if (!r.ok) return r.json().then(err => Promise.reject(err));
+            return r.json();
+        })
         .then(() => location.reload())
         .catch(err => alert(JSON.stringify(err)));
     });
+
 
 });
