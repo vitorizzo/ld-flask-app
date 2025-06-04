@@ -79,9 +79,22 @@ document.addEventListener('DOMContentLoaded', () => {
         'sendEmail', 'addComment', 'mirrorCard', 'sendSlackMessage'
     ];
 
+    const PLACEHOLDER_LIST = [
+        '{{user}}',
+        '{{card.name}}',
+        '{{card.id}}',
+        '{{card.url}}',
+        '{{list.name}}',
+        '{{list.id}}',
+        '{{board.name}}',
+        '{{board.id}}',
+        '{{comment.text}}'
+    ];
+
+
     const TRIGGER_FIELDS = {
         moveToList: [
-            { name: 'list_id', label: 'ID Lista di Destinazione', type: 'text', required: true }
+            { name: 'list_id', label: 'ID Lista di Destinazione', type: 'text', required: true, placeholder: '640c3f36b45cebb4ad052254' }
         ],
         // altri trigger in futuro...
     };
@@ -100,8 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
             { name: 'target_list_id', type: 'text', label: 'Lista destinazione', required: true }
         ],
         sendSlackMessage: [
-            { name: 'channel', type: 'text', label: 'Canale Slack', required: true },
-            { name: 'message', type: 'textarea', label: 'Messaggio', required: true }
+            { name: 'channel', type: 'text', label: 'Canale Slack', required: true, placeholder: '#nome-canale' },
+            { name: 'message', type: 'textarea', label: 'Messaggio', required: true, placeholder: 'Esempio: La card {{card.name}} è stata spostata da {{user}}' }
         ]
     };
 
@@ -160,12 +173,39 @@ document.addEventListener('DOMContentLoaded', () => {
             if (field.type === 'textarea') {
                 input = document.createElement('textarea');
                 input.rows = 3;
+
+                // Aggiungi selettore di placeholder
+                const selector = document.createElement('select');
+                selector.innerHTML = `<option value="">+ Inserisci variabile...</option>`;
+                PLACEHOLDER_LIST.forEach(ph => {
+                  const opt = document.createElement('option');
+                  opt.value = ph;
+                  opt.textContent = ph;
+                  selector.appendChild(opt);
+                });
+
+                selector.addEventListener('change', () => {
+                  const ph = selector.value;
+                  if (!ph) return;
+                  // Inserisce il segnaposto alla posizione del cursore
+                  const start = input.selectionStart;
+                  const end   = input.selectionEnd;
+                  const text  = input.value;
+                  input.value = text.slice(0, start) + ph + text.slice(end);
+                  input.focus();
+                  input.selectionEnd = start + ph.length;
+                  selector.value = '';
+                });
+
+                wrapper.appendChild(selector); // metti sopra o sotto il textarea
             } else {
                 input = document.createElement('input');
                 input.type = field.type;
             }
+
             input.name = field.name;
             if (field.required) input.required = true;
+            if (field.placeholder) input.placeholder = field.placeholder;
             label.appendChild(input);
             wrapper.appendChild(label);
             container.appendChild(wrapper);
