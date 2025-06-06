@@ -35,17 +35,19 @@ def process_trello_event(connection, payload):
     if isinstance(trigger_type, list):
         if len(trigger_type) == 1:
             trigger_type = trigger_type[0]
+            logger.info(f"trigger_type ridefinito in {trigger_type}")
         else:
             actions = TrelloAction.query.filter(
                 TrelloAction.connection_id == connection.id,
                 TrelloAction.trigger_type.in_(trigger_type)
             ).all()
+
     else:
         actions = TrelloAction.query.filter_by(
             connection_id=connection.id,
             trigger_type=trigger_type
         ).all()
-
+    logger.info(f"Actions trovate: {actions}")
     # fallback nel caso trigger_type fosse una lista vuota o errore
     if 'actions' not in locals():
         actions = []
