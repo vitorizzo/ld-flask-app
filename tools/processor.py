@@ -24,22 +24,27 @@ def process_trello_event(connection, payload):
     data = action.get('data', {})
 
     trigger_type = elabora_trigger(trigger_type, payload)
-    if isinstance(trigger_type, list) and len(trigger_type) == 1:
-        trigger_type = trigger_type[0]
-    elif isinstance(trigger_type, list):
-        # se in futuro supporti più trigger, usa .in_()
-        actions = TrelloAction.query.filter(
-            TrelloAction.connection_id == connection.id,
-            TrelloAction.trigger_type.in_(trigger_type)
-        ).all()
+
+    # Normalizzazione
+    if isinstance(trigger_type, list):
+        if len(trigger_type) == 1:
+            trigger_type = trigger_type[0]
+        else:
+            actions = TrelloAction.query.filter(
+                TrelloAction.connection_id == connection.id,
+                TrelloAction.trigger_type.in_(trigger_type)
+            ).all()
     else:
         actions = TrelloAction.query.filter_by(
             connection_id=connection.id,
             trigger_type=trigger_type
         ).all()
 
+    # fallback nel caso trigger_type fosse una lista vuota o errore
+    if 'actions' not in locals():
+        actions = []
+
     if not actions:
-        logger.debug(f"Nessuna azione configurata per trigger {trigger_type}")
         return
 
     # Dati di contesto comuni
