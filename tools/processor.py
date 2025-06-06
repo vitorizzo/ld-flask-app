@@ -54,12 +54,15 @@ def process_trello_event(connection, payload):
         card = data['card']
         context['card_id'] = card.get('id')
         context['card_name'] = card.get('name')
+        logger.info(f"card passata {card.get('name')}")
 
     # Per ogni azione, esegui la logica
     for act in actions:
         logger.info(f"Esecuzione azione {act.action_type} per trigger {trigger_type}")
         cfg = act.config_json or {}
         try:
+            logger.info(f"action richiesta: {act.action_type}")
+            logger.info(f"contenuto cfg: {cfg}")
             match act.action_type:
                 case 'sendEmail':
                     # Config_json expected: { to, subject, body }
@@ -68,7 +71,7 @@ def process_trello_event(connection, payload):
                     # Config_json expected: { url, method, headers?, payload? }
                     _internal_call(cfg, context)
                 case 'addComment':
-                    comment_from_to(payload)
+                    comment_from_to(cfg, payload)
                 case 'sendSlackMessage':
                     _send_slack_message(payload)
                 case _:
@@ -100,7 +103,7 @@ def is_moved(payload):
     return b != a
 
 
-def comment_from_to(payload):
+def comment_from_to(cfg, payload):
     try:
         provenienza = payload['action']['data']['listBefore']['name']
         destinazione = payload['action']['data']['listAfter']['name']
