@@ -32,22 +32,17 @@ def process_trello_event(connection, payload):
     logger.info(f"trigger rilevato: {trigger_type}")
 
     # Normalizzazione
-    if isinstance(trigger_type, list):
-        if len(trigger_type) == 1:
-            trigger_type = trigger_type[0]
-            logger.info(f"trigger_type ridefinito in {trigger_type}")
-        else:
-            actions = TrelloAction.query.filter(
-                TrelloAction.connection_id == connection.id,
-                TrelloAction.trigger_type.in_(trigger_type)
-            ).all()
+    # Assicuriamoci che trigger_type sia una lista
+    if not isinstance(trigger_type, list):
+        trigger_type = [trigger_type]
 
-    else:
-        actions = TrelloAction.query.filter_by(
-            connection_id=connection.id,
-            trigger_type=trigger_type
-        ).all()
-    logger.info(f"Actions trovate: {actions}")
+    # Query su tutti i tipi di trigger in lista
+    actions = TrelloAction.query.filter(
+        TrelloAction.connection_id == connection.id,
+        TrelloAction.trigger_type.in_(trigger_type)
+    ).all()
+
+    logger.info(f"Trovate {len(actions)} azioni per i trigger: {trigger_type}")
     # fallback nel caso trigger_type fosse una lista vuota o errore
     if 'actions' not in locals():
         actions = []
