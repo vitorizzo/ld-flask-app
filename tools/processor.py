@@ -20,12 +20,16 @@ def process_trello_event(connection, payload):
     - Recupera tutte le TrelloAction associate alla connection e al trigger
     - Esegue per ognuna l'azione specificata in action_type
     """
+
+    logger.info(f"Chiamata process_trello_event con \nconnection:\n {connection} \ne payload:\n {payload}")
     # Estrai tipo di trigger
     action = payload.get('action', {})
     trigger_type = action.get('type')
     data = action.get('data', {})
 
     trigger_type = elabora_trigger(trigger_type, payload)
+
+    logger.info(f"trigger rilevato: {trigger_type}")
 
     # Normalizzazione
     if isinstance(trigger_type, list):
