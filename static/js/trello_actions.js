@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
             <td>${a.id}</td>
+            <td>${a.ordine || ''}</td>
             <td>${a.trigger_type}</td>
             <td>${a.action_type}</td>
             <td><pre>${JSON.stringify(a.config_json, null, 2)}</pre></td>
@@ -30,33 +31,43 @@ document.addEventListener('DOMContentLoaded', () => {
     if (btn.classList.contains('btn-del')) {
         if (!confirm('Sei sicuro di eliminare?')) return;
         fetch(`/trello/actions/${id}`, { method: 'DELETE' })
-            .then(() => location.reload());
-        }
-        if (btn.classList.contains('btn-edit')) {
-          fetch(`/trello/actions/${id}`)
-            .then(r => r.json())
-            .then(action => {
-              editingActionId = id;
-              formTitle.textContent = 'Modifica Azione';
-              formContainer.style.display = 'block';
+        .then(() => {
+            formContainer.style.display = 'none';
+            editingActionId = null;
+            triggerParamsDiv.innerHTML = '';
+            actionParamsDiv.innerHTML = '';
+            document.getElementById('save-action').style.display = 'inline-block';
+            document.getElementById('update-action').style.display = 'none';
+            location.reload();
+        });
+    }
 
-              // imposta valori trigger/action
-              triggerSelect.value = action.trigger_type;
-              actionSelect.value  = action.action_type;
+    if (btn.classList.contains('btn-edit')) {
+        fetch(`/trello/actions/${id}`)
+        .then(r => r.json())
+        .then(action => {
+            editingActionId = id;
+            ordineInput.value = action.ordine || 0;
+            formTitle.textContent = 'Modifica Azione';
+            formContainer.style.display = 'block';
 
-              // disegna i campi
-              renderFields(TRIGGER_FIELDS[action.trigger_type] || [], triggerParamsDiv);
-              renderFields(ACTION_FIELDS[action.action_type]  || [], actionParamsDiv);
+            // imposta valori trigger/action
+            triggerSelect.value = action.trigger_type;
+            actionSelect.value  = action.action_type;
 
-              // riempi i valori nei campi
-              const config = action.config_json || {};
-              [triggerParamsDiv, actionParamsDiv].forEach(container => {
+            // disegna i campi
+            renderFields(TRIGGER_FIELDS[action.trigger_type] || [], triggerParamsDiv);
+            renderFields(ACTION_FIELDS[action.action_type]  || [], actionParamsDiv);
+
+            // riempi i valori nei campi
+            const config = action.config_json || {};
+            [triggerParamsDiv, actionParamsDiv].forEach(container => {
                 Array.from(container.querySelectorAll('input,textarea')).forEach(fld => {
-                  if (config[fld.name] !== undefined) {
-                    fld.value = config[fld.name];
-                  }
+                    if (config[fld.name] !== undefined) {
+                        fld.value = config[fld.name];
+                    }
                 });
-              });
+            });
 
               // mostra pulsante corretto
               document.getElementById('save-action').style.display = 'none';
@@ -129,6 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const actionParamsDiv = document.getElementById('action-params');
     const actionForm = document.getElementById('action-form');
     const cancelAction = document.getElementById('cancel-action');
+    const ordineInput = document.getElementById('ordine');
     let editingActionId = null;
 
 
@@ -237,11 +249,18 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
 
+        if (!triggerSelect.value || !actionSelect.value) {
+            alert('Seleziona sia un trigger che un’azione.');
+            return;
+        }
+
         const payload = {
             connection_id: connId,
+            ordine: parseInt(ordineInput.value) || 0,
             trigger_type:  triggerSelect.value,
             action_type:   actionSelect.value,
             config_json:   params
+
         };
 
         const url = editingActionId ? `/trello/actions/${editingActionId}` : '/trello/actions';
@@ -256,7 +275,16 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!r.ok) return r.json().then(err => Promise.reject(err));
             return r.json();
         })
-        .then(() => location.reload())
+        .then(() => {
+            alert(editingActionId ? 'Azione aggiornata con successo!' : 'Azione creata con successo!');
+            formContainer.style.display = 'none';
+            editingActionId = null;
+            triggerParamsDiv.innerHTML = '';
+            actionParamsDiv.innerHTML = '';
+            document.getElementById('save-action').style.display = 'inline-block';
+            document.getElementById('update-action').style.display = 'none';
+            location.reload();
+        })
         .catch(err => alert(JSON.stringify(err)));
     });
 

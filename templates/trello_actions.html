@@ -14,18 +14,23 @@
     <h3 id="action-form-title"></h3>
     <form id="action-form">
       <div>
-        <label>Trigger:
-          <select id="trigger-type" required>
-            <option value="">-- Scegli trigger --</option>
-          </select>
-        </label>
+          <label>Ordine di esecuzione:
+            <input type="number" id="ordine" min="0" />
+          </label>
       </div>
       <div>
-        <label>Azione:
-          <select id="action-type" required>
-            <option value="">-- Scegli azione --</option>
-          </select>
-        </label>
+          <label>Trigger:
+              <select id="trigger-type" required>
+                  <option value="">-- Scegli trigger --</option>
+              </select>
+          </label>
+      </div>
+      <div>
+          <label>Azione:
+              <select id="action-type" required>
+                  <option value="">-- Scegli azione --</option>
+              </select>
+          </label>
       </div>
       <div id="trigger-params" style="margin:0.5em 0;">
           <!-- Parametri specifici del trigger -->
@@ -43,7 +48,7 @@
   <table id="actions-table">
     <thead>
       <tr>
-        <th>ID</th><th>Trigger</th><th>Azione</th><th>Config</th><th>Azioni</th>
+        <th>ID</th><th>Ordine</th><th>Trigger</th><th>Azione</th><th>Config</th><th>Azioni</th>
       </tr>
     </thead>
     <tbody></tbody>

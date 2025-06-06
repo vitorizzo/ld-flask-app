@@ -290,6 +290,7 @@ def get_action(action_id):
     action = TrelloAction.query.get_or_404(action_id)
     return jsonify({
         'id': action.id,
+        'ordine': action.ordine,
         'connection_id': action.connection_id,
         'trigger_type': action.trigger_type,
         'action_type': action.action_type,
@@ -306,7 +307,7 @@ def update_action(id):
     action = TrelloAction.query.get_or_404(id)
     data = request.get_json()
 
-    for attr in ('trigger_type','action_type','config_json'):
+    for attr in ('trigger_type','action_type','config_json','ordine'):
         if attr in data:
             setattr(action, attr, data[attr])
 

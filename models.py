@@ -254,7 +254,7 @@ class TrelloConnection(db.Model):
     schema_json = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc), nullable=False)
-
+    ordine = db.Column(db.Integer, default=0)
     actions = db.relationship('TrelloAction', back_populates='connection', cascade='all, delete-orphan')
 
 
