@@ -4,10 +4,10 @@ from flask_mail import Message
 from jinja2 import Template
 
 from models import TrelloAction
+from tools.log_utils import get_logger
 from tools.trello_api import TrelloAPI
 
-logger = logging.getLogger(__name__)
-
+logger = get_logger("processor", level=logging.DEBUG)
 trello = TrelloAPI()  # legge TRELLO_KEY e TRELLO_TOKEN dall'env
 
 
