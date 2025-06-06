@@ -101,11 +101,17 @@ def is_moved(payload):
 
 
 def comment_from_to(payload):
-    provenienza = payload['action']['data']['listBefore']['name']
-    destinazione = payload['action']['data']['listAfter']['name']
-    membro = payload['action']['memberCreator']['fullName']
-    message = f"{membro} ha spostato la card da \'{provenienza}\' a \'{destinazione}\'."
-    trello.add_comment_to_card(payload['action']['data']['card']['id'], message)
+    try:
+        provenienza = payload['action']['data']['listBefore']['name']
+        destinazione = payload['action']['data']['listAfter']['name']
+        membro = payload['action']['memberCreator']['fullName']
+        card_id = payload['action']['data']['card']['id']
+        message = f"{membro} ha spostato la card da '{provenienza}' a '{destinazione}'."
+
+        logger.info(f"[COMMENTO] Aggiunta commento alla card {card_id}: {message}")
+        trello.add_comment_to_card(card_id, message)
+    except Exception as e:
+        logger.exception(f"Errore durante l'aggiunta del commento: {e}")
 
 
 def _send_email(cfg, payload):
