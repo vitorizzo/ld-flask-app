@@ -8,6 +8,8 @@ from tools.log_utils import get_logger
 from tools.trello_api import TrelloAPI
 
 logger = get_logger("processor", level=logging.DEBUG)
+logger.debug("🧪 Logger 'processor' inizializzato correttamente - test DEBUG")
+
 trello = TrelloAPI()  # legge TRELLO_KEY e TRELLO_TOKEN dall'env
 
 

@@ -9,7 +9,6 @@ from tools.log_utils import log_task, get_logger
 print("🧩 MODULO elaborazioni_sconti.py IMPORTATO")
 logger = get_logger("sconti", level=logging.DEBUG)
 logger.debug("🧪 Logger 'sconti' inizializzato correttamente - test DEBUG")
-logger.info("🧪 Logger 'sconti' inizializzato correttamente - test INFO")
 
 sconti_bp = Blueprint('sconti', __name__, template_folder='../templates')
 

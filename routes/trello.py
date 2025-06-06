@@ -14,6 +14,8 @@ from tools.trello_client import create_webhook, delete_webhook, TrelloClientErro
 from tools.processor import process_trello_event  # da implementare al punto 6
 
 logger = get_logger("trello", level=logging.DEBUG)
+logger.debug("🧪 Logger 'trello' inizializzato correttamente - test DEBUG")
+
 trello_bp = Blueprint('trello', __name__, url_prefix='/trello')
 
 
