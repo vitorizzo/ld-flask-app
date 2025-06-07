@@ -95,6 +95,8 @@ document.addEventListener('DOMContentLoaded', () => {
         '{{card.name}}',
         '{{card.id}}',
         '{{card.url}}',
+        '{{listbefore.name}}',
+        '{{listafter.name}}',
         '{{list.name}}',
         '{{list.id}}',
         '{{board.name}}',
@@ -117,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
             { name: 'body', type: 'textarea', label: 'Body', required: true }
         ],
         addComment: [
-            { name: 'comment', type: 'textarea', label: 'Commento', required: true }
+            { name: 'comment', type: 'textarea', label: 'Commento', required: true, placeholder: 'Esempio: La card {{card.name}} è stata spostata da {{user}}' }
         ],
         mirrorCard: [
             { name: 'target_board_id', type: 'text', label: 'Board ID destinazione', required: true },
