@@ -64,7 +64,7 @@ def list_connections():
             'board_name': c.board_name,
             'webhook_id': c.webhook_id,
             'created_at': c.created_at.isoformat(),
-            'updated_at': c.updated_at.isoformat(),
+            'updated_at': c.updated_at.isoformat() if c.updated_at else 'N/A',
         }
         for c in conns
     ]), 200
