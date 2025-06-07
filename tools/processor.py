@@ -112,7 +112,7 @@ def comment_from_to(cfg, payload):
         destinazione = payload['action']['data']['listAfter']['name']
         membro = payload['action']['memberCreator']['fullName']
         card_id = payload['action']['data']['card']['id']
-        message = f"{membro} ha spostato la card da '{provenienza}' a '{destinazione}'."
+        message = cfg.get('comment')
 
         logger.info(f"[COMMENTO] Aggiunta commento alla card {card_id}: {message}")
         trello.add_comment_to_card(card_id, message)
