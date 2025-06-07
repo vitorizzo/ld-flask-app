@@ -108,6 +108,7 @@ def is_moved(payload):
 
 def comment_from_to(cfg, payload):
     try:
+        card_id = payload['action']['data']['card']['id']
         context = {
             'user': payload['action']['memberCreator']['fullName'],
             'card': payload['action']['data'].get('card', {}),
