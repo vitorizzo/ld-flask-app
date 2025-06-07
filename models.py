@@ -253,7 +253,7 @@ class TrelloConnection(db.Model):
     webhook_id = db.Column(db.String(255), nullable=True)
     schema_json = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc), nullable=True)
     ordine = db.Column(db.Integer, default=0)
     actions = db.relationship('TrelloAction', back_populates='connection', cascade='all, delete-orphan')
 
@@ -267,5 +267,5 @@ class TrelloAction(db.Model):
     action_type = db.Column(db.String(64), nullable=False)
     config_json = db.Column(db.JSON, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), nullable=False)
-
+    ordine = db.Column(db.Integer, default=0)
     connection = db.relationship('TrelloConnection', back_populates='actions')
