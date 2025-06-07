@@ -108,11 +108,19 @@ def is_moved(payload):
 
 def comment_from_to(cfg, payload):
     try:
-        provenienza = payload['action']['data']['listBefore']['name']
-        destinazione = payload['action']['data']['listAfter']['name']
-        membro = payload['action']['memberCreator']['fullName']
-        card_id = payload['action']['data']['card']['id']
-        message = cfg.get('comment')
+        context = {
+            'user': payload['action']['memberCreator']['fullName'],
+            'card': payload['action']['data'].get('card', {}),
+            'listbefore': payload['action']['data'].get('listBefore', {}),
+            'listafter': payload['action']['data'].get('listAfter', {}),
+            'list': payload['action']['data'].get('list', {}),
+            'board': payload['action']['data'].get('board', {}),
+            'comment': payload['action']['data'].get('text', {})  # per commentCard
+        }
+
+        comment_template = cfg.get('comment') if cfg else "{{user}} ha spostato la card '{{card.name}}'."
+        tpl = Template(comment_template)
+        message = tpl.render(**context)
 
         logger.info(f"[COMMENTO] Aggiunta commento alla card {card_id}: {message}")
         trello.add_comment_to_card(card_id, message)

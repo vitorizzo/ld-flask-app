@@ -21,6 +21,7 @@ trello_bp = Blueprint('trello', __name__, url_prefix='/trello')
 
 @trello_bp.route('/webhook/<int:conn_id>', methods=['HEAD','POST'])
 def handle_webhook(conn_id):
+    logger.info(f'route: /trello/webhook/{conn_id} <HEAD, POST>')
     if request.method == 'HEAD':
         current_app.logger.info("↔️  Trello HEAD check, OK")
         return '', 200
@@ -54,6 +55,7 @@ def handle_webhook(conn_id):
 #
 @trello_bp.route('/connection', methods=['GET'])
 def list_connections():
+    logger.info(f'route: /trello/connection <GET>')
     conns = TrelloConnection.query.all()
     return jsonify([
         {
@@ -77,6 +79,7 @@ def reset_all_webhooks():
     - aggiorna webhook_id in tabella
     Restituisce un report JSON con id di connessione, webhook vecchio/nuovo e eventuali errori.
     """
+    logger.info(f'route: /trello/connection/reser_webhooks <POST, GET>')
     results = []
     conns = TrelloConnection.query.all()
     for conn in conns:
@@ -117,6 +120,7 @@ def reset_all_webhooks():
 
 @trello_bp.route('/connection/<int:id>', methods=['GET'])
 def get_connection(id):
+    logger.info(f'route: /trello/connection/{id} <GET>')
     conn = TrelloConnection.query.get_or_404(id)
     return jsonify({
         'id':           conn.id,
@@ -131,6 +135,7 @@ def get_connection(id):
 
 @trello_bp.route('/connection', methods=['POST'])
 def create_connection():
+    logger.info(f'route: /trello/connection <POST>')
     data = request.get_json()
 
     # 1) Validazione minima
@@ -172,6 +177,7 @@ def create_connection():
 
 @trello_bp.route('/connection/<int:id>', methods=['PUT'])
 def update_connection(id):
+    logger.info(f'route: /trello/connection/id <PUT>')
     data = request.get_json()
     conn = TrelloConnection.query.get_or_404(id)
 
@@ -204,6 +210,7 @@ def update_connection(id):
 
 @trello_bp.route('/connection/<int:id>', methods=['DELETE'])
 def delete_connection(id):
+    logger.info(f'route: /trello/connection/{id} <DELETE>')
     try:
         conn = TrelloConnection.query.filter_by(id=id).one()
     except NoResultFound:
@@ -222,6 +229,7 @@ def delete_connection(id):
 
 @trello_bp.route('/connection/editor/<int:conn_id>', methods=['GET'])
 def edit_connection(conn_id):
+    logger.info(f'route: /trello/connection/editor/{conn_id} <GET>')
     conn = TrelloConnection.query.get_or_404(conn_id)
     # se c’è già uno schema salvato, serializzalo qui in existing_schema
     existing_schema = conn.schema_json or {'nodes': [], 'connections': []}
@@ -245,6 +253,7 @@ def list_actions():
     GET /trello/actions?connection_id=<id>
     Restituisce tutte le azioni associate a una connection.
     """
+    logger.info(f'route: /trello/actions <GET>')
     conn_id = request.args.get('connection_id', type=int)
     if conn_id is None:
         return jsonify({'error': 'connection_id è obbligatorio'}), 400
@@ -266,6 +275,7 @@ def create_action():
     POST /trello/actions
     BODY JSON: { connection_id, trigger_type, action_type, config_json }
     """
+    logger.info(f'route: /trello/actions <POST>')
     data = request.get_json()
     for f in ('connection_id','trigger_type','action_type','config_json'):
         if f not in data:
@@ -289,6 +299,7 @@ def create_action():
 
 @trello_bp.route('/actions/<int:action_id>')
 def get_action(action_id):
+    logger.info(f'route: /trello/actions/{action_id}')
     action = TrelloAction.query.get_or_404(action_id)
     return jsonify({
         'id': action.id,
@@ -306,6 +317,7 @@ def update_action(id):
     PUT /trello/actions/<id>
     BODY JSON: { trigger_type?, action_type?, config_json? }
     """
+    logger.info(f'route: /trello/actions/{id} <PUT>')
     action = TrelloAction.query.get_or_404(id)
     data = request.get_json()
 
@@ -322,6 +334,7 @@ def delete_action(id):
     """
     DELETE /trello/actions/<id>
     """
+    logger.info(f'route: /trello/actions/{id} <DELETE>')
     action = TrelloAction.query.get_or_404(id)
     db.session.delete(action)
     db.session.commit()
@@ -330,6 +343,7 @@ def delete_action(id):
 
 @trello_bp.route('/connection/<int:id>/actions', methods=['GET'])
 def edit_actions(id):
+    logger.info(f'route: /trello/connection/{id}/actions <GET>')
     conn = TrelloConnection.query.get_or_404(id)
     return render_template('trello_actions.html', connection=conn)
 
@@ -337,6 +351,7 @@ def edit_actions(id):
 @trello_bp.route('/connections', methods=['GET'])
 def connections_list_ui():
     """Mostra la pagina con la tabella di tutte le connessioni."""
+    logger.info(f'route: /trello/connections <GET>')
     return render_template('trello_connections_list.html')
 
 
@@ -344,6 +359,7 @@ def connections_list_ui():
 def new_connection_editor():
     """Editor di una nuova connessione (riusa lo stesso template di edit)."""
     # Passiamo valori vuoti e schema vuoto
+    logger.info(f'route: /trello/connection/editor/new <GET>')
     empty_schema = json.dumps({ 'nodes': [], 'connections': [] })
     return render_template(
         'trello_connections.html',
