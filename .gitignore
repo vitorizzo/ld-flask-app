@@ -1,8 +1,53 @@
-/venv/
-.env
-.env.local
-celerybeat-schedule.dat
-celerybeat-schedule.dir
-celerybeat-schedule.bak
+# === PYTHON ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+*.sqlite3
+*.db
+
+# === VENV ===
+venv/
+ENV/
+env/
+.venv/
+
+# === IDE (PyCharm, VSCode, ecc.) ===
+.idea/
+.vscode/
+
+# === LOG E FILE TEMPORANEI ===
 logs/*
 !logs/.gitkeep
+*.log
+*.lock
+*.tmp
+*.bak
+celerybeat-schedule
+
+# === MIGRATIONS PYTHON CACHE ===
+migrations/__pycache__/
+
+# === STATIC/UPLOADS ===
+static/uploads/
+
+# === CHIAVI E SEGRETI ===
+*.pem
+*.key
+*.crt
+*.pub
+.env
+.env.*
+
+# === FILE DI TEST/BUILD ===
+.DS_Store
+*.swp
+*.swo
+*.bak
+
+# === FOLDER PERSONALIZZATE (opzionali) ===
+ld-flask-app/
+
+.env
+.env.local
