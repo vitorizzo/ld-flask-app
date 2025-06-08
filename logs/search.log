@@ -1,3 +1,0 @@
-2025-04-03 12:35:21,809 - search - INFO - >>> Chiamata a /ricerca_x_barcode
-2025-04-03 12:38:28,141 - search - INFO - >>> Chiamata a /articolo_by_barcode con barcode=X0019ZOB7V
-2025-04-03 12:38:28,494 - search - WARNING - Nessun articolo trovato per barcode X0019ZOB7V

@@ -1,4 +1,0 @@
-2025-03-22 18:36:28,842 - test_log - DEBUG - 🔍 Questo è un messaggio di test DEBUG
-2025-03-22 18:36:28,842 - test_log - INFO - ℹ️ Questo è un messaggio INFO
-2025-03-22 18:36:28,842 - test_log - WARNING - ⚠️ Questo è un messaggio WARNING
-2025-03-22 18:36:28,843 - test_log - ERROR - ❌ Questo è un messaggio ERROR
