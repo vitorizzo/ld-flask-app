@@ -30,12 +30,20 @@ function aggiungiControlliCarosello(wrapper, track, imgUrls) {
     const btnPrev = document.createElement("button");
     btnPrev.textContent = "←";
     btnPrev.classList.add("carousel-btn", "prev");
-    btnPrev.onclick = () => cambiaSlide(-1);
+    btnPrev.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        cambiaSlide(-1);
+    });
 
     const btnNext = document.createElement("button");
     btnNext.textContent = "→";
     btnNext.classList.add("carousel-btn", "next");
-    btnNext.onclick = () => cambiaSlide(1);
+    btnNext.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        cambiaSlide(1);
+    });
 
     const dots = document.createElement("div");
     dots.classList.add("carousel-dots");
@@ -44,7 +52,11 @@ function aggiungiControlliCarosello(wrapper, track, imgUrls) {
         const dot = document.createElement("span");
         dot.classList.add("dot");
         if (i === 0) dot.classList.add("active");
-        dot.addEventListener("click", () => vaiASlide(i));
+        dot.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            vaiASlide(i);
+        });
         dots.appendChild(dot);
     });
 
@@ -85,6 +97,7 @@ function aggiungiControlliCarosello(wrapper, track, imgUrls) {
         if (e.key === "ArrowRight") cambiaSlide(1);
     });
 }
+
 
 // 🔍 Modal full screen
 function apriImmagineFullScreen(imgUrls, startIndex = 0) {

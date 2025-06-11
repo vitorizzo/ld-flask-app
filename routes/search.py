@@ -1,5 +1,8 @@
 from flask import Blueprint, render_template, jsonify, request, abort, url_for
-from models import Barcode, Articoli, Giacenza, Immagini, SchedeProdotti
+from flask_login import login_required
+
+from extensions import db
+from models import Barcode, Articoli, Giacenza, Immagini, SchedeProdotti, Inventario, InventarioRiga, InventarioExport
 from routes.tools import clean_text
 from tools.log_utils import log_task, get_logger
 from sqlalchemy import or_
@@ -34,6 +37,7 @@ def get_product_by_code(cod_art):
 
 
 @search_bp.route('/scheda_articolo/<cod_art>')
+@login_required
 def scheda_articolo(cod_art):
     logger.info(f">>> Chiamata a /scheda_articolo/{cod_art}")
     product = get_product_by_code(cod_art)
@@ -44,18 +48,21 @@ def scheda_articolo(cod_art):
 
 
 @search_bp.route('/ricerca_x_barcode', methods=['GET', 'POST'])
+@login_required
 def ricerca_x_barcode():
     logger.info(">>> Chiamata a /ricerca_x_barcode")
     return render_template('articoli_codebar.html')
 
 
 @search_bp.route('/ricerca_x_descrizione', methods=['GET', 'POST'])
+@login_required
 def ricerca_x_descrizione():
     logger.info(">>> Chiamata a /ricerca_x_descrizione")
     return render_template('articoli_description.html')
 
 
 @search_bp.route('/dati_articolo/<cod_art>', methods=['GET'])
+@login_required
 def dati_articolo(cod_art):
     logger.info(f">>> Chiamata a /dati_articolo/{cod_art}")
     articolo = Articoli.query.filter_by(cod_art=cod_art).first()
@@ -85,6 +92,7 @@ def dati_articolo(cod_art):
 
 
 @search_bp.route('/dati_articolo_by_barcode', methods=['GET'])
+@login_required
 def dati_articolo_by_barcode():
     barcode = request.args.get('barcode')
     if not barcode:
@@ -111,6 +119,7 @@ def dati_articolo_by_barcode():
 
 
 @search_bp.route('/articolo_by_barcode', methods=['GET'])
+@login_required
 def articolo_per_barcode():
     barcode = request.args.get('barcode')
     logger.info(f">>> Chiamata a /articolo_by_barcode con barcode={barcode}")
@@ -127,6 +136,7 @@ def articolo_per_barcode():
 
 
 @search_bp.route('/lista_articoli', methods=['GET'])
+@login_required
 def lista_articoli():
     filtro = request.args.get('filter', '').strip()
     page = request.args.get('page', 1, type=int)
@@ -170,6 +180,7 @@ def lista_articoli():
 
 
 @search_bp.route('/barcode_by_codart/<cod_art>')
+@login_required
 def barcode_by_codart(cod_art):
     codice_bar = Barcode.query.filter_by(cod_art=cod_art).first()
     if codice_bar:
@@ -179,6 +190,7 @@ def barcode_by_codart(cod_art):
 
 
 @search_bp.route('/articoli_by_barcode_multipli_funz', methods=['GET'])
+@login_required
 def articoli_by_barcode_multipli_funz():
     barcode = request.args.get('barcode')
     if not barcode:
@@ -216,6 +228,7 @@ def serialize_articolo(articolo):
 
 
 @search_bp.route('/articoli_by_barcode_multipli', methods=['GET'])
+@login_required
 def articoli_by_barcode_multipli():
     barcode = request.args.get('barcode')
     if not barcode:
@@ -282,6 +295,7 @@ def articoli_by_barcode_multipli():
 
 
 @search_bp.route('/articoli_by_barcode', methods=['GET'])
+@login_required
 def articoli_by_barcode():
     barcode = request.args.get('barcode')
     if not barcode:
@@ -299,7 +313,49 @@ def articoli_by_barcode():
     return jsonify({'success': True, 'articoli': serialize_articolo(articoli)})
 
 
+@search_bp.route('/riepilogo_varianti/<cod_art>')
+@login_required
+def riepilogo_varianti(cod_art):
+    # Estrai prefisso (es. VB07550)
+    codice_base = cod_art.split('-')[0]
+
+    # Articoli con lo stesso prefisso
+    articoli_varianti = Articoli.query.filter(
+        or_(
+            Articoli.cod_art == codice_base,
+            Articoli.cod_art.like(f"{codice_base}-%")
+        )
+    ).all()
+
+    # Ottieni inventario attivo da query param
+    inventario_id = request.args.get("inventario_id", type=int)
+    if not inventario_id:
+        return jsonify({"success": False, "error": "Inventario non specificato."}), 400
+
+    varianti_data = []
+    for art in articoli_varianti:
+        cod = art.cod_art
+
+        giacenza = InventarioExport.query.filter_by(articolo_id=cod).first()
+        rilevate = db.session.query(
+            db.func.sum(InventarioRiga.quantita_inserita)
+        ).filter_by(inventario_id=inventario_id, articolo_id=cod).scalar() or 0
+
+        giac = giacenza.giacenza if giacenza else 0
+        diff = rilevate - giac
+
+        varianti_data.append({
+            "cod_art": cod,
+            "giacenza": giac,
+            "rilevata": rilevate,
+            "differenza": diff
+        })
+
+    return jsonify({"success": True, "varianti": varianti_data})
+
+
 @search_bp.route('/immagine_articolo/<cod_art>')
+@login_required
 def immagine_articolo(cod_art):
     immagini = Immagini.query.filter_by(cod_art=cod_art).all()
     print(f"🔍 Immagini trovate per {cod_art}: {[img.file_img for img in immagini]}")

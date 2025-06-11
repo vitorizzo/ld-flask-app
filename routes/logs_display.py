@@ -4,16 +4,17 @@ import re
 from flask import Blueprint, render_template, request
 import os
 
+from config.paths_config import LOGS_FOLDER
+
 logs_bp = Blueprint("logs_bp", __name__, url_prefix="/logs")
 
 
 @logs_bp.route("/view")
 def visualizza_logs():
-    log_dir = os.path.join(os.getcwd(), "logs")
     selected_file = request.args.get("file", "main.log")
     selected_level = request.args.get("level", "").upper()
 
-    file_path = os.path.join(log_dir, selected_file)
+    file_path = os.path.join(LOGS_FOLDER, selected_file)
     logs = []
 
     if os.path.exists(file_path):
@@ -39,6 +40,6 @@ def visualizza_logs():
                     })
 
     return render_template("logs_display.html",
-                           files=os.listdir(log_dir),
+                           files=os.listdir(LOGS_FOLDER),
                            selected_file=selected_file,
                            log_content=logs)
