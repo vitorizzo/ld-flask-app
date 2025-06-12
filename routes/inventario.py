@@ -167,3 +167,53 @@ def ultimi_inseriti(inventario_id):
         })
 
     return jsonify({"success": True, "righe": risultati})
+
+
+@inventario_bp.route('/righe/<int:inventario_id>')
+@login_required
+def righe_inventario(inventario_id):
+    righe = (
+        InventarioRiga.query
+        .filter_by(inventario_id=inventario_id)
+        .order_by(InventarioRiga.id.desc())
+        .all()
+    )
+
+    risultato = []
+    for r in righe:
+        risultato.append({
+            "id": r.id,
+            "cod_art": r.articolo_id,
+            "descrizione": r.descrizione_articolo,
+            "quantita": r.quantita_inserita,
+            "utente_id": r.utente_id,
+            "barcode": r.barcode_articolo
+        })
+
+    return jsonify({"success": True, "righe": risultato})
+
+
+@inventario_bp.route("/lista_inventari")
+@login_required
+def lista_inventari():
+    inventari = (
+        db.session.query(
+            Inventario.id,
+            Inventario.data_inventario,
+            db.func.count(InventarioRiga.id).label("num_righe")
+        )
+        .outerjoin(InventarioRiga, Inventario.id == InventarioRiga.inventario_id)
+        .group_by(Inventario.id)
+        .order_by(Inventario.data_inventario.desc())
+        .all()
+    )
+
+    lista = []
+    for inv in inventari:
+        lista.append({
+            "id": inv.id,
+            "data": inv.data_inventario.strftime("%d-%m-%Y"),
+            "num_righe": inv.num_righe
+        })
+
+    return jsonify(success=True, inventari=lista)

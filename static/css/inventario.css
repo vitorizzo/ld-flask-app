@@ -1,1 +1,8 @@
 /* Inserisci qui gli stili personalizzati per la pagina inventario */
+#tabella-inventari-eseguiti tbody tr {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+#tabella-inventari-eseguiti tbody tr:hover {
+    background-color: #f2f2f2;
+}

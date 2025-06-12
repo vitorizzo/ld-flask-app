@@ -1,3 +1,5 @@
+let lastFocusedElement = null; // fuori da qualsiasi funzione
+
 document.addEventListener("DOMContentLoaded", () => {
     const selectInventario = document.getElementById("inventario-select");
     const btnNuovoInventario = document.getElementById("nuovo-inventario-btn");
@@ -17,6 +19,8 @@ document.addEventListener("DOMContentLoaded", () => {
         fieldset.disabled = false;
 
         caricaUltimiInseriti(id);
+        aggiornaTabellaInventariEseguiti();
+
     }
 
     document.getElementById("form-inventario").addEventListener("submit", function (e) {
@@ -43,9 +47,12 @@ document.addEventListener("DOMContentLoaded", () => {
             // Aggiorna ultimi inseriti
             const inventarioId = document.getElementById("inventario-id-attivo").value;
             caricaUltimiInseriti(inventarioId);
+            aggiornaTabellaInventariEseguiti();
+
 
             // Pulisci il form
-            pulisciFormArticolo();
+            aggiornaTabellaInventario(inventarioId);
+            resetCampiArticoloCompleto();
         })
         .catch(err => {
             console.error("Errore durante l'inserimento:", err);
@@ -118,52 +125,6 @@ document.addEventListener("DOMContentLoaded", () => {
             alert("Si è verificato un errore durante la creazione del nuovo inventario.");
         });
     });
-
-    /*btnNuovoInventario.addEventListener("click", () => {
-        fetch("/inventario/nuovo", {
-            method: "POST"
-        })
-
-        .then(res => res.json())
-        .then(data => {
-            if (!data.success) {
-                alert("Errore nella creazione dell'inventario.");
-                return;
-            }
-
-            const option = document.createElement("option");
-            option.value = data.id;
-            option.dataset.data = data.data;
-            option.selected = true;
-            option.textContent = `Inventario del ${data.data}`;
-
-            // Rimuove eventuale "-- Seleziona inventario --" se ancora presente
-            const firstOption = selectInventario.querySelector("option[value='']");
-            if (firstOption) {
-                firstOption.remove();
-            }
-
-            // Controlla se l'inventario esiste già nella select (per evitare duplicati)
-            const esisteGia = [...selectInventario.options].some(o => o.value == data.id);
-            if (!esisteGia) {
-                selectInventario.appendChild(option);
-            } else {
-                option.remove();  // se è già nella lista, rimuovi la nuova
-            }
-
-            abilitaInserimento(data.data, data.id);
-
-            if (data.gia_esiste) {
-                flashMessage("Inventario già esistente per oggi. Riutilizzato.", "info");
-            } else {
-                flashMessage("Nuovo inventario creato con successo!", "success");
-            }
-        })
-        .catch(err => {
-            console.error("Errore nella creazione dell'inventario:", err);
-            alert("Si è verificato un errore durante la creazione del nuovo inventario.");
-        });
-    });*/
 
 
     btnCercaBarcode.addEventListener('click', () => {
@@ -350,7 +311,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.getElementById("pulisci-form").addEventListener("click", () => {
-        pulisciFormArticolo();
+        aggiornaTabellaInventario(inventarioId);
+        resetCampiArticoloCompleto();
     });
 
 
@@ -390,25 +352,6 @@ function abilitaPulsanti() {
     btnCercaArticolo.disabled = false;
     calcolaBtn.disabled = false;
     matitine.forEach(el => el.classList.remove("disabled"));
-}
-
-function pulisciFormArticolo() {
-    document.getElementById("barcode").value = "";
-    document.getElementById("cod_art").value = "";
-    document.getElementById("quantita_inserita").value = 0;
-    document.getElementById("num_pedane").value = 0;
-    document.getElementById("num_cartoni").value = 0;
-    document.getElementById("num_pezzi_sciolti").value = 0;
-
-    document.getElementById("hidden_cpp").value = 1;
-    document.getElementById("hidden_ppc").value = 1;
-    document.getElementById("cpp").textContent = 1;
-    document.getElementById("ppc").textContent = 1;
-
-    document.getElementById("inv-search-input").value = "";
-    document.getElementById("inv-search-list").innerHTML = "";
-    document.getElementById("inv-search-wrapper").style.display = "none";
-    document.getElementById("inv-search-pagination").style.display = "none";
 }
 
 const scanBtn = document.getElementById("scan-button");
@@ -609,3 +552,181 @@ function caricaUltimiInseriti(inventarioId) {
             console.warn("Errore nel caricamento degli ultimi articoli inseriti:", err);
         });
 }
+
+function resetCampiArticoloCompleto() {
+    document.getElementById("barcode").value = "";
+    document.getElementById("cod_art").value = "";
+    //document.getElementById("descrizione_articolo").value = "";
+
+    document.getElementById("quantita_inserita").value = 0;
+    document.getElementById("num_pedane").value = 0;
+    document.getElementById("num_cartoni").value = 0;
+    document.getElementById("num_pezzi_sciolti").value = 0;
+
+    document.getElementById("hidden_cpp").value = 1;
+    document.getElementById("hidden_ppc").value = 1;
+
+    const cppSpan = document.getElementById("cpp");
+    const ppcSpan = document.getElementById("ppc");
+    if (cppSpan) cppSpan.textContent = 1;
+    if (ppcSpan) ppcSpan.textContent = 1;
+
+    document.getElementById("inv-search-input").value = "";
+    document.getElementById("inv-search-list").innerHTML = "";
+    document.getElementById("inv-search-wrapper").style.display = "none";
+    document.getElementById("inv-search-pagination").style.display = "none";
+
+    const contenitoreImmagini = document.getElementById("contenitore-immagini-articolo");
+    if (contenitoreImmagini) contenitoreImmagini.innerHTML = "";
+
+    const wrapperVarianti = document.getElementById("riepilogo-articolo-wrapper");
+    if (wrapperVarianti) wrapperVarianti.style.display = "none";
+
+    const flashEl = document.querySelector(".flash-message");
+    if (flashEl) flashEl.remove();
+}
+
+
+function aggiornaTabellaMovimenti(inventarioId) {
+    if (!inventarioId) {
+        console.warn("aggiornaTabellaMovimenti: ID non definito, chiamata ignorata.");
+        return;
+    }fetch(`/inventario/righe/${inventarioId}`)
+        .then(res => res.json())
+        .then(data => {
+            const tbody = document.querySelector("#tabella-movimenti tbody");
+            tbody.innerHTML = "";
+
+            if (!data.success) return;
+
+            data.righe.forEach(r => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${r.cod_art}</td>
+                    <td>${r.descrizione || ''}</td>
+                    <td class="text-end">${r.quantita}</td>
+                    <td class="text-end">${r.barcode || ''}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        })
+        .catch(err => {
+            console.error("Errore nel caricamento righe movimenti:", err);
+        });
+}
+
+
+
+function aggiornaTabellaInventariEseguiti() {
+    fetch("/inventario/lista_inventari")
+        .then(res => res.json())
+        .then(data => {
+            const tbody = document.querySelector("#tabella-inventari-eseguiti tbody");
+            tbody.innerHTML = "";
+
+            data.inventari.forEach(inv => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${inv.id}</td>
+                    <td>${inv.data}</td>
+                    <td class="text-end">${inv.num_righe}</td>
+                `;
+
+                // 👇 Interattività: cambia il cursore e colore al passaggio del mouse
+                tr.style.cursor = "pointer";
+                tr.addEventListener("mouseenter", () => tr.classList.add("table-active"));
+                tr.addEventListener("mouseleave", () => tr.classList.remove("table-active"));
+
+                // 👇 Click per aprire la modale
+                tr.addEventListener("click", () => {
+                    const inventarioId = inv.id;
+
+                    const modale = document.getElementById("modaleDettaglioInventario");
+                    modale.dataset.inventarioId = inventarioId;
+
+                    // Aggiorna il titolo con l'ID o la data
+                    document.getElementById("modaleTitoloInventario").textContent = `Inventario #${inventarioId}`;
+
+                    // Forza selezione iniziale
+                    document.getElementById("filtro-visualizza").value = "movimenti";
+
+                    // Mostra corretta tabella
+                    document.getElementById("tabella-movimenti").classList.remove("d-none");
+                    document.getElementById("tabella-aggregato").classList.add("d-none");
+
+                    // Carica dati tabella
+                    aggiornaTabellaMovimenti(inventarioId);
+
+                    // Mostra la modale
+                    const bsModal = new bootstrap.Modal(modale);
+                    bsModal.show();
+                });
+
+                tbody.appendChild(tr);
+            });
+        });
+}
+
+// Click su riga inventario -> apre modale
+document.querySelector("#tabella-inventari-eseguiti tbody").addEventListener("click", function (e) {
+    const riga = e.target.closest("tr");
+    if (!riga) return;
+
+    lastFocusedElement = this;  // memorizza l'elemento cliccato
+    const inventarioId = riga.dataset.id;
+    const dataInventario = riga.dataset.data;
+
+    document.getElementById("dettaglio-id-inventario").textContent = inventarioId;
+    document.getElementById("dettaglio-data-inventario").textContent = dataInventario;
+
+    // Mostra tabella movimenti di default
+    document.getElementById("tabella-movimenti").classList.remove("d-none");
+    document.getElementById("tabella-aggregato").classList.add("d-none");
+    document.getElementById("filtro-visualizza").value = "movimenti";
+
+    aggiornaTabellaMovimenti(inventarioId);
+
+    const modale = new bootstrap.Modal(document.getElementById("modaleDettaglioInventario"));
+    modale.show();
+});
+
+document.getElementById("filtro-visualizza").addEventListener("change", function () {
+    const inventarioId = document.getElementById("dettaglio-id-inventario").textContent;
+    const valore = this.value;
+
+    if (valore === "movimenti") {
+        document.getElementById("tabella-movimenti").classList.remove("d-none");
+        document.getElementById("tabella-aggregato").classList.add("d-none");
+        aggiornaTabellaMovimenti(inventarioId);
+    } else {
+        document.getElementById("tabella-movimenti").classList.add("d-none");
+        document.getElementById("tabella-aggregato").classList.remove("d-none");
+        aggiornaTabellaAggregato(inventarioId);
+    }
+});
+
+document.getElementById('modaleDettaglioInventario').addEventListener('hidden.bs.modal', function () {
+    console.log("🔁 Modale chiusa, ripristino dello stato della pagina...");
+
+    // ✅ Sposta il focus su un elemento visibile per evitare problemi con aria-hidden
+    const fallback = document.querySelector('main, body, #content, .navbar-brand'); // scegli un elemento presente
+    if (fallback) fallback.focus();
+
+    // ⏳ Attendi un attimo per garantire che la modale sia completamente rimossa
+    setTimeout(() => {
+        // 🔁 Rimuove forzatamente il focus residuo
+        document.activeElement.blur();
+
+        // 🔧 Rimuove classe "modal-open" dal body (se rimasta)
+        document.body.classList.remove('modal-open');
+
+        // 🧹 Rimuove overlay eventualmente rimasto
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) backdrop.remove();
+
+        // ✅ Riabilita lo scroll se rimasto disattivato
+        document.body.style.overflow = '';
+
+        console.log("✅ Stato della pagina ripristinato.");
+    }, 100);
+});

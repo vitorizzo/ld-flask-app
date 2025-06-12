@@ -1,14 +1,20 @@
 document.addEventListener("DOMContentLoaded", function () {
     var productCarousel = document.getElementById("productCarousel");
-    var fullscreenModal = new bootstrap.Modal(document.getElementById("fullscreen-carousel-modal"));
+    var modalElement = document.getElementById("fullscreen-carousel-modal");
 
-    // Cliccando su un'immagine del carosello, si apre il modal fullscreen
+    if (!modalElement) {
+        console.warn("⚠️ Modale 'fullscreen-carousel-modal' non trovata.");
+        return;
+    }
+
+    var fullscreenModal = new bootstrap.Modal(modalElement);
+
     document.querySelectorAll(".product-img").forEach(img => {
         img.addEventListener("click", function () {
             var originalImages = document.querySelectorAll("#productCarousel .carousel-item img");
             var fullscreenImagesContainer = document.getElementById("fullscreen-carousel-images");
 
-            fullscreenImagesContainer.innerHTML = ""; // Pulisce il contenuto esistente
+            fullscreenImagesContainer.innerHTML = "";
 
             originalImages.forEach((img, index) => {
                 var newCarouselItem = document.createElement("div");
