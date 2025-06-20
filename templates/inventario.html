@@ -189,6 +189,7 @@
                 <th>ID Inventario</th>
                 <th>Data</th>
                 <th class="text-end">N. Righe Inserite</th>
+                <th class="text-center">Azioni</th>
             </tr>
         </thead>
         <tbody>
@@ -280,7 +281,7 @@
         </table>
 
         <!-- 📊 Tabella Inventario Aggregato -->
-        <table class="table table-bordered d-none" id="tabella-aggregato">
+        <table class="table table-bordered d-none" id="tabella-inventario-aggregato">
           <thead>
             <tr>
               <th>Cod. Articolo</th>
@@ -294,6 +295,54 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modale per modifica data inventario -->
+<div class="modal fade" id="modaleModificaData" tabindex="-1" aria-labelledby="modaleModificaDataLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modaleModificaDataLabel">Modifica data inventario</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <input type="date" id="nuovaDataInventario" class="form-control">
+        <input type="hidden" id="inventarioIdPerModificaData">
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-primary" id="salvaDataInventario">Salva</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Modale: Dettaglio Movimenti Articolo -->
+<div class="modal fade" id="modaleMovimentiArticolo" tabindex="-1" aria-labelledby="modaleMovimentiArticoloLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modaleMovimentiArticoloLabel">Movimenti Articolo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th>Data Inserimento</th>
+              <th>Descrizione</th>
+              <th>Nome Utente</th>
+              <th>Quantità</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-movimenti-articolo">
+            <!-- Dati dinamici -->
+          </tbody>
+        </table>
       </div>
     </div>
   </div>

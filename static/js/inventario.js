@@ -354,6 +354,8 @@ function abilitaPulsanti() {
     matitine.forEach(el => el.classList.remove("disabled"));
 }
 
+
+
 const scanBtn = document.getElementById("scan-button");
 const btnCercaArticolo = document.getElementById("btn-cerca-articolo");
 const matitine = document.querySelectorAll(".editable, .editable + i");
@@ -591,7 +593,8 @@ function aggiornaTabellaMovimenti(inventarioId) {
     if (!inventarioId) {
         console.warn("aggiornaTabellaMovimenti: ID non definito, chiamata ignorata.");
         return;
-    }fetch(`/inventario/righe/${inventarioId}`)
+    }
+    fetch(`/inventario/righe/${inventarioId}`)
         .then(res => res.json())
         .then(data => {
             const tbody = document.querySelector("#tabella-movimenti tbody");
@@ -626,46 +629,79 @@ function aggiornaTabellaInventariEseguiti() {
 
             data.inventari.forEach(inv => {
                 const tr = document.createElement("tr");
+
                 tr.innerHTML = `
                     <td>${inv.id}</td>
                     <td>${inv.data}</td>
                     <td class="text-end">${inv.num_righe}</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning btn-modifica me-1" data-id="${inv.id}" data-data="${inv.data}">Modifica</button>
+                        <button class="btn btn-sm btn-danger btn-elimina" data-id="${inv.id}">Elimina</button>
+                    </td>
                 `;
 
-                // 👇 Interattività: cambia il cursore e colore al passaggio del mouse
                 tr.style.cursor = "pointer";
                 tr.addEventListener("mouseenter", () => tr.classList.add("table-active"));
                 tr.addEventListener("mouseleave", () => tr.classList.remove("table-active"));
 
-                // 👇 Click per aprire la modale
-                tr.addEventListener("click", () => {
-                    const inventarioId = inv.id;
+                // Aggiungi evento per mostrare la modale (clic su riga)
+                tr.addEventListener("click", (e) => {
+                    // Ignora se è stato cliccato un pulsante
+                    if (e.target.closest("button")) return;
 
                     const modale = document.getElementById("modaleDettaglioInventario");
-                    modale.dataset.inventarioId = inventarioId;
+                    modale.dataset.inventarioId = inv.id;
 
-                    // Aggiorna il titolo con l'ID o la data
-                    document.getElementById("modaleTitoloInventario").textContent = `Inventario #${inventarioId}`;
-
-                    // Forza selezione iniziale
+                    document.getElementById("modaleTitoloInventario").textContent = `Inventario #${inv.id}`;
                     document.getElementById("filtro-visualizza").value = "movimenti";
-
-                    // Mostra corretta tabella
                     document.getElementById("tabella-movimenti").classList.remove("d-none");
-                    document.getElementById("tabella-aggregato").classList.add("d-none");
+                    document.getElementById("tabella-inventario-aggregato").classList.add("d-none");
 
-                    // Carica dati tabella
-                    aggiornaTabellaMovimenti(inventarioId);
+                    aggiornaTabellaMovimenti(inv.id);
 
-                    // Mostra la modale
                     const bsModal = new bootstrap.Modal(modale);
                     bsModal.show();
                 });
 
                 tbody.appendChild(tr);
             });
+
+            // 🔁 Aggiunta EventListener ai pulsanti dopo che le righe sono state aggiunte
+            document.querySelectorAll(".btn-modifica").forEach(btn => {
+                btn.addEventListener("click", (e) => {
+                    e.stopPropagation(); // ✅ evita di aprire la modale dettaglio
+                    const id = btn.dataset.id;
+                    const data = btn.dataset.data;
+                    apriModaleModificaData(id, data);
+                });
+            });
+
+            document.querySelectorAll(".btn-elimina").forEach(btn => {
+                btn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const id = btn.dataset.id;
+
+                    if (confirm(`Sei sicuro di voler eliminare l'inventario #${id}?. Questo comporterà la cancellazione di tutte le righe associate, Procedere?`)) {
+                        fetch(`/inventario/elimina/${id}`, {
+                            method: "DELETE"
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                aggiornaTabellaInventariEseguiti();
+                            } else {
+                                alert("Errore nell'eliminazione.");
+                            }
+                        })
+                        .catch(err => {
+                            console.error("Errore durante l'eliminazione:", err);
+                        });
+                    }
+                });
+            });
         });
 }
+
 
 // Click su riga inventario -> apre modale
 document.querySelector("#tabella-inventari-eseguiti tbody").addEventListener("click", function (e) {
@@ -673,7 +709,9 @@ document.querySelector("#tabella-inventari-eseguiti tbody").addEventListener("cl
     if (!riga) return;
 
     lastFocusedElement = this;  // memorizza l'elemento cliccato
-    const inventarioId = riga.dataset.id;
+    const inventarioId = riga.dataset.inventarioId;
+    console.log(`inventarioID letto: ${inventarioId}`);
+
     const dataInventario = riga.dataset.data;
 
     document.getElementById("dettaglio-id-inventario").textContent = inventarioId;
@@ -681,7 +719,7 @@ document.querySelector("#tabella-inventari-eseguiti tbody").addEventListener("cl
 
     // Mostra tabella movimenti di default
     document.getElementById("tabella-movimenti").classList.remove("d-none");
-    document.getElementById("tabella-aggregato").classList.add("d-none");
+    document.getElementById("tabella-inventario-aggregato").classList.add("d-none");
     document.getElementById("filtro-visualizza").value = "movimenti";
 
     aggiornaTabellaMovimenti(inventarioId);
@@ -691,17 +729,18 @@ document.querySelector("#tabella-inventari-eseguiti tbody").addEventListener("cl
 });
 
 document.getElementById("filtro-visualizza").addEventListener("change", function () {
-    const inventarioId = document.getElementById("dettaglio-id-inventario").textContent;
+    const inventarioId = document.getElementById("modaleDettaglioInventario").dataset.inventarioId;
+    console.warn(`inventarioID letto: ${inventarioId}`);
     const valore = this.value;
 
     if (valore === "movimenti") {
         document.getElementById("tabella-movimenti").classList.remove("d-none");
-        document.getElementById("tabella-aggregato").classList.add("d-none");
+        document.getElementById("tabella-inventario-aggregato").classList.add("d-none");
         aggiornaTabellaMovimenti(inventarioId);
     } else {
         document.getElementById("tabella-movimenti").classList.add("d-none");
-        document.getElementById("tabella-aggregato").classList.remove("d-none");
-        aggiornaTabellaAggregato(inventarioId);
+        document.getElementById("tabella-inventario-aggregato").classList.remove("d-none");
+        aggiornaTabellaInventarioAggregato(inventarioId);
     }
 });
 
@@ -730,3 +769,222 @@ document.getElementById('modaleDettaglioInventario').addEventListener('hidden.bs
         console.log("✅ Stato della pagina ripristinato.");
     }, 100);
 });
+
+function aggiornaTabellaInventarioAggregato(inventarioId) {
+    if (!inventarioId) {
+        console.warn("aggiornaTabellaInventarioAggregato: ID non definito, chiamata ignorata.");
+        return;
+    }
+
+    console.log(`Chiamata a /inventario/inventario_aggregato/${inventarioId}`);
+
+    fetch(`/inventario/inventario_aggregato/${inventarioId}`)
+        .then(res => res.json())
+        .then(data => {
+            const tbody = document.querySelector("#tabella-inventario-aggregato tbody");
+            tbody.innerHTML = "";
+
+            console.table(data);
+
+            data.inventario.forEach(r => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${r.cod_art}</td>
+                    <td>${r.descrizione}</td>
+                    <td class="text-end">${r.quantita}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-info btn-movimenti me-1" data-cod_art="${r.cod_art}">Movimenti</button>
+                        <button class="btn btn-sm btn-danger btn-elimina-articolo" data-cod_art="${r.cod_art}">Elimina</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // ✅ Aggiungi i listener solo dopo che i pulsanti sono nel DOM
+            document.querySelectorAll(".btn-movimenti").forEach(btn => {
+                btn.addEventListener("click", e => {
+                    const codArt = btn.dataset.cod_art;
+                    const inventarioId = document.getElementById("modaleDettaglioInventario").dataset.inventarioId;
+
+                    console.log(`codice articolo: ${codArt}`);
+                    console.log(`Inventario: ${inventarioId}`);
+
+                    fetch(`/inventario/movimenti_articolo/${inventarioId}/${codArt}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            const tbodyMov = document.getElementById("tbody-movimenti-articolo");
+                            tbodyMov.innerHTML = "";
+
+                            if (data.success) {
+                                data.movimenti.forEach(m => {
+                                    const tr = document.createElement("tr");
+                                    tr.innerHTML = `
+                                        <td>${m.data}</td>
+                                        <td class="text-end">${m.descrizione}</td>
+                                        <td class="text-end">${m.utente}</td>
+                                        <td>${m.quantita}</td>
+                                    `;
+                                    tbodyMov.appendChild(tr);
+                                });
+
+                                const modal = new bootstrap.Modal(document.getElementById("modaleMovimentiArticolo"));
+                                modal.show();
+                            } else {
+                                alert("Errore nel recupero dei movimenti.");
+                            }
+                        });
+                });
+            });
+            document.querySelectorAll(".btn-elimina-articolo").forEach(btn => {
+                btn.addEventListener("click", e => {
+                    const codArt = btn.dataset.cod_art;
+                    const inventarioId = document.getElementById("modaleDettaglioInventario").dataset.inventarioId;
+
+                    if (confirm(`Vuoi eliminare tutti i movimenti relativi all'articolo ${codArt}?`)) {
+                        fetch(`/inventario/elimina_movimenti/${inventarioId}/${codArt}`, {
+                            method: "DELETE"
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                console.log(`Eliminati ${data.deleted} movimenti per ${codArt}`);
+                                aggiornaTabellaInventarioAggregato(inventarioId);
+                                aggiornaTabellaMovimenti(inventarioId);
+                            } else {
+                                alert("Errore nell'eliminazione dei movimenti.");
+                            }
+                        })
+                        .catch(err => {
+                            console.error("Errore:", err);
+                        });
+                    }
+                });
+            });
+
+        })
+        .catch(err => {
+            console.error("Errore nel caricamento inventario aggregato:", err);
+        });
+}
+
+
+function mostraMovimentiPerArticolo(inventarioId, codArt) {
+    fetch(`/inventario/movimenti_articolo/${inventarioId}/${codArt}`)
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success || !data.movimenti.length) {
+                alert("Nessun movimento trovato per questo articolo.");
+                return;
+            }
+
+            // Costruisci una modale dinamica
+            let html = `
+                <div class="modal fade" id="modaleMovimentiArticolo" tabindex="-1">
+                  <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                      <div class="modal-header">
+                        <h5 class="modal-title">Movimenti per articolo ${codArt}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                      </div>
+                      <div class="modal-body">
+                        <table class="table table-sm">
+                          <thead>
+                            <tr><th>Quantità</th><th>Note</th><th>Data inserimento</th></tr>
+                          </thead>
+                          <tbody>
+                          ${data.movimenti.map(m => `
+                            <tr>
+                              <td class="text-end">${m.quantita}</td>
+                              <td>${m.note || ""}</td>
+                              <td>${m.data || ""}</td>
+                            </tr>`).join('')}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </div>`;
+
+            document.body.insertAdjacentHTML('beforeend', html);
+            const nuovaModale = new bootstrap.Modal(document.getElementById("modaleMovimentiArticolo"));
+            nuovaModale.show();
+
+            // Rimuovi la modale dopo la chiusura
+            document.getElementById("modaleMovimentiArticolo").addEventListener("hidden.bs.modal", function () {
+                this.remove();
+            });
+        });
+}
+
+
+// Mostra la modale con datepicker
+function apriModaleModificaData(idInventario, dataAttuale) {
+    const inputData = document.getElementById("nuovaDataInventario");
+    const inputId = document.getElementById("inventarioIdPerModificaData");
+
+    inputData.value = dataAttuale;
+    inputId.value = idInventario;
+
+    const modale = new bootstrap.Modal(document.getElementById("modaleModificaData"));
+    modale.show();
+}
+
+// Al click su "Salva" nella modale
+document.getElementById("salvaDataInventario").addEventListener("click", () => {
+    const nuovaData = document.getElementById("nuovaDataInventario").value;
+    const id = document.getElementById("inventarioIdPerModificaData").value;
+
+    fetch(`/inventario/modifica_data/${id}`, {
+        method: "POST",
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ nuova_data: nuovaData })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            console.log("Data modificata con successo");
+            document.activeElement.blur();
+            bootstrap.Modal.getInstance(document.getElementById("modaleModificaData")).hide();
+            popolaSelectInventari(id);  // invId è l'inventario modificato
+            aggiornaTabellaInventariEseguiti();  // se vuoi anche aggiornare la tabella sotto
+            resetCampiArticoloCompleto();
+        } else {
+            alert("Errore nella modifica");
+        }
+    })
+    .catch(err => {
+        console.error("Errore:", err);
+    });
+});
+
+
+function popolaSelectInventari(idSelezionato = null) {
+    fetch("/inventario/lista_inventari")
+        .then(res => res.json())
+        .then(data => {
+            const select = document.getElementById("inventario-select");
+            select.innerHTML = `<option value="" disabled>-- Seleziona inventario --</option>`;
+
+            data.inventari.forEach(inv => {
+                const option = document.createElement("option");
+                option.value = inv.id;
+                option.textContent = inv.data;
+                // Aggiungi dataset extra se serve (es. num_righe, ecc.)
+                option.dataset.data = inv.data;
+
+                if (idSelezionato && inv.id === idSelezionato) {
+                    option.selected = true;
+                }
+
+                select.appendChild(option);
+            });
+
+            // Se è stato selezionato, lancia evento di change per aggiornare tutto
+            if (idSelezionato) {
+                select.dispatchEvent(new Event('change'));
+            }
+        });
+}
+

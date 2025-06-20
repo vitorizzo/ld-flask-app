@@ -1,16 +1,21 @@
 # routes/logs_diplay.py
 import re
 
+import logging
 from flask import Blueprint, render_template, request
 import os
 
 from config.paths_config import LOGS_FOLDER
+from tools.log_utils import get_logger
+
+logger = get_logger("logs_viewer", level=logging.DEBUG)
 
 logs_bp = Blueprint("logs_bp", __name__, url_prefix="/logs")
 
 
 @logs_bp.route("/view")
 def visualizza_logs():
+    logger.info(f"chiamata route visualizza logs")
     selected_file = request.args.get("file", "main.log")
     selected_level = request.args.get("level", "").upper()
 
@@ -21,6 +26,9 @@ def visualizza_logs():
         with open(file_path, encoding="utf-8", errors="replace") as f:
             for line in f:
                 line = line.strip()
+                if not line:
+                    continue
+                #logger.debug(f"linea letta:\n{line}")
                 match = re.match(r"^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2},\d{3}) - ([^ ]+) - ([A-Z]+) - (.+)$", line)
                 if match:
                     level = match.group(3)

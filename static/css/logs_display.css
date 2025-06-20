@@ -1,0 +1,44 @@
+/* logs_display.css */
+.log-viewer {
+  max-height: 65vh;
+  overflow-y: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  white-space: pre-wrap;
+  line-height: 1.4;
+  text-align: left;
+  background-color: black;
+  color: #ccc;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+}
+
+.log-line {
+  display: grid;
+  grid-template-columns: 170px 140px 100px auto;
+  gap: 8px;
+  padding: 2px 0;
+  align-items: center;
+}
+
+.log-line:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+.text-muted {
+  margin-left: 10px;
+  font-style: italic;
+  color: #aaa !important; /* più chiaro e leggibile su sfondo scuro */
+  white-space: pre-wrap;
+}
+
+.log-viewer div:empty {
+  display: none;
+}
+
+.log-viewer .text-muted {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+

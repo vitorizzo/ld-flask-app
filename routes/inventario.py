@@ -1,9 +1,10 @@
+import json
 import logging
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
 from forms.forms import InventarioForm
 from extensions import db
-from models import Inventario, InventarioRiga, Articoli, Barcode
+from models import Inventario, InventarioRiga, Articoli, Barcode, User
 from datetime import date, datetime
 
 from tools.log_utils import get_logger
@@ -217,3 +218,92 @@ def lista_inventari():
         })
 
     return jsonify(success=True, inventari=lista)
+
+
+@inventario_bp.route("/inventario_aggregato/<int:inventario_id>")
+@login_required
+def inventario_aggregato(inventario_id):
+    from sqlalchemy import func
+
+    righe = (
+        db.session.query(
+            InventarioRiga.articolo_id,
+            func.sum(InventarioRiga.quantita_inserita).label("quantita_totale")
+        )
+        .filter(InventarioRiga.inventario_id == inventario_id)
+        .group_by(InventarioRiga.articolo_id)
+        .all()
+    )
+
+    risultati = []
+    for cod_art, quantita in righe:
+        articolo = Articoli.query.get(cod_art)
+        risultati.append({
+            "cod_art": cod_art,
+            "descrizione": articolo.descrizione if articolo else "",
+            "quantita": quantita
+        })
+
+    return jsonify({"success": True, "inventario": risultati})
+
+
+@inventario_bp.route('/modifica_data/<int:id>', methods=['POST'])
+def modifica_data_inventario(id):
+    data = request.get_json()
+    nuova_data = data.get('nuova_data')
+    inventario = Inventario.query.get(id)
+    if inventario:
+        inventario.data_inventario = nuova_data
+        db.session.commit()
+        return jsonify(success=True)
+    return jsonify(success=False), 404
+
+
+@inventario_bp.route('/elimina/<int:id>', methods=['DELETE'])
+def elimina_inventario(id):
+    inventario = Inventario.query.get(id)
+    if inventario:
+        db.session.delete(inventario)
+        db.session.commit()
+        return jsonify(success=True)
+    return jsonify(success=False), 404
+
+
+@inventario_bp.route('/movimenti_articolo/<int:inventario_id>/<string:cod_art>')
+def movimenti_articolo(inventario_id, cod_art):
+    logger.info(f"Chiamata a route movimenti articolo {cod_art} su inventario {inventario_id}")
+    try:
+        righe = InventarioRiga.query.filter_by(inventario_id=inventario_id, articolo_id=cod_art).all()
+        logger.debug(f"Contenuto query:\n{righe}")
+        movimenti = [{
+            "quantita": r.quantita_inserita,
+            "descrizione": r.descrizione_articolo,
+            "utente": get_nome_utente(r.utente_id),
+            "data": r.timestamp.strftime("%d/%m/%Y %H:%M") if r.timestamp else ""
+        } for r in righe]
+        logger.debug("Contenuto movimenti:\n" + json.dumps(movimenti, indent=2, ensure_ascii=False))
+
+        return jsonify({"success": True, "movimenti": movimenti})
+    except Exception as e:
+        logger.warning(f"Errore: {str(e)}")
+        return jsonify({"success": False, "error": str(e)})
+
+
+def get_nome_utente(user_id):
+    utente = User.query.filter_by(id=user_id).all()
+    logger.debug(f"Utente caricato: {utente}")
+    username = utente.name + " " + utente.surname
+    return username
+
+@inventario_bp.route('/elimina_movimenti/<int:inventario_id>/<string:cod_art>', methods=['DELETE'])
+def elimina_movimenti_articolo(inventario_id, cod_art):
+    logger.info(f"Chiamata a route elimina movimenti articolo {cod_art} su inventario {inventario_id}")
+    try:
+        num = InventarioRiga.query.filter_by(inventario_id=inventario_id, articolo_id=cod_art).delete()
+        db.session.commit()
+        logger.info("Cancellazione effettuata con successo!")
+        return jsonify({"success": True, "deleted": num})
+    except Exception as e:
+        logger.warning(f"Errore: {str(e)}")
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)})
