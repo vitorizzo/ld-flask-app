@@ -154,7 +154,7 @@ def ultimi_inseriti(inventario_id):
     righe = (
         InventarioRiga.query
         .filter_by(inventario_id=inventario_id, utente_id=current_user.id)
-           # o .data_inserimento.desc() se hai un timestamp
+        # o .data_inserimento.desc() se hai un timestamp
         .limit(10)
         .all()
     )
@@ -274,7 +274,7 @@ def movimenti_articolo(inventario_id, cod_art):
     logger.info(f"Chiamata a route movimenti articolo {cod_art} su inventario {inventario_id}")
     try:
         righe = InventarioRiga.query.filter_by(inventario_id=inventario_id, articolo_id=cod_art).all()
-        logger.debug(f"Contenuto query:\n{righe}")
+        logger.debug(f"Contenuto query: \n{righe}")
         movimenti = [{
             "quantita": r.quantita_inserita,
             "descrizione": r.descrizione_articolo,
@@ -294,6 +294,7 @@ def get_nome_utente(user_id):
     logger.debug(f"Utente caricato: {utente}")
     username = utente.name + " " + utente.surname
     return username
+
 
 @inventario_bp.route('/elimina_movimenti/<int:inventario_id>/<string:cod_art>', methods=['DELETE'])
 def elimina_movimenti_articolo(inventario_id, cod_art):
