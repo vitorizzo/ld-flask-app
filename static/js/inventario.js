@@ -420,7 +420,7 @@ function popolaCampiArticolo(articolo) {
 
     }
 
-btnCercaArticolo.addEventListener('click', () => {
+    btnCercaArticolo.addEventListener('click', () => {
         const cod_art = document.getElementById('cod_art').value.trim();
         if (!cod_art) {
             alert("Inserisci un codice articolo.");
@@ -601,17 +601,97 @@ function aggiornaTabellaMovimenti(inventarioId) {
             tbody.innerHTML = "";
 
             if (!data.success) return;
-
+            let utente = ""
             data.righe.forEach(r => {
                 const tr = document.createElement("tr");
-                tr.innerHTML = `
-                    <td>${r.cod_art}</td>
-                    <td>${r.descrizione || ''}</td>
-                    <td class="text-end">${r.quantita}</td>
-                    <td class="text-end">${r.barcode || ''}</td>
-                `;
-                tbody.appendChild(tr);
+
+                fetch(`/inventario/username_by_id/${r.utente_id}`)
+                    .then(res => res.json())
+                    .then(data => {
+                        utente = data.username || ""
+                        console.log(`Utente per ID ${r.utente_id}: ${utente}`);
+                        tr.innerHTML = `
+                            <td>${r.cod_art}</td>
+                            <td>${r.descrizione || ''}</td>
+                            <td class="text-end">${r.quantita}</td>
+                            <td class="text-end">${r.barcode || ''}</td>
+                            <td class="text-end">${utente}</td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-info btn-modifica-movimento me-1" data-id_mov="${r.id}">Modifica</button>
+                                <button class="btn btn-sm btn-danger btn-elimina-movimento" data-id_mov="${r.id}">Elimina</button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+
+                    });
+
             });
+
+            document.querySelectorAll(".btn-modifica-movimento").forEach(btn => {
+                btn.addEventListener("click", e => {
+                    const idMov = btn.dataset.id_mov;
+                    const inventarioId = document.getElementById("modaleDettaglioInventario").dataset.inventarioId;
+
+                    // Popola i campi con i dati del movimento selezionato
+                    fetch(`/inventario/dati_movimento/${inventarioId}/${idMov}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                console.log("Dati movimento:", data);
+                                const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modaleModificaMovimentoArticolo'));
+                                const mov = data.dati_movimento;
+                                if (!modal) {
+                                    console.error("Modale non trovata, assicurati che esista nel DOM.");
+                                    return;
+                                } else {
+                                    modal.show();
+                                    if (mov.num_pedane || mov.num_cartoni || mov.num_pezzi_sciolti) {
+                                        formula = "Quantità inserita (" + mov.num_pedane + " pedane da " + mov.cpp + " cartoni + " + mov.num_cartoni + " cartoni da " + mov.ppc + " pezzi + " + mov.num_pezzi_sciolti + " pezzi sciolti)";
+                                        console.log("Contenuto formula:", formula);
+                                        document.getElementById("mod-quantita-inserita-label").textContent = formula;
+                                    } else {
+                                        document.getElementById("mod-quantita-inserita-label").textContent = "Quantità inserita";
+                                    }
+                                    document.getElementById("mod-quantita-inserita").value = mov.quantita_inserita;
+                                    document.getElementById("mod-codice-articolo").value = mov.cod_art;
+                                    document.getElementById("mod-descrizione-articolo").value = mov.descrizione || '';
+                                }
+                            } else {
+                                alert("Errore nel recupero dei dati del movimento.");
+                            }
+                        })
+                        .catch(err => {
+                            console.error("Errore:", err);
+                        });
+                });
+            });
+
+            document.querySelectorAll(".btn-elimina-movimento").forEach(btn => {
+                btn.addEventListener("click", e => {
+                    const idMov = btn.dataset.id_mov;
+                    const inventarioId = document.getElementById("modaleDettaglioInventario").dataset.inventarioId;
+
+                    if (confirm(`Vuoi eliminare il movimento selezionato?`)) {
+                        fetch(`/inventario/elimina_movimento/${inventarioId}/${idMov}`, {
+                            method: "DELETE"
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                console.log(`Eliminati ${data.deleted} movimenti per ${idMov}`);
+                                aggiornaTabellaInventarioAggregato(inventarioId);
+                                aggiornaTabellaMovimenti(inventarioId);
+                            } else {
+                                alert("Errore nell'eliminazione del movimento.");
+                            }
+                        })
+                        .catch(err => {
+                            console.error("Errore:", err);
+                        });
+                    }
+                });
+            });
+
         })
         .catch(err => {
             console.error("Errore nel caricamento righe movimenti:", err);
@@ -629,7 +709,6 @@ function aggiornaTabellaInventariEseguiti() {
 
             data.inventari.forEach(inv => {
                 const tr = document.createElement("tr");
-
                 tr.innerHTML = `
                     <td>${inv.id}</td>
                     <td>${inv.data}</td>

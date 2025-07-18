@@ -194,6 +194,17 @@ def righe_inventario(inventario_id):
     return jsonify({"success": True, "righe": risultato})
 
 
+@inventario_bp.route("/username_by_id/<int:user_id>")
+@login_required
+def username_by_id(user_id):
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"success": False, "error": "Utente non trovato"}), 404
+
+    username = f"{user.name} {user.surname}"
+    return jsonify({"success": True, "username": username})
+
+
 @inventario_bp.route("/lista_inventari")
 @login_required
 def lista_inventari():
@@ -290,7 +301,7 @@ def movimenti_articolo(inventario_id, cod_art):
 
 
 def get_nome_utente(user_id):
-    utente = User.query.filter_by(id=user_id).all()
+    utente = User.query.filter_by(id=user_id).first()
     logger.debug(f"Utente caricato: {utente}")
     username = utente.name + " " + utente.surname
     return username
@@ -308,3 +319,46 @@ def elimina_movimenti_articolo(inventario_id, cod_art):
         logger.warning(f"Errore: {str(e)}")
         db.session.rollback()
         return jsonify({"success": False, "error": str(e)})
+
+
+@inventario_bp.route('/elimina_movimento/<int:inventario_id>/<string:id_mov>', methods=['DELETE'])
+def elimina_movimento(inventario_id, id_mov):
+    logger.info(f"Chiamata a route elimina movimento {id_mov} su inventario {inventario_id}")
+    try:
+        num = InventarioRiga.query.filter_by(inventario_id=inventario_id, id=id_mov).delete()
+        db.session.commit()
+        logger.info("Cancellazione effettuata con successo!")
+        return jsonify({"success": True, "deleted": num})
+    except Exception as e:
+        logger.warning(f"Errore: {str(e)}")
+        db.session.rollback()
+        return jsonify({"success": False, "error": str(e)})
+
+
+@inventario_bp.route('/dati_movimento/<int:inventario_id>/<string:id_mov>', methods=['GET'])
+def dati_movimento(inventario_id, id_mov):
+    logger.info(f"Chiamata a route dati movimento {id_mov} su inventario {inventario_id}")
+    try:
+        riga = InventarioRiga.query.filter_by(inventario_id=inventario_id, id=id_mov).first()
+        if not riga:
+            return jsonify({"success": False, "error": "Movimento non trovato"}), 404
+
+        dati = {
+            "id": riga.id,
+            "cod_art": riga.articolo_id,
+            "descrizione": riga.descrizione_articolo,
+            "barcode": riga.barcode_articolo,
+            "quantita_inserita": riga.quantita_inserita,
+            "num_pedane": riga.num_pedane,
+            "num_cartoni": riga.num_cartoni,
+            "num_pezzi_sciolti": riga.num_pezzi_sciolti,
+            "ppc": riga.ppc,
+            "cpp": riga.cpp,
+            "utente_id": riga.utente_id,
+            "timestamp": riga.timestamp.strftime("%d/%m/%Y %H:%M") if riga.timestamp else ""
+        }
+
+        return jsonify({"success": True, "dati_movimento": dati})
+    except Exception as e:
+        logger.warning(f"Errore: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500

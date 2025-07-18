@@ -116,13 +116,13 @@
                     <label>Inserimento quantità tramite formula:</label>
                     <div class="row">
                         <div class="col-md-4">
-                            <label id="cpp-label" for="num_pedane">
+                            <label id="cpp-label" for="cpp">
                                 N. Pedane (<span id="cpp" class="editable">1</span>) <i class="fas fa-pencil-alt editable"></i>
                             </label>
                             {{ form.num_pedane(class="form-control", id="num_pedane") }}
                         </div>
                         <div class="col-md-4">
-                            <label id="pcc-label" for="num_cartoni">
+                            <label id="pcc-label" for="ppc">
                                 N. Cartoni (<span id="ppc" class="editable">1</span>) <i class="fas fa-pencil-alt editable"></i>
                             </label>
                             {{ form.num_cartoni(class="form-control", id="num_cartoni") }}
@@ -247,7 +247,7 @@
      aria-labelledby="modaleDettaglioLabel" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header">
+      <div class="modal-header bg-primary text-white fw-bold">
         <h5 class="modal-title" id="modaleTitoloInventario">Dettaglio Inventario</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
@@ -267,7 +267,7 @@
         </div>
 
         <!-- 📄 Tabella Movimenti -->
-        <table class="table table-striped d-none" id="tabella-movimenti">
+        <table class="table table-bordered d-none" id="tabella-movimenti">
           <thead>
             <tr>
               <th>Cod. Articolo</th>
@@ -304,7 +304,7 @@
 <div class="modal fade" id="modaleModificaData" tabindex="-1" aria-labelledby="modaleModificaDataLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header">
+      <div class="modal-header bg-primary text-white fw-bold">
         <h5 class="modal-title" id="modaleModificaDataLabel">Modifica data inventario</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
@@ -325,7 +325,7 @@
 <div class="modal fade" id="modaleMovimentiArticolo" tabindex="-1" aria-labelledby="modaleMovimentiArticoloLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header">
+      <div class="modal-header bg-primary text-white fw-bold">
         <h5 class="modal-title" id="modaleMovimentiArticoloLabel">Movimenti Articolo</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
@@ -348,6 +348,39 @@
   </div>
 </div>
 
+
+<!-- Modale: Modifica Movimento Articolo -->
+<div class="modal fade" id="modaleModificaMovimentoArticolo" tabindex="-1" aria-labelledby="modaleModificaMovimentoArticoloLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white fw-bold">
+        <h5 class="modal-title" id="modaleModificaMovimentoArticoloLabel">
+            Modifica Movimento Articolo
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <form id="form-modifica-movimento">
+          <input type="hidden" id="movimento-id">
+          <div class="mb-3">
+            <label id="mod-quantita-inserita-label" for="mod-quantita-inserita" class="form-label text-black">Quantità Inserita</label>
+            <input type="number" class="form-control" id="mod-quantita-inserita" required>
+            <button type="button" class="btn btn-primary mt-2" id="mod-calcola-formula">Modifica</button>
+          </div>
+          <div class="mb-3">
+            <label for="mod-codice-articolo" class="form-label text-black">Codice Articolo</label>
+            <input type="text" class="form-control" id="mod-codice-articolo" readonly>
+          </div>
+          <div class="mb-3">
+            <label for="mod-descrizione-articolo" class="form-label text-black">Articolo</label>
+            <input type="text" class="form-control" id="mod-descrizione-articolo" readonly>
+          </div>
+          <button type="submit" class="btn btn-primary">Salva Modifiche</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
 
 {% endblock %}
 
