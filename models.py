@@ -183,6 +183,7 @@ class InventarioRiga(db.Model):
     descrizione_articolo = db.Column(db.String(255), nullable=True)
     barcode_articolo = db.Column(db.String(50), nullable=True)
     quantita_inserita = db.Column(db.Integer, nullable=False)
+    has_versions = db.Column(db.Boolean, default=False)  # Indica se la riga ha versioni
 
     # 🆕 Campi aggiuntivi
     num_pedane = db.Column(db.Integer)
@@ -196,6 +197,26 @@ class InventarioRiga(db.Model):
 
     articolo = db.relationship('Articoli', backref='righe_inventario')
     utente = db.relationship('User', backref='righe_inventario')
+
+
+class InventarioRigaVersione(db.Model):
+    __tablename__ = 'inventario_righe_versioni'
+
+    id = db.Column(db.Integer, primary_key=True)
+    riga_id = db.Column(db.Integer, db.ForeignKey('inventario_righe.id', ondelete='CASCADE'))
+    utente_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    # Copia dei campi da InventarioRiga
+    quantita_inserita = db.Column(db.Integer, nullable=False)
+    num_pedane = db.Column(db.Integer)
+    num_cartoni = db.Column(db.Integer)
+    num_pezzi_sciolti = db.Column(db.Integer)
+    ppc = db.Column(db.Integer)
+    cpp = db.Column(db.Integer)
+
+    riga = db.relationship('InventarioRiga', backref='versioni')
+    utente = db.relationship('User', backref='versioni_inventario')
 
 
 class InventarioExport(db.Model):

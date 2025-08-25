@@ -4,7 +4,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from forms.forms import InventarioForm
 from extensions import db
-from models import Inventario, InventarioRiga, Articoli, Barcode, User
+from models import Inventario, InventarioRiga, Articoli, Barcode, User, InventarioRigaVersione
 from datetime import date, datetime
 
 from tools.log_utils import get_logger
@@ -95,10 +95,27 @@ def inventario():
                 num_pezzi_sciolti=form.num_pezzi_sciolti.data,
                 cpp=nuovo_cpp,
                 ppc=nuovo_ppc,
-                utente_id=current_user.id
+                utente_id=current_user.id,
+                timestamp=datetime.now(),
+                has_versions = False  # Inizialmente non ha versioni
             )
 
             db.session.add(riga)
+            db.session.flush()  # così riga.id è già disponibile senza commit
+
+            rigaversioni = InventarioRigaVersione(
+                riga_id=riga.id,  # FK
+                quantita_inserita=form.quantita_inserita.data,
+                num_pedane=form.num_pedane.data,
+                num_cartoni=form.num_cartoni.data,
+                num_pezzi_sciolti=form.num_pezzi_sciolti.data,
+                utente_id=current_user.id,
+                timestamp=datetime.now(),
+                ppc=nuovo_ppc,
+                cpp=nuovo_cpp
+            )
+
+            db.session.add(rigaversioni)
             db.session.commit()
 
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
@@ -182,13 +199,40 @@ def righe_inventario(inventario_id):
 
     risultato = []
     for r in righe:
+        hv = ""
+        if r.has_versions:
+            hv = "*"
         risultato.append({
             "id": r.id,
             "cod_art": r.articolo_id,
             "descrizione": r.descrizione_articolo,
             "quantita": r.quantita_inserita,
             "utente_id": r.utente_id,
-            "barcode": r.barcode_articolo
+            "barcode": r.barcode_articolo,
+            "has_versions": hv
+        })
+
+    return jsonify({"success": True, "righe": risultato})
+
+
+@inventario_bp.route("/versioni/<riga_id>")
+@login_required
+def versioni_riga(riga_id):
+    righe = InventarioRigaVersione.query.filter_by(riga_id=riga_id).all()
+    logger.debug(f"Righe versioni trovate: {righe}")
+    risultato = []
+    for r in righe:
+        logger.debug(f"Riga versione: {r}")
+        risultato.append({
+            "riga_id": riga_id,
+            "utente_id": r.utente_id,
+            "quantita_inserita": r.quantita_inserita,
+            "timestamp": r.timestamp,
+            "num_pedane": r.num_pedane,
+            "num_cartoni": r.num_cartoni,
+            "num_pezzi_sciolti": r.num_pezzi_sciolti,
+            "ppc": r.ppc,
+            "cpp": r.cpp
         })
 
     return jsonify({"success": True, "righe": risultato})
@@ -355,10 +399,85 @@ def dati_movimento(inventario_id, id_mov):
             "ppc": riga.ppc,
             "cpp": riga.cpp,
             "utente_id": riga.utente_id,
+            "has_versions": riga.has_versions,
             "timestamp": riga.timestamp.strftime("%d/%m/%Y %H:%M") if riga.timestamp else ""
         }
 
         return jsonify({"success": True, "dati_movimento": dati})
+    except Exception as e:
+        logger.warning(f"Errore: {str(e)}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+def normalize(v):
+    if v is None:
+        return None
+    try:
+        return int(v)
+    except (ValueError, TypeError):
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return str(v).strip()
+
+
+@inventario_bp.route('/modifica_dati_movimento/<int:inventario_id>/<string:id_mov>', methods=['POST'])
+def modifica_dati_movimento(inventario_id, id_mov):
+    logger.info(f"Chiamata a route modifica dati movimento {id_mov} su inventario {inventario_id}")
+
+    campi_da_controllare = [
+        "quantita_inserita",
+        "num_pedane",
+        "num_cartoni",
+        "num_pezzi_sciolti",
+        "ppc",
+        "cpp"
+    ]
+
+    try:
+        riga = InventarioRiga.query.filter_by(inventario_id=inventario_id, id=id_mov).first()
+        if not riga:
+            return jsonify({"success": False, "error": "Movimento non trovato"}), 404
+
+        nuovi_dati = request.get_json()
+        da_salvare = False
+        for c in campi_da_controllare:
+            old_val = normalize(getattr(riga, c))
+            new_val = normalize(nuovi_dati[c])
+            if old_val != new_val:
+                logger.debug(f"{c}: {old_val} e {new_val} non sono uguali")
+                da_salvare = True
+        logger.debug(f"Da salvare: {da_salvare}")
+        if da_salvare:
+            # salva nuova versione
+            riga.quantita_inserita = nuovi_dati["quantita_inserita"]
+            riga.num_pedane = nuovi_dati["num_pedane"]
+            riga.num_cartoni = nuovi_dati["num_cartoni"]
+            riga.num_pezzi_sciolti = nuovi_dati["num_pezzi_sciolti"]
+            riga.ppc = nuovi_dati["ppc"]
+            riga.cpp = nuovi_dati["cpp"]
+            riga.utente_id = current_user.id
+            riga.timestamp = datetime.now()
+            riga.has_versions = True  # Indica che ci sono versioni di questa riga
+
+            versione = InventarioRigaVersione(
+                riga_id=riga.id,
+                utente_id=current_user.id,
+                quantita_inserita=nuovi_dati["quantita_inserita"],
+                num_pedane=nuovi_dati["num_pedane"],
+                num_cartoni=nuovi_dati["num_cartoni"],
+                num_pezzi_sciolti=nuovi_dati["num_pezzi_sciolti"],
+                ppc=nuovi_dati["ppc"],
+                cpp=nuovi_dati["cpp"]
+            )
+
+            db.session.add(versione)
+            db.session.commit()
+
+            return jsonify({"success": True, "message": "Movimento aggiornato con successo"})
+            # return jsonify({"success": True, "dati_movimento": nuovi_dati})
+        else:
+            return jsonify({"success": True, "message": "Nessuna modifica necessaria"}), 200
     except Exception as e:
         logger.warning(f"Errore: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
