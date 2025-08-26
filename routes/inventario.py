@@ -220,10 +220,12 @@ def righe_inventario(inventario_id):
 def versioni_riga(riga_id):
     righe = InventarioRigaVersione.query.filter_by(riga_id=riga_id).all()
     logger.debug(f"Righe versioni trovate: {righe}")
+    movimento_orig = InventarioRiga.query.filter_by(id=riga_id).first()
     risultato = []
     for r in righe:
         logger.debug(f"Riga versione: {r}")
         risultato.append({
+            "articolo": movimento_orig.descrizione_articolo,
             "riga_id": riga_id,
             "utente_id": r.utente_id,
             "quantita_inserita": r.quantita_inserita,
@@ -247,6 +249,21 @@ def username_by_id(user_id):
 
     username = f"{user.name} {user.surname}"
     return jsonify({"success": True, "username": username})
+
+
+@inventario_bp.route("/articolo_by_idMov/<int:id_mov>")
+@login_required
+def articolo_by_idMov(id_mov):
+    mov = InventarioRiga.query.filter_by(id=id_mov).first()
+    if not mov:
+        return jsonify({"success": False, "error": "Movimento non trovato"}), 404
+    cod_art = mov.articolo_id
+    dati_articolo = Articoli.query.filter_by(cod_art=cod_art).first()
+    if not dati_articolo:
+        articolo=""
+    else:
+        articolo = f"{dati_articolo.descrizione} - {dati_articolo.descrizione_aggiuntiva}"
+    return jsonify({"success": True, "descrizione": articolo})
 
 
 @inventario_bp.route("/lista_inventari")

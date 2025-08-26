@@ -383,7 +383,6 @@ async function caricaEApriStorico(idMov) {
       const tr = document.createElement("tr");
       tr.innerHTML = `
         <td>${s.timestamp}</td>
-        <td>${s.descrizione || ''}</td>
         <td>${username}</td>
         <td class="text-end">${s.quantita_inserita}</td>
         <td class="text-end">${s.num_pedane || ''}</td>
@@ -397,6 +396,10 @@ async function caricaEApriStorico(idMov) {
 
     // Mostra la modale Bootstrap
     const modal = new bootstrap.Modal(document.getElementById("modaleStoricoModifiche"));
+    const articolo = await articolo_by_idmov(idMov);
+    if (articolo) {
+      document.getElementById("modaleStoricoModificheLabel").textContent = `Storico modifiche - ${articolo.descrizione}`;
+    }
     modal.show();
 
   } catch (err) {
@@ -404,6 +407,23 @@ async function caricaEApriStorico(idMov) {
     alert("Impossibile caricare lo storico delle modifiche.");
   }
 }
+
+async function articolo_by_idmov(idMov) {
+  try {
+    const res = await fetch(`/inventario/articolo_by_idMov/${idMov}`);
+    console.info("Risposta fetch:", res);
+    if (res.ok) {
+      const movimento = await res.json();
+      console.info("articolo:", movimento);
+      return movimento;
+    }
+  } catch (err) {
+    console.error("Errore nel caricamento del movimento:", err);
+    alert("Impossibile caricare il movimento specificato.");
+  }
+  return null; // <--- fallback
+}
+
 
 async function usernameById(id) {
   try {
@@ -568,15 +588,6 @@ function mostraScelteArticoli(lista) {
             console.log("Articolo selezionato dalla modale:", art);
             const modal = bootstrap.Modal.getInstance(document.getElementById('annate-modal'));
             modal.hide();
-
-            // Recupera barcode dell'articolo selezionato
-            //fetch(`/search/barcode_by_codart/${art.cod_art}`)
-            //    .then(res => res.json())
-            //    .then(barcodeData => {
-            //        document.getElementById("barcode").value = barcodeData.barcode || "";
-            //    });
-
-            // Popola tutti i campi
             popolaCampiArticolo(art);
         });
         listaElement.appendChild(li);
