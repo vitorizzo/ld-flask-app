@@ -3,6 +3,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const closeBtn = document.getElementById("install-close");
     const installBtn = document.getElementById("install-btn");
 
+    console.log(banner, closeBtn, installBtn);
+
     if (!banner) return;
 
     // Chiudi banner
