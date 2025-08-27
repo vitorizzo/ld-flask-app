@@ -180,7 +180,7 @@ def ultimi_inseriti(inventario_id):
     for r in righe:
         risultati.append({
             "cod_art": r.articolo_id,
-            "descrizione": r.descrizione_articolo,
+            "descrizione": articolo_by_idMov(r.id).json["descrizione"],
             "quantita": r.quantita_inserita
         })
 
@@ -205,7 +205,7 @@ def righe_inventario(inventario_id):
         risultato.append({
             "id": r.id,
             "cod_art": r.articolo_id,
-            "descrizione": r.descrizione_articolo,
+            "descrizione": articolo_by_idMov(r.id).json["descrizione"],
             "quantita": r.quantita_inserita,
             "utente_id": r.utente_id,
             "barcode": r.barcode_articolo,
@@ -262,7 +262,7 @@ def articolo_by_idMov(id_mov):
     if not dati_articolo:
         articolo=""
     else:
-        articolo = f"{dati_articolo.descrizione} - {dati_articolo.descrizione_aggiuntiva}"
+        articolo = f"{dati_articolo.descrizione} {dati_articolo.descrizione_aggiuntiva}"
     return jsonify({"success": True, "descrizione": articolo})
 
 
@@ -312,7 +312,7 @@ def inventario_aggregato(inventario_id):
         articolo = Articoli.query.get(cod_art)
         risultati.append({
             "cod_art": cod_art,
-            "descrizione": articolo.descrizione if articolo else "",
+            "descrizione": f"{articolo.descrizione} {articolo.descrizione_aggiuntiva}" if articolo else "",
             "quantita": quantita
         })
 
@@ -349,7 +349,7 @@ def movimenti_articolo(inventario_id, cod_art):
         logger.debug(f"Contenuto query: \n{righe}")
         movimenti = [{
             "quantita": r.quantita_inserita,
-            "descrizione": r.descrizione_articolo,
+            "descrizione": articolo_by_idMov(r.id).json["descrizione"],
             "utente": get_nome_utente(r.utente_id),
             "data": r.timestamp.strftime("%d/%m/%Y %H:%M") if r.timestamp else ""
         } for r in righe]
@@ -407,7 +407,7 @@ def dati_movimento(inventario_id, id_mov):
         dati = {
             "id": riga.id,
             "cod_art": riga.articolo_id,
-            "descrizione": riga.descrizione_articolo,
+            "descrizione": articolo_by_idMov(riga.id).json["descrizione"],
             "barcode": riga.barcode_articolo,
             "quantita_inserita": riga.quantita_inserita,
             "num_pedane": riga.num_pedane,

@@ -160,7 +160,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const a = data.articolo;
                     popolaCampiArticolo({
                         cod_art: a.cod_art,
-                        descrizione: a.descrizione,
+                        descrizione: "${a.descrizione} ${a.descrizione_aggiuntiva || ''}",
                         cpp: a.cpp,
                         ppc: a.ppc
                     });
@@ -171,7 +171,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (Array.isArray(data.articoli) && data.articoli.length > 0) {
                     const elencoConvertito = data.articoli.map(a => ({
                         cod_art: a.cod_art,
-                        descrizione: a.descrizione,
+                        descrizione: "${a.descrizione} ${a.descrizione_aggiuntiva || ''}",
                         cpp: a.cpp,
                         ppc: a.ppc
                     }));
@@ -243,7 +243,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 // Popola i campi e richiama la funzione centralizzata
                 popolaCampiArticolo({
                     cod_art: articolo.cod_art,
-                    descrizione: articolo.descrizione,
+                    descrizione: "${a.descrizione} ${a.descrizione_aggiuntiva || ''}",
                     cpp: articolo.cpp || 1,
                     ppc: articolo.ppc || 1
                 });
