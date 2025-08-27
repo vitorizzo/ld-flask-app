@@ -2,6 +2,11 @@
 
 {% block title %}LD Enoteca - Home{% endblock %}
 
+{% include 'partials/install_banner.html' %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/install_banner.css') }}">
+<script src="{{ url_for('static', filename='js/install_banner.js') }}"></script>
+
+
 {% block content %}
 <section class="welcome-section">
     <h1>Benvenuto sul Pannello dei Servizi di <br>LD Enoteca</h1>

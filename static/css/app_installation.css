@@ -1,0 +1,12 @@
+.install-section {
+    background-color: #f8f9fa;
+}
+
+.install-section h4 {
+    color: #2c3e50;
+}
+
+#android-status {
+    color: #155724;
+    font-weight: bold;
+}

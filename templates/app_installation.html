@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Installazione App{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h2>Installa LD WebApp sul tuo dispositivo</h2>
+
+    <div id="android-section" class="install-section my-3 p-3 border rounded">
+        <h4>Android</h4>
+        <p>Clicca sul pulsante per installare l’app sul tuo dispositivo.</p>
+        <button id="android-install-btn" class="btn btn-success">Installa su Android</button>
+        <div id="android-status" class="mt-2"></div>
+    </div>
+
+    <div id="ios-section" class="install-section my-3 p-3 border rounded">
+        <h4>iOS</h4>
+        <p>Per installare su iPhone/iPad: apri il menu di Safari → Condividi → Aggiungi alla schermata Home.</p>
+    </div>
+
+    <div id="windows-section" class="install-section my-3 p-3 border rounded">
+        <h4>Windows / Desktop</h4>
+        <p>Su Chrome o Edge clicca sull’icona “Installa app” nella barra degli indirizzi o nel menu del browser.</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/app_installation.js') }}"></script>
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app_installation.css') }}">
+{% endblock %}

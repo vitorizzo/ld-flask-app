@@ -4,7 +4,6 @@ self.addEventListener("install", (event) => {
       return cache.addAll([
         "/",               // homepage
         "/static/css/style.css",  // i tuoi file principali
-        "/static/js/app.js",
         "/static/icons/icon-192.png",
         "/static/icons/icon-512.png"
       ]);
