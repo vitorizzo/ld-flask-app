@@ -13,7 +13,7 @@ import os
 import re
 
 from dotenv import load_dotenv
-from flask import render_template
+from flask import render_template, send_from_directory
 from flask_login import LoginManager, current_user
 from models import User, Menu
 from routes.auth import auth_bp
@@ -102,6 +102,12 @@ app.register_blueprint(task_bp, url_prefix='/task_manage')
 app.register_blueprint(importazioni_bp, url_prefix='/importazioni')
 app.register_blueprint(logs_bp, url_prefix='/logs')
 app.register_blueprint(trello_bp, url_prefix='/trello')
+
+
+@app.route('/service-worker.js')
+def service_worker():
+    return send_from_directory('static', 'service-worker.js')
+
 
 logger.info("Blueprint registrati.")
 # debug_loggers()

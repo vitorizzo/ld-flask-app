@@ -17,6 +17,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/task_status.css') }}">
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
 
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#2c3e50">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
 
 </head>
 <body>
@@ -68,6 +71,13 @@
               }, 5000); // Dopo 5 secondi
             });
           });
+        </script>
+        <script>
+            if ("serviceWorker" in navigator) {
+                navigator.serviceWorker.register("/service-worker.js")
+                    .then(() => console.log("Service Worker registrato"))
+                    .catch((err) => console.error("Errore SW:", err));
+            }
         </script>
     {% endblock %}
 
