@@ -13,7 +13,7 @@ import os
 import re
 
 from dotenv import load_dotenv
-from flask import render_template, send_from_directory
+from flask import render_template, send_from_directory, make_response
 from flask_login import LoginManager, current_user
 from models import User, Menu
 from routes.auth import auth_bp
@@ -106,7 +106,10 @@ app.register_blueprint(trello_bp, url_prefix='/trello')
 
 @app.route('/service-worker.js')
 def service_worker():
-    return send_from_directory('static', 'service-worker.js')
+    response = make_response(send_from_directory('static', 'service-worker.js'))
+    response.headers['Content-Type'] = 'application/javascript'
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
 
 
 logger.info("Blueprint registrati.")
