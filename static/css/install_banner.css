@@ -3,7 +3,6 @@
     bottom: 0;
     left: 0;
     right: 0;
-    background-color: #2c3e50;
     color: #343a40;
     z-index: 1050;
     border-top-left-radius: 5px;
@@ -11,7 +10,7 @@
 }
 
 .install-text{
-    color: #343a40;
+    color: !important #343a40;
 }
 
 .install-banner button {
