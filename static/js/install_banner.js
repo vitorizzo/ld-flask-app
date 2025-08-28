@@ -15,6 +15,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Bottone “Scopri come”
     installBtn.addEventListener("click", () => {
-        window.location.href = "/app_installation";
+        window.location.href = "/installation/app_installation";
     });
 });
