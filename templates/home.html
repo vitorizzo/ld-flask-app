@@ -2,12 +2,14 @@
 
 {% block title %}LD Enoteca - Home{% endblock %}
 
-{% include 'partials/install_banner.html' %}
+{% block styles %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/install_banner.css') }}">
-<script src="{{ url_for('static', filename='js/install_banner.js') }}"></script>
+{% endblock %}
 
 
 {% block content %}
+{% include 'partials/install_banner.html' %}
+
 <section class="welcome-section">
     <h1>Benvenuto sul Pannello dei Servizi di <br>LD Enoteca</h1>
     <p>
@@ -21,4 +23,8 @@
         <button class="btn btn-disabled-custom">Offerte Esclusive</button>
     </div>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/install_banner.js') }}"></script>
 {% endblock %}
