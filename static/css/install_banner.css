@@ -1,8 +1,9 @@
 .install-banner {
     position: fixed;
-    bottom: 0;
+    top: 0;
     left: 0;
     right: 0;
+    background-color: #f8f9fa;
     color: #343a40;
     z-index: 1050;
     border-top-left-radius: 5px;
