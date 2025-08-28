@@ -3,6 +3,7 @@ import sys
 
 from flask_mail import Mail
 
+from routes.app_installation import installation_bp
 from routes.importazioni_routes import importazioni_bp
 from routes.logs_display import logs_bp
 from routes.status_routes import status_bp
@@ -102,6 +103,7 @@ app.register_blueprint(task_bp, url_prefix='/task_manage')
 app.register_blueprint(importazioni_bp, url_prefix='/importazioni')
 app.register_blueprint(logs_bp, url_prefix='/logs')
 app.register_blueprint(trello_bp, url_prefix='/trello')
+app.register_blueprint(installation_bp, url_prefix='/installation')
 
 
 @app.route('/service-worker.js')
