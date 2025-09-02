@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Mostra banner solo se PWA non è installata
     if (isPwaInstalled()) {
-        banner.remove();
+        banner.style.display = "none";
         return;
     }
 
@@ -23,9 +23,11 @@ document.addEventListener("DOMContentLoaded", () => {
     installBtn.addEventListener("click", () => {
         window.location.href = "/installation/app_installation";
     });
+
+    function isPwaInstalled() {
+        return window.matchMedia('(display-mode: standalone)').matches
+            || window.navigator.standalone === true; // per iOS
+    }
 });
 
-function isPwaInstalled() {
-    return window.matchMedia('(display-mode: standalone)').matches
-        || window.navigator.standalone === true; // per iOS
-}
+
