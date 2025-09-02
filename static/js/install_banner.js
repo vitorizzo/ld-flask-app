@@ -47,5 +47,6 @@ function isPwaInstalled() {
     }
 
     // In tutti gli altri casi presumiamo che NON sia installata
+    console.log("PWA is not installed.");
     return false;
 }
