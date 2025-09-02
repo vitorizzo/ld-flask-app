@@ -23,11 +23,25 @@ document.addEventListener("DOMContentLoaded", () => {
     installBtn.addEventListener("click", () => {
         window.location.href = "/installation/app_installation";
     });
-
-    function isPwaInstalled() {
-        return window.matchMedia('(display-mode: standalone)').matches
-            || window.navigator.standalone === true; // per iOS
-    }
 });
 
 
+function isPwaInstalled() {
+    // ✅ Android/Windows/desktop (Chrome, Edge, ecc.)
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        return true;
+    }
+
+    // ✅ iOS Safari
+    if (window.navigator.standalone === true) {
+        return true;
+    }
+
+    // ✅ Chrome/Edge su desktop possono anche essere "windowed"
+    if (window.matchMedia('(display-mode: minimal-ui)').matches) {
+        return true;
+    }
+
+    // In tutti gli altri casi presumiamo che NON sia installata
+    return false;
+}
