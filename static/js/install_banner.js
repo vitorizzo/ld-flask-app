@@ -8,8 +8,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!banner) return;
 
     // Mostra banner solo se PWA non è installata
-    if (!isPwaInstalled()) {
-        banner.visibility = "visible";
+    if (isPwaInstalled()) {
+        banner.style.display = "none";
         console.log("PWA is not already installed.");
         return;
     }
