@@ -21,6 +21,8 @@
     <meta name="theme-color" content="#2c3e50">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-512.png') }}">
+    {% block extra_css %}{% endblock %}
+
 </head>
 <body>
     <!-- Navbar -->
@@ -81,7 +83,6 @@
         </script>
     {% endblock %}
 
-    {% block extra_css %}{% endblock %}
     {% block extra_js %}{% endblock %}
 </body>
 </html>
