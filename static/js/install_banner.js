@@ -25,6 +25,11 @@ document.addEventListener("DOMContentLoaded", () => {
     installBtn.addEventListener("click", () => {
         window.location.href = "/installation/app_installation";
     });
+
+    setTimeout(() => {
+        banner.classList.add("fade-out");
+        setTimeout(() => banner.remove(), 500); // dopo la transizione
+    }, 10000);
 });
 
 
