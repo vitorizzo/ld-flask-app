@@ -1,4 +1,5 @@
 .install-banner {
+    display: none;
     position: fixed;
     top: 0;
     left: 0;
@@ -8,6 +9,9 @@
     z-index: 1050;
     border-top-left-radius: 5px;
     border-top-right-radius: 5px;
+}
+.install-banner.show {
+    display: flex !important;
 }
 
 .install-text{

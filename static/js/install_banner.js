@@ -7,13 +7,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (isPwaInstalled()) {
         // Se già installata, assicuriamoci che resti nascosta
-        banner.style.display = "none";
         console.log("✅ PWA is already installed → banner nascosto.");
         return;
     }
 
     // Se non installata → mostra banner
-    banner.style.display = "flex";
+    banner.classList.add("show");
     console.log("❌ PWA not installed → banner mostrato.");
 
     // Chiudi banner
