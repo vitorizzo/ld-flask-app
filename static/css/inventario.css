@@ -3,6 +3,41 @@
     cursor: pointer;
     transition: background-color 0.2s;
 }
+
 #tabella-inventari-eseguiti tbody tr:hover {
     background-color: #f2f2f2;
 }
+
+#tabella-inventari-eseguiti {
+    width: 100%;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+#tabella-inventari-eseguiti th {
+    background-color: #6f4e37; /* colore intestazione */
+    color: white;
+    text-align: center;
+    vertical-align: middle;
+}
+
+#tabella-inventari-eseguiti td {
+    vertical-align: middle;
+    text-align: center;
+    padding: 8px;
+}
+
+#tabella-inventari-eseguiti tbody tr {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#tabella-inventari-eseguiti tbody tr:hover {
+    background-color: #f2f2f2;
+}
+
+#tabella-inventari-eseguiti td button {
+    margin: 2px;
+}
+

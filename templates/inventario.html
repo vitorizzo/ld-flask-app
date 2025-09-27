@@ -186,9 +186,11 @@
     <table class="table table-bordered" id="tabella-inventari-eseguiti">
         <thead>
             <tr>
-                <th>ID Inventario</th>
+                <th>ID</th>
                 <th>Data</th>
                 <th class="text-end">N. Righe Inserite</th>
+                <th class="text-center">Esportazione Inventario</th>
+                <th class="text-center">Calcolo Rettifiche</th>
                 <th class="text-center">Azioni</th>
             </tr>
         </thead>
@@ -196,6 +198,8 @@
             <!-- Popolata via JS -->
         </tbody>
     </table>
+    <!-- input nascosto -->
+    <input type="file" id="file-import" style="display:none;" accept=".csv,.xlsx,.txt">
 </section>
 
 <!-- Modal per scheda articolo -->
@@ -451,6 +455,37 @@
     </div>
   </div>
 </div>
+
+<!-- Modal Selezione File -->
+<div class="modal fade" id="modalSelezioneFile" tabindex="-1" aria-labelledby="modalSelezioneFileLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalSelezioneFileLabel">Seleziona file di inventario</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <table class="table table-hover" id="tabella-file-export">
+          <thead>
+            <tr>
+              <th>Nome file</th>
+              <th class="text-end">Dimensione</th>
+              <th class="text-end">Ultima modifica</th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Popolato via JS -->
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-primary" id="btnConfermaFile" disabled>Importa</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 
 {% endblock %}
 

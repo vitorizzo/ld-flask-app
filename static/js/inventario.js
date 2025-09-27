@@ -110,6 +110,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const option = document.createElement("option");
             option.value = data.id;
             option.dataset.data = data.data;
+            option.dataset.export_inventario = data.export_inventario;
+            option.dataset.fix_movements = data.fix_movements;
             option.selected = true;
             option.textContent = `Inventario del ${data.data}`;
 
@@ -834,9 +836,13 @@ function aggiornaTabellaInventariEseguiti() {
                     <td>${inv.id}</td>
                     <td>${inv.data}</td>
                     <td class="text-end">${inv.num_righe}</td>
+                    <td class="text-center">${inv.export_inventario ? '<i class="bi bi-check-lg text-success" title="Esportato"></i>' : '<i class="bi bi-x-lg text-danger" title="Non esportato"></i>'}</td>
+                    <td class="text-center">${inv.fix_movements ? '<i class="bi bi-check-lg text-success" title="Corretto"></i>' : '<i class="bi bi-x-lg text-danger" title="Non corretto"></i>'}</td>
                     <td>
                         <button class="btn btn-sm btn-warning btn-modifica me-1" data-id="${inv.id}" data-data="${inv.data}">Modifica</button>
                         <button class="btn btn-sm btn-danger btn-elimina" data-id="${inv.id}">Elimina</button>
+                        <button class="btn btn-sm btn-info btn-importa" data-id="${inv.id}">Importa</button>
+                        <button class="btn btn-sm btn-info btn-rettifica" data-id="${inv.id}">Rettifica</button>
                     </td>
                 `;
 
@@ -896,6 +902,107 @@ function aggiornaTabellaInventariEseguiti() {
                         .catch(err => {
                             console.error("Errore durante l'eliminazione:", err);
                         });
+                    }
+                });
+            });
+            const inputFile = document.getElementById("file-import");
+            document.querySelectorAll(".btn-importa").forEach(btn => {
+                btn.addEventListener("click", async(e) => {
+                    e.stopPropagation();
+                    const id = btn.dataset.id;
+
+                    // 1️⃣ Check preliminare sul server
+                    const checkResponse = await fetch("/inventario/check_import_esistente", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ inventario_id: id })
+                    });
+
+                    const checkData = await checkResponse.json();
+
+                    // 2️⃣ Se esistono già dati, chiedi conferma
+                    if (checkData.exists) {
+                        const conferma = confirm("Esistono già dati per questo inventario.\nVuoi sovrascriverli?");
+                        if (!conferma) return;
+                        const response= await fetch("/inventario/pulisci_importazione", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ inventario_id: id })
+                        });
+                        if (!response.ok) {
+                            alert("Errore nel pulire i dati esistenti.");
+                        }
+                    }
+
+                    // 2️⃣ Recupera lista file dal server
+                    const filesResponse = await fetch("/exported/lista_export");
+                    const data = await filesResponse.json();
+
+                    console.log("Files ricevuti:", data); // 👈 DEBUG
+
+                    if (data.error) {
+                        alert("Errore: " + data.error);
+                        return;
+                    }
+
+                    // 3️⃣ Popola tabella nella modale
+                    const tbody = document.querySelector("#tabella-file-export tbody");
+                    tbody.innerHTML = "";
+                    let selectedFile = null;
+
+                    data.files.forEach(file => {
+                        const tr = document.createElement("tr");
+                        tr.innerHTML = `
+                            <td>${file.name}</td>
+                            <td class="text-end">${file.size} KB</td>
+                            <td class="text-end">${file.mtime}</td>
+                        `;
+                        tr.addEventListener("click", () => {
+                            tbody.querySelectorAll("tr").forEach(row => row.classList.remove("table-active"));
+                            tr.classList.add("table-active");
+                            selectedFile = file.name;
+                            document.querySelector("#btnConfermaFile").disabled = false;
+                        });
+                        tbody.appendChild(tr);
+                    });
+
+                    // 4️⃣ Mostra modale
+                    const modal = new bootstrap.Modal(document.getElementById("modalSelezioneFile"));
+                    modal.show();
+
+                    // 5️⃣ Conferma scelta
+                    document.querySelector("#btnConfermaFile").onclick = async () => {
+                        if (!selectedFile) return;
+
+                        console.log("DEBUG – invio a backend:", { inventario_id: id, filename: selectedFile });
+
+                        const importaRes = await fetch("/inventario/importa_inventario", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ inventario_id: id, filename: selectedFile })
+                        });
+
+                        console.log("Risposta importazione:", importaRes);
+
+                        const result = await importaRes.json();
+                        if (result.success) {
+                            modal.hide();
+                            alert("Importazione completata!");
+                            aggiornaTabellaInventariEseguiti(); // tua funzione per aggiornare la tabella
+                        } else {
+                            alert("Errore durante l'importazione: " + (result.error || "sconosciuto"));
+                        }
+                    };
+                });
+            });
+
+            document.querySelectorAll(".btn-rettifica").forEach(btn => {
+                btn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    const id = btn.dataset.id;
+
+                    if (confirm(`Procedo con la creazione dei movimenti di rettifica per l'inventario #${id}?`)) {
+
                     }
                 });
             });
@@ -1171,6 +1278,8 @@ function popolaSelectInventari(idSelezionato = null) {
                 const option = document.createElement("option");
                 option.value = inv.id;
                 option.textContent = inv.data;
+                option.dataset.export_inventario = inv.export_inventario;
+                option.dataset.fix_movements = inv.fix_movements;
                 // Aggiungi dataset extra se serve (es. num_righe, ecc.)
                 option.dataset.data = inv.data;
 

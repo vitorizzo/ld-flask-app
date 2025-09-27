@@ -3,6 +3,7 @@ from future.backports.datetime import datetime
 from extensions import db
 from flask_login import UserMixin
 from datetime import datetime, timezone
+from sqlalchemy.orm import foreign
 
 from tools.crypto import EncryptedString
 from tools.log_utils import get_logger
@@ -169,6 +170,8 @@ class Inventario(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     data_inventario = db.Column(db.Date, unique=True, nullable=False)
+    export_inventario = db.Column(db.Boolean, nullable=False, default=False)
+    fix_movements = db.Column(db.Boolean, nullable=False, default=False)
 
     # relazione con righe inventario
     righe = db.relationship('InventarioRiga', backref='inventario', cascade='all, delete-orphan')
@@ -197,6 +200,26 @@ class InventarioRiga(db.Model):
 
     articolo = db.relationship('Articoli', backref='righe_inventario')
     utente = db.relationship('User', backref='righe_inventario')
+
+
+class ImportInventari(db.Model):
+    __tablename__ = 'import_inventario'
+
+    id = db.Column(db.Integer, primary_key=True)
+    inventario_id = db.Column(db.Integer, db.ForeignKey('inventari.id', ondelete='CASCADE'))
+    articolo_id = db.Column(db.String(255), nullable=True)
+    descrizione_articolo = db.Column(db.String(255), nullable=True)
+    quantita_esistente = db.Column(db.Integer, nullable=False)
+    costo = db.Column(db.Numeric, nullable=True)
+    utente_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    articolo = db.relationship(
+        "Articoli",
+        primaryjoin=foreign(articolo_id) == Articoli.cod_art,
+        backref='import_inventario'
+    )
+    utente = db.relationship('User', backref='import_inventario')
 
 
 class InventarioRigaVersione(db.Model):

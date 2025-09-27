@@ -1,12 +1,18 @@
+import csv
 import json
 import logging
+
+import chardet as chardet
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
+from psycopg2 import IntegrityError
+
 from forms.forms import InventarioForm
 from extensions import db
-from models import Inventario, InventarioRiga, Articoli, Barcode, User, InventarioRigaVersione
+from models import Inventario, InventarioRiga, Articoli, Barcode, User, InventarioRigaVersione, ImportInventari
 from datetime import date, datetime
 
+from routes.esportazioni_teamsystem import serve_risorsa
 from tools.log_utils import get_logger
 
 logger = get_logger("inventario", level=logging.DEBUG)
@@ -25,6 +31,8 @@ def nuovo_inventario():
             "success": True,
             "id": esistente.id,
             "data": esistente.data_inventario.strftime("%d-%m-%Y"),
+            "export_inventario": esistente.export_inventario,
+            "fix_movements": esistente.fix_movements,
             "gia_esiste": True
         })
 
@@ -36,6 +44,8 @@ def nuovo_inventario():
         "success": True,
         "id": nuovo.id,
         "data": nuovo.data_inventario.strftime("%d-%m-%Y"),
+        "export_inventario": False,
+        "fix_movements": False,
         "gia_esiste": False
     })
 
@@ -150,6 +160,8 @@ def crea_inventario_con_data():
             "success": True,
             "id": esistente.id,
             "data": esistente.data_inventario.strftime("%d-%m-%Y"),
+            "export_inventario": esistente.export_inventario,
+            "fix_movements": esistente.fix_movements,
             "gia_esiste": True
         })
 
@@ -161,6 +173,8 @@ def crea_inventario_con_data():
         "success": True,
         "id": nuovo.id,
         "data": nuovo.data_inventario.strftime("%d-%m-%Y"),
+        "export_inventario": False,
+        "fix_movements": False,
         "gia_esiste": False
     })
 
@@ -266,6 +280,158 @@ def articolo_by_idMov(id_mov):
     return jsonify({"success": True, "descrizione": articolo})
 
 
+@inventario_bp.route("/check_import_esistente", methods=["POST"])
+def check_import_esistente():
+    """
+    Controlla se esistono già dati importati per l'inventario richiesto.
+    """
+    logger.info("📥 Route /check_import_esistente chiamata")
+    inventario_id = request.json.get("inventario_id")
+    if not inventario_id:
+        return jsonify({"exists": False, "message": "ID inventario mancante"}), 400
+
+    existing = ImportInventari.query.filter_by(inventario_id=inventario_id).first()
+
+    return jsonify({"exists": bool(existing)})
+
+
+@inventario_bp.route("/pulisci_importazione", methods=["POST"])
+def delete_import_esistente():
+    """
+    Cancella i dati importati per l'inventario richiesto.
+    """
+    logger.info("📥 Route /pulisci_importazione chiamata")
+    inventario_id = request.json.get("inventario_id")
+    if not inventario_id:
+        return jsonify({"success": False, "message": "ID inventario mancante"}), 400
+
+    try:
+        num_deleted = ImportInventari.query.filter_by(inventario_id=inventario_id).delete()
+        db.session.commit()
+        logger.info(f"✅ Cancellati {num_deleted} record di importazione per inventario {inventario_id}")
+        inventario = Inventario.query.get(inventario_id)
+        if inventario:
+            inventario.export_inventario = False
+            db.session.commit()
+            logger.info(f"✅ Stato export_inventario resettato per inventario {inventario_id}")
+
+    except Exception as e:
+        logger.error(f"❌ Errore durante la cancellazione: {str(e)}")
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"Errore durante la cancellazione: {str(e)}"}), 500
+
+    return jsonify({"success": True, "deleted": num_deleted})
+
+
+@inventario_bp.route("/importa_inventario", methods=["POST"])
+def importa_inventario():
+    logger.info("📥 Route /importa_inventario chiamata")
+    try:
+        data = request.get_json(force=True, silent=True)
+        if not data:
+            return jsonify({"error": "Nessun JSON ricevuto"}), 400
+
+        inventario_id = data.get("inventario_id")
+        file_inventario = data.get("filename")  # usa lo stesso nome che passi da JS
+
+        logger.debug(f"Parametri ricevuti: inventario_id={inventario_id}, file={file_inventario}")
+
+        if not inventario_id:
+            logger.debug("ID inventario mancante")
+            return jsonify({"success": False, "message": "ID inventario mancante"}), 400
+
+        # 1️⃣ Verifica che l'inventario esista
+        inventario = Inventario.query.get(inventario_id)
+        if not inventario:
+            logger.debug("Inventario non trovato")
+            return jsonify({"success": False, "message": "Inventario non trovato"}), 404
+
+        # 2️⃣ Controlla se ci sono già dati importati per questo inventario
+        existing = ImportInventari.query.filter_by(inventario_id=inventario_id).first()
+        if existing:
+            logger.debug("Dati già importati per questo inventario")
+            return jsonify({"success": False, "message": "Dati già importati per questo inventario"}), 400
+
+        # 4️⃣ Legge il file CSV
+        righe_importate = []
+        csv_encoding = "utf-8"
+        with open(file_inventario, "rb") as f:
+            logger.debug("Trovo la codifica del file CSV...")
+            raw_data = f.read(8192)  # primi 8 KB
+            result = chardet.detect(raw_data)
+            logger.debug(f"encoding rilevato: {result['encoding']}")
+            csv_encoding = result['encoding'] if result['encoding'] else "utf-8"
+
+        try:
+            csvfile = open(file_inventario, "r", encoding=csv_encoding)
+        except UnicodeDecodeError:
+            # 2️⃣ Fallback con latin-1
+            logger.warning(f"Errore decoding con {csv_encoding}, riprovo con latin-1")
+            csvfile = open(file_inventario, "r", encoding="latin-1", errors="replace")
+        with csvfile:
+            logger.debug("Leggo il file CSV...")
+            reader = csv.DictReader(csvfile, delimiter="\t")
+
+            # ✅ Controlla che il file abbia le colonne attese
+            col_articolo = "Codice Articolo"
+            col_descrizione = "Descrizione 1 Art."
+            col_descrizione_aggiuntiva = "Descrizione 2 Art."
+            col_quantita = "Qta-Giac-attuale"
+            col_costo = "Costo acquisto"
+
+            colonne_attese = {col_articolo, col_descrizione, col_descrizione_aggiuntiva, col_quantita, col_costo}
+
+            logger.debug(f"Colonne trovate: {reader.fieldnames}")
+            logger.debug(f"Colonne attese: {colonne_attese}")
+
+            if not colonne_attese.issubset(set(reader.fieldnames)):
+                return jsonify({"success": False, "message": "File inventario non valido (colonne mancanti)"}), 400
+            for row in reader:
+                riga = ImportInventari(
+                    inventario_id=inventario_id,
+                    articolo_id=row[col_articolo],
+                    descrizione_articolo=row[col_descrizione]+" "+row[col_descrizione_aggiuntiva],
+                    quantita_esistente=int(row[col_quantita]) if row[col_quantita].isdigit() else 0,
+                    costo=float(row[col_costo].replace(",", "").replace(",", ".")) if row[col_costo] else 0.0,
+                    utente_id=current_user.id,
+                    timestamp=datetime.now()
+                )
+                if riga.articolo_id.strip()!="":
+                    righe_importate.append(riga)
+                    logger.debug(f"Riga importata: {riga}")
+
+        # 5️⃣ Salva in DB
+        db.session.bulk_save_objects(righe_importate)
+
+        # 6️⃣ Aggiorna stato inventario
+        inventario.export_inventario = True
+
+        db.session.commit()
+
+        # 7️⃣ Prepara risposta con dati aggiornati
+        inventari = Inventario.query.all()
+        data = [
+            {
+                "id": i.id,
+                "data_inventario": i.data_inventario,
+                "export_inventario": i.export_inventario,
+                "fix_movements": i.fix_movements
+            }
+            for i in inventari
+        ]
+        logger.debug(f"Dati inventari aggiornati: {data}")
+        return jsonify({"success": True, "inventari": data})
+
+    except IntegrityError:
+        logger.error("Errore di integrità nel salvataggio")
+        db.session.rollback()
+        return jsonify({"success": False, "message": "Errore di integrità nel salvataggio"}), 500
+    except Exception as e:
+        logger.error(f"Errore durante importazione: {str(e)}")
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"Errore durante importazione: {str(e)}"}), 500
+
+
 @inventario_bp.route("/lista_inventari")
 @login_required
 def lista_inventari():
@@ -273,6 +439,8 @@ def lista_inventari():
         db.session.query(
             Inventario.id,
             Inventario.data_inventario,
+            Inventario.export_inventario,
+            Inventario.fix_movements,
             db.func.count(InventarioRiga.id).label("num_righe")
         )
         .outerjoin(InventarioRiga, Inventario.id == InventarioRiga.inventario_id)
@@ -286,6 +454,8 @@ def lista_inventari():
         lista.append({
             "id": inv.id,
             "data": inv.data_inventario.strftime("%d-%m-%Y"),
+            "export_inventario": inv.export_inventario,
+            "fix_movements": inv.fix_movements,
             "num_righe": inv.num_righe
         })
 

@@ -1,7 +1,9 @@
 import tempfile
+from datetime import datetime
+
 import requests
 import os
-from flask import Blueprint, send_from_directory, current_app
+from flask import Blueprint, send_from_directory, current_app, jsonify
 from tools.log_utils import log_task, get_logger
 
 logger = get_logger('teamsystem_export')
@@ -54,6 +56,31 @@ def serve_risorsa(filename):
         raise FileNotFoundError(f"File non trovato: {file_path}")
 
     return file_path  # restituisce il path, non l'oggetto file o una response Flask
+
+
+@file_bp.route("/lista_export")
+def lista_export():
+    folder = os.getenv("EXPORT_FOLDER", ESTRAZIONI_FOLDER)
+    logger.debug(f"Percorso EXPORT_FOLDER = {folder}")
+    if not os.path.exists(folder):
+        return jsonify({"error": "Cartella di export non trovata"}), 500
+
+    files_info = []
+    for f in os.listdir(folder):
+        logger.debug(f"Esaminando file: {f}")
+        if f.lower().endswith(".csv"):
+            path = os.path.join(folder, f)
+            stat = os.stat(path)
+            files_info.append({
+                "name": os.path.join(folder, f),
+                "size": round(stat.st_size / 1024, 1),  # KB
+                "mtime": datetime.fromtimestamp(stat.st_mtime).strftime("%d/%m/%Y %H:%M")
+            })
+
+    # Ordina per data di modifica, più recente prima
+    files_info.sort(key=lambda x: x["mtime"], reverse=True)
+    logger.debug(f"Files trovati: {files_info}")
+    return jsonify({"files": files_info})
 
 
 @file_bp.route('/get/<filename>')
