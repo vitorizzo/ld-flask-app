@@ -932,6 +932,15 @@ function aggiornaTabellaInventariEseguiti() {
                         if (!response.ok) {
                             alert("Errore nel pulire i dati esistenti.");
                         }
+                        const clear_ei= await fetch("/inventario/clear_import", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ inventario_id: id })
+                        });
+                        if (!clear_ei) {
+                            alert("Errore nel reset del flag export_inventario esistente.");
+                            return
+                        }
                     }
 
                     // 2️⃣ Recupera lista file dal server
@@ -988,6 +997,15 @@ function aggiornaTabellaInventariEseguiti() {
                         if (result.success) {
                             modal.hide();
                             alert("Importazione completata!");
+                            const set_ei= await fetch("/inventario/set_import", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ inventario_id: id })
+                            });
+                            if (!set_ei.ok) {
+                                alert("Errore nel reset del flag rettifiche esistenti.");
+                                return
+                            }
                             aggiornaTabellaInventariEseguiti(); // tua funzione per aggiornare la tabella
                         } else {
                             alert("Errore durante l'importazione: " + (result.error || "sconosciuto"));
@@ -997,12 +1015,70 @@ function aggiornaTabellaInventariEseguiti() {
             });
 
             document.querySelectorAll(".btn-rettifica").forEach(btn => {
-                btn.addEventListener("click", (e) => {
+                btn.addEventListener("click", async(e) => {
                     e.stopPropagation();
                     const id = btn.dataset.id;
 
-                    if (confirm(`Procedo con la creazione dei movimenti di rettifica per l'inventario #${id}?`)) {
+                    // 1️⃣ Check preliminare sul server
+                    const checkResponse = await fetch("/inventario/check_fix_esistente", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ inventario_id: id })
+                    });
 
+                    const checkData = await checkResponse.json();
+
+                    // 2️⃣ Se esistono già dati, chiedi conferma
+                    if (checkData.exists) {
+                        const conferma = confirm("Esistono già movimenti di rettifica per questo inventario.\nVuoi sovrascriverli?");
+                        if (!conferma) return;
+                        const response= await fetch("/inventario/pulisci_fix", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ inventario_id: id })
+                        });
+                        if (!response.ok) {
+                            alert("Errore nel pulire le rettifiche esistenti.");
+                            return
+                        }
+                        const clear_fm= await fetch("/inventario/clear_rettifica", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ inventario_id: id })
+                        });
+                        if (!clear_fm.ok) {
+                            alert("Errore nel reset del flag rettifiche esistenti.");
+                            return
+                        }
+                    }
+
+                    const rettifica = await fetch("/inventario/rettifica", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({inventario_id: id})
+                    });
+                    if (!rettifica.ok) {
+                        alert("Errore di rete o risposta non valida dal server.");
+                        return;
+                    }
+
+                    const set_fm= await fetch("/inventario/set_rettifica", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ inventario_id: id })
+                        });
+                        if (!set_fm.ok) {
+                            alert("Errore nel set del flag rettifiche esistenti.");
+                            return
+                        }
+
+                    const data = await rettifica.json();
+
+                    if (data.success) {
+                        aggiornaTabellaInventariEseguiti();
+                        flashMessage(`Rettifica completata con successo! (${data.rettifiche || 0} movimenti)`, "success");
+                    } else {
+                        alert(data.message || "Errore nella rettifica.");
                     }
                 });
             });

@@ -9,7 +9,8 @@ from psycopg2 import IntegrityError
 
 from forms.forms import InventarioForm
 from extensions import db
-from models import Inventario, InventarioRiga, Articoli, Barcode, User, InventarioRigaVersione, ImportInventari
+from models import Inventario, InventarioRiga, Articoli, Barcode, User, InventarioRigaVersione, ImportInventari, \
+    RettificaInventario
 from datetime import date, datetime
 
 from routes.esportazioni_teamsystem import serve_risorsa
@@ -290,9 +291,242 @@ def check_import_esistente():
     if not inventario_id:
         return jsonify({"exists": False, "message": "ID inventario mancante"}), 400
 
-    existing = ImportInventari.query.filter_by(inventario_id=inventario_id).first()
+    existing = exists_import(inventario_id)
 
-    return jsonify({"exists": bool(existing)})
+    return jsonify({"exists": existing, "message": "Esiste" if existing else "Non esiste"})
+
+
+@inventario_bp.route("/check_fix_esistente", methods=["POST"])
+def check_fix_esistente():
+    """
+    Controlla se esistono già movimenti di rettifica per l'inventario richiesto.
+    """
+    logger.info("📥 Route /check_fix_esistente chiamata")
+    inventario_id = request.json.get("inventario_id")
+    if not inventario_id:
+        return jsonify({"exists": False, "message": "ID inventario mancante"}), 400
+
+    existing = exists_fix(inventario_id)
+
+    return jsonify({"exists": existing, "message": "Esiste" if existing else "Non esiste"})
+
+
+def exists_import(inventario_id):
+    logger.info("📥 Funzione exist_import chiamata")
+    existing = ImportInventari.query.filter_by(inventario_id=inventario_id).first()
+    return bool(existing)
+
+
+def exists_fix(inventario_id):
+    logger.info("📥 Funzione exist_fix chiamata")
+    existing = RettificaInventario.query.filter_by(inventario_id=inventario_id).first()
+    return bool(existing)
+
+
+@inventario_bp.route("/rettifica", methods=["POST"])
+def rettifica_inventario():
+    from sqlalchemy import func
+    from sqlalchemy.orm import aliased
+
+    logger.info("📥 Route /rettifica chiamata")
+
+    inventario_id = request.json.get("inventario_id")
+    if not inventario_id:
+        return jsonify({"success": False, "message": "ID inventario mancante"}), 400
+
+    check_fix_esistente = exists_fix(inventario_id)
+    if check_fix_esistente:
+        return jsonify({"success": False, "message": "Rettifiche già eseguite per questo inventario"}), 400
+
+    try:
+        R = aliased(InventarioRiga)
+
+        # 1️⃣ Query principale: articoli presenti in ImportInventari
+        # outerjoin per avere anche quelli senza movimenti rilevati
+        result = (
+            db.session.query(
+                ImportInventari.articolo_id,
+                ImportInventari.quantita_esistente.label("giac"),
+                func.coalesce(func.sum(R.quantita_inserita), 0).label("ril")
+            )
+            .outerjoin(
+                R,
+                (R.articolo_id == ImportInventari.articolo_id) & (R.inventario_id == inventario_id)
+            )
+            .filter(ImportInventari.inventario_id == inventario_id)
+            .group_by(ImportInventari.articolo_id, ImportInventari.quantita_esistente)
+            .all()
+        )
+
+        movimenti_fix = []
+
+        # 2️⃣ Costruisco i movimenti per articoli presenti in ImportInventari
+        for row in result:
+            giac = row.giac
+            ril = row.ril
+            fix = ril - giac  # regola generale
+
+            if fix != 0:
+                movimenti_fix.append(
+                    RettificaInventario(
+                        articolo_id=row.articolo_id,
+                        giacenza=giac,
+                        rilevazione=ril,
+                        rettifica=fix,
+                        utente_id=current_user.id,
+                        timestamp=datetime.now(),
+                        inventario_id=inventario_id
+                    )
+                )
+
+        # 3️⃣ Query extra: articoli presenti solo in InventarioRiga (senza import iniziale)
+        extra_rows = (
+            db.session.query(
+                R.articolo_id,
+                func.sum(R.quantita_inserita).label("ril")
+            )
+            .filter(R.inventario_id == inventario_id)
+            .filter(~R.articolo_id.in_([r.articolo_id for r in result]))  # escludo quelli già gestiti
+            .group_by(R.articolo_id)
+            .all()
+        )
+
+        for r in extra_rows:
+            # qui giac = 0, quindi fix = ril
+            movimenti_fix.append(
+                RettificaInventario(
+                    articolo_id=r.articolo_id,
+                    giacenza=0,
+                    rilevazione=r.ril,
+                    rettifica=r.ril,
+                    utente_id=current_user.id,
+                    timestamp=datetime.now(),
+                    inventario_id=inventario_id
+                )
+            )
+
+        # 4️⃣ Salvataggio in DB
+        if movimenti_fix:
+            db.session.add_all(movimenti_fix)
+            db.session.commit()
+            logger.info(f"💾 Creati {len(movimenti_fix)} movimenti di rettifica")
+
+            return jsonify({"success": True, "rettifiche": len(movimenti_fix)}), 200
+        else:
+            return jsonify({"success": True, "message": "Nessuna rettifica necessaria"}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"❌ Errore in rettifica_inventario: {e}")
+        return jsonify({"success": False, "message": "Errore durante la rettifica"}), 500
+
+
+@inventario_bp.route("/set_rettifica", methods=["POST"])
+def set_rettifica():
+    """
+    Imposta il flag fix_movements a True per l'inventario richiesto.
+    """
+    logger.info("📥 Route /set_rettifica chiamata")
+    inventario_id = request.json.get("inventario_id")
+    if not inventario_id:
+        return jsonify({"success": False, "message": "ID inventario mancante"}), 400
+
+    try:
+        inventario = Inventario.query.get(inventario_id)
+        if not inventario:
+            return jsonify({"success": False, "message": "Inventario non trovato"}), 404
+
+        inventario.fix_movements = True
+        db.session.commit()
+        logger.info(f"✅ Stato fix_movements impostato a True per inventario {inventario_id}")
+
+    except Exception as e:
+        logger.error(f"❌ Errore durante l'aggiornamento: {str(e)}")
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"Errore durante l'aggiornamento: {str(e)}"}), 500
+
+    return jsonify({"success": True, "message": "Stato aggiornato"})
+
+
+@inventario_bp.route("/set_import", methods=["POST"])
+def set_import():
+    """
+    Imposta il flag export_inventario a True per l'inventario richiesto.
+    """
+    logger.info("📥 Route /set_import chiamata")
+    inventario_id = request.json.get("inventario_id")
+    if not inventario_id:
+        return jsonify({"success": False, "message": "ID inventario mancante"}), 400
+
+    try:
+        inventario = Inventario.query.get(inventario_id)
+        if not inventario:
+            return jsonify({"success": False, "message": "Inventario non trovato"}), 404
+
+        inventario.export_inventario = True
+        db.session.commit()
+        logger.info(f"✅ Stato export_inventario impostato a True per inventario {inventario_id}")
+
+    except Exception as e:
+        logger.error(f"❌ Errore durante l'aggiornamento: {str(e)}")
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"Errore durante l'aggiornamento: {str(e)}"}), 500
+
+    return jsonify({"success": True, "message": "Stato aggiornato"})
+
+
+@inventario_bp.route("/clear_rettifica", methods=["POST"])
+def clear_rettifica():
+    """
+    Imposta il flag fix_movements a False per l'inventario richiesto.
+    """
+    logger.info("📥 Route /clear_rettifica chiamata")
+    inventario_id = request.json.get("inventario_id")
+    if not inventario_id:
+        return jsonify({"success": False, "message": "ID inventario mancante"}), 400
+
+    try:
+        inventario = Inventario.query.get(inventario_id)
+        if not inventario:
+            return jsonify({"success": False, "message": "Inventario non trovato"}), 404
+
+        inventario.fix_movements = False
+        db.session.commit()
+        logger.info(f"✅ Stato fix_movements impostato a False per inventario {inventario_id}")
+
+    except Exception as e:
+        logger.error(f"❌ Errore durante l'aggiornamento: {str(e)}")
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"Errore durante l'aggiornamento: {str(e)}"}), 500
+
+    return jsonify({"success": True, "message": "Stato aggiornato"})
+
+
+@inventario_bp.route("/clear_import", methods=["POST"])
+def clear_import():
+    """
+    Imposta il flag export_inventario a False per l'inventario richiesto.
+    """
+    logger.info("📥 Route /clear_import chiamata")
+    inventario_id = request.json.get("inventario_id")
+    if not inventario_id:
+        return jsonify({"success": False, "message": "ID inventario mancante"}), 400
+
+    try:
+        inventario = Inventario.query.get(inventario_id)
+        if not inventario:
+            return jsonify({"success": False, "message": "Inventario non trovato"}), 404
+
+        inventario.export_inventario = False
+        db.session.commit()
+        logger.info(f"✅ Stato export_inventario impostato a False per inventario {inventario_id}")
+
+    except Exception as e:
+        logger.error(f"❌ Errore durante l'aggiornamento: {str(e)}")
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"Errore durante l'aggiornamento: {str(e)}"}), 500
+
+    return jsonify({"success": True, "message": "Stato aggiornato"})
 
 
 @inventario_bp.route("/pulisci_importazione", methods=["POST"])
@@ -323,6 +557,34 @@ def delete_import_esistente():
     return jsonify({"success": True, "deleted": num_deleted})
 
 
+@inventario_bp.route("/pulisci_fix", methods=["POST"])
+def delete_fix_esistente():
+    """
+    Cancella i dati importati per l'inventario richiesto.
+    """
+    logger.info("📥 Route /pulisci_fix chiamata")
+    inventario_id = request.json.get("inventario_id")
+    if not inventario_id:
+        return jsonify({"success": False, "message": "ID inventario mancante"}), 400
+
+    try:
+        num_deleted = RettificaInventario.query.filter_by(inventario_id=inventario_id).delete()
+        db.session.commit()
+        logger.info(f"✅ Cancellati {num_deleted} record di rettifica per inventario {inventario_id}")
+        inventario = Inventario.query.get(inventario_id)
+        if inventario:
+            inventario.fix_movements = False
+            db.session.commit()
+            logger.info(f"✅ Stato fix_movements resettato per inventario {inventario_id}")
+
+    except Exception as e:
+        logger.error(f"❌ Errore durante la cancellazione: {str(e)}")
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"Errore durante la cancellazione: {str(e)}"}), 500
+
+    return jsonify({"success": True, "deleted": num_deleted})
+
+
 @inventario_bp.route("/importa_inventario", methods=["POST"])
 def importa_inventario():
     logger.info("📥 Route /importa_inventario chiamata")
@@ -340,14 +602,7 @@ def importa_inventario():
             logger.debug("ID inventario mancante")
             return jsonify({"success": False, "message": "ID inventario mancante"}), 400
 
-        # 1️⃣ Verifica che l'inventario esista
-        inventario = Inventario.query.get(inventario_id)
-        if not inventario:
-            logger.debug("Inventario non trovato")
-            return jsonify({"success": False, "message": "Inventario non trovato"}), 404
-
-        # 2️⃣ Controlla se ci sono già dati importati per questo inventario
-        existing = ImportInventari.query.filter_by(inventario_id=inventario_id).first()
+        existing = exists_import(inventario_id)
         if existing:
             logger.debug("Dati già importati per questo inventario")
             return jsonify({"success": False, "message": "Dati già importati per questo inventario"}), 400

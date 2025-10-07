@@ -177,6 +177,26 @@ class Inventario(db.Model):
     righe = db.relationship('InventarioRiga', backref='inventario', cascade='all, delete-orphan')
 
 
+class RettificaInventario(db.Model):
+    __tablename__ = 'rettifiche_inventario'
+
+    id = db.Column(db.Integer, primary_key=True)
+    inventario_id = db.Column(db.Integer, db.ForeignKey('inventari.id', ondelete='CASCADE'))
+    articolo_id = db.Column(db.String(255), nullable=True)
+    giacenza = db.Column(db.Integer, nullable=False)
+    rilevazione = db.Column(db.Integer, nullable=False)
+    rettifica = db.Column(db.Integer, nullable=False)
+    utente_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    articolo = db.relationship(
+        "Articoli",
+        primaryjoin=foreign(articolo_id) == Articoli.cod_art,
+        backref='rettifiche_inventario'
+    )
+    utente = db.relationship('User', backref='rettifiche_inventario')
+
+
 class InventarioRiga(db.Model):
     __tablename__ = 'inventario_righe'
 
