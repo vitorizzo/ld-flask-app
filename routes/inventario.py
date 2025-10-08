@@ -651,17 +651,21 @@ def importa_inventario():
         righe_importate = []
         csv_encoding = "utf-8"
         with open(file_inventario, "rb") as f:
-            logger.debug("Trovo la codifica del file CSV...")
-            raw_data = f.read(8192)  # primi 8 KB
+            logger.debug("🔍 Rilevo la codifica del file CSV...")
+            raw_data = f.read(8192)
             result = chardet.detect(raw_data)
-            logger.debug(f"encoding rilevato: {result['encoding']}")
-            csv_encoding = result['encoding'] if result['encoding'] else "utf-8"
+            csv_encoding = result.get("encoding", "utf-8") or "utf-8"
+            logger.debug(f"✅ Encoding rilevato: {csv_encoding}")
+
+        # ⚙️ Normalizza la codifica: ASCII → UTF-8
+        if csv_encoding.lower() in ["ascii", "none", None]:
+            logger.warning("⚠️ Encoding rilevato come ASCII, forzo UTF-8")
+            csv_encoding = "utf-8"
 
         try:
-            csvfile = open(file_inventario, "r", encoding=csv_encoding)
-        except UnicodeDecodeError:
-            # 2️⃣ Fallback con latin-1
-            logger.warning(f"Errore decoding con {csv_encoding}, riprovo con latin-1")
+            csvfile = open(file_inventario, "r", encoding=csv_encoding, errors="strict")
+        except UnicodeDecodeError as e:
+            logger.warning(f"⚠️ Errore di decoding con {csv_encoding}: {e}. Riprovo con latin-1")
             csvfile = open(file_inventario, "r", encoding="latin-1", errors="replace")
         with csvfile:
             logger.debug("Leggo il file CSV...")
