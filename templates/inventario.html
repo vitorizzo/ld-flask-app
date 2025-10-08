@@ -13,7 +13,7 @@
                 {% for inv in inventari %}
                     <option value="{{ inv.id }}" data-data="{{ inv.data_inventario.strftime('%d-%m-%Y') }}"
                         {% if inv.id == selected_inventario_id %}selected{% endif %}>
-                        Inventario del {{ inv.data_inventario.strftime('%d-%m-%Y') }}
+                        Inventario del {{ inv.data_inventario.strftime('%d-%m-%Y') }} - deposito {{ inv.deposito }}
                     </option>
                 {% endfor %}
             </select>
@@ -23,12 +23,22 @@
     <div id="crea-inventario-container" class="mt-3 d-none">
         <label for="data-nuovo-inventario">Scegli data per il nuovo inventario:</label>
         <input type="date" id="data-nuovo-inventario" class="form-control" value="{{ today }}">
+        <label for="dep-nuovo-inventario">Nuovo inventario per il deposito:</label>
+        <input type="text" id="dep-nuovo-inventario" class="form-control" value="000">
         <button id="crea-inventario-btn" class="btn btn-primary mt-2">Crea inventario</button>
     </div>
 
     <div class="form-group mt-3" id="inventario-data-group" style="display: none;">
-        <label for="data-inventario-attiva">Inventario del...</label>
-        <input type="text" id="data-inventario-attiva" class="form-control" disabled>
+        <div class="row">
+            <div class="col-md-6">
+                <label for="data-inventario-attiva">Inventario del...</label>
+                <input type="text" id="data-inventario-attiva" class="form-control" disabled>
+            </div>
+            <div class="col-md-6">
+                <label for="dep-inventario-attivo">Deposito...</label>
+                <input type="text" id="dep-inventario-attivo" class="form-control" disabled>
+            </div>
+        </div>
     </div>
 
     <form method="POST" action="{{ url_for('inventario.inventario') }}" id="form-inventario">
@@ -135,6 +145,7 @@
                     <input type="hidden" name="hidden_cpp" id="hidden_cpp" value="1">
                     <input type="hidden" name="hidden_ppc" id="hidden_ppc" value="1">
                     <input type="hidden" id="data_inventario" name="data_inventario">
+                    <input type="hidden" id="deposito" name="deposito">
                     <div class="mt-3 d-flex justify-content-center gap-2">
                         {{ form.calcola(class="btn btn-secondary", id="calcola-formula") }}
                     </div>
@@ -188,6 +199,7 @@
             <tr>
                 <th>ID</th>
                 <th>Data</th>
+                <th>Deposito</th>
                 <th class="text-end">N. Righe Inserite</th>
                 <th class="text-center">Esportazione Inventario</th>
                 <th class="text-center">Calcolo Rettifiche</th>

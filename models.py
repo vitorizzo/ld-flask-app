@@ -170,6 +170,7 @@ class Inventario(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     data_inventario = db.Column(db.Date, unique=True, nullable=False)
+    deposito = db.Column(db.String(10), nullable=False, default='000')
     export_inventario = db.Column(db.Boolean, nullable=False, default=False)
     fix_movements = db.Column(db.Boolean, nullable=False, default=False)
 
@@ -183,6 +184,7 @@ class RettificaInventario(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     inventario_id = db.Column(db.Integer, db.ForeignKey('inventari.id', ondelete='CASCADE'))
     articolo_id = db.Column(db.String(255), nullable=True)
+    deposito = db.Column(db.String(10), nullable=False, default='000')
     giacenza = db.Column(db.Integer, nullable=False)
     rilevazione = db.Column(db.Integer, nullable=False)
     rettifica = db.Column(db.Integer, nullable=False)
@@ -216,6 +218,7 @@ class InventarioRiga(db.Model):
     cpp = db.Column(db.Integer)
 
     utente_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    deposito = db.Column(db.String(10), nullable=False, default='000')
     timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
 
     articolo = db.relationship('Articoli', backref='righe_inventario')
@@ -229,6 +232,7 @@ class ImportInventari(db.Model):
     inventario_id = db.Column(db.Integer, db.ForeignKey('inventari.id', ondelete='CASCADE'))
     articolo_id = db.Column(db.String(255), nullable=True)
     descrizione_articolo = db.Column(db.String(255), nullable=True)
+    deposito = db.Column(db.String(10), nullable=False, default='000')
     quantita_esistente = db.Column(db.Integer, nullable=False)
     costo = db.Column(db.Numeric, nullable=True)
     utente_id = db.Column(db.Integer, db.ForeignKey('user.id'))
@@ -259,6 +263,7 @@ class InventarioRigaVersione(db.Model):
     cpp = db.Column(db.Integer)
 
     riga = db.relationship('InventarioRiga', backref='versioni')
+    deposito = db.Column(db.String(10), nullable=False, default='000')
     utente = db.relationship('User', backref='versioni_inventario')
 
 
@@ -271,6 +276,7 @@ class InventarioExport(db.Model):
     descrizione_articolo = db.Column(db.String(255), nullable=True)
     barcode_articolo = db.Column(db.String(50), nullable=True)
     giacenza = db.Column(db.Integer, nullable=False)
+    deposito = db.Column(db.String(10), nullable=False, default='000')
 
     articolo = db.relationship('Articoli', backref='inventario_export')
 

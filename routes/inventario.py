@@ -13,7 +13,6 @@ from models import Inventario, InventarioRiga, Articoli, Barcode, User, Inventar
     RettificaInventario
 from datetime import date, datetime
 
-from routes.esportazioni_teamsystem import serve_risorsa
 from tools.log_utils import get_logger
 
 logger = get_logger("inventario", level=logging.DEBUG)
@@ -25,7 +24,7 @@ inventario_bp = Blueprint('inventario', __name__)
 @login_required
 def nuovo_inventario():
     oggi = date.today()
-    esistente = Inventario.query.filter_by(data_inventario=oggi).first()
+    esistente = Inventario.query.filter_by(data_inventario=oggi).filter_by(deposito=dep).first()
 
     if esistente:
         return jsonify({
@@ -34,6 +33,7 @@ def nuovo_inventario():
             "data": esistente.data_inventario.strftime("%d-%m-%Y"),
             "export_inventario": esistente.export_inventario,
             "fix_movements": esistente.fix_movements,
+            "deposito": esistente.deposito,
             "gia_esiste": True
         })
 
@@ -47,6 +47,7 @@ def nuovo_inventario():
         "data": nuovo.data_inventario.strftime("%d-%m-%Y"),
         "export_inventario": False,
         "fix_movements": False,
+        "deposito": nuovo.deposito,
         "gia_esiste": False
     })
 
@@ -58,6 +59,8 @@ def inventario():
     today = date.today().isoformat()  # 👈 restituisce 'YYYY-MM-DD'
     form = InventarioForm()
     selected_inventario_id = request.args.get("inv_id", type=int)
+    logger.info(f"request.form = {request.form}")
+    logger.info(f"form.data = {form.data}")
 
     if request.method == "POST":
         logger.info(f"🔧 Richiesta POST ricevuta")
@@ -66,10 +69,11 @@ def inventario():
         if form.validate():
             logger.info("✅ Form valido!")
             data_inv = form.data_inventario.data or date.today()
+            dep = form.deposito.data or "000"
 
-            inventario = Inventario.query.filter_by(data_inventario=data_inv).first()
+            inventario = Inventario.query.filter_by(data_inventario=data_inv).filter_by(deposito=dep).first()
             if not inventario:
-                inventario = Inventario(data_inventario=data_inv)
+                inventario = Inventario(data_inventario=data_inv,deposito=dep)
                 db.session.add(inventario)
                 db.session.commit()
 
@@ -106,16 +110,18 @@ def inventario():
                 num_pezzi_sciolti=form.num_pezzi_sciolti.data,
                 cpp=nuovo_cpp,
                 ppc=nuovo_ppc,
+                deposito=dep,
                 utente_id=current_user.id,
                 timestamp=datetime.now(),
-                has_versions = False  # Inizialmente non ha versioni
+                has_versions=False  # Inizialmente non ha versioni
             )
 
             db.session.add(riga)
             db.session.flush()  # così riga.id è già disponibile senza commit
 
             rigaversioni = InventarioRigaVersione(
-                riga_id=riga.id,  # FK
+                riga_id=riga.id,
+                deposito=dep,
                 quantita_inserita=form.quantita_inserita.data,
                 num_pedane=form.num_pedane.data,
                 num_cartoni=form.num_cartoni.data,
@@ -146,27 +152,50 @@ def inventario():
                            selected_inventario_id=selected_inventario_id, today=today)
 
 
+@inventario_bp.route("/get_dati_inv", methods=["POST"])
+@login_required
+def get_dati_inventario():
+    inv_id = request.json.get("inv_id")
+    if not inv_id:
+        return jsonify({"success": False, "error": "ID inventario mancante"}), 400
+
+    inventario = Inventario.query.get(inv_id)
+    if not inventario:
+        return jsonify({"success": False, "error": "Inventario non trovato"}), 404
+
+    dati = {
+        "id": inventario.id,
+        "data_inventario": inventario.data_inventario.strftime("%Y-%m-%d"),
+        "deposito": inventario.deposito,
+        "export_inventario": inventario.export_inventario,
+        "fix_movements": inventario.fix_movements
+    }
+    return jsonify({"success": True, "inventario": dati})
+
+
 @inventario_bp.route("/crea", methods=["POST"])
 @login_required
 def crea_inventario_con_data():
     data = request.json.get("data_inventario")
+    dep = request.json.get("deposito", "000")
     try:
         data_obj = datetime.strptime(data, "%Y-%m-%d").date()
     except Exception:
         return jsonify(success=False, error="Data non valida"), 400
 
-    esistente = Inventario.query.filter_by(data_inventario=data_obj).first()
+    esistente = Inventario.query.filter_by(data_inventario=data_obj).filter_by(deposito=dep).first()
     if esistente:
         return jsonify({
             "success": True,
             "id": esistente.id,
             "data": esistente.data_inventario.strftime("%d-%m-%Y"),
+            "deposito": esistente.deposito,
             "export_inventario": esistente.export_inventario,
             "fix_movements": esistente.fix_movements,
             "gia_esiste": True
         })
 
-    nuovo = Inventario(data_inventario=data_obj)
+    nuovo = Inventario(data_inventario=data_obj, deposito=dep)
     db.session.add(nuovo)
     db.session.commit()
 
@@ -174,6 +203,7 @@ def crea_inventario_con_data():
         "success": True,
         "id": nuovo.id,
         "data": nuovo.data_inventario.strftime("%d-%m-%Y"),
+        "deposito": nuovo.deposito,
         "export_inventario": False,
         "fix_movements": False,
         "gia_esiste": False
@@ -557,6 +587,16 @@ def delete_import_esistente():
     return jsonify({"success": True, "deleted": num_deleted})
 
 
+@inventario_bp.route("/esporta_rettifiche", methods=["POST"])
+def esporta_rettifiche():
+    from tools.esportazioni import genera_file
+
+    logger.info("📥 Route /esporta_rettifiche chiamata")
+    inventario_id = request.json.get("inventario_id")
+    genera_file(inventario_id)
+    return jsonify({"success": True, "message": "File generato"}), 200
+
+
 @inventario_bp.route("/pulisci_fix", methods=["POST"])
 def delete_fix_esistente():
     """
@@ -694,6 +734,7 @@ def lista_inventari():
         db.session.query(
             Inventario.id,
             Inventario.data_inventario,
+            Inventario.deposito,
             Inventario.export_inventario,
             Inventario.fix_movements,
             db.func.count(InventarioRiga.id).label("num_righe")
@@ -709,6 +750,7 @@ def lista_inventari():
         lista.append({
             "id": inv.id,
             "data": inv.data_inventario.strftime("%d-%m-%Y"),
+            "deposito": inv.deposito,
             "export_inventario": inv.export_inventario,
             "fix_movements": inv.fix_movements,
             "num_righe": inv.num_righe

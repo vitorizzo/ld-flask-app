@@ -53,6 +53,7 @@ class InventarioForm(FlaskForm):
     num_cartoni = IntegerField("N. Cartoni", default=0)
     num_pezzi_sciolti = IntegerField("N. Pezzi Sciolti", default=0)
     data_inventario = DateField("Data Inventario", default=date.today)
+    deposito = SelectField("Deposito", choices=[("000", "Negozio"), ("400", "Online")], default="000")
 
     # 👇 Aggiungi questi nuovi campi
     cod_art = StringField("Codice Articolo")

@@ -6,16 +6,34 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnNuovoInventario = document.getElementById("nuovo-inventario-btn");
     const contenitoreNuovo = document.getElementById("crea-inventario-container");
     const campoDataInventario = document.getElementById("data-inventario-attiva");
+    const campoDepositoInventario = document.getElementById("dep-inventario-attivo");
     const hiddenInventarioId = document.getElementById("inventario-id-attivo");
     const gruppoData = document.getElementById("inventario-data-group");
     const fieldset = document.getElementById("fieldset-inserimento");
 
     const btnCercaBarcode = document.getElementById("btn-cerca-barcode");
 
-    function abilitaInserimento(data, id) {
-        campoDataInventario.value = data;
-        hiddenInventarioId.value = id;
-        document.getElementById("data_inventario").value = data.split("-").reverse().join("-"); // da dd-mm-yyyy a yyyy-mm-dd
+    function abilitaInserimento(data, dep, id) {
+        if (campoDataInventario) {
+            campoDataInventario.value = data;
+        }
+        if (campoDepositoInventario) {
+            campoDepositoInventario.value = dep;
+        }
+        console.log("Impostato inventario ID:", id);
+        console.log("Impostato data:", data);
+        console.log("Impostato dep:", dep);
+        if (hiddenInventarioId) {
+            hiddenInventarioId.value = id;
+        }
+        const hiddenDataInv = document.getElementById("data_inventario");
+        if (hiddenDataInv) {
+            hiddenDataInv.value = data; // non serve lo split, è già yyyy-mm-dd
+        }
+        const hiddenDep = document.getElementById("deposito");
+        if (hiddenDep) {
+            hiddenDep.value = dep;
+        }
         gruppoData.style.display = "block";
         fieldset.disabled = false;
 
@@ -62,9 +80,8 @@ document.addEventListener("DOMContentLoaded", () => {
             caricaUltimiInseriti(inventarioId);
             aggiornaTabellaInventariEseguiti();
 
-
             // Pulisci il form
-            aggiornaTabellaInventario(inventarioId);
+            aggiornaTabellaMovimenti(inventarioId);
             resetCampiArticoloCompleto();
         })
         .catch(err => {
@@ -73,11 +90,29 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 
-    selectInventario.addEventListener("change", () => {
+    selectInventario.addEventListener("change", async () => {
         const optionSelezionata = selectInventario.selectedOptions[0];
-        if (optionSelezionata && optionSelezionata.value) {
-            abilitaInserimento(optionSelezionata.dataset.data, optionSelezionata.value);
-        }
+        const res = await fetch("/inventario/get_dati_inv", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ inv_id: optionSelezionata.value })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                alert("Errore nel recupero dei dati dell'inventario.");
+                return;
+            }
+            const inv = data.inventario;
+            if (inv) {
+                console.log("Selezionato inventario ID:", inv.id);
+                console.log("Data inventario:", inv.data_inventario);
+                console.log("Deposito inventario:", inv.deposito);
+                abilitaInserimento(inv.data_inventario, inv.deposito, inv.id);
+            }
+        });
     });
 
 
@@ -88,6 +123,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.getElementById("crea-inventario-btn").addEventListener("click", () => {
         const data = document.getElementById("data-nuovo-inventario").value;
+        const deposito = document.getElementById("dep-nuovo-inventario").value;
+        console.log("Creazione nuovo inventario per data:", data, "e deposito:", deposito);
         if (!data) {
             alert("Seleziona una data valida.");
             return;
@@ -98,7 +135,7 @@ document.addEventListener("DOMContentLoaded", () => {
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ data_inventario: data })
+            body: JSON.stringify({ data_inventario: data, deposito: deposito})
         })
         .then(res => res.json())
         .then(data => {
@@ -110,10 +147,11 @@ document.addEventListener("DOMContentLoaded", () => {
             const option = document.createElement("option");
             option.value = data.id;
             option.dataset.data = data.data;
+            option.dataset.deposito = data.deposito;
             option.dataset.export_inventario = data.export_inventario;
             option.dataset.fix_movements = data.fix_movements;
             option.selected = true;
-            option.textContent = `Inventario del ${data.data}`;
+            option.textContent = `Inventario del ${data.data} - deposito ${data.deposito}`;
 
             const firstOption = selectInventario.querySelector("option[value='']");
             if (firstOption) firstOption.remove();
@@ -125,7 +163,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 option.remove();
             }
 
-            abilitaInserimento(data.data, data.id);
+            abilitaInserimento(data.data, data.deposito, data.id);
 
             if (data.gia_esiste) {
                 flashMessage("Inventario già esistente per la data selezionata. Riutilizzato.", "info");
@@ -162,7 +200,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const a = data.articolo;
                     popolaCampiArticolo({
                         cod_art: a.cod_art,
-                        descrizione: "${a.descrizione} ${a.descrizione_aggiuntiva || ''}",
+                        descrizione: `${a.descrizione} ${a.descrizione_aggiuntiva}`,
                         cpp: a.cpp,
                         ppc: a.ppc
                     });
@@ -173,7 +211,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if (Array.isArray(data.articoli) && data.articoli.length > 0) {
                     const elencoConvertito = data.articoli.map(a => ({
                         cod_art: a.cod_art,
-                        descrizione: "${a.descrizione} ${a.descrizione_aggiuntiva || ''}",
+                        descrizione: `${a.descrizione} ${a.descrizione_aggiuntiva}`,
                         cpp: a.cpp,
                         ppc: a.ppc
                     }));
@@ -245,7 +283,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 // Popola i campi e richiama la funzione centralizzata
                 popolaCampiArticolo({
                     cod_art: articolo.cod_art,
-                    descrizione: "${a.descrizione} ${a.descrizione_aggiuntiva || ''}",
+                    descrizione: `${articolo.descrizione} ${articolo.descrizione_aggiuntiva}`,
                     cpp: articolo.cpp || 1,
                     ppc: articolo.ppc || 1
                 });
@@ -326,7 +364,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.getElementById("pulisci-form").addEventListener("click", () => {
-        aggiornaTabellaInventario(inventarioId);
+        aggiornaTabellaMovimenti(inventarioId);
         resetCampiArticoloCompleto();
     });
 
@@ -334,7 +372,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Se è già selezionato un inventario all'avvio, attivalo
     const selected = selectInventario.selectedOptions[0];
     if (selected && selected.value) {
-        abilitaInserimento(selected.dataset.data, selected.value);
+        abilitaInserimento(selected.dataset.data, selected.dep, selected.value);
     }
 
     if (window.location.search.includes("inv_id=")) {
@@ -835,6 +873,7 @@ function aggiornaTabellaInventariEseguiti() {
                 tr.innerHTML = `
                     <td>${inv.id}</td>
                     <td>${inv.data}</td>
+                    <td>${inv.deposito}</td>
                     <td class="text-end">${inv.num_righe}</td>
                     <td class="text-center">${inv.export_inventario ? '<i class="bi bi-check-lg text-success" title="Esportato"></i>' : '<i class="bi bi-x-lg text-danger" title="Non esportato"></i>'}</td>
                     <td class="text-center">${inv.fix_movements ? '<i class="bi bi-check-lg text-success" title="Corretto"></i>' : '<i class="bi bi-x-lg text-danger" title="Non corretto"></i>'}</td>
@@ -843,6 +882,7 @@ function aggiornaTabellaInventariEseguiti() {
                         <button class="btn btn-sm btn-danger btn-elimina" data-id="${inv.id}">Elimina</button>
                         <button class="btn btn-sm btn-info btn-importa" data-id="${inv.id}">Importa</button>
                         <button class="btn btn-sm btn-info btn-rettifica" data-id="${inv.id}">Rettifica</button>
+                        <button class="btn btn-sm btn-info btn-esporta-rettifiche" data-id="${inv.id}">Esporta</button>
                     </td>
                 `;
 
@@ -905,6 +945,27 @@ function aggiornaTabellaInventariEseguiti() {
                     }
                 });
             });
+
+            document.querySelectorAll(".btn-esporta-rettifiche").forEach(btn => {
+                btn.addEventListener("click", async(e) => {
+                    e.stopPropagation();
+                    const id = btn.dataset.id;
+
+                    if (confirm(`Procedo con l'esportazione delle rettifiche dell'inventario #${id}?`))
+                    if (!confirm) return;
+                    const response = await fetch(`/inventario/esporta_rettifiche`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ inventario_id: id })
+                    });
+                    if (!response.ok) {
+                        alert("Errore nell'esportazione delle rettifiche.");
+                        return;
+                    }
+                    alert("Esportazione completata!");
+                });
+            });
+
             const inputFile = document.getElementById("file-import");
             document.querySelectorAll(".btn-importa").forEach(btn => {
                 btn.addEventListener("click", async(e) => {
@@ -1099,6 +1160,7 @@ document.querySelector("#tabella-inventari-eseguiti tbody").addEventListener("cl
 
     document.getElementById("dettaglio-id-inventario").textContent = inventarioId;
     document.getElementById("dettaglio-data-inventario").textContent = dataInventario;
+    document.getElementById("dettaglio-deposito-inventario").textContent = riga.dataset.deposito;
 
     // Mostra tabella movimenti di default
     document.getElementById("tabella-movimenti").classList.remove("d-none");
