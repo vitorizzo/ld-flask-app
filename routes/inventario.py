@@ -663,7 +663,7 @@ def importa_inventario():
             csv_encoding = "utf-8"
 
         try:
-            csvfile = open(file_inventario, "r", encoding=csv_encoding, errors="strict")
+            csvfile = open(file_inventario, "r", encoding="cp1252", errors="replace")
             # prova a leggere una riga per verificare che la codifica sia corretta
             csvfile.readline()
             csvfile.seek(0)
