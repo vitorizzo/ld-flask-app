@@ -664,8 +664,12 @@ def importa_inventario():
 
         try:
             csvfile = open(file_inventario, "r", encoding=csv_encoding, errors="strict")
+            # prova a leggere una riga per verificare che la codifica sia corretta
+            csvfile.readline()
+            csvfile.seek(0)
         except UnicodeDecodeError as e:
             logger.warning(f"⚠️ Errore di decoding con {csv_encoding}: {e}. Riprovo con latin-1")
+            csvfile.close()
             csvfile = open(file_inventario, "r", encoding="latin-1", errors="replace")
         with csvfile:
             logger.debug("Leggo il file CSV...")
