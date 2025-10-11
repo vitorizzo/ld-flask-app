@@ -5,7 +5,9 @@ import logging
 import chardet as chardet
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_required, current_user
+from flask_wtf.csrf import generate_csrf
 from psycopg2 import IntegrityError
+from sqlalchemy import desc
 
 from forms.forms import InventarioForm
 from extensions import db
@@ -18,6 +20,12 @@ from tools.log_utils import get_logger
 logger = get_logger("inventario", level=logging.DEBUG)
 
 inventario_bp = Blueprint('inventario', __name__)
+
+
+@inventario_bp.route("/get_csrf_token")
+@login_required
+def get_csrf_token():
+    return jsonify({'csrf_token': generate_csrf()})
 
 
 @inventario_bp.route("/nuovo", methods=["POST"])
@@ -136,7 +144,7 @@ def inventario():
             db.session.commit()
 
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-                return jsonify({"success": True})
+                return jsonify({"success": True, "message": "Record aggiunto correttamente!"})
             else:
                 flash("Conteggio inventario inserito con successo!", "success")
                 return redirect(url_for('inventario.inventario', inv_id=inventario.id))
@@ -144,7 +152,11 @@ def inventario():
             logger.warning("❌ Form NON valido")
             logger.warning(form.errors)
             if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-                return jsonify({"success": False, "error": "Dati non validi", "form_errors": form.errors}), 400
+                return jsonify({
+                    "success": False,
+                    "message": "Problemi nell'inserimento: Record non aggiunto!",
+                    "form_errors": form.errors
+                }), 400
             else:
                 flash("Errore nei dati inseriti", "danger")
     inventari = Inventario.query.order_by(Inventario.data_inventario.desc()).all()
@@ -216,7 +228,7 @@ def ultimi_inseriti(inventario_id):
     righe = (
         InventarioRiga.query
         .filter_by(inventario_id=inventario_id, utente_id=current_user.id)
-        # o .data_inserimento.desc() se hai un timestamp
+        .order_by(desc(InventarioRiga.timestamp))  # ⬅️ ordina decrescente per timestamp
         .limit(10)
         .all()
     )

@@ -54,14 +54,13 @@ document.addEventListener("DOMContentLoaded", () => {
       });
 
 
-    document.getElementById("form-inventario").addEventListener("submit", function (e) {
+    document.getElementById("form-inventario").addEventListener("submit", async function (e) {
         e.preventDefault(); // blocca invio tradizionale
 
-        if (fieldset.disabled) return;
+/*        if (fieldset.disabled) return;
 
         const form = e.target;
         const formData = new FormData(form);
-
         formData.append("submit", "1");
 
         fetch(form.action, {
@@ -88,6 +87,56 @@ document.addEventListener("DOMContentLoaded", () => {
             console.error("Errore durante l'inserimento:", err);
             flashMessage("Errore durante l'inserimento", "danger");
         });
+    });*/
+
+        if (fieldset.disabled) return;
+
+        const form = e.target;
+        const formData = new FormData(form);
+        formData.append("submit", "1");
+
+        try {
+            // 🔄 Ottieni un nuovo token CSRF prima di inviare
+            const resToken = await fetch("/inventario/get_csrf_token");
+            if (!resToken.ok) throw new Error("Impossibile rigenerare CSRF");
+            const dataToken = await resToken.json();
+
+            // Aggiorna il token nel form
+            formData.set("csrf_token", dataToken.csrf_token);
+
+            // 🔼 Invia il form con il nuovo token
+            const res = await fetch(form.action, {
+                method: "POST",
+                body: formData,
+                headers: { "X-Requested-With": "XMLHttpRequest" }
+            });
+
+            if (!res.ok) throw new Error("Errore server");
+            const data = await res.json(); // ⬅️ risposta JSON dal backend
+
+            // ✅ 3️⃣ Gestione risposta
+            if (data.success) {
+                flashMessage("✅ Record aggiunto correttamente!", "success");
+                const inventarioId = document.getElementById("inventario-id-attivo").value;
+                caricaUltimiInseriti(inventarioId);
+                aggiornaTabellaInventariEseguiti();
+                aggiornaTabellaMovimenti(inventarioId);
+                resetCampiArticoloCompleto();
+            } else {
+                flashMessage("❌ Problemi nell'inserimento: Record non aggiunto!", "danger");
+
+                // Se vuoi, logga anche gli errori del form
+                if (data.errors) console.warn("Errori form:", data.errors);
+            }
+
+            // 🔁 4️⃣ Rigenera di nuovo il token per la prossima chiamata
+            aggiornaCSRFToken();
+
+
+        } catch (err) {
+            console.error("Errore durante l'inserimento:", err);
+            flashMessage("Errore durante l'inserimento", "danger");
+        }
     });
 
     selectInventario.addEventListener("change", async () => {
@@ -1359,6 +1408,13 @@ function mostraMovimentiPerArticolo(inventarioId, codArt) {
                 this.remove();
             });
         });
+}
+
+
+async function getCsrfToken() {
+    const res = await fetch('/inventario/get_csrf_token');
+    const data = await res.json();
+    return data.csrf_token;
 }
 
 
