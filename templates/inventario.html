@@ -1,5 +1,9 @@
 {% extends 'base.html' %}
 
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/inventario.css') }}">
+{% endblock %}
+
 {% block content %}
 <section class="welcome-section">
     <h2>Gestione Inventario</h2>
@@ -70,7 +74,7 @@
 
         <!-- Ricerca alternativa per descrizione -->
         <div class="mt-4 border rounded p-3 bg-light">
-            <h5>Oppure seleziona articolo da elenco:</h5>
+            <h5 class="text-dark fw-bold">Oppure seleziona articolo da elenco:</h5>
             <div class="input-group mb-2">
                 <span class="input-group-text"><i class="bi bi-search"></i></span>
                 <input type="text" id="inv-search-input" class="form-control" placeholder="Cerca per descrizione...">
@@ -85,9 +89,9 @@
                 <ul id="inv-search-list" class="list-group list-group-flush"></ul>
             </div>
             <div id="inv-search-pagination" class="d-flex justify-content-center" style="display: none;">
-                <button id="inv-search-prev" class="btn btn-outline-secondary me-2">◀</button>
-                <span id="inv-search-pageinfo" class="align-self-center"></span>
-                <button id="inv-search-next" class="btn btn-outline-secondary ms-2">▶</button>
+                <button type="button" id="inv-search-prev" class="btn btn-outline-secondary me-2">◀</button>
+                <span id="inv-search-pageinfo" class="align-self-center fw-bold text-dark"></span>
+                <button type="button" id="inv-search-next" class="btn btn-outline-secondary ms-2">▶</button>
             </div>
         </div>
 
@@ -498,8 +502,12 @@
   </div>
 </div>
 
+<!-- container popup alert -->
+<div id="popup-alert-container" aria-live="polite" aria-atomic="true"></div>
 
 {% endblock %}
+
+
 
 {% block extra_js %}
 <script src="https://unpkg.com/@zxing/library@latest"></script>

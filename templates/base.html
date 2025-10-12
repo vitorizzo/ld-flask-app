@@ -31,9 +31,8 @@
 
     <!-- spazio per alert -->
     {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-    <div id="flash-message"></div>
-        <div class="container mt-3">
+      {% if messages %}
+        <div id="flash-message" aria-live="polite" aria-atomic="true">
           {% for category, message in messages %}
             <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
               {{ message }}
@@ -61,9 +60,10 @@
         <script src="{{ url_for('static', filename='js/menu.js') }}"></script>
         <script src="{{ url_for('static', filename='js/scheda_articolo.js') }}"></script>
         <script src="{{ url_for('static', filename='js/task_status.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/base.js') }}"></script>
 
         <!-- Script per rimozione automatica dei flash -->
-        <script>
+<!--        <script>
           document.addEventListener("DOMContentLoaded", function () {
             const flashes = document.querySelectorAll(".alert");
             flashes.forEach(flash => {
@@ -73,7 +73,7 @@
               }, 5000); // Dopo 5 secondi
             });
           });
-        </script>
+        </script> -->
         <script>
             if ("serviceWorker" in navigator) {
                 navigator.serviceWorker.register("/service-worker.js")

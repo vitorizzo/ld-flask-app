@@ -11,6 +11,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const gruppoData = document.getElementById("inventario-data-group");
     const fieldset = document.getElementById("fieldset-inserimento");
 
+    document.querySelectorAll("input, textarea").forEach(el => {
+        el.addEventListener("focus", function() {
+            this.select();
+        });
+    });
+
     const btnCercaBarcode = document.getElementById("btn-cerca-barcode");
 
     function abilitaInserimento(data, dep, id) {
@@ -55,39 +61,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
     document.getElementById("form-inventario").addEventListener("submit", async function (e) {
-        e.preventDefault(); // blocca invio tradizionale
-
-/*        if (fieldset.disabled) return;
-
-        const form = e.target;
-        const formData = new FormData(form);
-        formData.append("submit", "1");
-
-        fetch(form.action, {
-            method: "POST",
-            body: formData,
-            headers: {
-                "X-Requested-With": "XMLHttpRequest"
-            }
-        })
-        .then(res => res.text())
-        .then(html => {
-            flashMessage("Conteggio inventario inserito!", "success");
-
-            // Aggiorna ultimi inseriti
-            const inventarioId = document.getElementById("inventario-id-attivo").value;
-            caricaUltimiInseriti(inventarioId);
-            aggiornaTabellaInventariEseguiti();
-
-            // Pulisci il form
-            aggiornaTabellaMovimenti(inventarioId);
-            resetCampiArticoloCompleto();
-        })
-        .catch(err => {
-            console.error("Errore durante l'inserimento:", err);
-            flashMessage("Errore durante l'inserimento", "danger");
-        });
-    });*/
+        e.preventDefault(); // ⛔️ Blocca invio normale
+        e.stopPropagation(); // 🚫 Blocca eventuale bubbling
 
         if (fieldset.disabled) return;
 
@@ -116,14 +91,26 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // ✅ 3️⃣ Gestione risposta
             if (data.success) {
-                flashMessage("✅ Record aggiunto correttamente!", "success");
+                showPopupAlert(data.message, "success");
+                //flashMessage("✅ Record aggiunto correttamente!", "success");
                 const inventarioId = document.getElementById("inventario-id-attivo").value;
                 caricaUltimiInseriti(inventarioId);
                 aggiornaTabellaInventariEseguiti();
                 aggiornaTabellaMovimenti(inventarioId);
                 resetCampiArticoloCompleto();
+
+                // Riporta il focus sul campo barcode
+                const campoBarcode = document.getElementById("barcode");
+                if (campoBarcode) {
+                    campoBarcode.focus();
+                    campoBarcode.select(); // utile se vuoi cancellare il vecchio codice
+                }
+
+                // Scrolla in cima alla pagina
+                //window.scrollTo({ top: 0, behavior: "smooth" });
             } else {
-                flashMessage("❌ Problemi nell'inserimento: Record non aggiunto!", "danger");
+                showPopupAlert(data.message || "Errore generico", "danger");
+                //flashMessage("❌ Problemi nell'inserimento: Record non aggiunto!", "danger");
 
                 // Se vuoi, logga anche gli errori del form
                 if (data.errors) console.warn("Errori form:", data.errors);
@@ -135,7 +122,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
         } catch (err) {
             console.error("Errore durante l'inserimento:", err);
-            flashMessage("Errore durante l'inserimento", "danger");
+            showPopupAlert("Errore durante l'inserimento babe", "danger");
+            //flashMessage("Errore durante l'inserimento", "danger");
         }
     });
 
@@ -447,6 +435,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 });
+
 
 // Riabilita i pulsanti disabilitati via JS
 function abilitaPulsanti() {
@@ -1534,3 +1523,49 @@ function salvaMovimento() {
     })
     .catch(err => console.error("Errore:", err));
 }
+
+function showPopupAlert(message, category = "success", duration = 2000) {
+  const container = document.getElementById("popup-alert-container");
+  if (!container) {
+    console.warn("Container popup-alert non trovato!");
+    return;
+  }
+
+  // crea overlay se non esiste
+  let overlay = document.getElementById("popup-alert-overlay");
+  if (!overlay) {
+    overlay = document.createElement("div");
+    overlay.id = "popup-alert-overlay";
+    container.appendChild(overlay);
+  }
+
+  // crea alert
+  const alert = document.createElement("div");
+  alert.className = `alert alert-${category} alert-dismissible fade show`;
+  alert.role = "alert";
+  alert.innerHTML = `
+    <div>${message}</div>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  `;
+
+  container.appendChild(alert);
+
+  // chiusura automatica
+  setTimeout(() => {
+    if (alert && alert.classList.contains("show")) {
+      const bsAlert = bootstrap.Alert.getOrCreateInstance(alert);
+      bsAlert.close();
+    }
+  }, duration);
+
+  // rimuovi overlay dopo la chiusura
+  alert.addEventListener("closed.bs.alert", () => {
+    alert.remove();
+    const remaining = container.querySelectorAll(".alert").length;
+    if (remaining === 0 && overlay) overlay.remove();
+  });
+}
+
+window.addEventListener("load", () => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});

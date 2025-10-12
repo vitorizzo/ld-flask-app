@@ -615,3 +615,29 @@ h1,h2,h3,h4{
     opacity: 0;
     transition: opacity 1s ease-out;
 }
+
+#flash-message {
+    position: fixed;
+    top: 70px;               /* distanza dal bordo superiore */
+    left: 50%;               /* centrato orizzontalmente */
+    transform: translateX(-50%);
+    z-index: 5000;           /* sopra navbar o altri elementi */
+    width: 90%;              /* un po’ di margine ai lati */
+    max-width: 600px;
+    text-align: center;
+    pointer-events: none;    /* evita interazioni */
+  }
+
+  /* Optional: ombra e transizione per un tocco più elegante */
+  #flash-message .alert {
+    display: inline-block;
+    pointer-events: auto; /* permette di chiudere il singolo alert */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    animation: slideDown 0.4s ease;
+    margin-bottom: 6px;
+  }
+
+  @keyframes slideDown {
+    from { opacity: 0; transform: translate(-50%, -20px); }
+    to { opacity: 1; transform: translate(-50%, 0); }
+  }

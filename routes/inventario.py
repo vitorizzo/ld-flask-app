@@ -78,76 +78,87 @@ def inventario():
             logger.info("✅ Form valido!")
             data_inv = form.data_inventario.data or date.today()
             dep = form.deposito.data or "000"
+            is_valid = True
 
-            inventario = Inventario.query.filter_by(data_inventario=data_inv).filter_by(deposito=dep).first()
-            if not inventario:
-                inventario = Inventario(data_inventario=data_inv,deposito=dep)
-                db.session.add(inventario)
+            if form.cod_art.data == "":
+                flash("Inserire un Articolo", "warning")
+                is_valid = False
+
+            if form.quantita_inserita.data == 0 or form.quantita_inserita.data == "":
+                flash("Inserire una quantità", "warning")
+                is_valid = False
+
+            if is_valid:
+                inventario = Inventario.query.filter_by(data_inventario=data_inv).filter_by(deposito=dep).first()
+                if not inventario:
+                    inventario = Inventario(data_inventario=data_inv,deposito=dep)
+                    db.session.add(inventario)
+                    db.session.commit()
+
+                cod_art = form.cod_art.data
+                articolo = Articoli.query.get(cod_art) if cod_art else None
+
+                if not articolo and form.barcode_articolo.data:
+                    barcode = Barcode.query.filter_by(cod_bar=form.barcode_articolo.data).first()
+                    if barcode:
+                        articolo = Articoli.query.get(barcode.cod_art)
+
+                # Aggiorna PPC e CPP
+                try:
+                    nuovo_ppc = int(form.hidden_ppc.data or 1)
+                    nuovo_cpp = int(form.hidden_cpp.data or 1)
+                    if articolo:
+                        if articolo.pezzi_per_collo != nuovo_ppc:
+                            articolo.pezzi_per_collo = nuovo_ppc
+                        if articolo.colli_per_pedana != nuovo_cpp:
+                            articolo.colli_per_pedana = nuovo_cpp
+                        db.session.commit()
+                except:
+                    pass  # valori non validi o mancanti
+
+                # Salva riga inventario
+                riga = InventarioRiga(
+                    inventario_id=inventario.id,
+                    articolo_id=cod_art if articolo else None,
+                    descrizione_articolo=articolo.descrizione if articolo else form.descrizione_articolo.data,
+                    barcode_articolo=form.barcode_articolo.data,
+                    quantita_inserita=form.quantita_inserita.data,
+                    num_pedane=form.num_pedane.data,
+                    num_cartoni=form.num_cartoni.data,
+                    num_pezzi_sciolti=form.num_pezzi_sciolti.data,
+                    cpp=nuovo_cpp,
+                    ppc=nuovo_ppc,
+                    deposito=dep,
+                    utente_id=current_user.id,
+                    timestamp=datetime.now(),
+                    has_versions=False  # Inizialmente non ha versioni
+                )
+
+                db.session.add(riga)
+                db.session.flush()  # così riga.id è già disponibile senza commit
+
+                rigaversioni = InventarioRigaVersione(
+                    riga_id=riga.id,
+                    deposito=dep,
+                    quantita_inserita=form.quantita_inserita.data,
+                    num_pedane=form.num_pedane.data,
+                    num_cartoni=form.num_cartoni.data,
+                    num_pezzi_sciolti=form.num_pezzi_sciolti.data,
+                    utente_id=current_user.id,
+                    timestamp=datetime.now(),
+                    ppc=nuovo_ppc,
+                    cpp=nuovo_cpp
+                )
+
+                db.session.add(rigaversioni)
                 db.session.commit()
 
-            cod_art = form.cod_art.data
-            articolo = Articoli.query.get(cod_art) if cod_art else None
-
-            if not articolo and form.barcode_articolo.data:
-                barcode = Barcode.query.filter_by(cod_bar=form.barcode_articolo.data).first()
-                if barcode:
-                    articolo = Articoli.query.get(barcode.cod_art)
-
-            # Aggiorna PPC e CPP
-            try:
-                nuovo_ppc = int(form.hidden_ppc.data or 1)
-                nuovo_cpp = int(form.hidden_cpp.data or 1)
-                if articolo:
-                    if articolo.pezzi_per_collo != nuovo_ppc:
-                        articolo.pezzi_per_collo = nuovo_ppc
-                    if articolo.colli_per_pedana != nuovo_cpp:
-                        articolo.colli_per_pedana = nuovo_cpp
-                    db.session.commit()
-            except:
-                pass  # valori non validi o mancanti
-
-            # Salva riga inventario
-            riga = InventarioRiga(
-                inventario_id=inventario.id,
-                articolo_id=cod_art if articolo else None,
-                descrizione_articolo=articolo.descrizione if articolo else form.descrizione_articolo.data,
-                barcode_articolo=form.barcode_articolo.data,
-                quantita_inserita=form.quantita_inserita.data,
-                num_pedane=form.num_pedane.data,
-                num_cartoni=form.num_cartoni.data,
-                num_pezzi_sciolti=form.num_pezzi_sciolti.data,
-                cpp=nuovo_cpp,
-                ppc=nuovo_ppc,
-                deposito=dep,
-                utente_id=current_user.id,
-                timestamp=datetime.now(),
-                has_versions=False  # Inizialmente non ha versioni
-            )
-
-            db.session.add(riga)
-            db.session.flush()  # così riga.id è già disponibile senza commit
-
-            rigaversioni = InventarioRigaVersione(
-                riga_id=riga.id,
-                deposito=dep,
-                quantita_inserita=form.quantita_inserita.data,
-                num_pedane=form.num_pedane.data,
-                num_cartoni=form.num_cartoni.data,
-                num_pezzi_sciolti=form.num_pezzi_sciolti.data,
-                utente_id=current_user.id,
-                timestamp=datetime.now(),
-                ppc=nuovo_ppc,
-                cpp=nuovo_cpp
-            )
-
-            db.session.add(rigaversioni)
-            db.session.commit()
-
-            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-                return jsonify({"success": True, "message": "Record aggiunto correttamente!"})
-            else:
-                flash("Conteggio inventario inserito con successo!", "success")
-                return redirect(url_for('inventario.inventario', inv_id=inventario.id))
+                if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                    return jsonify({"success": True, "message": "Record aggiunto correttamente!"})
+                else:
+                    flash("Conteggio inventario inserito con successo!", "success")
+                    return jsonify({"success": False, "message": "Problemi nell'inserimento: Record non aggiunto!"}), 400
+                    # return redirect(url_for('inventario.inventario', inv_id=inventario.id))
         else:
             logger.warning("❌ Form NON valido")
             logger.warning(form.errors)
@@ -158,7 +169,12 @@ def inventario():
                     "form_errors": form.errors
                 }), 400
             else:
-                flash("Errore nei dati inseriti", "danger")
+                #flash("Errore nei dati inseriti", "danger")
+                return jsonify({
+                    "success": False,
+                    "message": "Problemi nell'inserimento: Record non aggiunto!",
+                    "form_errors": form.errors
+                }), 400
     inventari = Inventario.query.order_by(Inventario.data_inventario.desc()).all()
     return render_template('inventario.html', form=form, inventari=inventari,
                            selected_inventario_id=selected_inventario_id, today=today)
