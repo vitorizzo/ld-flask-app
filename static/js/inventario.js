@@ -985,22 +985,36 @@ function aggiornaTabellaInventariEseguiti() {
             });
 
             document.querySelectorAll(".btn-esporta-rettifiche").forEach(btn => {
-                btn.addEventListener("click", async(e) => {
+                btn.addEventListener("click", async (e) => {
                     e.stopPropagation();
                     const id = btn.dataset.id;
 
-                    if (confirm(`Procedo con l'esportazione delle rettifiche dell'inventario #${id}?`))
-                    if (!confirm) return;
+                    // 1️⃣ Conferma iniziale
+                    if (!confirm(`Procedo con l'esportazione delle rettifiche dell'inventario #${id}?`)) {
+                        return;
+                    }
+
+                    // 2️⃣ Chiedi la data con la modale Bootstrap
+                    const dataScelta = await chiediDataConBootstrap(id);
+
+                    if (!dataScelta) {
+                        alert("Operazione annullata: nessuna data selezionata.");
+                        return;
+                    }
+
+                    // 3️⃣ Invio al backend
                     const response = await fetch(`/inventario/esporta_rettifiche`, {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ inventario_id: id })
+                        body: JSON.stringify({ inventario_id: id, data_rettifica: dataScelta })
                     });
+
                     if (!response.ok) {
                         alert("Errore nell'esportazione delle rettifiche.");
                         return;
                     }
-                    alert("Esportazione completata!");
+
+                    alert(`Esportazione completata per la data ${dataScelta}!`);
                 });
             });
 
@@ -1252,6 +1266,37 @@ document.getElementById('modaleDettaglioInventario').addEventListener('hidden.bs
         console.log("✅ Stato della pagina ripristinato.");
     }, 100);
 });
+
+// 🧩 Funzione che mostra la modale e restituisce la data scelta
+function chiediDataConBootstrap(id) {
+    return new Promise((resolve) => {
+        const modalEl = document.getElementById('modalDataRettifica');
+        const testoEl = document.getElementById('testoDataRettifica');
+        const inputEl = document.getElementById('inputDataRettifica');
+        const btnConferma = document.getElementById('btnConfermaDataRettifica');
+
+        testoEl.textContent = `Seleziona la data per registrare le modifiche dell'inventario #${id}`;
+        inputEl.valueAsDate = new Date(); // data di oggi come default
+
+        const modal = new bootstrap.Modal(modalEl, { backdrop: 'static', keyboard: false });
+        modal.show();
+
+        const confermaHandler = () => {
+            const data = inputEl.value;
+            modal.hide();
+            btnConferma.removeEventListener('click', confermaHandler);
+            resolve(data || null);
+        };
+
+        btnConferma.addEventListener('click', confermaHandler);
+
+        // Se l'utente chiude la modale senza confermare
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            btnConferma.removeEventListener('click', confermaHandler);
+            resolve(null);
+        }, { once: true });
+    });
+}
 
 function aggiornaTabellaInventarioAggregato(inventarioId) {
     if (!inventarioId) {

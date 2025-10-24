@@ -67,7 +67,7 @@ def format_number(num, length, decimals=3):
     return s
 
 
-def genera_file(inventario_id):
+def genera_file(inventario_id, data_rettifica):
     # --- GENERAZIONE FILE ---
     global deposito
     logger.info(f"Generazione file rettifiche inventario per inventario_id={inventario_id}")
@@ -89,7 +89,8 @@ def genera_file(inventario_id):
     with open(exported_file, "w", encoding="ascii") as f:
         for idx, row in enumerate(rows, start=1):
             logging.debug(f"Elaborazione riga {idx}: {row}")
-            data = inventario.data_inventario.strftime("%y%m%d")
+            # data = inventario.data_inventario.strftime("%y%m%d")
+            data = data_rettifica.strftime("%y%m%d")
             deposito = deposito.rjust(3, "0")
             cod_art = format_field(row.articolo_id, 20)
             quantita = format_number(-row.rettifica, 12)

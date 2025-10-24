@@ -218,6 +218,26 @@
     <input type="file" id="file-import" style="display:none;" accept=".csv,.xlsx,.txt">
 </section>
 
+<!-- Modal per la selezione della data -->
+<div class="modal fade" id="modalDataRettifica" tabindex="-1" aria-labelledby="modalDataRettificaLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalDataRettificaLabel">Seleziona data rettifica</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body text-center">
+        <p id="testoDataRettifica"></p>
+        <input type="date" id="inputDataRettifica" class="form-control w-50 mx-auto" />
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-primary" id="btnConfermaDataRettifica">Conferma</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Modal per scheda articolo -->
 <div class="modal fade" id="product-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">

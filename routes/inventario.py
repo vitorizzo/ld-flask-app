@@ -624,7 +624,8 @@ def esporta_rettifiche():
 
     logger.info("📥 Route /esporta_rettifiche chiamata")
     inventario_id = request.json.get("inventario_id")
-    genera_file(inventario_id)
+    data_rettifica = request.json.get("data_rettifica")
+    genera_file(inventario_id, data_rettifica)
     return jsonify({"success": True, "message": "File generato"}), 200
 
 
