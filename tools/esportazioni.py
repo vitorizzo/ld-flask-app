@@ -90,7 +90,7 @@ def genera_file(inventario_id, data_rettifica):
         for idx, row in enumerate(rows, start=1):
             logging.debug(f"Elaborazione riga {idx}: {row}")
             # data = inventario.data_inventario.strftime("%y%m%d")
-            data = data_rettifica.strftime("%y%m%d")
+            data = data_rettifica
             deposito = deposito.rjust(3, "0")
             cod_art = format_field(row.articolo_id, 20)
             quantita = format_number(-row.rettifica, 12)
