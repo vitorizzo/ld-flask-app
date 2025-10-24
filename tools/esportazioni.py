@@ -92,7 +92,7 @@ def genera_file(inventario_id):
             data = inventario.data_inventario.strftime("%y%m%d")
             deposito = deposito.rjust(3, "0")
             cod_art = format_field(row.articolo_id, 20)
-            quantita = format_number(row.rettifica, 12)
+            quantita = format_number(-row.rettifica, 12)
 
             # --- COMPOSIZIONE CAMPO ---
             record = (
