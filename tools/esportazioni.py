@@ -70,7 +70,7 @@ def format_number(num, length, decimals=3):
 def genera_file(inventario_id):
     # --- GENERAZIONE FILE ---
     global deposito
-    logger.info(f"Generazione file rettifiche inventario per inventario_id={inventario_id}, deposito={deposito_scelto}")
+    logger.info(f"Generazione file rettifiche inventario per inventario_id={inventario_id}")
 
     d=Inventario.query.get(inventario_id).deposito
     deposito = str(d) if d is not None else '000'
