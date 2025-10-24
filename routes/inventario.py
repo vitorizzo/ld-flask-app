@@ -7,7 +7,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from flask_wtf.csrf import generate_csrf
 from psycopg2 import IntegrityError
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 
 from forms.forms import InventarioForm
 from extensions import db
@@ -416,6 +416,8 @@ def rettifica_inventario():
             .all()
         )
 
+        dep = Inventario.query.get(inventario_id).deposito
+
         movimenti_fix = []
 
         # 2️⃣ Costruisco i movimenti per articoli presenti in ImportInventari
@@ -433,7 +435,8 @@ def rettifica_inventario():
                         rettifica=fix,
                         utente_id=current_user.id,
                         timestamp=datetime.now(),
-                        inventario_id=inventario_id
+                        inventario_id=inventario_id,
+                        deposito=dep
                     )
                 )
 
@@ -675,6 +678,7 @@ def importa_inventario():
             logger.debug("Dati già importati per questo inventario")
             return jsonify({"success": False, "message": "Dati già importati per questo inventario"}), 400
 
+        dep = Inventario.query.get(inventario_id).deposito
         # 4️⃣ Legge il file CSV
         righe_importate = []
         csv_encoding = "utf-8"
@@ -718,14 +722,28 @@ def importa_inventario():
             if not colonne_attese.issubset(set(reader.fieldnames)):
                 return jsonify({"success": False, "message": "File inventario non valido (colonne mancanti)"}), 400
             for row in reader:
+                val = str(row[col_quantita]).strip()
+
+                # Normalizzazione formato numerico
+                if val == "" or val.lower() in {"none", "null"}:
+                    qe = 0
+                else:
+                    # Gestisce formato europeo: "1.234,56" → "1234.56"
+                    val = val.replace(".", "").replace(",", ".")
+                    try:
+                        qe = float(val)
+                    except ValueError:
+                        qe = 0
+
                 riga = ImportInventari(
                     inventario_id=inventario_id,
                     articolo_id=row[col_articolo],
                     descrizione_articolo=row[col_descrizione]+" "+row[col_descrizione_aggiuntiva],
-                    quantita_esistente=int(row[col_quantita]) if row[col_quantita].isdigit() else 0,
+                    quantita_esistente=qe,
                     costo=float(row[col_costo].replace(",", "").replace(",", ".")) if row[col_costo] else 0.0,
                     utente_id=current_user.id,
-                    timestamp=datetime.now()
+                    timestamp=datetime.now(),
+                    deposito=dep
                 )
                 if riga.articolo_id.strip()!="":
                     righe_importate.append(riga)
@@ -1001,3 +1019,54 @@ def modifica_dati_movimento(inventario_id, id_mov):
     except Exception as e:
         logger.warning(f"Errore: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+@inventario_bp.route('/recovery')
+def aggiorna_articolo_id_certi():
+    """
+    Aggiorna inventario_righe.articolo_id solo nei casi certi:
+    - descrizione unica in articoli
+    - oppure barcode unico in barcode
+    - oppure entrambi univoci e concordi
+    """
+    righe = InventarioRiga.query.all()
+    aggiornati = 0
+
+    for riga in righe:
+        descr = (riga.descrizione_articolo or '').strip().lower()
+        bar = (riga.barcode_articolo or '').strip()
+
+        cod_descr = None
+        cod_bar = None
+
+        # --- Ricerca per descrizione
+        if descr:
+            articoli_match = Articoli.query.filter(
+                func.lower(func.trim(Articoli.descrizione)) == descr
+            ).all()
+            if len(articoli_match) == 1:
+                cod_descr = articoli_match[0].cod_art
+
+        # --- Ricerca per barcode
+        if bar:
+            barcode_match = Barcode.query.filter(Barcode.cod_bar == bar).all()
+            codici_bar = list({b.cod_art for b in barcode_match})
+            if len(codici_bar) == 1:
+                cod_bar = codici_bar[0]
+
+        # --- Decisione
+        nuovo_cod = None
+        if cod_descr and not cod_bar:
+            nuovo_cod = cod_descr
+        elif cod_bar and not cod_descr:
+            nuovo_cod = cod_bar
+        elif cod_descr and cod_bar and cod_descr == cod_bar:
+            nuovo_cod = cod_descr
+
+        # --- Aggiorno solo se certo
+        if nuovo_cod:
+            riga.articolo_id = nuovo_cod
+            aggiornati += 1
+
+    db.session.commit()
+    print(f"Aggiornate {aggiornati} righe certe.")
