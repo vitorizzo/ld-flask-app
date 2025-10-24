@@ -71,7 +71,10 @@ def genera_file(inventario_id):
     # --- GENERAZIONE FILE ---
     global deposito
     logger.info(f"Generazione file rettifiche inventario per inventario_id={inventario_id}, deposito={deposito_scelto}")
-    deposito = Inventario.query.get(inventario_id).deposito
+    d=Inventario.query.get(inventario_id).deposito
+    deposito = str(d) if d is not None else '000'
+    # deposito = Inventario.query.get(inventario_id).deposito
+
     inventario = Inventario.query.get(inventario_id)
     exported_file = f"{OUTPUT_FOLDER}/{OUTPUT_FILE}_{inventario.data_inventario}_{deposito}"
     os.makedirs(os.path.dirname(exported_file), exist_ok=True)
