@@ -1282,7 +1282,12 @@ function chiediDataConBootstrap(id) {
         modal.show();
 
         const confermaHandler = () => {
-            const data = inputEl.value;
+            const dataISO = inputEl.value; // es: "2024-10-31"
+            let data = null;
+            if (dataISO) {
+                const [anno, mese, giorno] = dataISO.split("-");
+                data = anno.slice(-2) + mese + giorno; // → "241031"
+            }
             modal.hide();
             btnConferma.removeEventListener('click', confermaHandler);
             resolve(data || null);
