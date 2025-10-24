@@ -9,8 +9,8 @@ logger = get_logger("esportazioni", level=logging.DEBUG)
 
 
 # --- CONFIGURAZIONE ---
-OUTPUT_FOLDER = "c:\\ldapp\\estrazioni"
-# OUTPUT_FOLDER = "./dati/DISCORETE/estrazioni"
+# OUTPUT_FOLDER = "c:\\ldapp\\estrazioni"
+OUTPUT_FOLDER = "/dati/DISCORETE/estrazioni/rettifiche_inventario"
 OUTPUT_FILE = "rettifiche_inventario"
 
 # --- PARAMETRI FISSI ---
