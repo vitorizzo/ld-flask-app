@@ -691,12 +691,107 @@ function caricaUltimiInseriti(inventarioId) {
             tbody.innerHTML = "";
             data.righe.forEach(riga => {
                 const tr = document.createElement("tr");
+                tr.dataset.movimentoId = riga.id;       // utile per rimozione rapida
+                console.log("Riga movimento:", riga);
                 tr.innerHTML = `
                     <td>${riga.cod_art}</td>
                     <td>${riga.descrizione}</td>
                     <td class="text-end">${riga.quantita}</td>
+                    <td class="text-end">
+                        <button class="btn btn-sm btn-warning btn-modifica-mov me-1"
+                                data-inventario-id="${inventarioId}"
+                                data-id-mov="${riga.id}"
+                                data-cod="${riga.cod_art}"
+                                data-desc="${riga.descrizione}"
+                                data-quant="${riga.quantita}">
+                            Modifica
+                        </button>
+                        <button class="btn btn-sm btn-danger btn-elimina-mov"
+                                data-inventario-id="${inventarioId}"
+                                data-movimento-id="${riga.id}">
+                            Elimina
+                        </button>
+                    </td>
                 `;
+
+                tr.style.cursor = "pointer";
+                tr.addEventListener("mouseenter", () => tr.classList.add("table-active"));
+                tr.addEventListener("mouseleave", () => tr.classList.remove("table-active"));
+
+                // Aggiungi evento per mostrare la modale (clic su riga)
+                tr.addEventListener("click", (e) => {
+                    // Ignora se è stato cliccato un pulsante
+                    if (e.target.closest("button")) return;
+
+                    const modale = document.getElementById("modaleModificaMovimentoArticolo");
+                    modale.dataset.inventarioId = inventarioId;
+
+                    const bsModal = new bootstrap.Modal(modale);
+                    bsModal.show();
+                });
+
                 tbody.appendChild(tr);
+            });
+
+            // 🟡 Dopo aver popolato la tabella: aggiungi gli event listener ai bottoni "Modifica"
+            tbody.querySelectorAll(".btn-modifica-mov").forEach(btn => {
+                btn.addEventListener("click", e => {
+                    e.stopPropagation(); // evita che il click sulla riga venga eseguito
+
+                    const inventarioId = btn.dataset.inventarioId;
+                    const id = btn.dataset.idMov;
+                    const cod = btn.dataset.cod;
+                    const desc = btn.dataset.desc;
+                    const quant = btn.dataset.quant;
+
+                    console.log("Apertura modale modifica per movimento ID:", id);
+                    console.log("Inventario ID:", inventarioId);
+
+                    // Popola i campi della modale
+                    document.getElementById("formModificaMovimento").dataset.idMov = btn.dataset.idMov;
+                    document.getElementById("formModificaMovimento").dataset.inventarioId = btn.dataset.inventarioId;
+                    document.getElementById("modCodiceArticolo").value = cod;
+                    document.getElementById("modDescrizioneArticolo").value = desc;
+                    document.getElementById("modQuantitaInserita").value = quant;
+
+                    // Mostra la modale
+                    const modale = new bootstrap.Modal(document.getElementById("modaleModificaMovimentoArticolo"));
+                    modale.show();
+                });
+            });
+
+            tbody.querySelectorAll(".btn-elimina-mov").forEach(btn => {
+                btn.addEventListener("click", async (e) => {
+                    e.stopPropagation();
+
+                    const inventarioId = btn.dataset.inventarioId;
+                    const movimentoId = btn.dataset.movimentoId;
+
+                    console.log("Eliminazione movimento ID:", movimentoId);
+
+                    if (!confirm("Sei sicuro di voler eliminare questo movimento?")) return;
+
+                    try {
+                        const res = await fetch(`/inventario/elimina_movimento/${encodeURIComponent(inventarioId)}/${encodeURIComponent(movimentoId)}`, {
+                            method: "DELETE",
+                            headers: { "Accept": "application/json" }
+                        });
+
+                        if (!res.ok) {
+                            const text = await res.text();
+                            console.error("Errore eliminazione:", res.status, text);
+                            alert("Errore durante l'eliminazione. Controlla i log.");
+                            return;
+                        }
+
+                        // Rimuovi la riga dalla tabella (se presente)
+                        const tr = btn.closest("tr");
+                        if (tr) tr.remove();
+                    } catch (err) {
+                        console.error("Fetch delete error:", err);
+                        alert("Errore di rete durante l'eliminazione.");
+                    }
+                });
             });
 
             wrapper.style.display = "block";
@@ -739,6 +834,8 @@ function resetCampiArticoloCompleto() {
     if (flashEl) flashEl.remove();
 }
 
+let movimentiController = null;
+
 
 function aggiornaTabellaMovimenti(inventarioId) {
     if (!inventarioId) {
@@ -746,31 +843,55 @@ function aggiornaTabellaMovimenti(inventarioId) {
         return;
     }
 
-    fetch(`/inventario/righe/${inventarioId}`)
+    if (movimentiController) {
+        movimentiController.abort();   // ❗ Cancella la fetch precedente
+    }
+    movimentiController = new AbortController();
+    const signal = movimentiController.signal;
+
+    const descFilterEl = document.getElementById("desc_filter");
+    const codFilterEl = document.getElementById("cod_filter");
+
+    console.log("Aggiornamento tabella movimenti per inventario ID:", inventarioId);
+    console.log("Filtri - Descrizione:", descFilterEl ? descFilterEl.value : "N/A", "Codice Articolo:", codFilterEl ? codFilterEl.value : "N/A");
+
+    fetch("/inventario/righe", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            inventario_id: inventarioId,   // ✅ CORRETTO
+            desc_filter: descFilterEl ? descFilterEl.value.trim() : "",
+            cod_filter: codFilterEl ? codFilterEl.value.trim() : ""
+        }),
+        signal
+    })
         .then(res => res.json())
         .then(data => {
             const tbody = document.querySelector("#tabella-movimenti tbody");
+            if (!tbody) return;
+
             tbody.innerHTML = "";
 
             if (!data.success) return;
 
-            // Prepara un array di Promise per attendere il completamento di tutti i fetch
             const righePromises = data.righe.map(async (r) => {
                 const tr = document.createElement("tr");
+
                 try {
                     const res = await fetch(`/inventario/username_by_id/${r.utente_id}`);
                     const userData = await res.json();
                     const utente = userData.username || "";
 
                     const storicoBtnHtml = `
-                      <button
-                        class="btn btn-sm btn-outline-primary btn-storico"
-                        data-id="${r.id}"
-                        ${r.has_versions ? "" : "disabled"}
-                        title="${r.has_versions ? "Vedi storico modifiche" : "Nessuno storico disponibile"}"
-                      >
-                        <i class="bi bi-search"></i>
-                      </button>
+                        <button
+                            class="btn btn-sm btn-outline-primary btn-storico"
+                            data-id="${r.id}"
+                            ${r.has_versions ? "" : "disabled"}
+                        >
+                            <i class="bi bi-search"></i>
+                        </button>
                     `;
 
                     tr.innerHTML = `
@@ -787,116 +908,97 @@ function aggiornaTabellaMovimenti(inventarioId) {
                     `;
 
                     tbody.appendChild(tr);
+
                 } catch (err) {
                     console.error(`Errore nel recupero utente per movimento ID ${r.id}:`, err);
                 }
             });
 
-            // Dopo che tutte le righe sono state create e inserite
             Promise.all(righePromises).then(() => {
-                // Ora possiamo associare correttamente gli event listener
                 document.querySelectorAll(".btn-modifica-movimento").forEach(btn => {
                     btn.addEventListener("click", e => {
                         const idMov = btn.dataset.id_mov;
-                        const inventarioId = document.getElementById("modaleDettaglioInventario").dataset.inventarioId;
+
+                        // ✅ Recupero inventarioId SOLO se la modale esiste
+                        const modale = document.getElementById("modaleDettaglioInventario");
+                        const inventarioId = modale ? modale.dataset.inventarioId : null;
+
+                        if (!inventarioId) {
+                            console.error("Modifica movimento: inventarioId non trovato!");
+                            return;
+                        }
 
                         fetch(`/inventario/dati_movimento/${inventarioId}/${idMov}`)
                             .then(res => res.json())
                             .then(data => {
-                                if (data.success) {
-                                    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('modaleModificaMovimentoArticolo'));
-                                    const mov = data.dati_movimento;
-
-                                    modal.show();
-
-                                    const btnCalcola = document.getElementById("modCalcolaFormula");
-                                    const btnCalcolaQuantita = document.getElementById("fcqCalcolaQuantita");
-                                    btnCalcola.dataset.id_mov = idMov;
-                                    btnCalcola.dataset.inventario_id = inventarioId;
-                                    btnCalcolaQuantita.addEventListener("click", e => {
-                                        e.preventDefault();
-                                        const formCalc = document.getElementById("formCalcoloQuantita");
-                                        const numPedane = parseInt(document.getElementById("fcqNumPedane").value) || 0;
-                                        const cpp = parseInt(document.getElementById("fcqCPP").textContent) || 1;
-                                        const numCartoni = parseInt(document.getElementById("fcqNumCartoni").value) || 0;
-                                        const ppc = parseInt(document.getElementById("fcqPPC").textContent) || 1;
-                                        const numPezziSciolti = parseInt(document.getElementById("fcqNumPezziSciolti").value) || 0;
-
-                                        const quantitaInserita = (numPedane * cpp * ppc) + (numCartoni * ppc) + numPezziSciolti;
-                                        document.getElementById("modQuantitaInserita").value = quantitaInserita;
-                                    })
-                                    btnCalcola.addEventListener("click", e => {
-                                        const formCalc = document.getElementById("formCalcoloQuantita");
-                                        formCalc.classList.toggle("d-none");
-                                    });
-                                    if (mov.num_pedane || mov.num_cartoni || mov.num_pezzi_sciolti) {
-                                        const formula = `Quantità inserita (${mov.num_pedane} pedane da ${mov.cpp} cartoni + ${mov.num_cartoni} cartoni da ${mov.ppc} pezzi + ${mov.num_pezzi_sciolti} pezzi sciolti)`;
-                                        document.getElementById("modQuantitaInseritaLabel").textContent = formula;
-                                        document.getElementById("fcqNumPedane").value = mov.num_pedane || 0;
-                                        document.getElementById("fcqCPP").textContent = mov.cpp || 1;
-                                        document.getElementById("fcqNumCartoni").value = mov.num_cartoni || 0;
-                                        document.getElementById("fcqPPC").textContent = mov.ppc || 1;
-                                        document.getElementById("fcqNumPezziSciolti").value = mov.num_pezzi_sciolti || 0;
-                                        // Matitine per modificare cpp/ppc
-                                        ['fcqCPP', 'fcqPPC'].forEach(id => {
-                                            const span = document.getElementById(id);
-                                            const icon = span.nextElementSibling;
-
-                                            [span, icon].forEach(el => {
-                                                el.addEventListener("click", () => {
-                                                    const nuovo = prompt(`Inserisci nuovo valore per ${id.toUpperCase()}:`, span.textContent);
-                                                    if (nuovo !== null && !isNaN(nuovo)) {
-                                                        span.textContent = parseInt(nuovo);
-                                                        document.getElementById(`hidden_${id}`).value = parseInt(nuovo);
-                                                    }
-                                                });
-                                            });
-                                        });
-                                    } else {
-                                        document.getElementById("modQuantitaInseritaLabel").textContent = "Quantità inserita";
-                                    }
-
-                                    document.getElementById("modQuantitaInserita").value = mov.quantita_inserita;
-                                    document.getElementById("modCodiceArticolo").value = mov.cod_art;
-                                    document.getElementById("modDescrizioneArticolo").value = mov.descrizione || '';
-                                } else {
+                                if (!data.success) {
                                     alert("Errore nel recupero dei dati del movimento.");
+                                    return;
                                 }
-                            })
-                            .catch(err => console.error("Errore:", err));
+
+                                const modalEl = document.getElementById("modaleModificaMovimentoArticolo");
+                                if (!modalEl) return;
+
+                                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                                modal.show();
+
+                                const mov = data.dati_movimento;
+
+                                document.getElementById("modCodiceArticolo").value = mov.cod_art;
+                                document.getElementById("modDescrizioneArticolo").value = mov.descrizione || '';
+                                document.getElementById("modQuantitaInserita").value = mov.quantita_inserita;
+                            });
                     });
                 });
 
                 document.querySelectorAll(".btn-elimina-movimento").forEach(btn => {
                     btn.addEventListener("click", e => {
                         const idMov = btn.dataset.id_mov;
-                        const inventarioId = document.getElementById("modaleDettaglioInventario").dataset.inventarioId;
 
-                        if (confirm(`Vuoi eliminare il movimento selezionato?`)) {
-                            fetch(`/inventario/elimina_movimento/${inventarioId}/${idMov}`, {
-                                method: "DELETE"
-                            })
-                                .then(res => res.json())
-                                .then(data => {
-                                    if (data.success) {
-                                        aggiornaTabellaInventarioAggregato(inventarioId);
-                                        aggiornaTabellaMovimenti(inventarioId);
-                                    } else {
-                                        alert("Errore nell'eliminazione del movimento.");
-                                    }
-                                })
-                                .catch(err => console.error("Errore:", err));
+                        const modale = document.getElementById("modaleDettaglioInventario");
+                        const inventarioId = modale ? modale.dataset.inventarioId : null;
+
+                        if (!inventarioId) {
+                            console.error("Elimina movimento: inventarioId non trovato!");
+                            return;
                         }
+
+                        if (!confirm("Vuoi eliminare il movimento selezionato?")) return;
+
+                        fetch(`/inventario/elimina_movimento/${inventarioId}/${idMov}`, {
+                            method: "DELETE"
+                        })
+                            .then(res => res.json())
+                            .then(data => {
+                                if (!data.success) {
+                                    alert("Errore nell'eliminazione del movimento.");
+                                    return;
+                                }
+
+                                aggiornaTabellaInventarioAggregato(inventarioId);
+                                aggiornaTabellaMovimenti(inventarioId);
+                            });
                     });
                 });
             });
 
         })
         .catch(err => {
+            if (err.name === "AbortError") {
+                // Richiesta annullata dal debounce → ignora completamente
+                return;
+            }
             console.error("Errore nel caricamento righe movimenti:", err);
         });
 }
 
+function debounce(fn, delay = 300) {
+    let timer = null;
+    return function (...args) {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn.apply(this, args), delay);
+    };
+}
 
 
 function aggiornaTabellaInventariEseguiti() {
@@ -908,6 +1010,7 @@ function aggiornaTabellaInventariEseguiti() {
 
             data.inventari.forEach(inv => {
                 const tr = document.createElement("tr");
+                console.log("Tabella Inventari Eseguiti -> Inventario:", inv.id);
                 tr.innerHTML = `
                     <td>${inv.id}</td>
                     <td>${inv.data}</td>
@@ -923,6 +1026,9 @@ function aggiornaTabellaInventariEseguiti() {
                         <button class="btn btn-sm btn-info btn-esporta-rettifiche" data-id="${inv.id}">Esporta</button>
                     </td>
                 `;
+                tr.dataset.id = inv.id;
+                tr.dataset.data = inv.data;
+                tr.dataset.deposito = inv.deposito;
 
                 tr.style.cursor = "pointer";
                 tr.addEventListener("mouseenter", () => tr.classList.add("table-active"));
@@ -1198,21 +1304,42 @@ function aggiornaTabellaInventariEseguiti() {
         });
 }
 
+const debouncedFilter = debounce(() => {
+    const id = document.getElementById("modaleDettaglioInventario").dataset.inventarioId;
+    if (id) aggiornaTabellaMovimenti(id);
+}, 300);
+
+document.getElementById("desc_filter").addEventListener("input", debouncedFilter);
+document.getElementById("cod_filter").addEventListener("input", debouncedFilter);
+
 
 // Click su riga inventario -> apre modale
 document.querySelector("#tabella-inventari-eseguiti tbody").addEventListener("click", function (e) {
     const riga = e.target.closest("tr");
     if (!riga) return;
 
+    console.log("Riga inventario cliccata:", riga);
     lastFocusedElement = this;  // memorizza l'elemento cliccato
-    const inventarioId = riga.dataset.inventarioId;
-    console.log(`inventarioID letto: ${inventarioId}`);
-
+    const inventarioId = riga.dataset.id;
     const dataInventario = riga.dataset.data;
+    const depositoInventario = riga.dataset.deposito;
 
-    document.getElementById("dettaglio-id-inventario").textContent = inventarioId;
-    document.getElementById("dettaglio-data-inventario").textContent = dataInventario;
-    document.getElementById("dettaglio-deposito-inventario").textContent = riga.dataset.deposito;
+    console.log(`inventarioID letto: ${inventarioId}`);
+    console.log("dataset letto:", { ...riga.dataset });
+
+    const modaleDett = document.getElementById("modaleDettaglioInventario");
+
+    if (modaleDett) {
+        const spanId = document.getElementById("dettaglio-id-inventario");
+        const spanData = document.getElementById("dettaglio-data-inventario");
+        const spanDeposito = document.getElementById("dettaglio-deposito-inventario");
+
+        if (spanId && spanData && spanDeposito) {
+            spanId.textContent = inventarioId;
+            spanData.textContent = dataInventario;
+            spanDeposito.textContent = depositoInventario;
+        }
+    }
 
     // Mostra tabella movimenti di default
     document.getElementById("tabella-movimenti").classList.remove("d-none");
@@ -1221,8 +1348,26 @@ document.querySelector("#tabella-inventari-eseguiti tbody").addEventListener("cl
 
     aggiornaTabellaMovimenti(inventarioId);
 
-    const modale = new bootstrap.Modal(document.getElementById("modaleDettaglioInventario"));
+    const modaleEl = document.getElementById("modaleDettaglioInventario");
+    modaleEl.dataset.inventarioId = inventarioId;
+
+    const modale = new bootstrap.Modal(modaleEl);
     modale.show();
+
+});
+
+document.getElementById("desc_filter").addEventListener("input", () => {
+    const modale = document.getElementById("modaleDettaglioInventario");
+    if (!modale) return;
+    const id = modale.dataset.inventarioId;
+    if (id) aggiornaTabellaMovimenti(id);
+});
+
+document.getElementById("cod_filter").addEventListener("input", () => {
+    const modale = document.getElementById("modaleDettaglioInventario");
+    if (!modale) return;
+    const id = modale.dataset.inventarioId;
+    if (id) aggiornaTabellaMovimenti(id);
 });
 
 document.getElementById("filtro-visualizza").addEventListener("change", function () {
@@ -1533,12 +1678,26 @@ function popolaSelectInventari(idSelezionato = null) {
 document.getElementById("formModificaMovimento").addEventListener("submit", e => {
     e.preventDefault(); // evita refresh della pagina
 
-    salvaMovimento();
+    const inventarioId =
+        document.getElementById("formModificaMovimento").dataset.inventarioId ||
+        document.getElementById("modaleDettaglioInventario")?.dataset.inventarioId;
+
+    const idMov =
+        document.getElementById("formModificaMovimento").dataset.idMov ||
+        document.getElementById("modCalcolaFormula")?.dataset.id_mov;
+
+    console.log(`Salvo movimento: inventarioId=${inventarioId}, idMov=${idMov}`);
+
+    salvaMovimento(inventarioId, idMov);
 });
 
-function salvaMovimento() {
-    const inventarioId = document.getElementById("modaleDettaglioInventario").dataset.inventarioId;
-    const idMov = document.getElementById("modCalcolaFormula").dataset.id_mov;
+function salvaMovimento(inventarioId, idMov) {
+    if (!inventarioId || !idMov) {
+        console.error("❌ Errore: inventarioId o idMov mancanti");
+        alert("Errore interno: ID mancanti per il salvataggio del movimento.");
+        return;
+    }
+
 
     const payload = {
         id_mov: idMov,

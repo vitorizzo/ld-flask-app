@@ -178,12 +178,13 @@
             </div>
             <div class="card-body p-2">
                 <div class="table-responsive">
-                    <table class="table table-sm table-striped mb-0">
+                    <table class="table table-sm table-striped mb-0" id="tabella-ultimi-inseriti">
                         <thead class="table-light">
                             <tr>
                                 <th>Cod. Articolo</th>
                                 <th>Descrizione</th>
                                 <th class="text-end">Quantità</th>
+                                <th> Azioni </th>
                             </tr>
                         </thead>
                         <tbody id="ultimi-inseriti-body">
@@ -292,17 +293,23 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
       <div class="modal-body">
-        <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3  text-black">
           <div>
             <strong>ID Inventario:</strong> <span id="dettaglio-id-inventario"></span> |
             <strong>Data:</strong> <span id="dettaglio-data-inventario"></span>
           </div>
           <div>
-            <label for="filtro-visualizza" class="form-label mb-0 me-2">Visualizza:</label>
+            <label for="filtro-visualizza" class="form-label mb-0 me-2 text-black">Visualizza:</label>
             <select id="filtro-visualizza" class="form-select d-inline-block w-auto">
               <option value="movimenti" selected>Movimenti</option>
               <option value="aggregato">Inventario</option>
             </select>
+          </div>
+          <div>
+            <label for="desc_filter" class="form-label mb-0 me-2 text-black">Filtra per descrizione:</label>
+            <input type="text" id="desc_filter" class="form-control" placeholder="Cerca...">
+            <label for="cod_filter" class="form-label mb-0 me-2 text-black">Filtra per codice:</label>
+            <input type="text" id="cod_filter" class="form-control" placeholder="Cerca...">
           </div>
         </div>
 

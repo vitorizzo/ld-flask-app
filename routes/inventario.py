@@ -7,7 +7,7 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import login_required, current_user
 from flask_wtf.csrf import generate_csrf
 from psycopg2 import IntegrityError
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, or_
 
 from forms.forms import InventarioForm
 from extensions import db
@@ -252,6 +252,7 @@ def ultimi_inseriti(inventario_id):
     risultati = []
     for r in righe:
         risultati.append({
+            "id": r.id,
             "cod_art": r.articolo_id,
             "descrizione": articolo_by_idMov(r.id).json["descrizione"],
             "quantita": r.quantita_inserita
@@ -260,13 +261,32 @@ def ultimi_inseriti(inventario_id):
     return jsonify({"success": True, "righe": risultati})
 
 
-@inventario_bp.route('/righe/<int:inventario_id>')
+@inventario_bp.route("/righe", methods=["POST"])
 @login_required
-def righe_inventario(inventario_id):
+def righe_inventario():
+    data = request.get_json(force=True)  # ✅ evita problemi con content-type
+
+    filtro_descrizione = (data.get("desc_filter") or "").strip()
+    filtro_codice = (data.get("cod_filter") or "").strip()
+    inventario_id = data.get("inventario_id")
+
+    # ✅ sicurezza: converti a int SOLO se esiste
+    try:
+        inventario_id = int(inventario_id)
+    except (TypeError, ValueError):
+        return jsonify({"success": False, "error": "inventario_id mancante o non valido"}), 400
     righe = (
         InventarioRiga.query
-        .filter_by(inventario_id=inventario_id)
-        .order_by(InventarioRiga.id.desc())
+        .join(Articoli, InventarioRiga.articolo_id == Articoli.cod_art)
+        .filter(
+            InventarioRiga.inventario_id == inventario_id,
+            or_(
+                InventarioRiga.descrizione_articolo.ilike(f"%{filtro_descrizione}%"),
+                Articoli.descrizione_aggiuntiva.ilike(f"%{filtro_descrizione}%")
+            ),
+            InventarioRiga.articolo_id.ilike(f"%{filtro_codice}%")
+        )
+        .order_by(InventarioRiga.timestamp.desc())
         .all()
     )
 
