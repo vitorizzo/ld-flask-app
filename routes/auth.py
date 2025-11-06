@@ -62,8 +62,8 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
         if user and check_password_hash(user.password, form.password.data):
-            login_user(user, remember=form.remember.data)
-            # login_user(user, remember=False)
+            # login_user(user, remember=form.remember.data)
+            login_user(user, remember=False)
             return redirect(url_for('home'))
         flash('Credenziali errate.', 'danger')
     return render_template('login.html', form=form)
