@@ -47,6 +47,14 @@ def create_app():
         static_folder=os.path.join(project_root, "static"),
         template_folder=os.path.join(project_root, "templates")
     )
+
+    @app.after_request
+    def no_cache(response):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        return response
+
     app.config.update(
         SECRET_KEY=os.getenv('SECRET_KEY', 'fallback_key'),
         EXPORT_FOLDER=EXPORT_FOLDER,
