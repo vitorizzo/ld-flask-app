@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session
 from flask_login import current_user, login_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -63,6 +63,7 @@ def login():
         user = User.query.filter_by(email=form.email.data).first()
         if user and check_password_hash(user.password, form.password.data):
             login_user(user, remember=form.remember.data)
+            # login_user(user, remember=False)
             return redirect(url_for('home'))
         flash('Credenziali errate.', 'danger')
     return render_template('login.html', form=form)
@@ -165,5 +166,11 @@ def delete_user():
 @log_task(logger)
 def logout():
     logout_user()
+    session.clear()
+
+    # Rimuove cookie remember se presente
+    resp = redirect(url_for('home'))
+    resp.delete_cookie('remember_token')
+
     flash('Logout effettuato con successo!', 'success')
-    return redirect(url_for('home'))
+    return resp
