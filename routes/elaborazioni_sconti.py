@@ -3,6 +3,8 @@ import logging
 from flask import Blueprint, render_template, request, jsonify
 from math import prod
 from tools.log_utils import log_task, get_logger
+from tools.auth_manager import role_required
+import tools.role_required as rr
 
 # Logger per il modulo elaborazioni_sconti
 # logger = get_logger("sconti")  # crea automaticamente il file sconti.log
@@ -40,14 +42,22 @@ def calcola_sconto_combinazione(acquistati, omaggio):
     return round(sconto_combinazione, 2)
 
 
-@sconti_bp.route('/elaborazione-sconti')
+@role_required(40)
 @log_task(logger)
+@sconti_bp.route('/elaborazione-sconti')
 def elaborazione_sconti():
     print(f"🔍 Handler nel logger 'sconti': {logger.handlers}")
     logger.debug(f"Caricamento pagina elaborazione sconti")
     return render_template('functions/elaborazione_sconti.html')
 
 
+@sconti_bp.route("/test-roles")
+@rr.role_required(min_weight=40, roles=["staff"])
+def test_roles():
+    return "Accesso consentito alla route di test"
+
+
+@role_required(40)
 @sconti_bp.route('/test-log')
 def test_log_sconti():
     logger.debug("🔥 Questo è un log di DEBUG dal server Flask")

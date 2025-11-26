@@ -50,7 +50,7 @@ def create_app():
 
     @app.after_request
     def no_cache(response):
-        response.headers["Cache-Control"] = "no-store"
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
         return response

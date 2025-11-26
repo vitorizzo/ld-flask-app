@@ -180,7 +180,7 @@ def inject_menus():
                 })
         return result
 
-    user_role_weight = current_user.role.weight if current_user.is_authenticated else 0
+    user_role_weight = user_role_weight = current_user.max_role_weight if current_user.is_authenticated else 0
     roots_menu = Menu.query.filter_by(parent_id=None).all()
     childs_menu = Menu.query.filter(Menu.parent_id.isnot(None)).all()
     menu_tree = build_menu_tree(roots_menu, childs_menu, user_role_weight)

@@ -142,6 +142,8 @@ class Role(db.Model):
     description = db.Column(db.String(150))
     weight = db.Column(db.Integer)
 
+    user_roles = db.relationship('UserRole', backref='role', lazy=True)
+
 
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
@@ -158,11 +160,73 @@ class User(db.Model, UserMixin):
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=datetime.now())
     updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now())
-    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False, default=1)
-    role = db.relationship('Role', backref='users')
+
+    # RIMOSSI role_id e role
+    # role_id = ...
+    # role = ...
+
+    roles = db.relationship('UserRole', backref='user', lazy=True)
+
+    @property
+    def active_roles(self):
+        """Restituisce SOLO i ruoli attivi in questo momento."""
+        now = datetime.now()
+
+        if not hasattr(self, "roles"):
+            return []
+
+        return [
+            ur.role
+            for ur in self.roles
+            if ur.role is not None and (
+                    ur.valid_until is None or ur.valid_until >= now
+            )
+        ]
+
+    @property
+    def max_role_weight(self):
+        """Restituisce il peso massimo dei ruoli attivi dell’utente."""
+        active = self.active_roles
+        if not active:
+            return 0
+        return max(role.weight for role in active)
 
     def get_id(self):
         return str(self.id)
+
+
+class UserRole(db.Model):
+    __tablename__ = 'user_roles'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    role_id = db.Column(db.Integer, db.ForeignKey('roles.id'), nullable=False)
+
+    type = db.Column(db.String(20), nullable=False, default="lifetime")
+    # valori: lifetime | until | period
+
+    valid_from = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    valid_until = db.Column(db.DateTime, nullable=True)
+
+    notes = db.Column(db.String(255))
+
+    @property
+    def is_active(self):
+        now = datetime.utcnow()
+
+        if self.type == "lifetime":
+            return True
+
+        if self.type == "until":
+            return self.valid_until is None or now <= self.valid_until
+
+        if self.type == "period":
+            start_ok = now >= self.valid_from
+            end_ok = self.valid_until is None or now <= self.valid_until
+            return start_ok and end_ok
+
+        return False
 
 
 class Inventario(db.Model):

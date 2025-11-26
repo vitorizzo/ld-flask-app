@@ -10,7 +10,7 @@ logger = get_logger('tools')
 def get_user_menu():
     try:
         if current_user.is_authenticated:
-            role_weight = current_user.role.weight
+            role_weight = current_user.max_role_weight
             menus = Menu.query.filter(Menu.is_active == True).all()
             user_menu = {
                 menu.name: "enabled" if role_weight >= menu.weight else "disabled"

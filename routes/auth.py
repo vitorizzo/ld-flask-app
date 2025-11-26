@@ -4,6 +4,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from extensions import db
 from forms.forms import LoginForm, RegistrationForm, EditProfileForm
+from tools.auth_manager import get_current_user, get_current_user_id
 from models import User
 from tools.log_utils import log_task, get_logger
 import os
@@ -17,10 +18,10 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 
-@auth_bp.app_context_processor
-def inject_user():
-    from flask_login import current_user
-    return {'current_user': current_user}
+# @auth_bp.app_context_processor
+# def inject_user():
+#     from flask_login import current_user
+#     return {'current_user': current_user}
 
 
 def allowed_file(filename):
@@ -64,6 +65,11 @@ def login():
         if user and check_password_hash(user.password, form.password.data):
             # login_user(user, remember=form.remember.data)
             login_user(user, remember=False)
+
+            next_page = request.args.get('next')
+            if next_page and next_page.startswith('/'):
+                return redirect(next_page)
+
             return redirect(url_for('home'))
         flash('Credenziali errate.', 'danger')
     return render_template('login.html', form=form)
@@ -78,16 +84,17 @@ def reset_password():
 @auth_bp.route('/edit_profile', methods=['GET', 'POST'])
 @log_task(logger)
 def edit_profile():
-    logger.info(f"Utente attuale: {current_user}, Foto profilo: {current_user.foto_profilo}")
-    form = EditProfileForm(obj=current_user)
+    user = get_current_user()
+    logger.info(f"Utente attuale: {user}, Foto profilo: {user.foto_profilo}")
+    form = EditProfileForm(obj=user)
     if form.validate_on_submit():
-        current_user.name = form.name.data
-        current_user.surname = form.surname.data
-        current_user.phone = form.phone.data
-        current_user.birth_date = form.birth_date.data
-        current_user.city = form.city.data
-        current_user.province = form.province.data
-        current_user.sex = int(form.sex.data)
+        user.name = form.name.data
+        user.surname = form.surname.data
+        user.phone = form.phone.data
+        user.birth_date = form.birth_date.data
+        user.city = form.city.data
+        user.province = form.province.data
+        user.sex = int(form.sex.data)
         db.session.commit()
         flash('Profilo aggiornato con successo!', 'success')
         return redirect(url_for('home'))
@@ -97,12 +104,15 @@ def edit_profile():
 @auth_bp.route('/upload_photo', methods=['GET', 'POST'])
 @log_task(logger)
 def upload_photo():
+
     if request.method == 'POST':
         file = request.files.get('photo')
         logger.info(f"File ricevuto: {file}")
         if file and allowed_file(file.filename):
+            user_id = get_current_user_id()
+
             base_upload_folder = current_app.config['UPLOAD_FOLDER']
-            user_folder = os.path.join(base_upload_folder, f"user_{current_user.id}").replace('\\', '/')
+            user_folder = os.path.join(base_upload_folder, f"user_{user_id}").replace('\\', '/')
             logger.info(f"Cartella utente: {user_folder}")
             if not os.path.exists(user_folder):
                 os.makedirs(user_folder)
@@ -118,8 +128,9 @@ def upload_photo():
                 logger.exception("Errore nel ridimensionamento immagine")
                 flash("Errore durante il caricamento dell'immagine. Riprova.", "danger")
                 return redirect(url_for('auth.upload_photo'))
-            web_path = f"static/uploads/user_{current_user.id}/{filename}"
-            current_user.foto_profilo = web_path
+            web_path = f"static/uploads/user_{user_id}/{filename}"
+            user = get_current_user()
+            user.foto_profilo = web_path
             db.session.commit()
             logger.info(f"Foto salvata: {web_path}")
             flash("Foto profilo aggiornata con successo.", "success")
@@ -131,8 +142,11 @@ def upload_photo():
 @auth_bp.route('/delete_photo', methods=['POST'])
 @log_task(logger)
 def delete_photo():
-    user_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], f"user_{current_user.id}")
-    if current_user.foto_profilo:
+    user = get_current_user()
+    user_id = user.id
+
+    user_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], f"user_{user_id}")
+    if user.foto_profilo:
         filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], current_user.foto_profilo)
         if os.path.exists(filepath):
             os.remove(filepath)
@@ -154,8 +168,9 @@ def delete_user_folder(user_id):
 @auth_bp.route('/delete_user', methods=['POST'])
 @log_task(logger)
 def delete_user():
-    user_id = current_user.id
-    db.session.delete(current_user)
+    user = get_current_user()
+    user_id = user.id
+    db.session.delete(user)
     db.session.commit()
     delete_user_folder(user_id)
     flash('Account eliminato con successo.', 'success')
@@ -166,7 +181,12 @@ def delete_user():
 @log_task(logger)
 def logout():
     logout_user()
-    session.clear()
+
+    # session.clear()
+
+    session.pop('_user_id', None)
+    session.pop('remember', None)
+    session.pop('remember_token', None)
 
     # Rimuove cookie remember se presente
     resp = redirect(url_for('home'))
