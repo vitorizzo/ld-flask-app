@@ -1,9 +1,22 @@
 import logging
+import sys
+
+from flask_mail import Mail
+
+from routes.app_installation import installation_bp
+from routes.importazioni_routes import importazioni_bp
+from routes.logs_display import logs_bp
+from routes.status_routes import status_bp
+from routes.task_routes import task_bp
+from routes.trello import trello_bp
+from tools.log_utils import get_logger
+import os
+import re
+
+from dotenv import load_dotenv
 from flask import render_template, send_from_directory, make_response
 from flask_login import LoginManager, current_user
-
-from tools.app_factory import create_app
-
+from models import User, Menu
 from routes.auth import auth_bp
 from routes.settings import settings_bp
 from routes.elaborazioni_sconti import sconti_bp
@@ -12,28 +25,72 @@ from routes.inventario import inventario_bp
 from routes.tools import get_user_menu
 from routes.esportazioni_teamsystem import file_bp
 from routes.search import search_bp
-from routes.status_routes import status_bp
-from routes.task_routes import task_bp
-from routes.importazioni_routes import importazioni_bp
-from routes.logs_display import logs_bp
-from routes.trello import trello_bp
-from routes.app_installation import installation_bp
+from tools.app_factory import create_app
+# from tools.log_utils import debug_loggers
 
-from models import User, Menu
 
-import re
+# Inizializza il logger globale (ad esempio "main") prima di altri import
+logger = get_logger("main", level=logging.DEBUG)
+# Imposta anche una configurazione base per il root logger (opzionale)
+logging.basicConfig(stream=sys.stdout, level=logging.DEBUG,
+                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
+dotenvlocal_path = os.path.join(os.path.dirname(__file__), ".env.local")
+dotenvdefaults_path = os.path.join(os.path.dirname(__file__), ".env.defaults")
+
+logger.info(f"Caricamento .env da {dotenv_path}")
+load_dotenv(dotenv_path, override=False)
+load_dotenv(dotenvlocal_path, override=True)
+load_dotenv(dotenvdefaults_path, override=False)
+
+FLASK_ENV = os.getenv("FLASK_ENV", "production")
+EXPORT_FOLDER = os.getenv("EXPORT_FOLDER")
+EXPORT_FOLDER_URL = os.getenv("EXPORT_FOLDER_URL")
+UPLOAD_FOLDER = os.path.normpath(os.path.join(os.getcwd(), 'ld-flask-app', 'static', 'uploads'))
+SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL'),
+SQLALCHEMY_TRACK_MODIFICATIONS = False,
+
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
+    logger.info(f"Cartella upload creata: {UPLOAD_FOLDER}")
+
+PS_URL = os.getenv("PRESTASHOP_URL")
+PS_KEY = os.getenv("PRESTASHOP_KEY")
+PS_USER = os.getenv("PRESTASHOP_USER")
+PS_PSWD = os.getenv("PRESTASHOP_PASSWORD")
 
 app = create_app()
+
+mail = Mail(app)
+
+app.config['FERNET_KEY'] = os.getenv('FERNET_KEY')
+app.config['TRELLO_KEY'] = os.getenv("TRELLO_KEY")
+app.config['TRELLO_SECRET'] = os.getenv("TRELLO_SECRET")
+app.config['TRELLO_TOKEN'] = os.getenv("TRELLO_TOKEN")
+
+
+def regex_search(s, pattern):
+    match = re.search(pattern, s)
+    return match.groups() if match else None
+
+
+app.jinja_env.filters['regex_search'] = regex_search
+
+werkzeug_logger = logging.getLogger('werkzeug')
+werkzeug_logger.handlers = []      # rimuove gli handler predefiniti
+werkzeug_logger.propagate = True     # fa propagare i messaggi al logger root
+app.logger.handlers = logger.handlers  # Usa i nostri handler
+app.logger.setLevel(logging.DEBUG)
+app.logger.propagate = False
+
+logger.info("Flask app creata.")
 
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = "auth.login"
 
-@login_manager.user_loader
-def load_user(user_id):
-    return User.query.get(int(user_id))
-
-# registrazione blueprint
+# Registrazione Blueprint
 app.register_blueprint(auth_bp, url_prefix='/auth')
 app.register_blueprint(settings_bp, url_prefix='/settings')
 app.register_blueprint(sconti_bp, url_prefix='/sconti')
@@ -48,6 +105,7 @@ app.register_blueprint(logs_bp, url_prefix='/logs')
 app.register_blueprint(trello_bp, url_prefix='/trello')
 app.register_blueprint(installation_bp, url_prefix='/installation')
 
+
 @app.route('/service-worker.js')
 def service_worker():
     response = make_response(send_from_directory('static', 'service-worker.js'))
@@ -55,13 +113,62 @@ def service_worker():
     response.headers['Cache-Control'] = 'no-cache'
     return response
 
+
+@app.after_request
+def add_no_cache_headers(response):
+    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+
+logger.info("Blueprint registrati.")
+# debug_loggers()
+
+
+def build_menu_tree(menus):
+    menu_dict = {menu.id: menu for menu in menus}
+    tree = []
+    for menu in menus:
+        if menu.parent_id is None:
+            tree.append(build_menu_item(menu, menu_dict))
+    return tree
+
+
+def build_menu_item(menu, menu_dict):
+    item = {
+        'id': menu.id,
+        'name': menu.name,
+        'route': menu.route,
+        'weight': menu.weight,
+        'children': []
+    }
+    for potential_child in menu_dict.values():
+        if potential_child.parent_id == menu.id:
+            item['children'].append(build_menu_item(potential_child, menu_dict))
+    item['children'].sort(key=lambda x: x['weight'])
+    return item
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+
+@app.route('/', methods=['GET'])
+def home():
+    return render_template('home.html')
+
+
 @app.context_processor
 def inject_user_menu():
     return {'user_menu': get_user_menu()}
 
+
 @app.context_processor
 def inject_user():
     return {'current_user': current_user}
+
 
 @app.context_processor
 def inject_menus():
@@ -81,11 +188,13 @@ def inject_menus():
                 })
         return result
 
-    user_role_weight = current_user.max_role_weight if current_user.is_authenticated else 0
+    user_role_weight = user_role_weight = current_user.max_role_weight if current_user.is_authenticated else 0
     roots_menu = Menu.query.filter_by(parent_id=None).all()
     childs_menu = Menu.query.filter(Menu.parent_id.isnot(None)).all()
+    menu_tree = build_menu_tree(roots_menu, childs_menu, user_role_weight)
+    return {"menu_tree": menu_tree}
 
-    return {"menu_tree": build_menu_tree(roots_menu, childs_menu, user_role_weight)}
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True, use_reloader=False)
+if __name__ == '__main__':
+    logger.info("Avvio server Flask in modalità standalone...")
+    app.run(host='0.0.0.0', debug=True, use_reloader=False)
