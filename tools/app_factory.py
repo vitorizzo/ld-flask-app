@@ -12,15 +12,14 @@ project_root = os.path.dirname(os.path.dirname(__file__))
 # Logger globale di avvio app
 logger = get_logger('factory')
 
-dotenv_path = os.path.join(project_root, ".env")
-dotenvlocal_path = os.path.join(project_root, ".env.local")
-dotenvdefaults_path = os.path.join(project_root, ".env.defaults")
 logger.debug("Cerco di caricare il file: %s", dotenv_path)
 
 # Caricamento environment
-load_dotenv(dotenv_path, override=False)
-load_dotenv(dotenvlocal_path, override=True)
-load_dotenv(dotenvdefaults_path, override=False)
+base = os.path.dirname(os.path.dirname(__file__))
+
+load_dotenv(os.path.join(base, ".env.defaults"), override=False)
+load_dotenv(os.path.join(base, ".env.local"), override=True)
+load_dotenv(os.path.join(base, ".env"), override=True)
 
 EXPORT_FOLDER = os.getenv("EXPORT_FOLDER")
 EXPORT_FOLDER_URL = os.getenv("EXPORT_FOLDER_URL")

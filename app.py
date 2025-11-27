@@ -35,14 +35,14 @@ logger = get_logger("main", level=logging.DEBUG)
 logging.basicConfig(stream=sys.stdout, level=logging.DEBUG,
                     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
-dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
-dotenvlocal_path = os.path.join(os.path.dirname(__file__), ".env.local")
-dotenvdefaults_path = os.path.join(os.path.dirname(__file__), ".env.defaults")
+# dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
+# dotenvlocal_path = os.path.join(os.path.dirname(__file__), ".env.local")
+# dotenvdefaults_path = os.path.join(os.path.dirname(__file__), ".env.defaults")
 
-logger.info(f"Caricamento .env da {dotenv_path}")
-load_dotenv(dotenv_path, override=False)
-load_dotenv(dotenvlocal_path, override=True)
-load_dotenv(dotenvdefaults_path, override=False)
+# logger.info(f"Caricamento .env da {dotenv_path}")
+# load_dotenv(dotenv_path, override=False)
+# load_dotenv(dotenvlocal_path, override=True)
+# load_dotenv(dotenvdefaults_path, override=False)
 
 FLASK_ENV = os.getenv("FLASK_ENV", "production")
 EXPORT_FOLDER = os.getenv("EXPORT_FOLDER")
