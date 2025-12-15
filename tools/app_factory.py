@@ -86,6 +86,12 @@ def create_app():
         MAIL_PASSWORD=MAIL_PASSWORD,
         MAIL_DEFAULT_SENDER=MAIL_DEFAULT_SENDER
     )
+
+    # Dopo app.config.update(...)
+    # Logghiamo un identificatore della SECRET_KEY (hash) per verificare che sia identica su tutti i worker
+    safe_key_id = hash(app.config['SECRET_KEY'])
+    logger.info("SECRET_KEY identifier (hash): %s", safe_key_id)
+
     if not app.config['SQLALCHEMY_DATABASE_URI']:
         logger.critical("DATABASE_URL non impostato! Verifica il file .env.")
         raise RuntimeError("DATABASE_URL is not set. Check your .env file.")
