@@ -68,9 +68,14 @@ def login():
 
             next_page = request.args.get('next')
             if next_page and next_page.startswith('/'):
-                return redirect(next_page)
+                response = redirect(next_page)
+            else:
+                response = redirect(url_for('home'))
 
-            return redirect(url_for('home'))
+            # LOG: cosa stiamo mandando come cookie?
+            logger.info("LOGIN RESPONSE Set-Cookie: %s", response.headers.getlist('Set-Cookie'))
+
+            return response
         flash('Credenziali errate.', 'danger')
     return render_template('login.html', form=form)
 
