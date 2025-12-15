@@ -14,7 +14,7 @@ import os
 import re
 
 from dotenv import load_dotenv
-from flask import render_template, send_from_directory, make_response
+from flask import render_template, send_from_directory, make_response, session
 from flask_login import LoginManager, current_user
 from models import User, Menu
 from routes.auth import auth_bp
@@ -157,6 +157,12 @@ def load_user(user_id):
 
 @app.route('/', methods=['GET'])
 def home():
+    logger.info(
+        "HOME VIEW - is_authenticated=%s, user_id=%s, session_keys=%s",
+        current_user.is_authenticated,
+        getattr(current_user, 'id', None),
+        list(session.keys())
+    )
     return render_template('home.html')
 
 
