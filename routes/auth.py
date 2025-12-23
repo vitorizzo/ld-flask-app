@@ -182,20 +182,37 @@ def delete_user():
     return redirect(url_for('auth.logout'))
 
 
+# @auth_bp.route('/logout', methods=['GET'])
+# @log_task(logger)
+# def logout():
+#     logout_user()
+#
+#     # session.clear()
+#
+#     session.pop('_user_id', None)
+#     session.pop('remember', None)
+#     session.pop('remember_token', None)
+#
+#     # Rimuove cookie remember se presente
+#     resp = redirect(url_for('home'))
+#     resp.delete_cookie('remember_token')
+#
+#     flash('Logout effettuato con successo!', 'success')
+#     return resp
+
+
 @auth_bp.route('/logout', methods=['GET'])
 @log_task(logger)
 def logout():
     logout_user()
+    session.clear()
 
-    # session.clear()
-
-    session.pop('_user_id', None)
-    session.pop('remember', None)
-    session.pop('remember_token', None)
-
-    # Rimuove cookie remember se presente
     resp = redirect(url_for('home'))
-    resp.delete_cookie('remember_token')
+
+    # se la tua app vive sotto /flask, questo è fondamentale
+    resp.delete_cookie('remember_token', path='/flask')
+    # in più, prova anche root per coprire entrambi i casi
+    resp.delete_cookie('remember_token', path='/')
 
     flash('Logout effettuato con successo!', 'success')
     return resp
