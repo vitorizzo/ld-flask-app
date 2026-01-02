@@ -14,7 +14,7 @@ import os
 import re
 
 from dotenv import load_dotenv
-from flask import render_template, send_from_directory, make_response, session
+from flask import render_template, send_from_directory, make_response, session, request
 from flask_login import LoginManager, current_user
 from models import User, Menu
 from routes.auth import auth_bp
@@ -116,9 +116,13 @@ def service_worker():
 
 @app.after_request
 def add_no_cache_headers(response):
-    response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
-    response.headers['Pragma'] = 'no-cache'
-    response.headers['Expires'] = '0'
+    # Non disabilitare cache per static e service worker (gestiti a parte)
+    if request.path.startswith("/static/") or request.path == "/service-worker.js":
+        return response
+
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
     return response
 
 
