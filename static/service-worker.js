@@ -17,6 +17,23 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const url = event.request.url;
+  const req = event.request;
+  const accept = req.headers.get("accept") || "";
+
+  // HTML navigation: NETWORK FIRST (prevents stale logged-out pages)
+  if (req.mode === "navigate" || accept.includes("text/html")) {
+    event.respondWith(
+      fetch(req)
+        .then((res) => {
+          // optional: update cache for offline fallback
+          const copy = res.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+          return res;
+        })
+        .catch(() => caches.match(req).then((r) => r || caches.match("/")))
+    );
+    return;
+  }
 
   // Per CSS/JS specifici → network first
   if (url.includes("install_banner.css") || url.includes("install_banner.js")) {
