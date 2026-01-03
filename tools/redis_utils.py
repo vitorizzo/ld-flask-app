@@ -1,9 +1,12 @@
-import redis
+import os
 import json
+import redis
+from functools import lru_cache
 
-# Connessione al tuo Redis locale
-r = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-
+# opzionale: permette override via env
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_DB = int(os.getenv("REDIS_DB", "0"))
 
 status_string = {
     "start": "avviato",
@@ -12,6 +15,12 @@ status_string = {
     "error": "errore",
     "attached": "in coda..."
 }
+
+
+@lru_cache(maxsize=1)
+def get_redis():
+    # Non connette attivamente finché non fai un comando, ma evitiamo globale a import-time.
+    return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True)
 
 
 def update_task(task_id, descrizione, progress, status, exception=None):
@@ -28,18 +37,23 @@ def update_task(task_id, descrizione, progress, status, exception=None):
 
 
 def set_task_status(task_id, status_dict):
+    r = get_redis()
     if "name" not in status_dict:
-        status_dict["name"] = task_id  # fallback se non viene fornito
+        status_dict["name"] = task_id
     r.set(f"task_status:{task_id}", json.dumps(status_dict))
 
 
 def get_all_tasks_status():
+    r = get_redis()
     keys = r.keys("task_status:*")
     task_list = []
     for key in keys:
-        task = json.loads(r.get(key))
-        task['task_id'] = key.replace("task_status:", "")
-        stato = task.get("stato", "").lower()
+        raw = r.get(key)
+        if not raw:
+            continue
+        task = json.loads(raw)
+        task["task_id"] = key.replace("task_status:", "")
+        stato = (task.get("stato", "") or "").lower()
         if stato not in ("completato", "errore", "fallito"):
             task_list.append(task)
     return task_list
@@ -47,11 +61,13 @@ def get_all_tasks_status():
 
 def clear_task_status(task_id):
     """Rimuove lo stato del task (quando completato)"""
-    r.delete(f"task_status: {task_id}")
+    r = get_redis()
+    # FIX: niente spazio dopo i due punti
+    r.delete(f"task_status:{task_id}")
 
 
 def clear_all_task_statuses():
-    """Elimina tutte le chiavi Redis dei task_status"""
+    r = get_redis()
     keys = r.keys("task_status:*")
-    for key in keys:
-        r.delete(key)
+    if keys:
+        r.delete(*keys)
