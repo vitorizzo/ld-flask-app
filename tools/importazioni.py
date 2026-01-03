@@ -1,10 +1,9 @@
 import csv
 from datetime import datetime
 
-from routes.esportazioni_teamsystem import serve_risorsa
 from tools.ps_util import get_all_products, get_product_images
 from extensions import db
-from models import Articoli, Barcode, Giacenza, Importazione, ModuloImportazione
+from models import Articoli, Barcode, Giacenza, Importazione
 from flask import jsonify
 from tools.log_utils import log_task, get_logger
 
@@ -68,6 +67,7 @@ def import_ps(task_id=None):
 
 @log_task(logger)
 def import_articoli(task_id=None):
+    from routes.esportazioni_teamsystem import serve_risorsa
     from tools.redis_utils import update_task, status_string, clear_task_status
     task_name = "Importazione articoli"
     update_task(task_id, task_name, 0, status_string['start'])
@@ -155,6 +155,7 @@ def import_articoli(task_id=None):
 
 @log_task(logger)
 def import_giacenze(task_id=None):
+    from routes.esportazioni_teamsystem import serve_risorsa
     from tools.redis_utils import update_task, clear_task_status, status_string
     task_name = "Importazione giacenze da gestionale"
     update_task(task_id, task_name, 0, status_string['start'])
@@ -248,6 +249,7 @@ def import_barcode(task_id=None):
 
 
 def run_import_barcode(task_id=None):
+    from routes.esportazioni_teamsystem import serve_risorsa
     from tools.redis_utils import update_task, clear_task_status, status_string
     task_name = "Importazione codici a barre articoli da gestionale"
     update_task(task_id, task_name, 0, status_string['start'])

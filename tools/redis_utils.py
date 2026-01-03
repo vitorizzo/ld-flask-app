@@ -40,7 +40,7 @@ def set_task_status(task_id, status_dict):
     r = get_redis()
     if "name" not in status_dict:
         status_dict["name"] = task_id
-    r.set(f"task_status:{task_id}", json.dumps(status_dict))
+    r.set(f"task_status: {task_id}", json.dumps(status_dict))
 
 
 def get_all_tasks_status():
@@ -63,7 +63,7 @@ def clear_task_status(task_id):
     """Rimuove lo stato del task (quando completato)"""
     r = get_redis()
     # FIX: niente spazio dopo i due punti
-    r.delete(f"task_status:{task_id}")
+    r.delete(f"task_status: {task_id}")
 
 
 def clear_all_task_statuses():
