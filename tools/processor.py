@@ -10,7 +10,20 @@ from tools.trello_api import TrelloAPI
 logger = get_logger("processor", level=logging.DEBUG)
 logger.debug("🧪 Logger 'processor' inizializzato correttamente - test DEBUG")
 
-trello = TrelloAPI()  # legge TRELLO_KEY e TRELLO_TOKEN dall'env
+# trello = TrelloAPI()  # legge TRELLO_KEY e TRELLO_TOKEN dall'env
+trello = None  # lazy init
+
+
+def get_trello():
+    global trello
+    if trello is not None:
+        return trello
+    try:
+        trello = TrelloAPI()  # legge TRELLO_KEY e TRELLO_TOKEN dall'env
+        return trello
+    except Exception as e:
+        logger.warning(f"Trello non configurato o non disponibile: {e}. Funzioni Trello disabilitate.")
+        return None
 
 
 def process_trello_event(connection, payload):
@@ -124,7 +137,12 @@ def comment_from_to(cfg, payload):
         message = tpl.render(**context)
 
         logger.info(f"[COMMENTO] Aggiunta commento alla card {card_id}: {message}")
-        trello.add_comment_to_card(card_id, message)
+        # trello.add_comment_to_card(card_id, message)
+        t = get_trello()
+        if not t:
+            logger.warning("Salto add_comment_to_card: Trello non configurato.")
+            return
+        t.add_comment_to_card(card_id, message)
     except Exception as e:
         logger.exception(f"Errore durante l'aggiunta del commento: {e}")
 
