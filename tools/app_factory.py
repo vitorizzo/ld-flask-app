@@ -52,14 +52,6 @@ MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER')
 
 
 def create_app():
-#     # Carica .env SEMPRE
-#     base = os.path.dirname(os.path.dirname(__file__))
-#     load_dotenv(os.path.join(base, ".env"), override=True)
-#     load_dotenv(os.path.join(base, ".env.local"), override=True)
-#     defaults_path = os.path.join(base, ".env.defaults")
-#     if os.path.exists(defaults_path):
-#         load_dotenv(defaults_path, override=False)
-#
     base = os.path.dirname(os.path.dirname(__file__))
 
     env_path = os.path.join(base, ".env")
@@ -109,7 +101,15 @@ def create_app():
         MAIL_USE_SSL=MAIL_USE_SSL,
         MAIL_USERNAME=MAIL_USERNAME,
         MAIL_PASSWORD=MAIL_PASSWORD,
-        MAIL_DEFAULT_SENDER=MAIL_DEFAULT_SENDER
+        MAIL_DEFAULT_SENDER=MAIL_DEFAULT_SENDER,
+        PS_URL=os.getenv("PRESTASHOP_URL"),
+        PS_KEY=os.getenv("PRESTASHOP_KEY"),
+        PS_USER=os.getenv("PRESTASHOP_USER"),
+        PS_PSWD=os.getenv("PRESTASHOP_PASSWORD"),
+        FERNET_KEY=os.getenv('FERNET_KEY'),
+        TRELLO_KEY=os.getenv("TRELLO_KEY"),
+        TRELLO_SECRET=os.getenv("TRELLO_SECRET"),
+        TRELLO_TOKEN=os.getenv("TRELLO_TOKEN")
     )
 
     if not app.config.get("SECRET_KEY"):
