@@ -231,4 +231,7 @@ def create_app():
     app.register_blueprint(trello_bp, url_prefix="/trello")
     app.register_blueprint(installation_bp, url_prefix="/installation")
 
+    from config.celery_app import init_celery
+    init_celery(app)
+
     return app
