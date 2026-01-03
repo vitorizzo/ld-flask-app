@@ -4,7 +4,7 @@ from flask import Flask, render_template, send_from_directory, make_response, se
 from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from dotenv import load_dotenv
-from extensions import db
+from extensions import db, mail
 from tools.log_utils import get_logger
 from models import User, Menu
 from routes.tools import get_user_menu
@@ -124,6 +124,8 @@ def create_app():
     if not app.config['SQLALCHEMY_DATABASE_URI']:
         logger.critical("DATABASE_URL non impostato! Verifica il file .env.")
         raise RuntimeError("DATABASE_URL is not set. Check your .env file.")
+
+    mail.init_app(app)
 
     # Inizializza database, migrate, ecc.
     db.init_app(app)

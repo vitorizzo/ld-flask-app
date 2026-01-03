@@ -34,7 +34,7 @@ def process_trello_event(connection, payload):
     - Esegue per ognuna l'azione specificata in action_type
     """
 
-    logger.info(f"Chiamata process_trello_event con \nconnection:\n {connection} \ne payload:\n {payload}")
+    logger.info(f"Chiamata process_trello_event con \nconnection: \n {connection} \ne payload: \n {payload}")
     # Estrai tipo di trigger
     action = payload.get('action', {})
     trigger_type = action.get('type')
