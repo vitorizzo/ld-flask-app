@@ -3,7 +3,7 @@ from flask_login import login_required
 from flask_socketio import SocketIO
 from extensions import db
 from models import Menu, Role
-from routes.decorators import role_required
+from tools.role_required import role_required
 from config.task import import_articoli_task, import_barcode_task, import_giacenze_task, import_ps_task
 from tools.ps_util import get_product_by_code
 from tools.log_utils import log_task, get_logger
