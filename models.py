@@ -1,3 +1,4 @@
+from sqlalchemy.dialects.postgresql import JSONB
 from future.backports.datetime import datetime
 
 from extensions import db
@@ -206,14 +207,14 @@ class UserRole(db.Model):
     type = db.Column(db.String(20), nullable=False, default="lifetime")
     # valori: lifetime | until | period
 
-    valid_from = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    valid_from = db.Column(db.DateTime, nullable=False, default=datetime.utcnow())
     valid_until = db.Column(db.DateTime, nullable=True)
 
     notes = db.Column(db.String(255))
 
     @property
     def is_active(self):
-        now = datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
 
         if self.type == "lifetime":
             return True
@@ -387,7 +388,8 @@ class TrelloConnection(db.Model):
     webhook_id = db.Column(db.String(255), nullable=True)
     schema_json = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), nullable=False)
-    updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc), nullable=True)
+    updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), onupdate=datetime.now(timezone.utc),
+                           nullable=True)
     ordine = db.Column(db.Integer, default=0)
     actions = db.relationship('TrelloAction', back_populates='connection', cascade='all, delete-orphan')
 
@@ -403,3 +405,54 @@ class TrelloAction(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), nullable=False)
     ordine = db.Column(db.Integer, default=0)
     connection = db.relationship('TrelloConnection', back_populates='actions')
+
+
+class ImportRun(db.Model):
+    __tablename__ = 'import_runs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.String(64), nullable=False, index=True)
+    file_name = db.Column(db.String(255), nullable=True)
+
+    started_at = db.Column(db.DateTime, default=datetime.utcnow(), nullable=False)
+    finished_at = db.Column(db.DateTime, nullable=True)
+
+    summary = db.Column(JSONB, nullable=True)
+
+    conflicts = db.relationship(
+        'ImportConflict',
+        backref='run',
+        lazy='dynamic',
+        cascade='all, delete-orphan'
+    )
+
+
+class ImportConflict(db.Model):
+    __tablename__ = 'import_conflicts'
+
+    id = db.Column(db.Integer, primary_key=True)
+    run_id = db.Column(
+        db.Integer,
+        db.ForeignKey('import_runs.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
+
+    type = db.Column(db.String(50), nullable=False)
+    # es: CODICE_RIUSATO, DESCRIZIONE_DIVERGENTE, DUPLICATO_POTENZIALE
+
+    payload = db.Column(JSONB, nullable=False)
+    # dati grezzi del conflitto (csv_row, articolo_db, diff, ecc.)
+
+    status = db.Column(
+        db.String(20),
+        nullable=False,
+        default='pending'
+    )
+    # pending | resolved | ignored
+
+    resolution = db.Column(JSONB, nullable=True)
+    # scelta operatore (es: keep_db, overwrite, create_new, remap)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow(), nullable=False)
+    resolved_at = db.Column(db.DateTime, nullable=True)

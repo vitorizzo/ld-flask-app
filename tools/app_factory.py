@@ -9,15 +9,15 @@ from tools.log_utils import get_logger
 from models import User, Menu
 from routes.tools import get_user_menu
 
-
+load_dotenv()
 # Determina la root del progetto (supponendo che questo file sia in tools/)
 project_root = os.path.dirname(os.path.dirname(__file__))
 
 # PRIMA definiamo i path dei .env
-dotenv_path = os.path.join(project_root, ".env")
-dotenvlocal_path = os.path.join(project_root, ".env.local")
-dotenvdefaults_path = os.path.join(project_root, ".env.defaults")
-
+# dotenv_path = os.path.join(project_root, ".env")
+# dotenvlocal_path = os.path.join(project_root, ".env.local")
+# dotenvdefaults_path = os.path.join(project_root, ".env.defaults")
+#
 # POI creiamo il logger e possiamo usare dotenv_path
 # logger = get_logger('factory')
 # logger.debug("Cerco di caricare il file: %s", dotenv_path)
@@ -32,22 +32,6 @@ dotenvdefaults_path = os.path.join(project_root, ".env.defaults")
 # logger = get_logger('factory')
 #
 # logger.debug("Cerco di caricare il file: %s", dotenv_path)
-
-EXPORT_FOLDER = os.getenv("EXPORT_FOLDER")
-EXPORT_FOLDER_URL = os.getenv("EXPORT_FOLDER_URL")
-UPLOAD_FOLDER = os.path.normpath(os.path.join(os.getcwd(), 'ld-flask-app', 'static', 'uploads'))
-SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
-SQLALCHEMY_TRACK_MODIFICATIONS = False
-PROJECT_FOLDER = os.path.dirname(os.path.abspath(__file__))
-LOGS_FOLDER = os.path.join(project_root, "logs")
-MAIL_SERVER = os.getenv('MAIL_SERVER')
-MAIL_PORT = int(os.getenv('MAIL_PORT', 25))
-MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'false').lower() == 'true'
-MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'false').lower() == 'true'
-MAIL_USERNAME = os.getenv('MAIL_USERNAME')
-MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
-MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER')
-
 # logger.info("DATABASE_URL rilevato: %s", SQLALCHEMY_DATABASE_URI)
 
 
@@ -65,6 +49,21 @@ def create_app():
 
     logger = get_logger('factory')
     # ora che gli env sono caricati, leggi qui le variabili
+    SECRET_KEY = os.getenv("SECRET_KEY"),
+    EXPORT_FOLDER = os.getenv("EXPORT_FOLDER")
+    EXPORT_FOLDER_URL = os.getenv("EXPORT_FOLDER_URL")
+    UPLOAD_FOLDER = os.path.normpath(os.path.join(os.getcwd(), 'ld-flask-app', 'static', 'uploads'))
+    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL')
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+    PROJECT_FOLDER = os.path.dirname(os.path.abspath(__file__))
+    LOGS_FOLDER = os.path.join(project_root, "logs")
+    MAIL_SERVER = os.getenv('MAIL_SERVER')
+    MAIL_PORT = int(os.getenv('MAIL_PORT', 25))
+    MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'false').lower() == 'true'
+    MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'false').lower() == 'true'
+    MAIL_USERNAME = os.getenv('MAIL_USERNAME')
+    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD')
+    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER')
     export_folder = os.getenv("EXPORT_FOLDER")
     export_folder_url = os.getenv("EXPORT_FOLDER_URL")
     upload_folder = os.path.normpath(os.path.join(os.getcwd(), "ld-flask-app", "static", "uploads"))
