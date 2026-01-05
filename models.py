@@ -5,6 +5,7 @@ from extensions import db
 from flask_login import UserMixin
 from datetime import datetime, timezone
 from sqlalchemy.orm import foreign
+from sqlalchemy import Sequence
 
 from tools.crypto import EncryptedString
 from tools.log_utils import get_logger
@@ -38,6 +39,13 @@ class Menu(db.Model):
 
 
 class Articoli(db.Model):
+    id_art = db.Column(
+        db.BigInteger,
+        Sequence("articoli_id_art_seq"),
+        unique=True,
+        nullable=True,
+        server_default=db.text("nextval('articoli_id_art_seq'::regclass)")
+    )
     cod_art = db.Column(db.String(255), primary_key=True)
     descrizione = db.Column(db.String(255))
     descrizione_aggiuntiva = db.Column(db.Text)
@@ -64,6 +72,7 @@ class Articoli(db.Model):
 class Barcode(db.Model):
     cod_bar = db.Column(db.String(255), primary_key=True)
     cod_art = db.Column(db.String(255))
+    id_art = db.Column(db.BigInteger, db.ForeignKey('articoli.id_art'), nullable=True, index=True)
 
     def to_dict(self):
         return {
@@ -121,6 +130,7 @@ class Sincro(db.Model):
 
 
 class Giacenza(db.Model):
+    id_art = db.Column(db.BigInteger, db.ForeignKey('articoli.id_art'), index=True, nullable=True)
     cod_art = db.Column(db.String(255), primary_key=True)
     giac_neg = db.Column(db.Integer, default=0)
     giac_www = db.Column(db.Integer, default=0)
