@@ -1,4 +1,4 @@
-# config/task.py
+# config/tasks.py
 from config.celery_app import celery
 from tools.importazioni import import_articoli, import_giacenze, import_ps, run_import_barcode
 from tools.log_utils import log_task, get_logger
