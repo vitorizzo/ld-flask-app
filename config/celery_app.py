@@ -47,7 +47,7 @@ def init_celery(app):
     celery.Task = FlaskContextTask
 
     # Carica i task (import differito, senza creare loop)
-    celery.conf.include = list(set((celery.conf.include or []) + ["config.task"]))
+    celery.conf.include = list(set((celery.conf.include or []) + ["config.tasks"]))
 
     logger.info("Celery pronto.")
     return celery
