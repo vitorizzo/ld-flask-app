@@ -87,6 +87,7 @@ class Barcode(db.Model):
 class Immagini(db.Model):
     file_img = db.Column(db.String(255), primary_key=True)
     cod_art = db.Column(db.String(255))
+    id_art = db.Column(db.BigInteger, db.ForeignKey('articoli.id_art'), nullable=True, index=True)
 
     def to_dict(self):
         return {
@@ -102,6 +103,12 @@ class SchedeProdotti(db.Model):
     descrizione = db.Column(db.String(5000), nullable=True)
     short = db.Column(db.String(5000), nullable=True)
     cod_art = db.Column(db.String(255), primary_key=True)
+    id_art = db.Column(
+        db.BigInteger,
+        db.ForeignKey('articoli.id_art'),
+        nullable=True,
+        index=True
+    )
 
     def to_dict(self):
         return {
@@ -119,6 +126,12 @@ class Sincro(db.Model):
     prestashop = db.Column(db.Boolean)
     poleepo = db.Column(db.Boolean)
     teamsystem = db.Column(db.Boolean)
+    id_art = db.Column(
+        db.BigInteger,
+        db.ForeignKey('articoli.id_art'),
+        nullable=True,
+        index=True
+    )
 
     def to_dict(self):
         return {
@@ -265,6 +278,7 @@ class RettificaInventario(db.Model):
     rettifica = db.Column(db.Integer, nullable=False)
     utente_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
+    id_art = db.Column(db.BigInteger, db.ForeignKey('articoli.id_art'), index=True, nullable=True)
 
     articolo = db.relationship(
         "Articoli",
@@ -284,7 +298,12 @@ class InventarioRiga(db.Model):
     barcode_articolo = db.Column(db.String(50), nullable=True)
     quantita_inserita = db.Column(db.Integer, nullable=False)
     has_versions = db.Column(db.Boolean, default=False)  # Indica se la riga ha versioni
-
+    id_art = db.Column(
+        db.BigInteger,
+        db.ForeignKey('articoli.id_art'),
+        nullable=True,
+        index=True
+    )
     # 🆕 Campi aggiuntivi
     num_pedane = db.Column(db.Integer)
     num_cartoni = db.Column(db.Integer)
@@ -312,6 +331,7 @@ class ImportInventari(db.Model):
     costo = db.Column(db.Numeric, nullable=True)
     utente_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
+    id_art = db.Column(db.BigInteger, db.ForeignKey('articoli.id_art'), index=True, nullable=True)
 
     articolo = db.relationship(
         "Articoli",
@@ -352,6 +372,12 @@ class InventarioExport(db.Model):
     barcode_articolo = db.Column(db.String(50), nullable=True)
     giacenza = db.Column(db.Integer, nullable=False)
     deposito = db.Column(db.String(10), nullable=False, default='000')
+    id_art = db.Column(
+        db.BigInteger,
+        db.ForeignKey('articoli.id_art'),
+        nullable=True,
+        index=True
+    )
 
     articolo = db.relationship('Articoli', backref='inventario_export')
 
