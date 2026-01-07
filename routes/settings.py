@@ -132,12 +132,12 @@ def lancia_import_barcode():
     return '', 204
 
 
-@settings_bp.route("/import-conflicts", methods=["GET"])
+@settings_bp.route("/import_conflicts", methods=["GET"])
 def import_conflicts_page():
     return render_template("settings/import_conflicts.html")
 
 
-@settings_bp.route("/next-conflict", methods=["GET"])
+@settings_bp.route("/next_conflict", methods=["GET"])
 def api_import_conflicts_next():
     ctype = request.args.get("type")  # es. "barcode" (o None per tutti)
 
