@@ -10,7 +10,7 @@
     <pre id="out">Caricamento...</pre>
 
     <script>
-      fetch("/settings/api/import-conflicts/next?type=barcode")
+      fetch("/settings/next_conflict?type=barcode")
         .then(r => r.json())
         .then(data => {
           document.getElementById("out").textContent = JSON.stringify(data, null, 2);
