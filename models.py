@@ -375,14 +375,9 @@ class InventarioExport(db.Model):
     barcode_articolo = db.Column(db.String(50), nullable=True)
     giacenza = db.Column(db.Integer, nullable=False)
     deposito = db.Column(db.String(10), nullable=False, default='000')
-    id_art = db.Column(
-        db.BigInteger,
-        db.ForeignKey('articoli.id_art'),
-        nullable=True,
-        index=True
-    )
+    id_art = db.Column(db.BigInteger, db.ForeignKey('articoli.id_art'), nullable=True, index=True)
 
-    articolo = db.relationship('Articoli', backref='inventario_export')
+    articolo = db.relationship('Articoli', foreign_keys=[articolo_id], backref='inventario_export')
 
 
 class Importazione(db.Model):
