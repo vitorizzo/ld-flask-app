@@ -2,7 +2,7 @@ from flask import request, flash, render_template, Blueprint, jsonify
 from flask_login import login_required
 from flask_socketio import SocketIO
 from extensions import db
-from models import Menu, Role
+from models import Menu, Role, ImportConflict
 from tools.role_required import role_required
 from config.tasks import import_articoli_task, import_barcode_task, import_giacenze_task, import_ps_task
 from tools.ps_util import get_product_by_code
@@ -130,3 +130,36 @@ def lancia_import_barcode():
     from tools.redis_utils import update_task, status_string
     update_task(task.id, "Importazione codici a barre articoli da gestionale", 0, status_string['attached'])
     return '', 204
+
+
+@settings_bp.route("/import-conflicts", methods=["GET"])
+def import_conflicts_page():
+    return render_template("settings/import_conflicts.html")
+
+
+@settings_bp.route("/next-conflict", methods=["GET"])
+def api_import_conflicts_next():
+    ctype = request.args.get("type")  # es. "barcode" (o None per tutti)
+
+    q = (ImportConflict.query
+         .filter(ImportConflict.status == "pending"))
+
+    if ctype:
+        q = q.filter(ImportConflict.type == ctype)
+
+    # prende il più vecchio pending
+    conflict = (q.order_by(ImportConflict.created_at.asc())
+                .first())
+
+    if not conflict:
+        return jsonify({"ok": True, "conflict": None})
+
+    return jsonify({
+        "ok": True,
+        "conflict": {
+            "id": conflict.id,
+            "type": conflict.type,
+            "payload": conflict.payload,
+            "created_at": conflict.created_at.isoformat() if conflict.created_at else None,
+        }
+    })

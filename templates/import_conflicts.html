@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block title %}Conflitti Import{% endblock %}
+
+{% block content %}
+{% include 'partials/install_banner.html' %}
+
+<section class="welcome-section">
+    <h1>Conflitti Import</h1>
+    <pre id="out">Caricamento...</pre>
+
+    <script>
+      fetch("/settings/api/import-conflicts/next?type=barcode")
+        .then(r => r.json())
+        .then(data => {
+          document.getElementById("out").textContent = JSON.stringify(data, null, 2);
+        })
+        .catch(err => {
+          document.getElementById("out").textContent = "Errore: " + err;
+        });
+    </script>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+{% endblock %}
