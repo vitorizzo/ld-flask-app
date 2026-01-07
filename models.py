@@ -70,9 +70,17 @@ class Articoli(db.Model):
 
 
 class Barcode(db.Model):
-    cod_bar = db.Column(db.String(255), primary_key=True)
-    cod_art = db.Column(db.String(255))
+    __tablename__ = "barcode"
+
+    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+
+    cod_bar = db.Column(db.String(255), nullable=False, index=True)
+    cod_art = db.Column(db.String(255), nullable=True)  # retrocompatibilità
     id_art = db.Column(db.BigInteger, db.ForeignKey('articoli.id_art'), nullable=True, index=True)
+
+    __table_args__ = (
+        db.UniqueConstraint('cod_bar', 'id_art', name='uq_barcode_codbar_idart'),
+    )
 
     def to_dict(self):
         return {
@@ -298,12 +306,7 @@ class InventarioRiga(db.Model):
     barcode_articolo = db.Column(db.String(50), nullable=True)
     quantita_inserita = db.Column(db.Integer, nullable=False)
     has_versions = db.Column(db.Boolean, default=False)  # Indica se la riga ha versioni
-    id_art = db.Column(
-        db.BigInteger,
-        db.ForeignKey('articoli.id_art'),
-        nullable=True,
-        index=True
-    )
+    id_art = db.Column(db.BigInteger, db.ForeignKey('articoli.id_art'), nullable=True, index=True)
     # 🆕 Campi aggiuntivi
     num_pedane = db.Column(db.Integer)
     num_cartoni = db.Column(db.Integer)
@@ -315,7 +318,7 @@ class InventarioRiga(db.Model):
     deposito = db.Column(db.String(10), nullable=False, default='000')
     timestamp = db.Column(db.DateTime, default=db.func.current_timestamp())
 
-    articolo = db.relationship('Articoli', backref='righe_inventario')
+    articolo = db.relationship('Articoli', foreign_keys=[articolo_id], backref='righe_inventario')
     utente = db.relationship('User', backref='righe_inventario')
 
 
