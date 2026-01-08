@@ -2,7 +2,7 @@ from flask import request, flash, render_template, Blueprint, jsonify
 from flask_login import login_required
 from flask_socketio import SocketIO
 from extensions import db
-from models import Menu, Role, ImportConflict
+from models import Menu, Role, ImportConflict, Articoli
 from tools.role_required import role_required
 from config.tasks import import_articoli_task, import_barcode_task, import_giacenze_task, import_ps_task
 from tools.ps_util import get_product_by_code
@@ -163,3 +163,45 @@ def api_import_conflicts_next():
             "created_at": conflict.created_at.isoformat() if conflict.created_at else None,
         }
     })
+
+
+@settings_bp.route("/resolve_conflict", methods=["POST"])
+@login_required
+def api_import_conflicts_resolve():
+    data = request.get_json(silent=True) or {}
+    conflict_id = data.get("id")
+    action = data.get("action")  # es: KEEP_CSV
+
+    if not conflict_id or not action:
+        return jsonify(ok=False, error="Missing 'id' or 'action'"), 400
+
+    c = ImportConflict.query.get(conflict_id)
+    if not c:
+        return jsonify(ok=False, error="Conflict not found"), 404
+
+    payload = c.payload or {}
+    cod_art = payload.get("cod_art")
+    csv_data = (payload.get("csv") or {})
+    db_data = (payload.get("db") or {})
+
+    if not cod_art:
+        return jsonify(ok=False, error="payload.cod_art missing"), 400
+
+    if action == "KEEP_CSV":
+        art = Articoli.query.filter_by(cod_art=cod_art).first()
+        if not art:
+            return jsonify(ok=False, error=f"Articolo not found for cod_art={cod_art}"), 404
+
+        # Applica CSV -> DB (adatta i nomi campi se diverso)
+        if "descrizione" in csv_data:
+            art.descrizione = csv_data.get("descrizione")
+        if "descrizione_aggiuntiva" in csv_data:
+            art.descrizione_aggiuntiva = csv_data.get("descrizione_aggiuntiva")
+        if "prezzo" in csv_data:
+            art.prezzo = csv_data.get("prezzo")
+
+        db.session.delete(c)
+        db.session.commit()
+        return jsonify(ok=True, resolved_id=conflict_id, action=action, cod_art=cod_art)
+
+    return jsonify(ok=False, error=f"Unsupported action: {action}"), 400
