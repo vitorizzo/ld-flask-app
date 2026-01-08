@@ -3,24 +3,18 @@
 {% block title %}Conflitti Import{% endblock %}
 
 {% block content %}
-{% include 'partials/install_banner.html' %}
-
 <section class="welcome-section">
     <h1>Conflitti Import</h1>
+
     <pre id="out">Caricamento...</pre>
 
-    <script>
-      fetch("/settings/next_conflict?type=barcode")
-        .then(r => r.json())
-        .then(data => {
-          document.getElementById("out").textContent = JSON.stringify(data, null, 2);
-        })
-        .catch(err => {
-          document.getElementById("out").textContent = "Errore: " + err;
-        });
-    </script>
+    <div id="actions" class="mt-3 d-none">
+        <button class="btn btn-success" data-action="KEEP_CSV">Usa CSV</button>
+        <button class="btn btn-secondary" data-action="KEEP_DB">Usa DB</button>
+    </div>
 </section>
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/import_conflicts.js') }}"></script>
 {% endblock %}
