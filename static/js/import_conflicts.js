@@ -1,3 +1,4 @@
+console.log("Import Conflicts JS loaded");
 let currentConflict = null;
 const TYPE = "CODICE_RIASSEGNATO_O_DESC_DISCORDANTE";
 
