@@ -168,9 +168,11 @@ def api_import_conflicts_next():
 @settings_bp.route("/resolve_conflict", methods=["POST"])
 @login_required
 def api_import_conflicts_resolve():
+    logger.info("Risoluzione conflitto di importazione richiesta.")
     data = request.get_json(silent=True) or {}
     conflict_id = data.get("id")
     action = data.get("action")  # es: KEEP_CSV
+    logger.debug(f"Risoluzione conflitto ID: {conflict_id} con azione: {action}")
 
     if not conflict_id or not action:
         return jsonify(ok=False, error="Missing 'id' or 'action'"), 400
@@ -183,6 +185,7 @@ def api_import_conflicts_resolve():
     cod_art = payload.get("cod_art")
     csv_data = (payload.get("csv") or {})
     db_data = (payload.get("db") or {})
+    logger.debug(f"Conflitto payload: cod_art={cod_art}, csv_data={csv_data}, db_data={db_data}")
 
     if not cod_art:
         return jsonify(ok=False, error="payload.cod_art missing"), 400
