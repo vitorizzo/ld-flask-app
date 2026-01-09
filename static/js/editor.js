@@ -159,17 +159,36 @@ document.addEventListener('DOMContentLoaded', () => {
       url    += `/${currentId}`;
       method  = 'PUT';
     } else {
-      // nuovi: chiedi metadati via prompt
-      schema.board_id     = prompt("Board ID:");
-      schema.board_name   = prompt("Board name:");
-      schema.api_key      = prompt("API key:");
-      schema.token        = prompt("Token:");
-      schema.callback_url = prompt("Callback URL:");
+      // nuova connessione: il backend vuole board_id/board_name/api_key/token TOP-LEVEL
+      const board_id   = prompt("Board ID:");
+      const board_name = prompt("Board name:");
+      const api_key    = prompt("API key:");
+      const token      = prompt("Token:");
+
+      url    = '/trello/connection';
+      method = 'POST';
+
+      fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ board_id, board_name, api_key, token })
+      })
+      .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e)))
+      .then(res => {
+        alert('Connessione creata ID ' + res.id);
+        window.location = '/trello/connections';
+      })
+      .catch(e => alert("Errore: " + JSON.stringify(e)));
+
+      return; // IMPORTANT: evita di proseguire con la fetch "schema"
     }
+
     fetch(url, {
-      method, headers: {'Content-Type':'application/json'},
+      method,
+      headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ schema })
     })
+
     .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e)))
     .then(res => {
       alert(currentId ? 'Schema aggiornato' : 'Connessione creata ID ' + res.id);
