@@ -442,22 +442,22 @@ class TrelloAction(db.Model):
 
 
 class ImportRun(db.Model):
-    __tablename__ = 'import_runs'
+    __tablename__ = "import_runs"
 
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.String(64), nullable=False, index=True)
     file_name = db.Column(db.String(255), nullable=True)
 
-    started_at = db.Column(db.DateTime, default=datetime.utcnow(), nullable=False)
+    started_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     finished_at = db.Column(db.DateTime, nullable=True)
 
     summary = db.Column(JSONB, nullable=True)
 
     conflicts = db.relationship(
-        'ImportConflict',
-        backref='run',
-        lazy='dynamic',
-        cascade='all, delete-orphan'
+        "ImportConflict",
+        back_populates="run",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
     )
 
 
@@ -465,19 +465,29 @@ class ImportConflict(db.Model):
     __tablename__ = "import_conflicts"
 
     id = db.Column(db.Integer, primary_key=True)
-    type = db.Column(db.String(100), nullable=False)        # es: CODICE_RIASSEGNATO_O_DESC_DISCORDANTE
-    payload = db.Column(JSONB, nullable=False)              # {csv:{...}, db:{...}, cod_art:...}
+
+    # FK verso import_runs
+    run_id = db.Column(
+        db.Integer,
+        db.ForeignKey("import_runs.id", ondelete="CASCADE"),
+        nullable=True,          # metti False solo se sei certo che ogni conflitto appartenga a una run
+        index=True,
+    )
+
+    run = db.relationship("ImportRun", back_populates="conflicts")
+
+    type = db.Column(db.String(100), nullable=False)
+    payload = db.Column(JSONB, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    # Nuovi campi
-    status = db.Column(db.String(20), default="OPEN", nullable=False)  # OPEN / RESOLVED / SKIPPED
+    status = db.Column(db.String(20), default="OPEN", nullable=False)
     resolved_at = db.Column(db.DateTime, nullable=True)
     resolved_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
 
     __table_args__ = (
         Index("ix_import_conflicts_type_status", "type", "status"),
+        Index("ix_import_conflicts_run_status", "run_id", "status"),
     )
-
 
 # ------------------------------------------------------------
 # A) Regole persistenti di risoluzione (per evitare conflitti ricorrenti)
@@ -541,7 +551,8 @@ class ImportConflictAction(db.Model):
     applied_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
 
     applied_by_user = db.relationship("User", foreign_keys=[applied_by])
-    conflict = db.relationship("ImportConflict", backref=db.backref("actions", lazy="dynamic", cascade="all, delete-orphan"))
+    conflict = db.relationship("ImportConflict", backref=db.backref("actions", lazy="dynamic",
+                                                                    cascade="all, delete-orphan"))
 
     __table_args__ = (
         Index("ix_ica_type_key", "type", "key"),
