@@ -1,5 +1,5 @@
 # project_map.md
-Versione: 1.1
+Versione: 1.2
 Ultimo aggiornamento: 2026-01-09
 
 ## Raw file map (main)
@@ -29,7 +29,21 @@ Ultimo aggiornamento: 2026-01-09
 /tools/processor.py     → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/processor.py
 /tools/trello_client.py → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/trello_client.py
 
-## Regole
+### Templates — Trello
+/templates/trello_connections_list.html → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/templates/trello_connections_list.html
+/templates/trello_connections.html      → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/templates/trello_connections.html
+/templates/trello_actions.html           → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/templates/trello_actions.html
+
+### Static JS — Trello
+/static/js/trello_editor.js  → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/static/js/trello_editor.js
+/static/js/trello_actions.js → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/static/js/trello_actions.js
+
+### Static CSS — Trello
+/static/css/trello.css → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/static/css/trello.css
+
+## Regole operative
 - L’assistente può leggere SOLO i file presenti in questa mappa.
-- Se serve un file non presente, deve richiederlo esplicitamente (un solo step).
-- Questa mappa si riferisce sempre all’ultimo commit del branch main.
+- Per leggere file non presenti:
+  - deve richiederlo esplicitamente
+  - un solo step
+- La mappa vale sempre per l’ultimo commit del branch main.

@@ -1,11 +1,24 @@
 # new_chat.md
-Versione: 1.1
+Versione: 1.2  
 Ultimo aggiornamento: 2026-01-09
 
 ## Istruzioni per avviare una nuova chat (per l’operatore umano)
-1) Incolla **tutto** il contenuto del blocco “PROMPT DI BOOTSTRAP” qui sotto come **primo messaggio** della nuova chat.
-2) Subito dopo (secondo messaggio) scrivi: `leggi project_map.md`
-3) Poi scrivi: `Dimmi ESATTAMENTE quali file vuoi leggere per primi, in che ordine e perché.`
+
+Sequenza OBBLIGATORIA:
+
+1) Incolla **TUTTO** il contenuto del blocco “PROMPT DI BOOTSTRAP” qui sotto come **primo messaggio** della nuova chat.
+2) Secondo messaggio: leggi project_map.md
+3) Terzo messaggio (**SBLOCCO TECNICO OBBLIGATORIO**):
+ 
+Incolla **l’intero contenuto di `project_map.md`** (con tutti i link raw).
+- Non fare domande.
+- Non chiedere analisi.
+- Serve solo a sbloccare tecnicamente la lettura dei file.
+
+Dopo questi 3 messaggi:
+- puoi dire semplicemente `leggi /routes/trello.py`
+- l’assistente userà la mappa
+- nessun altro link raw sarà richiesto finché resti nel perimetro della mappa
 
 ---
 
