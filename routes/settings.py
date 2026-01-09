@@ -7,6 +7,8 @@ from tools.role_required import role_required
 from config.tasks import import_articoli_task, import_barcode_task, import_giacenze_task, import_ps_task
 from tools.ps_util import get_product_by_code
 from tools.log_utils import log_task, get_logger
+import hashlib
+from datetime import datetime
 
 logger = get_logger('settings')
 
@@ -165,46 +167,97 @@ def api_import_conflicts_next():
     })
 
 
+import hashlib
+import json
+from flask import request, jsonify
+from flask_login import login_required
+
+from extensions import db
+from models import ImportConflict, ImportConflictResolution  # adegua i nomi se diversi
+
+
+def _sha256_text(value) -> str | None:
+    if value is None:
+        return None
+    s = str(value).strip()
+    if s == "":
+        return None
+    return hashlib.sha256(s.encode("utf-8")).hexdigest()
+
+
 @settings_bp.route("/resolve_conflict", methods=["POST"])
 @login_required
-def api_import_conflicts_resolve():
-    logger.info("Risoluzione conflitto di importazione richiesta.")
+def resolve_conflict():
     data = request.get_json(silent=True) or {}
     conflict_id = data.get("id")
-    action = data.get("action")  # es: KEEP_CSV
-    logger.debug(f"Risoluzione conflitto ID: {conflict_id} con azione: {action}")
+    action = (data.get("action") or "").strip().upper()
+    mode = (data.get("mode") or "CONDITIONAL").strip().upper()  # opzionale dal frontend
 
-    if not conflict_id or not action:
-        return jsonify(ok=False, error="Missing 'id' or 'action'"), 400
+    if not conflict_id or action not in {"KEEP_CSV", "KEEP_DB", "SKIP"}:
+        return jsonify(ok=False, error="Payload non valido: servono id e action (KEEP_CSV|KEEP_DB|SKIP)."), 400
 
     c = ImportConflict.query.get(conflict_id)
     if not c:
-        return jsonify(ok=False, error="Conflict not found"), 404
+        return jsonify(ok=False, error="Conflitto non trovato."), 404
 
+    # SKIP: non applica nulla e NON salva una regola; semplicemente lascia il record e passa oltre
+    if action == "SKIP":
+        return jsonify(ok=True, skipped=True, id=c.id)
+
+    # payload: atteso {cod_art, csv:{...}, db:{...}} come nel tuo esempio
     payload = c.payload or {}
-    cod_art = payload.get("cod_art")
-    csv_data = (payload.get("csv") or {})
-    db_data = (payload.get("db") or {})
-    logger.debug(f"Conflitto payload: cod_art={cod_art}, csv_data={csv_data}, db_data={db_data}")
+    cod_art = payload.get("cod_art") or payload.get("entity_key")  # fallback
+    csv_obj = payload.get("csv") or {}
+    db_obj = payload.get("db") or {}
 
     if not cod_art:
-        return jsonify(ok=False, error="payload.cod_art missing"), 400
+        return jsonify(ok=False, error="Payload conflitto senza cod_art/entity_key."), 400
 
+    # Per ora: memorizziamo una regola per OGNI campo presente nei dict csv/db.
+    # (Se vuoi “un solo campo alla volta” lo rendiamo più selettivo nello step successivo.)
+    all_fields = sorted(set(list(csv_obj.keys()) + list(db_obj.keys())))
+    if not all_fields:
+        return jsonify(ok=False, error="Payload conflitto senza campi csv/db."), 400
+
+    created = 0
+    for field in all_fields:
+        csv_val = csv_obj.get(field)
+        db_val = db_obj.get(field)
+
+        r = ImportConflictResolution(
+            type=c.type,
+            entity_key=str(cod_art),
+            field=str(field),
+
+            db_value=None if db_val is None else str(db_val),
+            csv_value=None if csv_val is None else str(csv_val),
+
+            db_value_hash=_sha256_text(db_val),
+            csv_value_hash=_sha256_text(csv_val),
+
+            action=action,
+            mode=mode if mode in {"CONDITIONAL", "ALWAYS"} else "CONDITIONAL",
+        )
+        db.session.add(r)
+        created += 1
+
+    # Applica la risoluzione “adesso” sul DB (se KEEP_CSV)
+    # oppure non fa nulla (KEEP_DB), ma in entrambi i casi il conflitto viene rimosso.
     if action == "KEEP_CSV":
         art = Articoli.query.filter_by(cod_art=cod_art).first()
         if not art:
             return jsonify(ok=False, error=f"Articolo not found for cod_art={cod_art}"), 404
 
         # Applica CSV -> DB (adatta i nomi campi se diverso)
-        if "descrizione" in csv_data:
-            art.descrizione = csv_data.get("descrizione")
-        if "descrizione_aggiuntiva" in csv_data:
-            art.descrizione_aggiuntiva = csv_data.get("descrizione_aggiuntiva")
-        if "prezzo" in csv_data:
-            art.prezzo = csv_data.get("prezzo")
+        if "descrizione" in csv_obj:
+            art.descrizione = csv_obj.get("descrizione")
+        if "descrizione_aggiuntiva" in csv_obj:
+            art.descrizione_aggiuntiva = csv_obj.get("descrizione_aggiuntiva")
+        if "prezzo" in csv_obj:
+            art.prezzo = csv_obj.get("prezzo")
 
-        db.session.delete(c)
-        db.session.commit()
-        return jsonify(ok=True, resolved_id=conflict_id, action=action, cod_art=cod_art)
+    # Rimuovi il conflitto perché è stato deciso
+    db.session.delete(c)
+    db.session.commit()
 
-    return jsonify(ok=False, error=f"Unsupported action: {action}"), 400
+    return jsonify(ok=True, resolved=True, action=action, rules_created=created)

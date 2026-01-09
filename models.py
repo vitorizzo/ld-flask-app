@@ -5,7 +5,7 @@ from extensions import db
 from flask_login import UserMixin
 from datetime import datetime, timezone
 from sqlalchemy.orm import foreign
-from sqlalchemy import Sequence
+from sqlalchemy import Sequence, Index, UniqueConstraint
 
 from tools.crypto import EncryptedString
 from tools.log_utils import get_logger
@@ -462,31 +462,89 @@ class ImportRun(db.Model):
 
 
 class ImportConflict(db.Model):
-    __tablename__ = 'import_conflicts'
+    __tablename__ = "import_conflicts"
 
     id = db.Column(db.Integer, primary_key=True)
-    run_id = db.Column(
-        db.Integer,
-        db.ForeignKey('import_runs.id', ondelete='CASCADE'),
-        nullable=False,
-        index=True
-    )
+    type = db.Column(db.String(100), nullable=False)        # es: CODICE_RIASSEGNATO_O_DESC_DISCORDANTE
+    payload = db.Column(JSONB, nullable=False)              # {csv:{...}, db:{...}, cod_art:...}
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    type = db.Column(db.String(50), nullable=False)
-    # es: CODICE_RIUSATO, DESCRIZIONE_DIVERGENTE, DUPLICATO_POTENZIALE
-
-    payload = db.Column(JSONB, nullable=False)
-    # dati grezzi del conflitto (csv_row, articolo_db, diff, ecc.)
-
-    status = db.Column(
-        db.String(20),
-        nullable=False,
-        default='pending'
-    )
-    # pending | resolved | ignored
-
-    resolution = db.Column(JSONB, nullable=True)
-    # scelta operatore (es: keep_db, overwrite, create_new, remap)
-
-    created_at = db.Column(db.DateTime, default=datetime.utcnow(), nullable=False)
+    # Nuovi campi
+    status = db.Column(db.String(20), default="OPEN", nullable=False)  # OPEN / RESOLVED / SKIPPED
     resolved_at = db.Column(db.DateTime, nullable=True)
+    resolved_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+
+    __table_args__ = (
+        Index("ix_import_conflicts_type_status", "type", "status"),
+    )
+
+
+# ------------------------------------------------------------
+# A) Regole persistenti di risoluzione (per evitare conflitti ricorrenti)
+# ------------------------------------------------------------
+class ImportConflictResolution(db.Model):
+    __tablename__ = "import_conflict_resolutions"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+
+    # Tipo conflitto (es. CODICE_RIASSEGNATO_O_DESC_DISCORDANTE, DESCRIZIONE_DIVERGENTE)
+    type = db.Column(db.String(64), nullable=False, index=True)
+
+    # Chiave dell’entità “certa” (es. cod_art). La useremo per ritrovare rapidamente la regola.
+    entity_key = db.Column(db.String(64), nullable=False, index=True)
+
+    # Campo/ambito del conflitto (es. descrizione, descrizione_aggiuntiva, prezzo, ecc.)
+    field = db.Column(db.String(64), nullable=False, index=True)
+
+    # Valori “leggibili” per audit/rollback
+    db_value = db.Column(db.Text, nullable=True)
+    csv_value = db.Column(db.Text, nullable=True)
+
+    # Fingerprint per riconoscere lo stesso identico conflitto
+    db_value_hash = db.Column(db.String(64), nullable=True, index=True)
+    csv_value_hash = db.Column(db.String(64), nullable=True, index=True)
+
+    # Decisione
+    action = db.Column(db.String(16), nullable=False)  # KEEP_DB / KEEP_CSV
+
+    # Modalità: applica sempre o solo se matcha esattamente lo stato visto (hash)
+    mode = db.Column(db.String(16), nullable=False, default="CONDITIONAL")  # CONDITIONAL / ALWAYS
+
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+    __table_args__ = (
+        db.Index(
+            "ix_icr_lookup",
+            "type", "entity_key", "field", "mode", "db_value_hash", "csv_value_hash"
+        ),
+    )
+
+
+# ------------------------------------------------------------
+# B) Audit delle azioni applicate (rollback/cronologia)
+# ------------------------------------------------------------
+class ImportConflictAction(db.Model):
+    __tablename__ = "import_conflict_actions"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+
+    conflict_id = db.Column(db.Integer, db.ForeignKey("import_conflicts.id", ondelete="CASCADE"), nullable=True)
+    type = db.Column(db.String(100), nullable=False)
+    key = db.Column(db.String(255), nullable=False)
+    action = db.Column(db.String(20), nullable=False)      # KEEP_CSV / KEEP_DB / SKIP
+
+    before = db.Column(JSONB, nullable=True)               # snapshot pre-azione (DB)
+    after = db.Column(JSONB, nullable=True)                # snapshot post-azione
+    applied = db.Column(db.Boolean, default=False, nullable=False)
+
+    applied_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    applied_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+
+    applied_by_user = db.relationship("User", foreign_keys=[applied_by])
+    conflict = db.relationship("ImportConflict", backref=db.backref("actions", lazy="dynamic", cascade="all, delete-orphan"))
+
+    __table_args__ = (
+        Index("ix_ica_type_key", "type", "key"),
+        Index("ix_ica_conflict_id", "conflict_id"),
+        Index("ix_ica_applied_at", "applied_at"),
+    )
