@@ -28,6 +28,7 @@ Ultimo aggiornamento: 2026-01-09
 ### Tools
 /tools/processor.py     → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/processor.py
 /tools/trello_client.py → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/trello_client.py
+/tools/app_factory.py   → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/app_factory.py
 
 ### Templates — Trello
 /templates/trello_connections_list.html → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/templates/trello_connections_list.html

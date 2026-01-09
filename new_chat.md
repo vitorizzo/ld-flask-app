@@ -7,7 +7,7 @@ Ultimo aggiornamento: 2026-01-09
 Sequenza OBBLIGATORIA:
 
 1) Incolla **TUTTO** il contenuto del blocco “PROMPT DI BOOTSTRAP” qui sotto come **primo messaggio** della nuova chat.
-2) Secondo messaggio: leggi project_map.md
+2) Secondo messaggio: leggi project_map.md https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/project_map.md
 3) Terzo messaggio (**SBLOCCO TECNICO OBBLIGATORIO**):
  
 Incolla **l’intero contenuto di `project_map.md`** (con tutti i link raw).
