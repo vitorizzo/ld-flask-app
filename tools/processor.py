@@ -156,20 +156,20 @@ def crea_mirror_card(cfg, payload):
         card_id = payload['action']['data']['card']['id']
         context = {
             'user': payload['action']['memberCreator']['fullName'],
-            'card': payload['action']['data'].get('card', {}),
-            'source_board': payload['action']['data'].get('board', {}),
-            'dest_board': cfg.get('dest_board', ''),
-            'dest_list': cfg.get('dest_list', '')
+            'card': payload['action']['data']['card']['id'],
+            'card_name': payload['action']['data']['card']['name'],
+            'source_board': payload['model']['id'],
+            'dest_board': cfg.get('target_board_id', ''),
+            'dest_list': cfg.get('target_list_id', '')
         }
 
-        # trello.add_comment_to_card(card_id, message)
         t = get_trello()
         if not t:
             logger.warning("Salto mirror_card: Trello non configurato.")
             return
-        t.create_card(dest_list, card_name)
+        t.create_card(context.get('dest_list'), context.get('card_name'))
     except Exception as e:
-        logger.exception(f"Errore durante l'aggiunta del commento: {e}")
+        logger.exception(f"Errore durante la creazione della scheda mirror: {e}")
 
 
 def _send_email(cfg, payload):
