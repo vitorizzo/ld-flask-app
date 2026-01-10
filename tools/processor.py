@@ -173,11 +173,11 @@ def crea_mirror_card(cfg, payload):
 
         dest_card_id = t.get_cards_on_board(context.get('dest_board'), name=context.get('card_name'))[0]['id']
         dest_message = f"creata automaticamente da scheda {t.get_card(card_id)} il {context.get('date')}"
-        source_message = f"scheda mirror {t.get_card(dest_card_id)} il {context.get('date')}"
+        source_message = f"scheda mirror {t.get_card(dest_card_id)['url']} il {context.get('date')}"
         t.add_comment_to_card(dest_card_id, dest_message)
         t.update_card(dest_card_id, desc=f"Card originale {card_id}")
         t.add_comment_to_card(card_id, source_message)
-        t.update_card(card_id, desc=t.get_card(card_id).get('desc')+f"\n Card mirror {dest_card_id}")
+        t.update_card(card_id, desc=t.get_card(card_id).get('desc')+f"\n Card mirror {t.get_card(dest_card_id)['url']}")
 
     except Exception as e:
         logger.exception(f"Errore durante la creazione della scheda mirror: {e}")
