@@ -330,11 +330,9 @@ class TrelloAPI:
         body = {
             'cover': {
                 'color': color,
-                'size': 'full'
-            },
-            'idBoard': board_id,
-            'idList': list_id
+                'brightness': 'light'
+            }
         }
-        r = requests.put(url, params=params, data=body)
+        r = requests.put(url, params=params, json=body)
         r.raise_for_status()
         return r.json()
