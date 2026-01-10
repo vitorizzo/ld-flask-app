@@ -320,3 +320,14 @@ class TrelloAPI:
         return self._request('GET',
                              f"/cards/{card_id}/actions",
                              params=filters)
+
+    def set_card_cover_color(self, card_id, color='blue'):
+        url = f"{self.BASE_URL}/cards/{card_id}/cover"
+        params = {
+            'key': self.api_key,
+            'token': self.token,
+            'color': color
+        }
+        r = requests.put(url, params=params)
+        r.raise_for_status()
+        return r.json()
