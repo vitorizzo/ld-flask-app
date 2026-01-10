@@ -322,7 +322,7 @@ class TrelloAPI:
                              params=filters)
 
     def set_card_cover_color(self, board_id, list_id, card_id, color='blue'):
-        url = f"{self.BASE_URL}/cards/{card_id}/cover"
+        url = f"{self.BASE_URL}/cards/{card_id}"
         params = {
             'key': self.api_key,
             'token': self.token
