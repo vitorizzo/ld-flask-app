@@ -321,7 +321,7 @@ class TrelloAPI:
                              f"/cards/{card_id}/actions",
                              params=filters)
 
-    def set_card_cover_color(self, card_id, color='blue'):
+    def set_card_cover_color(self, board_id, list_id, card_id, color='blue'):
         url = f"{self.BASE_URL}/cards/{card_id}/cover"
         params = {
             'key': self.api_key,
@@ -329,9 +329,11 @@ class TrelloAPI:
         }
         body = {
             'cover': {
-                'color': 'yellow',
+                'color': color,
                 'size': 'full'
-            }
+            },
+            'idBoard': board_id,
+            'idList': list_id
         }
         r = requests.put(url, params=params)
         r.raise_for_status()
