@@ -177,11 +177,16 @@ def crea_mirror_card(cfg, payload):
         dest_card_id = response.get('id')
         dest_card_url = response.get('shortUrl')
         source_message = f"scheda mirror {dest_card_url} il {context.get('date')}"
-        t.add_comment_to_card(dest_card_id, dest_message)
-        t.update_card(dest_card_id, desc=f"Card originale {t.get_card(card_id)['shortUrl']}")
-        t.set_card_cover_color(context.get('dest_board'), context.get('dest_list'), dest_card_id, 'blue')
-        t.add_comment_to_card(card_id, source_message)
-        t.update_card(card_id, desc=t.get_card(card_id).get('desc')+f"\n Card mirror {t.get_card(dest_card_id)['url']}")
+        actc_response = t.add_comment_to_card(dest_card_id, dest_message)
+        logger.debug(f"Add comment to card response: {actc_response}")
+        uc_response = t.update_card(dest_card_id, desc=f"Card originale {t.get_card(card_id)['shortUrl']}")
+        logger.debug(f"Update card response: {uc_response}")
+        scc_response = t.set_card_cover_color(context.get('dest_board'), context.get('dest_list'), dest_card_id, 'blue')
+        logger.debug(f"Set cover color response: {scc_response}")
+        actc_response = t.add_comment_to_card(card_id, source_message)
+        logger.debug(f"Add comment to source card response: {actc_response}")
+        uc_response = t.update_card(card_id, desc=t.get_card(card_id).get('desc')+f"\n Card mirror {t.get_card(dest_card_id)['url']}")
+        logger.debug(f"Update source card response: {uc_response}")
 
     except Exception as e:
         logger.exception(f"Errore durante la creazione della scheda mirror: {e}")
