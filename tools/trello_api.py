@@ -326,7 +326,7 @@ class TrelloAPI:
         params = {
             'key': self.api_key,
             'token': self.token,
-            'color': color
+            'cover': {'color': 'blue'}
         }
         r = requests.put(url, params=params)
         r.raise_for_status()
