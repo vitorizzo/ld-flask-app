@@ -4,6 +4,7 @@ import os
 import requests
 from typing import Any, Dict, Optional, List
 
+
 class TrelloAPI:
     """
     Wrapper per le Trello REST API (v1).

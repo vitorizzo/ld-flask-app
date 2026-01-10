@@ -1,3 +1,4 @@
+import datetime
 import logging
 import requests
 from flask_mail import Message
@@ -158,6 +159,7 @@ def crea_mirror_card(cfg, payload):
             'user': payload['action']['memberCreator']['fullName'],
             'card': payload['action']['data']['card']['id'],
             'card_name': payload['action']['data']['card']['name'],
+            'date': datetime.datetime.now().strftime("%d-%m-%Y"),
             'source_board': payload['model']['id'],
             'dest_board': cfg.get('target_board_id', ''),
             'dest_list': cfg.get('target_list_id', '')
@@ -168,6 +170,15 @@ def crea_mirror_card(cfg, payload):
             logger.warning("Salto mirror_card: Trello non configurato.")
             return
         t.create_card(context.get('dest_list'), context.get('card_name'))
+
+        dest_card_id = t.get_cards_on_board(context.get('dest_board'), name=context.get('card_name'))[0]['id']
+        dest_message = f"creata automaticamente da scheda {t.get_card(card_id)} il {context.get('date')}"
+        source_message = f"scheda mirror {t.get_card(dest_card_id)} il {context.get('date')}"
+        t.add_comment_to_card(dest_card_id, dest_message)
+        t.update_card(dest_card_id, desc=f"Card originale {card_id}")
+        t.add_comment_to_card(card_id, source_message)
+        t.update_card(card_id, desc=t.get_card(card_id).get('desc')+f"\n Card mirror {dest_card_id}")
+
     except Exception as e:
         logger.exception(f"Errore durante la creazione della scheda mirror: {e}")
 
