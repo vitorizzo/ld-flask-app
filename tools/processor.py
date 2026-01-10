@@ -159,7 +159,7 @@ def crea_mirror_card(cfg, payload):
             'user': payload['action']['memberCreator']['fullName'],
             'card': payload['action']['data']['card']['id'],
             'card_name': payload['action']['data']['card']['name'],
-            'card_url': payload['action']['data']['card']['shortUrl'],
+            'card_url': payload['action']['data']['card']['shortLink'],
             'date': datetime.datetime.now().strftime("%d-%m-%Y"),
             'source_board': payload['model']['id'],
             'dest_board': cfg.get('target_board_id', ''),
