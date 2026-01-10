@@ -88,6 +88,8 @@ def process_trello_event(connection, payload):
                     _internal_call(cfg, context)
                 case 'addComment':
                     comment_from_to(cfg, payload)
+                case 'mirrorCard':
+                    crea_mirror_card(cfg, payload)
                 case 'sendSlackMessage':
                     _send_slack_message(payload)
                 case _:
@@ -143,6 +145,29 @@ def comment_from_to(cfg, payload):
             logger.warning("Salto add_comment_to_card: Trello non configurato.")
             return
         t.add_comment_to_card(card_id, message)
+    except Exception as e:
+        logger.exception(f"Errore durante l'aggiunta del commento: {e}")
+
+
+def crea_mirror_card(cfg, payload):
+    logger.info("Creazione mirror card...")
+    logger.debug(f"parametri \n cfg: \n{cfg}\npayload: \n{payload}")
+    try:
+        card_id = payload['action']['data']['card']['id']
+        context = {
+            'user': payload['action']['memberCreator']['fullName'],
+            'card': payload['action']['data'].get('card', {}),
+            'source_board': payload['action']['data'].get('board', {}),
+            'dest_board': cfg.get('dest_board', ''),
+            'dest_list': cfg.get('dest_list', '')
+        }
+
+        # trello.add_comment_to_card(card_id, message)
+        t = get_trello()
+        if not t:
+            logger.warning("Salto mirror_card: Trello non configurato.")
+            return
+        t.create_card(dest_list, card_name)
     except Exception as e:
         logger.exception(f"Errore durante l'aggiunta del commento: {e}")
 
