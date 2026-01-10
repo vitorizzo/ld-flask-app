@@ -335,6 +335,6 @@ class TrelloAPI:
             'idBoard': board_id,
             'idList': list_id
         }
-        r = requests.put(url, params=params)
+        r = requests.put(url, params=params, data=body)
         r.raise_for_status()
         return r.json()
