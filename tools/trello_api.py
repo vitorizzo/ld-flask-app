@@ -325,8 +325,13 @@ class TrelloAPI:
         url = f"{self.BASE_URL}/cards/{card_id}/cover"
         params = {
             'key': self.api_key,
-            'token': self.token,
-            'cover': {'color': 'blue'}
+            'token': self.token
+        }
+        body = {
+            'cover': {
+                'color': 'yellow',
+                'size': 'full'
+            }
         }
         r = requests.put(url, params=params)
         r.raise_for_status()
