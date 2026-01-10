@@ -158,7 +158,8 @@ def crea_mirror_card(cfg, payload):
         context = {
             'user': payload['action']['memberCreator']['fullName'],
             'card': payload['action']['data']['card']['id'],
-            'card_name': payload['action']['data']['card']['name'],
+            'card_name': payload['action']['data']['card']['name']
+                         + f" - {datetime.datetime.now().strftime('%d-%m-%Y')}",
             'date': datetime.datetime.now().strftime("%d-%m-%Y"),
             'source_board': payload['model']['id'],
             'dest_board': cfg.get('target_board_id', ''),
@@ -169,6 +170,7 @@ def crea_mirror_card(cfg, payload):
         if not t:
             logger.warning("Salto mirror_card: Trello non configurato.")
             return
+        t.update_card(card_id, name=context.get('card_name'))
         dest_message = f"creata automaticamente da scheda {t.get_card(card_id)['shortUrl']} il {context.get('date')}"
         response = t.create_card(context.get('dest_list'), context.get('card_name'))
 
@@ -176,7 +178,8 @@ def crea_mirror_card(cfg, payload):
         dest_card_url = response.get('shortUrl')
         source_message = f"scheda mirror {dest_card_url} il {context.get('date')}"
         t.add_comment_to_card(dest_card_id, dest_message)
-        t.update_card(dest_card_id, desc=f"Card originale {t.get_card(card_id)['shortUrl']}", cover={'color': 'blue'})
+        t.update_card(dest_card_id, desc=f"Card originale {t.get_card(card_id)['shortUrl']}",
+                      cover={'color': 'blue', 'brightness': 'light', 'size': 'full'})
         t.add_comment_to_card(card_id, source_message)
         t.update_card(card_id, desc=t.get_card(card_id).get('desc')+f"\n Card mirror {t.get_card(dest_card_id)['url']}")
 
