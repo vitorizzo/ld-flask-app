@@ -20,7 +20,7 @@ class TrelloAPI:
         Inizializza la classe prendendo api_key e token da parametri o da variabili d'ambiente.
         """
         self.api_key = api_key or os.getenv("TRELLO_KEY")
-        self.token   = token   or os.getenv("TRELLO_TOKEN")
+        self.token = token   or os.getenv("TRELLO_TOKEN")
         if not (self.api_key and self.token):
             raise ValueError("Servono API_KEY e TOKEN per usare TrelloAPI")
 
@@ -327,11 +327,14 @@ class TrelloAPI:
             'key': self.api_key,
             'token': self.token
         }
-        body = {
-            'cover': {
-                'color': color,
-                'brightness': 'light'
-            }
+        body = body = {
+            "cover": {
+                "color": "blue",
+                "brightness": "dark",
+                "size": "normal"
+            },
+            "idBoard": board_id,
+            "idList": list_id
         }
         r = requests.put(url, params=params, json=body)
         r.raise_for_status()
