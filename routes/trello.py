@@ -118,7 +118,7 @@ def reset_all_webhooks():
     return jsonify(results), 200
 
 
-@trello_bp.route('/connection/<int:id>', methods=['GET'])
+@trello_bp.route('/connection/<int:myid>', methods=['GET'])
 def get_connection(myid):
     logger.info(f'route: /trello/connection/{myid} <GET>')
     conn = TrelloConnection.query.get_or_404(myid)
@@ -175,7 +175,7 @@ def create_connection():
     return jsonify({'id': conn.id, 'webhook_id': webhook_id}), 201
 
 
-@trello_bp.route('/connection/<int:id>', methods=['PUT'])
+@trello_bp.route('/connection/<int:myid>', methods=['PUT'])
 def update_connection(myid):
     logger.info(f'route: /trello/connection/{myid} <PUT>')
     data = request.get_json()
@@ -208,7 +208,7 @@ def update_connection(myid):
     return jsonify({'message': 'Connessione aggiornata'}), 200
 
 
-@trello_bp.route('/connection/<int:id>', methods=['DELETE'])
+@trello_bp.route('/connection/<int:myid>', methods=['DELETE'])
 def delete_connection(myid):
     logger.info(f'route: /trello/connection/{myid} <DELETE>')
     try:
@@ -311,7 +311,7 @@ def get_action(action_id):
     })
 
 
-@trello_bp.route('/actions/<int:id>', methods=['PUT'])
+@trello_bp.route('/actions/<int:myid>', methods=['PUT'])
 def update_action(myid):
     """
     PUT /trello/actions/<id>
@@ -329,7 +329,7 @@ def update_action(myid):
     return jsonify({'message': 'Aggiornamento avvenuto'}), 200
 
 
-@trello_bp.route('/actions/<int:id>', methods=['DELETE'])
+@trello_bp.route('/actions/<int:myid>', methods=['DELETE'])
 def delete_action(myid):
     """
     DELETE /trello/actions/<id>
@@ -341,7 +341,7 @@ def delete_action(myid):
     return '', 204
 
 
-@trello_bp.route('/connection/<int:id>/actions', methods=['GET'])
+@trello_bp.route('/connection/<int:myid>/actions', methods=['GET'])
 def edit_actions(myid):
     logger.info(f'route: /trello/connection/{myid}/actions <GET>')
     conn = TrelloConnection.query.get_or_404(myid)
