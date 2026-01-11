@@ -99,17 +99,17 @@ def process_trello_event(connection, payload):
             logger.exception(f"Errore eseguendo azione {act.id}: {e}")
 
 
-def elabora_trigger(type, payload):
+def elabora_trigger(tipo, payload):
     trigger_type = []
 
-    match type:
+    match tipo:
         case 'updateCard':
             if is_moved(payload):
                 trigger_type.append('moveCard')
             else:
-                trigger_type.append(type)
+                trigger_type.append(tipo)
         case _:
-            trigger_type.append(type)
+            trigger_type.append(tipo)
     return trigger_type
 
 
@@ -159,7 +159,7 @@ def crea_mirror_card(cfg, payload):
             'user': payload['action']['memberCreator']['fullName'],
             'card': payload['action']['data']['card']['id'],
             'card_name': payload['action']['data']['card']['name']
-                         + f" - {datetime.datetime.now().strftime('%d-%m-%Y')}",
+            + f" - {datetime.datetime.now().strftime('%d-%m-%Y')}",
             'date': datetime.datetime.now().strftime("%d-%m-%Y"),
             'source_board': payload['model']['id'],
             'dest_board': cfg.get('target_board_id', ''),
@@ -172,20 +172,27 @@ def crea_mirror_card(cfg, payload):
             return
         t.update_card(card_id, name=context.get('card_name'))
         dest_message = f"creata automaticamente da scheda {t.get_card(card_id)['shortUrl']} il {context.get('date')}"
-        response = t.create_card(context.get('dest_list'), context.get('card_name'))
-
-        dest_card_id = response.get('id')
-        dest_card_url = response.get('shortUrl')
+        cc_response = t.create_card(context.get('dest_list'), context.get('card_name'))
+        logger.debug(f"Create card response: {cc_response}")
+        dest_card_id = cc_response.get('id')
+        dest_card_url = cc_response.get('shortUrl')
+        # scc_response = t.set_card_cover_color(context.get('dest_board'), context.get('dest_list'),
+        # dest_card_id, 'blue')
+        scc_response = t.set_card_cover_color(dest_card_id, 'green', 'light')
+        logger.debug(f"Set cover color response: {scc_response}")
         source_message = f"scheda mirror {dest_card_url} il {context.get('date')}"
         actc_response = t.add_comment_to_card(dest_card_id, dest_message)
         logger.debug(f"Add comment to card response: {actc_response}")
         uc_response = t.update_card(dest_card_id, desc=f"Card originale {t.get_card(card_id)['shortUrl']}")
         logger.debug(f"Update card response: {uc_response}")
-        scc_response = t.set_card_cover_color(context.get('dest_board'), context.get('dest_list'), dest_card_id, 'blue')
+        # scc_response = t.set_card_cover_color(context.get('dest_board'), context.get('dest_list'),
+        # dest_card_id, 'blue')
+        scc_response = t.set_card_cover_color(card_id, 'blue', 'light')
         logger.debug(f"Set cover color response: {scc_response}")
         actc_response = t.add_comment_to_card(card_id, source_message)
         logger.debug(f"Add comment to source card response: {actc_response}")
-        uc_response = t.update_card(card_id, desc=t.get_card(card_id).get('desc')+f"\n Card mirror {t.get_card(dest_card_id)['url']}")
+        uc_response = t.update_card(card_id, desc=t.get_card(card_id).get('desc')
+                                    + f"\n Card mirror {t.get_card(dest_card_id)['url']}")
         logger.debug(f"Update source card response: {uc_response}")
 
     except Exception as e:

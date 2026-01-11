@@ -20,7 +20,7 @@ class TrelloAPI:
         Inizializza la classe prendendo api_key e token da parametri o da variabili d'ambiente.
         """
         self.api_key = api_key or os.getenv("TRELLO_KEY")
-        self.token = token   or os.getenv("TRELLO_TOKEN")
+        self.token = token or os.getenv("TRELLO_TOKEN")
         if not (self.api_key and self.token):
             raise ValueError("Servono API_KEY e TOKEN per usare TrelloAPI")
 
@@ -321,21 +321,40 @@ class TrelloAPI:
                              f"/cards/{card_id}/actions",
                              params=filters)
 
-    def set_card_cover_color(self, board_id, list_id, card_id, color='blue'):
-        url = f"{self.BASE_URL}/cards/{card_id}"
+    # def set_card_cover_color(self, board_id, list_id, card_id, color='blue'):
+    #     url = f"{self.BASE_URL}/cards/{card_id}"
+    #     params = {
+    #         'key': self.api_key,
+    #         'token': self.token
+    #     }
+    #     body = body = {
+    #         "cover": {
+    #             "color": "blue",
+    #             "brightness": "dark",
+    #             "size": "normal"
+    #         },
+    #         "idBoard": board_id,
+    #         "idList": list_id
+    #     }
+    #     r = requests.put(url, params=params, json=body)
+    #     r.raise_for_status()
+    #     return r.json()
+
+    def set_card_cover_color(self, card_id, color=None, brightness='dark', size='normal', url=None, idattachment=None):
+        api_url = f"{self.BASE_URL}/cards/{card_id}"
         params = {
             'key': self.api_key,
             'token': self.token
         }
-        body = body = {
+        body = {
             "cover": {
-                "color": "blue",
-                "brightness": "dark",
-                "size": "normal"
-            },
-            "idBoard": board_id,
-            "idList": list_id
+                "color": color,
+                "brightness": brightness,
+                "size": size,
+                "url": url,
+                "idAttachment": idattachment
+            }
         }
-        r = requests.put(url, params=params, json=body)
+        r = requests.put(api_url, params=params, json=body)
         r.raise_for_status()
         return r.json()
