@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 3.1) Costanti
     const AVAILABLE_TRIGGERS = [
-        'createCard', 'updateCard', 'moveCard', 'commentCard', 'moveToList'
+        'copyCard','createCard', 'updateCard', 'moveCard', 'commentCard', 'moveToList'
     ];
     const AVAILABLE_ACTIONS = [
         'sendEmail', 'addComment', 'mirrorCard', 'sendSlackMessage'

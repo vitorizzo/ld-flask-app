@@ -5,7 +5,7 @@ import logging
 import json
 
 from flask import Blueprint, request, abort, current_app, jsonify, render_template, url_for
-from sqlalchemy.orm.exc import NoResultFound
+# from sqlalchemy.orm.exc import NoResultFound
 
 from extensions import db
 from models import TrelloConnection, TrelloAction
@@ -19,7 +19,7 @@ logger.debug("🧪 Logger 'trello' inizializzato correttamente - test DEBUG")
 trello_bp = Blueprint('trello', __name__, url_prefix='/trello')
 
 
-@trello_bp.route('/webhook/<int:conn_id>', methods=['HEAD','POST'])
+@trello_bp.route('/webhook/<int:conn_id>', methods=['HEAD', 'POST'])
 def handle_webhook(conn_id):
     logger.info(f'route: /trello/webhook/{conn_id} <HEAD, POST>')
     if request.method == 'HEAD':
@@ -28,7 +28,7 @@ def handle_webhook(conn_id):
 
     conn = TrelloConnection.query.get_or_404(conn_id)
     raw_body = request.get_data()               # bytes
-    signature = request.headers.get('X-Trello-Webhook','')
+    signature = request.headers.get('X-Trello-Webhook', '')
 
     # Carica il tuo secret dal .env
     secret = current_app.config['TRELLO_SECRET'].encode('utf-8')
@@ -119,9 +119,9 @@ def reset_all_webhooks():
 
 
 @trello_bp.route('/connection/<int:id>', methods=['GET'])
-def get_connection(id):
-    logger.info(f'route: /trello/connection/{id} <GET>')
-    conn = TrelloConnection.query.get_or_404(id)
+def get_connection(myid):
+    logger.info(f'route: /trello/connection/{myid} <GET>')
+    conn = TrelloConnection.query.get_or_404(myid)
     return jsonify({
         'id':           conn.id,
         'board_id':     conn.board_id,
@@ -176,13 +176,13 @@ def create_connection():
 
 
 @trello_bp.route('/connection/<int:id>', methods=['PUT'])
-def update_connection(id):
-    logger.info(f'route: /trello/connection/id <PUT>')
+def update_connection(myid):
+    logger.info(f'route: /trello/connection/{myid} <PUT>')
     data = request.get_json()
-    conn = TrelloConnection.query.get_or_404(id)
+    conn = TrelloConnection.query.get_or_404(myid)
 
     # 1) aggiorno solo se è cambiato (evito di ricreare webhook a ogni PUT)
-    for attr in ('board_name','api_key','token'):
+    for attr in ('board_name', 'api_key', 'token'):
         if attr in data:
             setattr(conn, attr, data[attr])
 
@@ -209,10 +209,10 @@ def update_connection(id):
 
 
 @trello_bp.route('/connection/<int:id>', methods=['DELETE'])
-def delete_connection(id):
-    logger.info(f'route: /trello/connection/{id} <DELETE>')
+def delete_connection(myid):
+    logger.info(f'route: /trello/connection/{myid} <DELETE>')
     try:
-        conn = TrelloConnection.query.filter_by(id=id).one()
+        conn = TrelloConnection.query.filter_by(id=myid).one()
     except NoResultFound:
         abort(404)
 
@@ -277,7 +277,7 @@ def create_action():
     """
     logger.info(f'route: /trello/actions <POST>')
     data = request.get_json()
-    for f in ('connection_id','trigger_type','action_type','config_json'):
+    for f in ('connection_id', 'trigger_type', 'action_type', 'config_json'):
         if f not in data:
             return jsonify({'error': f"Campo mancante: {f}"}), 400
 
@@ -312,16 +312,16 @@ def get_action(action_id):
 
 
 @trello_bp.route('/actions/<int:id>', methods=['PUT'])
-def update_action(id):
+def update_action(myid):
     """
     PUT /trello/actions/<id>
     BODY JSON: { trigger_type?, action_type?, config_json? }
     """
-    logger.info(f'route: /trello/actions/{id} <PUT>')
-    action = TrelloAction.query.get_or_404(id)
+    logger.info(f'route: /trello/actions/{myid} <PUT>')
+    action = TrelloAction.query.get_or_404(myid)
     data = request.get_json()
 
-    for attr in ('trigger_type','action_type','config_json','ordine'):
+    for attr in ('trigger_type', 'action_type', 'config_json', 'ordine'):
         if attr in data:
             setattr(action, attr, data[attr])
 
@@ -330,21 +330,21 @@ def update_action(id):
 
 
 @trello_bp.route('/actions/<int:id>', methods=['DELETE'])
-def delete_action(id):
+def delete_action(myid):
     """
     DELETE /trello/actions/<id>
     """
-    logger.info(f'route: /trello/actions/{id} <DELETE>')
-    action = TrelloAction.query.get_or_404(id)
+    logger.info(f'route: /trello/actions/{myid} <DELETE>')
+    action = TrelloAction.query.get_or_404(myid)
     db.session.delete(action)
     db.session.commit()
     return '', 204
 
 
 @trello_bp.route('/connection/<int:id>/actions', methods=['GET'])
-def edit_actions(id):
-    logger.info(f'route: /trello/connection/{id}/actions <GET>')
-    conn = TrelloConnection.query.get_or_404(id)
+def edit_actions(myid):
+    logger.info(f'route: /trello/connection/{myid}/actions <GET>')
+    conn = TrelloConnection.query.get_or_404(myid)
     return render_template('trello_actions.html', connection=conn)
 
 
@@ -360,7 +360,7 @@ def new_connection_editor():
     """Editor di una nuova connessione (riusa lo stesso template di edit)."""
     # Passiamo valori vuoti e schema vuoto
     logger.info(f'route: /trello/connection/editor/new <GET>')
-    empty_schema = json.dumps({ 'nodes': [], 'connections': [] })
+    empty_schema = json.dumps({'nodes': [], 'connections': []})
     return render_template(
         'trello_connections.html',
         board_id='',
