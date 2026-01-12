@@ -10,6 +10,7 @@ from flask import Blueprint, request, abort, current_app, jsonify, render_templa
 from extensions import db
 from models import TrelloConnection, TrelloAction
 from tools.log_utils import get_logger
+from tools.trello_api import TrelloAPI
 from tools.trello_client import create_webhook, delete_webhook, TrelloClientError
 from tools.processor import process_trello_event  # da implementare al punto 6
 
@@ -17,6 +18,28 @@ logger = get_logger("trello", level=logging.DEBUG)
 logger.debug("🧪 Logger 'trello' inizializzato correttamente - test DEBUG")
 
 trello_bp = Blueprint('trello', __name__, url_prefix='/trello')
+
+
+@trello_bp.route('/boards', methods=['GET'])
+def list_boards():
+    """
+    Restituisce l'elenco delle board visibili al token Trello globale.
+    Output: [{id, name}, ...]
+    """
+    logger.info("route: /trello/boards <GET>")
+
+    api_key = current_app.config.get('TRELLO_KEY')
+    token = current_app.config.get('TRELLO_TOKEN')
+    if not api_key or not token:
+        return jsonify({'error': 'Trello non configurato: manca TRELLO_API_KEY o TRELLO_TOKEN'}), 500
+
+    t = TrelloAPI(api_key=api_key, token=token)
+    boards = t.get_boards(member_id="me") or []
+
+    # Normalizza l'output (id + name) e ordina per nome
+    out = [{'id': b.get('id'), 'name': b.get('name')} for b in boards if b.get('id') and b.get('name')]
+    out.sort(key=lambda x: x['name'].lower())
+    return jsonify(out), 200
 
 
 @trello_bp.route('/webhook/<int:conn_id>', methods=['HEAD', 'POST'])
