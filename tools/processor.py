@@ -83,7 +83,7 @@ def process_trello_event(connection, payload):
     actions = TrelloAction.query.filter(
         TrelloAction.connection_id == connection.id,
         TrelloAction.trigger_type.in_(trigger_type)
-    ).all()
+    ).order_by(TrelloAction.ordine).all()
 
     logger.info(f"Trovate {len(actions)} azioni per i trigger: {trigger_type}")
     # fallback nel caso trigger_type fosse una lista vuota o errore
@@ -216,7 +216,7 @@ def personalizza_card(cfg, payload):
                                                   + f" - {datetime.datetime.now().strftime('%d-%m-%Y')}")
 
                 # Creazione checklist
-                cc_response = t.create_checklist(card_id, checklist_name)
+                cc_response = t.create_checklist_on_card(card_id, checklist_name)
                 logger.debug(f"Create checklist response: {cc_response}")
                 checklist_id = cc_response.get('id')
 
