@@ -1,8 +1,15 @@
 # tools/trello_api.py
 
 import os
+
+import logging
 import requests
 from typing import Any, Dict, Optional, List
+
+from tools.log_utils import get_logger
+
+logger = get_logger("processor", level=logging.DEBUG)
+logger.debug("🧪 Logger 'processor' inizializzato correttamente - test DEBUG")
 
 
 class TrelloAPI:
@@ -10,6 +17,7 @@ class TrelloAPI:
     Wrapper per le Trello REST API (v1).
     Chiama gli endpoint di Trello in modo uniforme, gestendo key e token.
     """
+    logger.info("🧪 TrelloAPI inizializzato")
 
     BASE_URL = "https://api.trello.com/1"
 
@@ -51,6 +59,7 @@ class TrelloAPI:
         Restituisce le board di un membro (default “me”).
         filters possibili: fields, filter, organization, etc.
         """
+        logger.info("🧪 Chiamata a get_boards di TrelloAPI")
         return self._request('GET',
                              f"/members/{member_id}/boards",
                              params=filters)
@@ -60,6 +69,7 @@ class TrelloAPI:
         GET /boards/{board_id}
         Restituisce i dettagli di una board.
         """
+        logger.info("🧪 Chiamata a get_board di TrelloAPI")
         return self._request('GET',
                              f"/boards/{board_id}",
                              params=filters)
@@ -70,6 +80,7 @@ class TrelloAPI:
         Crea una nuova board. Occorre almeno il parametro ‘name’.
         Altri opts: defaultLists, desc, idOrganization, prefs, etc.
         """
+        logger.info("🧪 Chiamata a create_board di TrelloAPI")
         payload = {'name': name, **opts}
         return self._request('POST', '/boards', params=payload)
 
@@ -78,6 +89,7 @@ class TrelloAPI:
         PUT /boards/{board_id}
         Aggiorna i campi di una board (name, desc, closed, etc.).
         """
+        logger.info("🧪 Chiamata a update_board di TrelloAPI")
         return self._request('PUT',
                              f"/boards/{board_id}",
                              params=fields)
@@ -87,6 +99,7 @@ class TrelloAPI:
         DELETE /boards/{board_id}
         Archivia la board.
         """
+        logger.info("🧪 Chiamata a delete_board di TrelloAPI")
         self._request('DELETE', f"/boards/{board_id}")
 
     # —————————————————————————————————————
@@ -99,6 +112,7 @@ class TrelloAPI:
         Restituisce le liste di una board.
         filters possibili: filter, fields, etc.
         """
+        logger.info("🧪 Chiamata a get_lists di TrelloAPI")
         return self._request('GET',
                              f"/boards/{board_id}/lists",
                              params=filters)
@@ -108,6 +122,7 @@ class TrelloAPI:
         POST /lists
         Crea una nuova lista su board (idBoard richiesto).
         """
+        logger.info("🧪 Chiamata a create_list di TrelloAPI")
         payload = {'idBoard': board_id, 'name': name, **opts}
         return self._request('POST', '/lists', params=payload)
 
@@ -116,6 +131,7 @@ class TrelloAPI:
         PUT /lists/{list_id}
         Aggiorna campi di una lista (name, closed, pos, etc.).
         """
+        logger.info("🧪 Chiamata a update_list di TrelloAPI")
         return self._request('PUT',
                              f"/lists/{list_id}",
                              params=fields)
@@ -125,6 +141,7 @@ class TrelloAPI:
         PUT /lists/{list_id}/closed
         Archivia o riapre una lista: closed=true|false.
         """
+        logger.info("🧪 Chiamata a archive_list di TrelloAPI")
         self._request('PUT',
                       f"/lists/{list_id}/closed",
                       params={'value': True})
@@ -138,6 +155,7 @@ class TrelloAPI:
         GET /boards/{board_id}/cards
         Restituisce tutte le card su una board.
         """
+        logger.info("🧪 Chiamata a get_cards_on_board di TrelloAPI")
         return self._request('GET',
                              f"/boards/{board_id}/cards",
                              params=filters)
@@ -147,6 +165,7 @@ class TrelloAPI:
         GET /cards/{card_id}
         Dettagli di una card.
         """
+        logger.info("🧪 Chiamata a get_card di TrelloAPI")
         return self._request('GET',
                              f"/cards/{card_id}",
                              params=filters)
@@ -160,6 +179,7 @@ class TrelloAPI:
         Crea una nuova card: serve idList e name. Altri opts possibili:
         desc, due, idMembers, idLabels, pos, etc.
         """
+        logger.info("🧪 Chiamata a create_card di TrelloAPI")
         payload = {'idList': list_id, 'name': name, **opts}
         return self._request('POST', '/cards', params=payload)
 
@@ -169,6 +189,7 @@ class TrelloAPI:
         Aggiorna campi di una card: name, desc, due, idList (per spostare),
         pos, closed, etc.
         """
+        logger.info("🧪 Chiamata a update_card di TrelloAPI")
         return self._request('PUT',
                              f"/cards/{card_id}",
                              params=fields)
@@ -178,6 +199,7 @@ class TrelloAPI:
         DELETE /cards/{card_id}
         Elimina definitivamente una card.
         """
+        logger.info("🧪 Chiamata a delete_card di TrelloAPI")
         self._request('DELETE', f"/cards/{card_id}")
 
     def add_comment_to_card(self,
@@ -187,6 +209,7 @@ class TrelloAPI:
         POST /cards/{card_id}/actions/comments
         Aggiunge un commento alla card.
         """
+        logger.info("🧪 Chiamata a add_comment_to_card di TrelloAPI")
         return self._request('POST',
                              f"/cards/{card_id}/actions/comments",
                              json={'text': text})
@@ -197,6 +220,7 @@ class TrelloAPI:
         """
         Semplice wrapper di update_card per spostare una card in un’altra lista.
         """
+        logger.info("🧪 Chiamata a move_card di TrelloAPI")
         return self.update_card(card_id, idList=target_list)
 
     def rename_card(self,
@@ -205,6 +229,7 @@ class TrelloAPI:
         """
         Semplice wrapper di update_card per rinominare la card.
         """
+        logger.info("🧪 Chiamata a rename_card di TrelloAPI")
         return self.update_card(card_id, name=new_name)
 
     def add_label_to_card(self,
@@ -214,6 +239,7 @@ class TrelloAPI:
         POST /cards/{card_id}/idLabels
         Aggiunge un’etichetta (label) a una card.
         """
+        logger.info("🧪 Chiamata a add_label_to_card di TrelloAPI")
         return self._request('POST',
                              f"/cards/{card_id}/idLabels",
                              json={'value': label_id})
@@ -227,6 +253,7 @@ class TrelloAPI:
         GET /boards/{board_id}/labels
         Restituisce tutte le etichette di una board.
         """
+        logger.info("🧪 Chiamata a get_labels di TrelloAPI")
         return self._request('GET',
                              f"/boards/{board_id}/labels")
 
@@ -238,6 +265,7 @@ class TrelloAPI:
         POST /labels
         Crea una label su board: serve idBoard, name, color.
         """
+        logger.info("🧪 Chiamata a create_label di TrelloAPI")
         return self._request('POST',
                              '/labels',
                              params={'idBoard': board_id, 'name': name, 'color': color})
@@ -249,6 +277,7 @@ class TrelloAPI:
         PUT /labels/{label_id}
         Modifica name o color di una etichetta.
         """
+        logger.info("🧪 Chiamata a update_label di TrelloAPI")
         return self._request('PUT',
                              f"/labels/{label_id}",
                              params=fields)
@@ -258,6 +287,7 @@ class TrelloAPI:
         DELETE /labels/{label_id}
         Elimina una label.
         """
+        logger.info("🧪 Chiamata a delete_label di TrelloAPI")
         self._request('DELETE', f"/labels/{label_id}")
 
     # —————————————————————————————————————
@@ -272,6 +302,7 @@ class TrelloAPI:
         POST /webhooks
         Crea un webhook sul model (board, card, etc.).
         """
+        logger.info("🧪 Chiamata a create_webhook di TrelloAPI")
         payload = {
             'idModel':     id_model,
             'callbackURL': callback_url,
@@ -284,6 +315,7 @@ class TrelloAPI:
         GET /members/{member_id}/webhooks
         Lista dei webhooks di un membro.
         """
+        logger.info("🧪 Chiamata a get_webhooks di TrelloAPI")
         return self._request('GET',
                              f"/members/{member_id}/webhooks")
 
@@ -292,6 +324,7 @@ class TrelloAPI:
         DELETE /webhooks/{webhook_id}
         Rimuove un webhook.
         """
+        logger.info("🧪 Chiamata a delete_webhook di TrelloAPI")
         self._request('DELETE', f"/webhooks/{webhook_id}")
 
     # —————————————————————————————————————
@@ -306,6 +339,7 @@ class TrelloAPI:
         Ritorna la history degli eventi (createCard, updateCard, …)
         Filters possibili: filter, limit, since, before, member, etc.
         """
+        logger.info("🧪 Chiamata a get_board_actions di TrelloAPI")
         return self._request('GET',
                              f"/boards/{board_id}/actions",
                              params=filters)
@@ -317,6 +351,7 @@ class TrelloAPI:
         GET /cards/{card_id}/actions
         History degli eventi per una singola card.
         """
+        logger.info("🧪 Chiamata a get_card_actions di TrelloAPI")
         return self._request('GET',
                              f"/cards/{card_id}/actions",
                              params=filters)
@@ -341,6 +376,19 @@ class TrelloAPI:
     #     return r.json()
 
     def set_card_cover_color(self, card_id, color=None, brightness='dark', size='normal', url=None, idattachment=None):
+        """
+        PUT /cards/{card_id}
+        Imposta il colore di copertina di una card.
+
+        :param card_id:
+        :param color:
+        :param brightness:
+        :param size:
+        :param url:
+        :param idattachment:
+        :return:
+        """
+        logger.info("🧪 Chiamata a set_card_cover_color di TrelloAPI")
         api_url = f"{self.BASE_URL}/cards/{card_id}"
         params = {
             'key': self.api_key,
@@ -364,6 +412,7 @@ class TrelloAPI:
         POST /cards/{card_id}/checklists
         Crea una checklist su una card.
         """
+        logger.info("🧪 Chiamata a create_checklist_on_card di TrelloAPI")
         api_url = f"{self.BASE_URL}/checklists"
 
         query = {
@@ -388,6 +437,7 @@ class TrelloAPI:
         GET /cards/{card_id}/checklists
         Restituisce le checklist di una card.
         """
+        logger.info("🧪 Chiamata a get_checklists_on_card di TrelloAPI")
         api_url = f"{self.BASE_URL}/checklists/{chk_id}"
 
         query = {
@@ -409,6 +459,9 @@ class TrelloAPI:
         POST /checklists/{checklist_id}/checkItems
         Aggiunge un item a una checklist.
         """
+        logger.info("🧪 Chiamata a add_item_to_checklist di TrelloAPI")
+        logger.debug(f"🧪 add_item_to_checklist params: checklist_id={checklist_id}, name={name}, pos={pos}, "
+                     f"checked={checked}, due={due}, duereminder={duereminder}, idmember={idmember}")
         api_url = f"{self.BASE_URL}/checklists/{checklist_id}/checkItems"
 
         query = {
