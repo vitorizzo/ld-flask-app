@@ -453,7 +453,7 @@ class TrelloAPI:
 
         return response.json()
 
-    def add_item_to_checklist(self, checklist_id, name, pos='bottom', checked=False, due=None,
+    def add_item_to_checklist(self, checklist_id, name, pos='bottom', checked='false', due=None,
                               duereminder=None, idmember=None):
         """
         POST /checklists/{checklist_id}/checkItems
