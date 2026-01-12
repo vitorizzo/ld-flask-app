@@ -462,6 +462,7 @@ class TrelloAPI:
         logger.info("🧪 Chiamata a add_item_to_checklist di TrelloAPI")
         logger.debug(f"🧪 add_item_to_checklist params: checklist_id={checklist_id}, name={name}, pos={pos}, "
                      f"checked={checked}, due={due}, duereminder={duereminder}, idmember={idmember}")
+
         api_url = f"{self.BASE_URL}/checklists/{checklist_id}/checkItems"
 
         query = {
@@ -481,4 +482,7 @@ class TrelloAPI:
             params=query
         )
 
-        return response.json()
+        logger.debug("status=%s url=%s body=%r", response.status_code, response.url, response.text[:500])
+        response.raise_for_status()
+
+        return response
