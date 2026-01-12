@@ -1,4 +1,4 @@
-const CACHE_NAME = "ldapp-cache-v1";
+const CACHE_NAME = "ldapp-cache-v2";
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -46,6 +46,15 @@ self.addEventListener("fetch", (event) => {
     );
     return;
   }
+
+  // API endpoints (sempre NETWORK FIRST, mai cache-first)
+  if (url.includes("/trello/")) {
+    event.respondWith(
+      fetch(req, { cache: "no-store" }).catch(() => caches.match(req))
+    );
+    return;
+  }
+
 
   // Default → cache first
   event.respondWith(

@@ -2,21 +2,23 @@
 {% block title %}Gestione Connessioni Trello{% endblock %}
 
 {% block content %}
-  <h1>Connessioni Trello</h1>
-  <button id="new-conn">+ Nuova Connessione</button>
-  <table border="1" cellpadding="5" style="margin-top:1em; width:100%;">
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Board name</th>
-        <th>Webhook</th>
-        <th>Azioni</th>
-      </tr>
-    </thead>
-    <tbody id="conns-body">
-      <!-- popolato da JS -->
-    </tbody>
-  </table>
+  <section class="welcome-section">
+    <h1>Connessioni Trello</h1>
+    <button id="new-conn">+ Nuova Connessione</button>
+    <table border="1" cellpadding="5" style="margin-top:1em; width:100%;">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Board name</th>
+          <th>Webhook</th>
+          <th>Azioni</th>
+        </tr>
+      </thead>
+      <tbody id="conns-body">
+        <!-- popolato da JS -->
+      </tbody>
+    </table>
+  </section>
 
   <script>
     document.addEventListener('DOMContentLoaded', () => {
