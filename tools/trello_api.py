@@ -358,3 +358,74 @@ class TrelloAPI:
         r = requests.put(api_url, params=params, json=body)
         r.raise_for_status()
         return r.json()
+
+    def create_checklist_on_card(self, card_id, name, pos=0, idchecklistsource=None):
+        """
+        POST /cards/{card_id}/checklists
+        Crea una checklist su una card.
+        """
+        api_url = f"{self.BASE_URL}/checklists"
+
+        query = {
+            'idCard': card_id,
+            'name': name,
+            'pos': pos,
+            'idChecklistSource': idchecklistsource,
+            'key': self.api_key,
+            'token': self.token
+        }
+
+        response = requests.request(
+            "POST",
+            api_url,
+            params=query
+        )
+
+        return response.json()
+
+    def get_checklists_on_card(self, chk_id):
+        """
+        GET /cards/{card_id}/checklists
+        Restituisce le checklist di una card.
+        """
+        api_url = f"{self.BASE_URL}/checklists/{chk_id}"
+
+        query = {
+            'key': self.api_key,
+            'token': self.token
+        }
+
+        response = requests.request(
+            "GET",
+            api_url,
+            params=query
+        )
+
+        return response.json()
+
+    def add_item_to_checklist(self, checklist_id, name, pos='bottom', checked=False, due=None,
+                              duereminder=None, idmember=None):
+        """
+        POST /checklists/{checklist_id}/checkItems
+        Aggiunge un item a una checklist.
+        """
+        api_url = f"{self.BASE_URL}/checklists/{checklist_id}/checkItems"
+
+        query = {
+            'name': name,
+            'pos': pos,
+            'checked': checked,
+            'due': due,
+            'dueReminder': duereminder,
+            'idMember': idmember,
+            'key': self.api_key,
+            'token': self.token
+        }
+
+        response = requests.request(
+            "POST",
+            api_url,
+            params=query
+        )
+
+        return response.json()

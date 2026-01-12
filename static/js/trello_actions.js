@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'copyCard','createCard', 'updateCard', 'moveCard', 'commentCard', 'moveToList'
     ];
     const AVAILABLE_ACTIONS = [
-        'sendEmail', 'addComment', 'mirrorCard', 'sendSlackMessage'
+        'sendEmail', 'addComment', 'mirrorCard', 'customizeCard', 'sendSlackMessage'
     ];
 
     const PLACEHOLDER_LIST = [

@@ -14,6 +14,35 @@ logger.debug("🧪 Logger 'processor' inizializzato correttamente - test DEBUG")
 # trello = TrelloAPI()  # legge TRELLO_KEY e TRELLO_TOKEN dall'env
 trello = None  # lazy init
 
+customized_boards = ['Ordini', 'Scarichi-Ufficio']
+
+custom_cards = [
+    {
+        'board_name': 'Ordini',
+        'name': 'addDate',
+        'checklists': {
+            'checklist_name': 'Magazzino',
+            'items': {
+                'item1': 'Scaricato',
+                'item2': 'Accettato con Riserva',
+                'item3': 'Controllato',
+                'item4': 'Riposto in Magazzino'
+            }
+        }
+    },
+    {
+        'board_name': 'Scarichi-Ufficio',
+        'name': 'addDate',
+        'checklists': {
+            'checklist_name': 'Documenti acquisiti',
+            'items': {
+                'item1': 'Documento di Trasporto',
+                'item2': 'Fattura'
+            }
+        }
+    }
+]
+
 
 def get_trello():
     global trello
@@ -91,6 +120,8 @@ def process_trello_event(connection, payload):
                     comment_from_to(cfg, payload)
                 case 'mirrorCard':
                     crea_mirror_card(cfg, payload)
+                case 'customizeCard':
+                    personalizza_card(cfg, payload)
                 case 'sendSlackMessage':
                     _send_slack_message(payload)
                 case _:
@@ -150,9 +181,62 @@ def comment_from_to(cfg, payload):
         logger.exception(f"Errore durante l'aggiunta del commento: {e}")
 
 
+def trova_id_label(board_id, nome_label):
+    t = get_trello()
+    if not t:
+        logger.warning("Salto trova_id_label: Trello non configurato.")
+        return None
+    labels = t.get_labels(board_id)
+    for label in labels:
+        if label['name'].lower() == nome_label.lower():
+            return label['id']
+    return None
+
+
+def personalizza_card(cfg, payload):
+    logger.info("Personalizzazione card...")
+    logger.debug(f"parametri \n cfg: \n{cfg}\npayload: \n{payload}")
+
+    try:
+        card_id = payload['action']['data']['card']['id']
+        board_name = payload['model']['name']
+
+        t = get_trello()
+        if not t:
+            logger.warning("Salto personalizza_card: Trello non configurato.")
+            return
+
+        for custom_card in custom_cards:
+            if custom_card['board_name'] == board_name:
+                checklist_name = custom_card['checklists']['checklist_name']
+                items = custom_card['checklists']['items']
+
+                match custom_card['name']:
+                    case 'addDate': t.update_card(card_id, name=payload['action']['data']['card']['name']
+                                                  + f" - {datetime.datetime.now().strftime('%d-%m-%Y')}")
+
+                # Creazione checklist
+                cc_response = t.create_checklist(card_id, checklist_name)
+                logger.debug(f"Create checklist response: {cc_response}")
+                checklist_id = cc_response.get('id')
+
+                # Aggiunta items
+                for item_key, item_name in items.items():
+                    ac_response = t.add_item_to_checklist(checklist_id, item_name)
+                    logger.debug(f"Add item to checklist response: {ac_response}")
+
+    except Exception as e:
+        logger.exception(f"Errore durante la personalizzazione della scheda: {e}")
+
+
 def crea_mirror_card(cfg, payload):
+
+    # assicurarsi che nella bacheca source esista la label 'scheda mirror creata' e
+    # nella bacheca dest 'Creata da altra Bacheca'
+
     logger.info("Creazione mirror card...")
     logger.debug(f"parametri \n cfg: \n{cfg}\npayload: \n{payload}")
+
     try:
         card_id = payload['action']['data']['card']['id']
         context = {
@@ -170,23 +254,27 @@ def crea_mirror_card(cfg, payload):
         if not t:
             logger.warning("Salto mirror_card: Trello non configurato.")
             return
-        t.update_card(card_id, name=context.get('card_name'))
-        dest_message = f"creata automaticamente da scheda {t.get_card(card_id)['shortUrl']} il {context.get('date')}"
+
+        id_label_source = trova_id_label(context.get('source_board'), 'scheda mirror creata')
+        id_label_dest = trova_id_label(context.get('dest_board'), 'Creata da altra Bacheca')
+
         cc_response = t.create_card(context.get('dest_list'), context.get('card_name'))
         logger.debug(f"Create card response: {cc_response}")
+
+        dest_message = f"creata automaticamente da scheda {t.get_card(card_id)['shortUrl']} il {context.get('date')}"
         dest_card_id = cc_response.get('id')
         dest_card_url = cc_response.get('shortUrl')
-        # scc_response = t.set_card_cover_color(context.get('dest_board'), context.get('dest_list'),
-        # dest_card_id, 'blue')
+        source_message = f"scheda mirror {dest_card_url} il {context.get('date')}"
+
         scc_response = t.set_card_cover_color(dest_card_id, 'green', 'light')
         logger.debug(f"Set cover color response: {scc_response}")
-        source_message = f"scheda mirror {dest_card_url} il {context.get('date')}"
         actc_response = t.add_comment_to_card(dest_card_id, dest_message)
         logger.debug(f"Add comment to card response: {actc_response}")
         uc_response = t.update_card(dest_card_id, desc=f"Card originale {t.get_card(card_id)['shortUrl']}")
         logger.debug(f"Update card response: {uc_response}")
-        # scc_response = t.set_card_cover_color(context.get('dest_board'), context.get('dest_list'),
-        # dest_card_id, 'blue')
+        pl_response = t.add_label_to_card(dest_card_id, id_label_dest)
+        logger.debug(f"Add label to dest card response: {pl_response}")
+
         scc_response = t.set_card_cover_color(card_id, 'blue', 'light')
         logger.debug(f"Set cover color response: {scc_response}")
         actc_response = t.add_comment_to_card(card_id, source_message)
@@ -194,9 +282,94 @@ def crea_mirror_card(cfg, payload):
         uc_response = t.update_card(card_id, desc=t.get_card(card_id).get('desc')
                                     + f"\n Card mirror {t.get_card(dest_card_id)['url']}")
         logger.debug(f"Update source card response: {uc_response}")
+        pl_response = t.add_label_to_card(card_id, id_label_source)
+        logger.debug(f"Add label to source card response: {pl_response}")
 
     except Exception as e:
         logger.exception(f"Errore durante la creazione della scheda mirror: {e}")
+
+
+def aggiorna_card(card_id, payload):
+
+    # payload contiene i dati da aggiornare in formato json:
+
+    # payload = {
+    #   "name": "Nuovo nome scheda",
+    #   "desc": "Nuova descrizione scheda",
+    #   "due": "2024-12-31T12:00:00.000Z",
+    #   "labels": ["label_id1", "label_id2"],
+    #   "checklists": {
+    #       checklist_id1: ["item1", "item2"],
+    #       checklist_id2: ["itemA", "itemB"]
+    #   },
+    #   "cover": {
+    #       color: colore cotertina black|blue|green|lime|orange|pink|purple|red|sky|yellow,
+    #       size: dimensione copertina normal|full,
+    #       idAttachment: id allegato per copertina immagine,
+    #       brightness: light|dark,
+    #       url: url immagine per copertina
+    #   },
+    #   "closed": false
+    # }
+
+    logger.info("Aggiornamento card...")
+    logger.debug(f"parametri \n card_id: \n{card_id}\npayload: \n{payload}")
+
+    t = get_trello()
+    if not t:
+        logger.warning("Salto aggiorna_card: Trello non configurato.")
+        return
+
+    params = ""
+    has_cover = False
+    has_labels = False
+    has_checklists = False
+    color = None
+    size = None
+    brightness = None
+    idattachment = None
+    url = None
+    labels = []
+
+    if 'name' in payload:
+        params += f"&name={payload['name']}"
+    if 'desc' in payload:
+        params += f"&desc={payload['desc']}"
+    if 'due' in payload:
+        params += f"&due={payload['due']}"
+    if 'closed' in payload:
+        params += f"&closed={str(payload['closed']).lower()}"
+    if 'cover' in payload:
+        has_cover = True
+        cover = payload['cover']
+        if 'color' in cover:
+            color = cover['color']
+        if 'size' in cover:
+            size = cover['size']
+        if 'idAttachment' in cover:
+            idattachment = cover['idAttachment']
+        if 'brightness' in cover:
+            brightness = cover['brightness']
+        if 'url' in cover:
+            url = cover['url']
+    if 'labels' in payload:
+        has_labels = True
+        for label in payload['labels']:
+            labels.append(trova_id_label(t.get_card(card_id)['idBoard'], label))
+
+    try:
+        response = t.update_card(card_id, params=params)
+        logger.debug(f"Update card response: {response}")
+        if has_cover:
+            scc_response = t.set_card_cover_color(card_id, color, brightness, size, idattachment, url)
+            logger.debug(f"Set cover color response: {scc_response}")
+        if has_labels:
+            for label_id in labels:
+                pl_response = t.add_label_to_card(card_id, label_id)
+                logger.debug(f"Add label to card response: {pl_response}")
+
+    except Exception as e:
+        logger.exception(f"Errore durante l'aggiornamento della scheda: {e}")
 
 
 def _send_email(cfg, payload):
@@ -253,3 +426,7 @@ def _internal_call(cfg, context):
     resp = requests.request(method, url, json=payload, headers=headers)
     resp.raise_for_status()
     return resp.json()
+
+
+def new_ordini_card():
+    pass
