@@ -219,9 +219,10 @@ def personalizza_card(cfg, payload):
                 cc_response = t.create_checklist_on_card(card_id, checklist_name)
                 logger.debug(f"Create checklist response: {cc_response}")
                 checklist_id = cc_response.get('id')
-
+                logger.debug(f"Checklist ID: {checklist_id}")
                 # Aggiunta items
                 for item_key, item_name in items.items():
+                    logger.debug(f"Aggiunta item '{item_name}' alla checklist '{checklist_name}'")
                     ac_response = t.add_item_to_checklist(checklist_id, item_name)
                     logger.debug(f"Add item to checklist response: {ac_response}")
 
