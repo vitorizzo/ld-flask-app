@@ -162,8 +162,6 @@ document.addEventListener('DOMContentLoaded', () => {
       // nuova connessione: il backend vuole board_id/board_name/api_key/token TOP-LEVEL
       const board_id   = prompt("Board ID:");
       const board_name = prompt("Board name:");
-      const api_key    = prompt("API key:");
-      const token      = prompt("Token:");
 
       url    = '/trello/connection';
       method = 'POST';
@@ -171,7 +169,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ board_id, board_name, api_key, token })
+        body: JSON.stringify({ board_id, board_name})
       })
       .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e)))
       .then(res => {

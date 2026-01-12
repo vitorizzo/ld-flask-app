@@ -135,20 +135,28 @@ def get_connection(myid):
 
 @trello_bp.route('/connection', methods=['POST'])
 def create_connection():
+    from flask import current_app
+
     logger.info(f'route: /trello/connection <POST>')
     data = request.get_json()
+    apikey = current_app.config.get('TRELLO_API_KEY')
+    token = current_app.config.get('TRELLO_TOKEN')
 
     # 1) Validazione minima
-    for f in ('board_id', 'board_name', 'api_key', 'token'):
+    for f in ('board_id', 'board_name'):
         if not data.get(f):
             return jsonify({'error': f"Campo mancante: {f}"}), 400
+
+    # 1b) Credenziali Trello globali obbligatorie (modello A)
+    if not apikey or not token:
+        return jsonify({'error': "Trello non configurato: manca TRELLO_API_KEY o TRELLO_TOKEN"}), 500
 
     # 2) Creo il record in DB (senza callback_url né webhook_id per ora)
     conn = TrelloConnection(
         board_id=data['board_id'],
         board_name=data['board_name'],
-        api_key=data['api_key'],
-        token=data['token']
+        api_key=apikey,
+        token=token
     )
     db.session.add(conn)
     db.session.commit()   # <-- qui conn.id viene assegnato dal DB
