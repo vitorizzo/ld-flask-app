@@ -139,7 +139,7 @@ def create_connection():
 
     logger.info(f'route: /trello/connection <POST>')
     data = request.get_json()
-    apikey = current_app.config.get('TRELLO_API_KEY')
+    apikey = current_app.config.get('TRELLO_KEY')
     token = current_app.config.get('TRELLO_TOKEN')
 
     # 1) Validazione minima
