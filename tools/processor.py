@@ -22,8 +22,8 @@ template_comments = [
         'fixed_comments': {
             'Nuovi Prodotti': "###✨ Nuovi prodotti:\n---\n - testo nuovi prodotti qui",
             'Anomalie': "###🚧 Anomalie:\n---\n - testo anomalie qui",
-            'Nuove Annate': "###📅 Nuove annate:\n ----\n - testo annate qui",
-            'Variazione di Prezzo': "###📈 Variazioni di prezzo:\n---\n - testo variazioni qui",
+            'Nuove Annate': "###📅 Nuove annate:\n----\n - testo annate qui",
+            'Variazioni di Prezzo': "###📈 Variazioni di prezzo:\n---\n - testo variazioni qui",
             'Controllare i Prezzi': "###🚨 Controllare i prezzi:\n---\n - testo prezzi qui",
             'Omaggi': "###🎁 Gestione Omaggi:\n---\n - testo omaggi qui",
             'Contributo Catalogo': "###📓 Contributo Catalogo:\n---\n - testo contributo qui",
