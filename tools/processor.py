@@ -28,6 +28,11 @@ custom_cards = [
                 'item3': 'Controllato',
                 'item4': 'Riposto in Magazzino'
             }
+        },
+        'cover': {
+            'color': 'blue',
+            'size': 'normal',
+            'brightness': 'light'
         }
     },
     {
@@ -39,6 +44,11 @@ custom_cards = [
                 'item1': 'Documento di Trasporto',
                 'item2': 'Fattura'
             }
+        },
+        'cover': {
+            'color': 'red',
+            'size': 'normal',
+            'brightness': 'light'
         }
     }
 ]
@@ -248,11 +258,26 @@ def personalizza_card(cfg, payload):
             if custom_card['board_name'] == board_name:
                 checklist_name = custom_card['checklists']['checklist_name']
                 items = custom_card['checklists']['items']
+                new_card = True
+                if card_has_label(t.get_card(card_id), AUTO_MIRROR_LABEL):
+                    new_card = False
+                if card_has_auto_mirror_comment(t, card_id):
+                    new_card = False
 
                 match custom_card['name']:
-                    case 'addDate': t.update_card(card_id, name=payload['action']['data']['card']['name']
-                                                  + f" - {datetime.datetime.now().strftime('%d-%m-%Y')}")
-
+                    case 'addDate':
+                        if new_card:
+                            t.update_card(card_id, name=payload['action']['data']['card']['name']
+                                          + f" - {datetime.datetime.now().strftime('%d-%m-%Y')}")
+                if custom_card.get('cover'):
+                    cover = custom_card['cover']
+                    scc_response = t.set_card_cover_color(
+                        card_id,
+                        cover.get('color', 'pink'),
+                        cover.get('brightness', 'light'),
+                        cover.get('size', 'normal')
+                    )
+                    logger.debug(f"Set cover color response: {scc_response}")
                 # Creazione checklist
                 cc_response = t.create_checklist_on_card(card_id, checklist_name)
                 logger.debug(f"Create checklist response: {cc_response}")
@@ -332,8 +357,6 @@ def crea_mirror_card(cfg, payload):
         uc_response = t.update_card(dest_card_id, desc=f"Card originale {t.get_card(card_id)['shortUrl']}")
         logger.debug(f"Update card response: {uc_response}")
 
-        scc_response = t.set_card_cover_color(card_id, 'blue', 'light')
-        logger.debug(f"Set cover color response: {scc_response}")
         actc_response = t.add_comment_to_card(card_id, source_message)
         logger.debug(f"Add comment to source card response: {actc_response}")
         uc_response = t.update_card(card_id, desc=t.get_card(card_id).get('desc')
