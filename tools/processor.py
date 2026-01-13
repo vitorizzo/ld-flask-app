@@ -43,6 +43,10 @@ custom_cards = [
     }
 ]
 
+AUTO_MIRROR_LABEL = "LDAPP:AUTO_MIRROR"
+AUTO_MIRROR_COLOR = "lime"
+AUTO_MIRROR_COMMENT = AUTO_MIRROR_LABEL
+
 
 def get_trello():
     global trello
@@ -54,6 +58,40 @@ def get_trello():
     except Exception as e:
         logger.warning(f"Trello non configurato o non disponibile: {e}. Funzioni Trello disabilitate.")
         return None
+
+
+def ensure_label_id(t, board_id: str, label_name: str = AUTO_MIRROR_LABEL, color: str = AUTO_MIRROR_COLOR):
+    """
+    Ritorna l'id della label 'label_name' sulla board.
+    Se non esiste, la crea (color).
+    """
+    labels = t.get_labels(board_id)  # lista di label della board
+    for lb in labels or []:
+        if (lb.get("name") or "").strip() == label_name:
+            return lb.get("id")
+
+    # Non trovata -> crea
+    created = t.create_label(board_id=board_id, name=label_name, color=color)
+    return created.get("id")
+
+
+def card_has_label(card: dict, label_name: str) -> bool:
+    for lb in card.get("labels") or []:
+        if (lb.get("name") or "").strip() == label_name:
+            return True
+    return False
+
+
+def card_has_auto_mirror_comment(t, card_id: str) -> bool:
+    """
+    Fallback: controlla se tra i commenti esiste il commento tecnico AUTO_MIRROR_COMMENT.
+    """
+    actions = t.get_card_actions(card_id, action_filter="commentCard") or []
+    for a in actions:
+        txt = (((a.get("data") or {}).get("text")) or "").strip()
+        if txt == AUTO_MIRROR_COMMENT:
+            return True
+    return False
 
 
 def process_trello_event(connection, payload):
@@ -248,6 +286,7 @@ def crea_mirror_card(cfg, payload):
             'date': datetime.datetime.now().strftime("%d-%m-%Y"),
             'source_board': payload['model']['id'],
             'dest_board': cfg.get('target_board_id', ''),
+            'dest_board_name': cfg.get('target_board_name', ''),
             'dest_list': cfg.get('target_list_id', '')
         }
 
@@ -256,16 +295,35 @@ def crea_mirror_card(cfg, payload):
             logger.warning("Salto mirror_card: Trello non configurato.")
             return
 
-        id_label_source = trova_id_label(context.get('source_board'), 'scheda mirror creata')
-        id_label_dest = trova_id_label(context.get('dest_board'), 'Creata da altra Bacheca')
+        # --- ANTI-LOOP GUARD (primario: label, fallback: commento tecnico) ---
+        card = t.get_card(card_id)
+
+        # Se la card è stata auto-generata, non creare mirror
+        if card_has_label(card, AUTO_MIRROR_LABEL):
+            logger.info("Salto mirror_card: card marcata come AUTO_MIRROR (label).")
+            return
+
+        if card_has_auto_mirror_comment(t, card_id):
+            logger.info("Salto mirror_card: card marcata come AUTO_MIRROR (commento).")
+            return
 
         cc_response = t.create_card(context.get('dest_list'), context.get('card_name'))
         logger.debug(f"Create card response: {cc_response}")
-
-        dest_message = f"creata automaticamente da scheda {t.get_card(card_id)['shortUrl']} il {context.get('date')}"
         dest_card_id = cc_response.get('id')
+
+        # --- assicura label AUTO_MIRROR su board dest ed applicala alla card ---
+        dest_board_id = context.get('dest_board')
+        auto_label_id_dest = ensure_label_id(t, dest_board_id)
+
+        if auto_label_id_dest:
+            t.add_label_to_card(dest_card_id, auto_label_id_dest)
+
+        # --- commento tecnico (fallback) ---
+        t.add_comment_to_card(dest_card_id, AUTO_MIRROR_COMMENT)
+
+        dest_message = f"scheda madre {t.get_card(card_id)['shortUrl']} della bacheca {context.get('dest_board_name')}"
         dest_card_url = cc_response.get('shortUrl')
-        source_message = f"scheda mirror {dest_card_url} il {context.get('date')}"
+        source_message = f"scheda mirror {dest_card_url} nella bacheca {context.get('dest_board_name')}"
 
         scc_response = t.set_card_cover_color(dest_card_id, 'green', 'light')
         logger.debug(f"Set cover color response: {scc_response}")
@@ -273,8 +331,6 @@ def crea_mirror_card(cfg, payload):
         logger.debug(f"Add comment to card response: {actc_response}")
         uc_response = t.update_card(dest_card_id, desc=f"Card originale {t.get_card(card_id)['shortUrl']}")
         logger.debug(f"Update card response: {uc_response}")
-        pl_response = t.add_label_to_card(dest_card_id, id_label_dest)
-        logger.debug(f"Add label to dest card response: {pl_response}")
 
         scc_response = t.set_card_cover_color(card_id, 'blue', 'light')
         logger.debug(f"Set cover color response: {scc_response}")
@@ -283,8 +339,6 @@ def crea_mirror_card(cfg, payload):
         uc_response = t.update_card(card_id, desc=t.get_card(card_id).get('desc')
                                     + f"\n Card mirror {t.get_card(dest_card_id)['url']}")
         logger.debug(f"Update source card response: {uc_response}")
-        pl_response = t.add_label_to_card(card_id, id_label_source)
-        logger.debug(f"Add label to source card response: {pl_response}")
 
     except Exception as e:
         logger.exception(f"Errore durante la creazione della scheda mirror: {e}")
