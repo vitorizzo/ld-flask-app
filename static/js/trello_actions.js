@@ -84,10 +84,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 3.1) Costanti
     const AVAILABLE_TRIGGERS = [
-        'copyCard','createCard', 'updateCard', 'moveCard', 'commentCard', 'moveToList'
+        'copyCard',
+        'createCard',
+        'updateCard',
+        'moveCard',
+        'commentCard',
+        'moveToList',
+        'addLabelToCard'
     ];
     const AVAILABLE_ACTIONS = [
-        'sendEmail', 'addComment', 'mirrorCard', 'customizeCard', 'sendSlackMessage'
+        'sendEmail',
+        'addComment',
+        'mirrorCard',
+        'customizeCard',
+        'sendSlackMessage'
     ];
 
     const PLACEHOLDER_LIST = [

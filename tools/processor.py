@@ -16,6 +16,25 @@ trello = None  # lazy init
 
 customized_boards = ['Ordini', 'Scarichi-Ufficio']
 
+template_comments = [
+    {
+        'board_name': 'Scarichi - Ufficio',
+        'fixed_comments': {
+            'Nuovi Prodotti': "###✨ Nuovi prodotti:\n---\n - testo nuovi prodotti qui",
+            'Anomalie': "###🚧 Anomalie:\n---\n - testo anomalie qui",
+            'Nuove Annate': "###📅 Nuove annate:\n ----\n - testo annate qui",
+            'Variazione di Prezzo': "###📈 Variazioni di prezzo:\n---\n - testo variazioni qui",
+            'Controllare i Prezzi': "###🚨 Controllare i prezzi:\n---\n - testo prezzi qui",
+            'Omaggi': "###🎁 Gestione Omaggi:\n---\n - testo omaggi qui",
+            'Contributo Catalogo': "###📓 Contributo Catalogo:\n---\n - testo contributo qui",
+            'Fine Anno': "###🧾 Fine Anno:\n---\n - testo fine anno qui",
+            'Interventi da Ricevere': "###💰 Interventi da Ricevere:\n---\n - testo interventi qui",
+            'Consegna Parziale': "###🚚 Consegna Parziale:\n---\n - testo consegna qui",
+            'Informazioni Aggiuntive': "###📣 Informazioni Aggiuntive:\n---\n - testo informazioni qui"
+        }
+    }
+]
+
 custom_cards = [
     {
         'board_name': 'Ordini',
@@ -166,6 +185,8 @@ def process_trello_event(connection, payload):
                     _internal_call(cfg, context)
                 case 'addComment':
                     comment_from_to(cfg, payload)
+                case 'addServiceComment':
+                    service_comment(cfg, payload)
                 case 'mirrorCard':
                     crea_mirror_card(cfg, payload)
                 case 'customizeCard':
@@ -176,6 +197,34 @@ def process_trello_event(connection, payload):
                     logger.warning(f"Action type non riconosciuto: {act.action_type}")
         except Exception as e:
             logger.exception(f"Errore eseguendo azione {act.id}: {e}")
+
+
+def service_comment(cfg, payload):
+    logger.info("Commento di servizio...")
+    try:
+        card_id = payload['action']['data']['card']['id']
+        context = {
+            'card': payload['action']['data'].get('card', {}),
+            'list': payload['action']['data'].get('list', {}),
+            'board': payload['action']['data'].get('board', {}),
+            'label': payload['action']['data'].get('label', {}).get('name', '')
+        }
+        t = get_trello()
+        if not t:
+            logger.warning("Salto add_service_comment: Trello non configurato.")
+            return
+        for template_comment in template_comments:
+            if template_comment['board_name'] == context['board']['name']:
+                associations = template_comment['fixed_comments']
+                for label_name, comment in associations.items():
+                    if context['label'] == label_name:
+                        tpl = Template(comment)
+                        message = tpl.render()
+                        t.add_comment_to_card(card_id, message)
+                        logger.info(f"[COMMENTO SERVIZIO] Aggiunta commento alla card {card_id}: {message}")
+
+    except Exception as e:
+        logger.exception(f"Errore durante l'aggiunta del commento di servizio: {e}")
 
 
 def elabora_trigger(tipo, payload):
