@@ -306,8 +306,7 @@ def crea_mirror_card(cfg, payload):
         context = {
             'user': payload['action']['memberCreator']['fullName'],
             'card': payload['action']['data']['card']['id'],
-            'card_name': payload['action']['data']['card']['name']
-            + f" - {datetime.datetime.now().strftime('%d-%m-%Y')}",
+            'card_name': payload['action']['data']['card']['name'],
             'date': datetime.datetime.now().strftime("%d-%m-%Y"),
             'source_board': payload['model']['id'],
             'dest_board': cfg.get('target_board_id', ''),
