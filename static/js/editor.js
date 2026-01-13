@@ -21,6 +21,143 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentId = null;
   let instance  = null;
 
+
+  // Popup (overlay) per scegliere la bacheca
+  function ensureBoardPickerModal() {
+    if (document.getElementById('trello-board-modal')) return;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'trello-board-modal';
+    overlay.style.cssText = `
+      position:fixed; inset:0; z-index:9999;
+      background:rgba(0,0,0,.45);
+      display:none; align-items:center; justify-content:center;
+      padding:16px;
+    `;
+
+    const panel = document.createElement('div');
+    panel.style.cssText = `
+      width:min(560px, 100%);
+      background:#fff;
+      border:1px solid #ddd;
+      border-radius:10px;
+      padding:16px;
+      box-shadow:0 10px 30px rgba(0,0,0,.25);
+      font-family:inherit;
+    `;
+
+    panel.innerHTML = `
+      <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+        <h3 style="margin:0;">Seleziona bacheca Trello</h3>
+        <button type="button" id="trello-board-cancel-x"
+                style="font-size:18px; line-height:1; border:0; background:transparent; cursor:pointer;">×</button>
+      </div>
+
+      <div style="margin-top:12px;">
+        <label style="display:block; margin-bottom:6px;">Bacheca</label>
+        <select id="trello-board-select" style="width:100%; padding:8px;">
+          <option value="">Caricamento...</option>
+        </select>
+        <div id="trello-board-error" style="display:none; margin-top:10px; color:#b00020;"></div>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+        <button type="button" id="trello-board-cancel" style="padding:8px 12px;">Annulla</button>
+        <button type="button" id="trello-board-confirm" style="padding:8px 12px;">Crea connessione</button>
+      </div>
+    `;
+
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
+
+    const close = () => { overlay.style.display = 'none'; };
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    panel.querySelector('#trello-board-cancel-x').addEventListener('click', close);
+    panel.querySelector('#trello-board-cancel').addEventListener('click', close);
+  }
+
+
+  // Apre popup -> carica boards -> crea connessione -> seleziona la nuova connessione nella combo
+  async function openBoardPickerAndCreateConnection() {
+    ensureBoardPickerModal();
+
+    const overlay   = document.getElementById('trello-board-modal');
+    const selBoard  = document.getElementById('trello-board-select');
+    const errBox    = document.getElementById('trello-board-error');
+    const btnConfirm = document.getElementById('trello-board-confirm');
+
+    // reset UI
+    errBox.style.display = 'none';
+    errBox.textContent = '';
+    selBoard.innerHTML = `<option value="">Caricamento...</option>`;
+    btnConfirm.disabled = true;
+    overlay.style.display = 'flex';
+
+    // 1) carico lista board dal backend
+    let boards = [];
+    try {
+      const r = await fetch('/trello/boards', { headers: { 'Accept': 'application/json' } });
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      boards = await r.json();
+    } catch (e) {
+      errBox.textContent = `Errore caricando bacheche: ${String(e)}`;
+      errBox.style.display = 'block';
+      selBoard.innerHTML = `<option value="">(errore)</option>`;
+      return;
+    }
+
+    // popola select
+    selBoard.innerHTML =
+      `<option value="">-- Seleziona --</option>` +
+      boards.map(b => `<option value="${b.id}">${b.name}</option>`).join('');
+
+    // abilita “Crea” solo dopo selezione
+    selBoard.addEventListener('change', () => {
+      btnConfirm.disabled = !selBoard.value;
+    });
+
+    // evita multi-handler se riapri più volte la modale
+    btnConfirm.onclick = null;
+
+    // 2) conferma: crea connessione e aggiorna la combo
+    btnConfirm.onclick = async () => {
+      const board_id   = selBoard.value;
+      const board_name = selBoard.options[selBoard.selectedIndex]?.text || '';
+      if (!board_id) return;
+
+      btnConfirm.disabled = true;
+      errBox.style.display = 'none';
+      errBox.textContent = '';
+
+      try {
+        const resp = await fetch('/trello/connection', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ board_id, board_name })
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) throw data;
+
+        // aggiungo option e seleziono la connessione creata
+        const opt = document.createElement('option');
+        opt.value = data.id;
+        opt.text  = `${board_name} (ID:${data.id})`;
+        sel.appendChild(opt);
+        sel.value = String(data.id);
+
+        overlay.style.display = 'none';
+
+        // trigger del tuo handler change: carica dati connessione + schema
+        sel.dispatchEvent(new Event('change'));
+      } catch (e) {
+        errBox.textContent = `Errore creando connessione: ${JSON.stringify(e)}`;
+        errBox.style.display = 'block';
+        btnConfirm.disabled = false;
+      }
+    };
+  }
+
+
   // 2) Funzione per creare un nodo nel canvas
   function addNode(id, label, x, y) {
     const n = document.createElement('div');
@@ -135,13 +272,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 7) Pulsanti di controllo
   btnNew.addEventListener('click', () => {
-    sel.value = '';
-    sel.dispatchEvent(new Event('change'));
+    openBoardPickerAndCreateConnection();
   });
   btnEdit.addEventListener('click', () => {
     window.location = `/trello/connection/editor/${currentId}`;
   });
   saveBtn.addEventListener('click', () => {
+    if (!currentId) {
+      alert('Seleziona o crea prima una connessione.');
+      return;
+    }
+
     const nodes = Array.from(editor.querySelectorAll('.node')).map(n => ({
       id:    n.id,
       x:     parseInt(n.style.left),
@@ -152,46 +293,16 @@ document.addEventListener('DOMContentLoaded', () => {
       sourceId: c.sourceId,
       targetId: c.targetId
     }));
+
     const schema = { nodes, connections };
-    let url    = '/trello/connection';
-    let method = 'POST';
-    if (currentId) {
-      url    += `/${currentId}`;
-      method  = 'PUT';
-    } else {
-      // nuova connessione: il backend vuole board_id/board_name/api_key/token TOP-LEVEL
-      const board_id   = prompt("Board ID:");
-      const board_name = prompt("Board name:");
 
-      url    = '/trello/connection';
-      method = 'POST';
-
-      fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ board_id, board_name})
-      })
-      .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e)))
-      .then(res => {
-        alert('Connessione creata ID ' + res.id);
-        window.location = '/trello/connections';
-      })
-      .catch(e => alert("Errore: " + JSON.stringify(e)));
-
-      return; // IMPORTANT: evita di proseguire con la fetch "schema"
-    }
-
-    fetch(url, {
-      method,
+    fetch(`/trello/connection/${currentId}`, {
+      method: 'PUT',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ schema })
     })
-
     .then(r => r.ok ? r.json() : r.json().then(e => Promise.reject(e)))
-    .then(res => {
-      alert(currentId ? 'Schema aggiornato' : 'Connessione creata ID ' + res.id);
-      if (!currentId) window.location = '/trello/connections';
-    })
+    .then(() => alert('Schema aggiornato'))
     .catch(e => alert("Errore: " + JSON.stringify(e)));
   });
 
