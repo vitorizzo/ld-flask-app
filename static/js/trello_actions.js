@@ -97,7 +97,8 @@ document.addEventListener('DOMContentLoaded', () => {
         'addComment',
         'mirrorCard',
         'customizeCard',
-        'sendSlackMessage'
+        'sendSlackMessage',
+        'serviceComments'
     ];
 
     const PLACEHOLDER_LIST = [
