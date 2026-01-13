@@ -31,7 +31,7 @@ custom_cards = [
         }
     },
     {
-        'board_name': 'Scarichi-Ufficio',
+        'board_name': 'Scarichi - Ufficio',
         'name': 'addDate',
         'checklists': {
             'checklist_name': 'Documenti acquisiti',
