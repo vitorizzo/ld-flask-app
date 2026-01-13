@@ -185,7 +185,7 @@ def process_trello_event(connection, payload):
                     _internal_call(cfg, context)
                 case 'addComment':
                     comment_from_to(cfg, payload)
-                case 'addServiceComment':
+                case 'serviceComments':
                     service_comment(cfg, payload)
                 case 'mirrorCard':
                     crea_mirror_card(cfg, payload)
