@@ -36,7 +36,7 @@ def _verify_slack_signature(req) -> bool:
         return False
 
     body = req.get_data(as_text=True)  # raw body
-    basestring = f"v0: {timestamp}: {body}".encode("utf-8")
+    basestring = f"v0:{timestamp}:{body}".encode("utf-8")
 
     computed = "v0=" + hmac.new(
         signing_secret.encode("utf-8"),
