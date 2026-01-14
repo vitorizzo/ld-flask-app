@@ -4,6 +4,7 @@ import hmac
 import logging
 import json
 
+import requests
 from flask import Blueprint, request, abort, current_app, jsonify, render_template, url_for
 from sqlalchemy.exc import NoResultFound
 
@@ -38,8 +39,8 @@ def list_board_lists(board_id):
     try:
         t = TrelloAPI(api_key=api_key, token=token)
         lists_ = t.get_lists(board_id) or []
-    except Exception as e:
-        logger.exception(f"Errore recuperando liste board_id={board_id}: {e}")
+    except requests.exceptions.RequestException:
+        logger.exception("Errore HTTP/connessione Trello (board_id=%s)", board_id)
         return jsonify({'error': 'Errore Trello durante il recupero liste'}), 502
 
     out = [
