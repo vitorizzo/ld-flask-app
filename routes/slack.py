@@ -4,7 +4,14 @@ import hmac
 import time
 import json
 import hashlib
+
+import logging
 from flask import Blueprint, request, jsonify, current_app
+
+from tools.log_utils import get_logger
+
+logger = get_logger("slack", level=logging.DEBUG)
+logger.debug("🧪 Logger 'slack' inizializzato correttamente - test DEBUG")
 
 slack_bp = Blueprint("slack", __name__, url_prefix="/slack")
 
@@ -15,6 +22,7 @@ def _verify_slack_signature(req) -> bool:
     Richiede env: SLACK_SIGNING_SECRET
     """
     signing_secret = os.getenv("SLACK_SIGNING_SECRET", "")
+    logger.debug("Verifica firma Slack con secret: %s", signing_secret)
     if not signing_secret:
         current_app.logger.error("SLACK_SIGNING_SECRET mancante")
         return False
