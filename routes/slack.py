@@ -21,7 +21,8 @@ def _verify_slack_signature(req) -> bool:
     Verifica firma Slack Events API.
     Richiede env: SLACK_SIGNING_SECRET
     """
-    signing_secret = os.getenv("SLACK_SIGNING_SECRET", "")
+    # signing_secret = os.getenv("SLACK_SIGNING_SECRET", "")
+    signing_secret = current_app.config.get("SLACK_SIGNING_SECRET", "")
     logger.debug("Verifica firma Slack con secret: %s", signing_secret)
     if not signing_secret:
         current_app.logger.error("SLACK_SIGNING_SECRET mancante")
@@ -57,8 +58,19 @@ def _verify_slack_signature(req) -> bool:
 
 @slack_bp.route("/events", methods=["POST"])
 def slack_events():
+    """
+    Endpoint per Slack Events API.
+    1) Verifica firma
+    2) Gestisce url_verification (handshake)
+    3) Gestisce event_callback (log / ack)
+    4) Fallback
+    """
+
+    logger.info("Ricevuta richiesta Slack Events API")
+
     # 1) Verifica firma
     if not _verify_slack_signature(request):
+        logger.warning("Firma Slack non valida")
         return jsonify({"error": "invalid_signature"}), 401
 
     payload = request.get_json(silent=True) or {}
