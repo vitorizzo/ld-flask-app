@@ -217,6 +217,7 @@ def create_app():
     from routes.logs_display import logs_bp
     from routes.trello import trello_bp
     from routes.app_installation import installation_bp
+    from routes.slack import slack_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(settings_bp, url_prefix="/settings")
@@ -231,6 +232,7 @@ def create_app():
     app.register_blueprint(logs_bp, url_prefix="/logs")
     app.register_blueprint(trello_bp, url_prefix="/trello")
     app.register_blueprint(installation_bp, url_prefix="/installation")
+    app.register_blueprint(slack_bp, url_prefix="/slack")
 
     from config.celery_app import init_celery
     init_celery(app)
