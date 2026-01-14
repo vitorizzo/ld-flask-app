@@ -5,6 +5,8 @@ import logging
 import json
 
 from flask import Blueprint, request, abort, current_app, jsonify, render_template, url_for
+from sqlalchemy.exc import NoResultFound
+
 # from sqlalchemy.orm.exc import NoResultFound
 
 from extensions import db
@@ -18,6 +20,35 @@ logger = get_logger("trello", level=logging.DEBUG)
 logger.debug("🧪 Logger 'trello' inizializzato correttamente - test DEBUG")
 
 trello_bp = Blueprint('trello', __name__, url_prefix='/trello')
+
+
+@trello_bp.route('/boards/<string:board_id>/lists', methods=['GET'])
+def list_board_lists(board_id):
+    """
+    Restituisce le liste di una board Trello.
+    Output: [{id, name}, ...]
+    """
+    logger.info(f"route: /trello/boards/{board_id}/lists")
+
+    api_key = current_app.config.get('TRELLO_KEY')
+    token = current_app.config.get('TRELLO_TOKEN')
+    if not api_key or not token:
+        return jsonify({'error': 'Trello non configurato: manca TRELLO_KEY o TRELLO_TOKEN'}), 500
+
+    try:
+        t = TrelloAPI(api_key=api_key, token=token)
+        lists_ = t.get_lists(board_id) or []
+    except Exception as e:
+        logger.exception(f"Errore recuperando liste board_id={board_id}: {e}")
+        return jsonify({'error': 'Errore Trello durante il recupero liste'}), 502
+
+    out = [
+        {'id': lista.get('id'),
+         'name': lista.get('name')
+         } for lista in lists_ if lista.get('id') and lista.get('name')
+    ]
+    out.sort(key=lambda x: x['name'].lower())
+    return jsonify(out), 200
 
 
 @trello_bp.route('/boards', methods=['GET'])
@@ -242,6 +273,7 @@ def update_connection(myid):
 @trello_bp.route('/connection/<int:myid>', methods=['DELETE'])
 def delete_connection(myid):
     logger.info(f'route: /trello/connection/{myid} <DELETE>')
+    conn = None
     try:
         conn = TrelloConnection.query.filter_by(id=myid).one()
     except NoResultFound:
