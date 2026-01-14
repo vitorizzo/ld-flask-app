@@ -108,7 +108,8 @@ def create_app():
         FERNET_KEY=os.getenv('FERNET_KEY'),
         TRELLO_KEY=os.getenv("TRELLO_KEY"),
         TRELLO_SECRET=os.getenv("TRELLO_SECRET"),
-        TRELLO_TOKEN=os.getenv("TRELLO_TOKEN")
+        TRELLO_TOKEN=os.getenv("TRELLO_TOKEN"),
+        SLACK_SIGNING_SECRET=os.getenv("SLACK_SIGNING_SECRET")
     )
 
     if not app.config.get("SECRET_KEY"):
