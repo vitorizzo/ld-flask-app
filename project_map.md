@@ -24,6 +24,7 @@ Ultimo aggiornamento: 2026-01-14
 
 ### Routes
 /routes/trello.py       → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/routes/trello.py  
+/routes/slack.py        → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/routes/slack.py
 
 ### Tools
 /tools/processor.py     → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/processor.py  
@@ -32,6 +33,7 @@ Ultimo aggiornamento: 2026-01-14
 /tools/app_factory.py   → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/app_factory.py  
 /tools/slack_client.py  → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/slack_client.py
 /tools/slack_api.py     → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/slack_api.py
+/tools/slack_processor.py → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/slack_processor.py
 
 ### Templates — Trello
 /templates/base.html                  → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/templates/base.html  
