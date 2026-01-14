@@ -1,6 +1,6 @@
 # project_map.md
-Versione: 1.3
-Ultimo aggiornamento: 2026-01-12
+Versione: 1.4
+Ultimo aggiornamento: 2026-01-14
 
 ## Raw file map (main)
 
@@ -30,6 +30,8 @@ Ultimo aggiornamento: 2026-01-12
 /tools/trello_client.py → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/trello_client.py  
 /tools/trello_api.py    → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/trello_api.py  
 /tools/app_factory.py   → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/app_factory.py  
+/tools/slack_client.py  → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/slack_client.py
+/tools/slack_api.py     → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/slack_api.py
 
 ### Templates — Trello
 /templates/base.html                  → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/templates/base.html  
