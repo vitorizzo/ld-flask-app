@@ -16,68 +16,67 @@ self.addEventListener("install", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  const url = event.request.url;
   const req = event.request;
-  const accept = req.headers.get("accept") || "";
 
-  // HTML navigation: NETWORK FIRST (prevents stale logged-out pages)
-  if (req.mode === "navigate" || accept.includes("text/html")) {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          // optional: update cache for offline fallback
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
-          return res;
-        })
-        .catch(() => caches.match(req).then((r) => r || caches.match("/")))
-    );
-    return;
-  }
+  // Solo GET
+  if (req.method !== "GET") return;
 
-  // Per CSS/JS specifici → network first
-  if (url.includes("install_banner.css") || url.includes("install_banner.js")) {
-    event.respondWith(
-      fetch(event.request).then(response => {
-        return response;
-      }).catch(() => {
-        return caches.match(event.request);  // fallback se offline
-      })
-    );
-    return;
-  }
+  const url = new URL(req.url);
 
-  // API endpoints (sempre NETWORK FIRST, mai cache-first)
-  if (url.includes("/trello/")) {
+  // Non cache per richieste Trello/API interne (evita dati stantii)
+  if (url.pathname.startsWith("/trello/")) {
     event.respondWith(
       fetch(req, { cache: "no-store" }).catch(() => caches.match(req))
     );
     return;
   }
 
-
-  // Default → cache first
+  // Network-first globale con fallback cache
   event.respondWith(
-    caches.match(event.request).then(cachedResponse => {
-      return cachedResponse || fetch(event.request).then(networkResponse => {
-        return caches.open(CACHE_NAME).then(cache => {
-          cache.put(event.request, networkResponse.clone());
-          return networkResponse;
-        });
-      });
-    })
+    fetch(req)
+      .then((res) => {
+        // Non cache se non OK o se è un redirect opaco
+        if (!res || res.status !== 200 || res.type === "opaque") return res;
+
+        const copy = res.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
+        return res;
+      })
+      .catch(() => caches.match(req))
   );
 });
 
+// API endpoints (sempre NETWORK FIRST, mai cache-first)
+if (url.includes("/trello/")) {
+event.respondWith(
+  fetch(req, { cache: "no-store" }).catch(() => caches.match(req))
+);
+return;
+}
+
+
+// Default → cache first
+event.respondWith(
+caches.match(event.request).then(cachedResponse => {
+  return cachedResponse || fetch(event.request).then(networkResponse => {
+    return caches.open(CACHE_NAME).then(cache => {
+      cache.put(event.request, networkResponse.clone());
+      return networkResponse;
+    });
+  });
+})
+);
+});
+
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.map((key) => {
-        if (key !== CACHE_NAME) {
-          return caches.delete(key); // elimina vecchie cache
-        }
-      }))
-    )
-  );
-  return self.clients.claim();
+event.waitUntil(
+caches.keys().then((keys) =>
+  Promise.all(keys.map((key) => {
+    if (key !== CACHE_NAME) {
+      return caches.delete(key); // elimina vecchie cache
+    }
+  }))
+)
+);
+return self.clients.claim();
 });

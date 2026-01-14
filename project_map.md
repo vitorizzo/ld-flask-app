@@ -37,6 +37,10 @@ Ultimo aggiornamento: 2026-01-12
 /templates/trello_connections.html      → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/templates/trello_connections.html  
 /templates/trello_actions.html           → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/templates/trello_actions.html  
 
+
+### Static - service worker
+/static/service_worker.js → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/static/service-worker.js
+
 ### Static JS — Trello
 /static/js/editor.js                → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/static/js/editor.js  
 /static/js/trello_editor.js        → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/static/js/trello_editor.js  
