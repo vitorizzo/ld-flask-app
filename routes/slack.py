@@ -25,7 +25,7 @@ def _verify_slack_signature(req) -> bool:
     """
     # signing_secret = os.getenv("SLACK_SIGNING_SECRET", "")
     signing_secret = current_app.config.get("SLACK_SIGNING_SECRET", "")
-    logger.debug("Verifica firma Slack con secret: %s", bool(signing_secret))
+    logger.debug("Verifica firma Slack: secret_present=%s", bool(signing_secret))
     if not signing_secret:
         logger.error("SLACK_SIGNING_SECRET mancante")
         return False
