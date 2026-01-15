@@ -101,13 +101,26 @@ def slack_events():
 
             dedup_key = event_id or f"{event_type}:{event_ts}:{payload.get('team_id')}"
             team_id = payload.get("team_id")
+            logger.debug("Slack event persist: dedup_key=%s", dedup_key)
+            logger.debug("Slack event payload: %s", payload)
+            logger.debug("Slack event team_id: %s", team_id)
             conn_id = None
 
             if team_id:
                 from models import SlackConnection
                 conn = SlackConnection.query.filter_by(team_id=team_id).first()
-                if conn:
-                    conn_id = conn.id
+
+                if not conn:
+                    conn = SlackConnection(
+                        team_id=team_id,
+                        team_name=payload.get("team") or None,
+                        bot_user_id=None,
+                        bot_token=current_app.config.get("SLACK_BOT_TOKEN", "")
+                    )
+                    db.session.add(conn)
+                    db.session.flush()  # ottiene conn.id senza commit separato
+
+                conn_id = conn.id
 
             exists = SlackEvent.query.filter_by(dedup_key=dedup_key).first()
             if not exists:
