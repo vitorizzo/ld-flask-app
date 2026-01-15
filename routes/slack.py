@@ -91,6 +91,15 @@ def slack_events():
         event = payload.get("event", {}) or {}
         event_type = event.get("type")
         subtype = event.get("subtype")
+        if event_type == "reaction_added":
+            logger.info(
+                "Slack reaction_added: user=%s item_channel=%s item_ts=%s reaction=%s",
+                event.get("user"),
+                (event.get("item") or {}).get("channel"),
+                (event.get("item") or {}).get("ts"),
+                event.get("reaction"),
+            )
+
         p = SlackProcessor()
         logger.info("Slack event_callback ricevuto: event_type=%s", event.get("type"))
 
