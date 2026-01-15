@@ -43,8 +43,8 @@ class SlackAPI:
         """
         try:
             resp = self.client.auth_test()
-            # slack_sdk restituisce un SlackResponse, convertibile in dict
-            data = dict(resp)
+            data = resp.data  # dict
+
             logger.info("Slack auth_test ok: team=%s user_id=%s", data.get("team"), data.get("user_id"))
             return data
         except SlackApiError as e:
