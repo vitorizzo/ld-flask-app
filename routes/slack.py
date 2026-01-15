@@ -10,6 +10,8 @@ from flask import Blueprint, request, jsonify, current_app
 
 from tools.log_utils import get_logger
 
+from tools.slack_processor import SlackProcessor
+
 logger = get_logger("slack", level=logging.DEBUG)
 logger.debug("🧪 Logger 'slack' inizializzato correttamente - test DEBUG")
 
@@ -89,6 +91,8 @@ def slack_events():
         event = payload.get("event", {}) or {}
         event_type = event.get("type")
         subtype = event.get("subtype")
+        p = SlackProcessor()
+        logger.info("Slack event_callback ricevuto: event_type=%s", event.get("type"))
 
         # Primo evento: message.channels -> type=message, channel_type=channel
         if event_type == "message" and event.get("channel_type") == "channel" and not subtype:
