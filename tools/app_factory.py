@@ -109,7 +109,8 @@ def create_app():
         TRELLO_KEY=os.getenv("TRELLO_KEY"),
         TRELLO_SECRET=os.getenv("TRELLO_SECRET"),
         TRELLO_TOKEN=os.getenv("TRELLO_TOKEN"),
-        SLACK_SIGNING_SECRET=os.getenv("SLACK_SIGNING_SECRET")
+        SLACK_SIGNING_SECRET=os.getenv("SLACK_SIGNING_SECRET"),
+        SLACK_BOT_TOKEN=os.getenv("SLACK_BOT_TOKEN")
     )
 
     if not app.config.get("SECRET_KEY"):
