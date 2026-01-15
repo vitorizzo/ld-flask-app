@@ -559,3 +559,48 @@ class ImportConflictAction(db.Model):
         Index("ix_ica_conflict_id", "conflict_id"),
         Index("ix_ica_applied_at", "applied_at"),
     )
+
+class SlackConnection(db.Model):
+    __tablename__ = 'slack_connections'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    team_id = db.Column(db.String(64), nullable=False, unique=True)
+    team_name = db.Column(db.String(255), nullable=True)
+
+    bot_user_id = db.Column(db.String(64), nullable=True)
+
+    # Token bot (xoxb-...) — lo mettiamo qui per avere più workspace in futuro
+    bot_token = db.Column(EncryptedString(256), nullable=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.now(timezone.utc),
+                           onupdate=datetime.now(timezone.utc), nullable=True)
+
+    ordine = db.Column(db.Integer, default=0)
+
+    actions = db.relationship(
+        'SlackAction',
+        back_populates='connection',
+        cascade='all, delete-orphan'
+    )
+
+
+class SlackAction(db.Model):
+    __tablename__ = 'slack_actions'
+
+    id = db.Column(db.Integer, primary_key=True)
+    connection_id = db.Column(
+        db.Integer,
+        db.ForeignKey('slack_connections.id', ondelete='CASCADE'),
+        nullable=False
+    )
+
+    trigger_type = db.Column(db.String(64), nullable=False)  # es: message.channels, reaction_added
+    action_type = db.Column(db.String(64), nullable=False)   # es: addReaction, postMessage, createTrelloCard...
+    config_json = db.Column(db.JSON, nullable=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.now(timezone.utc), nullable=False)
+    ordine = db.Column(db.Integer, default=0)
+
+    connection = db.relationship('SlackConnection', back_populates='actions')

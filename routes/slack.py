@@ -1,15 +1,14 @@
 # routes/slack.py
-import os
 import hmac
 import time
-import json
 import hashlib
-
 import logging
+
 from flask import Blueprint, request, jsonify, current_app
+from datetime import datetime
 
+from models import db, SlackConnection, SlackAction
 from tools.log_utils import get_logger
-
 from tools.slack_processor import SlackProcessor
 
 logger = get_logger("slack", level=logging.DEBUG)
@@ -103,6 +102,8 @@ def slack_events():
         p = SlackProcessor()
         logger.info("Slack event_callback ricevuto: event_type=%s", event.get("type"))
 
+        p.dispatch_event(event_type, event)
+
         # Primo evento: message.channels -> type=message, channel_type=channel
         if event_type == "message" and event.get("channel_type") == "channel" and not subtype:
             logger.info(
@@ -119,3 +120,90 @@ def slack_events():
 
     # fallback
     return jsonify({"ok": True})
+
+
+@slack_bp.route("/actions", methods=["GET"])
+def list_slack_actions():
+    connection_id = request.args.get("connection_id", type=int)
+    if not connection_id:
+        return jsonify({"error": "connection_id mancante"}), 400
+
+    actions = (
+        SlackAction.query
+        .filter_by(connection_id=connection_id)
+        .order_by(SlackAction.ordine.asc().nullslast())
+        .all()
+    )
+
+    return jsonify([a.to_dict() for a in actions])
+
+
+@slack_bp.route("/actions/<int:action_id>", methods=["GET"])
+def get_slack_action(action_id):
+    action = SlackAction.query.get_or_404(action_id)
+    return jsonify(action.to_dict())
+
+
+@slack_bp.route("/actions", methods=["POST"])
+def create_slack_action():
+    data = request.get_json(force=True)
+
+    required = ["connection_id", "trigger_type", "action_type", "config_json"]
+    missing = [k for k in required if k not in data]
+    if missing:
+        return jsonify({"error": f"Campi mancanti: {missing}"}), 400
+
+    action = SlackAction(
+        connection_id=data["connection_id"],
+        trigger_type=data["trigger_type"],
+        action_type=data["action_type"],
+        config_json=data["config_json"],
+        ordine=data.get("ordine"),
+        created_at=datetime.utcnow(),
+    )
+
+    db.session.add(action)
+    db.session.commit()
+
+    logger.info("SlackAction creata id=%s", action.id)
+    return jsonify(action.to_dict()), 201
+
+
+@slack_bp.route("/actions/<int:action_id>", methods=["PUT"])
+def update_slack_action(action_id):
+    action = SlackAction.query.get_or_404(action_id)
+    data = request.get_json(force=True)
+
+    for field in ["trigger_type", "action_type", "config_json", "ordine"]:
+        if field in data:
+            setattr(action, field, data[field])
+
+    db.session.commit()
+
+    logger.info("SlackAction aggiornata id=%s", action.id)
+    return jsonify(action.to_dict())
+
+
+@slack_bp.route("/actions/<int:action_id>", methods=["DELETE"])
+def delete_slack_action(action_id):
+    action = SlackAction.query.get_or_404(action_id)
+
+    db.session.delete(action)
+    db.session.commit()
+
+    logger.info("SlackAction eliminata id=%s", action_id)
+    return jsonify({"ok": True})
+
+
+def to_dict(self):
+    return {
+        "id": self.id,
+        "connection_id": self.connection_id,
+        "trigger_type": self.trigger_type,
+        "action_type": self.action_type,
+        "config_json": self.config_json,
+        "ordine": self.ordine,
+        "created_at": self.created_at.isoformat() if self.created_at else None,
+    }
+
+

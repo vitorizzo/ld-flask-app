@@ -20,8 +20,12 @@ class SlackProcessor:
     - espone metodi di alto livello usabili da routes e, in futuro, da Celery
     """
 
-    def __init__(self) -> None:
+    def __init__(self, connection=None) -> None:
+        """
+        connection: opzionale (in futuro SlackConnection)
+        """
         self._api: Optional[SlackAPI] = None
+        self.connection = connection
 
     def _get_api(self) -> SlackAPI:
         if self._api is not None:
@@ -57,3 +61,89 @@ class SlackProcessor:
         except Exception:
             logger.exception("Errore in handle_message_channels")
             return False
+
+    # ============================================================
+    # B.1 — Dispatcher centrale eventi Slack
+    # ============================================================
+    def dispatch_event(self, event_type: str, payload: dict):
+        """
+        Entry point unico per TUTTI gli eventi Slack.
+        - Normalizza
+        - Logga
+        - (in futuro) risolve actions
+        """
+        if not event_type:
+            logger.warning("dispatch_event chiamato senza event_type")
+            return
+
+        normalizer = {
+            "message": self._normalize_message,
+            "reaction_added": self._normalize_reaction_added,
+        }
+
+        handler = normalizer.get(event_type)
+
+        if not handler:
+            logger.info(
+                "[SLACK][IGNORED] event_type=%s payload_keys=%s",
+                event_type,
+                list(payload.keys())
+            )
+            return
+
+        normalized = handler(payload)
+
+        if not normalized:
+            logger.warning(
+                "[SLACK][NORMALIZE_FAIL] event_type=%s",
+                event_type
+            )
+            return
+
+        logger.info(
+            "[SLACK][EVENT] trigger=%s data=%s",
+            normalized["trigger"],
+            normalized["data"]
+        )
+
+        # STOP QUI — niente azioni reali (B.1 finisce qui)
+        return normalized
+
+    # ============================================================
+    # Normalizzatori
+    # ============================================================
+    def _normalize_message(self, event: dict) -> dict | None:
+        """
+        Slack message.channels
+        """
+        if event.get("channel_type") != "channel":
+            return None
+
+        if event.get("subtype"):
+            return None
+
+        return {
+            "trigger": "message.channels",
+            "data": {
+                "channel": event.get("channel"),
+                "user": event.get("user"),
+                "ts": event.get("ts"),
+                "text": event.get("text"),
+            }
+        }
+
+    def _normalize_reaction_added(self, event: dict) -> dict | None:
+        """
+        Slack reaction_added
+        """
+        item = event.get("item") or {}
+
+        return {
+            "trigger": "reaction_added",
+            "data": {
+                "reaction": event.get("reaction"),
+                "user": event.get("user"),
+                "item_channel": item.get("channel"),
+                "item_ts": item.get("ts"),
+            }
+        }
