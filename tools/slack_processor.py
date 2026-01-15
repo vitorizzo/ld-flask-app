@@ -42,3 +42,18 @@ class SlackProcessor:
         logger.info("SlackProcessor.auth_test()")
         api = self._get_api()
         return api.auth_test()
+
+    def handle_message_channels(self, channel: str, ts: str, *, reaction: str = "eyes") -> bool:
+        """
+        Handler minimale per message.channels:
+        - aggiunge una reaction al messaggio (default :eyes:)
+        - ritorna True se ok, False se fallisce (logga l’errore)
+        """
+        try:
+            api = self._get_api()
+            api.add_reaction(channel=channel, timestamp=ts, name=reaction)
+            logger.info("Reaction aggiunta: channel=%s ts=%s reaction=%s", channel, ts, reaction)
+            return True
+        except Exception:
+            logger.exception("Errore in handle_message_channels")
+            return False
