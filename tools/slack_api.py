@@ -91,7 +91,7 @@ class SlackAPI:
         """
         try:
             resp = self.client.reactions_add(channel=channel, timestamp=timestamp, name=name)
-            return dict(resp)
+            return resp.data
         except SlackApiError as e:
             err = e.response.get("error") if e.response else str(e)
             logger.error("Slack reactions_add failed: %s", err)
