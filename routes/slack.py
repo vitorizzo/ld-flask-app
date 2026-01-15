@@ -105,3 +105,10 @@ def slack_events():
 
     # fallback
     return jsonify({"ok": True})
+
+
+@slack_bp.route("/test/auth", methods=["GET"])
+def slack_auth_test():
+    from tools.slack_processor import SlackProcessor
+    p = SlackProcessor()
+    return p.auth_test()
