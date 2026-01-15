@@ -604,3 +604,32 @@ class SlackAction(db.Model):
     ordine = db.Column(db.Integer, default=0)
 
     connection = db.relationship('SlackConnection', back_populates='actions')
+
+
+class SlackEvent(db.Model):
+    __tablename__ = "slack_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # opzionale: per multi-workspace in futuro
+    connection_id = db.Column(
+        db.Integer,
+        db.ForeignKey("slack_connections.id", ondelete="SET NULL"),
+        nullable=True
+    )
+
+    # es: "message.channels", "reaction_added"
+    trigger_type = db.Column(db.String(64), nullable=False, index=True)
+
+    # id evento Slack (se presente): event_id / event_ts / item.ts ecc.
+    event_ts = db.Column(db.String(32), nullable=True, index=True)
+
+    # Dedup key: hash del body raw o combinazione stabile (definiremo dopo)
+    dedup_key = db.Column(db.String(128), nullable=True, unique=True, index=True)
+
+    # payload originale (o normalizzato) per audit/debug/replay
+    payload = db.Column(db.JSON, nullable=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    connection = db.relationship("SlackConnection", backref="events")

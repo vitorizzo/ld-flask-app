@@ -90,6 +90,36 @@ def slack_events():
         event = payload.get("event", {}) or {}
         event_type = event.get("type")
         subtype = event.get("subtype")
+
+        # --- Persistenza evento (audit + dedup) ---
+        try:
+            from models import db, SlackEvent
+
+            # Dedup: usa event_id se presente, altrimenti combinazione stabile
+            event_id = payload.get("event_id")
+            event_ts = event.get("event_ts") or event.get("ts") or (event.get("item") or {}).get("ts")
+
+            dedup_key = event_id or f"{event_type}:{event_ts}:{payload.get('team_id')}"
+
+            exists = SlackEvent.query.filter_by(dedup_key=dedup_key).first()
+            if not exists:
+                se = SlackEvent(
+                    connection_id=None,  # lo agganceremo dopo (quando salviamo SlackConnection)
+                    trigger_type=event_type if event_type != "message" else "message.channels",
+                    event_ts=str(event_ts) if event_ts else None,
+                    dedup_key=dedup_key,
+                    payload=payload
+                )
+                db.session.add(se)
+                db.session.commit()
+            else:
+                logger.debug("SlackEvent duplicato ignorato dedup_key=%s", dedup_key)
+
+        except Exception:
+            logger.exception("Errore salvando SlackEvent (non blocco ACK)")
+            db.session.rollback()
+        # --- fine persistenza ---
+
         if event_type == "reaction_added":
             logger.info(
                 "Slack reaction_added: user=%s item_channel=%s item_ts=%s reaction=%s",
