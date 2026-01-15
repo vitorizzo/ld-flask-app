@@ -100,11 +100,19 @@ def slack_events():
             event_ts = event.get("event_ts") or event.get("ts") or (event.get("item") or {}).get("ts")
 
             dedup_key = event_id or f"{event_type}:{event_ts}:{payload.get('team_id')}"
+            team_id = payload.get("team_id")
+            conn_id = None
+
+            if team_id:
+                from models import SlackConnection
+                conn = SlackConnection.query.filter_by(team_id=team_id).first()
+                if conn:
+                    conn_id = conn.id
 
             exists = SlackEvent.query.filter_by(dedup_key=dedup_key).first()
             if not exists:
                 se = SlackEvent(
-                    connection_id=None,  # lo agganceremo dopo (quando salviamo SlackConnection)
+                    connection_id=conn_id,
                     trigger_type=event_type if event_type != "message" else "message.channels",
                     event_ts=str(event_ts) if event_ts else None,
                     dedup_key=dedup_key,
