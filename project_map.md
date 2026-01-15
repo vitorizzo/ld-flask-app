@@ -1,6 +1,6 @@
 # project_map.md
-Versione: 1.4
-Ultimo aggiornamento: 2026-01-14
+Versione: 1.4.1
+Ultimo aggiornamento: 2026-01-15
 
 ## Raw file map (main)
 
@@ -12,6 +12,7 @@ Ultimo aggiornamento: 2026-01-14
 /README.md             → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/README.md  
 /config.py             → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/config.py  
 /celery_worker.py      → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/celery_worker.py  
+/requirements.txt      → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/requirements.txt
 
 ### Config
 /config/celeryconfig.py → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/config/celeryconfig.py  
