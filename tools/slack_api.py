@@ -23,7 +23,6 @@ class SlackAPIConfig:
     bot_token: str
 
 
-
 class SlackAPI:
     """
     Wrapper minimale sopra slack_sdk.WebClient.
