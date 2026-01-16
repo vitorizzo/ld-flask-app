@@ -119,10 +119,29 @@ class SlackProcessor:
             conn_id = None
 
         if conn_id:
-            self.find_actions_for_trigger(conn_id, normalized["trigger"])
+            actions = self.find_actions_for_trigger(conn_id, normalized["trigger"])
+
+            # B.2: esegui action reali (per ora solo addReaction su message.channels)
+            for a in actions:
+                try:
+                    if a.get("action_type") == "addReaction" and normalized["trigger"] == "message.channels":
+                        name = (a.get("config_json") or {}).get("name") or "thumbsup"
+
+                        channel = (normalized["data"] or {}).get("channel") or ""
+                        ts = (normalized["data"] or {}).get("ts") or ""
+
+                        if channel and ts:
+                            api = self._get_api()
+                            api.add_reaction(channel=channel, timestamp=ts, name=name)
+                            logger.info("[SLACK][ACTION][OK] addReaction name=%s channel=%s ts=%s", name, channel, ts)
+                        else:
+                            logger.warning("[SLACK][ACTION][SKIP] addReaction missing channel/ts data=%s",
+                                           normalized["data"])
+                except Exception:
+                    logger.exception("[SLACK][ACTION][ERR] action=%s", a)
+
         else:
             logger.warning("[SLACK][NO_CONN] cannot find connection for event")
-
         # STOP QUI — niente azioni reali (B.1 finisce qui)
         return normalized
 
