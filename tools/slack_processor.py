@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional
 
 from flask import current_app
 
+from models import SlackConnection
 from tools.log_utils import get_logger
 from tools.slack_api import SlackAPI, SlackAPIConfig
 
@@ -106,8 +107,53 @@ class SlackProcessor:
             normalized["data"]
         )
 
+        # filter/search actions
+        conn_id = None
+        try:
+            conn_id = (self.connection.id
+                       if self.connection and getattr(self.connection, "id", None)
+                       else payload.get("team_id") and
+                       SlackConnection.query.filter_by(team_id=payload.get("team_id")).first().id
+                       )
+        except Exception:
+            conn_id = None
+
+        if conn_id:
+            self.find_actions_for_trigger(conn_id, normalized["trigger"])
+        else:
+            logger.warning("[SLACK][NO_CONN] cannot find connection for event")
+
         # STOP QUI — niente azioni reali (B.1 finisce qui)
         return normalized
+
+    def find_actions_for_trigger(self, connection_id: int, trigger: str) -> list[dict]:
+        """
+        Carica tutte le SlackAction per questa connection_id
+        che hanno lo stesso trigger_type.
+        Ritorna lista di dict con action_type + config_json.
+        """
+        from models import SlackAction
+
+        actions = (
+            SlackAction.query
+            .filter_by(connection_id=connection_id, trigger_type=trigger)
+            .order_by(SlackAction.ordine.asc().nullslast())
+            .all()
+        )
+
+        result = []
+        for a in actions:
+            result.append({
+                "id": a.id,
+                "action_type": a.action_type,
+                "config_json": a.config_json,
+                "ordine": a.ordine,
+            })
+        logger.info(
+            "[SLACK][ACTIONS] found %d actions for trigger=%s conn_id=%s",
+            len(result), trigger, connection_id
+        )
+        return result
 
     # ============================================================
     # Normalizzatori
