@@ -169,10 +169,10 @@ def slack_events():
                 event.get("ts"),
                 (event.get("text") or "")[:200]
             )
-            p.handle_message_channels(
-                channel=event.get("channel", ""),
-                ts=event.get("ts", "")
-            )
+            # p.handle_message_channels(
+            #     channel=event.get("channel", ""),
+            #     ts=event.get("ts", "")
+            # )
 
         # ACK sempre rapido
         return jsonify({"ok": True})
