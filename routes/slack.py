@@ -153,7 +153,12 @@ def slack_events():
         p = SlackProcessor()
         logger.info("Slack event_callback ricevuto: event_type=%s", event.get("type"))
 
-        p.dispatch_event(event_type, event)
+        # B.1: passa sempre team_id al dispatcher (serve per risolvere connection_id)
+        event_with_team = dict(event)
+        event_with_team["team_id"] = payload.get("team_id")
+
+        p.dispatch_event(event_type, event_with_team)
+        # p.dispatch_event(event_type, event)
 
         # Primo evento: message.channels -> type=message, channel_type=channel
         if event_type == "message" and event.get("channel_type") == "channel" and not subtype:
@@ -164,7 +169,10 @@ def slack_events():
                 event.get("ts"),
                 (event.get("text") or "")[:200]
             )
-            p.handle_message_channels(channel=event.get("channel", ""), ts=event.get("ts", ""))
+            p.handle_message_channels(
+                channel=event.get("channel", ""),
+                ts=event.get("ts", "")
+            )
 
         # ACK sempre rapido
         return jsonify({"ok": True})
