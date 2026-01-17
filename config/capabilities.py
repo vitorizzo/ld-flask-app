@@ -127,21 +127,40 @@ CAPABILITIES: Dict[str, Dict[str, Any]] = {
         "placeholders": [
             "{{user}}",
             "{{channel}}",
-            "{{ts}}",
+            "{{item_ts}}",
             "{{text}}",
             "{{reaction}}",
         ],
         "trigger_fields": {
-            # per ora niente campi: gli eventi arrivano da Slack
+            "message.channels": [],
+            "reaction_added": [],
         },
         "action_fields": {
             "addReaction": [
-                {"name": "reaction", "label": "Reaction (senza :)", "type": "text", "required": True, "placeholder": "eyes"},
+                {
+                    "label": "Reazione",
+                    "name": "reaction",
+                    "type": "text",
+                    "placeholder": "eyes",
+                    "required": True,
+                }
             ],
             "sendMessage": [
-                {"name": "channel", "label": "Canale", "type": "text", "required": True, "placeholder": "#ldapp"},
-                {"name": "text", "label": "Testo", "type": "textarea", "required": True},
-            ],
+                {
+                    "label": "Canale",
+                    "name": "channel",
+                    "type": "text",
+                    "placeholder": "#general",
+                    "required": True,
+                },
+                {
+                    "label": "Messaggio",
+                    "name": "message",
+                    "type": "textarea",
+                    "placeholder": "Testo del messaggio",
+                    "required": True,
+                }
+            ]
         },
     },
 }

@@ -7,6 +7,7 @@ import logging
 from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
 
+from config.capabilities import CAPABILITIES
 from models import db, SlackConnection, SlackAction
 from tools.log_utils import get_logger
 from tools.slack_processor import SlackProcessor
@@ -15,6 +16,11 @@ logger = get_logger("slack", level=logging.DEBUG)
 logger.debug("🧪 Logger 'slack' inizializzato correttamente - test DEBUG")
 
 slack_bp = Blueprint("slack", __name__, url_prefix="/slack")
+
+
+@slack_bp.route("/capabilities", methods=["GET"])
+def slack_capabilities():
+    return jsonify(CAPABILITIES.get("slack", {})), 200
 
 
 def _verify_slack_signature(req) -> bool:
