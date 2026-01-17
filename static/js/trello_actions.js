@@ -1,69 +1,20 @@
 // trello_actions.js
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const connId = window.TRELLO_CONN_ID;
   const tbody  = document.querySelector('#actions-table tbody');
 
-  // ---------------------------------------------------------------------------
-  // 3.1) Costanti
-  // ---------------------------------------------------------------------------
-  const AVAILABLE_TRIGGERS = [
-    'copyCard',
-    'createCard',
-    'updateCard',
-    'moveCard',
-    'commentCard',
-    'moveToList',
-    'addLabelToCard'
-  ];
+  // Capabilities (backend)
+  let CAPS = null;
+  try {
+    const r = await fetch("/trello/capabilities", { headers: { "Accept": "application/json" } });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    CAPS = await r.json();
+  } catch (e) {
+    alert("Impossibile caricare capabilities Trello (/trello/capabilities).");
+    console.error(e);
+    return; // senza capabilities non proseguo
+  }
 
-  const AVAILABLE_ACTIONS = [
-    'sendEmail',
-    'addComment',
-    'mirrorCard',
-    'customizeCard',
-    'sendSlackMessage',
-    'serviceComments'
-  ];
-
-  const PLACEHOLDER_LIST = [
-    '{{user}}',
-    '{{card.name}}',
-    '{{card.id}}',
-    '{{card.url}}',
-    '{{listbefore.name}}',
-    '{{listafter.name}}',
-    '{{list.name}}',
-    '{{list.id}}',
-    '{{board.name}}',
-    '{{board.id}}',
-    '{{comment.text}}'
-  ];
-
-  const TRIGGER_FIELDS = {
-    moveToList: [
-      { name: 'list_id', label: 'ID Lista di Destinazione', type: 'text', required: true, placeholder: '640c3f36b45cebb4ad052254' }
-    ],
-    // altri trigger in futuro...
-  };
-
-  const ACTION_FIELDS = {
-    sendEmail: [
-      { name: 'to', type: 'email', label: 'To', required: true },
-      { name: 'subject', type: 'text', label: 'Subject', required: true },
-      { name: 'body', type: 'textarea', label: 'Body', required: true }
-    ],
-    addComment: [
-      { name: 'comment', type: 'textarea', label: 'Commento', required: true, placeholder: 'Esempio: La card {{card.name}} è stata spostata da {{user}}' }
-    ],
-    mirrorCard: [
-      { name: 'target_board_id', type: 'text', label: 'Board ID destinazione', required: true },
-      { name: 'target_list_id', type: 'text', label: 'Lista destinazione', required: true }
-    ],
-    sendSlackMessage: [
-      { name: 'channel', type: 'text', label: 'Canale Slack', required: true, placeholder: '#nome-canale' },
-      { name: 'message', type: 'textarea', label: 'Messaggio', required: true, placeholder: 'Esempio: La card {{card.name}} è stata spostata da {{user}}' }
-    ]
-  };
 
   // ---------------------------------------------------------------------------
   // 3.2) Riferimenti al form
@@ -80,6 +31,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const ordineInput     = document.getElementById('ordine');
 
   let editingActionId = null;
+
+
+  // 3.3) Popola le tendine da capabilities backend
+  CAPS.triggers.forEach(t => {
+    const o = document.createElement('option');
+    o.value = t.value;
+    o.text  = t.label;
+    triggerSelect.appendChild(o);
+  });
+
+  CAPS.actions.forEach(a => {
+    const o = document.createElement('option');
+    o.value = a.value;
+    o.text  = a.label;
+    actionSelect.appendChild(o);
+  });
 
   // ---------------------------------------------------------------------------
   // Helper: render standard fields (input/textarea)
@@ -100,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // placeholder selector
         const selector = document.createElement('select');
         selector.innerHTML = `<option value="">+ Inserisci variabile...</option>`;
-        PLACEHOLDER_LIST.forEach(ph => {
+        CAPS.placeholders.forEach(ph => {
           const opt = document.createElement('option');
           opt.value = ph;
           opt.textContent = ph;
@@ -274,20 +241,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // 3.3) Popola le tendine trigger/action
-  // ---------------------------------------------------------------------------
-  AVAILABLE_TRIGGERS.forEach(t => {
-    const o = document.createElement('option');
-    o.value = t; o.text = t;
-    triggerSelect.appendChild(o);
-  });
-
-  AVAILABLE_ACTIONS.forEach(a => {
-    const o = document.createElement('option');
-    o.value = a; o.text = a;
-    actionSelect.appendChild(o);
-  });
 
   // ---------------------------------------------------------------------------
   // 1) FETCH lista azioni e popola la tabella
@@ -315,7 +268,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ---------------------------------------------------------------------------
   // 2) Delegation per Modifica/Elimina
   // ---------------------------------------------------------------------------
-  tbody.addEventListener('click', e => {
+  tbody.addEventListener('click', async e => {
     const btn = e.target;
     const id  = btn.dataset.id;
 
@@ -346,22 +299,23 @@ document.addEventListener('DOMContentLoaded', () => {
           actionSelect.value  = action.action_type;
 
           // disegna campi base
-          renderFields(TRIGGER_FIELDS[action.trigger_type] || [], triggerParamsDiv);
-          renderFields(ACTION_FIELDS[action.action_type]  || [], actionParamsDiv);
+          renderFields(CAPS.trigger_fields[action.trigger_type] || [], triggerParamsDiv);
+          renderFields(CAPS.action_fields[action.action_type]  || [], actionParamsDiv);
 
           const config = action.config_json || {};
 
-          // sostituisce con select dove serve + prefill
-          await enhanceDynamicFields(config);
-
-          // riempi i valori rimanenti (input/textarea e hidden inputs)
+          /// riempi i valori rimanenti (input/textarea e hidden inputs)
           [triggerParamsDiv, actionParamsDiv].forEach(container => {
-            Array.from(container.querySelectorAll('input,textarea')).forEach(fld => {
+            Array.from(container.querySelectorAll('input,textarea,select')).forEach(fld => {
               if (config[fld.name] !== undefined) {
                 fld.value = config[fld.name];
               }
             });
           });
+
+          // sostituisce con select dove serve + prefill
+          await enhanceDynamicFields(config);
+
 
           document.getElementById('save-action').style.display = 'none';
           document.getElementById('update-action').style.display = 'inline-block';
@@ -398,13 +352,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // 3.5) Al cambio trigger/action, disegna campi e poi enhance
   // ---------------------------------------------------------------------------
   actionSelect.addEventListener('change', async () => {
-    const fields = ACTION_FIELDS[actionSelect.value] || [];
+    const fields = CAPS.action_fields[actionSelect.value] || [];
     renderFields(fields, actionParamsDiv);
     await enhanceDynamicFields({});
   });
 
   triggerSelect.addEventListener('change', async () => {
-    const fields = TRIGGER_FIELDS[triggerSelect.value] || [];
+    const fields = CAPS.trigger_fields[triggerSelect.value] || [];
     renderFields(fields, triggerParamsDiv);
     await enhanceDynamicFields({});
   });
