@@ -18,7 +18,8 @@ Ultimo aggiornamento: 2026-01-15
 /config/celeryconfig.py → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/config/celeryconfig.py  
 /config/celery_app.py   → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/config/celery_app.py  
 /config/paths_config.py → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/config/paths_config.py  
-/config/tasks.py        → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/config/tasks.py  
+/config/tasks.py        → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/config/tasks.py
+/config/capabilities.py → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/config/capabilities.py
 
 ### Forms
 /forms/forms.py         → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/forms/forms.py  

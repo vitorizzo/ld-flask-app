@@ -16,11 +16,20 @@ from tools.log_utils import get_logger
 from tools.trello_api import TrelloAPI
 from tools.trello_client import create_webhook, delete_webhook, TrelloClientError
 from tools.processor import process_trello_event  # da implementare al punto 6
+from config.capabilities import get_capabilities
 
 logger = get_logger("trello", level=logging.DEBUG)
 logger.debug("🧪 Logger 'trello' inizializzato correttamente - test DEBUG")
 
 trello_bp = Blueprint('trello', __name__, url_prefix='/trello')
+
+
+@trello_bp.route("/capabilities", methods=["GET"])
+def trello_capabilities():
+    """
+    Restituisce le capabilities Trello (triggers, actions, placeholders, field defs).
+    """
+    return jsonify(get_capabilities("trello")), 200
 
 
 @trello_bp.route('/boards/<string:board_id>/lists', methods=['GET'])
