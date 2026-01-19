@@ -10,6 +10,7 @@ from jinja2 import Template
 from models import SlackConnection
 from tools.log_utils import get_logger
 from tools.slack_api import SlackAPI, SlackAPIConfig
+from tools.automation_dispatcher import AutomationDispatcher
 
 logger = get_logger("slack_processor", level=logging.INFO)
 
@@ -155,6 +156,20 @@ class SlackProcessor:
         if not conn_id:
             logger.warning("[SLACK][NO_CONN] cannot find connection for event (team_id=%s)", team_id)
             return normalized
+
+        # ============================================================
+        # V2 — Cross-app automations (parallelo al legacy)
+        # ============================================================
+        try:
+            dispatcher = AutomationDispatcher()
+            dispatcher.dispatch({
+                "app": "slack",
+                "trigger": normalized["trigger"],
+                "connection_id": conn_id,
+                "payload": normalized["data"],
+            })
+        except Exception:
+            logger.exception("[V2][SLACK] dispatcher failed")
 
         actions = self.find_actions_for_trigger(conn_id, normalized["trigger"])
         self.execute_actions(actions, normalized["data"])
