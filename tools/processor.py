@@ -7,6 +7,7 @@ from jinja2 import Template
 from models import TrelloAction
 from tools.log_utils import get_logger
 from tools.trello_api import TrelloAPI
+from tools.automation_dispatcher import AutomationDispatcher
 
 logger = get_logger("processor", level=logging.DEBUG)
 logger.debug("🧪 Logger 'processor' inizializzato correttamente - test DEBUG")
@@ -168,6 +169,20 @@ def process_trello_event(connection, payload):
         context['card_id'] = card.get('id')
         context['card_name'] = card.get('name')
         logger.info(f"card passata {card.get('name')}")
+
+    # ==========================================================
+    # V2 — Cross-app automations (parallelo al legacy)
+    # ==========================================================
+    try:
+        dispatcher = AutomationDispatcher()
+        dispatcher.dispatch({
+            "app": "trello",
+            "trigger": trigger_type,  # già lista normalizzata
+            "connection_id": connection.id,
+            "payload": payload,  # per Trello usiamo payload completo
+        })
+    except Exception:
+        logger.exception("[V2][TRELLO] dispatcher failed")
 
     # Per ogni azione, esegui la logica
     for act in actions:
