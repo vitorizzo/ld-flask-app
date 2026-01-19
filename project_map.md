@@ -36,6 +36,7 @@ Ultimo aggiornamento: 2026-01-15
 /tools/slack_client.py  → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/slack_client.py
 /tools/slack_api.py     → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/slack_api.py
 /tools/slack_processor.py → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/slack_processor.py
+/tools/automation_dispatcher.py → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/automation_dispatcher.py
 
 /tools/executors/base.py→ https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/executors/base.py
 /tools/executors/trello_executor.py → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/executors/trello_executor.py
