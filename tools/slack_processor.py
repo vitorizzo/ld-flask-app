@@ -5,6 +5,7 @@ import logging
 from typing import Any, Dict, Optional
 
 from flask import current_app
+from jinja2 import Template
 
 from models import SlackConnection
 from tools.log_utils import get_logger
@@ -48,6 +49,46 @@ class SlackProcessor:
         api = self._get_api()
         return api.auth_test()
 
+    def _render(self, tpl: str, ctx: dict) -> str:
+        return Template(tpl or "").render(**ctx)
+
+    def execute_actions(self, actions: list[dict], ctx: dict) -> None:
+        api = self._get_api()
+
+        for act in actions:
+            action_type = act.get("action_type")
+            cfg = act.get("config_json") or {}
+
+            match action_type:
+                case "addReaction":
+                    # cfg: { reaction }
+                    reaction = (cfg.get("reaction") or "eyes").strip()
+
+                    # timestamp+channel dipendono dal trigger
+                    ch = ctx.get("channel") or ctx.get("item_channel") or ""
+                    ts = ctx.get("ts") or ctx.get("item_ts") or ""
+
+                    if ch and ts:
+                        api.add_reaction(channel=ch, timestamp=ts, name=reaction)
+                        logger.info("[SLACK][ACTION] addReaction ok: %s %s %s", reaction, ch, ts)
+                    else:
+                        logger.warning("[SLACK][ACTION] addReaction skipped: missing channel/ts ctx=%s", ctx)
+
+                case "sendMessage":
+                    # cfg: { channel, message }
+                    channel = (cfg.get("channel") or "").strip()
+                    message_tpl = cfg.get("message") or ""
+                    text = self._render(message_tpl, ctx)
+
+                    if channel and text:
+                        api.send_message(channel=channel, text=text)
+                        logger.info("[SLACK][ACTION] sendMessage ok: %s", channel)
+                    else:
+                        logger.warning("[SLACK][ACTION] sendMessage skipped: missing channel/text cfg=%s", cfg)
+
+                case _:
+                    logger.warning("[SLACK][ACTION] type non riconosciuto: %s", action_type)
+
     def handle_message_channels(self, channel: str, ts: str, *, reaction: str = "eyes") -> bool:
         """
         Handler minimale per message.channels:
@@ -66,16 +107,16 @@ class SlackProcessor:
     # ============================================================
     # B.1 — Dispatcher centrale eventi Slack
     # ============================================================
-    def dispatch_event(self, event_type: str, payload: dict):
+    def dispatch_event(self, event_type: str, event: dict, *, team_id: str | None = None):
         """
         Entry point unico per TUTTI gli eventi Slack.
         - Normalizza
         - Logga
-        - (in futuro) risolve actions
+        - risolve actions e le esegue
         """
         if not event_type:
             logger.warning("dispatch_event chiamato senza event_type")
-            return
+            return None
 
         normalizer = {
             "message": self._normalize_message,
@@ -83,23 +124,18 @@ class SlackProcessor:
         }
 
         handler = normalizer.get(event_type)
-
         if not handler:
             logger.info(
                 "[SLACK][IGNORED] event_type=%s payload_keys=%s",
                 event_type,
-                list(payload.keys())
+                list(event.keys())
             )
-            return
+            return None
 
-        normalized = handler(payload)
-
+        normalized = handler(event)
         if not normalized:
-            logger.warning(
-                "[SLACK][NORMALIZE_FAIL] event_type=%s",
-                event_type
-            )
-            return
+            logger.warning("[SLACK][NORMALIZE_FAIL] event_type=%s", event_type)
+            return None
 
         logger.info(
             "[SLACK][EVENT] trigger=%s data=%s",
@@ -109,40 +145,20 @@ class SlackProcessor:
 
         # filter/search actions
         conn_id = None
-        try:
-            conn_id = (self.connection.id
-                       if self.connection and getattr(self.connection, "id", None)
-                       else payload.get("team_id") and
-                       SlackConnection.query.filter_by(team_id=payload.get("team_id")).first().id
-                       )
-        except Exception:
-            conn_id = None
 
-        if conn_id:
-            actions = self.find_actions_for_trigger(conn_id, normalized["trigger"])
+        if self.connection and getattr(self.connection, "id", None):
+            conn_id = self.connection.id
+        elif team_id:
+            conn = SlackConnection.query.filter_by(team_id=team_id).first()
+            conn_id = conn.id if conn else None
 
-            # B.2: esegui action reali (per ora solo addReaction su message.channels)
-            for a in actions:
-                try:
-                    if a.get("action_type") == "addReaction" and normalized["trigger"] == "message.channels":
-                        name = (a.get("config_json") or {}).get("name") or "thumbsup"
+        if not conn_id:
+            logger.warning("[SLACK][NO_CONN] cannot find connection for event (team_id=%s)", team_id)
+            return normalized
 
-                        channel = (normalized["data"] or {}).get("channel") or ""
-                        ts = (normalized["data"] or {}).get("ts") or ""
+        actions = self.find_actions_for_trigger(conn_id, normalized["trigger"])
+        self.execute_actions(actions, normalized["data"])
 
-                        if channel and ts:
-                            api = self._get_api()
-                            api.add_reaction(channel=channel, timestamp=ts, name=name)
-                            logger.info("[SLACK][ACTION][OK] addReaction name=%s channel=%s ts=%s", name, channel, ts)
-                        else:
-                            logger.warning("[SLACK][ACTION][SKIP] addReaction missing channel/ts data=%s",
-                                           normalized["data"])
-                except Exception:
-                    logger.exception("[SLACK][ACTION][ERR] action=%s", a)
-
-        else:
-            logger.warning("[SLACK][NO_CONN] cannot find connection for event")
-        # STOP QUI — niente azioni reali (B.1 finisce qui)
         return normalized
 
     def find_actions_for_trigger(self, connection_id: int, trigger: str) -> list[dict]:

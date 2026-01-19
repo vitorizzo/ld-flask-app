@@ -617,19 +617,89 @@ class SlackEvent(db.Model):
         db.ForeignKey("slack_connections.id", ondelete="SET NULL"),
         nullable=True
     )
-
     # es: "message.channels", "reaction_added"
     trigger_type = db.Column(db.String(64), nullable=False, index=True)
-
     # id evento Slack (se presente): event_id / event_ts / item.ts ecc.
     event_ts = db.Column(db.String(32), nullable=True, index=True)
-
     # Dedup key: hash del body raw o combinazione stabile (definiremo dopo)
     dedup_key = db.Column(db.String(128), nullable=True, unique=True, index=True)
-
     # payload originale (o normalizzato) per audit/debug/replay
     payload = db.Column(db.JSON, nullable=False)
-
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
-
     connection = db.relationship("SlackConnection", backref="events")
+
+
+# ==========================================================
+# Automations v2 — Cross-app (PARALLELO al sistema legacy)
+# ==========================================================
+
+class Automation(db.Model):
+    __tablename__ = 'automations'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    name = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+
+    trigger_app = db.Column(db.String(50), nullable=False)
+    trigger_connection = db.Column(db.Integer, nullable=False)
+    trigger_type = db.Column(db.String(100), nullable=False)
+    trigger_config = db.Column(JSONB, nullable=True)
+
+    enabled = db.Column(db.Boolean, default=True, nullable=False)
+
+    created_at = db.Column(
+        db.DateTime, default=datetime.utcnow, nullable=False
+    )
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False
+    )
+
+    actions = db.relationship(
+        'AutomationAction',
+        backref='automation',
+        cascade='all, delete-orphan',
+        order_by='AutomationAction.order_index',
+        lazy='dynamic'
+    )
+
+
+class AutomationAction(db.Model):
+    __tablename__ = 'automation_actions'
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    automation_id = db.Column(
+        db.Integer,
+        db.ForeignKey('automations.id', ondelete='CASCADE'),
+        nullable=False
+    )
+
+    order_index = db.Column(db.Integer, nullable=False)
+
+    action_app = db.Column(db.String(50), nullable=False)
+    action_type = db.Column(db.String(100), nullable=False)
+    action_config = db.Column(JSONB, nullable=True)
+
+    enabled = db.Column(db.Boolean, default=True, nullable=False)
+
+    created_at = db.Column(
+        db.DateTime, default=datetime.utcnow, nullable=False
+    )
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            'automation_id',
+            'order_index',
+            name='uq_automation_action_order'
+        ),
+    )

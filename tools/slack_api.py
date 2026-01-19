@@ -100,6 +100,19 @@ class SlackAPI:
             logger.exception("Errore inatteso in SlackAPI.add_reaction")
             raise
 
+    def send_message(self, channel: str, text: str):
+        try:
+            resp = self.client.chat_postMessage(channel=channel, text=text)
+            # come hai già fatto per auth_test: restituisci dict in modo sicuro
+            return resp.data if hasattr(resp, "data") else dict(resp)
+        except SlackApiError as e:
+            err = e.response.get("error") if e.response else str(e)
+            logger.error("Slack chat_postMessage failed: %s", err)
+            raise
+        except Exception:
+            logger.exception("Errore inatteso in SlackAPI.send_message")
+            raise
+
     def get_permalink(self, channel: str, message_ts: str) -> Optional[str]:
         """
         Ritorna il permalink di un messaggio (utile per mapping Trello <-> Slack).

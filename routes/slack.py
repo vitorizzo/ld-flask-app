@@ -106,7 +106,7 @@ def slack_events():
             event_ts = event.get("event_ts") or event.get("ts") or (event.get("item") or {}).get("ts")
 
             dedup_key = event_id or f"{event_type}:{event_ts}:{payload.get('team_id')}"
-            team_id = payload.get("team_id")
+            team_id = payload.get("team_id") or payload.get("team", {}).get("id")
             logger.debug("Slack event persist: dedup_key=%s", dedup_key)
             logger.debug("Slack event payload: %s", payload)
             logger.debug("Slack event team_id: %s", team_id)
@@ -163,22 +163,8 @@ def slack_events():
         event_with_team = dict(event)
         event_with_team["team_id"] = payload.get("team_id")
 
-        p.dispatch_event(event_type, event_with_team)
+        p.dispatch_event(event_type, event, team_id=team_id)
         # p.dispatch_event(event_type, event)
-
-        # Primo evento: message.channels -> type=message, channel_type=channel
-        if event_type == "message" and event.get("channel_type") == "channel" and not subtype:
-            logger.info(
-                "Slack message event: channel=%s user=%s ts=%s text=%s",
-                event.get("channel"),
-                event.get("user"),
-                event.get("ts"),
-                (event.get("text") or "")[:200]
-            )
-            # p.handle_message_channels(
-            #     channel=event.get("channel", ""),
-            #     ts=event.get("ts", "")
-            # )
 
         # ACK sempre rapido
         return jsonify({"ok": True})
