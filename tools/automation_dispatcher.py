@@ -80,12 +80,37 @@ class AutomationDispatcher:
 
             for act in actions:
                 ex = self._executors.get((act.action_app or "").strip())
+
                 if not ex:
                     logger.warning("[V2][NO_EXECUTOR] action_app=%s action_id=%s", act.action_app, act.id)
                     continue
 
+                ctx_for_action = payload
+
+                # Se l'azione è Slack e il payload arriva da Trello, crea un ctx compatibile per i template
+                if ex.app_name == "slack" and app == "trello":
+                    try:
+                        a = (payload or {}).get("action", {}) or {}
+                        data = a.get("data", {}) or {}
+                        member = (payload or {}).get("memberCreator", {}) or a.get("memberCreator", {}) or {}
+                        display = a.get("display", {}) or {}
+
+                        ctx_for_action = {
+                            "user": member.get("fullName") or member.get("username") or "",
+                            "card": data.get("card") or {},
+                            "board": data.get("board") or {},
+                            "listbefore": data.get("listBefore") or {},
+                            "listafter": data.get("listAfter") or {},
+                            "trigger": a.get("type") or "",
+                            "raw": payload,  # fallback se serve
+                            "display": display,
+                        }
+                    except Exception:
+                        logger.exception("[V2][CTX] trello->slack ctx build failed")
+                        ctx_for_action = payload
+
                 try:
-                    ex.execute(act.action_type, act.action_config or {}, payload)
+                    ex.execute(act.action_type, act.action_config or {}, ctx_for_action)
                     executed += 1
                 except Exception:
                     logger.exception("[V2][ACTION_FAIL] automation_id=%s action_id=%s", a.id, act.id)
