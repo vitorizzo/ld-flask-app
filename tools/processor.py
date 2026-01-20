@@ -146,6 +146,21 @@ def process_trello_event(connection, payload):
     if not isinstance(trigger_type, list):
         trigger_type = [trigger_type]
 
+    # ==========================================================
+    # V2 — Cross-app automations (parallelo al legacy)
+    # ==========================================================
+    try:
+        from tools.automation_dispatcher import AutomationDispatcher
+        dispatcher = AutomationDispatcher()
+        dispatcher.dispatch({
+            "app": "trello",
+            "trigger": trigger_type,  # già lista normalizzata
+            "connection_id": connection.id,
+            "payload": payload,  # per Trello usiamo payload completo
+        })
+    except Exception:
+        logger.exception("[V2][TRELLO] dispatcher failed")
+
     # Query su tutti i tipi di trigger in lista
     actions = TrelloAction.query.filter(
         TrelloAction.connection_id == connection.id,
@@ -168,21 +183,6 @@ def process_trello_event(connection, payload):
         context['card_id'] = card.get('id')
         context['card_name'] = card.get('name')
         logger.info(f"card passata {card.get('name')}")
-
-    # ==========================================================
-    # V2 — Cross-app automations (parallelo al legacy)
-    # ==========================================================
-    try:
-        from tools.automation_dispatcher import AutomationDispatcher
-        dispatcher = AutomationDispatcher()
-        dispatcher.dispatch({
-            "app": "trello",
-            "trigger": trigger_type,  # già lista normalizzata
-            "connection_id": connection.id,
-            "payload": payload,  # per Trello usiamo payload completo
-        })
-    except Exception:
-        logger.exception("[V2][TRELLO] dispatcher failed")
 
     # Per ogni azione, esegui la logica
     for act in actions:
