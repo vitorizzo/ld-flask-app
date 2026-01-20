@@ -4,15 +4,16 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from tools.executors.base import BaseExecutor
-from tools.slack_processor import SlackProcessor
 
 
 class SlackExecutor(BaseExecutor):
     app_name = "slack"
 
-    def __init__(self, *, processor: SlackProcessor | None = None) -> None:
-        # Permette injection nei test; in runtime usa quello standard.
-        self._processor = processor or SlackProcessor()
+    def __init__(self, *, processor=None) -> None:
+        if processor is None:
+            from tools.slack_processor import SlackProcessor  # lazy import
+            processor = SlackProcessor()
+        self._processor = processor
 
     def execute(self, action_type: str, config: Dict[str, Any], ctx: Dict[str, Any]) -> Any:
         """

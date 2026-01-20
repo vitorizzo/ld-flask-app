@@ -10,7 +10,6 @@ from jinja2 import Template
 from models import SlackConnection
 from tools.log_utils import get_logger
 from tools.slack_api import SlackAPI, SlackAPIConfig
-from tools.automation_dispatcher import AutomationDispatcher
 
 logger = get_logger("slack_processor", level=logging.INFO)
 
@@ -161,6 +160,7 @@ class SlackProcessor:
         # V2 — Cross-app automations (parallelo al legacy)
         # ============================================================
         try:
+            from tools.automation_dispatcher import AutomationDispatcher
             dispatcher = AutomationDispatcher()
             dispatcher.dispatch({
                 "app": "slack",

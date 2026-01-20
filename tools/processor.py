@@ -7,7 +7,6 @@ from jinja2 import Template
 from models import TrelloAction
 from tools.log_utils import get_logger
 from tools.trello_api import TrelloAPI
-from tools.automation_dispatcher import AutomationDispatcher
 
 logger = get_logger("processor", level=logging.DEBUG)
 logger.debug("🧪 Logger 'processor' inizializzato correttamente - test DEBUG")
@@ -174,6 +173,7 @@ def process_trello_event(connection, payload):
     # V2 — Cross-app automations (parallelo al legacy)
     # ==========================================================
     try:
+        from tools.automation_dispatcher import AutomationDispatcher
         dispatcher = AutomationDispatcher()
         dispatcher.dispatch({
             "app": "trello",

@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import Any, Dict
 
 from tools.executors.base import BaseExecutor
-from tools.processor import get_trello, comment_from_to
 
 
 class TrelloExecutor(BaseExecutor):
@@ -17,6 +16,7 @@ class TrelloExecutor(BaseExecutor):
         - get_trello() per l'API
         - mapping action_type → comportamento già implementato
         """
+        from tools.processor import get_trello, comment_from_to
         t = get_trello()
         if not t:
             return None
