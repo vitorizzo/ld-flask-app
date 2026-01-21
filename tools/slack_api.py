@@ -94,10 +94,16 @@ class SlackAPI:
             return resp.data
         except SlackApiError as e:
             err = e.response.get("error") if e.response else str(e)
+
+            # Caso NON fatale: reaction già presente
+            if err == "already_reacted":
+                logger.warning(
+                    "Slack reactions_add skipped: already_reacted (channel=%s ts=%s name=%s)",
+                    channel, timestamp, name
+                )
+                return {"ok": False, "error": "already_reacted", "skipped": True}
+
             logger.error("Slack reactions_add failed: %s", err)
-            raise
-        except Exception:
-            logger.exception("Errore inatteso in SlackAPI.add_reaction")
             raise
 
     def send_message(self, channel: str, text: str):
