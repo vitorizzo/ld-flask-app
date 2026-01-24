@@ -66,6 +66,31 @@ le **uniche risposte ammesse** sono:
 
 ---
 
+1-bis. Lettura file – conferma effettiva
+
+Quando l’utente impartisce il comando:
+
+leggi /percorso/file.ext
+
+la lettura è considerata valida solo se una delle seguenti condizioni è vera:
+
+nel messaggio è presente l’URL RAW completo
+(es. https://raw.githubusercontent.com/...)
+oppure
+
+l’utente specifica esplicitamente:
+
+“usa LINK_BASE_RAW + percorso”
+
+Se nessuna delle due condizioni è soddisfatta e la lettura non va a buon fine,
+ChatGPT deve rispondere esclusivamente con:
+
+“non riesco a leggerlo perché …”
+
+❌ È vietato rispondere “ho letto” senza lettura effettiva
+❌ È vietato dedurre il contenuto per pattern o contesto
+
+
 ### 2. Autorizzazione alla lettura dei file (MASSIVA)
 
 L’utente concede **autorizzazione massiva** alla lettura dei file **esclusivamente** tramite:
@@ -177,6 +202,6 @@ ChatGPT deve:
 
 ## Versione
 
-- Versione: **2.0**
+- Versione: **2.1**
 - Stato: stabile
 - Aggiornare solo previo accordo esplicito
