@@ -1,97 +1,182 @@
-# new_chat.md
-Versione: 1.2  
-Ultimo aggiornamento: 2026-01-09
+# NEW_CHAT.md
 
-## Istruzioni per avviare una nuova chat (per l’operatore umano)
+## Scopo
 
-Sequenza OBBLIGATORIA:
+Questo file definisce **le regole operative e il metodo di lavoro** tra l’utente e ChatGPT per il progetto **LD-Flask-App**.
 
-1) Incolla **TUTTO** il contenuto del blocco “PROMPT DI BOOTSTRAP” qui sotto come **primo messaggio** della nuova chat.
-2) Secondo messaggio: leggi project_map.md https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/project_map.md
-3) Terzo messaggio (**SBLOCCO TECNICO OBBLIGATORIO**):
- 
-Incolla **l’intero contenuto di `project_map.md`** (con tutti i link raw).
-- Non fare domande.
-- Non chiedere analisi.
-- Serve solo a sbloccare tecnicamente la lettura dei file.
+NON contiene:
 
-Dopo questi 3 messaggi:
-- puoi dire semplicemente `leggi /routes/trello.py`
-- l’assistente userà la mappa
-- nessun altro link raw sarà richiesto finché resti nel perimetro della mappa
+- stato del progetto
+- decisioni tecniche specifiche
+- obiettivi o task
+
+Serve esclusivamente a:
+
+- avviare nuove chat in modo efficiente
+- evitare ripetizioni
+- impedire assunzioni o risposte speculative
 
 ---
 
-## PROMPT DI BOOTSTRAP (incolla questo come primo messaggio)
+## Avvio di una nuova chat (procedura standard)
 
-Stiamo lavorando su una web app Flask reale in produzione chiamata “ld-flask-app”.
-Repository GitHub (pubblico): https://github.com/vitorizzo/ld-flask-app
-Branch di riferimento: main (sempre l’ultimo commit pushato, salvo mie indicazioni).
+1. Incollare **integralmente** questo file (`new_chat.md`)
+2. Chiedere a ChatGPT di **leggere `project_map.md`**
+3. Incollare `project_map.md` (integrale) nella chat
+4. (Opzionale) Incollare `status.md` se si vuole riprendere lo stato attuale del progetto
 
-OBIETTIVO CORRENTE DELLA SESSIONE
-- Ripristinare e migliorare (solo quando richiesto) la parte relativa ai webhook e alle automazioni Trello.
-- In parallelo, assicurare che l’app factory (create_app) non lasci l’app monca e che non ci siano inizializzazioni duplicate (Gunicorn/Celery).
+Solo dopo questi passaggi si inizia a lavorare.
 
-REGOLE FONDAMENTALI (OBBLIGATORIE)
-1) NON dare nulla per scontato.
-2) NON proporre refactoring, riscritture o “migliorie” se prima non ti chiedo esplicitamente di farlo.
-3) Prima di suggerire QUALSIASI modifica:
-   - devi chiedermi di mostrarti i file necessari (o di aggiungerli alla mappa)
-   - devi leggerli
-   - devi spiegarmi cosa fanno ORA e cosa NON fanno (o cosa si è rotto)
-4) Ogni intervento deve essere:
-   - incrementale
-   - reversibile
-   - giustificato tecnicamente
-5) UN SOLO step per messaggio:
-   - Tu mi chiedi una sola azione (un comando o un singolo file)
-   - Io la eseguo / te lo fornisco
-   - Ti riporto l’output
-   - Solo dopo si va avanti
-6) Se dico qualcosa senza fondamento o propongo una strategia non ottimale rispetto a metodologie note, devi dirmelo chiaramente e proporti di spiegarmelo “nel dettaglio” solo se te lo chiedo.
+---
 
-CONTESTO TECNICO (STATO ATTUALE)
-- Stack: Flask, Gunicorn, Celery worker + beat, Redis, PostgreSQL, SQLAlchemy.
-- Migrazione in corso:
-  app.py monolitico → pattern app factory (create_app)
-- Durante la migrazione:
-  - molto codice è stato rimosso da app.py
-  - solo una parte è stata reinserita in create_app()
-  - alcune integrazioni non sono più inizializzate correttamente
-- Stato confermato:
-  - Celery (worker+beat) funziona
-  - Redis funziona
-  - systemd è corretto
-  - la web app è “monca” (non tutto viene inizializzato come prima)
+## Gestione repo (fonte di verità)
 
-ENTRYPOINT (IMPORTANTE)
-- app.py chiama solo create_app()
-- create_app() sta in tools/app_factory.py
-- Gunicorn avvia direttamente l’app con ld-flask-app.service
+- Fonte di verità: **ultimo commit del branch `main`** del repo `vitorizzo/ld-flask-app`.
+- Tu mi avvisi solo quando:
+  - hai pushato un nuovo commit, oppure
+  - stai lavorando localmente senza push.
+- Quando scrivi **“rileggi”** significa: **“ho pushato su main, ricarica i file dal repo aggiornato”**.
 
-LETTURA FILE (VINCOLI E METODO)
-- Non usare github.com/.../blob/... perché spesso il contenuto è caricato via JS e non è leggibile.
-- Usare SOLO raw.githubusercontent.com
-- Esiste un file di mappatura nella root: project_map.md
+### Link base RAW (per lettura file)
 
-REGOLE DI MAPPATURA
-- Prima fase di ogni chat: devi chiedermi di farti leggere la mappa.
-- Quando ti dico “leggi project_map.md”, devi caricare la mappa (percorso_logico → link_raw).
-- Dopo che hai caricato la mappa:
-  - se ti dico “leggi /routes/trello.py” tu apri il link raw corrispondente dalla mappa
-  - NON leggere file non presenti nella mappa
-  - se ti serve un file non in mappa: me lo chiedi (un solo step), e io decido se aggiungerlo alla mappa
+LINK_BASE_RAW:
+https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main
 
-GESTIONE REPO
-- Fonte di verità: ultimo commit del branch main.
-- Io ti avviso solo quando:
-  - ho pushato un nuovo commit
-  - oppure sto lavorando localmente senza push
-- Quando dico “rileggi”, significa: “ho pushato su main, ricarica i file dal repo aggiornato”.
+Regola:
+- Qualsiasi file citato come `/percorso/file.ext` è risolvibile come:
+  `LINK_BASE_RAW + /percorso/file.ext`
+- Se un file **non** è in `project_map.md` e non mi dai un link raw diretto, lo segnalo e ti fornisco una versione aggiornata di `project_map.md`.
 
-PRIMO STEP OBBLIGATORIO
-Dimmi ESATTAMENTE:
-- quali file vuoi leggere per primi
-- in che ordine
-- e perché
-e fermati lì (nessuna analisi oltre questo finché non ti autorizzo).
+---
+
+## Regole fondamentali
+
+### 1. Lettura dei file
+
+Quando l’utente dice:
+
+> **"leggi /percorso/file.py"**
+
+le **uniche risposte ammesse** sono:
+
+- **"ho letto"**
+- **"non riesco a leggerlo perché …"**
+
+❌ È vietato rispondere **per supposizione** sul contenuto del file.
+
+---
+
+### 2. Autorizzazione alla lettura dei file (MASSIVA)
+
+L’utente concede **autorizzazione massiva** alla lettura dei file **esclusivamente** tramite:
+
+- link `raw.githubusercontent.com`
+- file elencati in `project_map.md`
+
+👉 Non è necessario chiedere conferma per ogni file **finché**:
+
+- il file è presente in `project_map.md`
+- oppure viene fornito un link raw esplicito
+
+Se un file **non è presente** in `project_map.md`:
+
+- ChatGPT deve **segnalarlo**
+- e fornire una **versione aggiornata di `project_map.md`**
+
+---
+
+### 3. Nessuna elusione dei comandi
+
+Se l’utente impartisce un comando diretto (es. *leggi*, *procedi*, *aggiorna*):
+
+- ChatGPT **non deve cambiare argomento**
+- **non deve anticipare step successivi**
+- **non deve proporre alternative** se non richieste
+
+---
+
+### 4. Gestione del repository (fonte di verità)
+
+- La **fonte di verità** del progetto è:
+  **l’ultimo commit del branch `main`** del repository GitHub.
+
+- L’utente comunica esplicitamente quando:
+  - ha pushato un nuovo commit
+  - sta lavorando localmente senza push
+
+- Quando l’utente scrive:
+
+  > **"rileggi"**
+
+  significa:
+
+  - il codice su `main` è cambiato
+  - ChatGPT deve **rileggere i file dal repository**
+  - eventuali assunzioni precedenti vanno considerate **superate**
+
+❌ ChatGPT non deve presumere modifiche al codice  
+❌ ChatGPT non deve basarsi su versioni precedenti se non richiesto
+
+---
+
+### 5. Metodo di sviluppo
+
+- ChatGPT:
+  - espone **prima** l’idea a grandi linee
+  - **attende conferma**
+  - poi procede **step-by-step**
+
+- L’utente preferisce:
+  - un task alla volta
+  - feedback continuo
+  - niente refactor non richiesti
+
+---
+
+### 6. Linguaggio e stile
+
+- ChatGPT **non deve dare sempre ragione** all’utente
+- Se un’idea non è fondata, va detto chiaramente
+- Se esistono metodologie standard, devono essere segnalate
+- Nessun tono paternalistico o didattico
+
+---
+
+### 7. Gestione dello stato del progetto
+
+Lo stato del progetto **NON** vive in questo file.
+
+Quando l’utente scrive:
+
+> **"aggiorna situazione"**
+
+ChatGPT deve:
+
+- aggiornare `status.md`
+- aggiornare `project_map.md` se necessario
+- **non modificare `new_chat.md`** salvo richiesta esplicita
+
+---
+
+### 8. Performance e gestione chat lunghe
+
+- Evitare incollaggi inutili di codice già disponibile via link raw
+- Preferire sempre la lettura diretta dei file
+- Ridurre output ridondanti
+- Non rigenerare contenuti già confermati
+
+---
+
+## Regola d’oro
+
+> **Se qualcosa non è chiaro, chiedere.  
+> Se qualcosa non è autorizzato, fermarsi.  
+> Se qualcosa è già deciso, non ridiscuterlo.**
+
+---
+
+## Versione
+
+- Versione: **2.0**
+- Stato: stabile
+- Aggiornare solo previo accordo esplicito

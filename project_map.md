@@ -1,143 +1,154 @@
-# project_map.md
-Versione: 1.5.0  
-Ultimo aggiornamento: 2026-01-21
+# PROJECT_MAP.md — v2.0
 
-## Raw file map (main) + descrizioni
+## Repository source of truth
 
-### Root
-/project_map.md        → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/project_map.md  
-  - [MAP] Mappa dei file leggibili via raw + regole operative
+Repo: https://github.com/vitorizzo/ld-flask-app  
+Branch: main
 
-/new_chat.md           → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/new_chat.md  
-  - [BOOT] Prompt/istruzioni per avviare nuove chat (bootstrap + regole)
+LINK_BASE_RAW:
+https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main
 
-/models.py             → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/models.py  
-  - [DB][MODELS] Modelli SQLAlchemy (incluse entità legacy e V2 automations)
-
-/app.py                → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/app.py  
-  - [ENTRY] Entrypoint WSGI: crea app via create_app()
-
-/README.md             → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/README.md  
-  - [DOC] Documentazione generale progetto (setup/uso)
-
-/config.py             → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/config.py  
-  - [CONF] Config Flask (env, DB, feature flags/chiavi)
-
-/celery_worker.py      → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/celery_worker.py  
-  - [CELERY][ENTRY] Entrypoint processi Celery (worker/beat)
-
-/requirements.txt      → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/requirements.txt  
-  - [DEPS] Dipendenze Python (pip)
+Regola link:
+- `/percorso/file.ext` → `LINK_BASE_RAW + /percorso/file.ext`
 
 ---
 
-### Config
-/config/celeryconfig.py → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/config/celeryconfig.py  
-  - [CELERY][CONF] Configurazione Celery (queue/beat/etc)
+## Architettura (panoramica)
 
-/config/celery_app.py   → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/config/celery_app.py  
-  - [CELERY][APP] Factory/istanza Celery e wiring con Flask
-
-/config/paths_config.py → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/config/paths_config.py  
-  - [PATHS] Percorsi filesystem condivisi (log, export, import, ecc.)
-
-/config/tasks.py        → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/config/tasks.py  
-  - [CELERY][TASKS] Definizione/registrazione task
-
-/config/capabilities.py → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/config/capabilities.py  
-  - [CAPS] Catalogo backend di trigger/actions/fields/placeholders per UI dinamica (no hardcoding JS)
-
----
-
-### Forms
-/forms/forms.py         → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/forms/forms.py  
-  - [FORMS] WTForms (login/registrazione/varie)
+- Web app: Flask (backend Python)
+- DB: PostgreSQL
+- ORM: SQLAlchemy
+- Migrazioni: Alembic (directory `/migrations`)
+- Frontend: Jinja templates in `/templates`
+- Static assets:
+  - JS: `/static/js`
+  - CSS: `/static/css`
+  - Immagini: `/static/images` (incl. `/static/images/products`)
+- Logging: directory `/logs`
+- Strumenti backend riusabili: package `/tools`
+- Route/Blueprint: directory `/routes`
+- Form: directory `/forms`
 
 ---
 
-### Routes
-/routes/trello.py       → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/routes/trello.py  
-  - [API][TRELLO] Blueprint Trello: webhook, connessioni, gestione (legacy), integrazione con processor
+## Struttura cartelle (macro)
 
-/routes/slack.py        → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/routes/slack.py  
-  - [API][SLACK] Blueprint Slack: Events API, firma/dedup, connessioni, integrazione con SlackProcessor
-
----
-
-### Tools
-/tools/processor.py     → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/processor.py  
-  - [TRELLO][LEGACY+V2] Processor eventi Trello: normalizzazione trigger + esecuzione legacy + hook V2 dispatcher
-
-/tools/trello_client.py → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/trello_client.py  
-  - [TRELLO][HTTP] Client low-level verso Trello (requests, auth, chiamate base)
-
-/tools/trello_api.py    → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/trello_api.py  
-  - [TRELLO][API] API wrapper alto livello (add comment, create card, ecc.)
-
-/tools/app_factory.py   → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/app_factory.py  
-  - [FACTORY] create_app(): init estensioni, blueprint, logging, wiring app (no duplicazioni gunicorn/celery)
-
-/tools/slack_client.py  → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/slack_client.py  
-  - [SLACK][HTTP] Client Slack (token, WebClient init, helper)
-
-/tools/slack_api.py     → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/slack_api.py  
-  - [SLACK][API] API wrapper Slack (send_message, add_reaction, gestione errori mirata)
-
-/tools/slack_processor.py → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/tools/slack_processor.py  
-  - [SLACK][LEGACY+V2] Normalizzazione eventi Slack + find actions + execute actions + hook V2 dispatcher
+- `/app.py` — entrypoint Flask
+- `/extensions.py` — init estensioni (SQLAlchemy, Mail, ecc.)
+- `/models.py` — modelli DB
+- `/routes/` — blueprint e route
+- `/tools/` — API wrapper, processor, dispatcher, executors, utils
+- `/templates/` — pagine HTML Jinja + partials
+- `/static/` — js/css/images/icons/uploads
+- `/migrations/` — Alembic env + versions
+- `/docs/` — deploy/operations/readme docs progetto
 
 ---
 
-### Templates — Trello
-/templates/base.html                    → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/templates/base.html  
-  - [UI][BASE] Layout base (navbar/footer/assets comuni)
+## File principali (core)
 
-/templates/trello_connections_list.html → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/templates/trello_connections_list.html  
-  - [UI][TRELLO] Lista connessioni Trello
-
-/templates/trello_connections.html      → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/templates/trello_connections.html  
-  - [UI][TRELLO] Dettaglio/gestione connessione Trello
-
-/templates/trello_actions.html          → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/templates/trello_actions.html  
-  - [UI][LEGACY] Pagina actions legacy (markup minimale; gran parte UI è in JS legacy)
+- `/app.py` — entrypoint e create_app / bootstrap app (se presente)
+- `/extensions.py` — inizializzazione estensioni Flask
+- `/models.py` — SQLAlchemy models (incl. automations V2)
+- `/requirements.txt` — dipendenze
+- `/README.md` — overview
+- `/new_chat.md` — regole operative (bootstrap chat)
+- `/project_map.md` — questa mappa
+- `/status.md` — stato progetto (obiettivi/task)
 
 ---
 
-### Static - service worker
-/static/service_worker.js → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/static/service-worker.js  
-  - [PWA] Service worker (cache/strategia offline)
+## Backend: routes (Blueprint)
+
+- `/routes/__init__.py` — init blueprint package
+- `/routes/auth.py` — login/registrazione/utente
+- `/routes/trello.py` — integrazione Trello (webhook, editor legacy, ecc.)
+- `/routes/slack.py` — Slack Events API + gestione connessioni/azioni
+- `/routes/automations_v2.py` — UI/API automazioni cross-app (V2)
+- `/routes/inventario.py` — gestione inventario
+- `/routes/search.py` — ricerca articoli (barcode/descrizione, JSON)
+- `/routes/articoli.py` — pagine articoli/schede
+- `/routes/settings.py` — impostazioni (menu, ecc.)
+- `/routes/task_routes.py` — status/kill task Celery
+- `/routes/logs_display.py` — viewer log da webapp
+- `/routes/importazioni_routes.py` — importazioni & storico
+- `/routes/esportazioni_teamsystem.py` — export verso TeamSystem
+- `/routes/status_routes.py` — eventuale pagina stato
 
 ---
 
-### Static JS — Trello
-/static/js/editor.js          → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/static/js/editor.js  
-  - [UI][JS] Componenti/utility JS riusabili per editor (form dinamici, helper UI)
+## Backend: tools (motore automazioni e integrazioni)
 
-/static/js/trello_editor.js   → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/static/js/trello_editor.js  
-  - [UI][JS][TRELLO] Logica editor Trello (legacy/utility specifiche)
-
-/static/js/trello_actions.js  → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/static/js/trello_actions.js  
-  - [UI][JS][LEGACY] UI legacy hardcoded per triggers/actions Trello + fields
+- `/tools/processor.py` — normalizzazione eventi + dispatch trigger (Trello/Slack)
+- `/tools/automation_dispatcher.py` — match automazioni + invocazione executors (V2)
+- `/tools/executors/base.py` — base executor
+- `/tools/executors/trello_executor.py` — azioni Trello (createCard, addComment, ecc.)
+- `/tools/executors/slack_executor.py` — azioni Slack (sendMessage, addReaction, ecc.)
+- `/tools/trello_api.py` — wrapper API Trello (metodi operativi)
+- `/tools/slack_api.py` — wrapper API Slack (metodi operativi)
+- `/tools/slack_processor.py` — parse Slack events + context per automazioni
+- `/tools/trello_client.py` — client/low-level Trello (se presente)
+- `/tools/slack_client.py` — client/low-level Slack (se presente)
+- `/tools/log_utils.py` — factory logger
+- `/tools/db_utils.py` — util DB
+- `/tools/redis_utils.py` — util Redis
+- `/tools/task_monitor.py` — monitor task Celery
+- `/tools/auth_manager.py` — helper auth (se presente)
+- `/tools/esportazioni.py` — logiche export
+- `/tools/importazioni.py` — logiche import
 
 ---
 
-### Static CSS — Trello
-/static/css/trello.css        → https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/static/css/trello.css  
-  - [UI][CSS] Stili pagine Trello (connections/actions/editor)
+## Frontend: templates (pagine)
+
+- `/templates/base.html` — layout base + navbar + inclusioni globali
+- `/templates/partials/navbar.html` — navbar
+- `/templates/automations_v2.html` — UI Automations V2 (da costruire/aggiornare)
+- `/templates/trello_actions.html` — UI legacy Trello actions (esistente)
+- `/templates/trello_connections.html` — UI connessioni Trello
+- `/templates/inventario.html` — UI inventario
+- `/templates/articoli_codebar.html` — UI barcode
+- `/templates/articoli_description.html` — UI ricerca descrizione
+- `/templates/scheda_articolo.html` — UI scheda articolo
+- `/templates/logs_display.html` — UI viewer log
+- `/templates/storico_importazioni.html` — UI importazioni
+- `/templates/settings/menus.html` — UI gestione menu
+- `/templates/settings/import_conflicts.html` — UI gestione conflitti import
 
 ---
 
-## Regole operative
-- L’assistente può leggere SOLO i file presenti in questa mappa.  
-- Per leggere file non presenti:  
-  - deve richiederlo esplicitamente  
-  - un solo step  
-- La mappa vale sempre per l’ultimo commit del branch `main`.
+## Frontend: static JS/CSS (principali)
 
-## Convenzione tag (glossario rapido)
-- [LEGACY] = sistema pre-automazioni cross-app
-- [V2] = automazioni cross-app (Automation + actions ordinate)
-- [CAPS] = capabilities backend per UI dinamica
-- [API] = route Flask / endpoint
-- [FACTORY] = create_app wiring
-- [DB] = modelli/migrazioni/struttura dati
+JS:
+- `/static/js/trello_actions.js` — legacy trello actions editor
+- `/static/js/editor.js` — editor json/azioni (se usato)
+- `/static/js/scanner.js` — scanner barcode
+- `/static/js/inventario.js` — logica inventario
+- `/static/js/menu.js` — menu dinamico
+- `/static/js/menu_management.js` — gestione menu
+- `/static/js/logs_display.js` — viewer log
+- `/static/js/task_status.js` — monitor task
+- `/static/js/import_conflicts.js` — UI conflitti import
+- `/static/js/base.js` — common client logic
+
+CSS:
+- `/static/css/style.css` — stile generale
+- `/static/css/editor.css` — editor
+- `/static/css/inventario.css` — inventario
+- `/static/css/task_status.css` — task monitor
+- `/static/css/logs_display.css` — viewer log
+- `/static/css/install_banner.css` — PWA banner
+- `/static/css/app_installation.css` — PWA install page
+
+---
+
+## Migrazioni DB (Alembic)
+
+- `/migrations/env.py` — configurazione Alembic
+- `/migrations/versions/` — scripts migrazione (molti)
+
+---
+
+## Note
+
+- Evitare di mappare singolarmente `/static/images/products/*` (troppi file). Tenerli come directory.
