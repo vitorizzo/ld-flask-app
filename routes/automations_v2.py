@@ -13,7 +13,7 @@ logger.debug("🧪 Logger 'automations_v2' inizializzato correttamente - test DE
 automations_v2_bp = Blueprint("automations_v2", __name__, url_prefix="/api")
 
 
-@automations_v2_bp.route("/", methods=["GET"])
+@automations_v2_bp.route("/automation_v2", methods=["GET"])
 @login_required
 def automations_home():
     """
