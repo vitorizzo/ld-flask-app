@@ -1,6 +1,7 @@
 import logging
 
-from flask import Blueprint, request
+from flask import Blueprint, request, render_template
+from flask_login import login_required
 
 from extensions import db
 from models import AutomationAction, Automation
@@ -10,6 +11,16 @@ logger = get_logger("automations_v2", level=logging.INFO)
 logger.debug("🧪 Logger 'automations_v2' inizializzato correttamente - test DEBUG")
 
 automations_v2_bp = Blueprint("automations_v2", __name__, url_prefix="/api")
+
+
+@automations_v2_bp.route("/", methods=["GET"])
+@login_required
+def automations_home():
+    """
+    UI Automazioni V2
+    """
+    logger.info("Apertura pagina Automazioni V2")
+    return render_template("automations_v2.html")
 
 
 @automations_v2_bp.get("/automations/capabilities")
