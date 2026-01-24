@@ -1,7 +1,9 @@
 import logging
 
-from flask import Blueprint
+from flask import Blueprint, request
 
+from extensions import db
+from models import AutomationAction, Automation
 from tools.log_utils import get_logger
 
 logger = get_logger("automations_v2", level=logging.INFO)
@@ -9,3 +11,52 @@ logger.debug("🧪 Logger 'automations_v2' inizializzato correttamente - test DE
 
 automations_v2_bp = Blueprint("automations_v2", __name__, url_prefix="/api")
 
+
+@automations_v2_bp.get("/automations/capabilities")
+def get_capabilities():
+    logger.info("[GET] /automations/capabilities")
+    from config.capabilities import CAPABILITIES
+    return CAPABILITIES, 200
+
+
+@automations_v2_bp.get("/automations")
+def list_automations():
+    logger.info("[GET] /automations")
+    autos = Automation.query.order_by(Automation.created_at.desc()).all()
+    return [a.to_dict() for a in autos], 200
+
+
+@automations_v2_bp.get("/automations/<int:automation_id>")
+def get_automation(automation_id):
+    logger.info("[GET] /automations/%s", automation_id)
+
+    auto = Automation.query.get_or_404(automation_id)
+    return auto.to_full_dict(), 200
+
+
+@automations_v2_bp.post("/automations")
+def create_automation():
+    payload = request.get_json()
+    logger.info("[POST] /automations keys=%s", list(payload.keys()))
+
+    auto = Automation(
+        trigger_app=payload["trigger"]["app"],
+        trigger_connection_id=payload["trigger"]["connection_id"],
+        trigger_type=payload["trigger"]["type"],
+        trigger_config=payload["trigger"].get("config", {})
+    )
+    db.session.add(auto)
+    db.session.flush()
+
+    for act in payload["actions"]:
+        db.session.add(AutomationAction(
+            automation_id=auto.id,
+            app=act["app"],
+            action_type=act["type"],
+            order=act["order"],
+            action_config=act.get("config", {})
+        ))
+
+    db.session.commit()
+    logger.info("[CREATE] automation_id=%s", auto.id)
+    return auto.to_full_dict(), 201

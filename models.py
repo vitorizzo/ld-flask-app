@@ -703,3 +703,4 @@ class AutomationAction(db.Model):
             name='uq_automation_action_order'
         ),
     )
+
