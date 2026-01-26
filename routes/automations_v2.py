@@ -137,26 +137,45 @@ def create_automation():
     payload = request.get_json() or {}
     logger.info("[POST] /automations keys=%s", list(payload.keys()))
 
+    name = (payload.get("name") or "").strip()
+    description = payload.get("description")
+    enabled = payload.get("enabled", True)
+
+    logger.info("[POST] /automations payload.name=%r enabled=%r", name, enabled)
+
+    # name è NOT NULL nel DB: se il frontend non lo manda (o è vuoto) blocchiamo
+    if not name:
+        abort(400, description="Campo 'name' obbligatorio")
+
     auto = Automation(
+        name=name,
+        description=description,
         trigger_app=payload["trigger"]["app"],
         trigger_connection=payload["trigger"]["connection_id"],
         trigger_type=payload["trigger"]["type"],
-        trigger_config=payload["trigger"].get("config", {}),
+        trigger_config=payload["trigger"].get("config", {}) or {},
+        enabled=enabled,
     )
     db.session.add(auto)
     db.session.flush()
 
-    for act in payload["actions"]:
+    for act in payload.get("actions", []):
         db.session.add(
             AutomationAction(
                 automation_id=auto.id,
-                app=act["app"],
+                action_app=act["app"],
                 action_type=act["type"],
-                order=act["order"],
-                action_config=act.get("config", {}),
+                order_index=act.get("order", 0),
+                action_config=act.get("config", {}) or {},
+                enabled=True,
             )
         )
 
     db.session.commit()
     logger.info("[CREATE] automation_id=%s", auto.id)
-    return auto.to_full_dict(), 201
+
+    data = _serialize(auto)
+    # ritorno anche actions appena create
+    actions = AutomationAction.query.filter_by(automation_id=auto.id).all()
+    data["actions"] = [_serialize(a) for a in actions]
+    return data, 201
