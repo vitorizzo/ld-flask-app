@@ -120,17 +120,17 @@ def get_automation(automation_id: int):
     logger.info("[GET] /automations/%s", automation_id)
     auto = Automation.query.get_or_404(automation_id)
 
-    # azioni collegate (assumendo FK automation_id su AutomationAction)
-    actions = (
-        AutomationAction.query
-        .filter_by(automation_id=auto.id)
-        .order_by(AutomationAction.order.asc())
-        .all()
-    )
+    q = AutomationAction.query.filter_by(automation_id=auto.id)
+    for order_col in ("order", "order_index", "position", "pos", "sort_index"):
+        if hasattr(AutomationAction, order_col):
+            q = q.order_by(getattr(AutomationAction, order_col).asc())
+            break
+    actions = q.all()
 
     data = _serialize(auto)
     data["actions"] = [_serialize(a) for a in actions]
     return data, 200
+
 
 
 @automations_v2_bp.post("/automations")
