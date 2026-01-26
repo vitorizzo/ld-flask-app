@@ -290,7 +290,7 @@
     state.current.trigger.config = tCfg;
 
     $("#triggerApp").value = tApp || "";
-    onTriggerAppChanged(); // popola connessioni + trigger types
+    await onTriggerAppChanged(); // popola connessioni + trigger types
     $("#triggerConnection").value = tConn ? String(tConn) : "";
     $("#triggerType").value = tType || "";
 
@@ -306,35 +306,36 @@
   };
 
   // ---------- Trigger editor ----------
-  const onTriggerAppChanged = () => {
+  const onTriggerAppChanged = async () => {
     const app = ($("#triggerApp")?.value ?? "").trim();
     const connSel = $("#triggerConnection");
     const trigSel = $("#triggerType");
     if (!connSel || !trigSel) return;
 
-    if (!app) {
-      connSel.disabled = true;
-      trigSel.disabled = true;
-      setOptions(connSel, [], "Seleziona...");
-      setOptions(trigSel, [], "Seleziona...");
-      return;
-    }
+    // reset
+    setOptions(connSel, [], "Seleziona...");
+    setOptions(trigSel, [], "Seleziona...");
+    connSel.disabled = true;
+    trigSel.disabled = true;
 
-    // connections
-    const conns = (state.connectionsByApp[app] || []).map((c) => ({
-      value: String(c.id),
-      label: c.name || String(c.id),
-    }));
-    setOptions(connSel, conns, "Seleziona...");
-    connSel.disabled = false;
+    if (!app) return;
 
-    // triggers
+    // triggers (da capabilities)
     const trigs = (state.triggersByApp[app] || []).map((t) => ({
       value: String(t.value),
       label: t.label || String(t.value),
     }));
     setOptions(trigSel, trigs, "Seleziona...");
     trigSel.disabled = false;
+
+    // connections (da endpoint)
+    await loadConnectionsForApp(app);
+    const conns = (state.connectionsByApp[app] || []).map((c) => ({
+      value: String(c.id),
+      label: c.name || String(c.id),
+    }));
+    setOptions(connSel, conns, "Seleziona...");
+    connSel.disabled = false;
   };
 
   const renderTriggerConfigEditor = (cfgObj) => {
@@ -582,6 +583,25 @@
     populateFilterApps();
   };
 
+  const loadConnectionsForApp = async (app) => {
+    const a = (app || "").trim();
+    if (!a) return [];
+    try {
+      const rows = await apiFetch(`/api/connections/${encodeURIComponent(a)}`);
+      // rows: [{id,name}]
+      state.connectionsByApp[a] = (rows || []).map((r) => ({
+        id: r.id,
+        name: r.name ?? String(r.id),
+      }));
+      return state.connectionsByApp[a];
+    } catch (err) {
+      // non blocchiamo tutta la UI
+      showEditorMessage("danger", `Errore caricamento connessioni ${a}: ${err.message}`);
+      state.connectionsByApp[a] = [];
+      return [];
+    }
+  };
+
   const loadAutomations = async () => {
     state.automations = await apiFetch("/api/automations");
     renderAutomationList();
@@ -612,7 +632,7 @@
     $("#searchAutomation")?.addEventListener("input", renderAutomationList);
 
     $("#triggerApp")?.addEventListener("change", () => {
-      onTriggerAppChanged();
+      await onTriggerAppChanged();
       // reset dipendenti
       $("#triggerConnection").value = "";
       $("#triggerType").value = "";
