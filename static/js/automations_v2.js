@@ -268,41 +268,79 @@
   };
 
   const onSelectAutomationFromList = async (a) => {
-    // Per ora il backend non espone correttamente GET /api/automations/<id>
-    // Quindi apriamo l’editor in modalità "readonly parziale" basata su to_dict.
     setEditorVisible(true);
 
     const id = a.id ?? a.automation_id ?? null;
-    state.current.id = id;
-    state.current.isNew = false;
+    if (!id) {
+      showEditorMessage("danger", "ID automazione mancante nella lista.");
+      return;
+    }
 
-    $("#automationName").value = a.name ?? a.title ?? "";
-    $("#automationEnabled").value = String(a.enabled ?? true);
+    try {
+      // 1) Carico il dettaglio completo (trigger_config + actions)
+      const full = await apiFetch(`/api/automations/${id}`);
 
-    const tApp = a.trigger_app ?? a.triggerApp ?? "";
-    const tConn = a.trigger_connection_id ?? a.triggerConnectionId ?? "";
-    const tType = a.trigger_type ?? a.triggerType ?? "";
-    const tCfg = a.trigger_config ?? a.triggerConfig ?? {};
+      // 2) Nome / enabled (se presenti)
+      $("#automationName").value = full.name ?? full.title ?? a.name ?? a.title ?? "";
+      $("#automationEnabled").value = String(full.enabled ?? a.enabled ?? true);
 
-    state.current.trigger.app = tApp;
-    state.current.trigger.connection_id = tConn;
-    state.current.trigger.type = tType;
-    state.current.trigger.config = tCfg;
+      // 3) Trigger (gestisco più possibili naming)
+      const tApp = full.trigger_app ?? full.triggerApp ?? a.trigger_app ?? a.triggerApp ?? "";
+      const tType = full.trigger_type ?? full.triggerType ?? a.trigger_type ?? a.triggerType ?? "";
+      const tConn = full.trigger_connection_id ?? full.triggerConnectionId ?? a.trigger_connection_id ?? a.triggerConnectionId ?? "";
+      const tCfg = full.trigger_config ?? full.triggerConfig ?? a.trigger_config ?? a.triggerConfig ?? {};
 
-    $("#triggerApp").value = tApp || "";
-    await onTriggerAppChanged(); // popola connessioni + trigger types
-    $("#triggerConnection").value = tConn ? String(tConn) : "";
-    $("#triggerType").value = tType || "";
+      state.current.id = id;
+      state.current.isNew = false;
+      state.current.trigger.app = tApp;
+      state.current.trigger.type = tType;
+      state.current.trigger.connection_id = tConn;
+      state.current.trigger.config = tCfg;
 
-    renderTriggerConfigEditor(tCfg || {});
-    // Actions complete non disponibili senza to_full_dict() -> lasciamo vuote
-    state.current.actions = [];
-    renderActions();
+      // 4) Popolo app + trigger types
+      $("#triggerApp").value = tApp || "";
+      await onTriggerAppChanged(); // carica anche le connessioni via /api/connections/<app>
 
-    showEditorMessage(
-      "warning",
-      "Dettaglio Actions non disponibile finché non viene corretto l’endpoint GET /api/automations/<id>. Puoi comunque creare nuove automazioni."
-    );
+      // 5) Imposto connessione (dopo che le options sono state caricate)
+      $("#triggerConnection").value = tConn !== null && tConn !== undefined ? String(tConn) : "";
+
+      // 6) Imposto trigger type
+      $("#triggerType").value = tType || "";
+
+      // 7) Config trigger
+      renderTriggerConfigEditor(tCfg || {});
+
+      // 8) Actions (dal dettaglio)
+      const actions =
+        full.actions ??
+        full.automation_actions ??
+        full.actions_list ??
+        [];
+
+      state.current.actions = (actions || []).map((x) => ({
+        app: x.app ?? x.action_app ?? "",
+        // backend tipico: action_type / type
+        type: x.action_type ?? x.type ?? "",
+        config: x.action_config ?? x.config ?? {},
+        order: x.order ?? x.order_index ?? null,
+      }));
+
+      // se arrivano con order, le ordino
+      state.current.actions.sort((a, b) => {
+        const oa = a.order ?? 9999;
+        const ob = b.order ?? 9999;
+        return oa - ob;
+      });
+
+      // elimino la chiave order per non sporcare UI (la UI usa l’indice)
+      state.current.actions = state.current.actions.map(({ app, type, config }) => ({ app, type, config }));
+
+      renderActions();
+
+      showEditorMessage("info", `Automazione ${id} caricata.`);
+    } catch (err) {
+      showEditorMessage("danger", `Errore caricamento automazione ${id}: ${err.message}`);
+    }
   };
 
   // ---------- Trigger editor ----------
