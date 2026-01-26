@@ -2,13 +2,12 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from tools.log_utils import get_logger
 from models import Automation, AutomationAction
-
 from tools.executors.slack_executor import SlackExecutor
 from tools.executors.trello_executor import TrelloExecutor
+from tools.log_utils import get_logger
 
 logger = get_logger("automation_dispatcher", level=logging.INFO)
 
@@ -18,6 +17,7 @@ class AutomationDispatcher:
     Dispatcher cross-app v2:
     - riceve evento normalizzato
     - trova automations compatibili
+    - applica filtri trigger_config (quando previsti)
     - esegue actions ordinate delegando agli executor app-specifici
     """
 
@@ -27,15 +27,104 @@ class AutomationDispatcher:
             TrelloExecutor.app_name: TrelloExecutor(),
         }
 
+    # ----------------------------
+    # Helpers: trigger config match
+    # ----------------------------
+    @staticmethod
+    def _as_list(val: Any) -> List[str]:
+        """
+        Supporta:
+        - "" / None -> []
+        - "a,b,c" -> ["a","b","c"]
+        - ["a","b"] -> ["a","b"]
+        - "singolo" -> ["singolo"]
+        """
+        if val is None:
+            return []
+        if isinstance(val, list):
+            out = []
+            for x in val:
+                s = str(x).strip()
+                if s:
+                    out.append(s)
+            return out
+        s = str(val).strip()
+        if not s:
+            return []
+        if "," in s:
+            return [p.strip() for p in s.split(",") if p.strip()]
+        return [s]
+
+    @staticmethod
+    def _extract_slack_channel(payload: Dict[str, Any]) -> str:
+        # prova chiavi comuni in payload normalizzato o grezzo
+        for key in ("channel_name", "channel", "channel_id"):
+            v = payload.get(key)
+            if v:
+                return str(v).strip()
+        ev = payload.get("event") or {}
+        if isinstance(ev, dict):
+            v = ev.get("channel")
+            if v:
+                return str(v).strip()
+        return ""
+
+    @staticmethod
+    def _extract_slack_text(payload: Dict[str, Any]) -> str:
+        for key in ("text", "message", "body"):
+            v = payload.get(key)
+            if v:
+                return str(v)
+        ev = payload.get("event") or {}
+        if isinstance(ev, dict):
+            v = ev.get("text")
+            if v:
+                return str(v)
+        return ""
+
+    @classmethod
+    def _match_slack_message_channels(cls, trigger_config: Optional[Dict[str, Any]], payload: Dict[str, Any]) -> bool:
+        """
+        trigger_config:
+          - canale: "" | "marsica" | "marsica,vendite" | ["marsica","vendite"]
+          - keyword: "" | "ordine" | "ordine,urgent" | ["ordine","urgent"]
+
+        Regole:
+          - se canale manca o vuoto -> match su tutti i canali
+          - se keyword manca o vuoto -> match senza keyword
+          - keyword match case-insensitive, contiene
+        """
+        cfg = trigger_config or {}
+        canali = [c.lower() for c in cls._as_list(cfg.get("canale"))]
+        keywords = [k.lower() for k in cls._as_list(cfg.get("keyword"))]
+
+        channel = cls._extract_slack_channel(payload).lower()
+        text = cls._extract_slack_text(payload).lower()
+
+        # filtro canale
+        if canali:
+            if not channel:
+                return False
+            if channel not in canali:
+                return False
+
+        # filtro keyword (OR)
+        if keywords:
+            if not text:
+                return False
+            if not any(k in text for k in keywords):
+                return False
+
+        return True
+
     def dispatch(self, event: Dict[str, Any]) -> int:
         """
-        event:
-          {
-            "app": "slack"|"trello",
-            "trigger": str|list[str],
-            "connection_id": int,
-            "payload": dict
-          }
+        event: {
+          "app": "slack"|"trello",
+          "trigger": str|list[str],
+          "connection_id": int,
+          "payload": dict
+        }
         return: numero actions eseguite (best effort)
         """
         app = (event.get("app") or "").strip()
@@ -65,7 +154,17 @@ class AutomationDispatcher:
             return 0
 
         executed = 0
+
         for a in automations:
+            # Applica filtri specifici per trigger (oggi: Slack message.channels)
+            if app == "slack" and a.trigger_type == "message.channels":
+                if not self._match_slack_message_channels(a.trigger_config, payload):
+                    logger.info(
+                        "[V2][FILTER_SKIP] automation_id=%s trigger=message.channels cfg=%s",
+                        a.id, a.trigger_config
+                    )
+                    continue
+
             actions = (
                 AutomationAction.query
                 .filter(
@@ -80,7 +179,6 @@ class AutomationDispatcher:
 
             for act in actions:
                 ex = self._executors.get((act.action_app or "").strip())
-
                 if not ex:
                     logger.warning("[V2][NO_EXECUTOR] action_app=%s action_id=%s", act.action_app, act.id)
                     continue
@@ -90,19 +188,18 @@ class AutomationDispatcher:
                 # Se l'azione è Slack e il payload arriva da Trello, crea un ctx compatibile per i template
                 if ex.app_name == "slack" and app == "trello":
                     try:
-                        a = (payload or {}).get("action", {}) or {}
-                        data = a.get("data", {}) or {}
-                        member = (payload or {}).get("memberCreator", {}) or a.get("memberCreator", {}) or {}
-                        display = a.get("display", {}) or {}
-
+                        a0 = (payload or {}).get("action", {}) or {}
+                        data = a0.get("data", {}) or {}
+                        member = (payload or {}).get("memberCreator", {}) or a0.get("memberCreator", {}) or {}
+                        display = a0.get("display", {}) or {}
                         ctx_for_action = {
                             "user": member.get("fullName") or member.get("username") or "",
                             "card": data.get("card") or {},
                             "board": data.get("board") or {},
                             "listbefore": data.get("listBefore") or {},
                             "listafter": data.get("listAfter") or {},
-                            "trigger": a.get("type") or "",
-                            "raw": payload,  # fallback se serve
+                            "trigger": a0.get("type") or "",
+                            "raw": payload,
                             "display": display,
                         }
                     except Exception:
