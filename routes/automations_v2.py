@@ -132,7 +132,6 @@ def get_automation(automation_id: int):
     return data, 200
 
 
-
 @automations_v2_bp.post("/automations")
 def create_automation():
     payload = request.get_json() or {}
@@ -140,7 +139,7 @@ def create_automation():
 
     auto = Automation(
         trigger_app=payload["trigger"]["app"],
-        trigger_connection_id=payload["trigger"]["connection_id"],
+        trigger_connection=payload["trigger"]["connection_id"],
         trigger_type=payload["trigger"]["type"],
         trigger_config=payload["trigger"].get("config", {}),
     )
