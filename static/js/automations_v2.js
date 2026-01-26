@@ -631,7 +631,7 @@
     $("#filterTriggerApp")?.addEventListener("change", renderAutomationList);
     $("#searchAutomation")?.addEventListener("input", renderAutomationList);
 
-    $("#triggerApp")?.addEventListener("change", () => {
+    $("#triggerApp")?.addEventListener("change", async () => {
       await onTriggerAppChanged();
       // reset dipendenti
       $("#triggerConnection").value = "";
