@@ -119,7 +119,18 @@ def list_automations():
 def get_automation(automation_id: int):
     logger.info("[GET] /automations/%s", automation_id)
     auto = Automation.query.get_or_404(automation_id)
-    return auto.to_full_dict(), 200
+
+    # azioni collegate (assumendo FK automation_id su AutomationAction)
+    actions = (
+        AutomationAction.query
+        .filter_by(automation_id=auto.id)
+        .order_by(AutomationAction.order.asc())
+        .all()
+    )
+
+    data = _serialize(auto)
+    data["actions"] = [_serialize(a) for a in actions]
+    return data, 200
 
 
 @automations_v2_bp.post("/automations")
