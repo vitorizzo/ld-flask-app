@@ -2,6 +2,7 @@ import logging
 
 from flask import Blueprint, request, render_template
 from flask_login import login_required
+from sqlalchemy.inspection import inspect as sa_inspect
 
 from extensions import db
 from models import AutomationAction, Automation
@@ -33,8 +34,20 @@ def get_capabilities():
 @automations_v2_bp.get("/automations")
 def list_automations():
     logger.info("[GET] /automations")
-    autos = Automation.query.order_by(Automation.created_at.desc()).all()
-    return [a.to_dict() for a in autos], 200
+    autos = Automation.query.order_by(Automation.id.desc()).all()
+
+    def _serialize(model):
+        mapper = sa_inspect(model.__class__)
+        data = {}
+        for col in mapper.columns:
+            v = getattr(model, col.key)
+            # datetime -> isoformat
+            if hasattr(v, "isoformat"):
+                v = v.isoformat()
+            data[col.key] = v
+        return data
+
+    return [_serialize(a) for a in autos], 200
 
 
 @automations_v2_bp.get("/automations/<int:automation_id>")
