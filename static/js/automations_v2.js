@@ -562,6 +562,9 @@
 
     // Backend create_automation si aspetta SOLO trigger + actions
     const payload = {
+      name,
+      description: "", // per ora vuota (poi la colleghiamo a un campo UI se vuoi)
+      enabled,
       trigger: {
         app: triggerApp,
         connection_id: Number(triggerConn),
@@ -571,13 +574,10 @@
       actions: state.current.actions.map((a, idx) => ({
         app: a.app,
         type: a.type,
-        order: idx + 1,
+        order: idx, // 0-based, coerente con order_index visto nel tuo JSON
         config: a.config || {},
       })),
     };
-
-    // name/enabled non sono gestiti dal backend in create_automation: li teniamo localmente
-    // (li useremo quando aggiungeremo endpoint update)
     return { payload, meta: { name, enabled } };
   };
 
