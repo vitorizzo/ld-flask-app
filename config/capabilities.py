@@ -43,6 +43,7 @@ CAPABILITIES: Dict[str, Dict[str, Any]] = {
             {"value": "customizeCard", "label": "Personalizza card"},
             {"value": "sendSlackMessage", "label": "Invia messaggio Slack"},
             {"value": "serviceComments", "label": "Commenti di servizio"},
+            {"value": "createCard", "label": "Crea card"},
         ],
         "placeholders": [
             "{{user}}",

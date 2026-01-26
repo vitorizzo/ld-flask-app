@@ -287,7 +287,7 @@
       // 3) Trigger (gestisco più possibili naming)
       const tApp = full.trigger_app ?? full.triggerApp ?? a.trigger_app ?? a.triggerApp ?? "";
       const tType = full.trigger_type ?? full.triggerType ?? a.trigger_type ?? a.triggerType ?? "";
-      const tConn = full.trigger_connection_id ?? full.triggerConnectionId ?? a.trigger_connection_id ?? a.triggerConnectionId ?? "";
+      const tConn = full.trigger_connection ?? full.triggerConnection ?? a.trigger_connection ?? a.triggerConnection ?? "";
       const tCfg = full.trigger_config ?? full.triggerConfig ?? a.trigger_config ?? a.triggerConfig ?? {};
 
       state.current.id = id;
