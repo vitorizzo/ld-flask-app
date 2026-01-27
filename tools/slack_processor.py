@@ -210,21 +210,21 @@ class SlackProcessor:
     # ============================================================
     def _normalize_message(self, event: dict) -> dict | None:
         """
-        Slack message.channels
+        Slack message (pubblici, privati, DM, ecc.)
+        Normalizziamo tutto su trigger unico "message".
         """
-        if event.get("channel_type") != "channel":
-            return None
-
+        # ignora messaggi "speciali" (bot_message, message_changed, ecc.)
         if event.get("subtype"):
             return None
 
         return {
-            "trigger": "message.channels",
+            "trigger": "message",
             "data": {
                 "channel": event.get("channel"),
+                "channel_type": event.get("channel_type"),  # channel | group | im | mpim (se presente)
                 "user": event.get("user"),
                 "ts": event.get("ts"),
-                "text": event.get("text"),
+                "text": event.get("text") or "",
             }
         }
 

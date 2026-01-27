@@ -133,7 +133,7 @@ CAPABILITIES: Dict[str, Dict[str, Any]] = {
             "{{reaction}}",
         ],
         "trigger_fields": {
-            "message.channels": [],
+            "message": [],
             "reaction_added": [],
         },
         "action_fields": {
