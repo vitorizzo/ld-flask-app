@@ -14,7 +14,7 @@
   </div>
 
   <div class="row g-3">
-    <!-- LEFT: LIST (JS si aspetta #automationsList) -->
+    <!-- LEFT: LIST -->
     <div class="col-12 col-lg-4">
       <div class="card">
         <div class="card-body">
@@ -25,7 +25,7 @@
 
           <hr>
 
-          <!-- filtri UI (facoltativi per il JS attuale) -->
+          <!-- questi due filtri non sono usati dal JS attuale, ma possono rimanere -->
           <div class="mb-2">
             <label class="form-label mb-1">Filtra per Trigger App</label>
             <select class="form-select" id="filterTriggerApp">
@@ -43,9 +43,8 @@
             <button class="btn btn-outline-secondary" id="btnResetFilters" type="button">Reset filtri</button>
           </div>
 
-          <div id="automationsList" class="d-flex flex-column gap-2">
-            <!-- popolato da JS -->
-          </div>
+          <!-- JS usa #automationsList -->
+          <div id="automationsList" class="list-group"></div>
 
           <div class="text-muted mt-3 small" id="automationListHint">
             Nessuna automazione caricata. Premi “Aggiorna” o crea una nuova automazione.
@@ -58,36 +57,36 @@
     <div class="col-12 col-lg-8">
       <div class="card">
         <div class="card-body">
-          <div id="editorEmptyState" class="text-muted">
+
+          <!-- questi due stati non sono gestiti dal JS, ma non danno fastidio -->
+          <div id="editorEmptyState" class="text-muted d-none">
             Seleziona un’automazione a sinistra oppure clicca “Nuova automazione”.
           </div>
 
-          <!-- Il JS non richiede per forza d-none/d-block, ma li puoi usare -->
           <div id="editorForm">
-            <div class="d-flex align-items-start justify-content-between gap-3">
-              <div class="flex-grow-1">
+            <div class="row g-3 align-items-end">
+              <div class="col-12 col-md-6">
                 <label class="form-label mb-1">Nome</label>
-                <!-- JS si aspetta #automationTitle -->
                 <input class="form-control" id="automationTitle"
                        placeholder="Es. Notifica su Slack quando sposto card Trello" />
               </div>
 
-              <div class="flex-grow-1">
+              <div class="col-12 col-md-6">
                 <label class="form-label mb-1">Descrizione</label>
-                <!-- JS si aspetta #automationDescription -->
-                <input class="form-control" id="automationDescription"
-                       placeholder="Descrizione breve (opzionale)" />
+                <input class="form-control" id="automationDescription" placeholder="(opzionale)" />
               </div>
 
-              <div style="min-width: 220px;">
-                <label class="form-label mb-1">Stato</label>
-                <select class="form-select" id="automationEnabled">
-                  <option value="true">Abilitata</option>
-                  <option value="false">Disabilitata</option>
-                </select>
+              <div class="col-12 col-md-4">
+                <div class="form-check mt-2">
+                  <!-- JS usa checked -->
+                  <input class="form-check-input" type="checkbox" id="automationEnabled" checked>
+                  <label class="form-check-label" for="automationEnabled">
+                    Abilitata
+                  </label>
+                </div>
               </div>
 
-              <div class="pt-4">
+              <div class="col-12 col-md-8 text-end">
                 <button class="btn btn-outline-danger" id="btnDeleteAutomation" type="button">Elimina</button>
               </div>
             </div>
@@ -101,37 +100,27 @@
             <div class="row g-3">
               <div class="col-12 col-md-4">
                 <label class="form-label mb-1">Applicazione</label>
-                <select class="form-select" id="triggerApp">
-                  <option value="">Seleziona...</option>
-                </select>
+                <select class="form-select" id="triggerApp"></select>
               </div>
 
               <div class="col-12 col-md-4">
                 <label class="form-label mb-1">Connessione</label>
-                <select class="form-select" id="triggerConnection">
-                  <option value="">Seleziona...</option>
-                </select>
+                <select class="form-select" id="triggerConnection"></select>
                 <div class="form-text">Popolata in base all’app selezionata.</div>
               </div>
 
               <div class="col-12 col-md-4">
                 <label class="form-label mb-1">Trigger</label>
-                <select class="form-select" id="triggerType">
-                  <option value="">Seleziona...</option>
-                </select>
+                <select class="form-select" id="triggerType"></select>
               </div>
 
               <div class="col-12">
                 <label class="form-label mb-1">Configurazione Trigger</label>
 
-                <!-- JS si aspetta un wrapper #triggerConfigEditor e dentro una textarea #triggerConfigJson -->
+                <!-- JS si aspetta questi ID e muove/riappende il textarea -->
                 <div id="triggerConfigEditor" class="border rounded p-3 bg-body-tertiary">
-                  <textarea id="triggerConfigJson" class="form-control" rows="10"
-                            placeholder='{}'></textarea>
-                </div>
-
-                <div class="form-text">
-                  Per Slack/message il JS può mostrare l’editor assistito (channels/keywords/visibility).
+                  <textarea id="triggerConfigJson" class="form-control font-monospace"
+                            rows="8" placeholder="{}"></textarea>
                 </div>
               </div>
             </div>
@@ -144,33 +133,7 @@
               <button class="btn btn-outline-primary" id="btnAddAction" type="button">Aggiungi azione</button>
             </div>
 
-            <!-- JS si aspetta #actionsList -->
-            <div id="actionsList" class="d-flex flex-column gap-2">
-              <!-- popolato da JS -->
-            </div>
-
-            <!-- Editor azione (il JS si aspetta questi ID SEMPRE presenti nel DOM) -->
-            <div id="actionEditor" class="border rounded p-3 mt-3">
-              <div class="row g-3 align-items-end">
-                <div class="col-12 col-md-4">
-                  <label class="form-label mb-1">Action App</label>
-                  <select class="form-select" id="actionApp"></select>
-                </div>
-                <div class="col-12 col-md-4">
-                  <label class="form-label mb-1">Action Type</label>
-                  <select class="form-select" id="actionType"></select>
-                </div>
-                <div class="col-12 col-md-4 d-flex gap-2">
-                  <button class="btn btn-primary w-100" id="btnSaveAction" type="button">Salva azione</button>
-                  <button class="btn btn-outline-secondary w-100" id="btnCancelAction" type="button">Annulla</button>
-                </div>
-                <div class="col-12">
-                  <label class="form-label mb-1">Action Config (JSON)</label>
-                  <textarea id="actionConfigJson" class="form-control" rows="8"
-                            placeholder='{}'></textarea>
-                </div>
-              </div>
-            </div>
+            <div id="actionsList" class="d-flex flex-column gap-2"></div>
 
             <hr class="my-4">
 
@@ -179,11 +142,38 @@
               <button class="btn btn-outline-secondary" id="btnCancelEdit" type="button">Annulla</button>
             </div>
 
-            <div class="mt-3" id="editorMessages"></div>
-
-            <!-- Debug (opzionale) -->
-            <pre class="mt-3 small text-muted" id="debugBox" style="white-space: pre-wrap;"></pre>
+            <div class="mt-3" id="debugBox"></div>
           </div>
+
+          <!-- ACTION EDITOR (richiesto dal JS) -->
+          <div id="actionEditor" style="display:none;">
+            <div class="card mt-3">
+              <div class="card-body">
+                <div class="row g-3">
+                  <div class="col-12 col-md-4">
+                    <label class="form-label mb-1">App</label>
+                    <select class="form-select" id="actionApp"></select>
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <label class="form-label mb-1">Tipo azione</label>
+                    <select class="form-select" id="actionType"></select>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label mb-1">Config azione (JSON)</label>
+                    <textarea class="form-control font-monospace" id="actionConfigJson"
+                              rows="8" placeholder="{}"></textarea>
+                  </div>
+                </div>
+
+                <div class="d-flex gap-2 mt-3">
+                  <button class="btn btn-primary" id="btnSaveAction" type="button">Salva azione</button>
+                  <button class="btn btn-outline-secondary" id="btnCancelAction" type="button">Annulla</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- /ACTION EDITOR -->
+
         </div>
       </div>
     </div>
