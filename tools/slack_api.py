@@ -106,6 +106,41 @@ class SlackAPI:
             logger.error("Slack reactions_add failed: %s", err)
             raise
 
+    def list_channels(self, *, types: str = "public_channel,private_channel", exclude_archived: bool = True,
+                      limit: int = 200, ) -> Dict[str, Any]:
+        """
+        Lista canali visibili al bot (paginata).
+        Ritorna {"ok": bool, "channels": [{"id","name"}...]} oppure errore Slack.
+        """
+        try:
+            channels = []
+            cursor = None
+
+            while True:
+                resp = self.client.conversations_list(
+                    types=types,
+                    exclude_archived=exclude_archived,
+                    limit=limit,
+                    cursor=cursor,
+                )
+                data = resp.data if hasattr(resp, "data") else dict(resp)
+                for ch in data.get("channels", []) or []:
+                    channels.append({"id": ch.get("id"), "name": ch.get("name")})
+
+                cursor = (data.get("response_metadata") or {}).get("next_cursor")
+                if not cursor:
+                    break
+
+            return {"ok": True, "channels": channels}
+
+        except SlackApiError as e:
+            err = e.response.get("error") if e.response else str(e)
+            logger.error("Slack conversations_list failed: %s", err)
+            raise
+        except Exception:
+            logger.exception("Errore inatteso in SlackAPI.list_channels")
+            raise
+
     def send_message(self, channel: str, text: str):
         try:
             resp = self.client.chat_postMessage(channel=channel, text=text)

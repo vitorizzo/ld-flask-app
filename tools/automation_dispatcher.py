@@ -82,37 +82,89 @@ class AutomationDispatcher:
                 return str(v)
         return ""
 
+    @staticmethod
+    def _as_str_list(val: Any) -> List[str]:
+        """
+        Supporta:
+        - None / "" -> []
+        - "a,b,c" -> ["a","b","c"]
+        - ["a","b"] -> ["a","b"]
+        """
+        if val is None:
+            return []
+        if isinstance(val, list):
+            out = []
+            for x in val:
+                s = str(x).strip()
+                if s:
+                    out.append(s)
+            return out
+
+        s = str(val).strip()
+        if not s:
+            return []
+        if "," in s:
+            return [p.strip() for p in s.split(",") if p.strip()]
+        return [s]
+
+    @classmethod
+    def _extract_channel_ids(cls, channels_cfg: Any) -> List[str]:
+        """
+        channels_cfg supportato:
+        - [{"id":"C123","label":"test-ldapp"}, ...]
+        - ["C123","C456"]
+        - "C123,C456"
+        """
+        ids: List[str] = []
+        if channels_cfg is None:
+            return ids
+
+        if isinstance(channels_cfg, list):
+            for item in channels_cfg:
+                if isinstance(item, dict):
+                    cid = str(item.get("id") or "").strip()
+                    if cid:
+                        ids.append(cid)
+                else:
+                    s = str(item).strip()
+                    if s:
+                        ids.append(s)
+            return ids
+
+        # string/altro
+        return cls._as_str_list(channels_cfg)
+
     @classmethod
     def _match_slack_message_channels(cls, trigger_config: Optional[Dict[str, Any]], payload: Dict[str, Any]) -> bool:
         """
-        trigger_config:
-          - canale: "" | "marsica" | "marsica,vendite" | ["marsica","vendite"]
-          - keyword: "" | "ordine" | "ordine,urgent" | ["ordine","urgent"]
-
+        trigger_config (nuovo):
+        - channels: [] | [{"id":"C0..","label":"test-ldapp"}, ...] | ["C0..","C1.."]
+        - keywords: [] | ["ordine","urgent"]  (case-insensitive, contains)
         Regole:
-          - se canale manca o vuoto -> match su tutti i canali
-          - se keyword manca o vuoto -> match senza keyword
-          - keyword match case-insensitive, contiene
+        - se channels mancante o vuoto -> match su tutti i canali
+        - se keywords mancante o vuoto -> match senza keyword
         """
         cfg = trigger_config or {}
-        canali = [c.lower() for c in cls._as_list(cfg.get("canale"))]
-        keywords = [k.lower() for k in cls._as_list(cfg.get("keyword"))]
 
-        channel = cls._extract_slack_channel(payload).lower()
-        text = cls._extract_slack_text(payload).lower()
+        channel_ids = [c.strip() for c in cls._extract_channel_ids(cfg.get("channels")) if str(c).strip()]
+        keywords = [k.lower() for k in cls._as_str_list(cfg.get("keywords"))]
+
+        channel = cls._extract_slack_channel(payload).strip()
+        text = cls._extract_slack_text(payload)
+        text_l = text.lower()
 
         # filtro canale
-        if canali:
+        if channel_ids:
             if not channel:
                 return False
-            if channel not in canali:
+            if channel not in channel_ids:
                 return False
 
-        # filtro keyword (OR)
+        # filtro keywords (OR)
         if keywords:
             if not text:
                 return False
-            if not any(k in text for k in keywords):
+            if not any(k in text_l for k in keywords):
                 return False
 
         return True
