@@ -4,7 +4,7 @@ import time
 import hashlib
 import logging
 
-    from flask import Blueprint, request, jsonify, current_app
+from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
 
 from config.capabilities import CAPABILITIES
