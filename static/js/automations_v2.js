@@ -1,717 +1,788 @@
-/* static/js/automations_v2.js
- * UI Automations V2 - client
- * Usa:
- *   GET  /api/automations/capabilities
- *   GET  /api/automations
- *   POST /api/automations
- *
- * Nota: GET /api/automations/<id> attualmente risulta non disponibile (bug lato backend).
- * Questa UI funziona per: lista + nuova automazione + creazione.
- */
-
+// static/js/automations_v2.js
 (() => {
   "use strict";
 
-  // ---------- DOM helpers ----------
-  const $ = (sel) => document.querySelector(sel);
-  const el = (tag, attrs = {}, children = []) => {
-    const n = document.createElement(tag);
-    Object.entries(attrs).forEach(([k, v]) => {
-      if (k === "class") n.className = v;
-      else if (k === "text") n.textContent = v;
-      else if (k.startsWith("on") && typeof v === "function") n.addEventListener(k.slice(2), v);
-      else n.setAttribute(k, v);
-    });
-    children.forEach((c) => n.appendChild(c));
-    return n;
-  };
+  // ---------- Helpers ----------
+  const qs = (sel, root = document) => root.querySelector(sel);
+  const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-  const setOptions = (select, options, placeholder = "Seleziona...") => {
-    select.innerHTML = "";
-    select.appendChild(el("option", { value: "", text: placeholder }));
-    options.forEach((opt) => {
-      // opt può essere string oppure oggetto {value,label}
-      const value = typeof opt === "string" ? opt : (opt.value ?? "");
-      const label = typeof opt === "string" ? opt : (opt.label ?? opt.name ?? value);
-      select.appendChild(el("option", { value, text: label }));
-    });
+  const toast = (msg, type = "info") => {
+    // Fallback minimal: alert (you can replace with Bootstrap toast if present)
+    console[type === "error" ? "error" : "log"](msg);
   };
 
   const safeJsonParse = (txt) => {
-    const trimmed = (txt ?? "").trim();
-    if (!trimmed) return {};
-    return JSON.parse(trimmed);
+    if (txt === null || txt === undefined) return null;
+    const s = String(txt).trim();
+    if (!s) return null;
+    try {
+      return JSON.parse(s);
+    } catch (e) {
+      return null;
+    }
   };
 
+  const formatJson = (obj) => {
+    if (obj === undefined || obj === null) return "";
+    try {
+      return JSON.stringify(obj, null, 2);
+    } catch {
+      return "";
+    }
+  };
+
+  const escapeHtml = (s) =>
+    String(s ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+
   // ---------- API ----------
-  const apiFetch = async (path, opts = {}) => {
-    const res = await fetch(path, {
-      headers: { "Content-Type": "application/json" },
-      credentials: "same-origin",
+  const apiFetch = async (url, opts = {}) => {
+    const res = await fetch(url, {
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...(opts.headers || {}),
+      },
       ...opts,
     });
 
-    const contentType = res.headers.get("content-type") || "";
-    let body;
-    if (contentType.includes("application/json")) body = await res.json();
-    else body = await res.text();
-
     if (!res.ok) {
-      const msg = typeof body === "string" ? body : JSON.stringify(body);
-      throw new Error(`HTTP ${res.status} - ${msg}`);
+      const msg = await res.text().catch(() => "");
+      throw new Error(msg || `HTTP ${res.status}`);
     }
-    return body;
+
+    // Some endpoints may return empty body
+    const ct = res.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) return null;
+    return res.json();
+  };
+
+  // Slack channels helper (for trigger config UI)
+  const slackChannelsCache = new Map(); // key: connectionId -> array of channels
+
+  const fetchSlackChannels = async (connectionId) => {
+    if (!connectionId) return [];
+    if (slackChannelsCache.has(connectionId)) return slackChannelsCache.get(connectionId);
+
+    // Primary (preferred) endpoint (to implement in backend):
+    // GET /api/connections/slack/<connectionId>/channels  -> [{id,name,is_private}]
+    // Fallback endpoint:
+    // GET /api/slack/channels?connection_id=<connectionId>
+    const tryFetch = async (url) => {
+      const res = await fetch(url, { headers: { Accept: "application/json" } });
+      if (!res.ok) {
+        const msg = await res.text().catch(() => "");
+        const err = new Error(msg || `HTTP ${res.status}`);
+        err.status = res.status;
+        throw err;
+      }
+      return res.json();
+    };
+
+    let channels = [];
+    try {
+      channels = await tryFetch(`/api/connections/slack/${encodeURIComponent(connectionId)}/channels`);
+    } catch (e1) {
+      if (e1 && e1.status === 404) {
+        channels = await tryFetch(`/api/slack/channels?connection_id=${encodeURIComponent(connectionId)}`);
+      } else {
+        throw e1;
+      }
+    }
+
+    if (!Array.isArray(channels)) channels = [];
+    // Normalize
+    channels = channels
+      .filter((c) => c && typeof c === "object")
+      .map((c) => ({
+        id: String(c.id || c.channel_id || ""),
+        name: String(c.name || c.label || c.display_name || c.id || ""),
+        is_private: Boolean(c.is_private ?? c.isPrivate ?? c.private ?? false),
+      }))
+      .filter((c) => c.id);
+
+    slackChannelsCache.set(connectionId, channels);
+    return channels;
+  };
+
+  const clearSlackChannelsCache = (connectionId) => {
+    if (!connectionId) return;
+    slackChannelsCache.delete(connectionId);
   };
 
   // ---------- State ----------
-  const state = {
-    capabilities: null,
-    apps: [],                 // ["trello","slack",...]
-    connectionsByApp: {},     // app -> [{id,name}...]
-    triggersByApp: {},        // app -> ["moveCard", ...] o [{value,label}...]
-    actionsByApp: {},         // app -> ["sendMessage", ...] o [{value,label}...]
-    automations: [],          // list from GET /api/automations
-    current: {
-      id: null,               // selezionata (se implementeremo GET /<id>)
-      isNew: true,
-      name: "",
-      enabled: true,
-      trigger: {
-        app: "",
-        connection_id: "",
-        type: "",
-        config: {},
-      },
-      actions: [],            // [{app,type,config}]
-    },
+  let capabilities = null;
+  let automations = [];
+  let connectionsSlack = [];
+
+  let currentAutomationId = null;
+  let currentActionEditingIndex = null;
+
+  // ---------- DOM ----------
+  const el = {
+    list: qs("#automationsList"),
+    btnNew: qs("#btnNewAutomation"),
+    btnSave: qs("#btnSaveAutomation"),
+    btnDelete: qs("#btnDeleteAutomation"),
+
+    formTitle: qs("#automationTitle"),
+    formDescription: qs("#automationDescription"),
+    formEnabled: qs("#automationEnabled"),
+
+    triggerApp: qs("#triggerApp"),
+    triggerConn: qs("#triggerConnection"),
+    triggerType: qs("#triggerType"),
+    triggerConfigEditor: qs("#triggerConfigEditor"),
+    triggerConfigJson: qs("#triggerConfigJson"),
+
+    actionsList: qs("#actionsList"),
+    btnAddAction: qs("#btnAddAction"),
+
+    actionEditor: qs("#actionEditor"),
+    actionEditorApp: qs("#actionApp"),
+    actionEditorType: qs("#actionType"),
+    actionEditorConfig: qs("#actionConfigJson"),
+    btnSaveAction: qs("#btnSaveAction"),
+    btnCancelAction: qs("#btnCancelAction"),
+
+    debugBox: qs("#debugBox"),
   };
 
-  // ---------- UI: messages ----------
-  const showEditorMessage = (type, text) => {
-    const box = $("#editorMessages");
-    if (!box) return;
-    box.innerHTML = "";
+  // Shortcuts for compatibility with your original variable names
+  const triggerAppEl = el.triggerApp;
+  const triggerConnEl = el.triggerConn;
+  const triggerTypeEl = el.triggerType;
+  const triggerConfigEditor = el.triggerConfigEditor;
+  const triggerConfigJson = el.triggerConfigJson;
 
-    const cls =
-      type === "success" ? "alert alert-success" :
-      type === "warning" ? "alert alert-warning" :
-      type === "danger" ? "alert alert-danger" :
-      "alert alert-info";
-
-    box.appendChild(el("div", { class: cls, role: "alert", text }));
-  };
-
-  // ---------- Capabilities parsing (robusto, senza assumere schema fisso) ----------
-  const parseCapabilities = (cap) => {
-    // Possibili shape gestite:
-    // A) { apps: { trello: {connections:[], triggers:[], actions:[]}, slack:{...} } }
-    // B) { trello: {connections:[], triggers:[], actions:[]}, slack:{...} }
-    // C) { applications: [...] } (fallback minimale)
-    const appsRoot =
-      (cap && typeof cap === "object" && cap.apps && typeof cap.apps === "object") ? cap.apps :
-      (cap && typeof cap === "object" && cap.applications && typeof cap.applications === "object") ? cap.applications :
-      (cap && typeof cap === "object") ? cap :
-      {};
-
-    // Se appsRoot è un array, provo a estrarre name
-    if (Array.isArray(appsRoot)) {
-      const apps = appsRoot.map((a) => (typeof a === "string" ? a : a.name)).filter(Boolean);
-      return { apps, connectionsByApp: {}, triggersByApp: {}, actionsByApp: {} };
-    }
-
-    const apps = Object.keys(appsRoot).filter((k) => typeof appsRoot[k] === "object");
-
-    const connectionsByApp = {};
-    const triggersByApp = {};
-    const actionsByApp = {};
-
-    for (const app of apps) {
-      const node = appsRoot[app] || {};
-
-      // connections
-      const conns =
-        node.connections ?? node.connection ?? node.available_connections ?? node.availableConnections ?? [];
-      connectionsByApp[app] = Array.isArray(conns)
-        ? conns.map((c) => {
-            if (typeof c === "string") return { id: c, name: c };
-            return {
-              id: c.id ?? c.connection_id ?? c.value ?? "",
-              name: c.name ?? c.label ?? c.title ?? String(c.id ?? c.value ?? ""),
-            };
-          }).filter((c) => c.id !== "")
-        : [];
-
-      // triggers
-      const trigs = node.triggers ?? node.trigger_types ?? node.triggerTypes ?? [];
-      triggersByApp[app] = Array.isArray(trigs)
-        ? trigs.map((t) => {
-            if (typeof t === "string") return { value: t, label: t };
-            return { value: t.value ?? t.type ?? t.name ?? "", label: t.label ?? t.name ?? t.type ?? "" };
-          }).filter((t) => t.value !== "")
-        : [];
-
-      // actions
-      const acts = node.actions ?? node.action_types ?? node.actionTypes ?? [];
-      actionsByApp[app] = Array.isArray(acts)
-        ? acts.map((a) => {
-            if (typeof a === "string") return { value: a, label: a };
-            return { value: a.value ?? a.type ?? a.name ?? "", label: a.label ?? a.name ?? a.type ?? "" };
-          }).filter((a) => a.value !== "")
-        : [];
-    }
-
-    return { apps, connectionsByApp, triggersByApp, actionsByApp };
-  };
-
-  // ---------- UI wiring ----------
-  const setEditorVisible = (isVisible) => {
-    const empty = $("#editorEmptyState");
-    const form = $("#editorForm");
-    if (!empty || !form) return;
-
-    if (isVisible) {
-      empty.classList.add("d-none");
-      form.classList.remove("d-none");
-    } else {
-      empty.classList.remove("d-none");
-      form.classList.add("d-none");
-    }
-  };
-
+  // ---------- Rendering ----------
   const renderAutomationList = () => {
-    const list = $("#automationList");
-    const count = $("#automationCount");
-    const hint = $("#automationListHint");
+    if (!el.list) return;
+    el.list.innerHTML = "";
 
-    if (!list || !count || !hint) return;
+    automations.forEach((a) => {
+      const row = document.createElement("div");
+      row.className = "automation-row d-flex justify-content-between align-items-center p-2 border rounded mb-2";
 
-    list.innerHTML = "";
-    const items = filteredAutomations();
-    count.textContent = String(items.length);
+      const left = document.createElement("div");
+      left.className = "d-flex flex-column";
+      left.innerHTML = `
+        <div class="fw-semibold">${escapeHtml(a.name || "(senza nome)")}</div>
+        <div class="text-muted small">${escapeHtml(a.description || "")}</div>
+        <div class="small">
+          <span class="badge bg-secondary me-1">${escapeHtml(a.trigger_app || "")}</span>
+          <span class="badge bg-secondary">${escapeHtml(a.trigger_type || "")}</span>
+          <span class="ms-2 ${a.enabled ? "text-success" : "text-danger"}">${a.enabled ? "ON" : "OFF"}</span>
+        </div>
+      `;
 
-    if (items.length === 0) {
-      hint.classList.remove("d-none");
-      return;
-    }
-    hint.classList.add("d-none");
+      const right = document.createElement("div");
+      right.className = "d-flex gap-2";
+      const btnEdit = document.createElement("button");
+      btnEdit.type = "button";
+      btnEdit.className = "btn btn-sm btn-outline-primary";
+      btnEdit.textContent = "Modifica";
+      btnEdit.addEventListener("click", () => loadAutomation(a.id));
+      right.appendChild(btnEdit);
 
-    items.forEach((a) => {
-      // non assumiamo schema, ma ci aspettiamo almeno id e campi trigger_* (da to_dict)
-      const id = a.id ?? a.automation_id ?? "";
-      const triggerApp = a.trigger_app ?? a.triggerApp ?? "";
-      const triggerType = a.trigger_type ?? a.triggerType ?? "";
-      const createdAt = a.created_at ?? a.createdAt ?? "";
+      row.appendChild(left);
+      row.appendChild(right);
 
-      const title = a.name ?? a.title ?? `${triggerApp}:${triggerType}`.trim();
-
-      const row = el("button", {
-        type: "button",
-        class: "list-group-item list-group-item-action",
-        onclick: () => onSelectAutomationFromList(a),
-      }, [
-        el("div", { class: "d-flex w-100 justify-content-between" }, [
-          el("div", { class: "fw-semibold", text: title || `Automation #${id}` }),
-          el("small", { class: "text-muted", text: createdAt ? String(createdAt) : "" }),
-        ]),
-        el("div", { class: "small text-muted", text: `Trigger: ${triggerApp || "?"} / ${triggerType || "?"}` }),
-      ]);
-
-      list.appendChild(row);
+      el.list.appendChild(row);
     });
   };
 
-  const filteredAutomations = () => {
-    const filterApp = ($("#filterTriggerApp")?.value ?? "").trim();
-    const q = ($("#searchAutomation")?.value ?? "").trim().toLowerCase();
-
-    return (state.automations || []).filter((a) => {
-      const triggerApp = String(a.trigger_app ?? a.triggerApp ?? "").toLowerCase();
-      const triggerType = String(a.trigger_type ?? a.triggerType ?? "").toLowerCase();
-      const name = String(a.name ?? a.title ?? "").toLowerCase();
-
-      if (filterApp && triggerApp !== filterApp.toLowerCase()) return false;
-      if (!q) return true;
-      return name.includes(q) || triggerApp.includes(q) || triggerType.includes(q) || String(a.id ?? "").includes(q);
+  const renderTriggerAppOptions = () => {
+    triggerAppEl.innerHTML = "";
+    (capabilities?.apps || []).forEach((app) => {
+      const opt = document.createElement("option");
+      opt.value = app;
+      opt.textContent = app;
+      triggerAppEl.appendChild(opt);
     });
   };
 
-  const populateFilterApps = () => {
-    const sel = $("#filterTriggerApp");
-    if (!sel) return;
-    const apps = state.apps.map((a) => ({ value: a, label: a }));
-    setOptions(sel, apps, "Tutte");
-    sel.value = "";
+  const renderTriggerTypeOptions = () => {
+    const app = triggerAppEl.value;
+    triggerTypeEl.innerHTML = "";
+    const list = (capabilities?.triggers_by_app?.[app] || []).slice();
+    list.forEach((t) => {
+      const opt = document.createElement("option");
+      opt.value = t;
+      opt.textContent = t;
+      triggerTypeEl.appendChild(opt);
+    });
   };
 
-  const resetEditor = () => {
-    state.current = {
-      id: null,
-      isNew: true,
-      name: "",
-      enabled: true,
-      trigger: { app: "", connection_id: "", type: "", config: {} },
-      actions: [],
-    };
+  const renderTriggerConnectionOptions = () => {
+    const app = triggerAppEl.value;
+    triggerConnEl.innerHTML = "";
+    const opt0 = document.createElement("option");
+    opt0.value = "";
+    opt0.textContent = "(nessuna)";
+    triggerConnEl.appendChild(opt0);
 
-    $("#automationName").value = "";
-    $("#automationEnabled").value = "true";
-    $("#triggerApp").value = "";
-    $("#triggerConnection").value = "";
-    $("#triggerType").value = "";
-
-    $("#triggerConnection").disabled = true;
-    $("#triggerType").disabled = true;
-
-    renderTriggerConfigEditor({});
-    renderActions();
-    showEditorMessage("info", "Nuova automazione: seleziona Trigger e aggiungi Actions.");
-  };
-
-  const onSelectAutomationFromList = async (a) => {
-    setEditorVisible(true);
-
-    const id = a.id ?? a.automation_id ?? null;
-    if (!id) {
-      showEditorMessage("danger", "ID automazione mancante nella lista.");
-      return;
-    }
-
-    try {
-      // 1) Carico il dettaglio completo (trigger_config + actions)
-      const full = await apiFetch(`/api/automations/${id}`);
-
-      // 2) Nome / enabled (se presenti)
-      $("#automationName").value = full.name ?? full.title ?? a.name ?? a.title ?? "";
-      $("#automationEnabled").value = String(full.enabled ?? a.enabled ?? true);
-
-      // 3) Trigger (gestisco più possibili naming)
-      const tApp = full.trigger_app ?? full.triggerApp ?? a.trigger_app ?? a.triggerApp ?? "";
-      const tType = full.trigger_type ?? full.triggerType ?? a.trigger_type ?? a.triggerType ?? "";
-      const tConn = full.trigger_connection ?? full.triggerConnection ?? a.trigger_connection ?? a.triggerConnection ?? "";
-      const tCfg = full.trigger_config ?? full.triggerConfig ?? a.trigger_config ?? a.triggerConfig ?? {};
-
-      state.current.id = id;
-      state.current.isNew = false;
-      state.current.trigger.app = tApp;
-      state.current.trigger.type = tType;
-      state.current.trigger.connection_id = tConn;
-      state.current.trigger.config = tCfg;
-
-      // 4) Popolo app + trigger types
-      $("#triggerApp").value = tApp || "";
-      await onTriggerAppChanged(); // carica anche le connessioni via /api/connections/<app>
-
-      // 5) Imposto connessione (dopo che le options sono state caricate)
-      $("#triggerConnection").value = tConn !== null && tConn !== undefined ? String(tConn) : "";
-
-      // 6) Imposto trigger type
-      $("#triggerType").value = tType || "";
-
-      // 7) Config trigger
-      renderTriggerConfigEditor(tCfg || {});
-
-      // 8) Actions (dal dettaglio)
-      const actions =
-        full.actions ??
-        full.automation_actions ??
-        full.actions_list ??
-        [];
-
-      state.current.actions = (actions || []).map((x) => ({
-        app: x.app ?? x.action_app ?? "",
-        // backend tipico: action_type / type
-        type: x.action_type ?? x.type ?? "",
-        config: x.action_config ?? x.config ?? {},
-        order: x.order ?? x.order_index ?? null,
-      }));
-
-      // se arrivano con order, le ordino
-      state.current.actions.sort((a, b) => {
-        const oa = a.order ?? 9999;
-        const ob = b.order ?? 9999;
-        return oa - ob;
+    // currently only slack connections are exposed in UI
+    if (app === "slack") {
+      connectionsSlack.forEach((c) => {
+        const opt = document.createElement("option");
+        opt.value = c.id;
+        opt.textContent = c.name || `Slack #${c.id}`;
+        triggerConnEl.appendChild(opt);
       });
-
-      // elimino la chiave order per non sporcare UI (la UI usa l’indice)
-      state.current.actions = state.current.actions.map(({ app, type, config }) => ({ app, type, config }));
-
-      renderActions();
-
-      showEditorMessage("info", `Automazione ${id} caricata.`);
-    } catch (err) {
-      showEditorMessage("danger", `Errore caricamento automazione ${id}: ${err.message}`);
     }
-  };
-
-  // ---------- Trigger editor ----------
-  const onTriggerAppChanged = async () => {
-    const app = ($("#triggerApp")?.value ?? "").trim();
-    const connSel = $("#triggerConnection");
-    const trigSel = $("#triggerType");
-    if (!connSel || !trigSel) return;
-
-    // reset
-    setOptions(connSel, [], "Seleziona...");
-    setOptions(trigSel, [], "Seleziona...");
-    connSel.disabled = true;
-    trigSel.disabled = true;
-
-    if (!app) return;
-
-    // triggers (da capabilities)
-    const trigs = (state.triggersByApp[app] || []).map((t) => ({
-      value: String(t.value),
-      label: t.label || String(t.value),
-    }));
-    setOptions(trigSel, trigs, "Seleziona...");
-    trigSel.disabled = false;
-
-    // connections (da endpoint)
-    await loadConnectionsForApp(app);
-    const conns = (state.connectionsByApp[app] || []).map((c) => ({
-      value: String(c.id),
-      label: c.name || String(c.id),
-    }));
-    setOptions(connSel, conns, "Seleziona...");
-    connSel.disabled = false;
   };
 
   const renderTriggerConfigEditor = (cfgObj) => {
-    const container = $("#triggerConfigContainer");
-    if (!container) return;
-    container.innerHTML = "";
+    triggerConfigJson.value = formatJson(cfgObj || null);
 
-    const ta = el("textarea", {
-      class: "form-control",
-      id: "triggerConfigJson",
-      rows: "5",
-      placeholder: "{}",
-    });
-    ta.value = JSON.stringify(cfgObj || {}, null, 2);
+    const triggerApp = triggerAppEl.value;
+    const triggerType = triggerTypeEl.value;
 
-    container.appendChild(ta);
-    container.appendChild(el("div", { class: "form-text", text: "Inserisci JSON valido per trigger_config (opzionale)." }));
-  };
+    // Reset advanced UI
+    triggerConfigEditor.innerHTML = "";
+    triggerConfigEditor.appendChild(triggerConfigJson);
 
-  // ---------- Actions editor ----------
-  const renderActions = () => {
-    const container = $("#actionsContainer");
-    if (!container) return;
-    container.innerHTML = "";
-
-    if (!state.current.actions.length) {
-      container.appendChild(el("div", { class: "text-muted", text: "Nessuna action. Clicca “Aggiungi azione”." }));
+    // Only Slack "message" gets the assisted editor (channels + keywords)
+    if (!(triggerApp === "slack" && triggerType === "message")) {
+      triggerConfigJson.style.display = "";
       return;
     }
 
-    state.current.actions.forEach((act, idx) => {
-      const card = el("div", { class: "card" }, [
-        el("div", { class: "card-body" }, [
-          el("div", { class: "d-flex align-items-center justify-content-between mb-2" }, [
-            el("div", { class: "fw-semibold", text: `Azione #${idx + 1}` }),
-            el("div", { class: "d-flex gap-2" }, [
-              el("button", {
-                type: "button",
-                class: "btn btn-sm btn-outline-secondary",
-                onclick: () => moveAction(idx, -1),
-                title: "Sposta su",
-              }, [el("span", { text: "↑" })]),
-              el("button", {
-                type: "button",
-                class: "btn btn-sm btn-outline-secondary",
-                onclick: () => moveAction(idx, +1),
-                title: "Sposta giù",
-              }, [el("span", { text: "↓" })]),
-              el("button", {
-                type: "button",
-                class: "btn btn-sm btn-outline-danger",
-                onclick: () => removeAction(idx),
-                title: "Rimuovi",
-              }, [el("span", { text: "Rimuovi" })]),
-            ]),
-          ]),
+    // Hide raw JSON textarea but keep it as source-of-truth for save payload.
+    triggerConfigJson.style.display = "none";
 
-          el("div", { class: "row g-3" }, [
-            el("div", { class: "col-12 col-md-4" }, [
-              el("label", { class: "form-label mb-1", text: "Applicazione" }),
-              (() => {
-                const sel = el("select", { class: "form-select", "data-idx": String(idx), "data-field": "app" });
-                const apps = state.apps.map((a) => ({ value: a, label: a }));
-                setOptions(sel, apps, "Seleziona...");
-                sel.value = act.app || "";
-                sel.addEventListener("change", onActionAppChanged);
-                return sel;
-              })(),
-            ]),
-            el("div", { class: "col-12 col-md-4" }, [
-              el("label", { class: "form-label mb-1", text: "Action" }),
-              (() => {
-                const sel = el("select", { class: "form-select", "data-idx": String(idx), "data-field": "type" });
-                // popolata in base all'app
-                fillActionTypeOptions(sel, act.app || "");
-                sel.value = act.type || "";
-                sel.addEventListener("change", (e) => {
-                  const i = Number(e.target.dataset.idx);
-                  state.current.actions[i].type = e.target.value;
-                });
-                return sel;
-              })(),
-            ]),
-            el("div", { class: "col-12 col-md-4" }, [
-              el("label", { class: "form-label mb-1", text: "Config JSON" }),
-              (() => {
-                const ta = el("textarea", {
-                  class: "form-control",
-                  rows: "4",
-                  "data-idx": String(idx),
-                  "data-field": "config",
-                  placeholder: "{}",
-                });
-                ta.value = JSON.stringify(act.config || {}, null, 2);
-                ta.addEventListener("change", (e) => {
-                  const i = Number(e.target.dataset.idx);
-                  try {
-                    state.current.actions[i].config = safeJsonParse(e.target.value);
-                    showEditorMessage("info", "Config action aggiornata.");
-                  } catch (err) {
-                    showEditorMessage("danger", `JSON non valido nella action #${i + 1}: ${err.message}`);
-                  }
-                });
-                return ta;
-              })(),
-            ]),
-          ]),
-        ]),
-      ]);
+    const parseCfg = () => {
+      const raw = triggerConfigJson.value?.trim();
+      if (!raw) return { channels: [], keywords: [] };
+      try {
+        const obj = JSON.parse(raw);
+        const channels = Array.isArray(obj?.channels) ? obj.channels : [];
+        const keywords = Array.isArray(obj?.keywords) ? obj.keywords : [];
+        return { channels, keywords };
+      } catch {
+        return { channels: [], keywords: [] };
+      }
+    };
 
-      container.appendChild(card);
+    const state = parseCfg();
+
+    const normalizeChannels = (arr) =>
+      (Array.isArray(arr) ? arr : [])
+        .map((c) => {
+          if (typeof c === "string") return { id: c, label: c };
+          return {
+            id: String(c?.id || ""),
+            label: String(c?.label || c?.name || c?.id || ""),
+            is_private: Boolean(c?.is_private ?? c?.isPrivate ?? false),
+          };
+        })
+        .filter((c) => c.id);
+
+    const normalizeKeywords = (arr) =>
+      (Array.isArray(arr) ? arr : [])
+        .map((k) => String(k || "").trim())
+        .filter(Boolean);
+
+    let channelsSelected = normalizeChannels(state.channels);
+    let keywordsSelected = normalizeKeywords(state.keywords);
+
+    const syncTextarea = () => {
+      triggerConfigJson.value = formatJson({ channels: channelsSelected, keywords: keywordsSelected });
+    };
+
+    const chip = (label, onRemove) => {
+      const el = document.createElement("span");
+      el.className = "chip";
+      el.style.display = "inline-flex";
+      el.style.alignItems = "center";
+      el.style.gap = "6px";
+      el.style.padding = "4px 8px";
+      el.style.border = "1px solid var(--bs-border-color, #ddd)";
+      el.style.borderRadius = "999px";
+      el.style.marginRight = "6px";
+      el.style.marginBottom = "6px";
+      el.textContent = label;
+
+      const x = document.createElement("button");
+      x.type = "button";
+      x.className = "btn btn-sm btn-outline-secondary";
+      x.textContent = "×";
+      x.style.borderRadius = "999px";
+      x.style.lineHeight = "1";
+      x.style.padding = "0 6px";
+
+      x.addEventListener("click", () => onRemove());
+      el.appendChild(x);
+      return el;
+    };
+
+    const renderChips = (container, items, getLabel, onRemoveAt) => {
+      container.innerHTML = "";
+      items.forEach((it, idx) => {
+        container.appendChild(chip(getLabel(it), () => onRemoveAt(idx)));
+      });
+    };
+
+    const section = (title) => {
+      const wrap = document.createElement("div");
+      wrap.className = "mb-3";
+
+      const h = document.createElement("div");
+      h.className = "form-label fw-semibold";
+      h.textContent = title;
+
+      wrap.appendChild(h);
+      return wrap;
+    };
+
+    // --- Channels ---
+    const secChannels = section("Canali (Slack)");
+    const rowCh = document.createElement("div");
+    rowCh.className = "d-flex gap-2 align-items-end flex-wrap";
+
+    const selWrap = document.createElement("div");
+    selWrap.className = "flex-grow-1";
+    const sel = document.createElement("select");
+    sel.className = "form-select";
+    sel.innerHTML = `<option value="">(carica i canali...)</option>`;
+    selWrap.appendChild(sel);
+
+    const btnRefresh = document.createElement("button");
+    btnRefresh.type = "button";
+    btnRefresh.className = "btn btn-outline-secondary";
+    btnRefresh.textContent = "Aggiorna canali";
+
+    const btnAdd = document.createElement("button");
+    btnAdd.type = "button";
+    btnAdd.className = "btn btn-primary";
+    btnAdd.textContent = "Aggiungi canale";
+
+    rowCh.appendChild(selWrap);
+    rowCh.appendChild(btnRefresh);
+    rowCh.appendChild(btnAdd);
+
+    const chipsChannels = document.createElement("div");
+    chipsChannels.className = "mt-2";
+
+    secChannels.appendChild(rowCh);
+    secChannels.appendChild(chipsChannels);
+
+    // --- Keywords ---
+    const secKeywords = section("Keyword");
+    const rowKw = document.createElement("div");
+    rowKw.className = "d-flex gap-2 align-items-end flex-wrap";
+
+    const kwWrap = document.createElement("div");
+    kwWrap.className = "flex-grow-1";
+    const kwInput = document.createElement("input");
+    kwInput.type = "text";
+    kwInput.className = "form-control";
+    kwInput.placeholder = "es: ordine";
+    kwWrap.appendChild(kwInput);
+
+    const btnKwAdd = document.createElement("button");
+    btnKwAdd.type = "button";
+    btnKwAdd.className = "btn btn-primary";
+    btnKwAdd.textContent = "Aggiungi";
+
+    rowKw.appendChild(kwWrap);
+    rowKw.appendChild(btnKwAdd);
+
+    const chipsKeywords = document.createElement("div");
+    chipsKeywords.className = "mt-2";
+
+    secKeywords.appendChild(rowKw);
+    secKeywords.appendChild(chipsKeywords);
+
+    // Mount
+    triggerConfigEditor.insertBefore(secChannels, triggerConfigJson);
+    triggerConfigEditor.insertBefore(secKeywords, triggerConfigJson);
+
+    const renderAll = () => {
+      renderChips(
+        chipsChannels,
+        channelsSelected,
+        (c) => (c.is_private ? `🔒 ${c.label}` : c.label),
+        (idx) => {
+          channelsSelected.splice(idx, 1);
+          syncTextarea();
+          renderAll();
+        }
+      );
+
+      renderChips(
+        chipsKeywords,
+        keywordsSelected,
+        (k) => k,
+        (idx) => {
+          keywordsSelected.splice(idx, 1);
+          syncTextarea();
+          renderAll();
+        }
+      );
+    };
+
+    const loadChannelsIntoSelect = async () => {
+      const connId = triggerConnEl.value;
+      sel.innerHTML = `<option value="">(seleziona...)</option>`;
+      if (!connId) {
+        sel.innerHTML = `<option value="">(seleziona prima una connessione)</option>`;
+        return;
+      }
+
+      try {
+        const channels = await fetchSlackChannels(connId);
+        if (!channels.length) {
+          sel.innerHTML = `<option value="">(nessun canale trovato)</option>`;
+          return;
+        }
+        const opts = channels
+          .map(
+            (c) =>
+              `<option value="${c.id}" data-private="${c.is_private ? "1" : "0"}">${
+                c.is_private ? "🔒 " : ""
+              }${escapeHtml(c.name)}</option>`
+          )
+          .join("");
+        sel.innerHTML = `<option value="">(seleziona...)</option>` + opts;
+      } catch (err) {
+        console.error("Slack channels load failed:", err);
+        sel.innerHTML = `<option value="">(errore caricamento canali)</option>`;
+      }
+    };
+
+    btnRefresh.addEventListener("click", async () => {
+      const connId = triggerConnEl.value;
+      clearSlackChannelsCache(connId);
+      await loadChannelsIntoSelect();
+    });
+
+    btnAdd.addEventListener("click", () => {
+      const id = sel.value;
+      if (!id) return;
+      const opt = sel.options[sel.selectedIndex];
+      const label = (opt?.textContent || id).replace(/^🔒\s*/, "");
+      const is_private = opt?.dataset?.private === "1";
+
+      if (channelsSelected.some((c) => c.id === id)) return;
+      channelsSelected.push({ id, label, is_private });
+      syncTextarea();
+      renderAll();
+    });
+
+    const addKeyword = () => {
+      const v = (kwInput.value || "").trim();
+      if (!v) return;
+      if (keywordsSelected.includes(v)) {
+        kwInput.value = "";
+        return;
+      }
+      keywordsSelected.push(v);
+      kwInput.value = "";
+      syncTextarea();
+      renderAll();
+    };
+
+    btnKwAdd.addEventListener("click", addKeyword);
+    kwInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        addKeyword();
+      }
+    });
+
+    // Initial render
+    syncTextarea();
+    renderAll();
+    loadChannelsIntoSelect();
+  };
+
+  const renderActionsList = (actions) => {
+    el.actionsList.innerHTML = "";
+
+    (actions || []).forEach((a, idx) => {
+      const row = document.createElement("div");
+      row.className = "action-row d-flex justify-content-between align-items-center p-2 border rounded mb-2";
+
+      const left = document.createElement("div");
+      left.className = "d-flex flex-column";
+      left.innerHTML = `
+        <div class="fw-semibold">${escapeHtml(a.action_app || "")} / ${escapeHtml(a.action_type || "")}</div>
+        <div class="text-muted small">order_index=${idx}</div>
+      `;
+
+      const right = document.createElement("div");
+      right.className = "d-flex gap-2";
+
+      const btnEdit = document.createElement("button");
+      btnEdit.type = "button";
+      btnEdit.className = "btn btn-sm btn-outline-primary";
+      btnEdit.textContent = "Modifica";
+      btnEdit.addEventListener("click", () => openActionEditor(idx));
+
+      const btnDel = document.createElement("button");
+      btnDel.type = "button";
+      btnDel.className = "btn btn-sm btn-outline-danger";
+      btnDel.textContent = "Rimuovi";
+      btnDel.addEventListener("click", () => deleteAction(idx));
+
+      right.appendChild(btnEdit);
+      right.appendChild(btnDel);
+
+      row.appendChild(left);
+      row.appendChild(right);
+
+      el.actionsList.appendChild(row);
     });
   };
 
-  const fillActionTypeOptions = (select, app) => {
-    if (!select) return;
-    if (!app) {
-      setOptions(select, [], "Seleziona...");
-      select.disabled = true;
-      return;
-    }
-    const acts = (state.actionsByApp[app] || []).map((a) => ({ value: a.value, label: a.label }));
-    setOptions(select, acts, "Seleziona...");
-    select.disabled = false;
-  };
+  const renderActionEditorOptions = () => {
+    const apps = (capabilities?.apps || []).slice();
 
-  const onActionAppChanged = (e) => {
-    const idx = Number(e.target.dataset.idx);
-    const newApp = e.target.value;
-
-    state.current.actions[idx].app = newApp;
-    state.current.actions[idx].type = "";
-    // aggiorno il select type nella stessa card
-    const card = e.target.closest(".card-body");
-    const typeSel = card?.querySelector('select[data-field="type"]');
-    fillActionTypeOptions(typeSel, newApp);
-    if (typeSel) typeSel.value = "";
-
-    renderActions(); // re-render per coerenza
-  };
-
-  const addAction = () => {
-    state.current.actions.push({ app: "", type: "", config: {} });
-    renderActions();
-  };
-
-  const removeAction = (idx) => {
-    state.current.actions.splice(idx, 1);
-    renderActions();
-  };
-
-  const moveAction = (idx, delta) => {
-    const ni = idx + delta;
-    if (ni < 0 || ni >= state.current.actions.length) return;
-    const tmp = state.current.actions[idx];
-    state.current.actions[idx] = state.current.actions[ni];
-    state.current.actions[ni] = tmp;
-    renderActions();
-  };
-
-  // ---------- Save (create only) ----------
-  const collectEditorData = () => {
-    const name = ($("#automationName")?.value ?? "").trim();
-    const enabled = ($("#automationEnabled")?.value ?? "true") === "true";
-
-    const triggerApp = ($("#triggerApp")?.value ?? "").trim();
-    const triggerConn = ($("#triggerConnection")?.value ?? "").trim();
-    const triggerType = ($("#triggerType")?.value ?? "").trim();
-
-    if (!triggerApp) throw new Error("Seleziona Trigger → Applicazione.");
-    if (!triggerConn) throw new Error("Seleziona Trigger → Connessione.");
-    if (!triggerType) throw new Error("Seleziona Trigger → Trigger.");
-
-    const triggerCfgTxt = ($("#triggerConfigJson")?.value ?? "").trim();
-    const triggerCfg = triggerCfgTxt ? safeJsonParse(triggerCfgTxt) : {};
-
-    if (!Array.isArray(state.current.actions) || state.current.actions.length === 0) {
-      throw new Error("Aggiungi almeno una action.");
-    }
-
-    state.current.actions.forEach((a, i) => {
-      if (!a.app) throw new Error(`Action #${i + 1}: seleziona Applicazione.`);
-      if (!a.type) throw new Error(`Action #${i + 1}: seleziona Action.`);
-      if (a.config == null || typeof a.config !== "object") a.config = {};
+    el.actionEditorApp.innerHTML = "";
+    apps.forEach((app) => {
+      const opt = document.createElement("option");
+      opt.value = app;
+      opt.textContent = app;
+      el.actionEditorApp.appendChild(opt);
     });
 
-    // Backend create_automation si aspetta SOLO trigger + actions
-    const payload = {
-      name,
-      description: "", // per ora vuota (poi la colleghiamo a un campo UI se vuoi)
-      enabled,
+    const updateActionTypes = () => {
+      const app = el.actionEditorApp.value;
+      const types = (capabilities?.actions_by_app?.[app] || []).slice();
+      el.actionEditorType.innerHTML = "";
+      types.forEach((t) => {
+        const opt = document.createElement("option");
+        opt.value = t;
+        opt.textContent = t;
+        el.actionEditorType.appendChild(opt);
+      });
+    };
+
+    el.actionEditorApp.addEventListener("change", updateActionTypes);
+    updateActionTypes();
+  };
+
+  // ---------- Data operations ----------
+  const loadCapabilities = async () => {
+    capabilities = await apiFetch("/api/automations/capabilities");
+  };
+
+  const loadAutomations = async () => {
+    automations = (await apiFetch("/api/automations")) || [];
+  };
+
+  const loadConnections = async () => {
+    // For now only Slack connections are used by UI
+    connectionsSlack = (await apiFetch("/api/connections/slack")) || [];
+  };
+
+  const loadAutomation = async (id) => {
+    const auto = await apiFetch(`/api/automations/${id}`);
+    currentAutomationId = id;
+
+    // Fill form
+    el.formTitle.value = auto.name || "";
+    el.formDescription.value = auto.description || "";
+    el.formEnabled.checked = !!auto.enabled;
+
+    // Trigger
+    triggerAppEl.value = auto.trigger_app || (capabilities?.apps?.[0] || "");
+    renderTriggerTypeOptions();
+    renderTriggerConnectionOptions();
+
+    triggerConnEl.value = auto.trigger_connection || "";
+    triggerTypeEl.value = auto.trigger_type || "";
+
+    renderTriggerConfigEditor(auto.trigger_config || null);
+
+    // Actions
+    window.__currentActions = (auto.actions || []).slice();
+    renderActionsList(window.__currentActions);
+
+    // Hide action editor
+    closeActionEditor();
+  };
+
+  const newAutomation = () => {
+    currentAutomationId = null;
+    el.formTitle.value = "";
+    el.formDescription.value = "";
+    el.formEnabled.checked = true;
+
+    triggerAppEl.value = capabilities?.apps?.[0] || "slack";
+    renderTriggerTypeOptions();
+    renderTriggerConnectionOptions();
+
+    triggerConnEl.value = "";
+    triggerTypeEl.value = (capabilities?.triggers_by_app?.[triggerAppEl.value] || [])[0] || "";
+    renderTriggerConfigEditor(null);
+
+    window.__currentActions = [];
+    renderActionsList(window.__currentActions);
+
+    closeActionEditor();
+  };
+
+  const buildAutomationPayload = () => {
+    return {
+      name: el.formTitle.value.trim(),
+      description: el.formDescription.value.trim(),
+      enabled: !!el.formEnabled.checked,
       trigger: {
-        app: triggerApp,
-        connection_id: Number(triggerConn),
-        type: triggerType,
-        config: triggerCfg,
+        app: triggerAppEl.value,
+        connection_id: triggerConnEl.value ? Number(triggerConnEl.value) : null,
+        type: triggerTypeEl.value,
+        config: safeJsonParse(triggerConfigJson.value),
       },
-      actions: state.current.actions.map((a, idx) => ({
-        app: a.app,
-        type: a.type,
-        order: idx, // 0-based, coerente con order_index visto nel tuo JSON
-        config: a.config || {},
+      actions: (window.__currentActions || []).map((a, idx) => ({
+        action_app: a.action_app,
+        action_type: a.action_type,
+        action_config: a.action_config || null,
+        order_index: idx,
+        enabled: a.enabled !== false,
       })),
     };
-    return { payload, meta: { name, enabled } };
   };
 
-  const onSave = async () => {
-    try {
-      const { payload } = collectEditorData();
+  const saveAutomation = async () => {
+    const payload = buildAutomationPayload();
 
-      showEditorMessage("info", "Salvataggio in corso...");
-      const created = await apiFetch("/api/automations", {
+    if (!payload.name) {
+      toast("Nome automazione obbligatorio", "error");
+      return;
+    }
+
+    try {
+      await apiFetch("/api/automations", {
         method: "POST",
         body: JSON.stringify(payload),
       });
 
-      showEditorMessage("success", `Automazione creata (id=${created.id ?? "?"}).`);
       await loadAutomations();
-      // torna in modalità nuova (per evitare edit su endpoint incompleto)
-      resetEditor();
-    } catch (err) {
-      showEditorMessage("danger", err.message);
-    }
-  };
-
-  // ---------- Data loading ----------
-  const loadCapabilities = async () => {
-    const cap = await apiFetch("/api/automations/capabilities");
-    state.capabilities = cap;
-
-    const parsed = parseCapabilities(cap);
-    state.apps = parsed.apps;
-    state.connectionsByApp = parsed.connectionsByApp;
-    state.triggersByApp = parsed.triggersByApp;
-    state.actionsByApp = parsed.actionsByApp;
-
-    // Popola selects
-    const triggerAppSel = $("#triggerApp");
-    if (triggerAppSel) {
-      const apps = state.apps.map((a) => ({ value: a, label: a }));
-      setOptions(triggerAppSel, apps, "Seleziona...");
-    }
-
-    populateFilterApps();
-  };
-
-  const loadConnectionsForApp = async (app) => {
-    const a = (app || "").trim();
-    if (!a) return [];
-    try {
-      const rows = await apiFetch(`/api/connections/${encodeURIComponent(a)}`);
-      // rows: [{id,name}]
-      state.connectionsByApp[a] = (rows || []).map((r) => ({
-        id: r.id,
-        name: r.name ?? String(r.id),
-      }));
-      return state.connectionsByApp[a];
-    } catch (err) {
-      // non blocchiamo tutta la UI
-      showEditorMessage("danger", `Errore caricamento connessioni ${a}: ${err.message}`);
-      state.connectionsByApp[a] = [];
-      return [];
-    }
-  };
-
-  const loadAutomations = async () => {
-    state.automations = await apiFetch("/api/automations");
-    renderAutomationList();
-  };
-
-  // ---------- init ----------
-  const bindEvents = () => {
-    $("#btnNewAutomation")?.addEventListener("click", () => {
-      setEditorVisible(true);
-      resetEditor();
-    });
-
-    $("#btnRefreshList")?.addEventListener("click", async () => {
-      try {
-        await loadAutomations();
-      } catch (err) {
-        showEditorMessage("danger", err.message);
-      }
-    });
-
-    $("#btnResetFilters")?.addEventListener("click", () => {
-      if ($("#filterTriggerApp")) $("#filterTriggerApp").value = "";
-      if ($("#searchAutomation")) $("#searchAutomation").value = "";
       renderAutomationList();
-    });
-
-    $("#filterTriggerApp")?.addEventListener("change", renderAutomationList);
-    $("#searchAutomation")?.addEventListener("input", renderAutomationList);
-
-    $("#triggerApp")?.addEventListener("change", async () => {
-      await onTriggerAppChanged();
-      // reset dipendenti
-      $("#triggerConnection").value = "";
-      $("#triggerType").value = "";
-      renderTriggerConfigEditor({});
-    });
-
-    $("#triggerType")?.addEventListener("change", () => {
-      // per ora config è JSON libero
-      // in futuro: render campi dinamici in base al trigger selezionato + capabilities schema
-    });
-
-    $("#btnAddAction")?.addEventListener("click", addAction);
-    $("#btnSaveAutomation")?.addEventListener("click", onSave);
-
-    $("#btnCancelEdit")?.addEventListener("click", () => {
-      setEditorVisible(false);
-      showEditorMessage("info", "");
-    });
-
-    $("#btnDeleteAutomation")?.addEventListener("click", () => {
-      showEditorMessage("warning", "Eliminazione non implementata (manca endpoint backend).");
-    });
-
-    $("#btnEnd")?.addEventListener("click", () => {
-      // Azione neutra: torna alla lista
-      setEditorVisible(false);
-    });
-  };
-
-  const start = async () => {
-    bindEvents();
-    setEditorVisible(false);
-
-    try {
-      await loadCapabilities();
-      await loadAutomations();
-    } catch (err) {
-      // Se capabilities fallisce, la UI non può popolare tendine
-      showEditorMessage("danger", `Errore bootstrap UI: ${err.message}`);
+      toast("Automazione salvata", "info");
+    } catch (e) {
+      console.error(e);
+      toast(`Errore salvataggio: ${e.message}`, "error");
     }
   };
 
-  document.addEventListener("DOMContentLoaded", start);
+  // ---------- Actions editor ----------
+  const openActionEditor = (idx) => {
+    currentActionEditingIndex = idx;
+    const a = window.__currentActions[idx];
+
+    el.actionEditorApp.value = a.action_app;
+    // Trigger change to populate types list
+    el.actionEditorApp.dispatchEvent(new Event("change"));
+    el.actionEditorType.value = a.action_type;
+
+    el.actionEditorConfig.value = formatJson(a.action_config || null);
+
+    el.actionEditor.style.display = "";
+  };
+
+  const closeActionEditor = () => {
+    currentActionEditingIndex = null;
+    el.actionEditor.style.display = "none";
+    el.actionEditorConfig.value = "";
+  };
+
+  const addAction = () => {
+    const app = el.actionEditorApp.value;
+    const type = el.actionEditorType.value;
+
+    window.__currentActions = window.__currentActions || [];
+    window.__currentActions.push({
+      action_app: app,
+      action_type: type,
+      action_config: null,
+      enabled: true,
+    });
+
+    renderActionsList(window.__currentActions);
+    openActionEditor(window.__currentActions.length - 1);
+  };
+
+  const saveAction = () => {
+    if (currentActionEditingIndex === null) return;
+    const idx = currentActionEditingIndex;
+
+    const app = el.actionEditorApp.value;
+    const type = el.actionEditorType.value;
+    const cfg = safeJsonParse(el.actionEditorConfig.value);
+
+    window.__currentActions[idx].action_app = app;
+    window.__currentActions[idx].action_type = type;
+    window.__currentActions[idx].action_config = cfg;
+
+    renderActionsList(window.__currentActions);
+    closeActionEditor();
+  };
+
+  const deleteAction = (idx) => {
+    window.__currentActions.splice(idx, 1);
+    renderActionsList(window.__currentActions);
+    closeActionEditor();
+  };
+
+  // ---------- Events ----------
+  const onTriggerChange = () => {
+    renderTriggerTypeOptions();
+    renderTriggerConnectionOptions();
+
+    // Keep current selection if still present
+    // If triggerType is empty, set default
+    if (!triggerTypeEl.value) {
+      triggerTypeEl.value = (capabilities?.triggers_by_app?.[triggerAppEl.value] || [])[0] || "";
+    }
+
+    // Re-render config editor (assisted UI depends on app/type)
+    const cfg = safeJsonParse(triggerConfigJson.value);
+    renderTriggerConfigEditor(cfg);
+  };
+
+  // ---------- Init ----------
+  const init = async () => {
+    await loadCapabilities();
+    await loadConnections();
+    await loadAutomations();
+
+    renderTriggerAppOptions();
+    renderActionEditorOptions();
+    renderAutomationList();
+
+    // Default editor state
+    newAutomation();
+
+    // UI events
+    el.btnNew?.addEventListener("click", newAutomation);
+    el.btnSave?.addEventListener("click", saveAutomation);
+
+    triggerAppEl.addEventListener("change", onTriggerChange);
+    triggerConnEl.addEventListener("change", onTriggerChange);
+    triggerTypeEl.addEventListener("change", onTriggerChange);
+
+    el.btnAddAction?.addEventListener("click", () => {
+      // Ensure editor selects are ready
+      el.actionEditorApp.dispatchEvent(new Event("change"));
+      addAction();
+    });
+
+    el.btnSaveAction?.addEventListener("click", saveAction);
+    el.btnCancelAction?.addEventListener("click", closeActionEditor);
+  };
+
+  document.addEventListener("DOMContentLoaded", () => {
+    init().catch((e) => {
+      console.error(e);
+      toast(`Init error: ${e.message}`, "error");
+    });
+  });
 })();
