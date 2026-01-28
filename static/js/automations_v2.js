@@ -901,30 +901,30 @@
     }
 
     try {
-      if (currentAutomationId) {
-        // UPDATE
-        await apiFetch(`/api/automations/${currentAutomationId}`, {
-          method: "PUT",
-          body: JSON.stringify(payload),
-        });
-      } else {
-        // CREATE
-        const created = await apiFetch("/api/automations", {
-          method: "POST",
-          body: JSON.stringify(payload),
-        });
-        // se il backend ritorna l'oggetto creato con id, ci agganciamo
-        if (created && created.id) currentAutomationId = created.id;
-      }
+      const isUpdate = !!currentAutomationId;
+      const url = isUpdate ? `/api/automations/${currentAutomationId}` : `/api/automations`;
+      const method = isUpdate ? "PUT" : "POST";
+
+      await apiFetch(url, {
+        method,
+        body: JSON.stringify(payload),
+      });
 
       await loadAutomations();
       renderAutomationList();
-      toast("Automazione salvata", "info");
+
+      // opzionale ma consigliato: ricarica l’automazione aggiornata nel form
+      if (isUpdate) {
+        await loadAutomation(currentAutomationId);
+      }
+
+      toast(isUpdate ? "Automazione aggiornata" : "Automazione creata", "info");
     } catch (e) {
       console.error(e);
       toast(`Errore salvataggio: ${e.message}`, "error");
     }
   };
+
 
   const deleteAutomation = async () => {
     if (!currentAutomationId) return;
