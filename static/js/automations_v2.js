@@ -252,13 +252,22 @@
     // Default payload
     const ensureDefaults = (obj) => {
       const o = obj && typeof obj === "object" ? obj : {};
+
+      let visibility = o.visibility;
+      if (Array.isArray(visibility)) {
+        visibility = visibility.map(v => String(v || "").trim()).filter(Boolean);
+        if (!visibility.length) visibility = "any";
+        if (visibility.includes("any")) visibility = "any"; // any unico
+      } else {
+        visibility = String(visibility || "any").trim() || "any";
+      }
+
       return {
         channels: Array.isArray(o.channels) ? o.channels : [],
         keywords: Array.isArray(o.keywords) ? o.keywords : [],
-        visibility: typeof o.visibility === "string" && o.visibility ? o.visibility : "any",
+        visibility,
       };
     };
-
     // Keep raw JSON textarea as source-of-truth
     const defaults = ensureDefaults(cfgObj);
     triggerConfigJson.value = formatJson(defaults);
