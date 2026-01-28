@@ -242,8 +242,6 @@
   };
 
   const renderTriggerConfigEditor = (cfgObj) => {
-    triggerConfigJson.value = formatJson(cfgObj || null);
-
     const triggerApp = triggerAppEl.value;
     const triggerType = triggerTypeEl.value;
 
@@ -251,34 +249,43 @@
     triggerConfigEditor.innerHTML = "";
     triggerConfigEditor.appendChild(triggerConfigJson);
 
-    // Only Slack "message" gets the assisted editor (channels + keywords)
+    // Default payload
+    const ensureDefaults = (obj) => {
+      const o = obj && typeof obj === "object" ? obj : {};
+      return {
+        channels: Array.isArray(o.channels) ? o.channels : [],
+        keywords: Array.isArray(o.keywords) ? o.keywords : [],
+        visibility: typeof o.visibility === "string" && o.visibility ? o.visibility : "any",
+      };
+    };
+
+    // Keep raw JSON textarea as source-of-truth
+    const defaults = ensureDefaults(cfgObj);
+    triggerConfigJson.value = formatJson(defaults);
+
+    // Only Slack "message" gets the assisted editor
     if (!(triggerApp === "slack" && triggerType === "message")) {
       triggerConfigJson.style.display = "";
       return;
     }
 
-    // Hide raw JSON textarea but keep it as source-of-truth for save payload.
+    // Hide raw JSON textarea but keep it mounted for save payload
     triggerConfigJson.style.display = "none";
 
     const parseCfg = () => {
-      const raw = triggerConfigJson.value?.trim();
-      if (!raw) return { channels: [], keywords: [] };
+      const raw = (triggerConfigJson.value || "").trim();
+      if (!raw) return ensureDefaults(null);
       try {
-        const obj = JSON.parse(raw);
-        const channels = Array.isArray(obj?.channels) ? obj.channels : [];
-        const keywords = Array.isArray(obj?.keywords) ? obj.keywords : [];
-        return { channels, keywords };
+        return ensureDefaults(JSON.parse(raw));
       } catch {
-        return { channels: [], keywords: [] };
+        return ensureDefaults(null);
       }
     };
-
-    const state = parseCfg();
 
     const normalizeChannels = (arr) =>
       (Array.isArray(arr) ? arr : [])
         .map((c) => {
-          if (typeof c === "string") return { id: c, label: c };
+          if (typeof c === "string") return { id: c, label: c, is_private: false };
           return {
             id: String(c?.id || ""),
             label: String(c?.label || c?.name || c?.id || ""),
@@ -292,11 +299,17 @@
         .map((k) => String(k || "").trim())
         .filter(Boolean);
 
+    let state = parseCfg();
     let channelsSelected = normalizeChannels(state.channels);
     let keywordsSelected = normalizeKeywords(state.keywords);
+    let visibilitySelected = state.visibility || "any";
 
     const syncTextarea = () => {
-      triggerConfigJson.value = formatJson({ channels: channelsSelected, keywords: keywordsSelected });
+      triggerConfigJson.value = formatJson({
+        channels: channelsSelected,
+        keywords: keywordsSelected,
+        visibility: visibilitySelected,
+      });
     };
 
     const chip = (label, onRemove) => {
@@ -325,14 +338,7 @@
       return el;
     };
 
-    const renderChips = (container, items, getLabel, onRemoveAt) => {
-      container.innerHTML = "";
-      items.forEach((it, idx) => {
-        container.appendChild(chip(getLabel(it), () => onRemoveAt(idx)));
-      });
-    };
-
-    const section = (title) => {
+    const section = (title, subtitle = "") => {
       const wrap = document.createElement("div");
       wrap.className = "mb-3";
 
@@ -341,43 +347,231 @@
       h.textContent = title;
 
       wrap.appendChild(h);
+
+      if (subtitle) {
+        const s = document.createElement("div");
+        s.className = "text-muted small mb-2";
+        s.textContent = subtitle;
+        wrap.appendChild(s);
+      }
       return wrap;
     };
 
-    // --- Channels ---
-    const secChannels = section("Canali (Slack)");
-    const rowCh = document.createElement("div");
-    rowCh.className = "d-flex gap-2 align-items-end flex-wrap";
+    // -------------------------------
+    // Visibility
+    // -------------------------------
+    const secVis = section("Visibilità", "Filtro sul tipo di conversazione (default: any)");
+    const visSel = document.createElement("select");
+    visSel.className = "form-select";
+    visSel.innerHTML = `
+      <option value="any">any</option>
+      <option value="public">public</option>
+      <option value="private">private</option>
+      <option value="dm">dm</option>
+      <option value="group_dm">group_dm</option>
+    `;
+    visSel.value = visibilitySelected;
 
-    const selWrap = document.createElement("div");
-    selWrap.className = "flex-grow-1";
-    const sel = document.createElement("select");
-    sel.className = "form-select";
-    sel.innerHTML = `<option value="">(carica i canali...)</option>`;
-    selWrap.appendChild(sel);
+    visSel.addEventListener("change", () => {
+      visibilitySelected = visSel.value || "any";
+      syncTextarea();
+    });
 
-    const btnRefresh = document.createElement("button");
-    btnRefresh.type = "button";
-    btnRefresh.className = "btn btn-outline-secondary";
-    btnRefresh.textContent = "Aggiorna canali";
+    secVis.appendChild(visSel);
 
-    const btnAdd = document.createElement("button");
-    btnAdd.type = "button";
-    btnAdd.className = "btn btn-primary";
-    btnAdd.textContent = "Aggiungi canale";
+    // -------------------------------
+    // Channels selector (button -> dialog with checkboxes)
+    // -------------------------------
+    const secChannels = section(
+      "Canali (Slack)",
+      "Seleziona uno o più canali. I canali privati sono marcati con 🔒."
+    );
 
-    rowCh.appendChild(selWrap);
-    rowCh.appendChild(btnRefresh);
-    rowCh.appendChild(btnAdd);
+    const chTop = document.createElement("div");
+    chTop.className = "d-flex gap-2 align-items-center flex-wrap";
+
+    const btnPickChannels = document.createElement("button");
+    btnPickChannels.type = "button";
+    btnPickChannels.className = "btn btn-primary";
+    btnPickChannels.textContent = "Seleziona canali";
+
+    const btnRefreshChannels = document.createElement("button");
+    btnRefreshChannels.type = "button";
+    btnRefreshChannels.className = "btn btn-outline-secondary";
+    btnRefreshChannels.textContent = "Aggiorna elenco";
+
+    const chHint = document.createElement("div");
+    chHint.className = "text-muted small";
+    chHint.textContent = "Se non selezioni canali, il filtro canali è disattivato (channels = []).";
+
+    chTop.appendChild(btnPickChannels);
+    chTop.appendChild(btnRefreshChannels);
 
     const chipsChannels = document.createElement("div");
     chipsChannels.className = "mt-2";
 
-    secChannels.appendChild(rowCh);
+    secChannels.appendChild(chTop);
+    secChannels.appendChild(chHint);
     secChannels.appendChild(chipsChannels);
 
-    // --- Keywords ---
-    const secKeywords = section("Keyword");
+    // Native dialog (no bootstrap dependency)
+    const dlg = document.createElement("dialog");
+    dlg.style.width = "min(720px, 95vw)";
+    dlg.style.border = "1px solid var(--bs-border-color, #ddd)";
+    dlg.style.borderRadius = "12px";
+    dlg.style.padding = "0";
+
+    dlg.innerHTML = `
+      <div style="padding:16px; border-bottom:1px solid var(--bs-border-color, #ddd); display:flex; align-items:center; justify-content:space-between; gap:12px;">
+        <div>
+          <div style="font-weight:600;">Seleziona canali Slack</div>
+          <div class="text-muted small">Spunta i canali desiderati e poi “Applica”.</div>
+        </div>
+        <button type="button" data-close class="btn btn-sm btn-outline-secondary">Chiudi</button>
+      </div>
+      <div style="padding:16px;">
+        <div class="text-muted small mb-2" data-connhint></div>
+        <div style="max-height: 50vh; overflow:auto; border:1px solid var(--bs-border-color, #ddd); border-radius:10px; padding:10px;" data-list>
+          <div class="text-muted">(caricamento...)</div>
+        </div>
+        <div class="d-flex gap-2 justify-content-end mt-3" style="border-top:1px solid var(--bs-border-color, #ddd); padding-top:12px;">
+          <button type="button" data-cancel class="btn btn-outline-secondary">Annulla</button>
+          <button type="button" data-apply class="btn btn-primary">Applica</button>
+        </div>
+      </div>
+    `;
+
+    const dlgList = dlg.querySelector("[data-list]");
+    const dlgConnHint = dlg.querySelector("[data-connhint]");
+    const dlgBtnClose = dlg.querySelector("[data-close]");
+    const dlgBtnCancel = dlg.querySelector("[data-cancel]");
+    const dlgBtnApply = dlg.querySelector("[data-apply]");
+
+    const renderChipsChannels = () => {
+      chipsChannels.innerHTML = "";
+      channelsSelected.forEach((c, idx) => {
+        const label = c.is_private ? `🔒 ${c.label}` : c.label;
+        chipsChannels.appendChild(
+          chip(label, () => {
+            channelsSelected.splice(idx, 1);
+            syncTextarea();
+            renderChipsChannels();
+          })
+        );
+      });
+    };
+
+    const loadChannelsCheckboxes = async (forceRefresh = false) => {
+      const connId = triggerConnEl.value;
+      dlgList.innerHTML = "";
+      dlgConnHint.textContent = "";
+
+      if (!connId) {
+        dlgConnHint.textContent = "Seleziona prima una connessione Slack nel trigger.";
+        dlgList.innerHTML = `<div class="text-muted">(nessuna connessione selezionata)</div>`;
+        return;
+      }
+
+      try {
+        if (forceRefresh) clearSlackChannelsCache(connId);
+        const channels = await fetchSlackChannels(connId);
+
+        if (!channels.length) {
+          dlgList.innerHTML = `<div class="text-muted">(nessun canale trovato)</div>`;
+          return;
+        }
+
+        // build checkbox list
+        const selectedIds = new Set(channelsSelected.map((c) => c.id));
+        const frag = document.createDocumentFragment();
+
+        channels.forEach((c) => {
+          const row = document.createElement("label");
+          row.style.display = "flex";
+          row.style.alignItems = "center";
+          row.style.justifyContent = "space-between";
+          row.style.gap = "10px";
+          row.style.padding = "6px 8px";
+          row.style.borderRadius = "8px";
+          row.style.cursor = "pointer";
+
+          const left = document.createElement("div");
+          left.style.display = "flex";
+          left.style.alignItems = "center";
+          left.style.gap = "10px";
+
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.dataset.id = c.id;
+          cb.dataset.name = c.name;
+          cb.dataset.private = c.is_private ? "1" : "0";
+          cb.checked = selectedIds.has(c.id);
+
+          const name = document.createElement("div");
+          name.textContent = c.name;
+
+          left.appendChild(cb);
+          left.appendChild(name);
+
+          const badge = document.createElement("span");
+          badge.className = "badge bg-secondary";
+          badge.textContent = c.is_private ? "private" : "public";
+
+          row.appendChild(left);
+          row.appendChild(badge);
+
+          frag.appendChild(row);
+        });
+
+        dlgList.appendChild(frag);
+      } catch (err) {
+        console.error("Slack channels load failed:", err);
+        dlgList.innerHTML = `<div class="text-muted">(errore caricamento canali)</div>`;
+      }
+    };
+
+    btnPickChannels.addEventListener("click", async () => {
+      await loadChannelsCheckboxes(false);
+      if (typeof dlg.showModal === "function") dlg.showModal();
+      else dlg.open = true;
+    });
+
+    btnRefreshChannels.addEventListener("click", async () => {
+      // refresh chips list is not needed; refresh affects dialog list
+      // but we also clear cache now so next open is fresh
+      const connId = triggerConnEl.value;
+      clearSlackChannelsCache(connId);
+      toast("Cache canali aggiornata (apri Seleziona canali).");
+    });
+
+    const closeDlg = () => {
+      if (typeof dlg.close === "function") dlg.close();
+      else dlg.open = false;
+    };
+
+    dlgBtnClose.addEventListener("click", closeDlg);
+    dlgBtnCancel.addEventListener("click", closeDlg);
+
+    dlgBtnApply.addEventListener("click", () => {
+      const checkboxes = Array.from(dlgList.querySelectorAll('input[type="checkbox"][data-id]'));
+      const picked = checkboxes
+        .filter((cb) => cb.checked)
+        .map((cb) => ({
+          id: cb.dataset.id,
+          label: cb.dataset.name || cb.dataset.id,
+          is_private: cb.dataset.private === "1",
+        }));
+
+      channelsSelected = picked;
+      syncTextarea();
+      renderChipsChannels();
+      closeDlg();
+    });
+
+    // -------------------------------
+    // Keywords (input + chips)
+    // -------------------------------
+    const secKeywords = section("Keyword", "Aggiungi una o più keyword (chips). Lascia vuoto per disabilitare filtro.");
     const rowKw = document.createElement("div");
     rowKw.className = "d-flex gap-2 align-items-end flex-wrap";
 
@@ -400,84 +594,18 @@
     const chipsKeywords = document.createElement("div");
     chipsKeywords.className = "mt-2";
 
-    secKeywords.appendChild(rowKw);
-    secKeywords.appendChild(chipsKeywords);
-
-    // Mount
-    triggerConfigEditor.insertBefore(secChannels, triggerConfigJson);
-    triggerConfigEditor.insertBefore(secKeywords, triggerConfigJson);
-
-    const renderAll = () => {
-      renderChips(
-        chipsChannels,
-        channelsSelected,
-        (c) => (c.is_private ? `🔒 ${c.label}` : c.label),
-        (idx) => {
-          channelsSelected.splice(idx, 1);
-          syncTextarea();
-          renderAll();
-        }
-      );
-
-      renderChips(
-        chipsKeywords,
-        keywordsSelected,
-        (k) => k,
-        (idx) => {
-          keywordsSelected.splice(idx, 1);
-          syncTextarea();
-          renderAll();
-        }
-      );
+    const renderChipsKeywords = () => {
+      chipsKeywords.innerHTML = "";
+      keywordsSelected.forEach((k, idx) => {
+        chipsKeywords.appendChild(
+          chip(k, () => {
+            keywordsSelected.splice(idx, 1);
+            syncTextarea();
+            renderChipsKeywords();
+          })
+        );
+      });
     };
-
-    const loadChannelsIntoSelect = async () => {
-      const connId = triggerConnEl.value;
-      sel.innerHTML = `<option value="">(seleziona...)</option>`;
-      if (!connId) {
-        sel.innerHTML = `<option value="">(seleziona prima una connessione)</option>`;
-        return;
-      }
-
-      try {
-        const channels = await fetchSlackChannels(connId);
-        if (!channels.length) {
-          sel.innerHTML = `<option value="">(nessun canale trovato)</option>`;
-          return;
-        }
-        const opts = channels
-          .map(
-            (c) =>
-              `<option value="${c.id}" data-private="${c.is_private ? "1" : "0"}">${
-                c.is_private ? "🔒 " : ""
-              }${escapeHtml(c.name)}</option>`
-          )
-          .join("");
-        sel.innerHTML = `<option value="">(seleziona...)</option>` + opts;
-      } catch (err) {
-        console.error("Slack channels load failed:", err);
-        sel.innerHTML = `<option value="">(errore caricamento canali)</option>`;
-      }
-    };
-
-    btnRefresh.addEventListener("click", async () => {
-      const connId = triggerConnEl.value;
-      clearSlackChannelsCache(connId);
-      await loadChannelsIntoSelect();
-    });
-
-    btnAdd.addEventListener("click", () => {
-      const id = sel.value;
-      if (!id) return;
-      const opt = sel.options[sel.selectedIndex];
-      const label = (opt?.textContent || id).replace(/^🔒\s*/, "");
-      const is_private = opt?.dataset?.private === "1";
-
-      if (channelsSelected.some((c) => c.id === id)) return;
-      channelsSelected.push({ id, label, is_private });
-      syncTextarea();
-      renderAll();
-    });
 
     const addKeyword = () => {
       const v = (kwInput.value || "").trim();
@@ -489,7 +617,7 @@
       keywordsSelected.push(v);
       kwInput.value = "";
       syncTextarea();
-      renderAll();
+      renderChipsKeywords();
     };
 
     btnKwAdd.addEventListener("click", addKeyword);
@@ -500,10 +628,21 @@
       }
     });
 
+    secKeywords.appendChild(rowKw);
+    secKeywords.appendChild(chipsKeywords);
+
+    // Mount sections in order (visibility -> channels -> keywords) before the hidden textarea
+    triggerConfigEditor.insertBefore(secVis, triggerConfigJson);
+    triggerConfigEditor.insertBefore(secChannels, triggerConfigJson);
+    triggerConfigEditor.insertBefore(secKeywords, triggerConfigJson);
+
+    // Mount dialog into editor
+    triggerConfigEditor.appendChild(dlg);
+
     // Initial render
     syncTextarea();
-    renderAll();
-    loadChannelsIntoSelect();
+    renderChipsChannels();
+    renderChipsKeywords();
   };
 
   const renderActionsList = (actions) => {
