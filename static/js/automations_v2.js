@@ -273,12 +273,27 @@
     triggerConfigJson.style.display = "none";
 
     const parseCfg = () => {
-      const raw = (triggerConfigJson.value || "").trim();
-      if (!raw) return ensureDefaults(null);
+      const raw = triggerConfigJson.value?.trim();
+      if (!raw) return { channels: [], keywords: [], visibility: "any" };
       try {
-        return ensureDefaults(JSON.parse(raw));
+        const obj = JSON.parse(raw);
+
+        const channels = Array.isArray(obj?.channels) ? obj.channels : [];
+        const keywords = Array.isArray(obj?.keywords) ? obj.keywords : [];
+
+        // visibility can be "any" (string) OR array of strings
+        let visibility = obj?.visibility;
+        if (Array.isArray(visibility)) {
+          visibility = visibility.map((v) => String(v || "").trim()).filter(Boolean);
+          if (!visibility.length) visibility = "any";
+          if (visibility.includes("any")) visibility = "any"; // any must be unique
+        } else {
+          visibility = String(visibility || "any").trim() || "any";
+        }
+
+        return { channels, keywords, visibility };
       } catch {
-        return ensureDefaults(null);
+        return { channels: [], keywords: [], visibility: "any" };
       }
     };
 
@@ -302,15 +317,26 @@
     let state = parseCfg();
     let channelsSelected = normalizeChannels(state.channels);
     let keywordsSelected = normalizeKeywords(state.keywords);
-    let visibilitySelected = state.visibility || "any";
+    let visibilitySelected =
+      state.visibility === "any"
+        ? ["any"]
+        : (Array.isArray(state.visibility) ? state.visibility : [state.visibility]).filter(Boolean);
+
+    if (!visibilitySelected.length) visibilitySelected = ["any"];
+    if (visibilitySelected.includes("any") && visibilitySelected.length > 1) visibilitySelected = ["any"];
+
 
     const syncTextarea = () => {
+      const visibilityOut =
+        visibilitySelected.includes("any") ? "any" : visibilitySelected.slice();
+
       triggerConfigJson.value = formatJson({
         channels: channelsSelected,
         keywords: keywordsSelected,
-        visibility: visibilitySelected,
+        visibility: visibilityOut,
       });
     };
+
 
     const chip = (label, onRemove) => {
       const el = document.createElement("span");
@@ -357,27 +383,72 @@
       return wrap;
     };
 
-    // -------------------------------
-    // Visibility
-    // -------------------------------
-    const secVis = section("Visibilità", "Filtro sul tipo di conversazione (default: any)");
-    const visSel = document.createElement("select");
-    visSel.className = "form-select";
-    visSel.innerHTML = `
-      <option value="any">any</option>
-      <option value="public">public</option>
-      <option value="private">private</option>
-      <option value="dm">dm</option>
-      <option value="group_dm">group_dm</option>
-    `;
-    visSel.value = visibilitySelected;
+    // --- Visibility ---
+    const secVis = section("Visibilità canale (Slack)");
 
-    visSel.addEventListener("change", () => {
-      visibilitySelected = visSel.value || "any";
-      syncTextarea();
+    const visWrap = document.createElement("div");
+    visWrap.className = "d-flex flex-wrap gap-2";
+
+    const VIS_OPTIONS = [
+      { value: "any", label: "Any" },
+      { value: "public", label: "Public" },
+      { value: "private", label: "Private" },
+      { value: "dm", label: "DM" },
+      { value: "group_dm", label: "Group DM" },
+    ];
+
+    const visChecks = [];
+
+    VIS_OPTIONS.forEach((o) => {
+      const formCheck = document.createElement("div");
+      formCheck.className = "form-check form-check-inline";
+
+      const input = document.createElement("input");
+      input.className = "form-check-input";
+      input.type = "checkbox";
+      input.id = `vis_${o.value}`;
+      input.value = o.value;
+
+      const label = document.createElement("label");
+      label.className = "form-check-label";
+      label.setAttribute("for", input.id);
+      label.textContent = o.label;
+
+      formCheck.appendChild(input);
+      formCheck.appendChild(label);
+      visWrap.appendChild(formCheck);
+
+      visChecks.push(input);
+
+      input.addEventListener("change", () => {
+        const v = input.value;
+
+        if (v === "any") {
+          if (input.checked) {
+            visibilitySelected = ["any"];
+          } else {
+            // if user unchecks any, enforce at least any
+            visibilitySelected = ["any"];
+          }
+        } else {
+          if (input.checked) {
+            visibilitySelected = visibilitySelected.filter((x) => x !== "any");
+            if (!visibilitySelected.includes(v)) visibilitySelected.push(v);
+          } else {
+            visibilitySelected = visibilitySelected.filter((x) => x !== v);
+            if (!visibilitySelected.length) visibilitySelected = ["any"];
+          }
+        }
+
+        // enforce rule: if any present, it's unique
+        if (visibilitySelected.includes("any")) visibilitySelected = ["any"];
+
+        renderVisibility();
+        syncTextarea();
+      });
     });
 
-    secVis.appendChild(visSel);
+    secVis.appendChild(visWrap);
 
     // -------------------------------
     // Channels selector (button -> dialog with checkboxes)
@@ -446,6 +517,19 @@
     const dlgBtnClose = dlg.querySelector("[data-close]");
     const dlgBtnCancel = dlg.querySelector("[data-cancel]");
     const dlgBtnApply = dlg.querySelector("[data-apply]");
+
+    const renderVisibility = () => {
+      visChecks.forEach((chk) => {
+        if (visibilitySelected.includes("any")) {
+          chk.checked = chk.value === "any";
+          chk.disabled = chk.value !== "any";
+        } else {
+          chk.disabled = false;
+          chk.checked = visibilitySelected.includes(chk.value);
+        }
+      });
+    };
+
 
     const renderChipsChannels = () => {
       chipsChannels.innerHTML = "";
@@ -640,6 +724,7 @@
     triggerConfigEditor.appendChild(dlg);
 
     // Initial render
+    renderVisibility();
     syncTextarea();
     renderChipsChannels();
     renderChipsKeywords();
