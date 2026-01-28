@@ -1,11 +1,12 @@
 import logging
+import requests
 
-from flask import Blueprint, request, render_template, abort
+from flask import Blueprint, request, render_template, abort, jsonify
 from flask_login import login_required
 from sqlalchemy.inspection import inspect as sa_inspect
 
 from extensions import db
-from models import AutomationAction, Automation
+from models import AutomationAction, Automation, SlackConnection
 from tools.log_utils import get_logger
 
 logger = get_logger("automations_v2", level=logging.INFO)
@@ -105,6 +106,89 @@ def list_connections(app: str):
     rows = Model.query.order_by(Model.id.desc()).all()
     out = [{"id": r.id, "name": _best_label(r)} for r in rows]
     return out, 200
+
+
+# ------------------------------------------------------------
+# NEW: Slack channels list for trigger-config UI
+# GET /api/connections/slack/<connection_id>/channels
+# ------------------------------------------------------------
+@automations_v2_bp.get("/connections/slack/<int:connection_id>/channels")
+@login_required
+def slack_channels(connection_id: int):
+    logger.info("[GET] /connections/slack/%s/channels", connection_id)
+
+    conn = SlackConnection.query.get_or_404(connection_id)
+
+    # Slack bot token (decrypted by EncryptedString descriptor in model)
+    token = conn.bot_token
+    if not token:
+        abort(500, description="Slack bot_token mancante per questa connection")
+
+    # Slack conversations.list supports pagination via response_metadata.next_cursor
+    url = "https://slack.com/api/conversations.list"
+    headers = {"Authorization": f"Bearer {token}"}
+
+    # Include: public, private, im (DM), mpim (group DM)
+    params = {
+        "limit": 1000,
+        "types": "public_channel,private_channel,im,mpim",
+        "exclude_archived": "true",
+    }
+
+    out = []
+    cursor = None
+    try:
+        while True:
+            if cursor:
+                params["cursor"] = cursor
+            else:
+                params.pop("cursor", None)
+
+            r = requests.get(url, headers=headers, params=params, timeout=20)
+            r.raise_for_status()
+            data = r.json() or {}
+
+            if not data.get("ok"):
+                # Slack returns ok:false + error
+                err = data.get("error") or "unknown_error"
+                logger.error("Slack conversations.list failed: %s", err)
+                abort(502, description=f"Slack API error: {err}")
+
+            channels = data.get("channels") or []
+            for c in channels:
+                if not isinstance(c, dict):
+                    continue
+
+                cid = str(c.get("id") or "")
+                if not cid:
+                    continue
+
+                # name can be missing for IM/MPIM in some contexts; keep fallback stable
+                name = (
+                    c.get("name")
+                    or c.get("name_normalized")
+                    or c.get("user")  # for IM often has "user"
+                    or cid
+                )
+
+                is_private = bool(
+                    c.get("is_private")
+                    or c.get("is_mpim")
+                    or c.get("is_im")
+                    or False
+                )
+
+                out.append({"id": cid, "name": str(name), "is_private": is_private})
+
+            cursor = ((data.get("response_metadata") or {}).get("next_cursor") or "").strip()
+            if not cursor:
+                break
+
+    except requests.RequestException:
+        logger.exception("Errore chiamando Slack conversations.list")
+        abort(502, description="Errore chiamata Slack API (conversations.list)")
+
+    return jsonify(out), 200
 
 
 @automations_v2_bp.get("/automations")
