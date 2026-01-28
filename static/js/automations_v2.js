@@ -925,15 +925,8 @@
       await loadAutomations();
       renderAutomationList();
 
-      // 3) QUI: ricarica SEMPRE a destra l’automazione appena salvata
-      //    - update: id noto
-      //    - create: id arriva da "saved"
-      const idToReload = isUpdate ? currentAutomationId : saved?.id;
-
-      if (idToReload) {
-        currentAutomationId = idToReload;  // importantissimo in caso di POST
-        await loadAutomation(idToReload);
-      }
+      currentAutomationId = null;
+      newAutomation(); // resetta la parte destra (form vuoto)
 
       toast(isUpdate ? "Automazione aggiornata" : "Automazione creata", "info");
     } catch (e) {
