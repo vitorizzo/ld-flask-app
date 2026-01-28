@@ -118,7 +118,7 @@ CAPABILITIES: Dict[str, Dict[str, Any]] = {
     # ============================================================
     "slack": {
         "triggers": [
-            {"value": "message.channels", "label": "Messaggio in canale"},
+            {"value": "message", "label": "Messaggio in canale"},
             {"value": "reaction_added", "label": "Reaction aggiunta"},
         ],
         "actions": [
