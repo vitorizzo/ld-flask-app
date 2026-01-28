@@ -253,21 +253,22 @@
     const ensureDefaults = (obj) => {
       const o = obj && typeof obj === "object" ? obj : {};
 
-      let visibility = o.visibility;
-      if (Array.isArray(visibility)) {
-        visibility = visibility.map(v => String(v || "").trim()).filter(Boolean);
-        if (!visibility.length) visibility = "any";
-        if (visibility.includes("any")) visibility = "any"; // any unico
-      } else {
-        visibility = String(visibility || "any").trim() || "any";
-      }
+      // visibility: sempre array
+      let vis = o.visibility;
+      if (typeof vis === "string") vis = [vis];
+      if (!Array.isArray(vis)) vis = ["any"];
+
+      vis = vis.map((v) => String(v || "").trim()).filter(Boolean);
+      if (!vis.length) vis = ["any"];
+      if (vis.includes("any") && vis.length > 1) vis = ["any"];
 
       return {
         channels: Array.isArray(o.channels) ? o.channels : [],
         keywords: Array.isArray(o.keywords) ? o.keywords : [],
-        visibility,
+        visibility: vis,
       };
     };
+
     // Keep raw JSON textarea as source-of-truth
     const defaults = ensureDefaults(cfgObj);
     triggerConfigJson.value = formatJson(defaults);
@@ -283,7 +284,7 @@
 
     const parseCfg = () => {
       const raw = triggerConfigJson.value?.trim();
-      if (!raw) return { channels: [], keywords: [], visibility: "any" };
+      if (!raw) return { channels: [], keywords: [], visibility: ["any"] };
       try {
         const obj = JSON.parse(raw);
 
@@ -292,17 +293,17 @@
 
         // visibility can be "any" (string) OR array of strings
         let visibility = obj?.visibility;
-        if (Array.isArray(visibility)) {
-          visibility = visibility.map((v) => String(v || "").trim()).filter(Boolean);
-          if (!visibility.length) visibility = "any";
-          if (visibility.includes("any")) visibility = "any"; // any must be unique
-        } else {
-          visibility = String(visibility || "any").trim() || "any";
-        }
+
+        if (typeof visibility === "string") visibility = [visibility];
+        if (!Array.isArray(visibility)) visibility = ["any"];
+
+        visibility = visibility.map((v) => String(v || "").trim()).filter(Boolean);
+        if (!visibility.length) visibility = ["any"];
+        if (visibility.includes("any") && visibility.length > 1) visibility = ["any"];
 
         return { channels, keywords, visibility };
       } catch {
-        return { channels: [], keywords: [], visibility: "any" };
+        return { channels: [], keywords: [], visibility: ["any"] };
       }
     };
 
@@ -326,10 +327,10 @@
     let state = parseCfg();
     let channelsSelected = normalizeChannels(state.channels);
     let keywordsSelected = normalizeKeywords(state.keywords);
-    let visibilitySelected =
-      state.visibility === "any"
-        ? ["any"]
-        : (Array.isArray(state.visibility) ? state.visibility : [state.visibility]).filter(Boolean);
+    let visibilitySelected = Array.isArray(state.visibility) ? state.visibility.slice() : ["any"];
+    if (!visibilitySelected.length) visibilitySelected = ["any"];
+    if (visibilitySelected.includes("any") && visibilitySelected.length > 1) visibilitySelected = ["any"];
+
 
     if (!visibilitySelected.length) visibilitySelected = ["any"];
     if (visibilitySelected.includes("any") && visibilitySelected.length > 1) visibilitySelected = ["any"];
@@ -337,7 +338,7 @@
 
     const syncTextarea = () => {
       const visibilityOut =
-        visibilitySelected.includes("any") ? "any" : visibilitySelected.slice();
+        visibilitySelected.includes("any") ? ["any"] : visibilitySelected.slice();
 
       triggerConfigJson.value = formatJson({
         channels: channelsSelected,
@@ -914,17 +915,24 @@
       const url = isUpdate ? `/api/automations/${currentAutomationId}` : `/api/automations`;
       const method = isUpdate ? "PUT" : "POST";
 
-      await apiFetch(url, {
+      // 1) QUI: cattura il JSON di risposta (serve l'id in caso di creazione)
+      const saved = await apiFetch(url, {
         method,
         body: JSON.stringify(payload),
       });
 
+      // 2) QUI: refresh lista (ok, già ce l'hai)
       await loadAutomations();
       renderAutomationList();
 
-      // opzionale ma consigliato: ricarica l’automazione aggiornata nel form
-      if (isUpdate) {
-        await loadAutomation(currentAutomationId);
+      // 3) QUI: ricarica SEMPRE a destra l’automazione appena salvata
+      //    - update: id noto
+      //    - create: id arriva da "saved"
+      const idToReload = isUpdate ? currentAutomationId : saved?.id;
+
+      if (idToReload) {
+        currentAutomationId = idToReload;  // importantissimo in caso di POST
+        await loadAutomation(idToReload);
       }
 
       toast(isUpdate ? "Automazione aggiornata" : "Automazione creata", "info");
