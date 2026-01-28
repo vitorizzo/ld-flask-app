@@ -424,12 +424,8 @@
         const v = input.value;
 
         if (v === "any") {
-          if (input.checked) {
-            visibilitySelected = ["any"];
-          } else {
-            // if user unchecks any, enforce at least any
-            visibilitySelected = ["any"];
-          }
+          // se lo selezioni -> resetta tutto su any
+          visibilitySelected = ["any"];
         } else {
           if (input.checked) {
             visibilitySelected = visibilitySelected.filter((x) => x !== "any");
@@ -519,14 +515,14 @@
     const dlgBtnApply = dlg.querySelector("[data-apply]");
 
     const renderVisibility = () => {
+      // "any" esclusivo: se presente, gli altri devono risultare unchecked
       visChecks.forEach((chk) => {
         if (visibilitySelected.includes("any")) {
           chk.checked = chk.value === "any";
-          chk.disabled = chk.value !== "any";
         } else {
-          chk.disabled = false;
           chk.checked = visibilitySelected.includes(chk.value);
         }
+        chk.disabled = false; // <-- fondamentale: mai bloccare il click
       });
     };
 
