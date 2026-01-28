@@ -198,7 +198,9 @@
 
   const renderTriggerAppOptions = () => {
     triggerAppEl.innerHTML = "";
-    (capabilities?.apps || []).forEach((app) => {
+
+    const apps = getApps();
+    apps.forEach((app) => {
       const opt = document.createElement("option");
       opt.value = app;
       opt.textContent = app;
@@ -209,14 +211,16 @@
   const renderTriggerTypeOptions = () => {
     const app = triggerAppEl.value;
     triggerTypeEl.innerHTML = "";
-    const list = (capabilities?.triggers_by_app?.[app] || []).slice();
+
+    const list = getTriggersForApp(app); // [{value,label}]
     list.forEach((t) => {
       const opt = document.createElement("option");
-      opt.value = t;
-      opt.textContent = t;
+      opt.value = t.value;         // valore da salvare
+      opt.textContent = t.label;   // testo leggibile
       triggerTypeEl.appendChild(opt);
     });
   };
+
 
   const renderTriggerConnectionOptions = () => {
     const app = triggerAppEl.value;
@@ -541,8 +545,8 @@
     });
   };
 
-  const renderActionEditorOptions = () => {
-    const apps = (capabilities?.apps || []).slice();
+    const renderActionEditorOptions = () => {
+    const apps = getApps();
 
     el.actionEditorApp.innerHTML = "";
     apps.forEach((app) => {
@@ -554,12 +558,12 @@
 
     const updateActionTypes = () => {
       const app = el.actionEditorApp.value;
-      const types = (capabilities?.actions_by_app?.[app] || []).slice();
+      const types = getActionsForApp(app); // [{value,label}]
       el.actionEditorType.innerHTML = "";
       types.forEach((t) => {
         const opt = document.createElement("option");
-        opt.value = t;
-        opt.textContent = t;
+        opt.value = t.value;
+        opt.textContent = t.label;
         el.actionEditorType.appendChild(opt);
       });
     };
@@ -568,9 +572,22 @@
     updateActionTypes();
   };
 
+
   // ---------- Data operations ----------
   const loadCapabilities = async () => {
     capabilities = await apiFetch("/api/automations/capabilities");
+  };
+
+  const getApps = () => Object.keys(capabilities || {}).sort();
+
+  const getTriggersForApp = (app) => {
+    const arr = capabilities?.[app]?.triggers || [];
+    return Array.isArray(arr) ? arr : [];
+  };
+
+  const getActionsForApp = (app) => {
+    const arr = capabilities?.[app]?.actions || [];
+    return Array.isArray(arr) ? arr : [];
   };
 
   const loadAutomations = async () => {
@@ -592,7 +609,9 @@
     el.formEnabled.checked = !!auto.enabled;
 
     // Trigger
-    triggerAppEl.value = auto.trigger_app || (capabilities?.apps?.[0] || "");
+    const apps = getApps();
+    triggerAppEl.value = auto.trigger_app || apps[0] || "";
+
     renderTriggerTypeOptions();
     renderTriggerConnectionOptions();
 
@@ -615,12 +634,15 @@
     el.formDescription.value = "";
     el.formEnabled.checked = true;
 
-    triggerAppEl.value = capabilities?.apps?.[0] || "slack";
+    const apps = getApps();
+    triggerAppEl.value = apps[0] || "slack";
+
     renderTriggerTypeOptions();
     renderTriggerConnectionOptions();
 
     triggerConnEl.value = "";
-    triggerTypeEl.value = (capabilities?.triggers_by_app?.[triggerAppEl.value] || [])[0] || "";
+    const firstTrig = getTriggersForApp(triggerAppEl.value)[0];
+    triggerTypeEl.value = firstTrig?.value || "";
     renderTriggerConfigEditor(null);
 
     window.__currentActions = [];
@@ -740,7 +762,8 @@
     // Keep current selection if still present
     // If triggerType is empty, set default
     if (!triggerTypeEl.value) {
-      triggerTypeEl.value = (capabilities?.triggers_by_app?.[triggerAppEl.value] || [])[0] || "";
+      const firstTrig = getTriggersForApp(triggerAppEl.value)[0];
+      triggerTypeEl.value = firstTrig?.value || "";
     }
 
     // Re-render config editor (assisted UI depends on app/type)
