@@ -35,7 +35,7 @@ NON contiene:
 
 ### Automations V2 – Backend
 - Sistema **automazioni cross-platform** (Trello ↔ Slack)
-- Dispatcher centralizzato (`automation_dispatcher`)
+- Dispatcher centralizzato (`automations_dispatcher`)
 - Executor separati per app (Slack / Trello)
 - Trigger normalizzati
 - Actions sequenziali con ordine (`order_index`)
@@ -43,47 +43,78 @@ NON contiene:
 
 ### Trello
 - Webhook funzionanti
-- Trigger `moveCard`
+- Trigger:
+  - `moveCard`
+  - `createCard`
+  - `updateCard`
 - Actions:
   - `addComment`
   - `createCard`
+  - `mirrorCard`
 - Gestione corretta dei template Jinja
 
 ### Slack
-- Ricezione eventi via Events API
+- Ricezione eventi via **Slack Events API**
 - Trigger:
-  - `message.channels`
+  - `message`
   - `reaction_added`
 - Actions:
   - `addReaction`
   - `sendMessage`
 - Gestione dedup eventi
 - Gestione errori Slack API (`already_reacted`)
+- Persistenza eventi (`SlackEvent`) con dedup
+
+### Automations V2 – UI (NUOVA) ✅
+- UI **completamente nuova**, indipendente dalla UI legacy Trello
+- Gestione completa:
+  - lista automazioni
+  - creazione automazione
+  - modifica automazione
+  - eliminazione automazione
+- Trigger multi-app con:
+  - selezione app
+  - selezione connessione
+  - selezione trigger
+- **Trigger Slack / message – Config avanzata**:
+  - selezione canali Slack con dialog e checkbox
+  - badge canali privati 🔒
+  - keyword con input + chips
+  - visibility con selezione multipla (`any`, `public`, `private`, `dm`, `group_dm`)
+  - struttura `trigger_config` normalizzata:
+    ```json
+    {
+      "channels": [],
+      "keywords": [],
+      "visibility": ["any"]
+    }
+    ```
+- Salvataggio corretto:
+  - POST per creazione
+  - PUT per aggiornamento
+  - DELETE per eliminazione
+- Refresh automatico lista automazioni
+- Reset editor dopo salvataggio per evitare ambiguità di stato
 
 ### Stabilità sistema
-- Risolti import circolari
 - Avvio Gunicorn stabile
+- Redis operativo
 - Logging coerente su tutti i moduli
-- Sistema pronto per estensione UI
+- Eliminati comportamenti ambigui di cache lato UI
 
 ---
 
 ## Obiettivi in corso 🚧
 
-### Automations V2 – UI (NUOVA)
+### Slack – Canali
+- Endpoint **NON ancora presente** per:
+  - lista canali Slack per connection
+- Attualmente:
+  - UI pronta
+  - JS con fallback gestito
+- Prossimo step: endpoint `/api/connections/slack/<id>/channels`
 
-**Obiettivo principale attuale**
-
-- Creazione **UI ex-novo** per Automations V2
-- Nessuna dipendenza dalla UI legacy Trello
-- Gestione:
-  - automazioni
-  - trigger (multi-app)
-  - actions (multi-app)
-  - ordine di esecuzione
-- UI destinata a **sostituire completamente** le interfacce legacy
-
-Stato: **da iniziare (backend pronto)**
+Stato: **da implementare**
 
 ---
 
@@ -122,13 +153,14 @@ Stato: **da iniziare (backend pronto)**
 
 ## Task attivi 🔧
 
-### Task: UI Automations V2
-- Stato: **non iniziato**
-- Backend: **completato**
+### Task: Automations V2 – Slack Channels API
+- Stato: **da iniziare**
+- UI: **pronta**
+- Backend: **da implementare**
 - Note:
-  - UI legacy Trello **da dismettere**
-  - progettazione UI completamente nuova
-  - forte attenzione a chiarezza e scalabilità
+  - endpoint REST per canali Slack
+  - supporto a public / private / DM / group DM
+  - riuso SlackConnection + bot_token
 
 ---
 
@@ -146,6 +178,6 @@ Stato: **da iniziare (backend pronto)**
 
 ## Versione
 
-- Versione: **1.0**
-- Stato: stabile
-- Ultimo aggiornamento: manuale
+- Versione: **1.1**
+- Stato: aggiornata
+- Ultimo aggiornamento: **2026-01-28**
