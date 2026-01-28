@@ -263,3 +263,120 @@ def create_automation():
     actions = AutomationAction.query.filter_by(automation_id=auto.id).all()
     data["actions"] = [_serialize(a) for a in actions]
     return data, 201
+
+
+@automations_v2_bp.put("/automations/<int:automation_id>")
+@login_required
+def update_automation(automation_id: int):
+    payload = request.get_json() or {}
+    logger.info("[PUT] /automations/%s keys=%s", automation_id, list(payload.keys()))
+
+    auto = Automation.query.get_or_404(automation_id)
+
+    # --- Validazione base ---
+    name = (payload.get("name") or "").strip()
+    if not name:
+        abort(400, description="Campo 'name' obbligatorio")
+
+    trigger = payload.get("trigger") or {}
+    if not isinstance(trigger, dict):
+        abort(400, description="Campo 'trigger' non valido")
+
+    # --- Update Automation ---
+    auto.name = name
+    auto.description = payload.get("description")
+    auto.enabled = bool(payload.get("enabled", True))
+
+    auto.trigger_app = trigger.get("app")
+    auto.trigger_connection = trigger.get("connection_id")
+    auto.trigger_type = trigger.get("type")
+    auto.trigger_config = trigger.get("config", {}) or {}
+
+    # --- Normalizzazione actions payload (compat: nuovo/vecchio) ---
+    def _norm_action(act: dict, idx: int):
+        # nuovo (JS attuale)
+        if "action_app" in act or "action_type" in act:
+            return {
+                "action_app": act.get("action_app"),
+                "action_type": act.get("action_type"),
+                "action_config": act.get("action_config", {}) or {},
+                "order_index": act.get("order_index", idx),
+                "enabled": bool(act.get("enabled", True)),
+            }
+
+        # vecchio (eventuali residui)
+        return {
+            "action_app": act.get("app"),
+            "action_type": act.get("type"),
+            "action_config": act.get("config", {}) or {},
+            "order_index": act.get("order", idx),
+            "enabled": bool(act.get("enabled", True)),
+        }
+
+    incoming_actions = payload.get("actions") or []
+    if not isinstance(incoming_actions, list):
+        abort(400, description="Campo 'actions' non valido (atteso array)")
+
+    normalized_actions = []
+    for i, act in enumerate(incoming_actions):
+        if not isinstance(act, dict):
+            continue
+        normalized_actions.append(_norm_action(act, i))
+
+    try:
+        # --- Sync actions: delete + recreate ---
+        AutomationAction.query.filter_by(automation_id=auto.id).delete(synchronize_session=False)
+
+        for act in normalized_actions:
+            db.session.add(
+                AutomationAction(
+                    automation_id=auto.id,
+                    action_app=act["action_app"],
+                    action_type=act["action_type"],
+                    order_index=act.get("order_index", 0) or 0,
+                    action_config=act.get("action_config", {}) or {},
+                    enabled=act.get("enabled", True),
+                )
+            )
+
+        db.session.commit()
+        logger.info("[UPDATE] automation_id=%s actions=%s", auto.id, len(normalized_actions))
+
+    except Exception:
+        db.session.rollback()
+        logger.exception("Errore update automation_id=%s", auto.id)
+        abort(500, description="Errore aggiornando l'automazione")
+
+    # Ritorno l'automazione aggiornata + actions
+    data = _serialize(auto)
+
+    q = AutomationAction.query.filter_by(automation_id=auto.id)
+    if hasattr(AutomationAction, "order_index"):
+        q = q.order_by(AutomationAction.order_index.asc())
+    actions = q.all()
+    data["actions"] = [_serialize(a) for a in actions]
+
+    return data, 200
+
+
+@automations_v2_bp.delete("/automations/<int:automation_id>")
+@login_required
+def delete_automation(automation_id: int):
+    logger.info("[DELETE] /automations/%s", automation_id)
+
+    auto = Automation.query.get_or_404(automation_id)
+
+    try:
+        # se non hai cascade DB/ORM, eliminiamo esplicitamente le actions
+        AutomationAction.query.filter_by(automation_id=auto.id).delete(synchronize_session=False)
+
+        db.session.delete(auto)
+        db.session.commit()
+
+        logger.info("[DELETE] automation_id=%s OK", automation_id)
+        return {"ok": True}, 200
+
+    except Exception:
+        db.session.rollback()
+        logger.exception("Errore delete automation_id=%s", automation_id)
+        abort(500, description="Errore eliminando l'automazione")

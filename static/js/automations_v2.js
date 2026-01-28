@@ -901,10 +901,21 @@
     }
 
     try {
-      await apiFetch("/api/automations", {
-        method: "POST",
-        body: JSON.stringify(payload),
-      });
+      if (currentAutomationId) {
+        // UPDATE
+        await apiFetch(`/api/automations/${currentAutomationId}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+      } else {
+        // CREATE
+        const created = await apiFetch("/api/automations", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        // se il backend ritorna l'oggetto creato con id, ci agganciamo
+        if (created && created.id) currentAutomationId = created.id;
+      }
 
       await loadAutomations();
       renderAutomationList();
@@ -912,6 +923,32 @@
     } catch (e) {
       console.error(e);
       toast(`Errore salvataggio: ${e.message}`, "error");
+    }
+  };
+
+  const deleteAutomation = async () => {
+    if (!currentAutomationId) return;
+
+    const ok = confirm("Eliminare questa automazione?");
+    if (!ok) return;
+
+    try {
+      await apiFetch(`/api/automations/${currentAutomationId}`, {
+        method: "DELETE",
+      });
+
+      currentAutomationId = null;
+
+      await loadAutomations();
+      renderAutomationList();
+
+      // reset editor
+      newAutomation();
+
+      toast("Automazione eliminata", "info");
+    } catch (e) {
+      console.error(e);
+      toast(`Errore eliminazione: ${e.message}`, "error");
     }
   };
 
@@ -1007,6 +1044,8 @@
     // UI events
     el.btnNew?.addEventListener("click", newAutomation);
     el.btnSave?.addEventListener("click", saveAutomation);
+    el.btnDelete?.addEventListener("click", deleteAutomation);
+
 
     triggerAppEl.addEventListener("change", onTriggerChange);
     triggerConnEl.addEventListener("change", onTriggerChange);
