@@ -6,6 +6,7 @@ from flask_migrate import Migrate
 from dotenv import load_dotenv
 from extensions import db, mail
 from routes.automations_v2 import automations_v2_bp
+from routes.kiosk import kiosk_bp
 from tools.log_utils import get_logger
 from models import User, Menu
 from routes.tools import get_user_menu
@@ -237,6 +238,7 @@ def create_app():
     app.register_blueprint(installation_bp, url_prefix="/installation")
     app.register_blueprint(slack_bp, url_prefix="/slack")
     app.register_blueprint(automations_v2_bp, url_prefix="/api")
+    app.register_blueprint(kiosk_bp, url_prefix="/kiosk")
 
     from config.celery_app import init_celery
     init_celery(app)
