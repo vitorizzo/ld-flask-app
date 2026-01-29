@@ -24,34 +24,95 @@ def kiosk_test():
               <meta name="viewport" content="width=device-width, initial-scale=1"/>
               <meta http-equiv="refresh" content="10"/>
               <title>Kiosk Test</title>
+        
               <style>
-                html, body {{ height: 100%; margin: 0; }}
+                html, body {{
+                  height: 100%;
+                  margin: 0;
+                }}
+        
                 body {{
-                  display: flex; align-items: center; justify-content: center;
                   font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-                  background: #111; color: #eee;
+                  background: 
+                    linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.55)),
+                    url('/static/images/home-kiosk.jpg') center / cover no-repeat;
+                  color: #fff;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
                 }}
-                .card {{
+        
+                .welcome-section {{
                   width: min(900px, 92vw);
-                  border: 2px solid #444;
-                  border-radius: 18px;
-                  padding: 28px 32px;
-                  box-shadow: 0 10px 30px rgba(0,0,0,.45);
+                  background: rgba(0,0,0,.65);
+                  border: 1px solid rgba(255,255,255,.15);
+                  border-radius: 22px;
+                  padding: 36px 42px;
+                  box-shadow: 0 20px 60px rgba(0,0,0,.6);
+                  backdrop-filter: blur(4px);
+                  text-align: center;
                 }}
-                h1 {{ margin: 0 0 14px; font-size: clamp(28px, 4vw, 44px); }}
-                .ok {{ display: inline-block; padding: 6px 12px; border-radius: 999px; background: #1b5; color: #031; font-weight: 800; }}
-                .row {{ margin-top: 14px; font-size: clamp(16px, 2vw, 20px); line-height: 1.35; }}
-                code {{ color: #9ef; }}
+        
+                .logo {{
+                  height: 64px;
+                  margin-bottom: 24px;
+                }}
+        
+                h1 {{
+                  margin: 0 0 18px;
+                  font-size: clamp(30px, 4vw, 46px);
+                }}
+        
+                .ok {{
+                  display: inline-block;
+                  padding: 6px 14px;
+                  border-radius: 999px;
+                  background: #2ecc71;
+                  color: #062;
+                  font-weight: 800;
+                  font-size: 0.9em;
+                }}
+        
+                .row {{
+                  margin-top: 14px;
+                  font-size: clamp(16px, 2vw, 20px);
+                  line-height: 1.4;
+                  opacity: .9;
+                }}
+        
+                code {{
+                  color: #9fdcff;
+                }}
               </style>
             </head>
+        
             <body>
-              <div class="card">
+              <section class="welcome-section">
+                <img class="logo"
+                     src="/static/images/logo-ldenoteca-bianco.png"
+                     alt="LD Enoteca">
+        
                 <h1><span class="ok">KIOSK TEST OK</span></h1>
-                <div class="row">Ora server: <code>{now.strftime('%Y-%m-%d %H:%M:%S %Z')}</code></div>
-                <div class="row">Client IP: <code>{client_ip}</code></div>
-                <div class="row">User-Agent: <code>{request.headers.get('User-Agent','')}</code></div>
-                <div class="row" style="opacity:.8;margin-top:18px;">Auto refresh ogni 10s (disattivabile).</div>
-              </div>
+        
+                <div class="row">
+                  Ora server:
+                  <code>{now.strftime('%Y-%m-%d %H:%M:%S %Z')}</code>
+                </div>
+        
+                <div class="row">
+                  Client IP:
+                  <code>{client_ip}</code>
+                </div>
+        
+                <div class="row">
+                  User-Agent:
+                  <code>{request.headers.get('User-Agent', '')}</code>
+                </div>
+        
+                <div class="row" style="opacity:.75; margin-top:20px;">
+                  Auto refresh ogni 10s
+                </div>
+              </section>
             </body>
             </html>"""
 
