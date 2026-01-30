@@ -489,6 +489,7 @@ class ImportConflict(db.Model):
         Index("ix_import_conflicts_run_status", "run_id", "status"),
     )
 
+
 # ------------------------------------------------------------
 # A) Regole persistenti di risoluzione (per evitare conflitti ricorrenti)
 # ------------------------------------------------------------
@@ -559,6 +560,7 @@ class ImportConflictAction(db.Model):
         Index("ix_ica_conflict_id", "conflict_id"),
         Index("ix_ica_applied_at", "applied_at"),
     )
+
 
 class SlackConnection(db.Model):
     __tablename__ = 'slack_connections'
@@ -704,3 +706,126 @@ class AutomationAction(db.Model):
         ),
     )
 
+
+class DeliveryRoute(db.Model):
+    __tablename__ = "delivery_routes"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    name = db.Column(db.String(100), nullable=False)  # es. "marsica"
+    slack_channel_id = db.Column(db.String(50), nullable=False, unique=True)
+
+    default_weekday = db.Column(db.Integer, nullable=False)
+    # 0 = lunedì ... 6 = domenica
+
+    default_time = db.Column(db.Time, nullable=False)
+
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class DeliveryOverride(db.Model):
+    __tablename__ = "delivery_overrides"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    route_id = db.Column(
+        db.Integer,
+        db.ForeignKey("delivery_routes.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    delivery_date = db.Column(db.Date, nullable=False)
+    override_delivery_date = db.Column(db.Date, nullable=True)
+
+    type = db.Column(
+        db.String(20), nullable=False
+    )
+    # shift | extra | cancel
+
+    note = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    route = db.relationship("DeliveryRoute", backref="overrides")
+
+
+class SlackOrder(db.Model):
+    __tablename__ = "slack_orders"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    route_id = db.Column(
+        db.Integer,
+        db.ForeignKey("delivery_routes.id"),
+        nullable=True,
+    )
+
+    slack_channel_id = db.Column(db.String(50), nullable=False)
+
+    customer_display = db.Column(db.String(255), nullable=False)
+    customer_key = db.Column(db.String(255), nullable=False, index=True)
+
+    order_date = db.Column(db.Date, nullable=False)
+
+    planned_delivery_at = db.Column(db.DateTime, nullable=True)
+
+    status = db.Column(
+        db.String(30),
+        nullable=False,
+        default="acquisito",
+    )
+    # acquisito | listato | controllato | evaso
+
+    raw_text = db.Column(db.Text, nullable=True)
+
+    slack_message_ts = db.Column(db.String(50), nullable=False)
+    slack_thread_ts = db.Column(db.String(50), nullable=False)
+
+    has_issues = db.Column(db.Boolean, default=False, nullable=False)
+
+    closed_at = db.Column(db.DateTime, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    route = db.relationship("DeliveryRoute", backref="orders")
+
+    __table_args__ = (
+        db.Index(
+            "ix_slack_orders_channel_customer_date",
+            "slack_channel_id",
+            "customer_key",
+            "order_date",
+        ),
+    )
+
+
+class SlackOrderEvent(db.Model):
+    __tablename__ = "slack_order_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    order_id = db.Column(
+        db.Integer,
+        db.ForeignKey("slack_orders.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    type = db.Column(
+        db.String(30),
+        nullable=False,
+    )
+    # created | append_text | status_change | note | reaction
+
+    payload = db.Column(JSONB, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    order = db.relationship("SlackOrder", backref="events")

@@ -1,183 +1,152 @@
-# STATUS.md
+STATUS.md — v1.2 (aggiornato)
+Stato generale del progetto
 
-## Scopo
+Progetto: LD-Flask-App
 
-Questo file descrive **lo stato attuale del progetto LD-Flask-App**.
+Stato: attivo – sviluppo continuo
 
-Contiene:
-- obiettivi completati
-- obiettivi in corso
-- prossimi obiettivi (backlog)
-- task attivi con stato e note
+Branch di riferimento: main
 
-NON contiene:
-- regole operative (→ `new_chat.md`)
-- mappa dei file (→ `project_map.md`)
+Timezone di riferimento: Europe/Rome
 
-È la **fonte di verità sul “dove siamo”** nel progetto.
+Obiettivi completati ✅
 
----
+(immutato rispetto a v1.1)
 
-## Stato generale del progetto
+Automations V2 – Backend (cross-platform, dispatcher, executors, trigger normalizzati)
 
-- Progetto: **LD-Flask-App**
-- Stack principale:
-  - Backend: Python / Flask (app factory)
-  - Database: PostgreSQL + SQLAlchemy + Alembic
-  - Task async: Celery + Redis
-  - Integrazioni: Trello, Slack, TeamSystem, PrestaShop (parziale)
-- Stato: **attivo – sviluppo continuo**
-- Branch di riferimento: **main**
+Trello (webhook + trigger/actions principali)
 
----
+Slack (Events API + trigger/actions + dedup + gestione errori)
 
-## Obiettivi completati ✅
+Automations V2 – UI (nuova UI completa + trigger Slack message con config avanzata)
 
-### Automations V2 – Backend
-- Sistema **automazioni cross-platform** (Trello ↔ Slack)
-- Dispatcher centralizzato (`automations_dispatcher`)
-- Executor separati per app (Slack / Trello)
-- Trigger normalizzati
-- Actions sequenziali con ordine (`order_index`)
-- Logging esteso e tracciabile
+Stabilità sistema (Gunicorn/Redis/logging coerenti)
 
-### Trello
-- Webhook funzionanti
-- Trigger:
-  - `moveCard`
-  - `createCard`
-  - `updateCard`
-- Actions:
-  - `addComment`
-  - `createCard`
-  - `mirrorCard`
-- Gestione corretta dei template Jinja
+Obiettivi in corso 🚧
+1) Slack – Channels API
 
-### Slack
-- Ricezione eventi via **Slack Events API**
-- Trigger:
-  - `message`
-  - `reaction_added`
-- Actions:
-  - `addReaction`
-  - `sendMessage`
-- Gestione dedup eventi
-- Gestione errori Slack API (`already_reacted`)
-- Persistenza eventi (`SlackEvent`) con dedup
+Endpoint NON ancora presente:
 
-### Automations V2 – UI (NUOVA) ✅
-- UI **completamente nuova**, indipendente dalla UI legacy Trello
-- Gestione completa:
-  - lista automazioni
-  - creazione automazione
-  - modifica automazione
-  - eliminazione automazione
-- Trigger multi-app con:
-  - selezione app
-  - selezione connessione
-  - selezione trigger
-- **Trigger Slack / message – Config avanzata**:
-  - selezione canali Slack con dialog e checkbox
-  - badge canali privati 🔒
-  - keyword con input + chips
-  - visibility con selezione multipla (`any`, `public`, `private`, `dm`, `group_dm`)
-  - struttura `trigger_config` normalizzata:
-    ```json
-    {
-      "channels": [],
-      "keywords": [],
-      "visibility": ["any"]
-    }
-    ```
-- Salvataggio corretto:
-  - POST per creazione
-  - PUT per aggiornamento
-  - DELETE per eliminazione
-- Refresh automatico lista automazioni
-- Reset editor dopo salvataggio per evitare ambiguità di stato
+/api/connections/slack/<id>/channels
 
-### Stabilità sistema
-- Avvio Gunicorn stabile
-- Redis operativo
-- Logging coerente su tutti i moduli
-- Eliminati comportamenti ambigui di cache lato UI
+UI pronta, JS con fallback.
 
----
+Stato: da implementare
 
-## Obiettivi in corso 🚧
+2) Workflow “Ordini da Slack” + Kiosk Board (progettazione chiusa, implementazione da avviare)
 
-### Slack – Canali
-- Endpoint **NON ancora presente** per:
-  - lista canali Slack per connection
-- Attualmente:
-  - UI pronta
-  - JS con fallback gestito
-- Prossimo step: endpoint `/api/connections/slack/<id>/channels`
+Obiettivo
 
-Stato: **da implementare**
+Trasformare messaggi Slack nei canali “giro consegne” in entità Ordine con stato e tracciamento operativo.
 
----
+Visualizzare gli ordini su endpoint kiosk (display magazzino) con pipeline grafica degli stati.
 
-## Prossimi obiettivi 📌 (backlog strategico)
+Strategia (definita)
 
-- Implementazione **“Password dimenticata”**
-  - richiesta reset
-  - invio email
-  - token temporaneo
-  - definizione nuova password
+Fonte: messaggi Slack nei canali (area = canale).
 
-- Integrazione con **Poleepo**
-  - ricezione ordini dagli shop
-  - normalizzazione dati
-  - inserimento nel flusso gestionale
+Ordine creato anche se il messaggio contiene solo il cliente (segnalazione ordine trasmesso in ufficio).
 
-- **Kanban gestione consegne**
-  - stile “McDonald’s order board”
-  - stato ordine visuale
-  - avanzamento step-by-step
+Dettaglio ordine non parsato: si salva come raw_text multilinea.
 
-- Sistemazione **UI gestione menù dinamici**
-  - miglior UX
-  - manutenzione semplificata
+Replies nel thread = note operative/anomalie.
 
-- Integrazione con **siti corrieri**
-  - tracking spedizioni
-  - aggiornamento stato consegna
+Reactions = eventi di avanzamento stato (solo upgrade, mai retrocessione).
 
-- Miglioramento integrazione **server di posta**
-  - invio email affidabile
-  - analisi email ricevute
-  - base per automazioni future
+Mappatura reaction → stato
 
----
+✅ :white_check_mark: → listato (ufficio ha emesso lista di carico)
 
-## Task attivi 🔧
+🌵 :cactus: → controllato
 
-### Task: Automations V2 – Slack Channels API
-- Stato: **da iniziare**
-- UI: **pronta**
-- Backend: **da implementare**
-- Note:
-  - endpoint REST per canali Slack
-  - supporto a public / private / DM / group DM
-  - riuso SlackConnection + bot_token
+💯 :100: → evaso (chiusura)
 
----
+Regole di aggregazione cliente
 
-## Convenzioni operative
+customer_key normalizzato (lower/strip/punteggiatura/spazi), con rimozione suffissi finali: numeri, bis, tris, ter, ordinale.
 
-- Quando l’utente scrive:
-  > **“aggiorna situazione”**
+Un ordine per (channel, customer_key, giorno) finché non è evaso.
 
-  ChatGPT deve:
-  - aggiornare questo file (`status.md`)
-  - aggiornare `project_map.md` se necessario
-  - NON modificare `new_chat.md` salvo richiesta esplicita
+Caso post-evasione: nuovo messaggio cliente = nuovo ordine (scelta A).
 
----
+Kiosk
 
-## Versione
+Visualizzazione per area/canale, raggruppata per stato.
 
-- Versione: **1.1**
-- Stato: aggiornata
-- Ultimo aggiornamento: **2026-01-28**
+Badge “note/issue” se presenti replies/keyword issue.
+
+Stato: pronto per implementazione (da innestare in tools/slack_processor.py)
+
+Prossimi obiettivi 📌 (backlog strategico)
+
+(immutato + aggiunta)
+
+Password dimenticata
+
+Integrazione Poleepo
+
+Kanban gestione consegne stile McDonald’s
+
+Sistemazione UI menù dinamici
+
+Integrazione tracking corrieri
+
+Miglioramento integrazione server di posta
+
+Nuovo (derivato dal lavoro sugli ordini)
+
+Calendario Giri Consegne (route/canali con giorno prefissato + eccezioni)
+
+giorni prefissati per canale (es. marsica mercoledì mattina, aquila venerdì mattina, ecc.)
+
+override permanenti o contingenti (festività, consegna extra, spostamento)
+
+vista “giro X questa settimana” con elenco ordini + stati
+
+Stato: da progettare ora (schema) / implementare dopo (UI e logica completa)
+
+Task attivi 🔧
+Task: Automations V2 – Slack Channels API
+
+Stato: da iniziare
+
+UI: pronta
+
+Backend: da implementare
+
+Task: Ordini da Slack → Entità + Stati + Kiosk
+
+Stato: da iniziare
+
+Backend:
+
+nuove tabelle orders (+ consigliata order_events)
+
+ingest in tools/slack_processor.py
+
+gestione reactions e replies
+
+Frontend:
+
+endpoint kiosk per visualizzazione pipeline ordini
+
+Task: Calendario giri consegne
+
+Stato: in progettazione
+
+Strategia (minimo da predisporre subito):
+
+tabella route (mappatura canale→giro + weekday/time default)
+
+tabella override (shift/extra/cancel)
+
+campo su orders.planned_delivery_at calcolato (default + override)
+
+Versione
+
+Versione: 1.2
+
+Stato: aggiornata
+
+Ultimo aggiornamento: 2026-01-30
