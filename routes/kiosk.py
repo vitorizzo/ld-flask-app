@@ -125,12 +125,24 @@ def kiosk_api_board(route_id: int):
         .subquery()
     )
 
+    msg_counts_sq = (
+        db.session.query(
+            SlackOrderEvent.order_id.label("order_id"),
+            func.count().label("msg_count"),
+        )
+        .filter(SlackOrderEvent.type.in_(["created", "append_text"]))
+        .group_by(SlackOrderEvent.order_id)
+        .subquery()
+    )
+
     rows = (
         db.session.query(
             SlackOrder,
             func.coalesce(note_counts_sq.c.note_count, 0).label("note_count"),
+            func.coalesce(msg_counts_sq.c.msg_count, 0).label("msg_count"),
         )
         .outerjoin(note_counts_sq, note_counts_sq.c.order_id == SlackOrder.id)
+        .outerjoin(msg_counts_sq, msg_counts_sq.c.order_id == SlackOrder.id)
         .filter(
             SlackOrder.route_id == route.id,
             SlackOrder.planned_delivery_at >= start,
@@ -141,13 +153,14 @@ def kiosk_api_board(route_id: int):
     )
 
     groups = {s: [] for s in STATUS_ORDER}
-    for order, note_count in rows:
+    for order, note_count, msg_count in rows:
         payload = {
             "id": order.id,
             "customer": order.customer_display,
             "status": order.status,
             "has_issues": bool(order.has_issues),
             "note_count": int(note_count or 0),
+            "msg_count": int(msg_count or 0),
             "planned_delivery_at": order.planned_delivery_at.isoformat() if order.planned_delivery_at else None,
             "created_at": order.created_at.isoformat() if order.created_at else None,
             "raw_text": order.raw_text or "",
@@ -176,84 +189,85 @@ def kiosk_board(route_id: int):
     now = datetime.now(timezone.utc).astimezone()
 
     html = f"""
-<!doctype html>
-<html lang="it">
-<head>
-  <meta charset="utf-8" />
-  <meta http-equiv="refresh" content="10" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Kiosk Board</title>
-  <style>
-    body {{ font-family: Arial, sans-serif; margin: 0; padding: 12px; }}
-    .top {{ display:flex; justify-content:space-between; align-items:center; gap:12px; }}
-    .meta code {{ background:#f3f3f3; padding:2px 6px; border-radius:6px; }}
-    .grid {{ display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }}
-    .col {{ border:1px solid #ddd; border-radius:10px; padding:10px; min-height: 65vh; }}
-    .col h2 {{ margin:0 0 10px 0; font-size: 18px; }}
-    .card {{ border:1px solid #eee; border-radius:10px; padding:8px; margin-bottom:8px; }}
-    .badges {{ display:flex; gap:6px; margin-top:6px; }}
-    .badge {{ font-size:12px; padding:2px 6px; border-radius:999px; background:#f3f3f3; }}
-  </style>
-</head>
-<body>
-  <div class="top">
-    <div>
-      <h1 style="margin:0;">Kiosk Board</h1>
-      <div class="meta">Ora server: <code>{now.strftime('%Y-%m-%d %H:%M:%S %Z')}</code> — IP: <code>{client_ip}</code></div>
-    </div>
-    <div class="meta">Auto refresh 10s</div>
-  </div>
-
-  <div id="hdr" class="meta" style="margin-top:10px;"></div>
-
-  <div class="grid">
-    <div class="col"><h2>Acquisito</h2><div id="acquisito"></div></div>
-    <div class="col"><h2>Listato</h2><div id="listato"></div></div>
-    <div class="col"><h2>Controllato</h2><div id="controllato"></div></div>
-    <div class="col"><h2>Evaso</h2><div id="evaso"></div></div>
-  </div>
-
-<script>
-async function loadBoard() {{
-  const res = await fetch('/kiosk/api/board/{route_id}', {{ cache: 'no-store' }});
-  const data = await res.json();
-
-  const hdr = document.getElementById('hdr');
-  if (!data.delivery_dt) {{
-    hdr.textContent = `Giro: ${{data.route?.name || ''}} — Nessuna consegna pianificata trovata`;
-  }} else {{
-    hdr.textContent = `Giro: ${{data.route?.name || ''}} — Consegna: ${{data.delivery_dt}}`;
-  }}
-
-  const groups = data.groups || {{}};
-
-  const render = (status) => {{
-    const el = document.getElementById(status);
-    el.innerHTML = '';
-    (groups[status] || []).forEach(o => {{
-      const div = document.createElement('div');
-      div.className = 'card';
-      const safeCustomer = (o.customer || '').replaceAll('<','&lt;').replaceAll('>','&gt;');
-      div.innerHTML = `<div><strong>${{safeCustomer}}</strong></div>`;
-      const badges = [];
-      if (o.note_count > 0) badges.push(`<span class="badge">note: ${{o.note_count}}</span>`);
-      if (o.has_issues) badges.push(`<span class="badge">issue</span>`);
-      if (badges.length) div.innerHTML += `<div class="badges">${{badges.join('')}}</div>`;
-      el.appendChild(div);
-    }});
-  }}
-
-  render('acquisito');
-  render('listato');
-  render('controllato');
-  render('evaso');
-}}
-loadBoard();
-</script>
-
-</body>
-</html>
-"""
+            <!doctype html>
+            <html lang="it">
+            <head>
+              <meta charset="utf-8" />
+              <meta http-equiv="refresh" content="10" />
+              <meta name="viewport" content="width=device-width, initial-scale=1" />
+              <title>Kiosk Board</title>
+              <style>
+                body {{ font-family: Arial, sans-serif; margin: 0; padding: 12px; }}
+                .top {{ display:flex; justify-content:space-between; align-items:center; gap:12px; }}
+                .meta code {{ background:#f3f3f3; padding:2px 6px; border-radius:6px; }}
+                .grid {{ display:grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }}
+                .col {{ border:1px solid #ddd; border-radius:10px; padding:10px; min-height: 65vh; }}
+                .col h2 {{ margin:0 0 10px 0; font-size: 18px; }}
+                .card {{ border:1px solid #eee; border-radius:10px; padding:8px; margin-bottom:8px; }}
+                .badges {{ display:flex; gap:6px; margin-top:6px; }}
+                .badge {{ font-size:12px; padding:2px 6px; border-radius:999px; background:#f3f3f3; }}
+              </style>
+            </head>
+            <body>
+              <div class="top">
+                <div>
+                  <h1 style="margin:0;">Kiosk Board</h1>
+                  <div class="meta">Ora server: <code>{now.strftime('%Y-%m-%d %H:%M:%S %Z')}</code> — IP: <code>{client_ip}</code></div>
+                </div>
+                <div class="meta">Auto refresh 10s</div>
+              </div>
+            
+              <div id="hdr" class="meta" style="margin-top:10px;"></div>
+            
+              <div class="grid">
+                <div class="col"><h2>Acquisito</h2><div id="acquisito"></div></div>
+                <div class="col"><h2>Listato</h2><div id="listato"></div></div>
+                <div class="col"><h2>Controllato</h2><div id="controllato"></div></div>
+                <div class="col"><h2>Evaso</h2><div id="evaso"></div></div>
+              </div>
+            
+            <script>
+            async function loadBoard() {{
+              const res = await fetch('/kiosk/api/board/{route_id}', {{ cache: 'no-store' }});
+              const data = await res.json();
+            
+              const hdr = document.getElementById('hdr');
+              if (!data.delivery_dt) {{
+                hdr.textContent = `Giro: ${{data.route?.name || ''}} — Nessuna consegna pianificata trovata`;
+              }} else {{
+                hdr.textContent = `Giro: ${{data.route?.name || ''}} — Consegna: ${{data.delivery_dt}}`;
+              }}
+            
+              const groups = data.groups || {{}};
+            
+              const render = (status) => {{
+                const el = document.getElementById(status);
+                el.innerHTML = '';
+                (groups[status] || []).forEach(o => {{
+                  const div = document.createElement('div');
+                  div.className = 'card';
+                  const safeCustomer = (o.customer || '').replaceAll('<','&lt;').replaceAll('>','&gt;');
+                  div.innerHTML = `<div><strong>${{safeCustomer}}</strong></div>`;
+                  const badges = [];
+                  if (o.msg_count > 1) badges.push(`<span class="badge">msg: ${{o.msg_count}}</span>`);
+                  if (o.note_count > 0) badges.push(`<span class="badge">note: ${{o.note_count}}</span>`);
+                  if (o.has_issues) badges.push(`<span class="badge">issue</span>`);
+                  if (badges.length) div.innerHTML += `<div class="badges">${{badges.join('')}}</div>`;
+                  el.appendChild(div);
+                }});
+              }}
+            
+              render('acquisito');
+              render('listato');
+              render('controllato');
+              render('evaso');
+            }}
+            loadBoard();
+            </script>
+            
+            </body>
+            </html>
+            """
     resp = make_response(html, 200)
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     resp.headers["Pragma"] = "no-cache"
