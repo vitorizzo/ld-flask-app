@@ -84,17 +84,21 @@ class SlackProcessor:
         if not lines:
             return ""
 
-        first = lines[0]
+        first = lines[0].strip()
 
         # Caso "Aggiunta <cliente>"
         m = re.match(r"(?i)^\s*aggiunta\s+(.+?)\s*$", first)
         if m:
             return m.group(1).strip()
 
-        # Se prima riga contiene cliente + note, taglia alla prima keyword nota
+        # Caso "<cliente> aggiunta" / "<cliente> aggiunta 2" / "<cliente> aggiunta bis"
+        m = re.match(r"(?i)^\s*(.+?)\s+aggiunta(?:\s+(\d+|bis|tris|ter))?\s*$", first)
+        if m:
+            return m.group(1).strip()
+
         lower = first.lower()
 
-        # trova la keyword nota più a sinistra
+        # Se prima riga contiene cliente + note, taglia alla prima keyword nota
         cut_pos = None
         for kw in self._NOTE_KEYWORDS:
             idx = lower.find(f" {kw}")
