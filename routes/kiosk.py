@@ -453,4 +453,5 @@ def kiosk_board_all():
         totals={"total": total_orders},
         routes=routes_out,
         orders=orders_out,
+        kiosk_mode=True,
     )

@@ -26,8 +26,9 @@
 </head>
 <body>
     <!-- Navbar -->
-    {% include 'partials/navbar.html' %}
-
+    {% if not kiosk_mode %}
+        {% include "partials/navbar.html" %}
+    {% endif %}
 
     <!-- spazio per alert -->
     {% with messages = get_flashed_messages(with_categories=true) %}

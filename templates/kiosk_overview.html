@@ -14,7 +14,6 @@
   <div class="container-fluid py-3 kiosk-wrap">
 
     <div class="kiosk-header">
-      <img class="kiosk-logo" src="{{ url_for('static', filename='images/logo-ldenoteca-bianco.png') }}" alt="LD">
       <div class="kiosk-header__main">
         <div class="kiosk-title">Kiosk — Ordini (tutti i giri)</div>
         <div class="kiosk-subtitle">
@@ -50,9 +49,36 @@
       {% endfor %}
     </div>
 
-    <!-- board -->
-    {# ...qui rimane identico il blocco delle 4 colonne che già hai... #}
+    <!-- Board 4 colonne: sempre visibile -->
+    <div class="kiosk-board" id="kioskBoard" data-active-route="__all__">
+      <div class="kiosk-col" data-status="acquisito">
+        <div class="kiosk-col__header">Acquisito</div>
+        <div class="kiosk-col__body" id="col-acquisito">
+          <div class="kiosk-empty">Nessun ordine</div>
+        </div>
+      </div>
 
+      <div class="kiosk-col" data-status="listato">
+        <div class="kiosk-col__header">Listato</div>
+        <div class="kiosk-col__body" id="col-listato">
+          <div class="kiosk-empty">Nessun ordine</div>
+        </div>
+      </div>
+
+      <div class="kiosk-col" data-status="controllato">
+        <div class="kiosk-col__header">Controllato</div>
+        <div class="kiosk-col__body" id="col-controllato">
+          <div class="kiosk-empty">Nessun ordine</div>
+        </div>
+      </div>
+
+      <div class="kiosk-col" data-status="evaso">
+        <div class="kiosk-col__header">Evaso</div>
+        <div class="kiosk-col__body" id="col-evaso">
+          <div class="kiosk-empty">Nessun ordine</div>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
   <!-- Modal scheda ordine -->
