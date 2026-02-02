@@ -1,0 +1,113 @@
+/* Palette “light” per giro: colore calcolato server-side e passato come --route-bg */
+.route-pill {
+  border: 1px solid rgba(0,0,0,.08);
+  background: var(--route-bg, #f8f9fa);
+  color: #111;
+}
+.route-pill.active {
+  outline: 2px solid rgba(0,0,0,.15);
+  font-weight: 600;
+}
+
+.order-card {
+  border: 1px solid rgba(0,0,0,.08);
+  background: var(--route-bg, #ffffff);
+  padding: 12px 14px;
+  border-radius: 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.badge-multi { background: #0d6efd; }                   /* blu */
+.badge-note  { background: #ffc107; color:#111; }       /* giallo */
+.badge-issue { background: #dc3545; }                   /* rosso */
+
+.kiosk-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(0,0,0,.08);
+  background: #fff;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.kiosk-logo {
+  height: 32px;
+  width: auto;
+}
+
+.kiosk-header__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.kiosk-title {
+  font-weight: 700;
+}
+
+.kiosk-subtitle {
+  color: rgba(0,0,0,.6);
+  font-size: .9rem;
+}
+
+.route-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.orders-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 1200px) {
+  .orders-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 768px) {
+  .orders-grid { grid-template-columns: 1fr; }
+}
+
+.order-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.order-main {
+  min-width: 0;
+}
+
+.order-name {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.order-meta {
+  color: rgba(0,0,0,.6);
+  font-size: .9rem;
+  margin-top: 2px;
+}
+
+.order-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+  flex: 0 0 auto;
+}
+
+.order-preview {
+  margin-top: 8px;
+  color: rgba(0,0,0,.6);
+  font-size: .95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

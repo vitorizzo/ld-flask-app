@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block navbar %}
+{# kiosk: niente navbar #}
+{% endblock %}
+
+{% block head %}
+  {{ super() }}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="kiosk-header">
+  <img class="kiosk-logo" src="{{ url_for('static', filename='images/logo-ldenoteca-bianco.png') }}" alt="LD">
+  <div class="kiosk-header__main">
+    <div class="kiosk-title">Kiosk — Ordini (tutti i giri)</div>
+    <div class="kiosk-subtitle">
+      Aggiornamento: {{ now_local.strftime('%d/%m/%Y %H:%M') }}
+      {% if show_closed_today %}
+      · mostra “evaso” solo oggi
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="kiosk-header__actions">
+    <button class="btn btn-sm btn-outline-secondary" id="btn-refresh" type="button">Aggiorna</button>
+  </div>
+</div>
+
+<div class="container-fluid py-3">
+  <!-- Pulsantiera filtri giro -->
+  <div class="route-filters">
+    <button class="btn btn-sm route-pill active"
+            data-filter-route="__all__"
+            style="--route-bg:#f1f3f5;"
+            type="button">
+      Tutti
+      <span class="badge bg-dark ms-1">{{ totals.total }}</span>
+    </button>
+
+    {% for r in routes %}
+      <button class="btn btn-sm route-pill"
+              data-filter-route="{{ r.id }}"
+              style="--route-bg: {{ r.color }};"
+              type="button">
+        {{ r.name }}
+        <span class="badge bg-dark ms-1">{{ r.count }}</span>
+      </button>
+    {% endfor %}
+  </div>
+
+  <!-- Lista ordini -->
+  <div class="orders-grid" id="ordersGrid">
+    {% for o in orders %}
+      <div class="order-card"
+           style="--route-bg: {{ o.route_color }};"
+           data-route-id="{{ o.route_id }}"
+           data-order-id="{{ o.id }}"
+           role="button"
+           tabindex="0"
+      >
+        <div class="order-top">
+          <div class="order-main">
+            <div class="order-name">{{ o.customer_display }}</div>
+            <div class="order-meta">
+              Giro: <span class="badge bg-dark">{{ o.route_name }}</span>
+              · Status: <span class="badge bg-secondary">{{ o.status }}</span>
+            </div>
+          </div>
+
+          <div class="order-badges">
+            {% if o.multi_count and o.multi_count > 1 %}
+              <span class="badge badge-multi">+{{ o.multi_count - 1 }}</span>
+            {% endif %}
+            {% if o.notes_count and o.notes_count > 0 %}
+              <span class="badge badge-note">{{ o.notes_count }}</span>
+            {% endif %}
+            {% if o.issues_count and o.issues_count > 0 %}
+              <span class="badge badge-issue">{{ o.issues_count }}</span>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if o.preview %}
+          <div class="order-preview">{{ o.preview }}</div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- Modal scheda ordine -->
+<div class="modal fade" id="orderModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content" id="orderModalContent">
+      <div class="modal-header">
+        <h5 class="modal-title" id="orderModalTitle">Ordine</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body" id="orderModalBody">
+        <div class="text-muted">Caricamento...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/kiosk_overview.js') }}"></script>
+{% endblock %}
