@@ -455,3 +455,45 @@ def kiosk_board_all():
         orders=orders_out,
         kiosk_mode=True,
     )
+
+
+@kiosk_bp.get("/api/board/all")
+def kiosk_api_board_all():
+    only_active = request.args.get("only_active", "1") == "1"
+    show_closed_today = request.args.get("show_closed_today", "1") == "1"
+
+    # IMPORTA QUI i tuoi model/DB accessor reali
+    from models import DeliveryRoute
+    from extensions import db
+
+    routes_q = db.session.query(DeliveryRoute).filter(DeliveryRoute.is_active.is_(True)).order_by(DeliveryRoute.id.asc())
+    routes = routes_q.all()
+
+    boards = []
+    for r in routes:
+        # 1) Se hai già una funzione che costruisce la board singola, riusala
+        if "build_board_payload" in globals():
+            payload = build_board_payload(
+                route_id=r.id,
+                only_active=only_active,
+                show_closed_today=show_closed_today,
+            )
+        else:
+            # 2) Altrimenti: richiama la stessa logica della tua /api/board/<id>
+            #    (qui devi rimpiazzare con la tua funzione reale)
+            payload = _build_board_payload_like_single_endpoint(
+                route_id=r.id,
+                only_active=only_active,
+                show_closed_today=show_closed_today,
+            )
+
+        # payload deve contenere groups + delivery_dt; assicuriamo route
+        payload["route"] = {"id": r.id, "name": r.name, "color": getattr(r, "color", "#f1f3f5")}
+        boards.append(payload)
+
+    return jsonify({
+        "only_active": only_active,
+        "show_closed_today": show_closed_today,
+        "boards": boards,
+        "server_now": datetime.now().isoformat(timespec="seconds"),
+    })
