@@ -311,6 +311,36 @@ Auto refresh 10s
     return resp
 
 
+def _evaded_today_by_event(order_id: int) -> bool:
+    """
+    True se esiste un evento di cambio stato a 'evaso' avvenuto oggi (local).
+    Fallback: False se non troviamo eventi.
+    """
+    candidates = (
+        SlackOrderEvent.query
+        .filter(
+            SlackOrderEvent.order_id == order_id,
+            SlackOrderEvent.type.in_(["status_change", "status_changed", "status_update"]),
+        )
+        .order_by(SlackOrderEvent.created_at.desc())
+        .limit(20)
+        .all()
+    )
+
+    for ev in candidates:
+        if not isinstance(ev.payload, dict):
+            continue
+        new_status = (
+            ev.payload.get("to_status")
+            or ev.payload.get("new_status")
+            or ev.payload.get("status")
+        )
+        if new_status == "evaso":
+            return _is_today_local(ev.created_at)
+
+    return False
+
+
 @kiosk_bp.get("/board/all")
 def kiosk_board_all():
     """
@@ -382,7 +412,7 @@ def kiosk_board_all():
         # filtro evaso: solo se oggi
         filtered_rows = []
         for order, note_count, msg_count in rows:
-            if order.status == "evaso" and not _is_today_local(order.planned_delivery_at):
+            if order.status == "evaso" and not _evaded_today_by_event(order.id):
                 continue
             filtered_rows.append((order, note_count, msg_count))
 
