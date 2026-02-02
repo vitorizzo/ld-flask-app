@@ -206,6 +206,10 @@ def kiosk_board(route_id: int):
                 .card {{ border:1px solid #eee; border-radius:10px; padding:8px; margin-bottom:8px; }}
                 .badges {{ display:flex; gap:6px; margin-top:6px; }}
                 .badge {{ font-size:12px; padding:2px 6px; border-radius:999px; background:#f3f3f3; }}
+                .badge--msg {{ background:#e6f0ff; border:1px solid #6aa6ff; color:#0b3d91; }}
+                .badge--note {{ background:#fff6cc; border:1px solid #e0b400; color:#6b4e00; }}
+                .badge--issue {{ background:#ffe1e1; border:1px solid #ff6b6b; color:#8a0000; }}
+
               </style>
             </head>
             <body>
@@ -249,9 +253,9 @@ def kiosk_board(route_id: int):
                   const safeCustomer = (o.customer || '').replaceAll('<','&lt;').replaceAll('>','&gt;');
                   div.innerHTML = `<div><strong>${{safeCustomer}}</strong></div>`;
                   const badges = [];
-                  if (o.msg_count > 1) badges.push(`<span class="badge">msg: ${{o.msg_count}}</span>`);
-                  if (o.note_count > 0) badges.push(`<span class="badge">note: ${{o.note_count}}</span>`);
-                  if (o.has_issues) badges.push(`<span class="badge">issue</span>`);
+                  if (o.msg_count > 1) badges.push(`<span class="badge--msg">msg: ${{o.msg_count}}</span>`);
+                  if (o.note_count > 0) badges.push(`<span class="badge--note">note: ${{o.note_count}}</span>`);
+                  if (o.has_issues) badges.push(`<span class="badge--issue">issue</span>`);
                   if (badges.length) div.innerHTML += `<div class="badges">${{badges.join('')}}</div>`;
                   el.appendChild(div);
                 }});
@@ -272,3 +276,115 @@ def kiosk_board(route_id: int):
     resp.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     resp.headers["Pragma"] = "no-cache"
     return resp
+
+
+@kiosk_bp.route("/boards")
+def kiosk_boards_overview():
+    return """
+            <!doctype html>
+            <html lang="it">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <title>Kiosk - Tutti i giri</title>
+              <style>
+                body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; background:#f6f7f9; margin:0; }
+                header { padding:12px 16px; background:#111827; color:#fff; font-weight:600; display:flex; gap:12px; align-items:center; }
+                header .muted { opacity:.8; font-weight:400; font-size:14px; }
+                .wrap { padding:14px; display:grid; gap:14px; }
+                .route { background:#fff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden; }
+                .route h2 { margin:0; padding:10px 12px; font-size:16px; border-bottom:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center; }
+                .route h2 a { color:inherit; text-decoration:none; }
+                .cols { display:grid; grid-template-columns: repeat(4, 1fr); gap:10px; padding:12px; }
+                .col { background:#f9fafb; border:1px solid #e5e7eb; border-radius:10px; padding:10px; min-height:80px; }
+                .col h3 { margin:0 0 8px 0; font-size:13px; color:#374151; display:flex; justify-content:space-between; }
+                .pill { font-size:12px; background:#e5e7eb; padding:2px 8px; border-radius:999px; }
+                .item { background:#fff; border:1px solid #e5e7eb; border-radius:10px; padding:8px 10px; margin-bottom:8px; }
+                .item .name { font-weight:650; }
+                .badges { margin-top:6px; display:flex; gap:6px; flex-wrap:wrap; }
+                .badge { font-size:12px; padding:2px 7px; border-radius:999px; border:1px solid transparent; }
+                .badge--msg { background:#e6f0ff; border-color:#6aa6ff; color:#0b3d91; }
+                .badge--note { background:#fff6cc; border-color:#e0b400; color:#6b4e00; }
+                .badge--issue { background:#ffe1e1; border-color:#ff6b6b; color:#8a0000; }
+                .rowlink { color:#2563eb; text-decoration:none; font-weight:600; font-size:12px; }
+              </style>
+            </head>
+            <body>
+              <header>
+                <div>Kiosk - Tutti i giri</div>
+                <div class="muted" id="ts"></div>
+              </header>
+              <div class="wrap" id="wrap"></div>
+            
+            <script>
+            const STATUS_LABELS = ["Acquisito","Listato","Preparato","Controllato"];
+            const STATUS_KEYS = ["acquired","listed","prepared","checked"];
+            
+            function esc(s){ return (s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
+            
+            async function fetchJson(url){
+              const r = await fetch(url, {cache:"no-store"});
+              if(!r.ok) throw new Error(url+" "+r.status);
+              return await r.json();
+            }
+            
+            function renderOrder(o){
+              const badges = [];
+              if ((o.msg_count||0) > 1) badges.push(`<span class="badge badge--msg">msg: ${o.msg_count}</span>`);
+              if ((o.note_count||0) > 0) badges.push(`<span class="badge badge--note">note: ${o.note_count}</span>`);
+              if (o.has_issues) badges.push(`<span class="badge badge--issue">issue</span>`);
+              return `
+                <div class="item">
+                  <div class="name">${esc(o.customer_display || o.customer_key)}</div>
+                  <div class="badges">${badges.join("")}</div>
+                </div>
+              `;
+            }
+            
+            function renderRoute(route, board){
+              // board: { route: {...}, start, end, columns:{acquired:[], listed:[], prepared:[], checked:[]} }
+              const colsHtml = STATUS_KEYS.map((k, idx) => {
+                const arr = (board.columns && board.columns[k]) ? board.columns[k] : [];
+                return `
+                  <div class="col">
+                    <h3><span>${STATUS_LABELS[idx]}</span><span class="pill">${arr.length}</span></h3>
+                    ${arr.slice(0, 12).map(renderOrder).join("")}
+                  </div>
+                `;
+              }).join("");
+            
+              return `
+                <section class="route">
+                  <h2>
+                    <a href="/kiosk/board/${route.id}">${esc(route.name)} <span class="pill">${route.id}</span></a>
+                    <a class="rowlink" href="/kiosk/board/${route.id}">Apri</a>
+                  </h2>
+                  <div class="cols">${colsHtml}</div>
+                </section>
+              `;
+            }
+            
+            async function main(){
+              document.getElementById("ts").textContent = new Date().toLocaleString();
+              const wrap = document.getElementById("wrap");
+              wrap.innerHTML = "";
+            
+              const routes = await fetchJson("/kiosk/api/routes");
+              if(!routes.length){
+                wrap.innerHTML = `<div style="padding:12px;background:#fff;border:1px solid #e5e7eb;border-radius:12px;">
+                  Nessun giro attivo (delivery_routes). </div>`;
+                return;
+              }
+            
+              // carico tutte le board in parallelo
+              const boards = await Promise.all(routes.map(r => fetchJson(`/kiosk/api/board/${r.id}`)));
+              for(let i=0;i<routes.length;i++){
+                wrap.insertAdjacentHTML("beforeend", renderRoute(routes[i], boards[i]));
+              }
+            }
+            main();
+            setInterval(main, 15000);
+            </script>
+            </body>
+            </html>
+            """
