@@ -317,8 +317,8 @@ def kiosk_boards_overview():
               <div class="wrap" id="wrap"></div>
             
             <script>
-            const STATUS_LABELS = ["Acquisito","Listato","Preparato","Controllato"];
-            const STATUS_KEYS = ["acquired","listed","prepared","checked"];
+            const STATUS_LABELS = ["Acquisito","Listato","Controllato","Evaso"];
+            const STATUS_KEYS = ["acquired","listed","checked","ended"];
             
             function esc(s){ return (s||"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;"); }
             
@@ -342,7 +342,7 @@ def kiosk_boards_overview():
             }
             
             function renderRoute(route, board){
-              // board: { route: {...}, start, end, columns:{acquired:[], listed:[], prepared:[], checked:[]} }
+              // board: { route: {...}, start, end, columns:{acquired:[], listed:[], checked:[], ended:[]} }
               const colsHtml = STATUS_KEYS.map((k, idx) => {
                 const arr = (board.columns && board.columns[k]) ? board.columns[k] : [];
                 return `
