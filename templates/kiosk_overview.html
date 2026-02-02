@@ -1,6 +1,8 @@
 {% extends "base_kiosk.html" %}
 
+{% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css') }}">
+{% endblock %}
 
 {% block content %}
 <section class="kiosk-overview kiosk-full">
@@ -109,5 +111,8 @@
   </div>
 </div>
 
+{% block scripts %}
 <script src="{{ url_for('static', filename='js/kiosk_overview.js') }}"></script>
+{% endblock %}
+
 {% endblock %}

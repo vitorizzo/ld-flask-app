@@ -6,10 +6,15 @@
   <title>Kiosk</title>
 
   <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
 </head>
 
 <body class="kiosk-body">
   {% block content %}{% endblock %}
+
+  <!-- Bootstrap JS bundle (fondamentale per Modal) -->
+  <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+
+  {% block scripts %}{% endblock %}
 </body>
 </html>

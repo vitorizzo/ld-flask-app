@@ -1,22 +1,4 @@
-/* =========================
-   KIOSK – BASE
-========================= */
-
-html, body {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-}
-
-body {
-  background: #2b1f1f; /* o quello che usi nel kiosk */
-  overflow: hidden;
-}
-
-/* =========================
-   LAYOUT
-========================= */
-
+/* Layout base */
 .kiosk-full {
   width: 100vw;
   max-width: none;
@@ -24,16 +6,15 @@ body {
 
 .kiosk-overview {
   padding: 16px;
+  color: #111; /* testo leggibile su sfondo chiaro */
 }
 
-/* =========================
-   HEADER
-========================= */
-
+/* Header */
 .kiosk-head {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
+  gap: 12px;
   margin-bottom: 12px;
 }
 
@@ -44,54 +25,41 @@ body {
 
 .kiosk-subtitle {
   font-size: 0.9rem;
-  opacity: 0.85;
+  opacity: 0.8;
 }
 
-/* =========================
-   BOARD – 4 COLONNE
-========================= */
-
-.kiosk-board {
-  margin-top: 12px;
-}
-
+/* Griglia 4 colonne */
 .kiosk-cols {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
 }
 
-/* fallback responsive (utile su monitor piccoli) */
 @media (max-width: 1400px) {
-  .kiosk-cols {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  .kiosk-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-
 @media (max-width: 800px) {
-  .kiosk-cols {
-    grid-template-columns: 1fr;
-  }
+  .kiosk-cols { grid-template-columns: 1fr; }
 }
 
-/* =========================
-   COLONNA
-========================= */
-
+/* Colonne */
 .kiosk-col {
-  background: rgba(255, 255, 255, 0.10);
-  border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 12px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  overflow: hidden;
   min-height: 360px;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
 }
 
 .kiosk-col__head {
-  padding: 10px;
   display: flex;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
 .kiosk-col__title {
@@ -105,28 +73,23 @@ body {
   gap: 10px;
 }
 
-/* =========================
-   EMPTY
-========================= */
-
 .kiosk-empty {
-  padding: 10px;
   opacity: 0.7;
-  border: 1px dashed rgba(255, 255, 255, 0.25);
+  padding: 10px;
   border-radius: 10px;
+  border: 1px dashed rgba(0, 0, 0, 0.20);
 }
 
-/* =========================
-   ORDER CARD
-========================= */
-
+/* Card ordine */
 .order-card {
-  background: var(--route-bg, #f1f3f5);
+  --route-bg: #f1f3f5;
+  background: var(--route-bg);
   color: #111;
   border-radius: 12px;
   padding: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
 }
 
 .order-card:hover {
@@ -141,65 +104,92 @@ body {
 
 .order-name {
   font-weight: 800;
+  line-height: 1.1;
 }
 
 .order-meta {
   font-size: 0.85rem;
   opacity: 0.85;
+  margin-top: 4px;
 }
 
 .order-preview {
   margin-top: 8px;
   font-size: 0.9rem;
+  opacity: 0.9;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* =========================
-   BADGES
-========================= */
+/* Badge route e contatori */
+.badge-route {
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  border-radius: 10px;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
 
 .order-badges {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  align-items: flex-end;
+  min-width: 42px;
+}
+
+.badge-multi,
+.badge-note,
+.badge-issue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #fff;
 }
 
 .badge-multi { background: #0d6efd; }
 .badge-note  { background: #ffc107; color: #111; }
 .badge-issue { background: #dc3545; }
 
-.badge-multi,
-.badge-note,
-.badge-issue {
-  min-width: 26px;
-  height: 22px;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 800;
-  color: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* =========================
-   FILTRI
-========================= */
-
-.kiosk-filters {
-  margin-top: 14px;
-}
+/* Filtri */
+.kiosk-filters { margin-top: 14px; }
 
 .route-filters {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
 }
 
 .route-pill {
   border-radius: 999px;
-  background: rgba(255,255,255,0.65);
-  border: 1px solid rgba(0,0,0,0.1);
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.75);
+  color: #111;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.route-pill.active {
+  outline: 2px solid rgba(13, 110, 253, 0.35);
+  background: #fff;
+}
+
+.route-pill::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 99px;
+  background: var(--route-bg, #f1f3f5);
+  border: 1px solid rgba(0,0,0,0.15);
+  margin-right: 8px;
+  vertical-align: middle;
 }
