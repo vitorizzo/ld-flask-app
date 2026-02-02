@@ -1,5 +1,11 @@
 /* KIOSK OVERVIEW – stile dedicato */
 
+.kiosk-overview.welcome-section {
+  max-width: none !important;
+  width: 100%;
+}
+
+
 .kiosk-overview {
   /* la welcome-section già crea contrasto, qui solo spacing */
   padding-top: 18px;
