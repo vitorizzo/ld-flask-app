@@ -412,7 +412,7 @@ def kiosk_board_all():
         # filtro evaso: solo se oggi
         filtered_rows = []
         for order, note_count, msg_count in rows:
-            if order.status == "evaso" and not _evaded_today_by_event(order.id):
+            if order.status == "evaso" and not _is_today_local(order.created_at):
                 continue
             filtered_rows.append((order, note_count, msg_count))
 

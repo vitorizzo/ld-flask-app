@@ -28,6 +28,7 @@
 </div>
 
 <div class="container-fluid py-3">
+
   <!-- Pulsantiera filtri giro -->
   <div class="route-filters">
     <button class="btn btn-sm route-pill active"
@@ -49,42 +50,69 @@
     {% endfor %}
   </div>
 
-  <!-- Lista ordini -->
-  <div class="orders-grid" id="ordersGrid">
-    {% for o in orders %}
-      <div class="order-card"
-           style="--route-bg: {{ o.route_color }};"
-           data-route-id="{{ o.route_id }}"
-           data-order-id="{{ o.id }}"
-           role="button"
-           tabindex="0"
-      >
-        <div class="order-top">
-          <div class="order-main">
-            <div class="order-name">{{ o.customer_display }}</div>
-            <div class="order-meta">
-              Giro: <span class="badge bg-dark">{{ o.route_name }}</span>
-              · Status: <span class="badge bg-secondary">{{ o.status }}</span>
-            </div>
-          </div>
+  <!-- Board a 4 colonne SEMPRE visibile -->
+  {% set columns = [
+    ("acquisito", "Acquisito"),
+    ("listato", "Listato"),
+    ("controllato", "Controllato"),
+    ("evaso", "Evaso")
+  ] %}
 
-          <div class="order-badges">
-            {% if o.multi_count and o.multi_count > 1 %}
-              <span class="badge badge-multi">+{{ o.multi_count - 1 }}</span>
-            {% endif %}
-            {% if o.notes_count and o.notes_count > 0 %}
-              <span class="badge badge-note">{{ o.notes_count }}</span>
-            {% endif %}
-            {% if o.issues_count and o.issues_count > 0 %}
-              <span class="badge badge-issue">{{ o.issues_count }}</span>
-            {% endif %}
-          </div>
+  <div class="kiosk-board" id="kioskBoard">
+    {% for col_key, col_label in columns %}
+      <section class="kiosk-col" data-col="{{ col_key }}">
+        <div class="kiosk-col__header">
+          <div class="kiosk-col__title">{{ col_label }}</div>
+          <div class="kiosk-col__count" id="count-{{ col_key }}">0</div>
         </div>
 
-        {% if o.preview %}
-          <div class="order-preview">{{ o.preview }}</div>
-        {% endif %}
-      </div>
+        <div class="kiosk-col__body">
+          {% set ns = namespace(found=false) %}
+
+          {% for o in orders %}
+            {% if o.status == col_key %}
+              {% set ns.found = true %}
+              <div class="order-card"
+                   style="--route-bg: {{ o.route_color }};"
+                   data-route-id="{{ o.route_id }}"
+                   data-order-id="{{ o.id }}"
+                   role="button"
+                   tabindex="0"
+              >
+                <div class="order-top">
+                  <div class="order-main">
+                    <div class="order-name">{{ o.customer_display }}</div>
+                    <div class="order-meta">
+                      <span class="badge route-badge">{{ o.route_name }}</span>
+                      <span class="badge status-badge">{{ o.status }}</span>
+                    </div>
+                  </div>
+
+                  <div class="order-badges">
+                    {% if o.multi_count and o.multi_count > 1 %}
+                      <span class="badge badge-multi">+{{ o.multi_count - 1 }}</span>
+                    {% endif %}
+                    {% if o.notes_count and o.notes_count > 0 %}
+                      <span class="badge badge-note">{{ o.notes_count }}</span>
+                    {% endif %}
+                    {% if o.issues_count and o.issues_count > 0 %}
+                      <span class="badge badge-issue">{{ o.issues_count }}</span>
+                    {% endif %}
+                  </div>
+                </div>
+
+                {% if o.preview %}
+                  <div class="order-preview">{{ o.preview }}</div>
+                {% endif %}
+              </div>
+            {% endif %}
+          {% endfor %}
+
+          {% if not ns.found %}
+            <div class="empty-col">Nessun ordine</div>
+          {% endif %}
+        </div>
+      </section>
     {% endfor %}
   </div>
 </div>

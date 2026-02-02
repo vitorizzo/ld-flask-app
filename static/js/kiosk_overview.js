@@ -1,112 +1,110 @@
 (function () {
-  function escapeHtml(s) {
-    return (s ?? "").replace(/[&<>"']/g, c => ({
-      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-    }[c]));
+  function qs(sel, root = document) { return root.querySelector(sel); }
+  function qsa(sel, root = document) { return Array.from(root.querySelectorAll(sel)); }
+
+  function applyRouteFilter(routeId) {
+    const cards = qsa(".order-card");
+    cards.forEach((c) => {
+      const cid = c.getAttribute("data-route-id");
+      const hide = (routeId !== "__all__") && (cid !== String(routeId));
+      c.classList.toggle("is-hidden", hide);
+    });
+
+    // aggiorna conteggi per colonna (solo visibili)
+    ["acquisito","listato","controllato","evaso"].forEach((st) => {
+      const col = qs(`.kiosk-col[data-col="${st}"]`);
+      const visible = qsa(`.order-card:not(.is-hidden)`, col).length;
+      const counter = qs(`#count-${st}`);
+      if (counter) counter.textContent = String(visible);
+    });
   }
 
-  // filtro per giro (markup già server-side)
-  document.querySelectorAll("[data-filter-route]").forEach(btn => {
-    btn.addEventListener("click", () => {
-      document.querySelectorAll("[data-filter-route]").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-
-      const rid = btn.getAttribute("data-filter-route");
-      document.querySelectorAll("#ordersGrid [data-route-id]").forEach(card => {
-        if (rid === "__all__" || card.getAttribute("data-route-id") === rid) {
-          card.style.display = "";
-        } else {
-          card.style.display = "none";
-        }
-      });
-    });
-  });
-
-  // refresh “hard”
-  const refreshBtn = document.getElementById("btn-refresh");
-  if (refreshBtn) refreshBtn.addEventListener("click", () => location.reload());
-
-  // click su card -> modal scheda ordine
-  function bindCards() {
-    document.querySelectorAll(".order-card[data-order-id]").forEach(card => {
-      const orderId = card.getAttribute("data-order-id");
-      const handler = () => openOrderModal(orderId);
-
-      card.addEventListener("click", handler);
-      card.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === " ") handler();
+  function wireFilters() {
+    qsa(".route-pill").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        qsa(".route-pill").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        applyRouteFilter(btn.getAttribute("data-filter-route"));
       });
     });
   }
 
   async function openOrderModal(orderId) {
+    const modalEl = qs("#orderModal");
+    const titleEl = qs("#orderModalTitle");
+    const bodyEl = qs("#orderModalBody");
+
+    titleEl.textContent = `Ordine #${orderId}`;
+    bodyEl.innerHTML = `<div class="text-muted">Caricamento...</div>`;
+
+    // bootstrap modal (assumendo bootstrap già incluso da base.html)
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+
     try {
-      const res = await fetch(`/kiosk/api/order/${orderId}`, { cache: "no-store" });
-      if (!res.ok) throw new Error("HTTP " + res.status);
+      const res = await fetch(`/kiosk/api/order/${orderId}`, { headers: { "Accept": "application/json" } });
       const data = await res.json();
 
-      document.getElementById("orderModalTitle").textContent =
-        `${data.customer_display} — ${data.route_name}`;
+      const notes = (data.thread_notes || []).map(n => `
+        <div class="border rounded p-2 mb-2">
+          <div class="small text-muted">${n.created_at || ""}</div>
+          <div>${(n.text || "").replaceAll("\n","<br>")}</div>
+        </div>
+      `).join("");
 
-      const body = document.getElementById("orderModalBody");
-      body.innerHTML = `
-        <div class="d-flex flex-wrap gap-2 mb-3">
-          <span class="badge bg-dark">Giro: ${escapeHtml(data.route_name)}</span>
-          <span class="badge bg-secondary">Status: ${escapeHtml(data.status)}</span>
-          ${data.multi_count > 1 ? `<span class="badge badge-multi">Messaggi: ${data.multi_count}</span>` : ``}
-          ${data.notes_count > 0 ? `<span class="badge badge-note">Note: ${data.notes_count}</span>` : ``}
-          ${data.issues_count > 0 ? `<span class="badge badge-issue">Issue: ${data.issues_count}</span>` : ``}
+      const children = (data.children || []).map(ch => `
+        <li class="mb-1">
+          <span class="badge bg-secondary me-1">${ch.label || ""}</span>
+          <span>${(ch.text || "").replaceAll("\n","<br>")}</span>
+          <div class="small text-muted">${ch.ts || ""}</div>
+        </li>
+      `).join("");
+
+      bodyEl.innerHTML = `
+        <div class="mb-2"><b>Cliente:</b> ${data.customer_display || ""}</div>
+        <div class="mb-2"><b>Giro:</b> ${data.route_name || ""}</div>
+        <div class="mb-2"><b>Status:</b> <span class="badge bg-dark">${data.status || ""}</span></div>
+        <div class="mb-3"><b>Consegna prevista:</b> ${(data.planned_delivery_at || "").replace("T"," ")}</div>
+
+        <div class="mb-3">
+          <b>Testo ordine</b>
+          <div class="border rounded p-2 mt-1" style="white-space:pre-wrap;">${data.raw_text || ""}</div>
         </div>
 
-        ${data.raw_text ? `
-          <div class="mb-3">
-            <div style="font-weight:700;">Testo ordine</div>
-            <pre class="p-2 rounded-2 bg-light" style="white-space: pre-wrap;">${escapeHtml(data.raw_text)}</pre>
-          </div>
-        ` : ``}
+        <div class="mb-3">
+          <b>Messaggi collegati</b>
+          <ul class="mt-2">${children || "<li class='text-muted'>Nessuno</li>"}</ul>
+        </div>
 
-        ${data.children && data.children.length ? `
-          <div class="mb-3">
-            <div style="font-weight:700;">Ordini associati</div>
-            <ul class="list-group">
-              ${data.children.map(ch => `
-                <li class="list-group-item">
-                  <div class="d-flex justify-content-between">
-                    <div><strong>${escapeHtml(ch.label)}</strong></div>
-                    <div class="text-muted">${escapeHtml(ch.ts)}</div>
-                  </div>
-                  ${ch.text ? `<div class="mt-1"><pre class="mb-0" style="white-space: pre-wrap;">${escapeHtml(ch.text)}</pre></div>` : ``}
-                </li>
-              `).join("")}
-            </ul>
-          </div>
-        ` : ``}
-
-        ${data.thread_notes && data.thread_notes.length ? `
-          <div class="mb-2">
-            <div style="font-weight:700;">Note / anomalie (thread)</div>
-            <ul class="list-group">
-              ${data.thread_notes.map(n => `
-                <li class="list-group-item">
-                  <div class="text-muted">${escapeHtml(n.at)}</div>
-                  <div>${escapeHtml(n.text)}</div>
-                </li>
-              `).join("")}
-            </ul>
-          </div>
-        ` : ``}
+        <div class="mb-2">
+          <b>Note / anomalie (thread)</b>
+          <div class="mt-2">${notes || "<div class='text-muted'>Nessuna nota</div>"}</div>
+        </div>
       `;
-
-      const modal = new bootstrap.Modal(document.getElementById("orderModal"));
-      modal.show();
-
     } catch (e) {
-      document.getElementById("orderModalBody").innerHTML =
-        `<div class="text-danger">Errore caricamento scheda ordine: ${escapeHtml(String(e))}</div>`;
-      const modal = new bootstrap.Modal(document.getElementById("orderModal"));
-      modal.show();
+      bodyEl.innerHTML = `<div class="text-danger">Errore caricamento ordine.</div>`;
     }
   }
 
-  bindCards();
+  function wireCards() {
+    qsa(".order-card").forEach((card) => {
+      const id = card.getAttribute("data-order-id");
+      card.addEventListener("click", () => openOrderModal(id));
+      card.addEventListener("keypress", (ev) => {
+        if (ev.key === "Enter" || ev.key === " ") openOrderModal(id);
+      });
+    });
+  }
+
+  function wireRefresh() {
+    const btn = qs("#btn-refresh");
+    if (!btn) return;
+    btn.addEventListener("click", () => window.location.reload());
+  }
+
+  // init
+  wireFilters();
+  wireCards();
+  wireRefresh();
+  applyRouteFilter("__all__");
 })();
