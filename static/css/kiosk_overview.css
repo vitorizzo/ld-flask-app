@@ -1,167 +1,196 @@
-.kiosk-header{
-  display:flex;
-  align-items:center;
-  gap:14px;
-  padding:14px 16px;
-  background:#111;
-  color:#fff;
+/* KIOSK OVERVIEW – stile dedicato */
+
+.kiosk-overview {
+  /* la welcome-section già crea contrasto, qui solo spacing */
+  padding-top: 18px;
+  padding-bottom: 14px;
 }
 
-.kiosk-logo{
-  height:42px;
-  width:auto;
-}
-
-.kiosk-header__main{ flex:1; min-width:0; }
-.kiosk-title{ font-size:18px; font-weight:700; line-height:1.2; }
-.kiosk-subtitle{ font-size:12px; opacity:.85; }
-
-.route-filters{
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
-  align-items:center;
-  margin-bottom:14px;
-}
-
-.route-pill{
-  background: color-mix(in srgb, var(--route-bg) 22%, #fff);
-  border:1px solid rgba(0,0,0,.10);
-  border-radius:999px;
-  padding:6px 10px;
-}
-.route-pill.active{
-  border-color: rgba(0,0,0,.35);
-  box-shadow: 0 0 0 2px rgba(0,0,0,.06) inset;
-}
-
-.kiosk-board{
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+.kiosk-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
   gap: 12px;
-  margin-top: 14px;
+  margin-bottom: 12px;
 }
 
-.kiosk-col{
-  border-radius: 14px;
-  padding: 10px;
-  background: rgba(248,249,250,.92);
-  min-height: 65vh;
-}
-
-.kiosk-col__header{
+.kiosk-title {
+  font-size: 1.25rem;
   font-weight: 700;
-  margin-bottom: 8px;
 }
 
-.kiosk-col__body{
+.kiosk-subtitle {
+  font-size: 0.9rem;
+  opacity: 0.9;
+}
+
+/* Griglia 4 colonne */
+.kiosk-board {
+  margin-top: 10px;
+}
+
+.kiosk-cols {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 1200px) {
+  .kiosk-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 700px) {
+  .kiosk-cols { grid-template-columns: 1fr; }
+}
+
+.kiosk-col {
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.10);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+  min-height: 360px;
+}
+
+.kiosk-col__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.kiosk-col__title {
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.kiosk-col__body {
+  padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.kiosk-empty{
-  opacity: .6;
-  font-style: italic;
+.kiosk-empty {
+  opacity: 0.75;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1px dashed rgba(255, 255, 255, 0.25);
 }
 
-.order-card{
-  background: color-mix(in srgb, var(--route-bg) 14%, #fff);
-  border:1px solid rgba(0,0,0,.12);
-  border-left:8px solid var(--route-bg);
-  border-radius:14px;
-  padding:10px 10px 8px 10px;
-  cursor:pointer;
-  transition: transform .05s ease-in-out;
-}
-.order-card:hover{ transform: translateY(-1px); }
-
-.order-top{
-  display:flex;
-  justify-content:space-between;
-  gap:10px;
-}
-
-.order-name{
-  font-weight:800;
-  font-size:16px;
-  line-height:1.15;
-}
-
-.order-meta{
-  display:flex;
-  gap:6px;
-  align-items:center;
-  margin-top:6px;
-}
-
-.route-badge{
-  background:#111 !important;
-  color:#fff !important;
-}
-
-.status-badge{
-  background:rgba(0,0,0,.10) !important;
-  color:#111 !important;
-}
-
-.order-badges{
-  display:flex;
-  gap:6px;
-  align-items:flex-start;
-  flex-wrap:wrap;
-}
-
-.badge-multi{
-  background:#0d6efd !important; /* blu */
-  color:#fff !important;
-}
-.badge-note{
-  background:#ffc107 !important; /* giallo */
-  color:#111 !important;
-}
-.badge-issue{
-  background:#dc3545 !important; /* rosso */
-  color:#fff !important;
-}
-
-.order-preview{
-  margin-top:8px;
-  color:rgba(0,0,0,.75);
-  font-size:13px;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-/* Filtri: quando nascosto via JS */
-.order-card.is-hidden{
-  display:none !important;
-}
-
-/* Responsive: su schermi più piccoli scala le colonne */
-@media (max-width: 1400px){
-  .kiosk-board{ grid-template-columns: repeat(2, minmax(260px, 1fr)); }
-}
-@media (max-width: 800px){
-  .kiosk-board{ grid-template-columns: 1fr; }
-}
-
-/* dentro welcome-section serve più contrasto */
-.welcome-section .kiosk-wrap{
-  background: rgba(255,255,255,.78);
-  border-radius: 18px;
-  padding: 14px;
-}
-
-/* rendi le colonne leggibili anche con il paper background */
-.welcome-section .kiosk-col{
-  background: rgba(248,249,250,.92);
-}
-
-/* evita che regole globali "sbiadiscano" testo e badge */
-.welcome-section .kiosk-board,
-.welcome-section .order-card,
-.welcome-section .kiosk-col__header{
+/* Card ordine */
+.order-card {
+  --route-bg: #f1f3f5;
+  background: var(--route-bg);
   color: #111;
+  border-radius: 12px;
+  padding: 10px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  cursor: pointer;
+}
+
+.order-card:hover {
+  transform: translateY(-1px);
+}
+
+.order-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.order-name {
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.order-meta {
+  font-size: 0.85rem;
+  opacity: 0.85;
+  margin-top: 4px;
+}
+
+.order-preview {
+  margin-top: 8px;
+  font-size: 0.9rem;
+  opacity: 0.9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Badge “giro” dentro la card */
+.badge-route {
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  border-radius: 10px;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+/* Badge contatori (colorati come richiesto) */
+.order-badges {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-end;
+  min-width: 42px;
+}
+
+.badge-multi,
+.badge-note,
+.badge-issue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.badge-multi { background: #0d6efd; } /* blu */
+.badge-note  { background: #ffc107; color: #111; } /* giallo */
+.badge-issue { background: #dc3545; } /* rosso */
+
+/* Filtri in basso */
+.kiosk-filters {
+  margin-top: 14px;
+}
+
+.route-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.route-pill {
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,0.10);
+  background: rgba(255,255,255,0.6);
+  color: #111;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+.route-pill.active {
+  outline: 2px solid rgba(13, 110, 253, 0.35);
+  background: #fff;
+}
+
+.route-pill::before {
+  content: "";
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 99px;
+  background: var(--route-bg, #f1f3f5);
+  border: 1px solid rgba(0,0,0,0.15);
+  margin-right: 8px;
+  vertical-align: middle;
 }

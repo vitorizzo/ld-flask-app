@@ -10,93 +10,111 @@
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section">
-  <div class="container-fluid py-3 kiosk-wrap">
+<section class="welcome-section kiosk-overview">
+  <div class="container-fluid">
 
-    <div class="kiosk-header">
-      <div class="kiosk-header__main">
+    <!-- Header -->
+    <div class="kiosk-head">
+      <div class="kiosk-head__left">
         <div class="kiosk-title">Kiosk — Ordini (tutti i giri)</div>
         <div class="kiosk-subtitle">
-          Aggiornamento: {{ now_local.strftime('%d/%m/%Y %H:%M') }}
-          {% if show_closed_today %}
+          Aggiornamento: <span id="ui-now">{{ now_local.strftime('%d/%m/%Y %H:%M') }}</span>
           · mostra “evaso” solo oggi
-          {% endif %}
         </div>
       </div>
-      <div class="kiosk-header__actions">
-        <button class="btn btn-sm btn-outline-secondary" id="btn-refresh" type="button">Aggiorna</button>
-      </div>
-    </div>
 
-    <!-- Pulsantiera filtri giro -->
-    <div class="route-filters">
-      <button class="btn btn-sm route-pill active"
-              data-filter-route="__all__"
-              style="--route-bg:#f1f3f5;"
-              type="button">
-        Tutti
-        <span class="badge bg-dark ms-1">{{ totals.total }}</span>
-      </button>
-
-      {% for r in routes %}
-        <button class="btn btn-sm route-pill"
-                data-filter-route="{{ r.id }}"
-                style="--route-bg: {{ r.color }};"
-                type="button">
-          {{ r.name }}
-          <span class="badge bg-dark ms-1">{{ r.count }}</span>
+      <div class="kiosk-head__right">
+        <button class="btn btn-sm btn-outline-secondary" id="btn-refresh" type="button">
+          Aggiorna
         </button>
-      {% endfor %}
-    </div>
-
-    <!-- Board 4 colonne: sempre visibile -->
-    <div class="kiosk-board" id="kioskBoard" data-active-route="__all__">
-      <div class="kiosk-col" data-status="acquisito">
-        <div class="kiosk-col__header">Acquisito</div>
-        <div class="kiosk-col__body" id="col-acquisito">
-          <div class="kiosk-empty">Nessun ordine</div>
-        </div>
-      </div>
-
-      <div class="kiosk-col" data-status="listato">
-        <div class="kiosk-col__header">Listato</div>
-        <div class="kiosk-col__body" id="col-listato">
-          <div class="kiosk-empty">Nessun ordine</div>
-        </div>
-      </div>
-
-      <div class="kiosk-col" data-status="controllato">
-        <div class="kiosk-col__header">Controllato</div>
-        <div class="kiosk-col__body" id="col-controllato">
-          <div class="kiosk-empty">Nessun ordine</div>
-        </div>
-      </div>
-
-      <div class="kiosk-col" data-status="evaso">
-        <div class="kiosk-col__header">Evaso</div>
-        <div class="kiosk-col__body" id="col-evaso">
-          <div class="kiosk-empty">Nessun ordine</div>
-        </div>
       </div>
     </div>
+
+    <!-- Board grid (sempre visibile) -->
+    <div class="kiosk-board">
+      <div class="kiosk-cols">
+        <div class="kiosk-col" data-status="acquisito">
+          <div class="kiosk-col__head">
+            <span class="kiosk-col__title">Acquisito</span>
+            <span class="badge bg-secondary" id="count-acquisito">0</span>
+          </div>
+          <div class="kiosk-col__body" id="col-acquisito">
+            <div class="kiosk-empty">Nessun ordine</div>
+          </div>
+        </div>
+
+        <div class="kiosk-col" data-status="listato">
+          <div class="kiosk-col__head">
+            <span class="kiosk-col__title">Listato</span>
+            <span class="badge bg-secondary" id="count-listato">0</span>
+          </div>
+          <div class="kiosk-col__body" id="col-listato">
+            <div class="kiosk-empty">Nessun ordine</div>
+          </div>
+        </div>
+
+        <div class="kiosk-col" data-status="controllato">
+          <div class="kiosk-col__head">
+            <span class="kiosk-col__title">Controllato</span>
+            <span class="badge bg-secondary" id="count-controllato">0</span>
+          </div>
+          <div class="kiosk-col__body" id="col-controllato">
+            <div class="kiosk-empty">Nessun ordine</div>
+          </div>
+        </div>
+
+        <div class="kiosk-col" data-status="evaso">
+          <div class="kiosk-col__head">
+            <span class="kiosk-col__title">Evaso</span>
+            <span class="badge bg-secondary" id="count-evaso">0</span>
+          </div>
+          <div class="kiosk-col__body" id="col-evaso">
+            <div class="kiosk-empty">Nessun ordine</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pulsantiera giri (come canale “Tutti” + singoli canali) -->
+    <div class="kiosk-filters">
+      <div class="route-filters" id="routeFilters">
+        <button class="btn btn-sm route-pill active"
+                data-filter-route="__all__"
+                style="--route-bg:#f1f3f5;"
+                type="button">
+          Tutti
+          <span class="badge bg-dark ms-1" id="pill-total">0</span>
+        </button>
+
+        {% for r in routes %}
+          <button class="btn btn-sm route-pill"
+                  data-filter-route="{{ r.id }}"
+                  style="--route-bg: {{ r.color }};"
+                  type="button">
+            {{ r.name }}
+            <span class="badge bg-dark ms-1" id="pill-route-{{ r.id }}">{{ r.count }}</span>
+          </button>
+        {% endfor %}
+      </div>
+    </div>
+
   </div>
 </section>
-  <!-- Modal scheda ordine -->
-  <div class="modal fade" id="orderModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-scrollable">
-      <div class="modal-content" id="orderModalContent">
-        <div class="modal-header">
-          <h5 class="modal-title" id="orderModalTitle">Ordine</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-        </div>
-        <div class="modal-body" id="orderModalBody">
-          <div class="text-muted">Caricamento...</div>
-        </div>
+
+<!-- Modal ordine -->
+<div class="modal fade" id="orderModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content" id="orderModalContent">
+      <div class="modal-header">
+        <h5 class="modal-title" id="orderModalTitle">Ordine</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body" id="orderModalBody">
+        <div class="text-muted">Caricamento...</div>
       </div>
     </div>
   </div>
-{% endblock %}
+</div>
 
-{% block extra_js %}
 <script src="{{ url_for('static', filename='js/kiosk_overview.js') }}"></script>
 {% endblock %}

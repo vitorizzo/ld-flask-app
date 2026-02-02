@@ -1,217 +1,283 @@
-// static/js/kiosk_overview.js
+(() => {
+  const API_ALL = "/kiosk/api/board/all?only_active=1&show_closed_today=1";
+  const API_ORDER = (id) => `/kiosk/api/order/${id}`;
 
-(function () {
-  const REFRESH_MS = 10_000;
+  const statusList = ["acquisito", "listato", "controllato", "evaso"];
+  let currentRouteFilter = "__all__";
+  let lastOrders = []; // flat list
+  let refreshTimer = null;
 
-  const boardEl = document.getElementById("kioskBoard");
-  const btnRefresh = document.getElementById("btn-refresh");
+  function $(sel) { return document.querySelector(sel); }
+  function $all(sel) { return Array.from(document.querySelectorAll(sel)); }
 
-  const colMap = {
-    acquisito: document.getElementById("col-acquisito"),
-    listato: document.getElementById("col-listato"),
-    controllato: document.getElementById("col-controllato"),
-    evaso: document.getElementById("col-evaso"),
-  };
+  function setNowText() {
+    const el = $("#ui-now");
+    if (!el) return;
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    el.textContent = `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
 
-  function ensureEmpty(colEl) {
-    if (!colEl) return;
-    if (!colEl.querySelector(".kiosk-empty")) {
-      const d = document.createElement("div");
-      d.className = "kiosk-empty";
-      d.textContent = "Nessun ordine";
-      colEl.appendChild(d);
+  function clearColumnsKeepEmpty() {
+    for (const s of statusList) {
+      const col = document.getElementById(`col-${s}`);
+      if (!col) continue;
+      col.innerHTML = `<div class="kiosk-empty">Nessun ordine</div>`;
+      const count = document.getElementById(`count-${s}`);
+      if (count) count.textContent = "0";
     }
   }
 
-  function clearColumns() {
-    Object.values(colMap).forEach((colEl) => {
-      if (!colEl) return;
-      colEl.innerHTML = "";
-      ensureEmpty(colEl);
+  function buildCard(o) {
+    const div = document.createElement("div");
+    div.className = "order-card";
+    div.style.setProperty("--route-bg", o.route_color || "#f1f3f5");
+    div.dataset.routeId = String(o.route_id || "");
+    div.dataset.orderId = String(o.id);
+
+    const multiExtra = (o.multi_count && o.multi_count > 1) ? (o.multi_count - 1) : 0;
+
+    div.innerHTML = `
+      <div class="order-top">
+        <div class="order-main">
+          <div class="order-name">${escapeHtml(o.customer_display || o.customer || "")}</div>
+          <div class="order-meta">
+            Giro: <span class="badge-route">${escapeHtml(o.route_name || "")}</span>
+          </div>
+        </div>
+        <div class="order-badges">
+          ${multiExtra > 0 ? `<span class="badge-multi">+${multiExtra}</span>` : ``}
+          ${(o.notes_count || 0) > 0 ? `<span class="badge-note">${o.notes_count}</span>` : ``}
+          ${(o.issues_count || 0) > 0 ? `<span class="badge-issue">${o.issues_count}</span>` : ``}
+        </div>
+      </div>
+      ${o.preview ? `<div class="order-preview">${escapeHtml(o.preview)}</div>` : ``}
+    `;
+
+    div.addEventListener("click", () => openOrderModal(o.id));
+    div.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") openOrderModal(o.id);
+    });
+    div.tabIndex = 0;
+    div.role = "button";
+
+    return div;
+  }
+
+  async function openOrderModal(orderId) {
+    const body = $("#orderModalBody");
+    const title = $("#orderModalTitle");
+    if (body) body.innerHTML = `<div class="text-muted">Caricamento...</div>`;
+    if (title) title.textContent = `Ordine #${orderId}`;
+
+    // bootstrap modal
+    const modalEl = $("#orderModal");
+    let modal = null;
+    if (modalEl && window.bootstrap) {
+      modal = window.bootstrap.Modal.getOrCreateInstance(modalEl);
+      modal.show();
+    }
+
+    try {
+      const res = await fetch(API_ORDER(orderId), { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      if (title) {
+        title.textContent = `${data.customer_display || "Ordine"} — ${data.route_name || ""} (${data.status || ""})`;
+      }
+
+      const parts = [];
+      parts.push(`<div><strong>Testo:</strong><br><pre class="mt-2">${escapeHtml(data.raw_text || "")}</pre></div>`);
+
+      if (Array.isArray(data.children) && data.children.length) {
+        parts.push(`<hr><div><strong>Messaggi:</strong></div>`);
+        parts.push(`<ul class="mb-0">` + data.children.map(c =>
+          `<li><strong>${escapeHtml(c.label)}</strong> — ${escapeHtml(c.text || "")}</li>`
+        ).join("") + `</ul>`);
+      }
+
+      if (Array.isArray(data.thread_notes) && data.thread_notes.length) {
+        parts.push(`<hr><div><strong>Note:</strong></div>`);
+        parts.push(`<ul class="mb-0">` + data.thread_notes.map(n =>
+          `<li>${escapeHtml(n.text || "")}</li>`
+        ).join("") + `</ul>`);
+      }
+
+      if (body) body.innerHTML = parts.join("");
+    } catch (err) {
+      if (body) body.innerHTML = `<div class="text-danger">Errore caricamento ordine: ${escapeHtml(String(err))}</div>`;
+    }
+  }
+
+  function applyFilterAndRender() {
+    const filtered = (currentRouteFilter === "__all__")
+      ? lastOrders
+      : lastOrders.filter(o => String(o.route_id) === String(currentRouteFilter));
+
+    // reset colonne (sempre visibili)
+    for (const s of statusList) {
+      const col = document.getElementById(`col-${s}`);
+      if (!col) continue;
+      col.innerHTML = ""; // poi gestiamo empty
+    }
+
+    const counts = { acquisito: 0, listato: 0, controllato: 0, evaso: 0 };
+
+    for (const o of filtered) {
+      const st = o.status;
+      if (!statusList.includes(st)) continue;
+      const col = document.getElementById(`col-${st}`);
+      if (!col) continue;
+      col.appendChild(buildCard(o));
+      counts[st] += 1;
+    }
+
+    for (const s of statusList) {
+      const col = document.getElementById(`col-${s}`);
+      if (!col) continue;
+      if (col.children.length === 0) {
+        col.innerHTML = `<div class="kiosk-empty">Nessun ordine</div>`;
+      }
+      const badge = document.getElementById(`count-${s}`);
+      if (badge) badge.textContent = String(counts[s] || 0);
+    }
+
+    // aggiorna pill totale
+    const total = filtered.length;
+    const pillTotal = $("#pill-total");
+    if (pillTotal) pillTotal.textContent = String(total);
+  }
+
+  function hookFilters() {
+    const container = $("#routeFilters");
+    if (!container) return;
+
+    container.addEventListener("click", (ev) => {
+      const btn = ev.target.closest(".route-pill");
+      if (!btn) return;
+
+      const route = btn.getAttribute("data-filter-route");
+      currentRouteFilter = route || "__all__";
+
+      $all(".route-pill").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+
+      applyFilterAndRender();
     });
   }
 
-  function removeEmpty(colEl) {
-    const empty = colEl.querySelector(".kiosk-empty");
-    if (empty) empty.remove();
-  }
+  function flattenBoardsToOrders(json) {
+    const boards = Array.isArray(json.boards) ? json.boards : [];
+    const out = [];
 
-  function getActiveRouteFilter() {
-    return boardEl?.dataset?.activeRoute || "__all__";
-  }
+    for (const b of boards) {
+      const route = b.route || {};
+      const routeId = route.id;
+      const routeName = route.name || "";
+      const routeColor = route.color || "#f1f3f5";
+      const groups = b.groups || {};
 
-  function setActiveRouteFilter(routeId) {
-    if (!boardEl) return;
-    boardEl.dataset.activeRoute = String(routeId);
-  }
-
-  function normalizeOverviewPayload(data) {
-    // Ritorna: { orders: [ {id, status, route_id, route_name, route_color, customer_display, raw_text, ...} ] }
-    const out = { orders: [] };
-
-    if (!data || typeof data !== "object") return out;
-
-    // Caso A: overview già “flat”
-    if (Array.isArray(data.orders)) {
-      out.orders = data.orders;
-      return out;
-    }
-
-    // Caso B: board singola: { route, groups:{acquisito:[], ...} }
-    if (data.groups && typeof data.groups === "object") {
-      const route = data.route || {};
-      Object.entries(data.groups).forEach(([status, arr]) => {
-        (arr || []).forEach((o) => {
-          out.orders.push({
-            ...o,
-            status,
-            route_id: o.route_id ?? route.id,
-            route_name: o.route_name ?? route.name,
-            route_color: o.route_color ?? route.color,
+      for (const st of Object.keys(groups)) {
+        const arr = Array.isArray(groups[st]) ? groups[st] : [];
+        for (const o of arr) {
+          out.push({
+            id: o.id,
+            status: o.status || st,
+            route_id: routeId,
+            route_name: routeName,
+            route_color: routeColor,
+            customer_display: o.customer || "",
+            preview: (o.raw_text || "").trim().split("\n")[0].slice(0, 140),
+            multi_count: o.msg_count || 0,
+            notes_count: o.note_count || 0,
+            issues_count: o.has_issues ? 1 : 0,
           });
-        });
-      });
-      return out;
+        }
+      }
     }
 
-    // Caso C: overview come lista board: { boards: [ {route, groups}, ... ] }
-    if (Array.isArray(data.boards)) {
-      data.boards.forEach((b) => {
-        const route = b.route || {};
-        const groups = b.groups || {};
-        Object.entries(groups).forEach(([status, arr]) => {
-          (arr || []).forEach((o) => {
-            out.orders.push({
-              ...o,
-              status,
-              route_id: o.route_id ?? route.id,
-              route_name: o.route_name ?? route.name,
-              route_color: o.route_color ?? route.color,
-            });
-          });
-        });
-      });
-      return out;
-    }
+    // ordinamento consistente: route, status, customer
+    const rank = { acquisito: 0, listato: 1, controllato: 2, evaso: 3 };
+    out.sort((a, b) => {
+      const ra = (a.route_name || "").toLowerCase();
+      const rb = (b.route_name || "").toLowerCase();
+      if (ra !== rb) return ra.localeCompare(rb);
+      const sa = rank[a.status] ?? 99;
+      const sb = rank[b.status] ?? 99;
+      if (sa !== sb) return sa - sb;
+      const ca = (a.customer_display || "").toLowerCase();
+      const cb = (b.customer_display || "").toLowerCase();
+      return ca.localeCompare(cb);
+    });
 
     return out;
   }
 
-  function makeBadge(text, cls) {
-    const s = document.createElement("span");
-    s.className = `badge ${cls}`;
-    s.textContent = text;
-    return s;
-  }
+  function updatePillsFromBoards(json) {
+    const boards = Array.isArray(json.boards) ? json.boards : [];
+    const totalsByRoute = new Map();
+    let total = 0;
 
-  function createOrderCard(order) {
-    const card = document.createElement("div");
-    card.className = "order-card";
-    card.tabIndex = 0;
-    card.dataset.routeId = String(order.route_id ?? "");
-    card.dataset.orderId = String(order.id ?? "");
-
-    // Colore di giro
-    const routeColor = order.route_color || "#e9ecef";
-    card.style.setProperty("--route-bg", routeColor);
-
-    const top = document.createElement("div");
-    top.className = "order-top";
-
-    const main = document.createElement("div");
-    main.className = "order-main";
-
-    const name = document.createElement("div");
-    name.className = "order-name";
-    name.textContent = order.customer_display || order.customer || "(senza nome)";
-    main.appendChild(name);
-
-    const meta = document.createElement("div");
-    meta.className = "order-meta";
-    meta.appendChild(document.createTextNode("Giro: "));
-    meta.appendChild(makeBadge(order.route_name || "-", "bg-dark"));
-    meta.appendChild(document.createTextNode(" · Status: "));
-    meta.appendChild(makeBadge(order.status || "-", "bg-secondary"));
-    main.appendChild(meta);
-
-    const badges = document.createElement("div");
-    badges.className = "order-badges";
-
-    // multi_count: nel tuo JSON è "multi_count" o "msg_count"
-    const multiCount = Number(order.multi_count ?? order.msg_count ?? 1);
-    const notesCount = Number(order.notes_count ?? order.note_count ?? 0);
-    const issuesCount = Number(order.issues_count ?? order.has_issues ? 1 : 0);
-
-    if (multiCount > 1) badges.appendChild(makeBadge(`+${multiCount - 1}`, "badge-multi"));
-    if (notesCount > 0) badges.appendChild(makeBadge(String(notesCount), "badge-note"));
-    if (issuesCount > 0) badges.appendChild(makeBadge(String(issuesCount), "badge-issue"));
-
-    top.appendChild(main);
-    top.appendChild(badges);
-
-    card.appendChild(top);
-
-    // preview: se non c’è, usa raw_text (accorciato)
-    const previewText = (order.preview || order.raw_text || "").trim();
-    if (previewText) {
-      const prev = document.createElement("div");
-      prev.className = "order-preview";
-      prev.textContent = previewText.length > 120 ? previewText.slice(0, 120) + "…" : previewText;
-      card.appendChild(prev);
+    for (const b of boards) {
+      const route = b.route || {};
+      const routeId = route.id;
+      let count = 0;
+      const groups = b.groups || {};
+      for (const st of Object.keys(groups)) {
+        const arr = Array.isArray(groups[st]) ? groups[st] : [];
+        count += arr.length;
+      }
+      totalsByRoute.set(String(routeId), count);
+      total += count;
     }
 
-    // TODO: click -> modal scheda ordine (lo agganciamo dopo che vedi le card)
-    return card;
-  }
+    const pillTotal = $("#pill-total");
+    if (pillTotal) pillTotal.textContent = String(total);
 
-  function renderOrders(orders) {
-    clearColumns();
-
-    const activeRoute = getActiveRouteFilter();
-
-    orders.forEach((o) => {
-      const status = (o.status || "").toLowerCase();
-      const colEl = colMap[status];
-      if (!colEl) return;
-
-      const routeId = String(o.route_id ?? "");
-      if (activeRoute !== "__all__" && routeId !== String(activeRoute)) return;
-
-      removeEmpty(colEl);
-      colEl.appendChild(createOrderCard(o));
+    totalsByRoute.forEach((count, routeId) => {
+      const pill = document.getElementById(`pill-route-${routeId}`);
+      if (pill) pill.textContent = String(count);
     });
-
-    // Se una colonna resta vuota, il placeholder rimane
-    Object.values(colMap).forEach(ensureEmpty);
   }
 
-  async function fetchAndRender() {
+  async function loadAndRender() {
+    setNowText();
+
     try {
-      // usa l’endpoint overview: se nel tuo backend è diverso, dimmelo e lo allineo
-      const res = await fetch("/kiosk/api/board/all?only_active=1", { cache: "no-store" });
-      const data = await res.json();
-      const norm = normalizeOverviewPayload(data);
-      renderOrders(norm.orders || []);
-    } catch (e) {
-      console.error("kiosk_overview: fetch failed", e);
-      clearColumns();
+      const res = await fetch(API_ALL, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+
+      updatePillsFromBoards(json);
+      lastOrders = flattenBoardsToOrders(json);
+      applyFilterAndRender();
+    } catch (err) {
+      clearColumnsKeepEmpty();
+      console.error("[kiosk_overview] load error", err);
     }
   }
 
-  function bindRouteFilters() {
-    document.querySelectorAll("[data-filter-route]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        document.querySelectorAll("[data-filter-route]").forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-        setActiveRouteFilter(btn.dataset.filterRoute || "__all__");
-        fetchAndRender();
-      });
-    });
+  function escapeHtml(s) {
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
   }
 
-  // init
-  bindRouteFilters();
-  if (btnRefresh) btnRefresh.addEventListener("click", fetchAndRender);
-  fetchAndRender();
-  setInterval(fetchAndRender, REFRESH_MS);
+  function start() {
+    hookFilters();
+
+    const btn = $("#btn-refresh");
+    if (btn) btn.addEventListener("click", loadAndRender);
+
+    loadAndRender();
+
+    if (refreshTimer) clearInterval(refreshTimer);
+    refreshTimer = setInterval(loadAndRender, 10000);
+  }
+
+  document.addEventListener("DOMContentLoaded", start);
 })();
