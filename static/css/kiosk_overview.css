@@ -169,3 +169,22 @@
 @media (max-width: 800px){
   .kiosk-board{ grid-template-columns: 1fr; }
 }
+
+/* dentro welcome-section serve più contrasto */
+.welcome-section .kiosk-wrap{
+  background: rgba(255,255,255,.78);
+  border-radius: 18px;
+  padding: 14px;
+}
+
+/* rendi le colonne leggibili anche con il paper background */
+.welcome-section .kiosk-col{
+  background: rgba(248,249,250,.92);
+}
+
+/* evita che regole globali "sbiadiscano" testo e badge */
+.welcome-section .kiosk-board,
+.welcome-section .order-card,
+.welcome-section .kiosk-col__header{
+  color: #111;
+}
