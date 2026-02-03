@@ -43,6 +43,7 @@
           <div class="order-name">${escapeHtml(o.customer_display || o.customer || "")}</div>
           <div class="order-meta">
             Giro: <span class="badge-route">${escapeHtml(o.route_name || "")}</span>
+            ${o.delivery_label ? `<span class="ms-2 text-muted">Consegna: <strong>${escapeHtml(o.delivery_label)}</strong></span>` : ``}
           </div>
         </div>
         <div class="order-badges">
@@ -222,18 +223,37 @@
       for (const st of Object.keys(groups)) {
         const arr = Array.isArray(groups[st]) ? groups[st] : [];
         for (const o of arr) {
+          const groupSeq = o.group_seq || 1;
+          const groupSize = o.group_size || 1;
+
           out.push({
             id: o.id,
             status: o.status || st,
+
             route_id: routeId,
             route_name: routeName,
             route_color: routeColor,
-            customer_display: o.customer || "",
+
+            // nome: Cli1, Cli1-2, Cli1-3...
+            customer_display: (groupSeq > 1) ? `${(o.customer || "").trim()}-${groupSeq}` : (o.customer || ""),
+
+            // consegna
+            delivery_label: o.delivery_label || "",
+
+            // grouping info
+            group_key: o.group_key || "",
+            group_seq: groupSeq,
+            group_size: groupSize,
+
             preview: (o.raw_text || "").trim().split("\n")[0].slice(0, 140),
-            multi_count: o.msg_count || 0,
+
+            // badge blu: SOLO sulla card principale (seq 1) e indica quante aggiunte ci sono
+            multi_count: (groupSeq === 1 ? groupSize : 1),
+
             notes_count: o.note_count || 0,
             issues_count: o.has_issues ? 1 : 0,
           });
+
         }
       }
     }
