@@ -193,3 +193,99 @@
   margin-right: 8px;
   vertical-align: middle;
 }
+
+/* === ORDER CARD (restyle) === */
+
+.order-card {
+  --route-bg: #f1f3f5;
+
+  position: relative;
+  overflow: hidden;
+
+  /* struttura */
+  border-radius: 14px;
+  padding: 12px 12px 10px;
+
+  /* look */
+  background: #ffffff;
+  color: #111;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
+}
+
+/* barra titolo */
+.order-card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background: var(--route-bg);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+/* lieve accento laterale */
+.order-card::after {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 0;
+  bottom: 0;
+  width: 6px;
+  background: color-mix(in srgb, var(--route-bg) 70%, white);
+  opacity: 0.85;
+}
+
+/* spazio per barra */
+.order-top, .order-preview {
+  position: relative;
+  z-index: 1;
+}
+
+.order-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.18);
+  border-color: rgba(0, 0, 0, 0.14);
+}
+
+.order-name {
+  font-weight: 900;
+  line-height: 1.15;
+  margin-top: 4px; /* stacca dalla barra */
+}
+
+.order-meta {
+  font-size: 0.85rem;
+  opacity: 0.80;
+  margin-top: 6px;
+}
+
+.order-preview {
+  margin-top: 10px;
+  font-size: 0.9rem;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* badge route più “pill” */
+.badge-route {
+  background: rgba(0,0,0,0.72);
+  color: #fff;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+/* badge contatori: più leggibili e con ombra */
+.badge-multi,
+.badge-note,
+.badge-issue {
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
