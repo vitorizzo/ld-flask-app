@@ -3,6 +3,7 @@ import hashlib
 from datetime import datetime, timezone, timedelta
 
 from flask import Blueprint, request, make_response, jsonify, render_template
+from flask_login import login_required
 from sqlalchemy import func
 
 from extensions import db
@@ -532,6 +533,14 @@ def kiosk_api_board_all():
 #         "boards": boards,
 #         "server_now": datetime.now().isoformat(timespec="seconds"),
 #     })
+
+# routes/magazzino.py (o dove tieni le route del menu magazzino)
+
+
+@kiosk_bp.route("/kiosk-ordini")
+@login_required  # opzionale
+def kiosk_ordini_embed():
+    return render_template("kiosk_ordini_embed.html")
 
 
 def build_board_payload(route_id: int, show_closed_today: bool = True):
