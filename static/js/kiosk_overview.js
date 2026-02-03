@@ -87,7 +87,6 @@
         title.textContent = `${data.customer_display || "Ordine"} — ${data.route_name || ""} (${data.status || ""})`;
       }
 
-      const parts = [];
       const routeBg = (data.route_color || "#f1f3f5");
       const safeTitle = escapeHtml(data.customer_display || "Ordine");
       const safeRoute = escapeHtml(data.route_name || "");
