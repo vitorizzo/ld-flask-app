@@ -3,12 +3,28 @@
 {% block head %}
   {{ super() }}
   <style>
-    /* contenitore full-width sotto la navbar */
+    /* 1) forza full-width SOLO in questa pagina */
+    .welcome-section {
+      max-width: none !important;
+      width: 100% !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+
+    /* se base.html usa container / container-fluid dentro welcome-section */
+    .welcome-section .container,
+    .welcome-section .container-fluid {
+      max-width: none !important;
+      width: 100% !important;
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+
+    /* 2) area iframe: piena larghezza + altezza viewport sotto navbar */
     .kiosk-embed-wrap {
       width: 100%;
-      height: calc(100vh - 110px); /* regola se la tua navbar è più alta/bassa */
+      height: calc(100vh - 120px); /* regola se serve */
       min-height: 600px;
-      padding: 0;
     }
 
     .kiosk-embed-iframe {
@@ -25,7 +41,7 @@
   <div class="kiosk-embed-wrap">
     <iframe
       class="kiosk-embed-iframe"
-      src="/kiosk/board/all"
+      src="{{ url_for('kiosk.kiosk_board_all') }}"
       title="Kiosk Ordini"
       loading="lazy">
     </iframe>
