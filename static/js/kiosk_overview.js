@@ -88,22 +88,64 @@
       }
 
       const parts = [];
-      parts.push(`<div><strong>Testo:</strong><br><pre class="mt-2">${escapeHtml(data.raw_text || "")}</pre></div>`);
+      const routeBg = (data.route_color || "#f1f3f5");
+      const safeTitle = escapeHtml(data.customer_display || "Ordine");
+      const safeRoute = escapeHtml(data.route_name || "");
+      const safeStatus = escapeHtml(data.status || "");
+
+      const parts = [];
+      parts.push(`
+        <div class="order-sheet" style="--route-bg:${routeBg}">
+          <div class="order-sheet__hero">
+            <div class="order-sheet__hero-bar"></div>
+            <div class="order-sheet__hero-body">
+              <div class="order-kv">
+                <div class="order-kv__k">Cliente</div><div class="order-kv__v">${safeTitle}</div>
+                <div class="order-kv__k">Giro</div><div class="order-kv__v">${safeRoute}</div>
+                <div class="order-kv__k">Stato</div><div class="order-kv__v">${safeStatus}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="order-section">
+            <div class="order-section__head">Testo</div>
+            <div class="order-section__body">
+              <pre class="order-pre">${escapeHtml(data.raw_text || "")}</pre>
+            </div>
+          </div>
+      `);
 
       if (Array.isArray(data.children) && data.children.length) {
-        parts.push(`<hr><div><strong>Messaggi:</strong></div>`);
-        parts.push(`<ul class="mb-0">` + data.children.map(c =>
-          `<li><strong>${escapeHtml(c.label)}</strong> — ${escapeHtml(c.text || "")}</li>`
-        ).join("") + `</ul>`);
+        parts.push(`
+          <div class="order-section">
+            <div class="order-section__head">Messaggi</div>
+            <div class="order-section__body">
+              <ul class="order-list">
+                ${data.children.map(c =>
+                  `<li><strong>${escapeHtml(c.label)}</strong> — ${escapeHtml(c.text || "")}</li>`
+                ).join("")}
+              </ul>
+            </div>
+          </div>
+        `);
       }
 
       if (Array.isArray(data.thread_notes) && data.thread_notes.length) {
-        parts.push(`<hr><div><strong>Note:</strong></div>`);
-        parts.push(`<ul class="mb-0">` + data.thread_notes.map(n =>
-          `<li>${escapeHtml(n.text || "")}</li>`
-        ).join("") + `</ul>`);
+        parts.push(`
+          <div class="order-section">
+            <div class="order-section__head">Note</div>
+            <div class="order-section__body">
+              <ul class="order-list">
+                ${data.thread_notes.map(n =>
+                  `<li>${escapeHtml(n.text || "")}</li>`
+                ).join("")}
+              </ul>
+            </div>
+          </div>
+        `);
       }
 
+      parts.push(`</div>`); // chiude order-sheet
       if (body) body.innerHTML = parts.join("");
     } catch (err) {
       if (body) body.innerHTML = `<div class="text-danger">Errore caricamento ordine: ${escapeHtml(String(err))}</div>`;

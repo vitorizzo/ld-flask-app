@@ -299,3 +299,111 @@
 .kiosk-col__head {
   border-bottom: 1px solid rgba(0,0,0,0.08);
 }
+
+/* === MODALE: SCHEDA ORDINE === */
+
+#orderModal .modal-content {
+  border-radius: 16px;
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 18px 50px rgba(0,0,0,0.25);
+  overflow: hidden;
+}
+
+#orderModal .modal-header {
+  background: linear-gradient(0deg, rgba(255,255,255,0.92), rgba(255,255,255,0.92));
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  padding: 14px 16px;
+}
+
+#orderModal .modal-title {
+  font-weight: 900;
+  letter-spacing: 0.2px;
+}
+
+#orderModal .modal-body {
+  background: #f6f7f8;
+  padding: 16px;
+}
+
+.order-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.order-sheet__hero {
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.10);
+}
+
+.order-sheet__hero-bar {
+  height: 10px;
+  background: var(--route-bg, #f1f3f5);
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+
+.order-sheet__hero-body {
+  padding: 12px 12px 10px;
+}
+
+.order-kv {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 6px 10px;
+  font-size: 0.95rem;
+}
+
+.order-kv__k {
+  color: rgba(0,0,0,0.65);
+  font-weight: 800;
+}
+
+.order-kv__v {
+  font-weight: 700;
+}
+
+.order-section {
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,0.08);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.10);
+}
+
+.order-section__head {
+  padding: 10px 12px;
+  font-weight: 900;
+  border-bottom: 1px solid rgba(0,0,0,0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.order-section__body {
+  padding: 12px;
+}
+
+.order-pre {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f7f8fa;
+  border: 1px solid rgba(0,0,0,0.06);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  white-space: pre-wrap; /* leggibile */
+  word-break: break-word;
+}
+
+.order-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.order-list li {
+  margin: 6px 0;
+}

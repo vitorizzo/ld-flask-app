@@ -285,6 +285,7 @@ def kiosk_api_order(order_id: int):
         "id": order.id,
         "route_id": order.route_id,
         "route_name": route.name if route else "",
+        "route_color": _route_light_color(route.id) if route else "#f1f3f5",
         "customer_display": order.customer_display,
         "status": order.status,
         "raw_text": order.raw_text or "",
