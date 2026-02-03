@@ -291,6 +291,7 @@ def kiosk_api_order(order_id: int):
         "raw_text": order.raw_text or "",
         "planned_delivery_at": order.planned_delivery_at.isoformat() if order.planned_delivery_at else None,
         "created_at": order.created_at.isoformat() if order.created_at else None,
+        "closed_at": order.closed_at.isoformat() if order.closed_at else None,
         "multi_count": multi_count,
         "notes_count": notes_count,
         "issues_count": issues_count,
@@ -422,7 +423,7 @@ def kiosk_board_all():
         # filtro evaso: solo se oggi
         filtered_rows = []
         for order, note_count, msg_count in rows:
-            if order.status == "evaso" and not _is_today_local(order.created_at):
+            if order.status == "evaso" and not _is_today_local(order.closed_at):
                 continue
             filtered_rows.append((order, note_count, msg_count))
 
@@ -603,7 +604,7 @@ def build_board_payload(route_id: int, show_closed_today: bool = True):
     groups = {s: [] for s in STATUS_ORDER}
     for order, note_count, msg_count in rows:
         # filtro "evaso solo oggi": meglio basarsi sull'evento di evasione, non su created_at
-        if show_closed_today and order.status == "evaso" and not _evaded_today_by_event(order.id):
+        if show_closed_today and order.status == "evaso" and not _is_today_local(order.closed_at):
             continue
 
         groups.setdefault(order.status, []).append({

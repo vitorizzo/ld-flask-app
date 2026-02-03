@@ -795,6 +795,8 @@ class SlackOrder(db.Model):
         nullable=False,
     )
 
+    evaded_at = db.Column(db.DateTime, nullable=True, index=True)
+
     route = db.relationship("DeliveryRoute", backref="orders")
 
     __table_args__ = (
