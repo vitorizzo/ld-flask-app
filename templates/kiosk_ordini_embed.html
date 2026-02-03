@@ -3,6 +3,18 @@
 {% block extra_css %}
   {{ super() }}
   <style>
+    /* Solo per questa pagina: rendi il MAIN .container full-width */
+    main.container.py-4 {
+      max-width: none !important;
+      width: 100% !important;
+    }
+
+    /* Se bootstrap assegna padding laterale al container, azzeralo */
+    main.container.py-4 {
+      padding-left: 0 !important;
+      padding-right: 0 !important;
+    }
+
     /* 1) forza full-width SOLO in questa pagina */
     .welcome-section {
       max-width: none !important;
