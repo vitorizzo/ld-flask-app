@@ -326,7 +326,7 @@ class SlackProcessor:
             db.session.commit()
             return
 
-        # Root message -> crea/aggancia ordine del giorno
+        # Root message -> crea SEMPRE un nuovo ordine
         customer_display = self._extract_customer_display(text)
         if not customer_display:
             return
@@ -335,8 +335,7 @@ class SlackProcessor:
         if not customer_key:
             return
 
-        # data ordine: "oggi" basato su timestamp Slack (secondi con decimali)
-        # Slack ts è stringa tipo "1700000000.1234"
+        # data ordine: "oggi" basato su timestamp Slack
         try:
             ts_seconds = float(ts)
             created_dt = datetime.fromtimestamp(ts_seconds)
@@ -346,29 +345,8 @@ class SlackProcessor:
         order_date = created_dt.date()
 
         route = self._get_route_for_channel(channel_id)
-        order = self._find_open_order(channel_id, customer_key, order_date)
 
-        if order:
-            # append testo (es. aggiunta / nuove info)
-            if text and (order.raw_text or "") != text:
-                append_text = text
-                # se era "Aggiunta <cliente>" e basta, non aggiungere rumore
-                if re.match(r"(?i)^\s*aggiunta\s+\S+\s*$", append_text.strip()):
-                    append_text = ""
-
-                if append_text:
-                    order.raw_text = (order.raw_text or "").rstrip() + ("\n\n" if order.raw_text else "") + append_text
-
-                db.session.add(SlackOrderEvent(
-                    order_id=order.id,
-                    type="append_text",
-                    payload={"ts": ts, "user": data.get("user"), "text": text},
-                ))
-                order.updated_at = datetime.utcnow()
-                db.session.commit()
-            return
-
-        # crea nuovo ordine
+        # Crea sempre un nuovo SlackOrder (anche se stesso cliente/stesso giorno)
         order = SlackOrder(
             route_id=route.id if route else None,
             slack_channel_id=channel_id,
@@ -382,6 +360,7 @@ class SlackProcessor:
             slack_thread_ts=ts,
             has_issues=False,
         )
+
         db.session.add(order)
         db.session.flush()  # per ottenere order.id
 
@@ -392,6 +371,7 @@ class SlackProcessor:
         ))
 
         db.session.commit()
+        return
 
     # ============================================================
     # B.1 — Dispatcher centrale eventi Slack
