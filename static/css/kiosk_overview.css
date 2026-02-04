@@ -412,3 +412,31 @@
   font-weight: 800;
   opacity: 0.9;
 }
+
+.order-seq {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.order-seq__dot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 900;
+  border: 1px solid rgba(0,0,0,0.10);
+}
+
+.order-seq__dot.on {
+  background: rgba(0,0,0,0.78);
+  color: #fff;
+}
+
+.order-seq__dot.off {
+  background: rgba(255,255,255,0.70);
+  color: rgba(0,0,0,0.45);
+}
