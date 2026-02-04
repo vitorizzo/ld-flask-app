@@ -407,3 +407,8 @@
 .order-list li {
   margin: 6px 0;
 }
+
+.order-delivery {
+  font-weight: 800;
+  opacity: 0.9;
+}

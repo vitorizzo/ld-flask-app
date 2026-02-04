@@ -35,19 +35,22 @@
     div.dataset.routeId = String(o.route_id || "");
     div.dataset.orderId = String(o.id);
 
-    const multiExtra = (o.multi_count && o.multi_count > 1) ? (o.multi_count - 1) : 0;
+    const addExtra = (o.group_size && o.group_size > 1) ? (o.group_size - 1) : 0;
+    const nameSuffix = (o.group_seq && o.group_seq > 1) ? `-${o.group_seq}` : "";
+    const displayName = `${o.customer_display || ""}${nameSuffix}`;
+
 
     div.innerHTML = `
       <div class="order-top">
         <div class="order-main">
-          <div class="order-name">${escapeHtml(o.customer_display || o.customer || "")}</div>
+          <div class="order-name">${escapeHtml(displayName)}</div>
           <div class="order-meta">
             Giro: <span class="badge-route">${escapeHtml(o.route_name || "")}</span>
-            ${o.delivery_label ? `<span class="ms-2 text-muted">Consegna: <strong>${escapeHtml(o.delivery_label)}</strong></span>` : ``}
+            ${o.delivery_label ? ` · <span class="order-delivery">${escapeHtml(o.delivery_label)}</span>` : ``}
           </div>
         </div>
         <div class="order-badges">
-          ${multiExtra > 0 ? `<span class="badge-multi">+${multiExtra}</span>` : ``}
+          ${addExtra > 0 ? `<span class="badge-multi">+${addExtra}</span>` : ``}
           ${(o.notes_count || 0) > 0 ? `<span class="badge-note">${o.notes_count}</span>` : ``}
           ${(o.issues_count || 0) > 0 ? `<span class="badge-issue">${o.issues_count}</span>` : ``}
         </div>
@@ -229,30 +232,27 @@
           out.push({
             id: o.id,
             status: o.status || st,
-
             route_id: routeId,
             route_name: routeName,
             route_color: routeColor,
 
-            // nome: Cli1, Cli1-2, Cli1-3...
-            customer_display: (groupSeq > 1) ? `${(o.customer || "").trim()}-${groupSeq}` : (o.customer || ""),
-
-            // consegna
-            delivery_label: o.delivery_label || "",
-
-            // grouping info
-            group_key: o.group_key || "",
-            group_seq: groupSeq,
-            group_size: groupSize,
-
+            customer_display: o.customer || "",
             preview: (o.raw_text || "").trim().split("\n")[0].slice(0, 140),
 
-            // badge blu: SOLO sulla card principale (seq 1) e indica quante aggiunte ci sono
-            multi_count: (groupSeq === 1 ? groupSize : 1),
-
+            // badge e indicatori
             notes_count: o.note_count || 0,
             issues_count: o.has_issues ? 1 : 0,
+
+            // nuovi campi per gestione aggiunte / consegna
+            group_key: o.group_key || "",
+            group_seq: o.group_seq || 1,
+            group_size: o.group_size || 1,
+            delivery_label: o.delivery_label || "",
+
+            // compat (se ancora usato altrove)
+            multi_count: o.msg_count || 0,
           });
+
 
         }
       }
