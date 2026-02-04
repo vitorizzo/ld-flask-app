@@ -831,3 +831,30 @@ class SlackOrderEvent(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     order = db.relationship("SlackOrder", backref="events")
+
+
+class OrderStatus(db.Model):
+    __tablename__ = "order_statuses"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # chiave tecnica stabile (usata ovunque)
+    code = db.Column(db.String(32), unique=True, nullable=False)
+
+    # label UI
+    label = db.Column(db.String(64), nullable=False)
+
+    # ordine logico / visivo
+    order_index = db.Column(db.Integer, nullable=False, index=True)
+
+    # reaction Slack associata allo stato
+    slack_reaction = db.Column(db.String(64), nullable=True)
+
+    # stato finale (es. evaso)
+    is_terminal = db.Column(db.Boolean, default=False, nullable=False)
+
+    # visibilità nel kiosk
+    is_visible = db.Column(db.Boolean, default=True, nullable=False)
+
+    def __repr__(self):
+        return f"<OrderStatus {self.code}>"

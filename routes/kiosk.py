@@ -670,3 +670,23 @@ def build_board_payload(route_id: int, show_closed_today: bool = True):
         "delivery_dt": delivery_dt.isoformat(),
         "groups": groups,
     }
+
+
+@kiosk_bp.get("/api/statuses")
+def kiosk_api_statuses():
+    statuses = (
+        OrderStatus.query
+        .filter_by(is_visible=True)
+        .order_by(OrderStatus.order_index.asc())
+        .all()
+    )
+
+    return jsonify([
+        {
+            "code": s.code,
+            "label": s.label,
+            "order_index": s.order_index,
+            "is_terminal": s.is_terminal,
+        }
+        for s in statuses
+    ]), 200
