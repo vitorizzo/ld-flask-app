@@ -8,8 +8,7 @@ from sqlalchemy import func
 
 from extensions import db
 from tools.log_utils import get_logger
-from models import SlackOrder, SlackOrderEvent, DeliveryRoute
-
+from models import SlackOrder, SlackOrderEvent, DeliveryRoute, OrderStatus
 
 kiosk_bp = Blueprint("kiosk", __name__, url_prefix="/kiosk")
 logger = get_logger("kiosk", level=logging.INFO)
