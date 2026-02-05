@@ -665,8 +665,10 @@ window.kioskState = {
     const btn = $("#btn-refresh");
     if (btn) btn.addEventListener("click", loadAndRender);
 
-    await loadStatuses();
-    await loadAndRender();
+    (async () => {
+      await loadStatuses();   // <-- OBBLIGATORIO
+      await loadAndRender();
+    })();
 
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(loadAndRender, 10000);
