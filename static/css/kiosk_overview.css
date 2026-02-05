@@ -440,3 +440,23 @@
   background: rgba(255,255,255,0.70);
   color: rgba(0,0,0,0.45);
 }
+
+.order-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.order-card { position: relative; }
+
+.order-actions__btn {
+  border-radius: 10px;
+  line-height: 1;
+  padding: 2px 8px;
+  opacity: 0.9;
+}
+
+.order-card.is-busy {
+  opacity: 0.6;
+  pointer-events: none;
+}

@@ -1,12 +1,14 @@
 (() => {
   const API_ALL = "/kiosk/api/board/all?only_active=1&show_closed_today=1";
   const API_ORDER = (id) => `/kiosk/api/order/${id}`;
+  const API_STATUSES = "/kiosk/api/statuses";
 
   const statusList = ["acquisito", "listato", "controllato", "evaso"];
   const statusRank = { acquisito: 0, listato: 1, controllato: 2, evaso: 3 };
 
   let currentRouteFilter = "__all__";
   let lastCards = []; // lista di "view cards"
+  let statusMeta = []; // [{code,label,order_index,is_terminal}]
   let refreshTimer = null;
 
   function $(sel) { return document.querySelector(sel); }
@@ -17,7 +19,7 @@
     if (!el) return;
     const d = new Date();
     const pad = (n) => String(n).padStart(2, "0");
-    el.textContent = `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    el.textContent = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   }
 
   function clearColumnsKeepEmpty() {
@@ -43,9 +45,8 @@
 
   function buildSeqIndicator(seqTotal, seqOnSet) {
     if (!seqTotal || seqTotal <= 1) return "";
-
     const parts = [];
-    parts.push(`<div class="order-seq" aria-label="Ordini del gruppo">`);
+    parts.push(`<div class="order-seq">`);
     for (let i = 1; i <= seqTotal; i += 1) {
       const on = seqOnSet.has(i);
       parts.push(`<span class="order-seq__dot ${on ? "on" : "off"}">#${i}</span>`);
@@ -74,29 +75,37 @@
     const cust = primary.customer_display || "";
     const isGroup = vm.type === "group";
 
-    // titolo
     const title = isGroup ? `${cust} (grouped)` : `${cust}`;
 
-    // badge blu: per gruppo mostra il totale nella card; per singolo niente
     const groupBadge = isGroup ? `<span class="badge-multi">${vm.orders.length}</span>` : ``;
 
-    // badge giallo/rosso: somma per la card
     const notesSum = vm.orders.reduce((acc, o) => acc + (o.notes_count || 0), 0);
     const issuesSum = vm.orders.reduce((acc, o) => acc + (o.issues_count ? 1 : 0), 0);
 
-    // indicatore #1 #2 #3
     const seqTotal = vm.seq_total || 1;
     const seqOn = new Set(vm.orders.map(o => o.group_seq || 1));
     const seqIndicator = buildSeqIndicator(seqTotal, seqOn);
 
-    // delivery label: se ordini nella card hanno delivery diverse (non dovrebbe), metti il primary
     const deliveryLabel = primary.delivery_label || "";
 
-    // preview: per gruppo mostriamo un preview “compatto”
     let preview = "";
     if (primary.preview) preview = primary.preview;
 
+    const moveOpts = statusOptionsFor(vm.status);
+    const moveMenuHtml = moveOpts.length ? `
+      <div class="dropdown order-actions">
+        <button class="btn btn-sm btn-light order-actions__btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Azioni">⋯</button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li><h6 class="dropdown-header">Sposta in</h6></li>
+          ${moveOpts.map(s => `
+            <li><button class="dropdown-item" type="button" data-move-to="${escapeHtml(s.code)}">${escapeHtml(s.label)}</button></li>
+          `).join("")}
+        </ul>
+      </div>
+    ` : ``;
+
     div.innerHTML = `
+      ${moveMenuHtml}
       <div class="order-top">
         <div class="order-main">
           <div class="order-name">${escapeHtml(title)}</div>
@@ -115,17 +124,41 @@
       ${preview ? `<div class="order-preview">${escapeHtml(preview)}</div>` : ``}
     `;
 
-    if (isGroup) {
-      div.addEventListener("click", () => openGroupModal(vm));
-      div.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter" || ev.key === " ") openGroupModal(vm);
+    const openFn = () => {
+      if (isGroup) openGroupModal(vm);
+      else openOrderModal(primary.id);
+    };
+
+    div.addEventListener("click", (ev) => {
+      if (ev.target.closest(".order-actions")) return;
+      openFn();
+    });
+    div.addEventListener("keydown", (ev) => {
+      if (ev.key === "Enter" || ev.key === " ") openFn();
+    });
+
+    div.querySelectorAll("[data-move-to]").forEach(btn => {
+      btn.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        const target = ev.currentTarget.getAttribute("data-move-to");
+        if (!target) return;
+
+        const ids = isGroup ? vm.orders.map(o => o.id) : [primary.id];
+
+        div.classList.add("is-busy");
+        try {
+          await setManyOrdersStatus(ids, target);
+          await loadAndRender();
+        } catch (e) {
+          console.error("[kiosk_overview] move error", e);
+          alert(`Errore spostamento: ${String(e.message || e)}`);
+        } finally {
+          div.classList.remove("is-busy");
+        }
       });
-    } else {
-      div.addEventListener("click", () => openOrderModal(primary.id));
-      div.addEventListener("keydown", (ev) => {
-        if (ev.key === "Enter" || ev.key === " ") openOrderModal(primary.id);
-      });
-    }
+    });
 
     div.tabIndex = 0;
     div.role = "button";
@@ -221,6 +254,7 @@
   function openGroupModal(vm) {
     const body = $("#orderModalBody");
     const title = $("#orderModalTitle");
+
     if (body) body.innerHTML = `<div class="text-muted">Caricamento...</div>`;
 
     const modalEl = $("#orderModal");
@@ -240,33 +274,26 @@
     const seqOn = new Set(vm.orders.map(o => o.group_seq || 1));
     const seqIndicator = buildSeqIndicator(seqTotal, seqOn);
 
-    const list = [...vm.orders].sort((a, b) => (a.group_seq ?? 1) - (b.group_seq ?? 1)).map(o => {
-      const seq = o.group_seq || 1;
-      const delivery = o.delivery_label || "";
-      const notes = o.notes_count || 0;
-      const issues = o.issues_count ? 1 : 0;
-      const prev = o.preview || "";
-
-      return `
-        <div class="order-section">
-          <div class="order-section__head">
-            <span>Ordine #${seq}/${seqTotal}</span>
-            <span>
-              ${delivery ? `<span class="order-delivery">${escapeHtml(delivery)}</span>` : ``}
-              <button class="btn btn-sm btn-outline-secondary ms-2" type="button" data-open-order="${o.id}">
-                Apri #${seq}
-              </button>
-            </span>
-          </div>
-          <div class="order-section__body">
-            ${prev ? `<div class="mb-2"><strong>Preview:</strong> ${escapeHtml(prev)}</div>` : ``}
-            <div class="text-muted">
-              Note: <strong>${notes}</strong> · Issues: <strong>${issues}</strong> · ID: <strong>${o.id}</strong>
+    const list = [...vm.orders]
+      .sort((a, b) => (a.group_seq ?? 1) - (b.group_seq ?? 1))
+      .map(o => {
+        const seq = o.group_seq || 1;
+        const delivery = o.delivery_label || "";
+        const notes = o.notes_count || 0;
+        const issues = o.issues_count ? 1 : 0;
+        const prev = o.preview || "";
+        return `
+          <div class="order-group-item">
+            <div class="order-group-item__head">
+              <div><strong>Ordine #${seq}/${seqTotal}</strong> ${delivery ? `· <span class="order-delivery">${escapeHtml(delivery)}</span>` : ``}</div>
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-open-order="${o.id}">Apri #${seq}</button>
             </div>
+            ${prev ? `<div class="order-group-item__preview">Preview: ${escapeHtml(prev)}</div>` : ``}
+            <div class="order-group-item__meta">Note: ${notes} · Issues: ${issues} · ID: ${o.id}</div>
           </div>
-        </div>
-      `;
-    }).join("");
+        `;
+      })
+      .join("");
 
     const routeBg = (vm.route_color || "#f1f3f5");
     const safeRoute = escapeHtml(vm.route_name || "");
@@ -284,17 +311,23 @@
               <div class="order-kv__k">Stato</div><div class="order-kv__v">${safeStatus}</div>
               <div class="order-kv__k">Ordini</div><div class="order-kv__v">${vm.orders.length}</div>
             </div>
-            ${seqIndicator}
           </div>
         </div>
 
-        ${list}
+        <div class="order-section">
+          <div class="order-section__head">Sequenza</div>
+          <div class="order-section__body">${seqIndicator}</div>
+        </div>
+
+        <div class="order-section">
+          <div class="order-section__head">Dettagli</div>
+          <div class="order-section__body">${list}</div>
+        </div>
       </div>
     `;
 
     if (body) body.innerHTML = html;
 
-    // hook bottoni "Apri #n"
     if (body) {
       body.querySelectorAll("[data-open-order]").forEach(btn => {
         btn.addEventListener("click", (ev) => {
@@ -392,6 +425,7 @@
             group_size: o.group_size || 1,
             delivery_label: o.delivery_label || "",
 
+            // compat
             multi_count: o.msg_count || 0,
           });
         }
@@ -403,15 +437,19 @@
       const ra = (a.route_name || "").toLowerCase();
       const rb = (b.route_name || "").toLowerCase();
       if (ra !== rb) return ra.localeCompare(rb);
+
       const sa = statusRank[a.status] ?? 99;
       const sb = statusRank[b.status] ?? 99;
       if (sa !== sb) return sa - sb;
+
       const ca = (a.customer_display || "").toLowerCase();
       const cb = (b.customer_display || "").toLowerCase();
       if (ca !== cb) return ca.localeCompare(cb);
+
       const ga = a.group_seq ?? 1;
       const gb = b.group_seq ?? 1;
       if (ga !== gb) return ga - gb;
+
       return (a.id ?? 0) - (b.id ?? 0);
     });
 
@@ -422,6 +460,7 @@
     // B2: raggruppa per (group_key, status) se count>1
     // Serve anche una mappa seq->status per disegnare on/off coerente.
     const byGroup = new Map(); // group_key -> { seqTotal, seqToStatus, orders: [] }
+
     for (const o of flatOrders) {
       const gk = o.group_key || "";
       if (!byGroup.has(gk)) {
@@ -438,7 +477,6 @@
     }
 
     const cards = [];
-
     for (const [gk, g] of byGroup.entries()) {
       // bucket per status
       const byStatus = new Map(); // status -> [orders]
@@ -451,8 +489,8 @@
       for (const [st, arr] of byStatus.entries()) {
         const ordersSorted = [...arr].sort((a, b) => (a.group_seq ?? 1) - (b.group_seq ?? 1));
         const primary = pickPrimaryOrder(ordersSorted);
-
         const isGroup = ordersSorted.length > 1;
+
         cards.push({
           type: isGroup ? "group" : "single",
           status: st,
@@ -476,12 +514,15 @@
       const ra = (a.route_name || "").toLowerCase();
       const rb = (b.route_name || "").toLowerCase();
       if (ra !== rb) return ra.localeCompare(rb);
+
       const sa = statusRank[a.status] ?? 99;
       const sb = statusRank[b.status] ?? 99;
       if (sa !== sb) return sa - sb;
+
       const ca = (a.customer_display || "").toLowerCase();
       const cb = (b.customer_display || "").toLowerCase();
       if (ca !== cb) return ca.localeCompare(cb);
+
       const ga = a.primary.group_seq ?? 1;
       const gb = b.primary.group_seq ?? 1;
       return ga - gb;
@@ -518,6 +559,47 @@
     });
   }
 
+  async function loadStatuses() {
+    try {
+      const res = await fetch(API_STATUSES, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      statusMeta = Array.isArray(data) ? data : [];
+    } catch (e) {
+      console.error("[kiosk_overview] loadStatuses error", e);
+      statusMeta = [];
+    }
+  }
+
+  function statusOptionsFor(currentCode) {
+    const cur = statusMeta.find(s => s.code === currentCode);
+    const curIdx = cur ? (cur.order_index ?? 0) : 0;
+    return statusMeta
+      .filter(s => (s.order_index ?? 0) > curIdx)
+      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  }
+
+  async function setOrderStatus(orderId, targetCode) {
+    const res = await fetch(`/kiosk/api/order/${orderId}/set-status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: targetCode }),
+      cache: "no-store",
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) {
+      const msg = json.error ? `${json.error}` : `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    return json;
+  }
+
+  async function setManyOrdersStatus(orderIds, targetCode) {
+    for (const id of orderIds) {
+      await setOrderStatus(id, targetCode);
+    }
+  }
+
   async function loadAndRender() {
     setNowText();
 
@@ -544,7 +626,7 @@
     const btn = $("#btn-refresh");
     if (btn) btn.addEventListener("click", loadAndRender);
 
-    loadAndRender();
+    loadStatuses().then(loadAndRender);
 
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(loadAndRender, 10000);
