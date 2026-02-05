@@ -637,3 +637,6 @@
 
   document.addEventListener("DOMContentLoaded", start);
 })();
+
+document.documentElement.setAttribute("data-kiosk-js", "ok");
+console.log("[kiosk_overview] marker set");
