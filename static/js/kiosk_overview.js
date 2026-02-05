@@ -104,11 +104,13 @@
 
 
   function statusOptionsFor(currentCode) {
-    const cur = statusMeta.find(s => s.code === currentCode);
-    const curIdx = cur ? (cur.order_index ?? 0) : 0;
-    return statusMeta
-      .filter(s => (s.order_index ?? 0) > curIdx)
-      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+    if (!statusMeta || !statusMeta.length) return [];
+
+    const idx = statusMeta.findIndex(s => s.code === currentCode);
+    if (idx === -1) return [];
+
+    // tutti gli stati SUCCESSIVI
+    return statusMeta.slice(idx + 1);
   }
 
   async function setOrderStatus(orderId, targetCode) {

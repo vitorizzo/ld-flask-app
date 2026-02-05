@@ -457,11 +457,24 @@
 
 .order-card { position: relative; }
 
+/* bottone ⋯ */
 .order-actions__btn {
-  border-radius: 10px;
-  line-height: 1;
-  padding: 2px 8px;
-  opacity: 0.9;
+  width: 34px;
+  height: 28px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: rgba(0,0,0,0.08);
+  border: 1px solid rgba(0,0,0,0.25);
+  border-radius: 8px;
+
+  font-size: 18px;
+  font-weight: 900;
+  color: #222;
+
+  cursor: pointer;
 }
 
 .order-card.is-busy {
@@ -471,9 +484,9 @@
 
 .order-actions{
   position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 3;
+  top: 6px;
+  right: 6px;
+  z-index: 5;
 }
 
 .order-card{
@@ -489,4 +502,15 @@
   border: 1px solid rgba(0,0,0,0.18);
   box-shadow: 0 2px 6px rgba(0,0,0,0.15);
   font-weight: 900;
+}
+
+/* hover evidente */
+.order-actions__btn:hover {
+  background: rgba(0,0,0,0.15);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+}
+
+/* focus keyboard */
+.order-actions__btn:focus-visible {
+  outline: 2px solid #0d6efd;
 }
