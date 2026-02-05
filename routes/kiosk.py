@@ -556,31 +556,16 @@ def kiosk_ordini_embed():
 
 def build_board_payload(route_id: int, show_closed_today: bool = True):
     """
-    Costruisce lo stesso JSON di /api/board/<route_id> ma come dict (senza Response).
-
-    In più, per supportare una UI "order-centric" senza perdere le aggiunte:
-    - group_key: route|delivery_day|customer_norm
-    - group_seq: 1..N (per visualizzare Cli1, Cli1-2, Cli1-3...)
-    - group_size: N (badge blu)
-    - delivery_label: stringa breve per mostrare data/ora consegna
+    Board per route:
+    - mostra SEMPRE tutti gli ordini NON evasi
+    - mostra gli evasi SOLO se evasi oggi (se show_closed_today=True)
+    NON usa più la finestra del "prossimo giro" per filtrare: evita ordini che spariscono.
     """
-    from collections import defaultdict
-
-    now = datetime.utcnow()
     route = DeliveryRoute.query.get(route_id)
     if not route or not route.is_active:
         return None
 
-    delivery_dt = _next_delivery_dt(route, now)
-    if not delivery_dt:
-        return {
-            "route": {"id": route.id, "name": route.name},
-            "delivery_dt": None,
-            "groups": {s: [] for s in STATUS_ORDER},
-        }
-
-    start, end = _delivery_window(delivery_dt)
-
+    # conteggi eventi (note / msg)
     note_counts_sq = (
         db.session.query(
             SlackOrderEvent.order_id.label("order_id"),
@@ -601,6 +586,7 @@ def build_board_payload(route_id: int, show_closed_today: bool = True):
         .subquery()
     )
 
+    # PRENDE TUTTO il route (niente delivery-window)
     rows = (
         db.session.query(
             SlackOrder,
@@ -609,74 +595,45 @@ def build_board_payload(route_id: int, show_closed_today: bool = True):
         )
         .outerjoin(note_counts_sq, note_counts_sq.c.order_id == SlackOrder.id)
         .outerjoin(msg_counts_sq, msg_counts_sq.c.order_id == SlackOrder.id)
-
-        .filter(
-            SlackOrder.route_id == route.id,
-            SlackOrder.planned_delivery_at >= start,
-            SlackOrder.planned_delivery_at < end,
+        .filter(SlackOrder.route_id == route.id)
+        .order_by(
+            SlackOrder.status.asc(),
+            SlackOrder.planned_delivery_at.asc().nullslast(),
+            SlackOrder.customer_display.asc(),
         )
-        .order_by(SlackOrder.status.asc(), SlackOrder.customer_display.asc())
         .all()
     )
 
-    # 1) raccogli righe filtrando "evaso solo oggi" usando closed_at (già gestito da Slack)
-    items = []
-    for order, note_count, msg_count in rows:
-        if show_closed_today and order.status == "evaso" and not _is_today_local(order.closed_at):
-            continue
-        items.append((order, int(note_count or 0), int(msg_count or 0)))
-
-    # 2) indicizza i gruppi per costruire group_seq + group_size (order-centric)
-    # group_key = route|YYYY-MM-DD(delivery)|customer_norm
-    def _group_key(o: SlackOrder) -> str:
-        delivery_day = o.planned_delivery_at.date().isoformat() if o.planned_delivery_at else "none"
-        cust_norm = (o.customer_display or "").strip().lower()
-        return f"{route.id}|{delivery_day}|{cust_norm}"
-
-    # per avere una sequenza stabile, ordiniamo per created_at (fallback id)
-    order_sort_key = lambda o: (o.created_at or datetime.min, o.id)
-
-    idx = defaultdict(list)  # group_key -> list[SlackOrder]
-    for order, _, _ in items:
-        idx[_group_key(order)].append(order)
-
-    for gk in idx:
-        idx[gk].sort(key=order_sort_key)
-
-    pos_map = {}   # order_id -> seq
-    size_map = {}  # order_id -> size
-    for gk, ord_list in idx.items():
-        size = len(ord_list)
-        for i, o in enumerate(ord_list, start=1):
-            pos_map[o.id] = i
-            size_map[o.id] = size
-
-    # 3) costruisci groups per status con i nuovi campi
     groups = {s: [] for s in STATUS_ORDER}
-    for order, note_count, msg_count in items:
-        gk = _group_key(order)
+
+    for order, note_count, msg_count in rows:
+        # Evasi: mostrali solo se evasi oggi (se richiesto)
+        if order.status == "evaso":
+            if show_closed_today:
+                if not _evaded_today_by_event(order.id):
+                    continue
+            else:
+                continue
 
         groups.setdefault(order.status, []).append({
             "id": order.id,
             "customer": order.customer_display,
             "status": order.status,
             "has_issues": bool(order.has_issues),
-            "note_count": note_count,
-            "msg_count": msg_count,
+            "note_count": int(note_count or 0),
+            "msg_count": int(msg_count or 0),
             "planned_delivery_at": order.planned_delivery_at.isoformat() if order.planned_delivery_at else None,
             "created_at": order.created_at.isoformat() if order.created_at else None,
             "raw_text": order.raw_text or "",
-
-            # nuovi campi per gestione "aggiunte"
-            "group_key": gk,
-            "group_seq": int(pos_map.get(order.id, 1)),
-            "group_size": int(size_map.get(order.id, 1)),
-            "delivery_label": order.planned_delivery_at.strftime("%d/%m %H:%M") if order.planned_delivery_at else "",
         })
+
+    # delivery_dt rimane informativo (per UI), ma non filtra più nulla
+    now = datetime.utcnow()
+    delivery_dt = _next_delivery_dt(route, now)
 
     return {
         "route": {"id": route.id, "name": route.name},
-        "delivery_dt": delivery_dt.isoformat(),
+        "delivery_dt": delivery_dt.isoformat() if delivery_dt else None,
         "groups": groups,
     }
 
