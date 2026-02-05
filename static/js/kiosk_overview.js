@@ -3,8 +3,9 @@
   const API_ORDER = (id) => `/kiosk/api/order/${id}`;
   const API_STATUSES = "/kiosk/api/statuses";
 
-  const statusList = ["acquisito", "listato", "controllato", "evaso"];
-  const statusRank = { acquisito: 0, listato: 1, controllato: 2, evaso: 3 };
+  // diventano dinamici dopo loadStatuses()
+  let statusList = [];
+  let statusRank = {};
 
   let currentRouteFilter = "__all__";
   let lastCards = []; // lista di "view cards"
@@ -13,6 +14,15 @@
 
   function $(sel) { return document.querySelector(sel); }
   function $all(sel) { return Array.from(document.querySelectorAll(sel)); }
+
+  function escapeHtml(s) {
+    return String(s)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#039;");
+  }
 
   function setNowText() {
     const el = $("#ui-now");
@@ -34,13 +44,72 @@
     if (pillTotal) pillTotal.textContent = "0";
   }
 
-  function escapeHtml(s) {
-    return String(s)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+  function renderColumnsFromStatuses() {
+    const colsWrap = document.querySelector(".kiosk-cols");
+    if (!colsWrap) return;
+
+    colsWrap.innerHTML = statusMeta.map(s => `
+      <div class="kiosk-col" data-status="${escapeHtml(s.code)}">
+        <div class="kiosk-col__head">
+          <span class="kiosk-col__title">${escapeHtml(s.label)}</span>
+          <span class="badge bg-secondary" id="count-${escapeHtml(s.code)}">0</span>
+        </div>
+        <div class="kiosk-col__body" id="col-${escapeHtml(s.code)}">
+          <div class="kiosk-empty">Nessun ordine</div>
+        </div>
+      </div>
+    `).join("");
+  }
+
+  async function loadStatuses() {
+    try {
+      const res = await fetch(API_STATUSES, { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      statusMeta = Array.isArray(data) ? data : [];
+
+      // status list + rank
+      statusList = statusMeta.map(s => s.code);
+      statusRank = {};
+      statusMeta.forEach((s, i) => { statusRank[s.code] = i; });
+
+      // ricrea colonne in base agli status
+      renderColumnsFromStatuses();
+    } catch (e) {
+      console.error("[kiosk_overview] loadStatuses error", e);
+      statusMeta = [];
+      statusList = ["acquisito", "listato", "controllato", "evaso"]; // fallback safe
+      statusRank = { acquisito: 0, listato: 1, controllato: 2, evaso: 3 };
+    }
+  }
+
+  function statusOptionsFor(currentCode) {
+    const cur = statusMeta.find(s => s.code === currentCode);
+    const curIdx = cur ? (cur.order_index ?? 0) : 0;
+    return statusMeta
+      .filter(s => (s.order_index ?? 0) > curIdx)
+      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
+  }
+
+  async function setOrderStatus(orderId, targetCode) {
+    const res = await fetch(`/kiosk/api/order/${orderId}/set-status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: targetCode }),
+      cache: "no-store",
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) {
+      const msg = json.error ? `${json.error}` : `HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    return json;
+  }
+
+  async function setManyOrdersStatus(orderIds, targetCode) {
+    for (const id of orderIds) {
+      await setOrderStatus(id, targetCode);
+    }
   }
 
   function buildSeqIndicator(seqTotal, seqOnSet) {
@@ -56,7 +125,6 @@
   }
 
   function pickPrimaryOrder(orders) {
-    // sceglie il più "piccolo" per sequenza, fallback su id
     return [...orders].sort((a, b) => {
       const sa = a.group_seq ?? 1;
       const sb = b.group_seq ?? 1;
@@ -87,9 +155,7 @@
     const seqIndicator = buildSeqIndicator(seqTotal, seqOn);
 
     const deliveryLabel = primary.delivery_label || "";
-
-    let preview = "";
-    if (primary.preview) preview = primary.preview;
+    const preview = primary.preview || "";
 
     const moveOpts = statusOptionsFor(vm.status);
     const moveMenuHtml = moveOpts.length ? `
@@ -133,6 +199,7 @@
       if (ev.target.closest(".order-actions")) return;
       openFn();
     });
+
     div.addEventListener("keydown", (ev) => {
       if (ev.key === "Enter" || ev.key === " ") openFn();
     });
@@ -162,7 +229,6 @@
 
     div.tabIndex = 0;
     div.role = "button";
-
     return div;
   }
 
@@ -244,7 +310,7 @@
         `);
       }
 
-      parts.push(`</div>`); // chiude order-sheet
+      parts.push(`</div>`);
       if (body) body.innerHTML = parts.join("");
     } catch (err) {
       if (body) body.innerHTML = `<div class="text-danger">Errore caricamento ordine: ${escapeHtml(String(err))}</div>`;
@@ -350,7 +416,8 @@
       col.innerHTML = "";
     }
 
-    const counts = { acquisito: 0, listato: 0, controllato: 0, evaso: 0 };
+    const counts = {};
+    statusList.forEach(s => { counts[s] = 0; });
 
     for (const vm of filteredCards) {
       const st = vm.status;
@@ -424,15 +491,11 @@
             group_seq: o.group_seq || 1,
             group_size: o.group_size || 1,
             delivery_label: o.delivery_label || "",
-
-            // compat
-            multi_count: o.msg_count || 0,
           });
         }
       }
     }
 
-    // ordinamento stabile base
     out.sort((a, b) => {
       const ra = (a.route_name || "").toLowerCase();
       const rb = (b.route_name || "").toLowerCase();
@@ -458,28 +521,21 @@
 
   function buildCardViewModels(flatOrders) {
     // B2: raggruppa per (group_key, status) se count>1
-    // Serve anche una mappa seq->status per disegnare on/off coerente.
-    const byGroup = new Map(); // group_key -> { seqTotal, seqToStatus, orders: [] }
+    const byGroup = new Map();
 
     for (const o of flatOrders) {
       const gk = o.group_key || "";
       if (!byGroup.has(gk)) {
-        byGroup.set(gk, {
-          seqTotal: o.group_size || 1,
-          seqToStatus: new Map(),
-          orders: [],
-        });
+        byGroup.set(gk, { seqTotal: o.group_size || 1, orders: [] });
       }
       const g = byGroup.get(gk);
       g.orders.push(o);
       g.seqTotal = Math.max(g.seqTotal, o.group_size || 1);
-      g.seqToStatus.set(o.group_seq || 1, o.status);
     }
 
     const cards = [];
     for (const [gk, g] of byGroup.entries()) {
-      // bucket per status
-      const byStatus = new Map(); // status -> [orders]
+      const byStatus = new Map();
       for (const o of g.orders) {
         const st = o.status || "";
         if (!byStatus.has(st)) byStatus.set(st, []);
@@ -499,17 +555,14 @@
           orders: ordersSorted,
           primary,
 
-          // route info (coerente nel group_key)
           route_id: primary.route_id,
           route_name: primary.route_name,
           route_color: primary.route_color,
           customer_display: primary.customer_display,
-          delivery_label: primary.delivery_label,
         });
       }
     }
 
-    // ordinamento cards
     cards.sort((a, b) => {
       const ra = (a.route_name || "").toLowerCase();
       const rb = (b.route_name || "").toLowerCase();
@@ -532,7 +585,6 @@
   }
 
   function updatePillsFromBoards(json) {
-    // manteniamo i pill per-route come "numero ordini" (non card)
     const boards = Array.isArray(json.boards) ? json.boards : [];
     const totalsByRoute = new Map();
     let total = 0;
@@ -559,47 +611,6 @@
     });
   }
 
-  async function loadStatuses() {
-    try {
-      const res = await fetch(API_STATUSES, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      statusMeta = Array.isArray(data) ? data : [];
-    } catch (e) {
-      console.error("[kiosk_overview] loadStatuses error", e);
-      statusMeta = [];
-    }
-  }
-
-  function statusOptionsFor(currentCode) {
-    const cur = statusMeta.find(s => s.code === currentCode);
-    const curIdx = cur ? (cur.order_index ?? 0) : 0;
-    return statusMeta
-      .filter(s => (s.order_index ?? 0) > curIdx)
-      .sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0));
-  }
-
-  async function setOrderStatus(orderId, targetCode) {
-    const res = await fetch(`/kiosk/api/order/${orderId}/set-status`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: targetCode }),
-      cache: "no-store",
-    });
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok || !json.ok) {
-      const msg = json.error ? `${json.error}` : `HTTP ${res.status}`;
-      throw new Error(msg);
-    }
-    return json;
-  }
-
-  async function setManyOrdersStatus(orderIds, targetCode) {
-    for (const id of orderIds) {
-      await setOrderStatus(id, targetCode);
-    }
-  }
-
   async function loadAndRender() {
     setNowText();
 
@@ -620,23 +631,18 @@
     }
   }
 
-  function start() {
-    document.documentElement.setAttribute("data-kiosk-js", "ok");
-    console.log("[kiosk_overview] loaded", new Date().toISOString());
-
+  async function start() {
     hookFilters();
 
     const btn = $("#btn-refresh");
     if (btn) btn.addEventListener("click", loadAndRender);
 
-    loadStatuses().then(loadAndRender);
+    await loadStatuses();
+    await loadAndRender();
 
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(loadAndRender, 10000);
   }
 
-  document.addEventListener("DOMContentLoaded", start);
+  document.addEventListener("DOMContentLoaded", () => { start(); });
 })();
-
-document.documentElement.setAttribute("data-kiosk-js", "ok");
-console.log("[kiosk_overview] marker set");
