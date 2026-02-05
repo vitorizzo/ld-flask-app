@@ -5,6 +5,8 @@ window.kioskState = {
   statusMeta: [],
   statusList: [],
   statusRank: {},
+  currentRouteFilter: "__all__",
+  lastCards: [],
 };
 
 (() => {
@@ -113,7 +115,6 @@ window.kioskState = {
     }
   }
 
-
   function statusOptionsFor(currentCode) {
     const meta = kioskState.statusMeta;
     if (!Array.isArray(meta) || !meta.length) return [];
@@ -123,7 +124,6 @@ window.kioskState = {
 
     return meta.slice(idx + 1);
   }
-
 
   async function setOrderStatus(orderId, targetCode) {
     const res = await fetch(`/kiosk/api/order/${orderId}/set-status`, {
@@ -439,9 +439,12 @@ window.kioskState = {
   }
 
   function applyFilterAndRender() {
-    const filtered = (currentRouteFilter === "__all__")
-      ? lastOrders
-      : lastOrders.filter(o => String(o.route_id) === String(currentRouteFilter));
+    const filter = kioskState.currentRouteFilter || "__all__";
+    const cards = Array.isArray(kioskState.lastCards) ? kioskState.lastCards : [];
+
+    const filtered = (filter === "__all__")
+      ? cards
+      : cards.filter(c => String(c.route_id) === String(filter));
 
     // reset colonne
     document.querySelectorAll(".kiosk-col").forEach(col => {
@@ -453,14 +456,14 @@ window.kioskState = {
 
     const counts = {};
 
-    for (const o of filtered) {
-      const col = document.querySelector(
-        `.kiosk-col[data-status="${o.status}"] .kiosk-col__body`
+    for (const vm of filtered) {
+      const body = document.querySelector(
+        `.kiosk-col[data-status="${vm.status}"] .kiosk-col__body`
       );
-      if (!col) continue;
+      if (!body) continue;
 
-      col.appendChild(buildCard(o));
-      counts[o.status] = (counts[o.status] || 0) + 1;
+      body.appendChild(buildCard(vm));
+      counts[vm.status] = (counts[vm.status] || 0) + 1;
     }
 
     // empty + badge
@@ -488,7 +491,7 @@ window.kioskState = {
       if (!btn) return;
 
       const route = btn.getAttribute("data-filter-route");
-      currentRouteFilter = route || "__all__";
+      kioskState.currentRouteFilter = route || "__all__";
 
       $all(".route-pill").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
@@ -538,8 +541,8 @@ window.kioskState = {
       const rb = (b.route_name || "").toLowerCase();
       if (ra !== rb) return ra.localeCompare(rb);
 
-      const sa = statusRank[a.status] ?? 99;
-      const sb = statusRank[b.status] ?? 99;
+      const sa = kioskState.statusRank[a.status] ?? 99;
+      const sb = kioskState.statusRank[b.status] ?? 99;
       if (sa !== sb) return sa - sb;
 
       const ca = (a.customer_display || "").toLowerCase();
@@ -595,7 +598,9 @@ window.kioskState = {
           route_id: primary.route_id,
           route_name: primary.route_name,
           route_color: primary.route_color,
+          route_name: primary.route_name,
           customer_display: primary.customer_display,
+          route_color: primary.route_color,
         });
       }
     }
@@ -605,8 +610,8 @@ window.kioskState = {
       const rb = (b.route_name || "").toLowerCase();
       if (ra !== rb) return ra.localeCompare(rb);
 
-      const sa = statusRank[a.status] ?? 99;
-      const sb = statusRank[b.status] ?? 99;
+      const sa = kioskState.statusRank[a.status] ?? 99;
+      const sb = kioskState.statusRank[b.status] ?? 99;
       if (sa !== sb) return sa - sb;
 
       const ca = (a.customer_display || "").toLowerCase();
@@ -659,7 +664,7 @@ window.kioskState = {
       updatePillsFromBoards(json);
 
       const flat = flattenBoardsToOrders(json);
-      lastCards = buildCardViewModels(flat);
+      kioskState.lastCards = buildCardViewModels(flat);
 
       applyFilterAndRender();
     } catch (err) {
@@ -675,7 +680,7 @@ window.kioskState = {
     if (btn) btn.addEventListener("click", loadAndRender);
 
     (async () => {
-      await loadStatuses();   // <-- OBBLIGATORIO
+      await loadStatuses();
       await loadAndRender();
     })();
 
