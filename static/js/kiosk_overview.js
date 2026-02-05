@@ -55,20 +55,26 @@ window.kioskState = {
   }
 
   function renderColumnsFromStatuses() {
-    const colsWrap = document.querySelector(".kiosk-cols");
-    if (!colsWrap) return;
+    const wrap = document.querySelector(".kiosk-cols");
+    if (!wrap) return;
 
-    colsWrap.innerHTML = statusMeta.map(s => `
-      <div class="kiosk-col" data-status="${escapeHtml(s.code)}">
+    wrap.innerHTML = "";
+
+    kioskState.statusMeta.forEach(st => {
+      const col = document.createElement("div");
+      col.className = "kiosk-col";
+      col.dataset.status = st.code;
+
+      col.innerHTML = `
         <div class="kiosk-col__head">
-          <span class="kiosk-col__title">${escapeHtml(s.label)}</span>
-          <span class="badge bg-secondary" id="count-${escapeHtml(s.code)}">0</span>
+          <span class="kiosk-col__title">${st.label}</span>
+          <span class="badge bg-secondary" data-count="${st.code}">0</span>
         </div>
-        <div class="kiosk-col__body" id="col-${escapeHtml(s.code)}">
-          <div class="kiosk-empty">Nessun ordine</div>
-        </div>
-      </div>
-    `).join("");
+        <div class="kiosk-col__body"></div>
+      `;
+
+      wrap.appendChild(col);
+    });
   }
 
   async function loadStatuses() {
@@ -433,41 +439,44 @@ window.kioskState = {
   }
 
   function applyFilterAndRender() {
-    const filteredCards = (currentRouteFilter === "__all__")
-      ? lastCards
-      : lastCards.filter(c => String(c.route_id) === String(currentRouteFilter));
+    const filtered = (currentRouteFilter === "__all__")
+      ? lastOrders
+      : lastOrders.filter(o => String(o.route_id) === String(currentRouteFilter));
 
     // reset colonne
-    for (const s of statusList) {
-      const col = document.getElementById(`col-${s}`);
-      if (!col) continue;
-      col.innerHTML = "";
-    }
+    document.querySelectorAll(".kiosk-col").forEach(col => {
+      const body = col.querySelector(".kiosk-col__body");
+      if (body) body.innerHTML = "";
+      const badge = col.querySelector("[data-count]");
+      if (badge) badge.textContent = "0";
+    });
 
     const counts = {};
-    statusList.forEach(s => { counts[s] = 0; });
 
-    for (const vm of filteredCards) {
-      const st = vm.status;
-      if (!statusList.includes(st)) continue;
-      const col = document.getElementById(`col-${st}`);
+    for (const o of filtered) {
+      const col = document.querySelector(
+        `.kiosk-col[data-status="${o.status}"] .kiosk-col__body`
+      );
       if (!col) continue;
-      col.appendChild(buildCard(vm));
-      counts[st] += 1; // conta le card
+
+      col.appendChild(buildCard(o));
+      counts[o.status] = (counts[o.status] || 0) + 1;
     }
 
-    for (const s of statusList) {
-      const col = document.getElementById(`col-${s}`);
-      if (!col) continue;
-      if (col.children.length === 0) col.innerHTML = `<div class="kiosk-empty">Nessun ordine</div>`;
-      const badge = document.getElementById(`count-${s}`);
-      if (badge) badge.textContent = String(counts[s] || 0);
-    }
+    // empty + badge
+    document.querySelectorAll(".kiosk-col").forEach(col => {
+      const status = col.dataset.status;
+      const body = col.querySelector(".kiosk-col__body");
+      const badge = col.querySelector("[data-count]");
 
-    // pill totale = totale ordini (non card)
-    const totalOrders = filteredCards.reduce((acc, c) => acc + (c.orders ? c.orders.length : 0), 0);
-    const pillTotal = $("#pill-total");
-    if (pillTotal) pillTotal.textContent = String(totalOrders);
+      if (body && body.children.length === 0) {
+        body.innerHTML = `<div class="kiosk-empty">Nessun ordine</div>`;
+      }
+      if (badge) badge.textContent = counts[status] || 0;
+    });
+
+    const pillTotal = document.getElementById("pill-total");
+    if (pillTotal) pillTotal.textContent = filtered.length;
   }
 
   function hookFilters() {
