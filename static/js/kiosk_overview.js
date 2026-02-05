@@ -115,15 +115,11 @@ window.kioskState = {
     }
   }
 
-  function statusOptionsFor(currentCode) {
-    const meta = kioskState.statusMeta;
-    if (!Array.isArray(meta) || !meta.length) return [];
-
-    const idx = meta.findIndex(s => s.code === currentCode);
-    if (idx === -1) return [];
-
-    return meta.slice(idx + 1);
-  }
+function statusOptionsFor(currentCode) {
+  const meta = kioskState.statusMeta;
+  if (!Array.isArray(meta) || !meta.length) return [];
+  return meta.filter(s => s.code !== currentCode);
+}
 
   async function setOrderStatus(orderId, targetCode) {
     const res = await fetch(`/kiosk/api/order/${orderId}/set-status`, {

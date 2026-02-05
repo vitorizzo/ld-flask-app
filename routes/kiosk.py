@@ -39,9 +39,18 @@ def _next_delivery_dt(route: DeliveryRoute, now: datetime) -> datetime | None:
 
 
 def _delivery_window(delivery_dt: datetime):
+    """
+    Restituisce start/end del giorno di delivery_dt preservando tzinfo se presente.
+    """
+    if getattr(delivery_dt, "tzinfo", None) is not None:
+        start = delivery_dt.replace(hour=0, minute=0, second=0, microsecond=0)
+        end = start + timedelta(days=1)
+        return start, end
+
     start = datetime.combine(delivery_dt.date(), datetime.min.time())
     end = start + timedelta(days=1)
     return start, end
+
 
 
 def _route_light_color(route_id: int) -> str:
