@@ -2,7 +2,7 @@ import logging
 import hashlib
 from datetime import datetime, timezone, timedelta
 
-from flask import Blueprint, request, make_response, jsonify, render_template, abort
+from flask import Blueprint, request, make_response, jsonify, render_template
 from flask_login import login_required
 from sqlalchemy import func
 
@@ -14,6 +14,7 @@ from models import SlackOrder, SlackOrderEvent, DeliveryRoute, OrderStatus
 kiosk_bp = Blueprint("kiosk", __name__, url_prefix="/kiosk")
 logger = get_logger("kiosk", level=logging.INFO)
 
+# Legacy fallback (non deve più pilotare le colonne: ora sono dinamiche da DB)
 STATUS_ORDER = ["acquisito", "listato", "controllato", "evaso"]
 
 
@@ -52,18 +53,14 @@ def _delivery_window(delivery_dt: datetime):
     return start, end
 
 
-
 def _route_light_color(route_id: int) -> str:
     """
     Colore LIGHT deterministico per giro, senza colonna DB.
     Ritorna un esadecimale tipo #RRGGBB con luminanza alta.
     """
-    # hash -> hue 0..359
     h = hashlib.sha1(str(route_id).encode("utf-8")).hexdigest()
     hue = int(h[:4], 16) % 360
 
-    # HSL -> RGB (light palette)
-    # S ~ 70%, L ~ 92%
     s = 0.70
     l = 0.92
 
@@ -96,7 +93,6 @@ def _route_light_color(route_id: int) -> str:
 def _is_today_local(dt: datetime | None) -> bool:
     if not dt:
         return False
-    # planned_delivery_at in DB è verosimilmente naive UTC o timezone-aware: best effort
     try:
         local = dt.astimezone()
     except Exception:
@@ -128,8 +124,7 @@ Auto refresh ogni 10s
 @kiosk_bp.get("/api/routes")
 def kiosk_api_routes():
     routes = (
-        DeliveryRoute.query
-        .filter_by(is_active=True)
+        DeliveryRoute.query.filter_by(is_active=True)
         .order_by(DeliveryRoute.name.asc())
         .all()
     )
@@ -154,86 +149,6 @@ def kiosk_api_board(route_id: int):
     return jsonify(payload), 200
 
 
-# @kiosk_bp.get("/api/board/<int:route_id>")
-# def kiosk_api_board(route_id: int):
-#     """
-#     Ritorna gli ordini del prossimo giro (planned_delivery_at minimo >= now) per il route.
-#     Raggruppa per status e include note_count + msg_count + has_issues.
-#     """
-#     now = datetime.utcnow()
-#     route = DeliveryRoute.query.get(route_id)
-#     if not route or not route.is_active:
-#         return jsonify({"error": "route_not_found"}), 404
-#
-#     delivery_dt = _next_delivery_dt(route, now)
-#     if not delivery_dt:
-#         return jsonify({
-#             "route": {"id": route.id, "name": route.name},
-#             "delivery_dt": None,
-#             "groups": {s: [] for s in STATUS_ORDER},
-#         }), 200
-#
-#     start, end = _delivery_window(delivery_dt)
-#
-#     note_counts_sq = (
-#         db.session.query(
-#             SlackOrderEvent.order_id.label("order_id"),
-#             func.count().label("note_count"),
-#         )
-#         .filter(SlackOrderEvent.type == "note")
-#         .group_by(SlackOrderEvent.order_id)
-#         .subquery()
-#     )
-#
-#     msg_counts_sq = (
-#         db.session.query(
-#             SlackOrderEvent.order_id.label("order_id"),
-#             func.count().label("msg_count"),
-#         )
-#         .filter(SlackOrderEvent.type.in_(["created", "append_text"]))
-#         .group_by(SlackOrderEvent.order_id)
-#         .subquery()
-#     )
-#
-#     rows = (
-#         db.session.query(
-#             SlackOrder,
-#             func.coalesce(note_counts_sq.c.note_count, 0).label("note_count"),
-#             func.coalesce(msg_counts_sq.c.msg_count, 0).label("msg_count"),
-#         )
-#         .outerjoin(note_counts_sq, note_counts_sq.c.order_id == SlackOrder.id)
-#         .outerjoin(msg_counts_sq, msg_counts_sq.c.order_id == SlackOrder.id)
-#         .filter(
-#             SlackOrder.route_id == route.id,
-#             SlackOrder.planned_delivery_at >= start,
-#             SlackOrder.planned_delivery_at < end,
-#         )
-#         .order_by(SlackOrder.status.asc(), SlackOrder.customer_display.asc())
-#         .all()
-#     )
-#
-#     groups = {s: [] for s in STATUS_ORDER}
-#     for order, note_count, msg_count in rows:
-#         payload = {
-#             "id": order.id,
-#             "customer": order.customer_display,
-#             "status": order.status,
-#             "has_issues": bool(order.has_issues),
-#             "note_count": int(note_count or 0),
-#             "msg_count": int(msg_count or 0),
-#             "planned_delivery_at": order.planned_delivery_at.isoformat() if order.planned_delivery_at else None,
-#             "created_at": order.created_at.isoformat() if order.created_at else None,
-#             "raw_text": order.raw_text or "",
-#         }
-#         groups.setdefault(order.status, []).append(payload)
-#
-#     return jsonify({
-#         "route": {"id": route.id, "name": route.name},
-#         "delivery_dt": delivery_dt.isoformat(),
-#         "groups": groups,
-#     }), 200
-
-
 @kiosk_bp.get("/api/order/<int:order_id>")
 def kiosk_api_order(order_id: int):
     """
@@ -249,8 +164,7 @@ def kiosk_api_order(order_id: int):
     route = DeliveryRoute.query.get(order.route_id) if order.route_id else None
 
     events = (
-        SlackOrderEvent.query
-        .filter(SlackOrderEvent.order_id == order.id)
+        SlackOrderEvent.query.filter(SlackOrderEvent.order_id == order.id)
         .order_by(SlackOrderEvent.created_at.asc())
         .all()
     )
@@ -258,7 +172,6 @@ def kiosk_api_order(order_id: int):
     children = []
     thread_notes = []
 
-    # best-effort: payload potrebbe contenere "text"
     for ev in events:
         if ev.type in ("created", "append_text"):
             txt = ""
@@ -267,11 +180,13 @@ def kiosk_api_order(order_id: int):
                     txt = ev.payload.get("text", "") or ev.payload.get("raw_text", "") or ""
             except Exception:
                 txt = ""
-            children.append({
-                "label": ev.type,
-                "ts": ev.created_at.isoformat() if ev.created_at else "",
-                "text": txt,
-            })
+            children.append(
+                {
+                    "label": ev.type,
+                    "ts": ev.created_at.isoformat() if ev.created_at else "",
+                    "text": txt,
+                }
+            )
 
         if ev.type == "note":
             txt = ""
@@ -280,40 +195,45 @@ def kiosk_api_order(order_id: int):
                     txt = ev.payload.get("text", "") or ""
             except Exception:
                 txt = ""
-            thread_notes.append({
-                "at": ev.created_at.isoformat() if ev.created_at else "",
-                "text": txt,
-            })
+            thread_notes.append(
+                {
+                    "at": ev.created_at.isoformat() if ev.created_at else "",
+                    "text": txt,
+                }
+            )
 
-    # conteggi coerenti con overview
     notes_count = sum(1 for e in events if e.type == "note")
     multi_count = sum(1 for e in events if e.type in ("created", "append_text"))
     issues_count = 1 if bool(order.has_issues) else 0
 
-    return jsonify({
-        "id": order.id,
-        "route_id": order.route_id,
-        "route_name": route.name if route else "",
-        "route_color": _route_light_color(route.id) if route else "#f1f3f5",
-        "customer_display": order.customer_display,
-        "status": order.status,
-        "raw_text": order.raw_text or "",
-        "planned_delivery_at": order.planned_delivery_at.isoformat() if order.planned_delivery_at else None,
-        "created_at": order.created_at.isoformat() if order.created_at else None,
-        "closed_at": order.closed_at.isoformat() if order.closed_at else None,
-        "multi_count": multi_count,
-        "notes_count": notes_count,
-        "issues_count": issues_count,
-        "children": children,
-        "thread_notes": thread_notes,
-    }), 200
+    return (
+        jsonify(
+            {
+                "id": order.id,
+                "route_id": order.route_id,
+                "route_name": route.name if route else "",
+                "route_color": _route_light_color(route.id) if route else "#f1f3f5",
+                "customer_display": order.customer_display,
+                "status": order.status,
+                "raw_text": order.raw_text or "",
+                "planned_delivery_at": order.planned_delivery_at.isoformat()
+                if order.planned_delivery_at
+                else None,
+                "created_at": order.created_at.isoformat() if order.created_at else None,
+                "closed_at": order.closed_at.isoformat() if order.closed_at else None,
+                "multi_count": multi_count,
+                "notes_count": notes_count,
+                "issues_count": issues_count,
+                "children": children,
+                "thread_notes": thread_notes,
+            }
+        ),
+        200,
+    )
 
 
 @kiosk_bp.get("/board/<int:route_id>")
 def kiosk_board(route_id: int):
-    """
-    Placeholder (board singola): la teniamo minimale.
-    """
     client_ip = _best_effort_client_ip()
     now = datetime.now(timezone.utc).astimezone()
     html = f"""
@@ -337,8 +257,7 @@ def _evaded_today_by_event(order_id: int) -> bool:
     Fallback: False se non troviamo eventi.
     """
     candidates = (
-        SlackOrderEvent.query
-        .filter(
+        SlackOrderEvent.query.filter(
             SlackOrderEvent.order_id == order_id,
             SlackOrderEvent.type.in_(["status_change", "status_changed", "status_update"]),
         )
@@ -354,6 +273,7 @@ def _evaded_today_by_event(order_id: int) -> bool:
             ev.payload.get("to_status")
             or ev.payload.get("new_status")
             or ev.payload.get("status")
+            or ev.payload.get("to")
         )
         if new_status == "evaso":
             return _is_today_local(ev.created_at)
@@ -364,22 +284,18 @@ def _evaded_today_by_event(order_id: int) -> bool:
 @kiosk_bp.get("/board/all")
 def kiosk_board_all():
     """
-    Overview server-side:
-    - mostra SOLO DeliveryRoute attive
-    - per ogni route prende il "prossimo giro" (min planned_delivery_at >= now) e include gli ordini di quel giorno
-    - gli ordini in status=evaso vengono mostrati SOLO se planned_delivery_at è nella data odierna (local)
+    Overview server-side (template):
+    NOTA: questa view non è la fonte dati dell’iframe (che usa /api/board/all),
+    ma la teniamo coerente: mostra tutti i non-evasi + evasi di oggi.
     """
     now_local = datetime.now(timezone.utc).astimezone()
-    now_utc_naive = datetime.utcnow()
 
     routes = (
-        DeliveryRoute.query
-        .filter_by(is_active=True)
+        DeliveryRoute.query.filter_by(is_active=True)
         .order_by(DeliveryRoute.name.asc())
         .all()
     )
 
-    # subquery conteggi eventi (note / msg)
     note_counts_sq = (
         db.session.query(
             SlackOrderEvent.order_id.label("order_id"),
@@ -404,67 +320,73 @@ def kiosk_board_all():
     total_orders = 0
 
     for r in routes:
-        delivery_dt = _next_delivery_dt(r, now_utc_naive)
         r_color = _route_light_color(r.id)
 
-        if delivery_dt:
-            start, end = _delivery_window(delivery_dt)
-
-            rows = (
-                db.session.query(
-                    SlackOrder,
-                    func.coalesce(note_counts_sq.c.note_count, 0).label("note_count"),
-                    func.coalesce(msg_counts_sq.c.msg_count, 0).label("msg_count"),
-                )
-                .outerjoin(note_counts_sq, note_counts_sq.c.order_id == SlackOrder.id)
-                .outerjoin(msg_counts_sq, msg_counts_sq.c.order_id == SlackOrder.id)
-                .filter(
-                    SlackOrder.route_id == r.id,
-                    SlackOrder.planned_delivery_at >= start,
-                    SlackOrder.planned_delivery_at < end,
-                )
-                .order_by(SlackOrder.status.asc(), SlackOrder.customer_display.asc())
-                .all()
+        rows = (
+            db.session.query(
+                SlackOrder,
+                func.coalesce(note_counts_sq.c.note_count, 0).label("note_count"),
+                func.coalesce(msg_counts_sq.c.msg_count, 0).label("msg_count"),
             )
-        else:
-            rows = []
+            .outerjoin(note_counts_sq, note_counts_sq.c.order_id == SlackOrder.id)
+            .outerjoin(msg_counts_sq, msg_counts_sq.c.order_id == SlackOrder.id)
+            .filter(SlackOrder.route_id == r.id)
+            .order_by(
+                SlackOrder.status.asc(),
+                SlackOrder.planned_delivery_at.asc().nullslast(),
+                SlackOrder.customer_display.asc(),
+            )
+            .all()
+        )
 
-        # filtro evaso: solo se oggi
         filtered_rows = []
         for order, note_count, msg_count in rows:
-            if order.status == "evaso" and not _is_today_local(order.closed_at):
-                continue
+            if order.status == "evaso":
+                # mostra evasi solo se "oggi"
+                if order.closed_at:
+                    if not _is_today_local(order.closed_at):
+                        continue
+                else:
+                    if not _evaded_today_by_event(order.id):
+                        continue
             filtered_rows.append((order, note_count, msg_count))
 
-        routes_out.append({
-            "id": r.id,
-            "name": r.name,
-            "color": r_color,
-            "count": len(filtered_rows),
-        })
+        routes_out.append(
+            {
+                "id": r.id,
+                "name": r.name,
+                "color": r_color,
+                "count": len(filtered_rows),
+            }
+        )
 
         for order, note_count, msg_count in filtered_rows:
             total_orders += 1
-            orders_out.append({
-                "id": order.id,
-                "route_id": r.id,
-                "route_name": r.name,
-                "route_color": r_color,
-                "customer_display": order.customer_display,
-                "status": order.status,
-                "multi_count": int(msg_count or 0),
-                "notes_count": int(note_count or 0),
-                "issues_count": 1 if bool(order.has_issues) else 0,
-                "preview": (order.raw_text or "").strip().splitlines()[0][:120] if (order.raw_text or "").strip() else "",
-            })
+            orders_out.append(
+                {
+                    "id": order.id,
+                    "route_id": r.id,
+                    "route_name": r.name,
+                    "route_color": r_color,
+                    "customer_display": order.customer_display,
+                    "status": order.status,
+                    "multi_count": int(msg_count or 0),
+                    "notes_count": int(note_count or 0),
+                    "issues_count": 1 if bool(order.has_issues) else 0,
+                    "preview": (order.raw_text or "").strip().splitlines()[0][:120]
+                    if (order.raw_text or "").strip()
+                    else "",
+                }
+            )
 
-    # ordinamento globale (prima per giro, poi status, poi cliente) -> mantiene consistenza visiva
     status_rank = {s: i for i, s in enumerate(STATUS_ORDER)}
-    orders_out.sort(key=lambda o: (
-        o["route_name"].lower(),
-        status_rank.get(o["status"], 999),
-        (o["customer_display"] or "").lower()
-    ))
+    orders_out.sort(
+        key=lambda o: (
+            o["route_name"].lower(),
+            status_rank.get(o["status"], 999),
+            (o["customer_display"] or "").lower(),
+        )
+    )
 
     return render_template(
         "kiosk_overview.html",
@@ -496,56 +418,17 @@ def kiosk_api_board_all():
         payload["route"]["color"] = _route_light_color(r.id)
         boards.append(payload)
 
-    return jsonify({
-        "only_active": only_active,
-        "show_closed_today": show_closed_today,
-        "boards": boards,
-        "server_now": datetime.now().isoformat(timespec="seconds"),
-    }), 200
-
-
-# @kiosk_bp.get("/api/board/all")
-# def kiosk_api_board_all():
-#     only_active = request.args.get("only_active", "1") == "1"
-#     show_closed_today = request.args.get("show_closed_today", "1") == "1"
-#
-#     # IMPORTA QUI i tuoi model/DB accessor reali
-#     from models import DeliveryRoute
-#     from extensions import db
-#
-#     routes_q = db.session.query(DeliveryRoute).filter(DeliveryRoute.is_active.is_(True)).order_by(DeliveryRoute.id.asc())
-#     routes = routes_q.all()
-#
-#     boards = []
-#     for r in routes:
-#         # 1) Se hai già una funzione che costruisce la board singola, riusala
-#         if "build_board_payload" in globals():
-#             payload = build_board_payload(
-#                 route_id=r.id,
-#                 only_active=only_active,
-#                 show_closed_today=show_closed_today,
-#             )
-#         else:
-#             # 2) Altrimenti: richiama la stessa logica della tua /api/board/<id>
-#             #    (qui devi rimpiazzare con la tua funzione reale)
-#             payload = _build_board_payload_like_single_endpoint(
-#                 route_id=r.id,
-#                 only_active=only_active,
-#                 show_closed_today=show_closed_today,
-#             )
-#
-#         # payload deve contenere groups + delivery_dt; assicuriamo route
-#         payload["route"] = {"id": r.id, "name": r.name, "color": getattr(r, "color", "#f1f3f5")}
-#         boards.append(payload)
-#
-#     return jsonify({
-#         "only_active": only_active,
-#         "show_closed_today": show_closed_today,
-#         "boards": boards,
-#         "server_now": datetime.now().isoformat(timespec="seconds"),
-#     })
-
-# routes/magazzino.py (o dove tieni le route del menu magazzino)
+    return (
+        jsonify(
+            {
+                "only_active": only_active,
+                "show_closed_today": show_closed_today,
+                "boards": boards,
+                "server_now": datetime.now().isoformat(timespec="seconds"),
+            }
+        ),
+        200,
+    )
 
 
 @kiosk_bp.route("/kiosk-ordini")
@@ -556,16 +439,16 @@ def kiosk_ordini_embed():
 
 def build_board_payload(route_id: int, show_closed_today: bool = True):
     """
-    Board per route:
+    Board per route (API):
     - mostra SEMPRE tutti gli ordini NON evasi
     - mostra gli evasi SOLO se evasi oggi (se show_closed_today=True)
-    NON usa più la finestra del "prossimo giro" per filtrare: evita ordini che spariscono.
+    - NON usa più la finestra del "prossimo giro": evita ordini che spariscono (inclusi default_weekday=0).
+    - groups NON è più hardcoded: le chiavi arrivano dagli status presenti nei dati.
     """
     route = DeliveryRoute.query.get(route_id)
     if not route or not route.is_active:
         return None
 
-    # conteggi eventi (note / msg)
     note_counts_sq = (
         db.session.query(
             SlackOrderEvent.order_id.label("order_id"),
@@ -586,7 +469,6 @@ def build_board_payload(route_id: int, show_closed_today: bool = True):
         .subquery()
     )
 
-    # PRENDE TUTTO il route (niente delivery-window)
     rows = (
         db.session.query(
             SlackOrder,
@@ -604,30 +486,46 @@ def build_board_payload(route_id: int, show_closed_today: bool = True):
         .all()
     )
 
-    groups = {s: [] for s in STATUS_ORDER}
+    # IMPORTANTE: non hardcodare più le colonne qui
+    groups = {}
 
     for order, note_count, msg_count in rows:
-        # Evasi: mostrali solo se evasi oggi (se richiesto)
         if order.status == "evaso":
-            if show_closed_today:
-                if not _evaded_today_by_event(order.id):
-                    continue
-            else:
+            if not show_closed_today:
                 continue
 
-        groups.setdefault(order.status, []).append({
-            "id": order.id,
-            "customer": order.customer_display,
-            "status": order.status,
-            "has_issues": bool(order.has_issues),
-            "note_count": int(note_count or 0),
-            "msg_count": int(msg_count or 0),
-            "planned_delivery_at": order.planned_delivery_at.isoformat() if order.planned_delivery_at else None,
-            "created_at": order.created_at.isoformat() if order.created_at else None,
-            "raw_text": order.raw_text or "",
-        })
+            # Preferisci closed_at (se presente)
+            if order.closed_at:
+                if not _is_today_local(order.closed_at):
+                    continue
+            else:
+                # fallback vecchio: evento
+                if not _evaded_today_by_event(order.id):
+                    continue
 
-    # delivery_dt rimane informativo (per UI), ma non filtra più nulla
+        groups.setdefault(order.status, []).append(
+            {
+                "id": order.id,
+                "customer": order.customer_display,
+                "status": order.status,
+                "has_issues": bool(order.has_issues),
+                "note_count": int(note_count or 0),
+                "msg_count": int(msg_count or 0),
+                "planned_delivery_at": order.planned_delivery_at.isoformat()
+                if order.planned_delivery_at
+                else None,
+                "created_at": order.created_at.isoformat() if order.created_at else None,
+                "raw_text": order.raw_text or "",
+                # campi per grouping client-side
+                "delivery_label": order.planned_delivery_at.strftime("%d/%m %H:%M")
+                if order.planned_delivery_at
+                else "",
+                "group_key": f"{route.id}|{(order.planned_delivery_at.date().isoformat() if order.planned_delivery_at else '')}|{(order.customer_norm or '').strip()}",
+                "group_seq": getattr(order, "group_seq", 1) or 1,
+                "group_size": getattr(order, "group_size", 1) or 1,
+            }
+        )
+
     now = datetime.utcnow()
     delivery_dt = _next_delivery_dt(route, now)
 
@@ -641,21 +539,25 @@ def build_board_payload(route_id: int, show_closed_today: bool = True):
 @kiosk_bp.get("/api/statuses")
 def kiosk_api_statuses():
     statuses = (
-        OrderStatus.query
-        .filter_by(is_visible=True)
+        OrderStatus.query.filter_by(is_visible=True)
         .order_by(OrderStatus.order_index.asc())
         .all()
     )
 
-    return jsonify([
-        {
-            "code": s.code,
-            "label": s.label,
-            "order_index": s.order_index,
-            "is_terminal": s.is_terminal,
-        }
-        for s in statuses
-    ]), 200
+    return (
+        jsonify(
+            [
+                {
+                    "code": s.code,
+                    "label": s.label,
+                    "order_index": s.order_index,
+                    "is_terminal": s.is_terminal,
+                }
+                for s in statuses
+            ]
+        ),
+        200,
+    )
 
 
 def _normalize_reaction_name(s: str | None) -> str:
@@ -677,6 +579,10 @@ def kiosk_api_set_status(order_id: int):
     Richiede cambio stato ordine + feedback su Slack tramite reaction.
     Body JSON:
       { "status": "listato" }
+
+    NOTA: ora consente:
+    - salto di più stati (es. acquisito -> evaso)
+    - ritorno indietro (es. controllato -> listato)
     """
     data = request.get_json(silent=True) or {}
     target_code = (data.get("status") or "").strip()
@@ -687,53 +593,40 @@ def kiosk_api_set_status(order_id: int):
     if not order:
         return jsonify({"error": "order_not_found"}), 404
 
-    # Stato target da DB
     target = OrderStatus.query.filter_by(code=target_code).first()
     if not target:
         return jsonify({"error": "invalid_status", "status": target_code}), 400
 
-    # Reaction associata allo stato
     reaction = _normalize_reaction_name(target.slack_reaction)
     if not reaction:
         return jsonify({"error": "status_has_no_reaction", "status": target_code}), 409
 
-    # Canale + timestamp root su cui applicare la reaction
     channel_id = (order.slack_channel_id or "").strip()
     root_ts = (order.slack_thread_ts or order.slack_message_ts or "").strip()
     if not channel_id or not root_ts:
-        return jsonify({
-            "error": "order_missing_slack_refs",
-            "details": {"slack_channel_id": bool(channel_id), "root_ts": bool(root_ts)}
-        }), 409
+        return jsonify(
+            {
+                "error": "order_missing_slack_refs",
+                "details": {"slack_channel_id": bool(channel_id), "root_ts": bool(root_ts)},
+            }
+        ), 409
 
-    # Regola "solo upgrade" usando order_index (fallback a 0 se stato non censito)
-    current = OrderStatus.query.filter_by(code=order.status).first()
-    current_idx = int(current.order_index) if current else 0
-    target_idx = int(target.order_index)
+    # Audit richiesta
+    db.session.add(
+        SlackOrderEvent(
+            order_id=order.id,
+            type="status_request",
+            payload={
+                "from": order.status,
+                "to": target_code,
+                "via": "kiosk_api",
+                "reaction": reaction,
+                "user_id": getattr(getattr(request, "user", None), "id", None),
+            },
+        )
+    )
 
-    if target_idx <= current_idx:
-        return jsonify({
-            "error": "not_an_upgrade",
-            "current_status": order.status,
-            "target_status": target_code,
-            "current_index": current_idx,
-            "target_index": target_idx,
-        }), 409
-
-    # Registra richiesta (audit)
-    db.session.add(SlackOrderEvent(
-        order_id=order.id,
-        type="status_request",
-        payload={
-            "from": order.status,
-            "to": target_code,
-            "via": "kiosk_api",
-            "reaction": reaction,
-            "user_id": getattr(getattr(request, "user", None), "id", None),  # best-effort (può essere None)
-        }
-    ))
-
-    # 1) Aggiungi reaction su Slack
+    # 1) Aggiungi reaction su Slack (non rimuoviamo le precedenti: per ora è feedback/trace)
     try:
         sp = SlackProcessor()
         api = sp._get_api()
@@ -743,32 +636,44 @@ def kiosk_api_set_status(order_id: int):
         db.session.rollback()
         return jsonify({"error": "slack_reaction_failed", "details": str(e)}), 502
 
-    # 2) Aggiorna DB subito (UI reattiva). Slack webhook confermerà/replicherà.
+    # 2) Aggiorna DB subito (UI reattiva)
     old = order.status
     order.status = target_code
-    if target.is_terminal and not order.closed_at:
-        order.closed_at = datetime.utcnow()
 
-    db.session.add(SlackOrderEvent(
-        order_id=order.id,
-        type="status_change",
-        payload={
-            "from": old,
-            "to": target_code,
-            "via": "kiosk_api",
-            "reaction": reaction,
-            "root_ts": root_ts,
-            "channel": channel_id,
-        }
-    ))
+    # closed_at coerente: se terminale lo settiamo, se non terminale lo svuotiamo
+    if target.is_terminal:
+        if not order.closed_at:
+            order.closed_at = datetime.utcnow()
+    else:
+        order.closed_at = None
+
+    db.session.add(
+        SlackOrderEvent(
+            order_id=order.id,
+            type="status_change",
+            payload={
+                "from": old,
+                "to": target_code,
+                "via": "kiosk_api",
+                "reaction": reaction,
+                "root_ts": root_ts,
+                "channel": channel_id,
+            },
+        )
+    )
 
     db.session.commit()
 
-    return jsonify({
-        "ok": True,
-        "order_id": order.id,
-        "from": old,
-        "to": target_code,
-        "reaction": reaction,
-        "closed_at": order.closed_at.isoformat() if order.closed_at else None,
-    }), 200
+    return (
+        jsonify(
+            {
+                "ok": True,
+                "order_id": order.id,
+                "from": old,
+                "to": target_code,
+                "reaction": reaction,
+                "closed_at": order.closed_at.isoformat() if order.closed_at else None,
+            }
+        ),
+        200,
+    )
