@@ -1,3 +1,12 @@
+// =====================
+// KIOSK SHARED STATE
+// =====================
+window.kioskState = {
+  statusMeta: [],
+  statusList: [],
+  statusRank: {},
+};
+
 (() => {
   const API_ALL = "/kiosk/api/board/all?only_active=1&show_closed_today=1";
   const API_ORDER = (id) => `/kiosk/api/order/${id}`;
@@ -68,35 +77,31 @@
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();
-      statusMeta = Array.isArray(data) ? data : [];
+      const meta = Array.isArray(data) ? data : [];
 
-      // ordina SEMPRE per order_index
-      statusMeta.sort((a, b) => (a.order_index ?? 1e9) - (b.order_index ?? 1e9));
+      meta.sort((a, b) => (a.order_index ?? 1e9) - (b.order_index ?? 1e9));
 
-      // lista codici in ordine logico
-      statusList = statusMeta.map(s => s.code);
+      kioskState.statusMeta = meta;
+      kioskState.statusList = meta.map(s => s.code);
 
-      // rank basato sull'ordine logico, non sull'indice originale
-      statusRank = {};
-      statusMeta.forEach((s, i) => {
-        statusRank[s.code] = i;
+      kioskState.statusRank = {};
+      meta.forEach((s, i) => {
+        kioskState.statusRank[s.code] = i;
       });
 
-      // ricrea le colonne
       renderColumnsFromStatuses();
 
     } catch (e) {
       console.error("[kiosk_overview] loadStatuses error", e);
 
-      // fallback safe
-      statusMeta = [
+      kioskState.statusMeta = [
         { code: "acquisito", label: "Acquisito" },
         { code: "listato", label: "Listato" },
         { code: "controllato", label: "Controllato" },
         { code: "evaso", label: "Evaso" },
       ];
-      statusList = statusMeta.map(s => s.code);
-      statusRank = { acquisito: 0, listato: 1, controllato: 2, evaso: 3 };
+      kioskState.statusList = kioskState.statusMeta.map(s => s.code);
+      kioskState.statusRank = { acquisito: 0, listato: 1, controllato: 2, evaso: 3 };
 
       renderColumnsFromStatuses();
     }
@@ -104,14 +109,15 @@
 
 
   function statusOptionsFor(currentCode) {
-    if (!statusMeta || !statusMeta.length) return [];
+    const meta = kioskState.statusMeta;
+    if (!Array.isArray(meta) || !meta.length) return [];
 
-    const idx = statusMeta.findIndex(s => s.code === currentCode);
+    const idx = meta.findIndex(s => s.code === currentCode);
     if (idx === -1) return [];
 
-    // tutti gli stati SUCCESSIVI
-    return statusMeta.slice(idx + 1);
+    return meta.slice(idx + 1);
   }
+
 
   async function setOrderStatus(orderId, targetCode) {
     const res = await fetch(`/kiosk/api/order/${orderId}/set-status`, {
