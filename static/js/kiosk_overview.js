@@ -621,6 +621,9 @@
   }
 
   function start() {
+    document.documentElement.setAttribute("data-kiosk-js", "ok");
+    console.log("[kiosk_overview] loaded", new Date().toISOString());
+
     hookFilters();
 
     const btn = $("#btn-refresh");
