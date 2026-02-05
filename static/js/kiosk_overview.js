@@ -10,6 +10,7 @@
   let currentRouteFilter = "__all__";
   let lastCards = []; // lista di "view cards"
   let statusMeta = []; // [{code,label,order_index,is_terminal}]
+  let statusRankByCode = {};
   let refreshTimer = null;
 
   function $(sel) { return document.querySelector(sel); }
@@ -65,23 +66,42 @@
     try {
       const res = await fetch(API_STATUSES, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
       const data = await res.json();
       statusMeta = Array.isArray(data) ? data : [];
 
-      // status list + rank
-      statusList = statusMeta.map(s => s.code);
-      statusRank = {};
-      statusMeta.forEach((s, i) => { statusRank[s.code] = i; });
+      // ordina SEMPRE per order_index
+      statusMeta.sort((a, b) => (a.order_index ?? 1e9) - (b.order_index ?? 1e9));
 
-      // ricrea colonne in base agli status
+      // lista codici in ordine logico
+      statusList = statusMeta.map(s => s.code);
+
+      // rank basato sull'ordine logico, non sull'indice originale
+      statusRank = {};
+      statusMeta.forEach((s, i) => {
+        statusRank[s.code] = i;
+      });
+
+      // ricrea le colonne
       renderColumnsFromStatuses();
+
     } catch (e) {
       console.error("[kiosk_overview] loadStatuses error", e);
-      statusMeta = [];
-      statusList = ["acquisito", "listato", "controllato", "evaso"]; // fallback safe
+
+      // fallback safe
+      statusMeta = [
+        { code: "acquisito", label: "Acquisito" },
+        { code: "listato", label: "Listato" },
+        { code: "controllato", label: "Controllato" },
+        { code: "evaso", label: "Evaso" },
+      ];
+      statusList = statusMeta.map(s => s.code);
       statusRank = { acquisito: 0, listato: 1, controllato: 2, evaso: 3 };
+
+      renderColumnsFromStatuses();
     }
   }
+
 
   function statusOptionsFor(currentCode) {
     const cur = statusMeta.find(s => s.code === currentCode);
