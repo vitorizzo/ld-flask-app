@@ -2,12 +2,13 @@ import logging
 import hashlib
 from datetime import datetime, timezone, timedelta
 
-from flask import Blueprint, request, make_response, jsonify, render_template
+from flask import Blueprint, request, make_response, jsonify, render_template, abort
 from flask_login import login_required
 from sqlalchemy import func
 
 from extensions import db
 from tools.log_utils import get_logger
+from tools.slack_processor import SlackProcessor
 from models import SlackOrder, SlackOrderEvent, DeliveryRoute, OrderStatus
 
 kiosk_bp = Blueprint("kiosk", __name__, url_prefix="/kiosk")
@@ -689,3 +690,119 @@ def kiosk_api_statuses():
         }
         for s in statuses
     ]), 200
+
+
+def _normalize_reaction_name(s: str | None) -> str:
+    """
+    Accetta ':100:' oppure '100' e ritorna sempre '100' (formato slack_sdk).
+    """
+    if not s:
+        return ""
+    s = (s or "").strip()
+    if s.startswith(":") and s.endswith(":") and len(s) >= 3:
+        s = s[1:-1].strip()
+    return s
+
+
+@kiosk_bp.post("/api/order/<int:order_id>/set-status")
+@login_required
+def kiosk_api_set_status(order_id: int):
+    """
+    Richiede cambio stato ordine + feedback su Slack tramite reaction.
+    Body JSON:
+      { "status": "listato" }
+    """
+    data = request.get_json(silent=True) or {}
+    target_code = (data.get("status") or "").strip()
+    if not target_code:
+        return jsonify({"error": "missing_status"}), 400
+
+    order = SlackOrder.query.get(order_id)
+    if not order:
+        return jsonify({"error": "order_not_found"}), 404
+
+    # Stato target da DB
+    target = OrderStatus.query.filter_by(code=target_code).first()
+    if not target:
+        return jsonify({"error": "invalid_status", "status": target_code}), 400
+
+    # Reaction associata allo stato
+    reaction = _normalize_reaction_name(target.slack_reaction)
+    if not reaction:
+        return jsonify({"error": "status_has_no_reaction", "status": target_code}), 409
+
+    # Canale + timestamp root su cui applicare la reaction
+    channel_id = (order.slack_channel_id or "").strip()
+    root_ts = (order.slack_thread_ts or order.slack_message_ts or "").strip()
+    if not channel_id or not root_ts:
+        return jsonify({
+            "error": "order_missing_slack_refs",
+            "details": {"slack_channel_id": bool(channel_id), "root_ts": bool(root_ts)}
+        }), 409
+
+    # Regola "solo upgrade" usando order_index (fallback a 0 se stato non censito)
+    current = OrderStatus.query.filter_by(code=order.status).first()
+    current_idx = int(current.order_index) if current else 0
+    target_idx = int(target.order_index)
+
+    if target_idx <= current_idx:
+        return jsonify({
+            "error": "not_an_upgrade",
+            "current_status": order.status,
+            "target_status": target_code,
+            "current_index": current_idx,
+            "target_index": target_idx,
+        }), 409
+
+    # Registra richiesta (audit)
+    db.session.add(SlackOrderEvent(
+        order_id=order.id,
+        type="status_request",
+        payload={
+            "from": order.status,
+            "to": target_code,
+            "via": "kiosk_api",
+            "reaction": reaction,
+            "user_id": getattr(getattr(request, "user", None), "id", None),  # best-effort (può essere None)
+        }
+    ))
+
+    # 1) Aggiungi reaction su Slack
+    try:
+        sp = SlackProcessor()
+        api = sp._get_api()
+        api.add_reaction(channel=channel_id, timestamp=root_ts, name=reaction)
+    except Exception as e:
+        logger.exception("set-status: errore add_reaction su slack")
+        db.session.rollback()
+        return jsonify({"error": "slack_reaction_failed", "details": str(e)}), 502
+
+    # 2) Aggiorna DB subito (UI reattiva). Slack webhook confermerà/replicherà.
+    old = order.status
+    order.status = target_code
+    if target.is_terminal and not order.closed_at:
+        order.closed_at = datetime.utcnow()
+
+    db.session.add(SlackOrderEvent(
+        order_id=order.id,
+        type="status_change",
+        payload={
+            "from": old,
+            "to": target_code,
+            "via": "kiosk_api",
+            "reaction": reaction,
+            "root_ts": root_ts,
+            "channel": channel_id,
+        }
+    ))
+
+    db.session.commit()
+
+    return jsonify({
+        "ok": True,
+        "order_id": order.id,
+        "from": old,
+        "to": target_code,
+        "reaction": reaction,
+        "closed_at": order.closed_at.isoformat() if order.closed_at else None,
+    }), 200
