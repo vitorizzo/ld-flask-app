@@ -249,6 +249,18 @@ window.kioskState = {
       });
     });
 
+    // Alza lo stacking della card quando il dropdown è aperto
+    const ddToggle = div.querySelector('[data-bs-toggle="dropdown"]');
+    if (ddToggle) {
+      ddToggle.addEventListener("shown.bs.dropdown", () => {
+        div.classList.add("menu-open");
+      });
+      ddToggle.addEventListener("hidden.bs.dropdown", () => {
+        div.classList.remove("menu-open");
+      });
+    }
+
+
     div.tabIndex = 0;
     div.role = "button";
     return div;

@@ -54,7 +54,6 @@
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.75);
   border: 1px solid rgba(0, 0, 0, 0.08);
-  overflow: hidden;
   min-height: 360px;
   display: flex;
   flex-direction: column;
@@ -601,4 +600,15 @@
   top: calc(100% + 6px);
   right: 0;
   z-index: 10001;
+}
+
+/* quando il menu è aperto, la card deve stare sopra alle altre */
+.order-card.menu-open {
+  position: relative;
+  z-index: 9999;
+}
+
+/* il menu sopra anche ai bottoni "..." delle altre card */
+.order-card.menu-open .dropdown-menu {
+  z-index: 10000;
 }
