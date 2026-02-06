@@ -455,8 +455,6 @@
   right: 8px;
 }
 
-.order-card { position: relative; }
-
 /* bottone ⋯ */
 .order-actions__btn {
   width: 34px;
@@ -491,6 +489,7 @@
 
 .order-card{
   position: relative; /* necessario per il posizionamento del bottone */
+  z-index: auto;
 }
 
 .order-actions__btn{
@@ -593,11 +592,12 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  z-index: 9999;
+  z-index: 10000;
 }
 
 .order-actions__menu {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
+  z-index: 10001;
 }
