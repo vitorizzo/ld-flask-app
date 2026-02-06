@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 from flask import current_app
 from jinja2 import Template
 
-from models import SlackConnection, SlackOrder, SlackOrderEvent, DeliveryRoute
+from models import SlackConnection, SlackOrder, SlackOrderEvent, DeliveryRoute, OrderStatus
 from tools.log_utils import get_logger
 from tools.slack_api import SlackAPI, SlackAPIConfig
 from extensions import db
@@ -225,11 +225,17 @@ class SlackProcessor:
             if not reaction or not channel_id or not item_ts:
                 return
 
-            new_status = self._REACTION_TO_STATUS.get(reaction)
-            if not new_status:
-                return  # reaction non gestita per ordini
+            def _norm_reaction(x: str | None) -> str:
+                if not x:
+                    return ""
+                x = x.strip()
+                if x.startswith(":") and x.endswith(":") and len(x) >= 3:
+                    x = x[1:-1].strip()
+                return x
 
-            # Trova ordine: reaction di solito è sul messaggio root (ts=root_ts)
+            reaction_norm = _norm_reaction(reaction)
+
+            # 0) Trova ordine (di solito reaction sul root_ts = thread_ts)
             order = (
                 SlackOrder.query
                 .filter(
@@ -240,7 +246,7 @@ class SlackProcessor:
                 .first()
             )
 
-            # fallback: nel caso raro in cui thread_ts non coincida, prova su slack_message_ts
+            # fallback: a volte è sul message_ts
             if not order:
                 order = (
                     SlackOrder.query
@@ -255,27 +261,50 @@ class SlackProcessor:
             if not order:
                 return
 
+            # 1) Stato target da DB (slack_reaction può essere ':truck:' oppure 'truck')
+            target_status = None
+            statuses = (
+                OrderStatus.query
+                .filter(OrderStatus.is_visible.is_(True))
+                .all()
+            )
+
+            for s in statuses:
+                if _norm_reaction(getattr(s, "slack_reaction", None)) == reaction_norm:
+                    target_status = s
+                    break
+
+            if not target_status:
+                return  # reaction non gestita per ordini
+
+            new_status = target_status.code
+            new_rank = int(target_status.order_index or 0)
+
+            # 2) Rank corrente da DB (fallback 0)
+            current_status = OrderStatus.query.filter_by(code=order.status).first()
+            current_rank = int(current_status.order_index) if (
+                        current_status and current_status.order_index is not None) else 0
+
             # registra sempre la reaction come evento
             db.session.add(SlackOrderEvent(
                 order_id=order.id,
                 type="reaction",
                 payload={
                     "reaction": reaction,
+                    "reaction_norm": reaction_norm,
                     "user": user,
                     "item_ts": item_ts,
                     "channel": channel_id,
+                    "resolved_to": new_status,
                 },
             ))
 
-            current_rank = self._STATUS_RANK.get(order.status, 0)
-            new_rank = self._STATUS_RANK.get(new_status, 0)
-
-            # Solo upgrade
+            # 3) Solo upgrade (come prima) ma basato su order_index
             if new_rank > current_rank:
                 old_status = order.status
                 order.status = new_status
 
-                if new_status == "evaso":
+                if bool(getattr(target_status, "is_terminal", False)) and not order.closed_at:
                     order.closed_at = datetime.utcnow()
 
                 db.session.add(SlackOrderEvent(
@@ -432,7 +461,7 @@ class SlackProcessor:
             self._orders_side_effect(normalized)
         except Exception:
             # non deve mai rompere Automations V2
-            self.logger.exception("orders side-effect failed")
+            logger.exception("orders side-effect failed")
 
         # ============================================================
         # V2 — Cross-app automations (parallelo al legacy)
