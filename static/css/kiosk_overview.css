@@ -1,12 +1,11 @@
-/* Layout base */
-.kiosk-full {
-  width: 100vw;
-  max-width: none;
-}
+/* =========================
+   Layout base
+========================= */
+.kiosk-full { width: 100vw; max-width: none; }
 
 .kiosk-overview {
   padding: 16px;
-  color: #111; /* testo leggibile su sfondo chiaro */
+  color: #111;
 }
 
 /* Header */
@@ -18,47 +17,37 @@
   margin-bottom: 12px;
 }
 
-.kiosk-title {
-  font-size: 1.3rem;
-  font-weight: 700;
-}
+.kiosk-title { font-size: 1.3rem; font-weight: 700; }
+.kiosk-subtitle { font-size: 0.9rem; opacity: 0.8; }
 
-.kiosk-subtitle {
-  font-size: 0.9rem;
-  opacity: 0.8;
-}
-
-/* Griglia colonne: sempre 1 riga, scroll orizzontale se serve */
-.kiosk-cols{
+/* =========================
+   Colonne (scroll orizzontale)
+========================= */
+.kiosk-cols {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(260px, 1fr);
   gap: 12px;
 
-  /* NON andare a capo, se non ci sta -> scroll */
   overflow-x: auto;
-  overflow-y: hidden;
-  padding-bottom: 6px; /* spazio per scrollbar */
+  overflow-y: visible;          /* importante */
+  padding-bottom: 6px;
   scroll-snap-type: x mandatory;
 }
 
-@media (max-width: 1400px) {
-  .kiosk-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-@media (max-width: 800px) {
-  .kiosk-cols { grid-template-columns: 1fr; }
-}
-
-/* Colonne */
+/* Colonna */
 .kiosk-col {
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.75);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.70);
   border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+
   min-height: 360px;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
   scroll-snap-align: start;
+
+  overflow: visible;            /* importante */
   transform: none !important;
 }
 
@@ -67,18 +56,18 @@
   justify-content: space-between;
   align-items: center;
   padding: 10px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid rgba(0,0,0,0.08);
 }
 
-.kiosk-col__title {
-  font-weight: 700;
-}
+.kiosk-col__title { font-weight: 700; }
 
 .kiosk-col__body {
   padding: 10px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+
+  overflow: visible;            /* importante */
 }
 
 .kiosk-empty {
@@ -88,20 +77,66 @@
   border: 1px dashed rgba(0, 0, 0, 0.20);
 }
 
-/* Card ordine */
+/* =========================
+   Card ordine (restyle)
+========================= */
 .order-card {
   --route-bg: #f1f3f5;
-  background: var(--route-bg);
+
+  position: relative;
+  z-index: 0;                   /* base stacking */
+  overflow: visible;            /* NON hidden: altrimenti tagli il menu */
+
+  border-radius: 14px;
+  padding: 12px 12px 10px;
+
+  background: #fff;
   color: #111;
-  border-radius: 12px;
-  padding: 10px;
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+
   cursor: pointer;
+  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
 }
 
+/* barra superiore */
+.order-card::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 10px;
+  background: var(--route-bg);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+  pointer-events: none;
+}
+
+/* accento laterale */
+.order-card::after {
+  content: "";
+  position: absolute;
+  top: 10px; left: 0; bottom: 0;
+  width: 6px;
+  background: color-mix(in srgb, var(--route-bg) 70%, white);
+  opacity: 0.85;
+  border-bottom-left-radius: 14px;
+  pointer-events: none;
+}
+
+/* contenuto sopra gli pseudo-elementi */
+.order-top, .order-preview { position: relative; z-index: 1; }
+
 .order-card:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.18);
+  border-color: rgba(0, 0, 0, 0.14);
+  z-index: 20;                  /* sopra le altre card in hover */
+}
+
+/* FIX stacking: quando il <details> è aperto, porta su la card */
+.order-card:has(.order-actions[open]) {
+  z-index: 9999;
 }
 
 .order-top {
@@ -111,20 +146,21 @@
 }
 
 .order-name {
-  font-weight: 800;
-  line-height: 1.1;
+  font-weight: 900;
+  line-height: 1.15;
+  margin-top: 4px;
 }
 
 .order-meta {
   font-size: 0.85rem;
-  opacity: 0.85;
-  margin-top: 4px;
+  opacity: 0.80;
+  margin-top: 6px;
 }
 
 .order-preview {
-  margin-top: 8px;
+  margin-top: 10px;
   font-size: 0.9rem;
-  opacity: 0.9;
+  opacity: 0.85;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -132,12 +168,12 @@
 
 /* Badge route e contatori */
 .badge-route {
-  background: rgba(0,0,0,0.75);
+  background: rgba(0,0,0,0.72);
   color: #fff;
-  border-radius: 10px;
-  padding: 3px 8px;
-  font-size: 0.75rem;
-  font-weight: 700;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 800;
 }
 
 .order-badges {
@@ -161,13 +197,97 @@
   font-size: 0.75rem;
   font-weight: 800;
   color: #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
 }
 
 .badge-multi { background: #0d6efd; }
 .badge-note  { background: #ffc107; color: #111; }
 .badge-issue { background: #dc3545; }
 
-/* Filtri */
+/* =========================
+   Menu "..." (details/summary)
+========================= */
+.order-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 10000;               /* sopra contenuto card */
+}
+
+.order-actions__btn {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 34px;
+  height: 28px;
+  padding: 0;
+  line-height: 1;
+
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+
+  font-size: 18px;
+  font-weight: 900;
+  color: #222;
+}
+
+.order-actions__btn:hover { background: rgba(0,0,0,0.06); }
+
+.order-actions__btn:focus-visible { outline: 2px solid #0d6efd; }
+
+/* rimuove marker default del summary */
+.order-actions__btn::-webkit-details-marker { display: none; }
+.order-actions__btn::marker { content: ""; }
+
+.order-actions__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 10001;
+
+  min-width: 180px;
+  padding: 10px;
+
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.12);
+  border-radius: 12px;
+  box-shadow: 0 10px 28px rgba(0,0,0,0.18);
+
+  color: #111;
+}
+
+.order-actions__title {
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.75;
+  margin-bottom: 8px;
+}
+
+/* una voce per riga */
+.order-actions__item {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: inherit;
+  line-height: 1.2;
+}
+
+.order-actions__item:hover { background: rgba(0,0,0,0.06); }
+
+/* card disabilitata */
+.order-card.is-busy { opacity: 0.6; pointer-events: none; }
+
+/* =========================
+   Filtri
+========================= */
 .kiosk-filters { margin-top: 14px; }
 
 .route-filters {
@@ -202,114 +322,9 @@
   vertical-align: middle;
 }
 
-/* === ORDER CARD (restyle) === */
-
-.order-card {
-  --route-bg: #f1f3f5;
-
-  position: relative;
-  overflow: hidden;
-
-  /* struttura */
-  border-radius: 14px;
-  padding: 12px 12px 10px;
-
-  /* look */
-  background: #ffffff;
-  color: #111;
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.12);
-
-  cursor: pointer;
-  transition: transform 120ms ease, box-shadow 120ms ease, border-color 120ms ease;
-}
-
-/* barra titolo */
-.order-card::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 10px;
-  background: var(--route-bg);
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-}
-
-/* lieve accento laterale */
-.order-card::after {
-  content: "";
-  position: absolute;
-  top: 10px;
-  left: 0;
-  bottom: 0;
-  width: 6px;
-  background: color-mix(in srgb, var(--route-bg) 70%, white);
-  opacity: 0.85;
-}
-
-/* spazio per barra */
-.order-top, .order-preview {
-  position: relative;
-  z-index: 1;
-}
-
-.order-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 26px rgba(0,0,0,0.18);
-  border-color: rgba(0, 0, 0, 0.14);
-}
-
-.order-name {
-  font-weight: 900;
-  line-height: 1.15;
-  margin-top: 4px; /* stacca dalla barra */
-}
-
-.order-meta {
-  font-size: 0.85rem;
-  opacity: 0.80;
-  margin-top: 6px;
-}
-
-.order-preview {
-  margin-top: 10px;
-  font-size: 0.9rem;
-  opacity: 0.85;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* badge route più “pill” */
-.badge-route {
-  background: rgba(0,0,0,0.72);
-  color: #fff;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 0.72rem;
-  font-weight: 800;
-}
-
-/* badge contatori: più leggibili e con ombra */
-.badge-multi,
-.badge-note,
-.badge-issue {
-  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-}
-
-.kiosk-col {
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.70);
-  border: 1px solid rgba(0, 0, 0, 0.08);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.10);
-}
-.kiosk-col__head {
-  border-bottom: 1px solid rgba(0,0,0,0.08);
-}
-
-/* === MODALE: SCHEDA ORDINE === */
-
+/* =========================
+   Modale ordine
+========================= */
 #orderModal .modal-content {
   border-radius: 16px;
   border: 1px solid rgba(0,0,0,0.08);
@@ -318,80 +333,16 @@
 }
 
 #orderModal .modal-header {
-  background: linear-gradient(0deg, rgba(255,255,255,0.92), rgba(255,255,255,0.92));
+  background: rgba(255,255,255,0.92);
   border-bottom: 1px solid rgba(0,0,0,0.08);
   padding: 14px 16px;
 }
 
-#orderModal .modal-title {
-  font-weight: 900;
-  letter-spacing: 0.2px;
-}
+#orderModal .modal-title { font-weight: 900; letter-spacing: 0.2px; }
 
 #orderModal .modal-body {
   background: #f6f7f8;
   padding: 16px;
-}
-
-.order-sheet {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.order-sheet__hero {
-  background: #ffffff;
-  border: 1px solid rgba(0,0,0,0.08);
-  border-radius: 14px;
-  overflow: hidden;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.10);
-}
-
-.order-sheet__hero-bar {
-  height: 10px;
-  background: var(--route-bg, #f1f3f5);
-  border-bottom: 1px solid rgba(0,0,0,0.06);
-}
-
-.order-sheet__hero-body {
-  padding: 12px 12px 10px;
-}
-
-.order-kv {
-  display: grid;
-  grid-template-columns: 120px 1fr;
-  gap: 6px 10px;
-  font-size: 0.95rem;
-}
-
-.order-kv__k {
-  color: rgba(0,0,0,0.65);
-  font-weight: 800;
-}
-
-.order-kv__v {
-  font-weight: 700;
-}
-
-.order-section {
-  background: #ffffff;
-  border: 1px solid rgba(0,0,0,0.08);
-  border-radius: 14px;
-  overflow: hidden;
-  box-shadow: 0 6px 18px rgba(0,0,0,0.10);
-}
-
-.order-section__head {
-  padding: 10px 12px;
-  font-weight: 900;
-  border-bottom: 1px solid rgba(0,0,0,0.08);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.order-section__body {
-  padding: 12px;
 }
 
 .order-pre {
@@ -403,212 +354,6 @@
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.9rem;
   line-height: 1.35;
-  white-space: pre-wrap; /* leggibile */
+  white-space: pre-wrap;
   word-break: break-word;
-}
-
-.order-list {
-  margin: 0;
-  padding-left: 18px;
-}
-
-.order-list li {
-  margin: 6px 0;
-}
-
-.order-delivery {
-  font-weight: 800;
-  opacity: 0.9;
-}
-
-.order-seq {
-  margin-top: 8px;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.order-seq__dot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 900;
-  border: 1px solid rgba(0,0,0,0.10);
-}
-
-.order-seq__dot.on {
-  background: rgba(0,0,0,0.78);
-  color: #fff;
-}
-
-.order-seq__dot.off {
-  background: rgba(255,255,255,0.70);
-  color: rgba(0,0,0,0.45);
-}
-
-.order-actions {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-}
-
-/* bottone ⋯ */
-.order-actions__btn {
-  width: 34px;
-  height: 28px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  background: rgba(0,0,0,0.08);
-  border: 1px solid rgba(0,0,0,0.25);
-  border-radius: 8px;
-
-  font-size: 18px;
-  font-weight: 900;
-  color: #222;
-
-  cursor: pointer;
-}
-
-.order-card.is-busy {
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-.order-actions{
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  z-index: 5;
-}
-
-.order-card{
-  position: relative; /* necessario per il posizionamento del bottone */
-  z-index: auto;
-}
-
-.order-actions__btn{
-  width: 34px;
-  height: 28px;
-  line-height: 1;
-  padding: 0;
-  border-radius: 10px;
-  border: 1px solid rgba(0,0,0,0.18);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-  font-weight: 900;
-}
-
-/* hover evidente */
-.order-actions__btn:hover {
-  background: rgba(0,0,0,0.15);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
-}
-
-/* focus keyboard */
-.order-actions__btn:focus-visible {
-  outline: 2px solid #0d6efd;
-}
-
-/* ===== Menu "⋯" sulla card ===== */
-
-.order-actions {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 20; /* sopra la card */
-}
-
-.order-actions__btn {
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  width: 34px;
-  height: 28px;
-  border-radius: 10px;
-
-  background: rgba(255, 255, 255, 0.92);
-  border: 1px solid rgba(0, 0, 0, 0.12);
-}
-
-/* rimuove il triangolino di default del summary */
-.order-actions__btn::-webkit-details-marker { display: none; }
-.order-actions__btn::marker { content: ""; }
-
-.order-actions__menu {
-  margin-top: 6px;
-
-  min-width: 180px;
-  padding: 10px;
-
-  background: #ffffff;            /* NON trasparente */
-  border: 1px solid rgba(0,0,0,0.12);
-  border-radius: 12px;
-  box-shadow: 0 10px 28px rgba(0,0,0,0.18);
-
-  color: #111;
-}
-
-.order-actions__title {
-  font-size: 12px;
-  font-weight: 700;
-  opacity: 0.75;
-  margin-bottom: 8px;
-}
-
-/* una voce per riga */
-.order-actions__item {
-  display: block;                 /* <-- colonna */
-  padding: 8px 10px;
-  border-radius: 10px;
-
-  text-decoration: none;
-  color: inherit;
-  line-height: 1.2;
-}
-
-.order-actions__item:hover {
-  background: rgba(0,0,0,0.06);
-}
-
-/* Evita che la tendina venga tagliata dai parent */
-.order-card,
-.kiosk-col,
-.kiosk-col__body {
-  overflow: visible !important;
-}
-
-/* La tendina deve essere fuori dal flow e non “schiacciata” */
-.order-actions {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 10000;
-}
-
-.order-actions__menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 10001;
-}
-
-/* quando il menu è aperto, la card deve stare sopra alle altre */
-.order-card.menu-open {
-  position: relative;
-  z-index: 9999;
-}
-
-/* il menu sopra anche ai bottoni "..." delle altre card */
-.order-card.menu-open .dropdown-menu {
-  z-index: 10000;
 }
