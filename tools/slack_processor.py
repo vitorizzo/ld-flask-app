@@ -54,6 +54,7 @@ class SlackProcessor:
         return api.auth_test()
 
     _STATUS_RANK = {"acquisito": 10, "listato": 20, "controllato": 30, "evaso": 40}
+
     _REACTION_TO_STATUS = {
         "white_check_mark": "listato",
         "cactus": "controllato",
@@ -61,19 +62,39 @@ class SlackProcessor:
     }
 
     _ISSUE_KEYWORDS = [
-        "manca", "mancano", "non c", "non c'", "finito", "anomalia", "sostitu",
-        "rotto", "errore", "vuoto", "rimasto", "non trovato",
+        "manca",
+        "mancano",
+        "non c",
+        "non c'",
+        "finito",
+        "anomalia",
+        "sostitu",
+        "rotto",
+        "errore",
+        "vuoto",
+        "rimasto",
+        "non trovato",
     ]
 
     _NOTE_KEYWORDS = [
-        "subito", "domani", "pomeriggio", "stamattina", "stasera",
-        "passa", "porto", "portare", "scontrino", "fattura", "preso",
+        "subito",
+        "domani",
+        "pomeriggio",
+        "stamattina",
+        "stasera",
+        "passa",
+        "porto",
+        "portare",
+        "scontrino",
+        "fattura",
+        "preso",
     ]
 
     def _normalize_customer_key(self, s: str) -> str:
         s = (s or "").strip().lower()
         s = re.sub(r"[^\w\s]", " ", s)
         s = re.sub(r"\s+", " ", s).strip()
+
         # rimuovi suffissi finali: numeri / bis / tris / ter / ordinale
         s = re.sub(r"\s+(bis|tris|ter|ordinale)\s*$", "", s).strip()
         s = re.sub(r"\s+\d+\s*$", "", s).strip()
@@ -86,12 +107,12 @@ class SlackProcessor:
 
         first = lines[0].strip()
 
-        # Caso "Aggiunta <cliente>"
+        # Caso "Aggiunta "
         m = re.match(r"(?i)^\s*aggiunta\s+(.+?)\s*$", first)
         if m:
             return m.group(1).strip()
 
-        # Caso "<cliente> aggiunta" / "<cliente> aggiunta 2" / "<cliente> aggiunta bis"
+        # Caso " aggiunta" / " aggiunta 2" / " aggiunta bis"
         m = re.match(r"(?i)^\s*(.+?)\s+aggiunta(?:\s+(\d+|bis|tris|ter))?\s*$", first)
         if m:
             return m.group(1).strip()
@@ -162,7 +183,6 @@ class SlackProcessor:
 
     def execute_actions(self, actions: list[dict], ctx: dict) -> None:
         api = self._get_api()
-
         for act in actions:
             action_type = act.get("action_type")
             cfg = act.get("config_json") or {}
@@ -175,7 +195,6 @@ class SlackProcessor:
                     # timestamp+channel dipendono dal trigger
                     ch = ctx.get("channel") or ctx.get("item_channel") or ""
                     ts = ctx.get("ts") or ctx.get("item_ts") or ""
-
                     if ch and ts:
                         api.add_reaction(channel=ch, timestamp=ts, name=reaction)
                         logger.info("[SLACK][ACTION] addReaction ok: %s %s %s", reaction, ch, ts)
@@ -212,6 +231,153 @@ class SlackProcessor:
             logger.exception("Errore in handle_message_channels")
             return False
 
+    # ============================================================
+    # NEW — Sync reactions su cambio stato (upgrade/downgrade/jump)
+    # ============================================================
+    @staticmethod
+    def _norm_reaction_name(x: str | None) -> str:
+        if not x:
+            return ""
+        x = x.strip()
+        if x.startswith(":") and x.endswith(":") and len(x) >= 3:
+            x = x[1:-1].strip()
+        return x
+
+    def _status_meta(self) -> list[dict]:
+        """
+        Ritorna lista ordinata di status visibili con reaction.
+        Ogni item: {code, order_index, is_terminal, slack_reaction_norm}
+        """
+        statuses = (
+            OrderStatus.query
+            .filter(OrderStatus.is_visible.is_(True))
+            .order_by(OrderStatus.order_index.asc())
+            .all()
+        )
+
+        out: list[dict] = []
+        for s in statuses:
+            rx = self._norm_reaction_name(getattr(s, "slack_reaction", None))
+            out.append(
+                {
+                    "code": s.code,
+                    "order_index": int(s.order_index or 0),
+                    "is_terminal": bool(getattr(s, "is_terminal", False)),
+                    "reaction": rx,
+                }
+            )
+        return out
+
+    def sync_order_status_reactions(
+        self,
+        order: SlackOrder,
+        old_status_code: str | None,
+        new_status_code: str | None,
+    ) -> None:
+        """
+        Sincronizza le reaction Slack in base al cambio stato.
+        Regole (concordate):
+          - promote Δ=+1: add reaction target
+          - demote Δ=-1: remove reaction current + remove tutte > target + ensure target
+          - jump forward Δ>1: add solo target
+          - jump backward Δ<-1: remove tutte > target + ensure target
+
+        Nota: lavora sul messaggio root dell’ordine:
+          - preferisce slack_thread_ts (root thread)
+          - fallback su slack_message_ts
+        """
+        if not order:
+            return
+
+        channel_id = getattr(order, "slack_channel_id", None) or ""
+        ts = getattr(order, "slack_thread_ts", None) or getattr(order, "slack_message_ts", None) or ""
+        if not channel_id or not ts:
+            logger.info(
+                "[SLACK][SYNC] skipped (missing channel/ts) order_id=%s channel=%s ts=%s",
+                getattr(order, "id", None),
+                channel_id,
+                ts,
+            )
+            return
+
+        if not new_status_code:
+            logger.info("[SLACK][SYNC] skipped (missing new_status) order_id=%s", getattr(order, "id", None))
+            return
+
+        meta = self._status_meta()
+        by_code = {m["code"]: m for m in meta}
+
+        new_meta = by_code.get(new_status_code)
+        old_meta = by_code.get(old_status_code) if old_status_code else None
+
+        # Rank: se non esiste in DB, consideralo 0 (ma comunque gestiamo add target se ha reaction)
+        new_rank = int(new_meta["order_index"]) if new_meta else 0
+        old_rank = int(old_meta["order_index"]) if old_meta else 0
+
+        new_rx = (new_meta["reaction"] if new_meta else "") or ""
+        old_rx = (old_meta["reaction"] if old_meta else "") or ""
+
+        if not new_rx:
+            logger.info(
+                "[SLACK][SYNC] skipped (new status has no reaction) order_id=%s new_status=%s",
+                getattr(order, "id", None),
+                new_status_code,
+            )
+            return
+
+        api = self._get_api()
+
+        delta = new_rank - old_rank
+        logger.info(
+            "[SLACK][SYNC] order_id=%s %s(%s)->%s(%s) delta=%s",
+            getattr(order, "id", None),
+            old_status_code,
+            old_rank,
+            new_status_code,
+            new_rank,
+            delta,
+        )
+
+        # Helper: remove tutte le reaction dei livelli > target
+        def remove_higher_than(target_rank: int):
+            for m in meta:
+                rx = m["reaction"]
+                rk = int(m["order_index"])
+                if not rx:
+                    continue
+                if rk > target_rank:
+                    api.remove_reaction(channel=channel_id, timestamp=ts, name=rx)
+
+        # promote (Δ=+1): add solo target
+        if delta == 1:
+            api.add_reaction(channel=channel_id, timestamp=ts, name=new_rx)
+            return
+
+        # demote (Δ=-1): remove current + remove tutte > target + ensure target
+        if delta == -1:
+            if old_rx:
+                api.remove_reaction(channel=channel_id, timestamp=ts, name=old_rx)
+            remove_higher_than(new_rank)
+            api.add_reaction(channel=channel_id, timestamp=ts, name=new_rx)
+            return
+
+        # jump forward (Δ>1): add solo target (non assumere intermedi)
+        if delta > 1:
+            api.add_reaction(channel=channel_id, timestamp=ts, name=new_rx)
+            return
+
+        # jump backward (Δ<-1): remove tutte > target + ensure target
+        if delta < -1:
+            remove_higher_than(new_rank)
+            api.add_reaction(channel=channel_id, timestamp=ts, name=new_rx)
+            return
+
+        # delta == 0 (stesso rank) o caso non mappabile: best effort -> ensure target
+        api.add_reaction(channel=channel_id, timestamp=ts, name=new_rx)
+
+    # ============================================================
+    # Side effects Orders + normalizzatori + dispatcher
+    # ============================================================
     def _orders_side_effect(self, normalized: dict) -> None:
         trigger = normalized.get("trigger")
         data = normalized.get("data") or {}
@@ -268,7 +434,6 @@ class SlackProcessor:
                 .filter(OrderStatus.is_visible.is_(True))
                 .all()
             )
-
             for s in statuses:
                 if _norm_reaction(getattr(s, "slack_reaction", None)) == reaction_norm:
                     target_status = s
@@ -283,21 +448,24 @@ class SlackProcessor:
             # 2) Rank corrente da DB (fallback 0)
             current_status = OrderStatus.query.filter_by(code=order.status).first()
             current_rank = int(current_status.order_index) if (
-                        current_status and current_status.order_index is not None) else 0
+                current_status and current_status.order_index is not None
+            ) else 0
 
             # registra sempre la reaction come evento
-            db.session.add(SlackOrderEvent(
-                order_id=order.id,
-                type="reaction",
-                payload={
-                    "reaction": reaction,
-                    "reaction_norm": reaction_norm,
-                    "user": user,
-                    "item_ts": item_ts,
-                    "channel": channel_id,
-                    "resolved_to": new_status,
-                },
-            ))
+            db.session.add(
+                SlackOrderEvent(
+                    order_id=order.id,
+                    type="reaction",
+                    payload={
+                        "reaction": reaction,
+                        "reaction_norm": reaction_norm,
+                        "user": user,
+                        "item_ts": item_ts,
+                        "channel": channel_id,
+                        "resolved_to": new_status,
+                    },
+                )
+            )
 
             # 3) Solo upgrade (come prima) ma basato su order_index
             if new_rank > current_rank:
@@ -307,20 +475,21 @@ class SlackProcessor:
                 if bool(getattr(target_status, "is_terminal", False)) and not order.closed_at:
                     order.closed_at = datetime.utcnow()
 
-                db.session.add(SlackOrderEvent(
-                    order_id=order.id,
-                    type="status_change",
-                    payload={
-                        "from": old_status,
-                        "to": new_status,
-                        "via": "reaction",
-                        "reaction": reaction,
-                        "user": user,
-                        "item_ts": item_ts,
-                    },
-                ))
-
-            db.session.commit()
+                db.session.add(
+                    SlackOrderEvent(
+                        order_id=order.id,
+                        type="status_change",
+                        payload={
+                            "from": old_status,
+                            "to": new_status,
+                            "via": "reaction",
+                            "reaction": reaction,
+                            "user": user,
+                            "item_ts": item_ts,
+                        },
+                    )
+                )
+                db.session.commit()
             return
 
         if trigger != "message":
@@ -375,7 +544,6 @@ class SlackProcessor:
             created_dt = datetime.utcnow()
 
         order_date = created_dt.date()
-
         route = self._get_route_for_channel(channel_id)
 
         # Crea sempre un nuovo SlackOrder (anche se stesso cliente/stesso giorno)
@@ -392,16 +560,16 @@ class SlackProcessor:
             slack_thread_ts=ts,
             has_issues=False,
         )
-
         db.session.add(order)
         db.session.flush()  # per ottenere order.id
 
-        db.session.add(SlackOrderEvent(
-            order_id=order.id,
-            type="created",
-            payload={"ts": ts, "user": data.get("user"), "text": text},
-        ))
-
+        db.session.add(
+            SlackOrderEvent(
+                order_id=order.id,
+                type="created",
+                payload={"ts": ts, "user": data.get("user"), "text": text},
+            )
+        )
         db.session.commit()
         return
 
@@ -411,6 +579,7 @@ class SlackProcessor:
     def dispatch_event(self, event_type: str, event: dict, *, team_id: str | None = None):
         """
         Entry point unico per TUTTI gli eventi Slack.
+
         - Normalizza
         - Logga
         - risolve actions e le esegue
@@ -429,7 +598,7 @@ class SlackProcessor:
             logger.info(
                 "[SLACK][IGNORED] event_type=%s payload_keys=%s",
                 event_type,
-                list(event.keys())
+                list(event.keys()),
             )
             return None
 
@@ -438,15 +607,10 @@ class SlackProcessor:
             logger.warning("[SLACK][NORMALIZE_FAIL] event_type=%s", event_type)
             return None
 
-        logger.info(
-            "[SLACK][EVENT] trigger=%s data=%s",
-            normalized["trigger"],
-            normalized["data"]
-        )
+        logger.info("[SLACK][EVENT] trigger=%s data=%s", normalized["trigger"], normalized["data"])
 
         # filter/search actions
         conn_id = None
-
         if self.connection and getattr(self.connection, "id", None):
             conn_id = self.connection.id
         elif team_id:
@@ -468,25 +632,26 @@ class SlackProcessor:
         # ============================================================
         try:
             from tools.automation_dispatcher import AutomationDispatcher
+
             dispatcher = AutomationDispatcher()
-            dispatcher.dispatch({
-                "app": "slack",
-                "trigger": normalized["trigger"],
-                "connection_id": conn_id,
-                "payload": normalized["data"],
-            })
+            dispatcher.dispatch(
+                {
+                    "app": "slack",
+                    "trigger": normalized["trigger"],
+                    "connection_id": conn_id,
+                    "payload": normalized["data"],
+                }
+            )
         except Exception:
             logger.exception("[V2][SLACK] dispatcher failed")
 
         actions = self.find_actions_for_trigger(conn_id, normalized["trigger"])
         self.execute_actions(actions, normalized["data"])
-
         return normalized
 
     def find_actions_for_trigger(self, connection_id: int, trigger: str) -> list[dict]:
         """
-        Carica tutte le SlackAction per questa connection_id
-        che hanno lo stesso trigger_type.
+        Carica tutte le SlackAction per questa connection_id che hanno lo stesso trigger_type.
         Ritorna lista di dict con action_type + config_json.
         """
         from models import SlackAction
@@ -500,15 +665,20 @@ class SlackProcessor:
 
         result = []
         for a in actions:
-            result.append({
-                "id": a.id,
-                "action_type": a.action_type,
-                "config_json": a.config_json,
-                "ordine": a.ordine,
-            })
+            result.append(
+                {
+                    "id": a.id,
+                    "action_type": a.action_type,
+                    "config_json": a.config_json,
+                    "ordine": a.ordine,
+                }
+            )
+
         logger.info(
             "[SLACK][ACTIONS] found %d actions for trigger=%s conn_id=%s",
-            len(result), trigger, connection_id
+            len(result),
+            trigger,
+            connection_id,
         )
         return result
 
@@ -531,17 +701,14 @@ class SlackProcessor:
                 "channel_type": event.get("channel_type"),  # channel | group | im | mpim (se presente)
                 "user": event.get("user"),
                 "ts": event.get("ts"),
-                "thread_ts": event.get("thread_ts"),  # <-- AGGIUNGI QUESTO
+                "thread_ts": event.get("thread_ts"),
                 "text": event.get("text") or "",
-            }
+            },
         }
 
     def _normalize_reaction_added(self, event: dict) -> dict | None:
-        """
-        Slack reaction_added
-        """
+        """Slack reaction_added"""
         item = event.get("item") or {}
-
         return {
             "trigger": "reaction_added",
             "data": {
@@ -549,5 +716,5 @@ class SlackProcessor:
                 "user": event.get("user"),
                 "item_channel": item.get("channel"),
                 "item_ts": item.get("ts"),
-            }
+            },
         }
