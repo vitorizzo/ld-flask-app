@@ -51,6 +51,14 @@ window.kioskState = {
     )}:${pad(d.getMinutes())}`;
   }
 
+  function getPrevNextStatus(code) {
+    const meta = kioskState.statusMeta || [];
+    const idx = meta.findIndex((s) => String(s.code) === String(code));
+    const prev = idx > 0 ? meta[idx - 1] : null;
+    const next = idx >= 0 && idx < meta.length - 1 ? meta[idx + 1] : null;
+    return { prev, next, idx };
+  }
+
   function renderColumnsFromStatuses() {
     const wrap = document.querySelector(".kiosk-cols");
     if (!wrap) return;
@@ -155,17 +163,14 @@ window.kioskState = {
 
   function recountColumnsFromDOM() {
     const filter = kioskState.currentRouteFilter || "__all__";
-    const visibleCards = (filter === "__all__")
-      ? $all(".kiosk-col__body .order-card")
-      : $all(`.kiosk-col__body .order-card[data-route-id="${filter}"]`);
+    const visibleCards =
+      filter === "__all__"
+        ? $all(".kiosk-col__body .order-card")
+        : $all(`.kiosk-col__body .order-card[data-route-id="${filter}"]`);
 
-    // counts per status by DOM position
-    const byStatus = {};
     document.querySelectorAll(".kiosk-col").forEach((col) => {
-      const status = col.dataset.status;
       const body = col.querySelector(".kiosk-col__body");
       const cards = body ? Array.from(body.querySelectorAll(".order-card")) : [];
-      byStatus[status] = cards.length;
 
       const badge = col.querySelector("[data-count]");
       if (badge) badge.textContent = String(cards.length);
@@ -187,10 +192,7 @@ window.kioskState = {
 
     const pillTotal = document.getElementById("pill-total");
     if (pillTotal) {
-      // pill total = numero card visibili (coerente con applyFilterAndRender)
-      const count = (filter === "__all__")
-        ? $all(".kiosk-col__body .order-card").length
-        : visibleCards.length;
+      const count = filter === "__all__" ? $all(".kiosk-col__body .order-card").length : visibleCards.length;
       pillTotal.textContent = String(count);
     }
   }
@@ -221,12 +223,10 @@ window.kioskState = {
         if (!payload || !targetStatus) return;
         if (payload.fromStatus === targetStatus) return;
 
-        // optimistic UI move
         const dragged = dragCtx.el;
         if (!dragged) return;
 
         const prevParent = dragCtx.fromColBody;
-        const prevStatus = dragCtx.fromStatus;
 
         try {
           body.appendChild(dragged);
@@ -235,15 +235,11 @@ window.kioskState = {
           dragged.classList.add("is-busy");
           await setManyOrdersStatus(payload.orderIds, targetStatus);
 
-          // dopo successo, riallinea con backend (merge/split gruppi ecc.)
           await loadAndRender();
         } catch (e) {
           console.error("[kiosk_overview] dnd move error", e);
 
-          // rollback UI
-          if (prevParent && dragged) {
-            prevParent.appendChild(dragged);
-          }
+          if (prevParent && dragged) prevParent.appendChild(dragged);
           recountColumnsFromDOM();
 
           alert(`Errore spostamento: ${String(e.message || e)}`);
@@ -277,6 +273,20 @@ window.kioskState = {
     const deliveryLabel = primary.delivery_label || "";
     const preview = primary.preview || "";
 
+    const { prev, next } = getPrevNextStatus(vm.status);
+
+    // Frecce (prev/next di 1 step)
+    const arrowsHtml = `
+      <div class="order-stepper btn-group" role="group" aria-label="stepper">
+        <button type="button" class="btn btn-sm btn-outline-light" data-step="prev" ${
+          prev ? "" : "disabled"
+        } aria-label="retrocedi">←</button>
+        <button type="button" class="btn btn-sm btn-outline-light" data-step="next" ${
+          next ? "" : "disabled"
+        } aria-label="promuovi">→</button>
+      </div>
+    `;
+
     const moveOpts = statusOptionsFor(vm.status);
     const moveMenuHtml = moveOpts.length
       ? `
@@ -287,9 +297,9 @@ window.kioskState = {
             ${moveOpts
               .map(
                 (s) =>
-                  `<li><a class="dropdown-item" href="#" data-move-to="${escapeHtml(
-                    s.code
-                  )}">${escapeHtml(s.label)}</a></li>`
+                  `<li><a class="dropdown-item" href="#" data-move-to="${escapeHtml(s.code)}">${escapeHtml(
+                    s.label
+                  )}</a></li>`
               )
               .join("")}
           </ul>
@@ -298,25 +308,22 @@ window.kioskState = {
       : ``;
 
     div.innerHTML = `
-      ${moveMenuHtml}
+      <div class="order-topbar d-flex align-items-center justify-content-between" style="gap:8px;">
+        ${arrowsHtml}
+        ${moveMenuHtml}
+      </div>
+
       <div class="order-title">${escapeHtml(title)}</div>
-      <div class="order-meta">Giro: ${escapeHtml(vm.route_name || "")}${
-      deliveryLabel ? ` · ${escapeHtml(deliveryLabel)}` : ``
-    }</div>
+      <div class="order-meta">Giro: ${escapeHtml(vm.route_name || "")}${deliveryLabel ? ` · ${escapeHtml(deliveryLabel)}` : ``}</div>
       ${seqIndicator}
       <div class="order-badges">
         ${groupBadge ? `<span class="badge bg-secondary">${escapeHtml(groupBadge)}</span>` : ``}
         ${notesSum > 0 ? `<span class="badge bg-info">${notesSum}</span>` : ``}
         ${issuesSum > 0 ? `<span class="badge bg-danger">${issuesSum}</span>` : ``}
       </div>
-      ${
-        preview
-          ? `<div class="order-preview">${escapeHtml(preview)}</div>`
-          : ``
-      }
+      ${preview ? `<div class="order-preview">${escapeHtml(preview)}</div>` : ``}
     `;
 
-    // Click opens modal (unless dragging)
     const openFn = () => {
       if (isGroup) openGroupModal(vm);
       else openOrderModal(primary.id);
@@ -325,6 +332,7 @@ window.kioskState = {
     div.addEventListener("click", (ev) => {
       if (dragCtx.isDragging) return;
       if (ev.target.closest(".order-actions")) return;
+      if (ev.target.closest(".order-stepper")) return;
       openFn();
     });
 
@@ -332,7 +340,7 @@ window.kioskState = {
       if (ev.key === "Enter" || ev.key === " ") openFn();
     });
 
-    // Move menu buttons (existing behavior)
+    // Menu “…”: spostamento diretto a qualunque status
     div.querySelectorAll("[data-move-to]").forEach((btn) => {
       btn.addEventListener("click", async (ev) => {
         ev.preventDefault();
@@ -349,6 +357,34 @@ window.kioskState = {
         } catch (e) {
           console.error("[kiosk_overview] move error", e);
           alert(`Errore spostamento: ${String(e.message || e)}`);
+        } finally {
+          div.classList.remove("is-busy");
+        }
+      });
+    });
+
+    // Stepper ← →
+    div.querySelectorAll("[data-step]").forEach((btn) => {
+      btn.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+
+        const dir = ev.currentTarget.getAttribute("data-step");
+        const current = vm.status;
+
+        const { prev: p, next: n } = getPrevNextStatus(current);
+        const target = dir === "prev" ? (p ? p.code : null) : (n ? n.code : null);
+        if (!target) return;
+
+        const ids = isGroup ? vm.orders.map((o) => o.id) : [primary.id];
+
+        div.classList.add("is-busy");
+        try {
+          await setManyOrdersStatus(ids, target);
+          await loadAndRender();
+        } catch (e) {
+          console.error("[kiosk_overview] stepper error", e);
+          alert(`Errore cambio stato: ${String(e.message || e)}`);
         } finally {
           div.classList.remove("is-busy");
         }
@@ -376,8 +412,11 @@ window.kioskState = {
     div.draggable = true;
 
     div.addEventListener("dragstart", (ev) => {
-      // Ignore drag if started on menu
       if (ev.target && ev.target.closest && ev.target.closest(".order-actions")) {
+        ev.preventDefault();
+        return;
+      }
+      if (ev.target && ev.target.closest && ev.target.closest(".order-stepper")) {
         ev.preventDefault();
         return;
       }
@@ -398,7 +437,6 @@ window.kioskState = {
       try {
         ev.dataTransfer.setData("application/json", JSON.stringify(dragCtx.payload));
       } catch (e) {
-        // fallback
         ev.dataTransfer.setData("text/plain", JSON.stringify(dragCtx.payload));
       }
 
@@ -413,7 +451,6 @@ window.kioskState = {
       dragCtx.fromColBody = null;
       dragCtx.fromStatus = null;
       dragCtx.payload = null;
-      // cleanup hover states
       document.querySelectorAll(".kiosk-col__body.is-over").forEach((b) => b.classList.remove("is-over"));
     });
 
@@ -440,9 +477,7 @@ window.kioskState = {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
 
-      if (title) {
-        title.textContent = `${data.customer_display || "Ordine"} — ${data.route_name || ""} (${data.status || ""})`;
-      }
+      if (title) title.textContent = `${data.customer_display || "Ordine"} — ${data.route_name || ""} (${data.status || ""})`;
 
       const safeTitle = escapeHtml(data.customer_display || "Ordine");
       const safeRoute = escapeHtml(data.route_name || "");
@@ -463,9 +498,7 @@ window.kioskState = {
           <hr/>
           <div class="fw-bold">Messaggi</div>
           <ul class="mb-0">
-            ${data.children
-              .map((c) => `<li><span class="text-muted">${escapeHtml(c.label)}</span> — ${escapeHtml(c.text || "")}</li>`)
-              .join("")}
+            ${data.children.map((c) => `<li><span class="text-muted">${escapeHtml(c.label)}</span> — ${escapeHtml(c.text || "")}</li>`).join("")}
           </ul>
         `);
       }
@@ -558,10 +591,8 @@ window.kioskState = {
   function applyFilterAndRender() {
     const filter = kioskState.currentRouteFilter || "__all__";
     const cards = Array.isArray(kioskState.lastCards) ? kioskState.lastCards : [];
-
     const filtered = filter === "__all__" ? cards : cards.filter((c) => String(c.route_id) === String(filter));
 
-    // reset columns
     document.querySelectorAll(".kiosk-col").forEach((col) => {
       const body = col.querySelector(".kiosk-col__body");
       if (body) body.innerHTML = "";
@@ -577,15 +608,12 @@ window.kioskState = {
       counts[vm.status] = (counts[vm.status] || 0) + 1;
     }
 
-    // empty + badge
     document.querySelectorAll(".kiosk-col").forEach((col) => {
       const status = col.dataset.status;
       const body = col.querySelector(".kiosk-col__body");
       const badge = col.querySelector("[data-count]");
 
-      if (body && body.children.length === 0) {
-        body.innerHTML = `<div class="kiosk-empty">Nessun ordine</div>`;
-      }
+      if (body && body.children.length === 0) body.innerHTML = `<div class="kiosk-empty">Nessun ordine</div>`;
       if (badge) badge.textContent = String(counts[status] || 0);
     });
 
@@ -666,13 +694,10 @@ window.kioskState = {
   }
 
   function buildCardViewModels(flatOrders) {
-    // B2: raggruppa per (group_key, status) se count>1
     const byGroup = new Map();
     for (const o of flatOrders) {
       const gk = o.group_key || "";
-      if (!byGroup.has(gk)) {
-        byGroup.set(gk, { seqTotal: o.group_size || 1, orders: [] });
-      }
+      if (!byGroup.has(gk)) byGroup.set(gk, { seqTotal: o.group_size || 1, orders: [] });
       const g = byGroup.get(gk);
       g.orders.push(o);
       g.seqTotal = Math.max(g.seqTotal, o.group_size || 1);
@@ -770,7 +795,6 @@ window.kioskState = {
       recountColumnsFromDOM();
     } catch (err) {
       console.error("[kiosk_overview] load error", err);
-      // fallback: svuota colonne ma mantiene struttura
       document.querySelectorAll(".kiosk-col__body").forEach((body) => {
         body.innerHTML = `<div class="kiosk-empty">Nessun ordine</div>`;
       });
