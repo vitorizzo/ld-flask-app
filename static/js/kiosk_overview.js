@@ -14,10 +14,6 @@ window.kioskState = {
   const API_ORDER = (id) => `/kiosk/api/order/${id}`;
   const API_STATUSES = "/kiosk/api/statuses";
 
-  // diventano dinamici dopo loadStatuses()
-  let statusList = [];
-  let statusRank = {};
-
   let currentRouteFilter = "__all__";
   let lastCards = []; // lista di "view cards"
   let statusMeta = []; // [{code,label,order_index,is_terminal}]
@@ -45,7 +41,7 @@ window.kioskState = {
   }
 
   function clearColumnsKeepEmpty() {
-    for (const s of statusList) {
+    for (const s of kioskState.statusList) {
       const col = document.getElementById(`col-${s}`);
       if (!col) continue;
       col.innerHTML = `<div class="kiosk-empty">Nessun ordine</div>`;
@@ -101,25 +97,19 @@ window.kioskState = {
 
     } catch (e) {
       console.error("[kiosk_overview] loadStatuses error", e);
-
-      kioskState.statusMeta = [
-        { code: "acquisito", label: "Acquisito" },
-        { code: "listato", label: "Listato" },
-        { code: "controllato", label: "Controllato" },
-        { code: "evaso", label: "Evaso" },
-      ];
-      kioskState.statusList = kioskState.statusMeta.map(s => s.code);
-      kioskState.statusRank = { acquisito: 0, listato: 1, controllato: 2, evaso: 3 };
-
-      renderColumnsFromStatuses();
+      // Non impostare fallback: lascia i valori correnti e segnala errore UI
+      const wrap = document.querySelector(".kiosk-cols");
+      if (wrap) wrap.innerHTML = `<div class="alert alert-danger m-2">Errore caricamento stati</div>`;
+      return;
     }
+
   }
 
-function statusOptionsFor(currentCode) {
-  const meta = kioskState.statusMeta;
-  if (!Array.isArray(meta) || !meta.length) return [];
-  return meta.filter(s => s.code !== currentCode);
-}
+  function statusOptionsFor(currentCode) {
+    const meta = kioskState.statusMeta;
+    if (!Array.isArray(meta) || !meta.length) return [];
+    return meta.filter(s => s.code !== currentCode);
+  }
 
   async function setOrderStatus(orderId, targetCode) {
     const res = await fetch(`/kiosk/api/order/${orderId}/set-status`, {
@@ -189,15 +179,17 @@ function statusOptionsFor(currentCode) {
 
     const moveOpts = statusOptionsFor(vm.status);
     const moveMenuHtml = moveOpts.length ? `
-      <div class="dropdown order-actions">
-        <button class="btn btn-sm btn-light order-actions__btn" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Azioni">⋯</button>
-        <ul class="dropdown-menu dropdown-menu-end">
-          <li><h6 class="dropdown-header">Sposta in</h6></li>
-          ${moveOpts.map(s => `
-            <li><button class="dropdown-item" type="button" data-move-to="${escapeHtml(s.code)}">${escapeHtml(s.label)}</button></li>
-          `).join("")}
-        </ul>
+    <details class="order-actions" role="menu">
+      <summary class="order-actions__btn" aria-label="Azioni">⋯</summary>
+      <div class="order-actions__menu">
+        <div class="order-actions__title">Sposta in</div>
+        ${moveOpts.map(s => `
+          <a href="#" class="order-actions__item" data-move-to="${escapeHtml(s.code)}">
+            ${escapeHtml(s.label)}
+          </a>
+        `).join("")}
       </div>
+    </details>
     ` : ``;
 
     div.innerHTML = `
