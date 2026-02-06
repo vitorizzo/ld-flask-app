@@ -121,20 +121,23 @@ class SlackProcessor:
     def _compute_next_delivery_dt(self, base_dt: datetime, route: DeliveryRoute) -> datetime:
         """
         base_dt: datetime del messaggio (timezone naive; coerente col resto dell'app)
-        route.default_weekday: 0=lun ... 6=dom
+        route.default_weekday: 0=consegna immediata 1=lun ... 7=dom
         route.default_time: time
         """
         target_weekday = int(route.default_weekday)
         target_time = route.default_time
 
-        # data candidata: stesso giorno della settimana nella stessa settimana di base_dt
-        days_ahead = (target_weekday - base_dt.weekday()) % 7
-        candidate_date = (base_dt + timedelta(days=days_ahead)).date()
-        candidate_dt = datetime.combine(candidate_date, target_time)
+        if target_weekday == 0:
+            candidate_dt = base_dt
+        else:
+            # data candidata: stesso giorno della settimana nella stessa settimana di base_dt
+            days_ahead = (target_weekday - 1 - base_dt.weekday()) % 7
+            candidate_date = (base_dt + timedelta(days=days_ahead)).date()
+            candidate_dt = datetime.combine(candidate_date, target_time)
 
-        # se cade oggi ma è già passato -> settimana prossima
-        if candidate_dt <= base_dt:
-            candidate_dt = candidate_dt + timedelta(days=7)
+            # se cade oggi ma è già passato -> settimana prossima
+            if candidate_dt <= base_dt:
+                candidate_dt = candidate_dt + timedelta(days=7)
 
         return candidate_dt
 
