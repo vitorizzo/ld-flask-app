@@ -580,3 +580,24 @@
 .order-actions__item:hover {
   background: rgba(0,0,0,0.06);
 }
+
+/* Evita che la tendina venga tagliata dai parent */
+.order-card,
+.kiosk-col,
+.kiosk-col__body {
+  overflow: visible !important;
+}
+
+/* La tendina deve essere fuori dal flow e non “schiacciata” */
+.order-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 9999;
+}
+
+.order-actions__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+}
