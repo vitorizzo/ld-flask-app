@@ -520,7 +520,7 @@ def build_board_payload(route_id: int, show_closed_today: bool = True):
                 "delivery_label": order.planned_delivery_at.strftime("%d/%m %H:%M")
                 if order.planned_delivery_at
                 else "",
-                "group_key": f"{route.id}|{(order.planned_delivery_at.date().isoformat() if order.planned_delivery_at else '')}|{(order.customer_norm or '').strip()}",
+                "group_key": f"{route.id}|{(order.planned_delivery_at.date().isoformat() if order.planned_delivery_at else '')}|{(order.customer_display or '').strip()}",
                 "group_seq": getattr(order, "group_seq", 1) or 1,
                 "group_size": getattr(order, "group_size", 1) or 1,
             }
