@@ -364,7 +364,7 @@
 
 /* contenitore frecce */
 .order-stepper {
-  opacity: 0.55;              /* visibili anche senza hover */
+  opacity: 0,85;              /* visibili anche senza hover */
   transition: opacity 0.15s ease;
 }
 
@@ -382,6 +382,6 @@
 
 /* stato disabilitato: chiaramente percepibile */
 .order-stepper .btn:disabled {
-  opacity: 0.35;
+  opacity: 0.85;
   cursor: not-allowed;
 }
