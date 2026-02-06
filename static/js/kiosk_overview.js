@@ -14,22 +14,31 @@ window.kioskState = {
   const API_ORDER = (id) => `/kiosk/api/order/${id}`;
   const API_STATUSES = "/kiosk/api/statuses";
 
-  let currentRouteFilter = "__all__";
-  let lastCards = []; // lista di "view cards"
-  let statusMeta = []; // [{code,label,order_index,is_terminal}]
-  let statusRankByCode = {};
   let refreshTimer = null;
 
-  function $(sel) { return document.querySelector(sel); }
-  function $all(sel) { return Array.from(document.querySelectorAll(sel)); }
+  // Drag context (single dragged card at a time)
+  let dragCtx = {
+    el: null,
+    fromColBody: null,
+    fromStatus: null,
+    payload: null, // { orderIds:[], fromStatus:"..." }
+    isDragging: false,
+  };
+
+  function $(sel) {
+    return document.querySelector(sel);
+  }
+  function $all(sel) {
+    return Array.from(document.querySelectorAll(sel));
+  }
 
   function escapeHtml(s) {
     return String(s)
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
+      .replaceAll("&", "&")
+      .replaceAll("<", "<")
+      .replaceAll(">", ">")
+      .replaceAll('"', '"')
+      .replaceAll("'", "'");
   }
 
   function setNowText() {
@@ -37,19 +46,9 @@ window.kioskState = {
     if (!el) return;
     const d = new Date();
     const pad = (n) => String(n).padStart(2, "0");
-    el.textContent = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
-
-  function clearColumnsKeepEmpty() {
-    for (const s of kioskState.statusList) {
-      const col = document.getElementById(`col-${s}`);
-      if (!col) continue;
-      col.innerHTML = `<div class="kiosk-empty">Nessun ordine</div>`;
-      const count = document.getElementById(`count-${s}`);
-      if (count) count.textContent = "0";
-    }
-    const pillTotal = $("#pill-total");
-    if (pillTotal) pillTotal.textContent = "0";
+    el.textContent = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(
+      d.getHours()
+    )}:${pad(d.getMinutes())}`;
   }
 
   function renderColumnsFromStatuses() {
@@ -58,21 +57,25 @@ window.kioskState = {
 
     wrap.innerHTML = "";
 
-    kioskState.statusMeta.forEach(st => {
+    kioskState.statusMeta.forEach((st) => {
       const col = document.createElement("div");
       col.className = "kiosk-col";
       col.dataset.status = st.code;
 
       col.innerHTML = `
         <div class="kiosk-col__head">
-          <span class="kiosk-col__title">${st.label}</span>
-          <span class="badge bg-secondary" data-count="${st.code}">0</span>
+          <div class="kiosk-col__title">${escapeHtml(st.label || st.code)}</div>
+          <div class="kiosk-col__count"><span data-count>0</span></div>
         </div>
-        <div class="kiosk-col__body"></div>
+        <div class="kiosk-col__body" aria-label="drop-zone-${escapeHtml(st.code)}">
+          <div class="kiosk-empty">Nessun ordine</div>
+        </div>
       `;
 
       wrap.appendChild(col);
     });
+
+    enableDnDForColumns();
   }
 
   async function loadStatuses() {
@@ -86,29 +89,25 @@ window.kioskState = {
       meta.sort((a, b) => (a.order_index ?? 1e9) - (b.order_index ?? 1e9));
 
       kioskState.statusMeta = meta;
-      kioskState.statusList = meta.map(s => s.code);
-
+      kioskState.statusList = meta.map((s) => s.code);
       kioskState.statusRank = {};
       meta.forEach((s, i) => {
         kioskState.statusRank[s.code] = i;
       });
 
       renderColumnsFromStatuses();
-
     } catch (e) {
       console.error("[kiosk_overview] loadStatuses error", e);
-      // Non impostare fallback: lascia i valori correnti e segnala errore UI
       const wrap = document.querySelector(".kiosk-cols");
-      if (wrap) wrap.innerHTML = `<div class="alert alert-danger m-2">Errore caricamento stati</div>`;
+      if (wrap) wrap.innerHTML = `<div class="alert alert-danger">Errore caricamento stati</div>`;
       return;
     }
-
   }
 
   function statusOptionsFor(currentCode) {
     const meta = kioskState.statusMeta;
     if (!Array.isArray(meta) || !meta.length) return [];
-    return meta.filter(s => s.code !== currentCode);
+    return meta.filter((s) => s.code !== currentCode);
   }
 
   async function setOrderStatus(orderId, targetCode) {
@@ -118,6 +117,7 @@ window.kioskState = {
       body: JSON.stringify({ status: targetCode }),
       cache: "no-store",
     });
+
     const json = await res.json().catch(() => ({}));
     if (!res.ok || !json.ok) {
       const msg = json.error ? `${json.error}` : `HTTP ${res.status}`;
@@ -138,7 +138,7 @@ window.kioskState = {
     parts.push(`<div class="order-seq">`);
     for (let i = 1; i <= seqTotal; i += 1) {
       const on = seqOnSet.has(i);
-      parts.push(`<span class="order-seq__dot ${on ? "on" : "off"}">#${i}</span>`);
+      parts.push(`<span class="seq-dot ${on ? "on" : ""}">#${i}</span>`);
     }
     parts.push(`</div>`);
     return parts.join("");
@@ -153,71 +153,177 @@ window.kioskState = {
     })[0];
   }
 
+  function recountColumnsFromDOM() {
+    const filter = kioskState.currentRouteFilter || "__all__";
+    const visibleCards = (filter === "__all__")
+      ? $all(".kiosk-col__body .order-card")
+      : $all(`.kiosk-col__body .order-card[data-route-id="${filter}"]`);
+
+    // counts per status by DOM position
+    const byStatus = {};
+    document.querySelectorAll(".kiosk-col").forEach((col) => {
+      const status = col.dataset.status;
+      const body = col.querySelector(".kiosk-col__body");
+      const cards = body ? Array.from(body.querySelectorAll(".order-card")) : [];
+      byStatus[status] = cards.length;
+
+      const badge = col.querySelector("[data-count]");
+      if (badge) badge.textContent = String(cards.length);
+
+      if (body) {
+        const empty = body.querySelector(".kiosk-empty");
+        if (cards.length === 0) {
+          if (!empty) {
+            const d = document.createElement("div");
+            d.className = "kiosk-empty";
+            d.textContent = "Nessun ordine";
+            body.appendChild(d);
+          }
+        } else {
+          if (empty) empty.remove();
+        }
+      }
+    });
+
+    const pillTotal = document.getElementById("pill-total");
+    if (pillTotal) {
+      // pill total = numero card visibili (coerente con applyFilterAndRender)
+      const count = (filter === "__all__")
+        ? $all(".kiosk-col__body .order-card").length
+        : visibleCards.length;
+      pillTotal.textContent = String(count);
+    }
+  }
+
+  function enableDnDForColumns() {
+    document.querySelectorAll(".kiosk-col").forEach((col) => {
+      const body = col.querySelector(".kiosk-col__body");
+      if (!body) return;
+
+      body.addEventListener("dragover", (ev) => {
+        if (!dragCtx.isDragging) return;
+        ev.preventDefault();
+        body.classList.add("is-over");
+      });
+
+      body.addEventListener("dragleave", () => {
+        body.classList.remove("is-over");
+      });
+
+      body.addEventListener("drop", async (ev) => {
+        if (!dragCtx.isDragging) return;
+        ev.preventDefault();
+        body.classList.remove("is-over");
+
+        const targetStatus = col.dataset.status;
+        const payload = dragCtx.payload;
+
+        if (!payload || !targetStatus) return;
+        if (payload.fromStatus === targetStatus) return;
+
+        // optimistic UI move
+        const dragged = dragCtx.el;
+        if (!dragged) return;
+
+        const prevParent = dragCtx.fromColBody;
+        const prevStatus = dragCtx.fromStatus;
+
+        try {
+          body.appendChild(dragged);
+          recountColumnsFromDOM();
+
+          dragged.classList.add("is-busy");
+          await setManyOrdersStatus(payload.orderIds, targetStatus);
+
+          // dopo successo, riallinea con backend (merge/split gruppi ecc.)
+          await loadAndRender();
+        } catch (e) {
+          console.error("[kiosk_overview] dnd move error", e);
+
+          // rollback UI
+          if (prevParent && dragged) {
+            prevParent.appendChild(dragged);
+          }
+          recountColumnsFromDOM();
+
+          alert(`Errore spostamento: ${String(e.message || e)}`);
+        } finally {
+          if (dragged) dragged.classList.remove("is-busy");
+        }
+      });
+    });
+  }
+
   function buildCard(vm) {
     const div = document.createElement("div");
     div.className = "order-card";
     div.style.setProperty("--route-bg", vm.route_color || "#f1f3f5");
     div.dataset.routeId = String(vm.route_id || "");
+    div.setAttribute("data-route-id", String(vm.route_id || ""));
 
     const primary = vm.primary;
     const cust = primary.customer_display || "";
     const isGroup = vm.type === "group";
-
     const title = isGroup ? `${cust} (grouped)` : `${cust}`;
-
-    const groupBadge = isGroup ? `<span class="badge-multi">${vm.orders.length}</span>` : ``;
+    const groupBadge = isGroup ? `${vm.orders.length}` : ``;
 
     const notesSum = vm.orders.reduce((acc, o) => acc + (o.notes_count || 0), 0);
     const issuesSum = vm.orders.reduce((acc, o) => acc + (o.issues_count ? 1 : 0), 0);
 
     const seqTotal = vm.seq_total || 1;
-    const seqOn = new Set(vm.orders.map(o => o.group_seq || 1));
+    const seqOn = new Set(vm.orders.map((o) => o.group_seq || 1));
     const seqIndicator = buildSeqIndicator(seqTotal, seqOn);
 
     const deliveryLabel = primary.delivery_label || "";
     const preview = primary.preview || "";
 
     const moveOpts = statusOptionsFor(vm.status);
-    const moveMenuHtml = moveOpts.length ? `
-    <details class="order-actions" role="menu">
-      <summary class="order-actions__btn" aria-label="Azioni">⋯</summary>
-      <div class="order-actions__menu">
-        <div class="order-actions__title">Sposta in</div>
-        ${moveOpts.map(s => `
-          <a href="#" class="order-actions__item" data-move-to="${escapeHtml(s.code)}">
-            ${escapeHtml(s.label)}
-          </a>
-        `).join("")}
-      </div>
-    </details>
-    ` : ``;
+    const moveMenuHtml = moveOpts.length
+      ? `
+        <div class="order-actions dropdown">
+          <button class="btn btn-sm btn-dark dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">⋯</button>
+          <ul class="dropdown-menu">
+            <li class="dropdown-header">Sposta in</li>
+            ${moveOpts
+              .map(
+                (s) =>
+                  `<li><a class="dropdown-item" href="#" data-move-to="${escapeHtml(
+                    s.code
+                  )}">${escapeHtml(s.label)}</a></li>`
+              )
+              .join("")}
+          </ul>
+        </div>
+      `
+      : ``;
 
     div.innerHTML = `
       ${moveMenuHtml}
-      <div class="order-top">
-        <div class="order-main">
-          <div class="order-name">${escapeHtml(title)}</div>
-          <div class="order-meta">
-            Giro: <span class="badge-route">${escapeHtml(vm.route_name || "")}</span>
-            ${deliveryLabel ? ` · <span class="order-delivery">${escapeHtml(deliveryLabel)}</span>` : ``}
-          </div>
-          ${seqIndicator}
-        </div>
-        <div class="order-badges">
-          ${groupBadge}
-          ${notesSum > 0 ? `<span class="badge-note">${notesSum}</span>` : ``}
-          ${issuesSum > 0 ? `<span class="badge-issue">${issuesSum}</span>` : ``}
-        </div>
+      <div class="order-title">${escapeHtml(title)}</div>
+      <div class="order-meta">Giro: ${escapeHtml(vm.route_name || "")}${
+      deliveryLabel ? ` · ${escapeHtml(deliveryLabel)}` : ``
+    }</div>
+      ${seqIndicator}
+      <div class="order-badges">
+        ${groupBadge ? `<span class="badge bg-secondary">${escapeHtml(groupBadge)}</span>` : ``}
+        ${notesSum > 0 ? `<span class="badge bg-info">${notesSum}</span>` : ``}
+        ${issuesSum > 0 ? `<span class="badge bg-danger">${issuesSum}</span>` : ``}
       </div>
-      ${preview ? `<div class="order-preview">${escapeHtml(preview)}</div>` : ``}
+      ${
+        preview
+          ? `<div class="order-preview">${escapeHtml(preview)}</div>`
+          : ``
+      }
     `;
 
+    // Click opens modal (unless dragging)
     const openFn = () => {
       if (isGroup) openGroupModal(vm);
       else openOrderModal(primary.id);
     };
 
     div.addEventListener("click", (ev) => {
+      if (dragCtx.isDragging) return;
       if (ev.target.closest(".order-actions")) return;
       openFn();
     });
@@ -226,15 +332,15 @@ window.kioskState = {
       if (ev.key === "Enter" || ev.key === " ") openFn();
     });
 
-    div.querySelectorAll("[data-move-to]").forEach(btn => {
+    // Move menu buttons (existing behavior)
+    div.querySelectorAll("[data-move-to]").forEach((btn) => {
       btn.addEventListener("click", async (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
-
         const target = ev.currentTarget.getAttribute("data-move-to");
         if (!target) return;
 
-        const ids = isGroup ? vm.orders.map(o => o.id) : [primary.id];
+        const ids = isGroup ? vm.orders.map((o) => o.id) : [primary.id];
 
         div.classList.add("is-busy");
         try {
@@ -249,7 +355,7 @@ window.kioskState = {
       });
     });
 
-    // Alza lo stacking della card quando il dropdown è aperto
+    // Dropdown stacking helper
     const ddToggle = div.querySelector('[data-bs-toggle="dropdown"]');
     if (ddToggle) {
       ddToggle.addEventListener("shown.bs.dropdown", () => {
@@ -260,6 +366,56 @@ window.kioskState = {
       });
     }
 
+    // ---------------------
+    // Drag & Drop: CARD
+    // ---------------------
+    const orderIds = isGroup ? vm.orders.map((o) => o.id) : [primary.id];
+    div.dataset.orderIds = JSON.stringify(orderIds);
+    div.dataset.fromStatus = String(vm.status || "");
+
+    div.draggable = true;
+
+    div.addEventListener("dragstart", (ev) => {
+      // Ignore drag if started on menu
+      if (ev.target && ev.target.closest && ev.target.closest(".order-actions")) {
+        ev.preventDefault();
+        return;
+      }
+
+      dragCtx.isDragging = true;
+      dragCtx.el = div;
+      dragCtx.fromStatus = String(vm.status || "");
+
+      const fromCol = div.closest(".kiosk-col");
+      const fromBody = fromCol ? fromCol.querySelector(".kiosk-col__body") : null;
+      dragCtx.fromColBody = fromBody;
+
+      dragCtx.payload = {
+        orderIds,
+        fromStatus: dragCtx.fromStatus,
+      };
+
+      try {
+        ev.dataTransfer.setData("application/json", JSON.stringify(dragCtx.payload));
+      } catch (e) {
+        // fallback
+        ev.dataTransfer.setData("text/plain", JSON.stringify(dragCtx.payload));
+      }
+
+      ev.dataTransfer.effectAllowed = "move";
+      div.classList.add("is-dragging");
+    });
+
+    div.addEventListener("dragend", () => {
+      div.classList.remove("is-dragging");
+      dragCtx.isDragging = false;
+      dragCtx.el = null;
+      dragCtx.fromColBody = null;
+      dragCtx.fromStatus = null;
+      dragCtx.payload = null;
+      // cleanup hover states
+      document.querySelectorAll(".kiosk-col__body.is-over").forEach((b) => b.classList.remove("is-over"));
+    });
 
     div.tabIndex = 0;
     div.role = "button";
@@ -269,6 +425,7 @@ window.kioskState = {
   async function openOrderModal(orderId) {
     const body = $("#orderModalBody");
     const title = $("#orderModalTitle");
+
     if (body) body.innerHTML = `<div class="text-muted">Caricamento...</div>`;
     if (title) title.textContent = `Ordine #${orderId}`;
 
@@ -287,67 +444,45 @@ window.kioskState = {
         title.textContent = `${data.customer_display || "Ordine"} — ${data.route_name || ""} (${data.status || ""})`;
       }
 
-      const routeBg = (data.route_color || "#f1f3f5");
       const safeTitle = escapeHtml(data.customer_display || "Ordine");
       const safeRoute = escapeHtml(data.route_name || "");
       const safeStatus = escapeHtml(data.status || "");
 
       const parts = [];
       parts.push(`
-        <div class="order-sheet" style="--route-bg:${routeBg}">
-          <div class="order-sheet__hero">
-            <div class="order-sheet__hero-bar"></div>
-            <div class="order-sheet__hero-body">
-              <div class="order-kv">
-                <div class="order-kv__k">Cliente</div><div class="order-kv__v">${safeTitle}</div>
-                <div class="order-kv__k">Giro</div><div class="order-kv__v">${safeRoute}</div>
-                <div class="order-kv__k">Stato</div><div class="order-kv__v">${safeStatus}</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="order-section">
-            <div class="order-section__head">Testo</div>
-            <div class="order-section__body">
-              <pre class="order-pre">${escapeHtml(data.raw_text || "")}</pre>
-            </div>
-          </div>
+        <div class="row g-2">
+          <div class="col-12"><div class="fw-bold">Cliente</div><div>${safeTitle}</div></div>
+          <div class="col-12"><div class="fw-bold">Giro</div><div>${safeRoute}</div></div>
+          <div class="col-12"><div class="fw-bold">Stato</div><div>${safeStatus}</div></div>
+          <div class="col-12"><div class="fw-bold">Testo</div><pre class="kiosk-pre">${escapeHtml(data.raw_text || "")}</pre></div>
+        </div>
       `);
 
       if (Array.isArray(data.children) && data.children.length) {
         parts.push(`
-          <div class="order-section">
-            <div class="order-section__head">Messaggi</div>
-            <div class="order-section__body">
-              <ul class="order-list">
-                ${data.children.map(c =>
-                  `<li><strong>${escapeHtml(c.label)}</strong> — ${escapeHtml(c.text || "")}</li>`
-                ).join("")}
-              </ul>
-            </div>
-          </div>
+          <hr/>
+          <div class="fw-bold">Messaggi</div>
+          <ul class="mb-0">
+            ${data.children
+              .map((c) => `<li><span class="text-muted">${escapeHtml(c.label)}</span> — ${escapeHtml(c.text || "")}</li>`)
+              .join("")}
+          </ul>
         `);
       }
 
       if (Array.isArray(data.thread_notes) && data.thread_notes.length) {
         parts.push(`
-          <div class="order-section">
-            <div class="order-section__head">Note</div>
-            <div class="order-section__body">
-              <ul class="order-list">
-                ${data.thread_notes.map(n =>
-                  `<li>${escapeHtml(n.text || "")}</li>`
-                ).join("")}
-              </ul>
-            </div>
-          </div>
+          <hr/>
+          <div class="fw-bold">Note</div>
+          <ul class="mb-0">
+            ${data.thread_notes.map((n) => `<li>${escapeHtml(n.text || "")}</li>`).join("")}
+          </ul>
         `);
       }
 
-      parts.push(`</div>`);
       if (body) body.innerHTML = parts.join("");
     } catch (err) {
-      if (body) body.innerHTML = `<div class="text-danger">Errore caricamento ordine: ${escapeHtml(String(err))}</div>`;
+      if (body) body.innerHTML = `<div class="alert alert-danger">Errore caricamento ordine: ${escapeHtml(String(err))}</div>`;
     }
   }
 
@@ -366,70 +501,52 @@ window.kioskState = {
     const primary = vm.primary;
     const cust = primary.customer_display || "Gruppo";
 
-    if (title) {
-      title.textContent = `${cust} — ${vm.route_name || ""} (${vm.status || ""})`;
-    }
+    if (title) title.textContent = `${cust} — ${vm.route_name || ""} (${vm.status || ""})`;
 
     const seqTotal = vm.seq_total || 1;
-    const seqOn = new Set(vm.orders.map(o => o.group_seq || 1));
+    const seqOn = new Set(vm.orders.map((o) => o.group_seq || 1));
     const seqIndicator = buildSeqIndicator(seqTotal, seqOn);
 
     const list = [...vm.orders]
       .sort((a, b) => (a.group_seq ?? 1) - (b.group_seq ?? 1))
-      .map(o => {
+      .map((o) => {
         const seq = o.group_seq || 1;
         const delivery = o.delivery_label || "";
         const notes = o.notes_count || 0;
         const issues = o.issues_count ? 1 : 0;
         const prev = o.preview || "";
+
         return `
-          <div class="order-group-item">
-            <div class="order-group-item__head">
-              <div><strong>Ordine #${seq}/${seqTotal}</strong> ${delivery ? `· <span class="order-delivery">${escapeHtml(delivery)}</span>` : ``}</div>
-              <button class="btn btn-sm btn-outline-secondary" type="button" data-open-order="${o.id}">Apri #${seq}</button>
-            </div>
-            ${prev ? `<div class="order-group-item__preview">Preview: ${escapeHtml(prev)}</div>` : ``}
-            <div class="order-group-item__meta">Note: ${notes} · Issues: ${issues} · ID: ${o.id}</div>
+          <div class="kiosk-group-item" style="margin-bottom:10px;">
+            <div class="fw-bold">Ordine #${seq}/${seqTotal} ${delivery ? `· ${escapeHtml(delivery)}` : ``}</div>
+            ${prev ? `<div class="text-muted">Preview: ${escapeHtml(prev)}</div>` : ``}
+            <div class="small">Note: ${notes} · Issues: ${issues} · ID: ${o.id}</div>
+            <button class="btn btn-sm btn-primary mt-1" data-open-order="${o.id}">Apri</button>
           </div>
         `;
       })
       .join("");
 
-    const routeBg = (vm.route_color || "#f1f3f5");
     const safeRoute = escapeHtml(vm.route_name || "");
     const safeStatus = escapeHtml(vm.status || "");
     const safeCust = escapeHtml(cust);
 
     const html = `
-      <div class="order-sheet" style="--route-bg:${routeBg}">
-        <div class="order-sheet__hero">
-          <div class="order-sheet__hero-bar"></div>
-          <div class="order-sheet__hero-body">
-            <div class="order-kv">
-              <div class="order-kv__k">Cliente</div><div class="order-kv__v">${safeCust} (grouped)</div>
-              <div class="order-kv__k">Giro</div><div class="order-kv__v">${safeRoute}</div>
-              <div class="order-kv__k">Stato</div><div class="order-kv__v">${safeStatus}</div>
-              <div class="order-kv__k">Ordini</div><div class="order-kv__v">${vm.orders.length}</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="order-section">
-          <div class="order-section__head">Sequenza</div>
-          <div class="order-section__body">${seqIndicator}</div>
-        </div>
-
-        <div class="order-section">
-          <div class="order-section__head">Dettagli</div>
-          <div class="order-section__body">${list}</div>
-        </div>
+      <div class="row g-2">
+        <div class="col-12"><div class="fw-bold">Cliente</div><div>${safeCust} (grouped)</div></div>
+        <div class="col-12"><div class="fw-bold">Giro</div><div>${safeRoute}</div></div>
+        <div class="col-12"><div class="fw-bold">Stato</div><div>${safeStatus}</div></div>
+        <div class="col-12"><div class="fw-bold">Ordini</div><div>${vm.orders.length}</div></div>
+        <div class="col-12"><div class="fw-bold">Sequenza</div>${seqIndicator}</div></div>
+        <hr/>
+        <div class="col-12"><div class="fw-bold">Dettagli</div>${list}</div>
       </div>
     `;
 
     if (body) body.innerHTML = html;
 
     if (body) {
-      body.querySelectorAll("[data-open-order]").forEach(btn => {
+      body.querySelectorAll("[data-open-order]").forEach((btn) => {
         btn.addEventListener("click", (ev) => {
           const id = ev.currentTarget.getAttribute("data-open-order");
           if (id) openOrderModal(id);
@@ -442,12 +559,10 @@ window.kioskState = {
     const filter = kioskState.currentRouteFilter || "__all__";
     const cards = Array.isArray(kioskState.lastCards) ? kioskState.lastCards : [];
 
-    const filtered = (filter === "__all__")
-      ? cards
-      : cards.filter(c => String(c.route_id) === String(filter));
+    const filtered = filter === "__all__" ? cards : cards.filter((c) => String(c.route_id) === String(filter));
 
-    // reset colonne
-    document.querySelectorAll(".kiosk-col").forEach(col => {
+    // reset columns
+    document.querySelectorAll(".kiosk-col").forEach((col) => {
       const body = col.querySelector(".kiosk-col__body");
       if (body) body.innerHTML = "";
       const badge = col.querySelector("[data-count]");
@@ -455,19 +570,15 @@ window.kioskState = {
     });
 
     const counts = {};
-
     for (const vm of filtered) {
-      const body = document.querySelector(
-        `.kiosk-col[data-status="${vm.status}"] .kiosk-col__body`
-      );
+      const body = document.querySelector(`.kiosk-col[data-status="${vm.status}"] .kiosk-col__body`);
       if (!body) continue;
-
       body.appendChild(buildCard(vm));
       counts[vm.status] = (counts[vm.status] || 0) + 1;
     }
 
     // empty + badge
-    document.querySelectorAll(".kiosk-col").forEach(col => {
+    document.querySelectorAll(".kiosk-col").forEach((col) => {
       const status = col.dataset.status;
       const body = col.querySelector(".kiosk-col__body");
       const badge = col.querySelector("[data-count]");
@@ -475,11 +586,11 @@ window.kioskState = {
       if (body && body.children.length === 0) {
         body.innerHTML = `<div class="kiosk-empty">Nessun ordine</div>`;
       }
-      if (badge) badge.textContent = counts[status] || 0;
+      if (badge) badge.textContent = String(counts[status] || 0);
     });
 
     const pillTotal = document.getElementById("pill-total");
-    if (pillTotal) pillTotal.textContent = filtered.length;
+    if (pillTotal) pillTotal.textContent = String(filtered.length);
   }
 
   function hookFilters() {
@@ -489,13 +600,10 @@ window.kioskState = {
     container.addEventListener("click", (ev) => {
       const btn = ev.target.closest(".route-pill");
       if (!btn) return;
-
       const route = btn.getAttribute("data-filter-route");
       kioskState.currentRouteFilter = route || "__all__";
-
-      $all(".route-pill").forEach(b => b.classList.remove("active"));
+      $all(".route-pill").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-
       applyFilterAndRender();
     });
   }
@@ -520,17 +628,15 @@ window.kioskState = {
             route_id: routeId,
             route_name: routeName,
             route_color: routeColor,
-
             customer_display: o.customer || "",
             preview: (o.raw_text || "").trim().split("\n")[0].slice(0, 140),
-
             notes_count: o.note_count || 0,
             issues_count: o.has_issues ? 1 : 0,
-
             group_key: o.group_key || "",
             group_seq: o.group_seq || 1,
             group_size: o.group_size || 1,
             delivery_label: o.delivery_label || "",
+            raw_text: o.raw_text || "",
           });
         }
       }
@@ -562,7 +668,6 @@ window.kioskState = {
   function buildCardViewModels(flatOrders) {
     // B2: raggruppa per (group_key, status) se count>1
     const byGroup = new Map();
-
     for (const o of flatOrders) {
       const gk = o.group_key || "";
       if (!byGroup.has(gk)) {
@@ -594,13 +699,10 @@ window.kioskState = {
           seq_total: g.seqTotal,
           orders: ordersSorted,
           primary,
-
           route_id: primary.route_id,
           route_name: primary.route_name,
           route_color: primary.route_color,
-          route_name: primary.route_name,
           customer_display: primary.customer_display,
-          route_color: primary.route_color,
         });
       }
     }
@@ -662,14 +764,17 @@ window.kioskState = {
       const json = await res.json();
 
       updatePillsFromBoards(json);
-
       const flat = flattenBoardsToOrders(json);
       kioskState.lastCards = buildCardViewModels(flat);
-
       applyFilterAndRender();
+      recountColumnsFromDOM();
     } catch (err) {
-      clearColumnsKeepEmpty();
       console.error("[kiosk_overview] load error", err);
+      // fallback: svuota colonne ma mantiene struttura
+      document.querySelectorAll(".kiosk-col__body").forEach((body) => {
+        body.innerHTML = `<div class="kiosk-empty">Nessun ordine</div>`;
+      });
+      document.querySelectorAll(".kiosk-col [data-count]").forEach((b) => (b.textContent = "0"));
     }
   }
 
@@ -679,14 +784,14 @@ window.kioskState = {
     const btn = $("#btn-refresh");
     if (btn) btn.addEventListener("click", loadAndRender);
 
-    (async () => {
-      await loadStatuses();
-      await loadAndRender();
-    })();
+    await loadStatuses();
+    await loadAndRender();
 
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(loadAndRender, 10000);
   }
 
-  document.addEventListener("DOMContentLoaded", () => { start(); });
+  document.addEventListener("DOMContentLoaded", () => {
+    start();
+  });
 })();
