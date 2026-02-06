@@ -357,3 +357,31 @@
   white-space: pre-wrap;
   word-break: break-word;
 }
+
+/* =========================
+   KIOSK – Stepper arrows
+   ========================= */
+
+/* contenitore frecce */
+.order-stepper {
+  opacity: 0.55;              /* visibili anche senza hover */
+  transition: opacity 0.15s ease;
+}
+
+/* quando passo sulla card */
+.order-card:hover .order-stepper {
+  opacity: 1;
+}
+
+/* bottoni freccia */
+.order-stepper .btn {
+  padding: 2px 6px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* stato disabilitato: chiaramente percepibile */
+.order-stepper .btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
