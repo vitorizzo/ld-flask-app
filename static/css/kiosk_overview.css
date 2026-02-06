@@ -60,6 +60,7 @@
   flex-direction: column;
   box-shadow: 0 2px 10px rgba(0,0,0,0.06);
   scroll-snap-align: start;
+  transform: none !important;
 }
 
 .kiosk-col__head {
