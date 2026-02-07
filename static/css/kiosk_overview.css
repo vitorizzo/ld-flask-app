@@ -393,13 +393,13 @@
 /* Pastello per giro – robusto: non dipende da .kiosk-overview e non usa color-mix */
 .order-card{
   background:
-    linear-gradient(0deg, rgba(255,255,255,0.82), rgba(255,255,255,0.82)),
+    linear-gradient(0deg, rgba(255,255,255,0.42), rgba(255,255,255,0.42)),
     var(--route-bg) !important;
 }
 
 .order-card:hover{
   background:
-    linear-gradient(0deg, rgba(255,255,255,0.72), rgba(255,255,255,0.72)),
+    linear-gradient(0deg, rgba(255,255,255,0.32), rgba(255,255,255,0.32)),
     var(--route-bg) !important;
 }
 
