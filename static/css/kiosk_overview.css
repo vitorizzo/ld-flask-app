@@ -90,7 +90,8 @@
   border-radius: 14px;
   padding: 12px 12px 10px;
 
-  background: #fff;
+  background: linear-gradient(0deg, rgba(255,255,255,0.82), rgba(255,255,255,0.82)),
+    var(--route-bg);
   color: #111;
   border: 1px solid rgba(0, 0, 0, 0.08);
   box-shadow: 0 6px 18px rgba(0,0,0,0.12);
