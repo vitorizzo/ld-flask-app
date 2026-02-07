@@ -41,6 +41,80 @@ window.kioskState = {
       .replaceAll("'", "'");
   }
 
+  function injectEdgeStyles() {
+    if (document.getElementById("kiosk-edge-style")) return;
+
+    const css = `
+      /* =========================
+         KIOSK – Edge hover arrows
+         ========================= */
+
+      /* Assicura che la card sia un container per overlay assoluti */
+      .order-card { position: relative; }
+
+      /* hot-zone laterali: SEMPRE presenti (anche invisibili) */
+      .kiosk-edge {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 44px;
+        z-index: 20; /* sopra contenuto card */
+        border: 0;
+        padding: 0;
+        cursor: pointer;
+        background: transparent;
+        opacity: 0;                 /* invisibile finché non hover */
+        pointer-events: auto;       /* deve catturare hover/click anche se trasparente */
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 120ms ease;
+      }
+
+      /* quando entro nella hot-zone, compare overlay */
+      .kiosk-edge:hover { opacity: 1; }
+
+      .kiosk-edge--left { left: 0; border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
+      .kiosk-edge--right { right: 0; border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
+
+      /* gradiente: da trasparente a grigio scuro */
+      .kiosk-edge--left:hover {
+        background: linear-gradient(to right, rgba(0,0,0,0.55), rgba(0,0,0,0.0));
+      }
+      .kiosk-edge--right:hover {
+        background: linear-gradient(to left, rgba(0,0,0,0.55), rgba(0,0,0,0.0));
+      }
+
+      /* freccia: visibile solo su hover */
+      .kiosk-edge__arrow {
+        opacity: 0;
+        transform: scale(0.95);
+        transition: opacity 120ms ease, transform 120ms ease;
+        font-size: 20px;
+        font-weight: 800;
+        line-height: 1;
+        color: rgba(255,255,255,0.95);
+        text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+        user-select: none;
+      }
+      .kiosk-edge:hover .kiosk-edge__arrow {
+        opacity: 1;
+        transform: scale(1);
+      }
+
+      /* disabilitato: area non cliccabile */
+      .kiosk-edge:disabled {
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+    `;
+
+    const style = document.createElement("style");
+    style.id = "kiosk-edge-style";
+    style.textContent = css;
+    document.head.appendChild(style);
+  }
+
   function setNowText() {
     const el = $("#ui-now");
     if (!el) return;
@@ -275,18 +349,6 @@ window.kioskState = {
 
     const { prev, next } = getPrevNextStatus(vm.status);
 
-    // Frecce (prev/next di 1 step)
-    const arrowsHtml = `
-      <div class="order-stepper btn-group" role="group" aria-label="stepper">
-        <button type="button" class="btn btn-sm btn-outline-light" data-step="prev" ${
-          prev ? "" : "disabled"
-        } aria-label="retrocedi">←</button>
-        <button type="button" class="btn btn-sm btn-outline-light" data-step="next" ${
-          next ? "" : "disabled"
-        } aria-label="promuovi">→</button>
-      </div>
-    `;
-
     const moveOpts = statusOptionsFor(vm.status);
     const moveMenuHtml = moveOpts.length
       ? `
@@ -307,9 +369,27 @@ window.kioskState = {
       `
       : ``;
 
+    // Hot-zones laterali
+    const edgeLeft = `
+      <button type="button" class="kiosk-edge kiosk-edge--left" data-step="prev" ${
+        prev ? "" : "disabled"
+      } aria-label="retrocedi">
+        <span class="kiosk-edge__arrow">←</span>
+      </button>
+    `;
+    const edgeRight = `
+      <button type="button" class="kiosk-edge kiosk-edge--right" data-step="next" ${
+        next ? "" : "disabled"
+      } aria-label="promuovi">
+        <span class="kiosk-edge__arrow">→</span>
+      </button>
+    `;
+
     div.innerHTML = `
-      <div class="order-topbar d-flex align-items-center justify-content-between" style="gap:8px;">
-        ${arrowsHtml}
+      ${edgeLeft}
+      ${edgeRight}
+
+      <div class="order-topbar d-flex align-items-center justify-content-end" style="gap:8px; position: relative; z-index: 30;">
         ${moveMenuHtml}
       </div>
 
@@ -332,12 +412,8 @@ window.kioskState = {
     div.addEventListener("click", (ev) => {
       if (dragCtx.isDragging) return;
       if (ev.target.closest(".order-actions")) return;
-      if (ev.target.closest(".order-stepper")) return;
+      if (ev.target.closest(".kiosk-edge")) return; // edge gestisce click
       openFn();
-    });
-
-    div.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter" || ev.key === " ") openFn();
     });
 
     // Menu “…”: spostamento diretto a qualunque status
@@ -363,7 +439,7 @@ window.kioskState = {
       });
     });
 
-    // Stepper ← →
+    // Stepper edges ← →
     div.querySelectorAll("[data-step]").forEach((btn) => {
       btn.addEventListener("click", async (ev) => {
         ev.preventDefault();
@@ -383,7 +459,7 @@ window.kioskState = {
           await setManyOrdersStatus(ids, target);
           await loadAndRender();
         } catch (e) {
-          console.error("[kiosk_overview] stepper error", e);
+          console.error("[kiosk_overview] edge step error", e);
           alert(`Errore cambio stato: ${String(e.message || e)}`);
         } finally {
           div.classList.remove("is-busy");
@@ -416,7 +492,7 @@ window.kioskState = {
         ev.preventDefault();
         return;
       }
-      if (ev.target && ev.target.closest && ev.target.closest(".order-stepper")) {
+      if (ev.target && ev.target.closest && ev.target.closest(".kiosk-edge")) {
         ev.preventDefault();
         return;
       }
@@ -803,6 +879,7 @@ window.kioskState = {
   }
 
   async function start() {
+    injectEdgeStyles();
     hookFilters();
 
     const btn = $("#btn-refresh");
