@@ -52,6 +52,39 @@ window.kioskState = {
       /* Assicura che la card sia un container per overlay assoluti */
       .order-card { position: relative; }
 
+      /* =========================
+         KIOSK – Card background by route (pastello)
+         ========================= */
+
+      /* background base della card */
+      .order-card {
+        background:
+          linear-gradient(
+            0deg,
+            rgba(255, 255, 255, 0.85),
+            rgba(255, 255, 255, 0.85)
+          ),
+          var(--route-bg);
+        border-radius: 12px;
+        transition: background-color 120ms ease, box-shadow 120ms ease;
+      }
+
+      /* hover leggermente più “presente” */
+      .order-card:hover {
+        background:
+          linear-gradient(
+            0deg,
+            rgba(255, 255, 255, 0.75),
+            rgba(255, 255, 255, 0.75)
+          ),
+          var(--route-bg);
+      }
+
+      /* stato busy (mentre cambia stato) */
+      .order-card.is-busy {
+        filter: saturate(0.85) brightness(0.95);
+      }
+
       /* hot-zone laterali: SEMPRE presenti (anche invisibili) */
       .kiosk-edge {
         position: absolute;
