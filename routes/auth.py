@@ -84,10 +84,10 @@ def login():
     return render_template('login.html', form=form)
 
 
-@auth_bp.route('/reset_password', methods=['GET'])
-@log_task(logger)
-def reset_password_page():
-    return render_template('reset_password.html')
+# @auth_bp.route('/reset_password', methods=['GET'])
+# @log_task(logger)
+# def reset_password_page():
+#     return render_template('reset_password.html')
 
 
 @auth_bp.route('/edit_profile', methods=['GET', 'POST'])
