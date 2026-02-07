@@ -390,13 +390,19 @@
    KIOSK – Edge hover arrows (definitivo, no CSS iniettato)
    ========================= */
 
-/* Pastello: NON tocca ::before/::after (sono già usati per aura) */
-.kiosk-overview .order-card{
-  background: color-mix(in srgb, var(--route-bg) 16%, white);
+/* Pastello per giro – robusto: non dipende da .kiosk-overview e non usa color-mix */
+.order-card{
+  background:
+    linear-gradient(0deg, rgba(255,255,255,0.82), rgba(255,255,255,0.82)),
+    var(--route-bg);
 }
-.kiosk-overview .order-card:hover{
-  background: color-mix(in srgb, var(--route-bg) 22%, white);
+
+.order-card:hover{
+  background:
+    linear-gradient(0deg, rgba(255,255,255,0.72), rgba(255,255,255,0.72)),
+    var(--route-bg);
 }
+
 
 /* Hot-zone laterali */
 .kiosk-overview .kiosk-edge{
