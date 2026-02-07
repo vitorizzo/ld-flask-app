@@ -814,7 +814,7 @@ window.kioskState = {
     await loadAndRender();
 
     if (refreshTimer) clearInterval(refreshTimer);
-    refreshTimer = setInterval(loadAndRender, 10000);
+    // refreshTimer = setInterval(loadAndRender, 10000);
   }
 
   document.addEventListener("DOMContentLoaded", () => {
