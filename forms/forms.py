@@ -1,5 +1,5 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, PasswordField, SubmitField, DateField, SelectField, BooleanField, IntegerField, \
+from wtforms import StringField, PasswordField, SubmitField, SelectField, BooleanField, IntegerField, \
     HiddenField
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional
 from tools.log_utils import get_logger
@@ -62,3 +62,26 @@ class InventarioForm(FlaskForm):
 
     calcola = SubmitField("Calcola")
     submit = SubmitField("Inserisci")
+
+
+class ForgotPasswordForm(FlaskForm):
+    email = StringField(
+        "Email",
+        validators=[DataRequired(), Email(message="Email non valida")]
+    )
+    submit = SubmitField("Invia link di reset")
+
+
+class ResetPasswordForm(FlaskForm):
+    password = PasswordField(
+        "Nuova password",
+        validators=[DataRequired(), Length(min=8, message="Minimo 8 caratteri")]
+    )
+    confirm_password = PasswordField(
+        "Conferma password",
+        validators=[
+            DataRequired(),
+            EqualTo("password", message="Le password non coincidono")
+        ]
+    )
+    submit = SubmitField("Imposta nuova password")

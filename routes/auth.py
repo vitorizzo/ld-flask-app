@@ -2,12 +2,16 @@ from flask import Blueprint, render_template, request, redirect, url_for, flash,
 from flask_login import current_user, login_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
+from datetime import datetime, timedelta, timezone
+
 from extensions import db
-from forms.forms import LoginForm, RegistrationForm, EditProfileForm
+from forms.forms import LoginForm, RegistrationForm, EditProfileForm, ForgotPasswordForm, ResetPasswordForm
 from tools.auth_manager import get_current_user, get_current_user_id
-from models import User
+from models import User, PasswordResetToken
 from tools.log_utils import log_task, get_logger
+
 import os
+import secrets
 from PIL import Image
 import shutil
 
@@ -216,3 +220,70 @@ def logout():
 
     flash('Logout effettuato con successo!', 'success')
     return resp
+
+
+@auth_bp.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    form = ForgotPasswordForm()
+
+    if form.validate_on_submit():
+        email = form.email.data.strip().lower()
+        user = User.query.filter_by(email=email).first()
+
+        if user:
+            raw_token = secrets.token_urlsafe(32)
+            token_hash = PasswordResetToken.hash_token(raw_token)
+
+            reset_token = PasswordResetToken(
+                user_id=user.id,
+                token_hash=token_hash,
+                expires_at=datetime.now(timezone.utc) + timedelta(minutes=60),
+                requested_ip=request.remote_addr,
+                user_agent=request.headers.get("User-Agent")
+            )
+            db.session.add(reset_token)
+            db.session.commit()
+
+            # QUI più avanti invieremo l’email
+            # reset_link = url_for("auth.reset_password", token=raw_token, _external=True)
+
+        # risposta neutra
+        flash(
+            "Se l'indirizzo email è registrato, riceverai un link per reimpostare la password.",
+            "info"
+        )
+        return redirect(url_for("auth.login"))
+
+    return render_template("forgot_password.html", form=form)
+
+
+@auth_bp.route("/reset/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    token_hash = PasswordResetToken.hash_token(token)
+
+    reset_token = PasswordResetToken.query.filter_by(
+        token_hash=token_hash
+    ).first()
+
+    if (
+        not reset_token
+        or reset_token.is_used
+        or reset_token.is_expired
+    ):
+        flash("Link di reset non valido o scaduto.", "danger")
+        return redirect(url_for("auth.login"))
+
+    form = ResetPasswordForm()
+
+    if form.validate_on_submit():
+        user = reset_token.user
+        user.password = generate_password_hash(form.password.data)
+
+        reset_token.used_at = datetime.now(timezone.utc)
+
+        db.session.commit()
+
+        flash("Password aggiornata con successo. Ora puoi effettuare il login.", "success")
+        return redirect(url_for("auth.login"))
+
+    return render_template("reset_password.html", form=form)

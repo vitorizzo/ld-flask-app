@@ -1,3 +1,5 @@
+import hashlib
+
 from sqlalchemy.dialects.postgresql import JSONB
 from future.backports.datetime import datetime
 
@@ -858,3 +860,32 @@ class OrderStatus(db.Model):
 
     def __repr__(self):
         return f"<OrderStatus {self.code}>"
+
+class PasswordResetToken(db.Model):
+    __tablename__ = "password_reset_tokens"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+
+    token_hash = db.Column(db.String(64), nullable=False, unique=True, index=True)
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    used_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    requested_ip = db.Column(db.String(64), nullable=True)
+    user_agent = db.Column(db.String(255), nullable=True)
+
+    user = db.relationship("User", backref=db.backref("password_reset_tokens", lazy="dynamic"))
+
+    @staticmethod
+    def hash_token(token: str) -> str:
+        return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+    @property
+    def is_expired(self) -> bool:
+        return datetime.now(timezone.utc) >= self.expires_at
+
+    @property
+    def is_used(self) -> bool:
+        return self.used_at is not None
