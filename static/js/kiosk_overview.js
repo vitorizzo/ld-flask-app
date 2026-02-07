@@ -80,6 +80,40 @@ window.kioskState = {
           var(--route-bg);
       }
 
+      /* =========================
+         KIOSK – Pastello per giro (overlay robusto)
+         ========================= */
+
+      /* layer colorato dietro al contenuto */
+      .order-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        border-radius: 12px;
+        pointer-events: none;
+        z-index: 0;
+
+        /* Colore giro + “lavaggio” bianco = pastello */
+        background:
+          linear-gradient(0deg, rgba(255,255,255,0.78), rgba(255,255,255,0.78)),
+          var(--route-bg);
+
+        /* Intensità del pastello: aumenta/diminuisci qui */
+        opacity: 0.85;
+      }
+
+      /* assicurati che il contenuto stia sopra l’overlay */
+      .order-card > * {
+        position: relative;
+        z-index: 1;
+      }
+
+      /* hover: un filo più evidente */
+      .order-card:hover::before {
+        opacity: 1;
+      }
+
+
       /* stato busy (mentre cambia stato) */
       .order-card.is-busy {
         filter: saturate(0.85) brightness(0.95);
