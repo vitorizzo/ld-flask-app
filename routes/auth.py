@@ -213,33 +213,51 @@ def forgot_password():
         user = User.query.filter_by(email=email).first()
 
         if user:
-            raw_token = secrets.token_urlsafe(32)
-            token_hash = PasswordResetToken.hash_token(raw_token)
+            now = datetime.now(timezone.utc)
 
-            reset_token = PasswordResetToken(
-                user_id=user.id,
-                token_hash=token_hash,
-                expires_at=datetime.now(timezone.utc) + timedelta(minutes=60),
-                requested_ip=request.remote_addr,
-                user_agent=request.headers.get("User-Agent")
+            # 🔒 Cooldown 60s: evita spam token/email
+            recent = (
+                PasswordResetToken.query
+                .filter(
+                    PasswordResetToken.user_id == user.id,
+                    PasswordResetToken.created_at >= (now - timedelta(seconds=60))
+                )
+                .order_by(PasswordResetToken.created_at.desc())
+                .first()
             )
-            db.session.add(reset_token)
-            db.session.commit()
 
-            reset_link = url_for("auth.reset_password", token=raw_token, _external=True)
+            if not recent:
+                raw_token = secrets.token_urlsafe(32)
+                token_hash = PasswordResetToken.hash_token(raw_token)
 
-            msg = Message(
-                subject="Reimposta la tua password",
-                recipients=[user.email],
-                body=(
-                    "Hai richiesto il reset della password.\n\n"
-                    f"Apri questo link per impostare una nuova password:\n{reset_link}\n\n"
-                    "Se non hai richiesto tu questa operazione, puoi ignorare questa email."
-                ),
-            )
-            mail.send(msg)
+                reset_token = PasswordResetToken(
+                    user_id=user.id,
+                    token_hash=token_hash,
+                    expires_at=now + timedelta(minutes=60),
+                    requested_ip=request.remote_addr,
+                    user_agent=request.headers.get("User-Agent")
+                )
+                db.session.add(reset_token)
+                db.session.commit()
 
-        # risposta neutra
+                reset_link = url_for(
+                    "auth.reset_password",
+                    token=raw_token,
+                    _external=True
+                )
+
+                msg = Message(
+                    subject="Reimposta la tua password",
+                    recipients=[user.email],
+                    body=(
+                        "Hai richiesto il reset della password.\n\n"
+                        f"Apri questo link per impostare una nuova password:\n{reset_link}\n\n"
+                        "Se non hai richiesto tu questa operazione, puoi ignorare questa email."
+                    ),
+                )
+                mail.send(msg)
+
+        # risposta sempre neutra (anti user-enumeration)
         flash(
             "Se l'indirizzo email è registrato, riceverai un link per reimpostare la password.",
             "info"
