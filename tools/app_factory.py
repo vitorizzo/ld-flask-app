@@ -7,6 +7,7 @@ from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
+from sqlalchemy import asc
 
 from extensions import db, mail
 from routes.automations_v2 import automations_v2_bp
@@ -181,26 +182,49 @@ def create_app():
 
     @app.context_processor
     def inject_menus():
-        def build_menu_tree(roots, all_menus, user_role_weight):
+        def build_menu_tree(nodes, all_menus, user_role_weight):
+            """
+            nodes: lista di Menu (già ordinata) da trattare come 'radici' del livello corrente
+            all_menus: lista completa Menu (già ordinata) usata per trovare i figli
+            """
             result = []
-            for root in roots:
-                if root.weight <= user_role_weight:
-                    children = [m for m in all_menus if m.parent_id == root.id and m.weight <= user_role_weight]
-                    children_tree = build_menu_tree(children, all_menus, user_role_weight)
-                    result.append({
-                        "id": root.id,
-                        "name": root.name,
-                        "weight": root.weight,
-                        "route": root.route,
-                        "is_active": root.is_active,
-                        "children": children_tree
-                    })
+            for node in nodes:
+                if not node.is_active:
+                    continue
+                if node.weight > user_role_weight:
+                    continue
+
+                children = [
+                    m for m in all_menus
+                    if m.parent_id == node.id and m.is_active and m.weight <= user_role_weight
+                ]
+
+                children_tree = build_menu_tree(children, all_menus, user_role_weight)
+
+                result.append({
+                    "id": node.id,
+                    "name": node.name,
+                    "weight": node.weight,
+                    "route": node.route,
+                    "is_active": node.is_active,
+                    "children": children_tree
+                })
             return result
 
         user_role_weight = current_user.max_role_weight if current_user.is_authenticated else 0
-        roots_menu = Menu.query.filter_by(parent_id=None).all()
-        childs_menu = Menu.query.filter(Menu.parent_id.isnot(None)).all()
-        menu_tree = build_menu_tree(roots_menu, childs_menu, user_role_weight)
+
+        # Carichiamo TUTTI i menu ordinati in modo deterministico
+        all_menus = (
+            Menu.query
+            .filter(Menu.is_active.is_(True), Menu.weight <= user_role_weight)
+            .order_by(asc(Menu.parent_id), asc(Menu.sort_order), asc(Menu.id))
+            .all()
+        )
+
+        # Radici = parent_id NULL (manteniamo l'ordine del queryset)
+        roots = [m for m in all_menus if m.parent_id is None]
+
+        menu_tree = build_menu_tree(roots, all_menus, user_role_weight)
         return {"menu_tree": menu_tree}
 
     # --- SERVICE WORKER ROUTE (opzionale ma utile) ---

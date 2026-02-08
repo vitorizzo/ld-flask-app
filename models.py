@@ -20,6 +20,7 @@ class Menu(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     weight = db.Column(db.Integer, default=0)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
     parent_id = db.Column(db.Integer, db.ForeignKey('menus.id'), nullable=True)
     route = db.Column(db.String(100), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
