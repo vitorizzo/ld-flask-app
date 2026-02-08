@@ -1,7 +1,7 @@
-# PROJECT_MAP.md — v2.2
+# PROJECT_MAP.md — v2.3
 
 ## Repository source of truth
-Repo: https://github.com/vitorizzo/ld-flask-app  
+Repo: https://github.com/vitorizzo/ld-flask-app
 Branch: main
 
 LINK_BASE_RAW:
@@ -45,7 +45,7 @@ Regola link:
 ## File principali (core)
 - `/app.py` — entrypoint e bootstrap app
 - `/extensions.py` — inizializzazione estensioni Flask
-- `/models.py` — SQLAlchemy models (incl. Automations V2 + Slack Orders + OrderStatus)
+- `/models.py` — SQLAlchemy models (incl. Automations V2 + Slack Orders + OrderStatus + PasswordResetToken)
 - `/requirements.txt` — dipendenze
 - `/README.md` — overview progetto
 - `/new_chat.md` — regole operative (bootstrap chat)
@@ -56,7 +56,7 @@ Regola link:
 
 ## Backend: routes (Blueprint)
 - `/routes/__init__.py` — init blueprint package
-- `/routes/auth.py` — login/registrazione/utente
+- `/routes/auth.py` — login/registrazione/utente + reset password (forgot + reset/<token>)
 - `/routes/trello.py` — integrazione Trello (webhook, editor legacy, ecc.)
 - `/routes/slack.py` — Slack Events API + gestione connessioni/azioni
 - `/routes/automations_v2.py` — API + UI Automations V2 (CRUD automazioni, capabilities, trigger/actions cross-app)
@@ -69,7 +69,7 @@ Regola link:
 - `/routes/importazioni_routes.py` — importazioni & storico
 - `/routes/esportazioni_teamsystem.py` — export verso TeamSystem
 - `/routes/status_routes.py` — eventuale pagina stato
-- `/routes/kiosk.py` — **Kiosk (ordini Slack): board/all, API board, set-status**
+- `/routes/kiosk.py` — Kiosk (ordini Slack): board/all, API board, set-status
 
 ---
 
@@ -88,6 +88,7 @@ Regola link:
 - `/tools/db_utils.py` — util DB
 - `/tools/redis_utils.py` — util Redis
 - `/tools/task_monitor.py` — monitor task Celery
+- `/tools/app_factory.py` — create_app + configurazioni + (CLI) cleanup-reset-tokens
 - `/tools/auth_manager.py` — helper auth (se presente)
 - `/tools/esportazioni.py` — logiche export
 - `/tools/importazioni.py` — logiche import
@@ -108,8 +109,10 @@ Regola link:
 - `/templates/storico_importazioni.html` — UI importazioni
 - `/templates/settings/menus.html` — UI gestione menu
 - `/templates/settings/import_conflicts.html` — UI gestione conflitti import
-- `/templates/kiosk_overview.html` — **UI Kiosk overview**
-- `/templates/kiosk_ordini_embed.html` — **Embed/entry Kiosk ordini (se usato dal menu)**
+- `/templates/kiosk_overview.html` — UI Kiosk overview
+- `/templates/kiosk_ordini_embed.html` — Embed/entry Kiosk ordini (se usato dal menu)
+- `/templates/forgot_password.html` — form richiesta reset password (email)
+- `/templates/reset_password.html` — form impostazione nuova password
 
 ---
 
@@ -127,7 +130,7 @@ Regola link:
 - `/static/js/task_status.js` — monitor task
 - `/static/js/import_conflicts.js` — UI conflitti import
 - `/static/js/base.js` — common client logic
-- `/static/js/kiosk_overview.js` — **UI Kiosk: fetch board/all, render colonne, menu “…” e cambio stato**
+- `/static/js/kiosk_overview.js` — UI Kiosk: fetch board/all, render colonne, menu “…” e cambio stato
 
 ### CSS
 - `/static/css/style.css` — stile generale (include anche regole Kiosk se non separate)
@@ -142,7 +145,7 @@ Regola link:
 
 ## Migrazioni DB (Alembic)
 - `/migrations/env.py` — configurazione Alembic
-- `/migrations/versions/` — scripts migrazione
+- `/migrations/versions/` — scripts migrazione (incl. aggiunta PasswordResetToken / password_reset_tokens)
 
 ---
 
@@ -153,6 +156,5 @@ Regola link:
 ---
 
 ## Versione
-Versione: 2.2  
-Stato: allineata allo sviluppo corrente (Kiosk + Slack Orders + OrderStatus DB-driven)  
-Ultimo aggiornamento: Kiosk menu “…” + Slack reactions da DB + struttura Kiosk in project map
+Versione: 2.3
+Stato: aggiornato con reset password (forgot/reset + hardening + CLI cleanup)
