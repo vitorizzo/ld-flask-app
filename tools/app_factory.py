@@ -1,14 +1,18 @@
 import logging
 import os
+import click
+
 from flask import Flask, render_template, send_from_directory, make_response, session
 from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from dotenv import load_dotenv
+from datetime import datetime, timedelta, timezone
+
 from extensions import db, mail
 from routes.automations_v2 import automations_v2_bp
 from routes.kiosk import kiosk_bp
 from tools.log_utils import get_logger
-from models import User, Menu
+from models import User, Menu, PasswordResetToken
 from routes.tools import get_user_menu
 
 load_dotenv()
@@ -239,6 +243,27 @@ def create_app():
     app.register_blueprint(slack_bp, url_prefix="/slack")
     app.register_blueprint(automations_v2_bp, url_prefix="/api")
     app.register_blueprint(kiosk_bp, url_prefix="/kiosk")
+
+    @app.cli.command("cleanup-reset-tokens")
+    @click.option("--retention-days", default=30, show_default=True, type=int,
+                  help="Elimina token usati/scaduti più vecchi di N giorni.")
+    def cleanup_reset_tokens(retention_days: int):
+        """Elimina token reset password scaduti/usati più vecchi della retention."""
+        now = datetime.now(timezone.utc)
+        cutoff = now - timedelta(days=retention_days)
+
+        q = PasswordResetToken.query.filter(
+            db.or_(
+                db.and_(PasswordResetToken.used_at.isnot(None), PasswordResetToken.used_at < cutoff),
+                db.and_(PasswordResetToken.expires_at < cutoff),
+            )
+        )
+
+        count = q.count()
+        q.delete(synchronize_session=False)
+        db.session.commit()
+
+        click.echo(f"cleanup-reset-tokens: deleted {count} rows (retention_days={retention_days})")
 
     from config.celery_app import init_celery
     init_celery(app)
