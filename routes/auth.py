@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session
 from flask_login import current_user, login_user, logout_user
+from flask_mail import Message
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, timezone
 
-from extensions import db
+from extensions import db, mail
 from forms.forms import LoginForm, RegistrationForm, EditProfileForm, ForgotPasswordForm, ResetPasswordForm
 from tools.auth_manager import get_current_user, get_current_user_id
 from models import User, PasswordResetToken
@@ -186,25 +187,6 @@ def delete_user():
     return redirect(url_for('auth.logout'))
 
 
-# @auth_bp.route('/logout', methods=['GET'])
-# @log_task(logger)
-# def logout():
-#     logout_user()
-#
-#     # session.clear()
-#
-#     session.pop('_user_id', None)
-#     session.pop('remember', None)
-#     session.pop('remember_token', None)
-#
-#     # Rimuove cookie remember se presente
-#     resp = redirect(url_for('home'))
-#     resp.delete_cookie('remember_token')
-#
-#     flash('Logout effettuato con successo!', 'success')
-#     return resp
-
-
 @auth_bp.route('/logout', methods=['GET'])
 @log_task(logger)
 def logout():
@@ -244,8 +226,18 @@ def forgot_password():
             db.session.add(reset_token)
             db.session.commit()
 
-            # QUI più avanti invieremo l’email
-            # reset_link = url_for("auth.reset_password", token=raw_token, _external=True)
+            reset_link = url_for("auth.reset_password", token=raw_token, _external=True)
+
+            msg = Message(
+                subject="Reimposta la tua password",
+                recipients=[user.email],
+                body=(
+                    "Hai richiesto il reset della password.\n\n"
+                    f"Apri questo link per impostare una nuova password:\n{reset_link}\n\n"
+                    "Se non hai richiesto tu questa operazione, puoi ignorare questa email."
+                ),
+            )
+            mail.send(msg)
 
         # risposta neutra
         flash(
