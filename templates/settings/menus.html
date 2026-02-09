@@ -45,6 +45,15 @@
         <!-- Sezione centrale -->
         <div class="col-md-6">
             <section class="central-section">
+                <div class="card mt-3">
+                  <div class="card-header">
+                    <strong>Struttura menu (drag&drop)</strong>
+                  </div>
+                  <div class="card-body">
+                    <div id="menuTree"></div>
+                    <small class="text-muted">Trascina le voci per cambiare ordine e gerarchia (salvataggio nello step successivo).</small>
+                  </div>
+                </div>
                 <h1>Gestione Menu</h1>
                 <ul>
                     {% for menu in menus %}

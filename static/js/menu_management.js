@@ -1,5 +1,115 @@
 document.addEventListener('DOMContentLoaded', function() {
     initializeMenuManagement();
+
+    function buildTree(items) {
+      const byId = new Map();
+      items.forEach(i => byId.set(i.id, { ...i, children: [] }));
+
+      const roots = [];
+      byId.forEach(node => {
+        if (node.parent_id == null) {
+          roots.push(node);
+        } else {
+          const parent = byId.get(node.parent_id);
+          if (parent) parent.children.push(node);
+          else roots.push(node); // fallback: orfano -> root
+        }
+      });
+
+      // Ordina ricorsivamente per sort_order, poi id (stabile)
+      function sortRec(nodes) {
+        nodes.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || a.id - b.id);
+        nodes.forEach(n => sortRec(n.children));
+      }
+      sortRec(roots);
+
+      return roots;
+    }
+
+    function renderTree(nodes) {
+      const ul = document.createElement("ul");
+      ul.className = "menu-tree list-unstyled ms-2";
+      ul.dataset.sortable = "1";
+
+      nodes.forEach(n => {
+        const li = document.createElement("li");
+        li.className = "menu-node mb-1";
+        li.dataset.id = n.id;
+
+        // Riga “drag handle”
+        const row = document.createElement("div");
+        row.className = "d-flex align-items-center gap-2 p-2 border rounded";
+        row.innerHTML = `
+          <span class="menu-handle" style="cursor:grab;">☰</span>
+          <span>${n.name ?? ("#" + n.id)}</span>
+          <span class="badge bg-secondary ms-auto">w:${n.weight}</span>
+        `;
+        li.appendChild(row);
+
+        if (n.children && n.children.length) {
+          li.appendChild(renderTree(n.children));
+        }
+
+        ul.appendChild(li);
+      });
+
+      return ul;
+    }
+
+    function initNestedSortable(rootEl) {
+      // Inizializza Sortable su tutti gli <ul data-sortable="1">
+      const lists = rootEl.querySelectorAll('ul[data-sortable="1"]');
+      lists.forEach(ul => {
+        new Sortable(ul, {
+          group: "menus",
+          animation: 150,
+          handle: ".menu-handle",
+          fallbackOnBody: true,
+          swapThreshold: 0.65,
+          onEnd: () => {
+            // Per ora: solo log. Salvataggio nello step successivo.
+            console.log("Tree changed:", collectTree(rootEl));
+          }
+        });
+      });
+    }
+
+    function collectTree(rootEl) {
+      // Ritorna una lista di {id, parent_id, sort_order} calcolata dalla UI
+      const result = [];
+      function walk(ul, parentId) {
+        const children = Array.from(ul.children).filter(el => el.matches("li.menu-node"));
+        children.forEach((li, idx) => {
+          const id = parseInt(li.dataset.id, 10);
+          result.push({ id, parent_id: parentId, sort_order: idx });
+          const childUl = li.querySelector(":scope > ul");
+          if (childUl) walk(childUl, id);
+        });
+      }
+      const rootUl = rootEl.querySelector("ul.menu-tree");
+      if (rootUl) walk(rootUl, null);
+      return result;
+    }
+
+    async function loadMenuStructureAndInitTree() {
+      const treeHost = document.getElementById("menuTree");
+      if (!treeHost) return;
+
+      const res = await fetch("/settings/get_menu_structure");
+      if (!res.ok) throw new Error("get_menu_structure failed: " + res.status);
+      const items = await res.json();
+
+      const roots = buildTree(items);
+      treeHost.innerHTML = "";
+      treeHost.appendChild(renderTree(roots));
+      initNestedSortable(treeHost);
+    }
+
+    // Avvio
+    document.addEventListener("DOMContentLoaded", () => {
+      loadMenuStructureAndInitTree().catch(err => console.error(err));
+    });
+
 });
 
 function initializeMenuManagement() {
