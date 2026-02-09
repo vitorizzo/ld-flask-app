@@ -33,6 +33,7 @@ class Menu(db.Model):
             'weight': self.weight,
             'parent_id': self.parent_id,
             'route': self.route,
+            'sort_order': self.sort_order,
             'is_active': self.is_active,
             'parent': self.parent.name if self.parent else None,
         }
