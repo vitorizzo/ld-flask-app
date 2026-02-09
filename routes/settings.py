@@ -68,7 +68,23 @@ def manage_menus():
         route = request.form['route']
         parent_id = request.form.get('parent_id', None)
         weight = request.form.get('weight', 0)
-        new_menu = Menu(name=name, route=route, parent_id=parent_id, weight=weight)
+        parent_id = request.form.get('parent_id') or None
+        parent_id_int = int(parent_id) if parent_id is not None else None
+        weight = int(request.form.get('weight') or 0)
+
+        max_sort = (db.session.query(db.func.max(Menu.sort_order))
+                    .filter(Menu.parent_id == parent_id_int)
+                    .scalar())
+        next_sort = (max_sort or 0) + 1
+
+        new_menu = Menu(
+            name=name,
+            route=route or None,
+            parent_id=parent_id_int,
+            weight=weight,
+            sort_order=next_sort,
+            is_active=True
+        )
         db.session.add(new_menu)
         db.session.commit()
         flash('Menu salvato con successo!', 'success')
