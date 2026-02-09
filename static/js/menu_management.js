@@ -61,21 +61,21 @@ function renderTree(nodes) {
     row.className = "d-flex align-items-center gap-2 p-2 border rounded";
     row.innerHTML = `
       <span class="menu-handle" style="cursor:grab;">☰</span>
-      <span class="menu-title">${escapeHtml(n.name)}</span>
-      <span class="badge bg-secondary ms-auto">w:${n.weight}</span>
+      <span class="menu-title">${escapeHtml(n.name ?? ("#" + n.id))}</span>
+      <span class="badge bg-secondary ms-auto">w:${n.weight ?? 0}</span>
 
       <div class="dropdown">
         <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
                 data-bs-toggle="dropdown">⋮</button>
         <ul class="dropdown-menu">
-          <li><a class="dropdown-item" href="#" data-action="add" data-id="${n.id}">Aggiungi sotto-menu</a></li>
+          <li><a class="dropdown-item" href="#" data-action="add-child" data-id="${n.id}">Aggiungi sotto-menu</a></li>
           <li><a class="dropdown-item" href="#" data-action="edit" data-id="${n.id}">Modifica</a></li>
         </ul>
       </div>
     `;
     li.appendChild(row);
 
-    if (n.children.length) {
+    if (n.children && n.children.length) {
       li.appendChild(renderTree(n.children));
     }
 
@@ -115,8 +115,8 @@ function initSortable(root) {
             headers: { "Content-Type": "application/json" },
             credentials: "same-origin",
             body: JSON.stringify({ items })
-          });
-        }, 300);
+          }).catch(console.error);
+        }, 250);
       }
     });
   });
@@ -134,7 +134,9 @@ function collectTree(root) {
     });
   };
 
-  walk(root.querySelector("ul.menu-tree"), null);
+  const rootUl = root.querySelector("ul.menu-tree");
+  if (rootUl) walk(rootUl, null);
+
   return result;
 }
 
@@ -142,54 +144,20 @@ function collectTree(root) {
    MODALE
 ========================= */
 
-document.getElementById("menuModalForm")?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-
-  const payload = {
-    id: document.getElementById("mm_menu_id").value || null,
-    parent_id: document.getElementById("mm_parent_id").value || null,
-    name: document.getElementById("mm_name").value,
-    route: document.getElementById("mm_route").value || null,
-    weight: Number(document.getElementById("mm_weight").value || 0),
-    is_active: document.getElementById("mm_is_active").checked
-  };
-
-  const url = payload.id ? "/settings/update_menu_json" : "/settings/create_menu";
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    credentials: "same-origin",
-    body: JSON.stringify(payload)
-  });
-
-  const data = await res.json();
-  if (!data.ok) {
-    alert(data.error || "Errore salvataggio");
-    return;
-  }
-
-  // chiudi modale
-  bootstrap.Modal.getInstance(document.getElementById("menuModal"))?.hide();
-
-  // refresh tree
-  await initMenuManager();
-});
-
 function openMenuModal({ mode, menu, parentId }) {
   document.getElementById("mm_menu_id").value = menu?.id ?? "";
-  document.getElementById("mm_parent_id").value = parentId ?? menu?.parent_id ?? "";
+  document.getElementById("mm_parent_id").value = (parentId ?? menu?.parent_id ?? "") === null ? "" : (parentId ?? menu?.parent_id ?? "");
   document.getElementById("mm_name").value = menu?.name ?? "";
   document.getElementById("mm_route").value = menu?.route ?? "";
   document.getElementById("mm_weight").value = menu?.weight ?? 0;
-  document.getElementById("mm_is_active").checked = menu?.is_active ?? true;
+  document.getElementById("mm_is_active").checked = (menu?.is_active ?? true) === true;
 
   document.getElementById("menuModalTitle").textContent =
-    mode === "add" ? "Crea sotto-menu" : "Modifica menu";
+    (mode === "add-root") ? "Crea menu (root)" :
+    (mode === "add-child") ? "Crea sotto-menu" :
+    "Modifica menu";
 
-  bootstrap.Modal.getOrCreateInstance(
-    document.getElementById("menuModal")
-  ).show();
+  bootstrap.Modal.getOrCreateInstance(document.getElementById("menuModal")).show();
 }
 
 function bindTreeActions(root) {
@@ -199,12 +167,31 @@ function bindTreeActions(root) {
     e.preventDefault();
 
     const id = Number(a.dataset.id);
-    if (a.dataset.action === "add") {
-      openMenuModal({ mode: "add", parentId: id });
-    } else {
+    const action = a.dataset.action;
+
+    if (action === "add-child") {
+      openMenuModal({ mode: "add-child", menu: null, parentId: id });
+      return;
+    }
+
+    if (action === "edit") {
       const menu = await loadMenuData(id);
       openMenuModal({ mode: "edit", menu });
     }
+  });
+}
+
+/* =========================
+   ROOT BUTTON
+========================= */
+
+function bindRootCreateButton() {
+  const btn = document.getElementById("btnAddRootMenu");
+  if (!btn) return;
+
+  btn.addEventListener("click", () => {
+    // parent_id null => campo hidden vuoto
+    openMenuModal({ mode: "add-root", menu: null, parentId: null });
   });
 }
 
@@ -224,6 +211,7 @@ async function initMenuManager() {
 
   initSortable(host);
   bindTreeActions(host);
+  bindRootCreateButton();
 }
 
 document.addEventListener("DOMContentLoaded", initMenuManager);

@@ -14,72 +14,97 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-  <div class="row">
+<section class="welcome-section">
 
-    <!-- Sezione centrale (full width) -->
-    <div class="col-12">
-      <div class="card mt-3">
-        <div class="card-header">
-          <strong>Struttura menu (drag&drop)</strong>
+  <div class="container-fluid">
+    <div class="row">
+      <div class="col-12">
+
+        <div class="card mt-3">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <strong>Struttura menu (drag&drop)</strong>
+
+            <!-- ROOT CREATE -->
+            <button type="button" class="btn btn-sm btn-primary" id="btnAddRootMenu">
+              + Nuovo menu (root)
+            </button>
+          </div>
+
+          <div class="card-body">
+            <div id="menuTree"></div>
+            <small class="text-muted">
+              Trascina le voci per cambiare ordine e gerarchia. Usa “⋮” per creare sotto-menu o modificare.
+            </small>
+          </div>
         </div>
-        <div class="card-body">
-          <div id="menuTree"></div>
-          <small class="text-muted">
-            Trascina le voci per cambiare ordine e gerarchia. Usa “⋮” per creare sotto-menu o modificare.
-          </small>
-        </div>
+
       </div>
     </div>
-
   </div>
-</div>
 
-<!-- MODALE: Crea / Modifica menu -->
-<div class="modal fade" id="menuModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
+  <!-- MODALE: Crea / Modifica menu -->
+  <div class="modal fade" id="menuModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
 
-      <div class="modal-header">
-        <h5 class="modal-title" id="menuModalTitle">Menu</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        <div class="modal-header">
+          <h5 class="modal-title" id="menuModalTitle">Menu</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+
+        <form id="menuModalForm">
+          <div class="modal-body">
+            <input type="hidden" id="mm_menu_id">
+            <input type="hidden" id="mm_parent_id">
+
+            <div class="mb-3">
+              <label class="form-label" for="mm_name">Nome</label>
+              <input class="form-control" id="mm_name" required>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="mm_route">Route</label>
+              <input class="form-control" id="mm_route" placeholder="/path/opzionale">
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label" for="mm_weight">Weight</label>
+              <input class="form-control" type="number" id="mm_weight" value="0">
+            </div>
+
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="mm_is_active">
+              <label class="form-check-label" for="mm_is_active">Attivo</label>
+            </div>
+
+            {# Qui in futuro: select ruoli / eccezioni #}
+          </div>
+
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+            <button type="submit" class="btn btn-primary" id="mm_submit">Salva</button>
+          </div>
+        </form>
+
       </div>
-
-      <form id="menuModalForm">
-        <div class="modal-body">
-          <input type="hidden" id="mm_menu_id">
-          <input type="hidden" id="mm_parent_id">
-
-          <div class="mb-3">
-            <label class="form-label" for="mm_name">Nome</label>
-            <input class="form-control" id="mm_name" required>
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label" for="mm_route">Route</label>
-            <input class="form-control" id="mm_route" placeholder="/path/opzionale">
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label" for="mm_weight">Weight</label>
-            <input class="form-control" type="number" id="mm_weight" value="0">
-          </div>
-
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="mm_is_active">
-            <label class="form-check-label" for="mm_is_active">Attivo</label>
-          </div>
-
-          {# qui in futuro: select ruoli / visibilità / eccezioni #}
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
-          <button type="submit" class="btn btn-primary" id="mm_submit">Salva</button>
-        </div>
-      </form>
-
     </div>
   </div>
-</div>
+
+  <!-- FIX leggibilità modale (override su CSS progetto che rende testo bianco) -->
+  <style>
+    #menuModal .modal-content,
+    #menuModal .modal-body,
+    #menuModal .modal-header,
+    #menuModal label,
+    #menuModal .form-label,
+    #menuModal .form-check-label {
+      color: #111 !important;
+    }
+    #menuModal .form-control {
+      color: #111 !important;
+      background-color: #fff !important;
+    }
+  </style>
+
+</section>
 {% endblock %}
