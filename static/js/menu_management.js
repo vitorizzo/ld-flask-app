@@ -77,6 +77,27 @@ function escapeHtml(str) {
     .replaceAll("'", "&#039;");
 }
 
+let reorderTimer = null;
+function postReorderDebounced(items) {
+  if (reorderTimer) clearTimeout(reorderTimer);
+  reorderTimer = setTimeout(() => {
+    fetch("/settings/reorder_menus", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ items })
+    })
+      .then(async (r) => {
+        if (!r.ok) throw new Error(await r.text());
+        return r.json();
+      })
+      .then((data) => {
+        if (!data.ok) throw new Error(data.error || "reorder failed");
+      })
+      .catch(err => console.error("reorder_menus:", err));
+  }, 300);
+}
+
 function initNestedSortable(rootEl) {
   const lists = rootEl.querySelectorAll('ul[data-sortable="1"]');
   lists.forEach(ul => {
@@ -89,6 +110,7 @@ function initNestedSortable(rootEl) {
       onEnd: () => {
         const items = collectTree(rootEl);
         console.log("Tree changed:", items);
+        postReorderDebounced(items);
 
         fetch("/settings/reorder_menus", {
           method: "POST",
