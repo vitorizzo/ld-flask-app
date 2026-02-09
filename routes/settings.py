@@ -329,3 +329,61 @@ def get_menu_structure():
         .all()
     )
     return jsonify([m.to_dict() for m in menus])
+
+
+@settings_bp.route("/create_menu", methods=["POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def create_menu():
+    data = request.get_json(silent=True) or {}
+
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify(ok=False, error="Nome obbligatorio"), 400
+
+    parent_id = data.get("parent_id")
+    parent_id = int(parent_id) if parent_id is not None else None
+    weight = int(data.get("weight") or 0)
+    route = data.get("route") or None
+    is_active = bool(data.get("is_active", True))
+
+    # sort_order = ultimo tra i fratelli + 1
+    max_sort = (db.session.query(db.func.max(Menu.sort_order))
+                .filter(Menu.parent_id == parent_id)
+                .scalar())
+    sort_order = (max_sort or 0) + 1
+
+    m = Menu(
+        name=name,
+        route=route,
+        parent_id=parent_id,
+        weight=weight,
+        sort_order=sort_order,
+        is_active=is_active
+    )
+    db.session.add(m)
+    db.session.commit()
+
+    return jsonify(ok=True, id=m.id)
+
+
+@settings_bp.route("/update_menu_json", methods=["POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def update_menu_json():
+    data = request.get_json(silent=True) or {}
+    mid = data.get("id")
+    if not mid:
+        return jsonify(ok=False, error="ID mancante"), 400
+
+    m = Menu.query.get_or_404(int(mid))
+
+    m.name = (data.get("name") or "").strip()
+    m.route = data.get("route") or None
+    m.weight = int(data.get("weight") or 0)
+    m.is_active = bool(data.get("is_active", True))
+
+    db.session.commit()
+    return jsonify(ok=True)
