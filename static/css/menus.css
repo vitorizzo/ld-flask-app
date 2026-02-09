@@ -1,0 +1,24 @@
+/* Pulsanti tema - variante piccola per questa pagina */
+.btn-theme-mini {
+  width: auto !important;
+  padding: 6px 10px !important;
+  margin: 0 !important;
+  font-size: 0.85rem !important;
+  line-height: 1.1 !important;
+  border-radius: 6px;
+}
+
+/* Pulsante ⋮ coerente col tema */
+#menuTree .dropdown-toggle.btn-menu-actions {
+  border: 2px solid #fff !important;
+  color: #fff !important;
+  background-color: transparent !important;
+  padding: 2px 8px !important;
+  border-radius: 6px;
+}
+
+/* Hover coerente col tema */
+#menuTree .dropdown-toggle.btn-menu-actions:hover {
+  background-color: #B91C1C !important;
+  color: #fff !important;
+}

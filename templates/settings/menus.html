@@ -2,6 +2,10 @@
 
 {% block title %}LD Enoteca - Gestione Menù{% endblock %}
 
+{% block extra_css %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/menus.css') }}">
+{% endblock %}
+
 {% block scripts %}
   <!-- SortableJS -->
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
@@ -25,7 +29,7 @@
             <strong>Struttura menu (drag&drop)</strong>
 
             <!-- ROOT CREATE -->
-            <button type="button" class="btn btn-sm btn-primary" id="btnAddRootMenu">
+            <button type="button" class="btn-enabled-custom btn-theme-mini" id="btnAddRootMenu">
               + Nuovo menu (root)
             </button>
           </div>

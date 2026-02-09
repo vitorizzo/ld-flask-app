@@ -65,8 +65,10 @@ function renderTree(nodes) {
       <span class="badge bg-secondary ms-auto">w:${n.weight ?? 0}</span>
 
       <div class="dropdown">
-        <button class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                data-bs-toggle="dropdown">⋮</button>
+        <button class="dropdown-toggle btn-menu-actions"
+        type="button"
+        data-bs-toggle="dropdown"
+        aria-expanded="false">⋮</button>
         <ul class="dropdown-menu">
           <li><a class="dropdown-item" href="#" data-action="add-child" data-id="${n.id}">Aggiungi sotto-menu</a></li>
           <li><a class="dropdown-item" href="#" data-action="edit" data-id="${n.id}">Modifica</a></li>
