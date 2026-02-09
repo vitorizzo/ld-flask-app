@@ -31,3 +31,8 @@
   background-color: #B91C1C !important;
   color: #fff !important;
 }
+
+.btn-enabled-custom:hover {
+  background-color: #B91C1C !important;
+  color: #fff !important;
+}
