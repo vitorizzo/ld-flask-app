@@ -55,7 +55,18 @@ function renderTree(nodes) {
       <span class="menu-handle" style="cursor:grab;">☰</span>
       <span class="menu-title">${escapeHtml(n.name ?? ("#" + n.id))}</span>
       <span class="badge bg-secondary ms-auto">w:${n.weight ?? 0}</span>
+
+      <div class="dropdown">
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          ⋮
+        </button>
+        <ul class="dropdown-menu">
+          <li><a class="dropdown-item" href="#" data-action="add-child" data-id="${n.id}">Aggiungi sotto-menu</a></li>
+          <li><a class="dropdown-item" href="#" data-action="edit" data-id="${n.id}">Modifica</a></li>
+        </ul>
+      </div>
     `;
+
     li.appendChild(row);
 
     if (n.children && n.children.length) {
@@ -161,6 +172,8 @@ async function renderAndBindTree() {
 
   initNestedSortable(host);
 
+  bindTreeActions(host);
+
   // Click su riga: carica nel form
   host.addEventListener("click", async (ev) => {
     const node = ev.target.closest("li.menu-node");
@@ -224,6 +237,46 @@ function setupFormSubmission() {
       console.error("Errore update_menu:", err);
     }
   });
+
+  function openMenuModal({ mode, menu, parentId }) {
+    const modalEl = document.getElementById("menuModal");
+    const titleEl = document.getElementById("menuModalTitle");
+
+    document.getElementById("mm_menu_id").value = menu?.id ?? "";
+    document.getElementById("mm_parent_id").value = parentId ?? menu?.parent_id ?? "";
+    document.getElementById("mm_name").value = menu?.name ?? "";
+    document.getElementById("mm_route").value = menu?.route ?? "";
+    document.getElementById("mm_weight").value = menu?.weight ?? 0;
+    document.getElementById("mm_is_active").checked = (menu?.is_active ?? true) === true;
+
+    titleEl.textContent = (mode === "add-child") ? "Crea sotto-menu" : "Modifica menu";
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+  }
+
+  function bindTreeActions(host) {
+    host.addEventListener("click", async (ev) => {
+      const a = ev.target.closest("a[data-action]");
+      if (!a) return;
+      ev.preventDefault();
+
+      const action = a.dataset.action;
+      const id = parseInt(a.dataset.id, 10);
+
+      if (action === "add-child") {
+        openMenuModal({ mode: "add-child", menu: null, parentId: id });
+        return;
+      }
+
+      if (action === "edit") {
+        const menu = await loadMenuData(id);
+        openMenuModal({ mode: "edit", menu });
+        return;
+      }
+    });
+  }
+
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -234,6 +287,18 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   setupCancelButton();
   setupFormSubmission();
+
+  document.getElementById("menuModalForm")?.addEventListener("submit", (e) => {
+    e.preventDefault();
+    console.log("MODAL SUBMIT (placeholder):", {
+      menu_id: document.getElementById("mm_menu_id").value,
+      parent_id: document.getElementById("mm_parent_id").value,
+      name: document.getElementById("mm_name").value,
+      route: document.getElementById("mm_route").value,
+      weight: document.getElementById("mm_weight").value,
+      is_active: document.getElementById("mm_is_active").checked
+    });
+  });
 
   try {
     await renderAndBindTree();
