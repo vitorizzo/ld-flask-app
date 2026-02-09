@@ -387,3 +387,25 @@ def update_menu_json():
 
     db.session.commit()
     return jsonify(ok=True)
+
+
+@settings_bp.route("/delete_menu/<int:menu_id>", methods=["POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def delete_menu(menu_id: int):
+    # blocca se ha figli
+    children_count = Menu.query.filter(Menu.parent_id == menu_id).count()
+    if children_count > 0:
+        return jsonify(ok=False, error="Impossibile eliminare: esistono sotto-menu."), 400
+
+    m = Menu.query.get_or_404(menu_id)
+
+    try:
+        db.session.delete(m)
+        db.session.commit()
+        return jsonify(ok=True)
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Errore delete_menu")
+        return jsonify(ok=False, error=str(e)), 500

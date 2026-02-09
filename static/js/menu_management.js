@@ -16,6 +16,16 @@ async function loadMenuData(menuId) {
   return await res.json();
 }
 
+async function apiDeleteMenu(menuId) {
+  const res = await fetch(`/settings/delete_menu/${menuId}`, {
+    method: "POST",
+    credentials: "same-origin",
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) throw new Error(data.error || "delete_menu failed");
+  return data;
+}
+
 async function createMenu(payload) {
   const res = await fetch("/settings/create_menu", {
     method: "POST",
@@ -97,6 +107,8 @@ function renderTree(nodes) {
         <ul class="dropdown-menu">
           <li><a class="dropdown-item" href="#" data-action="add-child" data-id="${n.id}">Aggiungi sotto-menu</a></li>
           <li><a class="dropdown-item" href="#" data-action="edit" data-id="${n.id}">Modifica</a></li>
+          <li><hr class="dropdown-divider"></li>
+          <li><a class="dropdown-item text-danger" href="#" data-action="delete" data-id="${n.id}">Elimina</a></li>
         </ul>
       </div>
     `;
@@ -223,6 +235,13 @@ function bindTreeActions(root) {
         const menu = await loadMenuData(id);
         openMenuModal({ mode: "edit", menu });
       }
+      if (action === "delete") {
+        if (!confirm("Eliminare questo menu? (Operazione irreversibile)")) return;
+        await apiDeleteMenu(id);
+        await initMenuManager();
+        return;
+      }
+
     } catch (err) {
       console.error(err);
     }
