@@ -11,7 +11,10 @@
 .btn-enabled-custom.btn-sm {
     padding: 4px 10px;
     font-size: 0.85rem;
-    background: grey;
+    background-color: #808080;   /* il tuo grey */
+    border: 2px solid #fff;
+    color: #fff;
+    transition: all 0.3s ease;
 }
 
 /* Pulsante ⋮ coerente col tema */
