@@ -8,6 +8,11 @@
   border-radius: 6px;
 }
 
+.btn-enabled-custom.btn-sm {
+    padding: 4px 10px;
+    font-size: 0.85rem;
+}
+
 /* Pulsante ⋮ coerente col tema */
 #menuTree .dropdown-toggle.btn-menu-actions {
   border: 2px solid #fff !important;
