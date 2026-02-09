@@ -16,6 +16,30 @@ async function loadMenuData(menuId) {
   return await res.json();
 }
 
+async function createMenu(payload) {
+  const res = await fetch("/settings/create_menu", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) throw new Error(data.error || "create_menu failed");
+  return data;
+}
+
+async function updateMenuJson(payload) {
+  const res = await fetch("/settings/update_menu_json", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) throw new Error(data.error || "update_menu_json failed");
+  return data;
+}
+
 /* =========================
    TREE BUILD
 ========================= */
@@ -35,7 +59,7 @@ function buildTree(items) {
   });
 
   const sortRec = nodes => {
-    nodes.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    nodes.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0) || (a.id - b.id));
     nodes.forEach(n => sortRec(n.children));
   };
   sortRec(roots);
@@ -55,26 +79,28 @@ function renderTree(nodes) {
   nodes.forEach(n => {
     const li = document.createElement("li");
     li.className = "menu-node mb-1";
-    li.dataset.id = n.id;
+    li.dataset.id = String(n.id);
 
     const row = document.createElement("div");
-    row.className = "d-flex align-items-center gap-2 p-2 border rounded";
+    row.className = "d-flex align-items-center gap-2 p-2 border rounded menu-row";
     row.innerHTML = `
-      <span class="menu-handle" style="cursor:grab;">☰</span>
+      <span class="menu-handle" title="Trascina" style="cursor:grab;">☰</span>
       <span class="menu-title">${escapeHtml(n.name ?? ("#" + n.id))}</span>
-      <span class="badge bg-secondary ms-auto">w:${n.weight ?? 0}</span>
+      <span class="badge bg-secondary ms-auto">w:${escapeHtml(String(n.weight ?? 0))}</span>
 
       <div class="dropdown">
         <button class="dropdown-toggle btn-menu-actions"
-        type="button"
-        data-bs-toggle="dropdown"
-        aria-expanded="false">⋮</button>
+          type="button"
+          data-bs-toggle="dropdown"
+          aria-expanded="false"
+          title="Azioni">⋮</button>
         <ul class="dropdown-menu">
           <li><a class="dropdown-item" href="#" data-action="add-child" data-id="${n.id}">Aggiungi sotto-menu</a></li>
           <li><a class="dropdown-item" href="#" data-action="edit" data-id="${n.id}">Modifica</a></li>
         </ul>
       </div>
     `;
+
     li.appendChild(row);
 
     if (n.children && n.children.length) {
@@ -91,7 +117,9 @@ function escapeHtml(str) {
   return String(str)
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 /* =========================
@@ -111,13 +139,18 @@ function initSortable(root) {
         console.log("Tree changed:", items);
 
         clearTimeout(reorderTimer);
-        reorderTimer = setTimeout(() => {
-          fetch("/settings/reorder_menus", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "same-origin",
-            body: JSON.stringify({ items })
-          }).catch(console.error);
+        reorderTimer = setTimeout(async () => {
+          try {
+            const res = await fetch("/settings/reorder_menus", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "same-origin",
+              body: JSON.stringify({ items })
+            });
+            if (!res.ok) throw new Error(await res.text());
+          } catch (e) {
+            console.error("reorder_menus:", e);
+          }
         }, 250);
       }
     });
@@ -129,8 +162,10 @@ function collectTree(root) {
 
   const walk = (ul, parentId) => {
     [...ul.children].forEach((li, idx) => {
+      if (!li.classList.contains("menu-node")) return;
       const id = Number(li.dataset.id);
       result.push({ id, parent_id: parentId, sort_order: idx });
+
       const child = li.querySelector(":scope > ul");
       if (child) walk(child, id);
     });
@@ -148,7 +183,9 @@ function collectTree(root) {
 
 function openMenuModal({ mode, menu, parentId }) {
   document.getElementById("mm_menu_id").value = menu?.id ?? "";
-  document.getElementById("mm_parent_id").value = (parentId ?? menu?.parent_id ?? "") === null ? "" : (parentId ?? menu?.parent_id ?? "");
+  const pid = (parentId ?? menu?.parent_id ?? null);
+  document.getElementById("mm_parent_id").value = (pid === null) ? "" : String(pid);
+
   document.getElementById("mm_name").value = menu?.name ?? "";
   document.getElementById("mm_route").value = menu?.route ?? "";
   document.getElementById("mm_weight").value = menu?.weight ?? 0;
@@ -162,6 +199,12 @@ function openMenuModal({ mode, menu, parentId }) {
   bootstrap.Modal.getOrCreateInstance(document.getElementById("menuModal")).show();
 }
 
+function closeMenuModal() {
+  const modalEl = document.getElementById("menuModal");
+  const inst = bootstrap.Modal.getInstance(modalEl);
+  if (inst) inst.hide();
+}
+
 function bindTreeActions(root) {
   root.addEventListener("click", async e => {
     const a = e.target.closest("a[data-action]");
@@ -171,14 +214,17 @@ function bindTreeActions(root) {
     const id = Number(a.dataset.id);
     const action = a.dataset.action;
 
-    if (action === "add-child") {
-      openMenuModal({ mode: "add-child", menu: null, parentId: id });
-      return;
-    }
-
-    if (action === "edit") {
-      const menu = await loadMenuData(id);
-      openMenuModal({ mode: "edit", menu });
+    try {
+      if (action === "add-child") {
+        openMenuModal({ mode: "add-child", menu: null, parentId: id });
+        return;
+      }
+      if (action === "edit") {
+        const menu = await loadMenuData(id);
+        openMenuModal({ mode: "edit", menu });
+      }
+    } catch (err) {
+      console.error(err);
     }
   });
 }
@@ -192,16 +238,58 @@ function bindRootCreateButton() {
   if (!btn) return;
 
   btn.addEventListener("click", () => {
-    // parent_id null => campo hidden vuoto
     openMenuModal({ mode: "add-root", menu: null, parentId: null });
   });
 }
 
 /* =========================
-   BOOTSTRAP
+   MODAL SUBMIT
 ========================= */
 
-async function initMenuManager() {
+function bindModalSubmit(refreshFn) {
+  const form = document.getElementById("menuModalForm");
+  if (!form) return;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const id = (document.getElementById("mm_menu_id").value || "").trim();
+    const parentIdRaw = (document.getElementById("mm_parent_id").value || "").trim();
+
+    const payload = {
+      name: (document.getElementById("mm_name").value || "").trim(),
+      route: (document.getElementById("mm_route").value || "").trim() || null,
+      weight: Number(document.getElementById("mm_weight").value || 0),
+      is_active: document.getElementById("mm_is_active").checked
+    };
+
+    // root => parent_id null (campo vuoto)
+    payload.parent_id = parentIdRaw === "" ? null : Number(parentIdRaw);
+
+    try {
+      if (!payload.name) throw new Error("Nome obbligatorio");
+
+      if (id) {
+        await updateMenuJson({ id: Number(id), ...payload });
+      } else {
+        await createMenu(payload);
+      }
+
+      closeMenuModal();
+      await refreshFn();
+    } catch (err) {
+      console.error("MODAL SUBMIT:", err);
+      // in futuro: toast/alert in modale
+      alert(err.message || "Errore salvataggio menu");
+    }
+  });
+}
+
+/* =========================
+   INIT / REFRESH
+========================= */
+
+async function renderAll() {
   const host = document.getElementById("menuTree");
   if (!host) return;
 
@@ -213,7 +301,14 @@ async function initMenuManager() {
 
   initSortable(host);
   bindTreeActions(host);
-  bindRootCreateButton();
 }
 
-document.addEventListener("DOMContentLoaded", initMenuManager);
+async function initMenuManager() {
+  await renderAll();
+  bindRootCreateButton();
+  bindModalSubmit(renderAll);
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  initMenuManager().catch(console.error);
+});

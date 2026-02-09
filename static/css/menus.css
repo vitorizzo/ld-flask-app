@@ -1,38 +1,55 @@
-/* Pulsanti tema - variante piccola per questa pagina */
-.btn-theme-mini {
+/* =========================
+   BUTTON ROOT (header chiaro)
+========================= */
+#btnAddRootMenu.btn-enabled-custom {
   width: auto !important;
   padding: 6px 10px !important;
   margin: 0 !important;
   font-size: 0.85rem !important;
   line-height: 1.1 !important;
-  border-radius: 6px;
+  border-radius: 6px !important;
+
+  /* visibile su header chiaro */
+  border: 2px solid #4A2C2A !important;
+  color: #4A2C2A !important;
+  background-color: transparent !important;
 }
 
-.btn-enabled-custom.btn-sm {
-    padding: 4px 10px;
-    font-size: 0.85rem;
-    background-color: #808080;   /* il tuo grey */
-    border: 2px solid #fff;
-    color: #fff;
-    transition: all 0.3s ease;
+#btnAddRootMenu.btn-enabled-custom:hover {
+  background-color: #B91C1C !important;
+  border-color: #B91C1C !important;
+  color: #fff !important;
 }
 
-/* Pulsante ⋮ coerente col tema */
-#menuTree .dropdown-toggle.btn-menu-actions {
+/* =========================
+   ACTION BUTTON ⋮ (tema)
+========================= */
+#menuTree .btn-menu-actions {
   border: 2px solid #fff !important;
   color: #fff !important;
-  background-color: transparent !important;
-  padding: 2px 8px !important;
-  border-radius: 6px;
+  background-color: rgba(74, 44, 42, 0.85) !important;
+  padding: 2px 10px !important;
+  border-radius: 6px !important;
+  line-height: 1.1 !important;
+  min-width: 34px;
 }
 
-/* Hover coerente col tema */
-#menuTree .dropdown-toggle.btn-menu-actions:hover {
+#menuTree .btn-menu-actions:hover,
+#menuTree .btn-menu-actions:focus {
   background-color: #B91C1C !important;
+  border-color: #fff !important;
   color: #fff !important;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
-.btn-enabled-custom:hover {
-  background-color: #B91C1C !important;
-  color: #fff !important;
+/* Dropdown menu leggibile (resta bootstrap) */
+#menuTree .dropdown-menu {
+  /* se il tuo tema forza colori strani, sblocchiamo qui */
+  color: #111;
+}
+
+/* opzionale: rendi le righe più “clickable” */
+#menuTree .menu-row {
+  background: #fff;
 }
