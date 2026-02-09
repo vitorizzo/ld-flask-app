@@ -103,6 +103,42 @@ def lancia_import_prestashop():
     return '', 204
 
 
+@settings_bp.route("/reorder_menus", methods=["POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def reorder_menus():
+    data = request.get_json(silent=True) or {}
+    items = data.get("items") or []
+
+    if not isinstance(items, list) or not items:
+        return jsonify({"ok": False, "error": "Payload non valido: items[] richiesto"}), 400
+
+    try:
+        # Validazione + update
+        for it in items:
+            mid = it.get("id")
+            if mid is None:
+                continue
+
+            menu = Menu.query.get(int(mid))
+            if not menu:
+                continue
+
+            parent_id = it.get("parent_id", None)
+            sort_order = it.get("sort_order", 0)
+
+            menu.parent_id = int(parent_id) if parent_id is not None else None
+            menu.sort_order = int(sort_order)
+
+        db.session.commit()
+        return jsonify({"ok": True, "updated": len(items)})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Errore reorder_menus")
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @settings_bp.route('/import_art_descr', methods=['GET', 'POST'])
 @login_required
 @role_required(500)

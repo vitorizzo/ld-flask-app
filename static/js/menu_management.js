@@ -87,7 +87,22 @@ function initNestedSortable(rootEl) {
       fallbackOnBody: true,
       swapThreshold: 0.65,
       onEnd: () => {
-        console.log("Tree changed:", collectTree(rootEl));
+        const items = collectTree(rootEl);
+        console.log("Tree changed:", items);
+
+        fetch("/settings/reorder_menus", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ items })
+        }).then(async (r) => {
+          if (!r.ok) throw new Error(await r.text());
+          return r.json();
+        }).then((data) => {
+          if (!data.ok) throw new Error(data.error || "reorder failed");
+          // opzionale: ricarica per riallineare con DB
+          // renderAndBindTree();
+        }).catch(err => console.error("reorder_menus:", err));
       }
     });
   });
