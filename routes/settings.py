@@ -1,6 +1,8 @@
 from flask import request, flash, render_template, Blueprint, jsonify
 from flask_login import login_required
 from flask_socketio import SocketIO
+from sqlalchemy import asc
+
 from extensions import db
 from models import Menu, Role, ImportConflict, Articoli
 from tools.role_required import role_required
@@ -37,6 +39,7 @@ def update_menu():
         menu.is_active = request.form.get('is_active') == 'true'
         menu.weight = request.form.get('weight')
         menu.parent_id = request.form.get('parent_id')
+        menu.sort_order = int(request.form.get("sort_order") or 0)
         db.session.commit()
 
         logger.info(f"Menu ID {menu_id} aggiornato con successo.")
@@ -261,3 +264,16 @@ def resolve_conflict():
     db.session.commit()
 
     return jsonify(ok=True, resolved=True, action=action, rules_created=created)
+
+
+@settings_bp.route("/get_menu_structure", methods=["GET"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def get_menu_structure():
+    menus = (
+        Menu.query
+        .order_by(asc(Menu.parent_id), asc(Menu.sort_order), asc(Menu.id))
+        .all()
+    )
+    return jsonify([m.to_dict() for m in menus])
