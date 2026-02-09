@@ -11,6 +11,7 @@
 .btn-enabled-custom.btn-sm {
     padding: 4px 10px;
     font-size: 0.85rem;
+    background: red;
 }
 
 /* Pulsante ⋮ coerente col tema */
