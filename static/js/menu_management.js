@@ -241,8 +241,7 @@ function openMenuModal({ mode, menu, parentId }) {
   document.getElementById("mm_weight").value = menu?.weight ?? 0;
   document.getElementById("mm_is_active").checked = (menu?.is_active ?? true) === true;
 
-  document.getElementById("menuModalTitle").textContent =
-    setModalTitle(mode, parentId ?? menu?.parent_id ?? null);
+  setModalTitle(mode, parentId ?? menu?.parent_id ?? null);
 
       // pre-selezione: se weight combacia con un ruolo, selezionalo; altrimenti custom
   const sel = document.getElementById("mm_role_weight");
@@ -424,9 +423,11 @@ function bindRoleWeightSelect() {
     }
 
     if (v === "") {
-      wrap.style.display = "none";
+      // nessun ruolo selezionato => permetti inserimento manuale
+      wrap.style.display = "";
       return;
     }
+
 
     // ruolo selezionato: setta weight e nascondi custom
     weightInput.value = String(Number(v));
