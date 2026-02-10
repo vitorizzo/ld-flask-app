@@ -176,21 +176,12 @@
   pointer-events: auto;
 }
 
-/* quando apro il dropdown, alzo tutta la riga sopra le altre */
-#menuTree .menu-row:has(.dropdown-menu.show) {
+#menuTree .dropdown {
   position: relative;
   z-index: 2000;
 }
 
-/* fallback: alzo direttamente il dropdown menu */
 #menuTree .dropdown-menu {
-  position: absolute;     /* bootstrap lo fa già, ma ribadiamo */
   z-index: 2100 !important;
 }
 
-/* evita che qualche wrapper tagli il menu */
-#menuTree,
-#menuTree .menu-node,
-#menuTree .menu-row {
-  overflow: visible !important;
-}
