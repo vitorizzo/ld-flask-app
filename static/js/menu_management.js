@@ -10,6 +10,36 @@ if (window.__menuMgmtInitDone) {
 window.__menuMgmtInitDone = true;
 
 let modalSubmitting = false;
+let sortables = [];
+let rootBtnBound = false;
+let modalSubmitBound = false;
+
+function getTreeScrollContainer() {
+  // il tuo #menuTree sta dentro .card-body -> scroll container più naturale
+  const host = document.getElementById("menuTree");
+  if (!host) return null;
+  return host.closest(".card-body") || host.parentElement;
+}
+
+function saveScroll() {
+  const sc = getTreeScrollContainer();
+  return sc ? sc.scrollTop : 0;
+}
+
+function restoreScroll(scrollTop) {
+  const sc = getTreeScrollContainer();
+  if (!sc) return;
+  requestAnimationFrame(() => {
+    sc.scrollTop = scrollTop;
+  });
+}
+
+function destroySortables() {
+  for (const s of sortables) {
+    try { s.destroy(); } catch (_) {}
+  }
+  sortables = [];
+}
 
 async function fetchMenuStructure() {
   const res = await fetch("/settings/get_menu_structure", { credentials: "same-origin" });
@@ -174,8 +204,10 @@ function escapeHtml(str) {
 let reorderTimer = null;
 
 function initSortable(root) {
+  destroySortables();
+
   root.querySelectorAll("ul[data-sortable]").forEach(ul => {
-    new Sortable(ul, {
+    const s = new Sortable(ul, {
       group: "menus",
       animation: 150,
       handle: ".menu-handle",
@@ -199,6 +231,8 @@ function initSortable(root) {
         }, 250);
       }
     });
+
+    sortables.push(s);
   });
 }
 
@@ -311,7 +345,7 @@ function bindTreeActions(root) {
       if (action === "toggle-active") {
         // usiamo endpoint dedicato per non rischiare di azzerare name/route/weight
         await apiToggleMenuActive(id);
-        await initMenuManager();
+        await renderAll({ preserveScroll: true });
         return;
       }
 
@@ -320,7 +354,7 @@ function bindTreeActions(root) {
 
         try {
           await apiDeleteMenu(id, false);
-          await initMenuManager();
+          await renderAll({ preserveScroll: true });
         } catch (err) {
           if (err.code === "HAS_CHILDREN") {
             const ok = confirm(
@@ -331,7 +365,7 @@ function bindTreeActions(root) {
             if (!ok) return;
 
             await apiDeleteMenu(id, true);
-            await initMenuManager();
+            await renderAll({ preserveScroll: true });
           } else {
             alert(err.message || "Errore eliminazione menu");
           }
@@ -348,6 +382,9 @@ function bindTreeActions(root) {
 ========================= */
 
 function bindRootCreateButton() {
+  if (rootBtnBound) return;
+  rootBtnBound = true;
+
   const btn = document.getElementById("btnAddRootMenu");
   if (!btn) return;
 
@@ -356,11 +393,15 @@ function bindRootCreateButton() {
   });
 }
 
+
 /* =========================
    MODAL SUBMIT
 ========================= */
 
 function bindModalSubmit(refreshFn) {
+  if (modalSubmitBound) return;
+  modalSubmitBound = true;
+
   const form = document.getElementById("menuModalForm");
   if (!form) return;
 
@@ -409,9 +450,11 @@ function bindModalSubmit(refreshFn) {
    INIT / REFRESH
 ========================= */
 
-async function renderAll() {
+async function renderAll({ preserveScroll = true } = {}) {
   const host = document.getElementById("menuTree");
   if (!host) return;
+
+  const scrollTop = preserveScroll ? saveScroll() : 0;
 
   const data = await fetchMenuStructure();
   const tree = buildTree(data);
@@ -421,13 +464,16 @@ async function renderAll() {
 
   initSortable(host);
   bindTreeActions(host);
+
+  if (preserveScroll) restoreScroll(scrollTop);
 }
 
 async function initMenuManager() {
-  await renderAll();
   bindRootCreateButton();
-  bindModalSubmit(renderAll);
+  bindModalSubmit(() => renderAll({ preserveScroll: true }));
+  await renderAll({ preserveScroll: false });
 }
+
 
 document.addEventListener("DOMContentLoaded", () => {
   initMenuManager().catch(console.error);
