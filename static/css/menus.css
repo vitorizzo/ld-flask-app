@@ -161,3 +161,17 @@
   color: #fff;
   font-weight: 700;
 }
+
+/* Se hai una classe tipo .is-inactive / .disabled / .menu-inactive, usa quella */
+#menuTree .menu-node.is-inactive .menu-row {
+  opacity: 0.55;
+  /* NON usare pointer-events:none */
+}
+
+/* garantisci che i controlli restino sempre cliccabili/hoverabili */
+#menuTree .menu-node.is-inactive .dropdown,
+#menuTree .menu-node.is-inactive .btn-menu-actions,
+#menuTree .menu-node.is-inactive .menu-handle {
+  opacity: 1;
+  pointer-events: auto;
+}
