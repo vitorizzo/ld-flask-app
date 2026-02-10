@@ -176,12 +176,20 @@
   pointer-events: auto;
 }
 
-#menuTree .dropdown {
+/* base: ogni nodo crea il suo contesto */
+#menuTree .menu-node {
   position: relative;
-  z-index: 2000;
+  z-index: 1;
 }
 
-#menuTree .dropdown-menu {
-  z-index: 2100 !important;
+/* solo il nodo con dropdown aperto va sopra gli altri */
+#menuTree .menu-node.is-dropdown-open {
+  z-index: 5000;
 }
 
+/* assicurati che il menu possa uscire */
+#menuTree .menu-row,
+#menuTree .menu-node,
+#menuTree {
+  overflow: visible !important;
+}

@@ -461,6 +461,7 @@ async function renderAll({ preserveScroll = true } = {}) {
 
   host.innerHTML = "";
   host.appendChild(renderTree(tree));
+  bindDropdownZIndex(host);
 
   initSortable(host);
   bindTreeActions(host);
@@ -518,4 +519,22 @@ async function apiToggleMenuActive(menuId) {
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data.ok) throw new Error(data.error || "toggle_menu_active failed");
   return data;
+}
+
+function bindDropdownZIndex(root) {
+  if (root.__dropdownZBound) return;
+  root.__dropdownZBound = true;
+
+  // gli eventi bootstrap bubble-ano: li intercettiamo sul container
+  root.addEventListener("shown.bs.dropdown", (ev) => {
+    const dd = ev.target.closest?.(".dropdown");
+    const li = dd?.closest?.("li.menu-node");
+    if (li) li.classList.add("is-dropdown-open");
+  });
+
+  root.addEventListener("hidden.bs.dropdown", (ev) => {
+    const dd = ev.target.closest?.(".dropdown");
+    const li = dd?.closest?.("li.menu-node");
+    if (li) li.classList.remove("is-dropdown-open");
+  });
 }
