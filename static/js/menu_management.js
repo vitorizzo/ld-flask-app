@@ -4,6 +4,13 @@
    FETCH
 ========================= */
 
+if (window.__menuMgmtInitDone) {
+  console.warn("menu_management.js già inizializzato: skip.");
+}
+window.__menuMgmtInitDone = true;
+
+let modalSubmitting = false;
+
 async function fetchMenuStructure() {
   const res = await fetch("/settings/get_menu_structure", { credentials: "same-origin" });
   if (!res.ok) throw new Error("get_menu_structure failed");
@@ -271,6 +278,10 @@ function bindModalSubmit(refreshFn) {
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+
+    if (modalSubmitting) return;
+    modalSubmitting = true;
 
     const id = (document.getElementById("mm_menu_id").value || "").trim();
     const parentIdRaw = (document.getElementById("mm_parent_id").value || "").trim();
@@ -300,6 +311,8 @@ function bindModalSubmit(refreshFn) {
       console.error("MODAL SUBMIT:", err);
       // in futuro: toast/alert in modale
       alert(err.message || "Errore salvataggio menu");
+    } finally {
+      modalSubmitting = false;
     }
   });
 }
