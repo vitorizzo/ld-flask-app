@@ -394,27 +394,36 @@ def update_menu_json():
 @role_required(900)
 @log_task(logger)
 def delete_menu(menu_id):
+    data = request.get_json(silent=True) or {}
+    cascade = bool(data.get("cascade", False))
+
     menu = Menu.query.get_or_404(menu_id)
 
-    # Verifica figli
-    has_children = (
-        db.session.query(Menu.id)
-        .filter(Menu.parent_id == menu.id)
-        .limit(1)
-        .first()
-        is not None
-    )
+    children = Menu.query.filter(Menu.parent_id == menu.id).all()
+    has_children = len(children) > 0
 
-    if has_children:
+    if has_children and not cascade:
         return jsonify({
             "ok": False,
-            "error": "Impossibile eliminare: il menu contiene sotto-menu."
+            "code": "HAS_CHILDREN",
+            "error": "Il menu contiene sotto-menu. Conferma eliminazione con cascata."
         }), 409
 
     try:
-        db.session.delete(menu)
+        if cascade:
+            # elimina figli (e nipoti) in profondità
+            def delete_rec(m):
+                for c in Menu.query.filter(Menu.parent_id == m.id).all():
+                    delete_rec(c)
+                db.session.delete(m)
+
+            delete_rec(menu)
+        else:
+            db.session.delete(menu)
+
         db.session.commit()
-        return jsonify({"ok": True})
+        return jsonify({"ok": True, "cascade": cascade})
+
     except Exception as e:
         db.session.rollback()
         logger.exception("Errore delete_menu")

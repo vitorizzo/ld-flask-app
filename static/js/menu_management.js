@@ -23,13 +23,20 @@ async function loadMenuData(menuId) {
   return await res.json();
 }
 
-async function apiDeleteMenu(menuId) {
+async function apiDeleteMenu(menuId, cascade = false) {
   const res = await fetch(`/settings/delete_menu/${menuId}`, {
     method: "POST",
+    headers: { "Content-Type": "application/json" },
     credentials: "same-origin",
+    body: JSON.stringify({ cascade })
   });
+
   const data = await res.json().catch(() => ({}));
-  if (!res.ok || !data.ok) throw new Error(data.error || "delete_menu failed");
+  if (!res.ok || !data.ok) {
+    const err = new Error(data.error || "delete_menu failed");
+    err.code = data.code;
+    throw err;
+  }
   return data;
 }
 
@@ -246,14 +253,26 @@ function bindTreeActions(root) {
         if (!confirm("Eliminare questo menu? (Operazione irreversibile)")) return;
 
         try {
-          await apiDeleteMenu(id);
+          await apiDeleteMenu(id, false);
           await initMenuManager();
         } catch (err) {
-          // 409 → menu con figli
-          alert(err.message || "Impossibile eliminare il menu.");
+          if (err.code === "HAS_CHILDREN") {
+            const ok = confirm(
+              "Questo menu contiene sotto-menu.\n\n" +
+              "Vuoi eliminarlo CON TUTTI i sotto-menu?\n" +
+              "(Operazione NON reversibile)"
+            );
+            if (!ok) return;
+
+            await apiDeleteMenu(id, true);
+            await initMenuManager();
+          } else {
+            alert(err.message || "Errore eliminazione menu");
+          }
         }
         return;
       }
+
 
     } catch (err) {
       console.error(err);
