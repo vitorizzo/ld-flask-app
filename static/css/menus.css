@@ -193,3 +193,25 @@
 #menuTree {
   overflow: visible !important;
 }
+
+/* =========================================================
+   FIX DROPDOWN BOOTSTRAP — SOLO menuTree
+   Evita overlay, hover-theme e z-index inconsistenti
+========================================================= */
+
+/* Bootstrap behavior: hidden until .show */
+#menuTree .dropdown-menu {
+  display: none;
+  position: absolute;
+  z-index: 20000 !important;
+}
+
+/* Bootstrap apre il menu con .show */
+#menuTree .dropdown-menu.show {
+  display: block;
+}
+
+/* Disinnesca dropdown on-hover del tema */
+#menuTree .dropdown:hover > .dropdown-menu {
+  display: none !important;
+}

@@ -461,7 +461,10 @@ async function renderAll({ preserveScroll = true } = {}) {
 
   host.innerHTML = "";
   host.appendChild(renderTree(tree));
+
+  // 🔧 FIX stacking / dropdown
   bindDropdownZIndex(host);
+  initBootstrapDropdowns(host);
 
   initSortable(host);
   bindTreeActions(host);
@@ -536,5 +539,19 @@ function bindDropdownZIndex(root) {
     const dd = ev.target.closest?.(".dropdown");
     const li = dd?.closest?.("li.menu-node");
     if (li) li.classList.remove("is-dropdown-open");
+  });
+}
+
+function initBootstrapDropdowns(root) {
+  // Inizializza esplicitamente i dropdown bootstrap
+  // usando Popper con strategy=fixed (no clipping / no z-index impazzito)
+  root.querySelectorAll(
+    ".btn-menu-actions[data-bs-toggle='dropdown']"
+  ).forEach((btn) => {
+    bootstrap.Dropdown.getOrCreateInstance(btn, {
+      popperConfig: {
+        strategy: "fixed"
+      }
+    });
   });
 }
