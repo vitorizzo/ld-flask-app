@@ -393,19 +393,29 @@ def update_menu_json():
 @login_required
 @role_required(900)
 @log_task(logger)
-def delete_menu(menu_id: int):
-    # blocca se ha figli
-    children_count = Menu.query.filter(Menu.parent_id == menu_id).count()
-    if children_count > 0:
-        return jsonify(ok=False, error="Impossibile eliminare: esistono sotto-menu."), 400
+def delete_menu(menu_id):
+    menu = Menu.query.get_or_404(menu_id)
 
-    m = Menu.query.get_or_404(menu_id)
+    # Verifica figli
+    has_children = (
+        db.session.query(Menu.id)
+        .filter(Menu.parent_id == menu.id)
+        .limit(1)
+        .first()
+        is not None
+    )
+
+    if has_children:
+        return jsonify({
+            "ok": False,
+            "error": "Impossibile eliminare: il menu contiene sotto-menu."
+        }), 409
 
     try:
-        db.session.delete(m)
+        db.session.delete(menu)
         db.session.commit()
-        return jsonify(ok=True)
+        return jsonify({"ok": True})
     except Exception as e:
         db.session.rollback()
         logger.exception("Errore delete_menu")
-        return jsonify(ok=False, error=str(e)), 500
+        return jsonify({"ok": False, "error": str(e)}), 500

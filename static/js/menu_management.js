@@ -244,8 +244,14 @@ function bindTreeActions(root) {
       }
       if (action === "delete") {
         if (!confirm("Eliminare questo menu? (Operazione irreversibile)")) return;
-        await apiDeleteMenu(id);
-        await initMenuManager();
+
+        try {
+          await apiDeleteMenu(id);
+          await initMenuManager();
+        } catch (err) {
+          // 409 → menu con figli
+          alert(err.message || "Impossibile eliminare il menu.");
+        }
         return;
       }
 
