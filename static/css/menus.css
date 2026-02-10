@@ -56,7 +56,12 @@
 
   /* ===== Menu modal theme (scoped) ===== */
   #menuModal .modal-content{
-    background: rgba(74, 44, 42, 0.95);
+    background-image: url('/static/images/background-homepage.jpg');
+    background-size: auto;
+    background-repeat: repeat;
+    background-position: center;
+    background-attachment: fixed;
+    /* background: rgba(74, 44, 42, 0.95); */
     border: 2px solid rgba(255,255,255,0.35);
     border-radius: 12px;
     box-shadow: -3px 5px 15px 5px rgba(88,64,31,0.45);
@@ -64,9 +69,10 @@
 
   #menuModal .modal-header{
     border-bottom: 1px solid rgba(255,255,255,0.25);
-    background-image: url('/static/images/bg-bottom-pattern.png');
+    background: rgba(74, 44, 42, 0.95);
+    /* background-image: url('/static/images/bg-bottom-pattern.png');
     background-repeat: repeat-x;
-    background-position: bottom;
+    background-position: bottom;*/
     padding: 14px 16px;
   }
 
