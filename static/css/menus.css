@@ -107,7 +107,7 @@
   }
 
   #menuModal .form-text{
-    color: rgba(255,255,255,0.75) !important;
+    color: rgba(74, 44, 42, 0.95) !important;
     text-align: left;
   }
 
@@ -129,5 +129,4 @@
 #menuModal .form-check-input {
   background-color: #fff;
   border-color: #111;
-  text-color: rgba(74, 44, 42, 0.95) !important;
 }
