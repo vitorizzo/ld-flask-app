@@ -53,3 +53,64 @@
 #menuTree .menu-row {
   background: #fff;
 }
+
+  /* ===== Menu modal theme (scoped) ===== */
+  #menuModal .modal-content{
+    background: rgba(74, 44, 42, 0.95);
+    border: 2px solid rgba(255,255,255,0.35);
+    border-radius: 12px;
+    box-shadow: -3px 5px 15px 5px rgba(88,64,31,0.45);
+  }
+
+  #menuModal .modal-header{
+    border-bottom: 1px solid rgba(255,255,255,0.25);
+    background-image: url('/static/images/bg-bottom-pattern.png');
+    background-repeat: repeat-x;
+    background-position: bottom;
+    padding: 14px 16px;
+  }
+
+  #menuModal .modal-title{
+    color: #fff !important;
+    text-align: left;
+    font-family: "Oswald", Helvetica, sans-serif;
+    letter-spacing: 0.6px;
+  }
+
+  #menuModal .modal-body{
+    padding: 16px;
+    color: #fff !important;
+  }
+
+  #menuModal .form-label,
+  #menuModal label{
+    color: #fff !important;
+    text-align: left !important;
+    font-weight: 400;
+    letter-spacing: 0.4px;
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  #menuModal .form-control,
+  #menuModal .form-select{
+    color: #111 !important;
+    background-color: #fff !important;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.35);
+  }
+
+  #menuModal .form-text{
+    color: rgba(255,255,255,0.75) !important;
+    text-align: left;
+  }
+
+  #menuModal .modal-footer{
+    border-top: 1px solid rgba(255,255,255,0.25);
+    padding: 12px 16px;
+  }
+
+  #menuModal .btn-close{
+    filter: invert(1);
+    opacity: .9;
+  }

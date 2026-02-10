@@ -206,6 +206,30 @@ function collectTree(root) {
 /* =========================
    MODALE
 ========================= */
+function getNodeTitleById(menuId) {
+  const li = document.querySelector(`#menuTree li.menu-node[data-id="${menuId}"]`);
+  if (!li) return null;
+  const titleEl = li.querySelector(".menu-title");
+  return titleEl ? titleEl.textContent.trim() : null;
+}
+
+function setModalTitle(mode, parentId) {
+  const titleEl = document.getElementById("menuModalTitle");
+  if (!titleEl) return;
+
+  if (mode === "add-root") {
+    titleEl.textContent = "Crea menu (root)";
+    return;
+  }
+
+  if (mode === "add-child") {
+    const parentName = parentId ? (getNodeTitleById(parentId) || ("#" + parentId)) : "";
+    titleEl.textContent = `Crea sotto-menu di ${parentName}`;
+    return;
+  }
+
+  titleEl.textContent = "Modifica menu";
+}
 
 function openMenuModal({ mode, menu, parentId }) {
   document.getElementById("mm_menu_id").value = menu?.id ?? "";
@@ -218,9 +242,18 @@ function openMenuModal({ mode, menu, parentId }) {
   document.getElementById("mm_is_active").checked = (menu?.is_active ?? true) === true;
 
   document.getElementById("menuModalTitle").textContent =
-    (mode === "add-root") ? "Crea menu (root)" :
-    (mode === "add-child") ? "Crea sotto-menu" :
-    "Modifica menu";
+    setModalTitle(mode, parentId ?? menu?.parent_id ?? null);
+
+      // pre-selezione: se weight combacia con un ruolo, selezionalo; altrimenti custom
+  const sel = document.getElementById("mm_role_weight");
+  const weight = Number(document.getElementById("mm_weight").value || 0);
+
+  if (sel) {
+    const opt = [...sel.options].find(o => o.value !== "" && o.value !== "__custom__" && Number(o.value) === weight);
+    sel.value = opt ? opt.value : "__custom__";
+  }
+
+  bindRoleWeightSelect();
 
   bootstrap.Modal.getOrCreateInstance(document.getElementById("menuModal")).show();
 }
@@ -374,3 +407,32 @@ async function initMenuManager() {
 document.addEventListener("DOMContentLoaded", () => {
   initMenuManager().catch(console.error);
 });
+
+function bindRoleWeightSelect() {
+  const sel = document.getElementById("mm_role_weight");
+  const wrap = document.getElementById("mm_weight_custom_wrap");
+  const weightInput = document.getElementById("mm_weight");
+  if (!sel || !wrap || !weightInput) return;
+
+  const apply = () => {
+    const v = sel.value;
+
+    if (v === "__custom__") {
+      wrap.style.display = "";
+      weightInput.focus();
+      return;
+    }
+
+    if (v === "") {
+      wrap.style.display = "none";
+      return;
+    }
+
+    // ruolo selezionato: setta weight e nascondi custom
+    weightInput.value = String(Number(v));
+    wrap.style.display = "none";
+  };
+
+  sel.addEventListener("change", apply);
+  apply();
+}
