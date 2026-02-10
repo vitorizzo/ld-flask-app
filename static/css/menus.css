@@ -1,31 +1,40 @@
 /* =========================
-   TREE
+   TREE BASE
 ========================= */
+
+#menuTree {
+  overflow: visible;
+}
 
 #menuTree .menu-node {
   position: relative;
+  z-index: 1;
 }
 
+#menuTree .menu-node.dropdown-open {
+  z-index: 5000;
+}
+
+#menuTree .dropdown-menu {
+  z-index: 6000;
+}
+
+/* =========================
+   ROW STATES
+========================= */
+
 #menuTree .menu-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px;
   background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 6px;
 }
 
 #menuTree .menu-row-inactive {
-  opacity: 0.6;
+  background: #f6f6f6;
 }
 
-#menuTree .menu-title-inactive {
+#menuTree .menu-title-inactive,
+#menuTree .menu-row-inactive .badge {
+  opacity: 0.65;
   text-decoration: line-through;
-}
-
-#menuTree .menu-handle {
-  cursor: grab;
 }
 
 /* =========================
@@ -33,11 +42,11 @@
 ========================= */
 
 #menuTree .btn-menu-actions {
-  background: rgba(74, 44, 42, 0.85);
+  background: rgba(74,44,42,.85);
+  border: 2px solid #fff;
   color: #fff;
-  border: 1px solid #fff;
-  border-radius: 6px;
   padding: 2px 10px;
+  border-radius: 6px;
 }
 
 #menuTree .btn-menu-actions:hover {
@@ -45,26 +54,17 @@
 }
 
 /* =========================
-   DROPDOWN
+   BADGES
 ========================= */
 
-#menuTree .dropdown-menu {
-  z-index: 3000;
-}
-
-/* =========================
-   MODAL
-========================= */
-
-#menuModal .modal-header {
-  background: rgba(74, 44, 42, 0.95);
-}
-
-#menuModal .modal-title {
+#menuTree .badge-active {
+  background: rgba(255,255,255,.2);
   color: #fff;
+  border: 1px solid rgba(255,255,255,.6);
 }
 
-#menuModal .form-check-input:checked {
-  background-color: #4A2C2A;
-  border-color: #4A2C2A;
+#menuTree .badge-inactive {
+  background: rgba(0,0,0,.25);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.4);
 }
