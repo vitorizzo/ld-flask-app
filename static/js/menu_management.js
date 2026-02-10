@@ -232,10 +232,15 @@ function closeMenuModal() {
 }
 
 function bindTreeActions(root) {
+  if (root.__menuActionsBound) return;
+  root.__menuActionsBound = true;
+
   root.addEventListener("click", async e => {
     const a = e.target.closest("a[data-action]");
     if (!a) return;
+
     e.preventDefault();
+    e.stopPropagation();
 
     const id = Number(a.dataset.id);
     const action = a.dataset.action;
@@ -245,10 +250,13 @@ function bindTreeActions(root) {
         openMenuModal({ mode: "add-child", menu: null, parentId: id });
         return;
       }
+
       if (action === "edit") {
         const menu = await loadMenuData(id);
         openMenuModal({ mode: "edit", menu });
+        return;
       }
+
       if (action === "delete") {
         if (!confirm("Eliminare questo menu? (Operazione irreversibile)")) return;
 
@@ -270,12 +278,9 @@ function bindTreeActions(root) {
             alert(err.message || "Errore eliminazione menu");
           }
         }
-        return;
       }
-
-
     } catch (err) {
-      console.error(err);
+      console.error("Menu action error:", err);
     }
   });
 }
