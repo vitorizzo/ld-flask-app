@@ -1,70 +1,201 @@
 /* =========================
-   TREE BASE
+   BUTTON ROOT (header chiaro)
 ========================= */
+#btnAddRootMenu.btn-enabled-custom {
+  width: auto !important;
+  padding: 6px 10px !important;
+  margin: 0 !important;
+  font-size: 0.85rem !important;
+  line-height: 1.1 !important;
+  border-radius: 6px !important;
 
-#menuTree {
-  overflow: visible;
+  border: 2px solid #4A2C2A !important;
+  color: #4A2C2A !important;
+  background-color: transparent !important;
 }
 
+#btnAddRootMenu.btn-enabled-custom:hover {
+  background-color: #B91C1C !important;
+  border-color: #B91C1C !important;
+  color: #fff !important;
+}
+
+/* =========================
+   TREE ROWS + ACTION BUTTON
+========================= */
+#menuTree .menu-row {
+  background: #fff;
+}
+
+/* ⋮ button */
+#menuTree .btn-menu-actions {
+  border: 2px solid #fff !important;
+  color: #fff !important;
+  background-color: rgba(74, 44, 42, 0.85) !important;
+  padding: 2px 10px !important;
+  border-radius: 6px !important;
+  line-height: 1.1 !important;
+  min-width: 34px;
+}
+
+#menuTree .btn-menu-actions:hover,
+#menuTree .btn-menu-actions:focus {
+  background-color: #B91C1C !important;
+  border-color: #fff !important;
+  color: #fff !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Dropdown menu leggibile */
+#menuTree .dropdown-menu {
+  color: #111;
+}
+
+/* =========================
+   STATO ATTIVO / OFF (NO opacity sul container)
+   - evitare stacking-context “impazziti”
+========================= */
+
+/* niente opacity su .menu-row-inactive */
+#menuTree .menu-row-inactive {
+  background: rgba(250, 250, 250, 0.95);
+}
+
+/* “sbiadisce” solo i contenuti, NON il dropdown */
+#menuTree .menu-row-inactive > :not(.dropdown) {
+  opacity: 0.55;
+}
+
+/* dropdown sempre pieno e cliccabile */
+#menuTree .menu-row-inactive .dropdown,
+#menuTree .menu-row-inactive .btn-menu-actions,
+#menuTree .menu-row-inactive .menu-handle {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
+#menuTree .menu-title-inactive {
+  text-decoration: line-through;
+}
+
+/* Badge ATTIVO/OFF coerenti col tema */
+#menuTree .badge-active {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  color: #fff;
+  font-weight: 600;
+}
+
+#menuTree .badge-inactive {
+  background: rgba(0, 0, 0, 0.20);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: #fff;
+  font-weight: 700;
+}
+
+/* =========================
+   Z-INDEX robusto per dropdown (sempre sopra)
+========================= */
 #menuTree .menu-node {
   position: relative;
   z-index: 1;
 }
 
-#menuTree .menu-node.dropdown-open {
+/* quando bootstrap apre il dropdown, JS mette questa classe sul LI */
+#menuTree .menu-node.is-dropdown-open {
   z-index: 5000;
 }
 
-#menuTree .dropdown-menu {
+/* e il menu deve vincere sempre */
+#menuTree .menu-node.is-dropdown-open .dropdown-menu {
   z-index: 6000;
 }
 
-/* =========================
-   ROW STATES
-========================= */
-
+/* evita clipping da overflow */
+#menuTree,
+#menuTree .menu-node,
 #menuTree .menu-row {
-  background: #fff;
-}
-
-#menuTree .menu-row-inactive {
-  background: #f6f6f6;
-}
-
-#menuTree .menu-title-inactive,
-#menuTree .menu-row-inactive .badge {
-  opacity: 0.65;
-  text-decoration: line-through;
+  overflow: visible !important;
 }
 
 /* =========================
-   ACTION BUTTON
+   MODAL THEME (scoped)
 ========================= */
-
-#menuTree .btn-menu-actions {
-  background: rgba(74,44,42,.85);
-  border: 2px solid #fff;
-  color: #fff;
-  padding: 2px 10px;
-  border-radius: 6px;
+#menuModal .modal-content{
+  background-image: url('/static/images/background-homepage.jpg');
+  background-size: auto;
+  background-repeat: repeat;
+  background-position: center;
+  background-attachment: fixed;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-radius: 12px;
+  box-shadow: -3px 5px 15px 5px rgba(88,64,31,0.45);
 }
 
-#menuTree .btn-menu-actions:hover {
-  background: #B91C1C;
+#menuModal .modal-header{
+  border-bottom: 1px solid rgba(255,255,255,0.25);
+  background: rgba(74, 44, 42, 0.95);
+  padding: 14px 16px;
 }
 
-/* =========================
-   BADGES
-========================= */
-
-#menuTree .badge-active {
-  background: rgba(255,255,255,.2);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,.6);
+#menuModal .modal-title{
+  color: #fff !important;
+  text-align: left;
+  font-family: "Oswald", Helvetica, sans-serif;
+  letter-spacing: 0.6px;
 }
 
-#menuTree .badge-inactive {
-  background: rgba(0,0,0,.25);
-  color: #fff;
-  border: 1px solid rgba(255,255,255,.4);
+#menuModal .modal-body{
+  padding: 16px;
+  color: #fff !important;
+}
+
+#menuModal .form-label,
+#menuModal label{
+  color: rgba(74, 44, 42, 0.95) !important;
+  text-align: left !important;
+  font-weight: 400;
+  letter-spacing: 0.4px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+#menuModal .form-control,
+#menuModal .form-select{
+  color: #111 !important;
+  background-color: #fff !important;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.35);
+}
+
+#menuModal .form-text{
+  color: rgba(74, 44, 42, 0.95) !important;
+  text-align: left;
+}
+
+#menuModal .modal-footer{
+  border-top: 1px solid rgba(255,255,255,0.25);
+  padding: 12px 16px;
+}
+
+#menuModal .btn-close{
+  filter: invert(1);
+  opacity: .9;
+}
+
+#menuModal .form-check-label,
+#menuModal .form-check-input {
+  color: rgba(74, 44, 42, 0.95) !important;
+}
+
+#menuModal .form-check-input {
+  background-color: #fff;
+  border-color: #111;
+}
+
+#menuModal .form-check-input:checked {
+  background-color: #4A2C2A;
+  border-color: #4A2C2A;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill='white' d='M16.7 5.3a1 1 0 0 1 0 1.4l-7.5 7.5a1 1 0 0 1-1.4 0L3.3 9.7a1 1 0 1 1 1.4-1.4l3.1 3.1 6.8-6.8a1 1 0 0 1 1.4 0z'/%3E%3C/svg%3E");
 }
