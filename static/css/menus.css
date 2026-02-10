@@ -85,7 +85,7 @@
 
   #menuModal .modal-body{
     padding: 16px;
-    color: #fff !important;
+    color: rgba(74, 44, 42, 0.95);
   }
 
   #menuModal .form-label,
