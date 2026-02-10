@@ -107,10 +107,23 @@ function renderTree(nodes) {
 
     const row = document.createElement("div");
     row.className = "d-flex align-items-center gap-2 p-2 border rounded menu-row";
+    const isActive = (n.is_active === true || n.is_active === 1);
+
+    row.classList.toggle("menu-row-inactive", !isActive);
+
     row.innerHTML = `
       <span class="menu-handle" title="Trascina" style="cursor:grab;">☰</span>
-      <span class="menu-title">${escapeHtml(n.name ?? ("#" + n.id))}</span>
+
+      <span class="menu-title ${isActive ? "" : "menu-title-inactive"}">
+        ${escapeHtml(n.name ?? ("#" + n.id))}
+      </span>
+
       <span class="badge bg-secondary ms-auto">w:${escapeHtml(String(n.weight ?? 0))}</span>
+
+      ${isActive
+        ? `<span class="badge badge-active ms-2">ATTIVO</span>`
+        : `<span class="badge badge-inactive ms-2">OFF</span>`
+      }
 
       <div class="dropdown">
         <button class="dropdown-toggle btn-menu-actions"
@@ -118,9 +131,15 @@ function renderTree(nodes) {
           data-bs-toggle="dropdown"
           aria-expanded="false"
           title="Azioni">⋮</button>
+
         <ul class="dropdown-menu">
           <li><a class="dropdown-item" href="#" data-action="add-child" data-id="${n.id}">Aggiungi sotto-menu</a></li>
           <li><a class="dropdown-item" href="#" data-action="edit" data-id="${n.id}">Modifica</a></li>
+
+          <li><a class="dropdown-item" href="#" data-action="toggle-active" data-id="${n.id}">
+            ${isActive ? "Disattiva" : "Attiva"}
+          </a></li>
+
           <li><hr class="dropdown-divider"></li>
           <li><a class="dropdown-item text-danger" href="#" data-action="delete" data-id="${n.id}">Elimina</a></li>
         </ul>
@@ -289,6 +308,13 @@ function bindTreeActions(root) {
         return;
       }
 
+      if (action === "toggle-active") {
+        // usiamo endpoint dedicato per non rischiare di azzerare name/route/weight
+        await apiToggleMenuActive(id);
+        await initMenuManager();
+        return;
+      }
+
       if (action === "delete") {
         if (!confirm("Eliminare questo menu? (Operazione irreversibile)")) return;
 
@@ -436,4 +462,14 @@ function bindRoleWeightSelect() {
 
   sel.addEventListener("change", apply);
   apply();
+}
+
+async function apiToggleMenuActive(menuId) {
+  const res = await fetch(`/settings/toggle_menu_active/${menuId}`, {
+    method: "POST",
+    credentials: "same-origin",
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) throw new Error(data.error || "toggle_menu_active failed");
+  return data;
 }

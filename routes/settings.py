@@ -428,3 +428,14 @@ def delete_menu(menu_id):
         db.session.rollback()
         logger.exception("Errore delete_menu")
         return jsonify({"ok": False, "error": str(e)}), 500
+
+
+@settings_bp.route("/toggle_menu_active/<int:menu_id>", methods=["POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def toggle_menu_active(menu_id):
+    m = Menu.query.get_or_404(menu_id)
+    m.is_active = not bool(m.is_active)
+    db.session.commit()
+    return jsonify(ok=True, id=m.id, is_active=bool(m.is_active))
