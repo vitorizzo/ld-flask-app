@@ -25,6 +25,8 @@
 ========================= */
 #menuTree .menu-row {
   background: #fff;
+  position: relative;          /* ok, non rompe bootstrap */
+  z-index: 0;
 }
 
 /* ⋮ button */
@@ -50,21 +52,29 @@
 /* Dropdown menu leggibile */
 #menuTree .dropdown-menu {
   color: #111;
+  z-index: 3000 !important;  /* sufficiente nella maggior parte dei casi */
 }
 
-/* =========================
-   STATO ATTIVO / OFF (NO opacity sul container)
-   - evitare stacking-context “impazziti”
-========================= */
-
-/* niente opacity su .menu-row-inactive */
+/* =========================================================
+   STATO ATTIVO / OFF
+   REGOLA D'ORO: NO opacity su container o antenati del dropdown
+========================================================= */
 #menuTree .menu-row-inactive {
   background: rgba(250, 250, 250, 0.95);
 }
 
-/* “sbiadisce” solo i contenuti, NON il dropdown */
-#menuTree .menu-row-inactive > :not(.dropdown) {
-  opacity: 0.55;
+#menuTree .menu-row-inactive .menu-title {
+  opacity: 1; /* esplicito, ma non necessario */
+  color: rgba(0, 0, 0, 0.45);
+  text-decoration: line-through;
+}
+
+/* sbiadisci badge e testi SENZA opacity globale */
+#menuTree .menu-row-inactive .badge {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.10);
+  border-color: rgba(0, 0, 0, 0.10);
+  color: rgba(0, 0, 0, 0.55);
 }
 
 /* dropdown sempre pieno e cliccabile */
@@ -73,10 +83,6 @@
 #menuTree .menu-row-inactive .menu-handle {
   opacity: 1 !important;
   pointer-events: auto !important;
-}
-
-#menuTree .menu-title-inactive {
-  text-decoration: line-through;
 }
 
 /* Badge ATTIVO/OFF coerenti col tema */
@@ -95,34 +101,20 @@
 }
 
 /* =========================
-   Z-INDEX robusto per dropdown (sempre sopra)
+   Z-INDEX robusto per dropdown
+   (Solo CSS: niente dipendenza da JS)
 ========================= */
 #menuTree .menu-node {
   position: relative;
   z-index: 0;
 }
 
-/* la riga deve essere "posizionata" per partecipare al layering */
-#menuTree .menu-row {
-  position: relative;
-  z-index: 0;
+/* quando bootstrap mette .show, alza la dropdown */
+#menuTree .dropdown-menu.show {
+  z-index: 6000 !important;
 }
 
-/* quando il dropdown è aperto, alza TUTTO il nodo e la riga */
-#menuTree .menu-node.is-dropdown-open {
-  z-index: 5000;
-}
-
-#menuTree .menu-node.is-dropdown-open .menu-row {
-  z-index: 5000;
-}
-
-/* il menu deve stare sopra qualsiasi cosa dentro/sotto */
-#menuTree .menu-node.is-dropdown-open .dropdown-menu {
-  z-index: 6000;
-}
-
-/* evita clipping da overflow */
+/* evita clipping da overflow (se qualche container esterno clippa, va fixato lì) */
 #menuTree,
 #menuTree .menu-node,
 #menuTree .menu-row {
