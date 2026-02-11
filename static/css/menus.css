@@ -99,15 +99,25 @@
 ========================= */
 #menuTree .menu-node {
   position: relative;
-  z-index: 1;
+  z-index: 0;
 }
 
-/* quando bootstrap apre il dropdown, JS mette questa classe sul LI */
+/* la riga deve essere "posizionata" per partecipare al layering */
+#menuTree .menu-row {
+  position: relative;
+  z-index: 0;
+}
+
+/* quando il dropdown è aperto, alza TUTTO il nodo e la riga */
 #menuTree .menu-node.is-dropdown-open {
   z-index: 5000;
 }
 
-/* e il menu deve vincere sempre */
+#menuTree .menu-node.is-dropdown-open .menu-row {
+  z-index: 5000;
+}
+
+/* il menu deve stare sopra qualsiasi cosa dentro/sotto */
 #menuTree .menu-node.is-dropdown-open .dropdown-menu {
   z-index: 6000;
 }
