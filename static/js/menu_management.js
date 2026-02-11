@@ -455,30 +455,38 @@ if (window.__menuMgmtInitDone) {
     if (host.__ddHoverBound) return;
     host.__ddHoverBound = true;
 
-    // Solo su device con hover reale (desktop), evita touch
+    // Solo su device con hover reale (desktop)
     if (!window.matchMedia || !window.matchMedia("(hover: hover)").matches) return;
 
     let hideTimer = null;
 
-    host.addEventListener("mouseenter", (e) => {
-      const btn = e.target.closest?.(".btn-menu-actions.dropdown-toggle");
+    host.addEventListener("mouseover", (e) => {
+      const btn = e.target.closest(".btn-menu-actions.dropdown-toggle");
       if (!btn) return;
+
+      // evita ri-trigger quando passi da un figlio all'altro dentro lo stesso bottone
+      const from = e.relatedTarget;
+      if (from && btn.contains(from)) return;
 
       clearTimeout(hideTimer);
 
-      // Se è già aperto via bootstrap (.show sul menu), non rifare
       const dd = btn.closest(".dropdown");
       const menu = dd?.querySelector(".dropdown-menu");
-      if (menu?.classList.contains("show")) return;
 
-      // Apri via Bootstrap => emette shown.bs.dropdown => aggiunge is-dropdown-open
+      // se è già aperto (Bootstrap o CSS), non rifare
+      if (menu && (menu.classList.contains("show") || getComputedStyle(menu).display !== "none")) return;
+
       const inst = bootstrap.Dropdown.getOrCreateInstance(btn, { autoClose: true });
       inst.show();
-    }, true);
+    });
 
-    host.addEventListener("mouseleave", (e) => {
-      const dd = e.target.closest?.(".dropdown");
+    host.addEventListener("mouseout", (e) => {
+      const dd = e.target.closest(".dropdown");
       if (!dd) return;
+
+      // se stai uscendo verso un elemento ancora dentro lo stesso dropdown, ignora
+      const to = e.relatedTarget;
+      if (to && dd.contains(to)) return;
 
       const btn = dd.querySelector(".btn-menu-actions.dropdown-toggle");
       if (!btn) return;
@@ -488,8 +496,9 @@ if (window.__menuMgmtInitDone) {
         const inst = bootstrap.Dropdown.getInstance(btn);
         if (inst) inst.hide();
       }, 150);
-    }, true);
+    });
   }
+
 
   /* =========================
      ROOT BUTTON
