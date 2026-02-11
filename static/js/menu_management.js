@@ -448,6 +448,50 @@ if (window.__menuMgmtInitDone) {
   }
 
   /* =========================
+     DROPDOWN HOVER OPEN (via Bootstrap)
+     - così scattano shown/hidden e quindi z-index
+  ========================= */
+  function bindDropdownHoverOpenOnce(host) {
+    if (host.__ddHoverBound) return;
+    host.__ddHoverBound = true;
+
+    // Solo su device con hover reale (desktop), evita touch
+    if (!window.matchMedia || !window.matchMedia("(hover: hover)").matches) return;
+
+    let hideTimer = null;
+
+    host.addEventListener("mouseenter", (e) => {
+      const btn = e.target.closest?.(".btn-menu-actions.dropdown-toggle");
+      if (!btn) return;
+
+      clearTimeout(hideTimer);
+
+      // Se è già aperto via bootstrap (.show sul menu), non rifare
+      const dd = btn.closest(".dropdown");
+      const menu = dd?.querySelector(".dropdown-menu");
+      if (menu?.classList.contains("show")) return;
+
+      // Apri via Bootstrap => emette shown.bs.dropdown => aggiunge is-dropdown-open
+      const inst = bootstrap.Dropdown.getOrCreateInstance(btn, { autoClose: true });
+      inst.show();
+    }, true);
+
+    host.addEventListener("mouseleave", (e) => {
+      const dd = e.target.closest?.(".dropdown");
+      if (!dd) return;
+
+      const btn = dd.querySelector(".btn-menu-actions.dropdown-toggle");
+      if (!btn) return;
+
+      clearTimeout(hideTimer);
+      hideTimer = setTimeout(() => {
+        const inst = bootstrap.Dropdown.getInstance(btn);
+        if (inst) inst.hide();
+      }, 150);
+    }, true);
+  }
+
+  /* =========================
      ROOT BUTTON
   ========================= */
   function bindRootCreateButtonOnce() {
@@ -541,6 +585,7 @@ if (window.__menuMgmtInitDone) {
     // listeners UNA VOLTA sul contenitore (delegation)
     bindTreeActionsOnce(host);
     bindDropdownZIndexOnce(host);
+    bindDropdownHoverOpenOnce(host);
 
     await renderAll({ preserveScroll: false });
   }
