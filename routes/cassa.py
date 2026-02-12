@@ -11,4 +11,4 @@ logger = get_logger("cassa", level=logging.INFO)
 @cassa_bp.route("/agenda", methods=["GET"])
 @login_required
 def agenda():
-    return render_template("cassa/agenda.html")
+    return render_template("agenda.html")
