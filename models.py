@@ -891,3 +891,349 @@ class PasswordResetToken(db.Model):
     @property
     def is_used(self) -> bool:
         return self.used_at is not None
+
+# ============================================================
+# CASSA / AGENDA GIORNALIERA (Prima Nota) — v0 (modelli)
+# ============================================================
+
+from sqlalchemy import CheckConstraint
+
+
+# --- POS: device (canale) + circuiti (many-to-many) ----------------------------
+
+pos_device_circuits = db.Table(
+    "pos_device_circuits",
+    db.Column("pos_device_id", db.Integer, db.ForeignKey("pos_devices.id", ondelete="CASCADE"), primary_key=True),
+    db.Column("pos_circuit_id", db.Integer, db.ForeignKey("pos_circuits.id", ondelete="CASCADE"), primary_key=True),
+    db.UniqueConstraint("pos_device_id", "pos_circuit_id", name="uq_pos_device_circuit"),
+)
+
+
+class PosDevice(db.Model):
+    __tablename__ = "pos_devices"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False, unique=True)  # es. "Nexi banco", "Mobile consegne"
+    type = db.Column(db.String(30), nullable=False, default="physical")  # physical|mobile|paybylink|tap_to_pay|other
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+
+    circuits = db.relationship(
+        "PosCircuit",
+        secondary=pos_device_circuits,
+        backref=db.backref("devices", lazy="dynamic"),
+        lazy="dynamic",
+    )
+
+    def __repr__(self):
+        return f"<PosDevice {self.name}>"
+
+
+class PosCircuit(db.Model):
+    __tablename__ = "pos_circuits"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(50), nullable=False, unique=True)  # es. Pagobancomat, Visa, Amex
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+
+    def __repr__(self):
+        return f"<PosCircuit {self.name}>"
+
+
+# --- Anagrafiche minime --------------------------------------------------------
+
+class CashCustomer(db.Model):
+    __tablename__ = "cash_customers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    display_name = db.Column(db.String(120), nullable=False, unique=True)  # es. "Privato", "Giovanni", "Bar XYZ"
+    notes = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+
+    def __repr__(self):
+        return f"<CashCustomer {self.display_name}>"
+
+
+# --- Giornata / Chiusura -------------------------------------------------------
+
+class CashDay(db.Model):
+    __tablename__ = "cash_days"
+
+    id = db.Column(db.Integer, primary_key=True)
+    day_date = db.Column(db.Date, nullable=False, unique=True, index=True)
+
+    opening_float = db.Column(db.Numeric(12, 2), nullable=False, default=0)  # fondo cassa iniziale
+    status = db.Column(db.String(12), nullable=False, default="open")        # open|closed
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    closed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    notes = db.Column(db.Text, nullable=True)
+
+    sales = db.relationship("CashSale", backref="cash_day", cascade="all, delete-orphan", lazy="dynamic")
+    expenses = db.relationship("CashExpense", backref="cash_day", cascade="all, delete-orphan", lazy="dynamic")
+    cash_moves = db.relationship("CashMove", backref="cash_day", cascade="all, delete-orphan", lazy="dynamic")
+    pos_moves = db.relationship("PosMove", backref="cash_day", cascade="all, delete-orphan", lazy="dynamic")
+
+    closure = db.relationship("CashClosure", backref="cash_day", uselist=False, cascade="all, delete-orphan")
+
+    def __repr__(self):
+        return f"<CashDay {self.day_date} {self.status}>"
+
+
+class CashClosure(db.Model):
+    __tablename__ = "cash_closures"
+    __table_args__ = (
+        db.UniqueConstraint("cash_day_id", name="uq_cash_closure_day"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    cash_day_id = db.Column(db.Integer, db.ForeignKey("cash_days.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    closed_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+
+    # Contati (valori inseriti a fine giornata)
+    counted_cash = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    counted_bank_total = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    # Nota: POS lo contiamo per device/circuit con righe dedicate (CashClosurePos)
+    counted_pos_total = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+
+    # Extra richiesti (es. incasso dato al titolare / versabile)
+    owner_take_cash = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    depositable_cash = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+
+    # Differenze (snapshot calcolato al momento della chiusura)
+    expected_cash = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    expected_bank_total = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    expected_pos_total = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+
+    diff_cash = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    diff_bank = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    diff_pos = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    diff_total = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+
+    notes = db.Column(db.Text, nullable=True)
+
+    closed_by = db.relationship("User", backref="cash_closures")
+
+    def __repr__(self):
+        return f"<CashClosure day_id={self.cash_day_id}>"
+
+
+class CashClosurePos(db.Model):
+    """Righe di dettaglio POS per la chiusura: totals per device + circuito."""
+    __tablename__ = "cash_closure_pos"
+
+    id = db.Column(db.Integer, primary_key=True)
+    cash_closure_id = db.Column(db.Integer, db.ForeignKey("cash_closures.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    pos_device_id = db.Column(db.Integer, db.ForeignKey("pos_devices.id"), nullable=False)
+    pos_circuit_id = db.Column(db.Integer, db.ForeignKey("pos_circuits.id"), nullable=False)
+
+    counted_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    expected_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    diff_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+
+    closure = db.relationship("CashClosure", backref=db.backref("pos_rows", cascade="all, delete-orphan", lazy="dynamic"))
+    pos_device = db.relationship("PosDevice")
+    pos_circuit = db.relationship("PosCircuit")
+
+    __table_args__ = (
+        db.UniqueConstraint("cash_closure_id", "pos_device_id", "pos_circuit_id", name="uq_cash_closure_pos_row"),
+    )
+
+    def __repr__(self):
+        return f"<CashClosurePos closure={self.cash_closure_id} device={self.pos_device_id} circuit={self.pos_circuit_id}>"
+
+
+# --- Vendite / Spese + pagamenti multipli -------------------------------------
+
+class CashSale(db.Model):
+    __tablename__ = "cash_sales"
+
+    id = db.Column(db.Integer, primary_key=True)
+    cash_day_id = db.Column(db.Integer, db.ForeignKey("cash_days.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+
+    # Cliente: o riferimento anagrafica, o label libero (fallback)
+    customer_id = db.Column(db.Integer, db.ForeignKey("cash_customers.id"), nullable=True)
+    customer_label = db.Column(db.String(120), nullable=True)
+
+    # Per estensioni future (scontrino/fattura)
+    doc_ref = db.Column(db.String(80), nullable=True)
+
+    notes = db.Column(db.Text, nullable=True)
+
+    created_by = db.relationship("User", backref="cash_sales")
+    customer = db.relationship("CashCustomer")
+
+    payments = db.relationship("CashSalePayment", backref="sale", cascade="all, delete-orphan", lazy="dynamic")
+
+    def __repr__(self):
+        return f"<CashSale id={self.id} day={self.cash_day_id}>"
+
+
+class CashSalePayment(db.Model):
+    __tablename__ = "cash_sale_payments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    sale_id = db.Column(db.Integer, db.ForeignKey("cash_sales.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    # in|out (per gestire rimborsi o storni in futuro senza cambiare modello)
+    direction = db.Column(db.String(3), nullable=False, default="in")
+
+    # cash|pos|bank|other
+    method = db.Column(db.String(12), nullable=False)
+
+    # Se True: non entra nei saldi (solo report)
+    off_cash = db.Column(db.Boolean, nullable=False, default=False)
+
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+
+    # POS obbligatori quando method=pos (vincolo DB sotto)
+    pos_device_id = db.Column(db.Integer, db.ForeignKey("pos_devices.id"), nullable=True)
+    pos_circuit_id = db.Column(db.Integer, db.ForeignKey("pos_circuits.id"), nullable=True)
+
+    description = db.Column(db.String(255), nullable=True)
+
+    pos_device = db.relationship("PosDevice")
+    pos_circuit = db.relationship("PosCircuit")
+
+    __table_args__ = (
+        CheckConstraint("amount >= 0", name="ck_cash_sale_payment_amount_nonneg"),
+        CheckConstraint("direction IN ('in','out')", name="ck_cash_sale_payment_direction"),
+        CheckConstraint(
+            "(method <> 'pos') OR (pos_device_id IS NOT NULL AND pos_circuit_id IS NOT NULL)",
+            name="ck_cash_sale_payment_pos_requires_device_circuit",
+        ),
+    )
+
+    def __repr__(self):
+        return f"<CashSalePayment sale={self.sale_id} {self.method} {self.amount}>"
+
+
+class CashExpense(db.Model):
+    __tablename__ = "cash_expenses"
+
+    id = db.Column(db.Integer, primary_key=True)
+    cash_day_id = db.Column(db.Integer, db.ForeignKey("cash_days.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+
+    supplier = db.Column(db.String(160), nullable=True)  # fornitore/beneficiario (testo libero)
+    category = db.Column(db.String(80), nullable=True)   # es. "spesa minuta", "fornitori"
+    doc_ref = db.Column(db.String(80), nullable=True)    # fattura/scontrino
+
+    notes = db.Column(db.Text, nullable=True)
+
+    created_by = db.relationship("User", backref="cash_expenses")
+
+    payments = db.relationship("CashExpensePayment", backref="expense", cascade="all, delete-orphan", lazy="dynamic")
+
+    def __repr__(self):
+        return f"<CashExpense id={self.id} day={self.cash_day_id}>"
+
+
+class CashExpensePayment(db.Model):
+    __tablename__ = "cash_expense_payments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    expense_id = db.Column(db.Integer, db.ForeignKey("cash_expenses.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    direction = db.Column(db.String(3), nullable=False, default="out")  # normalmente out
+    method = db.Column(db.String(12), nullable=False)                  # cash|pos|bank|other
+    off_cash = db.Column(db.Boolean, nullable=False, default=False)
+
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+
+    pos_device_id = db.Column(db.Integer, db.ForeignKey("pos_devices.id"), nullable=True)
+    pos_circuit_id = db.Column(db.Integer, db.ForeignKey("pos_circuits.id"), nullable=True)
+
+    description = db.Column(db.String(255), nullable=True)
+
+    pos_device = db.relationship("PosDevice")
+    pos_circuit = db.relationship("PosCircuit")
+
+    __table_args__ = (
+        CheckConstraint("amount >= 0", name="ck_cash_expense_payment_amount_nonneg"),
+        CheckConstraint("direction IN ('in','out')", name="ck_cash_expense_payment_direction"),
+        CheckConstraint(
+            "(method <> 'pos') OR (pos_device_id IS NOT NULL AND pos_circuit_id IS NOT NULL)",
+            name="ck_cash_expense_payment_pos_requires_device_circuit",
+        ),
+    )
+
+    def __repr__(self):
+        return f"<CashExpensePayment expense={self.expense_id} {self.method} {self.amount}>"
+
+
+# --- Movimenti di cassa / POS standalone --------------------------------------
+
+class CashMove(db.Model):
+    __tablename__ = "cash_moves"
+
+    id = db.Column(db.Integer, primary_key=True)
+    cash_day_id = db.Column(db.Integer, db.ForeignKey("cash_days.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+
+    # in|out
+    direction = db.Column(db.String(3), nullable=False)
+
+    # prelievo_cassa | versamento_cassa | cambio_monete | altro
+    kind = db.Column(db.String(30), nullable=False, default="altro")
+
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    performed_by = db.Column(db.String(120), nullable=True)  # "da parte di chi" (testo libero)
+
+    notes = db.Column(db.Text, nullable=True)
+
+    created_by = db.relationship("User", backref="cash_moves")
+
+    __table_args__ = (
+        CheckConstraint("amount >= 0", name="ck_cash_move_amount_nonneg"),
+        CheckConstraint("direction IN ('in','out')", name="ck_cash_move_direction"),
+    )
+
+    def __repr__(self):
+        return f"<CashMove day={self.cash_day_id} {self.direction} {self.amount}>"
+
+
+class PosMove(db.Model):
+    """Movimento POS standalone (es. riferito a scontrino o fatture) non necessariamente legato a Sale/Expense."""
+    __tablename__ = "pos_moves"
+
+    id = db.Column(db.Integer, primary_key=True)
+    cash_day_id = db.Column(db.Integer, db.ForeignKey("cash_days.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+
+    direction = db.Column(db.String(3), nullable=False, default="in")  # spesso in
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+
+    pos_device_id = db.Column(db.Integer, db.ForeignKey("pos_devices.id"), nullable=False)
+    pos_circuit_id = db.Column(db.Integer, db.ForeignKey("pos_circuits.id"), nullable=False)
+
+    doc_ref = db.Column(db.String(80), nullable=True)  # scontrino/fattura/nota
+    notes = db.Column(db.Text, nullable=True)
+
+    created_by = db.relationship("User", backref="pos_moves")
+    pos_device = db.relationship("PosDevice")
+    pos_circuit = db.relationship("PosCircuit")
+
+    __table_args__ = (
+        CheckConstraint("amount >= 0", name="ck_pos_move_amount_nonneg"),
+        CheckConstraint("direction IN ('in','out')", name="ck_pos_move_direction"),
+    )
+
+    def __repr__(self):
+        return f"<PosMove day={self.cash_day_id} {self.direction} {self.amount}>"

@@ -250,6 +250,7 @@ def create_app():
     from routes.trello import trello_bp
     from routes.app_installation import installation_bp
     from routes.slack import slack_bp
+    from routes.cassa import cassa_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(settings_bp, url_prefix="/settings")
@@ -267,6 +268,7 @@ def create_app():
     app.register_blueprint(slack_bp, url_prefix="/slack")
     app.register_blueprint(automations_v2_bp, url_prefix="/api")
     app.register_blueprint(kiosk_bp, url_prefix="/kiosk")
+    app.register_blueprint(cassa_bp, url_prefix="/cassa")
 
     @app.cli.command("cleanup-reset-tokens")
     @click.option("--retention-days", default=30, show_default=True, type=int,
