@@ -1,10 +1,18 @@
 {% extends "base.html" %}
 
+{% block head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda.css') }}">
+{% endblock %}
+
 {% block content %}
-    <section class="welcome_section">
+    <section class="welcome-section">
         <div class="container mt-4">
             <h1>Agenda Cassa</h1>
             <p>Modulo in costruzione</p>
         </div>
     </section>
+{% endblock %}
+
+{% block scripts %}
+    <script src="{{ url_for('static', filename='js/agenda.js') }}"></script>
 {% endblock %}
