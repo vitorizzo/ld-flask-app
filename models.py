@@ -1012,6 +1012,11 @@ class CashClosure(db.Model):
     diff_pos = db.Column(db.Numeric(12, 2), nullable=False, default=0)
     diff_total = db.Column(db.Numeric(12, 2), nullable=False, default=0)
 
+    closing_cash_drawer = db.Column(db.Numeric(12, 2), nullable=False, default=0)  # fondo cassa lasciato nel cassetto
+
+    anomaly_flag = db.Column(db.Boolean, nullable=False, default=False)
+    anomaly_note = db.Column(db.Text, nullable=True)
+
     notes = db.Column(db.Text, nullable=True)
 
     closed_by = db.relationship("User", backref="cash_closures")
