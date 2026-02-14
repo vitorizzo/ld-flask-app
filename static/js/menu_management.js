@@ -236,6 +236,78 @@ if (window.__menuMgmtInitDone) {
   }
 
   /* =========================
+     MODALE
+  ========================= */
+
+  function openMenuModal({ mode, menu, parentId }) {
+    document.getElementById("mm_menu_id").value = menu?.id ?? "";
+    const pid = (parentId ?? menu?.parent_id ?? null);
+    document.getElementById("mm_parent_id").value = (pid === null) ? "" : String(pid);
+
+    document.getElementById("mm_name").value = menu?.name ?? "";
+    document.getElementById("mm_route").value = menu?.route ?? "";
+    document.getElementById("mm_weight").value = menu?.weight ?? 0;
+    document.getElementById("mm_is_active").checked = (menu?.is_active ?? true) === true;
+
+    document.getElementById("menuModalTitle").textContent =
+      (mode === "add-root") ? "Crea menu (root)" :
+      (mode === "add-child") ? "Crea sotto-menu" :
+      "Modifica menu";
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("menuModal")).show();
+  }
+
+/* =========================
+   MODAL SUBMIT
+========================= */
+
+function bindModalSubmit(refreshFn) {
+  const form = document.getElementById("menuModalForm");
+  if (!form) return;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (modalSubmitting) return;
+    modalSubmitting = true;
+
+    const id = (document.getElementById("mm_menu_id").value || "").trim();
+    const parentIdRaw = (document.getElementById("mm_parent_id").value || "").trim();
+
+    const payload = {
+      name: (document.getElementById("mm_name").value || "").trim(),
+      route: (document.getElementById("mm_route").value || "").trim() || null,
+      weight: Number(document.getElementById("mm_weight").value || 0),
+      is_active: document.getElementById("mm_is_active").checked
+    };
+
+    // root => parent_id null (campo vuoto)
+    payload.parent_id = parentIdRaw === "" ? null : Number(parentIdRaw);
+
+    try {
+      if (!payload.name) throw new Error("Nome obbligatorio");
+
+      if (id) {
+        await updateMenuJson({ id: Number(id), ...payload });
+      } else {
+        await createMenu(payload);
+      }
+
+      closeMenuModal();
+      await refreshFn();
+    } catch (err) {
+      console.error("MODAL SUBMIT:", err);
+      // in futuro: toast/alert in modale
+      alert(err.message || "Errore salvataggio menu");
+    } finally {
+      modalSubmitting = false;
+    }
+  });
+}
+
+
+  /* =========================
      INIT
   ========================= */
 
