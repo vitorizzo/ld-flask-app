@@ -205,24 +205,54 @@ if (window.__menuMgmtInitDone) {
         const data = await loadMenuData(id);
         openModal(data);
       }
+
+      if (action === "add-child") {
+        openModal(null, id);
+      }
     });
   }
 
   /* =========================
-     RENDER
+     MODAL
   ========================= */
 
-  async function renderAll() {
-    const host = document.getElementById("menuTree");
-    if (!host) return;
+  function openModal(data = null, parentId = null) {
+    const modal = document.getElementById("menuModal");
+    const form = document.getElementById("menuModalForm");
+    const titleEl = document.getElementById("menuModalTitle");
+    const menuIdInput = document.getElementById("mm_menu_id");
+    const parentIdInput = document.getElementById("mm_parent_id");
+    const nameInput = document.getElementById("mm_name");
+    const routeInput = document.getElementById("mm_route");
+    const roleWeightSelect = document.getElementById("mm_role_weight");
+    const weightCustomWrap = document.getElementById("mm_weight_custom_wrap");
+    const weightInput = document.getElementById("mm_weight");
+    const isActiveCheck = document.getElementById("mm_is_active");
 
-    const data = await fetchMenuStructure();
-    const tree = buildTree(data);
+    if (data) {
+      titleEl.textContent = "Modifica menu";
+      menuIdInput.value = data.id || "";
+      parentIdInput.value = data.parent_id || "";
+      nameInput.value = data.name || "";
+      routeInput.value = data.route || "";
+      roleWeightSelect.value = data.weight ?? "";
+      weightInput.value = data.weight ?? 0;
+      isActiveCheck.checked = !!data.is_active;
+    } else {
+      titleEl.textContent = "Nuovo menu";
+      menuIdInput.value = "";
+      parentIdInput.value = parentId || "";
+      nameInput.value = "";
+      routeInput.value = "";
+      roleWeightSelect.value = "";
+      weightInput.value = 0;
+      isActiveCheck.checked = true;
+    }
 
-    host.innerHTML = "";
-    host.appendChild(renderTree(tree));
+    weightCustomWrap.style.display = "none";
 
-    initSortable(host);
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
   }
 
   /* =========================
@@ -235,5 +265,71 @@ if (window.__menuMgmtInitDone) {
 
     bindActions(host);
     await renderAll();
+
+    // Gestore form modale
+    const form = document.getElementById("menuModalForm");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      if (modalSubmitting) return;
+      modalSubmitting = true;
+
+      try {
+        const menuId = document.getElementById("mm_menu_id").value;
+        const parentId = document.getElementById("mm_parent_id").value || null;
+        const name = document.getElementById("mm_name").value;
+        const route = document.getElementById("mm_route").value || null;
+        const roleWeightSelect = document.getElementById("mm_role_weight");
+        const weightInput = document.getElementById("mm_weight");
+        const isActive = document.getElementById("mm_is_active").checked;
+
+        let weight = 0;
+        if (roleWeightSelect.value === "__custom__") {
+          weight = parseInt(weightInput.value, 10) || 0;
+        } else if (roleWeightSelect.value) {
+          weight = parseInt(roleWeightSelect.value, 10) || 0;
+        }
+
+        const payload = {
+          name,
+          route,
+          weight,
+          is_active: isActive,
+          parent_id: parentId ? parseInt(parentId, 10) : null
+        };
+
+        if (menuId) {
+          payload.id = parseInt(menuId, 10);
+          await updateMenuJson(payload);
+        } else {
+          await createMenu(payload);
+        }
+
+        bootstrap.Modal.getInstance(document.getElementById("menuModal")).hide();
+        form.reset();
+        await renderAll();
+      } catch (err) {
+        alert("Errore: " + (err.message || "Unknown error"));
+      } finally {
+        modalSubmitting = false;
+      }
+    });
+
+    // Gestore pulsante "Nuovo menu (root)"
+    const btnAddRootMenu = document.getElementById("btnAddRootMenu");
+    if (btnAddRootMenu) {
+      btnAddRootMenu.addEventListener("click", () => {
+        openModal(null, null);
+      });
+    }
+
+    // Gestore cambio ruolo (per mostrare/nascondere input personalizzato)
+    const roleWeightSelect = document.getElementById("mm_role_weight");
+    if (roleWeightSelect) {
+      roleWeightSelect.addEventListener("change", (e) => {
+        const wrap = document.getElementById("mm_weight_custom_wrap");
+        wrap.style.display = e.target.value === "__custom__" ? "block" : "none";
+      });
+    }
   });
 }
