@@ -257,54 +257,60 @@ if (window.__menuMgmtInitDone) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById("menuModal")).show();
   }
 
-/* =========================
-   MODAL SUBMIT
-========================= */
+  function closeMenuModal() {
+    const modalEl = document.getElementById("menuModal");
+    const inst = bootstrap.Modal.getInstance(modalEl);
+    if (inst) inst.hide();
+  }
 
-function bindModalSubmit(refreshFn) {
-  const form = document.getElementById("menuModalForm");
-  if (!form) return;
+  /* =========================
+     MODAL SUBMIT
+  ========================= */
 
-  form.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+  function bindModalSubmit(refreshFn) {
+    const form = document.getElementById("menuModalForm");
+    if (!form) return;
 
-    if (modalSubmitting) return;
-    modalSubmitting = true;
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-    const id = (document.getElementById("mm_menu_id").value || "").trim();
-    const parentIdRaw = (document.getElementById("mm_parent_id").value || "").trim();
+      if (modalSubmitting) return;
+      modalSubmitting = true;
 
-    const payload = {
-      name: (document.getElementById("mm_name").value || "").trim(),
-      route: (document.getElementById("mm_route").value || "").trim() || null,
-      weight: Number(document.getElementById("mm_weight").value || 0),
-      is_active: document.getElementById("mm_is_active").checked
-    };
+      const id = (document.getElementById("mm_menu_id").value || "").trim();
+      const parentIdRaw = (document.getElementById("mm_parent_id").value || "").trim();
 
-    // root => parent_id null (campo vuoto)
-    payload.parent_id = parentIdRaw === "" ? null : Number(parentIdRaw);
+      const payload = {
+        name: (document.getElementById("mm_name").value || "").trim(),
+        route: (document.getElementById("mm_route").value || "").trim() || null,
+        weight: Number(document.getElementById("mm_weight").value || 0),
+        is_active: document.getElementById("mm_is_active").checked
+      };
 
-    try {
-      if (!payload.name) throw new Error("Nome obbligatorio");
+      // root => parent_id null (campo vuoto)
+      payload.parent_id = parentIdRaw === "" ? null : Number(parentIdRaw);
 
-      if (id) {
-        await updateMenuJson({ id: Number(id), ...payload });
-      } else {
-        await createMenu(payload);
+      try {
+        if (!payload.name) throw new Error("Nome obbligatorio");
+
+        if (id) {
+          await updateMenuJson({ id: Number(id), ...payload });
+        } else {
+          await createMenu(payload);
+        }
+
+        closeMenuModal();
+        await refreshFn();
+      } catch (err) {
+        console.error("MODAL SUBMIT:", err);
+        // in futuro: toast/alert in modale
+        alert(err.message || "Errore salvataggio menu");
+       } finally {
+         modalSubmitting = false;
       }
-
-      closeMenuModal();
-      await refreshFn();
-    } catch (err) {
-      console.error("MODAL SUBMIT:", err);
-      // in futuro: toast/alert in modale
-      alert(err.message || "Errore salvataggio menu");
-    } finally {
-      modalSubmitting = false;
-    }
-  });
-}
+     });
+  }
 
 
   /* =========================
@@ -316,6 +322,7 @@ function bindModalSubmit(refreshFn) {
     if (!host) return;
 
     bindActions(host);
+    bindModalSubmit(renderAll);
     await renderAll();
   });
 }
