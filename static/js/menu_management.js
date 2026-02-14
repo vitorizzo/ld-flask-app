@@ -115,7 +115,7 @@ if (window.__menuMgmtInitDone) {
 
       const isActive = !!n.is_active;
 
-      <li.innerHTML = `
+      li.innerHTML = `
         <div class="d-flex align-items-center gap-2">
           <span class="menu-handle" title="Trascina per riordinare" style="cursor: grab;">☰</span>
 
