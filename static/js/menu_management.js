@@ -116,46 +116,33 @@ if (window.__menuMgmtInitDone) {
       const isActive = !!n.is_active;
 
       <li.innerHTML = `
-        <div class="menu-row d-flex align-items-center gap-2 p-2 border rounded ${isActive ? "" : "menu-row-inactive"}">
-          <span class="menu-handle" style="cursor:grab;">☰</span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="menu-handle" title="Trascina per riordinare" style="cursor: grab;">☰</span>
 
-          <span class="menu-title ${isActive ? "" : "menu-title-inactive"}">
-            ${escapeHtml(n.name)}
+          <span class="menu-node-title">
+            ${(n.name ?? "")} <small class="text-muted">w:${n.weight ?? 0}</small>
           </span>
 
-          <span class="badge bg-secondary ms-auto">w:${n.weight ?? 0}</span>
+          <div class="dropdown ms-auto">
+            <a class="btn btn-sm btn-outline-secondary dropdown-toggle"
+               href="#"
+               role="button"
+               data-bs-toggle="dropdown"
+               aria-expanded="false">⋮</a>
 
-          li.innerHTML = `
-            <div class="d-flex align-items-center gap-2">
-              <span class="menu-handle" title="Trascina per riordinare" style="cursor: grab;">☰</span>
-
-              <span class="menu-node-title">
-                ${escapeHtml(n.name)} <small class="text-muted">w:${n.weight ?? 0}</small>
-              </span>
-
-              <div class="dropdown ms-auto">
-                <a class="btn btn-sm btn-outline-secondary dropdown-toggle"
-                   href="#"
-                   role="button"
-                   data-bs-toggle="dropdown"
-                   aria-expanded="false">
-                  ⋮
-                </a>
-
-                <ul class="dropdown-menu">
-                  <li><a class="dropdown-item" href="#" data-action="add-child" data-id="${n.id}">Aggiungi sotto-menu</a></li>
-                  <li><a class="dropdown-item" href="#" data-action="edit" data-id="${n.id}">Modifica</a></li>
-                  <li><a class="dropdown-item" href="#" data-action="toggle-active" data-id="${n.id}">
-                    ${isActive ? "Disattiva" : "Attiva"}
-                  </a></li>
-                  <li><hr class="dropdown-divider"></li>
-                  <li><a class="dropdown-item text-danger" href="#" data-action="delete" data-id="${n.id}">Elimina</a></li>
-                </ul>
-              </div>
-            </div>
-          `;
+            <ul class="dropdown-menu">
+              <li><a class="dropdown-item" href="#" data-action="add-child" data-id="${n.id}">Aggiungi sotto-menu</a></li>
+              <li><a class="dropdown-item" href="#" data-action="edit" data-id="${n.id}">Modifica</a></li>
+              <li><a class="dropdown-item" href="#" data-action="toggle-active" data-id="${n.id}">
+                ${((n.is_active ?? n.active ?? true) ? "Disattiva" : "Attiva")}
+              </a></li>
+              <li><hr class="dropdown-divider"></li>
+              <li><a class="dropdown-item text-danger" href="#" data-action="delete" data-id="${n.id}">Elimina</a></li>
+            </ul>
+          </div>
         </div>
       `;
+
 
       if (n.children?.length) {
         li.appendChild(renderTree(n.children));
