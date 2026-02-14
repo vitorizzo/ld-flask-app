@@ -125,22 +125,35 @@ if (window.__menuMgmtInitDone) {
 
           <span class="badge bg-secondary ms-auto">w:${n.weight ?? 0}</span>
 
-          <div class="dropdown">
-            <button class="btn-menu-actions dropdown-toggle"
-                    data-bs-toggle="dropdown">
-              ⋮
-            </button>
+          li.innerHTML = `
+            <div class="d-flex align-items-center gap-2">
+              <span class="menu-handle" title="Trascina per riordinare" style="cursor: grab;">☰</span>
 
-            <ul class="dropdown-menu">
-              <li><a class="dropdown-item" href="#" data-action="add-child" data-id="${n.id}">Aggiungi sotto-menu</a></li>
-              <li><a class="dropdown-item" href="#" data-action="edit" data-id="${n.id}">Modifica</a></li>
-              <li><a class="dropdown-item" href="#" data-action="toggle-active" data-id="${n.id}">
-                ${isActive ? "Disattiva" : "Attiva"}
-              </a></li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-danger" href="#" data-action="delete" data-id="${n.id}">Elimina</a></li>
-            </ul>
-          </div>
+              <span class="menu-node-title">
+                ${escapeHtml(n.name)} <small class="text-muted">w:${n.weight ?? 0}</small>
+              </span>
+
+              <div class="dropdown ms-auto">
+                <a class="btn btn-sm btn-outline-secondary dropdown-toggle"
+                   href="#"
+                   role="button"
+                   data-bs-toggle="dropdown"
+                   aria-expanded="false">
+                  ⋮
+                </a>
+
+                <ul class="dropdown-menu">
+                  <li><a class="dropdown-item" href="#" data-action="add-child" data-id="${n.id}">Aggiungi sotto-menu</a></li>
+                  <li><a class="dropdown-item" href="#" data-action="edit" data-id="${n.id}">Modifica</a></li>
+                  <li><a class="dropdown-item" href="#" data-action="toggle-active" data-id="${n.id}">
+                    ${isActive ? "Disattiva" : "Attiva"}
+                  </a></li>
+                  <li><hr class="dropdown-divider"></li>
+                  <li><a class="dropdown-item text-danger" href="#" data-action="delete" data-id="${n.id}">Elimina</a></li>
+                </ul>
+              </div>
+            </div>
+          `;
         </div>
       `;
 
@@ -190,20 +203,30 @@ if (window.__menuMgmtInitDone) {
       const id = Number(a.dataset.id);
       const action = a.dataset.action;
 
+      if (action === "add-child") {
+        // Apri la stessa modale di creazione, ma con parent_id = id
+        // (openModal esiste già perché viene usata per 'edit')
+        openModal({ parent_id: id });
+        return;
+      }
+
       if (action === "toggle-active") {
         await apiToggleMenuActive(id);
         await renderAll();
+        return;
       }
 
       if (action === "delete") {
         if (!confirm("Eliminare questo menu?")) return;
         await apiDeleteMenu(id, true);
         await renderAll();
+        return;
       }
 
       if (action === "edit") {
         const data = await loadMenuData(id);
         openModal(data);
+        return;
       }
     });
   }
