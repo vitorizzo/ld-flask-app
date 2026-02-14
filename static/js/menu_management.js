@@ -239,7 +239,7 @@ if (window.__menuMgmtInitDone) {
      MODALE
   ========================= */
 
-  function openMenuModal({ mode, menu, parentId }) {
+  function openModal({ mode, menu, parentId }) {
     document.getElementById("mm_menu_id").value = menu?.id ?? "";
     const pid = (parentId ?? menu?.parent_id ?? null);
     document.getElementById("mm_parent_id").value = (pid === null) ? "" : String(pid);
