@@ -115,7 +115,7 @@ if (window.__menuMgmtInitDone) {
 
       const isActive = !!n.is_active;
 
-      li.innerHTML = `
+      <li.innerHTML = `
         <div class="menu-row d-flex align-items-center gap-2 p-2 border rounded ${isActive ? "" : "menu-row-inactive"}">
           <span class="menu-handle" style="cursor:grab;">☰</span>
 
