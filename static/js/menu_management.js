@@ -193,7 +193,7 @@ if (window.__menuMgmtInitDone) {
       if (action === "add-child") {
         // Apri la stessa modale di creazione, ma con parent_id = id
         // (openModal esiste già perché viene usata per 'edit')
-        openModal({ parent_id: id });
+        openModal({ mode: "add-child", parentId: id });
         return;
       }
 
