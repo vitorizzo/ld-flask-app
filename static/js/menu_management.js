@@ -300,7 +300,7 @@ if (window.__menuMgmtInitDone) {
           await createMenu(payload);
         }
 
-        closeMenuModal();
+        bootstrap.Modal.getOrCreateInstance(document.getElementById("menuModal")).hide();
         await refreshFn();
       } catch (err) {
         console.error("MODAL SUBMIT:", err);
