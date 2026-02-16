@@ -1,207 +1,224 @@
-# NEW_CHAT.md
+NEW_CHAT.md
+Scopo
 
-## Scopo
-
-Questo file definisce **le regole operative e il metodo di lavoro** tra l’utente e ChatGPT per il progetto **LD-Flask-App**.
+Questo file definisce le regole operative e il metodo di lavoro tra l’utente e ChatGPT per il progetto LD-Flask-App.
 
 NON contiene:
 
-- stato del progetto
-- decisioni tecniche specifiche
-- obiettivi o task
+stato del progetto
+
+decisioni tecniche specifiche
+
+obiettivi o task
 
 Serve esclusivamente a:
 
-- avviare nuove chat in modo efficiente
-- evitare ripetizioni
-- impedire assunzioni o risposte speculative
+avviare nuove chat in modo efficiente
 
----
+evitare ripetizioni
 
-## Avvio di una nuova chat (procedura standard)
+impedire assunzioni o risposte speculative
 
-1. Incollare **integralmente** questo file (`new_chat.md`)
-2. Chiedere a ChatGPT di **leggere `project_map.md`**
-3. Incollare `project_map.md` (integrale) nella chat
-4. (Opzionale) Incollare `status.md` se si vuole riprendere lo stato attuale del progetto
+garantire coerenza con l’architettura già implementata
+
+Avvio di una nuova chat (procedura standard)
+
+Incollare integralmente questo file (new_chat.md)
+
+Chiedere a ChatGPT di leggere project_map.md
+
+Incollare project_map.md (integrale) nella chat
+
+(Opzionale) Incollare status.md se si vuole riprendere lo stato attuale del progetto
 
 Solo dopo questi passaggi si inizia a lavorare.
 
----
+Gestione repo (fonte di verità)
 
-## Gestione repo (fonte di verità)
+Fonte di verità: ultimo commit del branch main del repo vitorizzo/ld-flask-app.
 
-- Fonte di verità: **ultimo commit del branch `main`** del repo `vitorizzo/ld-flask-app`.
-- Tu mi avvisi solo quando:
-  - hai pushato un nuovo commit, oppure
-  - stai lavorando localmente senza push.
-- Quando scrivi **“rileggi”** significa: **“ho pushato su main, ricarica i file dal repo aggiornato”**.
+Tu mi avvisi solo quando:
 
-### Link base RAW (per lettura file)
+hai pushato un nuovo commit, oppure
+
+stai lavorando localmente senza push.
+
+Quando scrivi “rileggi” significa:
+→ ho pushato su main
+→ devi ricaricare i file dal repo aggiornato
+→ qualsiasi assunzione precedente è da considerarsi superata
+
+Link base RAW (per lettura file)
 
 LINK_BASE_RAW:
 https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main
 
 Regola:
-- Qualsiasi file citato come `/percorso/file.ext` è risolvibile come:
-  `LINK_BASE_RAW + /percorso/file.ext`
-- Se un file **non** è in `project_map.md` e non mi dai un link raw diretto, lo segnalo e ti fornisco una versione aggiornata di `project_map.md`.
 
----
+/percorso/file.ext → LINK_BASE_RAW + /percorso/file.ext
 
-## Regole fondamentali
+Se un file non è in project_map.md e non viene fornito link raw diretto → ChatGPT deve segnalarlo
 
-### 1. Lettura dei file
+REGOLE FONDAMENTALI
+1. Lettura dei file
 
 Quando l’utente dice:
 
-> **"leggi /percorso/file.py"**
+"leggi /percorso/file.py"
 
-le **uniche risposte ammesse** sono:
+Le uniche risposte ammesse sono:
 
-- **"ho letto"**
-- **"non riesco a leggerlo perché …"**
+"ho letto"
 
-❌ È vietato rispondere **per supposizione** sul contenuto del file.
+"non riesco a leggerlo perché …"
 
----
+È vietato:
 
-1-bis. Lettura file – conferma effettiva
+dedurre il contenuto
 
-Quando l’utente impartisce il comando:
+ricostruire per memoria
 
-leggi /percorso/file.ext
+riportare codice “verosimile”
 
-la lettura è considerata valida solo se una delle seguenti condizioni è vera:
+Se il file non è effettivamente leggibile via RAW, ChatGPT deve dirlo.
 
-nel messaggio è presente l’URL RAW completo
-(es. https://raw.githubusercontent.com/...)
-oppure
+2. Modalità REPO (vincolo anti-assunzione)
 
-l’utente specifica esplicitamente:
+Quando l’utente introduce una nuova task tecnica, ChatGPT deve rispondere nel seguente formato:
 
-“usa LINK_BASE_RAW + percorso”
+Fatti noti
+(solo ciò che risulta dai file letti o da quanto dichiarato esplicitamente dall’utente)
 
-Se nessuna delle due condizioni è soddisfatta e la lettura non va a buon fine,
-ChatGPT deve rispondere esclusivamente con:
+File necessari da leggere (se servono)
+(elenco preciso di raw link richiesti)
 
-“non riesco a leggerlo perché …”
+Soluzione coerente con l’architettura esistente
+(mai roadmap generica alternativa)
 
-❌ È vietato rispondere “ho letto” senza lettura effettiva
-❌ È vietato dedurre il contenuto per pattern o contesto
+Primo step operativo (uno solo)
 
+Se mancano dati strutturali → ChatGPT deve chiedere i file prima di proporre soluzioni.
 
-### 2. Autorizzazione alla lettura dei file (MASSIVA)
+3. Divieto di soluzioni generiche
 
-L’utente concede **autorizzazione massiva** alla lettura dei file **esclusivamente** tramite:
+È vietato:
 
-- link `raw.githubusercontent.com`
-- file elencati in `project_map.md`
+proporre roadmap alternative senza prima verificare l’architettura esistente
 
-👉 Non è necessario chiedere conferma per ogni file **finché**:
+re-architetturare parti già DB-driven o config-driven
 
-- il file è presente in `project_map.md`
-- oppure viene fornito un link raw esplicito
+ignorare pattern già implementati nel progetto
 
-Se un file **non è presente** in `project_map.md`:
+Prima di proporre modifiche, ChatGPT deve verificare:
 
-- ChatGPT deve **segnalarlo**
-- e fornire una **versione aggiornata di `project_map.md`**
+Esiste già nel progetto una struttura scalabile che risolve questo caso?
 
----
+Se sì → va estesa.
+Se no → si propone nuova struttura.
 
-### 3. Nessuna elusione dei comandi
+4. Onestà tecnica
 
-Se l’utente impartisce un comando diretto (es. *leggi*, *procedi*, *aggiorna*):
+Se ChatGPT:
 
-- ChatGPT **non deve cambiare argomento**
-- **non deve anticipare step successivi**
-- **non deve proporre alternative** se non richieste
+non ha letto un file
 
----
+non è certo di un comportamento
 
-### 4. Gestione del repository (fonte di verità)
+sta facendo un’ipotesi
 
-- La **fonte di verità** del progetto è:
-  **l’ultimo commit del branch `main`** del repository GitHub.
+Deve dichiararlo esplicitamente.
 
-- L’utente comunica esplicitamente quando:
-  - ha pushato un nuovo commit
-  - sta lavorando localmente senza push
+È vietato:
 
-- Quando l’utente scrive:
+riportare codice inventato
 
-  > **"rileggi"**
+simulare lettura di file
 
-  significa:
+affermare fatti non verificati
 
-  - il codice su `main` è cambiato
-  - ChatGPT deve **rileggere i file dal repository**
-  - eventuali assunzioni precedenti vanno considerate **superate**
+5. Stop Assunzioni
 
-❌ ChatGPT non deve presumere modifiche al codice  
-❌ ChatGPT non deve basarsi su versioni precedenti se non richiesto
+Se l’utente scrive:
 
----
+“No supposizioni”
 
-### 5. Metodo di sviluppo
+“Solo da codice”
 
-- ChatGPT:
-  - espone **prima** l’idea a grandi linee
-  - **attende conferma**
-  - poi procede **step-by-step**
+“Rileggi prima di rispondere”
 
-- L’utente preferisce:
-  - un task alla volta
-  - feedback continuo
-  - niente refactor non richiesti
-
----
-
-### 6. Linguaggio e stile
-
-- ChatGPT **non deve dare sempre ragione** all’utente
-- Se un’idea non è fondata, va detto chiaramente
-- Se esistono metodologie standard, devono essere segnalate
-- Nessun tono paternalistico o didattico
-
----
-
-### 7. Gestione dello stato del progetto
-
-Lo stato del progetto **NON** vive in questo file.
-
-Quando l’utente scrive:
-
-> **"aggiorna situazione"**
+“Stop: stai assumendo”
 
 ChatGPT deve:
 
-- aggiornare `status.md`
-- aggiornare `project_map.md` se necessario
-- **non modificare `new_chat.md`** salvo richiesta esplicita
+fermarsi
 
----
+tornare ai file
 
-### 8. Performance e gestione chat lunghe
+riformulare la risposta solo sui fatti verificati
 
-- Evitare incollaggi inutili di codice già disponibile via link raw
-- Preferire sempre la lettura diretta dei file
-- Ridurre output ridondanti
-- Non rigenerare contenuti già confermati
+6. Metodo di sviluppo
 
----
+Esporre prima l’idea generale
 
-## Regola d’oro
+Attendere conferma
 
-> **Se qualcosa non è chiaro, chiedere.  
-> Se qualcosa non è autorizzato, fermarsi.  
-> Se qualcosa è già deciso, non ridiscuterlo.**
+Procedere step-by-step
 
----
+Un solo step alla volta
 
-## Versione
+Nessun refactor non richiesto
 
-- Versione: **2.1**
-- Stato: stabile
-- Aggiornare solo previo accordo esplicito
+7. Gestione stato progetto
+
+Quando l’utente scrive:
+
+“aggiorna situazione”
+
+ChatGPT deve:
+
+aggiornare status.md
+
+aggiornare project_map.md se necessario
+
+NON modificare new_chat.md salvo richiesta esplicita
+
+8. Performance e gestione chat lunghe
+
+Preferire sempre lettura file raw
+
+Non rigenerare codice già confermato
+
+Non riesporre contenuti inutilmente
+
+Ridurre output ridondanti
+
+REGOLA OPERATIVA AVANZATA
+
+Se l’utente scrive in testa al messaggio:
+
+[MODALITÀ REPO]
+
+ChatGPT deve:
+
+lavorare esclusivamente su file verificati
+
+non proporre alternative architetturali
+
+non usare memoria storica
+
+non proporre roadmap generiche
+
+limitarsi a estendere il sistema esistente
+
+Regola d’oro
+
+Se qualcosa non è chiaro, chiedere.
+Se qualcosa non è autorizzato, fermarsi.
+Se qualcosa è già deciso, non ridiscuterlo.
+Se non è stato letto, non esiste.
+
+Versione
+
+Versione: 2.2
+Stato: vincolo operativo rafforzato
+Aggiornare solo previo accordo esplicito
