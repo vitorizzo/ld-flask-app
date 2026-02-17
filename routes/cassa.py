@@ -14,6 +14,7 @@ from extensions import db
 from models import CashDay
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.exceptions import InvalidTag
 
 
 cassa_bp = Blueprint("cassa", __name__, url_prefix="/cassa")
@@ -48,11 +49,18 @@ def _derive_key(password: str, salt: bytes) -> bytes:
     )
 
 
-def _vault_paths() -> tuple[str, int, str]:
-    vault_dir = os.environ.get("PRIVATE_VAULT_DIR", "/mnt/archive/runtime/.rt")
+def _vault_config() -> tuple[str, str, int, str]:
+    """
+    mount_root: directory che risulta ismount() quando la chiavetta è inserita (es: /mnt/archive/runtime)
+    vault_dir:  directory dati dentro mount_root (es: /mnt/archive/runtime/.rt)
+    """
+    mount_root = os.environ.get("PRIVATE_VAULT_MOUNT_ROOT", "/mnt/archive/runtime").rstrip("/")
+    default_vault_dir = os.path.join(mount_root, ".rt")
+    vault_dir = os.environ.get("PRIVATE_VAULT_DIR", default_vault_dir).rstrip("/")
+
     year = date.today().year
     year_file = os.path.join(vault_dir, f"{year}.enc")
-    return vault_dir, year, year_file
+    return mount_root, vault_dir, year, year_file
 
 
 def _atomic_write(path: str, data: bytes) -> None:
@@ -65,7 +73,6 @@ def _atomic_write(path: str, data: bytes) -> None:
 
 
 def _empty_vault_payload(year: int) -> dict:
-    # struttura minima (la estenderemo quando inseriamo movimenti PRI)
     return {"version": 1, "year": year, "days": []}
 
 
@@ -97,6 +104,17 @@ def _decrypt_payload(blob: bytes, password: str) -> dict:
     aes = AESGCM(key)
     pt = aes.decrypt(nonce, ct, None)
     return json.loads(pt.decode("utf-8"))
+
+
+def _dir_writable(path: str) -> bool:
+    try:
+        testfile = os.path.join(path, f".__wtest_{secrets.token_hex(6)}")
+        with open(testfile, "wb") as f:
+            f.write(b"1")
+        os.remove(testfile)
+        return True
+    except Exception:
+        return False
 
 
 # =========================
@@ -165,17 +183,22 @@ def api_get_or_create_day():
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_private_status():
-    vault_dir, year, year_file = _vault_paths()
+    mount_root, vault_dir, year, year_file = _vault_config()
 
-    mounted = os.path.ismount(vault_dir)
+    mounted = os.path.ismount(mount_root)
+    vault_dir_exists = os.path.isdir(vault_dir)
+    vault_dir_writable = vault_dir_exists and _dir_writable(vault_dir)
     year_file_exists = os.path.isfile(year_file)
     unlocked = bool(session.get("pri_vault_unlocked", False))
 
     return jsonify({
         "ok": True,
         "vault": {
-            "vault_dir": vault_dir,
+            "mount_root": mount_root,
             "mounted": mounted,
+            "vault_dir": vault_dir,
+            "vault_dir_exists": vault_dir_exists,
+            "vault_dir_writable": vault_dir_writable,
             "year": year,
             "year_file_exists": year_file_exists,
             "unlocked": unlocked,
@@ -187,11 +210,20 @@ def api_private_status():
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_private_unlock():
-    vault_dir, year, year_file = _vault_paths()
+    mount_root, vault_dir, year, year_file = _vault_config()
 
-    if not os.path.ismount(vault_dir):
-        # 409: stato non valido per fare unlock (chiavetta non montata)
+    if not os.path.ismount(mount_root):
         return jsonify({"ok": False, "error": "Vault not mounted"}), 409
+
+    # se la chiavetta è montata ma la dir dati non esiste, creiamola
+    try:
+        os.makedirs(vault_dir, exist_ok=True)
+    except Exception as e:
+        logger.error("Vault dir create failed: %s", e)
+        return jsonify({"ok": False, "error": "Vault dir not available"}), 500
+
+    if not _dir_writable(vault_dir):
+        return jsonify({"ok": False, "error": "Vault not writable"}), 500
 
     data = request.get_json(silent=True) or {}
     password = (data.get("password") or "").strip()
@@ -209,11 +241,13 @@ def api_private_unlock():
 
         session["pri_vault_unlocked"] = True
         return jsonify({"ok": True, "vault": {"year": year, "unlocked": True, "year_file_exists": True}})
-    except Exception as e:
-        logger.warning("Vault unlock failed: %s", e)
+    except InvalidTag:
         session["pri_vault_unlocked"] = False
-        # 401 solo se password errata (o file corrotto). È accettabile ora.
         return jsonify({"ok": False, "error": "Invalid password"}), 401
+    except Exception as e:
+        logger.exception("Vault unlock unexpected error: %s", e)
+        session["pri_vault_unlocked"] = False
+        return jsonify({"ok": False, "error": "Vault error"}), 500
 
 
 @cassa_bp.route("/api/private/lock", methods=["POST"])
