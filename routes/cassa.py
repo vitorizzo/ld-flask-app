@@ -49,7 +49,7 @@ def _derive_key(password: str, salt: bytes) -> bytes:
 
 
 def _vault_paths() -> tuple[str, int, str]:
-    vault_dir = os.environ.get("PRIVATE_VAULT_DIR", "/mnt/archive/runtime")
+    vault_dir = os.environ.get("PRIVATE_VAULT_DIR", "/mnt/archive/runtime/.rt")
     year = date.today().year
     year_file = os.path.join(vault_dir, f"{year}.enc")
     return vault_dir, year, year_file
