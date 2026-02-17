@@ -1,28 +1,132 @@
 import logging
 import os
-from datetime import date, datetime, timezone, timedelta
+import json
+import base64
+import secrets
+from datetime import date, datetime, timedelta
 
 from flask import Blueprint, render_template, request, jsonify, session
 from flask_login import login_required
-from sqlalchemy import and_
 
 from tools.log_utils import get_logger
+from tools.role_required import role_required
 from extensions import db
-from models import CashDay, CashClosure
+from models import CashDay
+
+# Crypto (AES-GCM) - richiede pacchetto "cryptography"
+try:
+    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+except Exception:
+    AESGCM = None
 
 
 cassa_bp = Blueprint("cassa", __name__, url_prefix="/cassa")
 logger = get_logger("cassa", level=logging.INFO)
 
+MIN_AGENDA_WEIGHT = 40
+
+_VAULT_VERSION = 1
+_KDF_ITERS = 200_000  # PBKDF2-HMAC-SHA256
+
+
+# =========================
+# Helpers Vault (PRI)
+# =========================
+
+def _b64e(b: bytes) -> str:
+    return base64.urlsafe_b64encode(b).decode("utf-8")
+
+
+def _b64d(s: str) -> bytes:
+    return base64.urlsafe_b64decode(s.encode("utf-8"))
+
+
+def _derive_key(password: str, salt: bytes) -> bytes:
+    import hashlib
+    return hashlib.pbkdf2_hmac(
+        "sha256",
+        password.encode("utf-8"),
+        salt,
+        _KDF_ITERS,
+        dklen=32
+    )
+
+
+def _vault_paths() -> tuple[str, int, str]:
+    vault_dir = os.environ.get("PRIVATE_VAULT_DIR", "/mnt/archive/runtime")
+    year = date.today().year
+    year_file = os.path.join(vault_dir, f"{year}.enc")
+    return vault_dir, year, year_file
+
+
+def _atomic_write(path: str, data: bytes) -> None:
+    tmp = f"{path}.tmp.{secrets.token_hex(6)}"
+    with open(tmp, "wb") as f:
+        f.write(data)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(tmp, path)
+
+
+def _empty_vault_payload(year: int) -> dict:
+    # Struttura minima (la estenderemo quando integreremo i movimenti PRI)
+    return {"version": 1, "year": year, "days": []}
+
+
+def _vault_encrypt_json(payload_obj: dict, password: str) -> bytes:
+    if AESGCM is None:
+        raise RuntimeError("cryptography/AESGCM non disponibile")
+
+    salt = secrets.token_bytes(16)
+    key = _derive_key(password, salt)
+    aes = AESGCM(key)
+    nonce = secrets.token_bytes(12)
+
+    plaintext = json.dumps(payload_obj, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    ciphertext = aes.encrypt(nonce, plaintext, None)
+
+    envelope = {
+        "v": _VAULT_VERSION,
+        "kdf": {"name": "pbkdf2-hmac-sha256", "iters": _KDF_ITERS, "salt": _b64e(salt)},
+        "aead": {"name": "aes-256-gcm", "nonce": _b64e(nonce)},
+        "ct": _b64e(ciphertext),
+    }
+    return json.dumps(envelope, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+
+def _vault_decrypt_json(blob: bytes, password: str) -> dict:
+    if AESGCM is None:
+        raise RuntimeError("cryptography/AESGCM non disponibile")
+
+    env = json.loads(blob.decode("utf-8"))
+    salt = _b64d(env["kdf"]["salt"])
+    nonce = _b64d(env["aead"]["nonce"])
+    ct = _b64d(env["ct"])
+
+    key = _derive_key(password, salt)
+    aes = AESGCM(key)
+    pt = aes.decrypt(nonce, ct, None)
+    return json.loads(pt.decode("utf-8"))
+
+
+# =========================
+# Views
+# =========================
 
 @cassa_bp.route("/agenda", methods=["GET"])
 @login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
 def agenda():
     return render_template("agenda.html")
 
 
+# =========================
+# API: Day (già esistente)
+# =========================
+
 @cassa_bp.route("/api/day", methods=["GET"])
 @login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_get_or_create_day():
     date_str = (request.args.get("date") or "").strip()
 
@@ -63,23 +167,18 @@ def api_get_or_create_day():
     })
 
 
+# =========================
+# API: Vault privato (PRI)
+# =========================
+
 @cassa_bp.route("/api/private/status", methods=["GET"])
 @login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_private_status():
-    """
-    Stato vault privato (PRI).
-    - vault_dir: directory mount (es. /mnt/archive/runtime)
-    - mounted: True se la directory è un mountpoint attivo
-    - year_file_exists: True se esiste il file dell'anno corrente (es. 2026.enc)
-    - unlocked: flag sessione (per ora sarà quasi sempre False finché non implementiamo /unlock)
-    """
-    vault_dir = os.environ.get("PRIVATE_VAULT_DIR", "/mnt/archive/runtime")
-    year = date.today().year
-    year_file = os.path.join(vault_dir, f"{year}.enc")
+    vault_dir, year, year_file = _vault_paths()
 
     mounted = os.path.ismount(vault_dir)
     year_file_exists = os.path.isfile(year_file)
-
     unlocked = bool(session.get("pri_vault_unlocked", False))
 
     return jsonify({
@@ -92,3 +191,42 @@ def api_private_status():
             "unlocked": unlocked,
         }
     })
+
+
+@cassa_bp.route("/api/private/unlock", methods=["POST"])
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_private_unlock():
+    vault_dir, year, year_file = _vault_paths()
+
+    if not os.path.ismount(vault_dir):
+        return jsonify({"ok": False, "error": "Vault not available"}), 409
+
+    data = request.get_json(silent=True) or {}
+    password = (data.get("password") or "").strip()
+    if not password:
+        return jsonify({"ok": False, "error": "Missing password"}), 400
+
+    try:
+        if os.path.isfile(year_file):
+            blob = open(year_file, "rb").read()
+            _vault_decrypt_json(blob, password)  # valida password
+        else:
+            payload = _empty_vault_payload(year)
+            blob = _vault_encrypt_json(payload, password)
+            _atomic_write(year_file, blob)
+
+        session["pri_vault_unlocked"] = True
+        return jsonify({"ok": True, "vault": {"year": year, "unlocked": True}})
+    except Exception as e:
+        logger.warning("Vault unlock failed: %s", e)
+        session["pri_vault_unlocked"] = False
+        return jsonify({"ok": False, "error": "Invalid password"}), 401
+
+
+@cassa_bp.route("/api/private/lock", methods=["POST"])
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_private_lock():
+    session["pri_vault_unlocked"] = False
+    return jsonify({"ok": True, "vault": {"unlocked": False}})
