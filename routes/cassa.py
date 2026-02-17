@@ -13,11 +13,7 @@ from tools.role_required import role_required
 from extensions import db
 from models import CashDay
 
-# Crypto (AES-GCM) - richiede pacchetto "cryptography"
-try:
-    from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-except Exception:
-    AESGCM = None
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 
 cassa_bp = Blueprint("cassa", __name__, url_prefix="/cassa")
@@ -26,12 +22,12 @@ logger = get_logger("cassa", level=logging.INFO)
 MIN_AGENDA_WEIGHT = 40
 
 _VAULT_VERSION = 1
-_KDF_ITERS = 200_000  # PBKDF2-HMAC-SHA256
+_KDF_ITERS = 200_000
 
 
-# =========================
-# Helpers Vault (PRI)
-# =========================
+# -------------------------
+# Helpers base64 + KDF
+# -------------------------
 
 def _b64e(b: bytes) -> str:
     return base64.urlsafe_b64encode(b).decode("utf-8")
@@ -69,35 +65,29 @@ def _atomic_write(path: str, data: bytes) -> None:
 
 
 def _empty_vault_payload(year: int) -> dict:
-    # Struttura minima (la estenderemo quando integreremo i movimenti PRI)
+    # struttura minima (la estenderemo quando inseriamo movimenti PRI)
     return {"version": 1, "year": year, "days": []}
 
 
-def _vault_encrypt_json(payload_obj: dict, password: str) -> bytes:
-    if AESGCM is None:
-        raise RuntimeError("cryptography/AESGCM non disponibile")
-
+def _encrypt_payload(payload: dict, password: str) -> bytes:
     salt = secrets.token_bytes(16)
     key = _derive_key(password, salt)
     aes = AESGCM(key)
     nonce = secrets.token_bytes(12)
 
-    plaintext = json.dumps(payload_obj, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    ciphertext = aes.encrypt(nonce, plaintext, None)
+    plaintext = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    ct = aes.encrypt(nonce, plaintext, None)
 
-    envelope = {
+    env = {
         "v": _VAULT_VERSION,
         "kdf": {"name": "pbkdf2-hmac-sha256", "iters": _KDF_ITERS, "salt": _b64e(salt)},
         "aead": {"name": "aes-256-gcm", "nonce": _b64e(nonce)},
-        "ct": _b64e(ciphertext),
+        "ct": _b64e(ct),
     }
-    return json.dumps(envelope, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    return json.dumps(env, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
 
 
-def _vault_decrypt_json(blob: bytes, password: str) -> dict:
-    if AESGCM is None:
-        raise RuntimeError("cryptography/AESGCM non disponibile")
-
+def _decrypt_payload(blob: bytes, password: str) -> dict:
     env = json.loads(blob.decode("utf-8"))
     salt = _b64d(env["kdf"]["salt"])
     nonce = _b64d(env["aead"]["nonce"])
@@ -121,7 +111,7 @@ def agenda():
 
 
 # =========================
-# API: Day (già esistente)
+# API: Day
 # =========================
 
 @cassa_bp.route("/api/day", methods=["GET"])
@@ -200,7 +190,8 @@ def api_private_unlock():
     vault_dir, year, year_file = _vault_paths()
 
     if not os.path.ismount(vault_dir):
-        return jsonify({"ok": False, "error": "Vault not available"}), 409
+        # 409: stato non valido per fare unlock (chiavetta non montata)
+        return jsonify({"ok": False, "error": "Vault not mounted"}), 409
 
     data = request.get_json(silent=True) or {}
     password = (data.get("password") or "").strip()
@@ -210,17 +201,18 @@ def api_private_unlock():
     try:
         if os.path.isfile(year_file):
             blob = open(year_file, "rb").read()
-            _vault_decrypt_json(blob, password)  # valida password
+            _decrypt_payload(blob, password)  # valida password
         else:
             payload = _empty_vault_payload(year)
-            blob = _vault_encrypt_json(payload, password)
+            blob = _encrypt_payload(payload, password)
             _atomic_write(year_file, blob)
 
         session["pri_vault_unlocked"] = True
-        return jsonify({"ok": True, "vault": {"year": year, "unlocked": True}})
+        return jsonify({"ok": True, "vault": {"year": year, "unlocked": True, "year_file_exists": True}})
     except Exception as e:
         logger.warning("Vault unlock failed: %s", e)
         session["pri_vault_unlocked"] = False
+        # 401 solo se password errata (o file corrotto). È accettabile ora.
         return jsonify({"ok": False, "error": "Invalid password"}), 401
 
 
