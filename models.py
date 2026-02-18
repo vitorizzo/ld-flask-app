@@ -969,10 +969,33 @@ class CashDay(db.Model):
 
     notes = db.Column(db.Text, nullable=True)
 
-    sales = db.relationship("CashSale", backref="cash_day", cascade="all, delete-orphan", lazy="dynamic")
-    expenses = db.relationship("CashExpense", backref="cash_day", cascade="all, delete-orphan", lazy="dynamic")
-    cash_moves = db.relationship("CashMove", backref="cash_day", cascade="all, delete-orphan", lazy="dynamic")
-    pos_moves = db.relationship("PosMove", backref="cash_day", cascade="all, delete-orphan", lazy="dynamic")
+    sales = db.relationship(
+        "CashSale",
+        backref="cash_day",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    expenses = db.relationship(
+        "CashExpense",
+        backref="cash_day",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    cash_moves = db.relationship(
+        "CashMove",
+        backref="cash_day",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    pos_moves = db.relationship(
+        "PosMove",
+        backref="cash_day",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
     closure = db.relationship("CashClosure", backref="cash_day", uselist=False, cascade="all, delete-orphan")
 
