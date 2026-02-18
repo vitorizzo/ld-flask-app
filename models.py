@@ -1080,29 +1080,24 @@ class CashSale(db.Model):
         return f"<CashSale id={self.id} day={self.cash_day_id}>"
 
 
+# --- Vendite / Spese + pagamenti multipli -------------------------------------
+
 class CashSalePayment(db.Model):
     __tablename__ = "cash_sale_payments"
-
     id = db.Column(db.Integer, primary_key=True)
     sale_id = db.Column(db.Integer, db.ForeignKey("cash_sales.id", ondelete="CASCADE"), nullable=False, index=True)
-
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
-    # in|out (per gestire rimborsi o storni in futuro senza cambiare modello)
-    direction = db.Column(db.String(3), nullable=False, default="in")
-
-    # cash|pos|bank|other
-    method = db.Column(db.String(12), nullable=False)
-
-    # Se True: non entra nei saldi (solo report)
+    direction = db.Column(db.String(3), nullable=False, default="in")  # in|out
+    method = db.Column(db.String(12), nullable=False)                 # cash|pos|bank|other
     off_cash = db.Column(db.Boolean, nullable=False, default=False)
-
     amount = db.Column(db.Numeric(12, 2), nullable=False)
 
-    # POS obbligatori quando method=pos (vincolo DB sotto)
+    # FLAG AGENDA: *, **, +, x, #, !
+    flag = db.Column(db.String(2), nullable=False, default="*")
+
     pos_device_id = db.Column(db.Integer, db.ForeignKey("pos_devices.id"), nullable=True)
     pos_circuit_id = db.Column(db.Integer, db.ForeignKey("pos_circuits.id"), nullable=True)
-
     description = db.Column(db.String(255), nullable=True)
 
     pos_device = db.relationship("PosDevice")
@@ -1115,10 +1110,108 @@ class CashSalePayment(db.Model):
             "(method <> 'pos') OR (pos_device_id IS NOT NULL AND pos_circuit_id IS NOT NULL)",
             name="ck_cash_sale_payment_pos_requires_device_circuit",
         ),
+        CheckConstraint(
+            "flag IN ('*','**','+','x','#','!')",
+            name="ck_cash_sale_payment_flag",
+        ),
     )
 
-    def __repr__(self):
-        return f"<CashSalePayment sale={self.sale_id} {self.method} {self.amount}>"
+
+class CashExpensePayment(db.Model):
+    __tablename__ = "cash_expense_payments"
+    id = db.Column(db.Integer, primary_key=True)
+    expense_id = db.Column(db.Integer, db.ForeignKey("cash_expenses.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    direction = db.Column(db.String(3), nullable=False, default="out")  # in|out
+    method = db.Column(db.String(12), nullable=False)                  # cash|pos|bank|other
+    off_cash = db.Column(db.Boolean, nullable=False, default=False)
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+
+    # FLAG AGENDA: *, **, +, x, #, !
+    flag = db.Column(db.String(2), nullable=False, default="*")
+
+    pos_device_id = db.Column(db.Integer, db.ForeignKey("pos_devices.id"), nullable=True)
+    pos_circuit_id = db.Column(db.Integer, db.ForeignKey("pos_circuits.id"), nullable=True)
+    description = db.Column(db.String(255), nullable=True)
+
+    pos_device = db.relationship("PosDevice")
+    pos_circuit = db.relationship("PosCircuit")
+
+    __table_args__ = (
+        CheckConstraint("amount >= 0", name="ck_cash_expense_payment_amount_nonneg"),
+        CheckConstraint("direction IN ('in','out')", name="ck_cash_expense_payment_direction"),
+        CheckConstraint(
+            "(method <> 'pos') OR (pos_device_id IS NOT NULL AND pos_circuit_id IS NOT NULL)",
+            name="ck_cash_expense_payment_pos_requires_device_circuit",
+        ),
+        CheckConstraint(
+            "flag IN ('*','**','+','x','#','!')",
+            name="ck_cash_expense_payment_flag",
+        ),
+    )
+
+
+class CashMove(db.Model):
+    __tablename__ = "cash_moves"
+    id = db.Column(db.Integer, primary_key=True)
+    cash_day_id = db.Column(db.Integer, db.ForeignKey("cash_days.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+
+    direction = db.Column(db.String(3), nullable=False)  # in|out
+    kind = db.Column(db.String(30), nullable=False, default="altro")
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+
+    # opzionale (se vuoi usarlo per movimenti privati di cassa)
+    flag = db.Column(db.String(2), nullable=True)
+
+    performed_by = db.Column(db.String(120), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
+    created_by = db.relationship("User", backref="cash_moves")
+
+    __table_args__ = (
+        CheckConstraint("amount >= 0", name="ck_cash_move_amount_nonneg"),
+        CheckConstraint("direction IN ('in','out')", name="ck_cash_move_direction"),
+        CheckConstraint(
+            "flag IS NULL OR flag IN ('*','**','+','x','#','!')",
+            name="ck_cash_move_flag",
+        ),
+    )
+
+
+class PosMove(db.Model):
+    __tablename__ = "pos_moves"
+    id = db.Column(db.Integer, primary_key=True)
+    cash_day_id = db.Column(db.Integer, db.ForeignKey("cash_days.id", ondelete="CASCADE"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+
+    direction = db.Column(db.String(3), nullable=False, default="in")
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+
+    # opzionale (ma utile per distinguere # / * ecc. su POS standalone)
+    flag = db.Column(db.String(2), nullable=True)
+
+    pos_device_id = db.Column(db.Integer, db.ForeignKey("pos_devices.id"), nullable=False)
+    pos_circuit_id = db.Column(db.Integer, db.ForeignKey("pos_circuits.id"), nullable=False)
+
+    doc_ref = db.Column(db.String(80), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+
+    created_by = db.relationship("User", backref="pos_moves")
+    pos_device = db.relationship("PosDevice")
+    pos_circuit = db.relationship("PosCircuit")
+
+    __table_args__ = (
+        CheckConstraint("amount >= 0", name="ck_pos_move_amount_nonneg"),
+        CheckConstraint("direction IN ('in','out')", name="ck_pos_move_direction"),
+        CheckConstraint(
+            "flag IS NULL OR flag IN ('*','**','+','x','#','!')",
+            name="ck_pos_move_flag",
+        ),
+    )
 
 
 class CashExpense(db.Model):
@@ -1142,103 +1235,3 @@ class CashExpense(db.Model):
 
     def __repr__(self):
         return f"<CashExpense id={self.id} day={self.cash_day_id}>"
-
-
-class CashExpensePayment(db.Model):
-    __tablename__ = "cash_expense_payments"
-
-    id = db.Column(db.Integer, primary_key=True)
-    expense_id = db.Column(db.Integer, db.ForeignKey("cash_expenses.id", ondelete="CASCADE"), nullable=False, index=True)
-
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-
-    direction = db.Column(db.String(3), nullable=False, default="out")  # normalmente out
-    method = db.Column(db.String(12), nullable=False)                  # cash|pos|bank|other
-    off_cash = db.Column(db.Boolean, nullable=False, default=False)
-
-    amount = db.Column(db.Numeric(12, 2), nullable=False)
-
-    pos_device_id = db.Column(db.Integer, db.ForeignKey("pos_devices.id"), nullable=True)
-    pos_circuit_id = db.Column(db.Integer, db.ForeignKey("pos_circuits.id"), nullable=True)
-
-    description = db.Column(db.String(255), nullable=True)
-
-    pos_device = db.relationship("PosDevice")
-    pos_circuit = db.relationship("PosCircuit")
-
-    __table_args__ = (
-        CheckConstraint("amount >= 0", name="ck_cash_expense_payment_amount_nonneg"),
-        CheckConstraint("direction IN ('in','out')", name="ck_cash_expense_payment_direction"),
-        CheckConstraint(
-            "(method <> 'pos') OR (pos_device_id IS NOT NULL AND pos_circuit_id IS NOT NULL)",
-            name="ck_cash_expense_payment_pos_requires_device_circuit",
-        ),
-    )
-
-    def __repr__(self):
-        return f"<CashExpensePayment expense={self.expense_id} {self.method} {self.amount}>"
-
-
-# --- Movimenti di cassa / POS standalone --------------------------------------
-
-class CashMove(db.Model):
-    __tablename__ = "cash_moves"
-
-    id = db.Column(db.Integer, primary_key=True)
-    cash_day_id = db.Column(db.Integer, db.ForeignKey("cash_days.id", ondelete="CASCADE"), nullable=False, index=True)
-
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-
-    # in|out
-    direction = db.Column(db.String(3), nullable=False)
-
-    # prelievo_cassa | versamento_cassa | cambio_monete | altro
-    kind = db.Column(db.String(30), nullable=False, default="altro")
-
-    amount = db.Column(db.Numeric(12, 2), nullable=False)
-    performed_by = db.Column(db.String(120), nullable=True)  # "da parte di chi" (testo libero)
-
-    notes = db.Column(db.Text, nullable=True)
-
-    created_by = db.relationship("User", backref="cash_moves")
-
-    __table_args__ = (
-        CheckConstraint("amount >= 0", name="ck_cash_move_amount_nonneg"),
-        CheckConstraint("direction IN ('in','out')", name="ck_cash_move_direction"),
-    )
-
-    def __repr__(self):
-        return f"<CashMove day={self.cash_day_id} {self.direction} {self.amount}>"
-
-
-class PosMove(db.Model):
-    """Movimento POS standalone (es. riferito a scontrino o fatture) non necessariamente legato a Sale/Expense."""
-    __tablename__ = "pos_moves"
-
-    id = db.Column(db.Integer, primary_key=True)
-    cash_day_id = db.Column(db.Integer, db.ForeignKey("cash_days.id", ondelete="CASCADE"), nullable=False, index=True)
-
-    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
-    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
-
-    direction = db.Column(db.String(3), nullable=False, default="in")  # spesso in
-    amount = db.Column(db.Numeric(12, 2), nullable=False)
-
-    pos_device_id = db.Column(db.Integer, db.ForeignKey("pos_devices.id"), nullable=False)
-    pos_circuit_id = db.Column(db.Integer, db.ForeignKey("pos_circuits.id"), nullable=False)
-
-    doc_ref = db.Column(db.String(80), nullable=True)  # scontrino/fattura/nota
-    notes = db.Column(db.Text, nullable=True)
-
-    created_by = db.relationship("User", backref="pos_moves")
-    pos_device = db.relationship("PosDevice")
-    pos_circuit = db.relationship("PosCircuit")
-
-    __table_args__ = (
-        CheckConstraint("amount >= 0", name="ck_pos_move_amount_nonneg"),
-        CheckConstraint("direction IN ('in','out')", name="ck_pos_move_direction"),
-    )
-
-    def __repr__(self):
-        return f"<PosMove day={self.cash_day_id} {self.direction} {self.amount}>"
