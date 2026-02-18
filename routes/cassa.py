@@ -3,19 +3,19 @@ import os
 import json
 import base64
 import secrets
-from datetime import date, datetime, timedelta
 
 from flask import Blueprint, render_template, request, jsonify, session
 from flask_login import login_required
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.exceptions import InvalidTag
+from decimal import Decimal
+from datetime import date, datetime, timedelta
+from sqlalchemy.orm import selectinload
 
 from tools.log_utils import get_logger
 from tools.role_required import role_required
 from extensions import db
-from models import CashDay
-
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from cryptography.exceptions import InvalidTag
-
+from models import CashDay, CashSale, CashExpense
 
 cassa_bp = Blueprint("cassa", __name__, url_prefix="/cassa")
 logger = get_logger("cassa", level=logging.INFO)
@@ -256,3 +256,164 @@ def api_private_unlock():
 def api_private_lock():
     session["pri_vault_unlocked"] = False
     return jsonify({"ok": True, "vault": {"unlocked": False}})
+
+
+# ------------------------------------------------------------
+# Totali live (preview) per giornata
+# view=fiscal | complete
+# ------------------------------------------------------------
+
+FISCAL_FLAGS = {"*", "**", "#", "!"}
+ALL_FLAGS = {"*", "**", "+", "x", "#", "!"}
+
+# regole flags (quelle che hai definito)
+FLAG_RULES = {
+    "*":  {"cash": True,  "q": True,  "s": True},
+    "**": {"cash": True,  "q": False, "s": True},
+    "+":  {"cash": True,  "q": False, "s": False},
+    "x":  {"cash": True,  "q": False, "s": False},
+    "#":  {"cash": False, "q": False, "s": False},
+    "!":  {"cash": False, "q": True,  "s": True},
+}
+
+def _to_dec(x) -> Decimal:
+    if x is None:
+        return Decimal("0")
+    if isinstance(x, Decimal):
+        return x
+    return Decimal(str(x))
+
+def _pick_flags(view: str) -> set[str]:
+    return FISCAL_FLAGS if view == "fiscal" else ALL_FLAGS
+
+def _compute_day_totals_from_db(cash_day, view: str) -> dict:
+    """
+    Calcolo live basato SOLO su DB aziendale.
+    Nota: per 'complete' includiamo +/x solo se sono presenti nel DB (oggi lo sono),
+    ma quando attiveremo il vault, +/x verranno spostati lì e qui resteranno fiscali.
+    """
+    allowed_flags = _pick_flags(view)
+
+    cash_in = Decimal("0")
+    cash_out = Decimal("0")
+    q_versabile = Decimal("0")
+    s_versabile = Decimal("0")
+
+    # --- INCASSI (sales payments)
+    for sale in cash_day.sales:
+        for p in sale.payments:
+            flag = (p.flag or "*").strip()
+            if flag not in allowed_flags:
+                continue
+
+            amt = _to_dec(p.amount)
+            # in/out
+            direction = (p.direction or "in").strip()
+
+            # 1) Totale cassa (solo se cash=True e NON off_cash e metodo cash)
+            if FLAG_RULES.get(flag, {}).get("cash") is True:
+                if (p.off_cash is False) and (p.method == "cash"):
+                    if direction == "in":
+                        cash_in += amt
+                    else:
+                        cash_out += amt  # raro su sale, ma gestito
+
+            # 2) Quota/S saldo versabile: per ora lo aggancio SOLO agli incassi (direction in)
+            if direction == "in":
+                if FLAG_RULES.get(flag, {}).get("q") is True:
+                    q_versabile += amt
+                if FLAG_RULES.get(flag, {}).get("s") is True:
+                    s_versabile += amt
+
+    # --- SPESE (expense payments) incidono sulla cassa se cash=True e cash method
+    for exp in cash_day.expenses:
+        for p in exp.payments:
+            flag = (p.flag or "*").strip()
+            if flag not in allowed_flags:
+                continue
+            amt = _to_dec(p.amount)
+            direction = (p.direction or "out").strip()
+
+            if FLAG_RULES.get(flag, {}).get("cash") is True:
+                if (p.off_cash is False) and (p.method == "cash"):
+                    # spese normalmente "out"
+                    if direction == "out":
+                        cash_out += amt
+                    else:
+                        cash_in += amt
+
+            # Nota: versabile NON viene influenzato dalle spese (per definizione tua)
+
+    # --- POS moves: per ora li esponiamo e li sommiamo separati.
+    # In seguito, quando modelleremo bene corrispettivi vs POS scontrini vs POS fatture,
+    # qui applicheremo le compensazioni come da tua regola.
+    pos_in = Decimal("0")
+    pos_out = Decimal("0")
+    for pm in cash_day.pos_moves:
+        amt = _to_dec(pm.amount)
+        direction = (pm.direction or "in").strip()
+        if direction == "in":
+            pos_in += amt
+        else:
+            pos_out += amt
+
+    total_cash = cash_in - cash_out
+
+    return {
+        "view": view,
+        "cash_in": float(cash_in),
+        "cash_out": float(cash_out),
+        "total_cash": float(total_cash),
+        "q_versabile": float(q_versabile),
+        "s_versabile": float(s_versabile),
+        "pos_in": float(pos_in),
+        "pos_out": float(pos_out),
+        "pos_net": float(pos_in - pos_out),
+    }
+
+
+@cassa_bp.get("/api/day/<day_date>/preview")
+@role_required(40)
+def api_cash_day_preview(day_date):
+    """
+    Preview live dei totali per la giornata.
+    Querystring:
+      - view=fiscal|complete (default fiscal)
+    """
+    view = (request.args.get("view") or "fiscal").strip().lower()
+    if view not in ("fiscal", "complete"):
+        view = "fiscal"
+
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    # Carico con eager loading per evitare N+1.
+    cash_day = (
+        CashDay.query
+        .options(
+            selectinload(CashDay.sales).selectinload(CashSale.payments),
+            selectinload(CashDay.expenses).selectinload(CashExpense.payments),
+            selectinload(CashDay.pos_moves),
+        )
+        .filter(CashDay.day_date == d)
+        .first()
+    )
+
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    totals = _compute_day_totals_from_db(cash_day, view=view)
+    return jsonify({
+        "ok": True,
+        "day": {
+            "id": cash_day.id,
+            "day_date": cash_day.day_date.isoformat(),
+            "status": cash_day.status,
+            "opening_float": float(_to_dec(cash_day.opening_float)),
+        },
+        "totals": totals,
+        # utile per il frontend per sapere “cosa manca”:
+        "note": "Preview calcolata solo su DB aziendale. Il contributo del vault (+/x) verrà integrato dopo.",
+    })
