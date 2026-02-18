@@ -1097,7 +1097,12 @@ class CashSale(db.Model):
     created_by = db.relationship("User", backref="cash_sales")
     customer = db.relationship("CashCustomer")
 
-    payments = db.relationship("CashSalePayment", backref="sale", cascade="all, delete-orphan", lazy="dynamic")
+    payments = db.relationship(
+        "CashSalePayment",
+        backref="sale",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
     def __repr__(self):
         return f"<CashSale id={self.id} day={self.cash_day_id}>"
@@ -1254,7 +1259,12 @@ class CashExpense(db.Model):
 
     created_by = db.relationship("User", backref="cash_expenses")
 
-    payments = db.relationship("CashExpensePayment", backref="expense", cascade="all, delete-orphan", lazy="dynamic")
+    payments = db.relationship(
+        "CashExpensePayment",
+        backref="expense",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
     def __repr__(self):
         return f"<CashExpense id={self.id} day={self.cash_day_id}>"
