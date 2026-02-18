@@ -395,7 +395,6 @@ def api_cash_day_preview(day_date):
         .options(
             selectinload(CashDay.sales).selectinload(CashSale.payments),
             selectinload(CashDay.expenses).selectinload(CashExpense.payments),
-            selectinload(CashDay.pos_moves),
         )
         .filter(CashDay.day_date == d)
         .first()
