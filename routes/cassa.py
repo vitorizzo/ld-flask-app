@@ -16,6 +16,7 @@ from tools.log_utils import get_logger
 from tools.role_required import role_required
 from extensions import db
 from models import CashDay, CashSale, CashExpense
+from tools.cash_math import calculate_closure_pure
 
 cassa_bp = Blueprint("cassa", __name__, url_prefix="/cassa")
 logger = get_logger("cassa", level=logging.INFO)
@@ -403,16 +404,21 @@ def api_cash_day_preview(day_date):
     if not cash_day:
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
 
-    totals = _compute_day_totals_from_db(cash_day, view=view)
+    result = calculate_closure_pure(
+        cash_day_id=cash_day.id,
+        opening_float=cash_day.opening_float,
+        total_corrispettivi=Decimal(request.args.get("corrispettivi", "0")),
+        fondo_finale=Decimal(request.args.get("fondo_finale", "0")),
+        saldo_versabile_precedente=Decimal(request.args.get("saldo_prev", "0")),
+        incasso_consegnato=Decimal(request.args.get("incasso_consegnato", "0")),
+    )
+
     return jsonify({
         "ok": True,
         "day": {
             "id": cash_day.id,
             "day_date": cash_day.day_date.isoformat(),
-            "status": cash_day.status,
-            "opening_float": float(_to_dec(cash_day.opening_float)),
         },
-        "totals": totals,
-        # utile per il frontend per sapere “cosa manca”:
-        "note": "Preview calcolata solo su DB aziendale. Il contributo del vault (+/x) verrà integrato dopo.",
+        "totals": result,
     })
+
