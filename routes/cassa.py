@@ -10,13 +10,15 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
 from decimal import Decimal
 from datetime import date, datetime, timedelta
+from sqlalchemy import exists, or_
 from sqlalchemy.orm import selectinload
 
 from tools.log_utils import get_logger
 from tools.role_required import role_required
 from extensions import db
-from models import CashDay, CashSale, CashExpense
+from models import CashDay, CashSale, CashExpense, CashMove, PosMove
 from tools.cash_math import calculate_closure_pure
+
 
 cassa_bp = Blueprint("cassa", __name__, url_prefix="/cassa")
 logger = get_logger("cassa", level=logging.INFO)
@@ -422,3 +424,58 @@ def api_cash_day_preview(day_date):
         "totals": result,
     })
 
+@cassa_bp.get("/api/days/active")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_days_active():
+    """
+    Ritorna i giorni che hanno movimentazioni (sales/expenses/cash_moves/pos_moves).
+    Querystring:
+      - from=YYYY-MM-DD
+      - to=YYYY-MM-DD
+    Se non passati: mese corrente.
+    """
+    from_str = (request.args.get("from") or "").strip()
+    to_str = (request.args.get("to") or "").strip()
+
+    today = date.today()
+    if not from_str or not to_str:
+        first = today.replace(day=1)
+        # fine mese: primo giorno mese successivo - 1
+        next_month = (first.replace(day=28) + timedelta(days=4)).replace(day=1)
+        last = next_month - timedelta(days=1)
+        d_from, d_to = first, last
+    else:
+        try:
+            d_from = datetime.strptime(from_str, "%Y-%m-%d").date()
+            d_to = datetime.strptime(to_str, "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"ok": False, "error": "Invalid date format. Use YYYY-MM-DD"}), 400
+
+    if d_from > d_to:
+        return jsonify({"ok": False, "error": "Invalid range: from > to"}), 400
+
+    # Hard cap semplice per evitare range enormi
+    if (d_to - d_from).days > 370:
+        return jsonify({"ok": False, "error": "Range too large (max 370 days)"}), 400
+
+    q = (
+        CashDay.query
+        .filter(CashDay.day_date.between(d_from, d_to))
+        .filter(or_(
+            exists().where(CashSale.cash_day_id == CashDay.id),
+            exists().where(CashExpense.cash_day_id == CashDay.id),
+            exists().where(CashMove.cash_day_id == CashDay.id),
+            exists().where(PosMove.cash_day_id == CashDay.id),
+        ))
+        .with_entities(CashDay.day_date, CashDay.status)
+        .order_by(CashDay.day_date.asc())
+        .all()
+    )
+
+    return jsonify({
+        "ok": True,
+        "from": d_from.isoformat(),
+        "to": d_to.isoformat(),
+        "days": [{"day_date": d.isoformat(), "status": s} for d, s in q]
+    })
