@@ -31,6 +31,9 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(req.url);
 
+  // ✅ Non cache-are roba non HTTP(S) (chrome-extension, data, blob, ecc.)
+  if (url.protocol !== "http:" && url.protocol !== "https:") return;
+
   // API interne: sempre rete, mai cache forzata
   if (url.pathname.startsWith("/trello/")) {
     event.respondWith(
