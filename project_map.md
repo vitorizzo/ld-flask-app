@@ -21,7 +21,7 @@ Quando serve leggere un file:
 
 ChatGPT deve fornire il percorso nel formato:
 
-/percorso/file.ext
+https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/percorso/file.ext
 
 e chiedere esplicitamente:
 
