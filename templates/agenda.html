@@ -5,13 +5,7 @@
 
 {% block extra_css %}
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-  <style>
-    .flatpickr-day.has-movements {
-      font-weight: 700;
-      background-color: #e9f3ff;
-      border-color: #0d6efd;
-    }
-  </style>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda.css') }}">
 {% end block %}
 
 {% block content %}
