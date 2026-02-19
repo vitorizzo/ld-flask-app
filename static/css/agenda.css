@@ -3,3 +3,30 @@
     background-color: #e9f3ff;
     border-color: #0d6efd;
   }
+
+ /* --- Flatpickr inline: deve stare dentro la card --- */
+#agendaCalendar {
+  width: 100%;
+}
+
+/* Il calendario flatpickr, in modalità inline, a volte mantiene una width fissa */
+#agendaCalendar .flatpickr-calendar {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* Contenitori interni: evita overflow orizzontale */
+#agendaCalendar .flatpickr-rContainer,
+#agendaCalendar .flatpickr-days,
+#agendaCalendar .dayContainer {
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* Se qualche bordo/ombra sfora, taglia dentro la card */
+#agendaCalendar .flatpickr-calendar.inline {
+  overflow: hidden;
+}
