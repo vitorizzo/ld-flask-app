@@ -11,27 +11,25 @@
   justify-content: center;
 }
 
-/* Il calendario flatpickr, in modalità inline, a volte mantiene una width fissa */
-#agendaCalendar .flatpickr-calendar {
-  width: 100% !important;
-  max-width: 100% !important;
-  box-sizing: border-box;
-}
-
-/* Contenitori interni: evita overflow orizzontale */
-#agendaCalendar .flatpickr-rContainer,
-#agendaCalendar .flatpickr-days,
-#agendaCalendar .dayContainer {
-  width: 100% !important;
-  min-width: 0 !important;
-  max-width: 100% !important;
-  box-sizing: border-box;
-}
-
 /* Se qualche bordo/ombra sfora, taglia dentro la card */
 #agendaCalendar .flatpickr-calendar.inline {
   overflow: hidden;
+  width: auto !important;
+  max-width: none !important;
   margin: 0 auto;
+}
+
+/* Spazio sotto al calendario per la nuova card */
+.agenda-left-stack {
+  display: grid;
+  gap: 12px;
+}
+
+#agendaCalendar .flatpickr-rContainer,
+#agendaCalendar .flatpickr-days,
+#agendaCalendar .dayContainer {
+  width: auto !important;
+  max-width: none !important;
 }
 
 .welcome-section.agenda-page{
