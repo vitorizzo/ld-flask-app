@@ -30,20 +30,37 @@ function loadDay(dateStr) {
     });
 }
 
+function _num(x) {
+  const n = Number(x);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function _fmt2(x) {
+  return _num(x).toFixed(2);
+}
+
 function loadPreview(dateStr) {
   fetch(`/cassa/api/day/${dateStr}/preview?view=fiscal`)
     .then(r => r.json())
     .then(data => {
       if (!data.ok) return;
 
-      const t = data.totals;
+      const t = data.totals || {};
 
-      document.getElementById("kpiQ").textContent = t.q.toFixed(2);
-      document.getElementById("kpiS").textContent = t.s.toFixed(2);
-      document.getElementById("kpiIC").textContent = t.ic.toFixed(2);
-      document.getElementById("kpiDeltaFondo").textContent = t.delta_fondo.toFixed(2);
-      document.getElementById("kpiDeltaQuadratura").textContent = t.delta_quadratura.toFixed(2);
-    });
+      // Prova chiavi alternative (compatibilità) + fallback a 0
+      const q = (t.q ?? t.q_versabile ?? t.Q ?? t.versabile_giornata);
+      const s = (t.s ?? t.s_versabile ?? t.S ?? t.saldo_versabile);
+      const ic = (t.ic ?? t.IC ?? t.incasso_calcolato);
+      const df = (t.delta_fondo ?? t.deltaFondo ?? t.df);
+      const dq = (t.delta_quadratura ?? t.deltaQuadratura ?? t.dq);
+
+      document.getElementById("kpiQ").textContent = _fmt2(q);
+      document.getElementById("kpiS").textContent = _fmt2(s);
+      document.getElementById("kpiIC").textContent = _fmt2(ic);
+      document.getElementById("kpiDeltaFondo").textContent = _fmt2(df);
+      document.getElementById("kpiDeltaQuadratura").textContent = _fmt2(dq);
+    })
+    .catch(err => console.error("loadPreview error:", err));
 }
 
 document.addEventListener("DOMContentLoaded", function () {
