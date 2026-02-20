@@ -66,3 +66,10 @@
     transform: scale(0.85);
   }
 }
+
+.agenda-col-left { width: 360px; }
+.agenda-col-right { width: 260px; }
+.agenda-col-center { min-width: 0; } /* evita overflow */
+@media (max-width: 992px){
+  .agenda-col-left, .agenda-col-right { width: 100%; }
+}
