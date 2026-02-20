@@ -30,3 +30,9 @@
 #agendaCalendar .flatpickr-calendar.inline {
   overflow: hidden;
 }
+
+.welcome-section.agenda-page {
+  width: 95vw;
+  max-width: 1800px;
+  margin: 0 auto;
+}
