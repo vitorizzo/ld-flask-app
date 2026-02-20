@@ -35,11 +35,15 @@
 }
 
 .welcome-section.agenda-page{
-  /* fallback */
-  width: calc(100vw - 16px);
-  max-width: 2000px;
-  margin-left: auto;
-  margin-right: auto;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);  /* centra indipendentemente da margini del parent */
+  width: 95vw;
+  max-width: 2000px;            /* o 1800 se preferisci */
+  margin: 0;                    /* evita offset */
+  padding-left: 0;
+  padding-right: 0;
+  overflow-x: auto;
 }
 
 /* se supportato, dvw evita l’offset da scrollbar */
