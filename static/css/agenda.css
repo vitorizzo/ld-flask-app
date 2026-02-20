@@ -7,6 +7,8 @@
  /* --- Flatpickr inline: deve stare dentro la card --- */
 #agendaCalendar {
   width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
 /* Il calendario flatpickr, in modalità inline, a volte mantiene una width fissa */
@@ -29,11 +31,20 @@
 /* Se qualche bordo/ombra sfora, taglia dentro la card */
 #agendaCalendar .flatpickr-calendar.inline {
   overflow: hidden;
+  margin: 0 auto;
 }
 
-.welcome-section.agenda-page {
-  width: 95vw;
-  max-width: 1800px;
+.welcome-section.agenda-page{
+  /* fallback */
+  width: calc(100vw - 16px);
+  max-width: 2000px;
   margin-left: auto;
   margin-right: auto;
+}
+
+/* se supportato, dvw evita l’offset da scrollbar */
+@supports (width: 100dvw) {
+  .welcome-section.agenda-page{
+    width: 95dvw;
+  }
 }
