@@ -5,7 +5,7 @@ from future.backports.datetime import datetime
 
 from extensions import db
 from flask_login import UserMixin
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from sqlalchemy.orm import foreign
 from sqlalchemy import Sequence, Index, UniqueConstraint
 
@@ -1268,3 +1268,59 @@ class CashExpense(db.Model):
 
     def __repr__(self):
         return f"<CashExpense id={self.id} day={self.cash_day_id}>"
+
+
+class CashCheck(db.Model):
+    __tablename__ = "cash_checks"
+
+    __table_args__ = (
+        db.UniqueConstraint("bank_name", "check_number", name="uq_check_bank_number"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    check_number = db.Column(db.String(64), nullable=False, index=True)
+
+    # Dati banca emittente
+    abi = db.Column(db.String(5), nullable=True, index=True)
+    cab = db.Column(db.String(5), nullable=True, index=True)
+    bank_name = db.Column(db.String(120), nullable=True)
+
+    customer_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cash_customers.id"),
+        nullable=False,
+        index=True
+    )
+
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+
+    received_date = db.Column(db.Date, nullable=False, default=date.today)
+    due_date = db.Column(db.Date, nullable=False)
+
+    status = db.Column(
+        db.String(20),
+        nullable=False,
+        default="received",
+        index=True
+    )
+
+    note = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
+
+    customer = db.relationship(
+        "CashCustomer",
+        backref=db.backref("checks", lazy="select")
+    )
