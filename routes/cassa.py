@@ -10,13 +10,13 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
 from decimal import Decimal
 from datetime import date, datetime, timedelta
-from sqlalchemy import exists, or_
+from sqlalchemy import exists, or_, and_
 from sqlalchemy.orm import selectinload
 
 from tools.log_utils import get_logger
 from tools.role_required import role_required
 from extensions import db
-from models import CashDay, CashSale, CashExpense, CashMove, PosMove
+from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck
 from tools.cash_math import calculate_closure_pure
 
 
@@ -479,3 +479,50 @@ def api_days_active():
         "to": d_to.isoformat(),
         "days": [{"day_date": d.isoformat(), "status": s} for d, s in q]
     })
+
+
+@cassa_bp.get("/api/checks/due")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_checks_due():
+    """
+    Ritorna assegni 'versabili da oggi':
+    - due_date <= today
+    - status in (received, moved, advanced)
+    """
+    today = date.today()
+    include_today_received = (request.args.get("include_today_received") or "1").strip() in ("1", "true", "yes")
+
+    versabili_status = ("received", "moved", "advanced")
+
+    q = CashCheck.query.filter(
+        CashCheck.due_date <= today,
+        CashCheck.status.in_(versabili_status),
+    )
+
+    if not include_today_received:
+        q = q.filter(CashCheck.received_date != today)
+
+    checks = q.order_by(CashCheck.due_date.asc(), CashCheck.received_date.asc(), CashCheck.id.asc()).limit(50).all()
+
+    items = []
+    for c in checks:
+        items.append({
+            "id": c.id,
+            "check_number": c.check_number,
+            "bank_name": c.bank_name,
+            "abi": c.abi,
+            "cab": c.cab,
+            "amount": float(c.amount),
+            "received_date": c.received_date.isoformat() if c.received_date else None,
+            "due_date": c.due_date.isoformat() if c.due_date else None,
+            "status": c.status,
+            "customer": {
+                "id": c.customer.id if c.customer else None,
+                "name": getattr(c.customer, "name", None) or getattr(c.customer, "ragione_sociale", None),
+            } if c.customer_id else None,
+            "is_received_today": bool(c.received_date == today),
+            "is_overdue": bool(c.due_date < today),
+        })
+
+    return jsonify({"ok": True, "today": today.isoformat(), "checks": items})
