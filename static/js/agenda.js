@@ -27,6 +27,7 @@ function loadDay(dateStr) {
         "Ultimo aggiornamento: " + new Date().toLocaleTimeString();
 
       loadPreview(currentDay);
+      loadAssegniScadenza();
     });
 }
 
@@ -61,6 +62,76 @@ function loadPreview(dateStr) {
       document.getElementById("kpiDeltaQuadratura").textContent = _fmt2(dq);
     })
     .catch(err => console.error("loadPreview error:", err));
+}
+
+function eur(amount) {
+  const n = Number(amount || 0);
+  return n.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
+}
+
+function renderAssegniScadenza(items) {
+  const list = document.getElementById("assegniScadenzaList");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  if (!items || !items.length) {
+    const empty = document.createElement("div");
+    empty.className = "list-group-item text-muted small";
+    empty.textContent = "Nessun assegno versabile (V1)";
+    list.appendChild(empty);
+    return;
+  }
+
+  for (const c of items) {
+    const row = document.createElement("div");
+    row.className = "list-group-item d-flex justify-content-between align-items-start gap-2";
+
+    const left = document.createElement("div");
+    left.className = "me-2";
+
+    const title = document.createElement("div");
+    title.className = c.is_received_today ? "fw-bold" : "fw-semibold";
+    const bank = (c.bank_name || "Banca?").trim();
+    const num = (c.check_number || "").trim();
+    title.textContent = `${bank} • ${num}`;
+
+    const meta = document.createElement("div");
+    meta.className = "small text-muted";
+    const cust = c.customer && (c.customer.name || c.customer.ragione_sociale) ? (c.customer.name || c.customer.ragione_sociale) : "Cliente?";
+    const due = c.due_date || "—";
+    const rec = c.received_date || "—";
+    meta.textContent = `Cliente: ${cust} • Scadenza: ${due} • Ricevuto: ${rec}`;
+
+    left.appendChild(title);
+    left.appendChild(meta);
+
+    const right = document.createElement("div");
+    right.className = "text-end";
+    const amt = document.createElement("div");
+    amt.className = c.is_overdue ? "fw-bold text-danger" : "fw-bold";
+    amt.textContent = eur(c.amount);
+
+    right.appendChild(amt);
+
+    row.appendChild(left);
+    row.appendChild(right);
+
+    list.appendChild(row);
+  }
+}
+
+function loadAssegniScadenza() {
+  fetch(`/cassa/api/checks/due`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) return;
+      renderAssegniScadenza(data.checks || []);
+    })
+    .catch(() => {
+      const list = document.getElementById("assegniScadenzaList");
+      if (list) list.innerHTML = `<div class="list-group-item text-danger small">Errore caricamento assegni</div>`;
+    });
 }
 
 document.addEventListener("DOMContentLoaded", function () {
