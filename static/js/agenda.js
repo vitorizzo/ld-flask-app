@@ -154,6 +154,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const todayStr = new Date().toISOString().split("T")[0];
   loadDay(todayStr);
+  loadAssegniScadenza();
+  startAssegniAutoRefresh();
 });
 
 function decorateMonth(year, month) {
@@ -180,3 +182,31 @@ function decorateMonth(year, month) {
     });
   });
 }
+
+let assegniInterval = null;
+
+function startAssegniAutoRefresh() {
+  if (assegniInterval) return;
+
+  assegniInterval = setInterval(() => {
+    if (document.visibilityState === "visible") {
+      loadAssegniScadenza();
+    }
+  }, 30000); // 30s
+}
+
+function stopAssegniAutoRefresh() {
+  if (assegniInterval) {
+    clearInterval(assegniInterval);
+    assegniInterval = null;
+  }
+}
+
+document.addEventListener("visibilitychange", function () {
+  if (document.visibilityState === "visible") {
+    loadAssegniScadenza();
+    startAssegniAutoRefresh();
+  } else {
+    stopAssegniAutoRefresh();
+  }
+});

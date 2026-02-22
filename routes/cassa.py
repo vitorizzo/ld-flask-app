@@ -10,14 +10,14 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
 from decimal import Decimal
 from datetime import date, datetime, timedelta
-from sqlalchemy import exists, or_, and_
+from sqlalchemy import exists, or_, and_, func
 from sqlalchemy.orm import selectinload
 
 from tools.log_utils import get_logger
 from tools.role_required import role_required
 from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck
-from tools.cash_math import calculate_closure_pure
+from tools.cash_math import calculate_closure_pure, next_banking_day
 
 
 cassa_bp = Blueprint("cassa", __name__, url_prefix="/cassa")
@@ -406,6 +406,29 @@ def api_cash_day_preview(day_date):
     if not cash_day:
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
 
+    CHECK_IN_PANCIA = {"received", "spostato", "anticipato"}
+    cutoff = next_banking_day(d)
+
+    # Somma assegni "in pancia" versabili entro cutoff
+    assegni_versabili = (
+        db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
+        .filter(
+            CashCheck.status.in_(CHECK_IN_PANCIA),
+            CashCheck.due_date <= cutoff,
+        )
+        .scalar()
+    )
+
+    # Somma assegni "in pancia" postdatati oltre cutoff
+    assegni_postdatati = (
+        db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
+        .filter(
+            CashCheck.status.in_(CHECK_IN_PANCIA),
+            CashCheck.due_date > cutoff,
+        )
+        .scalar()
+    )
+
     result = calculate_closure_pure(
         cash_day_id=cash_day.id,
         opening_float=cash_day.opening_float,
@@ -422,6 +445,12 @@ def api_cash_day_preview(day_date):
             "day_date": cash_day.day_date.isoformat(),
         },
         "totals": result,
+        "checks_debug": {
+            "cutoff_bancabile": cutoff.isoformat(),
+            "in_pancia_status": sorted(list(CHECK_IN_PANCIA)),
+            "versabili": float(assegni_versabili or 0),
+            "postdatati": float(assegni_postdatati or 0),
+        }
     })
 
 @cassa_bp.get("/api/days/active")

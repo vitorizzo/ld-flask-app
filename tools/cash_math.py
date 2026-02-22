@@ -1,3 +1,4 @@
+from datetime import date, timedelta
 from decimal import Decimal
 from sqlalchemy import func
 from extensions import db
@@ -8,6 +9,64 @@ from models import (
     CashExpense, CashExpensePayment,
     PosMove,
 )
+
+def _easter_sunday_gregorian(year: int) -> date:
+    """
+    Computus (Meeus/Jones/Butcher) per Pasqua nel calendario gregoriano.
+    """
+    a = year % 19
+    b = year // 100
+    c = year % 100
+    d = b // 4
+    e = b % 4
+    f = (b + 8) // 25
+    g = (b - f + 1) // 3
+    h = (19 * a + b - d - g + 15) % 30
+    i = c // 4
+    k = c % 4
+    l = (32 + 2 * e + 2 * i - h - k) % 7
+    m = (a + 11 * h + 22 * l) // 451
+    month = (h + l - 7 * m + 114) // 31
+    day = ((h + l - 7 * m + 114) % 31) + 1
+    return date(year, month, day)
+
+def italian_bank_holidays(year: int) -> set[date]:
+    """
+    Festività nazionali (Italia) + Pasquetta.
+    Nota: non include festività locali (es. Santo Patrono).
+    """
+    easter = _easter_sunday_gregorian(year)
+    easter_monday = easter + timedelta(days=1)
+
+    return {
+        date(year, 1, 1),    # Capodanno
+        date(year, 1, 6),    # Epifania
+        easter_monday,       # Pasquetta
+        date(year, 4, 25),   # Liberazione
+        date(year, 5, 1),    # Lavoro
+        date(year, 6, 2),    # Repubblica
+        date(year, 8, 15),   # Ferragosto
+        date(year, 11, 1),   # Ognissanti
+        date(year, 12, 8),   # Immacolata
+        date(year, 12, 25),  # Natale
+        date(year, 12, 26),  # Santo Stefano
+    }
+
+def is_banking_day(d: date) -> bool:
+    # lun=0 ... dom=6
+    if d.weekday() >= 5:
+        return False
+    return d not in italian_bank_holidays(d.year)
+
+def next_banking_day(d: date) -> date:
+    """
+    Primo giorno bancabile successivo a d.
+    Esempio: venerdì -> lunedì (se non festivo).
+    """
+    x = d + timedelta(days=1)
+    while not is_banking_day(x):
+        x += timedelta(days=1)
+    return x
 
 def _d(x) -> Decimal:
     # normalizza None / numerici in Decimal
