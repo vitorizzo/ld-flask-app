@@ -513,26 +513,47 @@ def api_days_active():
 @cassa_bp.get("/api/checks/due")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
+@cassa_bp.get("/api/checks/due")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_checks_due():
     """
-    Ritorna assegni 'versabili da oggi':
-    - due_date <= today
-    - status in (received, moved, advanced)
+    Ritorna assegni "versabili dalla giornata selezionata":
+    - riferimento: date=YYYY-MM-DD (default: oggi)
+    - cutoff bancabile: next_banking_day(date)
+    - include_today_received=1/0 (default 1)
+    - status in (received, spostato, anticipato) (+ retrocompat moved/advanced)
     """
-    today = date.today()
-    include_today_received = (request.args.get("include_today_received") or "1").strip() in ("1", "true", "yes")
+    date_str = (request.args.get("date") or "").strip()
 
-    versabili_status = ("received", "moved", "advanced")
+    if date_str:
+        try:
+            ref_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"ok": False, "error": "Invalid date format. Use YYYY-MM-DD"}), 400
+    else:
+        ref_date = date.today()
+
+    cutoff = next_banking_day(ref_date)
+
+    include_today_received = (request.args.get("include_today_received") or "1").strip().lower() in ("1", "true", "yes")
+
+    # status corretti + retrocompat
+    versabili_status = ("received", "spostato", "anticipato", "moved", "advanced")
 
     q = CashCheck.query.filter(
-        CashCheck.due_date <= today,
+        CashCheck.due_date <= cutoff,
         CashCheck.status.in_(versabili_status),
     )
 
     if not include_today_received:
-        q = q.filter(CashCheck.received_date != today)
+        q = q.filter(CashCheck.received_date != ref_date)
 
-    checks = q.order_by(CashCheck.due_date.asc(), CashCheck.received_date.asc(), CashCheck.id.asc()).limit(50).all()
+    checks = (
+        q.order_by(CashCheck.due_date.asc(), CashCheck.received_date.asc(), CashCheck.id.asc())
+         .limit(50)
+         .all()
+    )
 
     items = []
     for c in checks:
@@ -548,10 +569,15 @@ def api_checks_due():
             "status": c.status,
             "customer": {
                 "id": c.customer.id if c.customer else None,
-                "name": getattr(c.customer, "name", None) or getattr(c.customer, "ragione_sociale", None),
+                "display_name": getattr(c.customer, "display_name", None),
             } if c.customer_id else None,
-            "is_received_today": bool(c.received_date == today),
-            "is_overdue": bool(c.due_date < today),
+            "is_received_today": bool(c.received_date == ref_date),
+            "is_overdue": bool(c.due_date < ref_date),
         })
 
-    return jsonify({"ok": True, "today": today.isoformat(), "checks": items})
+    return jsonify({
+        "ok": True,
+        "ref_date": ref_date.isoformat(),
+        "cutoff_bancabile": cutoff.isoformat(),
+        "checks": items
+    })

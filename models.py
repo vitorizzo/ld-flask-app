@@ -903,9 +903,19 @@ from sqlalchemy import CheckConstraint
 
 pos_device_circuits = db.Table(
     "pos_device_circuits",
-    db.Column("pos_device_id", db.Integer, db.ForeignKey("pos_devices.id", ondelete="CASCADE"), primary_key=True),
-    db.Column("pos_circuit_id", db.Integer, db.ForeignKey("pos_circuits.id", ondelete="CASCADE"), primary_key=True),
-    db.UniqueConstraint("pos_device_id", "pos_circuit_id", name="uq_pos_device_circuit"),
+    db.Column(
+        "pos_device_id",
+        db.Integer,
+        db.ForeignKey("pos_devices.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    db.Column(
+        "pos_circuit_id",
+        db.Integer,
+        db.ForeignKey("pos_circuits.id", ondelete="CASCADE"),
+        nullable=False,
+    ),
+    db.PrimaryKeyConstraint("pos_device_id", "pos_circuit_id", name="pk_pos_device_circuits"),
 )
 
 
@@ -995,6 +1005,13 @@ class CashDay(db.Model):
         backref="cash_day",
         cascade="all, delete-orphan",
         lazy="selectin",
+    )
+
+    deposits = db.relationship(
+        "CashDeposit",
+        backref=db.backref("cash_day", lazy="select"),
+        lazy="select",
+        cascade="all, delete-orphan"
     )
 
     closure = db.relationship("CashClosure", backref="cash_day", uselist=False, cascade="all, delete-orphan")
@@ -1324,3 +1341,76 @@ class CashCheck(db.Model):
         "CashCustomer",
         backref=db.backref("checks", lazy="select")
     )
+
+class CashDeposit(db.Model):
+    __tablename__ = "cash_deposits"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    cash_day_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cash_days.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    # Data del versamento (può coincidere con la day_date, ma può anche esserci più di un versamento al giorno)
+    deposit_date = db.Column(db.Date, nullable=False, default=date.today, index=True)
+
+    # Tipi: "versamento_incasso" | "versamento_intermedio"
+    deposit_type = db.Column(db.String(32), nullable=False, default="versamento_incasso", index=True)
+
+    # Contanti versati in questo versamento (gli assegni sono gestiti via tabella ponte)
+    cash_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+
+    note = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    # righe assegni (tabella ponte)
+    checks = db.relationship(
+        "CashDepositCheck",
+        back_populates="deposit",
+        lazy="select",
+        cascade="all, delete-orphan"
+    )
+
+
+class CashDepositCheck(db.Model):
+    __tablename__ = "cash_deposit_checks"
+
+    __table_args__ = (
+        db.UniqueConstraint("deposit_id", "check_id", name="uq_deposit_check"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    deposit_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cash_deposits.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    check_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cash_checks.id"),
+        nullable=False,
+        index=True
+    )
+
+    # snapshot opzionale (utile se vuoi vedere "quanto" senza joinare)
+    check_amount = db.Column(db.Numeric(12, 2), nullable=True)
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    deposit = db.relationship("CashDeposit", back_populates="checks")
+    check = db.relationship("CashCheck", lazy="select")
