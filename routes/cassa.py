@@ -513,9 +513,6 @@ def api_days_active():
 @cassa_bp.get("/api/checks/due")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
-@cassa_bp.get("/api/checks/due")
-@login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_checks_due():
     """
     Ritorna assegni "versabili dalla giornata selezionata":
