@@ -8,7 +8,9 @@ from models import (
     CashSale, CashSalePayment,
     CashExpense, CashExpensePayment,
     PosMove,
+    CashDeposit, CashDepositCheck, CashCheck,
 )
+
 
 def _easter_sunday_gregorian(year: int) -> date:
     """
@@ -80,6 +82,7 @@ def _sum_amount(query) -> Decimal:
     val = query.scalar()
     return _d(val)
 
+# aggiungi ai modelli importati
 def calculate_closure_pure(
     cash_day_id: int,
     opening_float: Decimal,
@@ -91,15 +94,13 @@ def calculate_closure_pure(
 ):
     """
     Calcolo chiusura giornaliera (solo DB aziendale).
-    Approccio stabile: solo query pure, nessuna relationship, nessun eager loading.
 
-    Note:
-    - contanti_fisici = incassi cash - spese cash (del giorno)
-    - totale_pos = somma pos_moves (in)
-    - assegni_odierni = somma pagamenti method='check' flag='*'
-    - assegni_postdatati = somma pagamenti method='check' flag='**'
+    NOTE (allineate ai tuoi esempi):
+    - Q = contanti_fisici + assegni_odierni (*)   [incassi odierni versabili]
+    - S_new = S_prev + Q + assegni_postdatati (**) - totale_versato_oggi
+    - Q_residua = Q - versamenti_intermedi_oggi  (cash + assegni nei deposit_type='versamento_intermedio')
+    - incasso_consegnato != totale_versato (restano separati)
     """
-
     opening_float = _d(opening_float)
     total_corrispettivi = _d(total_corrispettivi)
     fondo_finale = _d(fondo_finale)
@@ -138,18 +139,16 @@ def calculate_closure_pure(
     contanti_fisici = incassi_cash - spese_cash
 
     # =========================
-    # POS: movimenti pos_moves
+    # POS
     # =========================
     totale_pos = _sum_amount(
         db.session.query(func.coalesce(func.sum(PosMove.amount), 0))
-        .filter(
-            PosMove.cash_day_id == cash_day_id,
-            PosMove.direction == "in",
-        )
+        .filter(PosMove.cash_day_id == cash_day_id, PosMove.direction == "in")
     )
 
     # =========================
     # ASSEGNI: odierni (*) e postdatati (**)
+    # (flag sul pagamento, come da tua regola)
     # =========================
     assegni_odierni = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashSalePayment.amount), 0))
@@ -174,18 +173,57 @@ def calculate_closure_pure(
     )
 
     # =========================
+    # VERSAMENTI (cash_deposits + tabella ponte assegni)
+    # =========================
+    depositi_cash_oggi = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashDeposit.cash_amount), 0))
+        .filter(CashDeposit.cash_day_id == cash_day_id)
+    )
+
+    depositi_assegni_oggi = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
+        .join(CashDepositCheck, CashDepositCheck.check_id == CashCheck.id)
+        .join(CashDeposit, CashDeposit.id == CashDepositCheck.deposit_id)
+        .filter(CashDeposit.cash_day_id == cash_day_id)
+    )
+
+    totale_versato_oggi = depositi_cash_oggi + depositi_assegni_oggi
+
+    # solo versamenti intermedi (per Q residua)
+    depositi_intermedi_cash = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashDeposit.cash_amount), 0))
+        .filter(
+            CashDeposit.cash_day_id == cash_day_id,
+            CashDeposit.deposit_type == "versamento_intermedio",
+        )
+    )
+
+    depositi_intermedi_assegni = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
+        .join(CashDepositCheck, CashDepositCheck.check_id == CashCheck.id)
+        .join(CashDeposit, CashDeposit.id == CashDepositCheck.deposit_id)
+        .filter(
+            CashDeposit.cash_day_id == cash_day_id,
+            CashDeposit.deposit_type == "versamento_intermedio",
+        )
+    )
+
+    totale_versato_intermedio = depositi_intermedi_cash + depositi_intermedi_assegni
+
+    # =========================
     # FORMULE
     # =========================
-    # IC = Contanti_fisici + Totale_corrispettivi − Totale_POS_device - ΔFondo
     incasso_calcolato = contanti_fisici + total_corrispettivi - totale_pos - delta_fondo
 
-    # Q = Contanti_fisici + Assegni_odierni (*)
+    # Q (incasso odierno versabile)
     versabile_giornata = contanti_fisici + assegni_odierni
 
-    # S_new = S_prev + Q + Assegni_postdatati (**)
-    saldo_versabile = saldo_versabile_precedente + versabile_giornata + assegni_postdatati
+    # Q residua (tolgo i versamenti intermedi fatti oggi)
+    versabile_residuo = versabile_giornata - totale_versato_intermedio
 
-    # Quadratura
+    # S (saldo “in pancia” a fine giornata)
+    saldo_versabile = saldo_versabile_precedente + versabile_giornata + assegni_postdatati - totale_versato_oggi
+
     delta_quadratura = incasso_calcolato - incasso_consegnato
     anomalia = abs(delta_quadratura) > tolleranza
 
@@ -193,17 +231,30 @@ def calculate_closure_pure(
         "fondo_iniziale": opening_float,
         "fondo_finale": fondo_finale,
         "delta_fondo": delta_fondo,
+
         "incassi_cash": incassi_cash,
         "spese_cash": spese_cash,
         "contanti_fisici": contanti_fisici,
+
         "totale_pos": totale_pos,
+
         "assegni_odierni": assegni_odierni,
         "assegni_postdatati": assegni_postdatati,
+
         "incasso_calcolato": incasso_calcolato,
         "incasso_consegnato": incasso_consegnato,
         "delta_quadratura": delta_quadratura,
         "anomalia": anomalia,
+
         "versabile_giornata": versabile_giornata,
+        "versabile_residuo": versabile_residuo,
+
+        "depositi_cash_oggi": depositi_cash_oggi,
+        "depositi_assegni_oggi": depositi_assegni_oggi,
+        "totale_versato_oggi": totale_versato_oggi,
+        "totale_versato_intermedio": totale_versato_intermedio,
+
         "saldo_versabile": saldo_versabile,
-        "note": "Calcolo solo DB aziendale (flag +/x ignorati qui).",
+
+        "note": "Calcolo DB + versamenti (CashDeposit). Flag +/x ignorati qui.",
     }
