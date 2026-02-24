@@ -27,7 +27,7 @@ function loadDay(dateStr) {
         "Ultimo aggiornamento: " + new Date().toLocaleTimeString();
 
       loadPreview(currentDay);
-      loadAssegniScadenza();
+      loadAssegniScadenza(currentDay, false);
     });
 }
 
@@ -98,7 +98,9 @@ function renderAssegniScadenza(items) {
 
     const meta = document.createElement("div");
     meta.className = "small text-muted";
-    const cust = c.customer && (c.customer.name || c.customer.ragione_sociale) ? (c.customer.name || c.customer.ragione_sociale) : "Cliente?";
+    const cust = (c.customer && (c.customer.display_name || c.customer.name || c.customer.ragione_sociale))
+      ? (c.customer.display_name || c.customer.name || c.customer.ragione_sociale)
+      : "Cliente?";
     const due = c.due_date || "—";
     const rec = c.received_date || "—";
     meta.textContent = `Cliente: ${cust} • Scadenza: ${due} • Ricevuto: ${rec}`;
@@ -121,8 +123,14 @@ function renderAssegniScadenza(items) {
   }
 }
 
-function loadAssegniScadenza() {
-  fetch(`/cassa/api/checks/due`)
+function loadAssegniScadenza(dateStr = null, includeTodayReceived = false) {
+  const ref = dateStr || currentDay || new Date().toISOString().split("T")[0];
+  const qs = new URLSearchParams({
+    date: ref,
+    include_today_received: includeTodayReceived ? "1" : "0",
+  });
+
+  fetch(`/cassa/api/checks/due?${qs.toString()}`)
     .then(r => r.json())
     .then(data => {
       if (!data.ok) return;
@@ -154,7 +162,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const todayStr = new Date().toISOString().split("T")[0];
   loadDay(todayStr);
-  loadAssegniScadenza();
   startAssegniAutoRefresh();
 });
 
@@ -190,7 +197,7 @@ function startAssegniAutoRefresh() {
 
   assegniInterval = setInterval(() => {
     if (document.visibilityState === "visible") {
-      loadAssegniScadenza();
+      loadAssegniScadenza(currentDay, false);
     }
   }, 30000); // 30s
 }
@@ -204,7 +211,7 @@ function stopAssegniAutoRefresh() {
 
 document.addEventListener("visibilitychange", function () {
   if (document.visibilityState === "visible") {
-    loadAssegniScadenza();
+    loadAssegniScadenza(currentDay, false);
     startAssegniAutoRefresh();
   } else {
     stopAssegniAutoRefresh();
