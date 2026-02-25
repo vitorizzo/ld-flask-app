@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload
 from tools.log_utils import get_logger
 from tools.role_required import role_required
 from extensions import db
-from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment
+from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment, CashExpensePayment
 from tools.cash_math import calculate_closure_pure, next_banking_day
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
@@ -699,11 +699,6 @@ def api_list_sales(day_date):
 
     return jsonify({"ok": True, "day_date": d.isoformat(), "sales": items})
 
-
-from decimal import Decimal, InvalidOperation
-from flask_login import current_user
-
-_ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
 
 @cassa_bp.post("/api/day/<day_date>/expenses")
 @login_required
