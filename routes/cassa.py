@@ -652,3 +652,49 @@ def api_create_sale_cash_only(day_date):
     db.session.commit()
 
     return jsonify({"ok": True, "sale_id": sale.id}), 201
+
+@cassa_bp.get("/api/day/<day_date>/sales")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_list_sales(day_date):
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    cash_day = (
+        CashDay.query
+        .options(selectinload(CashDay.sales).selectinload(CashSale.payments))
+        .filter(CashDay.day_date == d)
+        .first()
+    )
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    items = []
+    for s in cash_day.sales:
+        pay = []
+        for p in (s.payments or []):
+            pay.append({
+                "id": p.id,
+                "direction": p.direction,
+                "method": p.method,
+                "off_cash": bool(p.off_cash),
+                "amount": float(p.amount or 0),
+                "flag": p.flag,
+                "description": p.description,
+                "pos_device_id": p.pos_device_id,
+                "pos_circuit_id": p.pos_circuit_id,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+            })
+        items.append({
+            "id": s.id,
+            "created_at": s.created_at.isoformat() if s.created_at else None,
+            "customer_id": s.customer_id,
+            "customer_label": s.customer_label,
+            "doc_ref": s.doc_ref,
+            "notes": s.notes,
+            "payments": pay,
+        })
+
+    return jsonify({"ok": True, "day_date": d.isoformat(), "sales": items})
