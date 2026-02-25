@@ -99,6 +99,8 @@
 .table-row .col-desc .flag {
   font-weight: 700;
   opacity: 0.85;
+  width: 18px;
+  display: inline-block;
 }
 
 .table-row .col-badges {
@@ -130,4 +132,8 @@
 
 .header-incassi {
   background: rgba(25, 135, 84, 0.12); /* verde soft */
+}
+
+.header-spese {
+  background: rgba(220, 53, 69, 0.12); /* rosso soft */
 }

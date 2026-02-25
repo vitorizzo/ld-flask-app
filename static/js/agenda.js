@@ -44,6 +44,7 @@ function loadDay(dateStr) {
 
       loadPreview(currentDay);
       loadIncassi(currentDay);
+      loadSpese(currentDay);
       loadAssegniScadenza(currentDay, false);
     });
 }
@@ -191,8 +192,8 @@ async function loadIncassi(dayStr) {
       return `
         <div class="list-group-item table-row" data-sale-id="${x.sale_id}">
           <div class="col-desc">
-            <span class="desc">${escapeHtml(x.desc)}</span>
             <span class="flag">${escapeHtml(x.flag || "")}</span>
+            <span class="desc">${escapeHtml(x.desc)}</span>
           </div>
           <div class="col-badges">
             ${badges.join("")}
@@ -213,6 +214,77 @@ async function loadIncassi(dayStr) {
   } catch (e) {
     console.error(e);
     listEl.innerHTML = `<li class="muted">Errore di rete</li>`;
+  }
+}
+
+async function loadSpese(dayStr) {
+  const listEl = document.getElementById("speseList");
+  if (!listEl) return;
+
+  listEl.innerHTML = `<div class="list-group-item text-muted small">Caricamento...</div>`;
+
+  try {
+    const r = await fetch(`/cassa/api/day/${dayStr}/expenses`, { credentials: "same-origin" });
+    const data = await r.json();
+    if (!data.ok) {
+      listEl.innerHTML = `<div class="list-group-item text-muted small">Errore: ${data.error || "impossibile caricare spese"}</div>`;
+      return;
+    }
+
+    const expenses = data.expenses || [];
+    if (!expenses.length) {
+      listEl.innerHTML = `<div class="list-group-item text-muted small">Nessuna spesa</div>`;
+      const t = document.getElementById("totSpese");
+      if (t) t.textContent = "0,00";
+      return;
+    }
+
+    const rows = [];
+    for (const e of expenses) {
+      for (const p of (e.payments || [])) {
+        rows.push({
+          expense_id: e.id,
+          created_at: p.created_at || e.created_at,
+          flag: p.flag || "",
+          desc: p.description || e.notes || "",
+          amount: Number(p.amount || 0),
+          direction: p.direction || "out",
+          method: p.method || "",
+          off_cash: !!p.off_cash,
+        });
+      }
+    }
+
+    // totale
+    const totalEl = document.getElementById("totSpese");
+    if (totalEl) {
+      const tot = rows.reduce((s, x) => s + (x.direction === "out" ? x.amount : -x.amount), 0);
+      totalEl.textContent = tot.toFixed(2).replace(".", ",");
+    }
+
+    listEl.innerHTML = rows.map(x => {
+      const amt = `${x.amount.toFixed(2)}€`;
+
+      const badges = [];
+      if (x.method === "pos") badges.push(`<span class="badge badge-soft badge-pos">POS</span>`);
+      if (x.method === "bank") badges.push(`<span class="badge badge-soft badge-bank">BANCA</span>`);
+      if (x.off_cash) badges.push(`<span class="badge badge-soft badge-offcash">FUORI CASSA</span>`);
+
+      return `
+        <div class="list-group-item table-row" data-expense-id="${x.expense_id}">
+          <div class="col-desc">
+            <span class="flag">${escapeHtml(x.flag || "")}</span>
+            <span class="desc">${escapeHtml(x.desc)}</span>
+          </div>
+          <div class="col-badges">${badges.join("")}</div>
+          <div class="col-amt">${amt}</div>
+        </div>
+      `;
+    }).join("");
+
+  } catch (e) {
+    console.error(e);
+    listEl.innerHTML = `<div class="list-group-item text-muted small">Errore di rete</div>`;
   }
 }
 

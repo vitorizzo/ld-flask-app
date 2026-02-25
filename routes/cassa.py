@@ -698,3 +698,50 @@ def api_list_sales(day_date):
         })
 
     return jsonify({"ok": True, "day_date": d.isoformat(), "sales": items})
+
+
+@cassa_bp.get("/api/day/<day_date>/expenses")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_list_expenses(day_date):
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    cash_day = (
+        CashDay.query
+        .options(selectinload(CashDay.expenses).selectinload(CashExpense.payments))
+        .filter(CashDay.day_date == d)
+        .first()
+    )
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    items = []
+    for e in cash_day.expenses:
+        pay = []
+        for p in (e.payments or []):
+            pay.append({
+                "id": p.id,
+                "direction": p.direction,
+                "method": p.method,
+                "off_cash": bool(p.off_cash),
+                "amount": float(p.amount or 0),
+                "flag": p.flag,
+                "description": p.description,
+                "pos_device_id": p.pos_device_id,
+                "pos_circuit_id": p.pos_circuit_id,
+                "created_at": p.created_at.isoformat() if p.created_at else None,
+            })
+        items.append({
+            "id": e.id,
+            "created_at": e.created_at.isoformat() if e.created_at else None,
+            "customer_id": e.customer_id,
+            "customer_label": e.customer_label,
+            "doc_ref": e.doc_ref,
+            "notes": e.notes,
+            "payments": pay,
+        })
+
+    return jsonify({"ok": True, "day_date": d.isoformat(), "expenses": items})
