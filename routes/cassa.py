@@ -866,7 +866,6 @@ def api_create_pos_move(day_date):
         created_by_user_id=getattr(current_user, "id", None),
         direction=direction,
         amount=amount,
-        description=description,
         pos_device_id=pos_device_id,
         pos_circuit_id=pos_circuit_id,
     )
