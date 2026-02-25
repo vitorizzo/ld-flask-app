@@ -944,6 +944,7 @@ class PosCircuit(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False, unique=True)  # es. Pagobancomat, Visa, Amex
     icon = db.Column(db.String(64), nullable=True)  # es. "fa-solid fa-credit-card" oppure "bi-credit-card"
+    logo_path = db.Column(db.String(255), nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
 
     def __repr__(self):
