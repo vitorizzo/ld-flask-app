@@ -137,3 +137,16 @@
 .header-spese {
   background: rgba(220, 53, 69, 0.12); /* rosso soft */
 }
+
+.header-pos {
+  background: rgba(13, 202, 240, 0.14); /* azzurro soft */
+}
+
+.badge-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.badge-icon i {
+  font-size: 0.95em;
+}

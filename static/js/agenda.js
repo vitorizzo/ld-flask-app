@@ -45,6 +45,7 @@ function loadDay(dateStr) {
       loadPreview(currentDay);
       loadIncassi(currentDay);
       loadSpese(currentDay);
+      loadPosMoves(currentDay);
       loadAssegniScadenza(currentDay, false);
     });
 }
@@ -280,6 +281,70 @@ async function loadSpese(dayStr) {
             <span class="desc">${escapeHtml(x.desc)}</span>
           </div>
           <div class="col-badges">${badges.join("")}</div>
+          <div class="col-amt">${amt}</div>
+        </div>
+      `;
+    }).join("");
+
+  } catch (e) {
+    console.error(e);
+    listEl.innerHTML = `<div class="list-group-item text-muted small">Errore di rete</div>`;
+  }
+}
+
+async function loadPosMoves(dayStr) {
+  const listEl = document.getElementById("posList");
+  const totalEl = document.getElementById("totPos");
+  if (!listEl) return;
+
+  listEl.innerHTML = `<div class="list-group-item text-muted small">Caricamento...</div>`;
+  if (totalEl) totalEl.textContent = "0,00";
+
+  try {
+    const r = await fetch(`/cassa/api/day/${dayStr}/pos_moves`, { credentials: "same-origin" });
+    const data = await r.json();
+
+    if (!data.ok) {
+      listEl.innerHTML = `<div class="list-group-item text-muted small">Errore: ${data.error || "impossibile caricare POS"}</div>`;
+      return;
+    }
+
+    const moves = data.pos_moves || [];
+    if (!moves.length) {
+      listEl.innerHTML = `<div class="list-group-item text-muted small">Nessun POS</div>`;
+      return;
+    }
+
+    // totale: somma algebrica (in - out)
+    const tot = moves.reduce((s, m) => {
+      const a = Number(m.amount || 0);
+      return s + (m.direction === "in" ? a : -a);
+    }, 0);
+    if (totalEl) totalEl.textContent = tot.toFixed(2).replace(".", ",");
+
+    listEl.innerHTML = moves.map(m => {
+      const sign = m.direction === "out" ? "-" : "";
+      const amt = `${sign}${Number(m.amount || 0).toFixed(2)}€`;
+
+      const circuitLabel = m.pos_circuit_name || "Circuito";
+      const icon = m.pos_circuit_icon ? `<i class="${escapeHtml(m.pos_circuit_icon)}"></i>` : "";
+      const dev = m.pos_device_name ? escapeHtml(m.pos_device_name) : `POS ${m.pos_device_id}`;
+
+      const badge = `
+        <span class="badge badge-soft badge-icon">
+          ${icon}${escapeHtml(circuitLabel)}
+        </span>
+      `;
+
+      const desc = m.doc_ref ? escapeHtml(m.doc_ref) : dev;
+
+      return `
+        <div class="list-group-item table-row" data-pos-move-id="${m.id}">
+          <div class="col-desc">
+            <span class="flag"></span>
+            <span class="desc">${desc}</span>
+          </div>
+          <div class="col-badges">${badge}</div>
           <div class="col-amt">${amt}</div>
         </div>
       `;
