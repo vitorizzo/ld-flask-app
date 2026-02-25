@@ -327,12 +327,15 @@ async function loadPosMoves(dayStr) {
       const amt = `${sign}${Number(m.amount || 0).toFixed(2)}€`;
 
       const circuitLabel = m.pos_circuit_name || "Circuito";
-      const icon = m.pos_circuit_icon ? `<i class="${escapeHtml(m.pos_circuit_icon)}"></i>` : "";
+      const logoPath = m.pos_circuit_logo_path;
+      const logo = logoPath
+        ? `<img class="pos-logo" src="/static/${escapeHtml(logoPath)}" alt="${escapeHtml(circuitLabel)}">`
+        : (m.pos_circuit_icon ? `<i class="${escapeHtml(m.pos_circuit_icon)}"></i>` : "");
       const dev = m.pos_device_name ? escapeHtml(m.pos_device_name) : `POS ${m.pos_device_id}`;
 
       const badge = `
         <span class="badge badge-soft badge-icon">
-          ${icon}${escapeHtml(circuitLabel)}
+          ${logo}${escapeHtml(circuitLabel)}
         </span>
       `;
 

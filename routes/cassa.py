@@ -938,6 +938,7 @@ def api_list_pos_moves(day_date):
             "pos_circuit_id": m.pos_circuit_id,
             "pos_circuit_name": cir.name if cir else None,
             "pos_circuit_icon": cir.icon if cir else None,
+            "pos_circuit_logo_path": cir.logo_path if cir else None,
             "doc_ref": m.doc_ref,
             "notes": m.notes,
         })

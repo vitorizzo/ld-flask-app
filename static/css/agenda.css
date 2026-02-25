@@ -150,3 +150,11 @@
 .badge-icon i {
   font-size: 0.95em;
 }
+
+.pos-logo{
+  height: 16px;
+  width: auto;
+  display: inline-block;
+  vertical-align: middle;
+  object-fit: contain;
+}
