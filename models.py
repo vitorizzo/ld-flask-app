@@ -1121,6 +1121,13 @@ class CashSale(db.Model):
         lazy="selectin",
     )
 
+    checks = db.relationship(
+        "CashSaleCheck",
+        back_populates="sale",
+        lazy="select",
+        cascade="all, delete-orphan",
+    )
+
     def __repr__(self):
         return f"<CashSale id={self.id} day={self.cash_day_id}>"
 
@@ -1342,6 +1349,14 @@ class CashCheck(db.Model):
         backref=db.backref("checks", lazy="select")
     )
 
+    sales = db.relationship(
+        "CashSaleCheck",
+        back_populates="check",
+        lazy="select",
+        cascade="all, delete-orphan",
+    )
+
+
 class CashDeposit(db.Model):
     __tablename__ = "cash_deposits"
 
@@ -1414,3 +1429,39 @@ class CashDepositCheck(db.Model):
 
     deposit = db.relationship("CashDeposit", back_populates="checks")
     check = db.relationship("CashCheck", lazy="select")
+
+
+# --- Ponte Incassi ↔ Assegni -------------------------------------------------
+
+class CashSaleCheck(db.Model):
+    __tablename__ = "cash_sale_checks"
+    __table_args__ = (
+        db.UniqueConstraint("sale_id", "check_id", name="uq_sale_check"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    sale_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cash_sales.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    check_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cash_checks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    # snapshot opzionale (coerente con CashDepositCheck)
+    check_amount = db.Column(db.Numeric(12, 2), nullable=True)
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    sale = db.relationship("CashSale", back_populates="checks")
+    check = db.relationship("CashCheck", back_populates="sales")

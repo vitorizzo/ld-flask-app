@@ -5,10 +5,10 @@ import base64
 import secrets
 
 from flask import Blueprint, render_template, request, jsonify, session
-from flask_login import login_required
+from flask_login import login_required, current_user
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from datetime import date, datetime, timedelta
 from sqlalchemy import exists, or_, and_, func
 from sqlalchemy.orm import selectinload
@@ -19,6 +19,7 @@ from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck
 from tools.cash_math import calculate_closure_pure, next_banking_day
 
+_ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
 
 cassa_bp = Blueprint("cassa", __name__, url_prefix="/cassa")
 logger = get_logger("cassa", level=logging.INFO)
@@ -578,3 +579,76 @@ def api_checks_due():
         "cutoff_bancabile": cutoff.isoformat(),
         "checks": items
     })
+
+
+@cassa_bp.post("/api/day/<day_date>/sales")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_create_sale_cash_only(day_date):
+    """
+    Inserimento incasso minimo (per iniziare a popolare dati reali).
+    - 1 riga pagamento (solo contanti)
+    - importo può essere negativo: viene normalizzato su direction="out"
+    Payload:
+    {
+      "amount": 10.50,              # può essere negativo
+      "description": "test",
+      "flag": "*",
+      "off_cash": false,
+      "customer_id": 123,           # opzionale
+      "customer_label": "Privato"   # opzionale fallback
+    }
+    """
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    cash_day = CashDay.query.filter(CashDay.day_date == d).first()
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+
+    try:
+        raw_amount = Decimal(str(data.get("amount", "0")))
+    except (InvalidOperation, TypeError):
+        return jsonify({"ok": False, "error": "Invalid amount"}), 400
+
+    if raw_amount == 0:
+        return jsonify({"ok": False, "error": "Amount must be non-zero"}), 400
+
+    direction = "in" if raw_amount > 0 else "out"
+    amount = abs(raw_amount)
+
+    flag = (data.get("flag") or "*").strip()
+    if flag not in _ALLOWED_FLAGS:
+        return jsonify({"ok": False, "error": f"Invalid flag (allowed: {sorted(_ALLOWED_FLAGS)})"}), 400
+
+    description = (data.get("description") or "").strip()
+    if not description:
+        return jsonify({"ok": False, "error": "Missing description"}), 400
+
+    sale = CashSale(
+        cash_day_id=cash_day.id,
+        created_by_user_id=getattr(current_user, "id", None),
+        customer_id=data.get("customer_id"),
+        customer_label=(data.get("customer_label") or "").strip() or None,
+        notes=description,
+    )
+
+    sale.payments.append(
+        CashSalePayment(
+            direction=direction,
+            method="cash",
+            off_cash=bool(data.get("off_cash", False)),
+            amount=amount,
+            flag=flag,
+            description=description,
+        )
+    )
+
+    db.session.add(sale)
+    db.session.commit()
+
+    return jsonify({"ok": True, "sale_id": sale.id}), 201
