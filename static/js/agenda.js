@@ -195,6 +195,14 @@ async function loadIncassi(dayStr) {
       `;
     }).join("");
 
+    const totalEl = document.getElementById("totIncassi");
+    if (totalEl) {
+      const tot = rows.reduce((s, x) =>
+        s + (x.direction === "out" ? -x.amount : x.amount), 0
+      );
+      totalEl.textContent = tot.toFixed(2).replace(".", ",");
+    }
+
   } catch (e) {
     console.error(e);
     listEl.innerHTML = `<li class="muted">Errore di rete</li>`;
