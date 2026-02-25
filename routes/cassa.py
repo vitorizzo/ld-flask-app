@@ -16,7 +16,7 @@ from sqlalchemy.orm import selectinload
 from tools.log_utils import get_logger
 from tools.role_required import role_required
 from extensions import db
-from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck
+from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment
 from tools.cash_math import calculate_closure_pure, next_banking_day
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
