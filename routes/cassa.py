@@ -822,13 +822,13 @@ def api_list_expenses(day_date):
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_create_pos_move(day_date):
     """
-    Inserimento movimento POS (per quadrare i POS device e sottrarre dal contante atteso).
     Payload:
     {
       "pos_device_id": 1,
-      "pos_circuit_id": 2,          # opzionale
-      "amount": 12.50,              # può essere negativo (storno)
-      "description": "Chiusura POS pranzo"
+      "pos_circuit_id": 2,
+      "amount": 12.50,   # può essere negativo (storno)
+      "doc_ref": "CORR", # opzionale
+      "notes": "..."     # opzionale
     }
     """
     try:
@@ -855,11 +855,31 @@ def api_create_pos_move(day_date):
         return jsonify({"ok": False, "error": "Missing pos_device_id"}), 400
 
     pos_circuit_id = data.get("pos_circuit_id")
+    if not pos_circuit_id:
+        return jsonify({"ok": False, "error": "Missing pos_circuit_id"}), 400
 
-    description = (data.get("description") or "").strip() or "POS"
+    # 1) device/circuit attivi
+    dev = PosDevice.query.filter_by(id=pos_device_id, is_active=True).first()
+    if not dev:
+        return jsonify({"ok": False, "error": "PosDevice not found or inactive"}), 400
+
+    cir = PosCircuit.query.filter_by(id=pos_circuit_id, is_active=True).first()
+    if not cir:
+        return jsonify({"ok": False, "error": "PosCircuit not found or inactive"}), 400
+
+    # 2) coppia consentita in tabella ponte
+    allowed = db.session.query(pos_device_circuits).filter(
+        pos_device_circuits.c.pos_device_id == pos_device_id,
+        pos_device_circuits.c.pos_circuit_id == pos_circuit_id
+    ).first()
+    if not allowed:
+        return jsonify({"ok": False, "error": "Circuit not associated to this POS device"}), 400
 
     direction = "in" if raw_amount > 0 else "out"
     amount = abs(raw_amount)
+
+    doc_ref = (data.get("doc_ref") or "").strip() or None
+    notes = (data.get("notes") or "").strip() or None
 
     m = PosMove(
         cash_day_id=cash_day.id,
@@ -868,6 +888,8 @@ def api_create_pos_move(day_date):
         amount=amount,
         pos_device_id=pos_device_id,
         pos_circuit_id=pos_circuit_id,
+        doc_ref=doc_ref,
+        notes=notes,
     )
 
     db.session.add(m)
