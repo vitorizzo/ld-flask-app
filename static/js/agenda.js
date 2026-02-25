@@ -143,6 +143,7 @@ function renderAssegniScadenza(items) {
 
 async function loadIncassi(dayStr) {
   const listEl = document.getElementById("incassiList");
+  const totalEl = document.getElementById("totIncassi");
   if (!listEl) return;
 
   listEl.innerHTML = `<li class="muted">Caricamento...</li>`;
@@ -152,12 +153,14 @@ async function loadIncassi(dayStr) {
     const data = await r.json();
     if (!data.ok) {
       listEl.innerHTML = `<li class="muted">Errore: ${data.error || "impossibile caricare incassi"}</li>`;
+      if (totalEl) totalEl.textContent = "0,00";
       return;
     }
 
     const sales = data.sales || [];
     if (!sales.length) {
       listEl.innerHTML = `<li class="muted">Nessun incasso</li>`;
+      if (totalEl) totalEl.textContent = "0,00";
       return;
     }
 
