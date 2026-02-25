@@ -815,3 +815,63 @@ def api_list_expenses(day_date):
         })
 
     return jsonify({"ok": True, "day_date": d.isoformat(), "expenses": items})
+
+
+@cassa_bp.post("/api/day/<day_date>/pos_moves", endpoint="api_create_pos_move")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_create_pos_move(day_date):
+    """
+    Inserimento movimento POS (per quadrare i POS device e sottrarre dal contante atteso).
+    Payload:
+    {
+      "pos_device_id": 1,
+      "pos_circuit_id": 2,          # opzionale
+      "amount": 12.50,              # può essere negativo (storno)
+      "description": "Chiusura POS pranzo"
+    }
+    """
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    cash_day = CashDay.query.filter(CashDay.day_date == d).first()
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+
+    try:
+        raw_amount = Decimal(str(data.get("amount", "0")))
+    except (InvalidOperation, TypeError):
+        return jsonify({"ok": False, "error": "Invalid amount"}), 400
+
+    if raw_amount == 0:
+        return jsonify({"ok": False, "error": "Amount must be non-zero"}), 400
+
+    pos_device_id = data.get("pos_device_id")
+    if not pos_device_id:
+        return jsonify({"ok": False, "error": "Missing pos_device_id"}), 400
+
+    pos_circuit_id = data.get("pos_circuit_id")
+
+    description = (data.get("description") or "").strip() or "POS"
+
+    direction = "in" if raw_amount > 0 else "out"
+    amount = abs(raw_amount)
+
+    m = PosMove(
+        cash_day_id=cash_day.id,
+        created_by_user_id=getattr(current_user, "id", None),
+        direction=direction,
+        amount=amount,
+        description=description,
+        pos_device_id=pos_device_id,
+        pos_circuit_id=pos_circuit_id,
+    )
+
+    db.session.add(m)
+    db.session.commit()
+
+    return jsonify({"ok": True, "pos_move_id": m.id}), 201
