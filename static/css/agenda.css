@@ -73,3 +73,61 @@
 @media (max-width: 992px){
   .agenda-col-left, .agenda-col-right { width: 100%; }
 }
+
+/* ---- Table-like rows inside cards ---- */
+.table-row {
+  display: grid;
+  grid-template-columns: 1fr auto 110px;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+}
+
+.table-row .col-desc {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.table-row .col-desc .desc {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.table-row .col-desc .flag {
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.table-row .col-badges {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-start;
+}
+
+.table-row .col-amt {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+/* badge soft */
+.badge-soft {
+  border: 1px solid rgba(0,0,0,0.12);
+  background: rgba(0,0,0,0.04);
+  color: #111;
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+/* (opzionale) differenzia leggermente i badge */
+.badge-pos { }
+.badge-bank { }
+.badge-offcash { }
+
+.header-incassi {
+  background: rgba(25, 135, 84, 0.12); /* verde soft */
+}

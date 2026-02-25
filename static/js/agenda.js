@@ -180,18 +180,25 @@ async function loadIncassi(dayStr) {
     listEl.innerHTML = rows.map(x => {
       const sign = x.direction === "out" ? "-" : "";
       const amt = `${sign}${x.amount.toFixed(2)}€`;
-      const extra = [
-        x.method ? x.method.toUpperCase() : null,
-        x.off_cash ? "FUORI CASSA" : null,
-      ].filter(Boolean).join(" · ");
+
+      // badge: mostra solo se non cash implicito
+      const badges = [];
+      if (x.method === "pos") badges.push(`<span class="badge badge-soft badge-pos">POS</span>`);
+      if (x.method === "bank") badges.push(`<span class="badge badge-soft badge-bank">BANCA</span>`);
+      // assegni li aggiungeremo quando li inseriamo davvero
+      if (x.off_cash) badges.push(`<span class="badge badge-soft badge-offcash">FUORI CASSA</span>`);
 
       return `
-        <li class="row-incasso" data-sale-id="${x.sale_id}">
-          <span class="flag">${x.flag}</span>
-          <span class="desc">${escapeHtml(x.desc)}</span>
-          <span class="amt">${amt}</span>
-          ${extra ? `<span class="meta">${extra}</span>` : ""}
-        </li>
+        <div class="list-group-item table-row" data-sale-id="${x.sale_id}">
+          <div class="col-desc">
+            <span class="desc">${escapeHtml(x.desc)}</span>
+            <span class="flag">${escapeHtml(x.flag || "")}</span>
+          </div>
+          <div class="col-badges">
+            ${badges.join("")}
+          </div>
+          <div class="col-amt">${amt}</div>
+        </div>
       `;
     }).join("");
 
