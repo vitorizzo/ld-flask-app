@@ -1,6 +1,15 @@
 let currentDay = null;
 let calendarInstance = null;
 
+function escapeHtml(str) {
+  return String(str)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function toLocalYMD(d) {
   const x = new Date(d);
   x.setMinutes(x.getMinutes() - x.getTimezoneOffset());
@@ -34,6 +43,7 @@ function loadDay(dateStr) {
         "Ultimo aggiornamento: " + new Date().toLocaleTimeString();
 
       loadPreview(currentDay);
+      loadIncassi(currentDay);
       loadAssegniScadenza(currentDay, false);
     });
 }
@@ -127,6 +137,67 @@ function renderAssegniScadenza(items) {
     row.appendChild(right);
 
     list.appendChild(row);
+  }
+}
+
+async function loadIncassi(dayStr) {
+  const listEl = document.getElementById("incassiList");
+  if (!listEl) return;
+
+  listEl.innerHTML = `<li class="muted">Caricamento...</li>`;
+
+  try {
+    const r = await fetch(`/cassa/api/day/${dayStr}/sales`, { credentials: "same-origin" });
+    const data = await r.json();
+    if (!data.ok) {
+      listEl.innerHTML = `<li class="muted">Errore: ${data.error || "impossibile caricare incassi"}</li>`;
+      return;
+    }
+
+    const sales = data.sales || [];
+    if (!sales.length) {
+      listEl.innerHTML = `<li class="muted">Nessun incasso</li>`;
+      return;
+    }
+
+    // flatten payments (per ora mostriamo ogni payment come riga)
+    const rows = [];
+    for (const s of sales) {
+      for (const p of (s.payments || [])) {
+        rows.push({
+          sale_id: s.id,
+          created_at: p.created_at || s.created_at,
+          flag: p.flag || "",
+          desc: p.description || s.notes || "",
+          amount: Number(p.amount || 0),
+          direction: p.direction || "in",
+          method: p.method || "",
+          off_cash: !!p.off_cash,
+        });
+      }
+    }
+
+    listEl.innerHTML = rows.map(x => {
+      const sign = x.direction === "out" ? "-" : "";
+      const amt = `${sign}${x.amount.toFixed(2)}€`;
+      const extra = [
+        x.method ? x.method.toUpperCase() : null,
+        x.off_cash ? "FUORI CASSA" : null,
+      ].filter(Boolean).join(" · ");
+
+      return `
+        <li class="row-incasso" data-sale-id="${x.sale_id}">
+          <span class="flag">${x.flag}</span>
+          <span class="desc">${escapeHtml(x.desc)}</span>
+          <span class="amt">${amt}</span>
+          ${extra ? `<span class="meta">${extra}</span>` : ""}
+        </li>
+      `;
+    }).join("");
+
+  } catch (e) {
+    console.error(e);
+    listEl.innerHTML = `<li class="muted">Errore di rete</li>`;
   }
 }
 
