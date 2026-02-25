@@ -1,12 +1,19 @@
 let currentDay = null;
 let calendarInstance = null;
 
+function toLocalYMD(d) {
+  const x = new Date(d);
+  x.setMinutes(x.getMinutes() - x.getTimezoneOffset());
+  return x.toISOString().slice(0, 10);
+}
+
 function fetchActiveDays(year, month) {
   const from = new Date(year, month, 1);
   const to = new Date(year, month + 1, 0);
 
-  const fromStr = from.toISOString().split("T")[0];
-  const toStr = to.toISOString().split("T")[0];
+  const fromStr = toLocalYMD(from);
+  const toStr = toLocalYMD(to);
+
 
   return fetch(`/cassa/api/days/active?from=${fromStr}&to=${toStr}`)
     .then(r => r.json())
@@ -124,7 +131,7 @@ function renderAssegniScadenza(items) {
 }
 
 function loadAssegniScadenza(dateStr = null, includeTodayReceived = false) {
-  const ref = dateStr || currentDay || new Date().toISOString().split("T")[0];
+  const ref = dateStr || currentDay || toLocalYMD(new Date());
   const qs = new URLSearchParams({
     date: ref,
     include_today_received: includeTodayReceived ? "1" : "0",
@@ -152,16 +159,14 @@ document.addEventListener("DOMContentLoaded", function () {
     },
     onChange: function(selectedDates) {
       if (selectedDates.length) {
-        const d = selectedDates[0].toISOString().split("T")[0];
-        loadDay(d);
+        loadDay(toLocalYMD(selectedDates[0]));
       }
     }
   });
 
   decorateMonth(calendarInstance.currentYear, calendarInstance.currentMonth);
 
-  const todayStr = new Date().toISOString().split("T")[0];
-  loadDay(todayStr);
+  loadDay(toLocalYMD(new Date()));
   startAssegniAutoRefresh();
 });
 
