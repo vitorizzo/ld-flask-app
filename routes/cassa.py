@@ -752,8 +752,6 @@ def api_create_expense_cash_only(day_date):
     exp = CashExpense(
         cash_day_id=cash_day.id,
         created_by_user_id=getattr(current_user, "id", None),
-        customer_id=data.get("customer_id"),
-        customer_label=(data.get("customer_label") or "").strip() or None,
         notes=description,
     )
 
