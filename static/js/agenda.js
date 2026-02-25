@@ -206,7 +206,7 @@ async function loadIncassi(dayStr) {
       `;
     }).join("");
 
-    const totalEl = document.getElementById("totIncassi");
+    // const totalEl = document.getElementById("totIncassi");
     if (totalEl) {
       const tot = rows.reduce((s, x) =>
         s + (x.direction === "out" ? -x.amount : x.amount), 0
