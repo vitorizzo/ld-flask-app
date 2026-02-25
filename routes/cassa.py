@@ -700,48 +700,80 @@ def api_list_sales(day_date):
     return jsonify({"ok": True, "day_date": d.isoformat(), "sales": items})
 
 
-@cassa_bp.get("/api/day/<day_date>/expenses")
+from decimal import Decimal, InvalidOperation
+from flask_login import current_user
+
+_ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
+
+@cassa_bp.post("/api/day/<day_date>/expenses")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
-def api_list_expenses(day_date):
+def api_create_expense_cash_only(day_date):
+    """
+    Inserimento spesa minimo (per popolare dati reali).
+    - 1 riga pagamento (solo contanti)
+    - importo può essere negativo: viene normalizzato su direction="in" (storno spesa)
+    Payload:
+    {
+      "amount": 5.00,               # può essere negativo
+      "description": "Spesa prova",
+      "flag": "*",
+      "off_cash": false,
+      "customer_id": 123,           # opzionale
+      "customer_label": "Fornitore" # opzionale
+    }
+    """
     try:
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
     except ValueError:
         return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
 
-    cash_day = (
-        CashDay.query
-        .options(selectinload(CashDay.expenses).selectinload(CashExpense.payments))
-        .filter(CashDay.day_date == d)
-        .first()
-    )
+    cash_day = CashDay.query.filter(CashDay.day_date == d).first()
     if not cash_day:
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
 
-    items = []
-    for e in cash_day.expenses:
-        pay = []
-        for p in (e.payments or []):
-            pay.append({
-                "id": p.id,
-                "direction": p.direction,
-                "method": p.method,
-                "off_cash": bool(p.off_cash),
-                "amount": float(p.amount or 0),
-                "flag": p.flag,
-                "description": p.description,
-                "pos_device_id": p.pos_device_id,
-                "pos_circuit_id": p.pos_circuit_id,
-                "created_at": p.created_at.isoformat() if p.created_at else None,
-            })
-        items.append({
-            "id": e.id,
-            "created_at": e.created_at.isoformat() if e.created_at else None,
-            "customer_id": e.customer_id,
-            "customer_label": e.customer_label,
-            "doc_ref": e.doc_ref,
-            "notes": e.notes,
-            "payments": pay,
-        })
+    data = request.get_json(silent=True) or {}
 
-    return jsonify({"ok": True, "day_date": d.isoformat(), "expenses": items})
+    try:
+        raw_amount = Decimal(str(data.get("amount", "0")))
+    except (InvalidOperation, TypeError):
+        return jsonify({"ok": False, "error": "Invalid amount"}), 400
+
+    if raw_amount == 0:
+        return jsonify({"ok": False, "error": "Amount must be non-zero"}), 400
+
+    # Spesa "normale" è out; se negativo lo trattiamo come storno (direction=in)
+    direction = "out" if raw_amount > 0 else "in"
+    amount = abs(raw_amount)
+
+    flag = (data.get("flag") or "*").strip()
+    if flag not in _ALLOWED_FLAGS:
+        return jsonify({"ok": False, "error": f"Invalid flag (allowed: {sorted(_ALLOWED_FLAGS)})"}), 400
+
+    description = (data.get("description") or "").strip()
+    if not description:
+        return jsonify({"ok": False, "error": "Missing description"}), 400
+
+    exp = CashExpense(
+        cash_day_id=cash_day.id,
+        created_by_user_id=getattr(current_user, "id", None),
+        customer_id=data.get("customer_id"),
+        customer_label=(data.get("customer_label") or "").strip() or None,
+        notes=description,
+    )
+
+    exp.payments.append(
+        CashExpensePayment(
+            direction=direction,
+            method="cash",
+            off_cash=bool(data.get("off_cash", False)),
+            amount=amount,
+            flag=flag,
+            description=description,
+        )
+    )
+
+    db.session.add(exp)
+    db.session.commit()
+
+    return jsonify({"ok": True, "expense_id": exp.id}), 201
