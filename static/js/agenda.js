@@ -325,6 +325,7 @@ async function loadPosMoves(dayStr) {
     listEl.innerHTML = moves.map(m => {
       const sign = m.direction === "out" ? "-" : "";
       const amt = `${sign}${Number(m.amount || 0).toFixed(2)}€`;
+      const devName = m.pos_device_name || `POS ${m.pos_device_id}`;
 
       const circuitLabel = m.pos_circuit_name || "Circuito";
       const logoPath = m.pos_circuit_logo_path;
@@ -341,7 +342,7 @@ async function loadPosMoves(dayStr) {
       const badgeInner = logoPath ? logoImg : iconFallback;
 
       const badge = `<span class="badge badge-soft badge-icon">${badgeInner}</span>`;
-            const desc = m.doc_ref ? escapeHtml(m.doc_ref) : dev;
+            const desc = m.doc_ref ? escapeHtml(m.doc_ref) : devName;
 
       return `
         <div class="list-group-item table-row" data-pos-move-id="${m.id}">
