@@ -809,8 +809,6 @@ def api_list_expenses(day_date):
         items.append({
             "id": e.id,
             "created_at": e.created_at.isoformat() if e.created_at else None,
-            "customer_id": e.customer_id,
-            "customer_label": e.customer_label,
             "doc_ref": e.doc_ref,
             "notes": e.notes,
             "payments": pay,
