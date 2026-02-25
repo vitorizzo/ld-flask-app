@@ -328,18 +328,20 @@ async function loadPosMoves(dayStr) {
 
       const circuitLabel = m.pos_circuit_name || "Circuito";
       const logoPath = m.pos_circuit_logo_path;
-      const logo = logoPath
-        ? `<img class="pos-logo" src="/static/${escapeHtml(logoPath)}" alt="${escapeHtml(circuitLabel)}">`
-        : (m.pos_circuit_icon ? `<i class="${escapeHtml(m.pos_circuit_icon)}"></i>` : "");
-      const dev = m.pos_device_name ? escapeHtml(m.pos_device_name) : `POS ${m.pos_device_id}`;
 
-      const badge = `
-        <span class="badge badge-soft badge-icon">
-          ${logo}${escapeHtml(circuitLabel)}
-        </span>
-      `;
+      const logoImg = logoPath
+        ? `<img class="pos-logo" src="/static/${escapeHtml(logoPath)}" alt="${escapeHtml(circuitLabel)}"
+                onerror="this.dataset.err='1';this.style.display='none';this.insertAdjacentHTML('afterend','<span class=&quot;pos-logo-fallback&quot;>${escapeHtml(circuitLabel)}</span>');">`
+        : "";
 
-      const desc = m.doc_ref ? escapeHtml(m.doc_ref) : dev;
+      const iconFallback = (!logoPath && m.pos_circuit_icon)
+        ? `<i class="${escapeHtml(m.pos_circuit_icon)}"></i><span class="pos-logo-fallback">${escapeHtml(circuitLabel)}</span>`
+        : `<span class="pos-logo-fallback">${escapeHtml(circuitLabel)}</span>`;
+
+      const badgeInner = logoPath ? logoImg : iconFallback;
+
+      const badge = `<span class="badge badge-soft badge-icon">${badgeInner}</span>`;
+            const desc = m.doc_ref ? escapeHtml(m.doc_ref) : dev;
 
       return `
         <div class="list-group-item table-row" data-pos-move-id="${m.id}">

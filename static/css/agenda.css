@@ -153,8 +153,12 @@
 
 .pos-logo{
   height: 16px;
-  width: auto;
+  width: 40px;
   display: inline-block;
   vertical-align: middle;
   object-fit: contain;
+}
+
+.pos-logo-fallback{
+  font-size: 0.75rem;
 }
