@@ -897,3 +897,49 @@ def api_create_pos_move(day_date):
     db.session.commit()
 
     return jsonify({"ok": True, "pos_move_id": m.id}), 201
+
+
+@cassa_bp.get("/api/day/<day_date>/pos_moves", endpoint="api_list_pos_moves")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_list_pos_moves(day_date):
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    cash_day = CashDay.query.filter(CashDay.day_date == d).first()
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    moves = (
+        PosMove.query
+        .filter(PosMove.cash_day_id == cash_day.id)
+        .order_by(PosMove.created_at.asc())
+        .all()
+    )
+
+    # preload name/icon per badge
+    dev_map = {x.id: x for x in PosDevice.query.all()}
+    cir_map = {x.id: x for x in PosCircuit.query.all()}
+
+    out = []
+    for m in moves:
+        dev = dev_map.get(m.pos_device_id)
+        cir = cir_map.get(m.pos_circuit_id)
+
+        out.append({
+            "id": m.id,
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+            "direction": m.direction,
+            "amount": float(m.amount or 0),
+            "pos_device_id": m.pos_device_id,
+            "pos_device_name": dev.name if dev else None,
+            "pos_circuit_id": m.pos_circuit_id,
+            "pos_circuit_name": cir.name if cir else None,
+            "pos_circuit_icon": cir.icon if cir else None,
+            "doc_ref": m.doc_ref,
+            "notes": m.notes,
+        })
+
+    return jsonify({"ok": True, "day_date": d.isoformat(), "pos_moves": out})
