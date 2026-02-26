@@ -227,7 +227,7 @@ def calculate_closure_pure(
     # S (saldo “in pancia” a fine giornata)
     saldo_versabile = saldo_versabile_precedente + versabile_giornata + assegni_postdatati - totale_versato_oggi
 
-    delta_quadratura = incasso_calcolato - incasso_consegnato
+    delta_quadratura = incasso_consegnato - incasso_calcolato
     anomalia = abs(delta_quadratura) > tolleranza
 
     return {
