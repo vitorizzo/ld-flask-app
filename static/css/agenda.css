@@ -162,3 +162,42 @@
 .pos-logo-fallback{
   font-size: 0.75rem;
 }
+
+.kpi-grid{
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.kpi-left{
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.kpi-right{
+  flex: 0 0 46%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.kpi-row{
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  line-height: 1.2;
+}
+
+.kpi-row + .kpi-row{
+  margin-top: 6px;
+}
+
+.kpi-label{
+  white-space: nowrap;
+}
+
+.kpi-value{
+  text-align: right;
+  white-space: nowrap;
+}

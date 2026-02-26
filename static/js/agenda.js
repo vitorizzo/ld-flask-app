@@ -67,22 +67,58 @@ function loadPreview(dateStr) {
 
       const t = data.totals || {};
 
-      // Prova chiavi alternative (compatibilità) + fallback a 0
       const q = (t.q ?? t.q_versabile ?? t.Q ?? t.versabile_giornata);
       const s = (t.s ?? t.s_versabile ?? t.S ?? t.saldo_versabile);
       const ic = (t.ic ?? t.IC ?? t.incasso_calcolato);
+
       const df = (t.delta_fondo ?? t.deltaFondo ?? t.df);
       const dq = (t.delta_quadratura ?? t.deltaQuadratura ?? t.dq);
 
-      document.getElementById("kpiQ").textContent = _fmt2(q);
-      document.getElementById("kpiS").textContent = _fmt2(s);
+      const fondoInit = (t.fondo_iniziale ?? t.opening_float ?? t.fondoIniziale);
+      const fondoFin = (t.fondo_finale ?? t.fondoFinale);
+
+      const sPrev = (t.saldo_versabile_precedente ?? t.saldo_versabile_init ?? t.saldoVersabilePrecedente);
+
+      const totMov = (t.totale_movimenti ?? t.totMovimenti);          // se non c’è lo lasciamo vuoto
+      const totVers = (t.totale_versato_oggi ?? t.totale_versamenti ?? t.totVersamenti);
+
+      const cor = (t.total_corrispettivi ?? t.corrispettivi ?? t.corrispettivi_totali);
+
+      // Versabile (S/Q)
+      const elSVInit = document.getElementById("kpiSaldoVersabileInit");
+      const elSVNew = document.getElementById("kpiSaldoVersabileNew");
+      const elQ = document.getElementById("kpiVersabileGiornata");
+      if (elSVInit) elSVInit.textContent = _fmt2(sPrev);
+      if (elSVNew) elSVNew.textContent = _fmt2(s);
+      if (elQ) elQ.textContent = _fmt2(q);
+
+      // Fondo
+      const elFI = document.getElementById("kpiFondoIniziale");
+      const elFF = document.getElementById("kpiFondoFinale");
+      if (elFI) elFI.textContent = _fmt2(fondoInit);
+      if (elFF) elFF.textContent = _fmt2(fondoFin);
+
+      // IC / delta fondo / delta quadratura / consegnato (riuso id esistenti)
       document.getElementById("kpiIC").textContent = _fmt2(ic);
       document.getElementById("kpiDeltaFondo").textContent = _fmt2(df);
       document.getElementById("kpiDeltaQuadratura").textContent = _fmt2(dq);
+
+      // Totali mov/vers + corrispettivi + consegnato
+      const elTM = document.getElementById("kpiTotMovimenti");
+      const elTV = document.getElementById("kpiTotVersamenti");
+      const elCor = document.getElementById("kpiCorrispettivi");
+      const elCon = document.getElementById("kpiIncassoConsegnato");
+
+      if (elTM) elTM.textContent = _fmt2(totMov);
+      if (elTV) elTV.textContent = _fmt2(totVers);
+      if (elCor) elCor.textContent = _fmt2(cor);
+
+      // questo prima stava nel vecchio layout: se nel payload c’è già, usalo
+      const consegnato = (t.incasso_consegnato ?? t.incassoConsegnato);
+      if (elCon) elCon.textContent = _fmt2(consegnato);
     })
     .catch(err => console.error("loadPreview error:", err));
 }
-
 function eur(amount) {
   const n = Number(amount || 0);
   return n.toLocaleString("it-IT", { style: "currency", currency: "EUR" });

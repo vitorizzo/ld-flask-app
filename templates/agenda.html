@@ -75,56 +75,105 @@
           </div>
         </div>
 
-        <!-- KPI bar -->
+        <!-- KPI bar (nuovo layout) -->
         <div class="row g-3 mb-3">
-          <div class="col-12 col-md-4 col-xl-2">
-            <div class="card shadow-sm h-100">
-              <div class="card-body">
-                <div class="text-muted small">Q (Versabile)</div>
-                <div class="fs-4 fw-bold" id="kpiQ">—</div>
-              </div>
-            </div>
-          </div>
 
-          <div class="col-12 col-md-4 col-xl-2">
-            <div class="card shadow-sm h-100">
-              <div class="card-body">
-                <div class="text-muted small">S (Progressivo)</div>
-                <div class="fs-4 fw-bold" id="kpiS">—</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="col-12 col-md-4 col-xl-2">
-            <div class="card shadow-sm h-100">
-              <div class="card-body">
-                <div class="text-muted small">IC</div>
-                <div class="fs-4 fw-bold" id="kpiIC">—</div>
-              </div>
-            </div>
-          </div>
-
+          <!-- Versabile (S/Q) -->
           <div class="col-12 col-md-6 col-xl-3">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="text-muted small">Δ Fondo</div>
-                <div class="fs-4 fw-bold" id="kpiDeltaFondo">—</div>
-                <div class="text-muted small">Fondo finale</div>
-                <div class="fw-semibold" id="kpiFondoFinale">—</div>
+                <div class="kpi-grid">
+                  <div class="kpi-left">
+                    <div class="kpi-row">
+                      <div class="kpi-label text-muted small">Saldo versabile</div>
+                      <div class="kpi-value fw-semibold" id="kpiSaldoVersabileInit">—</div>
+                    </div>
+                    <div class="kpi-row">
+                      <div class="kpi-label text-muted small">Nuovo saldo versabile</div>
+                      <div class="kpi-value fw-semibold" id="kpiSaldoVersabileNew">—</div>
+                    </div>
+                  </div>
+                  <div class="kpi-right text-end">
+                    <div class="kpi-label text-muted small">Versabile giornaliero</div>
+                    <div class="fs-4 fw-bold" id="kpiVersabileGiornata">—</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
+          <!-- Fondo (iniziale/finale + delta) -->
           <div class="col-12 col-md-6 col-xl-3">
             <div class="card shadow-sm h-100">
               <div class="card-body">
-                <div class="text-muted small">Δ Quadratura</div>
-                <div class="fs-4 fw-bold" id="kpiDeltaQuadratura">—</div>
-                <div class="text-muted small">Incasso consegnato</div>
-                <div class="fw-semibold" id="kpiIncassoConsegnato">—</div>
+                <div class="kpi-grid">
+                  <div class="kpi-left">
+                    <div class="kpi-row">
+                      <div class="kpi-label text-muted small">Fondo cassa iniziale</div>
+                      <div class="kpi-value fw-semibold" id="kpiFondoIniziale">—</div>
+                    </div>
+                    <div class="kpi-row">
+                      <div class="kpi-label text-muted small">Fondo cassa finale</div>
+                      <div class="kpi-value fw-semibold" id="kpiFondoFinale">—</div>
+                    </div>
+                  </div>
+                  <div class="kpi-right text-end">
+                    <div class="kpi-label text-muted small">Δ Fondo</div>
+                    <div class="fs-4 fw-bold" id="kpiDeltaFondo">—</div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
+
+          <!-- Movimenti/Versamenti + IC -->
+          <div class="col-12 col-md-6 col-xl-3">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="kpi-grid">
+                  <div class="kpi-left">
+                    <div class="kpi-row">
+                      <div class="kpi-label text-muted small">Totale movimenti</div>
+                      <div class="kpi-value fw-semibold" id="kpiTotMovimenti">—</div>
+                    </div>
+                    <div class="kpi-row">
+                      <div class="kpi-label text-muted small">Totale versamenti</div>
+                      <div class="kpi-value fw-semibold" id="kpiTotVersamenti">—</div>
+                    </div>
+                  </div>
+                  <div class="kpi-right text-end">
+                    <div class="kpi-label text-muted small">Incasso calcolato</div>
+                    <div class="fs-4 fw-bold" id="kpiIC">—</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quadratura (corrispettivi/consegnato + delta) -->
+          <div class="col-12 col-md-6 col-xl-3">
+            <div class="card shadow-sm h-100">
+              <div class="card-body">
+                <div class="kpi-grid">
+                  <div class="kpi-left">
+                    <div class="kpi-row">
+                      <div class="kpi-label text-muted small">Corrispettivi</div>
+                      <div class="kpi-value fw-semibold" id="kpiCorrispettivi">—</div>
+                    </div>
+                    <div class="kpi-row">
+                      <div class="kpi-label text-muted small">Incasso consegnato</div>
+                      <div class="kpi-value fw-semibold" id="kpiIncassoConsegnato">—</div>
+                    </div>
+                  </div>
+                  <div class="kpi-right text-end">
+                    <div class="kpi-label text-muted small">Δ Quadratura</div>
+                    <div class="fs-4 fw-bold" id="kpiDeltaQuadratura">—</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- 4 quadrants -->
