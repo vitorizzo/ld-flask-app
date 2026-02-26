@@ -221,11 +221,27 @@
 .kpi-title-mov{ background: #1d4ed8; }       /* blue */
 .kpi-title-quad{ background: #7c3aed; }      /* violet */
 
+.kpi-split{
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
 .kpi-side{
   flex: 1 1 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+
+.kpi-side-right{
+  flex: 0 0 42%;
+  justify-content: center;
+}
+
+.kpi-split-divider{
+  width: 1px;
+  background: rgba(0,0,0,0.10);
 }
 
 .kpi-metric{
@@ -244,6 +260,10 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.kpi-num-big{
+  font-size: 1.45rem;
 }
 
 .kpi-divider-mini{
