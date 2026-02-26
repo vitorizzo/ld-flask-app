@@ -136,15 +136,18 @@ def calculate_closure_pure(
         )
     )
 
-    contanti_fisici = incassi_cash - spese_cash
-
     # =========================
     # POS
     # =========================
     totale_pos = _sum_amount(
         db.session.query(func.coalesce(func.sum(PosMove.amount), 0))
         .filter(PosMove.cash_day_id == cash_day_id, PosMove.direction == "in")
+    ) - _sum_amount(
+        db.session.query(func.coalesce(func.sum(PosMove.amount), 0))
+        .filter(PosMove.cash_day_id == cash_day_id, PosMove.direction == "out")
     )
+
+    contanti_fisici = incassi_cash - spese_cash - totale_pos
 
     # =========================
     # ASSEGNI: odierni (*) e postdatati (**)
