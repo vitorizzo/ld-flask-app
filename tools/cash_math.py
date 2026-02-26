@@ -216,7 +216,7 @@ def calculate_closure_pure(
     # =========================
     # FORMULE
     # =========================
-    incasso_calcolato = contanti_fisici + total_corrispettivi - totale_pos - delta_fondo
+    incasso_calcolato = contanti_fisici + total_corrispettivi - delta_fondo
 
     # Q (incasso odierno versabile)
     versabile_giornata = contanti_fisici + assegni_odierni
