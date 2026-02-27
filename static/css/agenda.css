@@ -134,6 +134,10 @@
   background: rgba(25, 135, 84, 0.12); /* verde soft */
 }
 
+.header-movimenti {
+  background: rgba(25, 135, 135, 0.12); /* verde soft */
+}
+
 .header-spese {
   background: rgba(220, 53, 69, 0.12); /* rosso soft */
 }
