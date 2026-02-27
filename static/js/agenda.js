@@ -1,6 +1,13 @@
 let currentDay = null;
 let calendarInstance = null;
 
+function setText(id, value) {
+  const el = document.getElementById(id);
+  if (!el) return false;
+  el.textContent = value;
+  return true;
+}
+
 function escapeHtml(str) {
   return String(str)
     .replaceAll("&", "&amp;")
@@ -35,12 +42,11 @@ function loadDay(dateStr) {
     .then(data => {
       if (!data.ok) return;
       currentDay = data.day.day_date;
-      document.getElementById("dayDateTitle").textContent = currentDay;
-      document.getElementById("dayId").textContent = data.day.id;
-      document.getElementById("dayOpeningFloat").textContent = data.day.opening_float.toFixed(2);
-      document.getElementById("dayStatusBadge").textContent = data.day.status.toUpperCase();
-      document.getElementById("agendaLastUpdated").textContent =
-        "Ultimo aggiornamento: " + new Date().toLocaleTimeString();
+      setText("dayDateTitle", currentDay);
+      setText("dayId", data.day.id);
+      setText("dayOpeningFloat", Number(data.day.opening_float || 0).toFixed(2));
+      setText("dayStatusBadge", String(data.day.status || "—").toUpperCase());
+      setText("agendaLastUpdated", "Ultimo aggiornamento: " + new Date().toLocaleTimeString());
 
       loadPreview(currentDay);
       loadIncassi(currentDay);
