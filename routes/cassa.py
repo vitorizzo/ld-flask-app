@@ -944,3 +944,156 @@ def api_list_pos_moves(day_date):
         })
 
     return jsonify({"ok": True, "day_date": d.isoformat(), "pos_moves": out})
+
+# =========================
+# MOVIMENTI DI CASSA (prelievi/versamenti terzi + spicci)
+# =========================
+
+@cassa_bp.post("/api/day/<day_date>/cash_moves", endpoint="api_create_cash_move")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_create_cash_move(day_date):
+    """
+    Inserimento movimento di cassa.
+    Payload:
+    {
+      "amount": -50.00,                 # negativo=prelievo (out), positivo=versamento (in)
+      "performed_by": "Vito",           # chi prende/mette i soldi
+      "notes": "Motivo (opzionale)",
+      "kind": "altro" | "spicci"        # default "altro"
+    }
+    """
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    cash_day = CashDay.query.filter(CashDay.day_date == d).first()
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+
+    try:
+        raw_amount = Decimal(str(data.get("amount", "0")))
+    except (InvalidOperation, TypeError):
+        return jsonify({"ok": False, "error": "Invalid amount"}), 400
+
+    if raw_amount == 0:
+        return jsonify({"ok": False, "error": "Amount must be non-zero"}), 400
+
+    performed_by = (data.get("performed_by") or "").strip()
+    if not performed_by:
+        return jsonify({"ok": False, "error": "Missing performed_by"}), 400
+
+    notes = (data.get("notes") or "").strip() or None
+    kind = (data.get("kind") or "altro").strip() or "altro"
+
+    direction = "in" if raw_amount > 0 else "out"
+    amount = abs(raw_amount)
+
+    m = CashMove(
+        cash_day_id=cash_day.id,
+        created_by_user_id=getattr(current_user, "id", None),
+        direction=direction,
+        amount=amount,
+        performed_by=performed_by,
+        notes=notes,
+        kind=kind,
+    )
+
+    db.session.add(m)
+    db.session.commit()
+
+    return jsonify({"ok": True, "cash_move_id": m.id}), 201
+
+
+@cassa_bp.get("/api/day/<day_date>/cash_moves", endpoint="api_list_cash_moves")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_list_cash_moves(day_date):
+    """
+    Lista movimenti di cassa della giornata.
+    """
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    cash_day = CashDay.query.filter(CashDay.day_date == d).first()
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    moves = (
+        CashMove.query
+        .filter(CashMove.cash_day_id == cash_day.id)
+        .order_by(CashMove.created_at.asc())
+        .all()
+    )
+
+    out = []
+    for m in moves:
+        out.append({
+            "id": m.id,
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+            "direction": m.direction,
+            "amount": float(m.amount or 0),
+            "performed_by": m.performed_by,
+            "notes": m.notes,
+            "kind": m.kind,
+        })
+
+    return jsonify({"ok": True, "day_date": d.isoformat(), "cash_moves": out})
+
+
+@cassa_bp.get("/api/coins/balance", endpoint="api_coins_vault_balance")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_coins_vault_balance():
+    """
+    Saldo spicci in armadio (cumulativo fino alla data inclusa).
+    Querystring:
+      ?date=YYYY-MM-DD   (default: oggi)
+    Regola:
+      out (prelievo da cassa verso armadio)   => +amount armadio
+      in  (versamento in cassa da armadio)    => -amount armadio
+    """
+    date_str = (request.args.get("date") or "").strip()
+    if date_str:
+        try:
+            ref = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"ok": False, "error": "Invalid date format (YYYY-MM-DD)"}), 400
+    else:
+        ref = datetime.now().date()
+
+    q_out = (
+        db.session.query(func.coalesce(func.sum(CashMove.amount), 0))
+        .join(CashDay, CashDay.id == CashMove.cash_day_id)
+        .filter(
+            CashDay.day_date <= ref,
+            CashMove.kind == "spicci",
+            CashMove.direction == "out",
+        )
+    )
+
+    q_in = (
+        db.session.query(func.coalesce(func.sum(CashMove.amount), 0))
+        .join(CashDay, CashDay.id == CashMove.cash_day_id)
+        .filter(
+            CashDay.day_date <= ref,
+            CashMove.kind == "spicci",
+            CashMove.direction == "in",
+        )
+    )
+
+    out_sum = _sum_amount(q_out)
+    in_sum = _sum_amount(q_in)
+
+    balance = out_sum - in_sum
+
+    return jsonify({
+        "ok": True,
+        "ref_date": ref.isoformat(),
+        "coins_vault_balance": str(balance),
+    })
