@@ -46,6 +46,8 @@ function loadDay(dateStr) {
       loadIncassi(currentDay);
       loadSpese(currentDay);
       loadPosMoves(currentDay);
+      loadCashMoves(currentDay);
+      loadCoinsBalance(currentDay);
       loadAssegniScadenza(currentDay, false);
     });
 }
@@ -175,6 +177,88 @@ function renderAssegniScadenza(items) {
     row.appendChild(right);
 
     list.appendChild(row);
+  }
+}
+
+async function loadCoinsBalance(dayStr) {
+  const el = document.getElementById("coinsVaultBalance");
+  if (!el) return;
+
+  el.textContent = "—";
+
+  try {
+    const r = await fetch(`/cassa/api/coins/balance?date=${encodeURIComponent(dayStr)}`, { credentials: "same-origin" });
+    const data = await r.json();
+    if (!data.ok) {
+      el.textContent = "—";
+      return;
+    }
+    el.textContent = _fmt2(data.coins_vault_balance).replace(".", ",");
+  } catch (e) {
+    console.error("loadCoinsBalance error:", e);
+    el.textContent = "—";
+  }
+}
+
+async function loadCashMoves(dayStr) {
+  const listEl = document.getElementById("movCassaList");
+  const totalEl = document.getElementById("totMovCassa");
+  if (!listEl) return;
+
+  listEl.innerHTML = `<div class="list-group-item text-muted small">Caricamento...</div>`;
+  if (totalEl) totalEl.textContent = "0,00";
+
+  try {
+    const r = await fetch(`/cassa/api/day/${dayStr}/cash_moves`, { credentials: "same-origin" });
+    const data = await r.json();
+
+    if (!data.ok) {
+      listEl.innerHTML = `<div class="list-group-item text-muted small">Errore: ${data.error || "impossibile caricare movimenti"}</div>`;
+      return;
+    }
+
+    const moves = data.cash_moves || [];
+    if (!moves.length) {
+      listEl.innerHTML = `<div class="list-group-item text-muted small">Nessun movimento</div>`;
+      return;
+    }
+
+    const tot = moves.reduce((s, m) => s + Number(m.amount || 0), 0);
+    if (totalEl) totalEl.textContent = tot.toFixed(2).replace(".", ",");
+
+    listEl.innerHTML = moves.map(m => {
+      const a = Number(m.amount || 0);
+      const isOut = a < 0;
+
+      const who = (m.performed_by || "").trim();
+      const notes = (m.notes || "").trim();
+      const kind = (m.kind || "").trim();   // "spicci" oppure "altro"/null
+
+      const desc = [who, notes].filter(Boolean).join(" • ") || "Movimento";
+
+      const amtAbs = Math.abs(a).toFixed(2);
+      const amt = (isOut ? "-" : "") + amtAbs + "€";
+
+      const colorClass = isOut ? "text-danger" : "text-primary";
+
+      const badges = [];
+      if (kind === "spicci") badges.push(`<span class="badge badge-soft badge-coins">SPICCI</span>`);
+
+      return `
+        <div class="list-group-item table-row" data-cash-move-id="${m.id}">
+          <div class="col-desc">
+            <span class="flag"></span>
+            <span class="desc">${escapeHtml(desc)}</span>
+          </div>
+          <div class="col-badges">${badges.join("")}</div>
+          <div class="col-amt ${colorClass}">${amt}</div>
+        </div>
+      `;
+    }).join("");
+
+  } catch (e) {
+    console.error("loadCashMoves error:", e);
+    listEl.innerHTML = `<div class="list-group-item text-muted small">Errore di rete</div>`;
   }
 }
 

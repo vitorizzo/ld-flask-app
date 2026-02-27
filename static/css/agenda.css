@@ -290,3 +290,5 @@
     font-size: 1.30rem;
   }
 }
+
+.badge-coins { border: 1px solid rgba(0,0,0,.15); }
