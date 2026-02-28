@@ -335,11 +335,6 @@
 
         <!-- Riga 1: Importo + Flag (select compatta) -->
         <div class="row g-3 align-items-end">
-          <div class="col-12 col-md-9">
-            <label class="form-label" for="opAmount">Importo</label>
-            <input type="number" step="0.01" class="form-control" id="opAmount" placeholder="0.00">
-          </div>
-
           <div class="col-12 col-md-3">
             <label class="form-label" for="opFlag">Flag</label>
             <select class="form-select form-select-sm" id="opFlag" style="max-width: 90px;">
@@ -348,6 +343,11 @@
               <option value="+">+</option>
               <option value="x">x</option>
             </select>
+          </div>
+
+          <div class="col-12 col-md-9">
+            <label class="form-label" for="opAmount">Importo</label>
+            <input type="number" step="0.01" class="form-control" id="opAmount" placeholder="0.00">
           </div>
 
           <!-- Riga 2: Descrizione full width -->
