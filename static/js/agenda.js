@@ -531,53 +531,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
   loadDay(toLocalYMD(new Date()));
   startAssegniAutoRefresh();
-});
 
-function decorateMonth(year, month) {
-  fetchActiveDays(year, month).then(activeDays => {
-
-    document.querySelectorAll(".flatpickr-day").forEach(dayEl => {
-      dayEl.classList.remove("has-movements");
-    });
-
-    activeDays.forEach(dateStr => {
-      const dateObj = new Date(dateStr);
-      const day = dateObj.getDate();
-
-      document.querySelectorAll(".flatpickr-day").forEach(el => {
-        if (
-          el.dateObj &&
-          el.dateObj.getFullYear() === year &&
-          el.dateObj.getMonth() === month &&
-          el.dateObj.getDate() === day
-        ) {
-          el.classList.add("has-movements");
-        }
-      });
-    });
-  });
-}
-
-let assegniInterval = null;
-
-function startAssegniAutoRefresh() {
-  if (assegniInterval) return;
-
-  assegniInterval = setInterval(() => {
-    if (document.visibilityState === "visible") {
-      loadAssegniScadenza(currentDay, false);
-    }
-  }, 30000); // 30s
-}
-
-function stopAssegniAutoRefresh() {
-  if (assegniInterval) {
-    clearInterval(assegniInterval);
-    assegniInterval = null;
-  }
-}
-
-  const opModalEl = document.getElementById("opModal");
+    const opModalEl = document.getElementById("opModal");
   const opModal = opModalEl ? new bootstrap.Modal(opModalEl) : null;
 
   function openOpModal(type) {
@@ -627,6 +582,52 @@ function stopAssegniAutoRefresh() {
   document.getElementById("payCheck")?.addEventListener("change", (e) => {
     document.getElementById("payCheckBox")?.classList.toggle("d-none", !e.target.checked);
   });
+
+});
+
+function decorateMonth(year, month) {
+  fetchActiveDays(year, month).then(activeDays => {
+
+    document.querySelectorAll(".flatpickr-day").forEach(dayEl => {
+      dayEl.classList.remove("has-movements");
+    });
+
+    activeDays.forEach(dateStr => {
+      const dateObj = new Date(dateStr);
+      const day = dateObj.getDate();
+
+      document.querySelectorAll(".flatpickr-day").forEach(el => {
+        if (
+          el.dateObj &&
+          el.dateObj.getFullYear() === year &&
+          el.dateObj.getMonth() === month &&
+          el.dateObj.getDate() === day
+        ) {
+          el.classList.add("has-movements");
+        }
+      });
+    });
+  });
+}
+
+let assegniInterval = null;
+
+function startAssegniAutoRefresh() {
+  if (assegniInterval) return;
+
+  assegniInterval = setInterval(() => {
+    if (document.visibilityState === "visible") {
+      loadAssegniScadenza(currentDay, false);
+    }
+  }, 30000); // 30s
+}
+
+function stopAssegniAutoRefresh() {
+  if (assegniInterval) {
+    clearInterval(assegniInterval);
+    assegniInterval = null;
+  }
+}
 
 document.addEventListener("visibilitychange", function () {
   if (document.visibilityState === "visible") {
