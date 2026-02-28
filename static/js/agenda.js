@@ -493,57 +493,6 @@ async function loadPosMoves(dayStr) {
   }
 }
 
-  const opModalEl = document.getElementById("opModal");
-  const opModal = opModalEl ? new bootstrap.Modal(opModalEl) : null;
-
-  function openOpModal(type) {
-    if (!opModal) return;
-
-    // reset base
-    document.getElementById("opType").value = type;
-    document.getElementById("opAmount").value = "";
-    document.getElementById("opDesc").value = "";
-    document.getElementById("opFlag").value = "*";
-
-    document.getElementById("opOffCash").checked = false;
-    document.getElementById("opOffCashWho").value = "";
-    document.getElementById("opOffCashBox").classList.add("d-none");
-
-    // reset sezioni pagamenti (UI)
-    document.getElementById("payCash").checked = true;
-    document.getElementById("payPos").checked = false;
-    document.getElementById("payBank").checked = false;
-    document.getElementById("payCheck").checked = false;
-
-    document.getElementById("payPosBox").classList.add("d-none");
-    document.getElementById("payBankBox").classList.add("d-none");
-    document.getElementById("payCheckBox").classList.add("d-none");
-
-    document.getElementById("opModalTitle").textContent =
-      (type === "sale") ? "Nuovo incasso" : "Nuova spesa";
-
-    opModal.show();
-  }
-
-  document.getElementById("btnNewIncasso")?.addEventListener("click", () => openOpModal("sale"));
-  document.getElementById("btnNewSpesa")?.addEventListener("click", () => openOpModal("expense"));
-
-  document.getElementById("opOffCash")?.addEventListener("change", (e) => {
-    const box = document.getElementById("opOffCashBox");
-    if (!box) return;
-    box.classList.toggle("d-none", !e.target.checked);
-  });
-
-  document.getElementById("payPos")?.addEventListener("change", (e) => {
-    document.getElementById("payPosBox")?.classList.toggle("d-none", !e.target.checked);
-  });
-  document.getElementById("payBank")?.addEventListener("change", (e) => {
-    document.getElementById("payBankBox")?.classList.toggle("d-none", !e.target.checked);
-  });
-  document.getElementById("payCheck")?.addEventListener("change", (e) => {
-    document.getElementById("payCheckBox")?.classList.toggle("d-none", !e.target.checked);
-  });
-
 function loadAssegniScadenza(dateStr = null, includeTodayReceived = false) {
   const ref = dateStr || currentDay || toLocalYMD(new Date());
   const qs = new URLSearchParams({
@@ -627,6 +576,57 @@ function stopAssegniAutoRefresh() {
     assegniInterval = null;
   }
 }
+
+  const opModalEl = document.getElementById("opModal");
+  const opModal = opModalEl ? new bootstrap.Modal(opModalEl) : null;
+
+  function openOpModal(type) {
+    if (!opModal) return;
+
+    // reset base
+    document.getElementById("opType").value = type;
+    document.getElementById("opAmount").value = "";
+    document.getElementById("opDesc").value = "";
+    document.getElementById("opFlag").value = "*";
+
+    document.getElementById("opOffCash").checked = false;
+    document.getElementById("opOffCashWho").value = "";
+    document.getElementById("opOffCashBox").classList.add("d-none");
+
+    // reset sezioni pagamenti (UI)
+    document.getElementById("payCash").checked = true;
+    document.getElementById("payPos").checked = false;
+    document.getElementById("payBank").checked = false;
+    document.getElementById("payCheck").checked = false;
+
+    document.getElementById("payPosBox").classList.add("d-none");
+    document.getElementById("payBankBox").classList.add("d-none");
+    document.getElementById("payCheckBox").classList.add("d-none");
+
+    document.getElementById("opModalTitle").textContent =
+      (type === "sale") ? "Nuovo incasso" : "Nuova spesa";
+
+    opModal.show();
+  }
+
+  document.getElementById("btnNewIncasso")?.addEventListener("click", () => openOpModal("sale"));
+  document.getElementById("btnNewSpesa")?.addEventListener("click", () => openOpModal("expense"));
+
+  document.getElementById("opOffCash")?.addEventListener("change", (e) => {
+    const box = document.getElementById("opOffCashBox");
+    if (!box) return;
+    box.classList.toggle("d-none", !e.target.checked);
+  });
+
+  document.getElementById("payPos")?.addEventListener("change", (e) => {
+    document.getElementById("payPosBox")?.classList.toggle("d-none", !e.target.checked);
+  });
+  document.getElementById("payBank")?.addEventListener("change", (e) => {
+    document.getElementById("payBankBox")?.classList.toggle("d-none", !e.target.checked);
+  });
+  document.getElementById("payCheck")?.addEventListener("change", (e) => {
+    document.getElementById("payCheckBox")?.classList.toggle("d-none", !e.target.checked);
+  });
 
 document.addEventListener("visibilitychange", function () {
   if (document.visibilityState === "visible") {
