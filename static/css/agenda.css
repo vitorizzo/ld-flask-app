@@ -296,3 +296,64 @@
 }
 
 .badge-coins { border: 1px solid rgba(0,0,0,.15); }
+
+/* =========================
+   MODALE OPERAZIONE (tema LD)
+========================= */
+#opModal .modal-content{
+  background: #3a2321;            /* marrone */
+  color: rgba(255,255,255,0.92);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+#opModal .modal-header,
+#opModal .modal-footer{
+  border-color: rgba(255,255,255,0.12);
+}
+
+#opModal .modal-title{
+  color: rgba(255,255,255,0.95);
+}
+
+#opModal .btn-close{
+  filter: invert(1) grayscale(1);
+  opacity: 0.9;
+}
+
+#opModal .form-label{
+  color: rgba(255,255,255,0.80);
+}
+
+#opModal .form-control,
+#opModal .form-select{
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.92);
+  border: 1px solid rgba(255,255,255,0.16);
+}
+
+#opModal .form-control::placeholder{
+  color: rgba(255,255,255,0.55);
+}
+
+#opModal .form-control:focus,
+#opModal .form-select:focus{
+  background: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.95);
+  border-color: rgba(255,255,255,0.35);
+  box-shadow: 0 0 0 .25rem rgba(185, 28, 28, 0.25); /* rosso LD soft */
+}
+
+#opModal .form-check-label{
+  color: rgba(255,255,255,0.85);
+}
+
+#opModal hr{
+  border-color: rgba(255,255,255,0.14);
+  opacity: 1;
+}
+
+#opModal .alert{
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.85);
+  border-color: rgba(255,255,255,0.16);
+}
