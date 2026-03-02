@@ -335,20 +335,31 @@
 
         <!-- Riga 1: Importo + Flag (select compatta) -->
         <div class="row g-3 align-items-end">
-          <div class="col-12 col-md-3">
-            <label class="form-label" for="opFlag">Flag</label>
-            <div class="input-group" style="max-width: 140px;">
+          <div class="col-12 col-md-4">
+            <label class="form-label">Flag</label>
+
+            <div class="input-group">
               <input
                 type="text"
-                class="form-control text-center"
+                class="form-control"
                 id="opFlag"
-                list="opFlagList"
-                maxlength="2"
+                placeholder="Seleziona o digita…"
                 autocomplete="off"
-                placeholder="*">
-              <button type="button" class="btn btn-outline-secondary" id="opFlagDropBtn" title="Scegli flag">▾</button>
-              <datalist id="opFlagList"></datalist>
+                spellcheck="false"
+              >
+              <button
+                class="btn btn-outline-secondary dropdown-toggle"
+                type="button"
+                id="opFlagBtn"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+                aria-label="Apri elenco flag"
+              ></button>
+
+              <ul class="dropdown-menu dropdown-menu-end shadow" id="opFlagMenu" aria-labelledby="opFlagBtn"></ul>
             </div>
+
+            <div class="form-text">Click sulla freccia: elenco completo. Digitando: filtro.</div>
           </div>
 
           <div class="col-12 col-md-9">

@@ -564,13 +564,69 @@ document.addEventListener("DOMContentLoaded", function () {
     opModal.show();
   }
 
-  const CASSA_FLAGS = ["*", "**", "+", "x", "#", "!"]; // unica sorgente
+  // Fonte unica dei flag (unico punto di verità)
+    const OP_FLAGS = ["*", "**", "#", "!", "+", "-", "x"];
 
-  function fillFlagList() {
-    const dl = document.getElementById("opFlagList");
-    if (!dl) return;
-    dl.innerHTML = CASSA_FLAGS.map(f => `<option value="${escapeHtml(f)}"></option>`).join("");
-  }
+  // init dropdown flag (Bootstrap)
+  (function initFlagDropdown() {
+    const input = document.getElementById("opFlag");
+    const btn = document.getElementById("opFlagBtn");
+    const menu = document.getElementById("opFlagMenu");
+    if (!input || !btn || !menu) return;
+
+    const dd = bootstrap.Dropdown.getOrCreateInstance(btn, { autoClose: true });
+
+    function buildMenu(filterText = "") {
+      const f = (filterText || "").trim().toLowerCase();
+      const items = OP_FLAGS.filter(v => v.toLowerCase().includes(f));
+
+      menu.innerHTML = "";
+
+      if (!items.length) {
+        const li = document.createElement("li");
+        li.innerHTML = `<span class="dropdown-item-text text-muted">Nessun match</span>`;
+        menu.appendChild(li);
+        return;
+      }
+
+      for (const v of items) {
+        const li = document.createElement("li");
+        li.innerHTML = `<button type="button" class="dropdown-item" data-flag="${v}">${v}</button>`;
+        menu.appendChild(li);
+      }
+    }
+
+    // Click sulla freccia: elenco completo (sempre)
+    btn.addEventListener("click", () => {
+      buildMenu("");     // show all
+      // dd.toggle() lo fa Bootstrap via data-bs-toggle
+    });
+
+    // Click sul campo: mostra elenco completo (comodo)
+    input.addEventListener("focus", () => {
+      buildMenu(input.value);
+      dd.show();
+    });
+
+    // Digitazione: filtra e tieni aperto
+    input.addEventListener("input", () => {
+      buildMenu(input.value);
+      dd.show();
+    });
+
+    // Selezione voce
+    menu.addEventListener("click", (e) => {
+      const el = e.target.closest("[data-flag]");
+      if (!el) return;
+      input.value = el.getAttribute("data-flag") || "";
+      dd.hide();
+      input.dispatchEvent(new Event("change"));
+    });
+
+    // default
+    if (!input.value) input.value = "*";
+    buildMenu("");
+  })();
 
   function parseEuroToNumber(raw) {
     if (raw == null) return 0;
@@ -587,18 +643,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const safe = Number.isFinite(x) ? x : 0;
     return safe.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
-
-  // Call once on load
-  fillFlagList();
-
-  // “freccia”: focus sull’input così Edge mostra la lista
-  document.getElementById("opFlagDropBtn")?.addEventListener("click", () => {
-    const inp = document.getElementById("opFlag");
-    if (!inp) return;
-    inp.focus();
-    // hint: seleziona tutto per cambiare veloce
-    inp.select?.();
-  });
 
   // Importo: formatta a 2 decimali quando esci dal campo
   document.getElementById("opAmount")?.addEventListener("blur", (e) => {
