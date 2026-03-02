@@ -540,7 +540,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // reset base
     document.getElementById("opType").value = type;
-    document.getElementById("opAmount").value = "";
+    document.getElementById("opAmount").value = "0,00";
     document.getElementById("opDesc").value = "";
     document.getElementById("opFlag").value = "*";
 
@@ -563,6 +563,53 @@ document.addEventListener("DOMContentLoaded", function () {
 
     opModal.show();
   }
+
+  const CASSA_FLAGS = ["*", "**", "+", "x", "#", "!"]; // unica sorgente
+
+  function fillFlagList() {
+    const dl = document.getElementById("opFlagList");
+    if (!dl) return;
+    dl.innerHTML = CASSA_FLAGS.map(f => `<option value="${escapeHtml(f)}"></option>`).join("");
+  }
+
+  function parseEuroToNumber(raw) {
+    if (raw == null) return 0;
+    const s = String(raw).trim()
+      .replace(/\./g, "")     // tolgo separatori migliaia se messi
+      .replace(",", ".")      // virgola -> punto
+      .replace(/[^\d.-]/g, ""); // tolgo simboli
+    const n = Number(s);
+    return Number.isFinite(n) ? n : 0;
+  }
+
+  function formatEuro2(n) {
+    const x = Number(n);
+    const safe = Number.isFinite(x) ? x : 0;
+    return safe.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+
+  // Call once on load
+  fillFlagList();
+
+  // “freccia”: focus sull’input così Edge mostra la lista
+  document.getElementById("opFlagDropBtn")?.addEventListener("click", () => {
+    const inp = document.getElementById("opFlag");
+    if (!inp) return;
+    inp.focus();
+    // hint: seleziona tutto per cambiare veloce
+    inp.select?.();
+  });
+
+  // Importo: formatta a 2 decimali quando esci dal campo
+  document.getElementById("opAmount")?.addEventListener("blur", (e) => {
+    const n = parseEuroToNumber(e.target.value);
+    e.target.value = formatEuro2(n);
+  });
+
+  // Importo: quando entri, seleziona tutto (più veloce)
+  document.getElementById("opAmount")?.addEventListener("focus", (e) => {
+    e.target.select?.();
+  });
 
   document.getElementById("btnNewIncasso")?.addEventListener("click", () => openOpModal("sale"));
   document.getElementById("btnNewSpesa")?.addEventListener("click", () => openOpModal("expense"));

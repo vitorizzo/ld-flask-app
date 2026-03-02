@@ -357,3 +357,14 @@
   color: rgba(255,255,255,0.85);
   border-color: rgba(255,255,255,0.16);
 }
+
+#opModal .input-group .form-control,
+#opModal .input-group .input-group-text,
+#opModal .input-group .btn {
+  height: calc(2.375rem); /* default BS5 input height */
+}
+
+#opModal select.form-select {
+  color: #212529; /* text-dark */
+  background-color: #fff;
+}
