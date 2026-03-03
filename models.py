@@ -957,13 +957,64 @@ class CashCustomer(db.Model):
     __tablename__ = "cash_customers"
 
     id = db.Column(db.Integer, primary_key=True)
-    display_name = db.Column(db.String(120), nullable=False, unique=True)  # es. "Privato", "Giovanni", "Bar XYZ"
-    notes = db.Column(db.Text, nullable=True)
-    is_active = db.Column(db.Boolean, nullable=False, default=True)
 
-    def __repr__(self):
-        return f"<CashCustomer {self.display_name}>"
+    # nome “di comodo” (quello che mostrerai nel campo principale)
+    display_name = db.Column(db.String(255), nullable=False, index=True)
 
+    # anagrafica base (per import futuro + ricerche)
+    ragione_sociale = db.Column(db.String(255), nullable=True, index=True)
+    partita_iva = db.Column(db.String(32), nullable=True, index=True)
+    codice_cliente = db.Column(db.String(64), nullable=True, index=True)
+
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+    )
+
+    aliases = db.relationship(
+        "CashCustomerAlias",
+        backref="customer",
+        cascade="all, delete-orphan",
+        lazy=True,
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "display_name": self.display_name,
+            "ragione_sociale": self.ragione_sociale,
+            "partita_iva": self.partita_iva,
+            "codice_cliente": self.codice_cliente,
+        }
+
+
+class CashCustomerAlias(db.Model):
+    __tablename__ = "cash_customer_aliases"
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_id = db.Column(db.Integer, db.ForeignKey("cash_customers.id"), nullable=False, index=True)
+
+    # stringa ricercabile: "davide", "armando", "bar one", ecc.
+    alias = db.Column(db.String(255), nullable=False, index=True)
+
+    # opzionale: ti servirà in futuro (person / generic / contact / ecc.)
+    alias_type = db.Column(db.String(32), nullable=False, default="person")
+
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+
+    __table_args__ = (
+        db.UniqueConstraint("customer_id", "alias", name="uq_cash_customer_alias_customer_alias"),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "customer_id": self.customer_id,
+            "alias": self.alias,
+            "alias_type": self.alias_type,
+        }
 
 # --- Giornata / Chiusura -------------------------------------------------------
 

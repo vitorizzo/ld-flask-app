@@ -17,7 +17,7 @@ from tools.log_utils import get_logger
 from tools.role_required import role_required
 from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment, CashExpensePayment, \
-    PosDevice, PosCircuit, pos_device_circuits
+    PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
@@ -510,6 +510,87 @@ def api_days_active():
         "to": d_to.isoformat(),
         "days": [{"day_date": d.isoformat(), "status": s} for d, s in q]
     })
+
+
+@cassa_bp.get("/api/customers/suggest")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_customers_suggest():
+    """
+    Ricerca progressiva clienti.
+    Querystring:
+      - q=... (min 2 char)
+    Ritorna:
+      customers: [{id, display, display_name, ragione_sociale, partita_iva, codice_cliente, matched_alias}]
+    """
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 2:
+        return jsonify({"ok": True, "customers": []})
+
+    like = f"%{q}%"
+
+    # Outerjoin per includere anche clienti senza alias
+    rows = (
+        db.session.query(
+            CashCustomer.id,
+            CashCustomer.display_name,
+            CashCustomer.ragione_sociale,
+            CashCustomer.partita_iva,
+            CashCustomer.codice_cliente,
+            CashCustomerAlias.alias,
+        )
+        .outerjoin(CashCustomerAlias, CashCustomerAlias.customer_id == CashCustomer.id)
+        .filter(
+            or_(
+                CashCustomerAlias.alias.ilike(like),
+                CashCustomer.display_name.ilike(like),
+                CashCustomer.ragione_sociale.ilike(like),
+                CashCustomer.partita_iva.ilike(like),
+                CashCustomer.codice_cliente.ilike(like),
+            )
+        )
+        .order_by(
+            CashCustomer.ragione_sociale.asc().nullslast(),
+            CashCustomer.display_name.asc().nullslast(),
+            CashCustomer.id.asc(),
+        )
+        .limit(20)
+        .all()
+    )
+
+    out = []
+    for (cid, display_name, ragione_sociale, piva, codice_cliente, alias) in rows:
+        base = (alias or display_name or "").strip()
+        rs = (ragione_sociale or "").strip()
+
+        # Se matcho per alias e ho ragione sociale: "davide (DFL SRL)"
+        if alias and rs and base.lower() != rs.lower():
+            display = f"{base} ({rs})"
+        else:
+            # fallback: display_name o ragione sociale o altro
+            display = base or rs or (codice_cliente or "").strip() or (piva or "").strip() or f"Cliente {cid}"
+
+        out.append({
+            "id": cid,
+            "display": display,
+            "display_name": display_name,
+            "ragione_sociale": ragione_sociale,
+            "partita_iva": piva,
+            "codice_cliente": codice_cliente,
+            "matched_alias": alias,
+        })
+
+    # Dedup: outerjoin può produrre più righe (più alias)
+    seen = set()
+    dedup = []
+    for x in out:
+        k = (x["id"], x["display"])
+        if k in seen:
+            continue
+        seen.add(k)
+        dedup.append(x)
+
+    return jsonify({"ok": True, "customers": dedup})
 
 
 @cassa_bp.get("/api/checks/due")
