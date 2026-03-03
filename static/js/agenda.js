@@ -30,7 +30,6 @@ function fetchActiveDays(year, month) {
   const fromStr = toLocalYMD(from);
   const toStr = toLocalYMD(to);
 
-
   return fetch(`/cassa/api/days/active?from=${fromStr}&to=${toStr}`)
     .then(r => r.json())
     .then(data => data.ok ? data.days.map(d => d.day_date) : []);
@@ -92,12 +91,11 @@ function loadPreview(dateStr) {
 
       const sPrev = (t.saldo_versabile_precedente ?? t.saldo_versabile_init ?? t.saldoVersabilePrecedente);
 
-      const totMov = (t.totale_movimenti ?? t.totMovimenti);          // se non c’è lo lasciamo vuoto
+      const totMov = (t.totale_movimenti ?? t.totMovimenti);
       const totVers = (t.totale_versato_oggi ?? t.totale_versamenti ?? t.totVersamenti);
 
       const cor = (t.total_corrispettivi ?? t.corrispettivi ?? t.corrispettivi_totali);
 
-      // Versabile (S/Q)
       const elSVInit = document.getElementById("kpiSaldoVersabileInit");
       const elSVNew = document.getElementById("kpiSaldoVersabileNew");
       const elQ = document.getElementById("kpiVersabileGiornata");
@@ -105,18 +103,15 @@ function loadPreview(dateStr) {
       if (elSVNew) elSVNew.textContent = _fmt2(s);
       if (elQ) elQ.textContent = _fmt2(q);
 
-      // Fondo
       const elFI = document.getElementById("kpiFondoIniziale");
       const elFF = document.getElementById("kpiFondoFinale");
       if (elFI) elFI.textContent = _fmt2(fondoInit);
       if (elFF) elFF.textContent = _fmt2(fondoFin);
 
-      // IC / delta fondo / delta quadratura / consegnato (riuso id esistenti)
       document.getElementById("kpiIC").textContent = _fmt2(ic);
       document.getElementById("kpiDeltaFondo").textContent = _fmt2(df);
       document.getElementById("kpiDeltaQuadratura").textContent = _fmt2(dq);
 
-      // Totali mov/vers + corrispettivi + consegnato
       const elTM = document.getElementById("kpiTotMovimenti");
       const elTV = document.getElementById("kpiTotVersamenti");
       const elCor = document.getElementById("kpiCorrispettivi");
@@ -126,12 +121,12 @@ function loadPreview(dateStr) {
       if (elTV) elTV.textContent = _fmt2(totVers);
       if (elCor) elCor.textContent = _fmt2(cor);
 
-      // questo prima stava nel vecchio layout: se nel payload c’è già, usalo
       const consegnato = (t.incasso_consegnato ?? t.incassoConsegnato);
       if (elCon) elCon.textContent = _fmt2(consegnato);
     })
     .catch(err => console.error("loadPreview error:", err));
 }
+
 function eur(amount) {
   const n = Number(amount || 0);
   return n.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
@@ -243,7 +238,7 @@ async function loadCashMoves(dayStr) {
 
       const who = (m.performed_by || "").trim();
       const notes = (m.notes || "").trim();
-      const kind = (m.kind || "").trim();   // "spicci" oppure "altro"/null
+      const kind = (m.kind || "").trim();
 
       const desc = [who, notes].filter(Boolean).join(" • ") || "Movimento";
 
@@ -296,7 +291,6 @@ async function loadIncassi(dayStr) {
       return;
     }
 
-    // flatten payments (per ora mostriamo ogni payment come riga)
     const rows = [];
     for (const s of sales) {
       for (const p of (s.payments || [])) {
@@ -317,11 +311,9 @@ async function loadIncassi(dayStr) {
       const sign = x.direction === "out" ? "-" : "";
       const amt = `${sign}${x.amount.toFixed(2)}€`;
 
-      // badge: mostra solo se non cash implicito
       const badges = [];
       if (x.method === "pos") badges.push(`<span class="badge badge-soft badge-pos">POS</span>`);
       if (x.method === "bank") badges.push(`<span class="badge badge-soft badge-bank">BANCA</span>`);
-      // assegni li aggiungeremo quando li inseriamo davvero
       if (x.off_cash) badges.push(`<span class="badge badge-soft badge-offcash">FUORI CASSA</span>`);
 
       return `
@@ -338,7 +330,6 @@ async function loadIncassi(dayStr) {
       `;
     }).join("");
 
-    // const totalEl = document.getElementById("totIncassi");
     if (totalEl) {
       const tot = rows.reduce((s, x) =>
         s + (x.direction === "out" ? -x.amount : x.amount), 0
@@ -390,7 +381,6 @@ async function loadSpese(dayStr) {
       }
     }
 
-    // totale
     const totalEl = document.getElementById("totSpese");
     if (totalEl) {
       const tot = rows.reduce((s, x) => s + (x.direction === "out" ? x.amount : -x.amount), 0);
@@ -446,7 +436,6 @@ async function loadPosMoves(dayStr) {
       return;
     }
 
-    // totale: somma algebrica (in - out)
     const tot = moves.reduce((s, m) => {
       const a = Number(m.amount || 0);
       return s + (m.direction === "in" ? a : -a);
@@ -473,7 +462,7 @@ async function loadPosMoves(dayStr) {
       const badgeInner = logoPath ? logoImg : iconFallback;
 
       const badge = `<span class="badge badge-soft badge-icon">${badgeInner}</span>`;
-            const desc = m.doc_ref ? escapeHtml(m.doc_ref) : devName;
+      const desc = m.doc_ref ? escapeHtml(m.doc_ref) : devName;
 
       return `
         <div class="list-group-item table-row" data-pos-move-id="${m.id}">
@@ -512,6 +501,18 @@ function loadAssegniScadenza(dateStr = null, includeTodayReceived = false) {
     });
 }
 
+/* =========================
+   CUSTOMER: API + UI helpers
+========================= */
+
+async function fetchCustomerSuggest(q) {
+  const url = `/cassa/api/customers/suggest?q=${encodeURIComponent(q)}`;
+  const r = await fetch(url, { credentials: "same-origin", headers: { "Accept": "application/json" } });
+  const data = await r.json();
+  if (!data.ok) return [];
+  return data.customers || [];
+}
+
 document.addEventListener("DOMContentLoaded", function () {
 
   calendarInstance = flatpickr("#agendaCalendar", {
@@ -532,7 +533,7 @@ document.addEventListener("DOMContentLoaded", function () {
   loadDay(toLocalYMD(new Date()));
   startAssegniAutoRefresh();
 
-    const opModalEl = document.getElementById("opModal");
+  const opModalEl = document.getElementById("opModal");
   const opModal = opModalEl ? new bootstrap.Modal(opModalEl) : null;
 
   function openOpModal(type) {
@@ -543,6 +544,10 @@ document.addEventListener("DOMContentLoaded", function () {
     document.getElementById("opAmount").value = "0,00";
     document.getElementById("opDesc").value = "";
     document.getElementById("opFlag").value = "*";
+
+    // reset cliente
+    document.getElementById("opCustomerId") && (document.getElementById("opCustomerId").value = "");
+    document.getElementById("opCustomer") && (document.getElementById("opCustomer").value = "");
 
     document.getElementById("opOffCash").checked = false;
     document.getElementById("opOffCashWho").value = "";
@@ -564,8 +569,8 @@ document.addEventListener("DOMContentLoaded", function () {
     opModal.show();
   }
 
-  // Fonte unica dei flag (unico punto di verità)
-    const OP_FLAGS = ["*", "**", "#", "!", "+", "-", "x"];
+  // Fonte unica dei flag (allineata al backend: {"*","**","+","x","#","!"})
+  const OP_FLAGS = ["*", "**", "#", "!", "+", "x"];
 
   // init dropdown flag (Bootstrap)
   (function initFlagDropdown() {
@@ -598,11 +603,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Click sulla freccia: elenco completo (sempre)
     btn.addEventListener("click", () => {
-      buildMenu("");     // show all
-      // dd.toggle() lo fa Bootstrap via data-bs-toggle
+      buildMenu("");
     });
 
-    // Click sul campo: mostra elenco completo (comodo)
+    // Click/focus sul campo: mostra elenco (filtrato)
     input.addEventListener("focus", () => {
       buildMenu(input.value);
       dd.show();
@@ -623,17 +627,155 @@ document.addEventListener("DOMContentLoaded", function () {
       input.dispatchEvent(new Event("change"));
     });
 
-    // default
     if (!input.value) input.value = "*";
     buildMenu("");
   })();
 
+  /* =========================
+     CUSTOMER: datalist + modal
+  ========================= */
+
+  // A) suggest progressivo (input + datalist)
+  (function initCustomerSuggest() {
+    const input = document.getElementById("opCustomer");
+    const list = document.getElementById("opCustomerList");
+    const hiddenId = document.getElementById("opCustomerId");
+    if (!input || !list || !hiddenId) return;
+
+    let lastItems = [];
+    let t = null;
+
+    function renderDatalist(items) {
+      list.innerHTML = "";
+      items.forEach(it => {
+        const opt = document.createElement("option");
+        opt.value = it.display || "";
+        list.appendChild(opt);
+      });
+    }
+
+    function findByDisplay(display) {
+      const d = (display || "").trim();
+      return lastItems.find(x => ((x.display || "").trim() === d));
+    }
+
+    input.addEventListener("input", () => {
+      hiddenId.value = ""; // finché non seleziona, non fissiamo l'id
+
+      const q = input.value.trim();
+      if (q.length < 2) {
+        lastItems = [];
+        list.innerHTML = "";
+        return;
+      }
+
+      clearTimeout(t);
+      t = setTimeout(async () => {
+        const items = await fetchCustomerSuggest(q);
+        lastItems = items;
+        renderDatalist(items);
+      }, 180);
+    });
+
+    input.addEventListener("change", () => {
+      const chosen = findByDisplay(input.value);
+      hiddenId.value = chosen ? String(chosen.id) : "";
+    });
+  })();
+
+  // B) modale ricerca avanzata (pulsante ...)
+  (function initCustomerSearchModal() {
+    const btnOpen = document.getElementById("btnCustomerSearch");
+    const modalEl = document.getElementById("customerSearchModal");
+    if (!btnOpen || !modalEl || typeof bootstrap === "undefined") return;
+
+    const bsModal = new bootstrap.Modal(modalEl);
+
+    const qInput = document.getElementById("customerSearchInput");
+    const btnGo = document.getElementById("customerSearchGo");
+    const tbody = document.getElementById("customerSearchResults");
+    const selId = document.getElementById("customerSelectedId");
+    const selDisp = document.getElementById("customerSelectedDisplay");
+    const btnConfirm = document.getElementById("customerPickConfirm");
+
+    const opInput = document.getElementById("opCustomer");
+    const opHiddenId = document.getElementById("opCustomerId");
+
+    if (!qInput || !btnGo || !tbody || !selId || !selDisp || !btnConfirm || !opInput || !opHiddenId) return;
+
+    function setSelected(id, display) {
+      selId.value = id ? String(id) : "";
+      selDisp.value = display || "";
+      btnConfirm.disabled = !selId.value;
+    }
+
+    async function runSearch() {
+      const q = (qInput.value || "").trim();
+      setSelected("", "");
+      if (q.length < 2) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-muted">Inserisci almeno 2 caratteri</td></tr>`;
+        return;
+      }
+
+      const items = await fetchCustomerSuggest(q);
+      if (!items.length) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-muted">Nessun risultato</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = "";
+      items.forEach(it => {
+        const tr = document.createElement("tr");
+        tr.style.cursor = "pointer";
+        tr.innerHTML = `
+          <td class="fw-semibold">${escapeHtml(it.display || "")}</td>
+          <td>${escapeHtml(it.ragione_sociale || "")}</td>
+          <td>${escapeHtml(it.partita_iva || "")}</td>
+          <td>${escapeHtml(it.codice_cliente || "")}</td>
+        `;
+        tr.addEventListener("click", () => {
+          [...tbody.querySelectorAll("tr")].forEach(x => x.classList.remove("table-active"));
+          tr.classList.add("table-active");
+          setSelected(it.id, it.display);
+        });
+        tbody.appendChild(tr);
+      });
+    }
+
+    btnOpen.addEventListener("click", () => {
+      qInput.value = (opInput.value || "").trim();
+      setSelected("", "");
+      tbody.innerHTML = `<tr><td colspan="4" class="text-muted">Inserisci un testo e premi Cerca</td></tr>`;
+      bsModal.show();
+      setTimeout(() => qInput.focus(), 150);
+    });
+
+    btnGo.addEventListener("click", runSearch);
+    qInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        runSearch();
+      }
+    });
+
+    btnConfirm.addEventListener("click", () => {
+      if (!selId.value) return;
+      opHiddenId.value = selId.value;
+      opInput.value = selDisp.value;
+      bsModal.hide();
+    });
+  })();
+
+  /* =========================
+     EURO helpers (già tuoi)
+  ========================= */
+
   function parseEuroToNumber(raw) {
     if (raw == null) return 0;
     const s = String(raw).trim()
-      .replace(/\./g, "")     // tolgo separatori migliaia se messi
-      .replace(",", ".")      // virgola -> punto
-      .replace(/[^\d.-]/g, ""); // tolgo simboli
+      .replace(/\./g, "")
+      .replace(",", ".")
+      .replace(/[^\d.-]/g, "");
     const n = Number(s);
     return Number.isFinite(n) ? n : 0;
   }
@@ -644,13 +786,11 @@ document.addEventListener("DOMContentLoaded", function () {
     return safe.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  // Importo: formatta a 2 decimali quando esci dal campo
   document.getElementById("opAmount")?.addEventListener("blur", (e) => {
     const n = parseEuroToNumber(e.target.value);
     e.target.value = formatEuro2(n);
   });
 
-  // Importo: quando entri, seleziona tutto (più veloce)
   document.getElementById("opAmount")?.addEventListener("focus", (e) => {
     e.target.select?.();
   });
@@ -710,7 +850,7 @@ function startAssegniAutoRefresh() {
     if (document.visibilityState === "visible") {
       loadAssegniScadenza(currentDay, false);
     }
-  }, 30000); // 30s
+  }, 30000);
 }
 
 function stopAssegniAutoRefresh() {
