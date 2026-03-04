@@ -385,53 +385,23 @@
           <hr class="my-3">
 
           <!-- Cliente -->
-          <input type="hidden" id="opCustomerId" value="">
-
-          <div class="row g-3 align-items-end">
-            <div class="col-12 col-md-10">
-              <label class="form-label">Cliente</label>
-              <input
-                type="text"
-                class="form-control"
-                id="opCustomer"
-                list="opCustomerList"
-                placeholder="Cerca per nome/alias, ragione sociale, P.IVA, codice cliente..."
-                autocomplete="off"
-              >
-              <datalist id="opCustomerList"></datalist>
-              <div class="form-text">Seleziona un suggerimento per agganciare l’ID cliente.</div>
-            </div>
-
-            <div class="col-12 col-md-2 d-grid">
-              <button type="button" class="btn btn-outline-secondary" id="btnCustomerSearch">
-                ...
-              </button>
-            </div>
-          </div>
-
-          <!-- Riga 3: Cliente (ricerca) + gestione clienti -->
-          <div class="col-12">
-            <label class="form-label" for="opCustomerQuery">Cliente</label>
+          <div class="mb-2">
+            <label class="form-label">Cliente</label>
 
             <div class="input-group">
-              <input
-                type="text"
-                class="form-control"
-                id="opCustomerQuery"
-                placeholder="Cerca cliente..."
-                autocomplete="off">
-              <button type="button" class="btn btn-outline-secondary" id="opCustomerManageBtn" title="Gestione clienti">
-                ...
+              <input id="opCustomer" class="form-control" list="opCustomerList" placeholder="Cerca cliente...">
+              <datalist id="opCustomerList"></datalist>
+
+              <button id="btnCustomerSearch"
+                      type="button"
+                      class="btn btn-outline-secondary"
+                      title="Ricerca avanzata">
+                <i class="fa-solid fa-magnifying-glass"></i>
               </button>
             </div>
 
-            <!-- suggerimenti ricerca (Step successivo) -->
-            <div class="list-group mt-2 d-none" id="opCustomerSuggest"></div>
-
-            <!-- id cliente selezionato (Step successivo) -->
-            <input type="hidden" id="opCustomerId" value="">
+            <input type="hidden" id="opCustomerId">
           </div>
-        </div>
 
         <hr class="my-3">
 
