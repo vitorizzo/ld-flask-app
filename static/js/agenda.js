@@ -569,28 +569,45 @@ document.addEventListener("DOMContentLoaded", function () {
     opModal.show();
   }
 
-  // --- effetto 3D tra modali (opModal sotto, customerSearchModal sopra)
-  (function initStackedModal3D() {
+  (function initModalStack3D() {
+    const BASE_MODAL_Z = 1055;     // Bootstrap default
+    const BASE_BACKDROP_Z = 1050;  // Bootstrap default
+    const STEP = 20;
 
-    const opModalEl = document.getElementById("opModal");
-    const customerModalEl = document.getElementById("customerSearchModal");
+    function restack() {
+      const modals = Array.from(document.querySelectorAll(".modal.show"));
 
-    if (!opModalEl || !customerModalEl) return;
+      // 1) z-index modals: crescente (ultima = top)
+      modals.forEach((m, i) => {
+        m.style.zIndex = String(BASE_MODAL_Z + i * STEP);
+      });
 
-    customerModalEl.addEventListener("shown.bs.modal", () => {
-      opModalEl.classList.add("modal-underlay");
+      // 2) backdrop: Bootstrap aggiunge backdrops, noi li riallineiamo
+      // NB: possono essercene più di uno con modali multiple
+      const backdrops = Array.from(document.querySelectorAll(".modal-backdrop"));
+      backdrops.forEach((bd, i) => {
+        bd.style.zIndex = String(BASE_BACKDROP_Z + i * STEP);
+      });
+
+      // 3) classi: underlay su tutte tranne l'ultima (topmost)
+      modals.forEach((m, i) => {
+        const isTop = (i === modals.length - 1);
+        m.classList.toggle("modal-underlay", !isTop);
+        m.classList.toggle("modal-top", isTop);
+      });
+    }
+
+    // ricalcola su show/hide di QUALSIASI modale
+    document.addEventListener("shown.bs.modal", restack);
+    document.addEventListener("hidden.bs.modal", () => {
+      // attendo che Bootstrap tolga backdrop e classi
+      requestAnimationFrame(restack);
     });
 
-    customerModalEl.addEventListener("hidden.bs.modal", () => {
-      opModalEl.classList.remove("modal-underlay");
-
-      // bootstrap a volte rimuove modal-open
-      if (opModalEl.classList.contains("show")) {
-        document.body.classList.add("modal-open");
-      }
-    });
-
+    // sicurezza: se Bootstrap fa transizioni, ricalcola dopo un attimo
+    document.addEventListener("show.bs.modal", () => setTimeout(restack, 0));
   })();
+
   // Fonte unica dei flag (allineata al backend: {"*","**","+","x","#","!"})
   const OP_FLAGS = ["*", "**", "#", "!", "+", "x"];
   // init dropdown flag (Bootstrap)

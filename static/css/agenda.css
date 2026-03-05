@@ -426,3 +426,23 @@
 .modal-underlay .modal-content {
   pointer-events: none;
 }
+
+/* Modale sotto: leggermente “arretrata” e scurita */
+.modal.modal-underlay .modal-dialog {
+  transform: translateY(10px) scale(0.98);
+  filter: saturate(0.9);
+}
+
+.modal.modal-underlay .modal-content {
+  box-shadow: 0 20px 60px rgba(0,0,0,.30);
+  opacity: .96;
+}
+
+/* Modale top: più “in avanti” */
+.modal.modal-top .modal-dialog {
+  transform: translateY(0) scale(1);
+}
+
+.modal.modal-top .modal-content {
+  box-shadow: 0 30px 90px rgba(0,0,0,.45);
+}
