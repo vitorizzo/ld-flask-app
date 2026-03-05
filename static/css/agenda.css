@@ -397,3 +397,32 @@
   border: none;
   border-radius: 10px;
 }
+/* Backdrop più “profondo” */
+.modal-backdrop.show {
+  opacity: 0.70;
+  backdrop-filter: blur(2px);
+}
+
+/* Card modale più “staccata” */
+.modal-content {
+  border-radius: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  box-shadow:
+    0 18px 45px rgba(0,0,0,0.55),
+    0 2px 0 rgba(255,255,255,0.05) inset;
+}
+
+/* Modale sotto: rimpicciolita + leggermente abbassata + meno contrasto */
+.modal-underlay .modal-dialog {
+  transform: translateY(10px) scale(0.97);
+  transition: transform 140ms ease, filter 140ms ease, opacity 140ms ease;
+}
+
+.modal-underlay .modal-content {
+  opacity: 0.92;
+  filter: saturate(0.9) brightness(0.92);
+}
+
+.modal-underlay .modal-content {
+  pointer-events: none;
+}

@@ -569,9 +569,30 @@ document.addEventListener("DOMContentLoaded", function () {
     opModal.show();
   }
 
+  // --- effetto 3D tra modali (opModal sotto, customerSearchModal sopra)
+  (function initStackedModal3D() {
+
+    const opModalEl = document.getElementById("opModal");
+    const customerModalEl = document.getElementById("customerSearchModal");
+
+    if (!opModalEl || !customerModalEl) return;
+
+    customerModalEl.addEventListener("shown.bs.modal", () => {
+      opModalEl.classList.add("modal-underlay");
+    });
+
+    customerModalEl.addEventListener("hidden.bs.modal", () => {
+      opModalEl.classList.remove("modal-underlay");
+
+      // bootstrap a volte rimuove modal-open
+      if (opModalEl.classList.contains("show")) {
+        document.body.classList.add("modal-open");
+      }
+    });
+
+  })();
   // Fonte unica dei flag (allineata al backend: {"*","**","+","x","#","!"})
   const OP_FLAGS = ["*", "**", "#", "!", "+", "x"];
-
   // init dropdown flag (Bootstrap)
   (function initFlagDropdown() {
     const input = document.getElementById("opFlag");
