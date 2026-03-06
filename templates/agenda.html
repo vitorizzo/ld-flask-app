@@ -333,7 +333,7 @@
       <div class="modal-body">
         <input type="hidden" id="opType" value="sale">
 
-        <!-- Riga 1: Importo + Flag (select compatta) -->
+        <!-- Riga 1: Flag + Importo -->
         <div class="row g-3 align-items-end">
           <div class="col-12 col-md-2">
             <label class="form-label">Flag</label>
@@ -358,8 +358,6 @@
 
               <ul class="dropdown-menu dropdown-menu-end shadow" id="opFlagMenu" aria-labelledby="opFlagBtn"></ul>
             </div>
-
-            <!--<div class="form-text">Click sulla freccia: elenco completo. Digitando: filtro.</div> -->
           </div>
 
           <div class="col-12 col-md-10">
@@ -376,16 +374,18 @@
             </div>
           </div>
 
-          <!-- Riga 2: Descrizione full width -->
+          <!-- Riga 2: Descrizione -->
           <div class="col-12">
             <label class="form-label" for="opDesc">Descrizione</label>
             <input type="text" class="form-control" id="opDesc" placeholder="Note / descrizione">
           </div>
+        </div><!-- /row -->
 
-          <hr class="my-3">
+        <hr class="my-3">
 
-          <!-- Cliente -->
-          <div class="mb-2">
+        <!-- Cliente -->
+        <div class="row g-2 align-items-end">
+          <div class="col-12">
             <label class="form-label">Cliente</label>
 
             <div class="input-group">
@@ -402,6 +402,7 @@
 
             <input type="hidden" id="opCustomerId">
           </div>
+        </div>
 
         <hr class="my-3">
 
@@ -455,7 +456,6 @@
             Sezione Assegno (V1) — da completare
           </div>
         </div>
-
       </div>
 
       <div class="modal-footer">
