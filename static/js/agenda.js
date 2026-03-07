@@ -23,6 +23,43 @@ function toLocalYMD(d) {
   return x.toISOString().slice(0, 10);
 }
 
+function _num(x) {
+  const n = Number(x);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function _fmt2(x) {
+  return _num(x).toFixed(2);
+}
+
+function eur(amount) {
+  const n = Number(amount || 0);
+  return n.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
+}
+
+function parseEuroToNumber(raw) {
+  if (raw == null) return 0;
+  const s = String(raw).trim()
+    .replace(/\./g, "")
+    .replace(",", ".")
+    .replace(/[^\d.-]/g, "");
+  const n = Number(s);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function formatEuro2(n) {
+  const x = Number(n);
+  const safe = Number.isFinite(x) ? x : 0;
+  return safe.toLocaleString("it-IT", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+/* =========================
+   API helpers
+========================= */
+
 function fetchActiveDays(year, month) {
   const from = new Date(year, month, 1);
   const to = new Date(year, month + 1, 0);
@@ -35,12 +72,29 @@ function fetchActiveDays(year, month) {
     .then(data => data.ok ? data.days.map(d => d.day_date) : []);
 }
 
+async function fetchCustomerSuggest(q) {
+  const url = `/cassa/api/customers/suggest?q=${encodeURIComponent(q)}`;
+  const r = await fetch(url, {
+    credentials: "same-origin",
+    headers: { "Accept": "application/json" }
+  });
+  const data = await r.json();
+  if (!data.ok) return [];
+  return data.customers || [];
+}
+
+/* =========================
+   DAY / PREVIEW
+========================= */
+
 function loadDay(dateStr) {
   fetch(`/cassa/api/day?date=${dateStr}`)
     .then(r => r.json())
     .then(data => {
       if (!data.ok) return;
+
       currentDay = data.day.day_date;
+
       setText("dayDateTitle", currentDay);
       setText("dayId", data.day.id);
       setText("dayOpeningFloat", Number(data.day.opening_float || 0).toFixed(2));
@@ -62,15 +116,6 @@ function loadDay(dateStr) {
     });
 }
 
-function _num(x) {
-  const n = Number(x);
-  return Number.isFinite(n) ? n : 0;
-}
-
-function _fmt2(x) {
-  return _num(x).toFixed(2);
-}
-
 function loadPreview(dateStr) {
   fetch(`/cassa/api/day/${dateStr}/preview?view=fiscal`)
     .then(r => r.json())
@@ -82,55 +127,38 @@ function loadPreview(dateStr) {
       const q = (t.q ?? t.q_versabile ?? t.Q ?? t.versabile_giornata);
       const s = (t.s ?? t.s_versabile ?? t.S ?? t.saldo_versabile);
       const ic = (t.ic ?? t.IC ?? t.incasso_calcolato);
-
       const df = (t.delta_fondo ?? t.deltaFondo ?? t.df);
       const dq = (t.delta_quadratura ?? t.deltaQuadratura ?? t.dq);
-
       const fondoInit = (t.fondo_iniziale ?? t.opening_float ?? t.fondoIniziale);
       const fondoFin = (t.fondo_finale ?? t.fondoFinale);
-
       const sPrev = (t.saldo_versabile_precedente ?? t.saldo_versabile_init ?? t.saldoVersabilePrecedente);
-
       const totMov = (t.totale_movimenti ?? t.totMovimenti);
       const totVers = (t.totale_versato_oggi ?? t.totale_versamenti ?? t.totVersamenti);
-
       const cor = (t.total_corrispettivi ?? t.corrispettivi ?? t.corrispettivi_totali);
-
-      const elSVInit = document.getElementById("kpiSaldoVersabileInit");
-      const elSVNew = document.getElementById("kpiSaldoVersabileNew");
-      const elQ = document.getElementById("kpiVersabileGiornata");
-      if (elSVInit) elSVInit.textContent = _fmt2(sPrev);
-      if (elSVNew) elSVNew.textContent = _fmt2(s);
-      if (elQ) elQ.textContent = _fmt2(q);
-
-      const elFI = document.getElementById("kpiFondoIniziale");
-      const elFF = document.getElementById("kpiFondoFinale");
-      if (elFI) elFI.textContent = _fmt2(fondoInit);
-      if (elFF) elFF.textContent = _fmt2(fondoFin);
-
-      document.getElementById("kpiIC").textContent = _fmt2(ic);
-      document.getElementById("kpiDeltaFondo").textContent = _fmt2(df);
-      document.getElementById("kpiDeltaQuadratura").textContent = _fmt2(dq);
-
-      const elTM = document.getElementById("kpiTotMovimenti");
-      const elTV = document.getElementById("kpiTotVersamenti");
-      const elCor = document.getElementById("kpiCorrispettivi");
-      const elCon = document.getElementById("kpiIncassoConsegnato");
-
-      if (elTM) elTM.textContent = _fmt2(totMov);
-      if (elTV) elTV.textContent = _fmt2(totVers);
-      if (elCor) elCor.textContent = _fmt2(cor);
-
       const consegnato = (t.incasso_consegnato ?? t.incassoConsegnato);
-      if (elCon) elCon.textContent = _fmt2(consegnato);
+
+      setText("kpiSaldoVersabileInit", _fmt2(sPrev));
+      setText("kpiSaldoVersabileNew", _fmt2(s));
+      setText("kpiVersabileGiornata", _fmt2(q));
+
+      setText("kpiFondoIniziale", _fmt2(fondoInit));
+      setText("kpiFondoFinale", _fmt2(fondoFin));
+
+      setText("kpiIC", _fmt2(ic));
+      setText("kpiDeltaFondo", _fmt2(df));
+      setText("kpiDeltaQuadratura", _fmt2(dq));
+
+      setText("kpiTotMovimenti", _fmt2(totMov));
+      setText("kpiTotVersamenti", _fmt2(totVers));
+      setText("kpiCorrispettivi", _fmt2(cor));
+      setText("kpiIncassoConsegnato", _fmt2(consegnato));
     })
     .catch(err => console.error("loadPreview error:", err));
 }
 
-function eur(amount) {
-  const n = Number(amount || 0);
-  return n.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
-}
+/* =========================
+   ASSEGNI
+========================= */
 
 function renderAssegniScadenza(items) {
   const list = document.getElementById("assegniScadenzaList");
@@ -173,6 +201,7 @@ function renderAssegniScadenza(items) {
 
     const right = document.createElement("div");
     right.className = "text-end";
+
     const amt = document.createElement("div");
     amt.className = c.is_overdue ? "fw-bold text-danger" : "fw-bold";
     amt.textContent = eur(c.amount);
@@ -186,6 +215,31 @@ function renderAssegniScadenza(items) {
   }
 }
 
+function loadAssegniScadenza(dateStr = null, includeTodayReceived = false) {
+  const ref = dateStr || currentDay || toLocalYMD(new Date());
+  const qs = new URLSearchParams({
+    date: ref,
+    include_today_received: includeTodayReceived ? "1" : "0",
+  });
+
+  fetch(`/cassa/api/checks/due?${qs.toString()}`)
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) return;
+      renderAssegniScadenza(data.checks || []);
+    })
+    .catch(() => {
+      const list = document.getElementById("assegniScadenzaList");
+      if (list) {
+        list.innerHTML = `<div class="list-group-item text-danger small">Errore caricamento assegni</div>`;
+      }
+    });
+}
+
+/* =========================
+   RENDER LISTE GIORNATA
+========================= */
+
 async function loadCoinsBalance(dayStr) {
   const el = document.getElementById("coinsVaultBalance");
   if (!el) return;
@@ -193,7 +247,9 @@ async function loadCoinsBalance(dayStr) {
   el.textContent = "—";
 
   try {
-    const r = await fetch(`/cassa/api/coins/balance?date=${encodeURIComponent(dayStr)}`, { credentials: "same-origin" });
+    const r = await fetch(`/cassa/api/coins/balance?date=${encodeURIComponent(dayStr)}`, {
+      credentials: "same-origin"
+    });
     const data = await r.json();
     if (!data.ok) {
       el.textContent = "—";
@@ -235,16 +291,12 @@ async function loadCashMoves(dayStr) {
     listEl.innerHTML = moves.map(m => {
       const a = Number(m.amount || 0);
       const isOut = a < 0;
-
       const who = (m.performed_by || "").trim();
       const notes = (m.notes || "").trim();
       const kind = (m.kind || "").trim();
 
       const desc = [who, notes].filter(Boolean).join(" • ") || "Movimento";
-
-      const amtAbs = Math.abs(a).toFixed(2);
-      const amt = (isOut ? "-" : "") + amtAbs + "€";
-
+      const amt = (isOut ? "-" : "") + Math.abs(a).toFixed(2) + "€";
       const colorClass = isOut ? "text-danger" : "text-primary";
 
       const badges = [];
@@ -278,6 +330,7 @@ async function loadIncassi(dayStr) {
   try {
     const r = await fetch(`/cassa/api/day/${dayStr}/sales`, { credentials: "same-origin" });
     const data = await r.json();
+
     if (!data.ok) {
       listEl.innerHTML = `<li class="muted">Errore: ${data.error || "impossibile caricare incassi"}</li>`;
       if (totalEl) totalEl.textContent = "0,00";
@@ -322,18 +375,14 @@ async function loadIncassi(dayStr) {
             <span class="flag">${escapeHtml(x.flag || "")}</span>
             <span class="desc">${escapeHtml(x.desc)}</span>
           </div>
-          <div class="col-badges">
-            ${badges.join("")}
-          </div>
+          <div class="col-badges">${badges.join("")}</div>
           <div class="col-amt">${amt}</div>
         </div>
       `;
     }).join("");
 
     if (totalEl) {
-      const tot = rows.reduce((s, x) =>
-        s + (x.direction === "out" ? -x.amount : x.amount), 0
-      );
+      const tot = rows.reduce((s, x) => s + (x.direction === "out" ? -x.amount : x.amount), 0);
       totalEl.textContent = tot.toFixed(2).replace(".", ",");
     }
 
@@ -345,6 +394,7 @@ async function loadIncassi(dayStr) {
 
 async function loadSpese(dayStr) {
   const listEl = document.getElementById("speseList");
+  const totalEl = document.getElementById("totSpese");
   if (!listEl) return;
 
   listEl.innerHTML = `<div class="list-group-item text-muted small">Caricamento...</div>`;
@@ -352,6 +402,7 @@ async function loadSpese(dayStr) {
   try {
     const r = await fetch(`/cassa/api/day/${dayStr}/expenses`, { credentials: "same-origin" });
     const data = await r.json();
+
     if (!data.ok) {
       listEl.innerHTML = `<div class="list-group-item text-muted small">Errore: ${data.error || "impossibile caricare spese"}</div>`;
       return;
@@ -360,8 +411,7 @@ async function loadSpese(dayStr) {
     const expenses = data.expenses || [];
     if (!expenses.length) {
       listEl.innerHTML = `<div class="list-group-item text-muted small">Nessuna spesa</div>`;
-      const t = document.getElementById("totSpese");
-      if (t) t.textContent = "0,00";
+      if (totalEl) totalEl.textContent = "0,00";
       return;
     }
 
@@ -381,7 +431,6 @@ async function loadSpese(dayStr) {
       }
     }
 
-    const totalEl = document.getElementById("totSpese");
     if (totalEl) {
       const tot = rows.reduce((s, x) => s + (x.direction === "out" ? x.amount : -x.amount), 0);
       totalEl.textContent = tot.toFixed(2).replace(".", ",");
@@ -460,7 +509,6 @@ async function loadPosMoves(dayStr) {
         : `<span class="pos-logo-fallback">${escapeHtml(circuitLabel)}</span>`;
 
       const badgeInner = logoPath ? logoImg : iconFallback;
-
       const badge = `<span class="badge badge-soft badge-icon">${badgeInner}</span>`;
       const desc = m.doc_ref ? escapeHtml(m.doc_ref) : devName;
 
@@ -482,46 +530,64 @@ async function loadPosMoves(dayStr) {
   }
 }
 
-function loadAssegniScadenza(dateStr = null, includeTodayReceived = false) {
-  const ref = dateStr || currentDay || toLocalYMD(new Date());
-  const qs = new URLSearchParams({
-    date: ref,
-    include_today_received: includeTodayReceived ? "1" : "0",
-  });
+/* =========================
+   CALENDARIO / AUTOREFRESH
+========================= */
 
-  fetch(`/cassa/api/checks/due?${qs.toString()}`)
-    .then(r => r.json())
-    .then(data => {
-      if (!data.ok) return;
-      renderAssegniScadenza(data.checks || []);
-    })
-    .catch(() => {
-      const list = document.getElementById("assegniScadenzaList");
-      if (list) list.innerHTML = `<div class="list-group-item text-danger small">Errore caricamento assegni</div>`;
+function decorateMonth(year, month) {
+  fetchActiveDays(year, month).then(activeDays => {
+    document.querySelectorAll(".flatpickr-day").forEach(dayEl => {
+      dayEl.classList.remove("has-movements");
     });
+
+    activeDays.forEach(dateStr => {
+      const dateObj = new Date(dateStr);
+      const day = dateObj.getDate();
+
+      document.querySelectorAll(".flatpickr-day").forEach(el => {
+        if (
+          el.dateObj &&
+          el.dateObj.getFullYear() === year &&
+          el.dateObj.getMonth() === month &&
+          el.dateObj.getDate() === day
+        ) {
+          el.classList.add("has-movements");
+        }
+      });
+    });
+  });
+}
+
+let assegniInterval = null;
+
+function startAssegniAutoRefresh() {
+  if (assegniInterval) return;
+  assegniInterval = setInterval(() => {
+    if (document.visibilityState === "visible") {
+      loadAssegniScadenza(currentDay, false);
+    }
+  }, 30000);
+}
+
+function stopAssegniAutoRefresh() {
+  if (assegniInterval) {
+    clearInterval(assegniInterval);
+    assegniInterval = null;
+  }
 }
 
 /* =========================
-   CUSTOMER: API + UI helpers
+   INIT
 ========================= */
 
-async function fetchCustomerSuggest(q) {
-  const url = `/cassa/api/customers/suggest?q=${encodeURIComponent(q)}`;
-  const r = await fetch(url, { credentials: "same-origin", headers: { "Accept": "application/json" } });
-  const data = await r.json();
-  if (!data.ok) return [];
-  return data.customers || [];
-}
-
 document.addEventListener("DOMContentLoaded", function () {
-
   calendarInstance = flatpickr("#agendaCalendar", {
     inline: true,
     defaultDate: new Date(),
-    onMonthChange: function(selectedDates, dateStr, instance) {
+    onMonthChange: function (selectedDates, dateStr, instance) {
       decorateMonth(instance.currentYear, instance.currentMonth);
     },
-    onChange: function(selectedDates) {
+    onChange: function (selectedDates) {
       if (selectedDates.length) {
         loadDay(toLocalYMD(selectedDates[0]));
       }
@@ -529,7 +595,6 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   decorateMonth(calendarInstance.currentYear, calendarInstance.currentMonth);
-
   loadDay(toLocalYMD(new Date()));
   startAssegniAutoRefresh();
 
@@ -539,74 +604,65 @@ document.addEventListener("DOMContentLoaded", function () {
   function openOpModal(type) {
     if (!opModal) return;
 
-    // reset base
-    document.getElementById("opType").value = type;
-    document.getElementById("opAmount").value = "0,00";
-    document.getElementById("opDesc").value = "";
-    document.getElementById("opFlag").value = "*";
+    setText("opModalTitle", type === "sale" ? "Nuovo incasso" : "Nuova spesa");
 
-    // reset cliente
-    document.getElementById("opCustomerId") && (document.getElementById("opCustomerId").value = "");
-    document.getElementById("opCustomer") && (document.getElementById("opCustomer").value = "");
+    const opType = document.getElementById("opType");
+    const opAmount = document.getElementById("opAmount");
+    const opDesc = document.getElementById("opDesc");
+    const opFlag = document.getElementById("opFlag");
+    const opCustomerId = document.getElementById("opCustomerId");
+    const opCustomer = document.getElementById("opCustomer");
+    const opOffCash = document.getElementById("opOffCash");
+    const opOffCashWho = document.getElementById("opOffCashWho");
+    const opOffCashBox = document.getElementById("opOffCashBox");
 
-    document.getElementById("opOffCash").checked = false;
-    document.getElementById("opOffCashWho").value = "";
-    document.getElementById("opOffCashBox").classList.add("d-none");
+    const payCash = document.getElementById("payCash");
+    const payPos = document.getElementById("payPos");
+    const payBank = document.getElementById("payBank");
+    const payCheck = document.getElementById("payCheck");
+    const payPosBox = document.getElementById("payPosBox");
+    const payBankBox = document.getElementById("payBankBox");
+    const payCheckBox = document.getElementById("payCheckBox");
 
-    // reset sezioni pagamenti (UI)
-    document.getElementById("payCash").checked = true;
-    document.getElementById("payPos").checked = false;
-    document.getElementById("payBank").checked = false;
-    document.getElementById("payCheck").checked = false;
+    if (opType) opType.value = type;
+    if (opAmount) opAmount.value = "0,00";
+    if (opDesc) opDesc.value = "";
+    if (opFlag) opFlag.value = "*";
+    if (opCustomerId) opCustomerId.value = "";
+    if (opCustomer) opCustomer.value = "";
+    if (opOffCash) opOffCash.checked = false;
+    if (opOffCashWho) opOffCashWho.value = "";
+    if (opOffCashBox) opOffCashBox.classList.add("d-none");
 
-    document.getElementById("payPosBox").classList.add("d-none");
-    document.getElementById("payBankBox").classList.add("d-none");
-    document.getElementById("payCheckBox").classList.add("d-none");
+    if (payCash) payCash.checked = true;
+    if (payPos) payPos.checked = false;
+    if (payBank) payBank.checked = false;
+    if (payCheck) payCheck.checked = false;
 
-    document.getElementById("opModalTitle").textContent =
-      (type === "sale") ? "Nuovo incasso" : "Nuova spesa";
+    if (payPosBox) payPosBox.classList.add("d-none");
+    if (payBankBox) payBankBox.classList.add("d-none");
+    if (payCheckBox) payCheckBox.classList.add("d-none");
 
     opModal.show();
   }
 
-  (function initCustomerNewModal() {
-    const btnOpen = document.getElementById("btnCustomerNew");
-    const modalEl = document.getElementById("customerNewModal");
-    if (!btnOpen || !modalEl || typeof bootstrap === "undefined") return;
-
-    const bsModal = new bootstrap.Modal(modalEl);
-
-    btnOpen.addEventListener("click", () => {
-      document.getElementById("newCustomerDisplayName") && (document.getElementById("newCustomerDisplayName").value = "");
-      document.getElementById("newCustomerRagioneSociale") && (document.getElementById("newCustomerRagioneSociale").value = "");
-      document.getElementById("newCustomerPartitaIva") && (document.getElementById("newCustomerPartitaIva").value = "");
-      document.getElementById("newCustomerCodiceCliente") && (document.getElementById("newCustomerCodiceCliente").value = "");
-      document.getElementById("newCustomerAliases") && (document.getElementById("newCustomerAliases").value = "");
-      bsModal.show();
-    });
-  })();
-
+  /* stacked modals */
   (function initModalStack3D() {
-    const BASE_MODAL_Z = 1055;     // Bootstrap default
-    const BASE_BACKDROP_Z = 1050;  // Bootstrap default
+    const BASE_MODAL_Z = 1055;
+    const BASE_BACKDROP_Z = 1050;
     const STEP = 20;
 
     function restack() {
       const modals = Array.from(document.querySelectorAll(".modal.show"));
-
-      // 1) z-index modals: crescente (ultima = top)
       modals.forEach((m, i) => {
         m.style.zIndex = String(BASE_MODAL_Z + i * STEP);
       });
 
-      // 2) backdrop: Bootstrap aggiunge backdrops, noi li riallineiamo
-      // NB: possono essercene più di uno con modali multiple
       const backdrops = Array.from(document.querySelectorAll(".modal-backdrop"));
       backdrops.forEach((bd, i) => {
         bd.style.zIndex = String(BASE_BACKDROP_Z + i * STEP);
       });
 
-      // 3) classi: underlay su tutte tranne l'ultima (topmost)
       modals.forEach((m, i) => {
         const isTop = (i === modals.length - 1);
         m.classList.toggle("modal-underlay", !isTop);
@@ -614,20 +670,14 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     }
 
-    // ricalcola su show/hide di QUALSIASI modale
     document.addEventListener("shown.bs.modal", restack);
-    document.addEventListener("hidden.bs.modal", () => {
-      // attendo che Bootstrap tolga backdrop e classi
-      requestAnimationFrame(restack);
-    });
-
-    // sicurezza: se Bootstrap fa transizioni, ricalcola dopo un attimo
+    document.addEventListener("hidden.bs.modal", () => requestAnimationFrame(restack));
     document.addEventListener("show.bs.modal", () => setTimeout(restack, 0));
   })();
 
-  // Fonte unica dei flag (allineata al backend: {"*","**","+","x","#","!"})
+  /* dropdown flag */
   const OP_FLAGS = ["*", "**", "#", "!", "+", "x"];
-  // init dropdown flag (Bootstrap)
+
   (function initFlagDropdown() {
     const input = document.getElementById("opFlag");
     const btn = document.getElementById("opFlagBtn");
@@ -656,24 +706,18 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
 
-    // Click sulla freccia: elenco completo (sempre)
-    btn.addEventListener("click", () => {
-      buildMenu("");
-    });
+    btn.addEventListener("click", () => buildMenu(""));
 
-    // Click/focus sul campo: mostra elenco (filtrato)
     input.addEventListener("focus", () => {
       buildMenu(input.value);
       dd.show();
     });
 
-    // Digitazione: filtra e tieni aperto
     input.addEventListener("input", () => {
       buildMenu(input.value);
       dd.show();
     });
 
-    // Selezione voce
     menu.addEventListener("click", (e) => {
       const el = e.target.closest("[data-flag]");
       if (!el) return;
@@ -686,11 +730,31 @@ document.addEventListener("DOMContentLoaded", function () {
     buildMenu("");
   })();
 
-  /* =========================
-     CUSTOMER: datalist + modal
-  ========================= */
+  /* nuovo cliente */
+  (function initCustomerNewModal() {
+    const btnOpen = document.getElementById("btnCustomerNew");
+    const modalEl = document.getElementById("customerNewModal");
+    if (!btnOpen || !modalEl || typeof bootstrap === "undefined") return;
 
-  // A) suggest progressivo (input + datalist)
+    const bsModal = new bootstrap.Modal(modalEl);
+
+    btnOpen.addEventListener("click", () => {
+      const ids = [
+        "newCustomerDisplayName",
+        "newCustomerRagioneSociale",
+        "newCustomerPartitaIva",
+        "newCustomerCodiceCliente",
+        "newCustomerAliases"
+      ];
+      ids.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
+      bsModal.show();
+    });
+  })();
+
+  /* suggest cliente */
   (function initCustomerSuggest() {
     const input = document.getElementById("opCustomer");
     const list = document.getElementById("opCustomerList");
@@ -715,9 +779,9 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     input.addEventListener("input", () => {
-      hiddenId.value = ""; // finché non seleziona, non fissiamo l'id
-
+      hiddenId.value = "";
       const q = input.value.trim();
+
       if (q.length < 2) {
         lastItems = [];
         list.innerHTML = "";
@@ -738,7 +802,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   })();
 
-  // B) modale ricerca avanzata (pulsante ...)
+  /* ricerca cliente avanzata */
   (function initCustomerSearchModal() {
     const btnOpen = document.getElementById("btnCustomerSearch");
     const modalEl = document.getElementById("customerSearchModal");
@@ -752,7 +816,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const selId = document.getElementById("customerSelectedId");
     const selDisp = document.getElementById("customerSelectedDisplay");
     const btnConfirm = document.getElementById("customerPickConfirm");
-
     const opInput = document.getElementById("opCustomer");
     const opHiddenId = document.getElementById("opCustomerId");
 
@@ -767,6 +830,7 @@ document.addEventListener("DOMContentLoaded", function () {
     async function runSearch() {
       const q = (qInput.value || "").trim();
       setSelected("", "");
+
       if (q.length < 2) {
         tbody.innerHTML = `<tr><td colspan="4" class="text-muted">Inserisci almeno 2 caratteri</td></tr>`;
         return;
@@ -806,6 +870,7 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     btnGo.addEventListener("click", runSearch);
+
     qInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -820,26 +885,6 @@ document.addEventListener("DOMContentLoaded", function () {
       bsModal.hide();
     });
   })();
-
-  /* =========================
-     EURO helpers (già tuoi)
-  ========================= */
-
-  function parseEuroToNumber(raw) {
-    if (raw == null) return 0;
-    const s = String(raw).trim()
-      .replace(/\./g, "")
-      .replace(",", ".")
-      .replace(/[^\d.-]/g, "");
-    const n = Number(s);
-    return Number.isFinite(n) ? n : 0;
-  }
-
-  function formatEuro2(n) {
-    const x = Number(n);
-    const safe = Number.isFinite(x) ? x : 0;
-    return safe.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  }
 
   document.getElementById("opAmount")?.addEventListener("blur", (e) => {
     const n = parseEuroToNumber(e.target.value);
@@ -862,58 +907,15 @@ document.addEventListener("DOMContentLoaded", function () {
   document.getElementById("payPos")?.addEventListener("change", (e) => {
     document.getElementById("payPosBox")?.classList.toggle("d-none", !e.target.checked);
   });
+
   document.getElementById("payBank")?.addEventListener("change", (e) => {
     document.getElementById("payBankBox")?.classList.toggle("d-none", !e.target.checked);
   });
+
   document.getElementById("payCheck")?.addEventListener("change", (e) => {
     document.getElementById("payCheckBox")?.classList.toggle("d-none", !e.target.checked);
   });
-
 });
-
-function decorateMonth(year, month) {
-  fetchActiveDays(year, month).then(activeDays => {
-
-    document.querySelectorAll(".flatpickr-day").forEach(dayEl => {
-      dayEl.classList.remove("has-movements");
-    });
-
-    activeDays.forEach(dateStr => {
-      const dateObj = new Date(dateStr);
-      const day = dateObj.getDate();
-
-      document.querySelectorAll(".flatpickr-day").forEach(el => {
-        if (
-          el.dateObj &&
-          el.dateObj.getFullYear() === year &&
-          el.dateObj.getMonth() === month &&
-          el.dateObj.getDate() === day
-        ) {
-          el.classList.add("has-movements");
-        }
-      });
-    });
-  });
-}
-
-let assegniInterval = null;
-
-function startAssegniAutoRefresh() {
-  if (assegniInterval) return;
-
-  assegniInterval = setInterval(() => {
-    if (document.visibilityState === "visible") {
-      loadAssegniScadenza(currentDay, false);
-    }
-  }, 30000);
-}
-
-function stopAssegniAutoRefresh() {
-  if (assegniInterval) {
-    clearInterval(assegniInterval);
-    assegniInterval = null;
-  }
-}
 
 document.addEventListener("visibilitychange", function () {
   if (document.visibilityState === "visible") {

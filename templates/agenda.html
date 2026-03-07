@@ -28,7 +28,7 @@
 
     <div class="d-flex gap-3 flex-wrap flex-lg-nowrap align-items-start">
 
-      <!-- LEFT: day selector / history (V1: input + placeholders) -->
+      <!-- LEFT -->
       <div class="agenda-col-left flex-shrink-0">
         <div class="card shadow-sm">
           <div class="card-header d-flex align-items-center justify-content-between">
@@ -56,7 +56,7 @@
         </div>
       </div>
 
-      <!-- CENTER: KPI + 4 quadrants -->
+      <!-- CENTER -->
       <div class="agenda-col-center flex-grow-1">
 
         <!-- Day header -->
@@ -75,10 +75,9 @@
           </div>
         </div>
 
-        <!-- KPI bar (layout stacked + title) -->
+        <!-- KPI -->
         <div class="row g-3 mb-3">
 
-          <!-- Versabile -->
           <div class="col-12 col-md-6 col-xl-3">
             <div class="card shadow-sm h-100 kpi-card">
               <div class="kpi-title kpi-title-versabile">Versabile</div>
@@ -109,7 +108,6 @@
             </div>
           </div>
 
-          <!-- Fondo -->
           <div class="col-12 col-md-6 col-xl-3">
             <div class="card shadow-sm h-100 kpi-card">
               <div class="kpi-title kpi-title-fondo">Fondo cassa</div>
@@ -140,7 +138,6 @@
             </div>
           </div>
 
-          <!-- Movimenti / Versamenti / IC -->
           <div class="col-12 col-md-6 col-xl-3">
             <div class="card shadow-sm h-100 kpi-card">
               <div class="kpi-title kpi-title-mov">Movimenti</div>
@@ -171,7 +168,6 @@
             </div>
           </div>
 
-          <!-- Quadratura -->
           <div class="col-12 col-md-6 col-xl-3">
             <div class="card shadow-sm h-100 kpi-card">
               <div class="kpi-title kpi-title-quad">Quadratura</div>
@@ -204,10 +200,9 @@
 
         </div>
 
-        <!-- 4 quadrants -->
+        <!-- Quadranti -->
         <div class="row g-3">
 
-          <!-- Incassi -->
           <div class="col-12 col-xl-6">
             <div class="card shadow-sm h-100">
               <div class="card-header d-flex align-items-center justify-content-between header-incassi">
@@ -222,7 +217,6 @@
             </div>
           </div>
 
-          <!-- Spese -->
           <div class="col-12 col-xl-6">
             <div class="card shadow-sm h-100">
               <div class="card-header d-flex align-items-center justify-content-between header-spese">
@@ -237,7 +231,6 @@
             </div>
           </div>
 
-          <!-- Movimenti Cassa -->
           <div class="col-12 col-xl-6">
             <div class="card shadow-sm h-100">
               <div class="card-header d-flex align-items-center justify-content-between header-movimenti">
@@ -252,7 +245,6 @@
             </div>
           </div>
 
-          <!-- POS -->
           <div class="col-12 col-xl-6">
             <div class="card shadow-sm h-100">
               <div class="card-header d-flex align-items-center justify-content-between header-pos">
@@ -270,7 +262,7 @@
         </div>
       </div>
 
-      <!-- RIGHT: actions -->
+      <!-- RIGHT -->
       <div class="agenda-col-right flex-shrink-0">
         <div class="card shadow-sm">
           <div class="card-header">
@@ -317,11 +309,7 @@
   </div>
 </section>
 
-{# =========================
-   MODALE OPERAZIONE (Incasso/Spesa) - V1 (solo UI)
-   Necessaria per agenda.js (openOpModal)
-========================= #}
-<div class="modal fade" id="opModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal" id="opModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
 
@@ -333,11 +321,9 @@
       <div class="modal-body">
         <input type="hidden" id="opType" value="sale">
 
-        <!-- Riga 1: Flag + Importo -->
         <div class="row g-3 align-items-end">
           <div class="col-12 col-md-2">
             <label class="form-label">Flag</label>
-
             <div class="input-group">
               <input
                 type="text"
@@ -355,7 +341,6 @@
                 aria-expanded="false"
                 aria-label="Apri elenco flag"
               ></button>
-
               <ul class="dropdown-menu dropdown-menu-end shadow" id="opFlagMenu" aria-labelledby="opFlagBtn"></ul>
             </div>
           </div>
@@ -374,16 +359,14 @@
             </div>
           </div>
 
-          <!-- Riga 2: Descrizione -->
           <div class="col-12">
             <label class="form-label" for="opDesc">Descrizione</label>
             <input type="text" class="form-control" id="opDesc" placeholder="Note / descrizione">
           </div>
-        </div><!-- /row -->
+        </div>
 
         <hr class="my-3">
 
-        <!-- Cliente -->
         <div class="row g-2 align-items-end">
           <div class="col-12">
             <label class="form-label">Cliente</label>
@@ -474,7 +457,7 @@
   </div>
 </div>
 
-<div class="modal fade" id="customerSearchModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal" id="customerSearchModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
 
@@ -526,7 +509,7 @@
   </div>
 </div>
 
-<div class="modal fade" id="customerNewModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal" id="customerNewModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
 

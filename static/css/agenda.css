@@ -1,10 +1,31 @@
 .flatpickr-day.has-movements {
-    font-weight: 700;
-    background-color: #e9f3ff;
-    border-color: #0d6efd;
-  }
+  font-weight: 700;
+  background-color: #e9f3ff;
+  border-color: #0d6efd;
+}
 
- /* --- Flatpickr inline: deve stare dentro la card --- */
+/* =========================
+   LAYOUT PAGINA / CALENDARIO
+========================= */
+
+.welcome-section.agenda-page {
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 95vw;
+  max-width: 2000px;
+  margin: 0;
+  padding-left: 0;
+  padding-right: 0;
+  overflow-x: auto;
+}
+
+@supports (width: 100dvw) {
+  .welcome-section.agenda-page {
+    width: 95dvw;
+  }
+}
+
 #agendaCalendar {
   width: 100%;
   display: flex;
@@ -12,19 +33,12 @@
   overflow: hidden;
 }
 
-/* Se qualche bordo/ombra sfora, taglia dentro la card */
 #agendaCalendar .flatpickr-calendar.inline {
   overflow: hidden;
   width: auto !important;
   max-width: none !important;
   margin: 0 auto;
   transform-origin: top center;
-}
-
-/* Spazio sotto al calendario per la nuova card */
-.agenda-left-stack {
-  display: grid;
-  gap: 12px;
 }
 
 #agendaCalendar .flatpickr-rContainer,
@@ -34,47 +48,44 @@
   max-width: none !important;
 }
 
-.welcome-section.agenda-page{
-  position: relative;
-  left: 50%;
-  transform: translateX(-50%);  /* centra indipendentemente da margini del parent */
-  width: 95vw;
-  max-width: 2000px;            /* o 1800 se preferisci */
-  margin: 0;                    /* evita offset */
-  padding-left: 0;
-  padding-right: 0;
-  overflow-x: auto;
+.agenda-left-stack {
+  display: grid;
+  gap: 12px;
 }
 
-/* se supportato, dvw evita l’offset da scrollbar */
-@supports (width: 100dvw) {
-  .welcome-section.agenda-page{
-    width: 95dvw;
-  }
+.agenda-col-left {
+  width: 360px;
 }
 
-/* sotto ~1200px viewport (layout più stretto): riduci leggermente */
+.agenda-col-right {
+  width: 260px;
+}
+
+.agenda-col-center {
+  min-width: 0;
+}
+
 @media (max-width: 1200px) {
   #agendaCalendar .flatpickr-calendar.inline {
     transform: scale(0.92);
   }
 }
 
-/* sotto ~992px (Bootstrap lg breakpoint): riduci di più */
 @media (max-width: 992px) {
   #agendaCalendar .flatpickr-calendar.inline {
     transform: scale(0.85);
   }
+
+  .agenda-col-left,
+  .agenda-col-right {
+    width: 100%;
+  }
 }
 
-.agenda-col-left { width: 360px; }
-.agenda-col-right { width: 260px; }
-.agenda-col-center { min-width: 0; } /* evita overflow */
-@media (max-width: 992px){
-  .agenda-col-left, .agenda-col-right { width: 100%; }
-}
+/* =========================
+   RIGHE TABELLARI NEI RIQUADRI
+========================= */
 
-/* ---- Table-like rows inside cards ---- */
 .table-row {
   display: grid;
   grid-template-columns: 1fr auto 110px;
@@ -97,10 +108,10 @@
 }
 
 .table-row .col-desc .flag {
-  font-weight: 700;
-  opacity: 0.85;
   width: 18px;
   display: inline-block;
+  font-weight: 700;
+  opacity: 0.85;
 }
 
 .table-row .col-badges {
@@ -115,35 +126,17 @@
   font-weight: 700;
 }
 
-/* badge soft */
+/* =========================
+   BADGE / HEADER RIQUADRI
+========================= */
+
 .badge-soft {
-  border: 1px solid rgba(0,0,0,0.12);
-  background: rgba(0,0,0,0.04);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.04);
   color: #111;
   padding: 3px 8px;
   border-radius: 999px;
   font-size: 0.75rem;
-}
-
-/* (opzionale) differenzia leggermente i badge */
-.badge-pos { }
-.badge-bank { }
-.badge-offcash { }
-
-.header-incassi {
-  background: rgba(25, 135, 84, 0.12); /* verde soft */
-}
-
-.header-movimenti {
-  background: rgba(255, 193, 7, 0.12); /* giallo soft */
-}
-
-.header-spese {
-  background: rgba(220, 53, 69, 0.12); /* rosso soft */
-}
-
-.header-pos {
-  background: rgba(13, 202, 240, 0.14); /* azzurro soft */
 }
 
 .badge-icon {
@@ -151,11 +144,36 @@
   align-items: center;
   gap: 6px;
 }
+
 .badge-icon i {
   font-size: 0.95em;
 }
 
-.pos-logo{
+.badge-coins {
+  border: 1px solid rgba(0, 0, 0, 0.15);
+}
+
+.header-incassi {
+  background: rgba(25, 135, 84, 0.12);
+}
+
+.header-spese {
+  background: rgba(220, 53, 69, 0.12);
+}
+
+.header-movimenti {
+  background: rgba(255, 193, 7, 0.12);
+}
+
+.header-pos {
+  background: rgba(13, 202, 240, 0.14);
+}
+
+/* =========================
+   POS
+========================= */
+
+.pos-logo {
   height: 40px;
   width: 40px;
   display: inline-block;
@@ -163,102 +181,77 @@
   object-fit: contain;
 }
 
-.pos-logo-fallback{
+.pos-logo-fallback {
   font-size: 0.75rem;
 }
 
-.kpi-grid{
-  display: flex;
-  gap: 12px;
-  align-items: stretch;
-}
+/* =========================
+   KPI
+========================= */
 
-.kpi-left{
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.kpi-right{
-  flex: 0 0 46%;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.kpi-row{
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  line-height: 1.2;
-}
-
-.kpi-row + .kpi-row{
-  margin-top: 6px;
-}
-
-.kpi-label{
-  white-space: nowrap;
-}
-
-.kpi-value{
-  text-align: right;
-  white-space: nowrap;
-}
-
-/* KPI cards: layout stacked (no overlap) */
-.kpi-card .card-body{
+.kpi-card .card-body {
   padding: 12px;
 }
 
-.kpi-title{
+.kpi-title {
   padding: 8px 12px;
   font-weight: 700;
   font-size: 0.9rem;
   color: #fff;
-  letter-spacing: .2px;
+  letter-spacing: 0.2px;
 }
 
-/* Titoli colorati (tinta unita ora; se vuoi gradiente lo facciamo dopo) */
-.kpi-title-versabile{ background: #0f766e; } /* teal */
-.kpi-title-fondo{ background: #b45309; }     /* amber/brown */
-.kpi-title-mov{ background: #1d4ed8; }       /* blue */
-.kpi-title-quad{ background: #7c3aed; }      /* violet */
+.kpi-title-versabile {
+  background: #0f766e;
+}
 
-.kpi-split{
+.kpi-title-fondo {
+  background: #b45309;
+}
+
+.kpi-title-mov {
+  background: #1d4ed8;
+}
+
+.kpi-title-quad {
+  background: #7c3aed;
+}
+
+.kpi-split {
   display: flex;
   gap: 12px;
   align-items: stretch;
 }
 
-.kpi-side{
+.kpi-side {
   flex: 1 1 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
 }
 
-.kpi-side-right{
+.kpi-side-right {
   flex: 0 0 42%;
   justify-content: center;
 }
 
-.kpi-split-divider{
+.kpi-split-divider {
   width: 1px;
-  background: rgba(0,0,0,0.10);
+  background: rgba(0, 0, 0, 0.1);
 }
 
-.kpi-metric{
+.kpi-metric {
   min-width: 0;
 }
 
-.kpi-label{
+.kpi-label {
   font-size: 0.78rem;
   color: #6c757d;
   line-height: 1.15;
+  white-space: nowrap;
 }
 
-.kpi-num{
+.kpi-num {
   font-weight: 700;
   font-size: 1.05rem;
   white-space: nowrap;
@@ -266,205 +259,154 @@
   text-overflow: ellipsis;
 }
 
-.kpi-num-big{
+.kpi-num-big {
   font-size: 1.45rem;
 }
 
-.kpi-divider-mini{
+.kpi-divider-mini {
   height: 1px;
-  background: rgba(0,0,0,0.08);
+  background: rgba(0, 0, 0, 0.08);
   margin: 8px 0;
 }
 
-/* Mobile: stack verticale, divider orizzontale */
-@media (max-width: 575.98px){
-  .kpi-split{
+@media (max-width: 575.98px) {
+  .kpi-split {
     flex-direction: column;
     gap: 10px;
   }
-  .kpi-side-right{
+
+  .kpi-side-right {
     flex: 1 1 auto;
     justify-content: flex-start;
   }
-  .kpi-split-divider{
+
+  .kpi-split-divider {
     width: 100%;
     height: 1px;
   }
-  .kpi-num-big{
-    font-size: 1.30rem;
+
+  .kpi-num-big {
+    font-size: 1.3rem;
   }
 }
 
-.badge-coins { border: 1px solid rgba(0,0,0,.15); }
-
 /* =========================
-   MODALE OPERAZIONE (tema LD)
+   MODALI UNIFICATE
 ========================= */
-#opModal .modal-content{
-  background: #3a2321;            /* marrone */
-  color: rgba(255,255,255,0.92);
-  border: 1px solid rgba(255,255,255,0.10);
-}
 
-#opModal .modal-header,
-#opModal .modal-footer{
-  border-color: rgba(255,255,255,0.12);
-}
-
-#opModal .modal-title{
-  color: rgba(255,255,255,0.95);
-}
-
-#opModal .btn-close{
-  filter: invert(1) grayscale(1);
-  opacity: 0.9;
-}
-
-#opModal .form-label{
-  color: rgba(255,255,255,0.80);
-}
-
-#opModal .form-control,
-#opModal .form-select{
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.92);
-  border: 1px solid rgba(255,255,255,0.16);
-}
-
-#opModal .form-control::placeholder{
-  color: rgba(255,255,255,0.55);
-}
-
-#opModal .form-control:focus,
-#opModal .form-select:focus{
-  background: rgba(255,255,255,0.10);
-  color: rgba(255,255,255,0.95);
-  border-color: rgba(255,255,255,0.35);
-  box-shadow: 0 0 0 .25rem rgba(185, 28, 28, 0.25); /* rosso LD soft */
-}
-
-#opModal .form-check-label{
-  color: rgba(255,255,255,0.85);
-}
-
-#opModal hr{
-  border-color: rgba(255,255,255,0.14);
-  opacity: 1;
-}
-
-#opModal .alert{
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.85);
-  border-color: rgba(255,255,255,0.16);
-}
-
-#opModal .input-group .form-control,
-#opModal .input-group .input-group-text,
-#opModal .input-group .btn {
-  height: calc(2.375rem); /* default BS5 input height */
-}
-
-#opModal select.form-select {
-  color: #212529; /* text-dark */
-  background-color: #fff;
-}
-
-/* Header modali agenda/cassa */
-.modal-header {
-  background: rgba(74, 44, 42, 0.95);   /* marrone LD */
-  color: #fff;
-  border-bottom: 1px solid rgba(0,0,0,0.2);
-}
-
-/* Footer modali */
-.modal-footer {
-  background: rgba(74, 44, 42, 0.08);   /* marrone molto soft */
-  border-top: 1px solid rgba(0,0,0,0.15);
-}
-
-/* Titolo */
-.modal-header .modal-title {
-  color: #fff;
-  font-weight: 600;
-}
-
-/* bottone chiusura */
-.modal-header .btn-close {
-  filter: invert(1);
-}
-
-.modal-content {
-  border: none;
-  border-radius: 10px;
-}
-/* Backdrop più “profondo” */
 .modal-backdrop.show {
-  opacity: 0.70;
+  opacity: 0.7;
   backdrop-filter: blur(2px);
 }
 
-/* Card modale più “staccata” */
-.modal-content {
+.agenda-modal .modal-content {
+  background: #fff;
+  color: #212529;
+  border: 1px solid rgba(0, 0, 0, 0.08);
   border-radius: 14px;
-  border: 1px solid rgba(255, 255, 255, 0.10);
   box-shadow:
-    0 18px 45px rgba(0,0,0,0.55),
-    0 2px 0 rgba(255,255,255,0.05) inset;
+    0 18px 45px rgba(0, 0, 0, 0.35),
+    0 2px 0 rgba(255, 255, 255, 0.6) inset;
 }
 
-/* Modale sotto: rimpicciolita + leggermente abbassata + meno contrasto */
-.modal-underlay .modal-dialog {
-  transform: translateY(10px) scale(0.97);
-  transition: transform 140ms ease, filter 140ms ease, opacity 140ms ease;
+.agenda-modal .modal-header {
+  background: #6b3f36;
+  color: #fff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
 
-.modal-underlay .modal-content {
-  opacity: 0.92;
-  filter: saturate(0.9) brightness(0.92);
+.agenda-modal .modal-header .modal-title {
+  color: #fff;
+  font-weight: 700;
 }
 
-.modal-underlay .modal-content {
-  pointer-events: none;
+.agenda-modal .modal-header .btn-close {
+  filter: invert(1);
+  opacity: 0.9;
 }
 
-/* Modale sotto: leggermente “arretrata” e scurita */
+.agenda-modal .modal-footer {
+  background: #fff;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.agenda-modal .form-label {
+  color: #4a2c2a;
+  font-weight: 600;
+}
+
+.agenda-modal .form-control,
+.agenda-modal .form-select,
+.agenda-modal .input-group-text {
+  border-color: #d8dadd;
+}
+
+.agenda-modal .form-control {
+  color: #212529;
+}
+
+.agenda-modal .form-control::placeholder,
+.agenda-modal textarea::placeholder {
+  color: #6c757d;
+  opacity: 1;
+}
+
+.agenda-modal .form-control:focus,
+.agenda-modal .form-select:focus {
+  border-color: rgba(107, 63, 54, 0.45);
+  box-shadow: 0 0 0 0.25rem rgba(107, 63, 54, 0.16);
+}
+
+.agenda-modal .form-check-label {
+  color: #212529;
+}
+
+.agenda-modal hr {
+  border-color: rgba(0, 0, 0, 0.08);
+  opacity: 1;
+}
+
+.agenda-modal .alert {
+  background: #f8f9fa;
+  color: #212529;
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.agenda-modal .input-group .form-control,
+.agenda-modal .input-group .input-group-text,
+.agenda-modal .input-group .btn {
+  height: calc(2.375rem);
+}
+
+.agenda-modal table th {
+  color: #4a2c2a;
+  font-weight: 700;
+}
+
+.agenda-modal table td,
+.agenda-modal table th {
+  vertical-align: middle;
+}
+
+/* =========================
+   STACKED MODALS / EFFETTO 3D
+========================= */
+
 .modal.modal-underlay .modal-dialog {
   transform: translateY(10px) scale(0.98);
-  filter: saturate(0.9);
+  filter: saturate(0.92);
 }
 
 .modal.modal-underlay .modal-content {
-  box-shadow: 0 20px 60px rgba(0,0,0,.30);
-  opacity: .96;
+  opacity: 0.96;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
 }
 
-/* Modale top: più “in avanti” */
 .modal.modal-top .modal-dialog {
   transform: translateY(0) scale(1);
 }
 
 .modal.modal-top .modal-content {
-  box-shadow: 0 30px 90px rgba(0,0,0,.45);
-}
-
-/* Label leggibili nelle modali */
-.modal .form-label {
-  color: #4A2C2A;   /* marrone tema app */
-  font-weight: 600;
-}
-
-/* testo input dentro modali */
-.modal .form-control {
-  color: #212529;
-}
-
-/* placeholder leggermente più chiaro */
-.modal .form-control::placeholder {
-  color: #6c757d;
-  opacity: 1;
-}
-
-.modal-header {
-  background: #6b3f36;
-  color: #fff;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.32);
 }
