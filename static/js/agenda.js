@@ -734,23 +734,82 @@ document.addEventListener("DOMContentLoaded", function () {
   (function initCustomerNewModal() {
     const btnOpen = document.getElementById("btnCustomerNew");
     const modalEl = document.getElementById("customerNewModal");
-    if (!btnOpen || !modalEl || typeof bootstrap === "undefined") return;
+    const saveBtn = document.getElementById("customerNewSaveBtn");
+
+    const opCustomerInput = document.getElementById("opCustomer");
+    const opCustomerIdInput = document.getElementById("opCustomerId");
+
+    if (!btnOpen || !modalEl || !saveBtn || typeof bootstrap === "undefined") return;
 
     const bsModal = new bootstrap.Modal(modalEl);
 
+    const fldDisplay = document.getElementById("newCustomerDisplayName");
+    const fldRs = document.getElementById("newCustomerRagioneSociale");
+    const fldPiva = document.getElementById("newCustomerPartitaIva");
+    const fldCodice = document.getElementById("newCustomerCodiceCliente");
+    const fldAliases = document.getElementById("newCustomerAliases");
+
+    function resetForm() {
+      if (fldDisplay) fldDisplay.value = "";
+      if (fldRs) fldRs.value = "";
+      if (fldPiva) fldPiva.value = "";
+      if (fldCodice) fldCodice.value = "";
+      if (fldAliases) fldAliases.value = "";
+    }
+
     btnOpen.addEventListener("click", () => {
-      const ids = [
-        "newCustomerDisplayName",
-        "newCustomerRagioneSociale",
-        "newCustomerPartitaIva",
-        "newCustomerCodiceCliente",
-        "newCustomerAliases"
-      ];
-      ids.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.value = "";
-      });
+      resetForm();
       bsModal.show();
+    });
+
+    saveBtn.addEventListener("click", async () => {
+      const display_name = (fldDisplay?.value || "").trim();
+      const ragione_sociale = (fldRs?.value || "").trim();
+      const partita_iva = (fldPiva?.value || "").trim();
+      const codice_cliente = (fldCodice?.value || "").trim();
+
+      const aliases = (fldAliases?.value || "")
+        .split("\n")
+        .map(x => x.trim())
+        .filter(Boolean);
+
+      const payload = {
+        display_name,
+        ragione_sociale,
+        partita_iva,
+        codice_cliente,
+        aliases,
+      };
+
+      saveBtn.disabled = true;
+
+      try {
+        const r = await fetch("/cassa/api/customers", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify(payload),
+        });
+
+        const data = await r.json();
+
+        if (!r.ok || !data.ok) {
+          alert(data.error || "Errore durante il salvataggio cliente");
+          return;
+        }
+
+        const c = data.customer || {};
+
+        if (opCustomerIdInput) opCustomerIdInput.value = c.id ? String(c.id) : "";
+        if (opCustomerInput) opCustomerInput.value = c.display || c.display_name || "";
+
+        bsModal.hide();
+      } catch (err) {
+        console.error("customerNewSave error:", err);
+        alert("Errore di rete durante il salvataggio cliente");
+      } finally {
+        saveBtn.disabled = false;
+      }
     });
   })();
 
