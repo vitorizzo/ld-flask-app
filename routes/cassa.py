@@ -512,6 +512,101 @@ def api_days_active():
     })
 
 
+@cassa_bp.post("/api/customers")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_create_customer():
+    """
+    Crea una nuova anagrafica cliente con eventuali alias.
+    Payload:
+    {
+      "display_name": "Davide (DFL SRL)",
+      "ragione_sociale": "DFL SRL",
+      "partita_iva": "01234567890",
+      "codice_cliente": "1539",
+      "aliases": ["Davide", "Armando", "Bar One"]
+    }
+    """
+    data = request.get_json(silent=True) or {}
+
+    display_name = (data.get("display_name") or "").strip()
+    ragione_sociale = (data.get("ragione_sociale") or "").strip() or None
+    partita_iva = (data.get("partita_iva") or "").strip() or None
+    codice_cliente = (data.get("codice_cliente") or "").strip() or None
+
+    raw_aliases = data.get("aliases") or []
+    if not isinstance(raw_aliases, list):
+        return jsonify({"ok": False, "error": "aliases must be a list"}), 400
+
+    aliases = []
+    seen = set()
+    for a in raw_aliases:
+        s = str(a or "").strip()
+        if not s:
+            continue
+        k = s.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        aliases.append(s)
+
+    if not display_name:
+        if ragione_sociale:
+            display_name = ragione_sociale
+        elif aliases:
+            display_name = aliases[0]
+        else:
+            return jsonify({"ok": False, "error": "Missing display_name"}), 400
+
+    # controllo soft duplicati principali
+    duplicate = CashCustomer.query.filter(
+        or_(
+            func.lower(CashCustomer.display_name) == display_name.lower(),
+            and_(partita_iva is not None, CashCustomer.partita_iva == partita_iva),
+            and_(codice_cliente is not None, CashCustomer.codice_cliente == codice_cliente),
+        )
+    ).first()
+
+    if duplicate:
+        return jsonify({
+            "ok": False,
+            "error": "Customer already exists",
+            "customer_id": duplicate.id,
+            "display": duplicate.display_name,
+        }), 409
+
+    customer = CashCustomer(
+        display_name=display_name,
+        ragione_sociale=ragione_sociale,
+        partita_iva=partita_iva,
+        codice_cliente=codice_cliente,
+    )
+
+    db.session.add(customer)
+    db.session.flush()  # ottengo customer.id senza commit
+
+    for alias in aliases:
+        db.session.add(CashCustomerAlias(
+            customer_id=customer.id,
+            alias=alias,
+        ))
+
+    db.session.commit()
+
+    return jsonify({
+        "ok": True,
+        "customer": {
+            "id": customer.id,
+            "display": customer.display_name,
+            "display_name": customer.display_name,
+            "ragione_sociale": customer.ragione_sociale,
+            "partita_iva": customer.partita_iva,
+            "codice_cliente": customer.codice_cliente,
+            "aliases": aliases,
+        }
+    }), 201
+
+
 @cassa_bp.get("/api/customers/suggest")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
