@@ -446,3 +446,25 @@
 .modal.modal-top .modal-content {
   box-shadow: 0 30px 90px rgba(0,0,0,.45);
 }
+
+/* Label leggibili nelle modali */
+.modal .form-label {
+  color: #4A2C2A;   /* marrone tema app */
+  font-weight: 600;
+}
+
+/* testo input dentro modali */
+.modal .form-control {
+  color: #212529;
+}
+
+/* placeholder leggermente più chiaro */
+.modal .form-control::placeholder {
+  color: #6c757d;
+  opacity: 1;
+}
+
+.modal-header {
+  background: #6b3f36;
+  color: #fff;
+}
