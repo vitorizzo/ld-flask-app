@@ -398,6 +398,13 @@
                       title="Ricerca avanzata">
                 <i class="fa-solid fa-magnifying-glass"></i>
               </button>
+
+              <button id="btnCustomerNew"
+                      type="button"
+                      class="btn btn-outline-secondary"
+                      title="Nuovo cliente">
+                <i class="fa-solid fa-plus"></i>
+              </button>
             </div>
 
             <input type="hidden" id="opCustomerId">
@@ -513,6 +520,54 @@
       <div class="modal-footer">
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
         <button type="button" class="btn btn-primary" id="customerPickConfirm" disabled>Conferma</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="customerNewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Nuovo cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-12 col-md-6">
+            <label class="form-label">Nome visualizzato</label>
+            <input type="text" class="form-control" id="newCustomerDisplayName" placeholder="Es. Davide (DFL SRL)">
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">Ragione sociale</label>
+            <input type="text" class="form-control" id="newCustomerRagioneSociale" placeholder="Es. DFL SRL">
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">Partita IVA</label>
+            <input type="text" class="form-control" id="newCustomerPartitaIva" placeholder="Es. 01234567890">
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">Codice cliente</label>
+            <input type="text" class="form-control" id="newCustomerCodiceCliente" placeholder="Es. 1539">
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Alias / nominativi</label>
+            <textarea class="form-control" id="newCustomerAliases" rows="4"
+                      placeholder="Un alias per riga&#10;Es.&#10;Davide&#10;Armando&#10;Bar One"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-primary" id="customerNewSaveBtn">Salva</button>
       </div>
 
     </div>

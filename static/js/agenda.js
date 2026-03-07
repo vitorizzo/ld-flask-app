@@ -569,6 +569,23 @@ document.addEventListener("DOMContentLoaded", function () {
     opModal.show();
   }
 
+  (function initCustomerNewModal() {
+    const btnOpen = document.getElementById("btnCustomerNew");
+    const modalEl = document.getElementById("customerNewModal");
+    if (!btnOpen || !modalEl || typeof bootstrap === "undefined") return;
+
+    const bsModal = new bootstrap.Modal(modalEl);
+
+    btnOpen.addEventListener("click", () => {
+      document.getElementById("newCustomerDisplayName") && (document.getElementById("newCustomerDisplayName").value = "");
+      document.getElementById("newCustomerRagioneSociale") && (document.getElementById("newCustomerRagioneSociale").value = "");
+      document.getElementById("newCustomerPartitaIva") && (document.getElementById("newCustomerPartitaIva").value = "");
+      document.getElementById("newCustomerCodiceCliente") && (document.getElementById("newCustomerCodiceCliente").value = "");
+      document.getElementById("newCustomerAliases") && (document.getElementById("newCustomerAliases").value = "");
+      bsModal.show();
+    });
+  })();
+
   (function initModalStack3D() {
     const BASE_MODAL_Z = 1055;     // Bootstrap default
     const BASE_BACKDROP_Z = 1050;  // Bootstrap default
