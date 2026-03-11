@@ -429,22 +429,164 @@
           </div>
         </div>
 
-        <div class="mt-3 d-none" id="payPosBox">
-          <div class="alert alert-light border py-2 mb-0">
-            Sezione POS (V1) — da completare
-          </div>
-        </div>
+        <!-- =========================
+             CARRIER PAGAMENTI
+        ========================= -->
 
-        <div class="mt-2 d-none" id="payBankBox">
-          <div class="alert alert-light border py-2 mb-0">
-            Sezione Banca (V1) — da completare
-          </div>
-        </div>
+        <div class="mt-3">
 
-        <div class="mt-2 d-none" id="payCheckBox">
-          <div class="alert alert-light border py-2 mb-0">
-            Sezione Assegno (V1) — da completare
+          <!-- CONTANTI -->
+          <div class="card mb-2" id="payCashBox">
+            <div class="card-body py-2">
+
+              <div class="row g-2 align-items-end">
+                <div class="col-12 col-md-6">
+                  <label class="form-label mb-0">Contanti</label>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <div class="input-group">
+                    <span class="input-group-text">€</span>
+                    <input
+                      type="text"
+                      class="form-control text-end carrier-input"
+                      id="cashAmount"
+                      placeholder="0,00"
+                      inputmode="decimal">
+                    <button
+                      type="button"
+                      class="btn btn-outline-primary carrier-tot"
+                      data-carrier="cash">
+                      TOT
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+            </div>
           </div>
+
+          <!-- POS -->
+          <div class="card mb-2 d-none" id="payPosBox">
+            <div class="card-body py-2">
+
+              <div class="row g-2 align-items-end">
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label mb-0">Dispositivo POS</label>
+                  <select class="form-select" id="posDeviceSelect">
+                    <option value="">Seleziona...</option>
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label mb-0">Circuito</label>
+                  <select class="form-select" id="posCircuitSelect" disabled>
+                    <option value="">Seleziona...</option>
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label mb-0">Importo POS</label>
+                  <div class="input-group">
+                    <span class="input-group-text">€</span>
+                    <input
+                      type="text"
+                      class="form-control text-end carrier-input"
+                      id="posAmount"
+                      placeholder="0,00"
+                      inputmode="decimal">
+                  </div>
+                </div>
+
+                <div class="col-12 col-md-2">
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary w-100 carrier-tot"
+                    data-carrier="pos">
+                    TOT
+                  </button>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          <!-- BANCA -->
+          <div class="card mb-2 d-none" id="payBankBox">
+            <div class="card-body py-2">
+
+              <div class="row g-2 align-items-end">
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label mb-0">Bonifico / Banca</label>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <div class="input-group">
+                    <span class="input-group-text">€</span>
+                    <input
+                      type="text"
+                      class="form-control text-end carrier-input"
+                      id="bankAmount"
+                      placeholder="0,00"
+                      inputmode="decimal">
+                    <button
+                      type="button"
+                      class="btn btn-outline-primary carrier-tot"
+                      data-carrier="bank">
+                      TOT
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          <!-- ASSEGNO -->
+          <div class="card mb-2 d-none" id="payCheckBox">
+            <div class="card-body py-2">
+
+              <div class="row g-2 align-items-end">
+
+                <div class="col-12 col-md-6">
+                  <label class="form-label mb-0">Assegno</label>
+                </div>
+
+                <div class="col-12 col-md-6">
+                  <div class="input-group">
+                    <span class="input-group-text">€</span>
+                    <input
+                      type="text"
+                      class="form-control text-end carrier-input"
+                      id="checkAmount"
+                      placeholder="0,00"
+                      inputmode="decimal">
+                    <button
+                      type="button"
+                      class="btn btn-outline-primary carrier-tot"
+                      data-carrier="check">
+                      TOT
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          <!-- WARNING QUADRATURA -->
+          <div id="carrierWarning" class="alert alert-danger py-2 px-3 small mt-2 d-none">
+            La somma dei pagamenti supera il totale dell'operazione.
+            <button type="button" class="btn btn-sm btn-outline-light ms-2" id="btnFixTotal">
+              Aggiorna totale
+            </button>
+          </div>
+
         </div>
       </div>
 

@@ -410,3 +410,21 @@
 .modal.modal-top .modal-content {
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.32);
 }
+
+.agenda-modal #payPosBox .card {
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  background: #f8f9fa !important;
+}
+
+.agenda-modal #payPosBox .form-text {
+  color: #6c757d;
+}
+
+.carrier-input.error {
+  border-color: #dc3545;
+  background: #fff5f5;
+}
+
+#carrierWarning {
+  font-size: 0.85rem;
+}

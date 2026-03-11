@@ -926,6 +926,7 @@ class PosDevice(db.Model):
     name = db.Column(db.String(80), nullable=False, unique=True)  # es. "Nexi banco", "Mobile consegne"
     type = db.Column(db.String(30), nullable=False, default="physical")  # physical|mobile|paybylink|tap_to_pay|other
     is_active = db.Column(db.Boolean, nullable=False, default=True)
+    is_default = db.Column(db.Boolean, nullable=False, default=False)
 
     circuits = db.relationship(
         "PosCircuit",

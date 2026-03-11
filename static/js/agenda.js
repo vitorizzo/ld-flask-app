@@ -943,6 +943,176 @@ document.addEventListener("DOMContentLoaded", function () {
       opInput.value = selDisp.value;
       bsModal.hide();
     });
+
+    /* =========================
+       CARRIER ENGINE
+    ========================= */
+
+    const carrierInputs = {
+      cash: document.getElementById("cashAmount"),
+      pos: document.getElementById("posAmount"),
+      bank: document.getElementById("bankAmount"),
+      check: document.getElementById("checkAmount")
+    };
+
+    const opAmountInput = document.getElementById("opAmount");
+    const saveBtn = document.getElementById("btnOpSave");
+    const carrierWarning = document.getElementById("carrierWarning");
+
+    /* ---- helpers ---- */
+
+    function parseEuro(v) {
+      if (!v) return 0;
+      const s = String(v).replace(/\./g, "").replace(",", ".").replace(/[^\d.-]/g, "");
+      const n = Number(s);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    function formatEuro(n) {
+      return Number(n || 0).toLocaleString("it-IT", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+
+    function getOpAmount() {
+      return parseEuro(opAmountInput.value);
+    }
+
+    function getCarrierValue(key) {
+      const el = carrierInputs[key];
+      if (!el || el.closest(".d-none")) return 0;
+      return parseEuro(el.value);
+    }
+
+    function setCarrierValue(key, val) {
+      const el = carrierInputs[key];
+      if (!el) return;
+      el.value = formatEuro(val);
+    }
+
+    /* ---- core calculation ---- */
+
+    function recalcCarriers() {
+
+      const opAmount = getOpAmount();
+
+      const pos = getCarrierValue("pos");
+      const bank = getCarrierValue("bank");
+      const check = getCarrierValue("check");
+
+      const otherSum = pos + bank + check;
+      const cash = opAmount - otherSum;
+
+      const totalCarrier = cash + otherSum;
+
+      /* errore se superiamo il totale */
+      if (otherSum > opAmount) {
+
+        Object.values(carrierInputs).forEach(el => {
+          if (el) el.classList.add("error");
+        });
+
+        carrierWarning.classList.remove("d-none");
+
+        if (saveBtn) saveBtn.disabled = true;
+
+        return;
+      }
+
+      /* stato normale */
+
+      Object.values(carrierInputs).forEach(el => {
+        if (el) el.classList.remove("error");
+      });
+
+      carrierWarning.classList.add("d-none");
+
+      setCarrierValue("cash", cash);
+
+      if (saveBtn) {
+        saveBtn.disabled = Math.abs(totalCarrier - opAmount) > 0.009;
+      }
+    }
+
+    /* ---- TOT buttons ---- */
+
+    document.querySelectorAll(".carrier-tot").forEach(btn => {
+
+      btn.addEventListener("click", () => {
+
+        const carrier = btn.dataset.carrier;
+        const total = getOpAmount();
+
+        setCarrierValue("cash", 0);
+        setCarrierValue("pos", 0);
+        setCarrierValue("bank", 0);
+        setCarrierValue("check", 0);
+
+        setCarrierValue(carrier, total);
+
+        recalcCarriers();
+
+      });
+
+    });
+
+    /* ---- input listeners ---- */
+
+    Object.values(carrierInputs).forEach(el => {
+
+      if (!el) return;
+
+      el.addEventListener("blur", () => {
+        el.value = formatEuro(parseEuro(el.value));
+        recalcCarriers();
+      });
+
+      el.addEventListener("input", () => {
+        recalcCarriers();
+      });
+
+    });
+
+    /* ---- totale operazione ---- */
+
+    if (opAmountInput) {
+
+      opAmountInput.addEventListener("blur", () => {
+
+        const v = parseEuro(opAmountInput.value);
+        opAmountInput.value = formatEuro(v);
+
+        recalcCarriers();
+
+      });
+
+      opAmountInput.addEventListener("input", () => {
+        recalcCarriers();
+      });
+
+    }
+
+    /* inizializzazione */
+    recalcCarriers();
+
+    const fixBtn = document.getElementById("btnFixTotal");
+
+    if (fixBtn) {
+      fixBtn.addEventListener("click", () => {
+
+        const pos = getCarrierValue("pos");
+        const bank = getCarrierValue("bank");
+        const check = getCarrierValue("check");
+
+        const newTotal = pos + bank + check;
+
+        opAmountInput.value = formatEuro(newTotal);
+
+        recalcCarriers();
+
+      });
+    }
   })();
 
   document.getElementById("opAmount")?.addEventListener("blur", (e) => {

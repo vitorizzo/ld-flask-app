@@ -1273,3 +1273,55 @@ def api_coins_vault_balance():
         "ref_date": ref.isoformat(),
         "coins_vault_balance": str(balance),
     })
+
+
+@cassa_bp.route("/api/pos/devices", methods=["GET"])
+def api_pos_devices():
+    devices = (
+        PosDevice.query
+        .filter_by(is_active=True)
+        .order_by(PosDevice.name)
+        .all()
+    )
+
+    return jsonify({
+        "ok": True,
+        "devices": [
+            {
+                "id": d.id,
+                "name": d.name,
+                "is_default": bool(d.is_default)
+            }
+            for d in devices
+        ]
+    })
+
+
+@cassa_bp.route("/api/pos/devices/<int:device_id>/circuits", methods=["GET"])
+def api_pos_device_circuits(device_id):
+
+    device = PosDevice.query.filter_by(
+        id=device_id,
+        is_active=True
+    ).first()
+
+    if not device:
+        return jsonify({"ok": False, "error": "device_not_found"}), 404
+
+    circuits = [
+        c for c in device.circuits
+        if c.is_active
+    ]
+
+    return jsonify({
+        "ok": True,
+        "circuits": [
+            {
+                "id": c.id,
+                "name": c.name,
+                "icon": c.icon,
+                "logo_path": c.logo_path
+            }
+            for c in circuits
+        ]
+    })
