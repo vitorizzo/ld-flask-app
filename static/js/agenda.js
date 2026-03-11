@@ -948,18 +948,12 @@ document.addEventListener("DOMContentLoaded", function () {
        CARRIER ENGINE
     ========================= */
 
-    const carrierInputs = {
-      cash: document.getElementById("cashAmount"),
-      pos: document.getElementById("posAmount"),
-      bank: document.getElementById("bankAmount"),
-      check: document.getElementById("checkAmount")
-    };
-
-    const opAmountInput = document.getElementById("opAmount");
-    const saveBtn = document.getElementById("btnOpSave");
-    const carrierWarning = document.getElementById("carrierWarning");
-
-    /* ---- helpers ---- */
+    let carrierInputs = {};
+    let payChecks = {};
+    let payBoxes = {};
+    let opAmountInput = null;
+    let saveBtn = null;
+    let carrierWarning = null;
 
     function parseEuro(v) {
       if (!v) return 0;
@@ -976,12 +970,15 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function getOpAmount() {
-      return parseEuro(opAmountInput.value);
+      return parseEuro(opAmountInput?.value || "0");
     }
 
     function getCarrierValue(key) {
       const el = carrierInputs[key];
-      if (!el || el.closest(".d-none")) return 0;
+      if (!el) return 0;
+
+      if (key !== "cash" && !payChecks[key]?.checked) return 0;
+
       return parseEuro(el.value);
     }
 
@@ -991,7 +988,22 @@ document.addEventListener("DOMContentLoaded", function () {
       el.value = formatEuro(val);
     }
 
-    /* ---- core calculation ---- */
+    function setCarrierError(flag) {
+
+      Object.values(carrierInputs).forEach(el => {
+        if (!el) return;
+        el.classList.toggle("error", flag);
+      });
+
+      if (carrierWarning) {
+        carrierWarning.classList.toggle("d-none", !flag);
+      }
+
+      if (saveBtn) {
+        saveBtn.disabled = flag;
+      }
+
+    }
 
     function recalcCarriers() {
 
@@ -1002,117 +1014,233 @@ document.addEventListener("DOMContentLoaded", function () {
       const check = getCarrierValue("check");
 
       const otherSum = pos + bank + check;
-      const cash = opAmount - otherSum;
 
-      const totalCarrier = cash + otherSum;
-
-      /* errore se superiamo il totale */
-      if (otherSum > opAmount) {
-
-        Object.values(carrierInputs).forEach(el => {
-          if (el) el.classList.add("error");
-        });
-
-        carrierWarning.classList.remove("d-none");
-
-        if (saveBtn) saveBtn.disabled = true;
-
+      if (otherSum > opAmount + 0.009) {
+        setCarrierError(true);
         return;
       }
 
-      /* stato normale */
-
-      Object.values(carrierInputs).forEach(el => {
-        if (el) el.classList.remove("error");
-      });
-
-      carrierWarning.classList.add("d-none");
+      const cash = opAmount - otherSum;
 
       setCarrierValue("cash", cash);
 
+      const totalCarrier = cash + otherSum;
+      const squared = Math.abs(totalCarrier - opAmount) <= 0.009;
+
+      setCarrierError(false);
+
       if (saveBtn) {
-        saveBtn.disabled = Math.abs(totalCarrier - opAmount) > 0.009;
+        saveBtn.disabled = !squared;
       }
+
     }
 
-    /* ---- TOT buttons ---- */
+    function resetAllCarriers() {
+      setCarrierValue("cash", 0);
+      setCarrierValue("pos", 0);
+      setCarrierValue("bank", 0);
+      setCarrierValue("check", 0);
+    }
 
-    document.querySelectorAll(".carrier-tot").forEach(btn => {
+    function selectOnlyCarrier(key) {
 
-      btn.addEventListener("click", () => {
+      Object.entries(payChecks).forEach(([k, el]) => {
+        if (!el) return;
+        el.checked = (k === key);
+      });
 
-        const carrier = btn.dataset.carrier;
-        const total = getOpAmount();
+      Object.entries(payBoxes).forEach(([k, el]) => {
 
-        setCarrierValue("cash", 0);
-        setCarrierValue("pos", 0);
-        setCarrierValue("bank", 0);
-        setCarrierValue("check", 0);
+        if (!el) return;
 
-        setCarrierValue(carrier, total);
+        if (k === "cash") {
+          el.classList.remove("d-none");
+        } else {
+          el.classList.toggle("d-none", k !== key);
+        }
 
-        recalcCarriers();
+      });
 
+    }
+
+    function initCarrierEngine() {
+
+      carrierInputs = {
+        cash: document.getElementById("cashAmount"),
+        pos: document.getElementById("posAmount"),
+        bank: document.getElementById("bankAmount"),
+        check: document.getElementById("checkAmount")
+      };
+
+      payChecks = {
+        cash: document.getElementById("payCash"),
+        pos: document.getElementById("payPos"),
+        bank: document.getElementById("payBank"),
+        check: document.getElementById("payCheck")
+      };
+
+      payBoxes = {
+        cash: document.getElementById("payCashBox"),
+        pos: document.getElementById("payPosBox"),
+        bank: document.getElementById("payBankBox"),
+        check: document.getElementById("payCheckBox")
+      };
+
+      opAmountInput = document.getElementById("opAmount");
+      saveBtn = document.getElementById("opSaveBtn");
+      carrierWarning = document.getElementById("carrierWarning");
+
+      document.querySelectorAll(".carrier-tot").forEach(btn => {
+
+        btn.addEventListener("click", () => {
+
+          const carrier = btn.dataset.carrier;
+          const total = getOpAmount();
+
+          selectOnlyCarrier(carrier);
+
+          resetAllCarriers();
+
+          setCarrierValue(carrier, total);
+
+          if (carrier !== "cash") {
+            setCarrierValue("cash", 0);
+          }
+
+          recalcCarriers();
+
+        });
+
+      });
+
+      Object.values(carrierInputs).forEach(el => {
+
+        if (!el) return;
+
+        el.addEventListener("input", recalcCarriers);
+
+        el.addEventListener("blur", () => {
+          el.value = formatEuro(parseEuro(el.value));
+          recalcCarriers();
+        });
+
+      });
+
+      opAmountInput?.addEventListener("input", recalcCarriers);
+
+      recalcCarriers();
+
+    }
+
+    /* =========================
+       POS DEVICE / CIRCUITS
+    ========================= */
+
+    async function loadPosDevices() {
+
+      const deviceSelect = document.getElementById("posDeviceSelect");
+      const circuitSelect = document.getElementById("posCircuitSelect");
+
+      if (!deviceSelect) return;
+
+      deviceSelect.innerHTML = `<option value="">Seleziona...</option>`;
+
+      try {
+
+        const r = await fetch("/cassa/api/pos/devices", {
+          credentials: "same-origin"
+        });
+
+        const data = await r.json();
+
+        if (!data.ok) return;
+
+        let defaultId = null;
+
+        data.devices.forEach(d => {
+
+          const opt = document.createElement("option");
+
+          opt.value = d.id;
+          opt.textContent = d.name;
+
+          deviceSelect.appendChild(opt);
+
+          if (d.is_default) defaultId = d.id;
+
+        });
+
+        if (defaultId) {
+
+          deviceSelect.value = defaultId;
+
+          await loadPosCircuits(defaultId);
+
+        }
+
+      } catch (e) {
+
+        console.error("loadPosDevices", e);
+
+      }
+
+    }
+
+    async function loadPosCircuits(deviceId) {
+
+      const circuitSelect = document.getElementById("posCircuitSelect");
+
+      if (!circuitSelect) return;
+
+      circuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
+      circuitSelect.disabled = true;
+
+      if (!deviceId) return;
+
+      try {
+
+        const r = await fetch(`/cassa/api/pos/devices/${deviceId}/circuits`, {
+          credentials: "same-origin"
+        });
+
+        const data = await r.json();
+
+        if (!data.ok) return;
+
+        data.circuits.forEach(c => {
+
+          const opt = document.createElement("option");
+
+          opt.value = c.id;
+          opt.textContent = c.name;
+
+          circuitSelect.appendChild(opt);
+
+        });
+
+        circuitSelect.disabled = false;
+
+      } catch (e) {
+
+        console.error("loadPosCircuits", e);
+
+      }
+
+    }
+
+    /* =========================
+       INIT
+    ========================= */
+
+    document.addEventListener("DOMContentLoaded", function () {
+
+      initCarrierEngine();
+
+      document.getElementById("posDeviceSelect")?.addEventListener("change", async (e) => {
+        await loadPosCircuits(e.target.value);
       });
 
     });
-
-    /* ---- input listeners ---- */
-
-    Object.values(carrierInputs).forEach(el => {
-
-      if (!el) return;
-
-      el.addEventListener("blur", () => {
-        el.value = formatEuro(parseEuro(el.value));
-        recalcCarriers();
-      });
-
-      el.addEventListener("input", () => {
-        recalcCarriers();
-      });
-
-    });
-
-    /* ---- totale operazione ---- */
-
-    if (opAmountInput) {
-
-      opAmountInput.addEventListener("blur", () => {
-
-        const v = parseEuro(opAmountInput.value);
-        opAmountInput.value = formatEuro(v);
-
-        recalcCarriers();
-
-      });
-
-      opAmountInput.addEventListener("input", () => {
-        recalcCarriers();
-      });
-
-    }
-
-    /* inizializzazione */
-    recalcCarriers();
-
-    const fixBtn = document.getElementById("btnFixTotal");
-
-    if (fixBtn) {
-      fixBtn.addEventListener("click", () => {
-
-        const pos = getCarrierValue("pos");
-        const bank = getCarrierValue("bank");
-        const check = getCarrierValue("check");
-
-        const newTotal = pos + bank + check;
-
-        opAmountInput.value = formatEuro(newTotal);
-
-        recalcCarriers();
-
-      });
-    }
   })();
 
   document.getElementById("opAmount")?.addEventListener("blur", (e) => {
