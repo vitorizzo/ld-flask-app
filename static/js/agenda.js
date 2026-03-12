@@ -598,6 +598,8 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
+  const bankSelect = document.getElementById("bankSelect");
+
   decorateMonth(calendarInstance.currentYear, calendarInstance.currentMonth);
   loadDay(toLocalYMD(new Date()));
   startAssegniAutoRefresh();
@@ -783,6 +785,41 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  async function loadBanks() {
+    if (!bankSelect) return;
+
+    bankSelect.innerHTML = `<option value="">Seleziona...</option>`;
+
+    try {
+      const r = await fetch("/cassa/api/banks", {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" }
+      });
+
+      const data = await r.json();
+      if (!data.ok) return;
+
+      let defaultId = "";
+
+      (data.banks || []).forEach(b => {
+        const opt = document.createElement("option");
+        opt.value = String(b.id);
+        opt.textContent = b.name;
+        bankSelect.appendChild(opt);
+
+        if (b.is_default) {
+          defaultId = String(b.id);
+        }
+      });
+
+      if (defaultId) {
+        bankSelect.value = defaultId;
+      }
+    } catch (err) {
+      console.error("loadBanks error:", err);
+    }
+  }
+
   function openOpModal(type) {
     if (!opModal) return;
 
@@ -828,8 +865,11 @@ document.addEventListener("DOMContentLoaded", function () {
       posCircuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
       posCircuitSelect.disabled = true;
     }
+    if (bankSelect) bankSelect.innerHTML = `<option value="">Seleziona...</option>`;
 
     loadPosDevices().catch(err => console.error("loadPosDevices in openOpModal:", err));
+
+    loadBanks().catch(err => console.error("loadBanks in openOpModal:", err));
 
     recalcCarriers();
     opModal.show();
@@ -1206,9 +1246,16 @@ document.addEventListener("DOMContentLoaded", function () {
     recalcCarriers();
   });
 
-  payChecks.bank?.addEventListener("change", (e) => {
+  payChecks.bank?.addEventListener("change", async (e) => {
     payBoxes.bank?.classList.toggle("d-none", !e.target.checked);
-    if (!e.target.checked) setCarrierValue("bank", 0);
+
+    if (!e.target.checked) {
+      setCarrierValue("bank", 0);
+      if (bankSelect) bankSelect.value = "";
+    } else {
+      await loadBanks();
+    }
+
     recalcCarriers();
   });
 

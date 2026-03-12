@@ -519,11 +519,15 @@
 
               <div class="row g-2 align-items-end">
 
-                <div class="col-12 col-md-6">
-                  <label class="form-label mb-0">Bonifico / Banca</label>
+                <div class="col-12 col-md-4">
+                  <label class="form-label mb-0">Banca</label>
+                  <select class="form-select" id="bankSelect">
+                    <option value="">Seleziona...</option>
+                  </select>
                 </div>
 
                 <div class="col-12 col-md-6">
+                  <label class="form-label mb-0">Importo banca</label>
                   <div class="input-group">
                     <span class="input-group-text">€</span>
                     <input
@@ -532,13 +536,16 @@
                       id="bankAmount"
                       placeholder="0,00"
                       inputmode="decimal">
-                    <button
-                      type="button"
-                      class="btn btn-outline-primary carrier-tot"
-                      data-carrier="bank">
-                      TOT
-                    </button>
                   </div>
+                </div>
+
+                <div class="col-12 col-md-2">
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary w-100 carrier-tot"
+                    data-carrier="bank">
+                    TOT
+                  </button>
                 </div>
 
               </div>
