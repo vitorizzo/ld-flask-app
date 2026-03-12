@@ -559,11 +559,52 @@
 
               <div class="row g-2 align-items-end">
 
-                <div class="col-12 col-md-6">
-                  <label class="form-label mb-0">Assegno</label>
+                <div class="col-12 col-md-4">
+                  <label class="form-label mb-0">Banca assegno</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="checkBankName"
+                    placeholder="Es. Unicredit">
                 </div>
 
-                <div class="col-12 col-md-6">
+                <div class="col-12 col-md-4">
+                  <label class="form-label mb-0">ABI Banca assegno</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="checkBankABI"
+                    placeholder="Es. 01030">
+                </div>
+
+                <div class="col-12 col-md-4">
+                  <label class="form-label mb-0">CAB Banca assegno</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="checkBankCAB"
+                    placeholder="Es. 40510">
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label mb-0">Numero assegno</label>
+                  <input
+                    type="text"
+                    class="form-control"
+                    id="checkNumber"
+                    placeholder="Numero assegno">
+                </div>
+
+                <div class="col-12 col-md-3">
+                  <label class="form-label mb-0">Scadenza</label>
+                  <input
+                    type="date"
+                    class="form-control"
+                    id="checkDueDate">
+                </div>
+
+                <div class="col-12 col-md-2">
+                  <label class="form-label mb-0">Importo</label>
                   <div class="input-group">
                     <span class="input-group-text">€</span>
                     <input
@@ -572,13 +613,16 @@
                       id="checkAmount"
                       placeholder="0,00"
                       inputmode="decimal">
-                    <button
-                      type="button"
-                      class="btn btn-outline-primary carrier-tot"
-                      data-carrier="check">
-                      TOT
-                    </button>
                   </div>
+                </div>
+
+                <div class="col-12 d-flex justify-content-end">
+                  <button
+                    type="button"
+                    class="btn btn-outline-primary carrier-tot"
+                    data-carrier="check">
+                    TOT
+                  </button>
                 </div>
 
               </div>
