@@ -1,6 +1,10 @@
 let currentDay = null;
 let calendarInstance = null;
 
+/* =========================
+   UTILS BASE
+========================= */
+
 function setText(id, value) {
   const el = document.getElementById(id);
   if (!el) return false;
@@ -57,7 +61,7 @@ function formatEuro2(n) {
 }
 
 /* =========================
-   API helpers
+   API HELPERS
 ========================= */
 
 function fetchActiveDays(year, month) {
@@ -601,13 +605,190 @@ document.addEventListener("DOMContentLoaded", function () {
   const opModalEl = document.getElementById("opModal");
   const opModal = opModalEl ? new bootstrap.Modal(opModalEl) : null;
 
+  const carrierInputs = {
+    cash: document.getElementById("cashAmount"),
+    pos: document.getElementById("posAmount"),
+    bank: document.getElementById("bankAmount"),
+    check: document.getElementById("checkAmount")
+  };
+
+  const payChecks = {
+    cash: document.getElementById("payCash"),
+    pos: document.getElementById("payPos"),
+    bank: document.getElementById("payBank"),
+    check: document.getElementById("payCheck")
+  };
+
+  const payBoxes = {
+    cash: document.getElementById("payCashBox"),
+    pos: document.getElementById("payPosBox"),
+    bank: document.getElementById("payBankBox"),
+    check: document.getElementById("payCheckBox")
+  };
+
+  const opAmountInput = document.getElementById("opAmount");
+  const saveBtn = document.getElementById("opSaveBtn");
+  const carrierWarning = document.getElementById("carrierWarning");
+  const fixBtn = document.getElementById("btnFixTotal");
+
+  const posDeviceSelect = document.getElementById("posDeviceSelect");
+  const posCircuitSelect = document.getElementById("posCircuitSelect");
+
+  function getOpAmount() {
+    return parseEuroToNumber(opAmountInput?.value || "0");
+  }
+
+  function setCarrierValue(key, value) {
+    const el = carrierInputs[key];
+    if (!el) return;
+    el.value = formatEuro2(value);
+  }
+
+  function isCarrierActive(key) {
+    if (key === "cash") return true;
+    return !!payChecks[key]?.checked;
+  }
+
+  function getCarrierValue(key) {
+    const el = carrierInputs[key];
+    if (!el) return 0;
+    if (!isCarrierActive(key)) return 0;
+    return parseEuroToNumber(el.value);
+  }
+
+  function clearCarrierErrors() {
+    Object.values(carrierInputs).forEach(el => el?.classList.remove("error"));
+  }
+
+  function setCarrierErrors() {
+    Object.values(carrierInputs).forEach(el => el?.classList.add("error"));
+  }
+
+  function resetAllCarriers() {
+    setCarrierValue("cash", 0);
+    setCarrierValue("pos", 0);
+    setCarrierValue("bank", 0);
+    setCarrierValue("check", 0);
+  }
+
+  function showOnlyCarrier(key) {
+    if (payChecks.cash) payChecks.cash.checked = true;
+    if (payChecks.pos) payChecks.pos.checked = (key === "pos");
+    if (payChecks.bank) payChecks.bank.checked = (key === "bank");
+    if (payChecks.check) payChecks.check.checked = (key === "check");
+
+    payBoxes.cash?.classList.remove("d-none");
+    payBoxes.pos?.classList.toggle("d-none", key !== "pos");
+    payBoxes.bank?.classList.toggle("d-none", key !== "bank");
+    payBoxes.check?.classList.toggle("d-none", key !== "check");
+  }
+
+  function updateSaveState(disabled) {
+    if (saveBtn) saveBtn.disabled = !!disabled;
+  }
+
+  function recalcCarriers() {
+    const opAmount = getOpAmount();
+
+    const pos = getCarrierValue("pos");
+    const bank = getCarrierValue("bank");
+    const check = getCarrierValue("check");
+    const otherSum = pos + bank + check;
+
+    if (otherSum > opAmount + 0.009) {
+      setCarrierErrors();
+      carrierWarning?.classList.remove("d-none");
+      updateSaveState(true);
+      return;
+    }
+
+    clearCarrierErrors();
+    carrierWarning?.classList.add("d-none");
+
+    const cash = opAmount - otherSum;
+    setCarrierValue("cash", cash);
+
+    const totalCarrier = cash + otherSum;
+    const squared = Math.abs(totalCarrier - opAmount) <= 0.009;
+
+    updateSaveState(!squared);
+  }
+
+  async function loadPosCircuits(deviceId) {
+    if (!posCircuitSelect) return;
+
+    posCircuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
+    posCircuitSelect.disabled = true;
+
+    if (!deviceId) return;
+
+    try {
+      const r = await fetch(`/cassa/api/pos/devices/${deviceId}/circuits`, {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" }
+      });
+
+      const data = await r.json();
+      if (!data.ok) return;
+
+      (data.circuits || []).forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = String(c.id);
+        opt.textContent = c.name;
+        posCircuitSelect.appendChild(opt);
+      });
+
+      posCircuitSelect.disabled = false;
+    } catch (err) {
+      console.error("loadPosCircuits error:", err);
+    }
+  }
+
+  async function loadPosDevices() {
+    if (!posDeviceSelect) return;
+
+    posDeviceSelect.innerHTML = `<option value="">Seleziona...</option>`;
+    if (posCircuitSelect) {
+      posCircuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
+      posCircuitSelect.disabled = true;
+    }
+
+    try {
+      const r = await fetch("/cassa/api/pos/devices", {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" }
+      });
+
+      const data = await r.json();
+      if (!data.ok) return;
+
+      const devices = data.devices || [];
+      let defaultId = "";
+
+      devices.forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = String(d.id);
+        opt.textContent = d.name;
+        posDeviceSelect.appendChild(opt);
+
+        if (d.is_default) defaultId = String(d.id);
+      });
+
+      if (defaultId) {
+        posDeviceSelect.value = defaultId;
+        await loadPosCircuits(defaultId);
+      }
+    } catch (err) {
+      console.error("loadPosDevices error:", err);
+    }
+  }
+
   function openOpModal(type) {
     if (!opModal) return;
 
     setText("opModalTitle", type === "sale" ? "Nuovo incasso" : "Nuova spesa");
 
     const opType = document.getElementById("opType");
-    const opAmount = document.getElementById("opAmount");
     const opDesc = document.getElementById("opDesc");
     const opFlag = document.getElementById("opFlag");
     const opCustomerId = document.getElementById("opCustomerId");
@@ -616,16 +797,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const opOffCashWho = document.getElementById("opOffCashWho");
     const opOffCashBox = document.getElementById("opOffCashBox");
 
-    const payCash = document.getElementById("payCash");
-    const payPos = document.getElementById("payPos");
-    const payBank = document.getElementById("payBank");
-    const payCheck = document.getElementById("payCheck");
-    const payPosBox = document.getElementById("payPosBox");
-    const payBankBox = document.getElementById("payBankBox");
-    const payCheckBox = document.getElementById("payCheckBox");
-
     if (opType) opType.value = type;
-    if (opAmount) opAmount.value = "0,00";
+    if (opAmountInput) opAmountInput.value = "0,00";
     if (opDesc) opDesc.value = "";
     if (opFlag) opFlag.value = "*";
     if (opCustomerId) opCustomerId.value = "";
@@ -634,15 +807,31 @@ document.addEventListener("DOMContentLoaded", function () {
     if (opOffCashWho) opOffCashWho.value = "";
     if (opOffCashBox) opOffCashBox.classList.add("d-none");
 
-    if (payCash) payCash.checked = true;
-    if (payPos) payPos.checked = false;
-    if (payBank) payBank.checked = false;
-    if (payCheck) payCheck.checked = false;
+    if (payChecks.cash) payChecks.cash.checked = true;
+    if (payChecks.pos) payChecks.pos.checked = false;
+    if (payChecks.bank) payChecks.bank.checked = false;
+    if (payChecks.check) payChecks.check.checked = false;
 
-    if (payPosBox) payPosBox.classList.add("d-none");
-    if (payBankBox) payBankBox.classList.add("d-none");
-    if (payCheckBox) payCheckBox.classList.add("d-none");
+    payBoxes.cash?.classList.remove("d-none");
+    payBoxes.pos?.classList.add("d-none");
+    payBoxes.bank?.classList.add("d-none");
+    payBoxes.check?.classList.add("d-none");
 
+    resetAllCarriers();
+    setCarrierValue("cash", 0);
+    clearCarrierErrors();
+    carrierWarning?.classList.add("d-none");
+    updateSaveState(false);
+
+    if (posDeviceSelect) posDeviceSelect.innerHTML = `<option value="">Seleziona...</option>`;
+    if (posCircuitSelect) {
+      posCircuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
+      posCircuitSelect.disabled = true;
+    }
+
+    loadPosDevices().catch(err => console.error("loadPosDevices in openOpModal:", err));
+
+    recalcCarriers();
     opModal.show();
   }
 
@@ -734,12 +923,12 @@ document.addEventListener("DOMContentLoaded", function () {
   (function initCustomerNewModal() {
     const btnOpen = document.getElementById("btnCustomerNew");
     const modalEl = document.getElementById("customerNewModal");
-    const saveBtn = document.getElementById("customerNewSaveBtn");
+    const saveBtnNewCustomer = document.getElementById("customerNewSaveBtn");
 
     const opCustomerInput = document.getElementById("opCustomer");
     const opCustomerIdInput = document.getElementById("opCustomerId");
 
-    if (!btnOpen || !modalEl || !saveBtn || typeof bootstrap === "undefined") return;
+    if (!btnOpen || !modalEl || !saveBtnNewCustomer || typeof bootstrap === "undefined") return;
 
     const bsModal = new bootstrap.Modal(modalEl);
 
@@ -762,7 +951,7 @@ document.addEventListener("DOMContentLoaded", function () {
       bsModal.show();
     });
 
-    saveBtn.addEventListener("click", async () => {
+    saveBtnNewCustomer.addEventListener("click", async () => {
       const display_name = (fldDisplay?.value || "").trim();
       const ragione_sociale = (fldRs?.value || "").trim();
       const partita_iva = (fldPiva?.value || "").trim();
@@ -781,7 +970,7 @@ document.addEventListener("DOMContentLoaded", function () {
         aliases,
       };
 
-      saveBtn.disabled = true;
+      saveBtnNewCustomer.disabled = true;
 
       try {
         const r = await fetch("/cassa/api/customers", {
@@ -808,7 +997,7 @@ document.addEventListener("DOMContentLoaded", function () {
         console.error("customerNewSave error:", err);
         alert("Errore di rete durante il salvataggio cliente");
       } finally {
-        saveBtn.disabled = false;
+        saveBtnNewCustomer.disabled = false;
       }
     });
   })();
@@ -943,313 +1132,94 @@ document.addEventListener("DOMContentLoaded", function () {
       opInput.value = selDisp.value;
       bsModal.hide();
     });
-
-    /* =========================
-       CARRIER ENGINE
-    ========================= */
-
-    let carrierInputs = {};
-    let payChecks = {};
-    let payBoxes = {};
-    let opAmountInput = null;
-    let saveBtn = null;
-    let carrierWarning = null;
-
-    function parseEuro(v) {
-      if (!v) return 0;
-      const s = String(v).replace(/\./g, "").replace(",", ".").replace(/[^\d.-]/g, "");
-      const n = Number(s);
-      return Number.isFinite(n) ? n : 0;
-    }
-
-    function formatEuro(n) {
-      return Number(n || 0).toLocaleString("it-IT", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      });
-    }
-
-    function getOpAmount() {
-      return parseEuro(opAmountInput?.value || "0");
-    }
-
-    function getCarrierValue(key) {
-      const el = carrierInputs[key];
-      if (!el) return 0;
-
-      if (key !== "cash" && !payChecks[key]?.checked) return 0;
-
-      return parseEuro(el.value);
-    }
-
-    function setCarrierValue(key, val) {
-      const el = carrierInputs[key];
-      if (!el) return;
-      el.value = formatEuro(val);
-    }
-
-    function setCarrierError(flag) {
-
-      Object.values(carrierInputs).forEach(el => {
-        if (!el) return;
-        el.classList.toggle("error", flag);
-      });
-
-      if (carrierWarning) {
-        carrierWarning.classList.toggle("d-none", !flag);
-      }
-
-      if (saveBtn) {
-        saveBtn.disabled = flag;
-      }
-
-    }
-
-    function recalcCarriers() {
-
-      const opAmount = getOpAmount();
-
-      const pos = getCarrierValue("pos");
-      const bank = getCarrierValue("bank");
-      const check = getCarrierValue("check");
-
-      const otherSum = pos + bank + check;
-
-      if (otherSum > opAmount + 0.009) {
-        setCarrierError(true);
-        return;
-      }
-
-      const cash = opAmount - otherSum;
-
-      setCarrierValue("cash", cash);
-
-      const totalCarrier = cash + otherSum;
-      const squared = Math.abs(totalCarrier - opAmount) <= 0.009;
-
-      setCarrierError(false);
-
-      if (saveBtn) {
-        saveBtn.disabled = !squared;
-      }
-
-    }
-
-    function resetAllCarriers() {
-      setCarrierValue("cash", 0);
-      setCarrierValue("pos", 0);
-      setCarrierValue("bank", 0);
-      setCarrierValue("check", 0);
-    }
-
-    function selectOnlyCarrier(key) {
-
-      Object.entries(payChecks).forEach(([k, el]) => {
-        if (!el) return;
-        el.checked = (k === key);
-      });
-
-      Object.entries(payBoxes).forEach(([k, el]) => {
-
-        if (!el) return;
-
-        if (k === "cash") {
-          el.classList.remove("d-none");
-        } else {
-          el.classList.toggle("d-none", k !== key);
-        }
-
-      });
-
-    }
-
-    function initCarrierEngine() {
-
-      carrierInputs = {
-        cash: document.getElementById("cashAmount"),
-        pos: document.getElementById("posAmount"),
-        bank: document.getElementById("bankAmount"),
-        check: document.getElementById("checkAmount")
-      };
-
-      payChecks = {
-        cash: document.getElementById("payCash"),
-        pos: document.getElementById("payPos"),
-        bank: document.getElementById("payBank"),
-        check: document.getElementById("payCheck")
-      };
-
-      payBoxes = {
-        cash: document.getElementById("payCashBox"),
-        pos: document.getElementById("payPosBox"),
-        bank: document.getElementById("payBankBox"),
-        check: document.getElementById("payCheckBox")
-      };
-
-      opAmountInput = document.getElementById("opAmount");
-      saveBtn = document.getElementById("opSaveBtn");
-      carrierWarning = document.getElementById("carrierWarning");
-
-      document.querySelectorAll(".carrier-tot").forEach(btn => {
-
-        btn.addEventListener("click", () => {
-
-          const carrier = btn.dataset.carrier;
-          const total = getOpAmount();
-
-          selectOnlyCarrier(carrier);
-
-          resetAllCarriers();
-
-          setCarrierValue(carrier, total);
-
-          if (carrier !== "cash") {
-            setCarrierValue("cash", 0);
-          }
-
-          recalcCarriers();
-
-        });
-
-      });
-
-      Object.values(carrierInputs).forEach(el => {
-
-        if (!el) return;
-
-        el.addEventListener("input", recalcCarriers);
-
-        el.addEventListener("blur", () => {
-          el.value = formatEuro(parseEuro(el.value));
-          recalcCarriers();
-        });
-
-      });
-
-      opAmountInput?.addEventListener("input", recalcCarriers);
-
-      recalcCarriers();
-
-    }
-
-    /* =========================
-       POS DEVICE / CIRCUITS
-    ========================= */
-
-    async function loadPosDevices() {
-
-      const deviceSelect = document.getElementById("posDeviceSelect");
-      const circuitSelect = document.getElementById("posCircuitSelect");
-
-      if (!deviceSelect) return;
-
-      deviceSelect.innerHTML = `<option value="">Seleziona...</option>`;
-
-      try {
-
-        const r = await fetch("/cassa/api/pos/devices", {
-          credentials: "same-origin"
-        });
-
-        const data = await r.json();
-
-        if (!data.ok) return;
-
-        let defaultId = null;
-
-        data.devices.forEach(d => {
-
-          const opt = document.createElement("option");
-
-          opt.value = d.id;
-          opt.textContent = d.name;
-
-          deviceSelect.appendChild(opt);
-
-          if (d.is_default) defaultId = d.id;
-
-        });
-
-        if (defaultId) {
-
-          deviceSelect.value = defaultId;
-
-          await loadPosCircuits(defaultId);
-
-        }
-
-      } catch (e) {
-
-        console.error("loadPosDevices", e);
-
-      }
-
-    }
-
-    async function loadPosCircuits(deviceId) {
-
-      const circuitSelect = document.getElementById("posCircuitSelect");
-
-      if (!circuitSelect) return;
-
-      circuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
-      circuitSelect.disabled = true;
-
-      if (!deviceId) return;
-
-      try {
-
-        const r = await fetch(`/cassa/api/pos/devices/${deviceId}/circuits`, {
-          credentials: "same-origin"
-        });
-
-        const data = await r.json();
-
-        if (!data.ok) return;
-
-        data.circuits.forEach(c => {
-
-          const opt = document.createElement("option");
-
-          opt.value = c.id;
-          opt.textContent = c.name;
-
-          circuitSelect.appendChild(opt);
-
-        });
-
-        circuitSelect.disabled = false;
-
-      } catch (e) {
-
-        console.error("loadPosCircuits", e);
-
-      }
-
-    }
-
-    /* =========================
-       INIT
-    ========================= */
-
-    document.addEventListener("DOMContentLoaded", function () {
-
-      initCarrierEngine();
-
-      document.getElementById("posDeviceSelect")?.addEventListener("change", async (e) => {
-        await loadPosCircuits(e.target.value);
-      });
-
-    });
   })();
 
-  document.getElementById("opAmount")?.addEventListener("blur", (e) => {
-    const n = parseEuroToNumber(e.target.value);
-    e.target.value = formatEuro2(n);
+  /* carrier engine listeners */
+
+  document.querySelectorAll(".carrier-tot").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const carrier = btn.dataset.carrier;
+      const total = getOpAmount();
+
+      showOnlyCarrier(carrier);
+      resetAllCarriers();
+      setCarrierValue(carrier, total);
+
+      if (carrier !== "cash") {
+        setCarrierValue("cash", 0);
+      }
+
+      recalcCarriers();
+    });
   });
 
-  document.getElementById("opAmount")?.addEventListener("focus", (e) => {
+  Object.values(carrierInputs).forEach(el => {
+    if (!el) return;
+
+    el.addEventListener("input", () => {
+      recalcCarriers();
+    });
+
+    el.addEventListener("blur", () => {
+      el.value = formatEuro2(parseEuroToNumber(el.value));
+      recalcCarriers();
+    });
+  });
+
+  opAmountInput?.addEventListener("input", () => {
+    recalcCarriers();
+  });
+
+  opAmountInput?.addEventListener("blur", (e) => {
+    const n = parseEuroToNumber(e.target.value);
+    e.target.value = formatEuro2(n);
+    recalcCarriers();
+  });
+
+  opAmountInput?.addEventListener("focus", (e) => {
     e.target.select?.();
+  });
+
+  fixBtn?.addEventListener("click", () => {
+    const cash = getCarrierValue("cash");
+    const pos = getCarrierValue("pos");
+    const bank = getCarrierValue("bank");
+    const check = getCarrierValue("check");
+
+    const newTotal = cash + pos + bank + check;
+    if (opAmountInput) opAmountInput.value = formatEuro2(newTotal);
+    recalcCarriers();
+  });
+
+  payChecks.cash?.addEventListener("change", () => {
+    payBoxes.cash?.classList.remove("d-none");
+    recalcCarriers();
+  });
+
+  payChecks.pos?.addEventListener("change", async (e) => {
+    payBoxes.pos?.classList.toggle("d-none", !e.target.checked);
+    if (!e.target.checked) {
+      setCarrierValue("pos", 0);
+    } else {
+      await loadPosDevices();
+    }
+    recalcCarriers();
+  });
+
+  payChecks.bank?.addEventListener("change", (e) => {
+    payBoxes.bank?.classList.toggle("d-none", !e.target.checked);
+    if (!e.target.checked) setCarrierValue("bank", 0);
+    recalcCarriers();
+  });
+
+  payChecks.check?.addEventListener("change", (e) => {
+    payBoxes.check?.classList.toggle("d-none", !e.target.checked);
+    if (!e.target.checked) setCarrierValue("check", 0);
+    recalcCarriers();
+  });
+
+  posDeviceSelect?.addEventListener("change", async (e) => {
+    await loadPosCircuits(e.target.value);
   });
 
   document.getElementById("btnNewIncasso")?.addEventListener("click", () => openOpModal("sale"));
@@ -1259,18 +1229,6 @@ document.addEventListener("DOMContentLoaded", function () {
     const box = document.getElementById("opOffCashBox");
     if (!box) return;
     box.classList.toggle("d-none", !e.target.checked);
-  });
-
-  document.getElementById("payPos")?.addEventListener("change", (e) => {
-    document.getElementById("payPosBox")?.classList.toggle("d-none", !e.target.checked);
-  });
-
-  document.getElementById("payBank")?.addEventListener("change", (e) => {
-    document.getElementById("payBankBox")?.classList.toggle("d-none", !e.target.checked);
-  });
-
-  document.getElementById("payCheck")?.addEventListener("change", (e) => {
-    document.getElementById("payCheckBox")?.classList.toggle("d-none", !e.target.checked);
   });
 });
 
