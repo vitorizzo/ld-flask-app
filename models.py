@@ -1199,28 +1199,17 @@ class CashSalePayment(db.Model):
     off_cash = db.Column(db.Boolean, nullable=False, default=False)
     amount = db.Column(db.Numeric(12, 2), nullable=False)
 
-    # FLAG AGENDA: *, **, +, x, #, !
     flag = db.Column(db.String(2), nullable=False, default="*")
 
     pos_device_id = db.Column(db.Integer, db.ForeignKey("pos_devices.id"), nullable=True)
     pos_circuit_id = db.Column(db.Integer, db.ForeignKey("pos_circuits.id"), nullable=True)
+    bank_id = db.Column(db.Integer, db.ForeignKey("cash_banks.id"), nullable=True)
+
     description = db.Column(db.String(255), nullable=True)
 
     pos_device = db.relationship("PosDevice")
     pos_circuit = db.relationship("PosCircuit")
-
-    __table_args__ = (
-        CheckConstraint("amount >= 0", name="ck_cash_sale_payment_amount_nonneg"),
-        CheckConstraint("direction IN ('in','out')", name="ck_cash_sale_payment_direction"),
-        CheckConstraint(
-            "(method <> 'pos') OR (pos_device_id IS NOT NULL AND pos_circuit_id IS NOT NULL)",
-            name="ck_cash_sale_payment_pos_requires_device_circuit",
-        ),
-        CheckConstraint(
-            "flag IN ('*','**','+','x','#','!')",
-            name="ck_cash_sale_payment_flag",
-        ),
-    )
+    bank = db.relationship("CashBank")
 
 
 class CashExpensePayment(db.Model):
@@ -1234,28 +1223,17 @@ class CashExpensePayment(db.Model):
     off_cash = db.Column(db.Boolean, nullable=False, default=False)
     amount = db.Column(db.Numeric(12, 2), nullable=False)
 
-    # FLAG AGENDA: *, **, +, x, #, !
     flag = db.Column(db.String(2), nullable=False, default="*")
 
     pos_device_id = db.Column(db.Integer, db.ForeignKey("pos_devices.id"), nullable=True)
     pos_circuit_id = db.Column(db.Integer, db.ForeignKey("pos_circuits.id"), nullable=True)
+    bank_id = db.Column(db.Integer, db.ForeignKey("cash_banks.id"), nullable=True)
+
     description = db.Column(db.String(255), nullable=True)
 
     pos_device = db.relationship("PosDevice")
     pos_circuit = db.relationship("PosCircuit")
-
-    __table_args__ = (
-        CheckConstraint("amount >= 0", name="ck_cash_expense_payment_amount_nonneg"),
-        CheckConstraint("direction IN ('in','out')", name="ck_cash_expense_payment_direction"),
-        CheckConstraint(
-            "(method <> 'pos') OR (pos_device_id IS NOT NULL AND pos_circuit_id IS NOT NULL)",
-            name="ck_cash_expense_payment_pos_requires_device_circuit",
-        ),
-        CheckConstraint(
-            "flag IN ('*','**','+','x','#','!')",
-            name="ck_cash_expense_payment_flag",
-        ),
-    )
+    bank = db.relationship("CashBank")
 
 
 class CashMove(db.Model):
@@ -1409,6 +1387,34 @@ class CashCheck(db.Model):
         lazy="select",
         cascade="all, delete-orphan",
     )
+
+
+class CashBank(db.Model):
+    __tablename__ = "cash_banks"
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False, unique=True, index=True)
+
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    is_default = db.Column(db.Boolean, nullable=False, default=False)
+
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
+
+    def __repr__(self):
+        return f"<CashBank {self.name}>"
 
 
 class CashDeposit(db.Model):

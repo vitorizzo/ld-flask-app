@@ -17,7 +17,7 @@ from tools.log_utils import get_logger
 from tools.role_required import role_required
 from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment, CashExpensePayment, \
-    PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias
+    PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
@@ -1073,6 +1073,30 @@ def api_create_pos_move(day_date):
     db.session.commit()
 
     return jsonify({"ok": True, "pos_move_id": m.id}), 201
+
+
+@cassa_bp.get("/api/banks", endpoint="api_list_cash_banks")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_list_cash_banks():
+    banks = (
+        CashBank.query
+        .filter(CashBank.is_active.is_(True))
+        .order_by(CashBank.is_default.desc(), CashBank.sort_order.asc(), CashBank.name.asc())
+        .all()
+    )
+
+    return jsonify({
+        "ok": True,
+        "banks": [
+            {
+                "id": b.id,
+                "name": b.name,
+                "is_default": bool(b.is_default),
+            }
+            for b in banks
+        ]
+    })
 
 
 @cassa_bp.get("/api/day/<day_date>/pos_moves", endpoint="api_list_pos_moves")
