@@ -820,6 +820,22 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  function resetCheckFields() {
+    const fields = [
+      "checkBankName",
+      "checkBankABI",
+      "checkBankCAB",
+      "checkNumber",
+      "checkDueDate",
+      "checkAmount"
+    ];
+
+    fields.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = "";
+    });
+  }
+
   function openOpModal(type) {
     if (!opModal) return;
 
@@ -855,6 +871,7 @@ document.addEventListener("DOMContentLoaded", function () {
     payBoxes.check?.classList.add("d-none");
 
     resetAllCarriers();
+    resetCheckFields();
     setCarrierValue("cash", 0);
     clearCarrierErrors();
     carrierWarning?.classList.add("d-none");
@@ -1178,18 +1195,25 @@ document.addEventListener("DOMContentLoaded", function () {
 
   document.querySelectorAll(".carrier-tot").forEach(btn => {
     btn.addEventListener("click", () => {
+
       const carrier = btn.dataset.carrier;
-      const total = getOpAmount();
 
-      showOnlyCarrier(carrier);
-      resetAllCarriers();
-      setCarrierValue(carrier, total);
+      const opAmount = parseFloat(
+        (document.getElementById("opAmount").value || "0")
+          .replace(",", ".")
+      );
 
-      if (carrier !== "cash") {
-        setCarrierValue("cash", 0);
+      if (carrier === "check") {
+
+        document.getElementById("checkAmount").value =
+          opAmount.toFixed(2).replace(".", ",");
+
+        document.getElementById("cashAmount").value = "0,00";
+        document.getElementById("posAmount").value = "0,00";
+        document.getElementById("bankAmount").value = "0,00";
       }
 
-      recalcCarriers();
+      updateCarrierTotals();
     });
   });
 
