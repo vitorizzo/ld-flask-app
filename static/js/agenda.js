@@ -647,7 +647,6 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function isCarrierActive(key) {
-    if (key === "cash") return true;
     return !!payChecks[key]?.checked;
   }
 
@@ -674,12 +673,12 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function showOnlyCarrier(key) {
-    if (payChecks.cash) payChecks.cash.checked = true;
+    if (payChecks.cash) payChecks.cash.checked = (key === "cash");
     if (payChecks.pos) payChecks.pos.checked = (key === "pos");
     if (payChecks.bank) payChecks.bank.checked = (key === "bank");
     if (payChecks.check) payChecks.check.checked = (key === "check");
 
-    payBoxes.cash?.classList.remove("d-none");
+    payBoxes.cash?.classList.toggle("d-none", key !== "cash");
     payBoxes.pos?.classList.toggle("d-none", key !== "pos");
     payBoxes.bank?.classList.toggle("d-none", key !== "bank");
     payBoxes.check?.classList.toggle("d-none", key !== "check");
@@ -1194,26 +1193,46 @@ document.addEventListener("DOMContentLoaded", function () {
   /* carrier engine listeners */
 
   document.querySelectorAll(".carrier-tot").forEach(btn => {
-    btn.addEventListener("click", () => {
-
+    btn.addEventListener("click", async () => {
       const carrier = btn.dataset.carrier;
+      const total = getOpAmount();
 
-      const opAmount = parseFloat(
-        (document.getElementById("opAmount").value || "0")
-          .replace(",", ".")
-      );
+      // reset importi
+      resetAllCarriers();
 
-      if (carrier === "check") {
+      // reset selezioni/box: resta attivo solo il carrier scelto
+      showOnlyCarrier(carrier);
 
-        document.getElementById("checkAmount").value =
-          opAmount.toFixed(2).replace(".", ",");
-
-        document.getElementById("cashAmount").value = "0,00";
-        document.getElementById("posAmount").value = "0,00";
-        document.getElementById("bankAmount").value = "0,00";
+      // reset campi specifici carrier non attivi
+      if (carrier !== "check") {
+        resetCheckFields();
       }
 
-      updateCarrierTotals();
+      if (carrier !== "bank" && bankSelect) {
+        bankSelect.value = "";
+      }
+
+      if (carrier !== "pos") {
+        if (posDeviceSelect) posDeviceSelect.value = "";
+        if (posCircuitSelect) {
+          posCircuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
+          posCircuitSelect.disabled = true;
+        }
+      }
+
+      // se il carrier scelto richiede dati di lookup, li ricarico
+      if (carrier === "bank") {
+        await loadBanks();
+      }
+
+      if (carrier === "pos") {
+        await loadPosDevices();
+      }
+
+      // assegna il totale solo al carrier scelto
+      setCarrierValue(carrier, total);
+
+      recalcCarriers();
     });
   });
 
@@ -1255,8 +1274,13 @@ document.addEventListener("DOMContentLoaded", function () {
     recalcCarriers();
   });
 
-  payChecks.cash?.addEventListener("change", () => {
-    payBoxes.cash?.classList.remove("d-none");
+  payChecks.cash?.addEventListener("change", (e) => {
+    payBoxes.cash?.classList.toggle("d-none", !e.target.checked);
+
+    if (!e.target.checked) {
+      setCarrierValue("cash", 0);
+    }
+
     recalcCarriers();
   });
 
@@ -1285,7 +1309,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
   payChecks.check?.addEventListener("change", (e) => {
     payBoxes.check?.classList.toggle("d-none", !e.target.checked);
-    if (!e.target.checked) setCarrierValue("check", 0);
+
+    if (!e.target.checked) {
+      resetCheckFields();
+    }
+
     recalcCarriers();
   });
 
