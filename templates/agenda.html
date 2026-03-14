@@ -408,237 +408,321 @@
 
         <hr class="my-3">
 
-        <div class="fw-semibold mb-2">Pagamenti (V1)</div>
+        <div class="fw-semibold mb-2">Pagamento</div>
 
-        <div class="d-flex flex-wrap gap-3">
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="payCash" checked>
-            <label class="form-check-label" for="payCash">Contanti</label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="payPos">
-            <label class="form-check-label" for="payPos">POS</label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="payBank">
-            <label class="form-check-label" for="payBank">Banca</label>
-          </div>
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="payCheck">
-            <label class="form-check-label" for="payCheck">Assegno</label>
+        <!-- =========================
+             MODALITÀ PAGAMENTO
+        ========================= -->
+        <div class="card mb-3">
+          <div class="card-body py-3">
+            <div class="row g-2">
+              <div class="col-12">
+                <label class="form-label d-block mb-2">Modalità</label>
+
+                <div class="d-flex flex-wrap gap-3" id="paymentModeGroup">
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="paymentMode" id="paymentModeCash" value="cash" checked>
+                    <label class="form-check-label" for="paymentModeCash">Contanti</label>
+                  </div>
+
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="paymentMode" id="paymentModePos" value="pos">
+                    <label class="form-check-label" for="paymentModePos">POS</label>
+                  </div>
+
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="paymentMode" id="paymentModeBank" value="bank">
+                    <label class="form-check-label" for="paymentModeBank">Banca</label>
+                  </div>
+
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="paymentMode" id="paymentModeCheck" value="check">
+                    <label class="form-check-label" for="paymentModeCheck">Assegno</label>
+                  </div>
+
+                  <div class="form-check">
+                    <input class="form-check-input" type="radio" name="paymentMode" id="paymentModeMulti" value="multi">
+                    <label class="form-check-label" for="paymentModeMulti">Multipli</label>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         <!-- =========================
-             CARRIER PAGAMENTI
+             MODALITÀ SINGOLA - CONTANTI
         ========================= -->
+        <div class="card mb-2" id="paymentSingleCashPanel">
+          <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+              <div class="col-12 col-md-6">
+                <label class="form-label mb-0">Contanti</label>
+              </div>
 
-        <div class="mt-3">
-
-          <!-- CONTANTI -->
-          <div class="card mb-2" id="payCashBox">
-            <div class="card-body py-2">
-
-              <div class="row g-2 align-items-end">
-                <div class="col-12 col-md-6">
-                  <label class="form-label mb-0">Contanti</label>
+              <div class="col-12 col-md-6">
+                <div class="input-group">
+                  <span class="input-group-text">€</span>
+                  <input
+                    type="text"
+                    class="form-control text-end"
+                    id="cashAmount"
+                    placeholder="0,00"
+                    inputmode="decimal">
                 </div>
+              </div>
+            </div>
+          </div>
+        </div>
 
-                <div class="col-12 col-md-6">
-                  <div class="input-group">
-                    <span class="input-group-text">€</span>
-                    <input
-                      type="text"
-                      class="form-control text-end carrier-input"
-                      id="cashAmount"
-                      placeholder="0,00"
-                      inputmode="decimal">
-                    <button
-                      type="button"
-                      class="btn btn-outline-primary carrier-tot"
-                      data-carrier="cash">
-                      TOT
-                    </button>
-                  </div>
+        <!-- =========================
+             MODALITÀ SINGOLA - POS
+        ========================= -->
+        <div class="card mb-2 d-none" id="paymentSinglePosPanel">
+          <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">Dispositivo POS</label>
+                <select class="form-select" id="posDeviceSelect">
+                  <option value="">Seleziona...</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">Circuito</label>
+                <select class="form-select" id="posCircuitSelect" disabled>
+                  <option value="">Seleziona...</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">Importo POS</label>
+                <div class="input-group">
+                  <span class="input-group-text">€</span>
+                  <input
+                    type="text"
+                    class="form-control text-end"
+                    id="posAmount"
+                    placeholder="0,00"
+                    inputmode="decimal">
                 </div>
               </div>
 
             </div>
           </div>
+        </div>
 
-          <!-- POS -->
-          <div class="card mb-2 d-none" id="payPosBox">
+        <!-- =========================
+             MODALITÀ SINGOLA - BANCA
+        ========================= -->
+        <div class="card mb-2 d-none" id="paymentSingleBankPanel">
+          <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">Banca</label>
+                <select class="form-select" id="bankSelect">
+                  <option value="">Seleziona...</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-md-8">
+                <label class="form-label mb-0">Importo banca</label>
+                <div class="input-group">
+                  <span class="input-group-text">€</span>
+                  <input
+                    type="text"
+                    class="form-control text-end"
+                    id="bankAmount"
+                    placeholder="0,00"
+                    inputmode="decimal">
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- =========================
+             MODALITÀ SINGOLA - ASSEGNO
+        ========================= -->
+        <div class="card mb-2 d-none" id="paymentSingleCheckPanel">
+          <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">Banca assegno</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="checkBankName"
+                  placeholder="Es. Unicredit">
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">ABI Banca assegno</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="checkBankABI"
+                  placeholder="Es. 01030">
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">CAB Banca assegno</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="checkBankCAB"
+                  placeholder="Es. 40510">
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">Numero assegno</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="checkNumber"
+                  placeholder="Numero assegno">
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">Scadenza</label>
+                <input
+                  type="date"
+                  class="form-control"
+                  id="checkDueDate">
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">Importo</label>
+                <div class="input-group">
+                  <span class="input-group-text">€</span>
+                  <input
+                    type="text"
+                    class="form-control text-end"
+                    id="checkAmount"
+                    placeholder="0,00"
+                    inputmode="decimal">
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- =========================
+             MODALITÀ MULTIPLI
+        ========================= -->
+        <div class="card mb-2 d-none" id="paymentMultiPanel">
+          <div class="card-body py-2">
+
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <div class="fw-semibold">Pagamenti multipli</div>
+              <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddPaymentRow">
+                + Aggiungi pagamento
+              </button>
+            </div>
+
+            <div id="multiPaymentsList" class="d-grid gap-2">
+              <!-- righe dinamiche -->
+            </div>
+
+            <div class="small text-muted mt-2">
+              In questa modalità puoi inserire più righe anche dello stesso tipo
+              (es. più assegni, più POS, combinazioni miste).
+            </div>
+          </div>
+        </div>
+
+        <!-- =========================
+             WARNING / QUADRATURA
+        ========================= -->
+        <div id="paymentWarning" class="alert alert-danger py-2 px-3 small mt-3 d-none">
+          La somma dei pagamenti non coincide con il totale dell'operazione.
+        </div>
+
+        <!-- TEMPLATE RIGA MULTIPLA -->
+        <template id="multiPaymentRowTemplate">
+          <div class="card multi-payment-row">
             <div class="card-body py-2">
 
               <div class="row g-2 align-items-end">
-
-                <div class="col-12 col-md-4">
-                  <label class="form-label mb-0">Dispositivo POS</label>
-                  <select class="form-select" id="posDeviceSelect">
-                    <option value="">Seleziona...</option>
+                <div class="col-12 col-md-3">
+                  <label class="form-label mb-0">Tipo</label>
+                  <select class="form-select multi-method">
+                    <option value="cash">Contanti</option>
+                    <option value="pos">POS</option>
+                    <option value="bank">Banca</option>
+                    <option value="check">Assegno</option>
                   </select>
                 </div>
 
                 <div class="col-12 col-md-3">
-                  <label class="form-label mb-0">Circuito</label>
-                  <select class="form-select" id="posCircuitSelect" disabled>
-                    <option value="">Seleziona...</option>
-                  </select>
-                </div>
-
-                <div class="col-12 col-md-3">
-                  <label class="form-label mb-0">Importo POS</label>
-                  <div class="input-group">
-                    <span class="input-group-text">€</span>
-                    <input
-                      type="text"
-                      class="form-control text-end carrier-input"
-                      id="posAmount"
-                      placeholder="0,00"
-                      inputmode="decimal">
-                  </div>
-                </div>
-
-                <div class="col-12 col-md-2">
-                  <button
-                    type="button"
-                    class="btn btn-outline-primary w-100 carrier-tot"
-                    data-carrier="pos">
-                    TOT
-                  </button>
-                </div>
-
-              </div>
-
-            </div>
-          </div>
-
-          <!-- BANCA -->
-          <div class="card mb-2 d-none" id="payBankBox">
-            <div class="card-body py-2">
-
-              <div class="row g-2 align-items-end">
-
-                <div class="col-12 col-md-4">
-                  <label class="form-label mb-0">Banca</label>
-                  <select class="form-select" id="bankSelect">
-                    <option value="">Seleziona...</option>
-                  </select>
-                </div>
-
-                <div class="col-12 col-md-6">
-                  <label class="form-label mb-0">Importo banca</label>
-                  <div class="input-group">
-                    <span class="input-group-text">€</span>
-                    <input
-                      type="text"
-                      class="form-control text-end carrier-input"
-                      id="bankAmount"
-                      placeholder="0,00"
-                      inputmode="decimal">
-                  </div>
-                </div>
-
-                <div class="col-12 col-md-2">
-                  <button
-                    type="button"
-                    class="btn btn-outline-primary w-100 carrier-tot"
-                    data-carrier="bank">
-                    TOT
-                  </button>
-                </div>
-
-              </div>
-
-            </div>
-          </div>
-
-          <!-- ASSEGNO -->
-          <div class="card mb-2 d-none" id="payCheckBox">
-            <div class="card-body py-2">
-
-              <div class="row g-2 align-items-end">
-
-                <div class="col-12 col-md-4">
-                  <label class="form-label mb-0">Banca assegno</label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    id="checkBankName"
-                    placeholder="Es. Unicredit">
-                </div>
-
-                <div class="col-12 col-md-4">
-                  <label class="form-label mb-0">ABI Banca assegno</label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    id="checkBankABI"
-                    placeholder="Es. 01030">
-                </div>
-
-                <div class="col-12 col-md-4">
-                  <label class="form-label mb-0">CAB Banca assegno</label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    id="checkBankCAB"
-                    placeholder="Es. 40510">
-                </div>
-
-                <div class="col-12 col-md-4">
-                  <label class="form-label mb-0">Numero assegno</label>
-                  <input
-                    type="text"
-                    class="form-control"
-                    id="checkNumber"
-                    placeholder="Numero assegno">
-                </div>
-
-                <div class="col-12 col-md-4">
-                  <label class="form-label mb-0">Scadenza</label>
-                  <input
-                    type="date"
-                    class="form-control"
-                    id="checkDueDate">
-                </div>
-
-                <div class="col-12 col-md-4">
                   <label class="form-label mb-0">Importo</label>
                   <div class="input-group">
                     <span class="input-group-text">€</span>
-                    <input
-                      type="text"
-                      class="form-control text-end carrier-input"
-                      id="checkAmount"
-                      placeholder="0,00"
-                      inputmode="decimal">
+                    <input type="text" class="form-control text-end multi-amount" placeholder="0,00" inputmode="decimal">
                   </div>
                 </div>
 
-                <div class="col-12 d-flex justify-content-end">
-                  <button
-                    type="button"
-                    class="btn btn-outline-primary carrier-tot"
-                    data-carrier="check">
-                    TOT
-                  </button>
+                <div class="col-12 col-md-3 multi-pos-fields d-none">
+                  <label class="form-label mb-0">Dispositivo POS</label>
+                  <select class="form-select multi-pos-device">
+                    <option value="">Seleziona...</option>
+                  </select>
                 </div>
 
+                <div class="col-12 col-md-3 multi-pos-fields d-none">
+                  <label class="form-label mb-0">Circuito</label>
+                  <select class="form-select multi-pos-circuit" disabled>
+                    <option value="">Seleziona...</option>
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-3 multi-bank-fields d-none">
+                  <label class="form-label mb-0">Banca</label>
+                  <select class="form-select multi-bank-select">
+                    <option value="">Seleziona...</option>
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-3 multi-check-fields d-none">
+                  <label class="form-label mb-0">Banca assegno</label>
+                  <input type="text" class="form-control multi-check-bank-name" placeholder="Es. Unicredit">
+                </div>
+
+                <div class="col-12 col-md-2 multi-check-fields d-none">
+                  <label class="form-label mb-0">ABI</label>
+                  <input type="text" class="form-control multi-check-bank-abi" placeholder="01030">
+                </div>
+
+                <div class="col-12 col-md-2 multi-check-fields d-none">
+                  <label class="form-label mb-0">CAB</label>
+                  <input type="text" class="form-control multi-check-bank-cab" placeholder="40510">
+                </div>
+
+                <div class="col-12 col-md-2 multi-check-fields d-none">
+                  <label class="form-label mb-0">Numero</label>
+                  <input type="text" class="form-control multi-check-number" placeholder="Numero assegno">
+                </div>
+
+                <div class="col-12 col-md-3 multi-check-fields d-none">
+                  <label class="form-label mb-0">Scadenza</label>
+                  <input type="date" class="form-control multi-check-due-date">
+                </div>
+
+                <div class="col-12 col-md-12 d-flex justify-content-end">
+                  <button type="button" class="btn btn-outline-danger btn-sm btn-remove-payment-row">
+                    Rimuovi
+                  </button>
+                </div>
               </div>
 
             </div>
           </div>
-
-          <!-- WARNING QUADRATURA -->
-          <div id="carrierWarning" class="alert alert-danger py-2 px-3 small mt-2 d-none">
-            La somma dei pagamenti supera il totale dell'operazione.
-            <button type="button" class="btn btn-sm btn-danger ms-2" id="btnFixTotal">
-              Aggiorna totale
-            </button>
-          </div>
-
-        </div>
+        </template>
       </div>
 
       <div class="modal-footer">

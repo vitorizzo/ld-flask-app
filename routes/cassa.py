@@ -688,6 +688,54 @@ def api_customers_suggest():
     return jsonify({"ok": True, "customers": dedup})
 
 
+def _to_decimal_amount(value, field_name="amount"):
+    try:
+        amount = Decimal(str(value))
+    except (InvalidOperation, TypeError):
+        raise ValueError(f"Invalid {field_name}")
+    if amount <= 0:
+        raise ValueError(f"{field_name} must be greater than zero")
+    return amount
+
+
+def _validate_pos_pair(pos_device_id, pos_circuit_id):
+    dev = PosDevice.query.filter_by(id=pos_device_id, is_active=True).first()
+    if not dev:
+        raise ValueError("PosDevice not found or inactive")
+
+    cir = PosCircuit.query.filter_by(id=pos_circuit_id, is_active=True).first()
+    if not cir:
+        raise ValueError("PosCircuit not found or inactive")
+
+    allowed = db.session.query(pos_device_circuits).filter(
+        pos_device_circuits.c.pos_device_id == pos_device_id,
+        pos_device_circuits.c.pos_circuit_id == pos_circuit_id
+    ).first()
+    if not allowed:
+        raise ValueError("Circuit not associated to this POS device")
+
+
+def _validate_bank(bank_id):
+    bank = CashBank.query.filter_by(id=bank_id, is_active=True).first()
+    if not bank:
+        raise ValueError("CashBank not found or inactive")
+    return bank
+
+
+def _parse_due_date(value):
+    try:
+        return datetime.strptime(str(value), "%Y-%m-%d").date()
+    except ValueError:
+        raise ValueError("Invalid due_date format (YYYY-MM-DD)")
+
+
+def _normalize_payments_payload(data):
+    payments = data.get("payments")
+    if not isinstance(payments, list) or not payments:
+        raise ValueError("payments must be a non-empty list")
+    return payments
+
+
 @cassa_bp.get("/api/checks/due")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
@@ -761,21 +809,7 @@ def api_checks_due():
 @cassa_bp.post("/api/day/<day_date>/sales")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
-def api_create_sale_cash_only(day_date):
-    """
-    Inserimento incasso minimo (per iniziare a popolare dati reali).
-    - 1 riga pagamento (solo contanti)
-    - importo può essere negativo: viene normalizzato su direction="out"
-    Payload:
-    {
-      "amount": 10.50,              # può essere negativo
-      "description": "test",
-      "flag": "*",
-      "off_cash": false,
-      "customer_id": 123,           # opzionale
-      "customer_label": "Privato"   # opzionale fallback
-    }
-    """
+def api_create_sale(day_date):
     try:
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
     except ValueError:
@@ -787,17 +821,6 @@ def api_create_sale_cash_only(day_date):
 
     data = request.get_json(silent=True) or {}
 
-    try:
-        raw_amount = Decimal(str(data.get("amount", "0")))
-    except (InvalidOperation, TypeError):
-        return jsonify({"ok": False, "error": "Invalid amount"}), 400
-
-    if raw_amount == 0:
-        return jsonify({"ok": False, "error": "Amount must be non-zero"}), 400
-
-    direction = "in" if raw_amount > 0 else "out"
-    amount = abs(raw_amount)
-
     flag = (data.get("flag") or "*").strip()
     if flag not in _ALLOWED_FLAGS:
         return jsonify({"ok": False, "error": f"Invalid flag (allowed: {sorted(_ALLOWED_FLAGS)})"}), 400
@@ -806,29 +829,117 @@ def api_create_sale_cash_only(day_date):
     if not description:
         return jsonify({"ok": False, "error": "Missing description"}), 400
 
+    customer_id = data.get("customer_id")
+    customer_label = (data.get("customer_label") or "").strip() or None
+    off_cash = bool(data.get("off_cash", False))
+
+    if customer_id:
+        customer = CashCustomer.query.filter_by(id=customer_id).first()
+        if not customer:
+            return jsonify({"ok": False, "error": "Customer not found"}), 400
+
+    try:
+        payments_data = _normalize_payments_payload(data)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
     sale = CashSale(
         cash_day_id=cash_day.id,
         created_by_user_id=getattr(current_user, "id", None),
-        customer_id=data.get("customer_id"),
-        customer_label=(data.get("customer_label") or "").strip() or None,
+        customer_id=customer_id,
+        customer_label=customer_label,
         notes=description,
     )
 
-    sale.payments.append(
-        CashSalePayment(
-            direction=direction,
-            method="cash",
-            off_cash=bool(data.get("off_cash", False)),
-            amount=amount,
-            flag=flag,
-            description=description,
-        )
-    )
+    try:
+        for idx, p in enumerate(payments_data, start=1):
+            method = (p.get("method") or "").strip().lower()
+            if method not in {"cash", "pos", "bank", "check"}:
+                raise ValueError(f"Invalid payment method at row {idx}")
 
-    db.session.add(sale)
-    db.session.commit()
+            amount = _to_decimal_amount(p.get("amount"), f"payments[{idx}].amount")
+
+            payment = CashSalePayment(
+                direction="in",
+                method=method,
+                off_cash=off_cash,
+                amount=amount,
+                flag=flag,
+                description=description,
+            )
+
+            if method == "pos":
+                pos_device_id = p.get("pos_device_id")
+                pos_circuit_id = p.get("pos_circuit_id")
+                if not pos_device_id or not pos_circuit_id:
+                    raise ValueError(f"Missing POS device/circuit at row {idx}")
+                _validate_pos_pair(pos_device_id, pos_circuit_id)
+                payment.pos_device_id = pos_device_id
+                payment.pos_circuit_id = pos_circuit_id
+
+            elif method == "bank":
+                bank_id = p.get("bank_id")
+                if not bank_id:
+                    raise ValueError(f"Missing bank_id at row {idx}")
+                _validate_bank(bank_id)
+                payment.bank_id = bank_id
+
+            elif method == "check":
+                if not customer_id:
+                    raise ValueError(f"Customer required for check payment at row {idx}")
+
+                bank_name = (p.get("bank_name") or "").strip()
+                abi = (p.get("abi") or "").strip() or None
+                cab = (p.get("cab") or "").strip() or None
+                check_number = (p.get("check_number") or "").strip()
+                due_date_raw = p.get("due_date")
+
+                if not bank_name:
+                    raise ValueError(f"Missing bank_name at row {idx}")
+                if not check_number:
+                    raise ValueError(f"Missing check_number at row {idx}")
+                if not due_date_raw:
+                    raise ValueError(f"Missing due_date at row {idx}")
+
+                due_date = _parse_due_date(due_date_raw)
+
+                check = CashCheck(
+                    check_number=check_number,
+                    abi=abi,
+                    cab=cab,
+                    bank_name=bank_name,
+                    customer_id=customer_id,
+                    amount=amount,
+                    received_date=d,
+                    due_date=due_date,
+                    status="received",
+                    note=description,
+                )
+                db.session.add(check)
+                db.session.flush()
+
+                sale.checks.append(
+                    CashSaleCheck(
+                        check_id=check.id,
+                        check_amount=amount,
+                    )
+                )
+
+            sale.payments.append(payment)
+
+        db.session.add(sale)
+        db.session.commit()
+
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_create_sale error: %s", e)
+        return jsonify({"ok": False, "error": "Internal error while creating sale"}), 500
 
     return jsonify({"ok": True, "sale_id": sale.id}), 201
+
 
 @cassa_bp.get("/api/day/<day_date>/sales")
 @login_required
@@ -880,21 +991,7 @@ def api_list_sales(day_date):
 @cassa_bp.post("/api/day/<day_date>/expenses")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
-def api_create_expense_cash_only(day_date):
-    """
-    Inserimento spesa minimo (per popolare dati reali).
-    - 1 riga pagamento (solo contanti)
-    - importo può essere negativo: viene normalizzato su direction="in" (storno spesa)
-    Payload:
-    {
-      "amount": 5.00,               # può essere negativo
-      "description": "Spesa prova",
-      "flag": "*",
-      "off_cash": false,
-      "customer_id": 123,           # opzionale
-      "customer_label": "Fornitore" # opzionale
-    }
-    """
+def api_create_expense(day_date):
     try:
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
     except ValueError:
@@ -906,18 +1003,6 @@ def api_create_expense_cash_only(day_date):
 
     data = request.get_json(silent=True) or {}
 
-    try:
-        raw_amount = Decimal(str(data.get("amount", "0")))
-    except (InvalidOperation, TypeError):
-        return jsonify({"ok": False, "error": "Invalid amount"}), 400
-
-    if raw_amount == 0:
-        return jsonify({"ok": False, "error": "Amount must be non-zero"}), 400
-
-    # Spesa "normale" è out; se negativo lo trattiamo come storno (direction=in)
-    direction = "out" if raw_amount > 0 else "in"
-    amount = abs(raw_amount)
-
     flag = (data.get("flag") or "*").strip()
     if flag not in _ALLOWED_FLAGS:
         return jsonify({"ok": False, "error": f"Invalid flag (allowed: {sorted(_ALLOWED_FLAGS)})"}), 400
@@ -926,25 +1011,66 @@ def api_create_expense_cash_only(day_date):
     if not description:
         return jsonify({"ok": False, "error": "Missing description"}), 400
 
+    off_cash = bool(data.get("off_cash", False))
+
+    try:
+        payments_data = _normalize_payments_payload(data)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
     exp = CashExpense(
         cash_day_id=cash_day.id,
         created_by_user_id=getattr(current_user, "id", None),
         notes=description,
     )
 
-    exp.payments.append(
-        CashExpensePayment(
-            direction=direction,
-            method="cash",
-            off_cash=bool(data.get("off_cash", False)),
-            amount=amount,
-            flag=flag,
-            description=description,
-        )
-    )
+    try:
+        for idx, p in enumerate(payments_data, start=1):
+            method = (p.get("method") or "").strip().lower()
+            if method not in {"cash", "pos", "bank"}:
+                if method == "check":
+                    raise ValueError("Check payment is not supported for expenses with current data model")
+                raise ValueError(f"Invalid payment method at row {idx}")
 
-    db.session.add(exp)
-    db.session.commit()
+            amount = _to_decimal_amount(p.get("amount"), f"payments[{idx}].amount")
+
+            payment = CashExpensePayment(
+                direction="out",
+                method=method,
+                off_cash=off_cash,
+                amount=amount,
+                flag=flag,
+                description=description,
+            )
+
+            if method == "pos":
+                pos_device_id = p.get("pos_device_id")
+                pos_circuit_id = p.get("pos_circuit_id")
+                if not pos_device_id or not pos_circuit_id:
+                    raise ValueError(f"Missing POS device/circuit at row {idx}")
+                _validate_pos_pair(pos_device_id, pos_circuit_id)
+                payment.pos_device_id = pos_device_id
+                payment.pos_circuit_id = pos_circuit_id
+
+            elif method == "bank":
+                bank_id = p.get("bank_id")
+                if not bank_id:
+                    raise ValueError(f"Missing bank_id at row {idx}")
+                _validate_bank(bank_id)
+                payment.bank_id = bank_id
+
+            exp.payments.append(payment)
+
+        db.session.add(exp)
+        db.session.commit()
+
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_create_expense error: %s", e)
+        return jsonify({"ok": False, "error": "Internal error while creating expense"}), 500
 
     return jsonify({"ok": True, "expense_id": exp.id}), 201
 

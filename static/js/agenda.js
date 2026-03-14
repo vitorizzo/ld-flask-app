@@ -60,6 +60,10 @@ function formatEuro2(n) {
   });
 }
 
+function isNonEmpty(value) {
+  return String(value || "").trim().length > 0;
+}
+
 /* =========================
    API HELPERS
 ========================= */
@@ -371,6 +375,7 @@ async function loadIncassi(dayStr) {
       const badges = [];
       if (x.method === "pos") badges.push(`<span class="badge badge-soft badge-pos">POS</span>`);
       if (x.method === "bank") badges.push(`<span class="badge badge-soft badge-bank">BANCA</span>`);
+      if (x.method === "check") badges.push(`<span class="badge badge-soft badge-bank">ASSEGNO</span>`);
       if (x.off_cash) badges.push(`<span class="badge badge-soft badge-offcash">FUORI CASSA</span>`);
 
       return `
@@ -446,6 +451,7 @@ async function loadSpese(dayStr) {
       const badges = [];
       if (x.method === "pos") badges.push(`<span class="badge badge-soft badge-pos">POS</span>`);
       if (x.method === "bank") badges.push(`<span class="badge badge-soft badge-bank">BANCA</span>`);
+      if (x.method === "check") badges.push(`<span class="badge badge-soft badge-bank">ASSEGNO</span>`);
       if (x.off_cash) badges.push(`<span class="badge badge-soft badge-offcash">FUORI CASSA</span>`);
 
       return `
@@ -598,8 +604,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  const bankSelect = document.getElementById("bankSelect");
-
   decorateMonth(calendarInstance.currentYear, calendarInstance.currentMonth);
   loadDay(toLocalYMD(new Date()));
   startAssegniAutoRefresh();
@@ -607,291 +611,29 @@ document.addEventListener("DOMContentLoaded", function () {
   const opModalEl = document.getElementById("opModal");
   const opModal = opModalEl ? new bootstrap.Modal(opModalEl) : null;
 
-  const carrierInputs = {
-    cash: document.getElementById("cashAmount"),
-    pos: document.getElementById("posAmount"),
-    bank: document.getElementById("bankAmount"),
-    check: document.getElementById("checkAmount")
-  };
-
-  const payChecks = {
-    cash: document.getElementById("payCash"),
-    pos: document.getElementById("payPos"),
-    bank: document.getElementById("payBank"),
-    check: document.getElementById("payCheck")
-  };
-
-  const payBoxes = {
-    cash: document.getElementById("payCashBox"),
-    pos: document.getElementById("payPosBox"),
-    bank: document.getElementById("payBankBox"),
-    check: document.getElementById("payCheckBox")
-  };
-
   const opAmountInput = document.getElementById("opAmount");
   const saveBtn = document.getElementById("opSaveBtn");
-  const carrierWarning = document.getElementById("carrierWarning");
-  const fixBtn = document.getElementById("btnFixTotal");
+  const paymentWarning = document.getElementById("paymentWarning");
 
   const posDeviceSelect = document.getElementById("posDeviceSelect");
   const posCircuitSelect = document.getElementById("posCircuitSelect");
+  const bankSelect = document.getElementById("bankSelect");
 
-  function getOpAmount() {
-    return parseEuroToNumber(opAmountInput?.value || "0");
-  }
+  const paymentPanels = {
+    cash: document.getElementById("paymentSingleCashPanel"),
+    pos: document.getElementById("paymentSinglePosPanel"),
+    bank: document.getElementById("paymentSingleBankPanel"),
+    check: document.getElementById("paymentSingleCheckPanel"),
+    multi: document.getElementById("paymentMultiPanel"),
+  };
 
-  function setCarrierValue(key, value) {
-    const el = carrierInputs[key];
-    if (!el) return;
-    el.value = formatEuro2(value);
-  }
+  const multiPaymentsList = document.getElementById("multiPaymentsList");
+  const multiPaymentRowTemplate = document.getElementById("multiPaymentRowTemplate");
+  const btnAddPaymentRow = document.getElementById("btnAddPaymentRow");
 
-  function isCarrierActive(key) {
-    return !!payChecks[key]?.checked;
-  }
-
-  function getCarrierValue(key) {
-    const el = carrierInputs[key];
-    if (!el) return 0;
-    if (!isCarrierActive(key)) return 0;
-    return parseEuroToNumber(el.value);
-  }
-
-  function clearCarrierErrors() {
-    Object.values(carrierInputs).forEach(el => el?.classList.remove("error"));
-  }
-
-  function setCarrierErrors() {
-    Object.values(carrierInputs).forEach(el => el?.classList.add("error"));
-  }
-
-  function resetAllCarriers() {
-    setCarrierValue("cash", 0);
-    setCarrierValue("pos", 0);
-    setCarrierValue("bank", 0);
-    setCarrierValue("check", 0);
-  }
-
-  function showOnlyCarrier(key) {
-    if (payChecks.cash) payChecks.cash.checked = (key === "cash");
-    if (payChecks.pos) payChecks.pos.checked = (key === "pos");
-    if (payChecks.bank) payChecks.bank.checked = (key === "bank");
-    if (payChecks.check) payChecks.check.checked = (key === "check");
-
-    payBoxes.cash?.classList.toggle("d-none", key !== "cash");
-    payBoxes.pos?.classList.toggle("d-none", key !== "pos");
-    payBoxes.bank?.classList.toggle("d-none", key !== "bank");
-    payBoxes.check?.classList.toggle("d-none", key !== "check");
-  }
-
-  function updateSaveState(disabled) {
-    if (saveBtn) saveBtn.disabled = !!disabled;
-  }
-
-  function recalcCarriers() {
-    const opAmount = getOpAmount();
-
-    const pos = getCarrierValue("pos");
-    const bank = getCarrierValue("bank");
-    const check = getCarrierValue("check");
-    const otherSum = pos + bank + check;
-
-    if (otherSum > opAmount + 0.009) {
-      setCarrierErrors();
-      carrierWarning?.classList.remove("d-none");
-      updateSaveState(true);
-      return;
-    }
-
-    clearCarrierErrors();
-    carrierWarning?.classList.add("d-none");
-
-    const cash = opAmount - otherSum;
-    setCarrierValue("cash", cash);
-
-    const totalCarrier = cash + otherSum;
-    const squared = Math.abs(totalCarrier - opAmount) <= 0.009;
-
-    updateSaveState(!squared);
-  }
-
-  async function loadPosCircuits(deviceId) {
-    if (!posCircuitSelect) return;
-
-    posCircuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
-    posCircuitSelect.disabled = true;
-
-    if (!deviceId) return;
-
-    try {
-      const r = await fetch(`/cassa/api/pos/devices/${deviceId}/circuits`, {
-        credentials: "same-origin",
-        headers: { "Accept": "application/json" }
-      });
-
-      const data = await r.json();
-      if (!data.ok) return;
-
-      (data.circuits || []).forEach(c => {
-        const opt = document.createElement("option");
-        opt.value = String(c.id);
-        opt.textContent = c.name;
-        posCircuitSelect.appendChild(opt);
-      });
-
-      posCircuitSelect.disabled = false;
-    } catch (err) {
-      console.error("loadPosCircuits error:", err);
-    }
-  }
-
-  async function loadPosDevices() {
-    if (!posDeviceSelect) return;
-
-    posDeviceSelect.innerHTML = `<option value="">Seleziona...</option>`;
-    if (posCircuitSelect) {
-      posCircuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
-      posCircuitSelect.disabled = true;
-    }
-
-    try {
-      const r = await fetch("/cassa/api/pos/devices", {
-        credentials: "same-origin",
-        headers: { "Accept": "application/json" }
-      });
-
-      const data = await r.json();
-      if (!data.ok) return;
-
-      const devices = data.devices || [];
-      let defaultId = "";
-
-      devices.forEach(d => {
-        const opt = document.createElement("option");
-        opt.value = String(d.id);
-        opt.textContent = d.name;
-        posDeviceSelect.appendChild(opt);
-
-        if (d.is_default) defaultId = String(d.id);
-      });
-
-      if (defaultId) {
-        posDeviceSelect.value = defaultId;
-        await loadPosCircuits(defaultId);
-      }
-    } catch (err) {
-      console.error("loadPosDevices error:", err);
-    }
-  }
-
-  async function loadBanks() {
-    if (!bankSelect) return;
-
-    bankSelect.innerHTML = `<option value="">Seleziona...</option>`;
-
-    try {
-      const r = await fetch("/cassa/api/banks", {
-        credentials: "same-origin",
-        headers: { "Accept": "application/json" }
-      });
-
-      const data = await r.json();
-      if (!data.ok) return;
-
-      let defaultId = "";
-
-      (data.banks || []).forEach(b => {
-        const opt = document.createElement("option");
-        opt.value = String(b.id);
-        opt.textContent = b.name;
-        bankSelect.appendChild(opt);
-
-        if (b.is_default) {
-          defaultId = String(b.id);
-        }
-      });
-
-      if (defaultId) {
-        bankSelect.value = defaultId;
-      }
-    } catch (err) {
-      console.error("loadBanks error:", err);
-    }
-  }
-
-  function resetCheckFields() {
-    const fields = [
-      "checkBankName",
-      "checkBankABI",
-      "checkBankCAB",
-      "checkNumber",
-      "checkDueDate",
-      "checkAmount"
-    ];
-
-    fields.forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.value = "";
-    });
-  }
-
-  function openOpModal(type) {
-    if (!opModal) return;
-
-    setText("opModalTitle", type === "sale" ? "Nuovo incasso" : "Nuova spesa");
-
-    const opType = document.getElementById("opType");
-    const opDesc = document.getElementById("opDesc");
-    const opFlag = document.getElementById("opFlag");
-    const opCustomerId = document.getElementById("opCustomerId");
-    const opCustomer = document.getElementById("opCustomer");
-    const opOffCash = document.getElementById("opOffCash");
-    const opOffCashWho = document.getElementById("opOffCashWho");
-    const opOffCashBox = document.getElementById("opOffCashBox");
-
-    if (opType) opType.value = type;
-    if (opAmountInput) opAmountInput.value = "0,00";
-    if (opDesc) opDesc.value = "";
-    if (opFlag) opFlag.value = "*";
-    if (opCustomerId) opCustomerId.value = "";
-    if (opCustomer) opCustomer.value = "";
-    if (opOffCash) opOffCash.checked = false;
-    if (opOffCashWho) opOffCashWho.value = "";
-    if (opOffCashBox) opOffCashBox.classList.add("d-none");
-
-    if (payChecks.cash) payChecks.cash.checked = true;
-    if (payChecks.pos) payChecks.pos.checked = false;
-    if (payChecks.bank) payChecks.bank.checked = false;
-    if (payChecks.check) payChecks.check.checked = false;
-
-    payBoxes.cash?.classList.remove("d-none");
-    payBoxes.pos?.classList.add("d-none");
-    payBoxes.bank?.classList.add("d-none");
-    payBoxes.check?.classList.add("d-none");
-
-    resetAllCarriers();
-    resetCheckFields();
-    setCarrierValue("cash", 0);
-    clearCarrierErrors();
-    carrierWarning?.classList.add("d-none");
-    updateSaveState(false);
-
-    if (posDeviceSelect) posDeviceSelect.innerHTML = `<option value="">Seleziona...</option>`;
-    if (posCircuitSelect) {
-      posCircuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
-      posCircuitSelect.disabled = true;
-    }
-    if (bankSelect) bankSelect.innerHTML = `<option value="">Seleziona...</option>`;
-
-    loadPosDevices().catch(err => console.error("loadPosDevices in openOpModal:", err));
-
-    loadBanks().catch(err => console.error("loadBanks in openOpModal:", err));
-
-    recalcCarriers();
-    opModal.show();
-  }
-
-  /* stacked modals */
+  /* =========================
+     stacked modals
+  ========================= */
   (function initModalStack3D() {
     const BASE_MODAL_Z = 1055;
     const BASE_BACKDROP_Z = 1050;
@@ -920,7 +662,9 @@ document.addEventListener("DOMContentLoaded", function () {
     document.addEventListener("show.bs.modal", () => setTimeout(restack, 0));
   })();
 
-  /* dropdown flag */
+  /* =========================
+     dropdown flag
+  ========================= */
   const OP_FLAGS = ["*", "**", "#", "!", "+", "x"];
 
   (function initFlagDropdown() {
@@ -975,7 +719,706 @@ document.addEventListener("DOMContentLoaded", function () {
     buildMenu("");
   })();
 
-  /* nuovo cliente */
+  /* =========================
+     helpers payment mode
+  ========================= */
+
+  function getPaymentMode() {
+    const checked = document.querySelector('input[name="paymentMode"]:checked');
+    return checked?.value || "cash";
+  }
+
+  function setPaymentMode(mode) {
+    const target = document.querySelector(`input[name="paymentMode"][value="${mode}"]`);
+    if (target) target.checked = true;
+
+    Object.entries(paymentPanels).forEach(([key, panel]) => {
+      if (!panel) return;
+      panel.classList.toggle("d-none", key !== mode);
+    });
+
+    if (mode === "pos") {
+      loadPosDevices().catch(err => console.error("loadPosDevices setPaymentMode:", err));
+    } else if (mode === "bank") {
+      loadBanks().catch(err => console.error("loadBanks setPaymentMode:", err));
+    } else if (mode === "multi") {
+      if (!multiPaymentsList?.children.length) {
+        addMultiPaymentRow();
+      }
+    }
+  }
+
+  function getOpAmount() {
+    return parseEuroToNumber(opAmountInput?.value || "0");
+  }
+
+  function clearPaymentWarning() {
+    paymentWarning?.classList.add("d-none");
+    if (saveBtn) saveBtn.disabled = false;
+  }
+
+  function showPaymentWarning(message = "La somma dei pagamenti non coincide con il totale dell'operazione.") {
+    if (paymentWarning) {
+      paymentWarning.textContent = message;
+      paymentWarning.classList.remove("d-none");
+    }
+    if (saveBtn) saveBtn.disabled = true;
+  }
+
+  function clearSingleCarrierFields() {
+    const ids = [
+      "cashAmount",
+      "posAmount",
+      "bankAmount",
+      "checkAmount",
+      "checkBankName",
+      "checkBankABI",
+      "checkBankCAB",
+      "checkNumber",
+      "checkDueDate"
+    ];
+
+    ids.forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.tagName === "SELECT") {
+        el.value = "";
+      } else {
+        el.value = "";
+      }
+    });
+
+    if (posCircuitSelect) {
+      posCircuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
+      posCircuitSelect.disabled = true;
+    }
+  }
+
+  function resetMultiPayments() {
+    if (multiPaymentsList) multiPaymentsList.innerHTML = "";
+  }
+
+  function refreshSingleAmountFields() {
+    const total = formatEuro2(getOpAmount());
+
+    const mode = getPaymentMode();
+
+    const cashAmount = document.getElementById("cashAmount");
+    const posAmount = document.getElementById("posAmount");
+    const bankAmount = document.getElementById("bankAmount");
+    const checkAmount = document.getElementById("checkAmount");
+
+    if (mode === "cash" && cashAmount) cashAmount.value = total;
+    if (mode === "pos" && posAmount) posAmount.value = total;
+    if (mode === "bank" && bankAmount) bankAmount.value = total;
+    if (mode === "check" && checkAmount) checkAmount.value = total;
+  }
+
+  function updatePaymentState() {
+    const mode = getPaymentMode();
+    const opAmount = getOpAmount();
+
+    if (opAmount <= 0) {
+      showPaymentWarning("Inserisci un importo operazione maggiore di zero.");
+      return;
+    }
+
+    let totalPayments = 0;
+
+    if (mode === "cash") {
+      totalPayments = parseEuroToNumber(document.getElementById("cashAmount")?.value || "0");
+    } else if (mode === "pos") {
+      totalPayments = parseEuroToNumber(document.getElementById("posAmount")?.value || "0");
+    } else if (mode === "bank") {
+      totalPayments = parseEuroToNumber(document.getElementById("bankAmount")?.value || "0");
+    } else if (mode === "check") {
+      totalPayments = parseEuroToNumber(document.getElementById("checkAmount")?.value || "0");
+    } else {
+      const rows = Array.from(multiPaymentsList?.querySelectorAll(".multi-payment-row") || []);
+      totalPayments = rows.reduce((sum, row) => {
+        const amount = parseEuroToNumber(row.querySelector(".multi-amount")?.value || "0");
+        return sum + amount;
+      }, 0);
+    }
+
+    if (Math.abs(totalPayments - opAmount) > 0.009) {
+      showPaymentWarning();
+      return;
+    }
+
+    clearPaymentWarning();
+  }
+
+  function normalizeCurrencyInput(input) {
+    if (!input) return;
+    input.addEventListener("blur", () => {
+      input.value = formatEuro2(parseEuroToNumber(input.value));
+      updatePaymentState();
+    });
+    input.addEventListener("input", () => {
+      updatePaymentState();
+    });
+  }
+
+  /* =========================
+     POS / BANK loaders
+  ========================= */
+
+  async function loadPosCircuits(deviceId, circuitSelect = posCircuitSelect) {
+    if (!circuitSelect) return;
+
+    circuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
+    circuitSelect.disabled = true;
+
+    if (!deviceId) return;
+
+    try {
+      const r = await fetch(`/cassa/api/pos/devices/${deviceId}/circuits`, {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" }
+      });
+
+      const data = await r.json();
+      if (!data.ok) return;
+
+      (data.circuits || []).forEach(c => {
+        const opt = document.createElement("option");
+        opt.value = String(c.id);
+        opt.textContent = c.name;
+        circuitSelect.appendChild(opt);
+      });
+
+      circuitSelect.disabled = false;
+    } catch (err) {
+      console.error("loadPosCircuits error:", err);
+    }
+  }
+
+  async function fetchPosDevicesRaw() {
+    const r = await fetch("/cassa/api/pos/devices", {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" }
+    });
+    const data = await r.json();
+    if (!data.ok) return [];
+    return data.devices || [];
+  }
+
+  async function loadPosDevices(selectEl = posDeviceSelect, autoLoadCircuits = true, linkedCircuitSelect = posCircuitSelect) {
+    if (!selectEl) return;
+
+    selectEl.innerHTML = `<option value="">Seleziona...</option>`;
+    if (linkedCircuitSelect) {
+      linkedCircuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
+      linkedCircuitSelect.disabled = true;
+    }
+
+    try {
+      const devices = await fetchPosDevicesRaw();
+      let defaultId = "";
+
+      devices.forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = String(d.id);
+        opt.textContent = d.name;
+        selectEl.appendChild(opt);
+
+        if (d.is_default) defaultId = String(d.id);
+      });
+
+      if (defaultId) {
+        selectEl.value = defaultId;
+        if (autoLoadCircuits && linkedCircuitSelect) {
+          await loadPosCircuits(defaultId, linkedCircuitSelect);
+        }
+      }
+    } catch (err) {
+      console.error("loadPosDevices error:", err);
+    }
+  }
+
+  async function fetchBanksRaw() {
+    const r = await fetch("/cassa/api/banks", {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" }
+    });
+    const data = await r.json();
+    if (!data.ok) return [];
+    return data.banks || [];
+  }
+
+  async function loadBanks(selectEl = bankSelect) {
+    if (!selectEl) return;
+
+    selectEl.innerHTML = `<option value="">Seleziona...</option>`;
+
+    try {
+      const banks = await fetchBanksRaw();
+      let defaultId = "";
+
+      banks.forEach(b => {
+        const opt = document.createElement("option");
+        opt.value = String(b.id);
+        opt.textContent = b.name;
+        selectEl.appendChild(opt);
+
+        if (b.is_default) defaultId = String(b.id);
+      });
+
+      if (defaultId) {
+        selectEl.value = defaultId;
+      }
+    } catch (err) {
+      console.error("loadBanks error:", err);
+    }
+  }
+
+  /* =========================
+     MULTI ROWS
+  ========================= */
+
+  function updateMultiRowFields(row) {
+    const method = row.querySelector(".multi-method")?.value || "cash";
+
+    row.querySelectorAll(".multi-pos-fields").forEach(el => {
+      el.classList.toggle("d-none", method !== "pos");
+    });
+
+    row.querySelectorAll(".multi-bank-fields").forEach(el => {
+      el.classList.toggle("d-none", method !== "bank");
+    });
+
+    row.querySelectorAll(".multi-check-fields").forEach(el => {
+      el.classList.toggle("d-none", method !== "check");
+    });
+  }
+
+  async function addMultiPaymentRow(initialMethod = "cash") {
+    if (!multiPaymentsList || !multiPaymentRowTemplate) return;
+
+    const fragment = multiPaymentRowTemplate.content.cloneNode(true);
+    const row = fragment.querySelector(".multi-payment-row");
+
+    const methodSelect = row.querySelector(".multi-method");
+    const amountInput = row.querySelector(".multi-amount");
+    const removeBtn = row.querySelector(".btn-remove-payment-row");
+    const rowPosDevice = row.querySelector(".multi-pos-device");
+    const rowPosCircuit = row.querySelector(".multi-pos-circuit");
+    const rowBankSelect = row.querySelector(".multi-bank-select");
+
+    if (methodSelect) methodSelect.value = initialMethod;
+
+    normalizeCurrencyInput(amountInput);
+
+    methodSelect?.addEventListener("change", async () => {
+      updateMultiRowFields(row);
+
+      const method = methodSelect.value;
+
+      if (method === "pos") {
+        await loadPosDevices(rowPosDevice, true, rowPosCircuit);
+      } else if (method === "bank") {
+        await loadBanks(rowBankSelect);
+      } else {
+        if (rowPosDevice) rowPosDevice.innerHTML = `<option value="">Seleziona...</option>`;
+        if (rowPosCircuit) {
+          rowPosCircuit.innerHTML = `<option value="">Seleziona...</option>`;
+          rowPosCircuit.disabled = true;
+        }
+        if (rowBankSelect) rowBankSelect.innerHTML = `<option value="">Seleziona...</option>`;
+      }
+
+      updatePaymentState();
+    });
+
+    rowPosDevice?.addEventListener("change", async (e) => {
+      await loadPosCircuits(e.target.value, rowPosCircuit);
+      updatePaymentState();
+    });
+
+    removeBtn?.addEventListener("click", () => {
+      row.remove();
+      updatePaymentState();
+    });
+
+    multiPaymentsList.appendChild(row);
+    updateMultiRowFields(row);
+
+    if (initialMethod === "pos") {
+      await loadPosDevices(rowPosDevice, true, rowPosCircuit);
+    } else if (initialMethod === "bank") {
+      await loadBanks(rowBankSelect);
+    }
+
+    updatePaymentState();
+  }
+
+  /* =========================
+     open modal / reset
+  ========================= */
+
+  function openOpModal(type) {
+    if (!opModal) return;
+
+    setText("opModalTitle", type === "sale" ? "Nuovo incasso" : "Nuova spesa");
+
+    const opType = document.getElementById("opType");
+    const opDesc = document.getElementById("opDesc");
+    const opFlag = document.getElementById("opFlag");
+    const opCustomerId = document.getElementById("opCustomerId");
+    const opCustomer = document.getElementById("opCustomer");
+    const opOffCash = document.getElementById("opOffCash");
+    const opOffCashWho = document.getElementById("opOffCashWho");
+    const opOffCashBox = document.getElementById("opOffCashBox");
+
+    if (opType) opType.value = type;
+    if (opAmountInput) opAmountInput.value = "0,00";
+    if (opDesc) opDesc.value = "";
+    if (opFlag) opFlag.value = "*";
+    if (opCustomerId) opCustomerId.value = "";
+    if (opCustomer) opCustomer.value = "";
+    if (opOffCash) opOffCash.checked = false;
+    if (opOffCashWho) opOffCashWho.value = "";
+    if (opOffCashBox) opOffCashBox.classList.add("d-none");
+
+    clearSingleCarrierFields();
+    resetMultiPayments();
+    setPaymentMode("cash");
+    refreshSingleAmountFields();
+    clearPaymentWarning();
+
+    opModal.show();
+  }
+
+  /* =========================
+     build payload
+  ========================= */
+
+  function getBaseOperationData() {
+    const opType = document.getElementById("opType")?.value || "sale";
+    const flag = (document.getElementById("opFlag")?.value || "*").trim();
+    const description = (document.getElementById("opDesc")?.value || "").trim();
+    const customerIdRaw = (document.getElementById("opCustomerId")?.value || "").trim();
+    const customerLabel = (document.getElementById("opCustomer")?.value || "").trim();
+    const offCash = !!document.getElementById("opOffCash")?.checked;
+    const offCashWho = (document.getElementById("opOffCashWho")?.value || "").trim();
+
+    return {
+      opType,
+      flag,
+      description,
+      customer_id: customerIdRaw ? Number(customerIdRaw) : null,
+      customer_label: customerLabel || null,
+      off_cash: offCash,
+      off_cash_who: offCashWho || null,
+      amount: getOpAmount(),
+    };
+  }
+
+  function buildSinglePaymentPayload(base) {
+    const mode = getPaymentMode();
+    const amount = base.amount;
+
+    if (amount <= 0) {
+      return { ok: false, error: "Importo operazione non valido." };
+    }
+
+    if (!base.description) {
+      return { ok: false, error: "Inserisci una descrizione." };
+    }
+
+    if (mode === "cash") {
+      return {
+        ok: true,
+        payload: {
+          description: base.description,
+          flag: base.flag,
+          customer_id: base.customer_id,
+          customer_label: base.customer_label,
+          off_cash: base.off_cash,
+          off_cash_who: base.off_cash_who,
+          payments: [
+            {
+              method: "cash",
+              amount: amount
+            }
+          ]
+        }
+      };
+    }
+
+    if (mode === "pos") {
+      const pos_device_id = Number(posDeviceSelect?.value || 0);
+      const pos_circuit_id = Number(posCircuitSelect?.value || 0);
+
+      if (!pos_device_id || !pos_circuit_id) {
+        return { ok: false, error: "Seleziona dispositivo e circuito POS." };
+      }
+
+      return {
+        ok: true,
+        payload: {
+          description: base.description,
+          flag: base.flag,
+          customer_id: base.customer_id,
+          customer_label: base.customer_label,
+          off_cash: base.off_cash,
+          off_cash_who: base.off_cash_who,
+          payments: [
+            {
+              method: "pos",
+              amount: amount,
+              pos_device_id,
+              pos_circuit_id
+            }
+          ]
+        }
+      };
+    }
+
+    if (mode === "bank") {
+      const bank_id = Number(bankSelect?.value || 0);
+      if (!bank_id) {
+        return { ok: false, error: "Seleziona una banca." };
+      }
+
+      return {
+        ok: true,
+        payload: {
+          description: base.description,
+          flag: base.flag,
+          customer_id: base.customer_id,
+          customer_label: base.customer_label,
+          off_cash: base.off_cash,
+          off_cash_who: base.off_cash_who,
+          payments: [
+            {
+              method: "bank",
+              amount: amount,
+              bank_id
+            }
+          ]
+        }
+      };
+    }
+
+    if (mode === "check") {
+      const bank_name = (document.getElementById("checkBankName")?.value || "").trim();
+      const abi = (document.getElementById("checkBankABI")?.value || "").trim();
+      const cab = (document.getElementById("checkBankCAB")?.value || "").trim();
+      const check_number = (document.getElementById("checkNumber")?.value || "").trim();
+      const due_date = (document.getElementById("checkDueDate")?.value || "").trim();
+
+      if (!base.customer_id) {
+        return { ok: false, error: "Per un assegno devi selezionare un cliente." };
+      }
+
+      if (!bank_name || !abi || !cab || !check_number || !due_date) {
+        return { ok: false, error: "Completa tutti i dati dell’assegno." };
+      }
+
+      return {
+        ok: true,
+        payload: {
+          description: base.description,
+          flag: base.flag,
+          customer_id: base.customer_id,
+          customer_label: base.customer_label,
+          off_cash: base.off_cash,
+          off_cash_who: base.off_cash_who,
+          payments: [
+            {
+              method: "check",
+              amount: amount,
+              bank_name,
+              abi,
+              cab,
+              check_number,
+              due_date
+            }
+          ]
+        }
+      };
+    }
+
+    return { ok: false, error: "Modalità pagamento non valida." };
+  }
+
+  function buildMultiPaymentPayload(base) {
+    const rows = Array.from(multiPaymentsList?.querySelectorAll(".multi-payment-row") || []);
+    if (!rows.length) {
+      return { ok: false, error: "Aggiungi almeno una riga pagamento." };
+    }
+
+    if (base.amount <= 0) {
+      return { ok: false, error: "Importo operazione non valido." };
+    }
+
+    if (!base.description) {
+      return { ok: false, error: "Inserisci una descrizione." };
+    }
+
+    const payments = [];
+
+    for (const row of rows) {
+      const method = row.querySelector(".multi-method")?.value || "cash";
+      const amount = parseEuroToNumber(row.querySelector(".multi-amount")?.value || "0");
+
+      if (amount <= 0) {
+        return { ok: false, error: "Ogni riga pagamento deve avere un importo maggiore di zero." };
+      }
+
+      if (method === "cash") {
+        payments.push({
+          method: "cash",
+          amount
+        });
+        continue;
+      }
+
+      if (method === "pos") {
+        const pos_device_id = Number(row.querySelector(".multi-pos-device")?.value || 0);
+        const pos_circuit_id = Number(row.querySelector(".multi-pos-circuit")?.value || 0);
+
+        if (!pos_device_id || !pos_circuit_id) {
+          return { ok: false, error: "Ogni riga POS deve avere dispositivo e circuito." };
+        }
+
+        payments.push({
+          method: "pos",
+          amount,
+          pos_device_id,
+          pos_circuit_id
+        });
+        continue;
+      }
+
+      if (method === "bank") {
+        const bank_id = Number(row.querySelector(".multi-bank-select")?.value || 0);
+        if (!bank_id) {
+          return { ok: false, error: "Ogni riga banca deve avere una banca selezionata." };
+        }
+
+        payments.push({
+          method: "bank",
+          amount,
+          bank_id
+        });
+        continue;
+      }
+
+      if (method === "check") {
+        if (!base.customer_id) {
+          return { ok: false, error: "Per gli assegni devi selezionare un cliente." };
+        }
+
+        const bank_name = (row.querySelector(".multi-check-bank-name")?.value || "").trim();
+        const abi = (row.querySelector(".multi-check-bank-abi")?.value || "").trim();
+        const cab = (row.querySelector(".multi-check-bank-cab")?.value || "").trim();
+        const check_number = (row.querySelector(".multi-check-number")?.value || "").trim();
+        const due_date = (row.querySelector(".multi-check-due-date")?.value || "").trim();
+
+        if (!bank_name || !abi || !cab || !check_number || !due_date) {
+          return { ok: false, error: "Completa tutti i dati per ogni assegno." };
+        }
+
+        payments.push({
+          method: "check",
+          amount,
+          bank_name,
+          abi,
+          cab,
+          check_number,
+          due_date
+        });
+        continue;
+      }
+
+      return { ok: false, error: "Tipo pagamento non valido in una delle righe." };
+    }
+
+    const totalPayments = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
+    if (Math.abs(totalPayments - base.amount) > 0.009) {
+      return { ok: false, error: "La somma dei pagamenti non coincide con il totale dell’operazione." };
+    }
+
+    return {
+      ok: true,
+      payload: {
+        description: base.description,
+        flag: base.flag,
+        customer_id: base.customer_id,
+        customer_label: base.customer_label,
+        off_cash: base.off_cash,
+        off_cash_who: base.off_cash_who,
+        payments
+      }
+    };
+  }
+
+  function buildOperationPayload() {
+    const base = getBaseOperationData();
+    const mode = getPaymentMode();
+
+    if (mode === "multi") {
+      return buildMultiPaymentPayload(base);
+    }
+    return buildSinglePaymentPayload(base);
+  }
+
+  async function saveOperation() {
+    if (!currentDay) {
+      alert("Nessuna giornata selezionata.");
+      return;
+    }
+
+    const opType = document.getElementById("opType")?.value || "sale";
+    const endpoint = opType === "expense"
+      ? `/cassa/api/day/${currentDay}/expenses`
+      : `/cassa/api/day/${currentDay}/sales`;
+
+    const built = buildOperationPayload();
+    if (!built.ok) {
+      alert(built.error || "Dati operazione non validi.");
+      return;
+    }
+
+    try {
+      if (saveBtn) saveBtn.disabled = true;
+
+      const r = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify(built.payload),
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore durante il salvataggio.");
+        return;
+      }
+
+      opModal.hide();
+      loadPreview(currentDay);
+      loadIncassi(currentDay);
+      loadSpese(currentDay);
+      loadPosMoves(currentDay);
+      loadCashMoves(currentDay);
+      loadCoinsBalance(currentDay);
+      loadAssegniScadenza(currentDay, false);
+    } catch (err) {
+      console.error("saveOperation error:", err);
+      alert("Errore di rete durante il salvataggio.");
+    } finally {
+      updatePaymentState();
+    }
+  }
+
+  /* =========================
+     nuovo cliente
+  ========================= */
   (function initCustomerNewModal() {
     const btnOpen = document.getElementById("btnCustomerNew");
     const modalEl = document.getElementById("customerNewModal");
@@ -1058,7 +1501,9 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   })();
 
-  /* suggest cliente */
+  /* =========================
+     suggest cliente
+  ========================= */
   (function initCustomerSuggest() {
     const input = document.getElementById("opCustomer");
     const list = document.getElementById("opCustomerList");
@@ -1106,7 +1551,9 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   })();
 
-  /* ricerca cliente avanzata */
+  /* =========================
+     ricerca cliente avanzata
+  ========================= */
   (function initCustomerSearchModal() {
     const btnOpen = document.getElementById("btnCustomerSearch");
     const modalEl = document.getElementById("customerSearchModal");
@@ -1190,135 +1637,46 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   })();
 
-  /* carrier engine listeners */
+  /* =========================
+     listeners base
+  ========================= */
 
-  document.querySelectorAll(".carrier-tot").forEach(btn => {
-    btn.addEventListener("click", async () => {
-      const carrier = btn.dataset.carrier;
-      const total = getOpAmount();
-
-      // reset importi
-      resetAllCarriers();
-
-      // reset selezioni/box: resta attivo solo il carrier scelto
-      showOnlyCarrier(carrier);
-
-      // reset campi specifici carrier non attivi
-      if (carrier !== "check") {
-        resetCheckFields();
-      }
-
-      if (carrier !== "bank" && bankSelect) {
-        bankSelect.value = "";
-      }
-
-      if (carrier !== "pos") {
-        if (posDeviceSelect) posDeviceSelect.value = "";
-        if (posCircuitSelect) {
-          posCircuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
-          posCircuitSelect.disabled = true;
-        }
-      }
-
-      // se il carrier scelto richiede dati di lookup, li ricarico
-      if (carrier === "bank") {
-        await loadBanks();
-      }
-
-      if (carrier === "pos") {
-        await loadPosDevices();
-      }
-
-      // assegna il totale solo al carrier scelto
-      setCarrierValue(carrier, total);
-
-      recalcCarriers();
+  document.querySelectorAll('input[name="paymentMode"]').forEach(radio => {
+    radio.addEventListener("change", () => {
+      setPaymentMode(radio.value);
+      refreshSingleAmountFields();
+      updatePaymentState();
     });
   });
 
-  Object.values(carrierInputs).forEach(el => {
-    if (!el) return;
-
-    el.addEventListener("input", () => {
-      recalcCarriers();
-    });
-
-    el.addEventListener("blur", () => {
-      el.value = formatEuro2(parseEuroToNumber(el.value));
-      recalcCarriers();
-    });
+  posDeviceSelect?.addEventListener("change", async (e) => {
+    await loadPosCircuits(e.target.value, posCircuitSelect);
+    updatePaymentState();
   });
+
+  normalizeCurrencyInput(document.getElementById("cashAmount"));
+  normalizeCurrencyInput(document.getElementById("posAmount"));
+  normalizeCurrencyInput(document.getElementById("bankAmount"));
+  normalizeCurrencyInput(document.getElementById("checkAmount"));
 
   opAmountInput?.addEventListener("input", () => {
-    recalcCarriers();
+    refreshSingleAmountFields();
+    updatePaymentState();
   });
 
   opAmountInput?.addEventListener("blur", (e) => {
     const n = parseEuroToNumber(e.target.value);
     e.target.value = formatEuro2(n);
-    recalcCarriers();
+    refreshSingleAmountFields();
+    updatePaymentState();
   });
 
   opAmountInput?.addEventListener("focus", (e) => {
     e.target.select?.();
   });
 
-  fixBtn?.addEventListener("click", () => {
-    const cash = getCarrierValue("cash");
-    const pos = getCarrierValue("pos");
-    const bank = getCarrierValue("bank");
-    const check = getCarrierValue("check");
-
-    const newTotal = cash + pos + bank + check;
-    if (opAmountInput) opAmountInput.value = formatEuro2(newTotal);
-    recalcCarriers();
-  });
-
-  payChecks.cash?.addEventListener("change", (e) => {
-    payBoxes.cash?.classList.toggle("d-none", !e.target.checked);
-
-    if (!e.target.checked) {
-      setCarrierValue("cash", 0);
-    }
-
-    recalcCarriers();
-  });
-
-  payChecks.pos?.addEventListener("change", async (e) => {
-    payBoxes.pos?.classList.toggle("d-none", !e.target.checked);
-    if (!e.target.checked) {
-      setCarrierValue("pos", 0);
-    } else {
-      await loadPosDevices();
-    }
-    recalcCarriers();
-  });
-
-  payChecks.bank?.addEventListener("change", async (e) => {
-    payBoxes.bank?.classList.toggle("d-none", !e.target.checked);
-
-    if (!e.target.checked) {
-      setCarrierValue("bank", 0);
-      if (bankSelect) bankSelect.value = "";
-    } else {
-      await loadBanks();
-    }
-
-    recalcCarriers();
-  });
-
-  payChecks.check?.addEventListener("change", (e) => {
-    payBoxes.check?.classList.toggle("d-none", !e.target.checked);
-
-    if (!e.target.checked) {
-      resetCheckFields();
-    }
-
-    recalcCarriers();
-  });
-
-  posDeviceSelect?.addEventListener("change", async (e) => {
-    await loadPosCircuits(e.target.value);
+  btnAddPaymentRow?.addEventListener("click", () => {
+    addMultiPaymentRow();
   });
 
   document.getElementById("btnNewIncasso")?.addEventListener("click", () => openOpModal("sale"));
@@ -1329,6 +1687,12 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!box) return;
     box.classList.toggle("d-none", !e.target.checked);
   });
+
+  saveBtn?.addEventListener("click", () => {
+    saveOperation();
+  });
+
+  updatePaymentState();
 });
 
 document.addEventListener("visibilitychange", function () {
