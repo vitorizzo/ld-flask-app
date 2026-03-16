@@ -17,10 +17,24 @@ from tools.log_utils import get_logger
 from tools.role_required import role_required
 from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment, CashExpensePayment, \
-    PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck
+    PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
+    CashDrawerCount, CashDrawerCountLine
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
+
+_DRAWER_DENOMINATIONS = [
+    Decimal("0.10"),
+    Decimal("0.20"),
+    Decimal("0.50"),
+    Decimal("1.00"),
+    Decimal("2.00"),
+    Decimal("5.00"),
+    Decimal("10.00"),
+    Decimal("20.00"),
+    Decimal("50.00"),
+    Decimal("100.00"),
+]
 
 cassa_bp = Blueprint("cassa", __name__, url_prefix="/cassa")
 logger = get_logger("cassa", level=logging.INFO)
@@ -41,6 +55,50 @@ def _b64e(b: bytes) -> str:
 
 def _b64d(s: str) -> bytes:
     return base64.urlsafe_b64decode(s.encode("utf-8"))
+
+
+def _get_cash_day_by_date_or_404(day_date: str):
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return None, (jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400)
+
+    cash_day = CashDay.query.filter(CashDay.day_date == d).first()
+    if not cash_day:
+        return None, (jsonify({"ok": False, "error": "CashDay not found"}), 404)
+
+    return cash_day, None
+
+
+def _serialize_drawer_count(drawer_count: CashDrawerCount | None):
+    line_map = {}
+    if drawer_count:
+        for line in drawer_count.lines or []:
+            line_map[str(Decimal(str(line.denomination)).quantize(Decimal("0.01")))] = line
+
+    out_lines = []
+    grand_total = Decimal("0")
+
+    for denom in _DRAWER_DENOMINATIONS:
+        key = str(denom.quantize(Decimal("0.01")))
+        line = line_map.get(key)
+
+        quantity = int(line.quantity) if line else 0
+        line_total = Decimal(str(line.line_total)) if line else Decimal("0.00")
+        grand_total += line_total
+
+        out_lines.append({
+            "denomination": key,
+            "quantity": quantity,
+            "line_total": str(line_total.quantize(Decimal("0.01"))),
+        })
+
+    return {
+        "id": drawer_count.id if drawer_count else None,
+        "notes": drawer_count.notes if drawer_count else None,
+        "lines": out_lines,
+        "grand_total": str(grand_total.quantize(Decimal("0.01"))),
+    }
 
 
 def _derive_key(password: str, salt: bytes) -> bytes:
@@ -1527,3 +1585,131 @@ def api_pos_device_circuits(device_id):
             for c in circuits
         ]
     })
+
+
+@cassa_bp.get("/api/day/<day_date>/drawer-count")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_get_drawer_count(day_date):
+    cash_day, error_response = _get_cash_day_by_date_or_404(day_date)
+    if error_response:
+        return error_response
+
+    drawer_count = (
+        CashDrawerCount.query
+        .options(selectinload(CashDrawerCount.lines))
+        .filter(CashDrawerCount.cash_day_id == cash_day.id)
+        .first()
+    )
+
+    return jsonify({
+        "ok": True,
+        "day_date": cash_day.day_date.isoformat(),
+        "drawer_count": _serialize_drawer_count(drawer_count),
+    })
+
+
+@cassa_bp.post("/api/day/<day_date>/drawer-count")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_save_drawer_count(day_date):
+    cash_day, error_response = _get_cash_day_by_date_or_404(day_date)
+    if error_response:
+        return error_response
+
+    data = request.get_json(silent=True) or {}
+    raw_lines = data.get("lines")
+    notes = (data.get("notes") or "").strip() or None
+
+    if not isinstance(raw_lines, list):
+        return jsonify({"ok": False, "error": "lines must be a list"}), 400
+
+    allowed_denoms = {str(d.quantize(Decimal("0.01"))) for d in _DRAWER_DENOMINATIONS}
+    parsed = {}
+
+    try:
+        for idx, item in enumerate(raw_lines, start=1):
+            if not isinstance(item, dict):
+                raise ValueError(f"Invalid line at index {idx}")
+
+            denom = Decimal(str(item.get("denomination")))
+            denom_key = str(denom.quantize(Decimal("0.01")))
+
+            if denom_key not in allowed_denoms:
+                raise ValueError(f"Invalid denomination at row {idx}")
+
+            quantity_raw = item.get("quantity", 0)
+            try:
+                quantity = int(quantity_raw)
+            except (TypeError, ValueError):
+                raise ValueError(f"Invalid quantity at row {idx}")
+
+            if quantity < 0:
+                raise ValueError(f"Quantity must be non-negative at row {idx}")
+
+            parsed[denom_key] = {
+                "denomination": Decimal(denom_key),
+                "quantity": quantity,
+                "line_total": (Decimal(denom_key) * Decimal(quantity)).quantize(Decimal("0.01")),
+            }
+
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+    try:
+        drawer_count = CashDrawerCount.query.filter_by(cash_day_id=cash_day.id).first()
+
+        if not drawer_count:
+            drawer_count = CashDrawerCount(
+                cash_day_id=cash_day.id,
+                created_by_user_id=getattr(current_user, "id", None),
+                notes=notes,
+            )
+            db.session.add(drawer_count)
+            db.session.flush()
+        else:
+            drawer_count.notes = notes
+
+        existing_by_key = {
+            str(Decimal(str(line.denomination)).quantize(Decimal("0.01"))): line
+            for line in (drawer_count.lines or [])
+        }
+
+        for denom in _DRAWER_DENOMINATIONS:
+            denom_key = str(denom.quantize(Decimal("0.01")))
+            values = parsed.get(denom_key, {
+                "denomination": denom,
+                "quantity": 0,
+                "line_total": Decimal("0.00"),
+            })
+
+            line = existing_by_key.get(denom_key)
+            if not line:
+                line = CashDrawerCountLine(
+                    drawer_count_id=drawer_count.id,
+                    denomination=values["denomination"],
+                )
+                db.session.add(line)
+
+            line.quantity = values["quantity"]
+            line.line_total = values["line_total"]
+
+        db.session.commit()
+
+        drawer_count = (
+            CashDrawerCount.query
+            .options(selectinload(CashDrawerCount.lines))
+            .filter(CashDrawerCount.cash_day_id == cash_day.id)
+            .first()
+        )
+
+        return jsonify({
+            "ok": True,
+            "day_date": cash_day.day_date.isoformat(),
+            "drawer_count": _serialize_drawer_count(drawer_count),
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_save_drawer_count error: %s", e)
+        return jsonify({"ok": False, "error": "Internal error while saving drawer count"}), 500

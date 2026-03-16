@@ -1525,3 +1525,109 @@ class CashSaleCheck(db.Model):
 
     sale = db.relationship("CashSale", back_populates="checks")
     check = db.relationship("CashCheck", back_populates="sales")
+
+
+class CashDrawerCount(db.Model):
+    __tablename__ = "cash_drawer_counts"
+    __table_args__ = (
+        db.UniqueConstraint("cash_day_id", name="uq_cash_drawer_count_day"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    cash_day_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cash_days.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
+
+    created_by_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=True
+    )
+
+    notes = db.Column(db.Text, nullable=True)
+
+    cash_day = db.relationship(
+        "CashDay",
+        backref=db.backref(
+            "drawer_count",
+            uselist=False,
+            cascade="all, delete-orphan",
+            lazy="select"
+        )
+    )
+
+    created_by = db.relationship("User", backref="cash_drawer_counts")
+
+    lines = db.relationship(
+        "CashDrawerCountLine",
+        backref="drawer_count",
+        cascade="all, delete-orphan",
+        lazy="select",
+        order_by="CashDrawerCountLine.denomination.asc()"
+    )
+
+    def __repr__(self):
+        return f"<CashDrawerCount day_id={self.cash_day_id}>"
+
+
+class CashDrawerCountLine(db.Model):
+    __tablename__ = "cash_drawer_count_lines"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "drawer_count_id",
+            "denomination",
+            name="uq_cash_drawer_count_line_denomination"
+        ),
+        CheckConstraint("denomination > 0", name="ck_drawer_count_line_denomination_pos"),
+        CheckConstraint("quantity >= 0", name="ck_drawer_count_line_quantity_nonneg"),
+        CheckConstraint("line_total >= 0", name="ck_drawer_count_line_total_nonneg"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    drawer_count_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cash_drawer_counts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    denomination = db.Column(db.Numeric(12, 2), nullable=False)
+    quantity = db.Column(db.Integer, nullable=False, default=0)
+    line_total = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
+
+    def __repr__(self):
+        return (
+            f"<CashDrawerCountLine drawer_count_id={self.drawer_count_id} "
+            f"denomination={self.denomination} quantity={self.quantity}>"
+        )
