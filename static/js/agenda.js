@@ -1,5 +1,6 @@
 let currentDay = null;
 let calendarInstance = null;
+let lastPaymentMode = "cash";
 
 /* =========================
    UTILS BASE
@@ -746,6 +747,7 @@ document.addEventListener("DOMContentLoaded", function () {
         addMultiPaymentRow();
       }
     }
+    lastPaymentMode = mode;
   }
 
   function getOpAmount() {
@@ -814,21 +816,16 @@ document.addEventListener("DOMContentLoaded", function () {
     if (mode === "check" && checkAmount) checkAmount.value = total;
   }
 
-  function updatePaymentState() {
+    function updatePaymentState() {
     const mode = getPaymentMode();
-    let opAmount = getOpAmount();
 
     if (mode === "multi") {
+      syncOpAmountFromMultiRows();
+
+      const opAmount = getOpAmount();
       const totalPayments = getMultiPaymentsTotal();
 
-      if (opAmount <= 0) {
-        if (totalPayments > 0 && opAmountInput) {
-          opAmountInput.value = formatEuro2(totalPayments);
-          opAmount = totalPayments;
-        }
-      }
-
-      if (opAmount <= 0) {
+      if (opAmount <= 0 && totalPayments <= 0) {
         showPaymentWarning("Inserisci almeno un pagamento con importo maggiore di zero.");
         return;
       }
@@ -841,6 +838,8 @@ document.addEventListener("DOMContentLoaded", function () {
       clearPaymentWarning();
       return;
     }
+
+    const opAmount = getOpAmount();
 
     if (opAmount <= 0) {
       showPaymentWarning("Inserisci un importo operazione maggiore di zero.");
@@ -1019,6 +1018,47 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
+  function multiRowsHaveData() {
+    const rows = Array.from(multiPaymentsList?.querySelectorAll(".multi-payment-row") || []);
+    if (!rows.length) return false;
+
+    return rows.some(row => {
+      const amount = parseEuroToNumber(row.querySelector(".multi-amount")?.value || "0");
+      const method = row.querySelector(".multi-method")?.value || "cash";
+
+      if (amount > 0) return true;
+
+      if (method === "pos") {
+        return !!(row.querySelector(".multi-pos-device")?.value || row.querySelector(".multi-pos-circuit")?.value);
+      }
+
+      if (method === "bank") {
+        return !!row.querySelector(".multi-bank-select")?.value;
+      }
+
+      if (method === "check") {
+        return [
+          row.querySelector(".multi-check-bank-name")?.value,
+          row.querySelector(".multi-check-bank-abi")?.value,
+          row.querySelector(".multi-check-bank-cab")?.value,
+          row.querySelector(".multi-check-number")?.value,
+          row.querySelector(".multi-check-due-date")?.value,
+        ].some(v => String(v || "").trim() !== "");
+      }
+
+      return false;
+    });
+  }
+
+  function syncOpAmountFromMultiRows() {
+    if (getPaymentMode() !== "multi") return;
+
+    const total = getMultiPaymentsTotal();
+    if (opAmountInput) {
+      opAmountInput.value = formatEuro2(total);
+    }
+  }
+
   async function addMultiPaymentRow(initialMethod = "cash") {
     if (!multiPaymentsList || !multiPaymentRowTemplate) return;
 
@@ -1110,6 +1150,7 @@ document.addEventListener("DOMContentLoaded", function () {
     clearSingleCarrierFields();
     resetMultiPayments();
     setPaymentMode("cash");
+
     refreshSingleAmountFields();
     clearPaymentWarning();
 
@@ -1717,7 +1758,28 @@ document.addEventListener("DOMContentLoaded", function () {
 
   document.querySelectorAll('input[name="paymentMode"]').forEach(radio => {
     radio.addEventListener("change", () => {
-      setPaymentMode(radio.value);
+      const newMode = radio.value;
+      const previousMode = lastPaymentMode || "cash";
+
+      if (newMode === previousMode) {
+        return;
+      }
+
+      if (previousMode === "multi" && newMode !== "multi" && multiRowsHaveData()) {
+        const confirmed = window.confirm(
+          "Passando a un pagamento singolo perderai le righe multiple inserite. Vuoi continuare?"
+        );
+
+        if (!confirmed) {
+          const prevRadio = document.querySelector(`input[name="paymentMode"][value="${previousMode}"]`);
+          if (prevRadio) prevRadio.checked = true;
+          return;
+        }
+
+        resetMultiPayments();
+      }
+
+      setPaymentMode(newMode);
       refreshSingleAmountFields();
       updatePaymentState();
     });
