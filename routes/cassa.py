@@ -489,6 +489,9 @@ def api_cash_day_preview(day_date):
         incasso_consegnato=Decimal(request.args.get("incasso_consegnato", "0")),
     )
 
+    result["saldo_versabile_precedente"] = float(saldo_versabile_precedente or 0)
+    result["saldo_versabile_init"] = float(saldo_versabile_precedente or 0)
+
     return jsonify({
         "ok": True,
         "day": {
