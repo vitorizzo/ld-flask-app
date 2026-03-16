@@ -1094,25 +1094,65 @@ document.addEventListener("DOMContentLoaded", function () {
      build payload
   ========================= */
 
-  function getBaseOperationData() {
+  async function getBaseOperationData() {
     const opType = document.getElementById("opType")?.value || "sale";
     const flag = (document.getElementById("opFlag")?.value || "*").trim();
     const description = (document.getElementById("opDesc")?.value || "").trim();
-    const customerIdRaw = (document.getElementById("opCustomerId")?.value || "").trim();
     const customerLabel = (document.getElementById("opCustomer")?.value || "").trim();
     const offCash = !!document.getElementById("opOffCash")?.checked;
     const offCashWho = (document.getElementById("opOffCashWho")?.value || "").trim();
 
+    const ensuredCustomer = await ensureSelectedCustomer();
+    if (!ensuredCustomer.ok) {
+      return ensuredCustomer;
+    }
+
     return {
+      ok: true,
       opType,
       flag,
       description,
-      customer_id: customerIdRaw ? Number(customerIdRaw) : null,
+      customer_id: ensuredCustomer.customer_id,
       customer_label: customerLabel || null,
       off_cash: offCash,
       off_cash_who: offCashWho || null,
       amount: getOpAmount(),
     };
+  }
+
+
+  async function ensureSelectedCustomer() {
+    const opCustomerInput = document.getElementById("opCustomer");
+    const opCustomerIdInput = document.getElementById("opCustomerId");
+
+    if (!opCustomerInput || !opCustomerIdInput) {
+      return { ok: true, customer_id: null };
+    }
+
+    const currentId = String(opCustomerIdInput.value || "").trim();
+    if (currentId) {
+      return { ok: true, customer_id: Number(currentId) };
+    }
+
+    const rawText = String(opCustomerInput.value || "").trim();
+    if (!rawText) {
+      return { ok: true, customer_id: null };
+    }
+
+    const items = await fetchCustomerSuggest(rawText);
+    const exact = items.find(x => String(x.display || "").trim() === rawText);
+
+    if (!exact) {
+      return {
+        ok: false,
+        error: "Cliente non selezionato correttamente. Sceglilo dalla lista o dalla ricerca avanzata."
+      };
+    }
+
+    opCustomerIdInput.value = String(exact.id);
+    opCustomerInput.value = exact.display || rawText;
+
+    return { ok: true, customer_id: Number(exact.id) };
   }
 
   function buildSinglePaymentPayload(base) {
@@ -1356,8 +1396,12 @@ document.addEventListener("DOMContentLoaded", function () {
     };
   }
 
-  function buildOperationPayload() {
-    const base = getBaseOperationData();
+  async function buildOperationPayload() {
+    const base = await getBaseOperationData();
+    if (!base.ok) {
+      return base;
+    }
+
     const mode = getPaymentMode();
 
     if (mode === "multi") {
@@ -1377,7 +1421,7 @@ document.addEventListener("DOMContentLoaded", function () {
       ? `/cassa/api/day/${currentDay}/expenses`
       : `/cassa/api/day/${currentDay}/sales`;
 
-    const built = buildOperationPayload();
+    const built = await buildOperationPayload();
     if (!built.ok) {
       alert(built.error || "Dati operazione non validi.");
       return;
