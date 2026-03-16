@@ -96,6 +96,13 @@ async function fetchCustomerSuggest(q) {
    DAY / PREVIEW
 ========================= */
 
+const drawerModalEl = document.getElementById("drawerCountModal");
+const drawerRowsEl = document.getElementById("drawerCountRows");
+const drawerTotalEl = document.getElementById("drawerGrandTotal");
+const drawerSaveBtn = document.getElementById("drawerSaveBtn");
+
+let drawerModal;
+
 function loadDay(dateStr) {
   fetch(`/cassa/api/day?date=${dateStr}`)
     .then(r => r.json())
@@ -632,6 +639,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const multiPaymentRowTemplate = document.getElementById("multiPaymentRowTemplate");
   const btnAddPaymentRow = document.getElementById("btnAddPaymentRow");
 
+  if (drawerModalEl) {
+    drawerModal = new bootstrap.Modal(drawerModalEl);
+  }
+
   /* =========================
      stacked modals
   ========================= */
@@ -657,6 +668,10 @@ document.addEventListener("DOMContentLoaded", function () {
         m.classList.toggle("modal-top", isTop);
       });
     }
+
+    document.getElementById("kpiFondoFinale")?.addEventListener("click", async () => {
+      await openDrawerCountModal();
+    });
 
     document.addEventListener("shown.bs.modal", restack);
     document.addEventListener("hidden.bs.modal", () => requestAnimationFrame(restack));
@@ -719,6 +734,114 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!input.value) input.value = "*";
     buildMenu("");
   })();
+
+
+  async function openDrawerCountModal() {
+
+    const url = `/cassa/api/day/${currentDay}/drawer-count`;
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (!data.ok) {
+      alert("Errore caricamento conteggio fondo");
+      return;
+    }
+
+    renderDrawerRows(data.drawer_count.lines);
+
+    drawerModal.show();
+  }
+
+  function renderDrawerRows(lines) {
+
+    drawerRowsEl.innerHTML = "";
+
+    lines.forEach(line => {
+
+      const tr = document.createElement("tr");
+
+      tr.innerHTML = `
+        <td>€ ${line.denomination}</td>
+
+        <td>
+          <input
+            type="number"
+            min="0"
+            class="form-control form-control-sm drawer-qty"
+            data-denom="${line.denomination}"
+            value="${line.quantity}"
+          >
+        </td>
+
+        <td class="drawer-line-total">
+          € ${line.line_total}
+        </td>
+      `;
+
+      drawerRowsEl.appendChild(tr);
+    });
+
+    updateDrawerTotals();
+  }
+
+  drawerRowsEl?.addEventListener("input", updateDrawerTotals);
+
+  function updateDrawerTotals() {
+
+    let grand = 0;
+
+    document.querySelectorAll("#drawerCountRows tr").forEach(row => {
+
+      const qtyInput = row.querySelector(".drawer-qty");
+      const denom = parseFloat(qtyInput.dataset.denom);
+      const qty = parseFloat(qtyInput.value || 0);
+
+      const total = denom * qty;
+
+      row.querySelector(".drawer-line-total").innerText =
+        formatEuro(total);
+
+      grand += total;
+    });
+
+    drawerTotalEl.innerText = formatEuro(grand);
+  }
+
+  drawerSaveBtn?.addEventListener("click", async () => {
+
+    const lines = [];
+
+    document.querySelectorAll("#drawerCountRows tr").forEach(row => {
+
+      const qtyInput = row.querySelector(".drawer-qty");
+
+      lines.push({
+        denomination: qtyInput.dataset.denom,
+        quantity: Number(qtyInput.value || 0)
+      });
+
+    });
+
+    const payload = { lines };
+
+    const res = await fetch(`/cassa/api/day/${currentDay}/drawer-count`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    if (!data.ok) {
+      alert("Errore salvataggio fondo cassa");
+      return;
+    }
+
+    drawerModal.hide();
+
+    await refreshAgenda(); // ricarica KPI
+  });
 
   /* =========================
      helpers payment mode
