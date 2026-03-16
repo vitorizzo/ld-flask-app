@@ -154,8 +154,13 @@ def api_get_or_create_day():
     day = CashDay.query.filter_by(day_date=target_date).first()
 
     if not day:
-        prev_date = target_date - timedelta(days=1)
-        prev_day = CashDay.query.filter_by(day_date=prev_date).first()
+        prev_day = (
+            CashDay.query
+            .options(selectinload(CashDay.closure))
+            .filter(CashDay.day_date < target_date)
+            .order_by(CashDay.day_date.desc())
+            .first()
+        )
 
         opening_float = 0
         if prev_day and prev_day.closure and prev_day.closure.closing_cash_drawer is not None:
@@ -377,6 +382,36 @@ def _compute_day_totals_from_db(cash_day, view: str) -> dict:
     }
 
 
+def _calculate_progressive_saldo_versabile(cash_day: CashDay) -> Decimal:
+    """
+    Ricostruisce il saldo versabile progressivo della giornata,
+    partendo dall'ultima giornata precedente disponibile.
+    """
+    if not cash_day:
+        return Decimal("0")
+
+    prev_day = (
+        CashDay.query
+        .filter(CashDay.day_date < cash_day.day_date)
+        .order_by(CashDay.day_date.desc())
+        .first()
+    )
+
+    saldo_prev = Decimal("0")
+    if prev_day:
+        saldo_prev = _calculate_progressive_saldo_versabile(prev_day)
+
+    result = calculate_closure_pure(
+        cash_day_id=cash_day.id,
+        opening_float=Decimal(str(cash_day.opening_float or 0)),
+        total_corrispettivi=Decimal("0"),
+        fondo_finale=Decimal("0"),
+        saldo_versabile_precedente=saldo_prev,
+        incasso_consegnato=Decimal("0"),
+    )
+
+    return Decimal(str(result.get("saldo_versabile", 0)))
+
 @cassa_bp.get("/api/day/<day_date>/preview")
 @role_required(40)
 def api_cash_day_preview(day_date):
@@ -431,12 +466,26 @@ def api_cash_day_preview(day_date):
         .scalar()
     )
 
+    saldo_prev_qs = request.args.get("saldo_prev")
+    if saldo_prev_qs is not None and str(saldo_prev_qs).strip() != "":
+        saldo_versabile_precedente = Decimal(str(saldo_prev_qs))
+    else:
+        prev_day = (
+            CashDay.query
+            .filter(CashDay.day_date < d)
+            .order_by(CashDay.day_date.desc())
+            .first()
+        )
+        saldo_versabile_precedente = (
+            _calculate_progressive_saldo_versabile(prev_day) if prev_day else Decimal("0")
+        )
+
     result = calculate_closure_pure(
         cash_day_id=cash_day.id,
         opening_float=cash_day.opening_float,
         total_corrispettivi=Decimal(request.args.get("corrispettivi", "0")),
         fondo_finale=Decimal(request.args.get("fondo_finale", "0")),
-        saldo_versabile_precedente=Decimal(request.args.get("saldo_prev", "0")),
+        saldo_versabile_precedente=saldo_versabile_precedente,
         incasso_consegnato=Decimal(request.args.get("incasso_consegnato", "0")),
     )
 

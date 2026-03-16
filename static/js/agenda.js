@@ -816,7 +816,31 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function updatePaymentState() {
     const mode = getPaymentMode();
-    const opAmount = getOpAmount();
+    let opAmount = getOpAmount();
+
+    if (mode === "multi") {
+      const totalPayments = getMultiPaymentsTotal();
+
+      if (opAmount <= 0) {
+        if (totalPayments > 0 && opAmountInput) {
+          opAmountInput.value = formatEuro2(totalPayments);
+          opAmount = totalPayments;
+        }
+      }
+
+      if (opAmount <= 0) {
+        showPaymentWarning("Inserisci almeno un pagamento con importo maggiore di zero.");
+        return;
+      }
+
+      if (Math.abs(totalPayments - opAmount) > 0.009) {
+        showPaymentWarning();
+        return;
+      }
+
+      clearPaymentWarning();
+      return;
+    }
 
     if (opAmount <= 0) {
       showPaymentWarning("Inserisci un importo operazione maggiore di zero.");
@@ -833,12 +857,6 @@ document.addEventListener("DOMContentLoaded", function () {
       totalPayments = parseEuroToNumber(document.getElementById("bankAmount")?.value || "0");
     } else if (mode === "check") {
       totalPayments = parseEuroToNumber(document.getElementById("checkAmount")?.value || "0");
-    } else {
-      const rows = Array.from(multiPaymentsList?.querySelectorAll(".multi-payment-row") || []);
-      totalPayments = rows.reduce((sum, row) => {
-        const amount = parseEuroToNumber(row.querySelector(".multi-amount")?.value || "0");
-        return sum + amount;
-      }, 0);
     }
 
     if (Math.abs(totalPayments - opAmount) > 0.009) {
@@ -847,6 +865,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     clearPaymentWarning();
+  }
+
+  function getMultiPaymentsTotal() {
+    const rows = Array.from(multiPaymentsList?.querySelectorAll(".multi-payment-row") || []);
+    return rows.reduce((sum, row) => {
+      const amount = parseEuroToNumber(row.querySelector(".multi-amount")?.value || "0");
+      return sum + amount;
+    }, 0);
   }
 
   function normalizeCurrencyInput(input) {
@@ -1286,11 +1312,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function buildMultiPaymentPayload(base) {
     const rows = Array.from(multiPaymentsList?.querySelectorAll(".multi-payment-row") || []);
+    let effectiveAmount = base.amount;
+    if (effectiveAmount <= 0) {
+      effectiveAmount = getMultiPaymentsTotal();
+    }
     if (!rows.length) {
       return { ok: false, error: "Aggiungi almeno una riga pagamento." };
     }
 
-    if (base.amount <= 0) {
+    if (effectiveAmount <= 0) {
       return { ok: false, error: "Importo operazione non valido." };
     }
 
@@ -1378,7 +1408,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     const totalPayments = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
-    if (Math.abs(totalPayments - base.amount) > 0.009) {
+    if (Math.abs(totalPayments - effectiveAmount) > 0.009) {
       return { ok: false, error: "La somma dei pagamenti non coincide con il totale dell’operazione." };
     }
 
