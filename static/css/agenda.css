@@ -428,3 +428,30 @@
 #carrierWarning {
   font-size: 0.85rem;
 }
+
+/* =========================
+   MODALE CONTEGGIO FONDO
+========================= */
+
+#drawerCountTable td,
+#drawerCountTable th {
+  vertical-align: middle;
+}
+
+#drawerCountTable th:nth-child(3),
+#drawerCountTable td:nth-child(3) {
+  text-align: right;
+}
+
+#drawerCountTable .drawer-qty {
+  max-width: 110px;
+}
+
+#drawerGrandTotal {
+  color: #4a2c2a;
+  font-variant-numeric: tabular-nums;
+}
+
+.agenda-modal #drawerCountTable tbody tr:hover {
+  background: rgba(107, 63, 54, 0.04);
+}

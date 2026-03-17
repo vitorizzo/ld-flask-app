@@ -834,38 +834,46 @@
   </div>
 </div>
 
-<div class="modal fade" id="drawerCountModal" tabindex="-1">
-  <div class="agenda-modal modal-lg modal-dialog-centered">
+<div class="modal fade agenda-modal" id="drawerCountModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
     <div class="modal-content">
 
       <div class="modal-header">
         <h5 class="modal-title">Conteggio fondo cassa</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
 
       <div class="modal-body">
 
-        <table class="table table-sm align-middle" id="drawerCountTable">
-          <thead>
-            <tr>
-              <th style="width:120px;">Taglio</th>
-              <th style="width:120px;">Pezzi</th>
-              <th style="width:160px;">Totale</th>
-            </tr>
-          </thead>
-          <tbody id="drawerCountRows"></tbody>
-        </table>
+        <div class="small text-muted mb-3">
+          Inserisci il numero di pezzi per ogni taglio. Il totale per riga e il totale generale vengono calcolati automaticamente.
+        </div>
 
-        <div class="text-end mt-3">
-          <strong>Totale fondo cassa:</strong>
-          <span id="drawerGrandTotal">€ 0,00</span>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0" id="drawerCountTable">
+            <thead>
+              <tr>
+                <th style="width: 140px;">Taglio</th>
+                <th style="width: 140px;">Pezzi</th>
+                <th style="width: 180px;" class="text-end">Totale</th>
+              </tr>
+            </thead>
+            <tbody id="drawerCountRows"></tbody>
+          </table>
+        </div>
+
+        <hr class="my-3">
+
+        <div class="d-flex justify-content-end align-items-center gap-2">
+          <span class="fw-semibold">Totale fondo cassa:</span>
+          <span class="fs-5 fw-bold" id="drawerGrandTotal">€ 0,00</span>
         </div>
 
       </div>
 
       <div class="modal-footer">
-        <button class="btn btn-primary" id="drawerSaveBtn">Salva</button>
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-primary" id="drawerSaveBtn">Salva</button>
       </div>
 
     </div>
