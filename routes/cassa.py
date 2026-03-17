@@ -493,6 +493,7 @@ def api_cash_day_preview(day_date):
         .options(
             selectinload(CashDay.sales).selectinload(CashSale.payments),
             selectinload(CashDay.expenses).selectinload(CashExpense.payments),
+            selectinload(CashDay.drawer_count).selectinload(CashDrawerCount.lines),
         )
         .filter(CashDay.day_date == d)
         .first()
@@ -542,13 +543,14 @@ def api_cash_day_preview(day_date):
         cash_day_id=cash_day.id,
         opening_float=cash_day.opening_float,
         total_corrispettivi=Decimal(request.args.get("corrispettivi", "0")),
-        fondo_finale=Decimal(request.args.get("fondo_finale", "0")),
+        fondo_finale=fondo_finale,
         saldo_versabile_precedente=saldo_versabile_precedente,
         incasso_consegnato=Decimal(request.args.get("incasso_consegnato", "0")),
     )
 
     result["saldo_versabile_precedente"] = float(saldo_versabile_precedente or 0)
     result["saldo_versabile_init"] = float(saldo_versabile_precedente or 0)
+    result["fondo_finale"] = float(fondo_finale or 0)
 
     return jsonify({
         "ok": True,
@@ -844,6 +846,17 @@ def _normalize_payments_payload(data):
     if not isinstance(payments, list) or not payments:
         raise ValueError("payments must be a non-empty list")
     return payments
+
+
+def _get_drawer_count_total_for_day(cash_day: CashDay) -> Decimal:
+    if not cash_day or not getattr(cash_day, "drawer_count", None):
+        return Decimal("0")
+
+    total = Decimal("0")
+    for line in (cash_day.drawer_count.lines or []):
+        total += Decimal(str(line.line_total or 0))
+
+    return total.quantize(Decimal("0.01"))
 
 
 @cassa_bp.get("/api/checks/due")
