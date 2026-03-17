@@ -93,7 +93,7 @@ async function fetchCustomerSuggest(q) {
 }
 
 /* =========================
-   DAY / PREVIEW
+   DRAWER COUNT MODAL REFS
 ========================= */
 
 const drawerModalEl = document.getElementById("drawerCountModal");
@@ -101,7 +101,11 @@ const drawerRowsEl = document.getElementById("drawerCountRows");
 const drawerTotalEl = document.getElementById("drawerGrandTotal");
 const drawerSaveBtn = document.getElementById("drawerSaveBtn");
 
-let drawerModal;
+let drawerModal = null;
+
+/* =========================
+   DAY / PREVIEW
+========================= */
 
 function loadDay(dateStr) {
   fetch(`/cassa/api/day?date=${dateStr}`)
@@ -170,6 +174,158 @@ function loadPreview(dateStr) {
       setText("kpiIncassoConsegnato", _fmt2(consegnato));
     })
     .catch(err => console.error("loadPreview error:", err));
+}
+
+async function refreshAgendaData() {
+  if (!currentDay) return;
+  loadPreview(currentDay);
+  loadIncassi(currentDay);
+  loadSpese(currentDay);
+  loadPosMoves(currentDay);
+  loadCashMoves(currentDay);
+  loadCoinsBalance(currentDay);
+  loadAssegniScadenza(currentDay, false);
+}
+
+/* =========================
+   DRAWER COUNT
+========================= */
+
+async function openDrawerCountModal() {
+  if (!currentDay) {
+    alert("Nessuna giornata selezionata.");
+    return;
+  }
+
+  try {
+    const res = await fetch(`/cassa/api/day/${currentDay}/drawer-count`, {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" }
+    });
+
+    const data = await res.json();
+
+    if (!data.ok) {
+      alert(data.error || "Errore caricamento conteggio fondo");
+      return;
+    }
+
+    renderDrawerRows(data.drawer_count?.lines || []);
+
+    if (!drawerModal) {
+      alert("Modale conteggio fondo non disponibile.");
+      return;
+    }
+
+    drawerModal.show();
+  } catch (err) {
+    console.error("openDrawerCountModal error:", err);
+    alert("Errore di rete durante il caricamento del conteggio fondo.");
+  }
+}
+
+function renderDrawerRows(lines) {
+  if (!drawerRowsEl) return;
+
+  drawerRowsEl.innerHTML = "";
+
+  lines.forEach(line => {
+    const tr = document.createElement("tr");
+
+    tr.innerHTML = `
+      <td>€ ${escapeHtml(String(line.denomination))}</td>
+      <td>
+        <input
+          type="number"
+          min="0"
+          step="1"
+          class="form-control form-control-sm drawer-qty"
+          data-denom="${escapeHtml(String(line.denomination))}"
+          value="${Number(line.quantity || 0)}"
+        >
+      </td>
+      <td class="drawer-line-total">
+        ${eur(parseEuroToNumber(line.line_total || 0))}
+      </td>
+    `;
+
+    drawerRowsEl.appendChild(tr);
+  });
+
+  updateDrawerTotals();
+}
+
+function updateDrawerTotals() {
+  if (!drawerRowsEl || !drawerTotalEl) return;
+
+  let grand = 0;
+
+  drawerRowsEl.querySelectorAll("tr").forEach(row => {
+    const qtyInput = row.querySelector(".drawer-qty");
+    if (!qtyInput) return;
+
+    const denom = Number(qtyInput.dataset.denom || 0);
+    const qty = Number(qtyInput.value || 0);
+    const total = denom * qty;
+
+    const totalCell = row.querySelector(".drawer-line-total");
+    if (totalCell) {
+      totalCell.innerText = eur(total);
+    }
+
+    grand += total;
+  });
+
+  drawerTotalEl.innerText = eur(grand);
+}
+
+async function saveDrawerCount() {
+  if (!currentDay) {
+    alert("Nessuna giornata selezionata.");
+    return;
+  }
+
+  if (!drawerRowsEl) {
+    alert("Tabella conteggio fondo non disponibile.");
+    return;
+  }
+
+  const lines = [];
+
+  drawerRowsEl.querySelectorAll("tr").forEach(row => {
+    const qtyInput = row.querySelector(".drawer-qty");
+    if (!qtyInput) return;
+
+    lines.push({
+      denomination: qtyInput.dataset.denom,
+      quantity: Number(qtyInput.value || 0)
+    });
+  });
+
+  try {
+    const res = await fetch(`/cassa/api/day/${currentDay}/drawer-count`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ lines })
+    });
+
+    const data = await res.json();
+
+    if (!data.ok) {
+      alert(data.error || "Errore salvataggio fondo cassa");
+      return;
+    }
+
+    if (drawerModal) {
+      drawerModal.hide();
+    }
+
+    await refreshAgendaData();
+  } catch (err) {
+    console.error("saveDrawerCount error:", err);
+    alert("Errore di rete durante il salvataggio del fondo cassa.");
+  }
 }
 
 /* =========================
@@ -669,10 +825,6 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     }
 
-    document.getElementById("kpiFondoFinale")?.addEventListener("click", async () => {
-      await openDrawerCountModal();
-    });
-
     document.addEventListener("shown.bs.modal", restack);
     document.addEventListener("hidden.bs.modal", () => requestAnimationFrame(restack));
     document.addEventListener("show.bs.modal", () => setTimeout(restack, 0));
@@ -735,114 +887,6 @@ document.addEventListener("DOMContentLoaded", function () {
     buildMenu("");
   })();
 
-
-  async function openDrawerCountModal() {
-
-    const url = `/cassa/api/day/${currentDay}/drawer-count`;
-
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (!data.ok) {
-      alert("Errore caricamento conteggio fondo");
-      return;
-    }
-
-    renderDrawerRows(data.drawer_count.lines);
-
-    drawerModal.show();
-  }
-
-  function renderDrawerRows(lines) {
-
-    drawerRowsEl.innerHTML = "";
-
-    lines.forEach(line => {
-
-      const tr = document.createElement("tr");
-
-      tr.innerHTML = `
-        <td>€ ${line.denomination}</td>
-
-        <td>
-          <input
-            type="number"
-            min="0"
-            class="form-control form-control-sm drawer-qty"
-            data-denom="${line.denomination}"
-            value="${line.quantity}"
-          >
-        </td>
-
-        <td class="drawer-line-total">
-          € ${line.line_total}
-        </td>
-      `;
-
-      drawerRowsEl.appendChild(tr);
-    });
-
-    updateDrawerTotals();
-  }
-
-  drawerRowsEl?.addEventListener("input", updateDrawerTotals);
-
-  function updateDrawerTotals() {
-
-    let grand = 0;
-
-    document.querySelectorAll("#drawerCountRows tr").forEach(row => {
-
-      const qtyInput = row.querySelector(".drawer-qty");
-      const denom = parseFloat(qtyInput.dataset.denom);
-      const qty = parseFloat(qtyInput.value || 0);
-
-      const total = denom * qty;
-
-      row.querySelector(".drawer-line-total").innerText =
-        formatEuro(total);
-
-      grand += total;
-    });
-
-    drawerTotalEl.innerText = formatEuro(grand);
-  }
-
-  drawerSaveBtn?.addEventListener("click", async () => {
-
-    const lines = [];
-
-    document.querySelectorAll("#drawerCountRows tr").forEach(row => {
-
-      const qtyInput = row.querySelector(".drawer-qty");
-
-      lines.push({
-        denomination: qtyInput.dataset.denom,
-        quantity: Number(qtyInput.value || 0)
-      });
-
-    });
-
-    const payload = { lines };
-
-    const res = await fetch(`/cassa/api/day/${currentDay}/drawer-count`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await res.json();
-
-    if (!data.ok) {
-      alert("Errore salvataggio fondo cassa");
-      return;
-    }
-
-    drawerModal.hide();
-
-    await refreshAgenda(); // ricarica KPI
-  });
-
   /* =========================
      helpers payment mode
   ========================= */
@@ -870,6 +914,7 @@ document.addEventListener("DOMContentLoaded", function () {
         addMultiPaymentRow();
       }
     }
+
     lastPaymentMode = mode;
   }
 
@@ -906,11 +951,7 @@ document.addEventListener("DOMContentLoaded", function () {
     ids.forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
-      if (el.tagName === "SELECT") {
-        el.value = "";
-      } else {
-        el.value = "";
-      }
+      el.value = "";
     });
 
     if (posCircuitSelect) {
@@ -925,7 +966,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function refreshSingleAmountFields() {
     const total = formatEuro2(getOpAmount());
-
     const mode = getPaymentMode();
 
     const cashAmount = document.getElementById("cashAmount");
@@ -939,7 +979,23 @@ document.addEventListener("DOMContentLoaded", function () {
     if (mode === "check" && checkAmount) checkAmount.value = total;
   }
 
-    function updatePaymentState() {
+  function getMultiPaymentsTotal() {
+    const rows = Array.from(multiPaymentsList?.querySelectorAll(".multi-payment-row") || []);
+    return rows.reduce((sum, row) => {
+      const amount = parseEuroToNumber(row.querySelector(".multi-amount")?.value || "0");
+      return sum + amount;
+    }, 0);
+  }
+
+  function syncOpAmountFromMultiRows() {
+    if (getPaymentMode() !== "multi") return;
+    const total = getMultiPaymentsTotal();
+    if (opAmountInput) {
+      opAmountInput.value = formatEuro2(total);
+    }
+  }
+
+  function updatePaymentState() {
     const mode = getPaymentMode();
 
     if (mode === "multi") {
@@ -987,14 +1043,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     clearPaymentWarning();
-  }
-
-  function getMultiPaymentsTotal() {
-    const rows = Array.from(multiPaymentsList?.querySelectorAll(".multi-payment-row") || []);
-    return rows.reduce((sum, row) => {
-      const amount = parseEuroToNumber(row.querySelector(".multi-amount")?.value || "0");
-      return sum + amount;
-    }, 0);
   }
 
   function normalizeCurrencyInput(input) {
@@ -1173,15 +1221,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  function syncOpAmountFromMultiRows() {
-    if (getPaymentMode() !== "multi") return;
-
-    const total = getMultiPaymentsTotal();
-    if (opAmountInput) {
-      opAmountInput.value = formatEuro2(total);
-    }
-  }
-
   async function addMultiPaymentRow(initialMethod = "cash") {
     if (!multiPaymentsList || !multiPaymentRowTemplate) return;
 
@@ -1273,7 +1312,6 @@ document.addEventListener("DOMContentLoaded", function () {
     clearSingleCarrierFields();
     resetMultiPayments();
     setPaymentMode("cash");
-
     refreshSingleAmountFields();
     clearPaymentWarning();
 
@@ -1283,33 +1321,6 @@ document.addEventListener("DOMContentLoaded", function () {
   /* =========================
      build payload
   ========================= */
-
-  async function getBaseOperationData() {
-    const opType = document.getElementById("opType")?.value || "sale";
-    const flag = (document.getElementById("opFlag")?.value || "*").trim();
-    const description = (document.getElementById("opDesc")?.value || "").trim();
-    const customerLabel = (document.getElementById("opCustomer")?.value || "").trim();
-    const offCash = !!document.getElementById("opOffCash")?.checked;
-    const offCashWho = (document.getElementById("opOffCashWho")?.value || "").trim();
-
-    const ensuredCustomer = await ensureSelectedCustomer();
-    if (!ensuredCustomer.ok) {
-      return ensuredCustomer;
-    }
-
-    return {
-      ok: true,
-      opType,
-      flag,
-      description,
-      customer_id: ensuredCustomer.customer_id,
-      customer_label: customerLabel || null,
-      off_cash: offCash,
-      off_cash_who: offCashWho || null,
-      amount: getOpAmount(),
-    };
-  }
-
 
   async function ensureSelectedCustomer() {
     const opCustomerInput = document.getElementById("opCustomer");
@@ -1343,6 +1354,32 @@ document.addEventListener("DOMContentLoaded", function () {
     opCustomerInput.value = exact.display || rawText;
 
     return { ok: true, customer_id: Number(exact.id) };
+  }
+
+  async function getBaseOperationData() {
+    const opType = document.getElementById("opType")?.value || "sale";
+    const flag = (document.getElementById("opFlag")?.value || "*").trim();
+    const description = (document.getElementById("opDesc")?.value || "").trim();
+    const customerLabel = (document.getElementById("opCustomer")?.value || "").trim();
+    const offCash = !!document.getElementById("opOffCash")?.checked;
+    const offCashWho = (document.getElementById("opOffCashWho")?.value || "").trim();
+
+    const ensuredCustomer = await ensureSelectedCustomer();
+    if (!ensuredCustomer.ok) {
+      return ensuredCustomer;
+    }
+
+    return {
+      ok: true,
+      opType,
+      flag,
+      description,
+      customer_id: ensuredCustomer.customer_id,
+      customer_label: customerLabel || null,
+      off_cash: offCash,
+      off_cash_who: offCashWho || null,
+      amount: getOpAmount(),
+    };
   }
 
   function buildSinglePaymentPayload(base) {
@@ -1477,9 +1514,11 @@ document.addEventListener("DOMContentLoaded", function () {
   function buildMultiPaymentPayload(base) {
     const rows = Array.from(multiPaymentsList?.querySelectorAll(".multi-payment-row") || []);
     let effectiveAmount = base.amount;
+
     if (effectiveAmount <= 0) {
       effectiveAmount = getMultiPaymentsTotal();
     }
+
     if (!rows.length) {
       return { ok: false, error: "Aggiungi almeno una riga pagamento." };
     }
@@ -1639,13 +1678,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       opModal.hide();
-      loadPreview(currentDay);
-      loadIncassi(currentDay);
-      loadSpese(currentDay);
-      loadPosMoves(currentDay);
-      loadCashMoves(currentDay);
-      loadCoinsBalance(currentDay);
-      loadAssegniScadenza(currentDay, false);
+      await refreshAgendaData();
     } catch (err) {
       console.error("saveOperation error:", err);
       alert("Errore di rete durante il salvataggio.");
@@ -1878,6 +1911,16 @@ document.addEventListener("DOMContentLoaded", function () {
   /* =========================
      listeners base
   ========================= */
+
+  document.getElementById("kpiFondoFinale")?.addEventListener("click", async () => {
+    await openDrawerCountModal();
+  });
+
+  drawerRowsEl?.addEventListener("input", updateDrawerTotals);
+
+  drawerSaveBtn?.addEventListener("click", async () => {
+    await saveDrawerCount();
+  });
 
   document.querySelectorAll('input[name="paymentMode"]').forEach(radio => {
     radio.addEventListener("change", () => {
