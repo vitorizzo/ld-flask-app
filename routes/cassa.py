@@ -1795,3 +1795,29 @@ def api_save_drawer_count(day_date):
         db.session.rollback()
         logger.exception("api_save_drawer_count error: %s", e)
         return jsonify({"ok": False, "error": "Internal error while saving drawer count"}), 500
+
+
+@cassa_bp.delete("/api/day/<day_date>/drawer-count")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_delete_drawer_count(day_date):
+    cash_day, error_response = _get_cash_day_by_date_or_404(day_date)
+    if error_response:
+        return error_response
+
+    drawer_count = CashDrawerCount.query.filter_by(cash_day_id=cash_day.id).first()
+    if not drawer_count:
+        return jsonify({"ok": False, "error": "Drawer count not found"}), 404
+
+    try:
+        db.session.delete(drawer_count)
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "day_date": cash_day.day_date.isoformat(),
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_delete_drawer_count error: %s", e)
+        return jsonify({"ok": False, "error": "Internal error while deleting drawer count"}), 500

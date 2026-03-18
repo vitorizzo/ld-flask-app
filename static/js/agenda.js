@@ -100,6 +100,7 @@ const drawerModalEl = document.getElementById("drawerCountModal");
 const drawerRowsEl = document.getElementById("drawerCountRows");
 const drawerTotalEl = document.getElementById("drawerGrandTotal");
 const drawerSaveBtn = document.getElementById("drawerSaveBtn");
+const drawerDeleteBtn = document.getElementById("drawerDeleteBtn");
 
 let drawerModal = null;
 
@@ -325,6 +326,43 @@ async function saveDrawerCount() {
   } catch (err) {
     console.error("saveDrawerCount error:", err);
     alert("Errore di rete durante il salvataggio del fondo cassa.");
+  }
+}
+
+async function deleteDrawerCount() {
+  if (!currentDay) {
+    alert("Nessuna giornata selezionata.");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Vuoi eliminare completamente il conteggio del fondo cassa di questa giornata?"
+  );
+
+  if (!confirmed) return;
+
+  try {
+    const res = await fetch(`/cassa/api/day/${currentDay}/drawer-count`, {
+      method: "DELETE",
+      headers: { "Accept": "application/json" },
+      credentials: "same-origin"
+    });
+
+    const data = await res.json();
+
+    if (!data.ok) {
+      alert(data.error || "Errore eliminazione fondo cassa");
+      return;
+    }
+
+    if (drawerModal) {
+      drawerModal.hide();
+    }
+
+    await refreshAgendaData();
+  } catch (err) {
+    console.error("deleteDrawerCount error:", err);
+    alert("Errore di rete durante l'eliminazione del fondo cassa.");
   }
 }
 
@@ -1920,6 +1958,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   drawerSaveBtn?.addEventListener("click", async () => {
     await saveDrawerCount();
+  });
+
+  drawerDeleteBtn?.addEventListener("click", async () => {
+    await deleteDrawerCount();
   });
 
   document.querySelectorAll('input[name="paymentMode"]').forEach(radio => {
