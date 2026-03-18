@@ -209,22 +209,22 @@ def api_get_or_create_day():
     else:
         target_date = date.today()
 
+    prev_day = (
+        CashDay.query
+        .options(
+            selectinload(CashDay.closure),
+            selectinload(CashDay.drawer_count).selectinload(CashDrawerCount.lines),
+        )
+        .filter(CashDay.day_date < target_date)
+        .order_by(CashDay.day_date.desc())
+        .first()
+    )
+
+    opening_float = float(_get_effective_closing_cash_drawer_for_day(prev_day) or 0)
+
     day = CashDay.query.filter_by(day_date=target_date).first()
 
     if not day:
-        prev_day = (
-            CashDay.query
-            .options(
-                selectinload(CashDay.closure),
-                selectinload(CashDay.drawer_count).selectinload(CashDrawerCount.lines),
-            )
-            .filter(CashDay.day_date < target_date)
-            .order_by(CashDay.day_date.desc())
-            .first()
-        )
-
-        opening_float = float(_get_effective_closing_cash_drawer_for_day(prev_day) or 0)
-
         day = CashDay(
             day_date=target_date,
             opening_float=opening_float,
@@ -232,6 +232,11 @@ def api_get_or_create_day():
         )
         db.session.add(day)
         db.session.commit()
+    else:
+        current_opening = float(day.opening_float or 0)
+        if day.status != "closed" and current_opening != opening_float:
+            day.opening_float = opening_float
+            db.session.commit()
 
     return jsonify({
         "ok": True,
@@ -242,7 +247,6 @@ def api_get_or_create_day():
             "opening_float": float(day.opening_float or 0),
         }
     })
-
 
 # =========================
 # API: Vault privato (PRI)
@@ -896,13 +900,11 @@ def _get_effective_closing_cash_drawer_for_day(cash_day: CashDay) -> Decimal:
     if drawer_value is not None and closure_value is None:
         return drawer_value.quantize(Decimal("0.01"))
 
-    # entrambe presenti: vince la più recente
     if drawer_ts and closure_ts:
         if drawer_ts >= closure_ts:
             return drawer_value.quantize(Decimal("0.01"))
         return closure_value.quantize(Decimal("0.01"))
 
-    # fallback prudenziale
     return drawer_value.quantize(Decimal("0.01")) if drawer_ts else closure_value.quantize(Decimal("0.01"))
 
 
