@@ -1950,7 +1950,7 @@ document.addEventListener("DOMContentLoaded", function () {
      listeners base
   ========================= */
 
-  document.getElementById("kpiFondoFinale")?.addEventListener("click", async () => {
+  document.getElementById("kpiFondoCard")?.addEventListener("click", async () => {
     await openDrawerCountModal();
   });
 

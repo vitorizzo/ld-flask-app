@@ -455,3 +455,19 @@
 .agenda-modal #drawerCountTable tbody tr:hover {
   background: rgba(107, 63, 54, 0.04);
 }
+
+/* KPI Fondo cassa finale cliccabile */
+#kpiFondoCard {
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+#kpiFondoCard:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+#kpiFondoCard:active {
+  transform: scale(0.99);
+}
