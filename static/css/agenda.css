@@ -456,18 +456,31 @@
   background: rgba(107, 63, 54, 0.04);
 }
 
-/* KPI Fondo cassa finale cliccabile */
+/* KPI Fondo cassa interattivo */
 #kpiFondoCard {
   cursor: pointer;
-  transition: transform 0.12s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  transition: border 0.15s ease, transform 0.12s ease, background-color 0.15s ease;
+  border: 1px solid transparent;
 }
 
 #kpiFondoCard:hover {
+  border: 1px solid rgba(107, 63, 54, 0.35);
+  background-color: rgba(107, 63, 54, 0.04);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-  background-color: rgba(0, 0, 0, 0.02);
 }
 
 #kpiFondoCard:active {
   transform: scale(0.99);
+}
+
+/* Icona */
+.kpi-fondo-icon {
+  font-size: 0.9rem;
+  opacity: 0.5;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+#kpiFondoCard:hover .kpi-fondo-icon {
+  opacity: 1;
+  transform: scale(1.1);
 }
