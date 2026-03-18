@@ -539,6 +539,12 @@ def api_cash_day_preview(day_date):
             _calculate_progressive_saldo_versabile(prev_day) if prev_day else Decimal("0")
         )
 
+    fondo_finale_qs = request.args.get("fondo_finale")
+    if fondo_finale_qs is not None and str(fondo_finale_qs).strip() != "":
+        fondo_finale = Decimal(str(fondo_finale_qs))
+    else:
+        fondo_finale = _get_drawer_count_total_for_day(cash_day)
+
     result = calculate_closure_pure(
         cash_day_id=cash_day.id,
         opening_float=cash_day.opening_float,
