@@ -214,15 +214,16 @@ def api_get_or_create_day():
     if not day:
         prev_day = (
             CashDay.query
-            .options(selectinload(CashDay.closure))
+            .options(
+                selectinload(CashDay.closure),
+                selectinload(CashDay.drawer_count).selectinload(CashDrawerCount.lines),
+            )
             .filter(CashDay.day_date < target_date)
             .order_by(CashDay.day_date.desc())
             .first()
         )
 
-        opening_float = 0
-        if prev_day and prev_day.closure and prev_day.closure.closing_cash_drawer is not None:
-            opening_float = float(prev_day.closure.closing_cash_drawer)
+        opening_float = float(_get_effective_closing_cash_drawer_for_day(prev_day) or 0)
 
         day = CashDay(
             day_date=target_date,
@@ -863,6 +864,46 @@ def _get_drawer_count_total_for_day(cash_day: CashDay) -> Decimal:
         total += Decimal(str(line.line_total or 0))
 
     return total.quantize(Decimal("0.01"))
+
+
+def _get_effective_closing_cash_drawer_for_day(cash_day: CashDay) -> Decimal:
+    """
+    Restituisce il fondo cassa finale effettivo della giornata scegliendo
+    tra CashClosure e CashDrawerCount.
+    Vince la fonte più recente tra le due.
+    """
+    if not cash_day:
+        return Decimal("0")
+
+    closure_value = None
+    closure_ts = None
+    if getattr(cash_day, "closure", None) and cash_day.closure.closing_cash_drawer is not None:
+        closure_value = Decimal(str(cash_day.closure.closing_cash_drawer))
+        closure_ts = cash_day.closure.created_at
+
+    drawer_value = None
+    drawer_ts = None
+    if getattr(cash_day, "drawer_count", None):
+        drawer_value = _get_drawer_count_total_for_day(cash_day)
+        drawer_ts = cash_day.drawer_count.updated_at or cash_day.drawer_count.created_at
+
+    if closure_value is None and drawer_value is None:
+        return Decimal("0")
+
+    if closure_value is not None and drawer_value is None:
+        return closure_value.quantize(Decimal("0.01"))
+
+    if drawer_value is not None and closure_value is None:
+        return drawer_value.quantize(Decimal("0.01"))
+
+    # entrambe presenti: vince la più recente
+    if drawer_ts and closure_ts:
+        if drawer_ts >= closure_ts:
+            return drawer_value.quantize(Decimal("0.01"))
+        return closure_value.quantize(Decimal("0.01"))
+
+    # fallback prudenziale
+    return drawer_value.quantize(Decimal("0.01")) if drawer_ts else closure_value.quantize(Decimal("0.01"))
 
 
 @cassa_bp.get("/api/checks/due")
