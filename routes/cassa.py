@@ -209,18 +209,7 @@ def api_get_or_create_day():
     else:
         target_date = date.today()
 
-    prev_day = (
-        CashDay.query
-        .options(
-            selectinload(CashDay.closure),
-            selectinload(CashDay.drawer_count).selectinload(CashDrawerCount.lines),
-        )
-        .filter(CashDay.day_date < target_date)
-        .order_by(CashDay.day_date.desc())
-        .first()
-    )
-
-    opening_float = float(_get_effective_closing_cash_drawer_for_day(prev_day) or 0)
+    opening_float = float(_find_latest_previous_cash_balance(target_date) or 0)
 
     day = CashDay.query.filter_by(day_date=target_date).first()
 
@@ -247,6 +236,7 @@ def api_get_or_create_day():
             "opening_float": float(day.opening_float or 0),
         }
     })
+
 
 # =========================
 # API: Vault privato (PRI)
@@ -868,6 +858,36 @@ def _get_drawer_count_total_for_day(cash_day: CashDay) -> Decimal:
         total += Decimal(str(line.line_total or 0))
 
     return total.quantize(Decimal("0.01"))
+
+
+def _find_latest_previous_cash_balance(target_date: date) -> Decimal:
+    """
+    Restituisce l'ultimo fondo cassa finale disponibile prima di target_date.
+    Scorre le giornate precedenti in ordine decrescente e prende la prima
+    che abbia una fonte valida (CashClosure o CashDrawerCount).
+    """
+    previous_days = (
+        CashDay.query
+        .options(
+            selectinload(CashDay.closure),
+            selectinload(CashDay.drawer_count).selectinload(CashDrawerCount.lines),
+        )
+        .filter(CashDay.day_date < target_date)
+        .order_by(CashDay.day_date.desc())
+        .all()
+    )
+
+    for day in previous_days:
+        has_closure_value = (
+            getattr(day, "closure", None) is not None and
+            day.closure.closing_cash_drawer is not None
+        )
+        has_drawer_count = getattr(day, "drawer_count", None) is not None
+
+        if has_closure_value or has_drawer_count:
+            return _get_effective_closing_cash_drawer_for_day(day)
+
+    return Decimal("0")
 
 
 def _get_effective_closing_cash_drawer_for_day(cash_day: CashDay) -> Decimal:
