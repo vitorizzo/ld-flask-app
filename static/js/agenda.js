@@ -586,7 +586,7 @@ async function loadEcommerce(dayStr) {
         <td>${escapeHtml(row.description || "")}</td>
         <td class="text-end">${formatEuro2(row.amount || 0)}</td>
         <td class="text-end">
-          <button type="button" class="btn btn-outline-danger btn-sm" disabled>
+          <button type="button" class="btn btn-outline-danger btn-sm btn-eco-delete" data-id="${row.id}">
             Elimina
           </button>
         </td>
@@ -2192,6 +2192,39 @@ ecoAddBtn?.addEventListener("click", async () => {
 
   } catch (err) {
     console.error("ecoAdd error:", err);
+    alert("Errore di rete");
+  }
+});
+
+ecoTableBody?.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".btn-eco-delete");
+  if (!btn) return;
+
+  const ecommerceId = btn.dataset.id;
+  if (!ecommerceId) return;
+
+  const confirmed = window.confirm("Vuoi eliminare questo movimento e-commerce?");
+  if (!confirmed) return;
+
+  try {
+    const r = await fetch(`/cassa/api/ecommerce/${ecommerceId}`, {
+      method: "DELETE",
+      headers: { "Accept": "application/json" },
+      credentials: "same-origin"
+    });
+
+    const data = await r.json();
+
+    if (!data.ok) {
+      alert(data.error || "Errore eliminazione");
+      return;
+    }
+
+    await loadEcommerce(currentDay);
+    await loadPreview(currentDay);
+
+  } catch (err) {
+    console.error("ecoDelete error:", err);
     alert("Errore di rete");
   }
 });
