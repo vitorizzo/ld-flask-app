@@ -18,7 +18,7 @@ from tools.role_required import role_required
 from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment, CashExpensePayment, \
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
-    CashDrawerCount, CashDrawerCountLine
+    CashDrawerCount, CashDrawerCountLine, CashEcommerce
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
@@ -549,6 +549,13 @@ def api_cash_day_preview(day_date):
         incasso_consegnato=Decimal(request.args.get("incasso_consegnato", "0")),
     )
 
+    totale_ecommerce = (
+        db.session.query(func.coalesce(func.sum(CashEcommerce.amount), 0))
+        .filter(CashEcommerce.cash_day_id == cash_day.id)
+        .scalar()
+    )
+
+    result["totale_ecommerce"] = float(totale_ecommerce or 0)
     result["saldo_versabile_precedente"] = float(saldo_versabile_precedente or 0)
     result["saldo_versabile_init"] = float(saldo_versabile_precedente or 0)
     result["fondo_finale"] = float(fondo_finale or 0)
@@ -1821,3 +1828,109 @@ def api_delete_drawer_count(day_date):
         db.session.rollback()
         logger.exception("api_delete_drawer_count error: %s", e)
         return jsonify({"ok": False, "error": "Internal error while deleting drawer count"}), 500
+
+
+@cassa_bp.get("/api/day/<day_date>/ecommerce")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_list_ecommerce(day_date):
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    cash_day = CashDay.query.filter(CashDay.day_date == d).first()
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    rows = (
+        CashEcommerce.query
+        .filter(CashEcommerce.cash_day_id == cash_day.id)
+        .order_by(CashEcommerce.created_at.asc(), CashEcommerce.id.asc())
+        .all()
+    )
+
+    items = []
+    for row in rows:
+        items.append({
+            "id": row.id,
+            "amount": float(row.amount or 0),
+            "description": row.description,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+            "created_by_user_id": row.created_by_user_id,
+        })
+
+    return jsonify({
+        "ok": True,
+        "day_date": d.isoformat(),
+        "ecommerce": items,
+    })
+
+
+@cassa_bp.post("/api/day/<day_date>/ecommerce")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_create_ecommerce(day_date):
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    cash_day = CashDay.query.filter(CashDay.day_date == d).first()
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+
+    description = (data.get("description") or "").strip()
+    if not description:
+        return jsonify({"ok": False, "error": "Missing description"}), 400
+
+    try:
+        amount = _to_decimal_amount(data.get("amount"), "amount")
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+    try:
+        row = CashEcommerce(
+            cash_day_id=cash_day.id,
+            created_by_user_id=getattr(current_user, "id", None),
+            amount=amount,
+            description=description,
+        )
+
+        db.session.add(row)
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "ecommerce_id": row.id,
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_create_ecommerce error: %s", e)
+        return jsonify({"ok": False, "error": "Internal error while creating ecommerce row"}), 500
+
+
+@cassa_bp.delete("/api/ecommerce/<int:ecommerce_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_delete_ecommerce(ecommerce_id):
+    row = CashEcommerce.query.filter_by(id=ecommerce_id).first()
+    if not row:
+        return jsonify({"ok": False, "error": "Ecommerce row not found"}), 404
+
+    try:
+        db.session.delete(row)
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "ecommerce_id": ecommerce_id,
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_delete_ecommerce error: %s", e)
+        return jsonify({"ok": False, "error": "Internal error while deleting ecommerce row"}), 500

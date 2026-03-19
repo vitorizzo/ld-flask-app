@@ -102,7 +102,20 @@ const drawerTotalEl = document.getElementById("drawerGrandTotal");
 const drawerSaveBtn = document.getElementById("drawerSaveBtn");
 const drawerDeleteBtn = document.getElementById("drawerDeleteBtn");
 
+
 let drawerModal = null;
+
+/* =========================
+   ECOMMERCE MODAL REFS
+========================= */
+
+const ecommerceModalEl = document.getElementById("ecommerceModal");
+const ecoTableBody = document.getElementById("ecoTableBody");
+const ecoAddBtn = document.getElementById("ecoAddBtn");
+const ecoAmountInput = document.getElementById("ecoAmount");
+const ecoDescriptionInput = document.getElementById("ecoDescription");
+
+let ecommerceModal = null;
 
 /* =========================
    DAY / PREVIEW
@@ -153,7 +166,7 @@ function loadPreview(dateStr) {
       const fondoInit = (t.fondo_iniziale ?? t.opening_float ?? t.fondoIniziale);
       const fondoFin = (t.fondo_finale ?? t.fondoFinale);
       const sPrev = (t.saldo_versabile_precedente ?? t.saldo_versabile_init ?? t.saldoVersabilePrecedente);
-      const totMov = (t.totale_movimenti ?? t.totMovimenti);
+      const totEcommerce = Number(t.totale_ecommerce || 0);
       const totVers = (t.totale_versato_oggi ?? t.totale_versamenti ?? t.totVersamenti);
       const cor = (t.total_corrispettivi ?? t.corrispettivi ?? t.corrispettivi_totali);
       const consegnato = (t.incasso_consegnato ?? t.incassoConsegnato);
@@ -169,7 +182,7 @@ function loadPreview(dateStr) {
       setText("kpiDeltaFondo", _fmt2(df));
       setText("kpiDeltaQuadratura", _fmt2(dq));
 
-      setText("kpiTotMovimenti", _fmt2(totMov));
+      setText("kpiTotEcommerce", _fmt2(totEcommerce));
       setText("kpiTotVersamenti", _fmt2(totVers));
       setText("kpiCorrispettivi", _fmt2(cor));
       setText("kpiIncassoConsegnato", _fmt2(consegnato));
@@ -530,6 +543,81 @@ async function loadCashMoves(dayStr) {
   }
 }
 
+async function loadEcommerce(dayStr) {
+  if (!ecoTableBody) return;
+
+  ecoTableBody.innerHTML = `
+    <tr>
+      <td colspan="3" class="text-center text-muted">Caricamento...</td>
+    </tr>
+  `;
+
+  try {
+    const r = await fetch(`/cassa/api/day/${dayStr}/ecommerce`, {
+      credentials: "same-origin"
+    });
+
+    const data = await r.json();
+
+    if (!data.ok) {
+      ecoTableBody.innerHTML = `
+        <tr>
+          <td colspan="3" class="text-center text-danger">
+            ${escapeHtml(data.error || "Errore caricamento movimenti e-commerce")}
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    const rows = data.ecommerce || [];
+
+    if (!rows.length) {
+      ecoTableBody.innerHTML = `
+        <tr>
+          <td colspan="3" class="text-center text-muted">Nessun movimento</td>
+        </tr>
+      `;
+      return;
+    }
+
+    ecoTableBody.innerHTML = rows.map(row => `
+      <tr data-ecommerce-id="${row.id}">
+        <td>${escapeHtml(row.description || "")}</td>
+        <td class="text-end">${formatEuro2(row.amount || 0)}</td>
+        <td class="text-end">
+          <button type="button" class="btn btn-outline-danger btn-sm" disabled>
+            Elimina
+          </button>
+        </td>
+      </tr>
+    `).join("");
+  } catch (err) {
+    console.error("loadEcommerce error:", err);
+    ecoTableBody.innerHTML = `
+      <tr>
+        <td colspan="3" class="text-center text-danger">Errore di rete</td>
+      </tr>
+    `;
+  }
+}
+
+async function openEcommerceModal() {
+  if (!currentDay) {
+    alert("Nessuna giornata selezionata.");
+    return;
+  }
+
+  await loadEcommerce(currentDay);
+
+  if (!ecommerceModal) {
+    alert("Modale e-commerce non disponibile.");
+    return;
+  }
+
+  ecommerceModal.show();
+}
+
 async function loadIncassi(dayStr) {
   const listEl = document.getElementById("incassiList");
   const totalEl = document.getElementById("totIncassi");
@@ -835,6 +923,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (drawerModalEl) {
     drawerModal = new bootstrap.Modal(drawerModalEl);
+  }
+
+  if (ecommerceModalEl) {
+    ecommerceModal = new bootstrap.Modal(ecommerceModalEl);
   }
 
   /* =========================
@@ -1964,6 +2056,10 @@ document.addEventListener("DOMContentLoaded", function () {
     await deleteDrawerCount();
   });
 
+  document.getElementById("kpiEcommerceBox")?.addEventListener("click", async () => {
+    await openEcommerceModal();
+  });
+
   document.querySelectorAll('input[name="paymentMode"]').forEach(radio => {
     radio.addEventListener("change", () => {
       const newMode = radio.value;
@@ -2045,5 +2141,57 @@ document.addEventListener("visibilitychange", function () {
     startAssegniAutoRefresh();
   } else {
     stopAssegniAutoRefresh();
+  }
+});
+
+ecoAddBtn?.addEventListener("click", async () => {
+  const amountRaw = ecoAmountInput?.value;
+  const description = (ecoDescriptionInput?.value || "").trim();
+
+  if (!amountRaw || isNaN(amountRaw)) {
+    alert("Inserisci un importo valido");
+    return;
+  }
+
+  if (!description) {
+    alert("Inserisci una descrizione");
+    return;
+  }
+
+  const amount = parseFloat(amountRaw);
+
+  try {
+    const r = await fetch(`/cassa/api/day/${currentDay}/ecommerce`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        amount,
+        description
+      })
+    });
+
+    const data = await r.json();
+
+    if (!data.ok) {
+      alert(data.error || "Errore inserimento");
+      return;
+    }
+
+    // reset form
+    ecoAmountInput.value = "";
+    ecoDescriptionInput.value = "";
+
+    // reload lista
+    await loadEcommerce(currentDay);
+
+    // reload KPI
+    await loadPreview(currentDay);
+
+  } catch (err) {
+    console.error("ecoAdd error:", err);
+    alert("Errore di rete");
   }
 });

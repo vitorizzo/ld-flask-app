@@ -1,13 +1,13 @@
-# STATUS.md — v1.3
-Data aggiornamento: 2026-03-14
+# STATUS.md — v1.4
+Data aggiornamento: 2026-03-18
 
 ---
 
 ## 🔄 Stato generale progetto
 
-Applicazione stabile in produzione.
-Gunicorn + Nginx funzionanti.
-Migrazioni database allineate.
+Applicazione stabile in produzione.  
+Gunicorn + Nginx funzionanti.  
+Migrazioni database allineate.  
 Nessun errore bloccante in avvio applicazione.
 
 ---
@@ -52,149 +52,252 @@ Nessun errore bloccante in avvio applicazione.
 
 ---
 
+## 🆕 Gestione fondo cassa serale
+
+### ✅ Backend
+
+- Implementate nuove tabelle:
+  - `cash_drawer_counts`
+  - `cash_drawer_count_lines`
+
+- Endpoint:
+  - `GET /cassa/api/day/<day_date>/drawer-count`
+  - `POST /cassa/api/day/<day_date>/drawer-count`
+  - `DELETE /cassa/api/day/<day_date>/drawer-count`
+
+### ✅ Logica
+
+- Un solo conteggio per giornata (vincolo DB)
+- Il salvataggio aggiorna il conteggio esistente
+- Possibilità di eliminazione completa del conteggio
+- Totale fondo calcolato da righe per taglio
+
+### ✅ Tagli gestiti
+
+- 0.10
+- 0.20
+- 0.50
+- 1.00
+- 2.00
+- 5.00
+- 10.00
+- 20.00
+- 50.00
+- 100.00
+
+---
+
+## 🧠 Logica fondo cassa stabilizzata
+
+### Fondo cassa finale
+
+Derivato da:
+
+- `CashClosure.closing_cash_drawer`
+- `CashDrawerCount` (somma righe)
+
+👉 Se entrambe presenti:
+- vince il valore più recente (timestamp)
+
+---
+
+### Fondo cassa iniziale
+
+Regola attuale:
+
+- il fondo iniziale = ultimo saldo finale valido nei giorni precedenti
+- non dipende solo dal giorno precedente
+- continua a cercare indietro se necessario
+- funziona anche con giorni senza attività
+
+---
+
 ## 🧩 Agenda / Cassa — UI operativa raggiunta
 
 ### ✅ Completato frontend
 
-- `agenda.html`, `agenda.css`, `agenda.js` consolidati e resi coerenti.
-- Uniformata la grafica delle modali agenda/cassa.
-- Sistemato stacking visivo delle modali sovrapposte.
-- Implementata modale operazione `opModal`.
+- `agenda.html`, `agenda.css`, `agenda.js` consolidati
+- Uniformata la grafica delle modali
+- Sistemato stacking modali
+- Implementata modale operazione `opModal`
+- Implementata modale fondo cassa
+
+---
+
+### ✅ KPI Fondo Cassa
+
+- KPI completamente interattivo
+- Click su tutta la card
+- Apertura modale conteggio
+- Eliminazione conteggio disponibile
+- Feedback UX:
+  - hover
+  - bordo attivo
+  - icona
+  - tooltip
+  - cursor pointer
+
+---
 
 ### ✅ Cliente
 
-- Ricerca progressiva cliente via datalist.
-- Ricerca avanzata cliente in modale dedicata.
-- Creazione nuovo cliente in modale dedicata.
-- Aggiunte anagrafiche:
+- Ricerca progressiva cliente via datalist
+- Ricerca avanzata in modale
+- Creazione cliente
+- Tabelle:
   - `CashCustomer`
   - `CashCustomerAlias`
 
+---
+
 ### ✅ Carrier pagamento lato UI
 
-Carrier attualmente gestiti nella modale operazione:
+Carrier attualmente gestiti:
 
 - `cash`
 - `pos`
 - `bank`
 - `check`
+- `multi`
 
-Logica attiva:
+---
 
-- quadratura carrier su `opAmount`
-- ricalcolo automatico
-- pulsanti `TOT`
-- blocco salvataggio se i carrier non quadrano
-- pulsante di fix per aggiornare il totale operazione dai carrier
+### ✅ Modalità multipla (COMPLETATA)
+
+Supporto per:
+
+- più assegni
+- più POS
+- combinazioni miste
+- contanti + POS + assegni + banca
+
+---
+
+### ✅ Logica attiva
+
+- payload unificato `payments[]`
+- validazioni per carrier
+- salvataggio reale backend
+- `opAmount` auto-calcolato in modalità multipla
+- conferma cambio modalità (multipli → singolo)
+- blocco save se incoerente
+
+---
 
 ### ✅ POS
 
-- UI con:
-  - dispositivo POS
-  - circuito
-  - importo
-- caricamento dinamico dispositivi e circuiti
-- supporto device default
+- selezione dispositivo
+- selezione circuito
+- importo
+- caricamento dinamico
+- default device
+
+---
 
 ### ✅ Banca
 
-- Aggiunta tabella `CashBank`
+- tabella `CashBank`
 - endpoint `/cassa/api/banks`
-- UI con select banca + importo
-- gestione default banca
+- selezione banca
+- gestione default
+
+---
 
 ### ✅ Assegno
 
-- UI con:
-  - banca assegno
+- UI completa:
+  - banca descrittiva
   - ABI
   - CAB
-  - numero assegno
+  - numero
   - scadenza
   - importo
-- reset completo campi assegno quando deselezionato
-- reset corretto quando si usa `TOT` su altro carrier
+- integrazione con:
+  - `CashCheck`
+  - `CashSaleCheck`
+- cliente obbligatorio correttamente gestito
+
+---
 
 ### ✅ Correzioni stabilizzate
 
-- `cash` ora è trattato come carrier normale, non sempre attivo.
-- `TOT` su un carrier:
-  - seleziona solo quel carrier
-  - deseleziona gli altri
-  - azzera e resetta i campi non pertinenti
-- `save` disabilitato in caso di mancata quadratura
-- bottone “Aggiorna totale” reso visibile e funzionante
+- backend sales/expenses non più placeholder
+- gestione completa multi-carrier
+- fix selezione cliente
+- fix aggiornamento automatico opAmount
+- reset coerente campi carrier
+- UX stabile e consistente
 
 ---
 
 ## 🧠 Logica Q / S formalizzata
 
-Esempi validati manualmente:
+Q = incassi_cash_odierni + assegni_versabili_odierni  
 
-Q = incassi_cash_odierni + assegni_versabili_odierni
+S = S_precedente  
+    - totale_versato_oggi  
+    + Q_odierno  
+    + assegni_postdatati_odierni  
 
-S = S_precedente
-    - totale_versato_oggi
-    + Q_odierno
-    + assegni_postdatati_odierni
+Totale titolare = contenuto reale cassetto fine giornata
 
-Totale titolare = contenuto reale cassetto fine giornata.
+Distinzione:
 
-Distinzione chiara tra:
-- incasso_consegnato
-- totale_versato_oggi
+- `incasso_consegnato`
+- `totale_versato_oggi`
+
+---
+
+### ✅ Progressivo versabile corretto
+
+- non riparte più da 0
+- `iniziale` = storico precedente
+- `attuale` = iniziale + movimenti del giorno
 
 ---
 
 ## 🚧 Prossimo Step Operativo
 
-### Priorità immediata
+### 🎯 KPI Movimenti
 
-Completare il salvataggio reale della modale operazione con carrier multipli nel backend.
+Ridefinizione del riquadro:
 
-Ordine previsto:
+- `movimenti` → **vendite online**
+- `versamenti`:
+  - versamento incasso
+  - versamento intermedio
 
-1. Adeguare il payload frontend a `payments[]`
-2. Adeguare:
-   - `POST /cassa/api/day/<day_date>/sales`
-   - `POST /cassa/api/day/<day_date>/expenses`
-3. Salvare correttamente:
-   - `cash`
-   - `pos` con `pos_device_id` e `pos_circuit_id`
-   - `bank` con `bank_id`
-   - `check` con creazione e collegamento di `CashCheck`
-4. Validazioni frontend prima del save:
-   - POS richiede device + circuito
-   - Banca richiede banca selezionata
-   - Assegno richiede cliente + banca/ABI/CAB/numero/scadenza/importo
-5. Collegare `opSaveBtn`
-6. Al successo:
-   - chiudere modale
-   - ricaricare KPI e quadranti
+👉 Logica e struttura verranno definite nella prossima chat
 
-### Step successivo, ma NON ancora da iniziare
+---
 
-- introdurre righe multiple per carrier tramite pulsante `+`
-- supportare:
-  - più righe banca
-  - più assegni
-  - più righe POS
-  - più righe contanti se necessario
+## ⚠️ Nota architetturale
 
-Questo refactor va fatto **solo dopo** avere stabile il salvataggio della versione corrente a riga singola per carrier.
+Due fonti per fondo cassa:
+
+- `CashClosure`
+- `CashDrawerCount`
+
+Regola:
+
+👉 vince il valore più recente
+
+Questa logica è già attiva e deve restare coerente nel sistema.
 
 ---
 
 ## ⚠️ Nota Migrazioni
 
-Risolto in precedenza problema constraint duplicato:
-- `pos_device_circuits`
-- PK coerente con modello
+Risolto:
 
-Nuove strutture introdotte nel modulo cassa:
+- constraint `pos_device_circuits`
+
+Nuove strutture:
+
 - `CashCustomer`
 - `CashCustomerAlias`
 - `CashBank`
-- campo default sul device POS
+- `CashDrawerCount`
+- `CashDrawerCountLine`
 
 Schema attuale stabile.

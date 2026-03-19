@@ -1631,3 +1631,37 @@ class CashDrawerCountLine(db.Model):
             f"<CashDrawerCountLine drawer_count_id={self.drawer_count_id} "
             f"denomination={self.denomination} quantity={self.quantity}>"
         )
+
+
+class CashEcommerce(db.Model):
+    __tablename__ = "cash_ecommerce"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    cash_day_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cash_days.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    created_by_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=True
+    )
+
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+
+    description = db.Column(db.String(255), nullable=True)
+
+    created_by = db.relationship("User", backref="cash_ecommerce")
+
+    def __repr__(self):
+        return f"<CashEcommerce id={self.id} day={self.cash_day_id} amount={self.amount}>"

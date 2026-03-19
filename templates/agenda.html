@@ -147,9 +147,9 @@
               <div class="card-body">
                 <div class="kpi-split">
                   <div class="kpi-side">
-                    <div class="kpi-metric">
-                      <div class="kpi-label">movimenti</div>
-                      <div class="kpi-num" id="kpiTotMovimenti">—</div>
+                    <div class="kpi-metric" id="kpiEcommerceBox" title="Clicca per gestire i movimenti e-commerce">
+                      <div class="kpi-label">e-commerce</div>
+                      <div id="kpiTotEcommerce" class="kpi-num">—</div>
                     </div>
                     <div class="kpi-divider-mini"></div>
                     <div class="kpi-metric">
@@ -883,6 +883,59 @@
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
           <button type="button" class="btn btn-primary" id="drawerSaveBtn">Salva</button>
         </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODALE E-COMMERCE -->
+<div class="modal fade agenda-modal" id="ecommerceModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Movimenti e-commerce</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- FORM INSERIMENTO -->
+        <div class="row g-2 mb-3">
+          <div class="col-md-4">
+            <input type="number" step="0.01" class="form-control" id="ecoAmount" placeholder="Importo">
+          </div>
+          <div class="col-md-6">
+            <input type="text" class="form-control" id="ecoDescription" placeholder="Descrizione">
+          </div>
+          <div class="col-md-2 d-grid">
+            <button class="btn btn-primary" id="ecoAddBtn">Aggiungi</button>
+          </div>
+        </div>
+
+        <!-- TABELLA -->
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th>Descrizione</th>
+                <th class="text-end">Importo</th>
+                <th style="width: 80px;"></th>
+              </tr>
+            </thead>
+            <tbody id="ecoTableBody">
+              <tr>
+                <td colspan="3" class="text-center text-muted">Nessun movimento</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
       </div>
 
     </div>
