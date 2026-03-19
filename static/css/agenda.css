@@ -484,3 +484,32 @@
   opacity: 1;
   transform: scale(1.1);
 }
+
+/* KPI E-commerce interattivo */
+#kpiEcommerceBox {
+  cursor: pointer;
+  transition: border 0.15s ease, transform 0.12s ease, background-color 0.15s ease;
+  border: 1px solid transparent;
+}
+
+#kpiEcommerceBox:hover {
+  border: 1px solid rgba(29, 78, 216, 0.35);
+  background-color: rgba(29, 78, 216, 0.04);
+  transform: translateY(-1px);
+}
+
+#kpiEcommerceBox:active {
+  transform: scale(0.99);
+}
+
+/* icona */
+.kpi-ecommerce-icon {
+  font-size: 0.9rem;
+  opacity: 0.5;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+#kpiEcommerceBox:hover .kpi-ecommerce-icon {
+  opacity: 1;
+  transform: scale(1.1);
+}
