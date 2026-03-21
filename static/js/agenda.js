@@ -2247,8 +2247,24 @@ document.addEventListener("DOMContentLoaded", function () {
     await deleteDrawerCount();
   });
 
-  document.getElementById("kpiEcommerceBox")?.addEventListener("click", async () => {
-    await openEcommerceModal();
+  document.getElementById("kpiVersamentiBox")?.addEventListener("click", async () => {
+    await openDepositModal();
+  });
+
+  depositTypeSelect?.addEventListener("change", async () => {
+    if (!currentDay) return;
+    await loadAvailableDepositChecks(currentDay);
+    updateDepositTotal();
+  });
+
+  normalizeCurrencyInput(depositCashAmountInput);
+
+  depositCashAmountInput?.addEventListener("input", updateDepositTotal);
+
+  depositChecksTableBody?.addEventListener("change", (e) => {
+    if (e.target.closest(".deposit-check-select")) {
+      updateDepositTotal();
+    }
   });
 
   document.querySelectorAll('input[name="paymentMode"]').forEach(radio => {
@@ -2417,25 +2433,5 @@ ecoTableBody?.addEventListener("click", async (e) => {
   } catch (err) {
     console.error("ecoDelete error:", err);
     alert("Errore di rete");
-  }
-});
-
-document.getElementById("kpiVersamentiBox")?.addEventListener("click", async () => {
-  await openDepositModal();
-});
-
-depositTypeSelect?.addEventListener("change", async () => {
-  if (!currentDay) return;
-  await loadAvailableDepositChecks(currentDay);
-  updateDepositTotal();
-});
-
-normalizeCurrencyInput(depositCashAmountInput);
-
-depositCashAmountInput?.addEventListener("input", updateDepositTotal);
-
-depositChecksTableBody?.addEventListener("change", (e) => {
-  if (e.target.closest(".deposit-check-select")) {
-    updateDepositTotal();
   }
 });
