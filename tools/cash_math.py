@@ -222,6 +222,9 @@ def calculate_closure_pure(
         .filter(CashCheck.status.in_(["received", "moved"]))
     )
 
+    # Q (incasso odierno versabile)
+    versabile_giornata = contanti_fisici + assegni_odierni
+
     # =========================
     # SALDO ATTUALE E DEBITO CONTANTI DA VERSAMENTO INCASSO
     # =========================
@@ -237,9 +240,6 @@ def calculate_closure_pure(
     # FORMULE
     # =========================
     incasso_calcolato = contanti_fisici + total_corrispettivi - delta_fondo
-
-    # Q (incasso odierno versabile)
-    versabile_giornata = contanti_fisici + assegni_odierni
 
     # S (saldo “in pancia” a fine giornata)
     saldo_versabile = saldo_attuale
