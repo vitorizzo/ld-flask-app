@@ -14,11 +14,12 @@ from sqlalchemy import exists, or_, and_, func
 from sqlalchemy.orm import selectinload
 
 from tools.log_utils import get_logger
+from tools.check_utils import change_check_status
 from tools.role_required import role_required
 from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment, CashExpensePayment, \
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
-    CashDrawerCount, CashDrawerCountLine, CashEcommerce
+    CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
@@ -1117,6 +1118,16 @@ def api_create_sale(day_date):
                 db.session.add(check)
                 db.session.flush()
 
+                change_check_status(
+                    check=check,
+                    new_status="received",
+                    user_id=getattr(current_user, "id", None),
+                    event_date=d,
+                    note=description,
+                    amount_spese=Decimal("0"),
+                    customer_charge_amount=Decimal("0"),
+                )
+
                 sale.checks.append(
                     CashSaleCheck(
                         check_id=check.id,
@@ -1934,3 +1945,131 @@ def api_delete_ecommerce(ecommerce_id):
         db.session.rollback()
         logger.exception("api_delete_ecommerce error: %s", e)
         return jsonify({"ok": False, "error": "Internal error while deleting ecommerce row"}), 500
+
+@cassa_bp.get("/api/day/<day_date>/deposit-available-checks")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_available_checks_for_deposit(day_date):
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid date"}), 400
+
+    # versamento incasso:
+    # assegni già in mano da prima di oggi, con stato ricevuto o spostato
+    incasso_checks = (
+        CashCheck.query
+        .options(selectinload(CashCheck.customer))
+        .filter(
+            CashCheck.status.in_(["received", "moved"]),
+            CashCheck.received_date < d
+        )
+        .order_by(CashCheck.due_date.asc(), CashCheck.received_date.asc(), CashCheck.id.asc())
+        .all()
+    )
+
+    # versamento intermedio:
+    # assegni ricevuti oggi, ancora semplicemente ricevuti
+    intermedio_checks = (
+        CashCheck.query
+        .options(selectinload(CashCheck.customer))
+        .filter(
+            CashCheck.status == "received",
+            CashCheck.received_date == d
+        )
+        .order_by(CashCheck.due_date.asc(), CashCheck.received_date.asc(), CashCheck.id.asc())
+        .all()
+    )
+
+    def serialize_check(c):
+        return {
+            "id": c.id,
+            "check_number": c.check_number,
+            "bank_name": c.bank_name,
+            "amount": float(c.amount or 0),
+            "due_date": c.due_date.isoformat() if c.due_date else None,
+            "received_date": c.received_date.isoformat() if c.received_date else None,
+            "customer_id": c.customer_id,
+            "customer_display_name": c.customer.display_name if c.customer else None,
+            "status": c.status,
+        }
+
+    return jsonify({
+        "ok": True,
+        "day_date": d.isoformat(),
+        "incasso": [serialize_check(c) for c in incasso_checks],
+        "intermedio": [serialize_check(c) for c in intermedio_checks],
+    })
+
+
+@cassa_bp.post("/api/day/<day_date>/deposits")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_create_deposit(day_date):
+    data = request.get_json() or {}
+
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid date"}), 400
+
+    deposit_type = data.get("deposit_type")
+    cash_amount = Decimal(str(data.get("cash_amount", 0)))
+    note = data.get("note")
+    check_ids = data.get("check_ids", [])
+
+    if deposit_type not in ["versamento_incasso", "versamento_intermedio"]:
+        return jsonify({"ok": False, "error": "Tipo versamento non valido"}), 400
+
+    day = CashDay.query.filter_by(day_date=d).first()
+    if not day:
+        return jsonify({"ok": False, "error": "Giornata non trovata"}), 404
+
+    # --- recupero assegni ---
+    checks = []
+    if check_ids:
+        checks = CashCheck.query.filter(CashCheck.id.in_(check_ids)).all()
+
+    # --- VALIDAZIONE ---
+    for c in checks:
+        if deposit_type == "versamento_incasso":
+            if not (c.status in ["received", "moved"] and c.received_date < d):
+                return jsonify({"ok": False, "error": f"Assegno {c.id} non valido per versamento incasso"}), 400
+
+        if deposit_type == "versamento_intermedio":
+            if not (c.status == "received" and c.received_date == d):
+                return jsonify({"ok": False, "error": f"Assegno {c.id} non valido per versamento intermedio"}), 400
+
+    # --- CREAZIONE DEPOSITO ---
+    deposit = CashDeposit(
+        cash_day_id=day.id,
+        deposit_date=d,
+        deposit_type=deposit_type,
+        cash_amount=cash_amount,
+        note=note,
+    )
+    db.session.add(deposit)
+    db.session.flush()
+
+    # --- COLLEGA ASSEGNI + CAMBIO STATO ---
+    for c in checks:
+        db.session.add(CashDepositCheck(
+            deposit_id=deposit.id,
+            check_id=c.id,
+            check_amount=c.amount
+        ))
+
+        change_check_status(
+            check=c,
+            new_status="deposited",
+            user_id=getattr(current_user, "id", None),
+            event_date=d,
+            note=f"Versamento {deposit_type}",
+        )
+
+    db.session.commit()
+
+    return jsonify({
+        "ok": True,
+        "deposit_id": deposit.id
+    })

@@ -1665,3 +1665,56 @@ class CashEcommerce(db.Model):
 
     def __repr__(self):
         return f"<CashEcommerce id={self.id} day={self.cash_day_id} amount={self.amount}>"
+
+
+class CashCheckEvent(db.Model):
+    __tablename__ = "cash_check_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    check_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cash_checks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    from_status = db.Column(db.String(50), nullable=True)
+    to_status = db.Column(db.String(50), nullable=False, index=True)
+
+    # Data "logica" dell'evento (es. data versamento, data incasso, ecc.)
+    event_date = db.Column(db.Date, nullable=False, index=True)
+
+    # Timestamp tecnico
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    created_by_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=True
+    )
+
+    # Note libere
+    note = db.Column(db.Text, nullable=True)
+
+    # Spese sostenute (bancarie, protesto, ecc.)
+    amount_spese = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+
+    # Importo addebitato al cliente (può includere penali)
+    customer_charge_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+
+    check = db.relationship("CashCheck", backref=db.backref(
+        "events",
+        lazy="dynamic",
+        cascade="all, delete-orphan",
+        order_by="CashCheckEvent.created_at.asc()"
+    ))
+
+    created_by = db.relationship("User", backref="cash_check_events")
+
+    def __repr__(self):
+        return f"<CashCheckEvent check_id={self.check_id} {self.from_status}->{self.to_status}>"
