@@ -1677,6 +1677,72 @@ document.addEventListener("DOMContentLoaded", function () {
     depositModal.show();
   }
 
+  async function saveDeposit() {
+    if (!currentDay) {
+      alert("Nessuna giornata selezionata.");
+      return;
+    }
+
+    const depositType = depositTypeSelect?.value || "";
+    const cashAmount = parseEuroToNumber(depositCashAmountInput?.value || "0");
+    const note = (depositNoteInput?.value || "").trim() || null;
+
+    const checkIds = Array.from(
+      depositChecksTableBody?.querySelectorAll(".deposit-check-select:checked") || []
+    ).map(el => Number(el.value)).filter(Number.isFinite);
+
+    if (!depositType) {
+      alert("Seleziona un tipo di versamento.");
+      return;
+    }
+
+    if (cashAmount <= 0 && checkIds.length === 0) {
+      alert("Inserisci almeno contanti o seleziona almeno un assegno.");
+      return;
+    }
+
+    try {
+      if (depositAddBtn) depositAddBtn.disabled = true;
+
+      const r = await fetch(`/cassa/api/day/${currentDay}/deposits`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          deposit_type: depositType,
+          cash_amount: cashAmount,
+          note,
+          check_ids: checkIds
+        })
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore salvataggio versamento");
+        return;
+      }
+
+      if (depositCashAmountInput) depositCashAmountInput.value = "0,00";
+      if (depositNoteInput) depositNoteInput.value = "";
+      if (depositTotalAmountInput) depositTotalAmountInput.value = "0,00";
+
+      await loadAvailableDepositChecks(currentDay);
+      await loadDeposits(currentDay);
+      updateDepositTotal();
+      await loadPreview(currentDay);
+
+    } catch (err) {
+      console.error("saveDeposit error:", err);
+      alert("Errore di rete");
+    } finally {
+      if (depositAddBtn) depositAddBtn.disabled = false;
+    }
+  }
+
   async function getBaseOperationData() {
     const opType = document.getElementById("opType")?.value || "sale";
     const flag = (document.getElementById("opFlag")?.value || "*").trim();
@@ -2267,6 +2333,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
+  depositAddBtn?.addEventListener("click", async () => {
+    await saveDeposit();
+  });
+
   document.querySelectorAll('input[name="paymentMode"]').forEach(radio => {
     radio.addEventListener("change", () => {
       const newMode = radio.value;
@@ -2387,14 +2457,10 @@ ecoAddBtn?.addEventListener("click", async () => {
       return;
     }
 
-    // reset form
     ecoAmountInput.value = "";
     ecoDescriptionInput.value = "";
 
-    // reload lista
     await loadEcommerce(currentDay);
-
-    // reload KPI
     await loadPreview(currentDay);
 
   } catch (err) {
