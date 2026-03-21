@@ -158,7 +158,7 @@
                       <div id="kpiTotEcommerce" class="kpi-num">—</div>
                     </div>
                     <div class="kpi-divider-mini"></div>
-                    <div class="kpi-metric">
+                    <div class="kpi-metric" id="kpiVersamentiBox" title="Clicca per gestire i versamenti bancari">
                       <div class="kpi-label">versamenti</div>
                       <div class="kpi-num" id="kpiTotVersamenti">—</div>
                     </div>
@@ -950,6 +950,131 @@
     </div>
   </div>
 </div>
+
+<!-- MODALE VERSAMENTI -->
+<div class="modal fade agenda-modal" id="depositModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Versamenti bancari</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- FORM INSERIMENTO -->
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-md-3">
+            <label class="form-label">Tipo versamento</label>
+            <select class="form-select" id="depositType">
+              <option value="versamento_incasso">Versamento incasso</option>
+              <option value="versamento_intermedio">Versamento intermedio</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">Data versamento</label>
+            <input type="date" class="form-control" id="depositDate">
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">Contanti</label>
+            <div class="input-group">
+              <span class="input-group-text">€</span>
+              <input type="text" class="form-control text-end" id="depositCashAmount" placeholder="0,00" inputmode="decimal">
+            </div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">Totale versamento</label>
+            <div class="input-group">
+              <span class="input-group-text">€</span>
+              <input type="text" class="form-control text-end" id="depositTotalAmount" readonly>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <label class="form-label">Nota</label>
+            <input type="text" class="form-control" id="depositNote" placeholder="Note versamento">
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- ASSEGNI SELEZIONABILI -->
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="fw-semibold">Assegni da includere</div>
+            <div class="small text-muted" id="depositChecksHint">—</div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr>
+                  <th style="width: 50px;"></th>
+                  <th>Banca</th>
+                  <th>Numero</th>
+                  <th>Cliente</th>
+                  <th>Ricevuto</th>
+                  <th>Scadenza</th>
+                  <th class="text-end">Importo</th>
+                </tr>
+              </thead>
+              <tbody id="depositChecksTableBody">
+                <tr>
+                  <td colspan="7" class="text-center text-muted">Nessun assegno disponibile</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <div class="d-flex justify-content-end">
+          <button class="btn btn-primary" id="depositAddBtn">Salva versamento</button>
+        </div>
+
+        <hr class="my-4">
+
+        <!-- STORICO VERSAMENTI -->
+        <div>
+          <div class="fw-semibold mb-2">Versamenti registrati nella giornata</div>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Tipo</th>
+                  <th class="text-end">Contanti</th>
+                  <th class="text-end">Assegni</th>
+                  <th class="text-end">Totale</th>
+                  <th>Nota</th>
+                  <th style="width: 90px;"></th>
+                </tr>
+              </thead>
+              <tbody id="depositTableBody">
+                <tr>
+                  <td colspan="7" class="text-center text-muted">Nessun versamento</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}

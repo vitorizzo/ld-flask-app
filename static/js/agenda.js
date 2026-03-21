@@ -118,6 +118,23 @@ const ecoDescriptionInput = document.getElementById("ecoDescription");
 let ecommerceModal = null;
 
 /* =========================
+   DEPOSIT MODAL REFS
+========================= */
+
+const depositModalEl = document.getElementById("depositModal");
+const depositTypeSelect = document.getElementById("depositType");
+const depositDateInput = document.getElementById("depositDate");
+const depositCashAmountInput = document.getElementById("depositCashAmount");
+const depositTotalAmountInput = document.getElementById("depositTotalAmount");
+const depositNoteInput = document.getElementById("depositNote");
+const depositChecksHint = document.getElementById("depositChecksHint");
+const depositChecksTableBody = document.getElementById("depositChecksTableBody");
+const depositTableBody = document.getElementById("depositTableBody");
+const depositAddBtn = document.getElementById("depositAddBtn");
+
+let depositModal = null;
+
+/* =========================
    DAY / PREVIEW
 ========================= */
 
@@ -929,6 +946,10 @@ document.addEventListener("DOMContentLoaded", function () {
     ecommerceModal = new bootstrap.Modal(ecommerceModalEl);
   }
 
+  if (depositModalEl) {
+    depositModal = new bootstrap.Modal(depositModalEl);
+  }
+
   /* =========================
      stacked modals
   ========================= */
@@ -1484,6 +1505,176 @@ document.addEventListener("DOMContentLoaded", function () {
     opCustomerInput.value = exact.display || rawText;
 
     return { ok: true, customer_id: Number(exact.id) };
+  }
+
+  async function loadAvailableDepositChecks(dayStr) {
+    if (!depositChecksTableBody || !depositTypeSelect) return;
+
+    depositChecksTableBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center text-muted">Caricamento...</td>
+      </tr>
+    `;
+
+    try {
+      const r = await fetch(`/cassa/api/day/${dayStr}/deposit-available-checks`, {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" }
+      });
+
+      const data = await r.json();
+
+      if (!data.ok) {
+        depositChecksTableBody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center text-danger">
+              ${escapeHtml(data.error || "Errore caricamento assegni")}
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      const mode = depositTypeSelect.value || "versamento_incasso";
+      const checks = mode === "versamento_intermedio"
+        ? (data.intermedio || [])
+        : (data.incasso || []);
+
+      depositChecksHint.textContent = mode === "versamento_intermedio"
+        ? "Assegni ricevuti oggi"
+        : "Assegni ricevuti nei giorni precedenti o spostati";
+
+      if (!checks.length) {
+        depositChecksTableBody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center text-muted">Nessun assegno disponibile</td>
+          </tr>
+        `;
+        return;
+      }
+
+      depositChecksTableBody.innerHTML = checks.map(c => `
+        <tr data-check-id="${c.id}">
+          <td>
+            <input type="checkbox" class="form-check-input deposit-check-select" value="${c.id}" data-amount="${Number(c.amount || 0)}">
+          </td>
+          <td>${escapeHtml(c.bank_name || "")}</td>
+          <td>${escapeHtml(c.check_number || "")}</td>
+          <td>${escapeHtml(c.customer_display_name || "")}</td>
+          <td>${escapeHtml(c.received_date || "")}</td>
+          <td>${escapeHtml(c.due_date || "")}</td>
+          <td class="text-end">${formatEuro2(c.amount || 0)}</td>
+        </tr>
+      `).join("");
+    } catch (err) {
+      console.error("loadAvailableDepositChecks error:", err);
+      depositChecksTableBody.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center text-danger">Errore di rete</td>
+        </tr>
+      `;
+    }
+  }
+
+  async function loadDeposits(dayStr) {
+    if (!depositTableBody) return;
+
+    depositTableBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center text-muted">Caricamento...</td>
+      </tr>
+    `;
+
+    try {
+      const r = await fetch(`/cassa/api/day/${dayStr}/deposits`, {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" }
+      });
+
+      const data = await r.json();
+
+      if (!data.ok) {
+        depositTableBody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center text-danger">
+              ${escapeHtml(data.error || "Errore caricamento versamenti")}
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      const rows = data.deposits || [];
+
+      if (!rows.length) {
+        depositTableBody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center text-muted">Nessun versamento</td>
+          </tr>
+        `;
+        return;
+      }
+
+      depositTableBody.innerHTML = rows.map(row => `
+        <tr data-deposit-id="${row.id}">
+          <td>${escapeHtml(row.deposit_date || "")}</td>
+          <td>${escapeHtml(row.deposit_type || "")}</td>
+          <td class="text-end">${formatEuro2(row.cash_amount || 0)}</td>
+          <td class="text-end">${formatEuro2(row.checks_total || 0)}</td>
+          <td class="text-end fw-semibold">${formatEuro2(row.total_amount || 0)}</td>
+          <td>${escapeHtml(row.note || "")}</td>
+          <td class="text-end">
+            <button type="button" class="btn btn-outline-danger btn-sm" disabled>Elimina</button>
+          </td>
+        </tr>
+      `).join("");
+    } catch (err) {
+      console.error("loadDeposits error:", err);
+      depositTableBody.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center text-danger">Errore di rete</td>
+        </tr>
+      `;
+    }
+  }
+
+  function updateDepositTotal() {
+    const cash = parseEuroToNumber(depositCashAmountInput?.value || "0");
+
+    const checksTotal = Array.from(
+      depositChecksTableBody?.querySelectorAll(".deposit-check-select:checked") || []
+    ).reduce((sum, el) => {
+      return sum + Number(el.dataset.amount || 0);
+    }, 0);
+
+    const total = cash + checksTotal;
+
+    if (depositTotalAmountInput) {
+      depositTotalAmountInput.value = formatEuro2(total);
+    }
+  }
+
+  async function openDepositModal() {
+    if (!currentDay) {
+      alert("Nessuna giornata selezionata.");
+      return;
+    }
+
+    if (depositDateInput) depositDateInput.value = currentDay;
+    if (depositCashAmountInput) depositCashAmountInput.value = "0,00";
+    if (depositNoteInput) depositNoteInput.value = "";
+    if (depositTotalAmountInput) depositTotalAmountInput.value = "0,00";
+
+    await loadAvailableDepositChecks(currentDay);
+    await loadDeposits(currentDay);
+    updateDepositTotal();
+
+    if (!depositModal) {
+      alert("Modale versamenti non disponibile.");
+      return;
+    }
+
+    depositModal.show();
   }
 
   async function getBaseOperationData() {
@@ -2226,5 +2417,25 @@ ecoTableBody?.addEventListener("click", async (e) => {
   } catch (err) {
     console.error("ecoDelete error:", err);
     alert("Errore di rete");
+  }
+});
+
+document.getElementById("kpiVersamentiBox")?.addEventListener("click", async () => {
+  await openDepositModal();
+});
+
+depositTypeSelect?.addEventListener("change", async () => {
+  if (!currentDay) return;
+  await loadAvailableDepositChecks(currentDay);
+  updateDepositTotal();
+});
+
+normalizeCurrencyInput(depositCashAmountInput);
+
+depositCashAmountInput?.addEventListener("input", updateDepositTotal);
+
+depositChecksTableBody?.addEventListener("change", (e) => {
+  if (e.target.closest(".deposit-check-select")) {
+    updateDepositTotal();
   }
 });
