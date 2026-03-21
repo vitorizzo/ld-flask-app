@@ -1,6 +1,7 @@
 let currentDay = null;
 let calendarInstance = null;
 let lastPaymentMode = "cash";
+let currentPreviewTotals = {};
 
 /* =========================
    UTILS BASE
@@ -174,6 +175,7 @@ function loadPreview(dateStr) {
       if (!data.ok) return;
 
       const t = data.totals || {};
+      currentPreviewTotals = t;
 
       const q = (t.q ?? t.q_versabile ?? t.Q ?? t.versabile_residuo);
       const s = (t.s ?? t.s_versabile ?? t.S ?? t.saldo_versabile);
@@ -203,6 +205,8 @@ function loadPreview(dateStr) {
       setText("kpiTotVersamenti", _fmt2(totVers));
       setText("kpiCorrispettivi", _fmt2(cor));
       setText("kpiIncassoConsegnato", _fmt2(consegnato));
+
+      updateDepositCashUi();
     })
     .catch(err => console.error("loadPreview error:", err));
 }
@@ -894,6 +898,45 @@ function stopAssegniAutoRefresh() {
 }
 
 /* =========================
+   DEPOSIT UI HELPERS
+========================= */
+
+function updateDepositCashUi() {
+  if (!depositCashAmountInput || !depositTypeSelect || !depositChecksHint) return;
+
+  const mode = depositTypeSelect.value || "versamento_incasso";
+  const cashValue = parseEuroToNumber(depositCashAmountInput.value || "0");
+
+  depositCashAmountInput.classList.remove("is-invalid");
+  depositCashAmountInput.removeAttribute("title");
+
+  const maxContanti = Number(currentPreviewTotals.massimo_contanti_incasso || 0);
+  const debitoContanti = Number(currentPreviewTotals.debito_contanti_incasso || 0);
+
+  if (mode === "versamento_intermedio") {
+    depositChecksHint.textContent = "Assegni ricevuti oggi";
+    return;
+  }
+
+  let hint = "Assegni ricevuti nei giorni precedenti o spostati";
+
+  if (Number.isFinite(maxContanti)) {
+    hint += ` • Contanti consigliati max: ${formatEuro2(maxContanti)}`;
+  }
+
+  if (debitoContanti > 0) {
+    hint += ` • Eccedenza da recuperare: ${formatEuro2(debitoContanti)}`;
+  }
+
+  depositChecksHint.textContent = hint;
+
+  if (cashValue > maxContanti) {
+    depositCashAmountInput.classList.add("is-invalid");
+    depositCashAmountInput.title = `Contanti oltre soglia consigliata. Max consigliato: ${formatEuro2(maxContanti)}`;
+  }
+}
+
+/* =========================
    INIT
 ========================= */
 
@@ -1540,16 +1583,13 @@ document.addEventListener("DOMContentLoaded", function () {
         ? (data.intermedio || [])
         : (data.incasso || []);
 
-      depositChecksHint.textContent = mode === "versamento_intermedio"
-        ? "Assegni ricevuti oggi"
-        : "Assegni ricevuti nei giorni precedenti o spostati";
-
       if (!checks.length) {
         depositChecksTableBody.innerHTML = `
           <tr>
             <td colspan="7" class="text-center text-muted">Nessun assegno disponibile</td>
           </tr>
         `;
+        updateDepositCashUi();
         return;
       }
 
@@ -1566,6 +1606,8 @@ document.addEventListener("DOMContentLoaded", function () {
           <td class="text-end">${formatEuro2(c.amount || 0)}</td>
         </tr>
       `).join("");
+
+      updateDepositCashUi();
     } catch (err) {
       console.error("loadAvailableDepositChecks error:", err);
       depositChecksTableBody.innerHTML = `
@@ -1573,6 +1615,7 @@ document.addEventListener("DOMContentLoaded", function () {
           <td colspan="7" class="text-center text-danger">Errore di rete</td>
         </tr>
       `;
+      updateDepositCashUi();
     }
   }
 
@@ -1668,6 +1711,7 @@ document.addEventListener("DOMContentLoaded", function () {
     await loadAvailableDepositChecks(currentDay);
     await loadDeposits(currentDay);
     updateDepositTotal();
+    updateDepositCashUi();
 
     if (!depositModal) {
       alert("Modale versamenti non disponibile.");
@@ -1732,8 +1776,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
       await loadAvailableDepositChecks(currentDay);
       await loadDeposits(currentDay);
-      updateDepositTotal();
       await loadPreview(currentDay);
+      updateDepositTotal();
+      updateDepositCashUi();
 
     } catch (err) {
       console.error("saveDeposit error:", err);
@@ -2321,15 +2366,20 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!currentDay) return;
     await loadAvailableDepositChecks(currentDay);
     updateDepositTotal();
+    updateDepositCashUi();
   });
 
   normalizeCurrencyInput(depositCashAmountInput);
 
-  depositCashAmountInput?.addEventListener("input", updateDepositTotal);
+  depositCashAmountInput?.addEventListener("input", () => {
+    updateDepositTotal();
+    updateDepositCashUi();
+  });
 
   depositChecksTableBody?.addEventListener("change", (e) => {
     if (e.target.closest(".deposit-check-select")) {
       updateDepositTotal();
+      updateDepositCashUi();
     }
   });
 
