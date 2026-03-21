@@ -513,3 +513,20 @@
   opacity: 1;
   transform: scale(1.1);
 }
+
+/* KPI Versamenti interattivo */
+#kpiVersamentiBox {
+  cursor: pointer;
+  transition: border 0.15s ease, transform 0.12s ease, background-color 0.15s ease;
+  border: 1px solid transparent;
+}
+
+#kpiVersamentiBox:hover {
+  border: 1px solid rgba(29, 78, 216, 0.35);
+  background-color: rgba(29, 78, 216, 0.04);
+  transform: translateY(-1px);
+}
+
+#kpiVersamentiBox:active {
+  transform: scale(0.99);
+}

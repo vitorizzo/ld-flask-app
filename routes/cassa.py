@@ -2037,7 +2037,12 @@ def api_create_deposit(day_date):
     # --- VALIDAZIONE ---
     for c in checks:
         if deposit_type == "versamento_incasso":
-            if not (c.status in ["received", "moved"] and c.received_date < d):
+            cutoff = next_banking_day(d)
+            if not (
+                    c.status in ["received", "moved"]
+                    and c.received_date < d
+                    and c.due_date <= cutoff
+            ):
                 return jsonify({"ok": False, "error": f"Assegno {c.id} non valido per versamento incasso"}), 400
 
         if deposit_type == "versamento_intermedio":
