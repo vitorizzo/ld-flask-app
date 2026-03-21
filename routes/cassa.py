@@ -19,7 +19,7 @@ from tools.role_required import role_required
 from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment, CashExpensePayment, \
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
-    CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashDepositCheck, CashDeposit
+    CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
@@ -2009,6 +2009,7 @@ def api_available_checks_for_deposit(day_date):
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_create_deposit(day_date):
+    from models import CashDeposit, CashDepositCheck
     data = request.get_json() or {}
 
     try:
