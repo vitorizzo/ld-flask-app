@@ -181,6 +181,96 @@ def _dir_writable(path: str) -> bool:
         return False
 
 
+def _get_previous_check_status_before_deposit(check_id: int):
+    """
+    Restituisce lo stato precedente all'ultimo evento 'deposited' per l'assegno.
+    Usa la cronologia CashCheckEvent ordinata per created_at/id.
+    """
+    events = (
+        CashCheckEvent.query
+        .filter(CashCheckEvent.check_id == check_id)
+        .order_by(CashCheckEvent.created_at.asc(), CashCheckEvent.id.asc())
+        .all()
+    )
+
+    if not events:
+        return None
+
+    deposited_idx = None
+    for idx in range(len(events) - 1, -1, -1):
+        ev = events[idx]
+        if ev.to_status == "deposited":
+            deposited_idx = idx
+            break
+
+    if deposited_idx is None:
+        return None
+
+    if deposited_idx == 0:
+        return None
+
+    prev_event = events[deposited_idx - 1]
+    return prev_event.to_status
+
+
+@cassa_bp.delete("/api/deposits/<int:deposit_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_delete_deposit(deposit_id):
+    from models import CashDeposit, CashDepositCheck
+
+    deposit = (
+        CashDeposit.query
+        .options(
+            selectinload(CashDeposit.checks)
+            .selectinload(CashDepositCheck.check)
+        )
+        .filter(CashDeposit.id == deposit_id)
+        .first()
+    )
+
+    if not deposit:
+        return jsonify({"ok": False, "error": "Versamento non trovato"}), 404
+
+    try:
+        linked_checks = [link.check for link in (deposit.checks or []) if link.check]
+
+        for check in linked_checks:
+            prev_status = _get_previous_check_status_before_deposit(check.id)
+
+            if not prev_status:
+                return jsonify({
+                    "ok": False,
+                    "error": f"Impossibile determinare lo stato precedente per assegno {check.id}"
+                }), 400
+
+            change_check_status(
+                check=check,
+                new_status=prev_status,
+                user_id=getattr(current_user, "id", None),
+                event_date=deposit.deposit_date or date.today(),
+                note=f"Eliminazione versamento ID {deposit.id}",
+                amount_spese=Decimal("0"),
+                customer_charge_amount=Decimal("0"),
+            )
+
+        db.session.delete(deposit)
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "deposit_id": deposit_id,
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_delete_deposit error: %s", e)
+        return jsonify({
+            "ok": False,
+            "error": "Errore interno durante l'eliminazione del versamento"
+        }), 500
+
+
 # =========================
 # Views
 # =========================

@@ -66,6 +66,24 @@ function isNonEmpty(value) {
   return String(value || "").trim().length > 0;
 }
 
+function setBadgeState(id, ok) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  if (ok) {
+    el.className = "badge rounded-pill text-bg-success";
+  } else {
+    el.className = "badge rounded-pill border border-danger text-danger bg-transparent";
+  }
+}
+
+function setIndicativeState(id, isIndicative) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  el.classList.toggle("kpi-num-indicative", !!isIndicative);
+}
+
 /* =========================
    API HELPERS
 ========================= */
@@ -189,6 +207,10 @@ function loadPreview(dateStr) {
       const totVers = (t.totale_versato_oggi ?? t.totale_versamenti ?? t.totVersamenti);
       const cor = (t.total_corrispettivi ?? t.corrispettivi ?? t.corrispettivi_totali);
       const consegnato = (t.incasso_consegnato ?? t.incassoConsegnato);
+      const hasCorrispettivi = !!t.has_corrispettivi;
+      const hasFondoIniziale = !!t.has_fondo_iniziale;
+      const hasFondoFinale = !!t.has_fondo_finale;
+      const totaleGiornataIsPartial = !!t.totale_giornata_is_partial;
 
       setText("kpiSaldoVersabileInit", _fmt2(sPrev));
       setText("kpiSaldoVersabileNew", _fmt2(s));
@@ -198,6 +220,11 @@ function loadPreview(dateStr) {
       setText("kpiFondoFinale", _fmt2(fondoFin));
 
       setText("kpiIC", _fmt2(ic));
+
+      setBadgeState("badgeCorrispettiviState", hasCorrispettivi);
+      setBadgeState("badgeFondoState", hasFondoIniziale && hasFondoFinale);
+      setIndicativeState("kpiIC", totaleGiornataIsPartial);
+
       setText("kpiDeltaFondo", _fmt2(df));
       setText("kpiDeltaQuadratura", _fmt2(dq));
 
@@ -1667,7 +1694,12 @@ document.addEventListener("DOMContentLoaded", function () {
           <td class="text-end fw-semibold">${formatEuro2(row.total_amount || 0)}</td>
           <td>${escapeHtml(row.note || "")}</td>
           <td class="text-end">
-            <button type="button" class="btn btn-outline-danger btn-sm" disabled>Elimina</button>
+            <button
+              type="button"
+              class="btn btn-outline-danger btn-sm btn-deposit-delete"
+              data-id="${row.id}">
+              Elimina
+            </button>
           </td>
         </tr>
       `).join("");
@@ -2548,6 +2580,41 @@ ecoTableBody?.addEventListener("click", async (e) => {
 
   } catch (err) {
     console.error("ecoDelete error:", err);
+    alert("Errore di rete");
+  }
+});
+
+depositTableBody?.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".btn-deposit-delete");
+  if (!btn) return;
+
+  const depositId = btn.dataset.id;
+  if (!depositId) return;
+
+  const confirmed = window.confirm("Vuoi eliminare questo versamento?");
+  if (!confirmed) return;
+
+  try {
+    const r = await fetch(`/cassa/api/deposits/${depositId}`, {
+      method: "DELETE",
+      headers: { "Accept": "application/json" },
+      credentials: "same-origin"
+    });
+
+    const data = await r.json();
+
+    if (!r.ok || !data.ok) {
+      alert(data.error || "Errore eliminazione versamento");
+      return;
+    }
+
+    await loadAvailableDepositChecks(currentDay);
+    await loadDeposits(currentDay);
+    updateDepositTotal();
+    await loadPreview(currentDay);
+
+  } catch (err) {
+    console.error("deleteDeposit error:", err);
     alert("Errore di rete");
   }
 });

@@ -110,6 +110,10 @@ def calculate_closure_pure(
 
     delta_fondo = fondo_finale - opening_float
 
+    has_fondo_iniziale = opening_float > Decimal("0")
+    has_fondo_finale = fondo_finale > Decimal("0")
+    has_corrispettivi = total_corrispettivi > Decimal("0")
+
     # =========================
     # CONTANTI: incassi cash
     # =========================
@@ -239,7 +243,10 @@ def calculate_closure_pure(
     # =========================
     # FORMULE
     # =========================
-    incasso_calcolato = contanti_fisici + total_corrispettivi - delta_fondo
+    if has_fondo_iniziale and has_fondo_finale:
+        incasso_calcolato = contanti_fisici + total_corrispettivi - delta_fondo
+    else:
+        incasso_calcolato = contanti_fisici + total_corrispettivi
 
     # S (saldo “in pancia” a fine giornata)
     saldo_versabile = saldo_attuale
@@ -251,6 +258,10 @@ def calculate_closure_pure(
 
     delta_quadratura = incasso_consegnato - incasso_calcolato
     anomalia = abs(delta_quadratura) > tolleranza
+
+    totale_giornata_is_partial = not (
+        has_corrispettivi and has_fondo_iniziale and has_fondo_finale
+    )
 
     return {
         "fondo_iniziale": opening_float,
@@ -285,6 +296,11 @@ def calculate_closure_pure(
         "saldo_attuale": saldo_attuale,
         "massimo_contanti_incasso": massimo_contanti_incasso,
         "debito_contanti_incasso": debito_contanti_incasso,
+
+        "has_corrispettivi": has_corrispettivi,
+        "has_fondo_iniziale": has_fondo_iniziale,
+        "has_fondo_finale": has_fondo_finale,
+        "totale_giornata_is_partial": totale_giornata_is_partial,
 
         "note": "Calcolo DB + versamenti (CashDeposit). Flag +/x ignorati qui.",
     }

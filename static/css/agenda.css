@@ -530,3 +530,7 @@
 #kpiVersamentiBox:active {
   transform: scale(0.99);
 }
+
+.kpi-num-indicative {
+  opacity: 0.45;
+}
