@@ -2077,3 +2077,83 @@ def api_create_deposit(day_date):
         "ok": True,
         "deposit_id": deposit.id
     })
+
+
+@cassa_bp.get("/api/day/<day_date>/deposits")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_list_deposits(day_date):
+    from models import CashDeposit, CashDepositCheck
+
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    cash_day = (
+        CashDay.query
+        .options(
+            selectinload(CashDay.deposits)
+            .selectinload(CashDeposit.checks)
+            .selectinload(CashDepositCheck.check)
+            .selectinload(CashCheck.customer)
+        )
+        .filter(CashDay.day_date == d)
+        .first()
+    )
+
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    items = []
+    total_cash = Decimal("0")
+    total_checks = Decimal("0")
+
+    for dep in sorted(cash_day.deposits or [], key=lambda x: (x.deposit_date, x.id)):
+        dep_cash = Decimal(str(dep.cash_amount or 0))
+        total_cash += dep_cash
+
+        checks = []
+        dep_checks_total = Decimal("0")
+
+        for link in dep.checks or []:
+            linked_check = link.check
+            check_amount = Decimal(str(
+                link.check_amount if link.check_amount is not None
+                else (linked_check.amount if linked_check else 0)
+            ))
+            dep_checks_total += check_amount
+            total_checks += check_amount
+
+            checks.append({
+                "id": linked_check.id if linked_check else None,
+                "check_number": linked_check.check_number if linked_check else None,
+                "bank_name": linked_check.bank_name if linked_check else None,
+                "amount": float(check_amount),
+                "due_date": linked_check.due_date.isoformat() if linked_check and linked_check.due_date else None,
+                "customer_id": linked_check.customer_id if linked_check else None,
+                "customer_display_name": linked_check.customer.display_name if linked_check and linked_check.customer else None,
+            })
+
+        items.append({
+            "id": dep.id,
+            "deposit_date": dep.deposit_date.isoformat() if dep.deposit_date else None,
+            "deposit_type": dep.deposit_type,
+            "cash_amount": float(dep_cash),
+            "checks_total": float(dep_checks_total),
+            "total_amount": float(dep_cash + dep_checks_total),
+            "note": dep.note,
+            "checks": checks,
+            "created_at": dep.created_at.isoformat() if dep.created_at else None,
+        })
+
+    return jsonify({
+        "ok": True,
+        "day_date": d.isoformat(),
+        "deposits": items,
+        "totals": {
+            "cash_amount": float(total_cash),
+            "checks_amount": float(total_checks),
+            "total_amount": float(total_cash + total_checks),
+        }
+    })
