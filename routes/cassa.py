@@ -1997,9 +1997,38 @@ def api_available_checks_for_deposit(day_date):
             "status": c.status,
         }
 
+    # tutti gli assegni ancora "in pancia", anche non versabili oggi
+    checks_in_pancia_status = ["received", "moved"]
+
+    saldo_assegni_in_pancia = (
+        db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
+        .filter(CashCheck.status.in_(checks_in_pancia_status))
+        .scalar()
+    )
+
+    saldo_assegni_in_pancia = Decimal(str(saldo_assegni_in_pancia or 0))
+
+    prev_day = (
+        CashDay.query
+        .filter(CashDay.day_date < d)
+        .order_by(CashDay.day_date.desc())
+        .first()
+    )
+
+    saldo_versabile_precedente = (
+        _calculate_progressive_saldo_versabile(prev_day) if prev_day else Decimal("0")
+    )
+
+    contanti_massimi_incasso = saldo_versabile_precedente - saldo_assegni_in_pancia
+    if contanti_massimi_incasso < 0:
+        contanti_massimi_incasso = Decimal("0")
+
     return jsonify({
         "ok": True,
         "day_date": d.isoformat(),
+        "saldo_versabile_precedente": float(saldo_versabile_precedente),
+        "saldo_assegni_in_pancia": float(saldo_assegni_in_pancia),
+        "contanti_massimi_incasso": float(contanti_massimi_incasso),
         "incasso": [serialize_check(c) for c in incasso_checks],
         "intermedio": [serialize_check(c) for c in intermedio_checks],
     })

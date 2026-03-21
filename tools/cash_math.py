@@ -214,6 +214,26 @@ def calculate_closure_pure(
     totale_versato_intermedio = depositi_intermedi_cash + depositi_intermedi_assegni
 
     # =========================
+    # ASSEGNI ANCORA IN PANCIA
+    # solo assegni realmente detenuti
+    # =========================
+    assegni_in_pancia = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
+        .filter(CashCheck.status.in_(["received", "moved"]))
+    )
+
+    # =========================
+    # SALDO ATTUALE E DEBITO CONTANTI DA VERSAMENTO INCASSO
+    # =========================
+    saldo_attuale = saldo_versabile_precedente + versabile_giornata + assegni_postdatati - totale_versato_oggi
+
+    massimo_contanti_incasso = saldo_attuale - assegni_in_pancia
+
+    debito_contanti_incasso = Decimal("0.00")
+    if massimo_contanti_incasso < 0:
+        debito_contanti_incasso = -massimo_contanti_incasso
+
+    # =========================
     # FORMULE
     # =========================
     incasso_calcolato = contanti_fisici + total_corrispettivi - delta_fondo
@@ -221,11 +241,13 @@ def calculate_closure_pure(
     # Q (incasso odierno versabile)
     versabile_giornata = contanti_fisici + assegni_odierni
 
-    # Q residua (tolgo i versamenti intermedi fatti oggi)
-    versabile_residuo = versabile_giornata - totale_versato_intermedio
-
     # S (saldo “in pancia” a fine giornata)
-    saldo_versabile = saldo_versabile_precedente + versabile_giornata + assegni_postdatati - totale_versato_oggi
+    saldo_versabile = saldo_attuale
+
+    # Q residua:
+    # - tolgo i versamenti intermedi del giorno
+    # - tolgo l'eventuale debito contanti generato da versamenti incasso oltre soglia
+    versabile_residuo = versabile_giornata - totale_versato_intermedio - debito_contanti_incasso
 
     delta_quadratura = incasso_consegnato - incasso_calcolato
     anomalia = abs(delta_quadratura) > tolleranza
@@ -258,6 +280,11 @@ def calculate_closure_pure(
         "totale_versato_intermedio": totale_versato_intermedio,
 
         "saldo_versabile": saldo_versabile,
+
+        "assegni_in_pancia": assegni_in_pancia,
+        "saldo_attuale": saldo_attuale,
+        "massimo_contanti_incasso": massimo_contanti_incasso,
+        "debito_contanti_incasso": debito_contanti_incasso,
 
         "note": "Calcolo DB + versamenti (CashDeposit). Flag +/x ignorati qui.",
     }
