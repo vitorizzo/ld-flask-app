@@ -19,7 +19,7 @@ from tools.role_required import role_required
 from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment, CashExpensePayment, \
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
-    CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent
+    CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashDepositCheck, CashDeposit
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
@@ -1956,13 +1956,16 @@ def api_available_checks_for_deposit(day_date):
         return jsonify({"ok": False, "error": "Invalid date"}), 400
 
     # versamento incasso:
-    # assegni già in mano da prima di oggi, con stato ricevuto o spostato
+    # assegni già in mano da prima di oggi, con stato ricevuto o spostato, versabili oggi
+    cutoff = next_banking_day(d)
+
     incasso_checks = (
         CashCheck.query
         .options(selectinload(CashCheck.customer))
         .filter(
             CashCheck.status.in_(["received", "moved"]),
-            CashCheck.received_date < d
+            CashCheck.received_date < d,
+            CashCheck.due_date <= cutoff
         )
         .order_by(CashCheck.due_date.asc(), CashCheck.received_date.asc(), CashCheck.id.asc())
         .all()
