@@ -175,7 +175,7 @@ function loadPreview(dateStr) {
 
       const t = data.totals || {};
 
-      const q = (t.q ?? t.q_versabile ?? t.Q ?? t.versabile_giornata);
+      const q = (t.q ?? t.q_versabile ?? t.Q ?? t.versabile_residuo);
       const s = (t.s ?? t.s_versabile ?? t.S ?? t.saldo_versabile);
       const ic = (t.ic ?? t.IC ?? t.incasso_calcolato);
       const df = (t.delta_fondo ?? t.deltaFondo ?? t.df);
