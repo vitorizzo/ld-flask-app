@@ -2411,6 +2411,45 @@ document.addEventListener("DOMContentLoaded", function () {
     updateDepositCashUi();
   });
 
+  depositTableBody?.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".btn-deposit-delete");
+    if (!btn) return;
+
+    const depositId = btn.dataset.id;
+    if (!depositId) return;
+
+    const confirmed = window.confirm("Vuoi eliminare questo versamento?");
+    if (!confirmed) return;
+
+    try {
+      btn.disabled = true;
+
+      const r = await fetch(`/cassa/api/deposits/${depositId}`, {
+        method: "DELETE",
+        headers: { "Accept": "application/json" },
+        credentials: "same-origin",
+        cache: "no-store"
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore eliminazione versamento");
+        btn.disabled = false;
+        return;
+      }
+
+      await loadAvailableDepositChecks(currentDay);
+      await loadDeposits(currentDay);
+      updateDepositTotal();
+      await refreshAgendaData();
+
+    } catch (err) {
+      console.error("deleteDeposit error:", err);
+      alert("Errore di rete");
+    }
+  });
+
   normalizeCurrencyInput(depositCashAmountInput);
 
   depositCashAmountInput?.addEventListener("input", () => {
@@ -2590,45 +2629,6 @@ ecoTableBody?.addEventListener("click", async (e) => {
 
   } catch (err) {
     console.error("ecoDelete error:", err);
-    alert("Errore di rete");
-  }
-});
-
-depositTableBody?.addEventListener("click", async (e) => {
-  const btn = e.target.closest(".btn-deposit-delete");
-  if (!btn) return;
-
-  const depositId = btn.dataset.id;
-  if (!depositId) return;
-
-  const confirmed = window.confirm("Vuoi eliminare questo versamento?");
-  if (!confirmed) return;
-
-  try {
-    btn.disabled = true;
-
-    const r = await fetch(`/cassa/api/deposits/${depositId}`, {
-      method: "DELETE",
-      headers: { "Accept": "application/json" },
-      credentials: "same-origin",
-      cache: "no-store"
-    });
-
-    const data = await r.json();
-
-    if (!r.ok || !data.ok) {
-      alert(data.error || "Errore eliminazione versamento");
-      btn.disabled = false;
-      return;
-    }
-
-    await loadAvailableDepositChecks(currentDay);
-    await loadDeposits(currentDay);
-    updateDepositTotal();
-    await refreshAgendaData();
-
-  } catch (err) {
-    console.error("deleteDeposit error:", err);
     alert("Errore di rete");
   }
 });
