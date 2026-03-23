@@ -186,66 +186,76 @@ function loadDay(dateStr) {
     });
 }
 
-function loadPreview(dateStr) {
-  fetch(`/cassa/api/day/${dateStr}/preview?view=fiscal`)
-    .then(r => r.json())
-    .then(data => {
-      if (!data.ok) return;
+async function loadPreview(dateStr) {
+  try {
+    const r = await fetch(`/cassa/api/day/${dateStr}/preview?view=fiscal`, {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" },
+      cache: "no-store"
+    });
 
-      const t = data.totals || {};
-      currentPreviewTotals = t;
+    const data = await r.json();
+    if (!data.ok) return;
 
-      const q = (t.q ?? t.q_versabile ?? t.Q ?? t.versabile_residuo);
-      const s = (t.s ?? t.s_versabile ?? t.S ?? t.saldo_versabile);
-      const ic = (t.ic ?? t.IC ?? t.incasso_calcolato);
-      const df = (t.delta_fondo ?? t.deltaFondo ?? t.df);
-      const dq = (t.delta_quadratura ?? t.deltaQuadratura ?? t.dq);
-      const fondoInit = (t.fondo_iniziale ?? t.opening_float ?? t.fondoIniziale);
-      const fondoFin = (t.fondo_finale ?? t.fondoFinale);
-      const sPrev = (t.saldo_versabile_precedente ?? t.saldo_versabile_init ?? t.saldoVersabilePrecedente);
-      const totEcommerce = Number(t.totale_ecommerce || 0);
-      const totVers = (t.totale_versato_oggi ?? t.totale_versamenti ?? t.totVersamenti);
-      const cor = (t.total_corrispettivi ?? t.corrispettivi ?? t.corrispettivi_totali);
-      const consegnato = (t.incasso_consegnato ?? t.incassoConsegnato);
-      const hasCorrispettivi = !!t.has_corrispettivi;
-      const hasFondoIniziale = !!t.has_fondo_iniziale;
-      const hasFondoFinale = !!t.has_fondo_finale;
-      const totaleGiornataIsPartial = !!t.totale_giornata_is_partial;
+    const t = data.totals || {};
+    currentPreviewTotals = t;
 
-      setText("kpiSaldoVersabileInit", _fmt2(sPrev));
-      setText("kpiSaldoVersabileNew", _fmt2(s));
-      setText("kpiVersabileGiornata", _fmt2(q));
+    const q = (t.q ?? t.q_versabile ?? t.Q ?? t.versabile_residuo);
+    const s = (t.s ?? t.s_versabile ?? t.S ?? t.saldo_versabile);
+    const ic = (t.ic ?? t.IC ?? t.incasso_calcolato);
+    const df = (t.delta_fondo ?? t.deltaFondo ?? t.df);
+    const dq = (t.delta_quadratura ?? t.deltaQuadratura ?? t.dq);
+    const fondoInit = (t.fondo_iniziale ?? t.opening_float ?? t.fondoIniziale);
+    const fondoFin = (t.fondo_finale ?? t.fondoFinale);
+    const sPrev = (t.saldo_versabile_precedente ?? t.saldo_versabile_init ?? t.saldoVersabilePrecedente);
+    const totEcommerce = Number(t.totale_ecommerce || 0);
+    const totVers = (t.totale_versato_oggi ?? t.totale_versamenti ?? t.totVersamenti);
+    const cor = (t.total_corrispettivi ?? t.corrispettivi ?? t.corrispettivi_totali);
+    const consegnato = (t.incasso_consegnato ?? t.incassoConsegnato);
+    const hasCorrispettivi = !!t.has_corrispettivi;
+    const hasFondoIniziale = !!t.has_fondo_iniziale;
+    const hasFondoFinale = !!t.has_fondo_finale;
+    const totaleGiornataIsPartial = !!t.totale_giornata_is_partial;
 
-      setText("kpiFondoIniziale", _fmt2(fondoInit));
-      setText("kpiFondoFinale", _fmt2(fondoFin));
+    setText("kpiSaldoVersabileInit", _fmt2(sPrev));
+    setText("kpiSaldoVersabileNew", _fmt2(s));
+    setText("kpiVersabileGiornata", _fmt2(q));
 
-      setText("kpiIC", _fmt2(ic));
+    setText("kpiFondoIniziale", _fmt2(fondoInit));
+    setText("kpiFondoFinale", _fmt2(fondoFin));
 
-      setBadgeState("badgeCorrispettiviState", hasCorrispettivi);
-      setBadgeState("badgeFondoState", hasFondoIniziale && hasFondoFinale);
-      setIndicativeState("kpiIC", totaleGiornataIsPartial);
+    setText("kpiIC", _fmt2(ic));
 
-      setText("kpiDeltaFondo", _fmt2(df));
-      setText("kpiDeltaQuadratura", _fmt2(dq));
+    setBadgeState("badgeCorrispettiviState", hasCorrispettivi);
+    setBadgeState("badgeFondoState", hasFondoIniziale && hasFondoFinale);
+    setIndicativeState("kpiIC", totaleGiornataIsPartial);
 
-      setText("kpiTotEcommerce", _fmt2(totEcommerce));
-      setText("kpiTotVersamenti", _fmt2(totVers));
-      setText("kpiCorrispettivi", _fmt2(cor));
-      setText("kpiIncassoConsegnato", _fmt2(consegnato));
+    setText("kpiDeltaFondo", _fmt2(df));
+    setText("kpiDeltaQuadratura", _fmt2(dq));
 
-      updateDepositCashUi();
-    })
-    .catch(err => console.error("loadPreview error:", err));
+    setText("kpiTotEcommerce", _fmt2(totEcommerce));
+    setText("kpiTotVersamenti", _fmt2(totVers));
+    setText("kpiCorrispettivi", _fmt2(cor));
+    setText("kpiIncassoConsegnato", _fmt2(consegnato));
+
+    updateDepositCashUi();
+  } catch (err) {
+    console.error("loadPreview error:", err);
+  }
 }
 
 async function refreshAgendaData() {
   if (!currentDay) return;
-  loadPreview(currentDay);
-  loadIncassi(currentDay);
-  loadSpese(currentDay);
-  loadPosMoves(currentDay);
-  loadCashMoves(currentDay);
-  loadCoinsBalance(currentDay);
+
+  await loadPreview(currentDay);
+  await Promise.all([
+    loadIncassi(currentDay),
+    loadSpese(currentDay),
+    loadPosMoves(currentDay),
+    loadCashMoves(currentDay),
+    loadCoinsBalance(currentDay)
+  ]);
+
   loadAssegniScadenza(currentDay, false);
 }
 
@@ -2595,23 +2605,27 @@ depositTableBody?.addEventListener("click", async (e) => {
   if (!confirmed) return;
 
   try {
+    btn.disabled = true;
+
     const r = await fetch(`/cassa/api/deposits/${depositId}`, {
       method: "DELETE",
       headers: { "Accept": "application/json" },
-      credentials: "same-origin"
+      credentials: "same-origin",
+      cache: "no-store"
     });
 
     const data = await r.json();
 
     if (!r.ok || !data.ok) {
       alert(data.error || "Errore eliminazione versamento");
+      btn.disabled = false;
       return;
     }
 
     await loadAvailableDepositChecks(currentDay);
     await loadDeposits(currentDay);
     updateDepositTotal();
-    await loadPreview(currentDay);
+    await refreshAgendaData();
 
   } catch (err) {
     console.error("deleteDeposit error:", err);
