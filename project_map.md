@@ -1,4 +1,4 @@
-# PROJECT_MAP.md — v2.3
+# PROJECT_MAP.md — v2.4
 
 ## Repository source of truth
 
@@ -62,34 +62,70 @@ Senza link RAW diretto → il file NON è leggibile.
 
 ## Stato Architetturale
 
-Backend matematico separato dalla UI.
+Backend matematico e logico separato dalla UI.
 
-Nuovo modulo:
+Moduli backend principali coinvolti:
 
-/tools/cash_math.py
+- `/routes/cassa.py`
+- `/tools/cash_math.py`
+- `/tools/check_utils.py`
+- `/tools/agenda_flags.py`
+
+---
+
+## File chiave del modulo
+
+### `/routes/cassa.py`
 
 Contiene:
-- Funzione calcolo preview fiscale
-- Calcolo Q (versabile giornata)
-- Calcolo S (saldo versabile progressivo)
-- Calcolo IC (incasso calcolato)
-- Delta fondo
-- Delta quadratura
-- Totale POS
-- Assegni odierni
-- Assegni postdatati
+- route pagina agenda
+- endpoint CRUD principali del modulo cassa
+- preview giornata
+- CRUD clienti
+- CRUD ecommerce
+- CRUD drawer count
+- CRUD versamenti
+- eliminazione versamenti
+- gestione disponibilità assegni per versamento
+- lettura assegni in scadenza
+- lettura saldo spicci
+- endpoint POS e banche
 
-Flag supportati:
-*, **, +, x, #, !
+### `/tools/cash_math.py`
 
-Preview attuale:
-- Solo DB aziendale
-- Flag + e x ignorati
-- Vault non ancora integrato
+Contiene:
+- funzione principale `calculate_closure_pure(...)`
+- calcolo:
+  - versabile giornata
+  - versabile residuo
+  - saldo versabile progressivo
+  - incasso calcolato / totale di giornata
+  - delta fondo
+  - delta quadratura
+  - totale versato oggi
+  - totale versato intermedio
+  - assegni odierni
+  - assegni postdatati
+  - assegni in pancia
+  - massimo contanti consentito
+  - debito contanti da recuperare
+- logica bancaria:
+  - festività bancarie italiane
+  - `next_banking_day(...)`
 
-Endpoint attivo:
+### `/tools/check_utils.py`
 
-/cassa/api/day/<date>/preview?view=fiscal
+Contiene:
+- logica centralizzata di cambio stato assegno
+- scrittura eventi in `CashCheckEvent`
+- supporto alla storicizzazione degli stati assegno
+
+### `/tools/agenda_flags.py`
+
+Contiene:
+- regole centralizzate dei flag agenda
+- separazione tra semantica UI e semantica contabile
+- supporto alle logiche fiscali / complete lato agenda
 
 ---
 
@@ -110,202 +146,348 @@ Endpoint attivo:
 - CashCustomerAlias
 - CashBank
 - CashCheck
+- CashCheckEvent
 - CashSaleCheck
 - CashDeposit
 - CashDepositCheck
+- CashDrawerCount
+- CashDrawerCountLine
+- CashEcommerce
 
 Relazioni stabilizzate:
-NO lazy="dynamic" per evitare errori eager loading.
+- evitare `lazy="dynamic"` dove interferisce con eager loading
+- uso prevalente di `selectinload(...)`
 
 Approccio adottato:
-Query pure + logica matematica separata.
+- query pure
+- logica matematica separata
+- logica assegni/eventi separata
+- UI scollegata dai calcoli backend
 
 ---
 
 ## Stato UI Agenda / Cassa
 
-### Modali
+### Template / static principali
 
-La UI agenda/cassa utilizza modali uniformate graficamente, con stacking corretto per modali sovrapposte.
+- template agenda: `templates/agenda.html`
+- script principale: `static/js/agenda.js`
+- css agenda: `static/css/agenda.css`
 
-Modali attive:
+### Modali attive
+
 - operazione (`opModal`)
 - ricerca cliente
 - nuovo cliente
+- versamenti
+- ecommerce
+- conteggio fondo
 
 ### Modale Operazione
 
-La modale operazione è già strutturata con:
+La modale operazione gestisce:
 
 - flag
 - importo operazione
 - descrizione
 - cliente
-- gestione “fuori cassa”
+- fuori cassa
 - carrier pagamento
 
-Carrier attualmente gestiti lato frontend:
+Carrier supportati lato frontend:
 - cash
 - pos
 - bank
 - check
+- multi
 
 ### Logica carrier frontend
 
 Implementata e stabilizzata:
 
 - quadratura rispetto a `opAmount`
-- pulsanti `TOT`
 - ricalcolo automatico
 - blocco salvataggio se la somma carrier non quadra
-- fix del totale dai carrier
-- `cash` gestito come carrier normale, non sempre attivo
-- selezione esclusiva del carrier quando si usa `TOT`
-- reset corretto dei campi assegno / banca / pos quando si cambia carrier
+- reset corretto campi dipendenti
+- supporto riga singola e multi-carrier
+- gestione device/circuit POS
+- gestione banca
+- gestione assegni
 
 ### Cliente
 
-Gestione cliente già presente in UI:
+Gestione cliente presente in UI:
 
 - ricerca progressiva via datalist
 - ricerca avanzata in modale
 - creazione nuovo cliente
 
-### POS
+### KPI agenda
 
-UI già presente con:
-- select device
-- select circuit
-- importo
-- supporto default device
+KPI attualmente presenti con backend attivo:
+- saldo versabile iniziale
+- saldo versabile attuale
+- versabile odierno / residuo
+- fondo iniziale
+- fondo finale
+- totale di giornata (ex incasso calcolato)
+- delta fondo
+- delta quadratura
+- totale ecommerce
+- totale versamenti
+- corrispettivi
+- incasso consegnato
 
-### Banca
-
-UI già presente con:
-- select banca
-- importo
-- supporto default banca
-
-### Assegno
-
-UI già presente con:
-- banca assegno
-- ABI
-- CAB
-- numero assegno
-- scadenza
-- importo
+Per il KPI “Totale di Giornata”:
+- se mancano fondo iniziale/finale o corrispettivi il valore resta visibile
+- viene però marcato come indicativo/parziale lato UI
+- badge stato:
+  - corrispettivi
+  - fondo cassa
 
 ---
 
 ## Stato backend CRUD Agenda
 
-### Già attivo
+### Attivo
 
-- lettura preview giornata
-- lettura assegni in scadenza
-- lettura incassi/spese/movimenti/POS
-- customer suggest / create
-- banks list
-- pos devices / circuits
+- `GET /cassa/api/day`
+- `GET /cassa/api/day/<date>/preview`
+- `GET /cassa/api/days/active`
 
-### Da completare
+### Clienti
+- `GET /cassa/api/customers/suggest`
+- `POST /cassa/api/customers`
 
-Il salvataggio reale della modale operazione non è ancora stato adeguato al nuovo schema carrier frontend.
-
-Manca ancora l’integrazione completa di:
-
+### Incassi / Spese
 - `POST /cassa/api/day/<day_date>/sales`
+- `GET /cassa/api/day/<day_date>/sales`
 - `POST /cassa/api/day/<day_date>/expenses`
+- `GET /cassa/api/day/<day_date>/expenses`
 
-con payload a `payments[]` multipli, coerente con la UI attuale.
+### POS / banche
+- `GET /cassa/api/pos/devices`
+- `GET /cassa/api/pos/devices/<id>/circuits`
+- `GET /cassa/api/banks`
+- `POST /cassa/api/day/<day_date>/pos_moves`
+- `GET /cassa/api/day/<day_date>/pos_moves`
+
+### Movimenti di cassa
+- `POST /cassa/api/day/<day_date>/cash_moves`
+- `GET /cassa/api/day/<day_date>/cash_moves`
+- `GET /cassa/api/coins/balance`
+
+### Drawer count
+- `GET /cassa/api/day/<day_date>/drawer-count`
+- `POST /cassa/api/day/<day_date>/drawer-count`
+- `DELETE /cassa/api/day/<day_date>/drawer-count`
+
+### Ecommerce
+- `GET /cassa/api/day/<day_date>/ecommerce`
+- `POST /cassa/api/day/<day_date>/ecommerce`
+- `DELETE /cassa/api/ecommerce/<id>`
+
+### Assegni / versamenti
+- `GET /cassa/api/checks/due`
+- `GET /cassa/api/day/<day_date>/deposit-available-checks`
+- `GET /cassa/api/day/<day_date>/deposits`
+- `POST /cassa/api/day/<day_date>/deposits`
+- `DELETE /cassa/api/deposits/<id>`
 
 ---
 
-## Flusso Chiusura (Progettazione attuale)
+## Logica versamenti — stato attuale
 
-1. Calcolo live (preview)
-2. Simulazione chiusura
-3. Inserimento incasso consegnato
-4. Verifica delta con tolleranza configurabile
-5. Scrittura CashClosure
-6. Scrittura CashClosurePos
-7. Cambio stato CashDay → closed
-8. Apertura giorno successivo con fondo iniziale
+Sono attivi due tipi di versamento:
+
+- `versamento_incasso`
+- `versamento_intermedio`
+
+### `versamento_incasso`
+
+Concepito per versare:
+- contanti disponibili già “in pancia”
+- assegni già detenuti da prima della giornata e versabili entro cutoff bancabile
+
+Logica max contanti:
+- basata su saldo versabile attuale
+- sottrae assegni ancora in pancia
+- mostra warning ma non blocca
+- l’eventuale eccedenza genera debito contanti che riduce il versabile residuo mostrato nei KPI
+
+### `versamento_intermedio`
+
+Concepito per versare:
+- assegni ricevuti oggi
+- contanti anticipati durante la giornata
+
+Logica max contanti:
+- basata sul residuo versabile odierno
+- sottrae gli assegni odierni ancora ricevuti / non versati
+- warning visivo senza blocco
+- aggiornamento lato frontend nella modale versamenti
+
+### Eliminazione versamenti
+
+Attiva:
+- elimina il record `CashDeposit`
+- elimina i collegamenti `CashDepositCheck`
+- per gli assegni collegati ripristina lo stato precedente tramite storico eventi
+- in caso di versamento solo contanti non sono coinvolti assegni
+
+Nota:
+- la cancellazione è pensata per correzione errori di imputazione
+- non per gestire eventi successivi di vita assegno (richiami, ripresentazioni, insoluti, ecc.)
 
 ---
 
-## Formula ufficiale stabilita
+## Logica assegni — stato attuale
+
+Gli assegni sono ormai trattati come entità con storia.
+
+### Stato assegno
+Gestito tramite:
+- `CashCheck.status`
+- `CashCheckEvent`
+
+### Eventi assegno
+Ogni cambio stato rilevante deve essere storicizzato.
+
+Stati effettivamente usati nel flusso attuale:
+- `received`
+- `moved` / `spostato` (retrocompatibilità da uniformare)
+- `deposited`
+
+Altri stati e sottocasi:
+- verranno regolamentati nella futura gestione completa assegni
+- non fanno parte della chiusura attuale del discorso versamenti
+
+---
+
+## Preview giornata
+
+Endpoint attivo:
+
+`/cassa/api/day/<date>/preview?view=fiscal`
+
+La preview attuale usa solo DB aziendale.
+
+Il risultato include:
+- versabile giornata
+- versabile residuo
+- saldo versabile progressivo
+- massimo contanti incasso
+- debito contanti incasso
+- presenza/assenza corrispettivi
+- presenza/assenza fondo iniziale/finale
+- flag `totale_giornata_is_partial`
+
+---
+
+## Formula ufficiale attuale
 
 ### Contanti fisici
 Contanti_fisici =
-Σ incassi_cash (*, **)
-− Σ spese_cash (*, **)
-+ ΔFondo
+incassi_cash
+− spese_cash
+− totale_pos
 
-### Assegni
+### Assegni odierni
 Assegni_odierni =
-Σ method="check" flag='*'
+Σ assegni flag `*`
 
+### Assegni postdatati
 Assegni_postdatati =
-Σ method="check" flag='**'
+Σ assegni flag `**`
 
-### Versabile giornata (Q)
-Q =
+### Versabile giornata
+Versabile_giornata =
 Contanti_fisici
 + Assegni_odierni
-− Spese_cash
 
-### Saldo versabile progressivo (S)
-S =
-S_precedente
-+ Q
+### Totale versato oggi
+Totale_versato_oggi =
+depositi_cash_oggi
++ depositi_assegni_oggi
+
+### Saldo versabile attuale
+Saldo_versabile =
+Saldo_versabile_precedente
++ Versabile_giornata
 + Assegni_postdatati
+− Totale_versato_oggi
 
-### Incasso calcolato (IC)
-IC =
+### Versabile residuo
+Versabile_residuo =
+Versabile_giornata
+− Totale_versato_intermedio
+− Debito_contanti_incasso
+
+### Totale di giornata
+Se fondo iniziale e finale esistono:
+Totale_giornata =
 Contanti_fisici
-+ Totale_corrispettivi
-− Totale_POS_device
-− ΔFondo
++ Corrispettivi
+− Delta_fondo
 
-Delta quadratura:
-IC − Incasso_consegnato
+Se mancano dati fondo:
+Totale_giornata =
+Contanti_fisici
++ Corrispettivi
+
+### Delta quadratura
+Delta_quadratura =
+Incasso_consegnato
+− Totale_giornata
+
+---
+
+## Stato reale rispetto alla versione precedente
+
+Correzioni rispetto a v2.3:
+
+- NON è più vero che il backend save `sales/expenses` sia da completare
+- i carrier multipli sono supportati lato payload UI/backend
+- la gestione versamenti è attiva
+- l’eliminazione versamenti è attiva
+- la gestione assegni con eventi è entrata nel flusso
+- il modulo `cash_math.py` è ormai centrale e deve essere sempre considerato file critico
+- `agenda_flags.py` e `check_utils.py` sono file critici da leggere quando si lavora su agenda/cassa
 
 ---
 
 # TODO AGENDA
 
-## Priorità alta
+## Priorità alta attuale
 
-- Collegare `opSaveBtn`
-- Adeguare backend save con `payments[]`
-- Salvare correttamente:
-  - cash
-  - pos
-  - bank
-  - check
-- Creazione e collegamento `CashCheck` per assegni
-- Refresh UI agenda dopo save
+- sistemare KPI `Quadratura`
+- consolidare formula e significato funzionale di quadratura
+- chiarire relazioni tra:
+  - totale di giornata
+  - corrispettivi
+  - incasso consegnato
+  - fondo iniziale/finale
+  - eventuali dati mancanti
 
 ## Priorità successiva
 
-- Simulazione chiusura
-- Integrazione Vault
-- Persistenza saldo versabile progressivo
-- Tolleranza configurabile
+- uniformare naming stati assegni (`moved` / `spostato`, eventuali altri legacy)
+- completare gestione storica assegni
+- migliorare robustezza cancellazione versamenti su dati legacy sporchi
+- eventuale refactor dei controlli di disponibilità contanti tra preview e modale
 
 ## Step successivo ma non immediato
 
-- supporto righe multiple per carrier con pulsante `+`
-- più banche / più assegni / più POS per la stessa operazione
-
-Vincolo:
-prima stabilizzare il salvataggio della versione corrente a riga singola per carrier.
+- simulazione chiusura completa
+- scrittura CashClosure / CashClosurePos
+- integrazione Vault
+- persistenza saldo versabile progressivo
+- gestione completa ciclo vita assegni
+- regole per insoluti / richiamati / ripresentati
 
 ---
 
 # Versione
 
-Versione: 2.3  
-Stato: Agenda UI operativa consolidata; backend salvataggio carrier multipli da completare
+Versione: 2.4  
+Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed eliminazione versamenti attivi, logica assegni/eventi introdotta, prossimo focus sul KPI Quadratura
