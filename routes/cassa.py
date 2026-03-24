@@ -2360,3 +2360,50 @@ def api_delete_receipt_closure(receipt_closure_id):
         return jsonify(
             {"ok": False, "error": "Errore interno durante l'eliminazione del corrispettivo"}
         ), 500
+
+
+@cassa_bp.put("/api/receipt-closures/<int:receipt_closure_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_update_receipt_closure(receipt_closure_id):
+    data = request.get_json(silent=True) or {}
+
+    row = CashReceiptClosure.query.filter_by(id=receipt_closure_id).first()
+    if not row:
+        return jsonify({"ok": False, "error": "Corrispettivo non trovato"}), 404
+
+    amount_raw = data.get("amount")
+    closure_type = (data.get("closure_type") or "").strip()
+    description = (data.get("description") or "").strip() or None
+
+    if amount_raw is None:
+        return jsonify({"ok": False, "error": "Importo obbligatorio"}), 400
+
+    try:
+        amount = _to_decimal_amount(amount_raw, "amount")
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+    if closure_type not in {"fine_giornata", "intermedia"}:
+        return jsonify({"ok": False, "error": "Tipo chiusura non valido"}), 400
+
+    try:
+        row.amount = amount
+        row.closure_type = closure_type
+        row.description = description
+        row.updated_by_user_id = getattr(current_user, "id", None)
+
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "receipt_closure_id": row.id
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_update_receipt_closure error: %s", e)
+        return jsonify({
+            "ok": False,
+            "error": "Errore interno durante la modifica del corrispettivo"
+        }), 500

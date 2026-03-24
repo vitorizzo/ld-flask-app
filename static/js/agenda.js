@@ -1866,6 +1866,7 @@ document.addEventListener("DOMContentLoaded", function () {
   // =========================
 
   let receiptModalInstance = null;
+  let editingReceiptClosureId = null;
 
   function getReceiptModal() {
     const el = document.getElementById("receiptModal");
@@ -1874,6 +1875,37 @@ document.addEventListener("DOMContentLoaded", function () {
       receiptModalInstance = new bootstrap.Modal(el);
     }
     return receiptModalInstance;
+  }
+
+  function resetReceiptForm() {
+    const amountInput = document.getElementById("rc_amount");
+    const typeSelect = document.getElementById("rc_type");
+    const descriptionInput = document.getElementById("rc_description");
+    const addBtn = document.getElementById("btnAddReceipt");
+
+    editingReceiptClosureId = null;
+
+    if (amountInput) amountInput.value = "0,00";
+    if (typeSelect) typeSelect.value = "fine_giornata";
+    if (descriptionInput) descriptionInput.value = "";
+    if (addBtn) addBtn.textContent = "Aggiungi";
+  }
+
+  function startEditReceiptClosure(row) {
+    const amountInput = document.getElementById("rc_amount");
+    const typeSelect = document.getElementById("rc_type");
+    const descriptionInput = document.getElementById("rc_description");
+    const addBtn = document.getElementById("btnAddReceipt");
+
+    editingReceiptClosureId = row.id;
+
+    if (amountInput) amountInput.value = formatEuro2(row.amount || 0);
+    if (typeSelect) typeSelect.value = row.closure_type || "fine_giornata";
+    if (descriptionInput) descriptionInput.value = row.description || "";
+    if (addBtn) addBtn.textContent = "Salva";
+
+    amountInput?.focus();
+    amountInput?.select?.();
   }
 
   async function loadReceiptClosures() {
@@ -1899,6 +1931,12 @@ document.addEventListener("DOMContentLoaded", function () {
           <td class="text-end">
             <button
               type="button"
+              class="btn btn-sm btn-outline-secondary btn-receipt-edit"
+              data-row='${escapeHtml(JSON.stringify(row))}'>
+              Modifica
+            </button>
+            <button
+              type="button"
               class="btn btn-sm btn-outline-danger btn-receipt-delete"
               data-id="${row.id}">
               Elimina
@@ -1913,6 +1951,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function openReceiptModal() {
+    resetReceiptForm();
     await loadReceiptClosures();
     const modal = getReceiptModal();
     if (modal) modal.show();
@@ -2225,11 +2264,18 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
+    const isEdit = !!editingReceiptClosureId;
+    const url = isEdit
+      ? `/cassa/api/receipt-closures/${editingReceiptClosureId}`
+      : `/cassa/api/day/${currentDay}/receipt-closures`;
+
+    const method = isEdit ? "PUT" : "POST";
+
     try {
       if (addBtn) addBtn.disabled = true;
 
-      const r = await fetch(`/cassa/api/day/${currentDay}/receipt-closures`, {
-        method: "POST",
+      const r = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json"
@@ -2244,15 +2290,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
       const data = await r.json();
 
-      if (!r.ok || !data.success) {
+      const ok = isEdit ? data.ok : data.success;
+      if (!r.ok || !ok) {
         alert(data.error || "Errore salvataggio corrispettivo");
         return;
       }
 
-      if (amountInput) amountInput.value = "0,00";
-      if (typeSelect) typeSelect.value = "fine_giornata";
-      if (descriptionInput) descriptionInput.value = "";
-
+      resetReceiptForm();
       await loadReceiptClosures();
       await loadPreview(currentDay);
 
@@ -2604,11 +2648,23 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   document.getElementById("rc_table")?.addEventListener("click", async (e) => {
-    const btn = e.target.closest(".btn-receipt-delete");
-    if (!btn) return;
+    const editBtn = e.target.closest(".btn-receipt-edit");
+    if (editBtn) {
+      try {
+        const row = JSON.parse(editBtn.dataset.row || "{}");
+        startEditReceiptClosure(row);
+      } catch (err) {
+        console.error("receipt edit parse error:", err);
+        alert("Errore nel caricamento del corrispettivo da modificare.");
+      }
+      return;
+    }
 
-    const receiptClosureId = btn.dataset.id;
-    await deleteReceiptClosure(receiptClosureId);
+    const deleteBtn = e.target.closest(".btn-receipt-delete");
+    if (deleteBtn) {
+      const receiptClosureId = deleteBtn.dataset.id;
+      await deleteReceiptClosure(receiptClosureId);
+    }
   });
 
   depositTableBody?.addEventListener("click", async (e) => {
