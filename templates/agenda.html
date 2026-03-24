@@ -1116,7 +1116,17 @@
         <div class="row g-2 mb-3">
 
           <div class="col-md-3">
-            <input type="number" step="0.01" class="form-control" id="rc_amount" placeholder="Importo">
+            <div class="input-group">
+              <span class="input-group-text">€</span>
+              <input
+                type="text"
+                class="form-control"
+                id="rc_amount"
+                placeholder="0,00"
+                inputmode="decimal"
+                autocomplete="off"
+              >
+            </div>
           </div>
 
           <div class="col-md-3">

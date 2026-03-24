@@ -2249,7 +2249,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      if (amountInput) amountInput.value = "";
+      if (amountInput) amountInput.value = "0,00";
       if (typeSelect) typeSelect.value = "fine_giornata";
       if (descriptionInput) descriptionInput.value = "";
 
@@ -2566,6 +2566,13 @@ document.addEventListener("DOMContentLoaded", function () {
   if (corrispettiviBox) {
     corrispettiviBox.addEventListener("click", openReceiptModal);
   }
+
+  const rcAmountInput = document.getElementById("rc_amount");
+
+  rcAmountInput?.addEventListener("blur", (e) => {
+    const n = parseEuroToNumber(e.target.value);
+    e.target.value = formatEuro2(n);
+  });
 
   document.getElementById("kpiFondoCard")?.addEventListener("click", async () => {
     await openDrawerCountModal();
