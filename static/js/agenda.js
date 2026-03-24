@@ -1878,12 +1878,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
   async function loadReceiptClosures() {
     const tbody = document.getElementById("rc_table");
-    if (!tbody || !state.currentDay) return;
+    if (!tbody || !currentDay) return;
 
     tbody.innerHTML = `<tr><td colspan="4" class="text-muted">Caricamento...</td></tr>`;
 
     try {
-      const res = await fetch(`/cassa/api/day/${state.currentDay}/receipt-closures`);
+      const res = await fetch(`/cassa/api/day/${currentDay}/receipt-closures`);
       const rows = await res.json();
 
       if (!Array.isArray(rows) || rows.length === 0) {
