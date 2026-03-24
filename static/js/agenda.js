@@ -1861,6 +1861,58 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  // =========================
+  // CORRISPETTIVI
+  // =========================
+
+  let receiptModalInstance = null;
+
+  function getReceiptModal() {
+    const el = document.getElementById("receiptModal");
+    if (!el) return null;
+    if (!receiptModalInstance) {
+      receiptModalInstance = new bootstrap.Modal(el);
+    }
+    return receiptModalInstance;
+  }
+
+  async function loadReceiptClosures() {
+    const tbody = document.getElementById("rc_table");
+    if (!tbody || !state.currentDay) return;
+
+    tbody.innerHTML = `<tr><td colspan="4" class="text-muted">Caricamento...</td></tr>`;
+
+    try {
+      const res = await fetch(`/cassa/api/day/${state.currentDay}/receipt-closures`);
+      const rows = await res.json();
+
+      if (!Array.isArray(rows) || rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-muted">Nessun corrispettivo inserito</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = rows.map(row => `
+        <tr data-id="${row.id}">
+          <td>${row.created_at ? new Date(row.created_at).toLocaleString() : ""}</td>
+          <td>${row.closure_type === "fine_giornata" ? "Fine giornata" : "Intermedia"}</td>
+          <td>${Number(row.amount).toFixed(2)} €</td>
+          <td class="text-end">
+            <button class="btn btn-sm btn-outline-danger" disabled>Elimina</button>
+          </td>
+        </tr>
+      `).join("");
+    } catch (err) {
+      console.error("Errore loadReceiptClosures:", err);
+      tbody.innerHTML = `<tr><td colspan="4" class="text-danger">Errore nel caricamento</td></tr>`;
+    }
+  }
+
+  async function openReceiptModal() {
+    await loadReceiptClosures();
+    const modal = getReceiptModal();
+    if (modal) modal.show();
+  }
+
   async function getBaseOperationData() {
     const opType = document.getElementById("opType")?.value || "sale";
     const flag = (document.getElementById("opFlag")?.value || "*").trim();
@@ -2416,6 +2468,11 @@ document.addEventListener("DOMContentLoaded", function () {
   /* =========================
      listeners base
   ========================= */
+
+  const corrispettiviBox = document.getElementById("kpiCorrispettiviBox");
+  if (corrispettiviBox) {
+    corrispettiviBox.addEventListener("click", openReceiptModal);
+  }
 
   document.getElementById("kpiFondoCard")?.addEventListener("click", async () => {
     await openDrawerCountModal();

@@ -204,7 +204,7 @@
               <div class="card-body">
                 <div class="kpi-split">
                   <div class="kpi-side">
-                    <div class="kpi-metric">
+                    <div class="kpi-metric" id="kpiCorrispettiviBox" title="Clicca per gestire i Corrispettivi">
                       <div class="kpi-label d-flex justify-content-between align-items-center">
                         <span>Corrispettivi</span>
                         <i class="fa-solid fa-cash-register kpi-versamenti-box-icon"></i>
@@ -1094,6 +1094,63 @@
 
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODALE CORRISPETTIVI -->
+<div class="modal fade" id="receiptModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Corrispettivi</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- FORM INSERIMENTO -->
+        <div class="row g-2 mb-3">
+
+          <div class="col-md-3">
+            <input type="number" step="0.01" class="form-control" id="rc_amount" placeholder="Importo">
+          </div>
+
+          <div class="col-md-3">
+            <select class="form-select" id="rc_type">
+              <option value="fine_giornata" selected>Fine giornata</option>
+              <option value="intermedia">Intermedia</option>
+            </select>
+          </div>
+
+          <div class="col-md-4">
+            <input type="text" class="form-control" id="rc_description" placeholder="Descrizione">
+          </div>
+
+          <div class="col-md-2">
+            <button class="btn btn-primary w-100" id="btnAddReceipt">
+              Aggiungi
+            </button>
+          </div>
+
+        </div>
+
+        <!-- LISTA -->
+        <table class="table table-sm">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Tipo</th>
+              <th>Importo</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="rc_table"></tbody>
+        </table>
+
       </div>
 
     </div>

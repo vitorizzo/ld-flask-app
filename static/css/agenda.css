@@ -534,3 +534,20 @@
 .kpi-num-indicative {
   opacity: 0.45;
 }
+
+/* KPI Corrispettivi interattivo */
+#kpiCorrispettiviBox {
+  cursor: pointer;
+  transition: border 0.15s ease, transform 0.12s ease, background-color 0.15s ease;
+  border: 1px solid transparent;
+}
+
+#kpiCorrispettiviBox:hover {
+  border: 1px solid rgba(29, 78, 216, 0.35);
+  background-color: rgba(29, 78, 216, 0.04);
+  transform: translateY(-1px);
+}
+
+#kpiCorrispettiviBox:active {
+  transform: scale(0.99);
+}
