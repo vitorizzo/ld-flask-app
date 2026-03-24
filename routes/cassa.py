@@ -631,14 +631,23 @@ def api_cash_day_preview(day_date):
     else:
         fondo_finale = _get_drawer_count_total_for_day(cash_day)
 
+    totale_corrispettivi = (
+        db.session.query(func.coalesce(func.sum(CashReceiptClosure.amount), 0))
+        .filter(CashReceiptClosure.cash_day_id == cash_day.id)
+        .scalar()
+    )
+    totale_corrispettivi = Decimal(str(totale_corrispettivi or 0))
+
     result = calculate_closure_pure(
         cash_day_id=cash_day.id,
         opening_float=cash_day.opening_float,
-        total_corrispettivi=Decimal(request.args.get("corrispettivi", "0")),
+        total_corrispettivi=totale_corrispettivi,
         fondo_finale=fondo_finale,
         saldo_versabile_precedente=saldo_versabile_precedente,
         incasso_consegnato=Decimal(request.args.get("incasso_consegnato", "0")),
     )
+
+    result["total_corrispettivi"] = float(totale_corrispettivi)
 
     totale_ecommerce = (
         db.session.query(func.coalesce(func.sum(CashEcommerce.amount), 0))
