@@ -1897,7 +1897,12 @@ document.addEventListener("DOMContentLoaded", function () {
           <td>${row.closure_type === "fine_giornata" ? "Fine giornata" : "Intermedia"}</td>
           <td>${Number(row.amount).toFixed(2)} €</td>
           <td class="text-end">
-            <button class="btn btn-sm btn-outline-danger" disabled>Elimina</button>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-danger btn-receipt-delete"
+              data-id="${row.id}">
+              Elimina
+            </button>
           </td>
         </tr>
       `).join("");
@@ -2200,6 +2205,94 @@ document.addEventListener("DOMContentLoaded", function () {
     return buildSinglePaymentPayload(base);
   }
 
+  async function saveReceiptClosure() {
+    if (!currentDay) {
+      alert("Nessuna giornata selezionata.");
+      return;
+    }
+
+    const amountInput = document.getElementById("rc_amount");
+    const typeSelect = document.getElementById("rc_type");
+    const descriptionInput = document.getElementById("rc_description");
+    const addBtn = document.getElementById("btnAddReceipt");
+
+    const amount = parseEuroToNumber(amountInput?.value || "0");
+    const closure_type = (typeSelect?.value || "fine_giornata").trim();
+    const description = (descriptionInput?.value || "").trim();
+
+    if (amount <= 0) {
+      alert("Inserisci un importo valido.");
+      return;
+    }
+
+    try {
+      if (addBtn) addBtn.disabled = true;
+
+      const r = await fetch(`/cassa/api/day/${currentDay}/receipt-closures`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          amount,
+          closure_type,
+          description
+        })
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.success) {
+        alert(data.error || "Errore salvataggio corrispettivo");
+        return;
+      }
+
+      if (amountInput) amountInput.value = "";
+      if (typeSelect) typeSelect.value = "fine_giornata";
+      if (descriptionInput) descriptionInput.value = "";
+
+      await loadReceiptClosures();
+      await loadPreview(currentDay);
+
+    } catch (err) {
+      console.error("saveReceiptClosure error:", err);
+      alert("Errore di rete durante il salvataggio del corrispettivo.");
+    } finally {
+      if (addBtn) addBtn.disabled = false;
+    }
+  }
+
+  async function deleteReceiptClosure(receiptClosureId) {
+    if (!receiptClosureId) return;
+
+    const confirmed = window.confirm("Vuoi eliminare questo corrispettivo?");
+    if (!confirmed) return;
+
+    try {
+      const r = await fetch(`/cassa/api/receipt-closures/${receiptClosureId}`, {
+        method: "DELETE",
+        headers: { "Accept": "application/json" },
+        credentials: "same-origin"
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore eliminazione corrispettivo");
+        return;
+      }
+
+      await loadReceiptClosures();
+      await loadPreview(currentDay);
+
+    } catch (err) {
+      console.error("deleteReceiptClosure error:", err);
+      alert("Errore di rete durante l'eliminazione del corrispettivo.");
+    }
+  }
+
   async function saveOperation() {
     if (!currentDay) {
       alert("Nessuna giornata selezionata.");
@@ -2497,6 +2590,18 @@ document.addEventListener("DOMContentLoaded", function () {
     await loadAvailableDepositChecks(currentDay);
     updateDepositTotal();
     updateDepositCashUi();
+  });
+
+  document.getElementById("btnAddReceipt")?.addEventListener("click", async () => {
+    await saveReceiptClosure();
+  });
+
+  document.getElementById("rc_table")?.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".btn-receipt-delete");
+    if (!btn) return;
+
+    const receiptClosureId = btn.dataset.id;
+    await deleteReceiptClosure(receiptClosureId);
   });
 
   depositTableBody?.addEventListener("click", async (e) => {
