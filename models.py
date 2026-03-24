@@ -1718,3 +1718,90 @@ class CashCheckEvent(db.Model):
 
     def __repr__(self):
         return f"<CashCheckEvent check_id={self.check_id} {self.from_status}->{self.to_status}>"
+
+
+class CashReceiptClosure(db.Model):
+    __tablename__ = "cash_receipt_closures"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    cash_day_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cash_days.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True
+    )
+
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+
+    # fine_giornata | intermedia
+    closure_type = db.Column(
+        db.String(20),
+        nullable=False,
+        default="fine_giornata",
+        index=True
+    )
+
+    description = db.Column(db.String(255), nullable=True)
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    created_by_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=True
+    )
+
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
+
+    updated_by_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=True
+    )
+
+    cash_day = db.relationship(
+        "CashDay",
+        backref=db.backref(
+            "receipt_closures",
+            cascade="all, delete-orphan",
+            lazy="select"
+        )
+    )
+
+    created_by = db.relationship(
+        "User",
+        foreign_keys=[created_by_user_id],
+        backref="cash_receipt_closures_created"
+    )
+
+    updated_by = db.relationship(
+        "User",
+        foreign_keys=[updated_by_user_id],
+        backref="cash_receipt_closures_updated"
+    )
+
+    __table_args__ = (
+        CheckConstraint("amount >= 0", name="ck_cash_receipt_closure_amount_nonneg"),
+        CheckConstraint(
+            "closure_type IN ('fine_giornata','intermedia')",
+            name="ck_cash_receipt_closure_type"
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<CashReceiptClosure id={self.id} "
+            f"day={self.cash_day_id} "
+            f"type={self.closure_type} "
+            f"amount={self.amount}>"
+        )

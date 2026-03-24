@@ -2281,3 +2281,61 @@ def api_list_deposits(day_date):
             "total_amount": float(total_cash + total_checks),
         }
     })
+
+
+# ============================================================
+# CORRISPETTIVI (CashReceiptClosure)
+# ============================================================
+
+from models import CashReceiptClosure
+
+
+@cassa_bp.route("/api/day/<day_date>/receipt-closures", methods=["GET"])
+def get_receipt_closures(day_date):
+    day = CashDay.query.filter_by(day_date=day_date).first_or_404()
+
+    rows = (
+        CashReceiptClosure.query
+        .filter_by(cash_day_id=day.id)
+        .order_by(CashReceiptClosure.created_at.asc())
+        .all()
+    )
+
+    return jsonify([
+        {
+            "id": r.id,
+            "amount": float(r.amount),
+            "closure_type": r.closure_type,
+            "description": r.description,
+            "created_at": r.created_at.isoformat() if r.created_at else None,
+        }
+        for r in rows
+    ])
+
+
+@cassa_bp.route("/api/day/<day_date>/receipt-closures", methods=["POST"])
+def create_receipt_closure(day_date):
+    data = request.get_json()
+
+    day = CashDay.query.filter_by(day_date=day_date).first_or_404()
+
+    amount = data.get("amount")
+    closure_type = data.get("closure_type", "fine_giornata")
+    description = data.get("description")
+
+    if amount is None:
+        return jsonify({"error": "Importo obbligatorio"}), 400
+
+    row = CashReceiptClosure(
+        cash_day_id=day.id,
+        amount=amount,
+        closure_type=closure_type,
+        description=description,
+        created_by_user_id=current_user.id if current_user.is_authenticated else None,
+        updated_by_user_id=current_user.id if current_user.is_authenticated else None,
+    )
+
+    db.session.add(row)
+    db.session.commit()
+
+    return jsonify({"success": True})
