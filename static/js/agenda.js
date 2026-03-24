@@ -947,18 +947,48 @@ function updateDepositCashUi() {
   depositCashAmountInput.classList.remove("is-invalid");
   depositCashAmountInput.removeAttribute("title");
 
-  const maxContanti = Number(currentPreviewTotals.massimo_contanti_incasso || 0);
+  const versabileResiduo = Number(currentPreviewTotals.versabile_residuo || 0);
+  const maxIncassoStorico = Number(currentPreviewTotals.massimo_contanti_incasso || 0);
   const debitoContanti = Number(currentPreviewTotals.debito_contanti_incasso || 0);
 
+  const selectedChecksTotal = Array.from(
+    depositChecksTableBody?.querySelectorAll(".deposit-check-select:checked") || []
+  ).reduce((sum, el) => {
+    return sum + Number(el.dataset.amount || 0);
+  }, 0);
+
+  const visibleChecksTotal = Array.from(
+    depositChecksTableBody?.querySelectorAll(".deposit-check-select") || []
+  ).reduce((sum, el) => {
+    return sum + Number(el.dataset.amount || 0);
+  }, 0);
+
   if (mode === "versamento_intermedio") {
-    depositChecksHint.textContent = "Assegni ricevuti oggi";
+    let maxContantiIntermedio = versabileResiduo - visibleChecksTotal;
+    if (!Number.isFinite(maxContantiIntermedio)) {
+      maxContantiIntermedio = 0;
+    }
+
+    let hint = "Assegni ricevuti oggi";
+    hint += ` • Residuo versabile: ${formatEuro2(versabileResiduo)}`;
+    hint += ` • Assegni odierni in pancia: ${formatEuro2(visibleChecksTotal)}`;
+    hint += ` • Contanti consigliati max: ${formatEuro2(maxContantiIntermedio)}`;
+
+    depositChecksHint.textContent = hint;
+
+    if (cashValue > maxContantiIntermedio) {
+      depositCashAmountInput.classList.add("is-invalid");
+      depositCashAmountInput.title =
+        `Contanti oltre soglia consigliata. Max consigliato: ${formatEuro2(maxContantiIntermedio)}`;
+    }
+
     return;
   }
 
   let hint = "Assegni ricevuti nei giorni precedenti o spostati";
 
-  if (Number.isFinite(maxContanti)) {
-    hint += ` • Contanti consigliati max: ${formatEuro2(maxContanti)}`;
+  if (Number.isFinite(maxIncassoStorico)) {
+    hint += ` • Contanti consigliati max: ${formatEuro2(maxIncassoStorico)}`;
   }
 
   if (debitoContanti > 0) {
@@ -967,9 +997,10 @@ function updateDepositCashUi() {
 
   depositChecksHint.textContent = hint;
 
-  if (cashValue > maxContanti) {
+  if (cashValue > maxIncassoStorico) {
     depositCashAmountInput.classList.add("is-invalid");
-    depositCashAmountInput.title = `Contanti oltre soglia consigliata. Max consigliato: ${formatEuro2(maxContanti)}`;
+    depositCashAmountInput.title =
+      `Contanti oltre soglia consigliata. Max consigliato: ${formatEuro2(maxIncassoStorico)}`;
   }
 }
 
