@@ -1805,3 +1805,148 @@ class CashReceiptClosure(db.Model):
             f"type={self.closure_type} "
             f"amount={self.amount}>"
         )
+
+
+class CashOwnerTake(db.Model):
+    __tablename__ = "cash_owner_takes"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    cash_day_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cash_days.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    take_type = db.Column(
+        db.String(20),
+        nullable=False,
+        default="serale",
+        index=True
+    )  # parziale | serale
+
+    cash_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+    check_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
+
+    notes = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
+
+    created_by_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=True
+    )
+
+    updated_by_user_id = db.Column(
+        db.Integer,
+        db.ForeignKey("user.id"),
+        nullable=True
+    )
+
+    cash_day = db.relationship(
+        "CashDay",
+        backref=db.backref(
+            "owner_takes",
+            cascade="all, delete-orphan",
+            lazy="select"
+        )
+    )
+
+    created_by = db.relationship(
+        "User",
+        foreign_keys=[created_by_user_id],
+        backref="cash_owner_takes_created"
+    )
+
+    updated_by = db.relationship(
+        "User",
+        foreign_keys=[updated_by_user_id],
+        backref="cash_owner_takes_updated"
+    )
+
+    checks = db.relationship(
+        "CashOwnerTakeCheck",
+        back_populates="owner_take",
+        cascade="all, delete-orphan",
+        lazy="select"
+    )
+
+    __table_args__ = (
+        CheckConstraint("cash_amount >= 0", name="ck_cash_owner_take_cash_amount_nonneg"),
+        CheckConstraint("check_amount >= 0", name="ck_cash_owner_take_check_amount_nonneg"),
+        CheckConstraint(
+            "take_type IN ('parziale','serale')",
+            name="ck_cash_owner_take_type"
+        ),
+    )
+
+    def __repr__(self):
+        return (
+            f"<CashOwnerTake id={self.id} "
+            f"day_id={self.cash_day_id} "
+            f"type={self.take_type} "
+            f"cash={self.cash_amount} "
+            f"checks={self.check_amount}>"
+        )
+
+
+class CashOwnerTakeCheck(db.Model):
+    __tablename__ = "cash_owner_take_checks"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    owner_take_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cash_owner_takes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    check_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cash_checks.id"),
+        nullable=False,
+        index=True,
+    )
+
+    check_amount = db.Column(db.Numeric(12, 2), nullable=True)
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    owner_take = db.relationship(
+        "CashOwnerTake",
+        back_populates="checks"
+    )
+
+    check = db.relationship(
+        "CashCheck",
+        lazy="select"
+    )
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "owner_take_id",
+            "check_id",
+            name="uq_cash_owner_take_check"
+        ),
+    )
+
+    def __repr__(self):
+        return f"<CashOwnerTakeCheck owner_take_id={self.owner_take_id} check_id={self.check_id}>"

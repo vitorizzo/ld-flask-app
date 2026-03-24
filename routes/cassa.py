@@ -19,7 +19,8 @@ from tools.role_required import role_required
 from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment, CashExpensePayment, \
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
-    CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent
+    CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashOwnerTake, CashOwnerTakeCheck, \
+    CashReceiptClosure
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
@@ -2416,3 +2417,56 @@ def api_update_receipt_closure(receipt_closure_id):
             "ok": False,
             "error": "Errore interno durante la modifica del corrispettivo"
         }), 500
+
+
+@cassa_bp.get("/api/day/<day_date>/owner-take-available-checks")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_owner_take_available_checks(day_date):
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    cash_day = CashDay.query.filter(CashDay.day_date == d).first()
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    already_taken_subq = (
+        db.session.query(CashOwnerTakeCheck.check_id)
+        .join(CashOwnerTake, CashOwnerTake.id == CashOwnerTakeCheck.owner_take_id)
+        .filter(CashOwnerTake.cash_day_id == cash_day.id)
+        .subquery()
+    )
+
+    checks = (
+        CashCheck.query
+        .options(selectinload(CashCheck.customer))
+        .filter(
+            CashCheck.received_date == d,
+            CashCheck.status.in_(["received", "moved", "spostato"]),
+            ~CashCheck.id.in_(already_taken_subq),
+        )
+        .order_by(CashCheck.due_date.asc(), CashCheck.id.asc())
+        .all()
+    )
+
+    items = []
+    for c in checks:
+        items.append({
+            "id": c.id,
+            "check_number": c.check_number,
+            "bank_name": c.bank_name,
+            "amount": float(c.amount or 0),
+            "received_date": c.received_date.isoformat() if c.received_date else None,
+            "due_date": c.due_date.isoformat() if c.due_date else None,
+            "status": c.status,
+            "customer_id": c.customer_id,
+            "customer_display_name": c.customer.display_name if c.customer else None,
+        })
+
+    return jsonify({
+        "ok": True,
+        "day_date": d.isoformat(),
+        "checks": items,
+    })
