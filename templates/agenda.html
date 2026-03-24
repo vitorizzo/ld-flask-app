@@ -1167,6 +1167,131 @@
   </div>
 </div>
 
+<!-- MODALE CASSETTO / PRELIEVI TITOLARE -->
+<div class="modal fade agenda-modal" id="ownerTakeModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Cassetto / Prelievi titolare</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- FORM INSERIMENTO -->
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-md-3">
+            <label class="form-label">Tipo prelievo</label>
+            <select class="form-select" id="ownerTakeType">
+              <option value="serale" selected>Prelievo serale</option>
+              <option value="parziale">Prelievo parziale</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label">Contanti</label>
+            <div class="input-group">
+              <span class="input-group-text">€</span>
+              <input
+                type="text"
+                class="form-control text-end"
+                id="ownerTakeCashAmount"
+                placeholder="0,00"
+                inputmode="decimal"
+                autocomplete="off">
+            </div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">Nota</label>
+            <input
+              type="text"
+              class="form-control"
+              id="ownerTakeNote"
+              placeholder="Note sul prelievo">
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- ASSEGNI SELEZIONABILI -->
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="fw-semibold">Assegni da includere nel prelievo</div>
+            <div class="small text-muted" id="ownerTakeChecksHint">—</div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr>
+                  <th style="width: 50px;"></th>
+                  <th>Banca</th>
+                  <th>Numero</th>
+                  <th>Cliente</th>
+                  <th>Ricevuto</th>
+                  <th>Scadenza</th>
+                  <th class="text-end">Importo</th>
+                </tr>
+              </thead>
+              <tbody id="ownerTakeChecksTableBody">
+                <tr>
+                  <td colspan="7" class="text-center text-muted">Nessun assegno disponibile</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <div class="d-flex justify-content-end align-items-center gap-3">
+          <div class="fw-semibold">
+            Totale prelievo:
+            <span id="ownerTakeTotalAmount">€ 0,00</span>
+          </div>
+
+          <button class="btn btn-primary" id="ownerTakeAddBtn">Salva prelievo</button>
+        </div>
+
+        <hr class="my-4">
+
+        <!-- STORICO PRELIEVI -->
+        <div>
+          <div class="fw-semibold mb-2">Prelievi registrati nella giornata</div>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Tipo</th>
+                  <th class="text-end">Contanti</th>
+                  <th class="text-end">Assegni</th>
+                  <th class="text-end">Totale</th>
+                  <th>Nota</th>
+                </tr>
+              </thead>
+              <tbody id="ownerTakeTableBody">
+                <tr>
+                  <td colspan="6" class="text-center text-muted">Nessun prelievo</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}

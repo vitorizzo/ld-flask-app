@@ -551,3 +551,20 @@
 #kpiCorrispettiviBox:active {
   transform: scale(0.99);
 }
+
+/* KPI Cassetto interattivo */
+#kpiCassettoBox {
+  cursor: pointer;
+  transition: border 0.15s ease, transform 0.12s ease, background-color 0.15s ease;
+  border: 1px solid transparent;
+}
+
+#kpiCassettoBox:hover {
+  border: 1px solid rgba(29, 78, 216, 0.35);
+  background-color: rgba(29, 78, 216, 0.04);
+  transform: translateY(-1px);
+}
+
+#kpiCassettoBox:active {
+  transform: scale(0.99);
+}

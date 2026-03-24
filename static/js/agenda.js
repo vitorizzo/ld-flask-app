@@ -112,6 +112,262 @@ async function fetchCustomerSuggest(q) {
 }
 
 /* =========================
+   OWNER TAKE MODAL REFS
+========================= */
+
+const ownerTakeModalEl = document.getElementById("ownerTakeModal");
+const ownerTakeTypeSelect = document.getElementById("ownerTakeType");
+const ownerTakeCashAmountInput = document.getElementById("ownerTakeCashAmount");
+const ownerTakeNoteInput = document.getElementById("ownerTakeNote");
+const ownerTakeChecksHint = document.getElementById("ownerTakeChecksHint");
+const ownerTakeChecksTableBody = document.getElementById("ownerTakeChecksTableBody");
+const ownerTakeTableBody = document.getElementById("ownerTakeTableBody");
+const ownerTakeTotalAmountEl = document.getElementById("ownerTakeTotalAmount");
+const ownerTakeAddBtn = document.getElementById("ownerTakeAddBtn");
+
+let ownerTakeModal = null;
+
+/* =========================
+   OWNER TAKES
+========================= */
+
+function updateOwnerTakeTotal() {
+  const cash = parseEuroToNumber(ownerTakeCashAmountInput?.value || "0");
+
+  const checksTotal = Array.from(
+    ownerTakeChecksTableBody?.querySelectorAll(".owner-take-check-select:checked") || []
+  ).reduce((sum, el) => {
+    return sum + Number(el.dataset.amount || 0);
+  }, 0);
+
+  const total = cash + checksTotal;
+
+  if (ownerTakeTotalAmountEl) {
+    ownerTakeTotalAmountEl.textContent = `€ ${formatEuro2(total)}`;
+  }
+
+  if (ownerTakeChecksHint) {
+    ownerTakeChecksHint.textContent =
+      `Assegni selezionati: ${formatEuro2(checksTotal)} • Totale prelievo: ${formatEuro2(total)}`;
+  }
+}
+
+async function loadOwnerTakeAvailableChecks(dayStr) {
+  if (!ownerTakeChecksTableBody) return;
+
+  ownerTakeChecksTableBody.innerHTML = `
+    <tr>
+      <td colspan="7" class="text-center text-muted">Caricamento...</td>
+    </tr>
+  `;
+
+  try {
+    const r = await fetch(`/cassa/api/day/${dayStr}/owner-take-available-checks`, {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" }
+    });
+
+    const data = await r.json();
+
+    if (!r.ok || !data.ok) {
+      ownerTakeChecksTableBody.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center text-danger">
+            ${escapeHtml(data.error || "Errore caricamento assegni")}
+          </td>
+        </tr>
+      `;
+      updateOwnerTakeTotal();
+      return;
+    }
+
+    const checks = data.checks || [];
+
+    if (!checks.length) {
+      ownerTakeChecksTableBody.innerHTML = `
+        <tr>
+          <td colspan="7" class="text-center text-muted">Nessun assegno disponibile</td>
+        </tr>
+      `;
+      updateOwnerTakeTotal();
+      return;
+    }
+
+    ownerTakeChecksTableBody.innerHTML = checks.map(c => `
+      <tr data-check-id="${c.id}">
+        <td>
+          <input
+            type="checkbox"
+            class="form-check-input owner-take-check-select"
+            value="${c.id}"
+            data-amount="${Number(c.amount || 0)}">
+        </td>
+        <td>${escapeHtml(c.bank_name || "")}</td>
+        <td>${escapeHtml(c.check_number || "")}</td>
+        <td>${escapeHtml(c.customer_display_name || "")}</td>
+        <td>${escapeHtml(c.received_date || "")}</td>
+        <td>${escapeHtml(c.due_date || "")}</td>
+        <td class="text-end">${formatEuro2(c.amount || 0)}</td>
+      </tr>
+    `).join("");
+
+    updateOwnerTakeTotal();
+
+  } catch (err) {
+    console.error("loadOwnerTakeAvailableChecks error:", err);
+    ownerTakeChecksTableBody.innerHTML = `
+      <tr>
+        <td colspan="7" class="text-center text-danger">Errore di rete</td>
+      </tr>
+    `;
+    updateOwnerTakeTotal();
+  }
+}
+
+async function loadOwnerTakes(dayStr) {
+  if (!ownerTakeTableBody) return;
+
+  ownerTakeTableBody.innerHTML = `
+    <tr>
+      <td colspan="6" class="text-center text-muted">Caricamento...</td>
+    </tr>
+  `;
+
+  try {
+    const r = await fetch(`/cassa/api/day/${dayStr}/owner-takes`, {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" }
+    });
+
+    const data = await r.json();
+
+    if (!r.ok || !data.ok) {
+      ownerTakeTableBody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center text-danger">
+            ${escapeHtml(data.error || "Errore caricamento prelievi")}
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    const rows = data.owner_takes || [];
+
+    if (!rows.length) {
+      ownerTakeTableBody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center text-muted">Nessun prelievo</td>
+        </tr>
+      `;
+      return;
+    }
+
+    ownerTakeTableBody.innerHTML = rows.map(row => `
+      <tr data-owner-take-id="${row.id}">
+        <td>${row.created_at ? new Date(row.created_at).toLocaleString() : ""}</td>
+        <td>${row.take_type === "serale" ? "Prelievo serale" : "Prelievo parziale"}</td>
+        <td class="text-end">${formatEuro2(row.cash_amount || 0)}</td>
+        <td class="text-end">${formatEuro2(row.check_amount || 0)}</td>
+        <td class="text-end fw-semibold">${formatEuro2(row.total_amount || 0)}</td>
+        <td>${escapeHtml(row.notes || "")}</td>
+      </tr>
+    `).join("");
+
+  } catch (err) {
+    console.error("loadOwnerTakes error:", err);
+    ownerTakeTableBody.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-danger">Errore di rete</td>
+      </tr>
+    `;
+  }
+}
+
+async function openOwnerTakeModal() {
+  if (!currentDay) {
+    alert("Nessuna giornata selezionata.");
+    return;
+  }
+
+  if (ownerTakeTypeSelect) ownerTakeTypeSelect.value = "serale";
+  if (ownerTakeCashAmountInput) ownerTakeCashAmountInput.value = "0,00";
+  if (ownerTakeNoteInput) ownerTakeNoteInput.value = "";
+
+  updateOwnerTakeTotal();
+  await loadOwnerTakeAvailableChecks(currentDay);
+  await loadOwnerTakes(currentDay);
+
+  if (!ownerTakeModal) {
+    alert("Modale cassetto non disponibile.");
+    return;
+  }
+
+  ownerTakeModal.show();
+}
+
+async function saveOwnerTake() {
+  if (!currentDay) {
+    alert("Nessuna giornata selezionata.");
+    return;
+  }
+
+  const take_type = (ownerTakeTypeSelect?.value || "serale").trim();
+  const cash_amount = parseEuroToNumber(ownerTakeCashAmountInput?.value || "0");
+  const notes = (ownerTakeNoteInput?.value || "").trim() || null;
+
+  const check_ids = Array.from(
+    ownerTakeChecksTableBody?.querySelectorAll(".owner-take-check-select:checked") || []
+  ).map(el => Number(el.value)).filter(Number.isFinite);
+
+  if (cash_amount <= 0 && check_ids.length === 0) {
+    alert("Inserisci almeno contanti o seleziona almeno un assegno.");
+    return;
+  }
+
+  try {
+    if (ownerTakeAddBtn) ownerTakeAddBtn.disabled = true;
+
+    const r = await fetch(`/cassa/api/day/${currentDay}/owner-takes`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        take_type,
+        cash_amount,
+        notes,
+        check_ids
+      })
+    });
+
+    const data = await r.json();
+
+    if (!r.ok || !data.ok) {
+      alert(data.error || "Errore salvataggio prelievo");
+      return;
+    }
+
+    if (ownerTakeTypeSelect) ownerTakeTypeSelect.value = "serale";
+    if (ownerTakeCashAmountInput) ownerTakeCashAmountInput.value = "0,00";
+    if (ownerTakeNoteInput) ownerTakeNoteInput.value = "";
+
+    await loadOwnerTakeAvailableChecks(currentDay);
+    await loadOwnerTakes(currentDay);
+    updateOwnerTakeTotal();
+    await loadPreview(currentDay);
+
+  } catch (err) {
+    console.error("saveOwnerTake error:", err);
+    alert("Errore di rete durante il salvataggio del prelievo.");
+  } finally {
+    if (ownerTakeAddBtn) ownerTakeAddBtn.disabled = false;
+  }
+}
+
+/* =========================
    DRAWER COUNT MODAL REFS
 ========================= */
 
@@ -1025,6 +1281,30 @@ document.addEventListener("DOMContentLoaded", function () {
   decorateMonth(calendarInstance.currentYear, calendarInstance.currentMonth);
   loadDay(toLocalYMD(new Date()));
   startAssegniAutoRefresh();
+
+  if (ownerTakeModalEl) {
+    ownerTakeModal = new bootstrap.Modal(ownerTakeModalEl);
+  }
+
+  normalizeCurrencyInput(ownerTakeCashAmountInput);
+
+  document.getElementById("kpiCassettoBox")?.addEventListener("click", async () => {
+    await openOwnerTakeModal();
+  });
+
+  ownerTakeCashAmountInput?.addEventListener("input", () => {
+    updateOwnerTakeTotal();
+  });
+
+  ownerTakeChecksTableBody?.addEventListener("change", (e) => {
+    if (e.target.closest(".owner-take-check-select")) {
+      updateOwnerTakeTotal();
+    }
+  });
+
+  ownerTakeAddBtn?.addEventListener("click", async () => {
+    await saveOwnerTake();
+  });
 
   const opModalEl = document.getElementById("opModal");
   const opModal = opModalEl ? new bootstrap.Modal(opModalEl) : null;
