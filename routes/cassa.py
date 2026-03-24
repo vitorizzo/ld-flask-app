@@ -2470,3 +2470,198 @@ def api_owner_take_available_checks(day_date):
         "day_date": d.isoformat(),
         "checks": items,
     })
+
+
+@cassa_bp.get("/api/day/<day_date>/owner-takes")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_list_owner_takes(day_date):
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    cash_day = (
+        CashDay.query
+        .options(
+            selectinload(CashDay.owner_takes)
+            .selectinload(CashOwnerTake.checks)
+            .selectinload(CashOwnerTakeCheck.check)
+            .selectinload(CashCheck.customer)
+        )
+        .filter(CashDay.day_date == d)
+        .first()
+    )
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    items = []
+    totals_cash = Decimal("0")
+    totals_checks = Decimal("0")
+
+    rows = sorted(cash_day.owner_takes or [], key=lambda x: (x.created_at, x.id))
+
+    for row in rows:
+        cash_amount = Decimal(str(row.cash_amount or 0))
+        check_amount = Decimal(str(row.check_amount or 0))
+        total_amount = cash_amount + check_amount
+
+        totals_cash += cash_amount
+        totals_checks += check_amount
+
+        checks = []
+        for link in row.checks or []:
+            linked_check = link.check
+            linked_amount = Decimal(str(
+                link.check_amount if link.check_amount is not None
+                else (linked_check.amount if linked_check else 0)
+            ))
+
+            checks.append({
+                "id": linked_check.id if linked_check else None,
+                "check_number": linked_check.check_number if linked_check else None,
+                "bank_name": linked_check.bank_name if linked_check else None,
+                "amount": float(linked_amount),
+                "due_date": linked_check.due_date.isoformat() if linked_check and linked_check.due_date else None,
+                "received_date": linked_check.received_date.isoformat() if linked_check and linked_check.received_date else None,
+                "customer_id": linked_check.customer_id if linked_check else None,
+                "customer_display_name": linked_check.customer.display_name if linked_check and linked_check.customer else None,
+            })
+
+        items.append({
+            "id": row.id,
+            "take_type": row.take_type,
+            "cash_amount": float(cash_amount),
+            "check_amount": float(check_amount),
+            "total_amount": float(total_amount),
+            "notes": row.notes,
+            "created_at": row.created_at.isoformat() if row.created_at else None,
+            "checks": checks,
+        })
+
+    return jsonify({
+        "ok": True,
+        "day_date": d.isoformat(),
+        "owner_takes": items,
+        "totals": {
+            "cash_amount": float(totals_cash),
+            "check_amount": float(totals_checks),
+            "total_amount": float(totals_cash + totals_checks),
+        }
+    })
+
+
+@cassa_bp.post("/api/day/<day_date>/owner-takes")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_create_owner_take(day_date):
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    cash_day = CashDay.query.filter(CashDay.day_date == d).first()
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+
+    take_type = (data.get("take_type") or "serale").strip()
+    notes = (data.get("notes") or "").strip() or None
+    check_ids = data.get("check_ids") or []
+
+    if take_type not in {"parziale", "serale"}:
+        return jsonify({"ok": False, "error": "Tipo prelievo non valido"}), 400
+
+    try:
+        cash_amount = Decimal(str(data.get("cash_amount", 0)))
+    except (InvalidOperation, TypeError):
+        return jsonify({"ok": False, "error": "Importo contanti non valido"}), 400
+
+    if cash_amount < 0:
+        return jsonify({"ok": False, "error": "Importo contanti non valido"}), 400
+
+    if not isinstance(check_ids, list):
+        return jsonify({"ok": False, "error": "check_ids deve essere una lista"}), 400
+
+    checks = []
+    if check_ids:
+        checks = (
+            CashCheck.query
+            .filter(CashCheck.id.in_(check_ids))
+            .all()
+        )
+
+    found_ids = {c.id for c in checks}
+    missing_ids = [cid for cid in check_ids if cid not in found_ids]
+    if missing_ids:
+        return jsonify({
+            "ok": False,
+            "error": f"Assegni non trovati: {missing_ids}"
+        }), 400
+
+    already_taken_ids = {
+        row.check_id
+        for row in (
+            db.session.query(CashOwnerTakeCheck.check_id)
+            .join(CashOwnerTake, CashOwnerTake.id == CashOwnerTakeCheck.owner_take_id)
+            .filter(
+                CashOwnerTake.cash_day_id == cash_day.id,
+                CashOwnerTakeCheck.check_id.in_(check_ids) if check_ids else False
+            )
+            .all()
+        )
+    }
+
+    if already_taken_ids:
+        return jsonify({
+            "ok": False,
+            "error": f"Assegni già associati a un altro prelievo: {sorted(already_taken_ids)}"
+        }), 400
+
+    check_amount = Decimal("0")
+    for c in checks:
+        valid_status = c.status in {"received", "moved", "spostato"}
+        valid_day = c.received_date == d
+        if not (valid_status and valid_day):
+            return jsonify({
+                "ok": False,
+                "error": f"Assegno {c.id} non valido per questo prelievo"
+            }), 400
+        check_amount += Decimal(str(c.amount or 0))
+
+    try:
+        row = CashOwnerTake(
+            cash_day_id=cash_day.id,
+            take_type=take_type,
+            cash_amount=cash_amount,
+            check_amount=check_amount,
+            notes=notes,
+            created_by_user_id=getattr(current_user, "id", None),
+            updated_by_user_id=getattr(current_user, "id", None),
+        )
+
+        db.session.add(row)
+        db.session.flush()
+
+        for c in checks:
+            db.session.add(CashOwnerTakeCheck(
+                owner_take_id=row.id,
+                check_id=c.id,
+                check_amount=c.amount,
+            ))
+
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "owner_take_id": row.id,
+        }), 201
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_create_owner_take error: %s", e)
+        return jsonify({
+            "ok": False,
+            "error": "Errore interno durante il salvataggio del prelievo"
+        }), 500
