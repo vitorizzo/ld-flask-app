@@ -2339,3 +2339,24 @@ def create_receipt_closure(day_date):
     db.session.commit()
 
     return jsonify({"success": True})
+
+
+@cassa_bp.delete("/api/receipt-closures/<int:receipt_closure_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_delete_receipt_closure(receipt_closure_id):
+    row = CashReceiptClosure.query.filter_by(id=receipt_closure_id).first()
+
+    if not row:
+        return jsonify({"ok": False, "error": "Corrispettivo non trovato"}), 404
+
+    try:
+        db.session.delete(row)
+        db.session.commit()
+        return jsonify({"ok": True, "receipt_closure_id": receipt_closure_id})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_delete_receipt_closure error: %s", e)
+        return jsonify(
+            {"ok": False, "error": "Errore interno durante l'eliminazione del corrispettivo"}
+        ), 500
