@@ -639,15 +639,34 @@ def api_cash_day_preview(day_date):
     )
     totale_corrispettivi = Decimal(str(totale_corrispettivi or 0))
 
+    totale_owner_take_cash = (
+        db.session.query(func.coalesce(func.sum(CashOwnerTake.cash_amount), 0))
+        .filter(CashOwnerTake.cash_day_id == cash_day.id)
+        .scalar()
+    )
+
+    totale_owner_take_checks = (
+        db.session.query(func.coalesce(func.sum(CashOwnerTake.check_amount), 0))
+        .filter(CashOwnerTake.cash_day_id == cash_day.id)
+        .scalar()
+    )
+
+    totale_owner_take_cash = Decimal(str(totale_owner_take_cash or 0))
+    totale_owner_take_checks = Decimal(str(totale_owner_take_checks or 0))
+    totale_incasso_consegnato = totale_owner_take_cash + totale_owner_take_checks
+
     result = calculate_closure_pure(
         cash_day_id=cash_day.id,
         opening_float=cash_day.opening_float,
         total_corrispettivi=totale_corrispettivi,
         fondo_finale=fondo_finale,
         saldo_versabile_precedente=saldo_versabile_precedente,
-        incasso_consegnato=Decimal(request.args.get("incasso_consegnato", "0")),
+        incasso_consegnato=totale_incasso_consegnato,
     )
 
+    result["incasso_consegnato"] = float(totale_incasso_consegnato)
+    result["owner_take_cash_amount"] = float(totale_owner_take_cash)
+    result["owner_take_check_amount"] = float(totale_owner_take_checks)
     result["total_corrispettivi"] = float(totale_corrispettivi)
 
     totale_ecommerce = (
