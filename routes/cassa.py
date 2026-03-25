@@ -2344,6 +2344,149 @@ def api_list_deposits(day_date):
     })
 
 
+@cassa_bp.put("/api/deposits/<int:deposit_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_update_deposit(deposit_id):
+    from models import CashDeposit, CashDepositCheck
+
+    deposit = (
+        CashDeposit.query
+        .options(
+            selectinload(CashDeposit.checks)
+            .selectinload(CashDepositCheck.check)
+        )
+        .filter(CashDeposit.id == deposit_id)
+        .first()
+    )
+
+    if not deposit:
+        return jsonify({"ok": False, "error": "Versamento non trovato"}), 404
+
+    data = request.get_json(silent=True) or {}
+
+    deposit_type = (data.get("deposit_type") or "").strip()
+    note = (data.get("note") or "").strip() or None
+    check_ids = data.get("check_ids") or []
+
+    try:
+        cash_amount = Decimal(str(data.get("cash_amount", 0)))
+    except (InvalidOperation, TypeError):
+        return jsonify({"ok": False, "error": "Importo contanti non valido"}), 400
+
+    if cash_amount < 0:
+        return jsonify({"ok": False, "error": "Importo contanti non valido"}), 400
+
+    if deposit_type not in ["versamento_incasso", "versamento_intermedio"]:
+        return jsonify({"ok": False, "error": "Tipo versamento non valido"}), 400
+
+    if not isinstance(check_ids, list):
+        return jsonify({"ok": False, "error": "check_ids deve essere una lista"}), 400
+
+    day_date = deposit.deposit_date
+    cutoff = next_banking_day(day_date)
+
+    checks = []
+    if check_ids:
+        checks = CashCheck.query.filter(CashCheck.id.in_(check_ids)).all()
+
+    found_ids = {c.id for c in checks}
+    missing_ids = [cid for cid in check_ids if cid not in found_ids]
+    if missing_ids:
+        return jsonify({"ok": False, "error": f"Assegni non trovati: {missing_ids}"}), 400
+
+    current_check_ids = {
+        link.check_id for link in (deposit.checks or [])
+    }
+
+    for c in checks:
+        is_currently_linked = c.id in current_check_ids
+
+        if deposit_type == "versamento_incasso":
+            valid = (
+                (c.status in ["received", "moved", "deposited"])
+                and c.received_date < day_date
+                and c.due_date <= cutoff
+            )
+        else:
+            valid = (
+                (c.status in ["received", "deposited"])
+                and c.received_date == day_date
+            )
+
+        if not valid and not is_currently_linked:
+            return jsonify({
+                "ok": False,
+                "error": f"Assegno {c.id} non valido per il tipo di versamento selezionato"
+            }), 400
+
+    try:
+        old_links = {link.check_id: link for link in (deposit.checks or [])}
+        new_check_ids = set(check_ids)
+
+        removed_ids = set(old_links.keys()) - new_check_ids
+        added_ids = new_check_ids - set(old_links.keys())
+
+        for check_id in removed_ids:
+            check = old_links[check_id].check
+            prev_status = _get_previous_check_status_before_deposit(check.id)
+
+            if not prev_status:
+                return jsonify({
+                    "ok": False,
+                    "error": f"Impossibile determinare lo stato precedente per assegno {check.id}"
+                }), 400
+
+            change_check_status(
+                check=check,
+                new_status=prev_status,
+                user_id=getattr(current_user, "id", None),
+                event_date=day_date,
+                note=f"Rimozione da versamento ID {deposit.id}",
+                amount_spese=Decimal("0"),
+                customer_charge_amount=Decimal("0"),
+            )
+
+        CashDepositCheck.query.filter_by(deposit_id=deposit.id).delete()
+
+        for c in checks:
+            db.session.add(CashDepositCheck(
+                deposit_id=deposit.id,
+                check_id=c.id,
+                check_amount=c.amount
+            ))
+
+            if c.id in added_ids or c.status != "deposited":
+                change_check_status(
+                    check=c,
+                    new_status="deposited",
+                    user_id=getattr(current_user, "id", None),
+                    event_date=day_date,
+                    note=f"Modifica versamento {deposit_type}",
+                    amount_spese=Decimal("0"),
+                    customer_charge_amount=Decimal("0"),
+                )
+
+        deposit.deposit_type = deposit_type
+        deposit.cash_amount = cash_amount
+        deposit.note = note
+
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "deposit_id": deposit.id
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_update_deposit error: %s", e)
+        return jsonify({
+            "ok": False,
+            "error": "Errore interno durante la modifica del versamento"
+        }), 500
+
+
 # ============================================================
 # CORRISPETTIVI (CashReceiptClosure)
 # ============================================================

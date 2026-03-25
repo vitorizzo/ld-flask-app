@@ -93,7 +93,6 @@ function updateQuadraturaLeds(delta) {
     redRight: document.getElementById("ledQuadraturaRedRight"),
   };
 
-  // reset
   Object.values(leds).forEach(el => {
     if (!el) return;
     el.classList.remove("on");
@@ -103,7 +102,6 @@ function updateQuadraturaLeds(delta) {
 
   const d = Number(delta);
 
-  // soglie (puoi cambiarle dopo)
   if (Math.abs(d) <= 2) {
     leds.green?.classList.add("on");
     return;
@@ -173,6 +171,7 @@ const ownerTakeAddBtn = document.getElementById("ownerTakeAddBtn");
 
 let ownerTakeModal = null;
 let editingOwnerTakeId = null;
+
 /* =========================
    OWNER TAKES
 ========================= */
@@ -515,7 +514,6 @@ const drawerTotalEl = document.getElementById("drawerGrandTotal");
 const drawerSaveBtn = document.getElementById("drawerSaveBtn");
 const drawerDeleteBtn = document.getElementById("drawerDeleteBtn");
 
-
 let drawerModal = null;
 
 /* =========================
@@ -546,6 +544,7 @@ const depositTableBody = document.getElementById("depositTableBody");
 const depositAddBtn = document.getElementById("depositAddBtn");
 
 let depositModal = null;
+let editingDepositId = null;
 
 /* =========================
    DAY / PREVIEW
@@ -1408,6 +1407,25 @@ function updateDepositCashUi() {
   }
 }
 
+function resetDepositForm() {
+  editingDepositId = null;
+
+  if (depositTypeSelect) depositTypeSelect.value = "versamento_incasso";
+  if (depositDateInput) depositDateInput.value = currentDay || "";
+  if (depositCashAmountInput) depositCashAmountInput.value = "0,00";
+  if (depositNoteInput) depositNoteInput.value = "";
+  if (depositTotalAmountInput) depositTotalAmountInput.value = "0,00";
+
+  depositChecksTableBody?.querySelectorAll(".deposit-check-select").forEach(el => {
+    el.checked = false;
+  });
+
+  if (depositAddBtn) depositAddBtn.textContent = "Salva versamento";
+
+  updateDepositTotal();
+  updateDepositCashUi();
+}
+
 /* =========================
    INIT
 ========================= */
@@ -1426,7 +1444,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  // KPI eCommerce → apertura modale
   const kpiEcommerceBox = document.getElementById("kpiEcommerceBox");
   if (kpiEcommerceBox) {
     kpiEcommerceBox.addEventListener("click", () => {
@@ -1517,9 +1534,6 @@ document.addEventListener("DOMContentLoaded", function () {
     depositModal = new bootstrap.Modal(depositModalEl);
   }
 
-  /* =========================
-     stacked modals
-  ========================= */
   (function initModalStack3D() {
     const BASE_MODAL_Z = 1055;
     const BASE_BACKDROP_Z = 1050;
@@ -1548,9 +1562,6 @@ document.addEventListener("DOMContentLoaded", function () {
     document.addEventListener("show.bs.modal", () => setTimeout(restack, 0));
   })();
 
-  /* =========================
-     dropdown flag
-  ========================= */
   const OP_FLAGS = ["*", "**", "#", "!", "+", "x"];
 
   (function initFlagDropdown() {
@@ -1604,10 +1615,6 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!input.value) input.value = "*";
     buildMenu("");
   })();
-
-  /* =========================
-     helpers payment mode
-  ========================= */
 
   function getPaymentMode() {
     const checked = document.querySelector('input[name="paymentMode"]:checked');
@@ -1774,10 +1781,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  /* =========================
-     POS / BANK loaders
-  ========================= */
-
   async function loadPosCircuits(deviceId, circuitSelect = posCircuitSelect) {
     if (!circuitSelect) return;
 
@@ -1887,10 +1890,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  /* =========================
-     MULTI ROWS
-  ========================= */
-
   function updateMultiRowFields(row) {
     const method = row.querySelector(".multi-method")?.value || "cash";
 
@@ -1999,10 +1998,6 @@ document.addEventListener("DOMContentLoaded", function () {
     updatePaymentState();
   }
 
-  /* =========================
-     open modal / reset
-  ========================= */
-
   function openOpModal(type) {
     if (!opModal) return;
 
@@ -2035,10 +2030,6 @@ document.addEventListener("DOMContentLoaded", function () {
 
     opModal.show();
   }
-
-  /* =========================
-     build payload
-  ========================= */
 
   async function ensureSelectedCustomer() {
     const opCustomerInput = document.getElementById("opCustomer");
@@ -2193,6 +2184,12 @@ document.addEventListener("DOMContentLoaded", function () {
           <td class="text-end">
             <button
               type="button"
+              class="btn btn-outline-primary me-1 btn-sm btn-edit-deposit"
+              data-id="${row.id}">
+              Modifica
+            </button>
+            <button
+              type="button"
               class="btn btn-outline-danger btn-sm btn-deposit-delete"
               data-id="${row.id}">
               Elimina
@@ -2232,10 +2229,7 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    if (depositDateInput) depositDateInput.value = currentDay;
-    if (depositCashAmountInput) depositCashAmountInput.value = "0,00";
-    if (depositNoteInput) depositNoteInput.value = "";
-    if (depositTotalAmountInput) depositTotalAmountInput.value = "0,00";
+    resetDepositForm();
 
     await loadAvailableDepositChecks(currentDay);
     await loadDeposits(currentDay);
@@ -2274,11 +2268,18 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
+    const isEdit = !!editingDepositId;
+    const url = isEdit
+      ? `/cassa/api/deposits/${editingDepositId}`
+      : `/cassa/api/day/${currentDay}/deposits`;
+
+    const method = isEdit ? "PUT" : "POST";
+
     try {
       if (depositAddBtn) depositAddBtn.disabled = true;
 
-      const r = await fetch(`/cassa/api/day/${currentDay}/deposits`, {
-        method: "POST",
+      const r = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json"
@@ -2299,10 +2300,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      if (depositCashAmountInput) depositCashAmountInput.value = "0,00";
-      if (depositNoteInput) depositNoteInput.value = "";
-      if (depositTotalAmountInput) depositTotalAmountInput.value = "0,00";
-
+      resetDepositForm();
       await loadAvailableDepositChecks(currentDay);
       await loadDeposits(currentDay);
       await loadPreview(currentDay);
@@ -2316,10 +2314,6 @@ document.addEventListener("DOMContentLoaded", function () {
       if (depositAddBtn) depositAddBtn.disabled = false;
     }
   }
-
-  // =========================
-  // CORRISPETTIVI
-  // =========================
 
   let receiptModalInstance = null;
   let editingReceiptClosureId = null;
@@ -2837,9 +2831,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  /* =========================
-     nuovo cliente
-  ========================= */
   (function initCustomerNewModal() {
     const btnOpen = document.getElementById("btnCustomerNew");
     const modalEl = document.getElementById("customerNewModal");
@@ -2922,9 +2913,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   })();
 
-  /* =========================
-     suggest cliente
-  ========================= */
   (function initCustomerSuggest() {
     const input = document.getElementById("opCustomer");
     const list = document.getElementById("opCustomerList");
@@ -2972,9 +2960,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   })();
 
-  /* =========================
-     ricerca cliente avanzata
-  ========================= */
   (function initCustomerSearchModal() {
     const btnOpen = document.getElementById("btnCustomerSearch");
     const modalEl = document.getElementById("customerSearchModal");
@@ -3058,10 +3043,6 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   })();
 
-  /* =========================
-     listeners base
-  ========================= */
-
   const corrispettiviBox = document.getElementById("kpiCorrispettiviBox");
   if (corrispettiviBox) {
     corrispettiviBox.addEventListener("click", openReceiptModal);
@@ -3124,17 +3105,69 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   depositTableBody?.addEventListener("click", async (e) => {
-    const btn = e.target.closest(".btn-deposit-delete");
-    if (!btn) return;
+    const editBtn = e.target.closest(".btn-edit-deposit");
+    if (editBtn) {
+      const depositId = editBtn.dataset.id;
+      if (!depositId) return;
 
-    const depositId = btn.dataset.id;
+      try {
+        const r = await fetch(`/cassa/api/day/${currentDay}/deposits`, {
+          credentials: "same-origin",
+          headers: { "Accept": "application/json" },
+          cache: "no-store"
+        });
+
+        const data = await r.json();
+
+        if (!r.ok || !data.ok) {
+          alert(data.error || "Errore caricamento versamento");
+          return;
+        }
+
+        const row = (data.deposits || []).find(x => String(x.id) === String(depositId));
+        if (!row) {
+          alert("Versamento non trovato");
+          return;
+        }
+
+        editingDepositId = row.id;
+
+        if (depositTypeSelect) depositTypeSelect.value = row.deposit_type || "versamento_incasso";
+        if (depositDateInput) depositDateInput.value = row.deposit_date || currentDay;
+        if (depositCashAmountInput) depositCashAmountInput.value = formatEuro2(row.cash_amount || 0);
+        if (depositNoteInput) depositNoteInput.value = row.note || "";
+        if (depositAddBtn) depositAddBtn.textContent = "Salva modifica";
+
+        await loadAvailableDepositChecks(currentDay);
+
+        const selectedIds = new Set((row.checks || []).map(x => String(x.id)));
+
+        depositChecksTableBody?.querySelectorAll(".deposit-check-select").forEach(cb => {
+          cb.checked = selectedIds.has(String(cb.value));
+        });
+
+        updateDepositTotal();
+        updateDepositCashUi();
+        return;
+
+      } catch (err) {
+        console.error("editDeposit error:", err);
+        alert("Errore di rete");
+        return;
+      }
+    }
+
+    const deleteBtn = e.target.closest(".btn-deposit-delete");
+    if (!deleteBtn) return;
+
+    const depositId = deleteBtn.dataset.id;
     if (!depositId) return;
 
     const confirmed = window.confirm("Vuoi eliminare questo versamento?");
     if (!confirmed) return;
 
     try {
-      btn.disabled = true;
+      deleteBtn.disabled = true;
 
       const r = await fetch(`/cassa/api/deposits/${depositId}`, {
         method: "DELETE",
@@ -3147,11 +3180,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (!r.ok || !data.ok) {
         alert(data.error || "Errore eliminazione versamento");
-        btn.disabled = false;
+        deleteBtn.disabled = false;
         return;
       }
 
-      await loadAvailableDepositChecks(currentDay);
+      if (editingDepositId && String(editingDepositId) === String(depositId)) {
+        resetDepositForm();
+        await loadAvailableDepositChecks(currentDay);
+      }
+
       await loadDeposits(currentDay);
       updateDepositTotal();
       await refreshAgendaData();
