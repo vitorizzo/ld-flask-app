@@ -89,16 +89,16 @@
                   <div class="kpi-side">
                     <div class="kpi-metric">
                       <div class="kpi-label">iniziale</div>
-                      <div class="kpi-num-group d-flex align-items-center justify-content-between">
-                        <span class="kpi-num-valuta">€</span>
-                        <span class="kpi-num" id="kpiSaldoVersabileInit">—</span>
+                      <div class="kpi-num kpi-currency-row">
+                        <span class="kpi-currency-symbol">€</span>
+                        <span id="kpiSaldoVersabileInit">—</span>
                       </div>
                     <div class="kpi-divider-mini"></div>
                     <div class="kpi-metric">
                       <div class="kpi-label">attuale</div>
-                      <div class="kpi-num-group d-flex align-items-center justify-content-between">
-                        <span class="kpi-num-valuta">€</span>
-                        <span class="kpi-num" id="kpiSaldoVersabileNew">—</span>
+                      <div class="kpi-num kpi-currency-row">
+                        <span class="kpi-currency-symbol">€</span>
+                        <span id="kpiSaldoVersabileNew">—</span>
                       </div>
                     </div>
                   </div>
@@ -108,9 +108,9 @@
                   <div class="kpi-side kpi-side-right">
                     <div class="kpi-metric">
                       <div class="kpi-label">odierno</div>
-                      <div class="kpi-num-group d-flex align-items-center justify-content-between">
-                        <span class="kpi-num-valuta">€</span>
-                        <span class="kpi-num" id="kpiVersabileGiornata">—</span>
+                      <div class="kpi-num kpi-num-big kpi-currency-row">
+                        <span class="kpi-currency-symbol">€</span>
+                        <span id="kpiVersabileGiornata">—</span>
                       </div>
                     </div>
                   </div>
@@ -130,18 +130,17 @@
                   <div class="kpi-side">
                     <div class="kpi-metric">
                       <div class="kpi-label">iniziale</div>
-                      <!--- <div class="kpi-num" id="kpiFondoIniziale">—</div> --->
-                      <div class="kpi-num-group d-flex align-items-center justify-content-between">
-                        <span class="kpi-num-valuta">€</span>
-                        <span class="kpi-num" id="kpiFondoIniziale">—</span>
+                      <div class="kpi-num kpi-currency-row">
+                        <span class="kpi-currency-symbol">€</span>
+                        <span id="kpiFondoIniziale">—</span>
                       </div>
                     </div>
                     <div class="kpi-divider-mini"></div>
                     <div class="kpi-metric" id="kpiFondoCard" title="Clicca per inserire fondo cassa">
                       <div class="kpi-label">finale</div>
-                      <div class="kpi-num-group d-flex align-items-center justify-content-between">
-                        <span class="kpi-num-valuta">€</span>
-                        <span class="kpi-num" id="kpiFondoFinale">—</span>
+                      <div class="kpi-num kpi-currency-row">
+                        <span class="kpi-currency-symbol">€</span>
+                        <span id="kpiFondoFinale">—</span>
                       </div>
                     </div>
                   </div>
@@ -151,9 +150,9 @@
                   <div class="kpi-side kpi-side-right">
                     <div class="kpi-metric">
                       <div class="kpi-label">Δ Fondo</div>
-                      <div class="kpi-num-group d-flex align-items-center justify-content-between">
-                        <span class="kpi-num-valuta">€</span>
-                        <span class="kpi-num kpi-num-big" id="kpiDeltaFondo">—</span>
+                      <div class="kpi-num kpi-num-big kpi-currency-row">
+                        <span class="kpi-currency-symbol">€</span>
+                        <span id="kpiDeltaFondo">—</span>
                       </div>
                     </div>
                   </div>
@@ -176,9 +175,9 @@
                         <span>eCommerce</span>
                         <i class="fa-solid fa-cart-shopping kpi-ecommerce-box-icon"></i>
                       </div>
-                      <div class="kpi-num-group d-flex align-items-center justify-content-between">
-                        <span class="kpi-num-valuta">€</span>
-                        <span class="kpi-num" id="kpiTotEcommerce">—</span>
+                      <div class="kpi-num kpi-currency-row">
+                        <span class="kpi-currency-symbol">€</span>
+                        <span id="kpiTotEcommerce">—</span>
                       </div>
                     </div>
                     <div class="kpi-divider-mini"></div>
@@ -187,9 +186,9 @@
                         <span>versamenti</span>
                         <i class="fa-solid fa-building-columns kpi-versamenti-box-icon"></i>
                       </div>
-                      <div class="kpi-num-group d-flex align-items-center justify-content-between">
-                        <span class="kpi-num-valuta">€</span>
-                        <span class="kpi-num" id="kpiTotVersamenti">—</span>
+                      <div class="kpi-num kpi-currency-row">
+                        <span class="kpi-currency-symbol">€</span>
+                        <span id="kpiTotVersamenti">—</span>
                       </div>
                     </div>
                   </div>
@@ -199,9 +198,9 @@
                   <div class="kpi-side kpi-side-right">
                     <div class="kpi-metric">
                       <div class="kpi-label">Totale di Giornata</div>
-                      <div class="kpi-num-group d-flex align-items-center justify-content-between">
-                        <span class="kpi-num-valuta">€</span>
-                        <span class="kpi-num kpi-num-big" id="kpiIC">—</span>
+                      <div class="kpi-num kpi-num-big kpi-currency-row">
+                        <span class="kpi-currency-symbol">€</span>
+                        <span id="kpiIC">—</span>
                       </div>
                       <div class="d-flex justify-content-center gap-2 mb-2 flex-wrap">
                         <span class="badge rounded-pill" id="badgeCorrispettiviState">
@@ -232,9 +231,9 @@
                         <span>Corrispettivi</span>
                         <i class="fa-solid fa-cash-register kpi-versamenti-box-icon"></i>
                       </div>
-                      <div class="kpi-num-group d-flex align-items-center justify-content-between">
-                        <span class="kpi-num-valuta">€</span>
-                        <span class="kpi-num" id="kpiCorrispettivi">—</span>
+                      <div class="kpi-num kpi-currency-row">
+                        <span class="kpi-currency-symbol">€</span>
+                        <span id="kpiCorrispettivi">—</span>
                       </div>
                     </div>
                     <div class="kpi-divider-mini"></div>
@@ -243,9 +242,9 @@
                         <span>Cassetto</span>
                         <i class="fa-solid fa-hand-holding-dollar kpi-cassetto-box-icon"></i>
                       </div>
-                      <div class="kpi-num-group d-flex align-items-center justify-content-between">
-                        <span class="kpi-num-valuta">€</span>
-                        <span class="kpi-num" id="kpiIncassoConsegnato">—</span>
+                      <div class="kpi-num kpi-currency-row">
+                        <span class="kpi-currency-symbol">€</span>
+                        <span id="kpiIncassoConsegnato">—</span>
                       </div>
                     </div>
                   </div>
@@ -256,9 +255,9 @@
                         <span>Δ Quadratura</span>
                         <i class="fa-solid fa-scale-balanced kpi-delta-quadratura-box-icon"></i>
                       </div>
-                      <div class="kpi-num-group d-flex align-items-center justify-content-between">
-                        <span class="kpi-num-valuta">€</span>
-                        <span class="kpi-num kpi-num-big" id="kpiDeltaQuadratura">—</span>
+                      <div class="kpi-num kpi-num-big kpi-currency-row">
+                        <span class="kpi-currency-symbol">€</span>
+                        <span id="kpiDeltaQuadratura">—</span>
                       </div>
                       <div class="quadratura-leds mt-2" id="quadraturaLeds">
                         <span class="quadratura-led is-red" id="ledQuadraturaRedLeft"></span>
