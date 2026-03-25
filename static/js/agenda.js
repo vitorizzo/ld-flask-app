@@ -1422,7 +1422,19 @@ function resetDepositForm() {
 
   if (depositAddBtn) depositAddBtn.textContent = "Salva versamento";
 
-  updateDepositTotal();
+  const checksTotal = Array.from(
+    depositChecksTableBody?.querySelectorAll(".deposit-check-select:checked") || []
+  ).reduce((sum, el) => {
+    return sum + Number(el.dataset.amount || 0);
+  }, 0);
+
+  const cash = parseEuroToNumber(depositCashAmountInput?.value || "0");
+  const total = cash + checksTotal;
+
+  if (depositTotalAmountInput) {
+    depositTotalAmountInput.value = formatEuro2(total);
+  }
+
   updateDepositCashUi();
 }
 
