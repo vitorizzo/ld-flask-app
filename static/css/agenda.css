@@ -568,3 +568,52 @@
 #kpiCassettoBox:active {
   transform: scale(0.99);
 }
+
+/* =========================
+   QUADRATURA LED
+========================= */
+
+.kpi-led-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.kpi-led {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #2b2b2b;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow:
+    inset 0 1px 2px rgba(255,255,255,0.08),
+    inset 0 -1px 2px rgba(0,0,0,0.45);
+  opacity: 0.45;
+  transition: all 0.18s ease;
+}
+
+.kpi-led-red.on {
+  background: #dc3545;
+  opacity: 1;
+  box-shadow:
+    0 0 8px rgba(220,53,69,0.70),
+    0 0 14px rgba(220,53,69,0.40);
+}
+
+.kpi-led-yellow.on {
+  background: #ffc107;
+  opacity: 1;
+  box-shadow:
+    0 0 8px rgba(255,193,7,0.70),
+    0 0 14px rgba(255,193,7,0.40);
+}
+
+.kpi-led-green.on {
+  background: #198754;
+  opacity: 1;
+  box-shadow:
+    0 0 8px rgba(25,135,84,0.70),
+    0 0 14px rgba(25,135,84,0.40);
+}
