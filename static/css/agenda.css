@@ -617,3 +617,21 @@
     0 0 8px rgba(25,135,84,0.70),
     0 0 14px rgba(25,135,84,0.40);
 }
+
+.kpi-currency-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+}
+
+.kpi-currency-symbol {
+  flex: 0 0 auto;
+  font-weight: 700;
+}
+
+.kpi-currency-row > span:last-child {
+  flex: 1 1 auto;
+  text-align: right;
+}
