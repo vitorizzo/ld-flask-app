@@ -2684,3 +2684,146 @@ def api_create_owner_take(day_date):
             "ok": False,
             "error": "Errore interno durante il salvataggio del prelievo"
         }), 500
+
+
+@cassa_bp.delete("/api/owner-takes/<int:owner_take_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_delete_owner_take(owner_take_id):
+    row = (
+        CashOwnerTake.query
+        .options(selectinload(CashOwnerTake.checks))
+        .filter(CashOwnerTake.id == owner_take_id)
+        .first()
+    )
+
+    if not row:
+        return jsonify({"ok": False, "error": "Prelievo non trovato"}), 404
+
+    try:
+        db.session.delete(row)
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "owner_take_id": owner_take_id,
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_delete_owner_take error: %s", e)
+        return jsonify({
+            "ok": False,
+            "error": "Errore interno durante l'eliminazione del prelievo"
+        }), 500
+
+
+@cassa_bp.put("/api/owner-takes/<int:owner_take_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_update_owner_take(owner_take_id):
+    row = (
+        CashOwnerTake.query
+        .options(selectinload(CashOwnerTake.checks))
+        .filter(CashOwnerTake.id == owner_take_id)
+        .first()
+    )
+
+    if not row:
+        return jsonify({"ok": False, "error": "Prelievo non trovato"}), 404
+
+    data = request.get_json(silent=True) or {}
+
+    take_type = (data.get("take_type") or "").strip()
+    notes = (data.get("notes") or "").strip() or None
+    check_ids = data.get("check_ids") or []
+
+    if take_type not in {"parziale", "serale"}:
+        return jsonify({"ok": False, "error": "Tipo prelievo non valido"}), 400
+
+    try:
+        cash_amount = Decimal(str(data.get("cash_amount", 0)))
+    except (InvalidOperation, TypeError):
+        return jsonify({"ok": False, "error": "Importo contanti non valido"}), 400
+
+    if cash_amount < 0:
+        return jsonify({"ok": False, "error": "Importo contanti non valido"}), 400
+
+    if not isinstance(check_ids, list):
+        return jsonify({"ok": False, "error": "check_ids deve essere una lista"}), 400
+
+    checks = []
+    if check_ids:
+        checks = CashCheck.query.filter(CashCheck.id.in_(check_ids)).all()
+
+    found_ids = {c.id for c in checks}
+    missing_ids = [cid for cid in check_ids if cid not in found_ids]
+    if missing_ids:
+        return jsonify({
+            "ok": False,
+            "error": f"Assegni non trovati: {missing_ids}"
+        }), 400
+
+    already_taken_ids = {
+        item.check_id
+        for item in (
+            db.session.query(CashOwnerTakeCheck.check_id)
+            .join(CashOwnerTake, CashOwnerTake.id == CashOwnerTakeCheck.owner_take_id)
+            .filter(
+                CashOwnerTake.cash_day_id == row.cash_day_id,
+                CashOwnerTake.id != row.id,
+                CashOwnerTakeCheck.check_id.in_(check_ids) if check_ids else False
+            )
+            .all()
+        )
+    }
+
+    if already_taken_ids:
+        return jsonify({
+            "ok": False,
+            "error": f"Assegni già associati a un altro prelievo: {sorted(already_taken_ids)}"
+        }), 400
+
+    check_amount = Decimal("0")
+    cash_day = CashDay.query.filter(CashDay.id == row.cash_day_id).first()
+
+    for c in checks:
+        valid_status = c.status in {"received", "moved", "spostato"}
+        valid_day = c.received_date == cash_day.day_date
+        if not (valid_status and valid_day):
+            return jsonify({
+                "ok": False,
+                "error": f"Assegno {c.id} non valido per questo prelievo"
+            }), 400
+        check_amount += Decimal(str(c.amount or 0))
+
+    try:
+        row.take_type = take_type
+        row.cash_amount = cash_amount
+        row.check_amount = check_amount
+        row.notes = notes
+        row.updated_by_user_id = getattr(current_user, "id", None)
+
+        CashOwnerTakeCheck.query.filter_by(owner_take_id=row.id).delete()
+
+        for c in checks:
+            db.session.add(CashOwnerTakeCheck(
+                owner_take_id=row.id,
+                check_id=c.id,
+                check_amount=c.amount,
+            ))
+
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "owner_take_id": row.id,
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_update_owner_take error: %s", e)
+        return jsonify({
+            "ok": False,
+            "error": "Errore interno durante l'aggiornamento del prelievo"
+        }), 500

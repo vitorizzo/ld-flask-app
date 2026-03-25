@@ -126,10 +126,52 @@ const ownerTakeTotalAmountEl = document.getElementById("ownerTakeTotalAmount");
 const ownerTakeAddBtn = document.getElementById("ownerTakeAddBtn");
 
 let ownerTakeModal = null;
-
+let editingOwnerTakeId = null;
 /* =========================
    OWNER TAKES
 ========================= */
+
+function resetOwnerTakeForm() {
+  editingOwnerTakeId = null;
+
+  if (ownerTakeTypeSelect) ownerTakeTypeSelect.value = "serale";
+  if (ownerTakeCashAmountInput) ownerTakeCashAmountInput.value = "0,00";
+  if (ownerTakeNoteInput) ownerTakeNoteInput.value = "";
+
+  const addBtn = document.getElementById("ownerTakeAddBtn");
+  if (addBtn) addBtn.textContent = "Salva prelievo";
+
+  if (ownerTakeChecksTableBody) {
+    ownerTakeChecksTableBody.querySelectorAll(".owner-take-check-select").forEach(el => {
+      el.checked = false;
+    });
+  }
+
+  updateOwnerTakeTotal();
+}
+
+function startEditOwnerTake(row) {
+  editingOwnerTakeId = row.id;
+
+  if (ownerTakeTypeSelect) ownerTakeTypeSelect.value = row.take_type || "serale";
+  if (ownerTakeCashAmountInput) ownerTakeCashAmountInput.value = formatEuro2(row.cash_amount || 0);
+  if (ownerTakeNoteInput) ownerTakeNoteInput.value = row.notes || "";
+
+  const selectedIds = new Set((row.checks || []).map(x => Number(x.id)));
+
+  if (ownerTakeChecksTableBody) {
+    ownerTakeChecksTableBody.querySelectorAll(".owner-take-check-select").forEach(el => {
+      el.checked = selectedIds.has(Number(el.value));
+    });
+  }
+
+  const addBtn = document.getElementById("ownerTakeAddBtn");
+  if (addBtn) addBtn.textContent = "Salva modifica";
+
+  updateOwnerTakeTotal();
+  ownerTakeCashAmountInput?.focus();
+  ownerTakeCashAmountInput?.select?.();
+}
 
 function updateOwnerTakeTotal() {
   const cash = parseEuroToNumber(ownerTakeCashAmountInput?.value || "0");
@@ -229,7 +271,7 @@ async function loadOwnerTakes(dayStr) {
 
   ownerTakeTableBody.innerHTML = `
     <tr>
-      <td colspan="6" class="text-center text-muted">Caricamento...</td>
+      <td colspan="7" class="text-center text-muted">Caricamento...</td>
     </tr>
   `;
 
@@ -244,7 +286,7 @@ async function loadOwnerTakes(dayStr) {
     if (!r.ok || !data.ok) {
       ownerTakeTableBody.innerHTML = `
         <tr>
-          <td colspan="6" class="text-center text-danger">
+          <td colspan="7" class="text-center text-danger">
             ${escapeHtml(data.error || "Errore caricamento prelievi")}
           </td>
         </tr>
@@ -257,7 +299,7 @@ async function loadOwnerTakes(dayStr) {
     if (!rows.length) {
       ownerTakeTableBody.innerHTML = `
         <tr>
-          <td colspan="6" class="text-center text-muted">Nessun prelievo</td>
+          <td colspan="7" class="text-center text-muted">Nessun prelievo</td>
         </tr>
       `;
       return;
@@ -271,6 +313,20 @@ async function loadOwnerTakes(dayStr) {
         <td class="text-end">${formatEuro2(row.check_amount || 0)}</td>
         <td class="text-end fw-semibold">${formatEuro2(row.total_amount || 0)}</td>
         <td>${escapeHtml(row.notes || "")}</td>
+        <td class="text-end">
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-secondary btn-owner-take-edit"
+            data-row='${escapeHtml(JSON.stringify(row))}'>
+            Modifica
+          </button>
+          <button
+            type="button"
+            class="btn btn-sm btn-outline-danger btn-owner-take-delete"
+            data-id="${row.id}">
+            Elimina
+          </button>
+        </td>
       </tr>
     `).join("");
 
@@ -278,7 +334,7 @@ async function loadOwnerTakes(dayStr) {
     console.error("loadOwnerTakes error:", err);
     ownerTakeTableBody.innerHTML = `
       <tr>
-        <td colspan="6" class="text-center text-danger">Errore di rete</td>
+        <td colspan="7" class="text-center text-danger">Errore di rete</td>
       </tr>
     `;
   }
@@ -290,13 +346,10 @@ async function openOwnerTakeModal() {
     return;
   }
 
-  if (ownerTakeTypeSelect) ownerTakeTypeSelect.value = "serale";
-  if (ownerTakeCashAmountInput) ownerTakeCashAmountInput.value = "0,00";
-  if (ownerTakeNoteInput) ownerTakeNoteInput.value = "";
-
-  updateOwnerTakeTotal();
+  resetOwnerTakeForm();
   await loadOwnerTakeAvailableChecks(currentDay);
   await loadOwnerTakes(currentDay);
+  updateOwnerTakeTotal();
 
   if (!ownerTakeModal) {
     alert("Modale cassetto non disponibile.");
@@ -325,11 +378,18 @@ async function saveOwnerTake() {
     return;
   }
 
+  const isEdit = !!editingOwnerTakeId;
+  const url = isEdit
+    ? `/cassa/api/owner-takes/${editingOwnerTakeId}`
+    : `/cassa/api/day/${currentDay}/owner-takes`;
+
+  const method = isEdit ? "PUT" : "POST";
+
   try {
     if (ownerTakeAddBtn) ownerTakeAddBtn.disabled = true;
 
-    const r = await fetch(`/cassa/api/day/${currentDay}/owner-takes`, {
-      method: "POST",
+    const r = await fetch(url, {
+      method,
       headers: {
         "Content-Type": "application/json",
         "Accept": "application/json"
@@ -350,10 +410,7 @@ async function saveOwnerTake() {
       return;
     }
 
-    if (ownerTakeTypeSelect) ownerTakeTypeSelect.value = "serale";
-    if (ownerTakeCashAmountInput) ownerTakeCashAmountInput.value = "0,00";
-    if (ownerTakeNoteInput) ownerTakeNoteInput.value = "";
-
+    resetOwnerTakeForm();
     await loadOwnerTakeAvailableChecks(currentDay);
     await loadOwnerTakes(currentDay);
     updateOwnerTakeTotal();
@@ -364,6 +421,41 @@ async function saveOwnerTake() {
     alert("Errore di rete durante il salvataggio del prelievo.");
   } finally {
     if (ownerTakeAddBtn) ownerTakeAddBtn.disabled = false;
+  }
+}
+
+async function deleteOwnerTake(ownerTakeId) {
+  if (!ownerTakeId) return;
+
+  const confirmed = window.confirm("Vuoi eliminare questo prelievo?");
+  if (!confirmed) return;
+
+  try {
+    const r = await fetch(`/cassa/api/owner-takes/${ownerTakeId}`, {
+      method: "DELETE",
+      headers: { "Accept": "application/json" },
+      credentials: "same-origin"
+    });
+
+    const data = await r.json();
+
+    if (!r.ok || !data.ok) {
+      alert(data.error || "Errore eliminazione prelievo");
+      return;
+    }
+
+    if (editingOwnerTakeId && Number(editingOwnerTakeId) === Number(ownerTakeId)) {
+      resetOwnerTakeForm();
+    }
+
+    await loadOwnerTakeAvailableChecks(currentDay);
+    await loadOwnerTakes(currentDay);
+    updateOwnerTakeTotal();
+    await loadPreview(currentDay);
+
+  } catch (err) {
+    console.error("deleteOwnerTake error:", err);
+    alert("Errore di rete durante l'eliminazione del prelievo.");
   }
 }
 
@@ -1304,6 +1396,26 @@ document.addEventListener("DOMContentLoaded", function () {
 
   ownerTakeAddBtn?.addEventListener("click", async () => {
     await saveOwnerTake();
+  });
+
+  ownerTakeTableBody?.addEventListener("click", async (e) => {
+    const editBtn = e.target.closest(".btn-owner-take-edit");
+    if (editBtn) {
+      try {
+        const row = JSON.parse(editBtn.dataset.row || "{}");
+        startEditOwnerTake(row);
+      } catch (err) {
+        console.error("ownerTake edit parse error:", err);
+        alert("Errore nel caricamento del prelievo da modificare.");
+      }
+      return;
+    }
+
+    const deleteBtn = e.target.closest(".btn-owner-take-delete");
+    if (deleteBtn) {
+      const ownerTakeId = deleteBtn.dataset.id;
+      await deleteOwnerTake(ownerTakeId);
+    }
   });
 
   const opModalEl = document.getElementById("opModal");
