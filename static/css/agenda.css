@@ -245,22 +245,25 @@
 }
 
 .kpi-label {
-  font-size: 0.78rem;
+  font-size: clamp(0.70rem, 0.72rem + 0.15vw, 0.78rem);
   color: #6c757d;
   line-height: 1.15;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .kpi-num {
   font-weight: 700;
-  font-size: 1.05rem;
+  font-size: clamp(0.92rem, 0.88rem + 0.25vw, 1.05rem);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .kpi-num-big {
-  font-size: 1.45rem;
+  font-size: clamp(1.08rem, 0.98rem + 0.55vw, 1.45rem);
 }
 
 .kpi-divider-mini {
@@ -624,6 +627,16 @@
   align-items: baseline;
   gap: 10px;
   width: 100%;
+}
+
+.kpi-currency-row {
+  min-width: 0;
+}
+
+.kpi-currency-row > span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .kpi-currency-symbol {
