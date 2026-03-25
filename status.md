@@ -1,148 +1,199 @@
 # STATUS.md — v1.4
-Data aggiornamento: 2026-03-24
+Data aggiornamento: 2026-03-25
 
 ---
 
 ## 🔄 Stato generale progetto
 
-Applicazione stabile in produzione.
-Gunicorn + Nginx funzionanti.
-Migrazioni database allineate.
+Applicazione stabile in produzione.  
+Gunicorn + Nginx funzionanti.  
+Migrazioni database allineate.  
 Nessun errore bloccante in avvio applicazione.
 
 ---
 
 ## 🧾 Modulo Cassa / Agenda — Stato attuale
 
-### ✅ Completato backend
+### ✅ Backend attivo
 
-- Endpoint giornata attivo:
-  - `/cassa/api/day`
-  - `/cassa/api/day/<date>/preview`
-  - `/cassa/api/days/active`
+Sono attivi e funzionanti gli endpoint principali per:
 
-- Endpoint CRUD / lettura attivi per:
-  - incassi
-  - spese
-  - movimenti di cassa
-  - POS
-  - e-commerce
-  - conteggio fondo cassa
-  - versamenti
-  - assegni versabili
-  - saldo spicci
-
-- Calcolo centralizzato in `tools/cash_math.py` aggiornato con:
-  - `versabile_giornata`
-  - `versabile_residuo`
-  - `saldo_versabile`
-  - `saldo_attuale`
-  - `assegni_in_pancia`
-  - `massimo_contanti_incasso`
-  - `debito_contanti_incasso`
-
-- Implementata distinzione logica tra:
-  - `versamento_incasso`
-  - `versamento_intermedio`
-
-- Implementata eliminazione versamenti tramite endpoint:
-  - `DELETE /cassa/api/deposits/<deposit_id>`
-
-- L’eliminazione dei versamenti:
-  - rimuove correttamente il record dal DB
-  - ripristina lo stato assegni collegati quando presenti
-  - non è pensata per gestire casi storici complessi come richiamo / ripresentazione, che saranno trattati nella futura gestione assegni
+- gestione giornata (`/cassa/api/day`)
+- preview KPI (`/cassa/api/day/<date>/preview`)
+- incassi
+- spese
+- movimenti di cassa
+- movimenti POS
+- assegni versabili
+- banche
+- dispositivi POS / circuiti
+- conteggio fondo cassa (`drawer-count`)
+- e-commerce
+- versamenti bancari
+- corrispettivi
+- prelievi titolare / cassetto
 
 ---
 
-## 🖥️ Frontend Agenda — Stato attuale
+## ✅ Funzionalità completate lato Agenda / Cassa
 
-### ✅ Completato frontend
+### 1. KPI principali collegati al backend
 
-- Pagina agenda funzionante con:
-  - calendario laterale
-  - caricamento giornata
-  - quadranti:
-    - incassi
-    - spese
-    - movimenti cassa
-    - POS
-  - KPI in alto
-  - modali operative
+Attualmente vengono valorizzati correttamente:
 
-- Modale conteggio fondo funzionante:
-  - caricamento
-  - salvataggio
-  - eliminazione
-
-- Modale e-commerce funzionante:
-  - inserimento
-  - eliminazione
-  - aggiornamento KPI
-
-- Modale versamenti funzionante:
-  - caricamento assegni disponibili
-  - caricamento storico versamenti
-  - inserimento versamento
-  - eliminazione versamento
-  - refresh coerente senza hard refresh
-
-### ✅ Logica frontend versamenti
-
-- In modalità `versamento_incasso`:
-  - la UI mostra il massimo contanti consigliato basato su `massimo_contanti_incasso`
-  - se superato, il campo contanti viene evidenziato in rosso
-  - il superamento resta consentito come warning, non come blocco
-
-- In modalità `versamento_intermedio`:
-  - la UI mostra il massimo contanti consigliato basato su:
-    - `versabile_residuo`
-    - meno assegni odierni ancora in pancia
-  - se superato, il campo contanti viene evidenziato in rosso
-  - la logica è distinta da quella del versamento incasso
-
-- Dopo inserimento o cancellazione versamenti:
-  - lista assegni disponibili aggiornata
-  - storico versamenti aggiornato
-  - KPI aggiornati
-  - warning contanti aggiornato
-
-### ✅ KPI
-
-- KPI “Incasso” rinominato concettualmente in **Totale di Giornata**
-- Calcolo `incasso_calcolato` corretto:
-  - usa `delta_fondo` solo se esistono sia fondo iniziale sia fondo finale
-  - in mancanza di dati completi, continua a mostrare un valore indicativo
-- Badge stato presenti per:
-  - `corrispettivi`
-  - `fondo cassa`
-- Se i dati non sono completi:
-  - badge rossi bordo trasparente
-  - valore KPI mostrato come indicativo con stile attenuato
+- Versabile iniziale / attuale / odierno
+- Fondo cassa iniziale / finale / delta fondo
+- Totale giornata
+- Totale e-commerce
+- Totale versamenti
+- Corrispettivi
+- Cassetto
+- Delta quadratura
 
 ---
 
-## ⚠️ Limiti noti / comportamento voluto
+### 2. Corrispettivi
 
-- La gestione eventi assegni è ancora parziale per i vecchi assegni di test creati prima della modellazione completa della storia eventi.
-- La cancellazione del versamento è intesa come correzione di un errore di inserimento, non come annullamento logico di eventi bancari reali.
-- Richiami, ripresentazioni, insoluti, protesti e casi analoghi saranno gestiti in una fase successiva dedicata alla **storia assegni**.
-- I KPI sono ora coerenti dopo refresh applicativo lato frontend; il problema precedente era dovuto a refresh parziale del JS, non al ricalcolo backend.
+Completata la gestione dei corrispettivi con:
+
+- inserimento
+- modifica
+- eliminazione
+- formattazione importi uniforme
+- parsing corretto valori con virgola o punto
+- aggiornamento della modale e della lista storica
+- integrazione con il KPI `Corrispettivi`
+- integrazione nel calcolo preview tramite `CashReceiptClosure`
+
+---
+
+### 3. Fondo cassa
+
+Completata la gestione del fondo cassa con:
+
+- conteggio per tagli
+- totale automatico
+- salvataggio
+- eliminazione
+- aggiornamento del KPI `Fondo cassa`
+- utilizzo nel preview per il calcolo del `fondo_finale`
 
 ---
 
-## 🎯 Prossimo obiettivo
+### 4. Versamenti bancari
 
-Prossimo task: sistemazione del KPI **Quadratura**.
+Completata la gestione dei versamenti con:
 
-Obiettivi previsti del prossimo task:
-- definire con precisione la formula finale della quadratura
-- distinguere chiaramente dati certi vs dati indicativi
-- verificare il rapporto tra:
-  - incasso consegnato
-  - incasso calcolato / totale giornata
-  - fondo iniziale / finale
-  - corrispettivi
-- sistemare eventuali badge / stati visivi coerenti con quelli già introdotti nel KPI Totale di Giornata
+- versamento incasso
+- versamento intermedio
+- selezione assegni disponibili
+- totalizzazione automatica
+- eliminazione versamento
+- ripristino stato assegni collegati alla cancellazione
+- aggiornamento preview e KPI
 
 ---
+
+### 5. Prelievi titolare / Cassetto
+
+Completata la nuova gestione del cassetto tramite tabella dedicata ai prelievi titolare.
+
+Funzionalità attive:
+
+- selezione tipo prelievo:
+  - `parziale`
+  - `serale`
+- inserimento contanti
+- selezione assegni ricevuti in giornata ancora disponibili
+- totalizzazione automatica contanti + assegni
+- storicizzazione dei prelievi
+- modifica prelievo (`PUT`)
+- eliminazione prelievo (`DELETE`)
+- gestione corretta dei collegamenti con `CashOwnerTakeCheck`
+- aggiornamento KPI `Cassetto`
+- integrazione nel preview con:
+  - `owner_take_cash_amount`
+  - `owner_take_check_amount`
+  - `incasso_consegnato`
+
+---
+
+### 6. Quadratura
+
+Completato primo affinamento della quadratura:
+
+- il valore viene mostrato solo quando esistono i dati minimi necessari
+- in assenza dei dati necessari viene mostrato `-`
+- aggiunta logica visuale a soglie
+- aggiunti LED di stato per la quadratura
+
+Soglie attuali:
+
+- rosso: quadratura < -5,00
+- giallo: -5,00 <= quadratura < -2,00
+- verde: -2,00 <= quadratura <= 2,00
+- giallo: 2,00 < quadratura <= 5,00
+- rosso: quadratura > 5,00
+
+---
+
+## ✅ Frontend / UI completata
+
+### Modali attive e funzionanti
+
+- operazioni incasso / spesa
+- ricerca e creazione cliente
+- fondo cassa
+- e-commerce
+- versamenti
+- corrispettivi
+- cassetto / prelievi titolare
+
+---
+
+### KPI card
+
+Le card KPI sono state ristrutturate per mostrare i valori in formato:
+
+- simbolo euro fisso a sinistra
+- importo dinamico a destra
+
+È stato individuato e corretto un errore HTML strutturale in una card KPI che alterava il layout.
+
+---
+
+## ⚠️ Stato reale del modulo
+
+Il modulo Agenda / Cassa è ora ad uno stato molto più avanzato e già utilizzabile per test funzionali concreti.
+
+Tuttavia:
+
+- sono emersi ulteriori bug e omissioni
+- alcune rifiniture UI / logiche restano da completare
+- è necessario aprire una nuova sessione di lavoro per gestire in modo pulito:
+  - bug residui
+  - mancanze funzionali
+  - eventuali rifiniture della quadratura
+  - eventuali CRUD mancanti in altre sezioni
+
+---
+
+## 📌 Appunti per la prossima chat
+
+Nella prossima chat si ripartirà dal modulo Agenda / Cassa per:
+
+- elenco bug trovati durante i test
+- elenco omissioni funzionali residue
+- eventuali correzioni UI
+- eventuale completamento della porzione quadratura
+- verifica finale di coerenza tra KPI, preview e dati persistiti
+
+---
+
+## 🧭 Note operative
+
+Nessuna modifica necessaria a `project_map.md` in questa fase.
+
+Lo stato del progetto va aggiornato solo in `STATUS.md`.
+
+La prossima chat dovrà partire in modalità repo, leggendo i file necessari prima di proporre modifiche strutturali o nomi di variabili.

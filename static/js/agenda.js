@@ -1426,6 +1426,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
+  // KPI eCommerce → apertura modale
+  const kpiEcommerceBox = document.getElementById("kpiEcommerceBox");
+  if (kpiEcommerceBox) {
+    kpiEcommerceBox.addEventListener("click", () => {
+      openEcommerceModal();
+    });
+  }
+
   decorateMonth(calendarInstance.currentYear, calendarInstance.currentMonth);
   loadDay(toLocalYMD(new Date()));
   startAssegniAutoRefresh();
