@@ -84,6 +84,52 @@ function setIndicativeState(id, isIndicative) {
   el.classList.toggle("kpi-num-indicative", !!isIndicative);
 }
 
+function updateQuadraturaLeds(delta) {
+  const leds = {
+    redLeft: document.getElementById("ledQuadraturaRedLeft"),
+    yellowLeft: document.getElementById("ledQuadraturaYellowLeft"),
+    green: document.getElementById("ledQuadraturaGreen"),
+    yellowRight: document.getElementById("ledQuadraturaYellowRight"),
+    redRight: document.getElementById("ledQuadraturaRedRight"),
+  };
+
+  // reset
+  Object.values(leds).forEach(el => {
+    if (!el) return;
+    el.classList.remove("on");
+  });
+
+  if (delta === null || delta === undefined) return;
+
+  const d = Number(delta);
+
+  // soglie (puoi cambiarle dopo)
+  if (Math.abs(d) <= 2) {
+    leds.green?.classList.add("on");
+    return;
+  }
+
+  if (d > 2 && d <= 10) {
+    leds.yellowRight?.classList.add("on");
+    return;
+  }
+
+  if (d < -2 && d >= -10) {
+    leds.yellowLeft?.classList.add("on");
+    return;
+  }
+
+  if (d > 10) {
+    leds.redRight?.classList.add("on");
+    return;
+  }
+
+  if (d < -10) {
+    leds.redLeft?.classList.add("on");
+    return;
+  }
+}
+
 /* =========================
    API HELPERS
 ========================= */
@@ -564,6 +610,7 @@ async function loadPreview(dateStr) {
     const hasFondoIniziale = !!t.has_fondo_iniziale;
     const hasFondoFinale = !!t.has_fondo_finale;
     const totaleGiornataIsPartial = !!t.totale_giornata_is_partial;
+    const hasQuadratura = hasCorrispettivi && hasFondoIniziale && hasFondoFinale;
 
     setText("kpiSaldoVersabileInit", _fmt2(sPrev));
     setText("kpiSaldoVersabileNew", _fmt2(s));
@@ -579,7 +626,16 @@ async function loadPreview(dateStr) {
     setIndicativeState("kpiIC", totaleGiornataIsPartial);
 
     setText("kpiDeltaFondo", _fmt2(df));
-    setText("kpiDeltaQuadratura", _fmt2(dq));
+
+    const dqEl = document.getElementById("kpiDeltaQuadratura");
+
+    if (!hasQuadratura) {
+      if (dqEl) dqEl.textContent = "--";
+      updateQuadraturaLeds(null);
+    } else {
+      if (dqEl) dqEl.textContent = _fmt2(dq);
+      updateQuadraturaLeds(Number(dq));
+    }
 
     setText("kpiTotEcommerce", _fmt2(totEcommerce));
     setText("kpiTotVersamenti", _fmt2(totVers));

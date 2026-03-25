@@ -669,6 +669,38 @@ def api_cash_day_preview(day_date):
     result["owner_take_check_amount"] = float(totale_owner_take_checks)
     result["total_corrispettivi"] = float(totale_corrispettivi)
 
+    has_owner_take_rows = (
+        db.session.query(func.count(CashOwnerTake.id))
+        .filter(CashOwnerTake.cash_day_id == cash_day.id)
+        .scalar()
+    ) > 0
+
+    quadratura_available = bool(
+        has_owner_take_rows
+        and result.get("has_corrispettivi")
+        and result.get("has_fondo_iniziale")
+        and result.get("has_fondo_finale")
+    )
+
+    if quadratura_available:
+        dq = Decimal(str(result.get("delta_quadratura", 0)))
+
+        if dq < Decimal("-5.00"):
+            quadratura_led = "red_low"
+        elif dq < Decimal("-2.00"):
+            quadratura_led = "yellow_low"
+        elif dq <= Decimal("2.00"):
+            quadratura_led = "green"
+        elif dq <= Decimal("5.00"):
+            quadratura_led = "yellow_high"
+        else:
+            quadratura_led = "red_high"
+    else:
+        quadratura_led = "off"
+
+    result["quadratura_available"] = quadratura_available
+    result["quadratura_led"] = quadratura_led
+
     totale_ecommerce = (
         db.session.query(func.coalesce(func.sum(CashEcommerce.amount), 0))
         .filter(CashEcommerce.cash_day_id == cash_day.id)

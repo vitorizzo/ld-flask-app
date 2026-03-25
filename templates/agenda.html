@@ -224,9 +224,21 @@
                   <div class="kpi-split-divider"></div>
 
                   <div class="kpi-side kpi-side-right">
-                    <div class="kpi-metric">
-                      <div class="kpi-label">Δ Quadratura</div>
+                    <div class="kpi-metric" id="kpiDeltaQuadraturaBox">
+                      <div class="kpi-label d-flex justify-content-between align-items-center">
+                        <span>Δ Quadratura</span>
+                        <i class="fa-solid fa-scale-balanced kpi-delta-quadratura-box-icon"></i>
+                      </div>
+
                       <div class="kpi-num kpi-num-big" id="kpiDeltaQuadratura">—</div>
+
+                      <div class="quadratura-leds mt-2" id="quadraturaLeds">
+                        <span class="quadratura-led" id="ledQuadraturaRedLeft"></span>
+                        <span class="quadratura-led" id="ledQuadraturaYellowLeft"></span>
+                        <span class="quadratura-led" id="ledQuadraturaGreen"></span>
+                        <span class="quadratura-led" id="ledQuadraturaYellowRight"></span>
+                        <span class="quadratura-led" id="ledQuadraturaRedRight"></span>
+                      </div>
                     </div>
                   </div>
                 </div>
