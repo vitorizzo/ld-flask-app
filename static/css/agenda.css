@@ -573,7 +573,7 @@
    QUADRATURA LED
 ========================= */
 
-.kpi-led-row {
+.quadratura-leds {
   display: flex;
   justify-content: center;
   align-items: center;
@@ -581,7 +581,7 @@
   margin-top: 10px;
 }
 
-.kpi-led {
+.quadratura-led {
   width: 12px;
   height: 12px;
   border-radius: 50%;
@@ -594,7 +594,7 @@
   transition: all 0.18s ease;
 }
 
-.kpi-led-red.on {
+.quadratura-led.is-red.on {
   background: #dc3545;
   opacity: 1;
   box-shadow:
@@ -602,7 +602,7 @@
     0 0 14px rgba(220,53,69,0.40);
 }
 
-.kpi-led-yellow.on {
+.quadratura-led.is-yellow.on {
   background: #ffc107;
   opacity: 1;
   box-shadow:
@@ -610,7 +610,7 @@
     0 0 14px rgba(255,193,7,0.40);
 }
 
-.kpi-led-green.on {
+.quadratura-led.is-green.on {
   background: #198754;
   opacity: 1;
   box-shadow:

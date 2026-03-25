@@ -122,7 +122,17 @@
                   <div class="kpi-side">
                     <div class="kpi-metric">
                       <div class="kpi-label">iniziale</div>
-                      <div class="kpi-num" id="kpiFondoIniziale">—</div>
+                      <!--- <div class="kpi-num" id="kpiFondoIniziale">—</div> --->
+                      <div class="input-group">
+                        <span class="input-group-text">€</span>
+                        <input
+                          type="text"
+                          class="kpi-num"
+                          id="kpiFondoIniziale"
+                          inputmode="decimal"
+                          autocomplete="off"
+                          placeholder="0,00">
+                      </div>
                     </div>
                     <div class="kpi-divider-mini"></div>
                     <div class="kpi-metric" id="kpiFondoCard" title="Clicca per inserire fondo cassa">
@@ -233,11 +243,11 @@
                       <div class="kpi-num kpi-num-big" id="kpiDeltaQuadratura">—</div>
 
                       <div class="quadratura-leds mt-2" id="quadraturaLeds">
-                        <span class="quadratura-led" id="ledQuadraturaRedLeft"></span>
-                        <span class="quadratura-led" id="ledQuadraturaYellowLeft"></span>
-                        <span class="quadratura-led" id="ledQuadraturaGreen"></span>
-                        <span class="quadratura-led" id="ledQuadraturaYellowRight"></span>
-                        <span class="quadratura-led" id="ledQuadraturaRedRight"></span>
+                        <span class="quadratura-led is-red" id="ledQuadraturaRedLeft"></span>
+                        <span class="quadratura-led is-yellow" id="ledQuadraturaYellowLeft"></span>
+                        <span class="quadratura-led is-green" id="ledQuadraturaGreen"></span>
+                        <span class="quadratura-led is-yellow" id="ledQuadraturaYellowRight"></span>
+                        <span class="quadratura-led is-red" id="ledQuadraturaRedRight"></span>
                       </div>
                     </div>
                   </div>
