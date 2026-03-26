@@ -2097,6 +2097,7 @@ def api_delete_ecommerce(ecommerce_id):
         logger.exception("api_delete_ecommerce error: %s", e)
         return jsonify({"ok": False, "error": "Internal error while deleting ecommerce row"}), 500
 
+
 @cassa_bp.get("/api/day/<day_date>/deposit-available-checks")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
@@ -2190,6 +2191,7 @@ def api_available_checks_for_deposit(day_date):
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_create_deposit(day_date):
     from models import CashDeposit, CashDepositCheck
+
     data = request.get_json() or {}
 
     try:
@@ -2198,12 +2200,27 @@ def api_create_deposit(day_date):
         return jsonify({"ok": False, "error": "Invalid date"}), 400
 
     deposit_type = data.get("deposit_type")
-    cash_amount = Decimal(str(data.get("cash_amount", 0)))
     note = data.get("note")
     check_ids = data.get("check_ids", [])
+    bank_id = data.get("bank_id")
+
+    try:
+        cash_amount = Decimal(str(data.get("cash_amount", 0)))
+    except (InvalidOperation, TypeError):
+        return jsonify({"ok": False, "error": "Importo contanti non valido"}), 400
+
+    if cash_amount < 0:
+        return jsonify({"ok": False, "error": "Importo contanti non valido"}), 400
 
     if deposit_type not in ["versamento_incasso", "versamento_intermedio"]:
         return jsonify({"ok": False, "error": "Tipo versamento non valido"}), 400
+
+    if not bank_id:
+        return jsonify({"ok": False, "error": "Banca versamento obbligatoria"}), 400
+
+    bank = CashBank.query.filter_by(id=bank_id, is_active=True).first()
+    if not bank:
+        return jsonify({"ok": False, "error": "Banca non valida"}), 400
 
     day = CashDay.query.filter_by(day_date=d).first()
     if not day:
@@ -2235,6 +2252,7 @@ def api_create_deposit(day_date):
         deposit_date=d,
         deposit_type=deposit_type,
         cash_amount=cash_amount,
+        bank_id=bank.id,
         note=note,
     )
     db.session.add(deposit)
@@ -2253,7 +2271,7 @@ def api_create_deposit(day_date):
             new_status="deposited",
             user_id=getattr(current_user, "id", None),
             event_date=d,
-            note=f"Versamento {deposit_type}",
+            note=f"Versamento {deposit_type} su {bank.name}",
         )
 
     db.session.commit()
@@ -2278,6 +2296,7 @@ def api_list_deposits(day_date):
     cash_day = (
         CashDay.query
         .options(
+            selectinload(CashDay.deposits).selectinload(CashDeposit.bank),
             selectinload(CashDay.deposits)
             .selectinload(CashDeposit.checks)
             .selectinload(CashDepositCheck.check)
@@ -2327,6 +2346,8 @@ def api_list_deposits(day_date):
             "cash_amount": float(dep_cash),
             "checks_total": float(dep_checks_total),
             "total_amount": float(dep_cash + dep_checks_total),
+            "bank_id": dep.bank_id,
+            "bank_name": dep.bank.name if dep.bank else None,
             "note": dep.note,
             "checks": checks,
             "created_at": dep.created_at.isoformat() if dep.created_at else None,
@@ -2368,6 +2389,7 @@ def api_update_deposit(deposit_id):
     deposit_type = (data.get("deposit_type") or "").strip()
     note = (data.get("note") or "").strip() or None
     check_ids = data.get("check_ids") or []
+    bank_id = data.get("bank_id")
 
     try:
         cash_amount = Decimal(str(data.get("cash_amount", 0)))
@@ -2382,6 +2404,13 @@ def api_update_deposit(deposit_id):
 
     if not isinstance(check_ids, list):
         return jsonify({"ok": False, "error": "check_ids deve essere una lista"}), 400
+
+    if not bank_id:
+        return jsonify({"ok": False, "error": "Banca versamento obbligatoria"}), 400
+
+    bank = CashBank.query.filter_by(id=bank_id, is_active=True).first()
+    if not bank:
+        return jsonify({"ok": False, "error": "Banca non valida"}), 400
 
     day_date = deposit.deposit_date
     cutoff = next_banking_day(day_date)
@@ -2462,13 +2491,14 @@ def api_update_deposit(deposit_id):
                     new_status="deposited",
                     user_id=getattr(current_user, "id", None),
                     event_date=day_date,
-                    note=f"Modifica versamento {deposit_type}",
+                    note=f"Modifica versamento {deposit_type} su {bank.name}",
                     amount_spese=Decimal("0"),
                     customer_charge_amount=Decimal("0"),
                 )
 
         deposit.deposit_type = deposit_type
         deposit.cash_amount = cash_amount
+        deposit.bank_id = bank.id
         deposit.note = note
 
         db.session.commit()

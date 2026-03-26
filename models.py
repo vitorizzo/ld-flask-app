@@ -1438,6 +1438,9 @@ class CashDeposit(db.Model):
     # Contanti versati in questo versamento (gli assegni sono gestiti via tabella ponte)
     cash_amount = db.Column(db.Numeric(12, 2), nullable=False, default=0)
 
+    bank_id = db.Column(db.Integer, db.ForeignKey("cash_banks.id"), nullable=True, index=True)
+    bank = db.relationship("CashBank")
+
     note = db.Column(db.Text, nullable=True)
 
     created_at = db.Column(
