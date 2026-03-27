@@ -542,6 +542,7 @@ const depositChecksHint = document.getElementById("depositChecksHint");
 const depositChecksTableBody = document.getElementById("depositChecksTableBody");
 const depositTableBody = document.getElementById("depositTableBody");
 const depositAddBtn = document.getElementById("depositAddBtn");
+const depositBankSelect = document.getElementById("depositBank");
 
 let depositModal = null;
 let editingDepositId = null;
@@ -1902,6 +1903,55 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  async function loadDepositBanks() {
+  if (!depositBankSelect) return;
+
+  depositBankSelect.innerHTML = `<option value="">Seleziona...</option>`;
+
+  try {
+    const banks = await fetchBanksRaw();
+    let defaultId = "";
+
+    banks.forEach(b => {
+      const opt = document.createElement("option");
+      opt.value = String(b.id);
+      opt.textContent = b.name;
+      depositBankSelect.appendChild(opt);
+
+      if (b.is_default) {
+        defaultId = String(b.id);
+      }
+    });
+
+    if (defaultId) {
+      depositBankSelect.value = defaultId;
+    }
+  } catch (err) {
+    console.error("loadDepositBanks error:", err);
+  }
+}
+
+function resetDepositForm() {
+  editingDepositId = null;
+
+  if (depositTypeSelect) depositTypeSelect.value = "versamento_incasso";
+  if (depositDateInput) depositDateInput.value = currentDay || "";
+  if (depositCashAmountInput) depositCashAmountInput.value = "0,00";
+  if (depositNoteInput) depositNoteInput.value = "";
+  if (depositTotalAmountInput) depositTotalAmountInput.value = "0,00";
+
+  if (depositChecksTableBody) {
+    depositChecksTableBody.querySelectorAll(".deposit-check-select").forEach(el => {
+      el.checked = false;
+    });
+  }
+
+  if (depositAddBtn) depositAddBtn.textContent = "Salva versamento";
+
+  updateDepositTotal();
+  updateDepositCashUi();
+}
+
   function updateMultiRowFields(row) {
     const method = row.querySelector(".multi-method")?.value || "cash";
 
@@ -2185,10 +2235,14 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
+      const bankName = dep.bank_name || "-";
+
       depositTableBody.innerHTML = rows.map(row => `
+
         <tr data-deposit-id="${row.id}">
           <td>${escapeHtml(row.deposit_date || "")}</td>
           <td>${escapeHtml(row.deposit_type || "")}</td>
+          <td>${escapeHtml(bankName)}</td>
           <td class="text-end">${formatEuro2(row.cash_amount || 0)}</td>
           <td class="text-end">${formatEuro2(row.checks_total || 0)}</td>
           <td class="text-end fw-semibold">${formatEuro2(row.total_amount || 0)}</td>
@@ -2242,7 +2296,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     resetDepositForm();
-
+    loadDepositBanks();
     await loadAvailableDepositChecks(currentDay);
     await loadDeposits(currentDay);
     updateDepositTotal();
@@ -2265,6 +2319,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const depositType = depositTypeSelect?.value || "";
     const cashAmount = parseEuroToNumber(depositCashAmountInput?.value || "0");
     const note = (depositNoteInput?.value || "").trim() || null;
+    const bankId = Number(depositBankSelect?.value || 0);
 
     const checkIds = Array.from(
       depositChecksTableBody?.querySelectorAll(".deposit-check-select:checked") || []
@@ -2272,6 +2327,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (!depositType) {
       alert("Seleziona un tipo di versamento.");
+      return;
+    }
+
+    if (!bankId) {
+      alert("Seleziona la banca del versamento.");
       return;
     }
 
@@ -2301,7 +2361,8 @@ document.addEventListener("DOMContentLoaded", function () {
           deposit_type: depositType,
           cash_amount: cashAmount,
           note,
-          check_ids: checkIds
+          check_ids: checkIds,
+          bank_id: bankId
         })
       });
 
@@ -2313,6 +2374,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       resetDepositForm();
+      await loadBanks(depositBankSelect)
       await loadAvailableDepositChecks(currentDay);
       await loadDeposits(currentDay);
       await loadPreview(currentDay);
