@@ -976,47 +976,34 @@
       <div class="modal-body">
 
         <!-- FORM INSERIMENTO -->
-        <div class="row g-3 mb-3">
-          <div class="col-12 col-md-3">
-            <label class="form-label">Tipo versamento</label>
-            <select class="form-select" id="depositType">
-              <option value="versamento_incasso">Versamento incasso</option>
-              <option value="versamento_intermedio">Versamento intermedio</option>
-            </select>
+        <div class="row g-2 mb-3">
+          <div class="col-md-4">
+            <input type="number" step="0.01" class="form-control" id="ecoAmount" placeholder="Importo">
           </div>
+          <div class="col-md-6">
+            <input type="text" class="form-control" id="ecoDescription" placeholder="Descrizione">
+          </div>
+          <div class="col-md-2 d-grid">
+            <button class="btn btn-primary" id="ecoAddBtn">Aggiungi</button>
+          </div>
+        </div>
 
-          <div class="col-12 col-md-3">
-            <label class="form-label">Data versamento</label>
-            <input type="date" class="form-control" id="depositDate">
-          </div>
-
-          <div class="col-12 col-md-3">
-            <label class="form-label">Banca</label>
-            <select class="form-select" id="depositBank">
-              <option value="">Seleziona...</option>
-            </select>
-          </div>
-
-          <div class="col-12 col-md-3">
-            <label class="form-label">Contanti</label>
-            <div class="input-group">
-              <span class="input-group-text">€</span>
-              <input type="text" class="form-control text-end" id="depositCashAmount" placeholder="0,00" inputmode="decimal">
-            </div>
-          </div>
-
-          <div class="col-12 col-md-3">
-            <label class="form-label">Totale versamento</label>
-            <div class="input-group">
-              <span class="input-group-text">€</span>
-              <input type="text" class="form-control text-end" id="depositTotalAmount" readonly>
-            </div>
-          </div>
-
-          <div class="col-12 col-md-9">
-            <label class="form-label">Nota</label>
-            <input type="text" class="form-control" id="depositNote" placeholder="Note versamento">
-          </div>
+        <!-- TABELLA -->
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th>Descrizione</th>
+                <th class="text-end">Importo</th>
+                <th style="width: 80px;"></th>
+              </tr>
+            </thead>
+            <tbody id="ecoTableBody">
+              <tr>
+                <td colspan="3" class="text-center text-muted">Nessun movimento</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
       </div>
@@ -1053,12 +1040,17 @@
 
           <div class="col-12 col-md-3">
             <label class="form-label">Data versamento</label>
-            <input type="date" class="form-control" id="depositDate">
+            <input
+              type="date"
+              class="form-control"
+              id="depositDate"
+              readonly
+            >
           </div>
 
           <div class="col-12 col-md-3">
             <label class="form-label">Banca</label>
-            <select class="form-select" id="depositBankSelect">
+            <select class="form-select" id="depositBank">
               <option value="">Seleziona...</option>
             </select>
           </div>
@@ -1067,7 +1059,12 @@
             <label class="form-label">Contanti</label>
             <div class="input-group">
               <span class="input-group-text">€</span>
-              <input type="text" class="form-control text-end" id="depositCashAmount" placeholder="0,00" inputmode="decimal">
+              <input
+                type="text"
+                class="form-control text-end"
+                id="depositCashAmount"
+                placeholder="0,00"
+                inputmode="decimal">
             </div>
           </div>
 
@@ -1075,7 +1072,11 @@
             <label class="form-label">Totale versamento</label>
             <div class="input-group">
               <span class="input-group-text">€</span>
-              <input type="text" class="form-control text-end" id="depositTotalAmount" readonly>
+              <input
+                type="text"
+                class="form-control text-end"
+                id="depositTotalAmount"
+                readonly>
             </div>
           </div>
 
