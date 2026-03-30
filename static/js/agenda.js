@@ -1878,29 +1878,37 @@ document.addEventListener("DOMContentLoaded", function () {
     return data.banks || [];
   }
 
-  async function loadBanks(selectEl = bankSelect) {
-    if (!selectEl) return;
-
-    selectEl.innerHTML = `<option value="">Seleziona...</option>`;
-
+  async function loadBanks() {
     try {
-      const banks = await fetchBanksRaw();
-      let defaultId = "";
+      const res = await fetch("/cassa/api/banks", { credentials: "same-origin" });
+      const data = await res.json();
 
-      banks.forEach(b => {
+      if (!data.ok) return;
+
+      const depositBankSelect = document.getElementById("depositBank");
+      depositBankSelect.innerHTML = '<option value="">Seleziona...</option>';
+
+      let defaultBankId = null;
+
+      data.banks.forEach(b => {
         const opt = document.createElement("option");
-        opt.value = String(b.id);
+        opt.value = b.id;
         opt.textContent = b.name;
-        selectEl.appendChild(opt);
 
-        if (b.is_default) defaultId = String(b.id);
+        if (b.is_default) {
+          defaultBankId = b.id;
+        }
+
+        depositBankSelect.appendChild(opt);
       });
 
-      if (defaultId) {
-        selectEl.value = defaultId;
+      // 👉 applico il default DOPO aver creato tutte le option
+      if (defaultBankId) {
+        depositBankSelect.value = String(defaultBankId);
       }
+
     } catch (err) {
-      console.error("loadBanks error:", err);
+      console.error("Errore caricamento banche:", err);
     }
   }
 
