@@ -1919,7 +1919,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     try {
       const banks = await fetchBanksRaw();
-      let defaultId = "";
+      let defaultId = null;
 
       banks.forEach(b => {
         const opt = document.createElement("option");
@@ -1932,11 +1932,17 @@ document.addEventListener("DOMContentLoaded", function () {
         }
       });
 
-      if (selectedBankId != null && selectedBankId !== "") {
-        depositBankSelect.value = String(selectedBankId);
-      } else if (defaultId) {
-        depositBankSelect.value = defaultId;
+      const finalValue = selectedBankId != null && String(selectedBankId).trim() !== ""
+        ? String(selectedBankId)
+        : defaultId;
+
+      if (finalValue) {
+        depositBankSelect.value = finalValue;
       }
+
+      console.log("depositBank options:", banks);
+      console.log("depositBank selected:", depositBankSelect.value);
+
     } catch (err) {
       console.error("loadDepositBanks error:", err);
     }
@@ -2266,10 +2272,12 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    await loadDepositBanks();
     resetDepositForm();
+
+    await loadDepositBanks();
     await loadAvailableDepositChecks(currentDay);
     await loadDeposits(currentDay);
+
     updateDepositTotal();
     updateDepositCashUi();
 
@@ -3177,14 +3185,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
         editingDepositId = row.id;
 
-        await loadDepositBanks(row.bank_id);
-
         if (depositTypeSelect) depositTypeSelect.value = row.deposit_type || "versamento_incasso";
         if (depositDateInput) depositDateInput.value = row.deposit_date || currentDay;
         if (depositCashAmountInput) depositCashAmountInput.value = formatEuro2(row.cash_amount || 0);
         if (depositNoteInput) depositNoteInput.value = row.note || "";
         if (depositAddBtn) depositAddBtn.textContent = "Salva modifica";
 
+        await loadDepositBanks(row.bank_id);
         await loadAvailableDepositChecks(currentDay);
 
         const selectedIds = new Set((row.checks || []).map(x => String(x.id)));
