@@ -96,10 +96,18 @@ def calculate_closure_pure(
     Calcolo chiusura giornaliera (solo DB aziendale).
 
     NOTE (allineate ai tuoi esempi):
-    - Q = contanti_fisici + assegni_odierni (*)   [incassi odierni versabili]
+    - Q = contanti_fisici + corrispettivi + assegni_odierni (*)
     - S_new = S_prev + Q + assegni_postdatati (**) - totale_versato_oggi
-    - Q_residua = Q - versamenti_intermedi_oggi  (cash + assegni nei deposit_type='versamento_intermedio')
+    - Q_residua = Q - versamenti_intermedi_oggi - eventuale debito_contanti_incasso
     - incasso_consegnato != totale_versato (restano separati)
+
+    Regola importante:
+    - il debito_contanti_incasso NON deve sparire se dopo registri nuovi incassi.
+      Quindi va calcolato confrontando:
+        contanti versati come "versamento_incasso"
+      vs
+        massimo contanti incassabili storico della giornata
+        (= saldo_versabile_precedente - assegni_in_pancia)
     """
     opening_float = _d(opening_float)
     total_corrispettivi = _d(total_corrispettivi)
@@ -155,7 +163,6 @@ def calculate_closure_pure(
 
     # =========================
     # ASSEGNI: odierni (*) e postdatati (**)
-    # (flag sul pagamento, come da tua regola)
     # =========================
     assegni_odierni = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashSalePayment.amount), 0))
@@ -180,7 +187,7 @@ def calculate_closure_pure(
     )
 
     # =========================
-    # VERSAMENTI (cash_deposits + tabella ponte assegni)
+    # VERSAMENTI TOTALI DEL GIORNO
     # =========================
     depositi_cash_oggi = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashDeposit.cash_amount), 0))
@@ -196,7 +203,9 @@ def calculate_closure_pure(
 
     totale_versato_oggi = depositi_cash_oggi + depositi_assegni_oggi
 
-    # solo versamenti intermedi (per Q residua)
+    # =========================
+    # SOLO VERSAMENTI INTERMEDI
+    # =========================
     depositi_intermedi_cash = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashDeposit.cash_amount), 0))
         .filter(
@@ -218,43 +227,86 @@ def calculate_closure_pure(
     totale_versato_intermedio = depositi_intermedi_cash + depositi_intermedi_assegni
 
     # =========================
+    # SOLO VERSAMENTI INCASSO
+    # =========================
+    depositi_incasso_cash = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashDeposit.cash_amount), 0))
+        .filter(
+            CashDeposit.cash_day_id == cash_day_id,
+            CashDeposit.deposit_type == "versamento_incasso",
+        )
+    )
+
+    depositi_incasso_assegni = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
+        .join(CashDepositCheck, CashDepositCheck.check_id == CashCheck.id)
+        .join(CashDeposit, CashDeposit.id == CashDepositCheck.deposit_id)
+        .filter(
+            CashDeposit.cash_day_id == cash_day_id,
+            CashDeposit.deposit_type == "versamento_incasso",
+        )
+    )
+
+    totale_versato_incasso = depositi_incasso_cash + depositi_incasso_assegni
+
+    # =========================
     # ASSEGNI ANCORA IN PANCIA
-    # solo assegni realmente detenuti
     # =========================
     assegni_in_pancia = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
         .filter(CashCheck.status.in_(["received", "moved"]))
     )
 
-    # Q (incasso odierno versabile)
-    versabile_giornata = contanti_fisici + assegni_odierni
+    # =========================
+    # Q = versabile odierno
+    # Punto 8: includo i corrispettivi
+    # =========================
+    versabile_giornata = contanti_fisici + total_corrispettivi + assegni_odierni
 
     # =========================
-    # SALDO ATTUALE E DEBITO CONTANTI DA VERSAMENTO INCASSO
+    # MASSIMO CONTANTI INCASSO STORICO
+    # Basato sullo "zaino" preesistente:
+    # saldo precedente - assegni ancora in pancia
     # =========================
-    saldo_attuale = saldo_versabile_precedente + versabile_giornata + assegni_postdatati - totale_versato_oggi
-
-    massimo_contanti_incasso = saldo_attuale - assegni_in_pancia
-
-    debito_contanti_incasso = Decimal("0.00")
-    if massimo_contanti_incasso < 0:
-        debito_contanti_incasso = -massimo_contanti_incasso
+    massimo_contanti_incasso = saldo_versabile_precedente - assegni_in_pancia
+    if massimo_contanti_incasso < Decimal("0.00"):
+        massimo_contanti_incasso = Decimal("0.00")
 
     # =========================
-    # FORMULE
+    # Punto 7:
+    # debito storico sui contanti versati come versamento_incasso
+    # Questo NON deve dipendere dai nuovi incassi registrati dopo.
+    # =========================
+    debito_contanti_incasso = depositi_incasso_cash - massimo_contanti_incasso
+    if debito_contanti_incasso < Decimal("0.00"):
+        debito_contanti_incasso = Decimal("0.00")
+
+    # =========================
+    # SALDO ATTUALE / SALDO VERSABILE
+    # =========================
+    saldo_attuale = (
+        saldo_versabile_precedente
+        + versabile_giornata
+        + assegni_postdatati
+        - totale_versato_oggi
+    )
+
+    saldo_versabile = saldo_attuale
+
+    # =========================
+    # Q residua:
+    # - tolgo i versamenti intermedi del giorno
+    # - tolgo l'eventuale debito contanti da versamento incasso
+    # =========================
+    versabile_residuo = versabile_giornata - totale_versato_intermedio - debito_contanti_incasso
+
+    # =========================
+    # Incasso / quadratura
     # =========================
     if has_fondo_iniziale and has_fondo_finale:
         incasso_calcolato = contanti_fisici + total_corrispettivi - delta_fondo
     else:
         incasso_calcolato = contanti_fisici + total_corrispettivi
-
-    # S (saldo “in pancia” a fine giornata)
-    saldo_versabile = saldo_attuale
-
-    # Q residua:
-    # - tolgo i versamenti intermedi del giorno
-    # - tolgo l'eventuale debito contanti generato da versamenti incasso oltre soglia
-    versabile_residuo = versabile_giornata - totale_versato_intermedio - debito_contanti_incasso
 
     delta_quadratura = incasso_consegnato - incasso_calcolato
     anomalia = abs(delta_quadratura) > tolleranza
@@ -288,7 +340,14 @@ def calculate_closure_pure(
         "depositi_cash_oggi": depositi_cash_oggi,
         "depositi_assegni_oggi": depositi_assegni_oggi,
         "totale_versato_oggi": totale_versato_oggi,
+
+        "depositi_intermedi_cash": depositi_intermedi_cash,
+        "depositi_intermedi_assegni": depositi_intermedi_assegni,
         "totale_versato_intermedio": totale_versato_intermedio,
+
+        "depositi_incasso_cash": depositi_incasso_cash,
+        "depositi_incasso_assegni": depositi_incasso_assegni,
+        "totale_versato_incasso": totale_versato_incasso,
 
         "saldo_versabile": saldo_versabile,
 
@@ -302,5 +361,5 @@ def calculate_closure_pure(
         "has_fondo_finale": has_fondo_finale,
         "totale_giornata_is_partial": totale_giornata_is_partial,
 
-        "note": "Calcolo DB + versamenti (CashDeposit). Flag +/x ignorati qui.",
+        "note": "Calcolo DB + versamenti (CashDeposit). Corrispettivi inclusi in Q. Debito contanti incasso reso persistente rispetto ai nuovi incassi.",
     }
