@@ -1224,9 +1224,28 @@ def api_create_sale(day_date):
                 pos_circuit_id = p.get("pos_circuit_id")
                 if not pos_device_id or not pos_circuit_id:
                     raise ValueError(f"Missing POS device/circuit at row {idx}")
+
                 _validate_pos_pair(pos_device_id, pos_circuit_id)
-                payment.pos_device_id = pos_device_id
-                payment.pos_circuit_id = pos_circuit_id
+
+                # 1) il pagamento resta un CashSalePayment di tipo POS
+                #    ma non porta più in sé device/circuit
+                # 2) il movimento reale vive in PosMove
+                # 3) il legame payment <-> pos_move vive nella tabella ponte
+
+                pos_move = PosMove(
+                    cash_day_id=cash_day.id,
+                    created_by_user_id=getattr(current_user, "id", None),
+                    direction="in",
+                    amount=amount,
+                    pos_device_id=pos_device_id,
+                    pos_circuit_id=pos_circuit_id,
+                    doc_ref="INCASSO",
+                    notes=description,
+                )
+                db.session.add(pos_move)
+                db.session.flush()
+
+                payment.pos_moves.append(pos_move)
 
             elif method == "bank":
                 bank_id = p.get("bank_id")

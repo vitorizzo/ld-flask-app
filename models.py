@@ -1210,6 +1210,12 @@ class CashSalePayment(db.Model):
     pos_device = db.relationship("PosDevice")
     pos_circuit = db.relationship("PosCircuit")
     bank = db.relationship("CashBank")
+    pos_links = db.relationship(
+        "CashSalePaymentPosMove",
+        back_populates="sale_payment",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
 
 
 class CashExpensePayment(db.Model):
@@ -1287,6 +1293,12 @@ class PosMove(db.Model):
     created_by = db.relationship("User", backref="pos_moves")
     pos_device = db.relationship("PosDevice")
     pos_circuit = db.relationship("PosCircuit")
+    sale_payment_links = db.relationship(
+        "CashSalePaymentPosMove",
+        back_populates="pos_move",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
 
     __table_args__ = (
         CheckConstraint("amount >= 0", name="ck_pos_move_amount_nonneg"),
@@ -1953,3 +1965,45 @@ class CashOwnerTakeCheck(db.Model):
 
     def __repr__(self):
         return f"<CashOwnerTakeCheck owner_take_id={self.owner_take_id} check_id={self.check_id}>"
+
+class CashSalePaymentPosMove(db.Model):
+    __tablename__ = "cash_sale_payment_pos_moves"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "sale_payment_id",
+            "pos_move_id",
+            name="uq_sale_payment_pos_move"
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    sale_payment_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cash_sale_payments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    pos_move_id = db.Column(
+        db.Integer,
+        db.ForeignKey("pos_moves.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    sale_payment = db.relationship(
+        "CashSalePayment",
+        back_populates="pos_links"
+    )
+
+    pos_move = db.relationship(
+        "PosMove",
+        back_populates="sale_payment_links"
+    )
