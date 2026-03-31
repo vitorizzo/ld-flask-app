@@ -325,13 +325,19 @@
           <div class="col-12 col-xl-6">
             <div class="card shadow-sm h-100">
               <div class="card-header d-flex align-items-center justify-content-between header-pos">
-                <span class="fw-semibold">POS</span>
-                <span class="text-muted small">Totale: <span class="fw-semibold" id="totPos">0,00</span></span>
-              </div>
-              <div class="card-body p-0">
-                <div class="list-group list-group-flush" id="posList">
-                  <div class="list-group-item text-muted small">Nessun dato (V1)</div>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="fw-semibold">POS</span>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary"
+                    id="btnOpenPosModal"
+                    title="Nuovo movimento POS"
+                  >
+                    <i class="fa-solid fa-plus"></i>
+                  </button>
                 </div>
+
+                <span class="text-muted small">Totale: <span class="fw-semibold" id="totPos">0,00</span></span>
               </div>
             </div>
           </div>
@@ -1353,6 +1359,99 @@
 
       <div class="modal-footer">
         <button class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODALE POS -->
+<div class="modal fade agenda-modal" id="posModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Movimento POS</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row g-3">
+
+          <div class="col-12 col-md-4">
+            <label class="form-label" for="posMoveDate">Data</label>
+            <input
+              type="date"
+              class="form-control"
+              id="posMoveDate"
+              readonly
+            >
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label" for="posMoveType">Tipo operazione</label>
+            <select class="form-select" id="posMoveType">
+              <option value="incasso" selected>Incasso</option>
+              <option value="storno">Storno</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label" for="posMoveAmount">Importo</label>
+            <div class="input-group">
+              <span class="input-group-text">€</span>
+              <input
+                type="text"
+                class="form-control text-end"
+                id="posMoveAmount"
+                placeholder="0,00"
+                inputmode="decimal"
+                autocomplete="off"
+              >
+            </div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label" for="posMoveDevice">POS utilizzato</label>
+            <select class="form-select" id="posMoveDevice">
+              <option value="">Seleziona...</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label" for="posMoveCircuit">Circuito</label>
+            <select class="form-select" id="posMoveCircuit" disabled>
+              <option value="">Seleziona...</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label" for="posMoveDocRef">Tipo transazione</label>
+            <select class="form-select" id="posMoveDocRef">
+              <option value="">Seleziona...</option>
+              <option value="CORRISPETTIVO">Corrispettivo</option>
+              <option value="ECOMMERCE">Ecommerce</option>
+              <option value="FATTURA">Fattura</option>
+              <option value="ALTRO">Altro</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-8">
+            <label class="form-label" for="posMoveNotes">Dettagli operazione</label>
+            <input
+              type="text"
+              class="form-control"
+              id="posMoveNotes"
+              placeholder="Descrizione / dettagli operazione"
+            >
+          </div>
+
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-primary" id="posMoveSaveBtn">Salva</button>
       </div>
 
     </div>
