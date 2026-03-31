@@ -1356,8 +1356,6 @@ def api_list_sales(day_date):
                 "amount": float(p.amount or 0),
                 "flag": p.flag,
                 "description": p.description,
-                "pos_device_id": p.pos_device_id,
-                "pos_circuit_id": p.pos_circuit_id,
                 "created_at": p.created_at.isoformat() if p.created_at else None,
             })
         items.append({
