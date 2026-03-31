@@ -1201,14 +1201,10 @@ class CashSalePayment(db.Model):
 
     flag = db.Column(db.String(2), nullable=False, default="*")
 
-    pos_device_id = db.Column(db.Integer, db.ForeignKey("pos_devices.id"), nullable=True)
-    pos_circuit_id = db.Column(db.Integer, db.ForeignKey("pos_circuits.id"), nullable=True)
     bank_id = db.Column(db.Integer, db.ForeignKey("cash_banks.id"), nullable=True)
 
     description = db.Column(db.String(255), nullable=True)
 
-    pos_device = db.relationship("PosDevice")
-    pos_circuit = db.relationship("PosCircuit")
     bank = db.relationship("CashBank")
     pos_links = db.relationship(
         "CashSalePaymentPosMove",
