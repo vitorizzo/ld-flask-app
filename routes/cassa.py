@@ -20,7 +20,7 @@ from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment, CashExpensePayment, \
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
     CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashOwnerTake, CashOwnerTakeCheck, \
-    CashReceiptClosure
+    CashReceiptClosure, CashSalePaymentPosMove
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
@@ -1245,7 +1245,12 @@ def api_create_sale(day_date):
                 db.session.add(pos_move)
                 db.session.flush()
 
-                payment.pos_moves.append(pos_move)
+                db.session.add(
+                    CashSalePaymentPosMove(
+                        sale_payment=payment,
+                        pos_move=pos_move,
+                    )
+                )
 
             elif method == "bank":
                 bank_id = p.get("bank_id")
