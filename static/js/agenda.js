@@ -3139,19 +3139,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const rect = btn.getBoundingClientRect();
 
-    posList?.addEventListener("click", (e) => {
-  const btn = e.target.closest(".btn-row-menu");
-  if (!btn) return;
-
-  e.preventDefault();
-  e.stopPropagation();
-
-  const row = btn.closest(".pos-row");
-  if (!row) return;
-
-  const rect = btn.getBoundingClientRect();
-
-  openContextMenu(rect.left + window.scrollX, rect.bottom + window.scrollY, {
+    openContextMenu(rect.left + window.scrollX, rect.bottom + window.scrollY, {
       type: "pos_move",
       id: Number(row.dataset.posMoveId)
     });
