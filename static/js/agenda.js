@@ -1899,7 +1899,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-    function resetPosModalForm() {
+  function resetPosModalForm() {
     if (posMoveDateInput) {
       posMoveDateInput.value = currentDay || "";
     }
@@ -1950,6 +1950,79 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     posModal.show();
+  }
+
+  async function savePosMove() {
+    if (!currentDay) {
+      alert("Nessuna giornata selezionata.");
+      return;
+    }
+
+    const moveType = (posMoveTypeSelect?.value || "incasso").trim();
+    const posDeviceId = Number(posMoveDeviceSelect?.value || 0);
+    const posCircuitId = Number(posMoveCircuitSelect?.value || 0);
+    const docRef = (posMoveDocRefSelect?.value || "").trim() || null;
+    const notes = (posMoveNotesInput?.value || "").trim() || null;
+
+    let amount = parseEuroToNumber(posMoveAmountInput?.value || "0");
+
+    if (amount <= 0) {
+      alert("Inserisci un importo valido.");
+      return;
+    }
+
+    if (!posDeviceId) {
+      alert("Seleziona il POS utilizzato.");
+      return;
+    }
+
+    if (!posCircuitId) {
+      alert("Seleziona il circuito.");
+      return;
+    }
+
+    if (moveType === "storno") {
+      amount = -amount;
+    }
+
+    try {
+      if (posMoveSaveBtn) posMoveSaveBtn.disabled = true;
+
+      const r = await fetch(`/cassa/api/day/${currentDay}/pos_moves`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          pos_device_id: posDeviceId,
+          pos_circuit_id: posCircuitId,
+          amount: amount,
+          doc_ref: docRef,
+          notes: notes
+        })
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore salvataggio movimento POS");
+        return;
+      }
+
+      if (posModal) {
+        posModal.hide();
+      }
+
+      await refreshAgendaData();
+
+    } catch (err) {
+      console.error("savePosMove error:", err);
+      alert("Errore di rete durante il salvataggio del movimento POS.");
+    } finally {
+      if (posMoveSaveBtn) posMoveSaveBtn.disabled = false;
+    }
   }
 
   async function fetchBanksRaw() {
@@ -3383,6 +3456,10 @@ document.addEventListener("DOMContentLoaded", function () {
       refreshSingleAmountFields();
       updatePaymentState();
     });
+  });
+
+  posMoveSaveBtn?.addEventListener("click", async () => {
+    await savePosMove();
   });
 
   posDeviceSelect?.addEventListener("change", async (e) => {
