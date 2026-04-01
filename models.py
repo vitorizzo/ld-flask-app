@@ -2003,3 +2003,35 @@ class CashSalePaymentPosMove(db.Model):
         "PosMove",
         back_populates="sale_payment_links"
     )
+
+
+class CashRowCheck(db.Model):
+    __tablename__ = "cash_row_checks"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    # riferimento alla giornata (utile per query veloci per quadrante)
+    cash_day_id = db.Column(db.Integer, db.ForeignKey("cash_days.id"), nullable=False, index=True)
+
+    # tipo entità (pos_move, cash_move, sale, expense, ecc.)
+    entity_type = db.Column(db.String(50), nullable=False, index=True)
+
+    # id della riga nella tabella originale
+    entity_id = db.Column(db.Integer, nullable=False, index=True)
+
+    # stato check
+    is_checked = db.Column(db.Boolean, nullable=False, default=True)
+
+    # auditing
+    checked_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    checked_at = db.Column(db.DateTime, nullable=True)
+
+    # opzionale per futuro (note controllo)
+    note = db.Column(db.String(255), nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("entity_type", "entity_id", name="uq_cash_row_check_entity"),
+    )

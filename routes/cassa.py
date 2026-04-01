@@ -3054,3 +3054,94 @@ def api_update_owner_take(owner_take_id):
             "ok": False,
             "error": "Errore interno durante l'aggiornamento del prelievo"
         }), 500
+
+    @cassa_bp.post("/api/row-check/toggle")
+    @login_required
+    @role_required(min_weight=MIN_AGENDA_WEIGHT)
+    def api_toggle_row_check():
+        data = request.get_json(silent=True) or {}
+
+        entity_type = (data.get("entity_type") or "").strip()
+        entity_id = data.get("entity_id")
+        cash_day_id = data.get("cash_day_id")
+
+        if not entity_type or not entity_id or not cash_day_id:
+            return jsonify({"ok": False, "error": "Missing parameters"}), 400
+
+        try:
+            entity_id = int(entity_id)
+            cash_day_id = int(cash_day_id)
+        except ValueError:
+            return jsonify({"ok": False, "error": "Invalid ids"}), 400
+
+        row = CashRowCheck.query.filter_by(
+            entity_type=entity_type,
+            entity_id=entity_id
+        ).first()
+
+        try:
+            if row:
+                # toggle
+                row.is_checked = not row.is_checked
+                row.checked_by_user_id = getattr(current_user, "id", None)
+                row.checked_at = datetime.utcnow() if row.is_checked else None
+            else:
+                # crea check
+                row = CashRowCheck(
+                    cash_day_id=cash_day_id,
+                    entity_type=entity_type,
+                    entity_id=entity_id,
+                    is_checked=True,
+                    checked_by_user_id=getattr(current_user, "id", None),
+                    checked_at=datetime.utcnow(),
+                )
+                db.session.add(row)
+
+            db.session.commit()
+
+            return jsonify({
+                "ok": True,
+                "entity_id": entity_id,
+                "is_checked": row.is_checked
+            })
+
+        except Exception as e:
+            db.session.rollback()
+            logger.exception("api_toggle_row_check error: %s", e)
+            return jsonify({"ok": False, "error": "Internal error"}), 500
+
+        @cassa_bp.get("/api/row-checks")
+        @login_required
+        @role_required(min_weight=MIN_AGENDA_WEIGHT)
+        def api_get_row_checks():
+            cash_day_id = request.args.get("cash_day_id")
+            entity_type = (request.args.get("entity_type") or "").strip()
+
+            if not cash_day_id or not entity_type:
+                return jsonify({"ok": False, "error": "Missing parameters"}), 400
+
+            try:
+                cash_day_id = int(cash_day_id)
+            except ValueError:
+                return jsonify({"ok": False, "error": "Invalid cash_day_id"}), 400
+
+            rows = (
+                CashRowCheck.query
+                .filter_by(
+                    cash_day_id=cash_day_id,
+                    entity_type=entity_type
+                )
+                .all()
+            )
+
+            return jsonify({
+                "ok": True,
+                "checks": [
+                    {
+                        "entity_id": r.entity_id,
+                        "is_checked": r.is_checked
+                    }
+                    for r in rows
+                ]
+            })
+
