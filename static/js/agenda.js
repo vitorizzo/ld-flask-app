@@ -3131,12 +3131,27 @@ document.addEventListener("DOMContentLoaded", function () {
     const btn = e.target.closest(".btn-row-menu");
     if (!btn) return;
 
+    e.preventDefault();
+    e.stopPropagation();
+
     const row = btn.closest(".pos-row");
     if (!row) return;
 
     const rect = btn.getBoundingClientRect();
 
-    openContextMenu(rect.left, rect.bottom, {
+    posList?.addEventListener("click", (e) => {
+  const btn = e.target.closest(".btn-row-menu");
+  if (!btn) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  const row = btn.closest(".pos-row");
+  if (!row) return;
+
+  const rect = btn.getBoundingClientRect();
+
+  openContextMenu(rect.left + window.scrollX, rect.bottom + window.scrollY, {
       type: "pos_move",
       id: Number(row.dataset.posMoveId)
     });
@@ -3165,9 +3180,9 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   document.addEventListener("click", (e) => {
-    if (!e.target.closest("#contextMenu")) {
-      closeContextMenu();
-    }
+    if (e.target.closest("#contextMenu")) return;
+    if (e.target.closest(".btn-row-menu")) return;
+    closeContextMenu();
   });
 
   document.addEventListener("scroll", closeContextMenu);
