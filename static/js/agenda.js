@@ -156,6 +156,23 @@ async function fetchCustomerSuggest(q) {
 }
 
 /* =========================
+   POS MODAL REFS
+========================= */
+
+const posModalEl = document.getElementById("posModal");
+const posMoveDateInput = document.getElementById("posMoveDate");
+const posMoveTypeSelect = document.getElementById("posMoveType");
+const posMoveDeviceSelect = document.getElementById("posMoveDevice");
+const posMoveCircuitSelect = document.getElementById("posMoveCircuit");
+const posMoveAmountInput = document.getElementById("posMoveAmount");
+const posMoveDocRefSelect = document.getElementById("posMoveDocRef");
+const posMoveNotesInput = document.getElementById("posMoveNotes");
+const posMoveSaveBtn = document.getElementById("posMoveSaveBtn");
+const btnOpenPosModal = document.getElementById("btnOpenPosModal");
+
+let posModal = null;
+
+/* =========================
    OWNER TAKE MODAL REFS
 ========================= */
 
@@ -1458,6 +1475,14 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
+  btnOpenPosModal?.addEventListener("click", async () => {
+    await openPosModal();
+  });
+
+  posMoveDeviceSelect?.addEventListener("change", async (e) => {
+    await loadPosCircuits(e.target.value, posMoveCircuitSelect);
+  });
+
   const kpiEcommerceBox = document.getElementById("kpiEcommerceBox");
   if (kpiEcommerceBox) {
     kpiEcommerceBox.addEventListener("click", () => {
@@ -1474,6 +1499,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   normalizeCurrencyInput(ownerTakeCashAmountInput);
+
+  normalizeCurrencyInput(posMoveAmountInput);
 
   document.getElementById("kpiCassettoBox")?.addEventListener("click", async () => {
     await openOwnerTakeModal();
@@ -1538,6 +1565,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (drawerModalEl) {
     drawerModal = new bootstrap.Modal(drawerModalEl);
+  }
+
+  if (posModalEl) {
+    posModal = new bootstrap.Modal(posModalEl);
   }
 
   if (ecommerceModalEl) {
@@ -1866,6 +1897,59 @@ document.addEventListener("DOMContentLoaded", function () {
     } catch (err) {
       console.error("loadPosDevices error:", err);
     }
+  }
+
+    function resetPosModalForm() {
+    if (posMoveDateInput) {
+      posMoveDateInput.value = currentDay || "";
+    }
+
+    if (posMoveTypeSelect) {
+      posMoveTypeSelect.value = "incasso";
+    }
+
+    if (posMoveAmountInput) {
+      posMoveAmountInput.value = "0,00";
+    }
+
+    if (posMoveDocRefSelect) {
+      posMoveDocRefSelect.value = "";
+    }
+
+    if (posMoveNotesInput) {
+      posMoveNotesInput.value = "";
+    }
+
+    if (posMoveDeviceSelect) {
+      posMoveDeviceSelect.innerHTML = `<option value="">Seleziona...</option>`;
+    }
+
+    if (posMoveCircuitSelect) {
+      posMoveCircuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
+      posMoveCircuitSelect.disabled = true;
+    }
+  }
+
+  async function openPosModal() {
+    if (!currentDay) {
+      alert("Nessuna giornata selezionata.");
+      return;
+    }
+
+    resetPosModalForm();
+
+    if (posMoveDateInput) {
+      posMoveDateInput.value = currentDay;
+    }
+
+    await loadPosDevices(posMoveDeviceSelect, true, posMoveCircuitSelect);
+
+    if (!posModal) {
+      alert("Modale POS non disponibile.");
+      return;
+    }
+
+    posModal.show();
   }
 
   async function fetchBanksRaw() {
