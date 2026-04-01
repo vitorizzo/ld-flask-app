@@ -1241,6 +1241,58 @@ async function loadSpese(dayStr) {
   }
 }
 
+async function fetchRowChecks(cashDayId, entityType) {
+  if (!cashDayId || !entityType) return new Map();
+
+  try {
+    const r = await fetch(
+      `/cassa/api/row-checks?cash_day_id=${encodeURIComponent(cashDayId)}&entity_type=${encodeURIComponent(entityType)}`,
+      {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" },
+        cache: "no-store"
+      }
+    );
+
+    const data = await r.json();
+
+    if (!r.ok || !data.ok) {
+      return new Map();
+    }
+
+    return new Map(
+      (data.checks || []).map(row => [Number(row.entity_id), !!row.is_checked])
+    );
+  } catch (err) {
+    console.error("fetchRowChecks error:", err);
+    return new Map();
+  }
+}
+
+async function toggleRowCheck(entityType, entityId, cashDayId) {
+  const r = await fetch("/cassa/api/row-check/toggle", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    credentials: "same-origin",
+    body: JSON.stringify({
+      entity_type: entityType,
+      entity_id: entityId,
+      cash_day_id: cashDayId
+    })
+  });
+
+  const data = await r.json();
+
+  if (!r.ok || !data.ok) {
+    throw new Error(data.error || "Errore toggle check");
+  }
+
+  return data;
+}
+
 async function loadPosMoves(dayStr) {
   const listEl = document.getElementById("posList");
   const totalEl = document.getElementById("totPos");
@@ -1250,8 +1302,12 @@ async function loadPosMoves(dayStr) {
   if (totalEl) totalEl.textContent = "0,00";
 
   try {
-    const r = await fetch(`/cassa/api/day/${dayStr}/pos_moves`, { credentials: "same-origin" });
-    const data = await r.json();
+    const [movesRes, checksMap] = await Promise.all([
+      fetch(`/cassa/api/day/${dayStr}/pos_moves`, { credentials: "same-origin" }),
+      fetchRowChecks(Number(document.getElementById("dayId")?.textContent || 0), "pos_move")
+    ]);
+
+    const data = await movesRes.json();
 
     if (!data.ok) {
       listEl.innerHTML = `<div class="list-group-item text-muted small">Errore: ${data.error || "impossibile caricare POS"}</div>`;
@@ -1268,6 +1324,7 @@ async function loadPosMoves(dayStr) {
       const a = Number(m.amount || 0);
       return s + (m.direction === "in" ? a : -a);
     }, 0);
+
     if (totalEl) totalEl.textContent = tot.toFixed(2).replace(".", ",");
 
     listEl.innerHTML = moves.map(m => {
@@ -1290,9 +1347,19 @@ async function loadPosMoves(dayStr) {
       const badgeInner = logoPath ? logoImg : iconFallback;
       const badge = `<span class="badge badge-soft badge-icon">${badgeInner}</span>`;
       const desc = m.doc_ref ? escapeHtml(m.doc_ref) : devName;
+      const isChecked = checksMap.get(Number(m.id)) === true;
 
       return `
-        <div class="list-group-item table-row" data-pos-move-id="${m.id}">
+        <div class="list-group-item table-row pos-row ${isChecked ? "row-checked" : ""}" data-pos-move-id="${m.id}">
+          <div class="col-check me-2">
+            <input
+              type="checkbox"
+              class="form-check-input pos-row-check"
+              data-entity-type="pos_move"
+              data-entity-id="${m.id}"
+              ${isChecked ? "checked" : ""}
+            >
+          </div>
           <div class="col-desc">
             <span class="flag"></span>
             <span class="desc">${desc}</span>
@@ -3499,6 +3566,38 @@ document.addEventListener("DOMContentLoaded", function () {
     const box = document.getElementById("opOffCashBox");
     if (!box) return;
     box.classList.toggle("d-none", !e.target.checked);
+  });
+
+  document.getElementById("posList")?.addEventListener("change", async (e) => {
+    const checkbox = e.target.closest(".pos-row-check");
+    if (!checkbox) return;
+
+    const entityType = checkbox.dataset.entityType;
+    const entityId = Number(checkbox.dataset.entityId);
+    const cashDayId = Number(document.getElementById("dayId")?.textContent || 0);
+
+    if (!entityType || !entityId || !cashDayId) {
+      alert("Dati check riga non validi");
+      return;
+    }
+
+    const rowEl = checkbox.closest(".pos-row");
+    const newState = checkbox.checked;
+
+    checkbox.disabled = true;
+
+    try {
+      const result = await toggleRowCheck(entityType, entityId, cashDayId);
+
+      checkbox.checked = !!result.is_checked;
+      rowEl?.classList.toggle("row-checked", !!result.is_checked);
+    } catch (err) {
+      console.error("toggle POS row check error:", err);
+      checkbox.checked = !newState;
+      alert(err.message || "Errore durante il salvataggio della spunta");
+    } finally {
+      checkbox.disabled = false;
+    }
   });
 
   saveBtn?.addEventListener("click", () => {

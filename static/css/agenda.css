@@ -648,3 +648,7 @@
   flex: 1 1 auto;
   text-align: right;
 }
+
+.row-checked {
+  opacity: 0.65;
+}
