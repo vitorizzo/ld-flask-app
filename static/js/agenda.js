@@ -1366,6 +1366,9 @@ async function loadPosMoves(dayStr) {
           </div>
           <div class="col-badges">${badge}</div>
           <div class="col-amt">${amt}</div>
+          <div class="col-actions">
+            <button class="btn btn-sm btn-light btn-row-menu">...</button>
+          </div>
         </div>
       `;
     }).join("");
@@ -3108,6 +3111,68 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  const posList = document.getElementById("posList");
+
+  posList?.addEventListener("contextmenu", (e) => {
+    const row = e.target.closest(".pos-row");
+    if (!row) return;
+
+    e.preventDefault();
+
+    const entityId = row.dataset.posMoveId;
+
+    openContextMenu(e.pageX, e.pageY, {
+      type: "pos_move",
+      id: Number(entityId)
+    });
+  });
+
+  posList?.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn-row-menu");
+    if (!btn) return;
+
+    const row = btn.closest(".pos-row");
+    if (!row) return;
+
+    const rect = btn.getBoundingClientRect();
+
+    openContextMenu(rect.left, rect.bottom, {
+      type: "pos_move",
+      id: Number(row.dataset.posMoveId)
+    });
+  });
+
+  document.getElementById("contextMenu")?.addEventListener("click", (e) => {
+    const item = e.target.closest(".context-menu-item");
+    if (!item || item.classList.contains("disabled")) return;
+
+    const action = item.dataset.action;
+    if (!currentContext) return;
+
+    console.log("ACTION:", action, currentContext);
+
+    switch (action) {
+      case "delete":
+        alert(`Delete ${currentContext.type} ${currentContext.id}`);
+        break;
+
+      case "edit":
+        alert(`Edit ${currentContext.type} ${currentContext.id}`);
+        break;
+    }
+
+    closeContextMenu();
+  });
+
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#contextMenu")) {
+      closeContextMenu();
+    }
+  });
+
+  document.addEventListener("scroll", closeContextMenu);
+
+
   (function initCustomerNewModal() {
     const btnOpen = document.getElementById("btnCustomerNew");
     const modalEl = document.getElementById("customerNewModal");
@@ -3696,3 +3761,24 @@ ecoTableBody?.addEventListener("click", async (e) => {
     alert("Errore di rete");
   }
 });
+
+let currentContext = null;
+
+function openContextMenu(x, y, context) {
+  const menu = document.getElementById("contextMenu");
+  if (!menu) return;
+
+  currentContext = context;
+
+  menu.style.left = x + "px";
+  menu.style.top = y + "px";
+  menu.classList.remove("d-none");
+}
+
+function closeContextMenu() {
+  const menu = document.getElementById("contextMenu");
+  if (!menu) return;
+
+  menu.classList.add("d-none");
+  currentContext = null;
+}
