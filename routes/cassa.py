@@ -20,7 +20,7 @@ from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment, CashExpensePayment, \
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
     CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashOwnerTake, CashOwnerTakeCheck, \
-    CashReceiptClosure, CashSalePaymentPosMove
+    CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
@@ -3055,6 +3055,7 @@ def api_update_owner_take(owner_take_id):
             "error": "Errore interno durante l'aggiornamento del prelievo"
         }), 500
 
+
 @cassa_bp.post("/api/row-check/toggle")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
@@ -3110,38 +3111,39 @@ def api_toggle_row_check():
         logger.exception("api_toggle_row_check error: %s", e)
         return jsonify({"ok": False, "error": "Internal error"}), 500
 
-    @cassa_bp.get("/api/row-checks")
-    @login_required
-    @role_required(min_weight=MIN_AGENDA_WEIGHT)
-    def api_get_row_checks():
-        cash_day_id = request.args.get("cash_day_id")
-        entity_type = (request.args.get("entity_type") or "").strip()
 
-        if not cash_day_id or not entity_type:
-            return jsonify({"ok": False, "error": "Missing parameters"}), 400
+@cassa_bp.get("/api/row-checks")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_get_row_checks():
+    cash_day_id = request.args.get("cash_day_id")
+    entity_type = (request.args.get("entity_type") or "").strip()
 
-        try:
-            cash_day_id = int(cash_day_id)
-        except ValueError:
-            return jsonify({"ok": False, "error": "Invalid cash_day_id"}), 400
+    if not cash_day_id or not entity_type:
+        return jsonify({"ok": False, "error": "Missing parameters"}), 400
 
-        rows = (
-            CashRowCheck.query
-            .filter_by(
-                cash_day_id=cash_day_id,
-                entity_type=entity_type
-            )
-            .all()
+    try:
+        cash_day_id = int(cash_day_id)
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid cash_day_id"}), 400
+
+    rows = (
+        CashRowCheck.query
+        .filter_by(
+            cash_day_id=cash_day_id,
+            entity_type=entity_type
         )
+        .all()
+    )
 
-        return jsonify({
-            "ok": True,
-            "checks": [
-                {
-                    "entity_id": r.entity_id,
-                    "is_checked": r.is_checked
-                }
-                for r in rows
-            ]
-        })
+    return jsonify({
+        "ok": True,
+        "checks": [
+            {
+                "entity_id": r.entity_id,
+                "is_checked": r.is_checked
+            }
+            for r in rows
+        ]
+    })
 
