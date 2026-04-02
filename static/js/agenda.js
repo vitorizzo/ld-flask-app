@@ -3236,62 +3236,92 @@ document.addEventListener("DOMContentLoaded", function () {
   const posList = document.getElementById("posList");
 
   posList?.addEventListener("contextmenu", (e) => {
-    const row = e.target.closest(".pos-row");
-    if (!row) return;
+  const row = e.target.closest(".pos-row");
+  if (!row) return;
 
-    e.preventDefault();
+  e.preventDefault();
 
-    const entityId = row.dataset.posMoveId;
-
-    openContextMenu(e.pageX, e.pageY, {
-      type: "pos_move",
-      id: Number(entityId)
-    });
+  openContextMenu(e.clientX, e.clientY, {
+    type: "pos_move",
+    id: Number(row.dataset.posMoveId),
+    panel: "pos",
+    menuMode: "panel"
   });
+});
 
-  posList?.addEventListener("click", (e) => {
-    const btn = e.target.closest(".btn-row-menu");
-    if (!btn) return;
+posList?.addEventListener("click", (e) => {
+  const btn = e.target.closest(".btn-row-menu");
+  if (!btn) return;
 
-    e.preventDefault();
-    e.stopPropagation();
+  e.preventDefault();
+  e.stopPropagation();
 
-    const row = btn.closest(".pos-row");
-    if (!row) return;
+  const row = btn.closest(".pos-row");
+  if (!row) return;
 
-    const rect = btn.getBoundingClientRect();
+  const rect = btn.getBoundingClientRect();
 
-    openContextMenu(rect.left + window.scrollX, rect.bottom + window.scrollY, {
-      type: "pos_move",
-      id: Number(row.dataset.posMoveId)
-    });
+  openContextMenu(rect.right - 8, rect.bottom + 4, {
+    type: "pos_move",
+    id: Number(row.dataset.posMoveId),
+    panel: "pos",
+    menuMode: "row"
   });
+});
 
-  document.getElementById("contextMenu")?.addEventListener("click", (e) => {
+  document.getElementById("contextMenu")?.addEventListener("click", async (e) => {
     const item = e.target.closest(".context-menu-item");
     if (!item || item.classList.contains("disabled")) return;
-
-    const action = item.dataset.action;
     if (!currentContext) return;
 
-    console.log("ACTION:", action, currentContext);
+    const action = item.dataset.action;
 
-    switch (action) {
+    try {
+      switch (action) {
+        case "edit":
+          alert(`Edit ${currentContext.type} ${currentContext.id}`);
+          break;
 
-      case "delete":
-        if (currentContext.type === "pos_move") {
-          deletePosMove(currentContext.id);
-        }
-        break;
+        case "delete":
+          if (currentContext.type === "pos_move") {
+            const confirmed = window.confirm("Vuoi eliminare questo movimento POS?");
+            if (!confirmed) return;
 
-      case "edit":
-        if (currentContext.type === "pos_move") {
-          openEditPosModal(currentContext.id);
-        }
-        break;
+            const r = await fetch(`/cassa/api/pos_moves/${currentContext.id}`, {
+              method: "DELETE",
+              headers: { "Accept": "application/json" },
+              credentials: "same-origin"
+            });
+
+            const data = await r.json();
+
+            if (!r.ok || !data.ok) {
+              alert(data.error || "Errore eliminazione movimento POS");
+              return;
+            }
+
+            await refreshAgendaData();
+          }
+          break;
+
+        case "filter_device":
+          alert("Filtro per device: prossimo step");
+          break;
+
+        case "filter_circuit":
+          alert("Filtro per circuito: prossimo step");
+          break;
+
+        case "clear_filters":
+          alert("Reset filtri: prossimo step");
+          break;
+      }
+    } catch (err) {
+      console.error("context menu action error:", err);
+      alert("Errore durante l'azione richiesta");
+    } finally {
+      closeContextMenu();
     }
-
-    closeContextMenu();
   });
 
   document.addEventListener("click", (e) => {
@@ -3894,15 +3924,100 @@ ecoTableBody?.addEventListener("click", async (e) => {
 
 let currentContext = null;
 
+function buildContextMenuHtml(context) {
+  const isRowMenu = context?.menuMode === "row";
+  const isPanelMenu = context?.menuMode === "panel";
+  const entityType = context?.type || "";
+
+  const rowActions = [];
+  const panelActions = [];
+  const globalActions = [];
+
+  if (entityType === "pos_move") {
+    rowActions.push(
+      `<button type="button" class="context-menu-item" data-action="edit">Modifica</button>`,
+      `<button type="button" class="context-menu-item danger" data-action="delete">Elimina</button>`
+    );
+
+    if (!isRowMenu) {
+      panelActions.push(
+        `<button type="button" class="context-menu-item" data-action="filter_device">Filtra per device</button>`,
+        `<button type="button" class="context-menu-item" data-action="filter_circuit">Filtra per circuito</button>`,
+        `<button type="button" class="context-menu-item" data-action="clear_filters">Rimuovi filtri</button>`
+      );
+    }
+  }
+
+  if (!rowActions.length && !panelActions.length && !globalActions.length) {
+    return `<div class="context-menu-empty">Nessuna azione disponibile</div>`;
+  }
+
+  const sections = [];
+
+  if (rowActions.length) {
+    sections.push(`
+      <div class="context-menu-section">
+        <div class="context-menu-section-title">Azioni riga</div>
+        ${rowActions.join("")}
+      </div>
+    `);
+  }
+
+  if (panelActions.length) {
+    sections.push(`
+      <div class="context-menu-section">
+        <div class="context-menu-section-title">Filtri quadrante</div>
+        ${panelActions.join("")}
+      </div>
+    `);
+  }
+
+  if (globalActions.length) {
+    sections.push(`
+      <div class="context-menu-section">
+        <div class="context-menu-section-title">Altro</div>
+        ${globalActions.join("")}
+      </div>
+    `);
+  }
+
+  return sections.join(`<div class="context-menu-separator"></div>`);
+}
+
 function openContextMenu(x, y, context) {
   const menu = document.getElementById("contextMenu");
   if (!menu) return;
 
   currentContext = context;
+  menu.innerHTML = buildContextMenuHtml(context);
 
-  menu.style.left = x + "px";
-  menu.style.top = y + "px";
   menu.classList.remove("d-none");
+  menu.style.visibility = "hidden";
+  menu.style.left = "0px";
+  menu.style.top = "0px";
+
+  const menuRect = menu.getBoundingClientRect();
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const gap = 8;
+
+  let left = x;
+  let top = y;
+
+  if (left + menuRect.width > vw - gap) {
+    left = vw - menuRect.width - gap;
+  }
+
+  if (top + menuRect.height > vh - gap) {
+    top = vh - menuRect.height - gap;
+  }
+
+  if (left < gap) left = gap;
+  if (top < gap) top = gap;
+
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+  menu.style.visibility = "visible";
 }
 
 function closeContextMenu() {
@@ -3910,5 +4025,6 @@ function closeContextMenu() {
   if (!menu) return;
 
   menu.classList.add("d-none");
+  menu.style.visibility = "";
   currentContext = null;
 }
