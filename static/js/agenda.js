@@ -3067,6 +3067,35 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  async function deletePosMove(posMoveId) {
+    if (!posMoveId) return;
+
+    const confirmed = window.confirm("Vuoi eliminare questo movimento POS?");
+    if (!confirmed) return;
+
+    try {
+      const r = await fetch(`/cassa/api/pos_moves/${posMoveId}`, {
+        method: "DELETE",
+        headers: { "Accept": "application/json" },
+        credentials: "same-origin"
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore eliminazione movimento POS");
+        return;
+      }
+
+      // refresh UI
+      await refreshAgendaData();
+
+    } catch (err) {
+      console.error("deletePosMove error:", err);
+      alert("Errore di rete durante l'eliminazione.");
+    }
+  }
+
   async function saveOperation() {
     if (!currentDay) {
       alert("Nessuna giornata selezionata.");
@@ -3155,8 +3184,11 @@ document.addEventListener("DOMContentLoaded", function () {
     console.log("ACTION:", action, currentContext);
 
     switch (action) {
+
       case "delete":
-        alert(`Delete ${currentContext.type} ${currentContext.id}`);
+        if (currentContext.type === "pos_move") {
+          deletePosMove(currentContext.id);
+        }
         break;
 
       case "edit":

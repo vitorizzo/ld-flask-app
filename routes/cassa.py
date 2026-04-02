@@ -1371,6 +1371,39 @@ def api_list_sales(day_date):
     return jsonify({"ok": True, "day_date": d.isoformat(), "sales": items})
 
 
+@cassa_bp.delete("/api/pos_moves/<int:pos_move_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_delete_pos_move(pos_move_id):
+    pos_move = PosMove.query.filter_by(id=pos_move_id).first()
+
+    if not pos_move:
+        return jsonify({"ok": False, "error": "Movimento POS non trovato"}), 404
+
+    try:
+        # se esistono row-check collegati, li elimino
+        CashRowCheck.query.filter_by(
+            entity_type="pos_move",
+            entity_id=pos_move.id
+        ).delete()
+
+        db.session.delete(pos_move)
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "pos_move_id": pos_move_id,
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_delete_pos_move error: %s", e)
+        return jsonify({
+            "ok": False,
+            "error": "Errore interno durante l'eliminazione del movimento POS"
+        }), 500
+
+
 @cassa_bp.post("/api/day/<day_date>/expenses")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
