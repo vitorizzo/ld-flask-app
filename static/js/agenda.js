@@ -171,6 +171,7 @@ const posMoveSaveBtn = document.getElementById("posMoveSaveBtn");
 const btnOpenPosModal = document.getElementById("btnOpenPosModal");
 
 let posModal = null;
+let editingPosMovId = null;
 
 /* =========================
    OWNER TAKE MODAL REFS
@@ -1970,6 +1971,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function resetPosModalForm() {
+    editingPosMoveId = null;
+
     if (posMoveDateInput) {
       posMoveDateInput.value = currentDay || "";
     }
@@ -1998,6 +2001,10 @@ document.addEventListener("DOMContentLoaded", function () {
       posMoveCircuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
       posMoveCircuitSelect.disabled = true;
     }
+
+    if (posMoveSaveBtn) {
+      posMoveSaveBtn.textContent = "Salva";
+    }
   }
 
   async function openPosModal() {
@@ -2020,6 +2027,84 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     posModal.show();
+  }
+
+  async function openEditPosModal(posMoveId) {
+    if (!currentDay) {
+      alert("Nessuna giornata selezionata.");
+      return;
+    }
+
+    try {
+      const r = await fetch(`/cassa/api/day/${currentDay}/pos_moves`, {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" },
+        cache: "no-store"
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore caricamento movimento POS");
+        return;
+      }
+
+      const row = (data.pos_moves || []).find(x => Number(x.id) === Number(posMoveId));
+      if (!row) {
+        alert("Movimento POS non trovato");
+        return;
+      }
+
+      resetPosModalForm();
+      editingPosMoveId = row.id;
+
+      if (posMoveDateInput) {
+        posMoveDateInput.value = currentDay;
+      }
+
+      if (posMoveTypeSelect) {
+        posMoveTypeSelect.value = row.direction === "out" ? "storno" : "incasso";
+      }
+
+      if (posMoveAmountInput) {
+        posMoveAmountInput.value = formatEuro2(row.amount || 0);
+      }
+
+      if (posMoveDocRefSelect) {
+        posMoveDocRefSelect.value = row.doc_ref || "";
+      }
+
+      if (posMoveNotesInput) {
+        posMoveNotesInput.value = row.notes || "";
+      }
+
+      await loadPosDevices(posMoveDeviceSelect, false, posMoveCircuitSelect);
+
+      if (posMoveDeviceSelect) {
+        posMoveDeviceSelect.value = String(row.pos_device_id || "");
+      }
+
+      await loadPosCircuits(row.pos_device_id, posMoveCircuitSelect);
+
+      if (posMoveCircuitSelect) {
+        posMoveCircuitSelect.value = String(row.pos_circuit_id || "");
+      }
+
+      if (posMoveSaveBtn) {
+        posMoveSaveBtn.textContent = "Salva modifica";
+      }
+
+      if (!posModal) {
+        alert("Modale POS non disponibile.");
+        return;
+      }
+
+      posModal.show();
+
+    } catch (err) {
+      console.error("openEditPosModal error:", err);
+      alert("Errore di rete durante il caricamento del movimento POS.");
+    }
   }
 
   async function savePosMove() {
@@ -2055,11 +2140,18 @@ document.addEventListener("DOMContentLoaded", function () {
       amount = -amount;
     }
 
+    const isEdit = !!editingPosMoveId;
+    const url = isEdit
+      ? `/cassa/api/pos_moves/${editingPosMoveId}`
+      : `/cassa/api/day/${currentDay}/pos_moves`;
+
+    const method = isEdit ? "PUT" : "POST";
+
     try {
       if (posMoveSaveBtn) posMoveSaveBtn.disabled = true;
 
-      const r = await fetch(`/cassa/api/day/${currentDay}/pos_moves`, {
-        method: "POST",
+      const r = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
           "Accept": "application/json"
@@ -2085,6 +2177,7 @@ document.addEventListener("DOMContentLoaded", function () {
         posModal.hide();
       }
 
+      resetPosModalForm();
       await refreshAgendaData();
 
     } catch (err) {
@@ -3192,7 +3285,9 @@ document.addEventListener("DOMContentLoaded", function () {
         break;
 
       case "edit":
-        alert(`Edit ${currentContext.type} ${currentContext.id}`);
+        if (currentContext.type === "pos_move") {
+          openEditPosModal(currentContext.id);
+        }
         break;
     }
 

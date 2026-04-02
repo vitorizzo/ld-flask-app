@@ -1577,7 +1577,6 @@ def api_create_pos_move(day_date):
     if not pos_circuit_id:
         return jsonify({"ok": False, "error": "Missing pos_circuit_id"}), 400
 
-    # 1) device/circuit attivi
     dev = PosDevice.query.filter_by(id=pos_device_id, is_active=True).first()
     if not dev:
         return jsonify({"ok": False, "error": "PosDevice not found or inactive"}), 400
@@ -1586,7 +1585,6 @@ def api_create_pos_move(day_date):
     if not cir:
         return jsonify({"ok": False, "error": "PosCircuit not found or inactive"}), 400
 
-    # 2) coppia consentita in tabella ponte
     allowed = db.session.query(pos_device_circuits).filter(
         pos_device_circuits.c.pos_device_id == pos_device_id,
         pos_device_circuits.c.pos_circuit_id == pos_circuit_id
@@ -1617,28 +1615,85 @@ def api_create_pos_move(day_date):
     return jsonify({"ok": True, "pos_move_id": m.id}), 201
 
 
-@cassa_bp.get("/api/banks", endpoint="api_list_cash_banks")
+@cassa_bp.put("/api/pos_moves/<int:pos_move_id>", endpoint="api_update_pos_move")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
-def api_list_cash_banks():
-    banks = (
-        CashBank.query
-        .filter(CashBank.is_active.is_(True))
-        .order_by(CashBank.is_default.desc(), CashBank.sort_order.asc(), CashBank.name.asc())
-        .all()
-    )
+def api_update_pos_move(pos_move_id):
+    """
+    Payload:
+    {
+      "pos_device_id": 1,
+      "pos_circuit_id": 2,
+      "amount": 12.50,   # può essere negativo (storno)
+      "doc_ref": "CORR",
+      "notes": "..."
+    }
+    """
+    pos_move = PosMove.query.filter_by(id=pos_move_id).first()
+    if not pos_move:
+        return jsonify({"ok": False, "error": "Movimento POS non trovato"}), 404
 
-    return jsonify({
-        "ok": True,
-        "banks": [
-            {
-                "id": b.id,
-                "name": b.name,
-                "is_default": bool(b.is_default),
-            }
-            for b in banks
-        ]
-    })
+    data = request.get_json(silent=True) or {}
+
+    try:
+        raw_amount = Decimal(str(data.get("amount", "0")))
+    except (InvalidOperation, TypeError):
+        return jsonify({"ok": False, "error": "Invalid amount"}), 400
+
+    if raw_amount == 0:
+        return jsonify({"ok": False, "error": "Amount must be non-zero"}), 400
+
+    pos_device_id = data.get("pos_device_id")
+    if not pos_device_id:
+        return jsonify({"ok": False, "error": "Missing pos_device_id"}), 400
+
+    pos_circuit_id = data.get("pos_circuit_id")
+    if not pos_circuit_id:
+        return jsonify({"ok": False, "error": "Missing pos_circuit_id"}), 400
+
+    dev = PosDevice.query.filter_by(id=pos_device_id, is_active=True).first()
+    if not dev:
+        return jsonify({"ok": False, "error": "PosDevice not found or inactive"}), 400
+
+    cir = PosCircuit.query.filter_by(id=pos_circuit_id, is_active=True).first()
+    if not cir:
+        return jsonify({"ok": False, "error": "PosCircuit not found or inactive"}), 400
+
+    allowed = db.session.query(pos_device_circuits).filter(
+        pos_device_circuits.c.pos_device_id == pos_device_id,
+        pos_device_circuits.c.pos_circuit_id == pos_circuit_id
+    ).first()
+    if not allowed:
+        return jsonify({"ok": False, "error": "Circuit not associated to this POS device"}), 400
+
+    direction = "in" if raw_amount > 0 else "out"
+    amount = abs(raw_amount)
+
+    doc_ref = (data.get("doc_ref") or "").strip() or None
+    notes = (data.get("notes") or "").strip() or None
+
+    try:
+        pos_move.direction = direction
+        pos_move.amount = amount
+        pos_move.pos_device_id = pos_device_id
+        pos_move.pos_circuit_id = pos_circuit_id
+        pos_move.doc_ref = doc_ref
+        pos_move.notes = notes
+
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "pos_move_id": pos_move.id
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_update_pos_move error: %s", e)
+        return jsonify({
+            "ok": False,
+            "error": "Errore interno durante la modifica del movimento POS"
+        }), 500
 
 
 @cassa_bp.get("/api/day/<day_date>/pos_moves", endpoint="api_list_pos_moves")
@@ -1661,7 +1716,6 @@ def api_list_pos_moves(day_date):
         .all()
     )
 
-    # preload name/icon per badge
     dev_map = {x.id: x for x in PosDevice.query.all()}
     cir_map = {x.id: x for x in PosCircuit.query.all()}
 
@@ -1686,6 +1740,31 @@ def api_list_pos_moves(day_date):
         })
 
     return jsonify({"ok": True, "day_date": d.isoformat(), "pos_moves": out})
+
+
+@cassa_bp.get("/api/banks", endpoint="api_list_cash_banks")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_list_cash_banks():
+    banks = (
+        CashBank.query
+        .filter(CashBank.is_active.is_(True))
+        .order_by(CashBank.is_default.desc(), CashBank.sort_order.asc(), CashBank.name.asc())
+        .all()
+    )
+
+    return jsonify({
+        "ok": True,
+        "banks": [
+            {
+                "id": b.id,
+                "name": b.name,
+                "is_default": bool(b.is_default),
+            }
+            for b in banks
+        ]
+    })
+
 
 # =========================
 # MOVIMENTI DI CASSA (prelievi/versamenti terzi + spicci)
