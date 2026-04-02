@@ -692,41 +692,92 @@
   opacity: 0.65;
 }
 
-.context-menu {
-  position: absolute;
-  min-width: 160px;
-  background: #fff;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  z-index: 9999;
-  padding: 4px 0;
+.flaf {
+  flex: 0 0 auto;
+}
+
+/* =========================
+   CONTEXT MENU
+========================= */
+
+#contextMenu {
+  position: fixed;
+  z-index: 3000;
+  min-width: 240px;
+  max-width: 280px;
+  background: #ffffff;
   color: #212529;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+  padding: 8px;
+}
+
+#contextMenu.d-none {
+  display: none !important;
+}
+
+.context-menu-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.context-menu-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6c757d;
+  padding: 6px 10px 4px 10px;
+}
+
+.context-menu-separator {
+  height: 1px;
+  margin: 8px 2px;
+  background: rgba(0, 0, 0, 0.08);
 }
 
 .context-menu-item {
-  padding: 8px 12px;
-  cursor: pointer;
-  font-size: 0.9rem;
+  width: 100%;
+  border: 0;
+  background: transparent;
   color: #212529;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .context-menu-item:hover {
-  background: #f5f5f5;
-  color: #212529;
+  background: #f1f3f5;
+  color: #111827;
+}
+
+.context-menu-item:active {
+  background: #e9ecef;
+}
+
+.context-menu-item.danger {
+  color: #b42318;
+}
+
+.context-menu-item.danger:hover {
+  background: #fef3f2;
+  color: #912018;
 }
 
 .context-menu-item.disabled {
   opacity: 0.5;
+  cursor: not-allowed;
   pointer-events: none;
 }
 
-.context-menu-divider {
-  height: 1px;
-  background: #eee;
-  margin: 4px 0;
-}
-
-.flaf {
-  flex: 0 0 auto;
+.context-menu-empty {
+  padding: 10px;
+  font-size: 0.9rem;
+  color: #6c757d;
 }
