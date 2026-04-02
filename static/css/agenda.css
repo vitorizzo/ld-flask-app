@@ -87,11 +87,11 @@
 ========================= */
 
 .table-row {
-  display: grid;
-  grid-template-columns: 1fr auto 110px;
-  gap: 10px;
+  display: flex;
   align-items: center;
-  padding: 10px 12px;
+  gap: 8px;
+  width: 100%;
+  flex-wrap: nowrap;          /* 🔴 fondamentale: niente a capo */
 }
 
 .table-row .col-desc {
@@ -124,6 +124,45 @@
   text-align: right;
   font-variant-numeric: tabular-nums;
   font-weight: 700;
+}
+
+.col-check {
+  flex: 0 0 30px;
+  display: flex;
+  justify-content: center;
+}
+
+.col-desc {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;               /* 🔴 fondamentale per ellipsis */
+}
+
+.col-desc .desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.col-badges {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.col-amt {
+  flex: 0 0 90px;
+  text-align: right;
+  font-weight: 600;
+}
+
+.col-actions {
+  flex: 0 0 40px;
+  display: flex;
+  justify-content: flex-end;
 }
 
 /* =========================
@@ -174,7 +213,7 @@
 ========================= */
 
 .pos-logo {
-  height: 40px;
+  height: 16px;
   width: 40px;
   display: inline-block;
   vertical-align: middle;
@@ -686,4 +725,8 @@
   height: 1px;
   background: #eee;
   margin: 4px 0;
+}
+
+.flaf {
+  flex: 0 0 auto;
 }
