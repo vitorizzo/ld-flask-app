@@ -171,7 +171,7 @@ const posMoveSaveBtn = document.getElementById("posMoveSaveBtn");
 const btnOpenPosModal = document.getElementById("btnOpenPosModal");
 
 let posModal = null;
-let editingPosMovId = null;
+let editingPosMoveId = null;
 
 /* =========================
    OWNER TAKE MODAL REFS
@@ -1006,13 +1006,16 @@ async function loadCashMoves(dayStr) {
       if (kind === "spicci") badges.push(`<span class="badge badge-soft badge-coins">SPICCI</span>`);
 
       return `
-        <div class="list-group-item table-row" data-cash-move-id="${m.id}">
+        <div class="list-group-item table-row cash-move-row" data-cash-move-id="${m.id}">
           <div class="col-desc">
             <span class="flag"></span>
             <span class="desc">${escapeHtml(desc)}</span>
           </div>
           <div class="col-badges">${badges.join("")}</div>
           <div class="col-amt ${colorClass}">${amt}</div>
+          <div class="col-actions">
+            <button type="button" class="btn btn-sm btn-light btn-row-menu">...</button>
+          </div>
         </div>
       `;
     }).join("");
@@ -1149,13 +1152,16 @@ async function loadIncassi(dayStr) {
       if (x.off_cash) badges.push(`<span class="badge badge-soft badge-offcash">FUORI CASSA</span>`);
 
       return `
-        <div class="list-group-item table-row" data-sale-id="${x.sale_id}">
+        <div class="list-group-item table-row sale-row" data-sale-id="${x.sale_id}">
           <div class="col-desc">
             <span class="flag">${escapeHtml(x.flag || "")}</span>
             <span class="desc">${escapeHtml(x.desc)}</span>
           </div>
           <div class="col-badges">${badges.join("")}</div>
           <div class="col-amt">${amt}</div>
+          <div class="col-actions">
+            <button type="button" class="btn btn-sm btn-light btn-row-menu">...</button>
+          </div>
         </div>
       `;
     }).join("");
@@ -1225,13 +1231,16 @@ async function loadSpese(dayStr) {
       if (x.off_cash) badges.push(`<span class="badge badge-soft badge-offcash">FUORI CASSA</span>`);
 
       return `
-        <div class="list-group-item table-row" data-expense-id="${x.expense_id}">
+        <div class="list-group-item table-row expense-row" data-expense-id="${x.expense_id}">
           <div class="col-desc">
             <span class="flag">${escapeHtml(x.flag || "")}</span>
             <span class="desc">${escapeHtml(x.desc)}</span>
           </div>
           <div class="col-badges">${badges.join("")}</div>
           <div class="col-amt">${amt}</div>
+          <div class="col-actions">
+            <button type="button" class="btn btn-sm btn-light btn-row-menu">...</button>
+          </div>
         </div>
       `;
     }).join("");
@@ -3234,6 +3243,49 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   const posList = document.getElementById("posList");
+  const incassiList = document.getElementById("incassiList");
+  const speseList = document.getElementById("speseList");
+  const movCassaList = document.getElementById("movCassaList");
+
+  function bindPanelContextMenu(listEl, rowSelector, datasetKey, type, panel) {
+    listEl?.addEventListener("contextmenu", (e) => {
+      const row = e.target.closest(rowSelector);
+      if (!row) return;
+
+      e.preventDefault();
+
+      openContextMenu(e.clientX, e.clientY, {
+        type,
+        id: Number(row.dataset[datasetKey]),
+        panel,
+        menuMode: "panel"
+      });
+    });
+
+    listEl?.addEventListener("click", (e) => {
+      const btn = e.target.closest(".btn-row-menu");
+      if (!btn) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const row = btn.closest(rowSelector);
+      if (!row) return;
+
+      const rect = btn.getBoundingClientRect();
+
+      openContextMenu(rect.right - 8, rect.bottom + 4, {
+        type,
+        id: Number(row.dataset[datasetKey]),
+        panel,
+        menuMode: "row"
+      });
+    });
+  }
+
+  bindPanelContextMenu(incassiList, ".sale-row", "saleId", "sale", "incassi");
+  bindPanelContextMenu(speseList, ".expense-row", "expenseId", "expense", "spese");
+  bindPanelContextMenu(movCassaList, ".cash-move-row", "cashMoveId", "cash_move", "mov_cassa");
 
   posList?.addEventListener("contextmenu", (e) => {
   const row = e.target.closest(".pos-row");
@@ -3279,7 +3331,11 @@ posList?.addEventListener("click", (e) => {
     try {
       switch (action) {
         case "edit":
-          alert(`Edit ${currentContext.type} ${currentContext.id}`);
+          if (currentContext.type === "pos_move") {
+            await openEditPosModal(currentContext.id);
+          } else {
+            alert(`Edit ${currentContext.type} ${currentContext.id}: prossimo step`);
+          }
           break;
 
         case "delete":
@@ -3926,7 +3982,6 @@ let currentContext = null;
 
 function buildContextMenuHtml(context) {
   const isRowMenu = context?.menuMode === "row";
-  const isPanelMenu = context?.menuMode === "panel";
   const entityType = context?.type || "";
 
   const rowActions = [];
@@ -3943,6 +3998,50 @@ function buildContextMenuHtml(context) {
       panelActions.push(
         `<button type="button" class="context-menu-item" data-action="filter_device">Filtra per device</button>`,
         `<button type="button" class="context-menu-item" data-action="filter_circuit">Filtra per circuito</button>`,
+        `<button type="button" class="context-menu-item" data-action="clear_filters">Rimuovi filtri</button>`
+      );
+    }
+  }
+
+  if (entityType === "sale") {
+    rowActions.push(
+      `<button type="button" class="context-menu-item" data-action="edit">Modifica</button>`,
+      `<button type="button" class="context-menu-item danger" data-action="delete">Elimina</button>`
+    );
+
+    if (!isRowMenu) {
+      panelActions.push(
+        `<button type="button" class="context-menu-item" data-action="filter_method">Filtra per pagamento</button>`,
+        `<button type="button" class="context-menu-item" data-action="filter_offcash">Solo fuori cassa</button>`,
+        `<button type="button" class="context-menu-item" data-action="clear_filters">Rimuovi filtri</button>`
+      );
+    }
+  }
+
+  if (entityType === "expense") {
+    rowActions.push(
+      `<button type="button" class="context-menu-item" data-action="edit">Modifica</button>`,
+      `<button type="button" class="context-menu-item danger" data-action="delete">Elimina</button>`
+    );
+
+    if (!isRowMenu) {
+      panelActions.push(
+        `<button type="button" class="context-menu-item" data-action="filter_method">Filtra per pagamento</button>`,
+        `<button type="button" class="context-menu-item" data-action="filter_offcash">Solo fuori cassa</button>`,
+        `<button type="button" class="context-menu-item" data-action="clear_filters">Rimuovi filtri</button>`
+      );
+    }
+  }
+
+  if (entityType === "cash_move") {
+    rowActions.push(
+      `<button type="button" class="context-menu-item" data-action="edit">Modifica</button>`,
+      `<button type="button" class="context-menu-item danger" data-action="delete">Elimina</button>`
+    );
+
+    if (!isRowMenu) {
+      panelActions.push(
+        `<button type="button" class="context-menu-item" data-action="filter_kind">Filtra per tipo</button>`,
         `<button type="button" class="context-menu-item" data-action="clear_filters">Rimuovi filtri</button>`
       );
     }
