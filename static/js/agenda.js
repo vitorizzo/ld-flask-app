@@ -174,6 +174,22 @@ let posModal = null;
 let editingPosMoveId = null;
 
 /* =========================
+   CASH MOVE MODAL REFS
+========================= */
+
+const cashMoveModalEl = document.getElementById("cashMoveModal");
+const cashMoveDateInput = document.getElementById("cashMoveDate");
+const cashMoveKindSelect = document.getElementById("cashMoveKind");
+const cashMoveAmountInput = document.getElementById("cashMoveAmount");
+const cashMovePerformedByInput = document.getElementById("cashMovePerformedBy");
+const cashMoveNotesInput = document.getElementById("cashMoveNotes");
+const cashMoveSaveBtn = document.getElementById("cashMoveSaveBtn");
+const btnOpenCashMoveModal = document.getElementById("btnOpenCashMoveModal");
+
+let cashMoveModal = null;
+let editingCashMoveId = null;
+
+/* =========================
    OWNER TAKE MODAL REFS
 ========================= */
 
@@ -974,8 +990,12 @@ async function loadCashMoves(dayStr) {
   if (totalEl) totalEl.textContent = "0,00";
 
   try {
-    const r = await fetch(`/cassa/api/day/${dayStr}/cash_moves`, { credentials: "same-origin" });
-    const data = await r.json();
+    const [movesRes, checksMap] = await Promise.all([
+      fetch(`/cassa/api/day/${dayStr}/cash_moves`, { credentials: "same-origin" }),
+      fetchRowChecks(Number(document.getElementById("dayId")?.textContent || 0), "cash_move")
+    ]);
+
+    const data = await movesRes.json();
 
     if (!data.ok) {
       listEl.innerHTML = `<div class="list-group-item text-muted small">Errore: ${data.error || "impossibile caricare movimenti"}</div>`;
@@ -988,25 +1008,40 @@ async function loadCashMoves(dayStr) {
       return;
     }
 
-    const tot = moves.reduce((s, m) => s + Number(m.amount || 0), 0);
+    const tot = moves.reduce((s, m) => {
+      const a = Number(m.amount || 0);
+      return s + ((m.direction === "out") ? -a : a);
+    }, 0);
+
     if (totalEl) totalEl.textContent = tot.toFixed(2).replace(".", ",");
 
     listEl.innerHTML = moves.map(m => {
-      const a = Number(m.amount || 0);
-      const isOut = a < 0;
+      const amount = Number(m.amount || 0);
+      const isOut = m.direction === "out";
       const who = (m.performed_by || "").trim();
       const notes = (m.notes || "").trim();
       const kind = (m.kind || "").trim();
 
       const desc = [who, notes].filter(Boolean).join(" • ") || "Movimento";
-      const amt = (isOut ? "-" : "") + Math.abs(a).toFixed(2) + "€";
+      const amt = `${isOut ? "-" : ""}${Math.abs(amount).toFixed(2)}€`;
       const colorClass = isOut ? "text-danger" : "text-primary";
 
       const badges = [];
       if (kind === "spicci") badges.push(`<span class="badge badge-soft badge-coins">SPICCI</span>`);
 
+      const isChecked = checksMap.get(Number(m.id)) === true;
+
       return `
-        <div class="list-group-item table-row cash-move-row" data-cash-move-id="${m.id}">
+        <div class="list-group-item table-row cash-move-row ${isChecked ? "row-checked" : ""}" data-cash-move-id="${m.id}">
+          <div class="col-check me-2">
+            <input
+              type="checkbox"
+              class="form-check-input cash-move-row-check"
+              data-entity-type="cash_move"
+              data-entity-id="${m.id}"
+              ${isChecked ? "checked" : ""}
+            >
+          </div>
           <div class="col-desc">
             <span class="flag"></span>
             <span class="desc">${escapeHtml(desc)}</span>
@@ -1559,6 +1594,10 @@ document.addEventListener("DOMContentLoaded", function () {
     await openPosModal();
   });
 
+  btnOpenCashMoveModal?.addEventListener("click", async () => {
+    await openCashMoveModal();
+  });
+
   posMoveDeviceSelect?.addEventListener("change", async (e) => {
     await loadPosCircuits(e.target.value, posMoveCircuitSelect);
   });
@@ -1581,6 +1620,7 @@ document.addEventListener("DOMContentLoaded", function () {
   normalizeCurrencyInput(ownerTakeCashAmountInput);
 
   normalizeCurrencyInput(posMoveAmountInput);
+  normalizeCurrencyInput(cashMoveAmountInput);
 
   document.getElementById("kpiCassettoBox")?.addEventListener("click", async () => {
     await openOwnerTakeModal();
@@ -1649,6 +1689,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (posModalEl) {
     posModal = new bootstrap.Modal(posModalEl);
+  }
+
+  if (cashMoveModalEl) {
+    cashMoveModal = new bootstrap.Modal(cashMoveModalEl);
   }
 
   if (ecommerceModalEl) {
@@ -2194,6 +2238,193 @@ document.addEventListener("DOMContentLoaded", function () {
       alert("Errore di rete durante il salvataggio del movimento POS.");
     } finally {
       if (posMoveSaveBtn) posMoveSaveBtn.disabled = false;
+    }
+  }
+
+  function resetCashMoveModalForm() {
+    editingCashMoveId = null;
+
+    if (cashMoveDateInput) cashMoveDateInput.value = currentDay || "";
+    if (cashMoveKindSelect) cashMoveKindSelect.value = "altro";
+    if (cashMoveAmountInput) cashMoveAmountInput.value = "0,00";
+    if (cashMovePerformedByInput) cashMovePerformedByInput.value = "";
+    if (cashMoveNotesInput) cashMoveNotesInput.value = "";
+
+    if (cashMoveSaveBtn) {
+      cashMoveSaveBtn.textContent = "Salva";
+    }
+  }
+
+  async function openCashMoveModal() {
+    if (!currentDay) {
+      alert("Nessuna giornata selezionata.");
+      return;
+    }
+
+    resetCashMoveModalForm();
+
+    if (cashMoveDateInput) {
+      cashMoveDateInput.value = currentDay;
+    }
+
+    if (!cashMoveModal) {
+      alert("Modale movimenti di cassa non disponibile.");
+      return;
+    }
+
+    cashMoveModal.show();
+  }
+
+  async function openEditCashMoveModal(cashMoveId) {
+    if (!currentDay) {
+      alert("Nessuna giornata selezionata.");
+      return;
+    }
+
+    try {
+      const r = await fetch(`/cassa/api/day/${currentDay}/cash_moves`, {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" },
+        cache: "no-store"
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore caricamento movimento di cassa");
+        return;
+      }
+
+      const row = (data.cash_moves || []).find(x => Number(x.id) === Number(cashMoveId));
+      if (!row) {
+        alert("Movimento di cassa non trovato");
+        return;
+      }
+
+      resetCashMoveModalForm();
+      editingCashMoveId = row.id;
+
+      if (cashMoveDateInput) cashMoveDateInput.value = currentDay;
+      if (cashMoveKindSelect) cashMoveKindSelect.value = row.kind || "altro";
+      if (cashMoveAmountInput) {
+        const signedAmount = row.direction === "out"
+          ? -Number(row.amount || 0)
+          : Number(row.amount || 0);
+        cashMoveAmountInput.value = formatEuro2(signedAmount);
+      }
+      if (cashMovePerformedByInput) cashMovePerformedByInput.value = row.performed_by || "";
+      if (cashMoveNotesInput) cashMoveNotesInput.value = row.notes || "";
+
+      if (cashMoveSaveBtn) {
+        cashMoveSaveBtn.textContent = "Salva modifica";
+      }
+
+      if (!cashMoveModal) {
+        alert("Modale movimenti di cassa non disponibile.");
+        return;
+      }
+
+      cashMoveModal.show();
+
+    } catch (err) {
+      console.error("openEditCashMoveModal error:", err);
+      alert("Errore di rete durante il caricamento del movimento.");
+    }
+  }
+
+  async function saveCashMove() {
+    if (!currentDay) {
+      alert("Nessuna giornata selezionata.");
+      return;
+    }
+
+    const kind = (cashMoveKindSelect?.value || "altro").trim();
+    const performed_by = (cashMovePerformedByInput?.value || "").trim();
+    const notes = (cashMoveNotesInput?.value || "").trim() || null;
+    const amount = parseEuroToNumber(cashMoveAmountInput?.value || "0");
+
+    if (amount === 0) {
+      alert("Inserisci un importo valido.");
+      return;
+    }
+
+    if (!performed_by) {
+      alert("Inserisci chi esegue il movimento.");
+      return;
+    }
+
+    const isEdit = !!editingCashMoveId;
+    const url = isEdit
+      ? `/cassa/api/cash_moves/${editingCashMoveId}`
+      : `/cassa/api/day/${currentDay}/cash_moves`;
+
+    const method = isEdit ? "PUT" : "POST";
+
+    try {
+      if (cashMoveSaveBtn) cashMoveSaveBtn.disabled = true;
+
+      const r = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          amount,
+          performed_by,
+          notes,
+          kind
+        })
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore salvataggio movimento di cassa");
+        return;
+      }
+
+      if (cashMoveModal) {
+        cashMoveModal.hide();
+      }
+
+      resetCashMoveModalForm();
+      await refreshAgendaData();
+
+    } catch (err) {
+      console.error("saveCashMove error:", err);
+      alert("Errore di rete durante il salvataggio del movimento.");
+    } finally {
+      if (cashMoveSaveBtn) cashMoveSaveBtn.disabled = false;
+    }
+  }
+
+  async function deleteCashMove(cashMoveId) {
+    if (!cashMoveId) return;
+
+    const confirmed = window.confirm("Vuoi eliminare questo movimento di cassa?");
+    if (!confirmed) return;
+
+    try {
+      const r = await fetch(`/cassa/api/cash_moves/${cashMoveId}`, {
+        method: "DELETE",
+        headers: { "Accept": "application/json" },
+        credentials: "same-origin"
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore eliminazione movimento di cassa");
+        return;
+      }
+
+      await refreshAgendaData();
+
+    } catch (err) {
+      console.error("deleteCashMove error:", err);
+      alert("Errore di rete durante l'eliminazione.");
     }
   }
 
@@ -3330,9 +3561,23 @@ posList?.addEventListener("click", (e) => {
 
     try {
       switch (action) {
+        case "insert":
+          if (currentContext.type === "pos_move") {
+            await openPosModal();
+          } else if (currentContext.type === "cash_move") {
+            await openCashMoveModal();
+          } else if (currentContext.type === "sale") {
+            openOpModal("sale");
+          } else if (currentContext.type === "expense") {
+            openOpModal("expense");
+          }
+          break;
+
         case "edit":
           if (currentContext.type === "pos_move") {
             await openEditPosModal(currentContext.id);
+          } else if (currentContext.type === "cash_move") {
+            await openEditCashMoveModal(currentContext.id);
           } else {
             alert(`Edit ${currentContext.type} ${currentContext.id}: prossimo step`);
           }
@@ -3340,23 +3585,9 @@ posList?.addEventListener("click", (e) => {
 
         case "delete":
           if (currentContext.type === "pos_move") {
-            const confirmed = window.confirm("Vuoi eliminare questo movimento POS?");
-            if (!confirmed) return;
-
-            const r = await fetch(`/cassa/api/pos_moves/${currentContext.id}`, {
-              method: "DELETE",
-              headers: { "Accept": "application/json" },
-              credentials: "same-origin"
-            });
-
-            const data = await r.json();
-
-            if (!r.ok || !data.ok) {
-              alert(data.error || "Errore eliminazione movimento POS");
-              return;
-            }
-
-            await refreshAgendaData();
+            await deletePosMove(currentContext.id);
+          } else if (currentContext.type === "cash_move") {
+            await deleteCashMove(currentContext.id);
           }
           break;
 
@@ -3366,6 +3597,18 @@ posList?.addEventListener("click", (e) => {
 
         case "filter_circuit":
           alert("Filtro per circuito: prossimo step");
+          break;
+
+        case "filter_kind":
+          alert("Filtro per tipo: prossimo step");
+          break;
+
+        case "filter_method":
+          alert("Filtro per pagamento: prossimo step");
+          break;
+
+        case "filter_offcash":
+          alert("Filtro fuori cassa: prossimo step");
           break;
 
         case "clear_filters":
@@ -3810,6 +4053,10 @@ posList?.addEventListener("click", (e) => {
     await savePosMove();
   });
 
+  cashMoveSaveBtn?.addEventListener("click", async () => {
+    await saveCashMove();
+  });
+
   posDeviceSelect?.addEventListener("change", async (e) => {
     await loadPosCircuits(e.target.value, posCircuitSelect);
     updatePaymentState();
@@ -3842,6 +4089,9 @@ posList?.addEventListener("click", (e) => {
 
   document.getElementById("btnNewIncasso")?.addEventListener("click", () => openOpModal("sale"));
   document.getElementById("btnNewSpesa")?.addEventListener("click", () => openOpModal("expense"));
+  document.getElementById("btnNewMovimento")?.addEventListener("click", async () => {
+    await openCashMoveModal();
+  });
 
   document.getElementById("opOffCash")?.addEventListener("change", (e) => {
     const box = document.getElementById("opOffCashBox");
@@ -3874,6 +4124,38 @@ posList?.addEventListener("click", (e) => {
       rowEl?.classList.toggle("row-checked", !!result.is_checked);
     } catch (err) {
       console.error("toggle POS row check error:", err);
+      checkbox.checked = !newState;
+      alert(err.message || "Errore durante il salvataggio della spunta");
+    } finally {
+      checkbox.disabled = false;
+    }
+  });
+
+  document.getElementById("movCassaList")?.addEventListener("change", async (e) => {
+    const checkbox = e.target.closest(".cash-move-row-check");
+    if (!checkbox) return;
+
+    const entityType = checkbox.dataset.entityType;
+    const entityId = Number(checkbox.dataset.entityId);
+    const cashDayId = Number(document.getElementById("dayId")?.textContent || 0);
+
+    if (!entityType || !entityId || !cashDayId) {
+      alert("Dati check riga non validi");
+      return;
+    }
+
+    const rowEl = checkbox.closest(".cash-move-row");
+    const newState = checkbox.checked;
+
+    checkbox.disabled = true;
+
+    try {
+      const result = await toggleRowCheck(entityType, entityId, cashDayId);
+
+      checkbox.checked = !!result.is_checked;
+      rowEl?.classList.toggle("row-checked", !!result.is_checked);
+    } catch (err) {
+      console.error("toggle cash_move row check error:", err);
       checkbox.checked = !newState;
       alert(err.message || "Errore durante il salvataggio della spunta");
     } finally {
@@ -3996,6 +4278,7 @@ function buildContextMenuHtml(context) {
 
     if (!isRowMenu) {
       panelActions.push(
+        `<button type="button" class="context-menu-item" data-action="insert">Inserisci</button>`,
         `<button type="button" class="context-menu-item" data-action="filter_device">Filtra per device</button>`,
         `<button type="button" class="context-menu-item" data-action="filter_circuit">Filtra per circuito</button>`,
         `<button type="button" class="context-menu-item" data-action="clear_filters">Rimuovi filtri</button>`
@@ -4011,6 +4294,7 @@ function buildContextMenuHtml(context) {
 
     if (!isRowMenu) {
       panelActions.push(
+        `<button type="button" class="context-menu-item" data-action="insert">Inserisci</button>`,
         `<button type="button" class="context-menu-item" data-action="filter_method">Filtra per pagamento</button>`,
         `<button type="button" class="context-menu-item" data-action="filter_offcash">Solo fuori cassa</button>`,
         `<button type="button" class="context-menu-item" data-action="clear_filters">Rimuovi filtri</button>`
@@ -4026,6 +4310,7 @@ function buildContextMenuHtml(context) {
 
     if (!isRowMenu) {
       panelActions.push(
+        `<button type="button" class="context-menu-item" data-action="insert">Inserisci</button>`,
         `<button type="button" class="context-menu-item" data-action="filter_method">Filtra per pagamento</button>`,
         `<button type="button" class="context-menu-item" data-action="filter_offcash">Solo fuori cassa</button>`,
         `<button type="button" class="context-menu-item" data-action="clear_filters">Rimuovi filtri</button>`
@@ -4041,6 +4326,7 @@ function buildContextMenuHtml(context) {
 
     if (!isRowMenu) {
       panelActions.push(
+        `<button type="button" class="context-menu-item" data-action="insert">Inserisci</button>`,
         `<button type="button" class="context-menu-item" data-action="filter_kind">Filtra per tipo</button>`,
         `<button type="button" class="context-menu-item" data-action="clear_filters">Rimuovi filtri</button>`
       );

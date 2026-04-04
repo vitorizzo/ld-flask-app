@@ -1866,6 +1866,98 @@ def api_list_cash_moves(day_date):
 
     return jsonify({"ok": True, "day_date": d.isoformat(), "cash_moves": out})
 
+@cassa_bp.put("/api/cash_moves/<int:cash_move_id>", endpoint="api_update_cash_move")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_update_cash_move(cash_move_id):
+    """
+    Modifica movimento di cassa.
+    Payload:
+    {
+      "amount": -50.00,          # negativo=prelievo (out), positivo=versamento (in)
+      "performed_by": "Vito",
+      "notes": "Motivo (opzionale)",
+      "kind": "altro" | "spicci"
+    }
+    """
+    cash_move = CashMove.query.filter_by(id=cash_move_id).first()
+    if not cash_move:
+        return jsonify({"ok": False, "error": "Movimento di cassa non trovato"}), 404
+
+    data = request.get_json(silent=True) or {}
+
+    try:
+        raw_amount = Decimal(str(data.get("amount", "0")))
+    except (InvalidOperation, TypeError):
+        return jsonify({"ok": False, "error": "Invalid amount"}), 400
+
+    if raw_amount == 0:
+        return jsonify({"ok": False, "error": "Amount must be non-zero"}), 400
+
+    performed_by = (data.get("performed_by") or "").strip()
+    if not performed_by:
+        return jsonify({"ok": False, "error": "Missing performed_by"}), 400
+
+    notes = (data.get("notes") or "").strip() or None
+    kind = (data.get("kind") or "altro").strip() or "altro"
+
+    direction = "in" if raw_amount > 0 else "out"
+    amount = abs(raw_amount)
+
+    try:
+        cash_move.direction = direction
+        cash_move.amount = amount
+        cash_move.performed_by = performed_by
+        cash_move.notes = notes
+        cash_move.kind = kind
+
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "cash_move_id": cash_move.id
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_update_cash_move error: %s", e)
+        return jsonify({
+            "ok": False,
+            "error": "Errore interno durante la modifica del movimento di cassa"
+        }), 500
+
+
+@cassa_bp.delete("/api/cash_moves/<int:cash_move_id>", endpoint="api_delete_cash_move")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_delete_cash_move(cash_move_id):
+    cash_move = CashMove.query.filter_by(id=cash_move_id).first()
+
+    if not cash_move:
+        return jsonify({"ok": False, "error": "Movimento di cassa non trovato"}), 404
+
+    try:
+        CashRowCheck.query.filter_by(
+            entity_type="cash_move",
+            entity_id=cash_move.id
+        ).delete()
+
+        db.session.delete(cash_move)
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "cash_move_id": cash_move_id,
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_delete_cash_move error: %s", e)
+        return jsonify({
+            "ok": False,
+            "error": "Errore interno durante l'eliminazione del movimento di cassa"
+        }), 500
+
 
 @cassa_bp.get("/api/coins/balance", endpoint="api_coins_vault_balance")
 @login_required

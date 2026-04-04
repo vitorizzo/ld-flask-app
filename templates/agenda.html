@@ -311,7 +311,17 @@
           <div class="col-12 col-xl-6">
             <div class="card shadow-sm h-100">
               <div class="card-header d-flex align-items-center justify-content-between header-movimenti">
-                <span class="fw-semibold">Movimenti di cassa</span>
+                <div class="d-flex align-items-center gap-2">
+                  <span class="fw-semibold">Movimenti di cassa</span>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary"
+                    id="btnOpenCashMoveModal"
+                    title="Nuovo movimento di cassa"
+                  >
+                    <i class="fa-solid fa-plus"></i>
+                  </button>
+                </div>
                 <span class="text-muted small">Totale: <span class="fw-semibold" id="totMovCassa">0,00</span></span>
               </div>
               <div class="card-body p-0">
@@ -1460,6 +1470,89 @@
     </div>
   </div>
 </div>
+
+<!-- MODALE MOVIMENTI DI CASSA -->
+<div class="modal fade agenda-modal" id="cashMoveModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Movimento di cassa</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="row g-3">
+
+          <div class="col-12 col-md-4">
+            <label class="form-label" for="cashMoveDate">Data</label>
+            <input
+              type="date"
+              class="form-control"
+              id="cashMoveDate"
+              readonly
+            >
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label" for="cashMoveKind">Tipo</label>
+            <select class="form-select" id="cashMoveKind">
+              <option value="altro">Altro</option>
+              <option value="spicci">Spicci</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label" for="cashMoveAmount">Importo</label>
+            <div class="input-group">
+              <span class="input-group-text">€</span>
+              <input
+                type="text"
+                class="form-control text-end"
+                id="cashMoveAmount"
+                placeholder="0,00"
+                inputmode="decimal"
+                autocomplete="off"
+              >
+            </div>
+            <div class="form-text">
+              Usa importo positivo per versamento in cassa, negativo per prelievo.
+            </div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label" for="cashMovePerformedBy">Chi</label>
+            <input
+              type="text"
+              class="form-control"
+              id="cashMovePerformedBy"
+              placeholder="Chi prende/mette i soldi"
+            >
+          </div>
+
+          <div class="col-12 col-md-8">
+            <label class="form-label" for="cashMoveNotes">Note</label>
+            <input
+              type="text"
+              class="form-control"
+              id="cashMoveNotes"
+              placeholder="Motivo / dettagli"
+            >
+          </div>
+
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-primary" id="cashMoveSaveBtn">Salva</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
 
 <div id="contextMenu" class="context-menu d-none">
   <div class="context-menu-item" data-action="edit">Modifica</div>
