@@ -3479,21 +3479,36 @@ document.addEventListener("DOMContentLoaded", function () {
   const movCassaList = document.getElementById("movCassaList");
 
   function bindPanelContextMenu(listEl, rowSelector, datasetKey, type, panel) {
-    listEl?.addEventListener("contextmenu", (e) => {
-      const row = e.target.closest(rowSelector);
-      if (!row) return;
+    if (!listEl) return;
 
+    listEl.addEventListener("contextmenu", (e) => {
       e.preventDefault();
+
+      const row = e.target.closest(rowSelector);
+      const rows = Array.from(listEl.querySelectorAll(rowSelector));
+      const hasRows = rows.length > 0;
+
+      if (row) {
+        openContextMenu(e.clientX, e.clientY, {
+          type,
+          id: Number(row.dataset[datasetKey]),
+          panel,
+          menuMode: "row",
+          hasRows: true
+        });
+        return;
+      }
 
       openContextMenu(e.clientX, e.clientY, {
         type,
-        id: Number(row.dataset[datasetKey]),
+        id: null,
         panel,
-        menuMode: "panel"
+        menuMode: "panel",
+        hasRows
       });
     });
 
-    listEl?.addEventListener("click", (e) => {
+    listEl.addEventListener("click", (e) => {
       const btn = e.target.closest(".btn-row-menu");
       if (!btn) return;
 
@@ -3509,7 +3524,8 @@ document.addEventListener("DOMContentLoaded", function () {
         type,
         id: Number(row.dataset[datasetKey]),
         panel,
-        menuMode: "row"
+        menuMode: "row",
+        hasRows: true
       });
     });
   }
@@ -3518,43 +3534,12 @@ document.addEventListener("DOMContentLoaded", function () {
   bindPanelContextMenu(speseList, ".expense-row", "expenseId", "expense", "spese");
   bindPanelContextMenu(movCassaList, ".cash-move-row", "cashMoveId", "cash_move", "mov_cassa");
 
-  posList?.addEventListener("contextmenu", (e) => {
-  const row = e.target.closest(".pos-row");
-  if (!row) return;
-
-  e.preventDefault();
-
-  openContextMenu(e.clientX, e.clientY, {
-    type: "pos_move",
-    id: Number(row.dataset.posMoveId),
-    panel: "pos",
-    menuMode: "panel"
-  });
-});
-
-posList?.addEventListener("click", (e) => {
-  const btn = e.target.closest(".btn-row-menu");
-  if (!btn) return;
-
-  e.preventDefault();
-  e.stopPropagation();
-
-  const row = btn.closest(".pos-row");
-  if (!row) return;
-
-  const rect = btn.getBoundingClientRect();
-
-  openContextMenu(rect.right - 8, rect.bottom + 4, {
-    type: "pos_move",
-    id: Number(row.dataset.posMoveId),
-    panel: "pos",
-    menuMode: "row"
-  });
-});
+  bindPanelContextMenu(posList, ".pos-row", "posMoveId", "pos_move", "pos");
 
   document.getElementById("contextMenu")?.addEventListener("click", async (e) => {
     const item = e.target.closest(".context-menu-item");
     if (!item || item.classList.contains("disabled")) return;
+    if (item.hasAttribute("disabled")) return;
     if (!currentContext) return;
 
     const action = item.dataset.action;
@@ -4265,105 +4250,82 @@ let currentContext = null;
 function buildContextMenuHtml(context) {
   const isRowMenu = context?.menuMode === "row";
   const entityType = context?.type || "";
+  const hasRows = !!context?.hasRows;
 
-  const rowActions = [];
-  const panelActions = [];
-  const globalActions = [];
+  const canInsert = ["pos_move", "cash_move", "sale", "expense"].includes(entityType);
+  const canEditDelete = isRowMenu && !!context?.id;
+  const canFilter = !isRowMenu && hasRows;
 
-  if (entityType === "pos_move") {
-    rowActions.push(
-      `<button type="button" class="context-menu-item" data-action="edit">Modifica</button>`,
-      `<button type="button" class="context-menu-item danger" data-action="delete">Elimina</button>`
-    );
+  const btn = (label, action, enabled = true, danger = false) => {
+    const classes = [
+      "context-menu-item",
+      danger ? "danger" : "",
+      enabled ? "" : "disabled"
+    ].filter(Boolean).join(" ");
 
-    if (!isRowMenu) {
-      panelActions.push(
-        `<button type="button" class="context-menu-item" data-action="insert">Inserisci</button>`,
-        `<button type="button" class="context-menu-item" data-action="filter_device">Filtra per device</button>`,
-        `<button type="button" class="context-menu-item" data-action="filter_circuit">Filtra per circuito</button>`,
-        `<button type="button" class="context-menu-item" data-action="clear_filters">Rimuovi filtri</button>`
-      );
-    }
-  }
-
-  if (entityType === "sale") {
-    rowActions.push(
-      `<button type="button" class="context-menu-item" data-action="edit">Modifica</button>`,
-      `<button type="button" class="context-menu-item danger" data-action="delete">Elimina</button>`
-    );
-
-    if (!isRowMenu) {
-      panelActions.push(
-        `<button type="button" class="context-menu-item" data-action="insert">Inserisci</button>`,
-        `<button type="button" class="context-menu-item" data-action="filter_method">Filtra per pagamento</button>`,
-        `<button type="button" class="context-menu-item" data-action="filter_offcash">Solo fuori cassa</button>`,
-        `<button type="button" class="context-menu-item" data-action="clear_filters">Rimuovi filtri</button>`
-      );
-    }
-  }
-
-  if (entityType === "expense") {
-    rowActions.push(
-      `<button type="button" class="context-menu-item" data-action="edit">Modifica</button>`,
-      `<button type="button" class="context-menu-item danger" data-action="delete">Elimina</button>`
-    );
-
-    if (!isRowMenu) {
-      panelActions.push(
-        `<button type="button" class="context-menu-item" data-action="insert">Inserisci</button>`,
-        `<button type="button" class="context-menu-item" data-action="filter_method">Filtra per pagamento</button>`,
-        `<button type="button" class="context-menu-item" data-action="filter_offcash">Solo fuori cassa</button>`,
-        `<button type="button" class="context-menu-item" data-action="clear_filters">Rimuovi filtri</button>`
-      );
-    }
-  }
-
-  if (entityType === "cash_move") {
-    rowActions.push(
-      `<button type="button" class="context-menu-item" data-action="edit">Modifica</button>`,
-      `<button type="button" class="context-menu-item danger" data-action="delete">Elimina</button>`
-    );
-
-    if (!isRowMenu) {
-      panelActions.push(
-        `<button type="button" class="context-menu-item" data-action="insert">Inserisci</button>`,
-        `<button type="button" class="context-menu-item" data-action="filter_kind">Filtra per tipo</button>`,
-        `<button type="button" class="context-menu-item" data-action="clear_filters">Rimuovi filtri</button>`
-      );
-    }
-  }
-
-  if (!rowActions.length && !panelActions.length && !globalActions.length) {
-    return `<div class="context-menu-empty">Nessuna azione disponibile</div>`;
-  }
+    return `<button type="button" class="${classes}" data-action="${action}">${label}</button>`;
+  };
 
   const sections = [];
 
-  if (rowActions.length) {
+  if (canInsert) {
     sections.push(`
       <div class="context-menu-section">
-        <div class="context-menu-section-title">Azioni riga</div>
-        ${rowActions.join("")}
+        ${btn("Inserisci", "insert", true)}
       </div>
     `);
   }
 
-  if (panelActions.length) {
+  if (["pos_move", "cash_move", "sale", "expense"].includes(entityType)) {
     sections.push(`
       <div class="context-menu-section">
-        <div class="context-menu-section-title">Filtri quadrante</div>
-        ${panelActions.join("")}
+        ${btn("Modifica", "edit", canEditDelete)}
+        ${btn("Elimina", "delete", canEditDelete, true)}
       </div>
     `);
   }
 
-  if (globalActions.length) {
+  if (entityType === "pos_move") {
     sections.push(`
       <div class="context-menu-section">
-        <div class="context-menu-section-title">Altro</div>
-        ${globalActions.join("")}
+        ${btn("Filtra per device", "filter_device", canFilter)}
+        ${btn("Filtra per circuito", "filter_circuit", canFilter)}
+        ${btn("Rimuovi filtri", "clear_filters", canFilter)}
       </div>
     `);
+  }
+
+  if (entityType === "cash_move") {
+    sections.push(`
+      <div class="context-menu-section">
+        ${btn("Filtra per tipo", "filter_kind", canFilter)}
+        ${btn("Rimuovi filtri", "clear_filters", canFilter)}
+      </div>
+    `);
+  }
+
+  if (entityType === "sale") {
+    sections.push(`
+      <div class="context-menu-section">
+        ${btn("Filtra per pagamento", "filter_method", canFilter)}
+        ${btn("Solo fuori cassa", "filter_offcash", canFilter)}
+        ${btn("Rimuovi filtri", "clear_filters", canFilter)}
+      </div>
+    `);
+  }
+
+  if (entityType === "expense") {
+    sections.push(`
+      <div class="context-menu-section">
+        ${btn("Filtra per pagamento", "filter_method", canFilter)}
+        ${btn("Solo fuori cassa", "filter_offcash", canFilter)}
+        ${btn("Rimuovi filtri", "clear_filters", canFilter)}
+      </div>
+    `);
+  }
+
+  if (!sections.length) {
+    return `<div class="context-menu-empty">Nessuna azione disponibile</div>`;
   }
 
   return sections.join(`<div class="context-menu-separator"></div>`);
