@@ -101,6 +101,8 @@ def calculate_closure_pure(
     - S_new = S_prev + Q + assegni_postdatati (**) - totale_versato_oggi
     - Q_residua = Q - versamenti_intermedi_oggi - eventuale debito_contanti_incasso
     - incasso_consegnato != totale_versato (restano separati)
+    - saldo_movimenti_cassa rappresenta il saldo netto dei movimenti manuali di cassa:
+      versamenti (+) / prelievi (-), inclusi eventuali spicci
 
     Regola importante:
     - il debito_contanti_incasso NON deve sparire se dopo registri nuovi incassi.
@@ -114,6 +116,7 @@ def calculate_closure_pure(
     total_corrispettivi = _d(total_corrispettivi)
     fondo_finale = _d(fondo_finale)
     saldo_versabile_precedente = _d(saldo_versabile_precedente)
+    saldo_movimenti_cassa = _d(saldo_movimenti_cassa)
     incasso_consegnato = _d(incasso_consegnato)
     tolleranza = _d(tolleranza)
 
@@ -309,7 +312,8 @@ def calculate_closure_pure(
     else:
         incasso_calcolato = contanti_fisici + total_corrispettivi
 
-    delta_quadratura = incasso_consegnato + saldo_movimenti_cassa - incasso_calcolato
+    valore_atteso_cassetto = incasso_calcolato + saldo_movimenti_cassa
+    delta_quadratura = incasso_consegnato - valore_atteso_cassetto
     anomalia = abs(delta_quadratura) > tolleranza
 
     totale_giornata_is_partial = not (
@@ -332,6 +336,8 @@ def calculate_closure_pure(
 
         "incasso_calcolato": incasso_calcolato,
         "incasso_consegnato": incasso_consegnato,
+        "saldo_movimenti_cassa": saldo_movimenti_cassa,
+        "valore_atteso_cassetto": valore_atteso_cassetto,
         "delta_quadratura": delta_quadratura,
         "anomalia": anomalia,
 

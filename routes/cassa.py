@@ -552,10 +552,12 @@ def _calculate_progressive_saldo_versabile(cash_day: CashDay) -> Decimal:
         total_corrispettivi=Decimal("0"),
         fondo_finale=Decimal("0"),
         saldo_versabile_precedente=saldo_prev,
+        saldo_movimenti_cassa=Decimal("0"),
         incasso_consegnato=Decimal("0"),
     )
 
     return Decimal(str(result.get("saldo_versabile", 0)))
+
 
 @cassa_bp.get("/api/day/<day_date>/preview")
 @role_required(40)
@@ -700,13 +702,19 @@ def api_cash_day_preview(day_date):
     result["total_corrispettivi"] = float(totale_corrispettivi)
 
     has_owner_take_rows = (
-        db.session.query(func.count(CashOwnerTake.id))
-        .filter(CashOwnerTake.cash_day_id == cash_day.id)
-        .scalar()
-    ) > 0
+                              db.session.query(func.count(CashOwnerTake.id))
+                              .filter(CashOwnerTake.cash_day_id == cash_day.id)
+                              .scalar()
+                          ) > 0
+
+    has_cash_move_rows = (
+                             db.session.query(func.count(CashMove.id))
+                             .filter(CashMove.cash_day_id == cash_day.id)
+                             .scalar()
+                         ) > 0
 
     quadratura_available = bool(
-        has_owner_take_rows
+        (has_owner_take_rows or has_cash_move_rows)
         and result.get("has_corrispettivi")
         and result.get("has_fondo_iniziale")
         and result.get("has_fondo_finale")
