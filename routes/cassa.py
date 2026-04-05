@@ -651,9 +651,36 @@ def api_cash_day_preview(day_date):
         .scalar()
     )
 
+    totale_cash_moves_in = (
+        db.session.query(func.coalesce(func.sum(CashMove.amount), 0))
+        .filter(
+            CashMove.cash_day_id == cash_day.id,
+            CashMove.direction == "in",
+        )
+        .scalar()
+    )
+
+    totale_cash_moves_out = (
+        db.session.query(func.coalesce(func.sum(CashMove.amount), 0))
+        .filter(
+            CashMove.cash_day_id == cash_day.id,
+            CashMove.direction == "out",
+        )
+        .scalar()
+    )
+
     totale_owner_take_cash = Decimal(str(totale_owner_take_cash or 0))
     totale_owner_take_checks = Decimal(str(totale_owner_take_checks or 0))
-    totale_incasso_consegnato = totale_owner_take_cash + totale_owner_take_checks
+    totale_cash_moves_in = Decimal(str(totale_cash_moves_in or 0))
+    totale_cash_moves_out = Decimal(str(totale_cash_moves_out or 0))
+
+    saldo_movimenti_cassa = totale_cash_moves_in - totale_cash_moves_out
+
+    totale_incasso_consegnato = (
+        totale_owner_take_cash
+        + totale_owner_take_checks
+        + saldo_movimenti_cassa
+    )
 
     result = calculate_closure_pure(
         cash_day_id=cash_day.id,
@@ -667,6 +694,9 @@ def api_cash_day_preview(day_date):
     result["incasso_consegnato"] = float(totale_incasso_consegnato)
     result["owner_take_cash_amount"] = float(totale_owner_take_cash)
     result["owner_take_check_amount"] = float(totale_owner_take_checks)
+    result["cash_moves_in_amount"] = float(totale_cash_moves_in)
+    result["cash_moves_out_amount"] = float(totale_cash_moves_out)
+    result["cash_moves_net_amount"] = float(saldo_movimenti_cassa)
     result["total_corrispettivi"] = float(totale_corrispettivi)
 
     has_owner_take_rows = (
