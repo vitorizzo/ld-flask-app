@@ -18,15 +18,21 @@
         <h3 class="mb-0">Agenda / Cassa</h3>
         <small class="text-muted" id="agendaLastUpdated">Ultimo aggiornamento: —</small>
       </div>
-
       <div class="d-flex flex-wrap align-items-center gap-2">
-        <span class="badge text-bg-secondary" id="dayStatusBadge">—</span>
-        <i class="fa-solid fa-coins spicci-icon" title="Fondo Spicci"></i>
-        <span class="fw-semibold" id="coinsVaultBalance">—</span>
+          <span class="badge text-bg-secondary" id="dayStatusBadge">—</span>
+          <button
+            type="button"
+            class="btn btn-link p-0 d-inline-flex align-items-center gap-2 text-decoration-none"
+            id="btnOpenSpicciModal"
+            title="Gestisci movimenti spicci"
+          >
+            <i class="fa-solid fa-coins spicci-icon" title="Fondo Spicci"></i>
+            <span class="fw-semibold" id="coinsVaultBalance">—</span>
+          </button>
+        </div>
       </div>
-    </div>
 
-    <div class="d-flex gap-3 flex-wrap flex-lg-nowrap align-items-start">
+      <div class="d-flex gap-3 flex-wrap flex-lg-nowrap align-items-start">
 
       <!-- LEFT -->
       <div class="agenda-col-left flex-shrink-0">
@@ -1497,8 +1503,8 @@
           <div class="col-12 col-md-4">
             <label class="form-label" for="cashMoveKind">Tipo</label>
             <select class="form-select" id="cashMoveKind">
-              <option value="altro">Altro</option>
-              <option value="spicci">Spicci</option>
+              <option value="prelievo">Prelievo</option>
+              <option value="versamento">Versamento</option>
             </select>
           </div>
 
@@ -1516,7 +1522,7 @@
               >
             </div>
             <div class="form-text">
-              Usa importo positivo per versamento in cassa, negativo per prelievo.
+              Inserisci un importo positivo. Il tipo selezionato determina se il movimento è un prelievo o un versamento.
             </div>
           </div>
 
@@ -1552,7 +1558,104 @@
   </div>
 </div>
 
+<!-- MODALE SPICCI -->
+<div class="modal fade agenda-modal" id="spicciModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
 
+      <div class="modal-header">
+        <h5 class="modal-title">Movimenti spicci</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- FORM INSERIMENTO -->
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-md-3">
+            <label class="form-label" for="spicciMoveType">Tipo</label>
+            <select class="form-select" id="spicciMoveType">
+              <option value="prelievo" selected>Prelievo</option>
+              <option value="versamento">Versamento</option>
+            </select>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label" for="spicciMoveAmount">Importo</label>
+            <div class="input-group">
+              <span class="input-group-text">€</span>
+              <input
+                type="text"
+                class="form-control text-end"
+                id="spicciMoveAmount"
+                placeholder="0,00"
+                inputmode="decimal"
+                autocomplete="off"
+              >
+            </div>
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label" for="spicciMovePerformedBy">Chi</label>
+            <input
+              type="text"
+              class="form-control"
+              id="spicciMovePerformedBy"
+              placeholder="Chi esegue il movimento"
+            >
+          </div>
+
+          <div class="col-12 col-md-3">
+            <label class="form-label" for="spicciMoveNotes">Note</label>
+            <input
+              type="text"
+              class="form-control"
+              id="spicciMoveNotes"
+              placeholder="Dettagli / motivo"
+            >
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-end mb-3">
+          <button type="button" class="btn btn-primary" id="spicciMoveSaveBtn">Salva</button>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- STORICO -->
+        <div>
+          <div class="fw-semibold mb-2">Movimenti spicci registrati nella giornata</div>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Tipo</th>
+                  <th>Chi</th>
+                  <th>Note</th>
+                  <th class="text-end">Importo</th>
+                  <th style="width: 160px;"></th>
+                </tr>
+              </thead>
+              <tbody id="spicciTableBody">
+                <tr>
+                  <td colspan="6" class="text-center text-muted">Nessun movimento spicci</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 <div id="contextMenu" class="context-menu d-none">
   <div class="context-menu-item" data-action="edit">Modifica</div>

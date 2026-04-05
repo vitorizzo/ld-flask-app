@@ -190,6 +190,22 @@ let cashMoveModal = null;
 let editingCashMoveId = null;
 
 /* =========================
+   SPICCI MODAL REFS
+========================= */
+
+const btnOpenSpicciModal = document.getElementById("btnOpenSpicciModal");
+const spicciModalEl = document.getElementById("spicciModal");
+const spicciMoveTypeSelect = document.getElementById("spicciMoveType");
+const spicciMoveAmountInput = document.getElementById("spicciMoveAmount");
+const spicciMovePerformedByInput = document.getElementById("spicciMovePerformedBy");
+const spicciMoveNotesInput = document.getElementById("spicciMoveNotes");
+const spicciMoveSaveBtn = document.getElementById("spicciMoveSaveBtn");
+const spicciTableBody = document.getElementById("spicciTableBody");
+
+let spicciModal = null;
+let editingSpicciMoveId = null;
+
+/* =========================
    OWNER TAKE MODAL REFS
 ========================= */
 
@@ -1002,7 +1018,9 @@ async function loadCashMoves(dayStr) {
       return;
     }
 
-    const moves = data.cash_moves || [];
+    const allMoves = data.cash_moves || [];
+    const moves = allMoves.filter(m => (m.kind || "altro") !== "spicci");
+
     if (!moves.length) {
       listEl.innerHTML = `<div class="list-group-item text-muted small">Nessun movimento</div>`;
       return;
@@ -1020,14 +1038,15 @@ async function loadCashMoves(dayStr) {
       const isOut = m.direction === "out";
       const who = (m.performed_by || "").trim();
       const notes = (m.notes || "").trim();
-      const kind = (m.kind || "").trim();
 
+      const tipoLabel = isOut ? "PRELIEVO" : "VERSAMENTO";
       const desc = [who, notes].filter(Boolean).join(" • ") || "Movimento";
       const amt = `${isOut ? "-" : ""}${Math.abs(amount).toFixed(2)}€`;
       const colorClass = isOut ? "text-danger" : "text-primary";
 
-      const badges = [];
-      if (kind === "spicci") badges.push(`<span class="badge badge-soft badge-coins">SPICCI</span>`);
+      const badges = [
+        `<span class="badge badge-soft">${tipoLabel}</span>`
+      ];
 
       const isChecked = checksMap.get(Number(m.id)) === true;
 
@@ -1598,6 +1617,10 @@ document.addEventListener("DOMContentLoaded", function () {
     await openCashMoveModal();
   });
 
+  btnOpenSpicciModal?.addEventListener("click", async () => {
+    await openSpicciModal();
+  });
+
   posMoveDeviceSelect?.addEventListener("change", async (e) => {
     await loadPosCircuits(e.target.value, posMoveCircuitSelect);
   });
@@ -1621,6 +1644,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   normalizeCurrencyInput(posMoveAmountInput);
   normalizeCurrencyInput(cashMoveAmountInput);
+  normalizeCurrencyInput(spicciMoveAmountInput);
 
   document.getElementById("kpiCassettoBox")?.addEventListener("click", async () => {
     await openOwnerTakeModal();
@@ -1693,6 +1717,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (cashMoveModalEl) {
     cashMoveModal = new bootstrap.Modal(cashMoveModalEl);
+  }
+
+  if (spicciModalEl) {
+    spicciModal = new bootstrap.Modal(spicciModalEl);
   }
 
   if (ecommerceModalEl) {
@@ -2245,7 +2273,7 @@ document.addEventListener("DOMContentLoaded", function () {
     editingCashMoveId = null;
 
     if (cashMoveDateInput) cashMoveDateInput.value = currentDay || "";
-    if (cashMoveKindSelect) cashMoveKindSelect.value = "altro";
+    if (cashMoveKindSelect) cashMoveKindSelect.value = "prelievo";
     if (cashMoveAmountInput) cashMoveAmountInput.value = "0,00";
     if (cashMovePerformedByInput) cashMovePerformedByInput.value = "";
     if (cashMoveNotesInput) cashMoveNotesInput.value = "";
@@ -2305,12 +2333,11 @@ document.addEventListener("DOMContentLoaded", function () {
       editingCashMoveId = row.id;
 
       if (cashMoveDateInput) cashMoveDateInput.value = currentDay;
-      if (cashMoveKindSelect) cashMoveKindSelect.value = row.kind || "altro";
+      if (cashMoveKindSelect) {
+        cashMoveKindSelect.value = row.direction === "out" ? "prelievo" : "versamento";
+      }
       if (cashMoveAmountInput) {
-        const signedAmount = row.direction === "out"
-          ? -Number(row.amount || 0)
-          : Number(row.amount || 0);
-        cashMoveAmountInput.value = formatEuro2(signedAmount);
+        cashMoveAmountInput.value = formatEuro2(Math.abs(Number(row.amount || 0)));
       }
       if (cashMovePerformedByInput) cashMovePerformedByInput.value = row.performed_by || "";
       if (cashMoveNotesInput) cashMoveNotesInput.value = row.notes || "";
@@ -2338,12 +2365,13 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    const kind = (cashMoveKindSelect?.value || "altro").trim();
+    const moveType = (cashMoveKindSelect?.value || "prelievo").trim();
     const performed_by = (cashMovePerformedByInput?.value || "").trim();
     const notes = (cashMoveNotesInput?.value || "").trim() || null;
-    const amount = parseEuroToNumber(cashMoveAmountInput?.value || "0");
+    const rawAmount = parseEuroToNumber(cashMoveAmountInput?.value || "0");
+    const normalizedAmount = Math.abs(rawAmount);
 
-    if (amount === 0) {
+    if (normalizedAmount === 0) {
       alert("Inserisci un importo valido.");
       return;
     }
@@ -2352,6 +2380,8 @@ document.addEventListener("DOMContentLoaded", function () {
       alert("Inserisci chi esegue il movimento.");
       return;
     }
+
+    const signedAmount = moveType === "prelievo" ? -normalizedAmount : normalizedAmount;
 
     const isEdit = !!editingCashMoveId;
     const url = isEdit
@@ -2371,10 +2401,10 @@ document.addEventListener("DOMContentLoaded", function () {
         },
         credentials: "same-origin",
         body: JSON.stringify({
-          amount,
+          amount: signedAmount,
           performed_by,
           notes,
-          kind
+          kind: "altro"
         })
       });
 
@@ -2425,6 +2455,269 @@ document.addEventListener("DOMContentLoaded", function () {
     } catch (err) {
       console.error("deleteCashMove error:", err);
       alert("Errore di rete durante l'eliminazione.");
+    }
+  }
+
+  function resetSpicciModalForm() {
+    editingSpicciMoveId = null;
+
+    if (spicciMoveTypeSelect) spicciMoveTypeSelect.value = "prelievo";
+    if (spicciMoveAmountInput) spicciMoveAmountInput.value = "0,00";
+    if (spicciMovePerformedByInput) spicciMovePerformedByInput.value = "";
+    if (spicciMoveNotesInput) spicciMoveNotesInput.value = "";
+
+    if (spicciMoveSaveBtn) {
+      spicciMoveSaveBtn.textContent = "Salva";
+    }
+  }
+
+  async function loadSpicciMoves(dayStr) {
+    if (!spicciTableBody) return;
+
+    spicciTableBody.innerHTML = `
+      <tr>
+        <td colspan="6" class="text-center text-muted">Caricamento...</td>
+      </tr>
+    `;
+
+    try {
+      const r = await fetch(`/cassa/api/day/${dayStr}/cash_moves`, {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" },
+        cache: "no-store"
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.ok) {
+        spicciTableBody.innerHTML = `
+          <tr>
+            <td colspan="6" class="text-center text-danger">
+              ${escapeHtml(data.error || "Errore caricamento movimenti spicci")}
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      const rows = (data.cash_moves || []).filter(x => (x.kind || "altro") === "spicci");
+
+      if (!rows.length) {
+        spicciTableBody.innerHTML = `
+          <tr>
+            <td colspan="6" class="text-center text-muted">Nessun movimento spicci</td>
+          </tr>
+        `;
+        return;
+      }
+
+      spicciTableBody.innerHTML = rows.map(row => {
+        const signedAmount = row.direction === "out"
+          ? -Number(row.amount || 0)
+          : Number(row.amount || 0);
+
+        return `
+          <tr data-spicci-id="${row.id}">
+            <td>${row.created_at ? new Date(row.created_at).toLocaleString() : ""}</td>
+            <td>${row.direction === "out" ? "Prelievo" : "Versamento"}</td>
+            <td>${escapeHtml(row.performed_by || "")}</td>
+            <td>${escapeHtml(row.notes || "")}</td>
+            <td class="text-end ${row.direction === "out" ? "text-danger" : "text-primary"}">
+              ${formatEuro2(signedAmount)} €
+            </td>
+            <td class="text-end">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary btn-spicci-edit"
+                data-id="${row.id}">
+                Modifica
+              </button>
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-danger btn-spicci-delete"
+                data-id="${row.id}">
+                Elimina
+              </button>
+            </td>
+          </tr>
+        `;
+      }).join("");
+
+    } catch (err) {
+      console.error("loadSpicciMoves error:", err);
+      spicciTableBody.innerHTML = `
+        <tr>
+          <td colspan="6" class="text-center text-danger">Errore di rete</td>
+        </tr>
+      `;
+    }
+  }
+
+  async function openSpicciModal() {
+    if (!currentDay) {
+      alert("Nessuna giornata selezionata.");
+      return;
+    }
+
+    resetSpicciModalForm();
+    await loadSpicciMoves(currentDay);
+
+    if (!spicciModal) {
+      alert("Modale spicci non disponibile.");
+      return;
+    }
+
+    spicciModal.show();
+  }
+
+  async function openEditSpicciMove(spicciId) {
+    if (!currentDay) {
+      alert("Nessuna giornata selezionata.");
+      return;
+    }
+
+    try {
+      const r = await fetch(`/cassa/api/day/${currentDay}/cash_moves`, {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" },
+        cache: "no-store"
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore caricamento movimento spicci");
+        return;
+      }
+
+      const row = (data.cash_moves || []).find(x => Number(x.id) === Number(spicciId) && (x.kind || "altro") === "spicci");
+      if (!row) {
+        alert("Movimento spicci non trovato");
+        return;
+      }
+
+      editingSpicciMoveId = row.id;
+
+      if (spicciMoveTypeSelect) {
+        spicciMoveTypeSelect.value = row.direction === "out" ? "prelievo" : "versamento";
+      }
+      if (spicciMoveAmountInput) {
+        spicciMoveAmountInput.value = formatEuro2(Math.abs(Number(row.amount || 0)));
+      }
+      if (spicciMovePerformedByInput) {
+        spicciMovePerformedByInput.value = row.performed_by || "";
+      }
+      if (spicciMoveNotesInput) {
+        spicciMoveNotesInput.value = row.notes || "";
+      }
+      if (spicciMoveSaveBtn) {
+        spicciMoveSaveBtn.textContent = "Salva modifica";
+      }
+
+    } catch (err) {
+      console.error("openEditSpicciMove error:", err);
+      alert("Errore di rete durante il caricamento del movimento spicci.");
+    }
+  }
+
+  async function saveSpicciMove() {
+    if (!currentDay) {
+      alert("Nessuna giornata selezionata.");
+      return;
+    }
+
+    const moveType = (spicciMoveTypeSelect?.value || "prelievo").trim();
+    const performed_by = (spicciMovePerformedByInput?.value || "").trim();
+    const notes = (spicciMoveNotesInput?.value || "").trim() || null;
+    const rawAmount = parseEuroToNumber(spicciMoveAmountInput?.value || "0");
+    const normalizedAmount = Math.abs(rawAmount);
+
+    if (normalizedAmount === 0) {
+      alert("Inserisci un importo valido.");
+      return;
+    }
+
+    if (!performed_by) {
+      alert("Inserisci chi esegue il movimento.");
+      return;
+    }
+
+    const signedAmount = moveType === "prelievo" ? -normalizedAmount : normalizedAmount;
+
+    const isEdit = !!editingSpicciMoveId;
+    const url = isEdit
+      ? `/cassa/api/cash_moves/${editingSpicciMoveId}`
+      : `/cassa/api/day/${currentDay}/cash_moves`;
+
+    const method = isEdit ? "PUT" : "POST";
+
+    try {
+      if (spicciMoveSaveBtn) spicciMoveSaveBtn.disabled = true;
+
+      const r = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json"
+        },
+        credentials: "same-origin",
+        body: JSON.stringify({
+          amount: signedAmount,
+          performed_by,
+          notes,
+          kind: "spicci"
+        })
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore salvataggio movimento spicci");
+        return;
+      }
+
+      resetSpicciModalForm();
+      await loadSpicciMoves(currentDay);
+      await loadCoinsBalance(currentDay);
+
+    } catch (err) {
+      console.error("saveSpicciMove error:", err);
+      alert("Errore di rete durante il salvataggio del movimento spicci.");
+    } finally {
+      if (spicciMoveSaveBtn) spicciMoveSaveBtn.disabled = false;
+    }
+  }
+
+  async function deleteSpicciMove(spicciId) {
+    if (!spicciId) return;
+
+    const confirmed = window.confirm("Vuoi eliminare questo movimento spicci?");
+    if (!confirmed) return;
+
+    try {
+      const r = await fetch(`/cassa/api/cash_moves/${spicciId}`, {
+        method: "DELETE",
+        headers: { "Accept": "application/json" },
+        credentials: "same-origin"
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore eliminazione movimento spicci");
+        return;
+      }
+
+      if (editingSpicciMoveId && Number(editingSpicciMoveId) === Number(spicciId)) {
+        resetSpicciModalForm();
+      }
+
+      await loadSpicciMoves(currentDay);
+      await loadCoinsBalance(currentDay);
+
+    } catch (err) {
+      console.error("deleteSpicciMove error:", err);
+      alert("Errore di rete durante l'eliminazione del movimento spicci.");
     }
   }
 
@@ -4040,6 +4333,23 @@ document.addEventListener("DOMContentLoaded", function () {
 
   cashMoveSaveBtn?.addEventListener("click", async () => {
     await saveCashMove();
+  });
+
+    spicciMoveSaveBtn?.addEventListener("click", async () => {
+    await saveSpicciMove();
+  });
+
+  spicciTableBody?.addEventListener("click", async (e) => {
+    const editBtn = e.target.closest(".btn-spicci-edit");
+    if (editBtn) {
+      await openEditSpicciMove(editBtn.dataset.id);
+      return;
+    }
+
+    const deleteBtn = e.target.closest(".btn-spicci-delete");
+    if (deleteBtn) {
+      await deleteSpicciMove(deleteBtn.dataset.id);
+    }
   });
 
   posDeviceSelect?.addEventListener("change", async (e) => {
