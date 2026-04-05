@@ -89,6 +89,7 @@ def calculate_closure_pure(
     total_corrispettivi: Decimal,
     fondo_finale: Decimal,
     saldo_versabile_precedente: Decimal,
+    saldo_movimenti_cassa: Decimal,
     incasso_consegnato: Decimal,
     tolleranza: Decimal = Decimal("2.00"),
 ):
@@ -308,7 +309,7 @@ def calculate_closure_pure(
     else:
         incasso_calcolato = contanti_fisici + total_corrispettivi
 
-    delta_quadratura = incasso_consegnato - incasso_calcolato
+    delta_quadratura = incasso_consegnato + saldo_movimenti_cassa - incasso_calcolato
     anomalia = abs(delta_quadratura) > tolleranza
 
     totale_giornata_is_partial = not (

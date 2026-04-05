@@ -679,7 +679,6 @@ def api_cash_day_preview(day_date):
     totale_incasso_consegnato = (
         totale_owner_take_cash
         + totale_owner_take_checks
-        + saldo_movimenti_cassa
     )
 
     result = calculate_closure_pure(
@@ -688,6 +687,7 @@ def api_cash_day_preview(day_date):
         total_corrispettivi=totale_corrispettivi,
         fondo_finale=fondo_finale,
         saldo_versabile_precedente=saldo_versabile_precedente,
+        saldo_movimenti_cassa=saldo_movimenti_cassa,
         incasso_consegnato=totale_incasso_consegnato,
     )
 
