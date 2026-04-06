@@ -1841,9 +1841,7 @@ def api_create_cash_move(day_date):
     if raw_amount == 0:
         return jsonify({"ok": False, "error": "Amount must be non-zero"}), 400
 
-    performed_by = (data.get("performed_by") or "").strip()
-    if not performed_by:
-        return jsonify({"ok": False, "error": "Missing performed_by"}), 400
+    performed_by = (data.get("performed_by") or "").strip() or None
 
     notes = (data.get("notes") or "").strip() or None
     kind = (data.get("kind") or "altro").strip() or "altro"
@@ -1932,9 +1930,7 @@ def api_update_cash_move(cash_move_id):
     if raw_amount == 0:
         return jsonify({"ok": False, "error": "Amount must be non-zero"}), 400
 
-    performed_by = (data.get("performed_by") or "").strip()
-    if not performed_by:
-        return jsonify({"ok": False, "error": "Missing performed_by"}), 400
+    performed_by = (data.get("performed_by") or "").strip() or None
 
     notes = (data.get("notes") or "").strip() or None
     kind = (data.get("kind") or "altro").strip() or "altro"
