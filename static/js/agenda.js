@@ -3762,19 +3762,23 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   const posList = document.getElementById("posList");
+  const posPanel = document.getElementById("posPanel");
   const incassiList = document.getElementById("incassiList");
+  const incassiPanel = document.getElementById("incassiPanel");
   const speseList = document.getElementById("speseList");
+  const spesePanel = document.getElementById("spesePanel");
   const movCassaList = document.getElementById("movCassaList");
+  const movCassaPanel = document.getElementById("movCassaPanel");
 
-  function bindPanelContextMenu(listEl, rowSelector, datasetKey, type, panel) {
-    if (!listEl) return;
+  function bindPanelContextMenu(panelEl, listEl, rowSelector, datasetKey, type, panel) {
+    if (!panelEl) return;
 
-    listEl.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-
+    panelEl.addEventListener("contextmenu", (e) => {
       const row = e.target.closest(rowSelector);
       const rows = Array.from(listEl.querySelectorAll(rowSelector));
       const hasRows = rows.length > 0;
+
+      e.preventDefault();
 
       if (row) {
         openContextMenu(e.clientX, e.clientY, {
@@ -3796,7 +3800,7 @@ document.addEventListener("DOMContentLoaded", function () {
       });
     });
 
-    listEl.addEventListener("click", (e) => {
+    panelEl.addEventListener("click", (e) => {
       const btn = e.target.closest(".btn-row-menu");
       if (!btn) return;
 
@@ -3818,11 +3822,10 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  bindPanelContextMenu(incassiList, ".sale-row", "saleId", "sale", "incassi");
-  bindPanelContextMenu(speseList, ".expense-row", "expenseId", "expense", "spese");
-  bindPanelContextMenu(movCassaList, ".cash-move-row", "cashMoveId", "cash_move", "mov_cassa");
-
-  bindPanelContextMenu(posList, ".pos-row", "posMoveId", "pos_move", "pos");
+  bindPanelContextMenu(incassiPanel, incassiList, ".sale-row", "saleId", "sale", "incassi");
+  bindPanelContextMenu(spesePanel, speseList, ".expense-row", "expenseId", "expense", "spese");
+  bindPanelContextMenu(movCassaPanel, movCassaList, ".cash-move-row", "cashMoveId", "cash_move", "mov_cassa");
+  bindPanelContextMenu(posPanel, posList, ".pos-row", "posMoveId", "pos_move", "pos");
 
   document.getElementById("contextMenu")?.addEventListener("click", async (e) => {
     const item = e.target.closest(".context-menu-item");
