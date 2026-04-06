@@ -2637,11 +2637,6 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    if (!performed_by) {
-      alert("Inserisci chi esegue il movimento.");
-      return;
-    }
-
     const signedAmount = moveType === "prelievo" ? -normalizedAmount : normalizedAmount;
 
     const isEdit = !!editingSpicciMoveId;
