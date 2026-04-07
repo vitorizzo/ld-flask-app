@@ -288,13 +288,25 @@
           <div class="col-12 col-xl-6">
             <div class="card shadow-sm h-100">
               <div class="card-header d-flex align-items-center justify-content-between header-incassi">
-                <i class="fa-solid fa-cash-register Incassi-box-icon"></i>
-                <span class="fw-semibold">Incassi</span>
-                <span class="text-muted small">Totale: <span class="fw-semibold" id="totIncassi">0,00</span></span>
+                <div class="d-flex align-items-center gap-2">
+                  <i class="fa-solid fa-cash-register Incassi-box-icon"></i>
+                  <span class="fw-semibold">Incassi</span>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary"
+                    id="btnNewIncasso"
+                    title="Nuovo incasso"
+                  >
+                    <i class="fa-solid fa-plus"></i>
+                  </button>
+                </div>
+                <span class="text-muted small">
+                  Totale: <span class="fw-semibold" id="totIncassi">0,00</span>
+                </span>
               </div>
               <div class="card-body p-0" id="incassiPanel">
                 <div class="list-group list-group-flush" id="incassiList">
-                  <div class="list-group-item text-muted small">Nessun dato (V1)</div>
+                  <div class="list-group-item text-muted small">Nessun dato</div>
                 </div>
               </div>
             </div>
@@ -303,8 +315,21 @@
           <div class="col-12 col-xl-6">
             <div class="card shadow-sm h-100">
               <div class="card-header d-flex align-items-center justify-content-between header-spese">
-                <span class="fw-semibold">Spese</span>
-                <span class="text-muted small">Totale: <span class="fw-semibold" id="totSpese">0,00</span></span>
+                <div class="d-flex align-items-center gap-2">
+                  <i class="fa-solid fa-receipt Spese-box-icon"></i>
+                  <span class="fw-semibold">Spese</span>
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline-primary"
+                    id="btnNewSpesa"
+                    title="Nuova spesa"
+                  >
+                    <i class="fa-solid fa-plus"></i>
+                  </button>
+                </div>
+                <span class="text-muted small">
+                  Totale: <span class="fw-semibold" id="totSpese">0,00</span>
+                </span>
               </div>
               <div class="card-body p-0" id="spesePanel">
                 <div class="list-group list-group-flush" id="speseList">
@@ -318,6 +343,7 @@
             <div class="card shadow-sm h-100">
               <div class="card-header d-flex align-items-center justify-content-between header-movimenti">
                 <div class="d-flex align-items-center gap-2">
+                  <i class="fa-solid fa-money-bill-transfer Movimenti-box-icon"></i>
                   <span class="fw-semibold">Movimenti di cassa</span>
                   <button
                     type="button"
@@ -328,11 +354,13 @@
                     <i class="fa-solid fa-plus"></i>
                   </button>
                 </div>
-                <span class="text-muted small">Totale: <span class="fw-semibold" id="totMovCassa">0,00</span></span>
+                <span class="text-muted small">
+                  Totale: <span class="fw-semibold" id="totMovCassa">0,00</span>
+                </span>
               </div>
               <div class="card-body p-0" id="movCassaPanel">
                 <div class="list-group list-group-flush" id="movCassaList">
-                  <div class="list-group-item text-muted small">Nessun dato (V1)</div>
+                  <div class="list-group-item text-muted small">Nessun dato</div>
                 </div>
               </div>
             </div>
@@ -342,6 +370,7 @@
             <div class="card shadow-sm h-100">
               <div class="card-header d-flex align-items-center justify-content-between header-pos">
                 <div class="d-flex align-items-center gap-2">
+                  <i class="fa-solid fa-credit-card Pos-box-icon"></i>
                   <span class="fw-semibold">POS</span>
                   <button
                     type="button"
@@ -352,11 +381,13 @@
                     <i class="fa-solid fa-plus"></i>
                   </button>
                 </div>
-                <span class="text-muted small">Totale: <span class="fw-semibold" id="totPos">0,00</span></span>
+                <span class="text-muted small">
+                  Totale: <span class="fw-semibold" id="totPos">0,00</span>
+                </span>
               </div>
               <div class="card-body p-0" id="posPanel">
                 <div class="list-group list-group-flush" id="posList">
-                  <div class="list-group-item text-muted small">Nessun dato (V1)</div>
+                  <div class="list-group-item text-muted small">Nessun dato</div>
                 </div>
               </div>
             </div>
