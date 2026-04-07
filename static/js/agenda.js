@@ -1187,11 +1187,23 @@ async function loadIncassi(dayStr) {
     const rows = [];
     for (const s of sales) {
       for (const p of (s.payments || [])) {
+                const rawDescription = (p.description || s.notes || "").trim();
+        const rawCustomer = (s.customer_label || "").trim();
+
+        let composedDesc = "";
+        if (rawCustomer && rawDescription) {
+          composedDesc = `${rawCustomer} - ${rawDescription}`;
+        } else if (rawCustomer) {
+          composedDesc = rawCustomer;
+        } else {
+          composedDesc = rawDescription;
+        }
+
         rows.push({
           sale_id: s.id,
           created_at: p.created_at || s.created_at,
           flag: p.flag || "",
-          desc: p.description || s.notes || "",
+          desc: composedDesc,
           amount: Number(p.amount || 0),
           direction: p.direction || "in",
           method: p.method || "",
@@ -3615,7 +3627,7 @@ document.addEventListener("DOMContentLoaded", function () {
   async function getBaseOperationData() {
     const opType = document.getElementById("opType")?.value || "sale";
     const flag = (document.getElementById("opFlag")?.value || "*").trim();
-    const description = (document.getElementById("opDesc")?.value || "").trim();
+    const description = (document.getElementById("opDesc")?.value || "").trim() || null;
     const customerLabel = (document.getElementById("opCustomer")?.value || "").trim();
     const offCash = !!document.getElementById("opOffCash")?.checked;
     const offCashWho = (document.getElementById("opOffCashWho")?.value || "").trim();
@@ -3646,8 +3658,8 @@ document.addEventListener("DOMContentLoaded", function () {
       return { ok: false, error: "Importo operazione non valido." };
     }
 
-    if (!base.description) {
-      return { ok: false, error: "Inserisci una descrizione." };
+    if (!base.description && !base.customer_id && !base.customer_label) {
+      return { ok: false, error: "Inserisci almeno una descrizione o seleziona un cliente." };
     }
 
     if (mode === "cash") {
@@ -3783,8 +3795,8 @@ document.addEventListener("DOMContentLoaded", function () {
       return { ok: false, error: "Importo operazione non valido." };
     }
 
-    if (!base.description) {
-      return { ok: false, error: "Inserisci una descrizione." };
+    if (!base.description && !base.customer_id && !base.customer_label) {
+      return { ok: false, error: "Inserisci almeno una descrizione o seleziona un cliente." };
     }
 
     const payments = [];

@@ -1214,12 +1214,16 @@ def api_create_sale(day_date):
     if flag not in _ALLOWED_FLAGS:
         return jsonify({"ok": False, "error": f"Invalid flag (allowed: {sorted(_ALLOWED_FLAGS)})"}), 400
 
-    description = (data.get("description") or "").strip()
-    if not description:
-        return jsonify({"ok": False, "error": "Missing description"}), 400
+    description = (data.get("description") or "").strip() or None
 
     customer_id = data.get("customer_id")
     customer_label = (data.get("customer_label") or "").strip() or None
+
+    if not description and not customer_id and not customer_label:
+        return jsonify({
+            "ok": False,
+            "error": "Inserisci almeno una descrizione o seleziona un cliente"
+        }), 400
     off_cash = bool(data.get("off_cash", False))
 
     if customer_id:
@@ -1538,12 +1542,16 @@ def api_update_sale(sale_id):
     if flag not in _ALLOWED_FLAGS:
         return jsonify({"ok": False, "error": f"Invalid flag (allowed: {sorted(_ALLOWED_FLAGS)})"}), 400
 
-    description = (data.get("description") or "").strip()
-    if not description:
-        return jsonify({"ok": False, "error": "Missing description"}), 400
+    description = (data.get("description") or "").strip() or None
 
     customer_id = data.get("customer_id")
     customer_label = (data.get("customer_label") or "").strip() or None
+
+    if not description and not customer_id and not customer_label:
+        return jsonify({
+            "ok": False,
+            "error": "Inserisci almeno una descrizione o seleziona un cliente"
+        }), 400
     off_cash = bool(data.get("off_cash", False))
 
     if customer_id:
@@ -1769,9 +1777,16 @@ def api_create_expense(day_date):
     if flag not in _ALLOWED_FLAGS:
         return jsonify({"ok": False, "error": f"Invalid flag (allowed: {sorted(_ALLOWED_FLAGS)})"}), 400
 
-    description = (data.get("description") or "").strip()
-    if not description:
-        return jsonify({"ok": False, "error": "Missing description"}), 400
+    description = (data.get("description") or "").strip() or None
+
+    customer_id = data.get("customer_id")
+    customer_label = (data.get("customer_label") or "").strip() or None
+
+    if not description and not customer_id and not customer_label:
+        return jsonify({
+            "ok": False,
+            "error": "Inserisci almeno una descrizione o seleziona un fornitore"
+        }), 400
 
     off_cash = bool(data.get("off_cash", False))
 
@@ -1783,6 +1798,8 @@ def api_create_expense(day_date):
     exp = CashExpense(
         cash_day_id=cash_day.id,
         created_by_user_id=getattr(current_user, "id", None),
+        customer_id=customer_id,
+        customer_label=customer_label,
         notes=description,
     )
 
@@ -1939,9 +1956,17 @@ def api_update_expense(expense_id):
     if flag not in _ALLOWED_FLAGS:
         return jsonify({"ok": False, "error": f"Invalid flag (allowed: {sorted(_ALLOWED_FLAGS)})"}), 400
 
-    description = (data.get("description") or "").strip()
-    if not description:
-        return jsonify({"ok": False, "error": "Missing description"}), 400
+    supplier = (data.get("supplier") or "").strip() or None
+    description = (data.get("description") or "").strip() or None
+
+    if not description and not supplier:
+        return jsonify({
+            "ok": False,
+            "error": "Inserisci almeno una descrizione o un fornitore/beneficiario"
+        }), 400
+
+    expense.supplier = supplier
+    expense.notes = description
 
     off_cash = bool(data.get("off_cash", False))
 
