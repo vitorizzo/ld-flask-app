@@ -2,6 +2,8 @@ let currentDay = null;
 let calendarInstance = null;
 let lastPaymentMode = "cash";
 let currentPreviewTotals = {};
+let editingOperationType = null;   // "sale" | "expense" | null
+let editingOperationId = null;
 
 /* =========================
    UTILS BASE
@@ -2937,6 +2939,8 @@ document.addEventListener("DOMContentLoaded", function () {
   function openOpModal(type) {
     if (!opModal) return;
 
+    resetOperationEditState();
+
     setText("opModalTitle", type === "sale" ? "Nuovo incasso" : "Nuova spesa");
 
     const opType = document.getElementById("opType");
@@ -2965,6 +2969,276 @@ document.addEventListener("DOMContentLoaded", function () {
     clearPaymentWarning();
 
     opModal.show();
+  }
+
+  async function openEditSaleModal(saleId) {
+    if (!currentDay) {
+      alert("Nessuna giornata selezionata.");
+      return;
+    }
+
+    try {
+      const r = await fetch(`/cassa/api/day/${currentDay}/sales`, {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" },
+        cache: "no-store"
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore caricamento incasso");
+        return;
+      }
+
+      const sale = (data.sales || []).find(x => Number(x.id) === Number(saleId));
+      if (!sale) {
+        alert("Incasso non trovato");
+        return;
+      }
+
+      openOpModal("sale");
+
+      editingOperationType = "sale";
+      editingOperationId = sale.id;
+
+      const saveBtn = document.getElementById("opSaveBtn");
+      if (saveBtn) saveBtn.textContent = "Salva modifica";
+
+      const opDesc = document.getElementById("opDesc");
+      const opFlag = document.getElementById("opFlag");
+      const opCustomerId = document.getElementById("opCustomerId");
+      const opCustomer = document.getElementById("opCustomer");
+      const opOffCash = document.getElementById("opOffCash");
+      const opOffCashWho = document.getElementById("opOffCashWho");
+      const opOffCashBox = document.getElementById("opOffCashBox");
+
+      if (opDesc) opDesc.value = sale.notes || "";
+      if (opCustomerId) opCustomerId.value = sale.customer_id ? String(sale.customer_id) : "";
+      if (opCustomer) opCustomer.value = sale.customer_label || "";
+
+      const payments = sale.payments || [];
+      if (!payments.length) return;
+
+      if (opFlag) opFlag.value = payments[0].flag || "*";
+
+      const hasOffCash = payments.some(p => !!p.off_cash);
+      if (opOffCash) opOffCash.checked = hasOffCash;
+      if (opOffCashBox) opOffCashBox.classList.toggle("d-none", !hasOffCash);
+      if (opOffCashWho) opOffCashWho.value = "";
+
+      if (payments.length === 1) {
+        const p = payments[0];
+        if (opAmountInput) opAmountInput.value = formatEuro2(p.amount || 0);
+
+        setPaymentMode(p.method || "cash");
+        refreshSingleAmountFields();
+
+        if (p.method === "pos") {
+          await loadPosDevices(posDeviceSelect, false, posCircuitSelect);
+          if (posDeviceSelect) posDeviceSelect.value = String(p.pos_device_id || "");
+          await loadPosCircuits(p.pos_device_id, posCircuitSelect);
+          if (posCircuitSelect) posCircuitSelect.value = String(p.pos_circuit_id || "");
+        } else if (p.method === "bank") {
+          await loadBanks();
+          if (bankSelect) bankSelect.value = String(p.bank_id || "");
+        } else if (p.method === "check") {
+          const checkBankName = document.getElementById("checkBankName");
+          const checkBankABI = document.getElementById("checkBankABI");
+          const checkBankCAB = document.getElementById("checkBankCAB");
+          const checkNumber = document.getElementById("checkNumber");
+          const checkDueDate = document.getElementById("checkDueDate");
+
+          if (checkBankName) checkBankName.value = p.bank_name || "";
+          if (checkBankABI) checkBankABI.value = p.abi || "";
+          if (checkBankCAB) checkBankCAB.value = p.cab || "";
+          if (checkNumber) checkNumber.value = p.check_number || "";
+          if (checkDueDate) checkDueDate.value = p.due_date || "";
+        }
+      } else {
+        setPaymentMode("multi");
+        resetMultiPayments();
+
+        for (const p of payments) {
+          await addMultiPaymentRow(p.method || "cash");
+
+          const rows = Array.from(document.querySelectorAll("#multiPaymentsList .multi-payment-row"));
+          const row = rows[rows.length - 1];
+          if (!row) continue;
+
+          const amountInput = row.querySelector(".multi-amount");
+          const methodSelect = row.querySelector(".multi-method");
+
+          if (methodSelect) methodSelect.value = p.method || "cash";
+          updateMultiRowFields(row);
+
+          if (amountInput) amountInput.value = formatEuro2(p.amount || 0);
+
+          if (p.method === "pos") {
+            const rowPosDevice = row.querySelector(".multi-pos-device");
+            const rowPosCircuit = row.querySelector(".multi-pos-circuit");
+
+            await loadPosDevices(rowPosDevice, false, rowPosCircuit);
+            if (rowPosDevice) rowPosDevice.value = String(p.pos_device_id || "");
+            await loadPosCircuits(p.pos_device_id, rowPosCircuit);
+            if (rowPosCircuit) rowPosCircuit.value = String(p.pos_circuit_id || "");
+          } else if (p.method === "bank") {
+            const rowBank = row.querySelector(".multi-bank-select");
+            await loadBanks(rowBank);
+            if (rowBank) rowBank.value = String(p.bank_id || "");
+          } else if (p.method === "check") {
+            const bankName = row.querySelector(".multi-check-bank-name");
+            const abi = row.querySelector(".multi-check-bank-abi");
+            const cab = row.querySelector(".multi-check-bank-cab");
+            const checkNumber = row.querySelector(".multi-check-number");
+            const dueDate = row.querySelector(".multi-check-due-date");
+
+            if (bankName) bankName.value = p.bank_name || "";
+            if (abi) abi.value = p.abi || "";
+            if (cab) cab.value = p.cab || "";
+            if (checkNumber) checkNumber.value = p.check_number || "";
+            if (dueDate) dueDate.value = p.due_date || "";
+          }
+        }
+
+        if (opAmountInput) {
+          opAmountInput.value = formatEuro2(
+            payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
+          );
+        }
+      }
+
+      updatePaymentState();
+
+    } catch (err) {
+      console.error("openEditSaleModal error:", err);
+      alert("Errore di rete durante il caricamento dell'incasso.");
+    }
+  }
+
+  async function openEditExpenseModal(expenseId) {
+    if (!currentDay) {
+      alert("Nessuna giornata selezionata.");
+      return;
+    }
+
+    try {
+      const r = await fetch(`/cassa/api/day/${currentDay}/expenses`, {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" },
+        cache: "no-store"
+      });
+
+      const data = await r.json();
+
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore caricamento spesa");
+        return;
+      }
+
+      const expense = (data.expenses || []).find(x => Number(x.id) === Number(expenseId));
+      if (!expense) {
+        alert("Spesa non trovata");
+        return;
+      }
+
+      openOpModal("expense");
+
+      editingOperationType = "expense";
+      editingOperationId = expense.id;
+
+      const saveBtn = document.getElementById("opSaveBtn");
+      if (saveBtn) saveBtn.textContent = "Salva modifica";
+
+      const opDesc = document.getElementById("opDesc");
+      const opFlag = document.getElementById("opFlag");
+      const opOffCash = document.getElementById("opOffCash");
+      const opOffCashWho = document.getElementById("opOffCashWho");
+      const opOffCashBox = document.getElementById("opOffCashBox");
+
+      if (opDesc) opDesc.value = expense.notes || "";
+
+      const payments = expense.payments || [];
+      if (!payments.length) return;
+
+      if (opFlag) opFlag.value = payments[0].flag || "*";
+
+      const hasOffCash = payments.some(p => !!p.off_cash);
+      if (opOffCash) opOffCash.checked = hasOffCash;
+      if (opOffCashBox) opOffCashBox.classList.toggle("d-none", !hasOffCash);
+      if (opOffCashWho) opOffCashWho.value = "";
+
+      if (payments.length === 1) {
+        const p = payments[0];
+        if (opAmountInput) opAmountInput.value = formatEuro2(p.amount || 0);
+
+        setPaymentMode(p.method || "cash");
+        refreshSingleAmountFields();
+
+        if (p.method === "pos") {
+          await loadPosDevices(posDeviceSelect, false, posCircuitSelect);
+          if (posDeviceSelect) posDeviceSelect.value = String(p.pos_device_id || "");
+          await loadPosCircuits(p.pos_device_id, posCircuitSelect);
+          if (posCircuitSelect) posCircuitSelect.value = String(p.pos_circuit_id || "");
+        } else if (p.method === "bank") {
+          await loadBanks();
+          if (bankSelect) bankSelect.value = String(p.bank_id || "");
+        }
+      } else {
+        setPaymentMode("multi");
+        resetMultiPayments();
+
+        for (const p of payments) {
+          await addMultiPaymentRow(p.method || "cash");
+
+          const rows = Array.from(document.querySelectorAll("#multiPaymentsList .multi-payment-row"));
+          const row = rows[rows.length - 1];
+          if (!row) continue;
+
+          const amountInput = row.querySelector(".multi-amount");
+          const methodSelect = row.querySelector(".multi-method");
+
+          if (methodSelect) methodSelect.value = p.method || "cash";
+          updateMultiRowFields(row);
+
+          if (amountInput) amountInput.value = formatEuro2(p.amount || 0);
+
+          if (p.method === "pos") {
+            const rowPosDevice = row.querySelector(".multi-pos-device");
+            const rowPosCircuit = row.querySelector(".multi-pos-circuit");
+
+            await loadPosDevices(rowPosDevice, false, rowPosCircuit);
+            if (rowPosDevice) rowPosDevice.value = String(p.pos_device_id || "");
+            await loadPosCircuits(p.pos_device_id, rowPosCircuit);
+            if (rowPosCircuit) rowPosCircuit.value = String(p.pos_circuit_id || "");
+          } else if (p.method === "bank") {
+            const rowBank = row.querySelector(".multi-bank-select");
+            await loadBanks(rowBank);
+            if (rowBank) rowBank.value = String(p.bank_id || "");
+          }
+        }
+
+        if (opAmountInput) {
+          opAmountInput.value = formatEuro2(
+            payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)
+          );
+        }
+      }
+
+      updatePaymentState();
+
+    } catch (err) {
+      console.error("openEditExpenseModal error:", err);
+      alert("Errore di rete durante il caricamento della spesa.");
+    }
+  }
+
+  function resetOperationEditState() {
+    editingOperationType = null;
+    editingOperationId = null;
+
+    const saveBtn = document.getElementById("opSaveBtn");
+    if (saveBtn) saveBtn.textContent = "Salva";
   }
 
   async function ensureSelectedCustomer() {
@@ -3754,9 +4028,21 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     const opType = document.getElementById("opType")?.value || "sale";
-    const endpoint = opType === "expense"
-      ? `/cassa/api/day/${currentDay}/expenses`
-      : `/cassa/api/day/${currentDay}/sales`;
+
+    const isEdit =
+      !!editingOperationId &&
+      editingOperationType &&
+      editingOperationType === opType;
+
+    const endpoint = isEdit
+      ? (opType === "expense"
+          ? `/cassa/api/expenses/${editingOperationId}`
+          : `/cassa/api/sales/${editingOperationId}`)
+      : (opType === "expense"
+          ? `/cassa/api/day/${currentDay}/expenses`
+          : `/cassa/api/day/${currentDay}/sales`);
+
+    const method = isEdit ? "PUT" : "POST";
 
     const built = await buildOperationPayload();
     if (!built.ok) {
@@ -3768,7 +4054,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (saveBtn) saveBtn.disabled = true;
 
       const r = await fetch(endpoint, {
-        method: "POST",
+        method,
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
         body: JSON.stringify(built.payload),
@@ -3781,12 +4067,15 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
+      resetOperationEditState();
       opModal.hide();
       await refreshAgendaData();
+
     } catch (err) {
       console.error("saveOperation error:", err);
       alert("Errore di rete durante il salvataggio.");
     } finally {
+      if (saveBtn) saveBtn.disabled = false;
       updatePaymentState();
     }
   }
@@ -3885,9 +4174,9 @@ document.addEventListener("DOMContentLoaded", function () {
           } else if (currentContext.type === "cash_move") {
             await openEditCashMoveModal(currentContext.id);
           } else if (currentContext.type === "sale") {
-            alert("Modifica incasso: da collegare agli endpoint backend");
+            await openEditSaleModal(currentContext.id);
           } else if (currentContext.type === "expense") {
-            alert("Modifica spesa: da collegare agli endpoint backend");
+            await openEditExpenseModal(currentContext.id);
           }
           break;
 
@@ -3897,9 +4186,42 @@ document.addEventListener("DOMContentLoaded", function () {
           } else if (currentContext.type === "cash_move") {
             await deleteCashMove(currentContext.id);
           } else if (currentContext.type === "sale") {
-            alert("Eliminazione incasso: da collegare agli endpoint backend");
+            const confirmed = window.confirm("Vuoi eliminare questo incasso?");
+            if (!confirmed) return;
+
+            const r = await fetch(`/cassa/api/sales/${currentContext.id}`, {
+              method: "DELETE",
+              headers: { "Accept": "application/json" },
+              credentials: "same-origin"
+            });
+
+            const data = await r.json();
+
+            if (!r.ok || !data.ok) {
+              alert(data.error || "Errore eliminazione incasso");
+              return;
+            }
+
+            await refreshAgendaData();
+
           } else if (currentContext.type === "expense") {
-            alert("Eliminazione spesa: da collegare agli endpoint backend");
+            const confirmed = window.confirm("Vuoi eliminare questa spesa?");
+            if (!confirmed) return;
+
+            const r = await fetch(`/cassa/api/expenses/${currentContext.id}`, {
+              method: "DELETE",
+              headers: { "Accept": "application/json" },
+              credentials: "same-origin"
+            });
+
+            const data = await r.json();
+
+            if (!r.ok || !data.ok) {
+              alert(data.error || "Errore eliminazione spesa");
+              return;
+            }
+
+            await refreshAgendaData();
           }
           break;
 

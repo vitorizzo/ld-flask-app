@@ -1375,7 +1375,15 @@ def api_list_sales(day_date):
 
     cash_day = (
         CashDay.query
-        .options(selectinload(CashDay.sales).selectinload(CashSale.payments))
+        .options(
+            selectinload(CashDay.sales)
+            .selectinload(CashSale.payments)
+            .selectinload(CashSalePayment.pos_links)
+            .selectinload(CashSalePaymentPosMove.pos_move),
+            selectinload(CashDay.sales)
+            .selectinload(CashSale.checks)
+            .selectinload(CashSaleCheck.check),
+        )
         .filter(CashDay.day_date == d)
         .first()
     )
@@ -1383,10 +1391,14 @@ def api_list_sales(day_date):
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
 
     items = []
+
     for s in cash_day.sales:
+        sale_checks = list(s.checks or [])
+        check_idx = 0
+
         pay = []
         for p in (s.payments or []):
-            pay.append({
+            row = {
                 "id": p.id,
                 "direction": p.direction,
                 "method": p.method,
@@ -1394,8 +1406,38 @@ def api_list_sales(day_date):
                 "amount": float(p.amount or 0),
                 "flag": p.flag,
                 "description": p.description,
+                "bank_id": p.bank_id,
                 "created_at": p.created_at.isoformat() if p.created_at else None,
-            })
+            }
+
+            if p.method == "pos":
+                pos_link = (p.pos_links or [None])[0]
+                pos_move = pos_link.pos_move if pos_link and pos_link.pos_move else None
+
+                row.update({
+                    "pos_move_id": pos_move.id if pos_move else None,
+                    "pos_device_id": pos_move.pos_device_id if pos_move else None,
+                    "pos_circuit_id": pos_move.pos_circuit_id if pos_move else None,
+                    "doc_ref": pos_move.doc_ref if pos_move else None,
+                    "notes": pos_move.notes if pos_move else None,
+                })
+
+            elif p.method == "check":
+                linked_sale_check = sale_checks[check_idx] if check_idx < len(sale_checks) else None
+                linked_check = linked_sale_check.check if linked_sale_check and linked_sale_check.check else None
+                check_idx += 1
+
+                row.update({
+                    "check_id": linked_check.id if linked_check else None,
+                    "bank_name": linked_check.bank_name if linked_check else None,
+                    "abi": linked_check.abi if linked_check else None,
+                    "cab": linked_check.cab if linked_check else None,
+                    "check_number": linked_check.check_number if linked_check else None,
+                    "due_date": linked_check.due_date.isoformat() if linked_check and linked_check.due_date else None,
+                })
+
+            pay.append(row)
+
         items.append({
             "id": s.id,
             "created_at": s.created_at.isoformat() if s.created_at else None,
@@ -1407,6 +1449,272 @@ def api_list_sales(day_date):
         })
 
     return jsonify({"ok": True, "day_date": d.isoformat(), "sales": items})
+
+
+@cassa_bp.delete("/api/sales/<int:sale_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_delete_sale(sale_id):
+    sale = (
+        CashSale.query
+        .options(
+            selectinload(CashSale.payments).selectinload(CashSalePayment.pos_links),
+            selectinload(CashSale.checks).selectinload(CashSaleCheck.check),
+        )
+        .filter(CashSale.id == sale_id)
+        .first()
+    )
+
+    if not sale:
+        return jsonify({"ok": False, "error": "Incasso non trovato"}), 404
+
+    try:
+        # 1) rimuovo eventuali row-check collegati alla riga aggregata
+        CashRowCheck.query.filter_by(
+            entity_type="sale",
+            entity_id=sale.id
+        ).delete()
+
+        # 2) se ci sono assegni collegati all'incasso, li elimino
+        #    oppure, se preferisci conservare storico, qui andrebbe fatta
+        #    una logica diversa. Per ora li eliminiamo insieme all'incasso.
+        for sale_check in (sale.checks or []):
+            linked_check = sale_check.check
+            if linked_check:
+                db.session.delete(linked_check)
+
+        # 3) per ogni pagamento POS elimino gli eventuali PosMove collegati
+        for payment in (sale.payments or []):
+            for link in (payment.pos_links or []):
+                if link.pos_move:
+                    # rimuovo eventuale row-check del movimento POS
+                    CashRowCheck.query.filter_by(
+                        entity_type="pos_move",
+                        entity_id=link.pos_move.id
+                    ).delete()
+
+                    db.session.delete(link.pos_move)
+
+        # 4) elimino infine l'incasso
+        db.session.delete(sale)
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "sale_id": sale_id,
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_delete_sale error: %s", e)
+        return jsonify({
+            "ok": False,
+            "error": "Errore interno durante l'eliminazione dell'incasso"
+        }), 500
+
+
+@cassa_bp.put("/api/sales/<int:sale_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_update_sale(sale_id):
+    sale = (
+        CashSale.query
+        .options(
+            selectinload(CashSale.payments)
+            .selectinload(CashSalePayment.pos_links)
+            .selectinload(CashSalePaymentPosMove.pos_move),
+            selectinload(CashSale.checks).selectinload(CashSaleCheck.check),
+        )
+        .filter(CashSale.id == sale_id)
+        .first()
+    )
+
+    if not sale:
+        return jsonify({"ok": False, "error": "Incasso non trovato"}), 404
+
+    data = request.get_json(silent=True) or {}
+
+    flag = (data.get("flag") or "*").strip()
+    if flag not in _ALLOWED_FLAGS:
+        return jsonify({"ok": False, "error": f"Invalid flag (allowed: {sorted(_ALLOWED_FLAGS)})"}), 400
+
+    description = (data.get("description") or "").strip()
+    if not description:
+        return jsonify({"ok": False, "error": "Missing description"}), 400
+
+    customer_id = data.get("customer_id")
+    customer_label = (data.get("customer_label") or "").strip() or None
+    off_cash = bool(data.get("off_cash", False))
+
+    if customer_id:
+        customer = CashCustomer.query.filter_by(id=customer_id).first()
+        if not customer:
+            return jsonify({"ok": False, "error": "Customer not found"}), 400
+
+    try:
+        payments_data = _normalize_payments_payload(data)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+    cash_day = CashDay.query.filter_by(id=sale.cash_day_id).first()
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    day_date = cash_day.day_date
+
+    try:
+        # 1) elimina eventuali assegni collegati
+        for sale_check in (sale.checks or []):
+            linked_check = sale_check.check
+            if linked_check:
+                db.session.delete(linked_check)
+
+        # 2) elimina eventuali pos_move collegati ai pagamenti POS
+        for payment in (sale.payments or []):
+            for link in (payment.pos_links or []):
+                if link.pos_move:
+                    CashRowCheck.query.filter_by(
+                        entity_type="pos_move",
+                        entity_id=link.pos_move.id
+                    ).delete()
+                    db.session.delete(link.pos_move)
+
+        db.session.flush()
+
+        # 3) elimina righe ponte assegni e pagamenti
+        CashSaleCheck.query.filter_by(sale_id=sale.id).delete()
+        CashSalePayment.query.filter_by(sale_id=sale.id).delete()
+        db.session.flush()
+
+        # 4) aggiorna testata incasso
+        sale.customer_id = customer_id
+        sale.customer_label = customer_label
+        sale.notes = description
+
+        # 5) ricrea pagamenti
+        for idx, p in enumerate(payments_data, start=1):
+            method = (p.get("method") or "").strip().lower()
+            if method not in {"cash", "pos", "bank", "check"}:
+                raise ValueError(f"Invalid payment method at row {idx}")
+
+            amount = _to_decimal_amount(p.get("amount"), f"payments[{idx}].amount")
+
+            payment = CashSalePayment(
+                sale_id=sale.id,
+                direction="in",
+                method=method,
+                off_cash=off_cash,
+                amount=amount,
+                flag=flag,
+                description=description,
+            )
+            db.session.add(payment)
+            db.session.flush()
+
+            if method == "pos":
+                pos_device_id = p.get("pos_device_id")
+                pos_circuit_id = p.get("pos_circuit_id")
+                if not pos_device_id or not pos_circuit_id:
+                    raise ValueError(f"Missing POS device/circuit at row {idx}")
+
+                _validate_pos_pair(pos_device_id, pos_circuit_id)
+
+                pos_move = PosMove(
+                    cash_day_id=cash_day.id,
+                    created_by_user_id=getattr(current_user, "id", None),
+                    direction="in",
+                    amount=amount,
+                    pos_device_id=pos_device_id,
+                    pos_circuit_id=pos_circuit_id,
+                    doc_ref="INCASSO",
+                    notes=description,
+                )
+                db.session.add(pos_move)
+                db.session.flush()
+
+                db.session.add(
+                    CashSalePaymentPosMove(
+                        sale_payment_id=payment.id,
+                        pos_move_id=pos_move.id,
+                    )
+                )
+
+            elif method == "bank":
+                bank_id = p.get("bank_id")
+                if not bank_id:
+                    raise ValueError(f"Missing bank_id at row {idx}")
+                _validate_bank(bank_id)
+                payment.bank_id = bank_id
+
+            elif method == "check":
+                if not customer_id:
+                    raise ValueError(f"Customer required for check payment at row {idx}")
+
+                bank_name = (p.get("bank_name") or "").strip()
+                abi = (p.get("abi") or "").strip() or None
+                cab = (p.get("cab") or "").strip() or None
+                check_number = (p.get("check_number") or "").strip()
+                due_date_raw = p.get("due_date")
+
+                if not bank_name:
+                    raise ValueError(f"Missing bank_name at row {idx}")
+                if not check_number:
+                    raise ValueError(f"Missing check_number at row {idx}")
+                if not due_date_raw:
+                    raise ValueError(f"Missing due_date at row {idx}")
+
+                due_date = _parse_due_date(due_date_raw)
+
+                check = CashCheck(
+                    check_number=check_number,
+                    abi=abi,
+                    cab=cab,
+                    bank_name=bank_name,
+                    customer_id=customer_id,
+                    amount=amount,
+                    received_date=day_date,
+                    due_date=due_date,
+                    status="received",
+                    note=description,
+                )
+                db.session.add(check)
+                db.session.flush()
+
+                change_check_status(
+                    check=check,
+                    new_status="received",
+                    user_id=getattr(current_user, "id", None),
+                    event_date=day_date,
+                    note=description,
+                    amount_spese=Decimal("0"),
+                    customer_charge_amount=Decimal("0"),
+                )
+
+                db.session.add(
+                    CashSaleCheck(
+                        sale_id=sale.id,
+                        check_id=check.id,
+                        check_amount=amount,
+                    )
+                )
+
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "sale_id": sale.id
+        })
+
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_update_sale error: %s", e)
+        return jsonify({
+            "ok": False,
+            "error": "Errore interno durante la modifica dell'incasso"
+        }), 500
 
 
 @cassa_bp.delete("/api/pos_moves/<int:pos_move_id>")
@@ -1572,6 +1880,136 @@ def api_list_expenses(day_date):
         })
 
     return jsonify({"ok": True, "day_date": d.isoformat(), "expenses": items})
+
+
+@cassa_bp.delete("/api/expenses/<int:expense_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_delete_expense(expense_id):
+    expense = (
+        CashExpense.query
+        .options(selectinload(CashExpense.payments))
+        .filter(CashExpense.id == expense_id)
+        .first()
+    )
+
+    if not expense:
+        return jsonify({"ok": False, "error": "Spesa non trovata"}), 404
+
+    try:
+        CashRowCheck.query.filter_by(
+            entity_type="expense",
+            entity_id=expense.id
+        ).delete()
+
+        db.session.delete(expense)
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "expense_id": expense_id,
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_delete_expense error: %s", e)
+        return jsonify({
+            "ok": False,
+            "error": "Errore interno durante l'eliminazione della spesa"
+        }), 500
+
+
+@cassa_bp.put("/api/expenses/<int:expense_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_update_expense(expense_id):
+    expense = (
+        CashExpense.query
+        .options(selectinload(CashExpense.payments))
+        .filter(CashExpense.id == expense_id)
+        .first()
+    )
+
+    if not expense:
+        return jsonify({"ok": False, "error": "Spesa non trovata"}), 404
+
+    data = request.get_json(silent=True) or {}
+
+    flag = (data.get("flag") or "*").strip()
+    if flag not in _ALLOWED_FLAGS:
+        return jsonify({"ok": False, "error": f"Invalid flag (allowed: {sorted(_ALLOWED_FLAGS)})"}), 400
+
+    description = (data.get("description") or "").strip()
+    if not description:
+        return jsonify({"ok": False, "error": "Missing description"}), 400
+
+    off_cash = bool(data.get("off_cash", False))
+
+    try:
+        payments_data = _normalize_payments_payload(data)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+    try:
+        CashExpensePayment.query.filter_by(expense_id=expense.id).delete()
+        db.session.flush()
+
+        expense.notes = description
+
+        for idx, p in enumerate(payments_data, start=1):
+            method = (p.get("method") or "").strip().lower()
+            if method not in {"cash", "pos", "bank"}:
+                if method == "check":
+                    raise ValueError("Check payment is not supported for expenses with current data model")
+                raise ValueError(f"Invalid payment method at row {idx}")
+
+            amount = _to_decimal_amount(p.get("amount"), f"payments[{idx}].amount")
+
+            payment = CashExpensePayment(
+                expense_id=expense.id,
+                direction="out",
+                method=method,
+                off_cash=off_cash,
+                amount=amount,
+                flag=flag,
+                description=description,
+            )
+
+            if method == "pos":
+                pos_device_id = p.get("pos_device_id")
+                pos_circuit_id = p.get("pos_circuit_id")
+                if not pos_device_id or not pos_circuit_id:
+                    raise ValueError(f"Missing POS device/circuit at row {idx}")
+                _validate_pos_pair(pos_device_id, pos_circuit_id)
+                payment.pos_device_id = pos_device_id
+                payment.pos_circuit_id = pos_circuit_id
+
+            elif method == "bank":
+                bank_id = p.get("bank_id")
+                if not bank_id:
+                    raise ValueError(f"Missing bank_id at row {idx}")
+                _validate_bank(bank_id)
+                payment.bank_id = bank_id
+
+            db.session.add(payment)
+
+        db.session.commit()
+
+        return jsonify({
+            "ok": True,
+            "expense_id": expense.id
+        })
+
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_update_expense error: %s", e)
+        return jsonify({
+            "ok": False,
+            "error": "Errore interno durante la modifica della spesa"
+        }), 500
 
 
 @cassa_bp.post("/api/day/<day_date>/pos_moves", endpoint="api_create_pos_move")
