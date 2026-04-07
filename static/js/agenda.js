@@ -1160,22 +1160,25 @@ async function loadIncassi(dayStr) {
   const totalEl = document.getElementById("totIncassi");
   if (!listEl) return;
 
-  listEl.innerHTML = `<li class="muted">Caricamento...</li>`;
+  listEl.innerHTML = `<div class="list-group-item text-muted small">Caricamento...</div>`;
+  if (totalEl) totalEl.textContent = "0,00";
 
   try {
-    const r = await fetch(`/cassa/api/day/${dayStr}/sales`, { credentials: "same-origin" });
-    const data = await r.json();
+    const [salesRes, checksMap] = await Promise.all([
+      fetch(`/cassa/api/day/${dayStr}/sales`, { credentials: "same-origin" }),
+      fetchRowChecks(Number(document.getElementById("dayId")?.textContent || 0), "sale")
+    ]);
+
+    const data = await salesRes.json();
 
     if (!data.ok) {
-      listEl.innerHTML = `<li class="muted">Errore: ${data.error || "impossibile caricare incassi"}</li>`;
-      if (totalEl) totalEl.textContent = "0,00";
+      listEl.innerHTML = `<div class="list-group-item text-muted small">Errore: ${data.error || "impossibile caricare incassi"}</div>`;
       return;
     }
 
     const sales = data.sales || [];
     if (!sales.length) {
-      listEl.innerHTML = `<li class="muted">Nessun incasso</li>`;
-      if (totalEl) totalEl.textContent = "0,00";
+      listEl.innerHTML = `<div class="list-group-item text-muted small">Nessun incasso</div>`;
       return;
     }
 
@@ -1205,8 +1208,19 @@ async function loadIncassi(dayStr) {
       if (x.method === "check") badges.push(`<span class="badge badge-soft badge-bank">ASSEGNO</span>`);
       if (x.off_cash) badges.push(`<span class="badge badge-soft badge-offcash">FUORI CASSA</span>`);
 
+      const isChecked = checksMap.get(Number(x.sale_id)) === true;
+
       return `
-        <div class="list-group-item table-row sale-row" data-sale-id="${x.sale_id}">
+        <div class="list-group-item table-row sale-row ${isChecked ? "row-checked" : ""}" data-sale-id="${x.sale_id}">
+          <div class="col-check me-2">
+            <input
+              type="checkbox"
+              class="form-check-input sale-row-check"
+              data-entity-type="sale"
+              data-entity-id="${x.sale_id}"
+              ${isChecked ? "checked" : ""}
+            >
+          </div>
           <div class="col-desc">
             <span class="flag">${escapeHtml(x.flag || "")}</span>
             <span class="desc">${escapeHtml(x.desc)}</span>
@@ -1226,8 +1240,8 @@ async function loadIncassi(dayStr) {
     }
 
   } catch (e) {
-    console.error(e);
-    listEl.innerHTML = `<li class="muted">Errore di rete</li>`;
+    console.error("loadIncassi error:", e);
+    listEl.innerHTML = `<div class="list-group-item text-muted small">Errore di rete</div>`;
   }
 }
 
@@ -1237,10 +1251,15 @@ async function loadSpese(dayStr) {
   if (!listEl) return;
 
   listEl.innerHTML = `<div class="list-group-item text-muted small">Caricamento...</div>`;
+  if (totalEl) totalEl.textContent = "0,00";
 
   try {
-    const r = await fetch(`/cassa/api/day/${dayStr}/expenses`, { credentials: "same-origin" });
-    const data = await r.json();
+    const [expensesRes, checksMap] = await Promise.all([
+      fetch(`/cassa/api/day/${dayStr}/expenses`, { credentials: "same-origin" }),
+      fetchRowChecks(Number(document.getElementById("dayId")?.textContent || 0), "expense")
+    ]);
+
+    const data = await expensesRes.json();
 
     if (!data.ok) {
       listEl.innerHTML = `<div class="list-group-item text-muted small">Errore: ${data.error || "impossibile caricare spese"}</div>`;
@@ -1284,8 +1303,19 @@ async function loadSpese(dayStr) {
       if (x.method === "check") badges.push(`<span class="badge badge-soft badge-bank">ASSEGNO</span>`);
       if (x.off_cash) badges.push(`<span class="badge badge-soft badge-offcash">FUORI CASSA</span>`);
 
+      const isChecked = checksMap.get(Number(x.expense_id)) === true;
+
       return `
-        <div class="list-group-item table-row expense-row" data-expense-id="${x.expense_id}">
+        <div class="list-group-item table-row expense-row ${isChecked ? "row-checked" : ""}" data-expense-id="${x.expense_id}">
+          <div class="col-check me-2">
+            <input
+              type="checkbox"
+              class="form-check-input expense-row-check"
+              data-entity-type="expense"
+              data-entity-id="${x.expense_id}"
+              ${isChecked ? "checked" : ""}
+            >
+          </div>
           <div class="col-desc">
             <span class="flag">${escapeHtml(x.flag || "")}</span>
             <span class="desc">${escapeHtml(x.desc)}</span>
@@ -1300,7 +1330,7 @@ async function loadSpese(dayStr) {
     }).join("");
 
   } catch (e) {
-    console.error(e);
+    console.error("loadSpese error:", e);
     listEl.innerHTML = `<div class="list-group-item text-muted small">Errore di rete</div>`;
   }
 }
@@ -3854,8 +3884,10 @@ document.addEventListener("DOMContentLoaded", function () {
             await openEditPosModal(currentContext.id);
           } else if (currentContext.type === "cash_move") {
             await openEditCashMoveModal(currentContext.id);
-          } else {
-            alert(`Edit ${currentContext.type} ${currentContext.id}: prossimo step`);
+          } else if (currentContext.type === "sale") {
+            alert("Modifica incasso: da collegare agli endpoint backend");
+          } else if (currentContext.type === "expense") {
+            alert("Modifica spesa: da collegare agli endpoint backend");
           }
           break;
 
@@ -3864,6 +3896,10 @@ document.addEventListener("DOMContentLoaded", function () {
             await deletePosMove(currentContext.id);
           } else if (currentContext.type === "cash_move") {
             await deleteCashMove(currentContext.id);
+          } else if (currentContext.type === "sale") {
+            alert("Eliminazione incasso: da collegare agli endpoint backend");
+          } else if (currentContext.type === "expense") {
+            alert("Eliminazione spesa: da collegare agli endpoint backend");
           }
           break;
 
@@ -4461,6 +4497,70 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   updatePaymentState();
+});
+
+document.getElementById("incassiList")?.addEventListener("change", async (e) => {
+  const checkbox = e.target.closest(".sale-row-check");
+  if (!checkbox) return;
+
+  const entityType = checkbox.dataset.entityType;
+  const entityId = Number(checkbox.dataset.entityId);
+  const cashDayId = Number(document.getElementById("dayId")?.textContent || 0);
+
+  if (!entityType || !entityId || !cashDayId) {
+    alert("Dati check riga non validi");
+    return;
+  }
+
+  const rowEl = checkbox.closest(".sale-row");
+  const newState = checkbox.checked;
+
+  checkbox.disabled = true;
+
+  try {
+    const result = await toggleRowCheck(entityType, entityId, cashDayId);
+
+    checkbox.checked = !!result.is_checked;
+    rowEl?.classList.toggle("row-checked", !!result.is_checked);
+  } catch (err) {
+    console.error("toggle sale row check error:", err);
+    checkbox.checked = !newState;
+    alert(err.message || "Errore durante il salvataggio della spunta");
+  } finally {
+    checkbox.disabled = false;
+  }
+});
+
+document.getElementById("speseList")?.addEventListener("change", async (e) => {
+  const checkbox = e.target.closest(".expense-row-check");
+  if (!checkbox) return;
+
+  const entityType = checkbox.dataset.entityType;
+  const entityId = Number(checkbox.dataset.entityId);
+  const cashDayId = Number(document.getElementById("dayId")?.textContent || 0);
+
+  if (!entityType || !entityId || !cashDayId) {
+    alert("Dati check riga non validi");
+    return;
+  }
+
+  const rowEl = checkbox.closest(".expense-row");
+  const newState = checkbox.checked;
+
+  checkbox.disabled = true;
+
+  try {
+    const result = await toggleRowCheck(entityType, entityId, cashDayId);
+
+    checkbox.checked = !!result.is_checked;
+    rowEl?.classList.toggle("row-checked", !!result.is_checked);
+  } catch (err) {
+    console.error("toggle expense row check error:", err);
+    checkbox.checked = !newState;
+    alert(err.message || "Errore durante il salvataggio della spunta");
+  } finally {
+    checkbox.disabled = false;
+  }
 });
 
 document.addEventListener("visibilitychange", function () {
