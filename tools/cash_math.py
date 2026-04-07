@@ -12,6 +12,9 @@ from models import (
 )
 
 
+
+AZIENDA_CASH_FLAGS = ["*", "**"]
+
 def _easter_sunday_gregorian(year: int) -> date:
     """
     Computus (Meeus/Jones/Butcher) per Pasqua nel calendario gregoriano.
@@ -136,6 +139,7 @@ def calculate_closure_pure(
             CashSale.cash_day_id == cash_day_id,
             CashSalePayment.method == "cash",
             CashSalePayment.direction == "in",
+            CashSalePayment.flag.in_(AZIENDA_CASH_FLAGS),
         )
     )
 
@@ -149,6 +153,8 @@ def calculate_closure_pure(
             CashExpense.cash_day_id == cash_day_id,
             CashExpensePayment.method == "cash",
             CashExpensePayment.direction == "out",
+            CashSalePayment.flag.in_(AZIENDA_CASH_FLAGS),
+
         )
     )
 
@@ -176,6 +182,7 @@ def calculate_closure_pure(
             CashSalePayment.method == "check",
             CashSalePayment.direction == "in",
             CashSalePayment.flag == "*",
+            CashExpensePayment.flag.in_(AZIENDA_CASH_FLAGS),
         )
     )
 
