@@ -137,7 +137,7 @@ def calculate_closure_pure(
         .join(CashSale, CashSale.id == CashSalePayment.sale_id)
         .filter(
             CashSale.cash_day_id == cash_day_id,
-            CashSalePayment.method == "cash",
+            CashSalePayment.method.in_(["cash", "pos"]),
             CashSalePayment.direction == "in",
             CashSalePayment.flag.in_(AZIENDA_CASH_FLAGS),
         )
