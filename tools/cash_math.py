@@ -11,9 +11,8 @@ from models import (
     CashDeposit, CashDepositCheck, CashCheck,
 )
 
-
-
 AZIENDA_CASH_FLAGS = ["*", "**"]
+
 
 def _easter_sunday_gregorian(year: int) -> date:
     """
@@ -34,6 +33,7 @@ def _easter_sunday_gregorian(year: int) -> date:
     month = (h + l - 7 * m + 114) // 31
     day = ((h + l - 7 * m + 114) % 31) + 1
     return date(year, month, day)
+
 
 def italian_bank_holidays(year: int) -> set[date]:
     """
@@ -57,11 +57,13 @@ def italian_bank_holidays(year: int) -> set[date]:
         date(year, 12, 26),  # Santo Stefano
     }
 
+
 def is_banking_day(d: date) -> bool:
     # lun=0 ... dom=6
     if d.weekday() >= 5:
         return False
     return d not in italian_bank_holidays(d.year)
+
 
 def next_banking_day(d: date) -> date:
     """
@@ -73,6 +75,7 @@ def next_banking_day(d: date) -> date:
         x += timedelta(days=1)
     return x
 
+
 def _d(x) -> Decimal:
     # normalizza None / numerici in Decimal
     if x is None:
@@ -81,11 +84,12 @@ def _d(x) -> Decimal:
         return x
     return Decimal(str(x))
 
+
 def _sum_amount(query) -> Decimal:
     val = query.scalar()
     return _d(val)
 
-# aggiungi ai modelli importati
+
 def calculate_closure_pure(
     cash_day_id: int,
     opening_float: Decimal,
@@ -99,21 +103,13 @@ def calculate_closure_pure(
     """
     Calcolo chiusura giornaliera (solo DB aziendale).
 
-    NOTE (allineate ai tuoi esempi):
-    - Q = contanti_fisici + corrispettivi + assegni_odierni (*)
-    - S_new = S_prev + Q + assegni_postdatati (**) - totale_versato_oggi
-    - Q_residua = Q - versamenti_intermedi_oggi - eventuale debito_contanti_incasso
-    - incasso_consegnato != totale_versato (restano separati)
-    - saldo_movimenti_cassa rappresenta il saldo netto dei movimenti manuali di cassa:
-      versamenti (+) / prelievi (-), inclusi eventuali spicci
-
-    Regola importante:
-    - il debito_contanti_incasso NON deve sparire se dopo registri nuovi incassi.
-      Quindi va calcolato confrontando:
-        contanti versati come "versamento_incasso"
-      vs
-        massimo contanti incassabili storico della giornata
-        (= saldo_versabile_precedente - assegni_in_pancia)
+    Logica adottata:
+    - gli incassi aziendali lordi comprendono gli incassi del giorno + i corrispettivi
+    - i POS non sono contanti fisici nel cassetto, quindi vengono sottratti dopo
+    - le spese cash riducono il contante fisico
+    - i movimenti di cassa (prelievi/versamenti) modificano il contante fisico
+    - gli assegni "*" alimentano il versabile odierno
+    - gli assegni "**" alimentano il saldo versabile ma non il contante fisico
     """
     opening_float = _d(opening_float)
     total_corrispettivi = _d(total_corrispettivi)
@@ -130,21 +126,32 @@ def calculate_closure_pure(
     has_corrispettivi = total_corrispettivi > Decimal("0")
 
     # =========================
-    # CONTANTI: incassi cash
+    # INCASSI AZIENDALI DEL GIORNO
+    # Comprende cash / pos / bank / check con flag aziendali
+    # Non include ancora i corrispettivi: li aggiungiamo esplicitamente sotto
     # =========================
-    incassi_cash = _sum_amount(
+    incassi_azienda_giorno = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashSalePayment.amount), 0))
         .join(CashSale, CashSale.id == CashSalePayment.sale_id)
         .filter(
             CashSale.cash_day_id == cash_day_id,
-            CashSalePayment.method.in_(["cash", "pos"]),
             CashSalePayment.direction == "in",
             CashSalePayment.flag.in_(AZIENDA_CASH_FLAGS),
         )
     )
 
+    # Mantengo questa chiave esistente per compatibilità.
+    # Nel file vecchio era già usata come totale operativo giornaliero per il calcolo.
+    incassi_cash = incassi_azienda_giorno
+
     # =========================
-    # CONTANTI: spese cash
+    # INCASSI AZIENDALI LORDI
+    # I corrispettivi sono incassi a tutti gli effetti
+    # =========================
+    incassi_azienda_lordi = incassi_azienda_giorno + total_corrispettivi
+
+    # =========================
+    # SPESE CASH AZIENDALI
     # =========================
     spese_cash = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashExpensePayment.amount), 0))
@@ -153,23 +160,40 @@ def calculate_closure_pure(
             CashExpense.cash_day_id == cash_day_id,
             CashExpensePayment.method == "cash",
             CashExpensePayment.direction == "out",
-            CashSalePayment.flag.in_(AZIENDA_CASH_FLAGS),
-
+            CashExpensePayment.flag.in_(AZIENDA_CASH_FLAGS),
         )
     )
 
     # =========================
     # POS
+    # Incassi/storni non presenti fisicamente nel cassetto
     # =========================
     totale_pos = _sum_amount(
         db.session.query(func.coalesce(func.sum(PosMove.amount), 0))
-        .filter(PosMove.cash_day_id == cash_day_id, PosMove.direction == "in")
+        .filter(
+            PosMove.cash_day_id == cash_day_id,
+            PosMove.direction == "in",
+        )
     ) - _sum_amount(
         db.session.query(func.coalesce(func.sum(PosMove.amount), 0))
-        .filter(PosMove.cash_day_id == cash_day_id, PosMove.direction == "out")
+        .filter(
+            PosMove.cash_day_id == cash_day_id,
+            PosMove.direction == "out",
+        )
     )
 
-    contanti_fisici = incassi_cash - spese_cash - totale_pos
+    # =========================
+    # CONTANTI FISICI
+    # Parto dagli incassi aziendali lordi
+    # tolgo POS e spese cash
+    # applico i movimenti di cassa manuali
+    # =========================
+    contanti_fisici = (
+        incassi_azienda_lordi
+        - totale_pos
+        - spese_cash
+        + saldo_movimenti_cassa
+    )
 
     # =========================
     # ASSEGNI: odierni (*) e postdatati (**)
@@ -182,7 +206,6 @@ def calculate_closure_pure(
             CashSalePayment.method == "check",
             CashSalePayment.direction == "in",
             CashSalePayment.flag == "*",
-            CashExpensePayment.flag.in_(AZIENDA_CASH_FLAGS),
         )
     )
 
@@ -270,23 +293,19 @@ def calculate_closure_pure(
 
     # =========================
     # Q = versabile odierno
-    # Punto 8: includo i corrispettivi
+    # I corrispettivi sono già dentro contanti_fisici
     # =========================
-    versabile_giornata = contanti_fisici + total_corrispettivi + assegni_odierni
+    versabile_giornata = contanti_fisici + assegni_odierni
 
     # =========================
     # MASSIMO CONTANTI INCASSO STORICO
-    # Basato sullo "zaino" preesistente:
-    # saldo precedente - assegni ancora in pancia
     # =========================
     massimo_contanti_incasso = saldo_versabile_precedente - assegni_in_pancia
     if massimo_contanti_incasso < Decimal("0.00"):
         massimo_contanti_incasso = Decimal("0.00")
 
     # =========================
-    # Punto 7:
-    # debito storico sui contanti versati come versamento_incasso
-    # Questo NON deve dipendere dai nuovi incassi registrati dopo.
+    # Debito contanti versati come versamento incasso
     # =========================
     debito_contanti_incasso = depositi_incasso_cash - massimo_contanti_incasso
     if debito_contanti_incasso < Decimal("0.00"):
@@ -305,21 +324,17 @@ def calculate_closure_pure(
     saldo_versabile = saldo_attuale
 
     # =========================
-    # Q residua:
-    # - tolgo i versamenti intermedi del giorno
-    # - tolgo l'eventuale debito contanti da versamento incasso
+    # Q residua
     # =========================
     versabile_residuo = versabile_giornata - totale_versato_intermedio - debito_contanti_incasso
 
     # =========================
     # Incasso / quadratura
+    # Il delta fondo rettifica ciò che deve restare in cassetto
     # =========================
-    if has_fondo_iniziale and has_fondo_finale:
-        incasso_calcolato = contanti_fisici + total_corrispettivi - delta_fondo
-    else:
-        incasso_calcolato = contanti_fisici + total_corrispettivi
+    incasso_calcolato = contanti_fisici - delta_fondo
 
-    valore_atteso_cassetto = incasso_calcolato + saldo_movimenti_cassa
+    valore_atteso_cassetto = incasso_calcolato
     delta_quadratura = incasso_consegnato - valore_atteso_cassetto
     anomalia = abs(delta_quadratura) > tolleranza
 
@@ -333,6 +348,7 @@ def calculate_closure_pure(
         "delta_fondo": delta_fondo,
 
         "incassi_cash": incassi_cash,
+        "incassi_azienda_lordi": incassi_azienda_lordi,
         "spese_cash": spese_cash,
         "contanti_fisici": contanti_fisici,
 
@@ -375,5 +391,5 @@ def calculate_closure_pure(
         "has_fondo_finale": has_fondo_finale,
         "totale_giornata_is_partial": totale_giornata_is_partial,
 
-        "note": "Calcolo DB + versamenti (CashDeposit). Corrispettivi inclusi in Q. Debito contanti incasso reso persistente rispetto ai nuovi incassi.",
+        "note": "Calcolo DB + versamenti (CashDeposit). Corrispettivi inclusi negli incassi aziendali lordi. POS, spese cash e movimenti cassa rettificano i contanti fisici. Debito contanti incasso reso persistente rispetto ai nuovi incassi.",
     }
