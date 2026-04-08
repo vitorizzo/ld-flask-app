@@ -5156,7 +5156,10 @@ async function openDayReport() {
 
 function eur(v) {
   if (v === null || v === undefined) return "—";
-  return Number(v).toLocaleString("it-IT", { minimumFractionDigits: 2 });
+  return Number(v).toLocaleString("it-IT", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
 }
 
 function row(label, value) {
@@ -5169,64 +5172,110 @@ function row(label, value) {
 }
 
 function renderDayReport(d) {
-  // header
+  const data = d?.totals || d || {};
+
   document.getElementById("dayReportDate").textContent = currentDay || "—";
 
   // =========================
-  // INPUT PRINCIPALI
+  // SEZIONE 1 - FONDO CASSA
   // =========================
   document.getElementById("dayReportMainTable").innerHTML = `
-    ${row("Fondo iniziale", d.fondo_iniziale)}
-    ${row("Fondo finale", d.fondo_finale)}
-    ${row("Δ Fondo", d.delta_fondo)}
-    ${row("Corrispettivi", d.total_corrispettivi)}
+    ${row("Fondo iniziale", data.fondo_iniziale)}
+    ${row("Fondo finale", data.fondo_finale)}
+    <tr class="table-light">
+      <td class="fw-bold">Delta fondo</td>
+      <td class="text-end fw-bold">€ ${eur(data.delta_fondo)}</td>
+    </tr>
   `;
 
   // =========================
-  // VERSABILE
+  // SEZIONE 2 - SPICCI
   // =========================
   document.getElementById("dayReportVersabileTable").innerHTML = `
-    ${row("Contanti fisici", d.contanti_fisici)}
-    ${row("Corrispettivi", d.total_corrispettivi)}
-    ${row("Assegni odierni", d.assegni_odierni)}
+    ${row("Prelievi di spicci", data.spicci_prelievi)}
+    ${row("Versamenti di spicci", data.spicci_versamenti)}
     <tr class="table-light">
-      <td class="fw-bold">Versabile giornata</td>
-      <td class="text-end fw-bold">€ ${eur(d.versabile_giornata)}</td>
+      <td class="fw-bold">Delta spicci</td>
+      <td class="text-end fw-bold">€ ${eur(data.saldo_spicci)}</td>
     </tr>
   `;
 
   // =========================
-  // CONTANTI / TOTALE
+  // SEZIONE 3 - DETTAGLIO INCASSI
   // =========================
   document.getElementById("dayReportContantiTable").innerHTML = `
-    ${row("Incassi cash", d.incassi_cash)}
-    ${row("Spese cash", d.spese_cash)}
-    ${row("Totale POS", d.totale_pos)}
+    ${row("Incassi cash", data.incassi_cash)}
+    ${row("Incassi fuori cassa", data.incassi_fuori_cassa)}
+    ${row("Incassi POS", data.incassi_pos)}
+    ${row("Incassi bank", data.incassi_bank)}
+    ${row("Incassi check", data.incassi_check)}
+    ${row("Corrispettivi", data.total_corrispettivi)}
     <tr class="table-light">
-      <td class="fw-bold">Contanti fisici</td>
-      <td class="text-end fw-bold">€ ${eur(d.contanti_fisici)}</td>
+      <td class="fw-bold">Totale incassi fisici</td>
+      <td class="text-end fw-bold">€ ${eur(data.totale_incassi_fisici)}</td>
+    </tr>
+    <tr class="table-light">
+      <td class="fw-bold">Totale incassi elettronici</td>
+      <td class="text-end fw-bold">€ ${eur(data.totale_incassi_elettronici)}</td>
+    </tr>
+    <tr class="table-light">
+      <td class="fw-bold">Totale incassi fuori cassa</td>
+      <td class="text-end fw-bold">€ ${eur(data.totale_incassi_fuori_cassa)}</td>
     </tr>
   `;
 
   // =========================
-  // QUADRATURA
+  // SEZIONE 4 - DETTAGLIO SPESE
   // =========================
   document.getElementById("dayReportQuadraturaTable").innerHTML = `
-    ${row("Incasso calcolato", d.incasso_calcolato)}
-    ${row("Movimenti cassa", d.saldo_movimenti_cassa)}
-    ${row("Atteso cassetto", d.valore_atteso_cassetto)}
-    ${row("Incasso consegnato", d.incasso_consegnato)}
+    ${row("Spese cash", data.spese_cash)}
+    ${row("Spese fuori cassa", data.spese_fuori_cassa)}
+    ${row("Spese POS", data.spese_pos)}
+    ${row("Spese bank", data.spese_bank)}
     <tr class="table-light">
-      <td class="fw-bold">Delta</td>
-      <td class="text-end fw-bold">€ ${eur(d.delta_quadratura)}</td>
+      <td class="fw-bold">Totale spese fisiche</td>
+      <td class="text-end fw-bold">€ ${eur(data.totale_spese_fisiche)}</td>
+    </tr>
+    <tr class="table-light">
+      <td class="fw-bold">Totale spese elettroniche</td>
+      <td class="text-end fw-bold">€ ${eur(data.totale_spese_elettroniche)}</td>
+    </tr>
+    <tr class="table-light">
+      <td class="fw-bold">Totale spese fuori cassa</td>
+      <td class="text-end fw-bold">€ ${eur(data.totale_spese_fuori_cassa)}</td>
     </tr>
   `;
 
   // =========================
-  // NOTE
+  // SEZIONE 5 - DETTAGLIO CASSETTO
   // =========================
-  document.getElementById("dayReportNote").textContent =
-    d.note || "—";
+  document.getElementById("dayReportCassettoTable").innerHTML = `
+    ${row("Totale incassi fisici", data.totale_incassi_fisici)}
+    ${row("Totale incassi POS", data.incassi_pos)}
+    ${row("Totale spese fisiche", data.totale_spese_fisiche)}
+    ${row("Totale spese POS", data.spese_pos)}
+    ${row("Totale movimenti di cassa", data.saldo_movimenti_cassa)}
+    ${row("Totale spicci", data.saldo_spicci)}
+    <tr class="table-light">
+      <td class="fw-bold">Atteso cassetto operativo</td>
+      <td class="text-end fw-bold">€ ${eur(data.valore_atteso_cassetto)}</td>
+    </tr>
+  `;
+
+  // =========================
+  // SEZIONE 6 - DETTAGLIO QUADRATURA
+  // =========================
+  document.getElementById("dayReportDeltaTable").innerHTML = `
+    ${row("Atteso cassetto", data.valore_atteso_cassetto)}
+    ${row("Delta fondo", data.delta_fondo)}
+    ${row("Incasso consegnato", data.incasso_consegnato)}
+    <tr class="table-light">
+      <td class="fw-bold">Delta quadratura</td>
+      <td class="text-end fw-bold">€ ${eur(data.delta_quadratura)}</td>
+    </tr>
+  `;
+
+  document.getElementById("dayReportNote").textContent = data.note || "—";
 }
 
 function closeContextMenu() {

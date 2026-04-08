@@ -7,7 +7,7 @@ from extensions import db
 from models import (
     CashSale, CashSalePayment,
     CashExpense, CashExpensePayment,
-    PosMove,
+    PosMove, CashMove,
     CashDeposit, CashDepositCheck, CashCheck,
 )
 
@@ -100,17 +100,6 @@ def calculate_closure_pure(
     incasso_consegnato: Decimal,
     tolleranza: Decimal = Decimal("2.00"),
 ):
-    """
-    Calcolo chiusura giornaliera (solo DB aziendale).
-
-    Logica adottata:
-    - gli incassi aziendali lordi comprendono gli incassi del giorno + i corrispettivi
-    - i POS non sono contanti fisici nel cassetto, quindi vengono sottratti dopo
-    - le spese cash riducono il contante fisico
-    - i movimenti di cassa (prelievi/versamenti) modificano il contante fisico
-    - gli assegni "*" alimentano il versabile odierno
-    - gli assegni "**" alimentano il saldo versabile ma non il contante fisico
-    """
     opening_float = _d(opening_float)
     total_corrispettivi = _d(total_corrispettivi)
     fondo_finale = _d(fondo_finale)
@@ -126,47 +115,140 @@ def calculate_closure_pure(
     has_corrispettivi = total_corrispettivi > Decimal("0")
 
     # =========================
-    # INCASSI AZIENDALI DEL GIORNO
-    # Comprende cash / pos / bank / check con flag aziendali
-    # Non include ancora i corrispettivi: li aggiungiamo esplicitamente sotto
+    # INCASSI - DETTAGLIO
     # =========================
-    incassi_azienda_giorno = _sum_amount(
+    incassi_cash_solo = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashSalePayment.amount), 0))
         .join(CashSale, CashSale.id == CashSalePayment.sale_id)
         .filter(
             CashSale.cash_day_id == cash_day_id,
             CashSalePayment.direction == "in",
+            CashSalePayment.method == "cash",
+            CashSalePayment.off_cash.is_(False),
             CashSalePayment.flag.in_(AZIENDA_CASH_FLAGS),
         )
     )
 
-    # Mantengo questa chiave esistente per compatibilità.
-    # Nel file vecchio era già usata come totale operativo giornaliero per il calcolo.
+    incassi_fuori_cassa = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashSalePayment.amount), 0))
+        .join(CashSale, CashSale.id == CashSalePayment.sale_id)
+        .filter(
+            CashSale.cash_day_id == cash_day_id,
+            CashSalePayment.direction == "in",
+            CashSalePayment.method == "cash",
+            CashSalePayment.off_cash.is_(True),
+            CashSalePayment.flag.in_(AZIENDA_CASH_FLAGS),
+        )
+    )
+
+    incassi_pos = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashSalePayment.amount), 0))
+        .join(CashSale, CashSale.id == CashSalePayment.sale_id)
+        .filter(
+            CashSale.cash_day_id == cash_day_id,
+            CashSalePayment.direction == "in",
+            CashSalePayment.method == "pos",
+            CashSalePayment.flag.in_(AZIENDA_CASH_FLAGS),
+        )
+    )
+
+    incassi_bank = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashSalePayment.amount), 0))
+        .join(CashSale, CashSale.id == CashSalePayment.sale_id)
+        .filter(
+            CashSale.cash_day_id == cash_day_id,
+            CashSalePayment.direction == "in",
+            CashSalePayment.method == "bank",
+            CashSalePayment.flag.in_(AZIENDA_CASH_FLAGS),
+        )
+    )
+
+    incassi_check = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashSalePayment.amount), 0))
+        .join(CashSale, CashSale.id == CashSalePayment.sale_id)
+        .filter(
+            CashSale.cash_day_id == cash_day_id,
+            CashSalePayment.direction == "in",
+            CashSalePayment.method == "check",
+            CashSalePayment.flag.in_(AZIENDA_CASH_FLAGS),
+        )
+    )
+
+    incassi_azienda_giorno = (
+        incassi_cash_solo
+        + incassi_fuori_cassa
+        + incassi_pos
+        + incassi_bank
+        + incassi_check
+    )
+
+    # chiave legacy
     incassi_cash = incassi_azienda_giorno
 
-    # =========================
-    # INCASSI AZIENDALI LORDI
-    # I corrispettivi sono incassi a tutti gli effetti
-    # =========================
     incassi_azienda_lordi = incassi_azienda_giorno + total_corrispettivi
 
+    totale_incassi_fisici = incassi_cash_solo + incassi_check + total_corrispettivi
+    totale_incassi_elettronici = incassi_pos + incassi_bank
+    totale_incassi_fuori_cassa = incassi_fuori_cassa
+
     # =========================
-    # SPESE CASH AZIENDALI
+    # SPESE - DETTAGLIO
     # =========================
-    spese_cash = _sum_amount(
+    spese_cash_solo = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashExpensePayment.amount), 0))
         .join(CashExpense, CashExpense.id == CashExpensePayment.expense_id)
         .filter(
             CashExpense.cash_day_id == cash_day_id,
-            CashExpensePayment.method == "cash",
             CashExpensePayment.direction == "out",
+            CashExpensePayment.method == "cash",
+            CashExpensePayment.off_cash.is_(False),
             CashExpensePayment.flag.in_(AZIENDA_CASH_FLAGS),
         )
     )
 
+    spese_fuori_cassa = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashExpensePayment.amount), 0))
+        .join(CashExpense, CashExpense.id == CashExpensePayment.expense_id)
+        .filter(
+            CashExpense.cash_day_id == cash_day_id,
+            CashExpensePayment.direction == "out",
+            CashExpensePayment.method == "cash",
+            CashExpensePayment.off_cash.is_(True),
+            CashExpensePayment.flag.in_(AZIENDA_CASH_FLAGS),
+        )
+    )
+
+    spese_pos = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashExpensePayment.amount), 0))
+        .join(CashExpense, CashExpense.id == CashExpensePayment.expense_id)
+        .filter(
+            CashExpense.cash_day_id == cash_day_id,
+            CashExpensePayment.direction == "out",
+            CashExpensePayment.method == "pos",
+            CashExpensePayment.flag.in_(AZIENDA_CASH_FLAGS),
+        )
+    )
+
+    spese_bank = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashExpensePayment.amount), 0))
+        .join(CashExpense, CashExpense.id == CashExpensePayment.expense_id)
+        .filter(
+            CashExpense.cash_day_id == cash_day_id,
+            CashExpensePayment.direction == "out",
+            CashExpensePayment.method == "bank",
+            CashExpensePayment.flag.in_(AZIENDA_CASH_FLAGS),
+        )
+    )
+
+    totale_spese_fisiche = spese_cash_solo
+    totale_spese_elettroniche = spese_pos + spese_bank
+    totale_spese_fuori_cassa = spese_fuori_cassa
+
+    # chiave legacy
+    spese_cash = spese_cash_solo
+
     # =========================
-    # POS
-    # Incassi/storni non presenti fisicamente nel cassetto
+    # POS MOVES
     # =========================
     totale_pos = _sum_amount(
         db.session.query(func.coalesce(func.sum(PosMove.amount), 0))
@@ -183,20 +265,41 @@ def calculate_closure_pure(
     )
 
     # =========================
-    # CONTANTI FISICI
-    # Parto dagli incassi aziendali lordi
-    # tolgo POS e spese cash
-    # applico i movimenti di cassa manuali
+    # SPICCI
+    # =========================
+    spicci_prelievi = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashMove.amount), 0))
+        .filter(
+            CashMove.cash_day_id == cash_day_id,
+            CashMove.kind == "spicci",
+            CashMove.direction == "out",
+        )
+    )
+
+    spicci_versamenti = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashMove.amount), 0))
+        .filter(
+            CashMove.cash_day_id == cash_day_id,
+            CashMove.kind == "spicci",
+            CashMove.direction == "in",
+        )
+    )
+
+    saldo_spicci = spicci_versamenti - spicci_prelievi
+
+    # =========================
+    # CONTANTI FISICI / CASSETTO
+    # I POS stanno qui come rettifica unica
     # =========================
     contanti_fisici = (
         incassi_azienda_lordi
         - totale_pos
-        - spese_cash
+        - spese_cash_solo
         + saldo_movimenti_cassa
     )
 
     # =========================
-    # ASSEGNI: odierni (*) e postdatati (**)
+    # ASSEGNI
     # =========================
     assegni_odierni = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashSalePayment.amount), 0))
@@ -221,7 +324,7 @@ def calculate_closure_pure(
     )
 
     # =========================
-    # VERSAMENTI TOTALI DEL GIORNO
+    # VERSAMENTI
     # =========================
     depositi_cash_oggi = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashDeposit.cash_amount), 0))
@@ -237,9 +340,6 @@ def calculate_closure_pure(
 
     totale_versato_oggi = depositi_cash_oggi + depositi_assegni_oggi
 
-    # =========================
-    # SOLO VERSAMENTI INTERMEDI
-    # =========================
     depositi_intermedi_cash = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashDeposit.cash_amount), 0))
         .filter(
@@ -260,9 +360,6 @@ def calculate_closure_pure(
 
     totale_versato_intermedio = depositi_intermedi_cash + depositi_intermedi_assegni
 
-    # =========================
-    # SOLO VERSAMENTI INCASSO
-    # =========================
     depositi_incasso_cash = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashDeposit.cash_amount), 0))
         .filter(
@@ -283,37 +380,24 @@ def calculate_closure_pure(
 
     totale_versato_incasso = depositi_incasso_cash + depositi_incasso_assegni
 
-    # =========================
-    # ASSEGNI ANCORA IN PANCIA
-    # =========================
     assegni_in_pancia = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
         .filter(CashCheck.status.in_(["received", "moved"]))
     )
 
     # =========================
-    # Q = versabile odierno
-    # I corrispettivi sono già dentro contanti_fisici
+    # VERSABILE
     # =========================
     versabile_giornata = contanti_fisici + assegni_odierni
 
-    # =========================
-    # MASSIMO CONTANTI INCASSO STORICO
-    # =========================
     massimo_contanti_incasso = saldo_versabile_precedente - assegni_in_pancia
     if massimo_contanti_incasso < Decimal("0.00"):
         massimo_contanti_incasso = Decimal("0.00")
 
-    # =========================
-    # Debito contanti versati come versamento incasso
-    # =========================
     debito_contanti_incasso = depositi_incasso_cash - massimo_contanti_incasso
     if debito_contanti_incasso < Decimal("0.00"):
         debito_contanti_incasso = Decimal("0.00")
 
-    # =========================
-    # SALDO ATTUALE / SALDO VERSABILE
-    # =========================
     saldo_attuale = (
         saldo_versabile_precedente
         + versabile_giornata
@@ -322,18 +406,12 @@ def calculate_closure_pure(
     )
 
     saldo_versabile = saldo_attuale
-
-    # =========================
-    # Q residua
-    # =========================
     versabile_residuo = versabile_giornata - totale_versato_intermedio - debito_contanti_incasso
 
     # =========================
-    # Incasso / quadratura
-    # Il delta fondo rettifica ciò che deve restare in cassetto
+    # QUADRATURA
     # =========================
     incasso_calcolato = contanti_fisici - delta_fondo
-
     valore_atteso_cassetto = incasso_calcolato
     delta_quadratura = incasso_consegnato - valore_atteso_cassetto
     anomalia = abs(delta_quadratura) > tolleranza
@@ -349,9 +427,29 @@ def calculate_closure_pure(
 
         "incassi_cash": incassi_cash,
         "incassi_azienda_lordi": incassi_azienda_lordi,
-        "spese_cash": spese_cash,
-        "contanti_fisici": contanti_fisici,
+        "incassi_cash_solo": incassi_cash_solo,
+        "incassi_fuori_cassa": incassi_fuori_cassa,
+        "incassi_pos": incassi_pos,
+        "incassi_bank": incassi_bank,
+        "incassi_check": incassi_check,
+        "totale_incassi_fisici": totale_incassi_fisici,
+        "totale_incassi_elettronici": totale_incassi_elettronici,
+        "totale_incassi_fuori_cassa": totale_incassi_fuori_cassa,
 
+        "spese_cash": spese_cash,
+        "spese_cash_solo": spese_cash_solo,
+        "spese_fuori_cassa": spese_fuori_cassa,
+        "spese_pos": spese_pos,
+        "spese_bank": spese_bank,
+        "totale_spese_fisiche": totale_spese_fisiche,
+        "totale_spese_elettroniche": totale_spese_elettroniche,
+        "totale_spese_fuori_cassa": totale_spese_fuori_cassa,
+
+        "spicci_prelievi": spicci_prelievi,
+        "spicci_versamenti": spicci_versamenti,
+        "saldo_spicci": saldo_spicci,
+
+        "contanti_fisici": contanti_fisici,
         "totale_pos": totale_pos,
 
         "assegni_odierni": assegni_odierni,
@@ -391,5 +489,5 @@ def calculate_closure_pure(
         "has_fondo_finale": has_fondo_finale,
         "totale_giornata_is_partial": totale_giornata_is_partial,
 
-        "note": "Calcolo DB + versamenti (CashDeposit). Corrispettivi inclusi negli incassi aziendali lordi. POS, spese cash e movimenti cassa rettificano i contanti fisici. Debito contanti incasso reso persistente rispetto ai nuovi incassi.",
+        "note": "Report diagnostico esteso: incassi/spese distinti per metodo, spicci separati, POS rettificati nel cassetto atteso.",
     }
