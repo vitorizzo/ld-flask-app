@@ -180,10 +180,13 @@ def calculate_closure_pure(
 
     # POS: fonte unica = PosMove
     pos_in = _sum_amount(
-        db.session.query(func.coalesce(func.sum(PosMove.amount), 0))
+        db.session.query(func.coalesce(func.sum(CashSalePayment.amount), 0))
+        .join(CashSale, CashSale.id == CashSalePayment.sale_id)
         .filter(
-            PosMove.cash_day_id == cash_day_id,
-            PosMove.direction == "in",
+            CashSale.cash_day_id == cash_day_id,
+            CashSalePayment.direction == "in",
+            CashSalePayment.method == "pos",
+            CashSalePayment.flag.in_(AZIENDA_CASH_FLAGS),
         )
     )
 
@@ -195,9 +198,21 @@ def calculate_closure_pure(
         )
     )
 
-    totale_pos = pos_in - pos_out
-    incassi_pos = totale_pos if totale_pos > Decimal("0.00") else Decimal("0.00")
-    storni_pos = -totale_pos if totale_pos < Decimal("0.00") else Decimal("0.00")
+    incassi_pos = _sum_amount(
+        db.session.query(func.coalesce(func.sum(PosMove.amount), 0))
+        .filter(
+            PosMove.cash_day_id == cash_day_id,
+            PosMove.direction == "in",
+        )
+    )
+    storni_pos = _sum_amount(
+        db.session.query(func.coalesce(func.sum(PosMove.amount), 0))
+        .filter(
+            PosMove.cash_day_id == cash_day_id,
+            PosMove.direction == "out",
+        )
+    )
+    totale_pos = incassi_pos - storni_pos
 
     # =========================
     # SPESE AZIENDALI SEPARATE
@@ -392,10 +407,11 @@ def calculate_closure_pure(
     # =========================
     totale_incassi_lordi = (
         incassi_cash
-        + incassi_pos
+        + pos_in
         + incassi_bank
         + incassi_check
         + total_corrispettivi
+        + incassi_fuori_cassa
     )
 
     totale_incassi_fisici = (
@@ -404,7 +420,7 @@ def calculate_closure_pure(
         + total_corrispettivi
     )
 
-    totale_incassi_elettronici = incassi_pos + incassi_bank
+    totale_incassi_elettronici = totale_pos + incassi_bank
     totale_incassi_fuori_cassa = incassi_fuori_cassa
 
     totale_spese_fisiche = spese_cash
@@ -485,7 +501,7 @@ def calculate_closure_pure(
 
         # nuove voci report incassi
         "incassi_fuori_cassa": incassi_fuori_cassa,
-        "incassi_pos": incassi_pos,
+        "incassi_pos": pos_in,
         "incassi_bank": incassi_bank,
         "incassi_check": incassi_check,
         "corrispettivi": total_corrispettivi,
