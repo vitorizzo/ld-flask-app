@@ -132,7 +132,7 @@ def calculate_closure_pure(
     # =========================
     # INCASSI AZIENDALI SEPARATI
     # =========================
-    incassi_cash = _sum_amount(
+    incassi_cash_azienda = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashSalePayment.amount), 0))
         .join(CashSale, CashSale.id == CashSalePayment.sale_id)
         .filter(
@@ -140,6 +140,17 @@ def calculate_closure_pure(
             CashSalePayment.direction == "in",
             CashSalePayment.method == "cash",
             CashSalePayment.flag.in_(AZIENDA_CASH_FLAGS),
+            CashSalePayment.off_cash.is_(False),
+        )
+    )
+
+    incassi_cash = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashSalePayment.amount), 0))
+        .join(CashSale, CashSale.id == CashSalePayment.sale_id)
+        .filter(
+            CashSale.cash_day_id == cash_day_id,
+            CashSalePayment.direction == "in",
+            CashSalePayment.method == "cash",
             CashSalePayment.off_cash.is_(False),
         )
     )
@@ -218,6 +229,17 @@ def calculate_closure_pure(
     # SPESE AZIENDALI SEPARATE
     # =========================
     spese_cash = _sum_amount(
+        db.session.query(func.coalesce(func.sum(CashExpensePayment.amount), 0))
+        .join(CashExpense, CashExpense.id == CashExpensePayment.expense_id)
+        .filter(
+            CashExpense.cash_day_id == cash_day_id,
+            CashExpensePayment.direction == "out",
+            CashExpensePayment.method == "cash",
+            CashExpensePayment.off_cash.is_(False),
+        )
+    )
+
+    spese_cash_azienda = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashExpensePayment.amount), 0))
         .join(CashExpense, CashExpense.id == CashExpensePayment.expense_id)
         .filter(
