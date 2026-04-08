@@ -4260,6 +4260,10 @@ document.addEventListener("DOMContentLoaded", function () {
         case "clear_filters":
           alert("Reset filtri: prossimo step");
           break;
+
+        case "report":
+          await openDayReport();
+          break;
       }
     } catch (err) {
       console.error("context menu action error:", err);
@@ -4997,6 +5001,7 @@ function buildContextMenuHtml(context) {
   const canInsert = ["pos_move", "cash_move", "sale", "expense"].includes(entityType);
   const canEditDelete = isRowMenu && !!context?.id;
   const canFilter = !isRowMenu && hasRows;
+  const canReport = true;
 
   const btn = (label, action, enabled = true, danger = false) => {
     const classes = [
@@ -5066,6 +5071,12 @@ function buildContextMenuHtml(context) {
     `);
   }
 
+  sections.push(`
+    <div class="context-menu-section">
+      ${btn("Report giornata", "report", canReport)}
+    </div>
+  `);
+
   if (!sections.length) {
     return `<div class="context-menu-empty">Nessuna azione disponibile</div>`;
   }
@@ -5109,51 +5120,37 @@ function openContextMenu(x, y, context) {
   menu.style.visibility = "visible";
 }
 
-// aggiunta voce report
-(function addReportContextItem() {
-  const menu = document.getElementById("contextMenu");
-  if (!menu) return;
-
-  // evita duplicati
-  if (menu.querySelector('[data-action="report"]')) return;
-
-  const divider = menu.querySelector(".context-menu-divider");
-
-  const item = document.createElement("div");
-  item.className = "context-menu-item";
-  item.dataset.action = "report";
-  item.textContent = "Report giornata";
-
-  if (divider) {
-    divider.parentNode.insertBefore(item, divider);
-  } else {
-    menu.appendChild(item);
-  }
-})();
-
-document.addEventListener("click", async (e) => {
-  const item = e.target.closest(".context-menu-item");
-  if (!item) return;
-
-  if (item.dataset.action === "report") {
-    await openDayReport();
-  }
-});
-
 async function openDayReport() {
   if (!currentDay) return;
 
   try {
-    const res = await fetch(`/cassa/api/day/${currentDay}/preview`);
+    const res = await fetch(`/cassa/api/day/${currentDay}/preview`, {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" },
+      cache: "no-store"
+    });
+
     const data = await res.json();
 
-    renderDayReport(data);
+    if (!res.ok || !data.ok) {
+      alert(data.error || "Errore caricamento report giornata");
+      return;
+    }
 
-    const modal = new bootstrap.Modal(document.getElementById("dayReportModal"));
+    renderDayReport(data.totals || {});
+
+    const modalEl = document.getElementById("dayReportModal");
+    if (!modalEl) {
+      alert("Modale report non trovata");
+      return;
+    }
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     modal.show();
 
   } catch (err) {
     console.error("Errore caricamento report:", err);
+    alert("Errore di rete durante il caricamento del report giornata.");
   }
 }
 
