@@ -1688,6 +1688,114 @@
   </div>
 </div>
 
+<!-- MODALE REPORT GIORNATA -->
+<div class="modal fade agenda-modal" id="dayReportModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">
+          Report di controllo giornata
+          <span class="text-muted fs-6 ms-2" id="dayReportDate">—</span>
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="small text-muted mb-3">
+          Report diagnostico dei valori usati nei calcoli di versabile, totale giornata e quadratura.
+        </div>
+
+        <div class="row g-3">
+
+          <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header fw-semibold">Input principali</div>
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <tbody id="dayReportMainTable">
+                      <tr>
+                        <td colspan="2" class="text-center text-muted">Nessun dato</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header fw-semibold">Versabile</div>
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <tbody id="dayReportVersabileTable">
+                      <tr>
+                        <td colspan="2" class="text-center text-muted">Nessun dato</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header fw-semibold">Contanti fisici / Totale giornata</div>
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <tbody id="dayReportContantiTable">
+                      <tr>
+                        <td colspan="2" class="text-center text-muted">Nessun dato</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12 col-lg-6">
+            <div class="card shadow-sm h-100">
+              <div class="card-header fw-semibold">Quadratura</div>
+              <div class="card-body p-0">
+                <div class="table-responsive">
+                  <table class="table table-sm align-middle mb-0">
+                    <tbody id="dayReportQuadraturaTable">
+                      <tr>
+                        <td colspan="2" class="text-center text-muted">Nessun dato</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-12">
+            <div class="card shadow-sm">
+              <div class="card-header fw-semibold">Note calcolo</div>
+              <div class="card-body">
+                <div id="dayReportNote" class="small text-muted">—</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
 <div id="contextMenu" class="context-menu d-none">
   <div class="context-menu-item" data-action="edit">Modifica</div>
   <div class="context-menu-item" data-action="delete">Elimina</div>

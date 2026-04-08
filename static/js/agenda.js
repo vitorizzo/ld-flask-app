@@ -5109,6 +5109,129 @@ function openContextMenu(x, y, context) {
   menu.style.visibility = "visible";
 }
 
+// aggiunta voce report
+(function addReportContextItem() {
+  const menu = document.getElementById("contextMenu");
+  if (!menu) return;
+
+  // evita duplicati
+  if (menu.querySelector('[data-action="report"]')) return;
+
+  const divider = menu.querySelector(".context-menu-divider");
+
+  const item = document.createElement("div");
+  item.className = "context-menu-item";
+  item.dataset.action = "report";
+  item.textContent = "Report giornata";
+
+  if (divider) {
+    divider.parentNode.insertBefore(item, divider);
+  } else {
+    menu.appendChild(item);
+  }
+})();
+
+document.addEventListener("click", async (e) => {
+  const item = e.target.closest(".context-menu-item");
+  if (!item) return;
+
+  if (item.dataset.action === "report") {
+    await openDayReport();
+  }
+});
+
+async function openDayReport() {
+  if (!currentDay) return;
+
+  try {
+    const res = await fetch(`/cassa/api/day/${currentDay}/preview`);
+    const data = await res.json();
+
+    renderDayReport(data);
+
+    const modal = new bootstrap.Modal(document.getElementById("dayReportModal"));
+    modal.show();
+
+  } catch (err) {
+    console.error("Errore caricamento report:", err);
+  }
+}
+
+function eur(v) {
+  if (v === null || v === undefined) return "—";
+  return Number(v).toLocaleString("it-IT", { minimumFractionDigits: 2 });
+}
+
+function row(label, value) {
+  return `
+    <tr>
+      <td>${label}</td>
+      <td class="text-end fw-semibold">€ ${eur(value)}</td>
+    </tr>
+  `;
+}
+
+function renderDayReport(d) {
+  // header
+  document.getElementById("dayReportDate").textContent = currentDay || "—";
+
+  // =========================
+  // INPUT PRINCIPALI
+  // =========================
+  document.getElementById("dayReportMainTable").innerHTML = `
+    ${row("Fondo iniziale", d.fondo_iniziale)}
+    ${row("Fondo finale", d.fondo_finale)}
+    ${row("Δ Fondo", d.delta_fondo)}
+    ${row("Corrispettivi", d.total_corrispettivi)}
+  `;
+
+  // =========================
+  // VERSABILE
+  // =========================
+  document.getElementById("dayReportVersabileTable").innerHTML = `
+    ${row("Contanti fisici", d.contanti_fisici)}
+    ${row("Corrispettivi", d.total_corrispettivi)}
+    ${row("Assegni odierni", d.assegni_odierni)}
+    <tr class="table-light">
+      <td class="fw-bold">Versabile giornata</td>
+      <td class="text-end fw-bold">€ ${eur(d.versabile_giornata)}</td>
+    </tr>
+  `;
+
+  // =========================
+  // CONTANTI / TOTALE
+  // =========================
+  document.getElementById("dayReportContantiTable").innerHTML = `
+    ${row("Incassi cash", d.incassi_cash)}
+    ${row("Spese cash", d.spese_cash)}
+    ${row("Totale POS", d.totale_pos)}
+    <tr class="table-light">
+      <td class="fw-bold">Contanti fisici</td>
+      <td class="text-end fw-bold">€ ${eur(d.contanti_fisici)}</td>
+    </tr>
+  `;
+
+  // =========================
+  // QUADRATURA
+  // =========================
+  document.getElementById("dayReportQuadraturaTable").innerHTML = `
+    ${row("Incasso calcolato", d.incasso_calcolato)}
+    ${row("Movimenti cassa", d.saldo_movimenti_cassa)}
+    ${row("Atteso cassetto", d.valore_atteso_cassetto)}
+    ${row("Incasso consegnato", d.incasso_consegnato)}
+    <tr class="table-light">
+      <td class="fw-bold">Delta</td>
+      <td class="text-end fw-bold">€ ${eur(d.delta_quadratura)}</td>
+    </tr>
+  `;
+
+  // =========================
+  // NOTE
+  // =========================
+  document.getElementById("dayReportNote").textContent =
+    d.note || "—";
+}
+
 function closeContextMenu() {
   const menu = document.getElementById("contextMenu");
   if (!menu) return;
