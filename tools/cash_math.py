@@ -465,7 +465,8 @@ def calculate_closure_pure(
     # VERSABILE
     # i corrispettivi sono già dentro totale_incassi_lordi
     # =========================
-    versabile_giornata = contanti_fisici + assegni_odierni
+    versabile_giornata = (incassi_cash_azienda + assegni_odierni + pos_in + total_corrispettivi
+                          - spese_cash_azienda - storni_pos - totale_pos)
 
     massimo_contanti_incasso = saldo_versabile_precedente - assegni_in_pancia
     if massimo_contanti_incasso < Decimal("0.00"):
