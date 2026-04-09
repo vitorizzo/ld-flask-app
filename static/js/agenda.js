@@ -2770,14 +2770,14 @@ document.addEventListener("DOMContentLoaded", function () {
     return data.banks || [];
   }
 
-  async function loadBanks() {
+  async function loadBanks(selectedBankId = null) {
     try {
       const res = await fetch("/cassa/api/banks", { credentials: "same-origin" });
       const data = await res.json();
 
       if (!data.ok) return;
 
-      const depositBankSelect = document.getElementById("depositBank");
+      const depositBankSelect = document.getElementById("bankSelect");
       depositBankSelect.innerHTML = '<option value="">Seleziona...</option>';
 
       let defaultBankId = null;
@@ -2795,8 +2795,12 @@ document.addEventListener("DOMContentLoaded", function () {
       });
 
       // 👉 applico il default DOPO aver creato tutte le option
-      if (defaultBankId) {
-        depositBankSelect.value = String(defaultBankId);
+      const finalValue = selectedBankId != null && String(selectedBankId).trim() !== ""
+        ? String(selectedBankId)
+        : defaultBankId;
+
+      if (finalValue) {
+        depositBankSelect.value = finalValue;
       }
 
     } catch (err) {
