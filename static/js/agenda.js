@@ -5251,7 +5251,7 @@ function renderDayReport(d) {
   // =========================
   document.getElementById("dayReportCassettoTable").innerHTML = `
     ${row("Totale incassi fisici", data.totale_incassi_fisici)}
-    ${row("Totale incassi POS", data.incassi_pos)}
+    ${row("Totale incassi POS", data.totale_pos)}
     ${row("Totale spese fisiche", data.totale_spese_fisiche)}
     ${row("Totale spese POS", data.spese_pos)}
     ${row("Totale movimenti di cassa", data.saldo_movimenti_cassa)}
