@@ -1779,13 +1779,13 @@ def api_create_expense(day_date):
 
     description = (data.get("description") or "").strip() or None
 
-    customer_id = data.get("customer_id")
-    customer_label = (data.get("customer_label") or "").strip() or None
+    supplier = (data.get("supplier") or "").strip() or None
+    description = (data.get("description") or "").strip() or None
 
-    if not description and not customer_id and not customer_label:
+    if not description and not supplier:
         return jsonify({
             "ok": False,
-            "error": "Inserisci almeno una descrizione o seleziona un fornitore"
+            "error": "Inserisci almeno una descrizione o un fornitore/beneficiario"
         }), 400
 
     off_cash = bool(data.get("off_cash", False))
@@ -1798,8 +1798,7 @@ def api_create_expense(day_date):
     exp = CashExpense(
         cash_day_id=cash_day.id,
         created_by_user_id=getattr(current_user, "id", None),
-        customer_id=customer_id,
-        customer_label=customer_label,
+        supplier=supplier,
         notes=description,
     )
 
