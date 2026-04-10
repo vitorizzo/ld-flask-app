@@ -1944,7 +1944,8 @@ document.addEventListener("DOMContentLoaded", function () {
       } else {
         renderSalePosOptions();
         loadPosDevices().catch(err => console.error("loadPosDevices setPaymentMode:", err));
-      } else if (mode === "bank") {
+      }
+    } else if (mode === "bank") {
       loadBanks().catch(err => console.error("loadBanks setPaymentMode:", err));
     } else if (mode === "multi") {
       if (!multiPaymentsList?.children.length) {
