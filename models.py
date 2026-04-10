@@ -1227,14 +1227,13 @@ class CashExpensePayment(db.Model):
 
     flag = db.Column(db.String(2), nullable=False, default="*")
 
-    pos_device_id = db.Column(db.Integer, db.ForeignKey("pos_devices.id"), nullable=True)
-    pos_circuit_id = db.Column(db.Integer, db.ForeignKey("pos_circuits.id"), nullable=True)
     bank_id = db.Column(db.Integer, db.ForeignKey("cash_banks.id"), nullable=True)
+
+    pos_card_label = db.Column(db.String(100), nullable=True)
+    pos_is_personal = db.Column(db.Boolean, nullable=False, default=False)
 
     description = db.Column(db.String(255), nullable=True)
 
-    pos_device = db.relationship("PosDevice")
-    pos_circuit = db.relationship("PosCircuit")
     bank = db.relationship("CashBank")
 
 

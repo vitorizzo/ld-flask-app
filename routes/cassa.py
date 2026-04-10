@@ -1822,13 +1822,14 @@ def api_create_expense(day_date):
             )
 
             if method == "pos":
-                pos_device_id = p.get("pos_device_id")
-                pos_circuit_id = p.get("pos_circuit_id")
-                if not pos_device_id or not pos_circuit_id:
-                    raise ValueError(f"Missing POS device/circuit at row {idx}")
-                _validate_pos_pair(pos_device_id, pos_circuit_id)
-                payment.pos_device_id = pos_device_id
-                payment.pos_circuit_id = pos_circuit_id
+                pos_card_label = (p.get("pos_card_label") or "").strip()
+                pos_is_personal = bool(p.get("pos_is_personal", False))
+
+                if not pos_card_label:
+                    raise ValueError(f"Missing pos_card_label at row {idx}")
+
+                payment.pos_card_label = pos_card_label
+                payment.pos_is_personal = pos_is_personal
 
             elif method == "bank":
                 bank_id = p.get("bank_id")
@@ -1883,8 +1884,8 @@ def api_list_expenses(day_date):
                 "amount": float(p.amount or 0),
                 "flag": p.flag,
                 "description": p.description,
-                "pos_device_id": p.pos_device_id,
-                "pos_circuit_id": p.pos_circuit_id,
+                "pos_card_label": p.pos_card_label,
+                "pos_is_personal": bool(p.pos_is_personal),
                 "created_at": p.created_at.isoformat() if p.created_at else None,
             })
         items.append({
@@ -2000,13 +2001,14 @@ def api_update_expense(expense_id):
             )
 
             if method == "pos":
-                pos_device_id = p.get("pos_device_id")
-                pos_circuit_id = p.get("pos_circuit_id")
-                if not pos_device_id or not pos_circuit_id:
-                    raise ValueError(f"Missing POS device/circuit at row {idx}")
-                _validate_pos_pair(pos_device_id, pos_circuit_id)
-                payment.pos_device_id = pos_device_id
-                payment.pos_circuit_id = pos_circuit_id
+                pos_card_label = (p.get("pos_card_label") or "").strip()
+                pos_is_personal = bool(p.get("pos_is_personal", False))
+
+                if not pos_card_label:
+                    raise ValueError(f"Missing pos_card_label at row {idx}")
+
+                payment.pos_card_label = pos_card_label
+                payment.pos_is_personal = pos_is_personal
 
             elif method == "bank":
                 bank_id = p.get("bank_id")
