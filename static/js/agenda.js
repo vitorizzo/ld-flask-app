@@ -5,6 +5,11 @@ let currentPreviewTotals = {};
 let editingOperationType = null;   // "sale" | "expense" | null
 let editingOperationId = null;
 
+const EXPENSE_POS_CARDS = [
+  "Carta aziendale",
+  "Carta personale"
+];
+
 /* =========================
    UTILS BASE
 ========================= */
@@ -750,6 +755,68 @@ async function openDrawerCountModal() {
     console.error("openDrawerCountModal error:", err);
     alert("Errore di rete durante il caricamento del conteggio fondo.");
   }
+}
+
+function isExpenseOperation() {
+  return (document.getElementById("opType")?.value || "") === "expense";
+}
+
+function renderExpensePosOptions() {
+  const posDeviceWrap = document.getElementById("paymentSinglePosPanel")?.querySelector(".row");
+  if (!posDeviceWrap) return;
+
+  if (document.getElementById("expensePosCardSelect")) return;
+
+  posDeviceWrap.innerHTML = `
+    <div class="col-12">
+      <label class="form-label mb-0">Carta utilizzata</label>
+      <select class="form-select" id="expensePosCardSelect">
+        <option value="">Seleziona...</option>
+        ${EXPENSE_POS_CARDS.map(card => `<option value="${escapeHtml(card)}">${escapeHtml(card)}</option>`).join("")}
+      </select>
+    </div>
+  `;
+}
+
+function renderSalePosOptions() {
+  const posPanel = document.getElementById("paymentSinglePosPanel");
+  if (!posPanel) return;
+
+  const row = posPanel.querySelector(".row");
+  if (!row) return;
+
+  if (document.getElementById("posDeviceSelect") && document.getElementById("posCircuitSelect")) {
+    return;
+  }
+
+  row.innerHTML = `
+    <div class="col-12 col-md-4">
+      <label class="form-label mb-0">Dispositivo POS</label>
+      <select class="form-select" id="posDeviceSelect">
+        <option value="">Seleziona...</option>
+      </select>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <label class="form-label mb-0">Circuito</label>
+      <select class="form-select" id="posCircuitSelect" disabled>
+        <option value="">Seleziona...</option>
+      </select>
+    </div>
+
+    <div class="col-12 col-md-4">
+      <label class="form-label mb-0">Importo POS</label>
+      <div class="input-group">
+        <span class="input-group-text">€</span>
+        <input
+          type="text"
+          class="form-control text-end"
+          id="posAmount"
+          placeholder="0,00"
+          inputmode="decimal">
+      </div>
+    </div>
+  `;
 }
 
 function renderDrawerRows(lines) {
@@ -1872,8 +1939,12 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     if (mode === "pos") {
-      loadPosDevices().catch(err => console.error("loadPosDevices setPaymentMode:", err));
-    } else if (mode === "bank") {
+      if (isExpenseOperation()) {
+        renderExpensePosOptions();
+      } else {
+        renderSalePosOptions();
+        loadPosDevices().catch(err => console.error("loadPosDevices setPaymentMode:", err));
+      } else if (mode === "bank") {
       loadBanks().catch(err => console.error("loadBanks setPaymentMode:", err));
     } else if (mode === "multi") {
       if (!multiPaymentsList?.children.length) {
@@ -1940,7 +2011,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const checkAmount = document.getElementById("checkAmount");
 
     if (mode === "cash" && cashAmount) cashAmount.value = total;
-    if (mode === "pos" && posAmount) posAmount.value = total;
+    if (mode === "pos") {
+      const dynamicPosAmount = document.getElementById("posAmount");
+      if (dynamicPosAmount) dynamicPosAmount.value = total;
+    }
     if (mode === "bank" && bankAmount) bankAmount.value = total;
     if (mode === "check" && checkAmount) checkAmount.value = total;
   }
@@ -1996,7 +2070,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (mode === "cash") {
       totalPayments = parseEuroToNumber(document.getElementById("cashAmount")?.value || "0");
     } else if (mode === "pos") {
-      totalPayments = parseEuroToNumber(document.getElementById("posAmount")?.value || "0");
+      totalPayments = parseEuroToNumber(document.getElementById("posAmount")?.value || opAmount);
     } else if (mode === "bank") {
       totalPayments = parseEuroToNumber(document.getElementById("bankAmount")?.value || "0");
     } else if (mode === "check") {
@@ -3192,10 +3266,11 @@ document.addEventListener("DOMContentLoaded", function () {
         refreshSingleAmountFields();
 
         if (p.method === "pos") {
-          await loadPosDevices(posDeviceSelect, false, posCircuitSelect);
-          if (posDeviceSelect) posDeviceSelect.value = String(p.pos_device_id || "");
-          await loadPosCircuits(p.pos_device_id, posCircuitSelect);
-          if (posCircuitSelect) posCircuitSelect.value = String(p.pos_circuit_id || "");
+          renderExpensePosOptions();
+          const expensePosCardSelect = document.getElementById("expensePosCardSelect");
+          if (expensePosCardSelect) {
+            expensePosCardSelect.value = p.pos_card_label || "";
+          }
         } else if (p.method === "bank") {
           await loadBanks();
           if (bankSelect) bankSelect.value = String(p.bank_id || "");
@@ -3687,8 +3762,42 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     if (mode === "pos") {
-      const pos_device_id = Number(posDeviceSelect?.value || 0);
-      const pos_circuit_id = Number(posCircuitSelect?.value || 0);
+      if (base.opType === "expense") {
+        const expensePosCardSelect = document.getElementById("expensePosCardSelect");
+        const pos_card_label = (expensePosCardSelect?.value || "").trim();
+
+        if (!pos_card_label) {
+          return { ok: false, error: "Seleziona la carta utilizzata." };
+        }
+
+        const pos_is_personal = pos_card_label === "Carta personale";
+
+        return {
+          ok: true,
+          payload: {
+            description: base.description,
+            flag: base.flag,
+            customer_id: base.customer_id,
+            customer_label: base.customer_label,
+            off_cash: base.off_cash,
+            off_cash_who: base.off_cash_who,
+            payments: [
+              {
+                method: "pos",
+                amount: amount,
+                pos_card_label,
+                pos_is_personal
+              }
+            ]
+          }
+        };
+      }
+
+      const dynamicPosDeviceSelect = document.getElementById("posDeviceSelect");
+      const dynamicPosCircuitSelect = document.getElementById("posCircuitSelect");
+
+      const pos_device_id = Number(dynamicPosDeviceSelect?.value || 0);
+      const pos_circuit_id = Number(dynamicPosCircuitSelect?.value || 0);
 
       if (!pos_device_id || !pos_circuit_id) {
         return { ok: false, error: "Seleziona dispositivo e circuito POS." };
