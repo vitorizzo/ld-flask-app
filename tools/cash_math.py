@@ -285,6 +285,17 @@ def calculate_closure_pure(
         )
     )
 
+    spese_pos_personali = (
+        db.session.query(func.coalesce(func.sum(CashExpensePayment.amount), 0))
+        .join(CashExpense, CashExpense.id == CashExpensePayment.expense_id)
+        .filter(
+            CashExpense.cash_day_id == cash_day_id,
+            CashExpensePayment.method == "pos",
+            CashExpensePayment.pos_is_personal == True
+        )
+        .scalar()
+    )
+
     # =========================
     # MOVIMENTI CASSA / SPICCI
     # =========================
@@ -466,7 +477,7 @@ def calculate_closure_pure(
     # i corrispettivi sono già dentro totale_incassi_lordi
     # =========================
     versabile_giornata = (incassi_cash_azienda + assegni_odierni + pos_in + total_corrispettivi
-                          - spese_cash_azienda - storni_pos - totale_pos)
+                          - spese_cash_azienda - storni_pos - totale_pos - spese_pos_personali)
 
     massimo_contanti_incasso = saldo_versabile_precedente - assegni_in_pancia
     if massimo_contanti_incasso < Decimal("0.00"):
@@ -540,6 +551,7 @@ def calculate_closure_pure(
         "totale_spese_fisiche": totale_spese_fisiche,
         "totale_spese_elettroniche": totale_spese_elettroniche,
         "totale_spese_fuori_cassa": totale_spese_fuori_cassa,
+        "spese_pos_personali": float(spese_pos_personali or 0),
 
         # movimenti / spicci
         "cash_moves_in_altro": cash_moves_in_altro,
