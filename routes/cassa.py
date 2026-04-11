@@ -20,7 +20,7 @@ from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment, CashExpensePayment, \
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
     CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashOwnerTake, CashOwnerTakeCheck, \
-    CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck
+    CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck, CashIssuedCheck
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
@@ -1805,9 +1805,7 @@ def api_create_expense(day_date):
     try:
         for idx, p in enumerate(payments_data, start=1):
             method = (p.get("method") or "").strip().lower()
-            if method not in {"cash", "pos", "bank"}:
-                if method == "check":
-                    raise ValueError("Check payment is not supported for expenses with current data model")
+            if method not in {"cash", "pos", "bank", "check"}:
                 raise ValueError(f"Invalid payment method at row {idx}")
 
             amount = _to_decimal_amount(p.get("amount"), f"payments[{idx}].amount")
@@ -1837,6 +1835,37 @@ def api_create_expense(day_date):
                     raise ValueError(f"Missing bank_id at row {idx}")
                 _validate_bank(bank_id)
                 payment.bank_id = bank_id
+
+            elif method == "check":
+                bank_id = p.get("bank_id")
+                check_number = (p.get("check_number") or "").strip()
+                due_date_raw = p.get("due_date")
+
+                if not bank_id:
+                    raise ValueError(f"Missing bank_id at row {idx}")
+
+                if not check_number:
+                    raise ValueError(f"Missing check_number at row {idx}")
+
+                if not due_date_raw:
+                    raise ValueError(f"Missing due_date at row {idx}")
+
+                try:
+                    due_date = date.fromisoformat(due_date_raw)
+                except Exception:
+                    raise ValueError(f"Invalid due_date format at row {idx}")
+
+                payment.bank_id = bank_id
+
+                issued_check = CashIssuedCheck(
+                    expense=exp,
+                    bank_id=bank_id,
+                    check_number=check_number,
+                    due_date=due_date,
+                    amount=amount,
+                )
+
+                db.session.add(issued_check)
 
             exp.payments.append(payment)
 
@@ -1977,15 +2006,14 @@ def api_update_expense(expense_id):
 
     try:
         CashExpensePayment.query.filter_by(expense_id=expense.id).delete()
+        CashIssuedCheck.query.filter_by(expense_id=expense.id).delete()
         db.session.flush()
 
         expense.notes = description
 
         for idx, p in enumerate(payments_data, start=1):
             method = (p.get("method") or "").strip().lower()
-            if method not in {"cash", "pos", "bank"}:
-                if method == "check":
-                    raise ValueError("Check payment is not supported for expenses with current data model")
+            if method not in {"cash", "pos", "bank", "check"}:
                 raise ValueError(f"Invalid payment method at row {idx}")
 
             amount = _to_decimal_amount(p.get("amount"), f"payments[{idx}].amount")
@@ -2016,6 +2044,37 @@ def api_update_expense(expense_id):
                     raise ValueError(f"Missing bank_id at row {idx}")
                 _validate_bank(bank_id)
                 payment.bank_id = bank_id
+
+            elif method == "check":
+                bank_id = p.get("bank_id")
+                check_number = (p.get("check_number") or "").strip()
+                due_date_raw = p.get("due_date")
+
+                if not bank_id:
+                    raise ValueError(f"Missing bank_id at row {idx}")
+
+                if not check_number:
+                    raise ValueError(f"Missing check_number at row {idx}")
+
+                if not due_date_raw:
+                    raise ValueError(f"Missing due_date at row {idx}")
+
+                try:
+                    due_date = date.fromisoformat(due_date_raw)
+                except Exception:
+                    raise ValueError(f"Invalid due_date format at row {idx}")
+
+                payment.bank_id = bank_id
+
+                issued_check = CashIssuedCheck(
+                    expense=expense,
+                    bank_id=bank_id,
+                    check_number=check_number,
+                    due_date=due_date,
+                    amount=amount,
+                )
+
+                db.session.add(issued_check)
 
             db.session.add(payment)
 

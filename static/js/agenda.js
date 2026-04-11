@@ -1947,6 +1947,8 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     } else if (mode === "bank") {
       loadBanks().catch(err => console.error("loadBanks setPaymentMode:", err));
+    } else if (mode === "check") {
+      loadBanks(document.getElementById("checkBankSelect"))
     } else if (mode === "multi") {
       if (!multiPaymentsList?.children.length) {
         addMultiPaymentRow();
@@ -1979,9 +1981,7 @@ document.addEventListener("DOMContentLoaded", function () {
       "posAmount",
       "bankAmount",
       "checkAmount",
-      "checkBankName",
-      "checkBankABI",
-      "checkBankCAB",
+      "checkBankSelect",
       "checkNumber",
       "checkDueDate"
     ];
@@ -3275,6 +3275,17 @@ document.addEventListener("DOMContentLoaded", function () {
         } else if (p.method === "bank") {
           await loadBanks();
           if (bankSelect) bankSelect.value = String(p.bank_id || "");
+        } else if (p.method === "check") {
+          const bankSelect = document.getElementById("checkBankSelect");
+
+          await loadBanks(bankSelect);
+          if (bankSelect) bankSelect.value = String(p.bank_id || "");
+
+          const checkNumber = document.getElementById("checkNumber");
+          const checkDueDate = document.getElementById("checkDueDate");
+
+          if (checkNumber) checkNumber.value = p.check_number || "";
+          if (checkDueDate) checkDueDate.value = p.due_date || "";
         }
       } else {
         setPaymentMode("multi");
@@ -3852,18 +3863,20 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     if (mode === "check") {
-      const bank_name = (document.getElementById("checkBankName")?.value || "").trim();
-      const abi = (document.getElementById("checkBankABI")?.value || "").trim();
-      const cab = (document.getElementById("checkBankCAB")?.value || "").trim();
+      const bank_id = Number(document.getElementById("checkBankSelect")?.value || 0);
       const check_number = (document.getElementById("checkNumber")?.value || "").trim();
       const due_date = (document.getElementById("checkDueDate")?.value || "").trim();
 
-      if (!base.customer_id) {
-        return { ok: false, error: "Per un assegno devi selezionare un cliente." };
+      if (!bank_id) {
+        return { ok: false, error: "Seleziona la banca." };
       }
 
-      if (!bank_name || !abi || !cab || !check_number || !due_date) {
-        return { ok: false, error: "Completa tutti i dati dell’assegno." };
+      if (!check_number) {
+        return { ok: false, error: "Inserisci il numero assegno." };
+      }
+
+      if (!due_date) {
+        return { ok: false, error: "Inserisci la data di scadenza." };
       }
 
       return {
@@ -3879,9 +3892,7 @@ document.addEventListener("DOMContentLoaded", function () {
             {
               method: "check",
               amount: amount,
-              bank_name,
-              abi,
-              cab,
+              bank_id,
               check_number,
               due_date
             }

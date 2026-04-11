@@ -681,67 +681,19 @@
              MODALITÀ SINGOLA - ASSEGNO
         ========================= -->
         <div class="card mb-2 d-none" id="paymentSingleCheckPanel">
-          <div class="card-body py-2">
-            <div class="row g-2 align-items-end">
+          <div class="mb-2">
+            <label class="form-label">Banca</label>
+            <select id="checkBankSelect" class="form-select"></select>
+          </div>
 
-              <div class="col-12 col-md-4">
-                <label class="form-label mb-0">Banca assegno</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="checkBankName"
-                  placeholder="Es. Unicredit">
-              </div>
+          <div class="mb-2">
+            <label class="form-label">Numero assegno</label>
+            <input id="checkNumber" class="form-control" placeholder="Ultime cifre assegno">
+          </div>
 
-              <div class="col-12 col-md-4">
-                <label class="form-label mb-0">ABI Banca assegno</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="checkBankABI"
-                  placeholder="Es. 01030">
-              </div>
-
-              <div class="col-12 col-md-4">
-                <label class="form-label mb-0">CAB Banca assegno</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="checkBankCAB"
-                  placeholder="Es. 40510">
-              </div>
-
-              <div class="col-12 col-md-4">
-                <label class="form-label mb-0">Numero assegno</label>
-                <input
-                  type="text"
-                  class="form-control"
-                  id="checkNumber"
-                  placeholder="Numero assegno">
-              </div>
-
-              <div class="col-12 col-md-4">
-                <label class="form-label mb-0">Scadenza</label>
-                <input
-                  type="date"
-                  class="form-control"
-                  id="checkDueDate">
-              </div>
-
-              <div class="col-12 col-md-4">
-                <label class="form-label mb-0">Importo</label>
-                <div class="input-group">
-                  <span class="input-group-text">€</span>
-                  <input
-                    type="text"
-                    class="form-control text-end"
-                    id="checkAmount"
-                    placeholder="0,00"
-                    inputmode="decimal">
-                </div>
-              </div>
-
-            </div>
+          <div class="mb-2">
+            <label class="form-label">Data scadenza</label>
+            <input id="checkDueDate" type="date" class="form-control">
           </div>
         </div>
 
