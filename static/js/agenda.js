@@ -1946,7 +1946,7 @@ document.addEventListener("DOMContentLoaded", function () {
         loadPosDevices().catch(err => console.error("loadPosDevices setPaymentMode:", err));
       }
     } else if (mode === "bank") {
-      loadBanks().catch(err => console.error("loadBanks setPaymentMode:", err));
+      loadBanks(bankSelect).catch(err => console.error("loadBanks setPaymentMode:", err));
     } else if (mode === "check") {
       loadBanks(document.getElementById("checkBankSelect"))
     } else if (mode === "multi") {
@@ -2845,37 +2845,42 @@ document.addEventListener("DOMContentLoaded", function () {
     return data.banks || [];
   }
 
-  async function loadBanks(selectedBankId = null) {
+  async function loadBanks(selectEl = null, selectedBankId = null) {
+    const targetSelect = selectEl || document.getElementById("bankSelect");
+    if (!targetSelect) return;
+
+    targetSelect.innerHTML = '<option value="">Seleziona...</option>';
+
     try {
-      const res = await fetch("/cassa/api/banks", { credentials: "same-origin" });
+      const res = await fetch("/cassa/api/banks", {
+        credentials: "same-origin",
+        headers: { "Accept": "application/json" }
+      });
+
       const data = await res.json();
-
       if (!data.ok) return;
-
-      const depositBankSelect = document.getElementById("bankSelect");
-      depositBankSelect.innerHTML = '<option value="">Seleziona...</option>';
 
       let defaultBankId = null;
 
       data.banks.forEach(b => {
         const opt = document.createElement("option");
-        opt.value = b.id;
+        opt.value = String(b.id);
         opt.textContent = b.name;
 
         if (b.is_default) {
-          defaultBankId = b.id;
+          defaultBankId = String(b.id);
         }
 
-        depositBankSelect.appendChild(opt);
+        targetSelect.appendChild(opt);
       });
 
-      // 👉 applico il default DOPO aver creato tutte le option
-      const finalValue = selectedBankId != null && String(selectedBankId).trim() !== ""
-        ? String(selectedBankId)
-        : defaultBankId;
+      const finalValue =
+        selectedBankId != null && String(selectedBankId).trim() !== ""
+          ? String(selectedBankId)
+          : defaultBankId;
 
       if (finalValue) {
-        depositBankSelect.value = finalValue;
+        targetSelect.value = finalValue;
       }
 
     } catch (err) {
@@ -3131,7 +3136,7 @@ document.addEventListener("DOMContentLoaded", function () {
           await loadPosCircuits(p.pos_device_id, posCircuitSelect);
           if (posCircuitSelect) posCircuitSelect.value = String(p.pos_circuit_id || "");
         } else if (p.method === "bank") {
-          await loadBanks();
+          await loadBanks(bankSelect);
           if (bankSelect) bankSelect.value = String(p.bank_id || "");
         } else if (p.method === "check") {
           const checkBankName = document.getElementById("checkBankName");
@@ -3273,7 +3278,7 @@ document.addEventListener("DOMContentLoaded", function () {
             expensePosCardSelect.value = p.pos_card_label || "";
           }
         } else if (p.method === "bank") {
-          await loadBanks();
+          await loadBanks(bankSelect);
           if (bankSelect) bankSelect.value = String(p.bank_id || "");
         } else if (p.method === "check") {
           const bankSelect = document.getElementById("checkBankSelect");
