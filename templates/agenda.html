@@ -678,34 +678,117 @@
         </div>
 
         <!-- =========================
-             MODALITÀ SINGOLA - ASSEGNO
+             MODALITÀ SINGOLA - ASSEGNO INCASSO
         ========================= -->
-        <div class="card mb-2 d-none" id="paymentSingleCheckPanel">
-          <div class="mb-2">
-            <label class="form-label">Banca</label>
-            <select id="checkBankSelect" class="form-select"></select>
-          </div>
+        <div class="card mb-2 d-none" id="paymentSingleCheckSalePanel">
+          <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
 
-          <div class="mb-2">
-            <label class="form-label">Numero assegno</label>
-            <input id="checkNumber" class="form-control" placeholder="Ultime cifre assegno">
-          </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">Banca assegno</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="checkSaleBankName"
+                  placeholder="Es. Unicredit">
+              </div>
 
-          <div class="mb-2">
-            <label class="form-label">Data scadenza</label>
-            <input id="checkDueDate" type="date" class="form-control">
-          </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">ABI Banca assegno</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="checkSaleBankABI"
+                  placeholder="Es. 01030">
+              </div>
 
-          <div class="mb-2">
-            <label class="form-label">Importo assegno</label>
-            <div class="input-group">
-              <span class="input-group-text">€</span>
-              <input
-                type="text"
-                class="form-control text-end"
-                id="checkAmount"
-                placeholder="0,00"
-                inputmode="decimal">
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">CAB Banca assegno</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="checkSaleBankCAB"
+                  placeholder="Es. 40510">
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">Numero assegno</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="checkSaleNumber"
+                  placeholder="Numero assegno">
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">Scadenza</label>
+                <input
+                  type="date"
+                  class="form-control"
+                  id="checkSaleDueDate">
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">Importo</label>
+                <div class="input-group">
+                  <span class="input-group-text">€</span>
+                  <input
+                    type="text"
+                    class="form-control text-end"
+                    id="checkSaleAmount"
+                    placeholder="0,00"
+                    inputmode="decimal">
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- =========================
+             MODALITÀ SINGOLA - ASSEGNO SPESA
+        ========================= -->
+        <div class="card mb-2 d-none" id="paymentSingleCheckExpensePanel">
+          <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">Banca emittente</label>
+                <select class="form-select" id="checkExpenseBankSelect">
+                  <option value="">Seleziona...</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">Numero assegno</label>
+                <input
+                  type="text"
+                  class="form-control"
+                  id="checkExpenseNumber"
+                  placeholder="Ultime cifre assegno">
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">Scadenza</label>
+                <input
+                  type="date"
+                  class="form-control"
+                  id="checkExpenseDueDate">
+              </div>
+
+              <div class="col-12 col-md-4">
+                <label class="form-label mb-0">Importo assegno</label>
+                <div class="input-group">
+                  <span class="input-group-text">€</span>
+                  <input
+                    type="text"
+                    class="form-control text-end"
+                    id="checkExpenseAmount"
+                    placeholder="0,00"
+                    inputmode="decimal">
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
