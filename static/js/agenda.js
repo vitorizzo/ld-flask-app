@@ -1929,42 +1929,56 @@ document.addEventListener("DOMContentLoaded", function () {
     return checked?.value || "cash";
   }
 
-function setPaymentMode(mode) {
-  const target = document.querySelector(`input[name="paymentMode"][value="${mode}"]`);
-  if (target) target.checked = true;
+  function setPaymentMode(mode) {
+    const target = document.querySelector(`input[name="paymentMode"][value="${mode}"]`);
+    if (target) target.checked = true;
 
-  const opType = document.getElementById("opType")?.value || "sale";
+    const opType = document.getElementById("opType")?.value || "sale";
 
-  Object.entries(paymentPanels).forEach(([key, panel]) => {
-    if (!panel) return;
-    panel.classList.toggle("d-none", key !== mode);
-  });
+    Object.entries(paymentPanels).forEach(([key, panel]) => {
+      if (!panel) return;
+      panel.classList.add("d-none");
+    });
 
-  const saleCheckPanel = document.getElementById("paymentSingleCheckSalePanel");
-  const expenseCheckPanel = document.getElementById("paymentSingleCheckExpensePanel");
+    const saleCheckPanel = document.getElementById("paymentSingleCheckSalePanel");
+    const expenseCheckPanel = document.getElementById("paymentSingleCheckExpensePanel");
+    const salePosPanel = document.getElementById("paymentSinglePosSalePanel");
+    const expensePosPanel = document.getElementById("paymentSinglePosExpensePanel");
 
-  if (saleCheckPanel) saleCheckPanel.classList.add("d-none");
-  if (expenseCheckPanel) expenseCheckPanel.classList.add("d-none");
+    saleCheckPanel?.classList.add("d-none");
+    expenseCheckPanel?.classList.add("d-none");
+    salePosPanel?.classList.add("d-none");
+    expensePosPanel?.classList.add("d-none");
 
-  if (mode === "check") {
-    if (opType === "sale") {
-      saleCheckPanel?.classList.remove("d-none");
-    } else if (opType === "expense") {
-      expenseCheckPanel?.classList.remove("d-none");
-      loadBanks(document.getElementById("checkExpenseBankSelect"));
+    if (mode === "cash") {
+      paymentPanels.cash?.classList.remove("d-none");
+    } else if (mode === "bank") {
+      paymentPanels.bank?.classList.remove("d-none");
+      loadBanks(bankSelect).catch(err => console.error("loadBanks setPaymentMode:", err));
+    } else if (mode === "multi") {
+      paymentPanels.multi?.classList.remove("d-none");
+      if (!multiPaymentsList?.children.length) {
+        addMultiPaymentRow();
+      }
+    } else if (mode === "check") {
+      if (opType === "sale") {
+        saleCheckPanel?.classList.remove("d-none");
+      } else {
+        expenseCheckPanel?.classList.remove("d-none");
+        loadBanks(document.getElementById("checkExpenseBankSelect")).catch(err => console.error(err));
+      }
+    } else if (mode === "pos") {
+      if (opType === "sale") {
+        salePosPanel?.classList.remove("d-none");
+        loadPosDevices().catch(err => console.error("loadPosDevices setPaymentMode:", err));
+      } else {
+        expensePosPanel?.classList.remove("d-none");
+      }
     }
-  } else if (mode === "pos") {
-    loadPosDevices().catch(err => console.error("loadPosDevices setPaymentMode:", err));
-  } else if (mode === "bank") {
-    loadBanks(bankSelect).catch(err => console.error("loadBanks setPaymentMode:", err));
-  } else if (mode === "multi") {
-    if (!multiPaymentsList?.children.length) {
-      addMultiPaymentRow();
-    }
+
+    lastPaymentMode = mode;
   }
 
-  lastPaymentMode = mode;
-}
   function getOpAmount() {
     return parseEuroToNumber(opAmountInput?.value || "0");
   }
@@ -2012,19 +2026,29 @@ function setPaymentMode(mode) {
   function refreshSingleAmountFields() {
     const total = formatEuro2(getOpAmount());
     const mode = getPaymentMode();
+    const opType = document.getElementById("opType")?.value || "sale";
 
     const cashAmount = document.getElementById("cashAmount");
     const posAmount = document.getElementById("posAmount");
     const bankAmount = document.getElementById("bankAmount");
-    const checkAmount = document.getElementById("checkAmount");
+    const checkSaleAmount = document.getElementById("checkSaleAmount");
+    const checkExpenseAmount = document.getElementById("checkExpenseAmount");
+    const expensePosAmount = document.getElementById("expensePosAmount");
 
     if (mode === "cash" && cashAmount) cashAmount.value = total;
     if (mode === "pos") {
-      const dynamicPosAmount = document.getElementById("posAmount");
-      if (dynamicPosAmount) dynamicPosAmount.value = total;
+      if (opType === "expense" && expensePosAmount) {
+        expensePosAmount.value = total;
+      } else if (posAmount) {
+        posAmount.value = total;
+      }
     }
     if (mode === "bank" && bankAmount) bankAmount.value = total;
-    if (mode === "check" && checkAmount) checkAmount.value = total;
+
+    if (mode === "check") {
+      if (opType === "sale" && checkSaleAmount) checkSaleAmount.value = total;
+      if (opType === "expense" && checkExpenseAmount) checkExpenseAmount.value = total;
+    }
   }
 
   function getMultiPaymentsTotal() {
@@ -2078,11 +2102,23 @@ function setPaymentMode(mode) {
     if (mode === "cash") {
       totalPayments = parseEuroToNumber(document.getElementById("cashAmount")?.value || "0");
     } else if (mode === "pos") {
-      totalPayments = parseEuroToNumber(document.getElementById("posAmount")?.value || opAmount);
+      const opType = document.getElementById("opType")?.value || "sale";
+
+      if (opType === "expense") {
+        totalPayments = parseEuroToNumber(document.getElementById("expensePosAmount")?.value || "0");
+      } else {
+        totalPayments = parseEuroToNumber(document.getElementById("posAmount")?.value || "0");
+      }
     } else if (mode === "bank") {
       totalPayments = parseEuroToNumber(document.getElementById("bankAmount")?.value || "0");
     } else if (mode === "check") {
-      totalPayments = parseEuroToNumber(document.getElementById("checkAmount")?.value || "0");
+      const opType = document.getElementById("opType")?.value || "sale";
+
+      if (opType === "sale") {
+        totalPayments = parseEuroToNumber(document.getElementById("checkSaleAmount")?.value || "0");
+      } else {
+        totalPayments = parseEuroToNumber(document.getElementById("checkExpenseAmount")?.value || "0");
+      }
     }
 
     if (Math.abs(totalPayments - opAmount) > 0.009) {
@@ -4926,6 +4962,10 @@ function setPaymentMode(mode) {
   normalizeCurrencyInput(document.getElementById("posAmount"));
   normalizeCurrencyInput(document.getElementById("bankAmount"));
   normalizeCurrencyInput(document.getElementById("checkAmount"));
+  normalizeCurrencyInput(document.getElementById("checkSaleAmount"));
+  normalizeCurrencyInput(document.getElementById("checkExpenseAmount"));
+  normalizeCurrencyInput(document.getElementById("expensePosAmount"));
+
 
   opAmountInput?.addEventListener("input", () => {
     refreshSingleAmountFields();

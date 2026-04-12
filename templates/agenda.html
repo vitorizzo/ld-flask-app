@@ -611,7 +611,7 @@
         <!-- =========================
              MODALITÀ SINGOLA - POS
         ========================= -->
-        <div class="card mb-2 d-none" id="paymentSinglePosPanel">
+        <div class="card mb-2 d-none" id="paymentSinglePosSalePanel">
           <div class="card-body py-2">
             <div class="row g-2 align-items-end">
 
@@ -637,6 +637,37 @@
                     type="text"
                     class="form-control text-end"
                     id="posAmount"
+                    placeholder="0,00"
+                    inputmode="decimal">
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb-2 d-none" id="paymentSinglePosExpensePanel">
+          <div class="card-body py-2">
+            <div class="row g-2 align-items-end">
+
+              <div class="col-12 col-md-6">
+                <label class="form-label mb-0">Carta utilizzata</label>
+                <select class="form-select" id="expensePosCardSelect">
+                  <option value="">Seleziona...</option>
+                  <option value="Carta aziendale 1">Carta aziendale 1</option>
+                  <option value="Carta aziendale 2">Carta aziendale 2</option>
+                  <option value="Carta personale">Carta personale</option>
+                </select>
+              </div>
+
+              <div class="col-12 col-md-6">
+                <label class="form-label mb-0">Importo POS</label>
+                <div class="input-group">
+                  <span class="input-group-text">€</span>
+                  <input
+                    type="text"
+                    class="form-control text-end"
+                    id="expensePosAmount"
                     placeholder="0,00"
                     inputmode="decimal">
                 </div>
