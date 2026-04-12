@@ -2969,18 +2969,35 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function updateMultiRowFields(row) {
     const method = row.querySelector(".multi-method")?.value || "cash";
+    const opType = document.getElementById("opType")?.value || "sale";
 
-    row.querySelectorAll(".multi-pos-fields").forEach(el => {
-      el.classList.toggle("d-none", method !== "pos");
-    });
+    row.querySelectorAll(".multi-pos-sale-fields").forEach(el => el.classList.add("d-none"));
+    row.querySelectorAll(".multi-pos-expense-fields").forEach(el => el.classList.add("d-none"));
+    row.querySelectorAll(".multi-bank-fields").forEach(el => el.classList.add("d-none"));
+    row.querySelectorAll(".multi-check-sale-fields").forEach(el => el.classList.add("d-none"));
+    row.querySelectorAll(".multi-check-expense-fields").forEach(el => el.classList.add("d-none"));
 
-    row.querySelectorAll(".multi-bank-fields").forEach(el => {
-      el.classList.toggle("d-none", method !== "bank");
-    });
+    if (method === "pos") {
+      if (opType === "expense") {
+        row.querySelectorAll(".multi-pos-expense-fields").forEach(el => el.classList.remove("d-none"));
+      } else {
+        row.querySelectorAll(".multi-pos-sale-fields").forEach(el => el.classList.remove("d-none"));
+      }
+      return;
+    }
 
-    row.querySelectorAll(".multi-check-fields").forEach(el => {
-      el.classList.toggle("d-none", method !== "check");
-    });
+    if (method === "bank") {
+      row.querySelectorAll(".multi-bank-fields").forEach(el => el.classList.remove("d-none"));
+      return;
+    }
+
+    if (method === "check") {
+      if (opType === "expense") {
+        row.querySelectorAll(".multi-check-expense-fields").forEach(el => el.classList.remove("d-none"));
+      } else {
+        row.querySelectorAll(".multi-check-sale-fields").forEach(el => el.classList.remove("d-none"));
+      }
+    }
   }
 
   function multiRowsHaveData() {
@@ -3027,6 +3044,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const rowPosDevice = row.querySelector(".multi-pos-device");
     const rowPosCircuit = row.querySelector(".multi-pos-circuit");
     const rowBankSelect = row.querySelector(".multi-bank-select");
+    const rowCheckBankSelect = row.querySelector(".multi-check-bank-select");
 
     if (methodSelect) methodSelect.value = initialMethod;
 
@@ -3036,11 +3054,19 @@ document.addEventListener("DOMContentLoaded", function () {
       updateMultiRowFields(row);
 
       const method = methodSelect.value;
+      const opType = document.getElementById("opType")?.value || "sale";
 
       if (method === "pos") {
-        await loadPosDevices(rowPosDevice, true, rowPosCircuit);
+        if (opType === "sale") {
+          await loadPosDevices(rowPosDevice, true, rowPosCircuit);
+        }
       } else if (method === "bank") {
         await loadBanks(rowBankSelect);
+      } else if (method === "check") {
+        if (opType === "expense") {
+          const rowCheckBankSelect = row.querySelector(".multi-check-bank-select");
+          await loadBanks(rowCheckBankSelect);
+        }
       } else {
         if (rowPosDevice) rowPosDevice.innerHTML = `<option value="">Seleziona...</option>`;
         if (rowPosCircuit) {
@@ -3048,6 +3074,11 @@ document.addEventListener("DOMContentLoaded", function () {
           rowPosCircuit.disabled = true;
         }
         if (rowBankSelect) rowBankSelect.innerHTML = `<option value="">Seleziona...</option>`;
+
+        const rowCheckBankSelect = row.querySelector(".multi-check-bank-select");
+        if (rowCheckBankSelect) {
+          rowCheckBankSelect.innerHTML = `<option value="">Seleziona...</option>`;
+        }
       }
 
       updatePaymentState();
@@ -3066,10 +3097,18 @@ document.addEventListener("DOMContentLoaded", function () {
     multiPaymentsList.appendChild(row);
     updateMultiRowFields(row);
 
+    const opType = document.getElementById("opType")?.value || "sale";
+
     if (initialMethod === "pos") {
-      await loadPosDevices(rowPosDevice, true, rowPosCircuit);
+      if (opType === "sale") {
+        await loadPosDevices(rowPosDevice, true, rowPosCircuit);
+      }
     } else if (initialMethod === "bank") {
       await loadBanks(rowBankSelect);
+    } else if (initialMethod === "check") {
+      if (opType === "expense") {
+        await loadBanks(rowCheckBankSelect);
+      }
     }
 
     updatePaymentState();
@@ -4024,8 +4063,14 @@ document.addEventListener("DOMContentLoaded", function () {
       return { ok: false, error: "Importo operazione non valido." };
     }
 
-    if (!base.description && !base.customer_id && !base.customer_label) {
-      return { ok: false, error: "Inserisci almeno una descrizione o seleziona un cliente." };
+    if (base.opType === "expense") {
+      if (!base.description && !base.customer_label) {
+        return { ok: false, error: "Inserisci almeno una descrizione o un fornitore/beneficiario." };
+      }
+    } else {
+      if (!base.description && !base.customer_id && !base.customer_label) {
+        return { ok: false, error: "Inserisci almeno una descrizione o seleziona un cliente." };
+      }
     }
 
     const payments = [];
@@ -4047,6 +4092,24 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       if (method === "pos") {
+        if (base.opType === "expense") {
+          const pos_card_label = (row.querySelector(".multi-pos-card-label")?.value || "").trim();
+
+          if (!pos_card_label) {
+            return { ok: false, error: "Ogni riga POS spesa deve avere una carta selezionata." };
+          }
+
+          const pos_is_personal = pos_card_label === "Carta personale";
+
+          payments.push({
+            method: "pos",
+            amount,
+            pos_card_label,
+            pos_is_personal
+          });
+          continue;
+        }
+
         const pos_device_id = Number(row.querySelector(".multi-pos-device")?.value || 0);
         const pos_circuit_id = Number(row.querySelector(".multi-pos-circuit")?.value || 0);
 
@@ -4078,6 +4141,33 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       if (method === "check") {
+        if (base.opType === "expense") {
+          const bank_id = Number(row.querySelector(".multi-check-bank-select")?.value || 0);
+          const check_number = (row.querySelector(".multi-check-number")?.value || "").trim();
+          const due_date = (row.querySelector(".multi-check-due-date")?.value || "").trim();
+
+          if (!bank_id) {
+            return { ok: false, error: "Ogni riga assegno spesa deve avere una banca selezionata." };
+          }
+
+          if (!check_number) {
+            return { ok: false, error: "Inserisci il numero assegno per ogni riga assegno spesa." };
+          }
+
+          if (!due_date) {
+            return { ok: false, error: "Inserisci la scadenza per ogni riga assegno spesa." };
+          }
+
+          payments.push({
+            method: "check",
+            amount,
+            bank_id,
+            check_number,
+            due_date
+          });
+          continue;
+        }
+
         if (!base.customer_id) {
           return { ok: false, error: "Per gli assegni devi selezionare un cliente." };
         }
@@ -4088,8 +4178,8 @@ document.addEventListener("DOMContentLoaded", function () {
         const check_number = (row.querySelector(".multi-check-number")?.value || "").trim();
         const due_date = (row.querySelector(".multi-check-due-date")?.value || "").trim();
 
-        if (!bank_name || !abi || !cab || !check_number || !due_date) {
-          return { ok: false, error: "Completa tutti i dati per ogni assegno." };
+        if (!bank_name || !check_number || !due_date) {
+          return { ok: false, error: "Completa tutti i dati obbligatori per ogni assegno incasso." };
         }
 
         payments.push({
@@ -4115,6 +4205,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return {
       ok: true,
       payload: {
+        supplier: base.opType === "expense" ? (base.customer_label || null) : undefined,
         description: base.description,
         flag: base.flag,
         customer_id: base.customer_id,

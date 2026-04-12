@@ -875,24 +875,41 @@
                   <label class="form-label mb-0">Importo</label>
                   <div class="input-group">
                     <span class="input-group-text">€</span>
-                    <input type="text" class="form-control text-end multi-amount" placeholder="0,00" inputmode="decimal">
+                    <input
+                      type="text"
+                      class="form-control text-end multi-amount"
+                      placeholder="0,00"
+                      inputmode="decimal">
                   </div>
                 </div>
 
-                <div class="col-12 col-md-3 multi-pos-fields d-none">
+                <!-- POS INCASSO -->
+                <div class="col-12 col-md-3 multi-pos-sale-fields d-none">
                   <label class="form-label mb-0">Dispositivo POS</label>
                   <select class="form-select multi-pos-device">
                     <option value="">Seleziona...</option>
                   </select>
                 </div>
 
-                <div class="col-12 col-md-3 multi-pos-fields d-none">
+                <div class="col-12 col-md-3 multi-pos-sale-fields d-none">
                   <label class="form-label mb-0">Circuito</label>
                   <select class="form-select multi-pos-circuit" disabled>
                     <option value="">Seleziona...</option>
                   </select>
                 </div>
 
+                <!-- POS SPESA -->
+                <div class="col-12 col-md-6 multi-pos-expense-fields d-none">
+                  <label class="form-label mb-0">Carta utilizzata</label>
+                  <select class="form-select multi-pos-card-label">
+                    <option value="">Seleziona...</option>
+                    <option value="Carta aziendale 1">Carta aziendale 1</option>
+                    <option value="Carta aziendale 2">Carta aziendale 2</option>
+                    <option value="Carta personale">Carta personale</option>
+                  </select>
+                </div>
+
+                <!-- BANK -->
                 <div class="col-12 col-md-3 multi-bank-fields d-none">
                   <label class="form-label mb-0">Banca</label>
                   <select class="form-select multi-bank-select">
@@ -900,32 +917,51 @@
                   </select>
                 </div>
 
-                <div class="col-12 col-md-3 multi-check-fields d-none">
+                <!-- CHECK INCASSO -->
+                <div class="col-12 col-md-3 multi-check-sale-fields d-none">
                   <label class="form-label mb-0">Banca assegno</label>
                   <input type="text" class="form-control multi-check-bank-name" placeholder="Es. Unicredit">
                 </div>
 
-                <div class="col-12 col-md-2 multi-check-fields d-none">
+                <div class="col-12 col-md-2 multi-check-sale-fields d-none">
                   <label class="form-label mb-0">ABI</label>
                   <input type="text" class="form-control multi-check-bank-abi" placeholder="01030">
                 </div>
 
-                <div class="col-12 col-md-2 multi-check-fields d-none">
+                <div class="col-12 col-md-2 multi-check-sale-fields d-none">
                   <label class="form-label mb-0">CAB</label>
                   <input type="text" class="form-control multi-check-bank-cab" placeholder="40510">
                 </div>
 
-                <div class="col-12 col-md-2 multi-check-fields d-none">
+                <div class="col-12 col-md-2 multi-check-sale-fields d-none">
                   <label class="form-label mb-0">Numero</label>
                   <input type="text" class="form-control multi-check-number" placeholder="Numero assegno">
                 </div>
 
-                <div class="col-12 col-md-3 multi-check-fields d-none">
+                <div class="col-12 col-md-3 multi-check-sale-fields d-none">
                   <label class="form-label mb-0">Scadenza</label>
                   <input type="date" class="form-control multi-check-due-date">
                 </div>
 
-                <div class="col-12 col-md-12 d-flex justify-content-end">
+                <!-- CHECK SPESA -->
+                <div class="col-12 col-md-4 multi-check-expense-fields d-none">
+                  <label class="form-label mb-0">Banca emittente</label>
+                  <select class="form-select multi-check-bank-select">
+                    <option value="">Seleziona...</option>
+                  </select>
+                </div>
+
+                <div class="col-12 col-md-4 multi-check-expense-fields d-none">
+                  <label class="form-label mb-0">Numero assegno</label>
+                  <input type="text" class="form-control multi-check-number" placeholder="Ultime cifre assegno">
+                </div>
+
+                <div class="col-12 col-md-4 multi-check-expense-fields d-none">
+                  <label class="form-label mb-0">Scadenza</label>
+                  <input type="date" class="form-control multi-check-due-date">
+                </div>
+
+                <div class="col-12 d-flex justify-content-end">
                   <button type="button" class="btn btn-outline-danger btn-sm btn-remove-payment-row">
                     Rimuovi
                   </button>
