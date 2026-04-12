@@ -1929,35 +1929,42 @@ document.addEventListener("DOMContentLoaded", function () {
     return checked?.value || "cash";
   }
 
-  function setPaymentMode(mode) {
-    const target = document.querySelector(`input[name="paymentMode"][value="${mode}"]`);
-    if (target) target.checked = true;
+function setPaymentMode(mode) {
+  const target = document.querySelector(`input[name="paymentMode"][value="${mode}"]`);
+  if (target) target.checked = true;
 
-    Object.entries(paymentPanels).forEach(([key, panel]) => {
-      if (!panel) return;
-      panel.classList.toggle("d-none", key !== mode);
-    });
+  const opType = document.getElementById("opType")?.value || "sale";
 
-    if (mode === "pos") {
-      if (isExpenseOperation()) {
-        renderExpensePosOptions();
-      } else {
-        renderSalePosOptions();
-        loadPosDevices().catch(err => console.error("loadPosDevices setPaymentMode:", err));
-      }
-    } else if (mode === "bank") {
-      loadBanks(bankSelect).catch(err => console.error("loadBanks setPaymentMode:", err));
-    } else if (mode === "check") {
-      loadBanks(document.getElementById("checkBankSelect"))
-    } else if (mode === "multi") {
-      if (!multiPaymentsList?.children.length) {
-        addMultiPaymentRow();
-      }
+  Object.entries(paymentPanels).forEach(([key, panel]) => {
+    if (!panel) return;
+    panel.classList.toggle("d-none", key !== mode);
+  });
+
+  const saleCheckPanel = document.getElementById("paymentSingleCheckSalePanel");
+  const expenseCheckPanel = document.getElementById("paymentSingleCheckExpensePanel");
+
+  if (saleCheckPanel) saleCheckPanel.classList.add("d-none");
+  if (expenseCheckPanel) expenseCheckPanel.classList.add("d-none");
+
+  if (mode === "check") {
+    if (opType === "sale") {
+      saleCheckPanel?.classList.remove("d-none");
+    } else if (opType === "expense") {
+      expenseCheckPanel?.classList.remove("d-none");
+      loadBanks(document.getElementById("checkExpenseBankSelect"));
     }
-
-    lastPaymentMode = mode;
+  } else if (mode === "pos") {
+    loadPosDevices().catch(err => console.error("loadPosDevices setPaymentMode:", err));
+  } else if (mode === "bank") {
+    loadBanks(bankSelect).catch(err => console.error("loadBanks setPaymentMode:", err));
+  } else if (mode === "multi") {
+    if (!multiPaymentsList?.children.length) {
+      addMultiPaymentRow();
+    }
   }
 
+  lastPaymentMode = mode;
+}
   function getOpAmount() {
     return parseEuroToNumber(opAmountInput?.value || "0");
   }
