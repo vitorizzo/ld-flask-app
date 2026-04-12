@@ -1,163 +1,168 @@
-# STATUS.md — v1.4
-Data aggiornamento: 2026-04-03
+# STATUS.md — aggiornamento Agenda / Cassa
+Data aggiornamento: 2026-04-12
 
 ---
 
-## 🔄 Stato generale progetto
+## 🔄 Stato generale modulo Agenda / Cassa
 
-Applicazione stabile in produzione.  
-Gunicorn + Nginx funzionanti.  
-Migrazioni database allineate.  
-Nessun errore bloccante in avvio applicazione.
+La base del modulo è attiva e utilizzabile.
+Le principali CRUD della giornata risultano operative.
+La preview dei KPI e il report diagnostico giornata sono attivi.
 
----
-
-## 🧾 Modulo Cassa / Agenda — Stato attuale
-
-### ✅ Backend
-
-- KPI completamente funzionanti:
-  - Versabile
-  - Fondo cassa
-  - Quadratura
-  - Ecommerce
-  - Versamenti
-  - Corrispettivi
-
-- Endpoint attivi e funzionanti:
-  - `/cassa/api/day`
-  - `/cassa/api/day/<date>/preview`
-  - `/cassa/api/day/<day_date>/sales`
-  - `/cassa/api/day/<day_date>/expenses`
-  - `/cassa/api/day/<day_date>/cash_moves`
-  - `/cassa/api/day/<day_date>/pos_moves`
-  - `/cassa/api/day/<day_date>/deposits`
-  - `/cassa/api/day/<day_date>/receipt-closures`
-  - `/cassa/api/checks/due`
-  - `/cassa/api/coins/balance`
-
-- Gestione:
-  - Incassi (multi-pagamento, assegni, POS, banca, contanti)
-  - Spese
-  - Movimenti di cassa
-  - Movimenti POS
-  - Versamenti (con assegni collegati)
-  - Prelievi titolare (owner takes)
-  - Corrispettivi
-  - Conteggio fondo cassa
+Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicazione e sono state allineate diverse logiche della modale pagamenti rispetto agli incassi.
 
 ---
 
-### ✅ Frontend (Agenda)
+## ✅ Completato / stabile
 
-- Layout completo a quadranti:
-  - Incassi
-  - Spese
-  - Movimenti di cassa
+### Giornata / preview / KPI
+- Creazione o recupero giornata tramite `/cassa/api/day`
+- Preview giornata tramite `/cassa/api/day/<day_date>/preview`
+- KPI collegati alla preview
+- Gestione fondo cassa tramite `CashDrawerCount`
+- Gestione corrispettivi
+- Gestione prelievi titolare / cassetto
+- Gestione movimenti spicci
+- Gestione versamenti bancari
+- Report diagnostico giornata apribile dal menù contestuale
+
+### Incassi
+- Inserimento incassi singoli funzionante:
+  - cash
+  - pos
+  - bank
+  - check
+- Inserimento incassi multipli funzionante
+- Correzione bug grave su `api_create_sale`:
+  - i pagamenti multipli non vanno più in errore con `sale_id = NULL`
+- Divergenza logica assegni incasso vs assegni spesa correttamente ripristinata
+- Modifica ed eliminazione incassi operative
+
+### Spese
+- Inserimento spese singole cash funzionante
+- Inserimento spese singole POS funzionante con nuova logica descrittiva:
+  - niente dispositivo POS
+  - niente circuito POS
+  - uso di `pos_card_label`
+  - uso di `pos_is_personal`
+- Inserimento spese singole bank funzionante
+- Inserimento spese singole check funzionante
+- Inserimento spese multiple funzionante
+- Correzione dei pannelli dinamici della modale spese:
+  - i pannelli assegno spesa ora divergono da quelli assegno incasso
+- Correzione validazione importi e campi obbligatori nella modale spese
+- Modifica ed eliminazione spese operative
+
+### POS
+- CRUD movimenti POS operative
+- Lista POS operativa
+- Modifica / eliminazione movimenti POS operative
+
+### Movimenti di cassa
+- CRUD movimenti cassa operative
+- Separazione `kind="altro"` e `kind="spicci"`
+- Lista movimenti cassa operativa
+- Modifica / eliminazione movimenti cassa operative
+
+### Spunte di controllo righe
+- Toggle spunte su:
+  - incassi
+  - spese
   - POS
-
-- UI stabilizzata:
-  - Tabelle uniformate stile “table-row”
-  - Badge coerenti (POS, banca, assegni, fuori cassa)
-  - KPI visivamente coerenti
-  - Modali funzionanti (stack gestito correttamente)
-
-- Calendario:
-  - Evidenzia giorni con movimenti
-  - Caricamento dinamico giornata
+  - movimenti cassa
 
 ---
 
-### ✅ Quadrante POS — COMPLETATO (baseline)
+## ✅ Modifiche strutturali recenti
 
-- Lista POS funzionante
-- Checkbox per riga (con stato persistente backend)
-- Toggle stato riga (`row-check`)
-- Menu contestuale:
-  - Apertura da bottone riga
-  - Apertura da click destro
-- Azioni disponibili:
-  - Eliminazione funzionante (`DELETE pos_move`)
-- Struttura pronta per:
-  - Modifica
-  - Filtri (device / circuito)
+### `CashExpensePayment`
+La logica POS sulle spese è stata cambiata.
 
-➡️ Il quadrante POS è il riferimento architetturale per gli altri quadranti.
+Rimossi:
+- `pos_device_id`
+- `pos_circuit_id`
 
----
+Aggiunti:
+- `pos_card_label`
+- `pos_is_personal`
 
-## ⚠️ Stato attuale sviluppo
+Questa modifica è già migrata.
 
-È stata completata la **prima verticalizzazione completa (POS)**:
+### Nuovo archivio assegni emessi
+È stata introdotta e migrata la tabella dedicata agli assegni emessi per le spese.
 
-- UI
-- Interazioni
-- Context menu
-- Backend integrazione
+Scopo:
+- separare completamente gli assegni emessi dagli assegni clienti
+- tracciare assegni di pagamento con:
+  - banca emittente
+  - numero assegno
+  - data scadenza
+  - importo
 
-Gli altri quadranti (**Incassi, Spese, Movimenti di cassa**)  
-NON sono ancora allineati a questo standard.
-
----
-
-## 🎯 Prossimo step (nuova chat)
-
-Estendere il modello POS agli altri 3 quadranti:
-
-### Obiettivo
-
-Uniformare:
-
-- comportamento UI
-- menu contestuale
-- gestione checkbox
-- azioni CRUD
-
-### Quadranti da aggiornare
-
-1. Movimenti di cassa
-2. Incassi
-3. Spese
+Gli assegni emessi:
+- non stanno nella tabella assegni clienti
+- non concorrono al versabile
+- serviranno per scadenze e gestione futura
 
 ---
 
-## 📌 Task previsti
+## ⚠️ Nota importante sulle formule
+Le formule di `cash_math.py` sono state corrette manualmente localmente dall’utente dopo diversi aggiustamenti.
+Quindi:
 
-Per ogni quadrante:
-
-- [ ] Checkbox riga (come POS)
-- [ ] Stato riga persistente (backend row-check)
-- [ ] Menu contestuale riga + pannello
-- [ ] Azioni:
-  - [ ] Inserisci
-  - [ ] Modifica
-  - [ ] Elimina
-- [ ] Pulsante "+" nel titolo quadrante
-- [ ] Coerenza UI con POS
+- il contenuto attuale di `cash_math.py` **non va dedotto dalla memoria storica**
+- prima di qualunque modifica futura bisogna rileggere il file reale aggiornato
+- evitare interventi speculativi sulle formule
 
 ---
 
-## 🧠 Note tecniche
+## 📌 Stato attuale della modale operazioni
+La modale unica `opModal` è ancora condivisa tra incassi e spese, ma ora contiene logiche differenziate lato JS.
 
-- Il sistema context menu è già centralizzato (`contextMenu`)
-- Il pattern `data-entity-type` + `data-entity-id` è già definito
-- Il sistema `row-check` è già riutilizzabile
-- Le modali esistono già → riuso, non reinventare
+### Incassi
+- POS con device/circuit
+- assegni cliente con dati banca cliente
+
+### Spese
+- POS descrittivo con carta aziendale / carta personale
+- assegni emessi con:
+  - banca nostra
+  - numero assegno
+  - scadenza
+
+La divergenza funzionale è stata già avviata e funziona sui casi testati.
 
 ---
 
-## 🚫 Vincoli operativi
+## 🧪 Ultimo esito test
+Ultimi test riferiti a:
+- spese singole
+- spese multiple
+- incassi multipli
+- assegni incasso / assegni spesa
+- POS spesa descrittivo
 
-- NON rompere il funzionamento attuale dei quadranti
-- NON fare refactor massivi
-- Procedere **un quadrante alla volta**
-- Validare ogni step prima di passare al successivo
+Esito:
+- nessun errore bloccante riscontrato nei casi testati
+- i flussi principali coinvolti risultano funzionanti
 
 ---
 
-## 📌 Stato generale
+## 🔜 Prossimo task
+Il prossimo step previsto è:
 
-Sistema stabile  
-Architettura definita  
-Primo quadrante completato (POS)  
-Pronto per estensione controllata agli altri moduli
+### Doppio archivio DB / chiavetta criptata
+Implementazione della logica a doppio archivio come discusso in precedenza:
+- archivio standard su database
+- archivio riservato su chiavetta criptata
+- coordinamento tra i due livelli di persistenza
+- relativa integrazione nel modulo Agenda / Cassa
+
+---
+
+## Nota operativa per la prossima chat
+Prima di intervenire:
+- rileggere i file reali aggiornati
+- non assumere il contenuto di `cash_math.py`
+- non riusare versioni vecchie della modale pagamenti
+- partire dallo stato attuale effettivo del codice
