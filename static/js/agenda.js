@@ -3761,8 +3761,14 @@ function setPaymentMode(mode) {
       return { ok: false, error: "Importo operazione non valido." };
     }
 
-    if (!base.description && !base.customer_id && !base.customer_label) {
-      return { ok: false, error: "Inserisci almeno una descrizione o seleziona un cliente." };
+    if (base.opType === "expense") {
+      if (!base.description && !base.customer_label) {
+        return { ok: false, error: "Inserisci almeno una descrizione o un fornitore/beneficiario." };
+      }
+    } else {
+      if (!base.description && !base.customer_id && !base.customer_label) {
+        return { ok: false, error: "Inserisci almeno una descrizione o seleziona un cliente." };
+      }
     }
 
     if (mode === "cash") {
@@ -3875,20 +3881,68 @@ function setPaymentMode(mode) {
     }
 
     if (mode === "check") {
-      const bank_id = Number(document.getElementById("checkBankSelect")?.value || 0);
-      const check_number = (document.getElementById("checkNumber")?.value || "").trim();
-      const due_date = (document.getElementById("checkDueDate")?.value || "").trim();
+      if (base.opType === "expense") {
+        const bank_id = Number(document.getElementById("checkExpenseBankSelect")?.value || 0);
+        const check_number = (document.getElementById("checkExpenseNumber")?.value || "").trim();
+        const due_date = (document.getElementById("checkExpenseDueDate")?.value || "").trim();
+        const checkAmount = parseEuroToNumber(document.getElementById("checkExpenseAmount")?.value || "0");
 
-      if (!bank_id) {
-        return { ok: false, error: "Seleziona la banca." };
+        if (!bank_id) {
+          return { ok: false, error: "Seleziona la banca emittente." };
+        }
+
+        if (!check_number) {
+          return { ok: false, error: "Inserisci il numero assegno." };
+        }
+
+        if (!due_date) {
+          return { ok: false, error: "Inserisci la data di scadenza." };
+        }
+
+        if (Math.abs(checkAmount - amount) > 0.009) {
+          return { ok: false, error: "L'importo assegno non coincide con il totale dell'operazione." };
+        }
+
+        return {
+          ok: true,
+          payload: {
+            supplier: base.customer_label,
+            description: base.description,
+            flag: base.flag,
+            customer_id: base.customer_id,
+            customer_label: base.customer_label,
+            off_cash: base.off_cash,
+            off_cash_who: base.off_cash_who,
+            payments: [
+              {
+                method: "check",
+                amount: amount,
+                bank_id,
+                check_number,
+                due_date
+              }
+            ]
+          }
+        };
       }
 
-      if (!check_number) {
-        return { ok: false, error: "Inserisci il numero assegno." };
+      const bank_name = (document.getElementById("checkSaleBankName")?.value || "").trim();
+      const abi = (document.getElementById("checkSaleBankABI")?.value || "").trim();
+      const cab = (document.getElementById("checkSaleBankCAB")?.value || "").trim();
+      const check_number = (document.getElementById("checkSaleNumber")?.value || "").trim();
+      const due_date = (document.getElementById("checkSaleDueDate")?.value || "").trim();
+      const checkAmount = parseEuroToNumber(document.getElementById("checkSaleAmount")?.value || "0");
+
+      if (!base.customer_id) {
+        return { ok: false, error: "Per un assegno devi selezionare un cliente." };
       }
 
-      if (!due_date) {
-        return { ok: false, error: "Inserisci la data di scadenza." };
+      if (!bank_name || !check_number || !due_date) {
+        return { ok: false, error: "Compila tutti i dati obbligatori dell’assegno." };
+      }
+
+      if (Math.abs(checkAmount - amount) > 0.009) {
+        return { ok: false, error: "L'importo assegno non coincide con il totale dell'operazione." };
       }
 
       return {
@@ -3904,7 +3958,9 @@ function setPaymentMode(mode) {
             {
               method: "check",
               amount: amount,
-              bank_id,
+              bank_name,
+              abi,
+              cab,
               check_number,
               due_date
             }
