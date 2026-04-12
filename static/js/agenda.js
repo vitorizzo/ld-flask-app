@@ -2193,7 +2193,7 @@ function setPaymentMode(mode) {
     }
 
     if (posMoveDocRefSelect) {
-      posMoveDocRefSelect.value = "Corrispettivi";
+      posMoveDocRefSelect.value = "Corrispettivo";
     }
 
     if (posMoveNotesInput) {
