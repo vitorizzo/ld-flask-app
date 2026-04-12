@@ -3045,6 +3045,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const rowPosCircuit = row.querySelector(".multi-pos-circuit");
     const rowBankSelect = row.querySelector(".multi-bank-select");
     const rowCheckBankSelect = row.querySelector(".multi-check-bank-select");
+    const rowCheckExpenseBankSelect = row.querySelector(".multi-check-expense-bank-select");
 
     if (methodSelect) methodSelect.value = initialMethod;
 
@@ -3065,7 +3066,7 @@ document.addEventListener("DOMContentLoaded", function () {
       } else if (method === "check") {
         if (opType === "expense") {
           const rowCheckBankSelect = row.querySelector(".multi-check-bank-select");
-          await loadBanks(rowCheckBankSelect);
+          await loadBanks(rowCheckExpenseBankSelect);
         }
       } else {
         if (rowPosDevice) rowPosDevice.innerHTML = `<option value="">Seleziona...</option>`;
@@ -3107,7 +3108,7 @@ document.addEventListener("DOMContentLoaded", function () {
       await loadBanks(rowBankSelect);
     } else if (initialMethod === "check") {
       if (opType === "expense") {
-        await loadBanks(rowCheckBankSelect);
+        await loadBanks(rowCheckExpenseBankSelect);
       }
     }
 
@@ -4142,10 +4143,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
       if (method === "check") {
         if (base.opType === "expense") {
-          const bank_id = Number(row.querySelector(".multi-check-bank-select")?.value || 0);
-          const check_number = (row.querySelector(".multi-check-number")?.value || "").trim();
-          const due_date = (row.querySelector(".multi-check-due-date")?.value || "").trim();
-
+          const bank_id = Number(row.querySelector(".multi-check-expense-bank-select")?.value || 0);
+          const check_number = (row.querySelector(".multi-check-expense-number")?.value || "").trim();
+          const due_date = (row.querySelector(".multi-check-expense-due-date")?.value || "").trim();
           if (!bank_id) {
             return { ok: false, error: "Ogni riga assegno spesa deve avere una banca selezionata." };
           }

@@ -1244,6 +1244,9 @@ def api_create_sale(day_date):
         notes=description,
     )
 
+    db.session.add(sale)
+    db.session.flush()
+
     try:
         for idx, p in enumerate(payments_data, start=1):
             method = (p.get("method") or "").strip().lower()
@@ -1253,6 +1256,7 @@ def api_create_sale(day_date):
             amount = _to_decimal_amount(p.get("amount"), f"payments[{idx}].amount")
 
             payment = CashSalePayment(
+                sale_id=sale.id,
                 direction="in",
                 method=method,
                 off_cash=off_cash,
@@ -1260,6 +1264,8 @@ def api_create_sale(day_date):
                 flag=flag,
                 description=description,
             )
+            db.session.add(payment)
+            db.session.flush()
 
             if method == "pos":
                 pos_device_id = p.get("pos_device_id")
@@ -1289,8 +1295,8 @@ def api_create_sale(day_date):
 
                 db.session.add(
                     CashSalePaymentPosMove(
-                        sale_payment=payment,
-                        pos_move=pos_move,
+                        sale_payment_id=payment.id,
+                        pos_move_id=pos_move.id,
                     )
                 )
 
@@ -1351,8 +1357,6 @@ def api_create_sale(day_date):
                         check_amount=amount,
                     )
                 )
-
-            sale.payments.append(payment)
 
         db.session.add(sale)
         db.session.commit()
