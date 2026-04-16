@@ -114,6 +114,37 @@ def _derive_key(password: str, salt: bytes) -> bytes:
     )
 
 
+def _pri_load_year(year: int) -> dict:
+    """
+    Carica e decifra il file annuale PRI.
+    """
+    if not session.get("pri_vault_unlocked"):
+        raise RuntimeError("Vault non sbloccato")
+
+    vault_dir = current_app.config.get(
+        "PRIVATE_VAULT_DIR",
+        "/mnt/archive/runtime/.rt"
+    )
+
+    file_path = os.path.join(vault_dir, f"{year}.enc")
+
+    # file non esiste → struttura base
+    if not os.path.exists(file_path):
+        return {
+            "version": 1,
+            "year": year,
+            "days": []
+        }
+
+    with open(file_path, "rb") as f:
+        encrypted = f.read()
+
+    # funzione già presente nel file
+    data_bytes = _decrypt_bytes(encrypted)
+
+    return json.loads(data_bytes.decode("utf-8"))
+
+
 def _vault_config() -> tuple[str, str, int, str]:
     """
     mount_root: directory che risulta ismount() quando la chiavetta è inserita (es: /mnt/archive/runtime)
