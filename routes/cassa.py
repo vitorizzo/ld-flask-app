@@ -4,7 +4,7 @@ import json
 import base64
 import secrets
 
-from flask import Blueprint, render_template, request, jsonify, session
+from flask import Blueprint, render_template, request, jsonify, session, current_app
 from flask_login import login_required, current_user
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
@@ -46,6 +46,8 @@ MIN_AGENDA_WEIGHT = 40
 _VAULT_VERSION = 1
 _KDF_ITERS = 200_000
 
+_PRI_SESSION_KEYS: dict[str, bytes] = {}
+_PRI_SESSION_SALTS: dict[str, bytes] = {}
 
 # -------------------------
 # Helpers base64 + KDF
@@ -114,35 +116,102 @@ def _derive_key(password: str, salt: bytes) -> bytes:
     )
 
 
+def _pri_store_session_key(key: bytes, salt: bytes) -> str:
+    key_id = secrets.token_urlsafe(32)
+    _PRI_SESSION_KEYS[key_id] = key
+    _PRI_SESSION_SALTS[key_id] = salt
+    return key_id
+
+
+def _pri_get_session_key() -> bytes | None:
+    key_id = session.get("pri_vault_key_id")
+    if not key_id:
+        return None
+    return _PRI_SESSION_KEYS.get(key_id)
+
+
+def _pri_get_session_salt() -> bytes | None:
+    key_id = session.get("pri_vault_key_id")
+    if not key_id:
+        return None
+    return _PRI_SESSION_SALTS.get(key_id)
+
+
+def _pri_clear_session_key() -> None:
+    key_id = session.pop("pri_vault_key_id", None)
+    if key_id:
+        _PRI_SESSION_KEYS.pop(key_id, None)
+        _PRI_SESSION_SALTS.pop(key_id, None)
+
+
 def _pri_load_year(year: int) -> dict:
     """
-    Carica e decifra il file annuale PRI.
+    Carica e decifra il file annuale PRI usando la chiave di sessione in RAM.
     """
     if not session.get("pri_vault_unlocked"):
         raise RuntimeError("Vault non sbloccato")
 
-    vault_dir = current_app.config.get(
-        "PRIVATE_VAULT_DIR",
-        "/mnt/archive/runtime/.rt"
-    )
+    key = _pri_get_session_key()
+    if not key:
+        session["pri_vault_unlocked"] = False
+        raise RuntimeError("Chiave vault non disponibile in sessione")
+
+    mount_root, vault_dir, _cfg_year, year_file = _vault_config()
+
+    if not os.path.ismount(mount_root):
+        session["pri_vault_unlocked"] = False
+        _pri_clear_session_key()
+        raise RuntimeError("Vault non montato")
 
     file_path = os.path.join(vault_dir, f"{year}.enc")
 
-    # file non esiste → struttura base
-    if not os.path.exists(file_path):
-        return {
-            "version": 1,
-            "year": year,
-            "days": []
-        }
+    if not os.path.isfile(file_path):
+        return _empty_vault_payload(year)
 
     with open(file_path, "rb") as f:
-        encrypted = f.read()
+        blob = f.read()
 
-    # funzione già presente nel file
-    data_bytes = _decrypt_bytes(encrypted)
+    env = json.loads(blob.decode("utf-8"))
+    nonce = _b64d(env["aead"]["nonce"])
+    ct = _b64d(env["ct"])
 
-    return json.loads(data_bytes.decode("utf-8"))
+    aes = AESGCM(key)
+    pt = aes.decrypt(nonce, ct, None)
+    return json.loads(pt.decode("utf-8"))
+
+
+def _pri_save_year(year: int, data: dict) -> None:
+    file_path = _pri_file_path(year)
+    tmp_path = file_path + ".tmp"
+
+    # Recupera chiave e salt dalla sessione
+    key = _pri_get_session_key()
+    salt = _pri_get_session_salt()
+
+    if not key or not salt:
+        raise RuntimeError("Vault non sbloccato")
+
+    # Serializza dati
+    plaintext = json.dumps(data, ensure_ascii=False).encode("utf-8")
+
+    # AES-GCM richiede nonce SEMPRE nuovo
+    nonce = os.urandom(12)
+    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
+    ciphertext, tag = cipher.encrypt_and_digest(plaintext)
+
+    # Manteniamo lo stesso formato del file
+    payload = {
+        "salt": base64.b64encode(salt).decode(),
+        "nonce": base64.b64encode(nonce).decode(),
+        "ciphertext": base64.b64encode(ciphertext).decode(),
+        "tag": base64.b64encode(tag).decode(),
+    }
+
+    # Scrittura atomica (importantissimo)
+    with open(tmp_path, "w") as f:
+        json.dump(payload, f)
+
+    os.replace(tmp_path, file_path)
 
 
 def _vault_config() -> tuple[str, str, int, str]:
@@ -419,13 +488,47 @@ def api_private_unlock():
     try:
         if os.path.isfile(year_file):
             blob = open(year_file, "rb").read()
-            _decrypt_payload(blob, password)  # valida password
+
+            # estrai salt dal file
+            env = json.loads(blob.decode("utf-8"))
+            salt = _b64d(env["kdf"]["salt"])
+
+            # deriva chiave
+            key = _derive_key(password, salt)
+
+            # valida password tentando decrypt
+            aes = AESGCM(key)
+            nonce = _b64d(env["aead"]["nonce"])
+            ct = _b64d(env["ct"])
+            aes.decrypt(nonce, ct, None)
+
         else:
+            # primo avvio → crea vault
+            salt = secrets.token_bytes(16)
+            key = _derive_key(password, salt)
+
             payload = _empty_vault_payload(year)
-            blob = _encrypt_payload(payload, password)
-            _atomic_write(year_file, blob)
+
+            aes = AESGCM(key)
+            nonce = secrets.token_bytes(12)
+            plaintext = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            ct = aes.encrypt(nonce, plaintext, None)
+
+            env = {
+                "v": _VAULT_VERSION,
+                "kdf": {"name": "pbkdf2-hmac-sha256", "iters": _KDF_ITERS, "salt": _b64e(salt)},
+                "aead": {"name": "aes-256-gcm", "nonce": _b64e(nonce)},
+                "ct": _b64e(ct),
+            }
+
+            _atomic_write(year_file, json.dumps(env, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+
+        # salva chiave in RAM
+        key_id = _pri_store_session_key(key, salt)
 
         session["pri_vault_unlocked"] = True
+        session["pri_vault_key_id"] = key_id
+
         return jsonify({"ok": True, "vault": {"year": year, "unlocked": True, "year_file_exists": True}})
     except InvalidTag:
         session["pri_vault_unlocked"] = False
@@ -441,6 +544,7 @@ def api_private_unlock():
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_private_lock():
     session["pri_vault_unlocked"] = False
+    _pri_clear_session_key()
     return jsonify({"ok": True, "vault": {"unlocked": False}})
 
 
