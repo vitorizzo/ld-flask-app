@@ -434,6 +434,56 @@ def api_get_or_create_day():
 # API: Vault privato (PRI)
 # =========================
 
+@cassa_bp.get("/api/private/test")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_private_test():
+    try:
+        mount_root, vault_dir, year, year_file = _vault_config()
+
+        if not session.get("pri_vault_unlocked"):
+            return jsonify({"ok": False, "error": "Vault non sbloccato"}), 400
+
+        # 1. carico
+        data = _pri_load_year(year, request.args.get("password", ""))
+
+        # 2. scrivo test
+        test_day = date.today().isoformat()
+
+        day_node = next((d for d in data["days"] if d["date"] == test_day), None)
+        if not day_node:
+            day_node = {
+                "date": test_day,
+                "sales": [],
+                "expenses": [],
+                "cash_moves": [],
+            }
+            data["days"].append(day_node)
+
+        day_node["cash_moves"].append({
+            "id": "test-api",
+            "created_at": datetime.now().isoformat(),
+            "description": "TEST DA API",
+            "amount": 9.99,
+            "method": "cash",
+            "flag": "x"
+        })
+
+        _pri_save_year(year, data)
+
+        # 3. rileggo
+        reread = _pri_load_year(year, request.args.get("password", ""))
+
+        return jsonify({
+            "ok": True,
+            "days": reread["days"]
+        })
+
+    except Exception as e:
+        logger.exception("api_private_test error: %s", e)
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @cassa_bp.route("/api/private/status", methods=["GET"])
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
