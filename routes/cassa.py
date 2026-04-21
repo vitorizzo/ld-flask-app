@@ -182,39 +182,56 @@ def _pri_load_year(year: int) -> dict:
 
 
 def _pri_save_year(year: int, data: dict) -> None:
-    _, vault_dir, _, _ = _vault_config()
-    file_path = os.path.join(vault_dir, f"{year}.enc")
+    """
+    Cifra e salva il file annuale PRI usando:
+    - chiave derivata già presente in RAM
+    - salt stabile della sessione vault
+    - stesso formato file già usato da _encrypt_payload/_decrypt_payload
+    """
+    if not session.get("pri_vault_unlocked"):
+        raise RuntimeError("Vault non sbloccato")
 
-    tmp_path = file_path + ".tmp"
-
-    # Recupera chiave e salt dalla sessione
     key = _pri_get_session_key()
     salt = _pri_get_session_salt()
 
     if not key or not salt:
-        raise RuntimeError("Vault non sbloccato")
+        session["pri_vault_unlocked"] = False
+        _pri_clear_session_key()
+        raise RuntimeError("Chiave vault non disponibile in sessione")
 
-    # Serializza dati
-    plaintext = json.dumps(data, ensure_ascii=False).encode("utf-8")
+    mount_root, vault_dir, _cfg_year, _year_file = _vault_config()
 
-    # AES-GCM richiede nonce SEMPRE nuovo
-    nonce = os.urandom(12)
-    cipher = AES.new(key, AES.MODE_GCM, nonce=nonce)
-    ciphertext, tag = cipher.encrypt_and_digest(plaintext)
+    if not os.path.ismount(mount_root):
+        session["pri_vault_unlocked"] = False
+        _pri_clear_session_key()
+        raise RuntimeError("Vault non montato")
 
-    # Manteniamo lo stesso formato del file
-    payload = {
-        "salt": base64.b64encode(salt).decode(),
-        "nonce": base64.b64encode(nonce).decode(),
-        "ciphertext": base64.b64encode(ciphertext).decode(),
-        "tag": base64.b64encode(tag).decode(),
+    os.makedirs(vault_dir, exist_ok=True)
+
+    file_path = os.path.join(vault_dir, f"{year}.enc")
+
+    plaintext = json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+    aes = AESGCM(key)
+    nonce = secrets.token_bytes(12)
+    ct = aes.encrypt(nonce, plaintext, None)
+
+    env = {
+        "v": _VAULT_VERSION,
+        "kdf": {
+            "name": "pbkdf2-hmac-sha256",
+            "iters": _KDF_ITERS,
+            "salt": _b64e(salt),
+        },
+        "aead": {
+            "name": "aes-256-gcm",
+            "nonce": _b64e(nonce),
+        },
+        "ct": _b64e(ct),
     }
 
-    # Scrittura atomica (importantissimo)
-    with open(tmp_path, "w") as f:
-        json.dump(payload, f)
-
-    os.replace(tmp_path, file_path)
+    blob = json.dumps(env, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    _atomic_write(file_path, blob)
 
 
 def _vault_config() -> tuple[str, str, int, str]:
