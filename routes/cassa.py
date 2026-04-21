@@ -445,7 +445,8 @@ def api_private_test():
             return jsonify({"ok": False, "error": "Vault non sbloccato"}), 400
 
         # 1. carico
-        data = _pri_load_year(year, request.args.get("password", ""))
+        # data = _pri_load_year(year, request.args.get("password", ""))
+        data = _pri_load_year(year)
 
         # 2. scrivo test
         test_day = date.today().isoformat()
@@ -472,7 +473,8 @@ def api_private_test():
         _pri_save_year(year, data)
 
         # 3. rileggo
-        reread = _pri_load_year(year, request.args.get("password", ""))
+        #reread = _pri_load_year(year, request.args.get("password", ""))
+        reread = _pri_load_year(year)
 
         return jsonify({
             "ok": True,
