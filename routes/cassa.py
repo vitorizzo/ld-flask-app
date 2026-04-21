@@ -249,7 +249,13 @@ def _pri_save_year(year: int, data: dict) -> bool|None:
     }
 
     blob = json.dumps(env, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    _atomic_write(file_path, blob)
+    try:
+        _atomic_write(file_path, blob)
+        return True
+    except OSError:
+        session["pri_vault_unlocked"] = False
+        _pri_clear_session_key()
+        return False
 
 
 def _vault_config() -> tuple[str, str, int, str]:
