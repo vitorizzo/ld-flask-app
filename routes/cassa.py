@@ -199,7 +199,7 @@ def _pri_load_year(year: int) -> dict:
     return json.loads(pt.decode("utf-8"))
 
 
-def _pri_save_year(year: int, data: dict) -> None:
+def _pri_save_year(year: int, data: dict) -> bool|None:
     """
     Cifra e salva il file annuale PRI usando:
     - chiave derivata già presente in RAM
@@ -222,7 +222,7 @@ def _pri_save_year(year: int, data: dict) -> None:
     if not os.path.ismount(mount_root):
         session["pri_vault_unlocked"] = False
         _pri_clear_session_key()
-        raise RuntimeError("Vault non montato")
+        return False
 
     os.makedirs(vault_dir, exist_ok=True)
 
@@ -515,12 +515,13 @@ def api_private_test_write():
             }
         })
 
-        _pri_save_year(year, data)
+        saved = _pri_save_year(year, data)
 
         reread = _pri_load_year(year)
 
         return jsonify({
             "ok": True,
+            "saved": bool(saved),
             "year": year,
             "days": reread.get("days", []),
         })
