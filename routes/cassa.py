@@ -14,6 +14,7 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import exists, or_, and_, func
 from sqlalchemy.orm import selectinload
 
+from tools.redis_utils import get_redis
 from tools.log_utils import get_logger
 from tools.check_utils import change_check_status
 from tools.role_required import role_required
@@ -46,9 +47,6 @@ MIN_AGENDA_WEIGHT = 40
 
 _VAULT_VERSION = 1
 _KDF_ITERS = 200_000
-
-_PRI_SESSION_KEYS: dict[str, bytes] = {}
-_PRI_SESSION_SALTS: dict[str, bytes] = {}
 
 # -------------------------
 # Helpers base64 + KDF
@@ -119,8 +117,14 @@ def _derive_key(password: str, salt: bytes) -> bytes:
 
 def _pri_store_session_key(key: bytes, salt: bytes) -> str:
     key_id = secrets.token_urlsafe(32)
-    _PRI_SESSION_KEYS[key_id] = key
-    _PRI_SESSION_SALTS[key_id] = salt
+    r = get_redis()
+    r.set(
+        f"pri_vault:key:{key_id}",
+        json.dumps({
+            "key": _b64e(key),
+            "salt": _b64e(salt),
+        })
+    )
     return key_id
 
 
@@ -128,21 +132,35 @@ def _pri_get_session_key() -> bytes | None:
     key_id = session.get("pri_vault_key_id")
     if not key_id:
         return None
-    return _PRI_SESSION_KEYS.get(key_id)
+
+    r = get_redis()
+    raw = r.get(f"pri_vault:key:{key_id}")
+    if not raw:
+        return None
+
+    data = json.loads(raw)
+    return _b64d(data["key"])
 
 
 def _pri_get_session_salt() -> bytes | None:
     key_id = session.get("pri_vault_key_id")
     if not key_id:
         return None
-    return _PRI_SESSION_SALTS.get(key_id)
+
+    r = get_redis()
+    raw = r.get(f"pri_vault:key:{key_id}")
+    if not raw:
+        return None
+
+    data = json.loads(raw)
+    return _b64d(data["salt"])
 
 
 def _pri_clear_session_key() -> None:
     key_id = session.pop("pri_vault_key_id", None)
     if key_id:
-        _PRI_SESSION_KEYS.pop(key_id, None)
-        _PRI_SESSION_SALTS.pop(key_id, None)
+        r = get_redis()
+        r.delete(f"pri_vault:key:{key_id}")
 
 
 def _pri_load_year(year: int) -> dict:
