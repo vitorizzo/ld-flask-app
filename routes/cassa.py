@@ -4,6 +4,7 @@ import json
 import base64
 import secrets
 
+from cryptography.hazmat.primitives.ciphers.algorithms import AES
 from flask import Blueprint, render_template, request, jsonify, session, current_app
 from flask_login import login_required, current_user
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -181,7 +182,9 @@ def _pri_load_year(year: int) -> dict:
 
 
 def _pri_save_year(year: int, data: dict) -> None:
-    file_path = _pri_file_path(year)
+    _, vault_dir, _, _ = _vault_config()
+    file_path = os.path.join(vault_dir, f"{year}.enc")
+
     tmp_path = file_path + ".tmp"
 
     # Recupera chiave e salt dalla sessione
@@ -434,21 +437,18 @@ def api_get_or_create_day():
 # API: Vault privato (PRI)
 # =========================
 
-@cassa_bp.get("/api/private/test")
+@cassa_bp.post("/api/private/test-write")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
-def api_private_test():
+def api_private_test_write():
     try:
         mount_root, vault_dir, year, year_file = _vault_config()
 
         if not session.get("pri_vault_unlocked"):
             return jsonify({"ok": False, "error": "Vault non sbloccato"}), 400
 
-        # 1. carico
-        # data = _pri_load_year(year, request.args.get("password", ""))
         data = _pri_load_year(year)
 
-        # 2. scrivo test
         test_day = date.today().isoformat()
 
         day_node = next((d for d in data["days"] if d["date"] == test_day), None)
@@ -462,27 +462,36 @@ def api_private_test():
             data["days"].append(day_node)
 
         day_node["cash_moves"].append({
-            "id": "test-api",
+            "id": f"test-{secrets.token_hex(4)}",
             "created_at": datetime.now().isoformat(),
-            "description": "TEST DA API",
-            "amount": 9.99,
+            "updated_at": datetime.now().isoformat(),
+            "kind": "altro",
+            "description": "TEST PRI API",
+            "amount": 12.34,
             "method": "cash",
-            "flag": "x"
+            "flag": "x",
+            "off_cash": False,
+            "meta": {
+                "origin": "pri",
+                "created_by_user_id": getattr(current_user, "id", None),
+                "created_by_name": getattr(current_user, "name", None)
+                    or getattr(current_user, "username", None)
+                    or "user",
+            }
         })
 
         _pri_save_year(year, data)
 
-        # 3. rileggo
-        #reread = _pri_load_year(year, request.args.get("password", ""))
         reread = _pri_load_year(year)
 
         return jsonify({
             "ok": True,
-            "days": reread["days"]
+            "year": year,
+            "days": reread.get("days", []),
         })
 
     except Exception as e:
-        logger.exception("api_private_test error: %s", e)
+        logger.exception("api_private_test_write error: %s", e)
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
