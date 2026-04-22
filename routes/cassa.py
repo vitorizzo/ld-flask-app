@@ -2818,7 +2818,7 @@ def api_private_debug_read():
         return jsonify({"ok": False, "error": str(e)}), 500
 
 
-@cassa_bp.put("/api/cash_moves/<int:cash_move_id>", endpoint="api_update_cash_move")
+@cassa_bp.put("/api/cash_moves/<cash_move_id>", endpoint="api_update_cash_move")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_update_cash_move(cash_move_id):
