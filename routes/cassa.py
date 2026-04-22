@@ -115,6 +115,25 @@ def _derive_key(password: str, salt: bytes) -> bytes:
     )
 
 
+def _pri_update_cash_move(year: int, move_id: str, updates: dict):
+    pri_data, day_node, idx, row = _pri_find_cash_move(year, move_id)
+
+    if not pri_data:
+        return None
+
+    # merge controllato
+    for k, v in updates.items():
+        row[k] = v
+
+    row["updated_at"] = datetime.now().isoformat()
+
+    saved = _pri_save_year(year, pri_data)
+    if not saved:
+        return False
+
+    return row
+
+
 def _pri_find_cash_move(year: int, move_id: str):
     """
     Cerca un cash_move PRI nel vault annuale.
