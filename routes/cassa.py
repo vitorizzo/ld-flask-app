@@ -2688,6 +2688,9 @@ def api_create_cash_move(day_date):
 def api_list_cash_moves(day_date):
     """
     Lista movimenti di cassa della giornata.
+    Integra:
+    - DB aziendale
+    - vault PRI (se sbloccato)
     """
     try:
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
@@ -2695,31 +2698,62 @@ def api_list_cash_moves(day_date):
         return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
 
     cash_day = CashDay.query.filter(CashDay.day_date == d).first()
-    if not cash_day:
-        return jsonify({"ok": False, "error": "CashDay not found"}), 404
-
-    moves = (
-        CashMove.query
-        .filter(CashMove.cash_day_id == cash_day.id)
-        .order_by(CashMove.created_at.asc())
-        .all()
-    )
 
     out = []
-    for m in moves:
-        out.append({
-            "id": m.id,
-            "created_at": m.created_at.isoformat() if m.created_at else None,
-            "direction": m.direction,
-            "amount": float(m.amount or 0),
-            "performed_by": m.performed_by,
-            "notes": m.notes,
-            "kind": m.kind,
-        })
+
+    # --- DB aziendale
+    if cash_day:
+        moves = (
+            CashMove.query
+            .filter(CashMove.cash_day_id == cash_day.id)
+            .order_by(CashMove.created_at.asc())
+            .all()
+        )
+
+        for m in moves:
+            out.append({
+                "id": m.id,
+                "created_at": m.created_at.isoformat() if m.created_at else None,
+                "direction": m.direction,
+                "amount": float(m.amount or 0),
+                "performed_by": m.performed_by,
+                "notes": m.notes,
+                "kind": m.kind,
+                "storage": "az",
+            })
+
+    # --- Vault PRI
+    if session.get("pri_vault_unlocked"):
+        try:
+            pri_data = _pri_load_year(d.year)
+            day_node = next((x for x in pri_data["days"] if x["date"] == d.isoformat()), None)
+
+            if day_node:
+                for m in (day_node.get("cash_moves") or []):
+                    out.append({
+                        "id": m.get("id"),
+                        "created_at": m.get("created_at"),
+                        "direction": m.get("direction"),
+                        "amount": float(m.get("amount") or 0),
+                        "performed_by": m.get("performed_by"),
+                        "notes": m.get("notes"),
+                        "kind": m.get("kind"),
+                        "flag": m.get("flag"),
+                        "storage": "pri",
+                    })
+        except Exception as e:
+            logger.warning("api_list_cash_moves PRI read skipped: %s", e)
+
+    if not out:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
 
     out.sort(key=lambda x: x.get("created_at") or "")
 
-    return jsonify({"ok": True, "day_date": d.isoformat(), "cash_moves": out})
+    return jsonify({
+        "ok": True,
+        "day_date": d.isoformat(),
+        "cash_moves": out
+    })
 
 
 @cassa_bp.get("/api/private/debug-read")
