@@ -2614,6 +2614,58 @@ def api_create_cash_move(day_date):
     direction = "in" if raw_amount > 0 else "out"
     amount = abs(raw_amount)
 
+    flag = (data.get("flag") or "").strip()
+
+    if flag in {"+", "x"}:
+        if not session.get("pri_vault_unlocked"):
+            return jsonify({"ok": False, "error": "Vault privato non sbloccato"}), 409
+
+        year = d.year
+        pri_data = _pri_load_year(year)
+
+        day_node = next((x for x in pri_data["days"] if x["date"] == d.isoformat()), None)
+        if not day_node:
+            day_node = {
+                "date": d.isoformat(),
+                "sales": [],
+                "expenses": [],
+                "cash_moves": [],
+            }
+            pri_data["days"].append(day_node)
+
+        pri_row = {
+            "id": f"pri-cm-{secrets.token_hex(8)}",
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+            "direction": direction,
+            "amount": float(amount),
+            "performed_by": performed_by,
+            "notes": notes,
+            "kind": kind,
+            "method": "cash",
+            "flag": flag,
+            "off_cash": False,
+            "meta": {
+                "origin": "pri",
+                "created_by_user_id": getattr(current_user, "id", None),
+                "created_by_name": getattr(current_user, "name", None)
+                                   or getattr(current_user, "username", None)
+                                   or "user",
+            }
+        }
+
+        day_node["cash_moves"].append(pri_row)
+
+        saved = _pri_save_year(year, pri_data)
+        if not saved:
+            return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+        return jsonify({
+            "ok": True,
+            "cash_move_id": pri_row["id"],
+            "storage": "pri",
+        }), 201
+
     m = CashMove(
         cash_day_id=cash_day.id,
         created_by_user_id=getattr(current_user, "id", None),
