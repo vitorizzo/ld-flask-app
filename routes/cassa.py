@@ -2832,10 +2832,6 @@ def api_update_cash_move(cash_move_id):
       "kind": "altro" | "spicci"
     }
     """
-    cash_move = CashMove.query.filter_by(id=cash_move_id).first()
-    if not cash_move:
-        return jsonify({"ok": False, "error": "Movimento di cassa non trovato"}), 404
-
     data = request.get_json(silent=True) or {}
 
     try:
@@ -2847,12 +2843,52 @@ def api_update_cash_move(cash_move_id):
         return jsonify({"ok": False, "error": "Amount must be non-zero"}), 400
 
     performed_by = (data.get("performed_by") or "").strip() or None
-
     notes = (data.get("notes") or "").strip() or None
     kind = (data.get("kind") or "altro").strip() or "altro"
 
     direction = "in" if raw_amount > 0 else "out"
     amount = abs(raw_amount)
+
+    # =========================
+    # CASO PRI (vault)
+    # =========================
+    if isinstance(cash_move_id, str) and cash_move_id.startswith("pri-cm-"):
+        if not session.get("pri_vault_unlocked"):
+            return jsonify({"ok": False, "error": "Vault privato non sbloccato"}), 409
+
+        year = date.today().year
+
+        updated_row = _pri_update_cash_move(year, cash_move_id, {
+            "direction": direction,
+            "amount": float(amount),
+            "performed_by": performed_by,
+            "notes": notes,
+            "kind": kind,
+        })
+
+        if updated_row is None:
+            return jsonify({"ok": False, "error": "Movimento PRI non trovato"}), 404
+
+        if updated_row is False:
+            return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+        return jsonify({
+            "ok": True,
+            "cash_move_id": cash_move_id,
+            "storage": "pri",
+        })
+
+    # =========================
+    # CASO DB aziendale
+    # =========================
+    try:
+        move_id_int = int(cash_move_id)
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid cash_move_id"}), 400
+
+    cash_move = CashMove.query.filter_by(id=move_id_int).first()
+    if not cash_move:
+        return jsonify({"ok": False, "error": "Movimento di cassa non trovato"}), 404
 
     try:
         cash_move.direction = direction
@@ -2865,7 +2901,8 @@ def api_update_cash_move(cash_move_id):
 
         return jsonify({
             "ok": True,
-            "cash_move_id": cash_move.id
+            "cash_move_id": cash_move.id,
+            "storage": "az",
         })
 
     except Exception as e:
@@ -2875,7 +2912,6 @@ def api_update_cash_move(cash_move_id):
             "ok": False,
             "error": "Errore interno durante la modifica del movimento di cassa"
         }), 500
-
 
 @cassa_bp.delete("/api/cash_moves/<cash_move_id>", endpoint="api_delete_cash_move")
 @login_required
