@@ -2485,7 +2485,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      const row = (data.cash_moves || []).find(x => Number(x.id) === Number(cashMoveId));
+      const row = (data.cash_moves || []).find(x => String(x.id) === String(cashMoveId));
       if (!row) {
         alert("Movimento di cassa non trovato");
         return;
