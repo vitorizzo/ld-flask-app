@@ -2721,6 +2721,29 @@ def api_list_cash_moves(day_date):
 
     return jsonify({"ok": True, "day_date": d.isoformat(), "cash_moves": out})
 
+
+@cassa_bp.get("/api/private/debug-read")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_private_debug_read():
+    try:
+        if not session.get("pri_vault_unlocked"):
+            return jsonify({"ok": False, "error": "Vault non sbloccato"}), 400
+
+        year = date.today().year
+        data = _pri_load_year(year)
+
+        return jsonify({
+            "ok": True,
+            "year": year,
+            "data": data
+        })
+
+    except Exception as e:
+        logger.exception("api_private_debug_read error: %s", e)
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+
 @cassa_bp.put("/api/cash_moves/<int:cash_move_id>", endpoint="api_update_cash_move")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
