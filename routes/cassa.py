@@ -115,6 +115,22 @@ def _derive_key(password: str, salt: bytes) -> bytes:
     )
 
 
+def _pri_find_cash_move(year: int, move_id: str):
+    """
+    Cerca un cash_move PRI nel vault annuale.
+    Ritorna: (pri_data, day_node, move_index, move_dict) oppure (None, None, None, None)
+    """
+    pri_data = _pri_load_year(year)
+
+    for day_node in pri_data.get("days", []):
+        cash_moves = day_node.get("cash_moves") or []
+        for idx, row in enumerate(cash_moves):
+            if row.get("id") == move_id:
+                return pri_data, day_node, idx, row
+
+    return None, None, None, None
+
+
 def _pri_store_session_key(key: bytes, salt: bytes) -> str:
     key_id = secrets.token_urlsafe(32)
     r = get_redis()
@@ -2745,7 +2761,12 @@ def api_list_cash_moves(day_date):
             logger.warning("api_list_cash_moves PRI read skipped: %s", e)
 
     if not out:
-        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+        # Se non ci sono movimenti → NON è errore
+        return jsonify({
+            "ok": True,
+            "day_date": d.isoformat(),
+            "cash_moves": out
+        })
 
     out.sort(key=lambda x: x.get("created_at") or "")
 
@@ -2837,11 +2858,45 @@ def api_update_cash_move(cash_move_id):
         }), 500
 
 
-@cassa_bp.delete("/api/cash_moves/<int:cash_move_id>", endpoint="api_delete_cash_move")
+@cassa_bp.delete("/api/cash_moves/<cash_move_id>", endpoint="api_delete_cash_move")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_delete_cash_move(cash_move_id):
-    cash_move = CashMove.query.filter_by(id=cash_move_id).first()
+
+    # =========================
+    # CASO PRI (vault)
+    # =========================
+    if isinstance(cash_move_id, str) and cash_move_id.startswith("pri-cm-"):
+        if not session.get("pri_vault_unlocked"):
+            return jsonify({"ok": False, "error": "Vault privato non sbloccato"}), 409
+
+        year = date.today().year
+        pri_data, day_node, idx, row = _pri_find_cash_move(year, cash_move_id)
+
+        if not pri_data:
+            return jsonify({"ok": False, "error": "Movimento PRI non trovato"}), 404
+
+        del day_node["cash_moves"][idx]
+
+        saved = _pri_save_year(year, pri_data)
+        if not saved:
+            return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+        return jsonify({
+            "ok": True,
+            "cash_move_id": cash_move_id,
+            "storage": "pri",
+        })
+
+    # =========================
+    # CASO DB aziendale
+    # =========================
+    try:
+        move_id_int = int(cash_move_id)
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid cash_move_id"}), 400
+
+    cash_move = CashMove.query.filter_by(id=move_id_int).first()
 
     if not cash_move:
         return jsonify({"ok": False, "error": "Movimento di cassa non trovato"}), 404
@@ -2857,7 +2912,8 @@ def api_delete_cash_move(cash_move_id):
 
         return jsonify({
             "ok": True,
-            "cash_move_id": cash_move_id,
+            "cash_move_id": move_id_int,
+            "storage": "az",
         })
 
     except Exception as e:
