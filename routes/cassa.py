@@ -2717,6 +2717,8 @@ def api_list_cash_moves(day_date):
             "kind": m.kind,
         })
 
+    out.sort(key=lambda x: x.get("created_at") or "")
+
     return jsonify({"ok": True, "day_date": d.isoformat(), "cash_moves": out})
 
 @cassa_bp.put("/api/cash_moves/<int:cash_move_id>", endpoint="api_update_cash_move")
