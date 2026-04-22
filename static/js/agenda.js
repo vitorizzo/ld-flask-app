@@ -1436,7 +1436,7 @@ async function fetchRowChecks(cashDayId, entityType) {
     }
 
     return new Map(
-      (data.checks || []).map(row => [Number(row.entity_id), !!row.is_checked])
+      (data.checks || []).map(row => [String(row.entity_id), !!row.is_checked])
     );
   } catch (err) {
     console.error("fetchRowChecks error:", err);
@@ -4434,7 +4434,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (row) {
         openContextMenu(e.clientX, e.clientY, {
           type,
-          id: Number(row.dataset[datasetKey]),
+          id: row.dataset[datasetKey],
           panel,
           menuMode: "row",
           hasRows: true
@@ -4465,7 +4465,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
       openContextMenu(rect.right - 8, rect.bottom + 4, {
         type,
-        id: Number(row.dataset[datasetKey]),
+        id: row.dataset[datasetKey],
         panel,
         menuMode: "row",
         hasRows: true

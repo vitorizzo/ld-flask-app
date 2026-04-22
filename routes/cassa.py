@@ -4295,32 +4295,51 @@ def api_toggle_row_check():
     entity_id = data.get("entity_id")
     cash_day_id = data.get("cash_day_id")
 
-    if not entity_type or not entity_id or not cash_day_id:
+    if not entity_type or entity_id is None or not cash_day_id:
         return jsonify({"ok": False, "error": "Missing parameters"}), 400
 
     try:
-        entity_id = int(entity_id)
         cash_day_id = int(cash_day_id)
     except ValueError:
-        return jsonify({"ok": False, "error": "Invalid ids"}), 400
+        return jsonify({"ok": False, "error": "Invalid cash_day_id"}), 400
+
+    entity_id_str = str(entity_id).strip()
+
+    # =========================
+    # CASO PRI: accettiamo il toggle ma non lo persistiamo ancora
+    # =========================
+    if entity_id_str.startswith("pri-"):
+        return jsonify({
+            "ok": True,
+            "entity_id": entity_id_str,
+            "is_checked": True,
+            "storage": "pri",
+            "persistent": False,
+        })
+
+    # =========================
+    # CASO DB aziendale
+    # =========================
+    try:
+        entity_id_int = int(entity_id_str)
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid entity_id"}), 400
 
     row = CashRowCheck.query.filter_by(
         entity_type=entity_type,
-        entity_id=entity_id
+        entity_id=entity_id_int
     ).first()
 
     try:
         if row:
-            # toggle
             row.is_checked = not row.is_checked
             row.checked_by_user_id = getattr(current_user, "id", None)
             row.checked_at = datetime.utcnow() if row.is_checked else None
         else:
-            # crea check
             row = CashRowCheck(
                 cash_day_id=cash_day_id,
                 entity_type=entity_type,
-                entity_id=entity_id,
+                entity_id=entity_id_int,
                 is_checked=True,
                 checked_by_user_id=getattr(current_user, "id", None),
                 checked_at=datetime.utcnow(),
@@ -4331,8 +4350,10 @@ def api_toggle_row_check():
 
         return jsonify({
             "ok": True,
-            "entity_id": entity_id,
-            "is_checked": row.is_checked
+            "entity_id": entity_id_int,
+            "is_checked": row.is_checked,
+            "storage": "az",
+            "persistent": True,
         })
 
     except Exception as e:
