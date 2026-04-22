@@ -2649,7 +2649,7 @@ def api_create_cash_move(day_date):
     direction = "in" if raw_amount > 0 else "out"
     amount = abs(raw_amount)
 
-    flag = (data.get("flag") or "").strip()
+    flag = "x"
 
     if flag in {"+", "x"}:
         if not session.get("pri_vault_unlocked"):
@@ -2864,6 +2864,9 @@ def api_update_cash_move(cash_move_id):
             "performed_by": performed_by,
             "notes": notes,
             "kind": kind,
+            "flag": "x",
+            "method": "cash",
+            "off_cash": False,
         })
 
         if updated_row is None:
@@ -2912,6 +2915,7 @@ def api_update_cash_move(cash_move_id):
             "ok": False,
             "error": "Errore interno durante la modifica del movimento di cassa"
         }), 500
+
 
 @cassa_bp.delete("/api/cash_moves/<cash_move_id>", endpoint="api_delete_cash_move")
 @login_required
