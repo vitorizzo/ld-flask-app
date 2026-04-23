@@ -1444,7 +1444,7 @@ async function fetchRowChecks(cashDayId, entityType) {
   }
 }
 
-async function toggleRowCheck(entityType, entityId, cashDayId) {
+async function toggleRowCheck(entityType, entityId, cashDayId, isChecked) {
   const r = await fetch("/cassa/api/row-check/toggle", {
     method: "POST",
     headers: {
@@ -1455,7 +1455,8 @@ async function toggleRowCheck(entityType, entityId, cashDayId) {
     body: JSON.stringify({
       entity_type: entityType,
       entity_id: entityId,
-      cash_day_id: cashDayId
+      cash_day_id: cashDayId,
+      is_checked: isChecked
     })
   });
 
@@ -5095,7 +5096,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!checkbox) return;
 
     const entityType = checkbox.dataset.entityType;
-    const entityId = Number(checkbox.dataset.entityId);
+    const entityId = String(checkbox.dataset.entityId || "").trim();
     const cashDayId = Number(document.getElementById("dayId")?.textContent || 0);
 
     if (!entityType || !entityId || !cashDayId) {
@@ -5109,7 +5110,7 @@ document.addEventListener("DOMContentLoaded", function () {
     checkbox.disabled = true;
 
     try {
-      const result = await toggleRowCheck(entityType, entityId, cashDayId);
+      const result = await toggleRowCheck(entityType, entityId, cashDayId, newState);
 
       checkbox.checked = !!result.is_checked;
       rowEl?.classList.toggle("row-checked", !!result.is_checked);
@@ -5127,7 +5128,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!checkbox) return;
 
     const entityType = checkbox.dataset.entityType;
-    const entityId = String(checkbox.dataset.entityId);
+    const entityId = String(checkbox.dataset.entityId || "").trim();
     const cashDayId = Number(document.getElementById("dayId")?.textContent || 0);
 
     if (!entityType || !entityId || !cashDayId) {
@@ -5141,7 +5142,7 @@ document.addEventListener("DOMContentLoaded", function () {
     checkbox.disabled = true;
 
     try {
-      const result = await toggleRowCheck(entityType, entityId, cashDayId);
+      const result = await toggleRowCheck(entityType, entityId, cashDayId, newState);
 
       checkbox.checked = !!result.is_checked;
       rowEl?.classList.toggle("row-checked", !!result.is_checked);
@@ -5166,7 +5167,7 @@ document.getElementById("incassiList")?.addEventListener("change", async (e) => 
   if (!checkbox) return;
 
   const entityType = checkbox.dataset.entityType;
-  const entityId = Number(checkbox.dataset.entityId);
+  const entityId = String(checkbox.dataset.entityId || "").trim();
   const cashDayId = Number(document.getElementById("dayId")?.textContent || 0);
 
   if (!entityType || !entityId || !cashDayId) {
@@ -5180,7 +5181,7 @@ document.getElementById("incassiList")?.addEventListener("change", async (e) => 
   checkbox.disabled = true;
 
   try {
-    const result = await toggleRowCheck(entityType, entityId, cashDayId);
+    const result = await toggleRowCheck(entityType, entityId, cashDayId, newState);
 
     checkbox.checked = !!result.is_checked;
     rowEl?.classList.toggle("row-checked", !!result.is_checked);
@@ -5198,7 +5199,7 @@ document.getElementById("speseList")?.addEventListener("change", async (e) => {
   if (!checkbox) return;
 
   const entityType = checkbox.dataset.entityType;
-  const entityId = Number(checkbox.dataset.entityId);
+  const entityId = String(checkbox.dataset.entityId || "").trim();
   const cashDayId = Number(document.getElementById("dayId")?.textContent || 0);
 
   if (!entityType || !entityId || !cashDayId) {
@@ -5212,7 +5213,7 @@ document.getElementById("speseList")?.addEventListener("change", async (e) => {
   checkbox.disabled = true;
 
   try {
-    const result = await toggleRowCheck(entityType, entityId, cashDayId);
+    const result = await toggleRowCheck(entityType, entityId, cashDayId, newState);
 
     checkbox.checked = !!result.is_checked;
     rowEl?.classList.toggle("row-checked", !!result.is_checked);

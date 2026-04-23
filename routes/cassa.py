@@ -4309,10 +4309,14 @@ def api_toggle_row_check():
     # CASO PRI: accettiamo il toggle ma non lo persistiamo ancora
     # =========================
     if entity_id_str.startswith("pri-"):
+        requested_state = data.get("is_checked")
+        if requested_state is None:
+            requested_state = True
+
         return jsonify({
             "ok": True,
             "entity_id": entity_id_str,
-            "is_checked": True,
+            "is_checked": bool(requested_state),
             "storage": "pri",
             "persistent": False,
         })
