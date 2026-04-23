@@ -1117,7 +1117,9 @@ async function loadCashMoves(dayStr) {
         `<span class="badge badge-soft">${tipoLabel}</span>`
       ];
 
-      const isChecked = !!m.is_checked;
+      const isChecked = m.storage === "pri"
+        ? !!m.is_checked
+        : checksMap.get(String(m.id)) === true;
 
       return `
         <div class="list-group-item table-row cash-move-row ${isChecked ? "row-checked" : ""}" data-cash-move-id="${m.id}">
@@ -1289,7 +1291,7 @@ async function loadIncassi(dayStr) {
       if (x.method === "check") badges.push(`<span class="badge badge-soft badge-bank">ASSEGNO</span>`);
       if (x.off_cash) badges.push(`<span class="badge badge-soft badge-offcash">FUORI CASSA</span>`);
 
-      const isChecked = checksMap.get(Number(x.sale_id)) === true;
+      const isChecked = checksMap.get(String(x.sale_id)) === true;
 
       return `
         <div class="list-group-item table-row sale-row ${isChecked ? "row-checked" : ""}" data-sale-id="${x.sale_id}">
@@ -1384,7 +1386,7 @@ async function loadSpese(dayStr) {
       if (x.method === "check") badges.push(`<span class="badge badge-soft badge-bank">ASSEGNO</span>`);
       if (x.off_cash) badges.push(`<span class="badge badge-soft badge-offcash">FUORI CASSA</span>`);
 
-      const isChecked = checksMap.get(Number(x.expense_id)) === true;
+      const isChecked = checksMap.get(String(x.expense_id)) === true;
 
       return `
         <div class="list-group-item table-row expense-row ${isChecked ? "row-checked" : ""}" data-expense-id="${x.expense_id}">
