@@ -5095,7 +5095,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!checkbox) return;
 
     const entityType = checkbox.dataset.entityType;
-    const entityId = String(checkbox.dataset.entityId);
+    const entityId = Number(checkbox.dataset.entityId);
     const cashDayId = Number(document.getElementById("dayId")?.textContent || 0);
 
     if (!entityType || !entityId || !cashDayId) {
@@ -5127,7 +5127,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!checkbox) return;
 
     const entityType = checkbox.dataset.entityType;
-    const entityId = Number(checkbox.dataset.entityId);
+    const entityId = String(checkbox.dataset.entityId);
     const cashDayId = Number(document.getElementById("dayId")?.textContent || 0);
 
     if (!entityType || !entityId || !cashDayId) {
