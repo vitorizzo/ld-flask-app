@@ -1117,7 +1117,7 @@ async function loadCashMoves(dayStr) {
         `<span class="badge badge-soft">${tipoLabel}</span>`
       ];
 
-      const isChecked = checksMap.get(Number(m.id)) === true;
+      const isChecked = !!m.is_checked;
 
       return `
         <div class="list-group-item table-row cash-move-row ${isChecked ? "row-checked" : ""}" data-cash-move-id="${m.id}">

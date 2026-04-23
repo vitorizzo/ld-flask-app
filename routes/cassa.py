@@ -115,6 +115,22 @@ def _derive_key(password: str, salt: bytes) -> bytes:
     )
 
 
+def _pri_set_cash_move_checked(year: int, move_id: str, is_checked: bool):
+    pri_data, day_node, idx, row = _pri_find_cash_move(year, move_id)
+
+    if not pri_data:
+        return None
+
+    row["is_checked"] = bool(is_checked)
+    row["updated_at"] = datetime.now().isoformat()
+
+    saved = _pri_save_year(year, pri_data)
+    if not saved:
+        return False
+
+    return row
+
+
 def _pri_update_cash_move(year: int, move_id: str, updates: dict):
     pri_data, day_node, idx, row = _pri_find_cash_move(year, move_id)
 
@@ -2771,6 +2787,7 @@ def api_list_cash_moves(day_date):
                         "direction": m.get("direction"),
                         "amount": float(m.get("amount") or 0),
                         "performed_by": m.get("performed_by"),
+                        "is_checked": bool(m.get("is_checked", False)),
                         "notes": m.get("notes"),
                         "kind": m.get("kind"),
                         "flag": m.get("flag"),
@@ -4308,17 +4325,24 @@ def api_toggle_row_check():
     # =========================
     # CASO PRI: accettiamo il toggle ma non lo persistiamo ancora
     # =========================
-    if entity_id_str.startswith("pri-"):
-        requested_state = data.get("is_checked")
-        if requested_state is None:
-            requested_state = True
+    if entity_id_str.startswith("pri-cm-"):
+        requested_state = bool(data.get("is_checked", True))
+        year = date.today().year
+
+        updated_row = _pri_set_cash_move_checked(year, entity_id_str, requested_state)
+
+        if updated_row is None:
+            return jsonify({"ok": False, "error": "Movimento PRI non trovato"}), 404
+
+        if updated_row is False:
+            return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
         return jsonify({
             "ok": True,
             "entity_id": entity_id_str,
-            "is_checked": bool(requested_state),
+            "is_checked": bool(updated_row.get("is_checked")),
             "storage": "pri",
-            "persistent": False,
+            "persistent": True,
         })
 
     # =========================
