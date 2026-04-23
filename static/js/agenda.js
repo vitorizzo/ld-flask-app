@@ -1461,8 +1461,8 @@ async function toggleRowCheck(entityType, entityId, cashDayId) {
 
   const data = await r.json();
 
-  if (!r.ok || !data.ok) {
-    throw new Error(data.error || "Errore toggle check");
+  if (!data || data.ok !== true) {
+    throw new Error(data?.error || "Errore toggle check");
   }
 
   return data;
@@ -2607,8 +2607,8 @@ document.addEventListener("DOMContentLoaded", function () {
 
       const data = await r.json();
 
-      if (!r.ok || !data.ok) {
-        alert(data.error || "Errore eliminazione movimento di cassa");
+      if (!data || data.ok !== true) {
+        alert(data?.error || "Errore eliminazione movimento di cassa");
         return;
       }
 
