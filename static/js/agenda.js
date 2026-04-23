@@ -1523,7 +1523,7 @@ async function loadPosMoves(dayStr) {
       const badgeInner = logoPath ? logoImg : iconFallback;
       const badge = `<span class="badge badge-soft badge-icon">${badgeInner}</span>`;
       const desc = m.doc_ref ? escapeHtml(m.doc_ref) : devName;
-      const isChecked = checksMap.get(Number(m.id)) === true;
+      const isChecked = checksMap.get(String(m.id)) === true;
 
       return `
         <div class="list-group-item table-row pos-row ${isChecked ? "row-checked" : ""}" data-pos-move-id="${m.id}">
