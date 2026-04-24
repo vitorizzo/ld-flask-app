@@ -4,6 +4,7 @@ let lastPaymentMode = "cash";
 let currentPreviewTotals = {};
 let editingOperationType = null;   // "sale" | "expense" | null
 let editingOperationId = null;
+let priVaultUnlocked = false;
 
 const EXPENSE_POS_CARDS = [
   "Carta aziendale",
@@ -138,6 +139,25 @@ function updateQuadraturaLeds(delta) {
 /* =========================
    API HELPERS
 ========================= */
+
+async function refreshPrivateVaultStatus() {
+  try {
+    const r = await fetch("/cassa/api/private/status", {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" },
+      cache: "no-store"
+    });
+
+    const data = await r.json();
+    priVaultUnlocked = !!data?.vault?.unlocked;
+    return priVaultUnlocked;
+  } catch (err) {
+    console.error("refreshPrivateVaultStatus error:", err);
+    priVaultUnlocked = false;
+    return false;
+  }
+}
+
 
 function fetchActiveDays(year, month) {
   const from = new Date(year, month, 1);
@@ -1925,6 +1945,26 @@ document.addEventListener("DOMContentLoaded", function () {
       input.value = el.getAttribute("data-flag") || "";
       dd.hide();
       input.dispatchEvent(new Event("change"));
+    });
+
+    input.addEventListener("change", async () => {
+      const flag = (input.value || "").trim();
+
+      if (flag !== "x" && flag !== "+") {
+        return;
+      }
+
+      const unlocked = await refreshPrivateVaultStatus();
+
+      if (!unlocked) {
+        alert("Funzione non implementata");
+        input.value = "*";
+        input.dispatchEvent(new Event("change"));
+        return;
+      }
+
+      // vault aperto: per ora validiamo solo il flag.
+      // Nel prossimo step disabilitiamo i carrier non ammessi.
     });
 
     if (!input.value) input.value = "*";
