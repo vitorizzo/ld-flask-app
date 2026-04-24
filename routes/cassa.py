@@ -2444,20 +2444,10 @@ def api_delete_expense(expense_id):
         }), 500
 
 
-@cassa_bp.put("/api/expenses/<int:expense_id>")
+@cassa_bp.put("/api/expenses/<expense_id>")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_update_expense(expense_id):
-    expense = (
-        CashExpense.query
-        .options(selectinload(CashExpense.payments))
-        .filter(CashExpense.id == expense_id)
-        .first()
-    )
-
-    if not expense:
-        return jsonify({"ok": False, "error": "Spesa non trovata"}), 404
-
     data = request.get_json(silent=True) or {}
 
     flag = (data.get("flag") or "*").strip()
@@ -2473,15 +2463,78 @@ def api_update_expense(expense_id):
             "error": "Inserisci almeno una descrizione o un fornitore/beneficiario"
         }), 400
 
-    expense.supplier = supplier
-    expense.notes = description
-
     off_cash = bool(data.get("off_cash", False))
 
     try:
         payments_data = _normalize_payments_payload(data)
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
+
+    # =========================
+    # CASO PRI (vault)
+    # =========================
+    if isinstance(expense_id, str) and expense_id.startswith("pri-exp-"):
+        if not session.get("pri_vault_unlocked"):
+            return jsonify({"ok": False, "error": "Vault privato non sbloccato"}), 409
+
+        all_cash = all(((p.get("method") or "").strip().lower() == "cash") for p in payments_data)
+        if not all_cash:
+            return jsonify({
+                "ok": False,
+                "error": "Le spese PRI supportano solo pagamenti cash"
+            }), 400
+
+        try:
+            total_amount = sum(
+                _to_decimal_amount(p.get("amount"), f"payments[{idx}].amount")
+                for idx, p in enumerate(payments_data, start=1)
+            )
+        except ValueError as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+
+        year = date.today().year
+
+        updated_row = _pri_update_expense(year, expense_id, {
+            "supplier": supplier,
+            "description": description,
+            "amount": float(total_amount),
+            "method": "cash",
+            "flag": "x",
+            "off_cash": bool(off_cash),
+        })
+
+        if updated_row is None:
+            return jsonify({"ok": False, "error": "Spesa PRI non trovata"}), 404
+
+        if updated_row is False:
+            return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+        return jsonify({
+            "ok": True,
+            "expense_id": expense_id,
+            "storage": "pri",
+        })
+
+    # =========================
+    # CASO DB aziendale
+    # =========================
+    try:
+        expense_id_int = int(expense_id)
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid expense_id"}), 400
+
+    expense = (
+        CashExpense.query
+        .options(selectinload(CashExpense.payments))
+        .filter(CashExpense.id == expense_id_int)
+        .first()
+    )
+
+    if not expense:
+        return jsonify({"ok": False, "error": "Spesa non trovata"}), 404
+
+    expense.supplier = supplier
+    expense.notes = description
 
     try:
         CashExpensePayment.query.filter_by(expense_id=expense.id).delete()
@@ -2561,7 +2614,8 @@ def api_update_expense(expense_id):
 
         return jsonify({
             "ok": True,
-            "expense_id": expense.id
+            "expense_id": expense.id,
+            "storage": "az",
         })
 
     except ValueError as e:
