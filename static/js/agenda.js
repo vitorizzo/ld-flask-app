@@ -1951,6 +1951,9 @@ document.addEventListener("DOMContentLoaded", function () {
       const flag = (input.value || "").trim();
 
       if (flag !== "x" && flag !== "+") {
+        applyPriCarrierRules();            // riabilita tutto
+        setPaymentMode(getPaymentMode());
+        updatePaymentState();
         return;
       }
 
@@ -1963,8 +1966,10 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      // vault aperto: per ora validiamo solo il flag.
-      // Nel prossimo step disabilitiamo i carrier non ammessi.
+      // vault aperto: applico regole carrier PRI
+      applyPriCarrierRules();
+      setPaymentMode(getPaymentMode());
+      updatePaymentState();
     });
 
     if (!input.value) input.value = "*";
@@ -1977,6 +1982,10 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function setPaymentMode(mode) {
+    const flag = (document.getElementById("opFlag")?.value || "").trim();
+    if ((flag === "x" || flag === "+") && mode !== "cash") {
+      mode = "cash";
+    }
     const target = document.querySelector(`input[name="paymentMode"][value="${mode}"]`);
     if (target) target.checked = true;
 
@@ -2024,6 +2033,27 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     lastPaymentMode = mode;
+  }
+
+  function applyPriCarrierRules() {
+    const flag = (document.getElementById("opFlag")?.value || "").trim();
+    const isPriFlag = flag === "x" || flag === "+";
+
+    const modesToDisable = ["pos", "bank", "check", "multi"];
+
+    for (const mode of modesToDisable) {
+      const input = document.querySelector(`input[name="paymentMode"][value="${mode}"]`);
+      if (!input) continue;
+
+      input.disabled = isPriFlag;
+      const label = input.closest("label");
+      label?.classList.toggle("disabled", isPriFlag);
+      label?.classList.toggle("opacity-50", isPriFlag);
+    }
+
+    if (isPriFlag && getPaymentMode() !== "cash") {
+      setPaymentMode("cash");
+    }
   }
 
   function getOpAmount() {
