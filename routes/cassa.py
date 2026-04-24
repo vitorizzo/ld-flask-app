@@ -150,6 +150,56 @@ def _pri_update_cash_move(year: int, move_id: str, updates: dict):
     return row
 
 
+def _pri_find_expense(year: int, expense_id: str):
+    """
+    Cerca una expense PRI nel vault annuale.
+    Ritorna: (pri_data, day_node, expense_index, expense_dict) oppure (None, None, None, None)
+    """
+    pri_data = _pri_load_year(year)
+
+    for day_node in pri_data.get("days", []):
+        expenses = day_node.get("expenses") or []
+        for idx, row in enumerate(expenses):
+            if row.get("id") == expense_id:
+                return pri_data, day_node, idx, row
+
+    return None, None, None, None
+
+
+def _pri_update_expense(year: int, expense_id: str, updates: dict):
+    pri_data, day_node, idx, row = _pri_find_expense(year, expense_id)
+
+    if not pri_data:
+        return None
+
+    for k, v in updates.items():
+        row[k] = v
+
+    row["updated_at"] = datetime.now().isoformat()
+
+    saved = _pri_save_year(year, pri_data)
+    if not saved:
+        return False
+
+    return row
+
+
+def _pri_set_expense_checked(year: int, expense_id: str, is_checked: bool):
+    pri_data, day_node, idx, row = _pri_find_expense(year, expense_id)
+
+    if not pri_data:
+        return None
+
+    row["is_checked"] = bool(is_checked)
+    row["updated_at"] = datetime.now().isoformat()
+
+    saved = _pri_save_year(year, pri_data)
+    if not saved:
+        return False
+
+    return row
+
+
 def _pri_find_cash_move(year: int, move_id: str):
     """
     Cerca un cash_move PRI nel vault annuale.
@@ -2322,14 +2372,48 @@ def api_list_expenses(day_date):
     return jsonify({"ok": True, "day_date": d.isoformat(), "expenses": items})
 
 
-@cassa_bp.delete("/api/expenses/<int:expense_id>")
+@cassa_bp.delete("/api/expenses/<expense_id>")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_delete_expense(expense_id):
+
+    # =========================
+    # CASO PRI (vault)
+    # =========================
+    if isinstance(expense_id, str) and expense_id.startswith("pri-exp-"):
+        if not session.get("pri_vault_unlocked"):
+            return jsonify({"ok": False, "error": "Vault privato non sbloccato"}), 409
+
+        year = date.today().year
+        pri_data, day_node, idx, row = _pri_find_expense(year, expense_id)
+
+        if not pri_data:
+            return jsonify({"ok": False, "error": "Spesa PRI non trovata"}), 404
+
+        del day_node["expenses"][idx]
+
+        saved = _pri_save_year(year, pri_data)
+        if not saved:
+            return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+        return jsonify({
+            "ok": True,
+            "expense_id": expense_id,
+            "storage": "pri",
+        })
+
+    # =========================
+    # CASO DB aziendale
+    # =========================
+    try:
+        expense_id_int = int(expense_id)
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid expense_id"}), 400
+
     expense = (
         CashExpense.query
         .options(selectinload(CashExpense.payments))
-        .filter(CashExpense.id == expense_id)
+        .filter(CashExpense.id == expense_id_int)
         .first()
     )
 
@@ -2347,7 +2431,8 @@ def api_delete_expense(expense_id):
 
         return jsonify({
             "ok": True,
-            "expense_id": expense_id,
+            "expense_id": expense_id_int,
+            "storage": "az",
         })
 
     except Exception as e:
