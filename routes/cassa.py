@@ -2087,7 +2087,68 @@ def api_create_expense(day_date):
         payments_data = _normalize_payments_payload(data)
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
+    # =========================
+    # CASO PRI (vault)
+    # regola: spesa personale = solo cash, flag x
+    # =========================
+    all_cash = all(((p.get("method") or "").strip().lower() == "cash") for p in payments_data)
 
+    if flag == "x":
+        if not all_cash:
+            return jsonify({
+                "ok": False,
+                "error": "Le spese PRI supportano solo pagamenti cash"
+            }), 400
+
+        if not session.get("pri_vault_unlocked"):
+            return jsonify({"ok": False, "error": "Vault privato non sbloccato"}), 409
+
+        year = d.year
+        pri_data = _pri_load_year(year)
+
+        day_node = next((x for x in pri_data["days"] if x["date"] == d.isoformat()), None)
+        if not day_node:
+            day_node = {
+                "date": d.isoformat(),
+                "sales": [],
+                "expenses": [],
+                "cash_moves": [],
+            }
+            pri_data["days"].append(day_node)
+
+        total_amount = sum(Decimal(str(p.get("amount") or 0)) for p in payments_data)
+
+        pri_row = {
+            "id": f"pri-exp-{secrets.token_hex(8)}",
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+            "supplier": supplier,
+            "description": description,
+            "amount": float(total_amount),
+            "method": "cash",
+            "flag": "x",
+            "off_cash": bool(off_cash),
+            "is_checked": False,
+            "meta": {
+                "origin": "pri",
+                "created_by_user_id": getattr(current_user, "id", None),
+                "created_by_name": getattr(current_user, "name", None)
+                    or getattr(current_user, "username", None)
+                    or "user",
+            }
+        }
+
+        day_node["expenses"].append(pri_row)
+
+        saved = _pri_save_year(year, pri_data)
+        if not saved:
+            return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+        return jsonify({
+            "ok": True,
+            "expense_id": pri_row["id"],
+            "storage": "pri",
+        }), 201
     exp = CashExpense(
         cash_day_id=cash_day.id,
         created_by_user_id=getattr(current_user, "id", None),
@@ -2215,8 +2276,48 @@ def api_list_expenses(day_date):
             "created_at": e.created_at.isoformat() if e.created_at else None,
             "doc_ref": e.doc_ref,
             "notes": e.notes,
+            "storage": "az",
             "payments": pay,
         })
+
+    # =========================
+    # Merge PRI (vault)
+    # =========================
+    if session.get("pri_vault_unlocked"):
+        try:
+            year = d.year
+            pri_data = _pri_load_year(year)
+
+            day_node = next((x for x in pri_data["days"] if x["date"] == d.isoformat()), None)
+
+            if day_node:
+                for row in day_node.get("expenses", []):
+                    items.append({
+                        "id": row["id"],
+                        "created_at": row.get("created_at"),
+                        "doc_ref": None,
+                        "notes": row.get("description"),
+                        "supplier": row.get("supplier"),
+                        "storage": "pri",
+                        "is_checked": bool(row.get("is_checked", False)),
+                        "payments": [
+                            {
+                                "id": f'{row["id"]}-pay',
+                                "direction": "out",
+                                "method": row.get("method", "cash"),
+                                "off_cash": bool(row.get("off_cash", False)),
+                                "amount": float(row.get("amount", 0)),
+                                "flag": row.get("flag"),
+                                "description": row.get("description"),
+                                "pos_card_label": None,
+                                "pos_is_personal": False,
+                                "created_at": row.get("created_at"),
+                                "storage": "pri",
+                            }
+                        ],
+                    })
+        except Exception as e:
+            logger.exception("Errore lettura PRI expenses: %s", e)
 
     return jsonify({"ok": True, "day_date": d.isoformat(), "expenses": items})
 
