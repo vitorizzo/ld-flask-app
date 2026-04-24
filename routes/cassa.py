@@ -4585,6 +4585,26 @@ def api_toggle_row_check():
             "persistent": True,
         })
 
+    if entity_id_str.startswith("pri-exp-"):
+        requested_state = bool(data.get("is_checked", True))
+        year = date.today().year
+
+        updated_row = _pri_set_expense_checked(year, entity_id_str, requested_state)
+
+        if updated_row is None:
+            return jsonify({"ok": False, "error": "Spesa PRI non trovata"}), 404
+
+        if updated_row is False:
+            return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+        return jsonify({
+            "ok": True,
+            "entity_id": entity_id_str,
+            "is_checked": bool(updated_row.get("is_checked")),
+            "storage": "pri",
+            "persistent": True,
+        })
+
     # =========================
     # CASO DB aziendale
     # =========================

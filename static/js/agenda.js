@@ -1361,6 +1361,8 @@ async function loadSpese(dayStr) {
       for (const p of (e.payments || [])) {
         rows.push({
           expense_id: e.id,
+          storage: e.storage || "az",
+          is_checked: !!e.is_checked,
           created_at: p.created_at || e.created_at,
           flag: p.flag || "",
           desc: p.description || e.notes || "",
@@ -1386,7 +1388,9 @@ async function loadSpese(dayStr) {
       if (x.method === "check") badges.push(`<span class="badge badge-soft badge-bank">ASSEGNO</span>`);
       if (x.off_cash) badges.push(`<span class="badge badge-soft badge-offcash">FUORI CASSA</span>`);
 
-      const isChecked = checksMap.get(String(x.expense_id)) === true;
+      const isChecked = x.storage === "pri"
+        ? !!x.is_checked
+        : checksMap.get(String(x.expense_id)) === true;
 
       return `
         <div class="list-group-item table-row expense-row ${isChecked ? "row-checked" : ""}" data-expense-id="${x.expense_id}">
