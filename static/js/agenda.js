@@ -3318,7 +3318,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      const expense = (data.expenses || []).find(x => Number(x.id) === Number(expenseId));
+      const expense = (data.expenses || []).find(x => String(x.id) === String(expenseId));
       if (!expense) {
         alert("Spesa non trovata");
         return;
