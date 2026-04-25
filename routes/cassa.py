@@ -2533,6 +2533,105 @@ def api_update_expense(expense_id):
     if not expense:
         return jsonify({"ok": False, "error": "Spesa non trovata"}), 404
 
+    # =========================
+    # MIGRAZIONE AZ -> PRI
+    # =========================
+    if flag in {"x", "+"}:
+        existing_payments = list(expense.payments or [])
+
+        existing_is_single_cash = (
+            len(existing_payments) == 1
+            and existing_payments[0].method == "cash"
+        )
+
+        incoming_is_single_cash = (
+            len(payments_data) == 1
+            and (payments_data[0].get("method") or "").strip().lower() == "cash"
+        )
+
+        if not existing_is_single_cash or not incoming_is_single_cash:
+            return jsonify({
+                "ok": False,
+                "error": "Impossibile trasformare una registrazione con pagamenti multipli o non cash in una registrazione privata. Cancella il movimento ed esegui una nuova registrazione."
+            }), 400
+
+        if not session.get("pri_vault_unlocked"):
+            return jsonify({"ok": False, "error": "Vault privato non sbloccato"}), 409
+
+        try:
+            amount = _to_decimal_amount(payments_data[0].get("amount"), "amount")
+        except ValueError as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+
+        year = date.today().year
+        pri_data = _pri_load_year(year)
+
+        cash_day = CashDay.query.filter_by(id=expense.cash_day_id).first()
+        if not cash_day:
+            return jsonify({"ok": False, "error": "Giornata non trovata"}), 404
+
+        day_node = next((x for x in pri_data["days"] if x["date"] == cash_day.day_date.isoformat()), None)
+        if not day_node:
+            day_node = {
+                "date": cash_day.day_date.isoformat(),
+                "sales": [],
+                "expenses": [],
+                "cash_moves": [],
+            }
+            pri_data["days"].append(day_node)
+
+        pri_row = {
+            "id": f"pri-exp-{secrets.token_hex(8)}",
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+            "supplier": supplier,
+            "description": description,
+            "amount": float(amount),
+            "method": "cash",
+            "flag": flag,
+            "off_cash": bool(off_cash),
+            "is_checked": False,
+            "meta": {
+                "origin": "pri",
+                "migrated_from": "az",
+                "az_expense_id": expense.id,
+                "created_by_user_id": getattr(current_user, "id", None),
+                "created_by_name": getattr(current_user, "name", None)
+                    or getattr(current_user, "username", None)
+                    or "user",
+            }
+        }
+
+        day_node["expenses"].append(pri_row)
+
+        saved = _pri_save_year(year, pri_data)
+        if not saved:
+            return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+        try:
+            CashRowCheck.query.filter_by(
+                entity_type="expense",
+                entity_id=expense.id
+            ).delete()
+
+            db.session.delete(expense)
+            db.session.commit()
+
+            return jsonify({
+                "ok": True,
+                "expense_id": pri_row["id"],
+                "storage": "pri",
+                "migrated": "az_to_pri",
+            })
+
+        except Exception as e:
+            db.session.rollback()
+            logger.exception("api_update_expense AZ->PRI delete error: %s", e)
+            return jsonify({
+                "ok": False,
+                "error": "Spesa salvata nel vault, ma errore durante la rimozione dal DB aziendale"
+            }), 500
+
     expense.supplier = supplier
     expense.notes = description
 
