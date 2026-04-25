@@ -2494,6 +2494,146 @@ def api_update_expense(expense_id):
 
         year = date.today().year
 
+        # =========================
+        # MIGRAZIONE PRI -> AZ
+        # =========================
+        if flag not in {"x", "+"}:
+            if not session.get("pri_vault_unlocked"):
+                return jsonify({"ok": False, "error": "Vault privato non sbloccato"}), 409
+
+            year = date.today().year
+            pri_data, day_node, idx, pri_row = _pri_find_expense(year, expense_id)
+
+            if not pri_data:
+                return jsonify({"ok": False, "error": "Spesa PRI non trovata"}), 404
+
+            try:
+                total_amount = sum(
+                    _to_decimal_amount(p.get("amount"), f"payments[{i}].amount")
+                    for i, p in enumerate(payments_data, start=1)
+                )
+            except ValueError as e:
+                return jsonify({"ok": False, "error": str(e)}), 400
+
+            # recupero giorno dal day_node PRI
+            try:
+                d_pri = datetime.strptime(day_node["date"], "%Y-%m-%d").date()
+            except Exception:
+                return jsonify({"ok": False, "error": "Data movimento PRI non valida"}), 400
+
+            cash_day = CashDay.query.filter(CashDay.day_date == d_pri).first()
+            if not cash_day:
+                cash_day = CashDay(
+                    day_date=d_pri,
+                    opening_float=float(_find_latest_previous_cash_balance(d_pri) or 0),
+                    status="open",
+                )
+                db.session.add(cash_day)
+                db.session.flush()
+
+            exp = CashExpense(
+                cash_day_id=cash_day.id,
+                created_by_user_id=getattr(current_user, "id", None),
+                supplier=supplier,
+                notes=description,
+            )
+
+            db.session.add(exp)
+            db.session.flush()
+
+            try:
+                for idx_p, p in enumerate(payments_data, start=1):
+                    method = (p.get("method") or "").strip().lower()
+                    if method not in {"cash", "pos", "bank", "check"}:
+                        raise ValueError(f"Invalid payment method at row {idx_p}")
+
+                    amount = _to_decimal_amount(p.get("amount"), f"payments[{idx_p}].amount")
+
+                    payment = CashExpensePayment(
+                        expense_id=exp.id,
+                        direction="out",
+                        method=method,
+                        off_cash=off_cash,
+                        amount=amount,
+                        flag=flag,
+                        description=description,
+                    )
+
+                    if method == "pos":
+                        pos_card_label = (p.get("pos_card_label") or "").strip()
+                        pos_is_personal = bool(p.get("pos_is_personal", False))
+
+                        if not pos_card_label:
+                            raise ValueError(f"Missing pos_card_label at row {idx_p}")
+
+                        payment.pos_card_label = pos_card_label
+                        payment.pos_is_personal = pos_is_personal
+
+                    elif method == "bank":
+                        bank_id = p.get("bank_id")
+                        if not bank_id:
+                            raise ValueError(f"Missing bank_id at row {idx_p}")
+                        _validate_bank(bank_id)
+                        payment.bank_id = bank_id
+
+                    elif method == "check":
+                        bank_id = p.get("bank_id")
+                        check_number = (p.get("check_number") or "").strip()
+                        due_date_raw = p.get("due_date")
+
+                        if not bank_id:
+                            raise ValueError(f"Missing bank_id at row {idx_p}")
+                        if not check_number:
+                            raise ValueError(f"Missing check_number at row {idx_p}")
+                        if not due_date_raw:
+                            raise ValueError(f"Missing due_date at row {idx_p}")
+
+                        try:
+                            due_date = date.fromisoformat(due_date_raw)
+                        except Exception:
+                            raise ValueError(f"Invalid due_date format at row {idx_p}")
+
+                        payment.bank_id = bank_id
+
+                        issued_check = CashIssuedCheck(
+                            expense=exp,
+                            bank_id=bank_id,
+                            check_number=check_number,
+                            due_date=due_date,
+                            amount=amount,
+                        )
+                        db.session.add(issued_check)
+
+                    db.session.add(payment)
+
+                # rimuovo dal vault solo dopo aver creato correttamente in DB
+                del day_node["expenses"][idx]
+
+                saved = _pri_save_year(year, pri_data)
+                if not saved:
+                    db.session.rollback()
+                    return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+                db.session.commit()
+
+                return jsonify({
+                    "ok": True,
+                    "expense_id": exp.id,
+                    "storage": "az",
+                    "migrated": "pri_to_az",
+                })
+
+            except ValueError as e:
+                db.session.rollback()
+                return jsonify({"ok": False, "error": str(e)}), 400
+            except Exception as e:
+                db.session.rollback()
+                logger.exception("api_update_expense PRI->AZ error: %s", e)
+                return jsonify({
+                    "ok": False,
+                    "error": "Errore interno durante migrazione spesa PRI -> AZ"
+                }), 500
+
         updated_row = _pri_update_expense(year, expense_id, {
             "supplier": supplier,
             "description": description,
