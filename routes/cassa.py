@@ -115,6 +115,56 @@ def _derive_key(password: str, salt: bytes) -> bytes:
     )
 
 
+def _pri_find_sale(year: int, sale_id: str):
+    """
+    Cerca una sale PRI nel vault annuale.
+    Ritorna: (pri_data, day_node, sale_index, sale_dict) oppure (None, None, None, None)
+    """
+    pri_data = _pri_load_year(year)
+
+    for day_node in pri_data.get("days", []):
+        sales = day_node.get("sales") or []
+        for idx, row in enumerate(sales):
+            if row.get("id") == sale_id:
+                return pri_data, day_node, idx, row
+
+    return None, None, None, None
+
+
+def _pri_update_sale(year: int, sale_id: str, updates: dict):
+    pri_data, day_node, idx, row = _pri_find_sale(year, sale_id)
+
+    if not pri_data:
+        return None
+
+    for k, v in updates.items():
+        row[k] = v
+
+    row["updated_at"] = datetime.now().isoformat()
+
+    saved = _pri_save_year(year, pri_data)
+    if not saved:
+        return False
+
+    return row
+
+
+def _pri_set_sale_checked(year: int, sale_id: str, is_checked: bool):
+    pri_data, day_node, idx, row = _pri_find_sale(year, sale_id)
+
+    if not pri_data:
+        return None
+
+    row["is_checked"] = bool(is_checked)
+    row["updated_at"] = datetime.now().isoformat()
+
+    saved = _pri_save_year(year, pri_data)
+    if not saved:
+        return False
+
+    return row
+
+
 def _pri_set_cash_move_checked(year: int, move_id: str, is_checked: bool):
     pri_data, day_node, idx, row = _pri_find_cash_move(year, move_id)
 
@@ -1575,6 +1625,78 @@ def api_create_sale(day_date):
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
 
+    # =========================
+    # CASO PRI (vault)
+    # regola: incasso personale = solo cash, flag x/+
+    # =========================
+    if flag in {"x", "+"}:
+        all_cash = all(((p.get("method") or "").strip().lower() == "cash") for p in payments_data)
+        if not all_cash:
+            return jsonify({
+                "ok": False,
+                "error": "Gli incassi PRI supportano solo pagamenti cash"
+            }), 400
+
+        if len(payments_data) != 1:
+            return jsonify({
+                "ok": False,
+                "error": "Gli incassi PRI supportano solo un pagamento singolo cash"
+            }), 400
+
+        if not session.get("pri_vault_unlocked"):
+            return jsonify({"ok": False, "error": "Vault privato non sbloccato"}), 409
+
+        try:
+            amount = _to_decimal_amount(payments_data[0].get("amount"), "amount")
+        except ValueError as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+
+        year = d.year
+        pri_data = _pri_load_year(year)
+
+        day_node = next((x for x in pri_data["days"] if x["date"] == d.isoformat()), None)
+        if not day_node:
+            day_node = {
+                "date": d.isoformat(),
+                "sales": [],
+                "expenses": [],
+                "cash_moves": [],
+            }
+            pri_data["days"].append(day_node)
+
+        pri_row = {
+            "id": f"pri-sale-{secrets.token_hex(8)}",
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+            "customer_id": None,
+            "customer_label": customer_label,
+            "description": description,
+            "amount": float(amount),
+            "method": "cash",
+            "flag": flag,
+            "off_cash": bool(off_cash),
+            "is_checked": False,
+            "meta": {
+                "origin": "pri",
+                "created_by_user_id": getattr(current_user, "id", None),
+                "created_by_name": getattr(current_user, "name", None)
+                    or getattr(current_user, "username", None)
+                    or "user",
+            }
+        }
+
+        day_node["sales"].append(pri_row)
+
+        saved = _pri_save_year(year, pri_data)
+        if not saved:
+            return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+        return jsonify({
+            "ok": True,
+            "sale_id": pri_row["id"],
+            "storage": "pri",
+        }), 201
+
     sale = CashSale(
         cash_day_id=cash_day.id,
         created_by_user_id=getattr(current_user, "id", None),
@@ -1734,66 +1856,106 @@ def api_list_sales(day_date):
         .filter(CashDay.day_date == d)
         .first()
     )
-    if not cash_day:
-        return jsonify({"ok": False, "error": "CashDay not found"}), 404
 
     items = []
 
-    for s in cash_day.sales:
-        sale_checks = list(s.checks or [])
-        check_idx = 0
+    if cash_day:
+        for s in cash_day.sales:
+            sale_checks = list(s.checks or [])
+            check_idx = 0
 
-        pay = []
-        for p in (s.payments or []):
-            row = {
-                "id": p.id,
-                "direction": p.direction,
-                "method": p.method,
-                "off_cash": bool(p.off_cash),
-                "amount": float(p.amount or 0),
-                "flag": p.flag,
-                "description": p.description,
-                "bank_id": p.bank_id,
-                "created_at": p.created_at.isoformat() if p.created_at else None,
-            }
+            pay = []
+            for p in (s.payments or []):
+                row = {
+                    "id": p.id,
+                    "direction": p.direction,
+                    "method": p.method,
+                    "off_cash": bool(p.off_cash),
+                    "amount": float(p.amount or 0),
+                    "flag": p.flag,
+                    "description": p.description,
+                    "bank_id": p.bank_id,
+                    "created_at": p.created_at.isoformat() if p.created_at else None,
+                    "storage": "az",
+                }
 
-            if p.method == "pos":
-                pos_link = (p.pos_links or [None])[0]
-                pos_move = pos_link.pos_move if pos_link and pos_link.pos_move else None
+                if p.method == "pos":
+                    pos_link = (p.pos_links or [None])[0]
+                    pos_move = pos_link.pos_move if pos_link and pos_link.pos_move else None
 
-                row.update({
-                    "pos_move_id": pos_move.id if pos_move else None,
-                    "pos_device_id": pos_move.pos_device_id if pos_move else None,
-                    "pos_circuit_id": pos_move.pos_circuit_id if pos_move else None,
-                    "doc_ref": pos_move.doc_ref if pos_move else None,
-                    "notes": pos_move.notes if pos_move else None,
-                })
+                    row.update({
+                        "pos_move_id": pos_move.id if pos_move else None,
+                        "pos_device_id": pos_move.pos_device_id if pos_move else None,
+                        "pos_circuit_id": pos_move.pos_circuit_id if pos_move else None,
+                        "doc_ref": pos_move.doc_ref if pos_move else None,
+                        "notes": pos_move.notes if pos_move else None,
+                    })
 
-            elif p.method == "check":
-                linked_sale_check = sale_checks[check_idx] if check_idx < len(sale_checks) else None
-                linked_check = linked_sale_check.check if linked_sale_check and linked_sale_check.check else None
-                check_idx += 1
+                elif p.method == "check":
+                    linked_sale_check = sale_checks[check_idx] if check_idx < len(sale_checks) else None
+                    linked_check = linked_sale_check.check if linked_sale_check and linked_sale_check.check else None
+                    check_idx += 1
 
-                row.update({
-                    "check_id": linked_check.id if linked_check else None,
-                    "bank_name": linked_check.bank_name if linked_check else None,
-                    "abi": linked_check.abi if linked_check else None,
-                    "cab": linked_check.cab if linked_check else None,
-                    "check_number": linked_check.check_number if linked_check else None,
-                    "due_date": linked_check.due_date.isoformat() if linked_check and linked_check.due_date else None,
-                })
+                    row.update({
+                        "check_id": linked_check.id if linked_check else None,
+                        "bank_name": linked_check.bank_name if linked_check else None,
+                        "abi": linked_check.abi if linked_check else None,
+                        "cab": linked_check.cab if linked_check else None,
+                        "check_number": linked_check.check_number if linked_check else None,
+                        "due_date": linked_check.due_date.isoformat() if linked_check and linked_check.due_date else None,
+                    })
 
-            pay.append(row)
+                pay.append(row)
 
-        items.append({
-            "id": s.id,
-            "created_at": s.created_at.isoformat() if s.created_at else None,
-            "customer_id": s.customer_id,
-            "customer_label": s.customer_label,
-            "doc_ref": s.doc_ref,
-            "notes": s.notes,
-            "payments": pay,
-        })
+            items.append({
+                "id": s.id,
+                "created_at": s.created_at.isoformat() if s.created_at else None,
+                "customer_id": s.customer_id,
+                "customer_label": s.customer_label,
+                "doc_ref": s.doc_ref,
+                "notes": s.notes,
+                "payments": pay,
+                "storage": "az",
+            })
+
+    # =========================
+    # Merge PRI (vault)
+    # =========================
+    if session.get("pri_vault_unlocked"):
+        try:
+            pri_data = _pri_load_year(d.year)
+            day_node = next((x for x in pri_data["days"] if x["date"] == d.isoformat()), None)
+
+            if day_node:
+                for row in day_node.get("sales", []):
+                    items.append({
+                        "id": row["id"],
+                        "created_at": row.get("created_at"),
+                        "customer_id": None,
+                        "customer_label": row.get("customer_label"),
+                        "doc_ref": None,
+                        "notes": row.get("description"),
+                        "storage": "pri",
+                        "is_checked": bool(row.get("is_checked", False)),
+                        "payments": [
+                            {
+                                "id": f'{row["id"]}-pay',
+                                "direction": "in",
+                                "method": row.get("method", "cash"),
+                                "off_cash": bool(row.get("off_cash", False)),
+                                "amount": float(row.get("amount", 0)),
+                                "flag": row.get("flag"),
+                                "description": row.get("description"),
+                                "bank_id": None,
+                                "created_at": row.get("created_at"),
+                                "storage": "pri",
+                            }
+                        ],
+                    })
+        except Exception as e:
+            logger.exception("Errore lettura PRI sales: %s", e)
+
+    items.sort(key=lambda x: x.get("created_at") or "")
 
     return jsonify({"ok": True, "day_date": d.isoformat(), "sales": items})
 
