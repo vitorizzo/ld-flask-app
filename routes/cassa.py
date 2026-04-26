@@ -2050,24 +2050,10 @@ def api_delete_sale(sale_id):
         }), 500
 
 
-@cassa_bp.put("/api/sales/<int:sale_id>")
+@cassa_bp.put("/api/sales/<sale_id>")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_update_sale(sale_id):
-    sale = (
-        CashSale.query
-        .options(
-            selectinload(CashSale.payments)
-            .selectinload(CashSalePayment.pos_links)
-            .selectinload(CashSalePaymentPosMove.pos_move),
-            selectinload(CashSale.checks).selectinload(CashSaleCheck.check),
-        )
-        .filter(CashSale.id == sale_id)
-        .first()
-    )
-
-    if not sale:
-        return jsonify({"ok": False, "error": "Incasso non trovato"}), 404
 
     data = request.get_json(silent=True) or {}
 
@@ -2096,6 +2082,352 @@ def api_update_sale(sale_id):
         payments_data = _normalize_payments_payload(data)
     except ValueError as e:
         return jsonify({"ok": False, "error": str(e)}), 400
+
+    # =========================
+    # CASO PRI (vault)
+    # =========================
+    if isinstance(sale_id, str) and sale_id.startswith("pri-sale-"):
+        if not session.get("pri_vault_unlocked"):
+            return jsonify({"ok": False, "error": "Vault privato non sbloccato"}), 409
+
+        if flag not in {"x", "+"}:
+            if not session.get("pri_vault_unlocked"):
+                return jsonify({"ok": False, "error": "Vault privato non sbloccato"}), 409
+
+            year = date.today().year
+            pri_data, day_node, idx, pri_row = _pri_find_sale(year, sale_id)
+
+            if not pri_data:
+                return jsonify({"ok": False, "error": "Incasso PRI non trovato"}), 404
+
+            try:
+                d_pri = datetime.strptime(day_node["date"], "%Y-%m-%d").date()
+            except Exception:
+                return jsonify({"ok": False, "error": "Data incasso PRI non valida"}), 400
+
+            cash_day = CashDay.query.filter(CashDay.day_date == d_pri).first()
+            if not cash_day:
+                cash_day = CashDay(
+                    day_date=d_pri,
+                    opening_float=float(_find_latest_previous_cash_balance(d_pri) or 0),
+                    status="open",
+                )
+                db.session.add(cash_day)
+                db.session.flush()
+
+            sale = CashSale(
+                cash_day_id=cash_day.id,
+                created_by_user_id=getattr(current_user, "id", None),
+                customer_id=customer_id,
+                customer_label=customer_label,
+                notes=description,
+            )
+
+            db.session.add(sale)
+            db.session.flush()
+
+            try:
+                for idx_p, p in enumerate(payments_data, start=1):
+                    method = (p.get("method") or "").strip().lower()
+                    if method not in {"cash", "pos", "bank", "check"}:
+                        raise ValueError(f"Invalid payment method at row {idx_p}")
+
+                    amount = _to_decimal_amount(p.get("amount"), f"payments[{idx_p}].amount")
+
+                    payment = CashSalePayment(
+                        sale_id=sale.id,
+                        direction="in",
+                        method=method,
+                        off_cash=off_cash,
+                        amount=amount,
+                        flag=flag,
+                        description=description,
+                    )
+                    db.session.add(payment)
+                    db.session.flush()
+
+                    if method == "pos":
+                        pos_device_id = p.get("pos_device_id")
+                        pos_circuit_id = p.get("pos_circuit_id")
+                        if not pos_device_id or not pos_circuit_id:
+                            raise ValueError(f"Missing POS device/circuit at row {idx_p}")
+
+                        _validate_pos_pair(pos_device_id, pos_circuit_id)
+
+                        pos_move = PosMove(
+                            cash_day_id=cash_day.id,
+                            created_by_user_id=getattr(current_user, "id", None),
+                            direction="in",
+                            amount=amount,
+                            pos_device_id=pos_device_id,
+                            pos_circuit_id=pos_circuit_id,
+                            doc_ref="INCASSO",
+                            notes=description,
+                        )
+                        db.session.add(pos_move)
+                        db.session.flush()
+
+                        db.session.add(
+                            CashSalePaymentPosMove(
+                                sale_payment_id=payment.id,
+                                pos_move_id=pos_move.id,
+                            )
+                        )
+
+                    elif method == "bank":
+                        bank_id = p.get("bank_id")
+                        if not bank_id:
+                            raise ValueError(f"Missing bank_id at row {idx_p}")
+                        _validate_bank(bank_id)
+                        payment.bank_id = bank_id
+
+                    elif method == "check":
+                        if not customer_id:
+                            raise ValueError(f"Customer required for check payment at row {idx_p}")
+
+                        bank_name = (p.get("bank_name") or "").strip()
+                        abi = (p.get("abi") or "").strip() or None
+                        cab = (p.get("cab") or "").strip() or None
+                        check_number = (p.get("check_number") or "").strip()
+                        due_date_raw = p.get("due_date")
+
+                        if not bank_name:
+                            raise ValueError(f"Missing bank_name at row {idx_p}")
+                        if not check_number:
+                            raise ValueError(f"Missing check_number at row {idx_p}")
+                        if not due_date_raw:
+                            raise ValueError(f"Missing due_date at row {idx_p}")
+
+                        due_date = _parse_due_date(due_date_raw)
+
+                        check = CashCheck(
+                            check_number=check_number,
+                            abi=abi,
+                            cab=cab,
+                            bank_name=bank_name,
+                            customer_id=customer_id,
+                            amount=amount,
+                            received_date=d_pri,
+                            due_date=due_date,
+                            status="received",
+                            note=description,
+                        )
+                        db.session.add(check)
+                        db.session.flush()
+
+                        change_check_status(
+                            check=check,
+                            new_status="received",
+                            user_id=getattr(current_user, "id", None),
+                            event_date=d_pri,
+                            note=description,
+                            amount_spese=Decimal("0"),
+                            customer_charge_amount=Decimal("0"),
+                        )
+
+                        db.session.add(
+                            CashSaleCheck(
+                                sale_id=sale.id,
+                                check_id=check.id,
+                                check_amount=amount,
+                            )
+                        )
+
+                del day_node["sales"][idx]
+
+                saved = _pri_save_year(year, pri_data)
+                if not saved:
+                    db.session.rollback()
+                    return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+                db.session.commit()
+
+                return jsonify({
+                    "ok": True,
+                    "sale_id": sale.id,
+                    "storage": "az",
+                    "migrated": "pri_to_az",
+                })
+
+            except ValueError as e:
+                db.session.rollback()
+                return jsonify({"ok": False, "error": str(e)}), 400
+            except Exception as e:
+                db.session.rollback()
+                logger.exception("api_update_sale PRI->AZ error: %s", e)
+                return jsonify({
+                    "ok": False,
+                    "error": "Errore interno durante migrazione incasso PRI -> AZ"
+                }), 500
+
+        if len(payments_data) != 1 or (payments_data[0].get("method") or "").strip().lower() != "cash":
+            return jsonify({
+                "ok": False,
+                "error": "Gli incassi PRI supportano solo un pagamento singolo cash"
+            }), 400
+
+        try:
+            amount = _to_decimal_amount(payments_data[0].get("amount"), "amount")
+        except ValueError as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+
+        year = date.today().year
+
+        updated_row = _pri_update_sale(year, sale_id, {
+            "customer_id": None,
+            "customer_label": customer_label,
+            "description": description,
+            "amount": float(amount),
+            "method": "cash",
+            "flag": flag,
+            "off_cash": bool(off_cash),
+        })
+
+        if updated_row is None:
+            return jsonify({"ok": False, "error": "Incasso PRI non trovato"}), 404
+
+        if updated_row is False:
+            return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+        return jsonify({
+            "ok": True,
+            "sale_id": sale_id,
+            "storage": "pri",
+        })
+
+    try:
+        sale_id_int = int(sale_id)
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid sale_id"}), 400
+
+    sale = (
+        CashSale.query
+        .options(
+            selectinload(CashSale.payments)
+            .selectinload(CashSalePayment.pos_links)
+            .selectinload(CashSalePaymentPosMove.pos_move),
+            selectinload(CashSale.checks).selectinload(CashSaleCheck.check),
+        )
+        .filter(CashSale.id == sale_id_int)
+        .first()
+    )
+
+    if not sale:
+        return jsonify({"ok": False, "error": "Incasso non trovato"}), 404
+
+    # =========================
+    # MIGRAZIONE AZ -> PRI
+    # =========================
+    if flag in {"x", "+"}:
+        existing_payments = list(sale.payments or [])
+
+        existing_is_single_cash = (
+            len(existing_payments) == 1
+            and existing_payments[0].method == "cash"
+        )
+
+        incoming_is_single_cash = (
+            len(payments_data) == 1
+            and (payments_data[0].get("method") or "").strip().lower() == "cash"
+        )
+
+        if not existing_is_single_cash or not incoming_is_single_cash:
+            return jsonify({
+                "ok": False,
+                "error": "Impossibile trasformare una registrazione con pagamenti multipli o non cash in una registrazione privata. Cancella il movimento ed esegui una nuova registrazione."
+            }), 400
+
+        if not session.get("pri_vault_unlocked"):
+            return jsonify({"ok": False, "error": "Vault privato non sbloccato"}), 409
+
+        try:
+            amount = _to_decimal_amount(payments_data[0].get("amount"), "amount")
+        except ValueError as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+
+        cash_day = CashDay.query.filter_by(id=sale.cash_day_id).first()
+        if not cash_day:
+            return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+        year = cash_day.day_date.year
+        pri_data = _pri_load_year(year)
+
+        day_node = next((x for x in pri_data["days"] if x["date"] == cash_day.day_date.isoformat()), None)
+        if not day_node:
+            day_node = {
+                "date": cash_day.day_date.isoformat(),
+                "sales": [],
+                "expenses": [],
+                "cash_moves": [],
+            }
+            pri_data["days"].append(day_node)
+
+        pri_row = {
+            "id": f"pri-sale-{secrets.token_hex(8)}",
+            "created_at": datetime.now().isoformat(),
+            "updated_at": datetime.now().isoformat(),
+            "customer_id": None,
+            "customer_label": customer_label,
+            "description": description,
+            "amount": float(amount),
+            "method": "cash",
+            "flag": flag,
+            "off_cash": bool(off_cash),
+            "is_checked": False,
+            "meta": {
+                "origin": "pri",
+                "migrated_from": "az",
+                "az_sale_id": sale.id,
+                "created_by_user_id": getattr(current_user, "id", None),
+                "created_by_name": getattr(current_user, "name", None)
+                    or getattr(current_user, "username", None)
+                    or "user",
+            }
+        }
+
+        day_node["sales"].append(pri_row)
+
+        saved = _pri_save_year(year, pri_data)
+        if not saved:
+            return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+        try:
+            CashRowCheck.query.filter_by(
+                entity_type="sale",
+                entity_id=sale.id
+            ).delete()
+
+            for sale_check in (sale.checks or []):
+                linked_check = sale_check.check
+                if linked_check:
+                    db.session.delete(linked_check)
+
+            for payment in (sale.payments or []):
+                for link in (payment.pos_links or []):
+                    if link.pos_move:
+                        CashRowCheck.query.filter_by(
+                            entity_type="pos_move",
+                            entity_id=link.pos_move.id
+                        ).delete()
+                        db.session.delete(link.pos_move)
+
+            db.session.delete(sale)
+            db.session.commit()
+
+            return jsonify({
+                "ok": True,
+                "sale_id": pri_row["id"],
+                "storage": "pri",
+                "migrated": "az_to_pri",
+            })
+
+        except Exception as e:
+            db.session.rollback()
+            logger.exception("api_update_sale AZ->PRI delete error: %s", e)
+            return jsonify({
+                "ok": False,
+                "error": "Incasso salvato nel vault, ma errore durante la rimozione dal DB aziendale"
+            }), 500
 
     cash_day = CashDay.query.filter_by(id=sale.cash_day_id).first()
     if not cash_day:
