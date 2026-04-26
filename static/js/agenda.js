@@ -3247,7 +3247,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      const sale = (data.sales || []).find(x => Number(x.id) === Number(saleId));
+      const sale = (data.sales || []).find(x => String(x.id) === String(saleId));
       if (!sale) {
         alert("Incasso non trovato");
         return;
