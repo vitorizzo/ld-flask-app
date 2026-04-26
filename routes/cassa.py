@@ -1960,17 +1960,51 @@ def api_list_sales(day_date):
     return jsonify({"ok": True, "day_date": d.isoformat(), "sales": items})
 
 
-@cassa_bp.delete("/api/sales/<int:sale_id>")
+@cassa_bp.delete("/api/sales/<sale_id>")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_delete_sale(sale_id):
+
+    # =========================
+    # CASO PRI (vault)
+    # =========================
+    if isinstance(sale_id, str) and sale_id.startswith("pri-sale-"):
+        if not session.get("pri_vault_unlocked"):
+            return jsonify({"ok": False, "error": "Vault privato non sbloccato"}), 409
+
+        year = date.today().year
+        pri_data, day_node, idx, row = _pri_find_sale(year, sale_id)
+
+        if not pri_data:
+            return jsonify({"ok": False, "error": "Incasso PRI non trovato"}), 404
+
+        del day_node["sales"][idx]
+
+        saved = _pri_save_year(year, pri_data)
+        if not saved:
+            return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+        return jsonify({
+            "ok": True,
+            "sale_id": sale_id,
+            "storage": "pri",
+        })
+
+    # =========================
+    # CASO DB aziendale
+    # =========================
+    try:
+        sale_id_int = int(sale_id)
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid sale_id"}), 400
+
     sale = (
         CashSale.query
         .options(
             selectinload(CashSale.payments).selectinload(CashSalePayment.pos_links),
             selectinload(CashSale.checks).selectinload(CashSaleCheck.check),
         )
-        .filter(CashSale.id == sale_id)
+        .filter(CashSale.id == sale_id_int)
         .first()
     )
 
@@ -1978,25 +2012,19 @@ def api_delete_sale(sale_id):
         return jsonify({"ok": False, "error": "Incasso non trovato"}), 404
 
     try:
-        # 1) rimuovo eventuali row-check collegati alla riga aggregata
         CashRowCheck.query.filter_by(
             entity_type="sale",
             entity_id=sale.id
         ).delete()
 
-        # 2) se ci sono assegni collegati all'incasso, li elimino
-        #    oppure, se preferisci conservare storico, qui andrebbe fatta
-        #    una logica diversa. Per ora li eliminiamo insieme all'incasso.
         for sale_check in (sale.checks or []):
             linked_check = sale_check.check
             if linked_check:
                 db.session.delete(linked_check)
 
-        # 3) per ogni pagamento POS elimino gli eventuali PosMove collegati
         for payment in (sale.payments or []):
             for link in (payment.pos_links or []):
                 if link.pos_move:
-                    # rimuovo eventuale row-check del movimento POS
                     CashRowCheck.query.filter_by(
                         entity_type="pos_move",
                         entity_id=link.pos_move.id
@@ -2004,13 +2032,13 @@ def api_delete_sale(sale_id):
 
                     db.session.delete(link.pos_move)
 
-        # 4) elimino infine l'incasso
         db.session.delete(sale)
         db.session.commit()
 
         return jsonify({
             "ok": True,
-            "sale_id": sale_id,
+            "sale_id": sale_id_int,
+            "storage": "az",
         })
 
     except Exception as e:
