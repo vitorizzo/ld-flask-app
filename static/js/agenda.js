@@ -800,6 +800,8 @@ async function loadPreview(dateStr) {
 async function refreshAgendaData() {
   if (!currentDay) return;
 
+  await refreshPrivateVaultStatus();
+
   await loadPreview(currentDay);
   await Promise.all([
     loadIncassi(currentDay),
