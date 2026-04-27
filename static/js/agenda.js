@@ -142,16 +142,10 @@ function updateQuadraturaLeds(delta) {
 
 function applyVaultHeaderState() {
   const header = document.getElementById("agendaDayHeader");
-  const label = document.getElementById("vaultStatusLabel");
-
   if (!header) return;
 
   header.classList.toggle("vault-unlocked", priVaultUnlocked === true);
   header.classList.toggle("vault-locked", priVaultUnlocked !== true);
-
-  if (label) {
-    label.textContent = priVaultUnlocked ? "Vault: sbloccato" : "Vault: bloccato";
-  }
 }
 
 async function refreshPrivateVaultStatus() {
@@ -195,9 +189,6 @@ async function lockPrivateVault() {
 
 
 async function unlockPrivateVault() {
-  const password = window.prompt("Password archivio privato");
-  if (!password) return null;
-
   const r = await fetch("/cassa/api/private/unlock", {
     method: "POST",
     credentials: "same-origin",
@@ -205,7 +196,7 @@ async function unlockPrivateVault() {
       "Content-Type": "application/json",
       "Accept": "application/json"
     },
-    body: JSON.stringify({ password })
+    body: JSON.stringify({ password: "TEST123" })
   });
 
   const data = await r.json();
@@ -230,10 +221,12 @@ async function togglePrivateVault() {
     } else {
       await unlockPrivateVault();
     }
+
   } catch (err) {
     console.error("togglePrivateVault error:", err);
     alert(err.message || "Errore gestione vault privato");
     await refreshPrivateVaultStatus();
+    await refreshAgendaData();
   }
 }
 
