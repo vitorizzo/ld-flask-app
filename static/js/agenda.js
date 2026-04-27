@@ -140,6 +140,20 @@ function updateQuadraturaLeds(delta) {
    API HELPERS
 ========================= */
 
+function applyVaultHeaderState() {
+  const header = document.getElementById("agendaDayHeader");
+  const label = document.getElementById("vaultStatusLabel");
+
+  if (!header) return;
+
+  header.classList.toggle("vault-unlocked", priVaultUnlocked === true);
+  header.classList.toggle("vault-locked", priVaultUnlocked !== true);
+
+  if (label) {
+    label.textContent = priVaultUnlocked ? "Vault: sbloccato" : "Vault: bloccato";
+  }
+}
+
 async function refreshPrivateVaultStatus() {
   try {
     const r = await fetch("/cassa/api/private/status", {
@@ -150,11 +164,76 @@ async function refreshPrivateVaultStatus() {
 
     const data = await r.json();
     priVaultUnlocked = !!data?.vault?.unlocked;
+    applyVaultHeaderState();
     return priVaultUnlocked;
   } catch (err) {
     console.error("refreshPrivateVaultStatus error:", err);
     priVaultUnlocked = false;
+    applyVaultHeaderState();
     return false;
+  }
+}
+
+async function lockPrivateVault() {
+  const r = await fetch("/cassa/api/private/lock", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Accept": "application/json" }
+  });
+
+  const data = await r.json();
+
+  if (!r.ok || !data.ok) {
+    throw new Error(data.error || "Errore blocco vault");
+  }
+
+  await refreshPrivateVaultStatus();
+  await refreshAgendaData();
+
+  return data;
+}
+
+
+async function unlockPrivateVault() {
+  const password = window.prompt("Password archivio privato");
+  if (!password) return null;
+
+  const r = await fetch("/cassa/api/private/unlock", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    body: JSON.stringify({ password })
+  });
+
+  const data = await r.json();
+
+  if (!r.ok || !data.ok) {
+    throw new Error(data.error || "Errore sblocco vault");
+  }
+
+  await refreshPrivateVaultStatus();
+  await refreshAgendaData();
+
+  return data;
+}
+
+
+async function togglePrivateVault() {
+  try {
+    await refreshPrivateVaultStatus();
+
+    if (priVaultUnlocked) {
+      await lockPrivateVault();
+    } else {
+      await unlockPrivateVault();
+    }
+  } catch (err) {
+    console.error("togglePrivateVault error:", err);
+    alert(err.message || "Errore gestione vault privato");
+    await refreshPrivateVaultStatus();
   }
 }
 
@@ -1749,6 +1828,10 @@ document.addEventListener("DOMContentLoaded", function () {
 
   btnOpenPosModal?.addEventListener("click", async () => {
     await openPosModal();
+  });
+
+  document.getElementById("agendaDayHeader")?.addEventListener("click", async () => {
+    await togglePrivateVault();
   });
 
   btnOpenCashMoveModal?.addEventListener("click", async () => {

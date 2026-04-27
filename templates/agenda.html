@@ -66,11 +66,12 @@
       <div class="agenda-col-center flex-grow-1">
 
         <!-- Day header -->
-        <div class="card shadow-sm mb-3">
+        <div class="card shadow-sm mb-3 agenda-day-header vault-locked" id="agendaDayHeader" role="button">
           <div class="card-body">
             <div class="row g-2 align-items-center">
               <div class="col-12 col-md-6">
                 <div class="text-muted small">Giornata selezionata</div>
+                <div class="small fw-semibold" id="vaultStatusLabel">Vault: bloccato</div>
                 <div class="fs-5 fw-semibold" id="dayDateTitle">—</div>
               </div>
               <div class="col-12 col-md-6 text-md-end">
@@ -402,21 +403,6 @@
             <span class="fw-semibold">Azioni</span>
           </div>
           <div class="card-body d-grid gap-2">
-
-            <button type="button" class="btn btn-outline-primary" id="btnNewIncasso" disabled>
-              + Incasso
-            </button>
-            <button type="button" class="btn btn-outline-primary" id="btnNewSpesa" disabled>
-              + Spesa
-            </button>
-            <button type="button" class="btn btn-outline-primary" id="btnNewMovimento" disabled>
-              + Movimento
-            </button>
-            <button type="button" class="btn btn-outline-primary" id="btnNewPos" disabled>
-              + POS
-            </button>
-
-            <hr class="my-2">
 
             <button type="button" class="btn btn-outline-secondary" id="btnSimulaChiusura" disabled>
               Simula chiusura
