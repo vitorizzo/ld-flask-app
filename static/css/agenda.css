@@ -83,6 +83,43 @@
 }
 
 /* =========================
+   DAY HEADER / STATO VAULT
+========================= */
+
+.agenda-day-header {
+  overflow: hidden;
+  cursor: pointer;
+  transition: background 0.25s ease, box-shadow 0.25s ease, transform 0.12s ease;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.agenda-day-header:active {
+  transform: scale(0.995);
+}
+
+.agenda-day-header.vault-locked {
+  background:
+    radial-gradient(circle at 12px 12px, rgba(13, 110, 253, 0.18) 0 3px, transparent 4px),
+    linear-gradient(135deg, #e9ecef, #cfd8e3);
+  background-size: 28px 28px, auto;
+}
+
+.agenda-day-header.vault-unlocked {
+  background:
+    radial-gradient(circle at 20px 12px, rgba(255, 193, 7, 0.55) 0 7px, transparent 8px),
+    linear-gradient(135deg, #dff7ff, #b7e4ff 45%, #fff3bf);
+  background-size: 80px 50px, auto;
+}
+
+.agenda-day-header.vault-locked #vaultStatusLabel {
+  color: #495057;
+}
+
+.agenda-day-header.vault-unlocked #vaultStatusLabel {
+  color: #0f766e;
+}
+
+/* =========================
    RIGHE TABELLARI NEI RIQUADRI
 ========================= */
 
