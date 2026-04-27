@@ -68,14 +68,12 @@
         <!-- Day header -->
         <div class="card shadow-sm mb-3 agenda-day-header vault-locked" id="agendaDayHeader" role="button">
           <div class="card-body">
-            <div class="row g-2 align-items-center">
-              <div class="col-12 col-md-6">
-                <div class="text-muted small">Giornata selezionata</div>
-                <div class="fs-5 fw-semibold" id="dayDateTitle">—</div>
-              </div>
-              <div class="col-12 col-md-6 text-md-end">
-                <div class="text-muted small">ID giornata</div>
-                <div class="fw-semibold" id="dayId">—</div>
+            <div class="d-flex flex-column align-items-start">
+              <div class="text-muted small">Giornata selezionata</div>
+              <div class="fs-5 fw-semibold" id="dayDateTitle">—</div>
+
+              <div class="small mt-1 opacity-75">
+                ID: <span class="fw-semibold" id="dayId">—</span>
               </div>
             </div>
           </div>
