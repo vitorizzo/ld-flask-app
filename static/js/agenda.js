@@ -1821,6 +1821,10 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
+  refreshPrivateVaultStatus().catch(err => {
+    console.error("initial vault status error:", err);
+  });
+
   btnOpenPosModal?.addEventListener("click", async () => {
     await openPosModal();
   });
