@@ -734,7 +734,8 @@ def api_private_status():
     vault_dir_exists = os.path.isdir(vault_dir)
     vault_dir_writable = vault_dir_exists and _dir_writable(vault_dir)
     year_file_exists = os.path.isfile(year_file)
-    unlocked = bool(session.get("pri_vault_unlocked", False))
+    unlocked = _vault_get_unlocked_state()
+    session["pri_vault_unlocked"] = unlocked
 
     return jsonify({
         "ok": True,
@@ -816,16 +817,17 @@ def api_private_unlock():
         # salva chiave in RAM
         key_id = _pri_store_session_key(key, salt)
 
+        _vault_set_unlocked_state(True)
         session["pri_vault_unlocked"] = True
         session["pri_vault_key_id"] = key_id
 
         return jsonify({"ok": True, "vault": {"year": year, "unlocked": True, "year_file_exists": True}})
     except InvalidTag:
-        session["pri_vault_unlocked"] = False
+        _vault_force_lock()
         return jsonify({"ok": False, "error": "Invalid password"}), 401
     except Exception as e:
         logger.exception("Vault unlock unexpected error: %s", e)
-        session["pri_vault_unlocked"] = False
+        _vault_force_lock()
         return jsonify({"ok": False, "error": "Vault error"}), 500
 
 
@@ -833,8 +835,7 @@ def api_private_unlock():
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_private_lock():
-    session["pri_vault_unlocked"] = False
-    _pri_clear_session_key()
+    _vault_force_lock()
     return jsonify({"ok": True, "vault": {"unlocked": False}})
 
 
