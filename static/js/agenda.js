@@ -5,6 +5,8 @@ let currentPreviewTotals = {};
 let editingOperationType = null;   // "sale" | "expense" | null
 let editingOperationId = null;
 let priVaultUnlocked = false;
+let lastKnownVaultState = null;
+let vaultPollInterval = null;
 
 const EXPENSE_POS_CARDS = [
   "Carta aziendale",
@@ -146,6 +148,32 @@ function applyVaultHeaderState() {
 
   header.classList.toggle("vault-unlocked", priVaultUnlocked === true);
   header.classList.toggle("vault-locked", priVaultUnlocked !== true);
+}
+
+async function pollPrivateVaultStatus() {
+  try {
+    const before = priVaultUnlocked;
+
+    await refreshPrivateVaultStatus();
+
+    const after = priVaultUnlocked;
+
+    if (lastKnownVaultState === null) {
+      lastKnownVaultState = after;
+      return;
+    }
+
+    if (before !== after) {
+      console.log("Vault state changed:", after ? "UNLOCKED" : "LOCKED");
+
+      await refreshAgendaData();
+    }
+
+    lastKnownVaultState = after;
+
+  } catch (err) {
+    console.error("pollPrivateVaultStatus error:", err);
+  }
 }
 
 async function refreshPrivateVaultStatus() {
@@ -726,7 +754,13 @@ function loadDay(dateStr) {
       document.getElementById("btnNewSpesa")?.removeAttribute("disabled");
       document.getElementById("btnNewMovimento")?.removeAttribute("disabled");
       document.getElementById("btnNewPos")?.removeAttribute("disabled");
+      startVaultPolling();
     });
+}
+
+function startVaultPolling() {
+  if (vaultPollInterval) return;
+  vaultPollInterval = setInterval(pollPrivateVaultStatus, 3000);
 }
 
 async function loadPreview(dateStr) {
