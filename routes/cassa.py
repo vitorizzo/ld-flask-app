@@ -115,16 +115,19 @@ def _derive_key(password: str, salt: bytes) -> bytes:
     )
 
 _VAULT_REDIS_KEY = "private_vault:unlocked"
+_VAULT_STATE_VERSION_KEY = "private_vault:state_version"
 
+def _vault_get_state_version() -> int:
+    try:
+        r = get_redis()
+        return int(r.get(_VAULT_STATE_VERSION_KEY) or 0)
+    except Exception:
+        return 0
 
 def _vault_set_unlocked_state(unlocked: bool) -> None:
-    """
-    Stato vault condiviso tra tutti i client.
-    Redis diventa la fonte comune per capire se il vault è unlocked/locked.
-    """
     r = get_redis()
     r.set(_VAULT_REDIS_KEY, "1" if unlocked else "0")
-
+    r.incr(_VAULT_STATE_VERSION_KEY)
 
 def _vault_get_unlocked_state() -> bool:
     """
@@ -748,6 +751,7 @@ def api_private_status():
             "year": year,
             "year_file_exists": year_file_exists,
             "unlocked": unlocked,
+            "state_version": _vault_get_state_version(),
         }
     })
 
