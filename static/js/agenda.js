@@ -831,6 +831,24 @@ async function loadPreview(dateStr) {
   }
 }
 
+async function refreshAgendaSections(sections = []) {
+  if (!currentDay) return;
+
+  await refreshPrivateVaultStatus();
+
+  const jobs = [];
+
+  if (sections.includes("preview")) jobs.push(loadPreview(currentDay));
+  if (sections.includes("incassi")) jobs.push(loadIncassi(currentDay));
+  if (sections.includes("spese")) jobs.push(loadSpese(currentDay));
+  if (sections.includes("pos")) jobs.push(loadPosMoves(currentDay));
+  if (sections.includes("cash_moves")) jobs.push(loadCashMoves(currentDay));
+  if (sections.includes("coins")) jobs.push(loadCoinsBalance(currentDay));
+  if (sections.includes("assegni")) jobs.push(loadAssegniScadenza(currentDay, false));
+
+  await Promise.all(jobs);
+}
+
 async function refreshAgendaData() {
   if (!currentDay) return;
 
@@ -2614,7 +2632,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       resetPosModalForm();
-      await refreshAgendaData();
+      await refreshAgendaSections(["preview", "pos"]);
 
     } catch (err) {
       console.error("savePosMove error:", err);
@@ -2775,7 +2793,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       resetCashMoveModalForm();
-      await refreshAgendaData();
+      await refreshAgendaSections(["preview", "cash_moves", "coins"]);
 
     } catch (err) {
       console.error("saveCashMove error:", err);
@@ -2805,7 +2823,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
 
-      await refreshAgendaData();
+      await refreshAgendaSections(["preview", "cash_moves", "coins"]);
 
     } catch (err) {
       console.error("deleteCashMove error:", err);
@@ -4538,7 +4556,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       // refresh UI
-      await refreshAgendaData();
+      await refreshAgendaSections(["preview", "pos"]);
 
     } catch (err) {
       console.error("deletePosMove error:", err);
@@ -4594,7 +4612,12 @@ document.addEventListener("DOMContentLoaded", function () {
 
       resetOperationEditState();
       opModal.hide();
-      await refreshAgendaData();
+
+      await refreshAgendaSections([
+        "preview",
+        opType === "expense" ? "spese" : "incassi",
+        opType === "sale" ? "pos" : null
+      ].filter(Boolean));
 
     } catch (err) {
       console.error("saveOperation error:", err);
