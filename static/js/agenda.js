@@ -7,6 +7,7 @@ let editingOperationId = null;
 let priVaultUnlocked = false;
 let lastKnownVaultState = null;
 let vaultPollInterval = null;
+let lastKnownVaultStateVersion = null;
 
 const EXPENSE_POS_CARDS = [
   "Carta aziendale",
@@ -152,24 +153,22 @@ function applyVaultHeaderState() {
 
 async function pollPrivateVaultStatus() {
   try {
-    const before = priVaultUnlocked;
-
     await refreshPrivateVaultStatus();
 
-    const after = priVaultUnlocked;
+    const currentVersion = Number(window.currentVaultStateVersion || 0);
 
-    if (lastKnownVaultState === null) {
-      lastKnownVaultState = after;
+    if (lastKnownVaultStateVersion === null) {
+      lastKnownVaultStateVersion = currentVersion;
       return;
     }
 
-    if (before !== after) {
-      console.log("Vault state changed:", after ? "UNLOCKED" : "LOCKED");
+    if (currentVersion !== lastKnownVaultStateVersion) {
+      console.log("Vault state version changed:", currentVersion);
 
+      lastKnownVaultStateVersion = currentVersion;
       await refreshAgendaData();
+      return;
     }
-
-    lastKnownVaultState = after;
 
   } catch (err) {
     console.error("pollPrivateVaultStatus error:", err);
@@ -185,12 +184,17 @@ async function refreshPrivateVaultStatus() {
     });
 
     const data = await r.json();
+
     priVaultUnlocked = !!data?.vault?.unlocked;
+    window.currentVaultStateVersion = Number(data?.vault?.state_version || 0);
+
     applyVaultHeaderState();
+
     return priVaultUnlocked;
   } catch (err) {
     console.error("refreshPrivateVaultStatus error:", err);
     priVaultUnlocked = false;
+    window.currentVaultStateVersion = 0;
     applyVaultHeaderState();
     return false;
   }
