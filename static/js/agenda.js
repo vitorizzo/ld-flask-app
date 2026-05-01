@@ -215,7 +215,7 @@ async function lockPrivateVault() {
 
   await refreshPrivateVaultStatus();
   lastKnownVaultStateVersion = Number(window.currentVaultStateVersion || 0);
-  await refreshAgendaData();
+  await refreshAgendaSections(["preview", "incassi", "spese", "cash_moves"]);;
 
   return data;
 }
@@ -250,7 +250,7 @@ async function unlockPrivateVault() {
     return data;
   }
 
-  await refreshAgendaData();
+  await refreshAgendaSections(["preview", "incassi", "spese", "cash_moves"]);
   return data;
 }
 
