@@ -233,6 +233,12 @@ async function unlockPrivateVault() {
 
   const data = await r.json();
 
+  if (data?.vault?.unlocked === false) {
+    await refreshPrivateVaultStatus();
+    await refreshAgendaData();
+    return data;
+  }
+
   if (!r.ok || !data.ok) {
     throw new Error(data.error || "Errore sblocco vault");
   }

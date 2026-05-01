@@ -808,8 +808,19 @@ def api_private_status():
 def api_private_unlock():
     mount_root, vault_dir, year, year_file = _vault_config()
 
-    if not os.path.ismount(mount_root):
-        return jsonify({"ok": False, "error": "Vault not mounted"}), 409
+    if not _vault_device_present() or not os.path.ismount(mount_root):
+        _vault_force_lock()
+
+        return jsonify({
+            "ok": True,
+            "vault": {
+                "year": year,
+                "unlocked": False,
+                "mounted": False,
+                "year_file_exists": False,
+                "reason": "vault_not_mounted",
+            }
+        })
 
     # se la chiavetta è montata ma la dir dati non esiste, creiamola
     try:
