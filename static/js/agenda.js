@@ -795,6 +795,10 @@ async function loadPreview(dateStr) {
     const q = (t.q ?? t.q_versabile ?? t.Q ?? t.versabile_residuo);
     const s = (t.s ?? t.s_versabile ?? t.S ?? t.saldo_versabile);
     const ic = (t.ic ?? t.IC ?? t.incasso_calcolato);
+    const priCashNet = Number(t.pri_cash_net || 0);
+    const icDisplay = priVaultUnlocked
+      ? Number(ic || 0) + priCashNet
+      : Number(ic || 0);
     const df = (t.delta_fondo ?? t.deltaFondo ?? t.df);
     const dq = (t.delta_quadratura ?? t.deltaQuadratura ?? t.dq);
     const fondoInit = (t.fondo_iniziale ?? t.opening_float ?? t.fondoIniziale);
@@ -817,7 +821,7 @@ async function loadPreview(dateStr) {
     setText("kpiFondoIniziale", _fmt2(fondoInit));
     setText("kpiFondoFinale", _fmt2(fondoFin));
 
-    setText("kpiIC", _fmt2(ic));
+    setText("kpiIC", _fmt2(icDisplay));
 
     setBadgeState("badgeCorrispettiviState", hasCorrispettivi);
     setBadgeState("badgeFondoState", hasFondoIniziale && hasFondoFinale);

@@ -1172,6 +1172,45 @@ def api_cash_day_preview(day_date):
 
     saldo_movimenti_cassa = totale_cash_moves_in - totale_cash_moves_out
 
+    # =========================
+    # Totali PRI per modalità full
+    # =========================
+    pri_sales_cash = Decimal("0")
+    pri_expenses_cash = Decimal("0")
+    pri_cash_moves_in = Decimal("0")
+    pri_cash_moves_out = Decimal("0")
+
+    if _vault_get_unlocked_state():
+        try:
+            pri_data = _pri_load_year(d.year)
+            day_node = next((x for x in pri_data.get("days", []) if x.get("date") == d.isoformat()), None)
+
+            if day_node:
+                for row in day_node.get("sales", []):
+                    if row.get("method") == "cash":
+                        pri_sales_cash += Decimal(str(row.get("amount") or 0))
+
+                for row in day_node.get("expenses", []):
+                    if row.get("method") == "cash":
+                        pri_expenses_cash += Decimal(str(row.get("amount") or 0))
+
+                for row in day_node.get("cash_moves", []):
+                    amount = Decimal(str(row.get("amount") or 0))
+                    if row.get("direction") == "in":
+                        pri_cash_moves_in += amount
+                    else:
+                        pri_cash_moves_out += amount
+
+        except Exception as e:
+            logger.exception("Errore calcolo preview PRI: %s", e)
+
+    pri_cash_net = (
+        pri_sales_cash
+        - pri_expenses_cash
+        + pri_cash_moves_in
+        - pri_cash_moves_out
+    )
+
     totale_incasso_consegnato = (
         totale_owner_take_cash
         + totale_owner_take_checks
@@ -1194,6 +1233,12 @@ def api_cash_day_preview(day_date):
     result["cash_moves_out_amount"] = float(totale_cash_moves_out)
     result["cash_moves_net_amount"] = float(saldo_movimenti_cassa)
     result["total_corrispettivi"] = float(totale_corrispettivi)
+    result["pri_sales_cash"] = float(pri_sales_cash)
+    result["pri_expenses_cash"] = float(pri_expenses_cash)
+    result["pri_cash_moves_in"] = float(pri_cash_moves_in)
+    result["pri_cash_moves_out"] = float(pri_cash_moves_out)
+    result["pri_cash_net"] = float(pri_cash_net)
+    result["view_mode"] = "full" if _vault_get_unlocked_state() else "fiscal"
 
     has_owner_take_rows = (
                               db.session.query(func.count(CashOwnerTake.id))
