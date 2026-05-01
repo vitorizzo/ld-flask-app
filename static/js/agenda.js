@@ -221,6 +221,8 @@ async function lockPrivateVault() {
 
 
 async function unlockPrivateVault() {
+  const wasUnlocked = priVaultUnlocked === true;
+
   const r = await fetch("/cassa/api/private/unlock", {
     method: "POST",
     credentials: "same-origin",
@@ -233,19 +235,20 @@ async function unlockPrivateVault() {
 
   const data = await r.json();
 
-  if (data?.vault?.unlocked === false) {
-    await refreshPrivateVaultStatus();
-    await refreshAgendaData();
-    return data;
-  }
-
   if (!r.ok || !data.ok) {
     throw new Error(data.error || "Errore sblocco vault");
   }
 
   await refreshPrivateVaultStatus();
-  await refreshAgendaData();
 
+  const isUnlocked = priVaultUnlocked === true;
+
+  // Se non c'è stato cambio reale di stato, niente refresh quadranti
+  if (wasUnlocked === isUnlocked) {
+    return data;
+  }
+
+  await refreshAgendaData();
   return data;
 }
 
