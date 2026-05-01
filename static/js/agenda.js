@@ -214,6 +214,7 @@ async function lockPrivateVault() {
   }
 
   await refreshPrivateVaultStatus();
+  lastKnownVaultStateVersion = Number(window.currentVaultStateVersion || 0);
   await refreshAgendaData();
 
   return data;
@@ -240,6 +241,7 @@ async function unlockPrivateVault() {
   }
 
   await refreshPrivateVaultStatus();
+  lastKnownVaultStateVersion = Number(window.currentVaultStateVersion || 0);
 
   const isUnlocked = priVaultUnlocked === true;
 
