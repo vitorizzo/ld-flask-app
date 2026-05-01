@@ -462,6 +462,18 @@ def _vault_config() -> tuple[str, str, int, str]:
     return mount_root, vault_dir, year, year_file
 
 
+def _vault_device_path() -> str:
+    uuid = os.environ.get("PRIVATE_VAULT_DEVICE_UUID", "8504e0b7-47f7-4532-b680-27079279ddf7")
+    return f"/dev/disk/by-uuid/{uuid}"
+
+
+def _vault_device_present() -> bool:
+    try:
+        return os.path.exists(_vault_device_path())
+    except Exception:
+        return False
+
+
 def _atomic_write(path: str, data: bytes) -> None:
     tmp = f"{path}.tmp.{secrets.token_hex(6)}"
     with open(tmp, "wb") as f:
@@ -733,17 +745,51 @@ def api_private_test_write():
 def api_private_status():
     mount_root, vault_dir, year, year_file = _vault_config()
 
+    device_present = _vault_device_present()
+
+    if not device_present:
+        _vault_force_lock()
+
+        return jsonify({
+            "ok": True,
+            "vault": {
+                "mount_root": mount_root,
+                "device_present": False,
+                "mounted": False,
+                "vault_dir": vault_dir,
+                "vault_dir_exists": False,
+                "vault_dir_writable": False,
+                "year": year,
+                "year_file_exists": False,
+                "unlocked": False,
+                "state_version": _vault_get_state_version(),
+            }
+        })
+
     mounted = os.path.ismount(mount_root)
-    vault_dir_exists = os.path.isdir(vault_dir)
-    vault_dir_writable = vault_dir_exists and _dir_writable(vault_dir)
-    year_file_exists = os.path.isfile(year_file)
+
+    vault_dir_exists = False
+    vault_dir_writable = False
+    year_file_exists = False
+
+    if mounted:
+        vault_dir_exists = os.path.isdir(vault_dir)
+        vault_dir_writable = vault_dir_exists and _dir_writable(vault_dir)
+        year_file_exists = os.path.isfile(year_file)
+
     unlocked = _vault_get_unlocked_state()
+
+    if not mounted or not vault_dir_exists or not vault_dir_writable or not year_file_exists:
+        _vault_force_lock()
+        unlocked = False
+
     session["pri_vault_unlocked"] = unlocked
 
     return jsonify({
         "ok": True,
         "vault": {
             "mount_root": mount_root,
+            "device_present": True,
             "mounted": mounted,
             "vault_dir": vault_dir,
             "vault_dir_exists": vault_dir_exists,
