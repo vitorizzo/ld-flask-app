@@ -126,8 +126,15 @@ def _vault_get_state_version() -> int:
 
 def _vault_set_unlocked_state(unlocked: bool) -> None:
     r = get_redis()
-    r.set(_VAULT_REDIS_KEY, "1" if unlocked else "0")
-    r.incr(_VAULT_STATE_VERSION_KEY)
+
+    new_value = "1" if unlocked else "0"
+    old_value = r.get(_VAULT_REDIS_KEY)
+
+    r.set(_VAULT_REDIS_KEY, new_value)
+
+    # Incrementa la versione solo se lo stato cambia davvero
+    if old_value != new_value:
+        r.incr(_VAULT_STATE_VERSION_KEY)
 
 def _vault_get_unlocked_state() -> bool:
     """
