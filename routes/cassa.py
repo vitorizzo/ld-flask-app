@@ -1240,6 +1240,32 @@ def api_cash_day_preview(day_date):
     result["pri_cash_net"] = float(pri_cash_net)
     result["view_mode"] = "full" if _vault_get_unlocked_state() else "fiscal"
 
+    # =========================
+    # Display full/fiscal per KPI
+    # =========================
+    vault_unlocked = _vault_get_unlocked_state()
+
+    valore_atteso_fiscal = Decimal(str(result.get("valore_atteso_cassetto", 0)))
+    incasso_calcolato_fiscal = Decimal(str(result.get("incasso_calcolato", 0)))
+    delta_quadratura_fiscal = Decimal(str(result.get("delta_quadratura", 0)))
+
+    if vault_unlocked:
+        valore_atteso_display = valore_atteso_fiscal + pri_cash_net
+        incasso_calcolato_display = incasso_calcolato_fiscal + pri_cash_net
+        delta_quadratura_display = totale_incasso_consegnato - valore_atteso_display
+    else:
+        valore_atteso_display = valore_atteso_fiscal
+        incasso_calcolato_display = incasso_calcolato_fiscal
+        delta_quadratura_display = delta_quadratura_fiscal
+
+    result["valore_atteso_cassetto_fiscal"] = float(valore_atteso_fiscal)
+    result["incasso_calcolato_fiscal"] = float(incasso_calcolato_fiscal)
+    result["delta_quadratura_fiscal"] = float(delta_quadratura_fiscal)
+
+    result["valore_atteso_cassetto"] = float(valore_atteso_display)
+    result["incasso_calcolato"] = float(incasso_calcolato_display)
+    result["delta_quadratura"] = float(delta_quadratura_display)
+
     has_owner_take_rows = (
                               db.session.query(func.count(CashOwnerTake.id))
                               .filter(CashOwnerTake.cash_day_id == cash_day.id)
