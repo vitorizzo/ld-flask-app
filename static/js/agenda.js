@@ -757,7 +757,7 @@ let editingDepositId = null;
    DAY / PREVIEW
 ========================= */
 
-function loadDay(dateStr) {
+async function loadDay(dateStr) {
   fetch(`/cassa/api/day?date=${dateStr}`)
     .then(r => r.json())
     .then(data => {
@@ -771,13 +771,8 @@ function loadDay(dateStr) {
       setText("dayStatusBadge", String(data.day.status || "—").toUpperCase());
       setText("agendaLastUpdated", "Ultimo aggiornamento: " + new Date().toLocaleTimeString());
 
-      loadPreview(currentDay);
-      loadIncassi(currentDay);
-      loadSpese(currentDay);
-      loadPosMoves(currentDay);
-      loadCashMoves(currentDay);
-      loadCoinsBalance(currentDay);
-      loadAssegniScadenza(currentDay, false);
+      await refreshAgendaData();
+      lastKnownVaultStateVersion = Number(window.currentVaultStateVersion || 0);
 
       document.getElementById("btnNewIncasso")?.removeAttribute("disabled");
       document.getElementById("btnNewSpesa")?.removeAttribute("disabled");
