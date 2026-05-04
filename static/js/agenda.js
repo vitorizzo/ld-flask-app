@@ -760,7 +760,7 @@ let editingDepositId = null;
 async function loadDay(dateStr) {
   fetch(`/cassa/api/day?date=${dateStr}`)
     .then(r => r.json())
-    .then(data => {
+    .then(async data => {
       if (!data.ok) return;
 
       currentDay = data.day.day_date;
