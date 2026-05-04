@@ -56,10 +56,24 @@ function eur(amount) {
 
 function parseEuroToNumber(raw) {
   if (raw == null) return 0;
-  const s = String(raw).trim()
-    .replace(/\./g, "")
-    .replace(",", ".")
-    .replace(/[^\d.-]/g, "");
+
+  let s = String(raw).trim();
+  if (!s) return 0;
+
+  s = s.replace(/[^\d.,-]/g, "");
+
+  const lastComma = s.lastIndexOf(",");
+  const lastDot = s.lastIndexOf(".");
+
+  if (lastComma !== -1 || lastDot !== -1) {
+    const decimalSep = lastComma > lastDot ? "," : ".";
+    const thousandsSep = decimalSep === "," ? "." : ",";
+
+    s = s
+      .replaceAll(thousandsSep, "")
+      .replace(decimalSep, ".");
+  }
+
   const n = Number(s);
   return Number.isFinite(n) ? n : 0;
 }
