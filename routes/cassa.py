@@ -2818,8 +2818,12 @@ def api_delete_pos_move(pos_move_id):
             entity_id=pos_move.id
         ).delete()
 
+        cash_day = CashDay.query.filter_by(id=pos_move.cash_day_id).first()
+        day_version_date = cash_day.day_date.isoformat() if cash_day else date.today().isoformat()
+
         db.session.delete(pos_move)
         db.session.commit()
+        _bump_agenda_day_version(day_version_date)
 
         return jsonify({
             "ok": True,
@@ -3697,6 +3701,7 @@ def api_create_pos_move(day_date):
 
     db.session.add(m)
     db.session.commit()
+    _bump_agenda_day_version(d.isoformat())
 
     return jsonify({"ok": True, "pos_move_id": m.id}), 201
 
@@ -3767,6 +3772,10 @@ def api_update_pos_move(pos_move_id):
         pos_move.notes = notes
 
         db.session.commit()
+
+        cash_day = CashDay.query.filter_by(id=pos_move.cash_day_id).first()
+        if cash_day:
+            _bump_agenda_day_version(cash_day.day_date.isoformat())
 
         return jsonify({
             "ok": True,
@@ -3943,6 +3952,8 @@ def api_create_cash_move(day_date):
         if not saved:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
+        _bump_agenda_day_version(d.isoformat())
+
         return jsonify({
             "ok": True,
             "cash_move_id": pri_row["id"],
@@ -3961,6 +3972,7 @@ def api_create_cash_move(day_date):
 
     db.session.add(m)
     db.session.commit()
+    _bump_agenda_day_version(d.isoformat())
 
     return jsonify({"ok": True, "cash_move_id": m.id}), 201
 
@@ -4124,6 +4136,10 @@ def api_update_cash_move(cash_move_id):
         if updated_row is False:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
+        pri_data, day_node, _, _ = _pri_find_cash_move(year, cash_move_id)
+        if day_node:
+            _bump_agenda_day_version(day_node["date"])
+
         return jsonify({
             "ok": True,
             "cash_move_id": cash_move_id,
@@ -4149,7 +4165,11 @@ def api_update_cash_move(cash_move_id):
         cash_move.notes = notes
         cash_move.kind = kind
 
+        cash_day = CashDay.query.filter_by(id=cash_move.cash_day_id).first()
+        day_version_date = cash_day.day_date.isoformat() if cash_day else date.today().isoformat()
+
         db.session.commit()
+        _bump_agenda_day_version(day_version_date)
 
         return jsonify({
             "ok": True,
@@ -4190,6 +4210,8 @@ def api_delete_cash_move(cash_move_id):
         if not saved:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
+        _bump_agenda_day_version(day_node["date"])
+
         return jsonify({
             "ok": True,
             "cash_move_id": cash_move_id,
@@ -4215,8 +4237,12 @@ def api_delete_cash_move(cash_move_id):
             entity_id=cash_move.id
         ).delete()
 
+        cash_day = CashDay.query.filter_by(id=cash_move.cash_day_id).first()
+        day_version_date = cash_day.day_date.isoformat() if cash_day else date.today().isoformat()
+
         db.session.delete(cash_move)
         db.session.commit()
+        _bump_agenda_day_version(day_version_date)
 
         return jsonify({
             "ok": True,
