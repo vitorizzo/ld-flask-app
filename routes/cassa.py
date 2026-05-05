@@ -3352,6 +3352,7 @@ def api_update_expense(expense_id):
                     return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
                 db.session.commit()
+                _bump_agenda_day_version(d_pri.isoformat())
 
                 return jsonify({
                     "ok": True,
@@ -3385,6 +3386,10 @@ def api_update_expense(expense_id):
 
         if updated_row is False:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+        pri_data, day_node, _, _ = _pri_find_expense(year, expense_id)
+        if day_node:
+            _bump_agenda_day_version(day_node["date"])
 
         return jsonify({
             "ok": True,
@@ -3493,6 +3498,7 @@ def api_update_expense(expense_id):
 
             db.session.delete(expense)
             db.session.commit()
+            _bump_agenda_day_version(cash_day.day_date.isoformat())
 
             return jsonify({
                 "ok": True,
@@ -3587,6 +3593,10 @@ def api_update_expense(expense_id):
             db.session.add(payment)
 
         db.session.commit()
+
+        cash_day = CashDay.query.filter_by(id=expense.cash_day_id).first()
+        if cash_day:
+            _bump_agenda_day_version(cash_day.day_date.isoformat())
 
         return jsonify({
             "ok": True,
