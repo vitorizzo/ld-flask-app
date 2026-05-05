@@ -5595,6 +5595,10 @@ def api_toggle_row_check():
         if updated_row is False:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
+        pri_data, day_node, _, _ = _pri_find_cash_move(year, entity_id_str)
+        if day_node:
+            _bump_agenda_day_version(day_node["date"])
+
         return jsonify({
             "ok": True,
             "entity_id": entity_id_str,
@@ -5614,6 +5618,34 @@ def api_toggle_row_check():
 
         if updated_row is False:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+        pri_data, day_node, _, _ = _pri_find_expense(year, entity_id_str)
+        if day_node:
+            _bump_agenda_day_version(day_node["date"])
+
+        return jsonify({
+            "ok": True,
+            "entity_id": entity_id_str,
+            "is_checked": bool(updated_row.get("is_checked")),
+            "storage": "pri",
+            "persistent": True,
+        })
+
+    if entity_id_str.startswith("pri-sale-"):
+        requested_state = bool(data.get("is_checked", True))
+        year = date.today().year
+
+        updated_row = _pri_set_sale_checked(year, entity_id_str, requested_state)
+
+        if updated_row is None:
+            return jsonify({"ok": False, "error": "Incasso PRI non trovato"}), 404
+
+        if updated_row is False:
+            return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+        pri_data, day_node, _, _ = _pri_find_sale(year, entity_id_str)
+        if day_node:
+            _bump_agenda_day_version(day_node["date"])
 
         return jsonify({
             "ok": True,
@@ -5653,6 +5685,10 @@ def api_toggle_row_check():
             db.session.add(row)
 
         db.session.commit()
+
+        cash_day = CashDay.query.filter_by(id=cash_day_id).first()
+        if cash_day:
+            _bump_agenda_day_version(cash_day.day_date.isoformat())
 
         return jsonify({
             "ok": True,
