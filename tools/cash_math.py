@@ -509,6 +509,7 @@ def calculate_closure_pure(
     atteso_cassetto_operativo = (
         totale_incassi_lordi
         - totale_pos
+        - incassi_bank
         - spese_cash
         + saldo_movimenti_cassa_altro
         + saldo_spicci
