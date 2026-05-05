@@ -2183,6 +2183,8 @@ def api_delete_sale(sale_id):
         if not saved:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
+        _bump_agenda_day_version(day_node["date"])
+
         return jsonify({
             "ok": True,
             "sale_id": sale_id,
@@ -2231,8 +2233,12 @@ def api_delete_sale(sale_id):
 
                     db.session.delete(link.pos_move)
 
+        cash_day = CashDay.query.filter_by(id=sale.cash_day_id).first()
+        day_version_date = cash_day.day_date.isoformat() if cash_day else date.today().isoformat()
+
         db.session.delete(sale)
         db.session.commit()
+        _bump_agenda_day_version(day_version_date)
 
         return jsonify({
             "ok": True,
