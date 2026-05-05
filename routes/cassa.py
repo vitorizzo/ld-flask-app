@@ -4472,6 +4472,7 @@ def api_save_drawer_count(day_date):
             line.line_total = values["line_total"]
 
         db.session.commit()
+        _bump_agenda_day_version(cash_day.day_date.isoformat())
 
         drawer_count = (
             CashDrawerCount.query
@@ -4507,6 +4508,7 @@ def api_delete_drawer_count(day_date):
     try:
         db.session.delete(drawer_count)
         db.session.commit()
+        _bump_agenda_day_version(cash_day.day_date.isoformat())
 
         return jsonify({
             "ok": True,
@@ -5097,6 +5099,7 @@ def create_receipt_closure(day_date):
 
     db.session.add(row)
     db.session.commit()
+    _bump_agenda_day_version(day.day_date.isoformat())
 
     return jsonify({"success": True})
 
@@ -5111,9 +5114,17 @@ def api_delete_receipt_closure(receipt_closure_id):
         return jsonify({"ok": False, "error": "Corrispettivo non trovato"}), 404
 
     try:
+        cash_day = CashDay.query.filter_by(id=row.cash_day_id).first()
+        day_version_date = cash_day.day_date.isoformat() if cash_day else date.today().isoformat()
+
         db.session.delete(row)
         db.session.commit()
-        return jsonify({"ok": True, "receipt_closure_id": receipt_closure_id})
+        _bump_agenda_day_version(day_version_date)
+
+        return jsonify({
+            "ok": True,
+            "receipt_closure_id": receipt_closure_id
+        })
     except Exception as e:
         db.session.rollback()
         logger.exception("api_delete_receipt_closure error: %s", e)
@@ -5154,6 +5165,10 @@ def api_update_receipt_closure(receipt_closure_id):
         row.updated_by_user_id = getattr(current_user, "id", None)
 
         db.session.commit()
+
+        cash_day = CashDay.query.filter_by(id=row.cash_day_id).first()
+        if cash_day:
+            _bump_agenda_day_version(cash_day.day_date.isoformat())
 
         return jsonify({
             "ok": True,
@@ -5402,6 +5417,7 @@ def api_create_owner_take(day_date):
             ))
 
         db.session.commit()
+        _bump_agenda_day_version(d.isoformat())
 
         return jsonify({
             "ok": True,
@@ -5432,8 +5448,17 @@ def api_delete_owner_take(owner_take_id):
         return jsonify({"ok": False, "error": "Prelievo non trovato"}), 404
 
     try:
+        day_date = None
+        if row.cash_day_id:
+            cash_day = CashDay.query.filter(CashDay.id == row.cash_day_id).first()
+            if cash_day:
+                day_date = cash_day.day_date.isoformat()
+
         db.session.delete(row)
         db.session.commit()
+
+        if day_date:
+            _bump_agenda_day_version(day_date)
 
         return jsonify({
             "ok": True,
@@ -5545,6 +5570,9 @@ def api_update_owner_take(owner_take_id):
             ))
 
         db.session.commit()
+
+        if cash_day:
+            _bump_agenda_day_version(cash_day.day_date.isoformat())
 
         return jsonify({
             "ok": True,

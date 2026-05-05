@@ -468,6 +468,7 @@ def calculate_closure_pure(
         totale_incassi_lordi
         - totale_pos
         - spese_cash
+        - incassi_bank
         + saldo_movimenti_cassa_altro
         + saldo_spicci
     )
