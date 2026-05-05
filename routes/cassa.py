@@ -2440,6 +2440,7 @@ def api_update_sale(sale_id):
                     return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
                 db.session.commit()
+                _bump_agenda_day_version(d_pri.isoformat())
 
                 return jsonify({
                     "ok": True,
@@ -2487,6 +2488,10 @@ def api_update_sale(sale_id):
 
         if updated_row is False:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
+
+        pri_data, day_node, _, _ = _pri_find_sale(year, sale_id)
+        if day_node:
+            _bump_agenda_day_version(day_node["date"])
 
         return jsonify({
             "ok": True,
@@ -2612,6 +2617,7 @@ def api_update_sale(sale_id):
 
             db.session.delete(sale)
             db.session.commit()
+            _bump_agenda_day_version(cash_day.day_date.isoformat())
 
             return jsonify({
                 "ok": True,
@@ -2771,6 +2777,7 @@ def api_update_sale(sale_id):
                 )
 
         db.session.commit()
+        _bump_agenda_day_version(day_date.isoformat())
 
         return jsonify({
             "ok": True,
