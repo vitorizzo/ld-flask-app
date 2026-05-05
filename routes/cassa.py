@@ -2928,6 +2928,8 @@ def api_create_expense(day_date):
         if not saved:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
+        _bump_agenda_day_version(d.isoformat())
+
         return jsonify({
             "ok": True,
             "expense_id": pri_row["id"],
@@ -3009,6 +3011,7 @@ def api_create_expense(day_date):
 
         db.session.add(exp)
         db.session.commit()
+        _bump_agenda_day_version(d.isoformat())
 
     except ValueError as e:
         db.session.rollback()
