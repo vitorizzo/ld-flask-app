@@ -8,6 +8,8 @@ let priVaultUnlocked = false;
 let lastKnownVaultState = null;
 let vaultPollInterval = null;
 let lastKnownVaultStateVersion = null;
+let lastKnownAgendaVersion = null;
+let agendaPollInterval = null;
 
 const EXPENSE_POS_CARDS = [
   "Carta aziendale",
@@ -150,6 +152,37 @@ function updateQuadraturaLeds(delta) {
   if (d < -10) {
     leds.redLeft?.classList.add("on");
     return;
+  }
+}
+
+async function pollAgendaVersion() {
+  if (!currentDay) return;
+
+  try {
+    const r = await fetch(`/cassa/api/day/${currentDay}/version`, {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" },
+      cache: "no-store"
+    });
+
+    const data = await r.json();
+    if (!data.ok) return;
+
+    const version = Number(data.version || 0);
+
+    if (lastKnownAgendaVersion === null) {
+      lastKnownAgendaVersion = version;
+      return;
+    }
+
+    if (version !== lastKnownAgendaVersion) {
+      console.log("Agenda changed → refresh", lastKnownAgendaVersion, "→", version);
+
+      lastKnownAgendaVersion = version;
+      await refreshAgendaData();
+    }
+  } catch (err) {
+    console.error("pollAgendaVersion error:", err);
   }
 }
 
@@ -778,13 +811,18 @@ async function loadDay(dateStr) {
       document.getElementById("btnNewSpesa")?.removeAttribute("disabled");
       document.getElementById("btnNewMovimento")?.removeAttribute("disabled");
       document.getElementById("btnNewPos")?.removeAttribute("disabled");
-      startVaultPolling();
+      startPolling();
     });
 }
 
-function startVaultPolling() {
-  if (vaultPollInterval) return;
-  vaultPollInterval = setInterval(pollPrivateVaultStatus, 3000);
+function startPolling() {
+  if (!vaultPollInterval) {
+    vaultPollInterval = setInterval(pollPrivateVaultStatus, 3000);
+  }
+
+  if (!agendaPollInterval) {
+    agendaPollInterval = setInterval(pollAgendaVersion, 3000);
+  }
 }
 
 async function loadPreview(dateStr) {

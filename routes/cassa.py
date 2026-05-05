@@ -73,6 +73,26 @@ def _get_cash_day_by_date_or_404(day_date: str):
     return cash_day, None
 
 
+def _agenda_day_version_key(day_date) -> str:
+    return f"agenda:day:{day_date}:version"
+
+
+def _bump_agenda_day_version(day_date) -> None:
+    try:
+        r = get_redis()
+        r.incr(_agenda_day_version_key(day_date))
+    except Exception:
+        logger.exception("Errore incremento agenda day version")
+
+
+def _get_agenda_day_version(day_date) -> int:
+    try:
+        r = get_redis()
+        return int(r.get(_agenda_day_version_key(day_date)) or 0)
+    except Exception:
+        return 0
+
+
 def _serialize_drawer_count(drawer_count: CashDrawerCount | None):
     line_map = {}
     if drawer_count:
@@ -1867,6 +1887,8 @@ def api_create_sale(day_date):
         if not saved:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
+        _bump_agenda_day_version(d.isoformat())
+
         return jsonify({
             "ok": True,
             "sale_id": pri_row["id"],
@@ -1997,6 +2019,7 @@ def api_create_sale(day_date):
 
         db.session.add(sale)
         db.session.commit()
+        _bump_agenda_day_version(d.isoformat())
 
     except ValueError as e:
         db.session.rollback()
@@ -5622,3 +5645,17 @@ def api_get_row_checks():
         ]
     })
 
+@cassa_bp.get("/api/day/<day_date>/version")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_day_version(day_date):
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format"}), 400
+
+    return jsonify({
+        "ok": True,
+        "day_date": d.isoformat(),
+        "version": _get_agenda_day_version(d.isoformat()),
+    })
