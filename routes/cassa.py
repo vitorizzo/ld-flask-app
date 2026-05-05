@@ -3133,6 +3133,8 @@ def api_delete_expense(expense_id):
         if not saved:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
+        _bump_agenda_day_version(day_node["date"])
+
         return jsonify({
             "ok": True,
             "expense_id": expense_id,
@@ -3163,8 +3165,12 @@ def api_delete_expense(expense_id):
             entity_id=expense.id
         ).delete()
 
+        cash_day = CashDay.query.filter_by(id=expense.cash_day_id).first()
+        day_version_date = cash_day.day_date.isoformat() if cash_day else date.today().isoformat()
+
         db.session.delete(expense)
         db.session.commit()
+        _bump_agenda_day_version(day_version_date)
 
         return jsonify({
             "ok": True,
