@@ -628,8 +628,11 @@ def api_delete_deposit(deposit_id):
                 customer_charge_amount=Decimal("0"),
             )
 
+        day_version_date = (deposit.deposit_date or date.today()).isoformat()
+
         db.session.delete(deposit)
         db.session.commit()
+        _bump_agenda_day_version(day_version_date)
 
         return jsonify({
             "ok": True,
@@ -4594,6 +4597,7 @@ def api_create_ecommerce(day_date):
 
         db.session.add(row)
         db.session.commit()
+        _bump_agenda_day_version(d.isoformat())
 
         return jsonify({
             "ok": True,
@@ -4615,8 +4619,11 @@ def api_delete_ecommerce(ecommerce_id):
         return jsonify({"ok": False, "error": "Ecommerce row not found"}), 404
 
     try:
-        db.session.delete(row)
-        db.session.commit()
+        cash_day = CashDay.query.filter_by(id=row.cash_day_id).first()
+        day_version_date = cash_day.day_date.isoformat() if cash_day else date.today().isoformat()
+
+        cash_day = CashDay.query.filter_by(id=row.cash_day_id).first()
+        day_version_date = cash_day.day_date.isoformat() if cash_day else date.today().isoformat()
 
         return jsonify({
             "ok": True,
@@ -4627,6 +4634,49 @@ def api_delete_ecommerce(ecommerce_id):
         db.session.rollback()
         logger.exception("api_delete_ecommerce error: %s", e)
         return jsonify({"ok": False, "error": "Internal error while deleting ecommerce row"}), 500
+
+
+@cassa_bp.put("/api/ecommerce/<int:ecommerce_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_update_ecommerce(ecommerce_id):
+    row = CashEcommerce.query.filter_by(id=ecommerce_id).first()
+    if not row:
+        return jsonify({"ok": False, "error": "Ecommerce row not found"}), 404
+
+    data = request.get_json(silent=True) or {}
+
+    description = (data.get("description") or "").strip()
+    if not description:
+        return jsonify({"ok": False, "error": "Missing description"}), 400
+
+    try:
+        amount = _to_decimal_amount(data.get("amount"), "amount")
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
+    try:
+        cash_day = CashDay.query.filter_by(id=row.cash_day_id).first()
+        day_version_date = cash_day.day_date.isoformat() if cash_day else date.today().isoformat()
+
+        row.description = description
+        row.amount = amount
+
+        db.session.commit()
+        _bump_agenda_day_version(day_version_date)
+
+        return jsonify({
+            "ok": True,
+            "ecommerce_id": row.id,
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_update_ecommerce error: %s", e)
+        return jsonify({
+            "ok": False,
+            "error": "Internal error while updating ecommerce row"
+        }), 500
 
 
 @cassa_bp.get("/api/day/<day_date>/deposit-available-checks")
@@ -4806,6 +4856,7 @@ def api_create_deposit(day_date):
         )
 
     db.session.commit()
+    _bump_agenda_day_version(d.isoformat())
 
     return jsonify({
         "ok": True,
@@ -5033,6 +5084,7 @@ def api_update_deposit(deposit_id):
         deposit.note = note
 
         db.session.commit()
+        _bump_agenda_day_version(day_date.isoformat())
 
         return jsonify({
             "ok": True,

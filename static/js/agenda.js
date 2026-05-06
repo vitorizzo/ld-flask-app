@@ -10,6 +10,7 @@ let vaultPollInterval = null;
 let lastKnownVaultStateVersion = null;
 let lastKnownAgendaVersion = null;
 let agendaPollInterval = null;
+let editingEcommerceId = null;
 
 const EXPENSE_POS_CARDS = [
   "Carta aziendale",
@@ -1409,6 +1410,15 @@ async function loadEcommerce(dayStr) {
         <td>${escapeHtml(row.description || "")}</td>
         <td class="text-end">${formatEuro2(row.amount || 0)}</td>
         <td class="text-end">
+          <button
+            type="button"
+            class="btn btn-outline-secondary btn-sm btn-eco-edit"
+            data-id="${row.id}"
+            data-description="${escapeHtml(row.description || "")}"
+            data-amount="${row.amount || 0}"
+          >
+            Modifica
+          </button>
           <button type="button" class="btn btn-outline-danger btn-sm btn-eco-delete" data-id="${row.id}">
             Elimina
           </button>
@@ -5541,7 +5551,9 @@ ecoAddBtn?.addEventListener("click", async () => {
   const amountRaw = ecoAmountInput?.value;
   const description = (ecoDescriptionInput?.value || "").trim();
 
-  if (!amountRaw || isNaN(amountRaw)) {
+  const amount = parseEuroToNumber(amountRaw);
+
+  if (!amount || amount <= 0) {
     alert("Inserisci un importo valido");
     return;
   }
@@ -5551,13 +5563,20 @@ ecoAddBtn?.addEventListener("click", async () => {
     return;
   }
 
-  const amount = parseFloat(amountRaw);
+  const isEdit = !!editingEcommerceId;
+
+  const url = isEdit
+    ? `/cassa/api/ecommerce/${editingEcommerceId}`
+    : `/cassa/api/day/${currentDay}/ecommerce`;
+
+  const method = isEdit ? "PUT" : "POST";
 
   try {
-    const r = await fetch(`/cassa/api/day/${currentDay}/ecommerce`, {
-      method: "POST",
+    const r = await fetch(url, {
+      method,
       headers: {
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Accept": "application/json"
       },
       credentials: "same-origin",
       body: JSON.stringify({
@@ -5569,27 +5588,45 @@ ecoAddBtn?.addEventListener("click", async () => {
     const data = await r.json();
 
     if (!data.ok) {
-      alert(data.error || "Errore inserimento");
+      alert(data.error || "Errore salvataggio");
       return;
     }
 
+    editingEcommerceId = null;
     ecoAmountInput.value = "";
     ecoDescriptionInput.value = "";
+    if (ecoAddBtn) ecoAddBtn.textContent = "Aggiungi";
 
     await loadEcommerce(currentDay);
     await loadPreview(currentDay);
 
   } catch (err) {
-    console.error("ecoAdd error:", err);
+    console.error("ecoSave error:", err);
     alert("Errore di rete");
   }
 });
 
 ecoTableBody?.addEventListener("click", async (e) => {
-  const btn = e.target.closest(".btn-eco-delete");
-  if (!btn) return;
+  const editBtn = e.target.closest(".btn-eco-edit");
+  if (editBtn) {
+    editingEcommerceId = editBtn.dataset.id || null;
 
-  const ecommerceId = btn.dataset.id;
+    if (ecoDescriptionInput) {
+      ecoDescriptionInput.value = editBtn.dataset.description || "";
+    }
+
+    if (ecoAmountInput) {
+      ecoAmountInput.value = formatEuro2(editBtn.dataset.amount || 0);
+    }
+
+    if (ecoAddBtn) ecoAddBtn.textContent = "Salva modifica";
+    return;
+  }
+
+  const deleteBtn = e.target.closest(".btn-eco-delete");
+  if (!deleteBtn) return;
+
+  const ecommerceId = deleteBtn.dataset.id;
   if (!ecommerceId) return;
 
   const confirmed = window.confirm("Vuoi eliminare questo movimento e-commerce?");
@@ -5607,6 +5644,13 @@ ecoTableBody?.addEventListener("click", async (e) => {
     if (!data.ok) {
       alert(data.error || "Errore eliminazione");
       return;
+    }
+
+    if (String(editingEcommerceId) === String(ecommerceId)) {
+      editingEcommerceId = null;
+      if (ecoAmountInput) ecoAmountInput.value = "";
+      if (ecoDescriptionInput) ecoDescriptionInput.value = "";
+      if (ecoAddBtn) ecoAddBtn.textContent = "Aggiungi";
     }
 
     await loadEcommerce(currentDay);
