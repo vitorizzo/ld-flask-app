@@ -1200,7 +1200,10 @@ def api_cash_day_preview(day_date):
     pri_cash_moves_in = Decimal("0")
     pri_cash_moves_out = Decimal("0")
 
-    if _vault_get_unlocked_state():
+    vault_unlocked = _vault_get_unlocked_state()
+    include_pri = vault_unlocked and view == "complete"
+
+    if include_pri:
         try:
             pri_data = _pri_load_year(d.year)
             day_node = next((x for x in pri_data.get("days", []) if x.get("date") == d.isoformat()), None)
@@ -1258,7 +1261,7 @@ def api_cash_day_preview(day_date):
     result["pri_cash_moves_in"] = float(pri_cash_moves_in)
     result["pri_cash_moves_out"] = float(pri_cash_moves_out)
     result["pri_cash_net"] = float(pri_cash_net)
-    result["view_mode"] = "full" if _vault_get_unlocked_state() else "fiscal"
+    result["view_mode"] = "full" if include_pri else "fiscal"
 
     # =========================
     # Display full/fiscal per KPI

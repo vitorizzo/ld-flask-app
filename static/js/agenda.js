@@ -827,7 +827,9 @@ function startPolling() {
 
 async function loadPreview(dateStr) {
   try {
-    const r = await fetch(`/cassa/api/day/${dateStr}/preview?view=fiscal`, {
+    const view = priVaultUnlocked ? "complete" : "fiscal";
+
+    const r = await fetch(`/cassa/api/day/${dateStr}/preview?view=${view}`, {
       credentials: "same-origin",
       headers: { "Accept": "application/json" },
       cache: "no-store"
@@ -2182,6 +2184,23 @@ document.addEventListener("DOMContentLoaded", function () {
     return checked?.value || "cash";
   }
 
+  function updateOffCashAvailability(mode) {
+    const opOffCash = document.getElementById("opOffCash");
+    const opOffCashBox = document.getElementById("opOffCashBox");
+    if (!opOffCash) return;
+
+    const canBeOffCash = mode === "cash";
+
+    if (!canBeOffCash) {
+      opOffCash.checked = false;
+      opOffCash.disabled = true;
+      opOffCashBox?.classList.add("d-none");
+      return;
+    }
+
+    opOffCash.disabled = false;
+  }
+
   function setPaymentMode(mode) {
     const flag = (document.getElementById("opFlag")?.value || "").trim();
     if ((flag === "x" || flag === "+") && mode !== "cash") {
@@ -2233,6 +2252,7 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
 
+    updateOffCashAvailability(mode);
     lastPaymentMode = mode;
   }
 
