@@ -13,30 +13,14 @@ ultimo commit del branch main.
 
 ---
 
-## 🔗 LETTURA FILE — NUOVA REGOLA OPERATIVA
+## File di coordinamento chat
 
-ChatGPT NON deve più costruire automaticamente i link RAW partendo da LINK_BASE_RAW.
+- `new_chat.md` — manifesto per flusso ChatGPT con file incollati / RAW
+- `new_chat_codex.md` — manifesto per flusso Codex locale con lettura diretta repository
+- `project_map.md`
+- `status.md`
 
-Quando serve leggere un file:
-
-ChatGPT deve fornire il percorso nel formato:
-
-https://raw.githubusercontent.com/vitorizzo/ld-flask-app/main/percorso/file.ext
-
-e chiedere esplicitamente:
-
-"Incollami il link RAW di questo file"
-
-Sarà l’utente a incollare il link completo:
-
-https://raw.githubusercontent.com/...
-
-Senza link RAW diretto → il file NON è leggibile.
-
-È vietato:
-- ricostruire link
-- assumere contenuti
-- usare memoria storica
+Nel flusso Codex locale la lettura avviene direttamente dai file del repository, senza incollare file in chat.
 
 ---
 

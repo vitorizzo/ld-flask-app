@@ -1,3 +1,4 @@
+TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
 Data aggiornamento: 2026-04-12
 
@@ -10,6 +11,12 @@ Le principali CRUD della giornata risultano operative.
 La preview dei KPI e il report diagnostico giornata sono attivi.
 
 Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicazione e sono state allineate diverse logiche della modale pagamenti rispetto agli incassi.
+
+---
+
+## Task corrente (metodologia Codex)
+
+- Rimossa dal manifesto Codex la procedura RAW/incolla-file e allineato il workflow a lettura diretta repository locale
 
 ---
 
