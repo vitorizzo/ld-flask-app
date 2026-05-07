@@ -362,6 +362,12 @@ const btnOpenPosModal = document.getElementById("btnOpenPosModal");
 
 let posModal = null;
 let editingPosMoveId = null;
+let posFilters = {
+  deviceId: null,
+  deviceName: "",
+  circuitId: null,
+  circuitName: ""
+};
 
 /* =========================
    CASH MOVE MODAL REFS
@@ -1706,7 +1712,7 @@ async function loadPosMoves(dayStr) {
   if (!listEl) return;
 
   listEl.innerHTML = `<div class="list-group-item text-muted small">Caricamento...</div>`;
-  if (totalEl) totalEl.textContent = "0,00";
+  if (totalEl) totalEl.textContent = formatPosTotal(0, hasActivePosFilters());
 
   try {
     const [movesRes, checksMap] = await Promise.all([
@@ -1722,19 +1728,26 @@ async function loadPosMoves(dayStr) {
     }
 
     const moves = data.pos_moves || [];
+    const visibleMoves = applyPosFilters(moves);
     if (!moves.length) {
       listEl.innerHTML = `<div class="list-group-item text-muted small">Nessun POS</div>`;
       return;
     }
 
-    const tot = moves.reduce((s, m) => {
+    if (!visibleMoves.length) {
+      listEl.innerHTML = `<div class="list-group-item text-muted small">Nessun POS per filtro</div>`;
+      if (totalEl) totalEl.textContent = formatPosTotal(0, true);
+      return;
+    }
+
+    const tot = visibleMoves.reduce((s, m) => {
       const a = Number(m.amount || 0);
       return s + (m.direction === "in" ? a : -a);
     }, 0);
 
-    if (totalEl) totalEl.textContent = tot.toFixed(2).replace(".", ",");
+    if (totalEl) totalEl.textContent = formatPosTotal(tot, hasActivePosFilters());
 
-    listEl.innerHTML = moves.map(m => {
+    listEl.innerHTML = visibleMoves.map(m => {
       const sign = m.direction === "out" ? "-" : "";
       const amt = `${sign}${Number(m.amount || 0).toFixed(2)}€`;
       const devName = m.pos_device_name || `POS ${m.pos_device_id}`;
@@ -1757,7 +1770,14 @@ async function loadPosMoves(dayStr) {
       const isChecked = checksMap.get(String(m.id)) === true;
 
       return `
-        <div class="list-group-item table-row pos-row ${isChecked ? "row-checked" : ""}" data-pos-move-id="${m.id}">
+        <div
+          class="list-group-item table-row pos-row ${isChecked ? "row-checked" : ""}"
+          data-pos-move-id="${m.id}"
+          data-pos-device-id="${m.pos_device_id || ""}"
+          data-pos-device-name="${escapeHtml(devName)}"
+          data-pos-circuit-id="${m.pos_circuit_id || ""}"
+          data-pos-circuit-name="${escapeHtml(circuitLabel)}"
+        >
           <div class="col-check me-2">
             <input
               type="checkbox"
@@ -1784,6 +1804,65 @@ async function loadPosMoves(dayStr) {
     console.error(e);
     listEl.innerHTML = `<div class="list-group-item text-muted small">Errore di rete</div>`;
   }
+}
+
+function hasActivePosFilters() {
+  return !!(posFilters.deviceId || posFilters.circuitId);
+}
+
+function applyPosFilters(moves) {
+  return (moves || []).filter(m => {
+    if (posFilters.deviceId && String(m.pos_device_id || "") !== String(posFilters.deviceId)) {
+      return false;
+    }
+    if (posFilters.circuitId && String(m.pos_circuit_id || "") !== String(posFilters.circuitId)) {
+      return false;
+    }
+    return true;
+  });
+}
+
+function formatPosTotal(total, filtered = false) {
+  const text = formatEuro2(total);
+  return filtered ? `(${text})` : text;
+}
+
+async function refreshPosAfterFilterChange() {
+  if (!currentDay) return;
+  await loadPosMoves(currentDay);
+}
+
+async function setPosDeviceFilterFromContext() {
+  const deviceId = currentContext?.deviceId;
+  if (!deviceId) return;
+
+  posFilters.deviceId = String(deviceId);
+  posFilters.deviceName = currentContext.deviceName || "";
+  posFilters.circuitId = null;
+  posFilters.circuitName = "";
+
+  await refreshPosAfterFilterChange();
+}
+
+async function setPosCircuitFilterFromContext() {
+  const circuitId = currentContext?.circuitId;
+  if (!circuitId) return;
+
+  posFilters.circuitId = String(circuitId);
+  posFilters.circuitName = currentContext.circuitName || "";
+
+  await refreshPosAfterFilterChange();
+}
+
+async function clearPosFilters() {
+  posFilters = {
+    deviceId: null,
+    deviceName: "",
+    circuitId: null,
+    circuitName: ""
+  };
+
+  await refreshPosAfterFilterChange();
 }
 
 /* =========================
@@ -4745,13 +4824,22 @@ document.addEventListener("DOMContentLoaded", function () {
       e.preventDefault();
 
       if (row) {
-        openContextMenu(e.clientX, e.clientY, {
+        const context = {
           type,
           id: row.dataset[datasetKey],
           panel,
           menuMode: "row",
           hasRows: true
-        });
+        };
+
+        if (type === "pos_move") {
+          context.deviceId = row.dataset.posDeviceId || null;
+          context.deviceName = row.dataset.posDeviceName || "";
+          context.circuitId = row.dataset.posCircuitId || null;
+          context.circuitName = row.dataset.posCircuitName || "";
+        }
+
+        openContextMenu(e.clientX, e.clientY, context);
         return;
       }
 
@@ -4776,13 +4864,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
       const rect = btn.getBoundingClientRect();
 
-      openContextMenu(rect.right - 8, rect.bottom + 4, {
+      const context = {
         type,
         id: row.dataset[datasetKey],
         panel,
         menuMode: "row",
         hasRows: true
-      });
+      };
+
+      if (type === "pos_move") {
+        context.deviceId = row.dataset.posDeviceId || null;
+        context.deviceName = row.dataset.posDeviceName || "";
+        context.circuitId = row.dataset.posCircuitId || null;
+        context.circuitName = row.dataset.posCircuitName || "";
+      }
+
+      openContextMenu(rect.right - 8, rect.bottom + 4, context);
     });
   }
 
@@ -4871,11 +4968,15 @@ document.addEventListener("DOMContentLoaded", function () {
           break;
 
         case "filter_device":
-          alert("Filtro per device: prossimo step");
+          if (currentContext.type === "pos_move") {
+            await setPosDeviceFilterFromContext();
+          }
           break;
 
         case "filter_circuit":
-          alert("Filtro per circuito: prossimo step");
+          if (currentContext.type === "pos_move") {
+            await setPosCircuitFilterFromContext();
+          }
           break;
 
         case "filter_kind":
@@ -4891,7 +4992,11 @@ document.addEventListener("DOMContentLoaded", function () {
           break;
 
         case "clear_filters":
-          alert("Reset filtri: prossimo step");
+          if (currentContext.type === "pos_move") {
+            await clearPosFilters();
+          } else {
+            alert("Reset filtri: prossimo step");
+          }
           break;
 
         case "report":
@@ -5672,6 +5777,9 @@ function buildContextMenuHtml(context) {
   const canInsert = ["pos_move", "cash_move", "sale", "expense"].includes(entityType);
   const canEditDelete = isRowMenu && !!context?.id;
   const canFilter = !isRowMenu && hasRows;
+  const canFilterPosDevice = entityType === "pos_move" && isRowMenu && !!context?.deviceId;
+  const canFilterPosCircuit = entityType === "pos_move" && isRowMenu && !!context?.circuitId;
+  const canClearPosFilters = entityType === "pos_move" && hasActivePosFilters();
   const canReport = true;
 
   const btn = (label, action, enabled = true, danger = false) => {
@@ -5706,9 +5814,9 @@ function buildContextMenuHtml(context) {
   if (entityType === "pos_move") {
     sections.push(`
       <div class="context-menu-section">
-        ${btn("Filtra per device", "filter_device", canFilter)}
-        ${btn("Filtra per circuito", "filter_circuit", canFilter)}
-        ${btn("Rimuovi filtri", "clear_filters", canFilter)}
+        ${btn("Filtra per device", "filter_device", canFilterPosDevice)}
+        ${btn("Filtra per circuito", "filter_circuit", canFilterPosCircuit)}
+        ${btn("Rimuovi filtri", "clear_filters", canClearPosFilters)}
       </div>
     `);
   }
