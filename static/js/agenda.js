@@ -368,6 +368,7 @@ let posFilters = {
   circuitId: null,
   circuitName: ""
 };
+let lastPosMoves = [];
 
 /* =========================
    CASH MOVE MODAL REFS
@@ -1728,6 +1729,7 @@ async function loadPosMoves(dayStr) {
     }
 
     const moves = data.pos_moves || [];
+    lastPosMoves = moves;
     const visibleMoves = applyPosFilters(moves);
     if (!moves.length) {
       listEl.innerHTML = `<div class="list-group-item text-muted small">Nessun POS</div>`;
@@ -1812,14 +1814,63 @@ function hasActivePosFilters() {
 
 function applyPosFilters(moves) {
   return (moves || []).filter(m => {
-    if (posFilters.deviceId && String(m.pos_device_id || "") !== String(posFilters.deviceId)) {
+    if (posFilters.deviceId === "__none__" && m.pos_device_id) {
       return false;
     }
-    if (posFilters.circuitId && String(m.pos_circuit_id || "") !== String(posFilters.circuitId)) {
+    if (posFilters.deviceId && posFilters.deviceId !== "__none__" && String(m.pos_device_id || "") !== String(posFilters.deviceId)) {
+      return false;
+    }
+    if (posFilters.circuitId === "__none__" && m.pos_circuit_id) {
+      return false;
+    }
+    if (posFilters.circuitId && posFilters.circuitId !== "__none__" && String(m.pos_circuit_id || "") !== String(posFilters.circuitId)) {
       return false;
     }
     return true;
   });
+}
+
+function getPosFilterOptionMoves(kind) {
+  return (lastPosMoves || []).filter(m => {
+    if (kind !== "device") {
+      if (posFilters.deviceId === "__none__" && m.pos_device_id) return false;
+      if (posFilters.deviceId && posFilters.deviceId !== "__none__" && String(m.pos_device_id || "") !== String(posFilters.deviceId)) {
+        return false;
+      }
+    }
+
+    if (kind !== "circuit") {
+      if (posFilters.circuitId === "__none__" && m.pos_circuit_id) return false;
+      if (posFilters.circuitId && posFilters.circuitId !== "__none__" && String(m.pos_circuit_id || "") !== String(posFilters.circuitId)) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+}
+
+function uniquePosFilterOptions(kind) {
+  const seen = new Map();
+  const moves = getPosFilterOptionMoves(kind);
+
+  for (const m of moves) {
+    const id = kind === "device" ? m.pos_device_id : m.pos_circuit_id;
+    if (!id) continue;
+
+    const fallback = kind === "device" ? `POS ${id}` : "Circuito";
+    const name = kind === "device"
+      ? (m.pos_device_name || fallback)
+      : (m.pos_circuit_name || fallback);
+
+    if (!seen.has(String(id))) {
+      seen.set(String(id), name);
+    }
+  }
+
+  return Array.from(seen.entries())
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name, "it"));
 }
 
 function formatPosTotal(total, filtered = false) {
@@ -1832,24 +1883,16 @@ async function refreshPosAfterFilterChange() {
   await loadPosMoves(currentDay);
 }
 
-async function setPosDeviceFilterFromContext() {
-  const deviceId = currentContext?.deviceId;
-  if (!deviceId) return;
-
-  posFilters.deviceId = String(deviceId);
-  posFilters.deviceName = currentContext.deviceName || "";
-  posFilters.circuitId = null;
-  posFilters.circuitName = "";
+async function setPosDeviceFilter(value, label = "") {
+  posFilters.deviceId = value || null;
+  posFilters.deviceName = value ? label : "";
 
   await refreshPosAfterFilterChange();
 }
 
-async function setPosCircuitFilterFromContext() {
-  const circuitId = currentContext?.circuitId;
-  if (!circuitId) return;
-
-  posFilters.circuitId = String(circuitId);
-  posFilters.circuitName = currentContext.circuitName || "";
+async function setPosCircuitFilter(value, label = "") {
+  posFilters.circuitId = value || null;
+  posFilters.circuitName = value ? label : "";
 
   await refreshPosAfterFilterChange();
 }
@@ -4895,6 +4938,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!currentContext) return;
 
     const action = item.dataset.action;
+    if (!action) return;
 
     try {
       switch (action) {
@@ -4969,13 +5013,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
         case "filter_device":
           if (currentContext.type === "pos_move") {
-            await setPosDeviceFilterFromContext();
+            await setPosDeviceFilter(item.dataset.filterValue || null, item.dataset.filterLabel || "");
           }
           break;
 
         case "filter_circuit":
           if (currentContext.type === "pos_move") {
-            await setPosCircuitFilterFromContext();
+            await setPosCircuitFilter(item.dataset.filterValue || null, item.dataset.filterLabel || "");
           }
           break;
 
@@ -5777,8 +5821,8 @@ function buildContextMenuHtml(context) {
   const canInsert = ["pos_move", "cash_move", "sale", "expense"].includes(entityType);
   const canEditDelete = isRowMenu && !!context?.id;
   const canFilter = !isRowMenu && hasRows;
-  const canFilterPosDevice = entityType === "pos_move" && isRowMenu && !!context?.deviceId;
-  const canFilterPosCircuit = entityType === "pos_move" && isRowMenu && !!context?.circuitId;
+  const canFilterPosDevice = entityType === "pos_move" && hasRows;
+  const canFilterPosCircuit = entityType === "pos_move" && hasRows;
   const canClearPosFilters = entityType === "pos_move" && hasActivePosFilters();
   const canReport = true;
 
@@ -5790,6 +5834,63 @@ function buildContextMenuHtml(context) {
     ].filter(Boolean).join(" ");
 
     return `<button type="button" class="${classes}" data-action="${action}">${label}</button>`;
+  };
+
+  const filterBtn = (label, action, value, optionLabel, active = false) => {
+    const classes = [
+      "context-menu-item",
+      active ? "active" : ""
+    ].filter(Boolean).join(" ");
+
+    return `
+      <button
+        type="button"
+        class="${classes}"
+        data-action="${action}"
+        data-filter-value="${escapeHtml(value || "")}"
+        data-filter-label="${escapeHtml(optionLabel || "")}"
+      >
+        ${label}
+      </button>
+    `;
+  };
+
+  const submenu = (label, enabled, itemsHtml) => {
+    const classes = [
+      "context-menu-submenu-wrap",
+      enabled ? "" : "disabled"
+    ].filter(Boolean).join(" ");
+
+    return `
+      <div class="${classes}">
+        <button type="button" class="context-menu-item has-submenu ${enabled ? "" : "disabled"}">
+          <span>${label}</span>
+          <span class="context-menu-submenu-arrow">›</span>
+        </button>
+        <div class="context-menu-submenu">
+          ${itemsHtml}
+        </div>
+      </div>
+    `;
+  };
+
+  const posFilterSubmenu = (kind) => {
+    const action = kind === "device" ? "filter_device" : "filter_circuit";
+    const currentValue = kind === "device" ? posFilters.deviceId : posFilters.circuitId;
+    const options = uniquePosFilterOptions(kind);
+    const rows = [
+      filterBtn("Tutti", action, "", "Tutti", !currentValue),
+      filterBtn("Nessuno", action, "__none__", "Nessuno", currentValue === "__none__"),
+      ...options.map(opt => filterBtn(
+        escapeHtml(opt.name),
+        action,
+        opt.id,
+        opt.name,
+        String(currentValue || "") === String(opt.id)
+      ))
+    ];
+
+    return rows.join("");
   };
 
   const sections = [];
@@ -5814,8 +5915,8 @@ function buildContextMenuHtml(context) {
   if (entityType === "pos_move") {
     sections.push(`
       <div class="context-menu-section">
-        ${btn("Filtra per device", "filter_device", canFilterPosDevice)}
-        ${btn("Filtra per circuito", "filter_circuit", canFilterPosCircuit)}
+        ${submenu("Filtra per device", canFilterPosDevice, posFilterSubmenu("device"))}
+        ${submenu("Filtra per circuito", canFilterPosCircuit, posFilterSubmenu("circuit"))}
         ${btn("Rimuovi filtri", "clear_filters", canClearPosFilters)}
       </div>
     `);
@@ -5871,6 +5972,7 @@ function openContextMenu(x, y, context) {
   menu.innerHTML = buildContextMenuHtml(context);
 
   menu.classList.remove("d-none");
+  menu.classList.remove("submenu-left");
   menu.style.visibility = "hidden";
   menu.style.left = "0px";
   menu.style.top = "0px";
@@ -5893,6 +5995,10 @@ function openContextMenu(x, y, context) {
 
   if (left < gap) left = gap;
   if (top < gap) top = gap;
+
+  if (left + menuRect.width + 288 > vw - gap) {
+    menu.classList.add("submenu-left");
+  }
 
   menu.style.left = `${left}px`;
   menu.style.top = `${top}px`;
@@ -6062,6 +6168,7 @@ function closeContextMenu() {
   if (!menu) return;
 
   menu.classList.add("d-none");
+  menu.classList.remove("submenu-left");
   menu.style.visibility = "";
   currentContext = null;
 }
