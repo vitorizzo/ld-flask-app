@@ -57,7 +57,7 @@ if (window.__menuMgmtInitDone) {
       body: JSON.stringify(payload)
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok) throw new Error("create failed");
+    if (!res.ok || !data.ok) throw new Error(data.error || "create failed");
   }
 
   async function updateMenuJson(payload) {
@@ -68,7 +68,19 @@ if (window.__menuMgmtInitDone) {
       body: JSON.stringify(payload)
     });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok) throw new Error("update failed");
+    if (!res.ok || !data.ok) throw new Error(data.error || "update failed");
+  }
+
+  async function apiReorderMenus(items) {
+    const res = await fetch("/settings/reorder_menus", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({ items })
+    });
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || "reorder failed");
   }
 
   /* =========================
@@ -116,17 +128,17 @@ if (window.__menuMgmtInitDone) {
       const isActive = !!n.is_active;
 
       li.innerHTML = `
-        <div class="d-flex align-items-center gap-2">
+        <div class="menu-row d-flex align-items-center gap-2 ${isActive ? "" : "menu-row-inactive"}">
           <span class="menu-handle" title="Trascina per riordinare" style="cursor: grab;">
             ⠿
           </span>
 
-          <span class="menu-node-title">
-            ${(n.name ?? "")} <small class="text-muted">w:${n.weight ?? 0}</small>
+          <span class="menu-node-title menu-title">
+            ${escapeHtml(n.name ?? "")} <small class="text-muted">w:${n.weight ?? 0}</small>
           </span>
 
           <div class="dropdown ms-auto">
-            <a class="btn btn-sm btn-outline-secondary dropdown-toggle"
+            <a class="btn btn-sm btn-outline-secondary dropdown-toggle btn-menu-actions"
                href="#"
                role="button"
                data-bs-toggle="dropdown"
@@ -146,9 +158,7 @@ if (window.__menuMgmtInitDone) {
       `;
 
 
-      if (n.children?.length) {
-        li.appendChild(renderTree(n.children));
-      }
+      li.appendChild(renderTree(n.children || []));
 
       ul.appendChild(li);
     });
@@ -172,10 +182,61 @@ if (window.__menuMgmtInitDone) {
       const s = new Sortable(ul, {
         group: "menus",
         animation: 150,
-        handle: ".menu-handle"
+        handle: ".menu-handle",
+        fallbackOnBody: true,
+        swapThreshold: 0.65,
+        onMove(evt) {
+          return !evt.dragged.contains(evt.related);
+        },
+        async onEnd() {
+          await persistTreeOrder(root);
+        }
       });
       sortables.push(s);
     });
+  }
+
+  function getDirectMenuNodes(ul) {
+    return Array.from(ul.children).filter(el => el.matches("li.menu-node"));
+  }
+
+  function collectTreeOrder(root) {
+    const items = [];
+    const rootUl = root.querySelector(":scope > .menu-tree");
+    if (!rootUl) return items;
+
+    function walk(ul, parentId) {
+      getDirectMenuNodes(ul).forEach((li, index) => {
+        const id = Number(li.dataset.id);
+        if (!Number.isFinite(id)) return;
+
+        items.push({
+          id,
+          parent_id: parentId,
+          sort_order: index + 1
+        });
+
+        const childUl = li.querySelector(":scope > .menu-tree");
+        if (childUl) walk(childUl, id);
+      });
+    }
+
+    walk(rootUl, null);
+    return items;
+  }
+
+  async function persistTreeOrder(root) {
+    const items = collectTreeOrder(root);
+    if (!items.length) return;
+
+    try {
+      await apiReorderMenus(items);
+      await renderAll();
+    } catch (err) {
+      console.error("REORDER:", err);
+      alert(err.message || "Errore salvataggio ordine menu");
+      await renderAll();
+    }
   }
 
   /* =========================
@@ -193,8 +254,6 @@ if (window.__menuMgmtInitDone) {
       const action = a.dataset.action;
 
       if (action === "add-child") {
-        // Apri la stessa modale di creazione, ma con parent_id = id
-        // (openModal esiste già perché viene usata per 'edit')
         openModal({ mode: "add-child", parentId: id });
         return;
       }
@@ -207,14 +266,23 @@ if (window.__menuMgmtInitDone) {
 
       if (action === "delete") {
         if (!confirm("Eliminare questo menu?")) return;
-        await apiDeleteMenu(id, true);
-        await renderAll();
+
+        try {
+          await apiDeleteMenu(id, false);
+        } catch (err) {
+          if (err.code !== "HAS_CHILDREN") throw err;
+          const cascade = confirm("Questo menu contiene sotto-menu. Eliminare anche tutti i sotto-menu?");
+          if (!cascade) return;
+          await apiDeleteMenu(id, true);
+        } finally {
+          await renderAll();
+        }
         return;
       }
 
       if (action === "edit") {
         const data = await loadMenuData(id);
-        openModal(data);
+        openModal({ mode: "edit", menu: data });
         return;
       }
     });
@@ -250,6 +318,7 @@ if (window.__menuMgmtInitDone) {
     document.getElementById("mm_route").value = menu?.route ?? "";
     document.getElementById("mm_weight").value = menu?.weight ?? 0;
     document.getElementById("mm_is_active").checked = (menu?.is_active ?? true) === true;
+    syncRoleSelectFromWeight(menu?.weight ?? 0);
 
     document.getElementById("menuModalTitle").textContent =
       (mode === "add-root") ? "Crea menu (root)" :
@@ -263,6 +332,38 @@ if (window.__menuMgmtInitDone) {
     const modalEl = document.getElementById("menuModal");
     const inst = bootstrap.Modal.getInstance(modalEl);
     if (inst) inst.hide();
+  }
+
+  function syncRoleSelectFromWeight(weight) {
+    const roleSelect = document.getElementById("mm_role_weight");
+    const customWrap = document.getElementById("mm_weight_custom_wrap");
+    const weightInput = document.getElementById("mm_weight");
+    if (!roleSelect || !customWrap || !weightInput) return;
+
+    const value = String(Number(weight || 0));
+    const hasOption = Array.from(roleSelect.options).some(opt => opt.value === value);
+
+    roleSelect.value = hasOption ? value : "__custom__";
+    customWrap.style.display = hasOption ? "none" : "";
+    weightInput.value = value;
+  }
+
+  function bindRoleWeight() {
+    const roleSelect = document.getElementById("mm_role_weight");
+    const customWrap = document.getElementById("mm_weight_custom_wrap");
+    const weightInput = document.getElementById("mm_weight");
+    if (!roleSelect || !customWrap || !weightInput) return;
+
+    roleSelect.addEventListener("change", () => {
+      if (roleSelect.value === "__custom__") {
+        customWrap.style.display = "";
+        weightInput.focus();
+        return;
+      }
+
+      customWrap.style.display = "none";
+      weightInput.value = roleSelect.value || "0";
+    });
   }
 
   /* =========================
@@ -325,6 +426,12 @@ if (window.__menuMgmtInitDone) {
 
     bindActions(host);
     bindModalSubmit(renderAll);
+    bindRoleWeight();
+
+    document.getElementById("btnAddRootMenu")?.addEventListener("click", () => {
+      openModal({ mode: "add-root", parentId: null });
+    });
+
     await renderAll();
   });
 }

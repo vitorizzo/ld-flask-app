@@ -131,20 +131,45 @@ def reorder_menus():
         return jsonify({"ok": False, "error": "Payload non valido: items[] richiesto"}), 400
 
     try:
+        parent_by_id = {
+            int(it["id"]): (int(it["parent_id"]) if it.get("parent_id") is not None else None)
+            for it in items
+            if it.get("id") is not None
+        }
+
+        def would_create_cycle(menu_id, parent_id):
+            seen = {menu_id}
+            current = parent_id
+            while current is not None:
+                if current in seen:
+                    return True
+                seen.add(current)
+                if current in parent_by_id:
+                    current = parent_by_id[current]
+                else:
+                    parent = Menu.query.get(current)
+                    current = parent.parent_id if parent else None
+            return False
+
         # Validazione + update
         for it in items:
             mid = it.get("id")
             if mid is None:
                 continue
 
-            menu = Menu.query.get(int(mid))
+            mid = int(mid)
+            menu = Menu.query.get(mid)
             if not menu:
                 continue
 
             parent_id = it.get("parent_id", None)
+            parent_id = int(parent_id) if parent_id is not None else None
             sort_order = it.get("sort_order", 0)
 
-            menu.parent_id = int(parent_id) if parent_id is not None else None
+            if parent_id == mid or would_create_cycle(mid, parent_id):
+                return jsonify({"ok": False, "error": "Gerarchia menu non valida"}), 400
+
+            menu.parent_id = parent_id
             menu.sort_order = int(sort_order)
 
         db.session.commit()
@@ -344,6 +369,9 @@ def create_menu():
 
     parent_id = data.get("parent_id")
     parent_id = int(parent_id) if parent_id is not None else None
+    if parent_id is not None and not Menu.query.get(parent_id):
+        return jsonify(ok=False, error="Menu padre non trovato"), 404
+
     weight = int(data.get("weight") or 0)
     route = data.get("route") or None
     is_active = bool(data.get("is_active", True))
@@ -381,9 +409,32 @@ def update_menu_json():
     m = Menu.query.get_or_404(int(mid))
 
     m.name = (data.get("name") or "").strip()
+    if not m.name:
+        return jsonify(ok=False, error="Nome obbligatorio"), 400
+
     m.route = data.get("route") or None
     m.weight = int(data.get("weight") or 0)
     m.is_active = bool(data.get("is_active", True))
+
+    if "parent_id" in data:
+        parent_id = data.get("parent_id")
+        parent_id = int(parent_id) if parent_id is not None else None
+
+        if parent_id == m.id:
+            return jsonify(ok=False, error="Un menu non può essere padre di sé stesso"), 400
+
+        current = parent_id
+        while current is not None:
+            if current == m.id:
+                return jsonify(ok=False, error="Gerarchia menu non valida"), 400
+
+            parent = Menu.query.get(current)
+            if not parent:
+                return jsonify(ok=False, error="Menu padre non trovato"), 404
+
+            current = parent.parent_id
+
+        m.parent_id = parent_id
 
     db.session.commit()
     return jsonify(ok=True)
