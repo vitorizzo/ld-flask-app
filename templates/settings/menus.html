@@ -7,6 +7,8 @@
 {% endblock %}
 
 {% block scripts %}
+  {{ super() }}
+
   <!-- SortableJS -->
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 
@@ -25,10 +27,16 @@
           <div class="card-header d-flex align-items-center justify-content-between">
             <strong>Struttura menu (drag&drop)</strong>
 
-            <!-- ROOT CREATE -->
-            <button type="button" class="btn-enabled-custom btn-sm" id="btnAddRootMenu">
-              + Nuovo menu (root)
-            </button>
+            <div class="d-flex align-items-center gap-2">
+              <button type="button" class="btn btn-sm btn-outline-primary" id="btnApplyMenuChanges" disabled>
+                Applica
+              </button>
+
+              <!-- ROOT CREATE -->
+              <button type="button" class="btn-enabled-custom btn-sm" id="btnAddRootMenu">
+                + Nuovo menu (root)
+              </button>
+            </div>
           </div>
 
           <div class="card-body">

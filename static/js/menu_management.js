@@ -7,6 +7,7 @@ if (window.__menuMgmtInitDone) {
 
   let modalSubmitting = false;
   let sortables = [];
+  let hasPendingApply = false;
 
   /* =========================
      API
@@ -81,6 +82,16 @@ if (window.__menuMgmtInitDone) {
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) throw new Error(data.error || "reorder failed");
+  }
+
+  function setPendingApply(value = true) {
+    hasPendingApply = !!value;
+    const btn = document.getElementById("btnApplyMenuChanges");
+    if (!btn) return;
+
+    btn.disabled = !hasPendingApply;
+    btn.classList.toggle("btn-primary", hasPendingApply);
+    btn.classList.toggle("btn-outline-primary", !hasPendingApply);
   }
 
   /* =========================
@@ -231,6 +242,7 @@ if (window.__menuMgmtInitDone) {
 
     try {
       await apiReorderMenus(items);
+      setPendingApply(true);
       await renderAll();
     } catch (err) {
       console.error("REORDER:", err);
@@ -260,21 +272,26 @@ if (window.__menuMgmtInitDone) {
 
       if (action === "toggle-active") {
         await apiToggleMenuActive(id);
+        setPendingApply(true);
         await renderAll();
         return;
       }
 
       if (action === "delete") {
         if (!confirm("Eliminare questo menu?")) return;
+        let deleted = false;
 
         try {
           await apiDeleteMenu(id, false);
+          deleted = true;
         } catch (err) {
           if (err.code !== "HAS_CHILDREN") throw err;
           const cascade = confirm("Questo menu contiene sotto-menu. Eliminare anche tutti i sotto-menu?");
           if (!cascade) return;
           await apiDeleteMenu(id, true);
+          deleted = true;
         } finally {
+          if (deleted) setPendingApply(true);
           await renderAll();
         }
         return;
@@ -404,6 +421,7 @@ if (window.__menuMgmtInitDone) {
         }
 
         bootstrap.Modal.getOrCreateInstance(document.getElementById("menuModal")).hide();
+        setPendingApply(true);
         await refreshFn();
       } catch (err) {
         console.error("MODAL SUBMIT:", err);
@@ -432,6 +450,12 @@ if (window.__menuMgmtInitDone) {
       openModal({ mode: "add-root", parentId: null });
     });
 
+    document.getElementById("btnApplyMenuChanges")?.addEventListener("click", () => {
+      if (!hasPendingApply) return;
+      window.location.reload();
+    });
+
     await renderAll();
+    setPendingApply(false);
   });
 }
