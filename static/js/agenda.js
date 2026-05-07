@@ -4872,6 +4872,7 @@ document.addEventListener("DOMContentLoaded", function () {
           id: row.dataset[datasetKey],
           panel,
           menuMode: "row",
+          menuScope: "full",
           hasRows: true
         };
 
@@ -4891,6 +4892,7 @@ document.addEventListener("DOMContentLoaded", function () {
         id: null,
         panel,
         menuMode: "panel",
+        menuScope: "full",
         hasRows
       });
     });
@@ -4912,6 +4914,7 @@ document.addEventListener("DOMContentLoaded", function () {
         id: row.dataset[datasetKey],
         panel,
         menuMode: "row",
+        menuScope: "row",
         hasRows: true
       };
 
@@ -5817,10 +5820,14 @@ function buildContextMenuHtml(context) {
   const isRowMenu = context?.menuMode === "row";
   const entityType = context?.type || "";
   const hasRows = !!context?.hasRows;
+  const menuScope = context?.menuScope || "full";
+  const showRowMenu = isRowMenu && ["row", "full"].includes(menuScope);
+  const showPanelMenu = ["panel", "full"].includes(menuScope);
+  const showGeneralMenu = menuScope === "full";
 
   const canInsert = ["pos_move", "cash_move", "sale", "expense"].includes(entityType);
-  const canEditDelete = isRowMenu && !!context?.id;
-  const canFilter = !isRowMenu && hasRows;
+  const canEditDelete = showRowMenu && !!context?.id;
+  const canFilter = showPanelMenu && hasRows;
   const canFilterPosDevice = entityType === "pos_move" && hasRows;
   const canFilterPosCircuit = entityType === "pos_move" && hasRows;
   const canClearPosFilters = entityType === "pos_move" && hasActivePosFilters();
@@ -5895,67 +5902,76 @@ function buildContextMenuHtml(context) {
 
   const sections = [];
 
-  if (canInsert) {
-    sections.push(`
-      <div class="context-menu-section">
-        ${btn("Inserisci", "insert", true)}
-      </div>
-    `);
-  }
+  const section = (title, content) => `
+    <div class="context-menu-section">
+      ${title ? `<div class="context-menu-section-title">${title}</div>` : ""}
+      ${content}
+    </div>
+  `;
 
-  if (["pos_move", "cash_move", "sale", "expense"].includes(entityType)) {
+  if (showRowMenu && ["pos_move", "cash_move", "sale", "expense"].includes(entityType)) {
     sections.push(`
-      <div class="context-menu-section">
+      ${section("Riga", `
         ${btn("Modifica", "edit", canEditDelete)}
         ${btn("Elimina", "delete", canEditDelete, true)}
-      </div>
+      `)}
     `);
   }
 
-  if (entityType === "pos_move") {
+  if (showPanelMenu && canInsert) {
     sections.push(`
-      <div class="context-menu-section">
+      ${section("Quadrante", `
+        ${btn("Inserisci", "insert", true)}
+      `)}
+    `);
+  }
+
+  if (showPanelMenu && entityType === "pos_move") {
+    sections.push(`
+      ${section(canInsert ? "" : "Quadrante", `
         ${submenu("Filtra per device", canFilterPosDevice, posFilterSubmenu("device"))}
         ${submenu("Filtra per circuito", canFilterPosCircuit, posFilterSubmenu("circuit"))}
         ${btn("Rimuovi filtri", "clear_filters", canClearPosFilters)}
-      </div>
+      `)}
     `);
   }
 
-  if (entityType === "cash_move") {
+  if (showPanelMenu && entityType === "cash_move") {
     sections.push(`
-      <div class="context-menu-section">
+      ${section(canInsert ? "" : "Quadrante", `
         ${btn("Filtra per tipo", "filter_kind", canFilter)}
         ${btn("Rimuovi filtri", "clear_filters", canFilter)}
-      </div>
+      `)}
     `);
   }
 
-  if (entityType === "sale") {
+  if (showPanelMenu && entityType === "sale") {
     sections.push(`
-      <div class="context-menu-section">
+      ${section(canInsert ? "" : "Quadrante", `
         ${btn("Filtra per pagamento", "filter_method", canFilter)}
         ${btn("Solo fuori cassa", "filter_offcash", canFilter)}
         ${btn("Rimuovi filtri", "clear_filters", canFilter)}
-      </div>
+      `)}
     `);
   }
 
-  if (entityType === "expense") {
+  if (showPanelMenu && entityType === "expense") {
     sections.push(`
-      <div class="context-menu-section">
+      ${section(canInsert ? "" : "Quadrante", `
         ${btn("Filtra per pagamento", "filter_method", canFilter)}
         ${btn("Solo fuori cassa", "filter_offcash", canFilter)}
         ${btn("Rimuovi filtri", "clear_filters", canFilter)}
-      </div>
+      `)}
     `);
   }
 
-  sections.push(`
-    <div class="context-menu-section">
+  if (showGeneralMenu) {
+    sections.push(`
+      ${section("Generale", `
       ${btn("Report giornata", "report", canReport)}
-    </div>
-  `);
+      `)}
+    `);
+  }
 
   if (!sections.length) {
     return `<div class="context-menu-empty">Nessuna azione disponibile</div>`;
