@@ -166,3 +166,58 @@ Prima di intervenire:
 - non assumere il contenuto di `cash_math.py`
 - non riusare versioni vecchie della modale pagamenti
 - partire dallo stato attuale effettivo del codice
+
+## Aggiornamento situazione — Agenda / Cassa
+
+### Completato
+
+- Implementata sincronizzazione multi-client tramite Redis:
+  - `_bump_agenda_day_version(day_date)`
+  - endpoint `/cassa/api/day/<day_date>/version`
+  - polling frontend con `pollAgendaVersion()`
+- Agganciate alla sincronizzazione le principali CRUD:
+  - incassi
+  - spese
+  - movimenti di cassa
+  - POS
+  - row-check
+  - fondo cassa / drawer-count
+  - corrispettivi
+  - prelievi titolare / cassetto
+  - versamenti
+  - eCommerce
+- Aggiunta route `PUT /api/ecommerce/<id>` e gestione frontend modifica eCommerce.
+- Sistemata sincronizzazione stato vault:
+  - `private_vault:unlocked`
+  - `private_vault:state_version`
+  - polling frontend dedicato.
+- Sistemato caricamento iniziale agenda:
+  - stato grafico vault e dati caricati risultano coerenti.
+- Sistemati KPI fiscal/full:
+  - preview ora usa `view=fiscal|complete`
+  - modalità fiscale esclude PRI
+  - modalità full include PRI.
+- Corretta quadratura:
+  - incassi banca non devono entrare nel cassetto atteso.
+- Corretta UI “Fuori cassa”:
+  - disponibile solo per pagamenti cash.
+  - disabilitata per banca/POS/assegno/multipli.
+- Corretto parser importi JS:
+  - `12,50` e `12.50` vengono interpretati entrambi come `12.50`.
+- Disabilitato watchdog `vault-healthcheck`, risultato non adatto con automount/autofs.
+
+### In sospeso / prossima chat
+
+- Proseguire test regressione generale Agenda:
+  - insert/update/delete su tutte le sezioni
+  - sync tra più client
+  - KPI fiscal/full
+  - lock/unlock vault
+  - mount/unmount chiavetta.
+- Valutare sostituzione futura del bump manuale con hook centralizzato SQLAlchemy.
+- Sistemare definitivamente gestione robusta chiavetta USB:
+  - rimozione improvvisa
+  - reinserimento
+  - automount
+  - recovery da stato autofs/mount incoerente.
+- Rimuovere password vault hardcoded nel JS (`TEST123`) quando si passa a soluzione definitiva.
