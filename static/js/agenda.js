@@ -1557,6 +1557,8 @@ async function loadIncassi(dayStr) {
 
         allRows.push({
           sale_id: s.id,
+          storage: s.storage || p.storage || "az",
+          is_checked: !!s.is_checked,
           created_at: p.created_at || s.created_at,
           flag: p.flag || "",
           desc: composedDesc,
@@ -1587,7 +1589,9 @@ async function loadIncassi(dayStr) {
       if (x.method === "check") badges.push(`<span class="badge badge-soft badge-bank">ASSEGNO</span>`);
       if (x.off_cash) badges.push(`<span class="badge badge-soft badge-offcash">FUORI CASSA</span>`);
 
-      const isChecked = checksMap.get(String(x.sale_id)) === true;
+      const isChecked = x.storage === "pri"
+        ? !!x.is_checked
+        : checksMap.get(String(x.sale_id)) === true;
 
       return `
         <div

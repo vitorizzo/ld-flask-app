@@ -5957,15 +5957,16 @@ def api_toggle_row_check():
         return jsonify({"ok": False, "error": "Invalid cash_day_id"}), 400
 
     entity_id_str = str(entity_id).strip()
+    cash_day = CashDay.query.filter_by(id=cash_day_id).first()
+    check_year = cash_day.day_date.year if cash_day else date.today().year
 
     # =========================
-    # CASO PRI: accettiamo il toggle ma non lo persistiamo ancora
+    # CASO PRI: persistiamo la spunta nel vault annuale della giornata
     # =========================
     if entity_id_str.startswith("pri-cm-"):
         requested_state = bool(data.get("is_checked", True))
-        year = date.today().year
 
-        updated_row = _pri_set_cash_move_checked(year, entity_id_str, requested_state)
+        updated_row = _pri_set_cash_move_checked(check_year, entity_id_str, requested_state)
 
         if updated_row is None:
             return jsonify({"ok": False, "error": "Movimento PRI non trovato"}), 404
@@ -5973,7 +5974,7 @@ def api_toggle_row_check():
         if updated_row is False:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
-        pri_data, day_node, _, _ = _pri_find_cash_move(year, entity_id_str)
+        pri_data, day_node, _, _ = _pri_find_cash_move(check_year, entity_id_str)
         if day_node:
             _bump_agenda_day_version(day_node["date"])
 
@@ -5987,9 +5988,8 @@ def api_toggle_row_check():
 
     if entity_id_str.startswith("pri-exp-"):
         requested_state = bool(data.get("is_checked", True))
-        year = date.today().year
 
-        updated_row = _pri_set_expense_checked(year, entity_id_str, requested_state)
+        updated_row = _pri_set_expense_checked(check_year, entity_id_str, requested_state)
 
         if updated_row is None:
             return jsonify({"ok": False, "error": "Spesa PRI non trovata"}), 404
@@ -5997,7 +5997,7 @@ def api_toggle_row_check():
         if updated_row is False:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
-        pri_data, day_node, _, _ = _pri_find_expense(year, entity_id_str)
+        pri_data, day_node, _, _ = _pri_find_expense(check_year, entity_id_str)
         if day_node:
             _bump_agenda_day_version(day_node["date"])
 
@@ -6011,9 +6011,8 @@ def api_toggle_row_check():
 
     if entity_id_str.startswith("pri-sale-"):
         requested_state = bool(data.get("is_checked", True))
-        year = date.today().year
 
-        updated_row = _pri_set_sale_checked(year, entity_id_str, requested_state)
+        updated_row = _pri_set_sale_checked(check_year, entity_id_str, requested_state)
 
         if updated_row is None:
             return jsonify({"ok": False, "error": "Incasso PRI non trovato"}), 404
@@ -6021,7 +6020,7 @@ def api_toggle_row_check():
         if updated_row is False:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
-        pri_data, day_node, _, _ = _pri_find_sale(year, entity_id_str)
+        pri_data, day_node, _, _ = _pri_find_sale(check_year, entity_id_str)
         if day_node:
             _bump_agenda_day_version(day_node["date"])
 
@@ -6064,7 +6063,6 @@ def api_toggle_row_check():
 
         db.session.commit()
 
-        cash_day = CashDay.query.filter_by(id=cash_day_id).first()
         if cash_day:
             _bump_agenda_day_version(cash_day.day_date.isoformat())
 
