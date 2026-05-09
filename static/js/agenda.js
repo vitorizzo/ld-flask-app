@@ -370,6 +370,24 @@ let posFilters = {
 };
 let lastPosMoves = [];
 
+let saleFilters = {
+  method: null,
+  flag: null,
+  cashScope: null
+};
+let expenseFilters = {
+  method: null,
+  flag: null,
+  cashScope: null
+};
+let cashMoveFilters = {
+  kind: null,
+  direction: null
+};
+let lastSaleRows = [];
+let lastExpenseRows = [];
+let lastCashMoveRows = [];
+
 /* =========================
    CASH MOVE MODAL REFS
 ========================= */
@@ -1317,7 +1335,7 @@ async function loadCashMoves(dayStr) {
   if (!listEl) return;
 
   listEl.innerHTML = `<div class="list-group-item text-muted small">Caricamento...</div>`;
-  if (totalEl) totalEl.textContent = "0,00";
+  if (totalEl) totalEl.textContent = formatFilteredTotal(0, hasActiveCashMoveFilters());
 
   try {
     const [movesRes, checksMap] = await Promise.all([
@@ -1333,10 +1351,17 @@ async function loadCashMoves(dayStr) {
     }
 
     const allMoves = data.cash_moves || [];
-    const moves = allMoves.filter(m => (m.kind || "altro") !== "spicci");
+    lastCashMoveRows = allMoves;
+    const moves = applyCashMoveFilters(allMoves);
+
+    if (!allMoves.length) {
+      listEl.innerHTML = `<div class="list-group-item text-muted small">Nessun movimento</div>`;
+      return;
+    }
 
     if (!moves.length) {
-      listEl.innerHTML = `<div class="list-group-item text-muted small">Nessun movimento</div>`;
+      listEl.innerHTML = `<div class="list-group-item text-muted small">Nessun movimento per filtro</div>`;
+      if (totalEl) totalEl.textContent = formatFilteredTotal(0, true);
       return;
     }
 
@@ -1345,7 +1370,7 @@ async function loadCashMoves(dayStr) {
       return s + ((m.direction === "out") ? -a : a);
     }, 0);
 
-    if (totalEl) totalEl.textContent = tot.toFixed(2).replace(".", ",");
+    if (totalEl) totalEl.textContent = formatFilteredTotal(tot, hasActiveCashMoveFilters());
 
     listEl.innerHTML = moves.map(m => {
       const amount = Number(m.amount || 0);
@@ -1353,13 +1378,15 @@ async function loadCashMoves(dayStr) {
       const who = (m.performed_by || "").trim();
       const notes = (m.notes || "").trim();
 
-      const tipoLabel = isOut ? "PRELIEVO" : "VERSAMENTO";
+      const tipoLabel = cashMoveDirectionLabel(m.direction);
+      const kindLabel = cashMoveKindLabel(m.kind);
       const desc = [who, notes].filter(Boolean).join(" • ") || "Movimento";
       const amt = `${isOut ? "-" : ""}${Math.abs(amount).toFixed(2)}€`;
       const colorClass = isOut ? "text-danger" : "text-primary";
 
       const badges = [
-        `<span class="badge badge-soft">${tipoLabel}</span>`
+        `<span class="badge badge-soft">${tipoLabel}</span>`,
+        `<span class="badge badge-soft">${kindLabel}</span>`
       ];
 
       const isChecked = m.storage === "pri"
@@ -1367,7 +1394,12 @@ async function loadCashMoves(dayStr) {
         : checksMap.get(String(m.id)) === true;
 
       return `
-        <div class="list-group-item table-row cash-move-row ${isChecked ? "row-checked" : ""}" data-cash-move-id="${m.id}">
+        <div
+          class="list-group-item table-row cash-move-row ${isChecked ? "row-checked" : ""}"
+          data-cash-move-id="${m.id}"
+          data-cash-move-kind="${escapeHtml(m.kind || "altro")}"
+          data-cash-move-direction="${escapeHtml(m.direction || "")}"
+        >
           <div class="col-check me-2">
             <input
               type="checkbox"
@@ -1486,7 +1518,7 @@ async function loadIncassi(dayStr) {
   if (!listEl) return;
 
   listEl.innerHTML = `<div class="list-group-item text-muted small">Caricamento...</div>`;
-  if (totalEl) totalEl.textContent = "0,00";
+  if (totalEl) totalEl.textContent = formatFilteredTotal(0, hasActiveSaleFilters());
 
   try {
     const [salesRes, checksMap] = await Promise.all([
@@ -1503,11 +1535,12 @@ async function loadIncassi(dayStr) {
 
     const sales = data.sales || [];
     if (!sales.length) {
+      lastSaleRows = [];
       listEl.innerHTML = `<div class="list-group-item text-muted small">Nessun incasso</div>`;
       return;
     }
 
-    const rows = [];
+    const allRows = [];
     for (const s of sales) {
       for (const p of (s.payments || [])) {
         const rawDescription = (p.description || s.notes || "").trim();
@@ -1522,7 +1555,7 @@ async function loadIncassi(dayStr) {
           composedDesc = rawDescription;
         }
 
-        rows.push({
+        allRows.push({
           sale_id: s.id,
           created_at: p.created_at || s.created_at,
           flag: p.flag || "",
@@ -1533,6 +1566,15 @@ async function loadIncassi(dayStr) {
           off_cash: !!p.off_cash,
         });
       }
+    }
+
+    lastSaleRows = allRows;
+    const rows = applySaleFilters(allRows);
+
+    if (!rows.length) {
+      listEl.innerHTML = `<div class="list-group-item text-muted small">Nessun incasso per filtro</div>`;
+      if (totalEl) totalEl.textContent = formatFilteredTotal(0, true);
+      return;
     }
 
     listEl.innerHTML = rows.map(x => {
@@ -1548,7 +1590,13 @@ async function loadIncassi(dayStr) {
       const isChecked = checksMap.get(String(x.sale_id)) === true;
 
       return `
-        <div class="list-group-item table-row sale-row ${isChecked ? "row-checked" : ""}" data-sale-id="${x.sale_id}">
+        <div
+          class="list-group-item table-row sale-row ${isChecked ? "row-checked" : ""}"
+          data-sale-id="${x.sale_id}"
+          data-sale-method="${escapeHtml(x.method || "")}"
+          data-sale-flag="${escapeHtml(x.flag || "")}"
+          data-sale-off-cash="${x.off_cash ? "1" : "0"}"
+        >
           <div class="col-check me-2">
             <input
               type="checkbox"
@@ -1573,7 +1621,7 @@ async function loadIncassi(dayStr) {
 
     if (totalEl) {
       const tot = rows.reduce((s, x) => s + (x.direction === "out" ? -x.amount : x.amount), 0);
-      totalEl.textContent = tot.toFixed(2).replace(".", ",");
+      totalEl.textContent = formatFilteredTotal(tot, hasActiveSaleFilters());
     }
 
   } catch (e) {
@@ -1588,7 +1636,7 @@ async function loadSpese(dayStr) {
   if (!listEl) return;
 
   listEl.innerHTML = `<div class="list-group-item text-muted small">Caricamento...</div>`;
-  if (totalEl) totalEl.textContent = "0,00";
+  if (totalEl) totalEl.textContent = formatFilteredTotal(0, hasActiveExpenseFilters());
 
   try {
     const [expensesRes, checksMap] = await Promise.all([
@@ -1605,15 +1653,16 @@ async function loadSpese(dayStr) {
 
     const expenses = data.expenses || [];
     if (!expenses.length) {
+      lastExpenseRows = [];
       listEl.innerHTML = `<div class="list-group-item text-muted small">Nessuna spesa</div>`;
-      if (totalEl) totalEl.textContent = "0,00";
+      if (totalEl) totalEl.textContent = formatFilteredTotal(0, hasActiveExpenseFilters());
       return;
     }
 
-    const rows = [];
+    const allRows = [];
     for (const e of expenses) {
       for (const p of (e.payments || [])) {
-        rows.push({
+        allRows.push({
           expense_id: e.id,
           storage: e.storage || "az",
           is_checked: !!e.is_checked,
@@ -1628,9 +1677,18 @@ async function loadSpese(dayStr) {
       }
     }
 
+    lastExpenseRows = allRows;
+    const rows = applyExpenseFilters(allRows);
+
+    if (!rows.length) {
+      listEl.innerHTML = `<div class="list-group-item text-muted small">Nessuna spesa per filtro</div>`;
+      if (totalEl) totalEl.textContent = formatFilteredTotal(0, true);
+      return;
+    }
+
     if (totalEl) {
       const tot = rows.reduce((s, x) => s + (x.direction === "out" ? x.amount : -x.amount), 0);
-      totalEl.textContent = tot.toFixed(2).replace(".", ",");
+      totalEl.textContent = formatFilteredTotal(tot, hasActiveExpenseFilters());
     }
 
     listEl.innerHTML = rows.map(x => {
@@ -1647,7 +1705,13 @@ async function loadSpese(dayStr) {
         : checksMap.get(String(x.expense_id)) === true;
 
       return `
-        <div class="list-group-item table-row expense-row ${isChecked ? "row-checked" : ""}" data-expense-id="${x.expense_id}">
+        <div
+          class="list-group-item table-row expense-row ${isChecked ? "row-checked" : ""}"
+          data-expense-id="${x.expense_id}"
+          data-expense-method="${escapeHtml(x.method || "")}"
+          data-expense-flag="${escapeHtml(x.flag || "")}"
+          data-expense-off-cash="${x.off_cash ? "1" : "0"}"
+        >
           <div class="col-check me-2">
             <input
               type="checkbox"
@@ -1928,6 +1992,180 @@ async function clearPosFilters() {
   };
 
   await refreshPosAfterFilterChange();
+}
+
+function formatFilteredTotal(total, filtered = false) {
+  const text = formatEuro2(total);
+  return filtered ? `(${text})` : text;
+}
+
+function paymentMethodLabel(method) {
+  const value = String(method || "").trim();
+  const labels = {
+    cash: "Contanti",
+    pos: "POS",
+    bank: "Banca",
+    check: "Assegno"
+  };
+  return labels[value] || (value ? value : "Nessuno");
+}
+
+function cashMoveKindLabel(kind) {
+  const value = String(kind || "altro").trim() || "altro";
+  const labels = {
+    altro: "Movimento di cassa",
+    spicci: "Spicci",
+    incasso: "Incasso"
+  };
+  return labels[value] || value;
+}
+
+function cashMoveDirectionLabel(direction) {
+  return String(direction || "").trim() === "out" ? "PRELIEVO" : "VERSAMENTO";
+}
+
+function hasActiveSaleFilters() {
+  return !!(saleFilters.method || saleFilters.flag || saleFilters.cashScope);
+}
+
+function hasActiveExpenseFilters() {
+  return !!(expenseFilters.method || expenseFilters.flag || expenseFilters.cashScope);
+}
+
+function hasActiveCashMoveFilters() {
+  return !!(cashMoveFilters.kind || cashMoveFilters.direction);
+}
+
+function applyPaymentFilters(rows, filters) {
+  return (rows || []).filter(row => {
+    if (filters.method === "__none__" && row.method) return false;
+    if (filters.method && filters.method !== "__none__" && String(row.method || "") !== String(filters.method)) return false;
+
+    if (filters.flag === "__none__" && row.flag) return false;
+    if (filters.flag && filters.flag !== "__none__" && String(row.flag || "") !== String(filters.flag)) return false;
+
+    if (filters.cashScope === "in_cash" && row.off_cash) return false;
+    if (filters.cashScope === "off_cash" && !row.off_cash) return false;
+
+    return true;
+  });
+}
+
+function applySaleFilters(rows) {
+  return applyPaymentFilters(rows, saleFilters);
+}
+
+function applyExpenseFilters(rows) {
+  return applyPaymentFilters(rows, expenseFilters);
+}
+
+function applyCashMoveFilters(rows) {
+  return (rows || []).filter(row => {
+    const kind = String(row.kind || "altro");
+    const direction = String(row.direction || "");
+
+    if (cashMoveFilters.kind && kind !== cashMoveFilters.kind) return false;
+    if (cashMoveFilters.direction && direction !== cashMoveFilters.direction) return false;
+
+    return true;
+  });
+}
+
+function uniquePaymentFilterOptions(rows, kind, filters) {
+  const seen = new Map();
+  const filteredRows = applyPaymentFilters(rows || [], {
+    method: kind === "method" ? null : filters.method,
+    flag: kind === "flag" ? null : filters.flag,
+    cashScope: kind === "cashScope" ? null : filters.cashScope
+  });
+
+  for (const row of filteredRows) {
+    const value = kind === "method" ? row.method : row.flag;
+    if (!value) continue;
+
+    const label = kind === "method" ? paymentMethodLabel(value) : value;
+    if (!seen.has(String(value))) {
+      seen.set(String(value), label);
+    }
+  }
+
+  return Array.from(seen.entries())
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, "it"));
+}
+
+function uniqueCashMoveFilterOptions(kind) {
+  const seen = new Map();
+  const filteredRows = (lastCashMoveRows || []).filter(row => {
+    const rowKind = String(row.kind || "altro");
+    const rowDirection = String(row.direction || "");
+
+    if (kind !== "kind" && cashMoveFilters.kind && rowKind !== cashMoveFilters.kind) return false;
+    if (kind !== "direction" && cashMoveFilters.direction && rowDirection !== cashMoveFilters.direction) return false;
+
+    return true;
+  });
+
+  for (const row of filteredRows) {
+    const value = kind === "kind"
+      ? String(row.kind || "altro")
+      : String(row.direction || "");
+    if (!value) continue;
+
+    const label = kind === "kind" ? cashMoveKindLabel(value) : cashMoveDirectionLabel(value);
+    if (!seen.has(String(value))) {
+      seen.set(String(value), label);
+    }
+  }
+
+  return Array.from(seen.entries())
+    .map(([value, label]) => ({ value, label }))
+    .sort((a, b) => a.label.localeCompare(b.label, "it"));
+}
+
+async function refreshSaleAfterFilterChange() {
+  if (!currentDay) return;
+  await loadIncassi(currentDay);
+}
+
+async function refreshExpenseAfterFilterChange() {
+  if (!currentDay) return;
+  await loadSpese(currentDay);
+}
+
+async function refreshCashMoveAfterFilterChange() {
+  if (!currentDay) return;
+  await loadCashMoves(currentDay);
+}
+
+async function setSaleFilter(kind, value) {
+  saleFilters[kind] = value || null;
+  await refreshSaleAfterFilterChange();
+}
+
+async function setExpenseFilter(kind, value) {
+  expenseFilters[kind] = value || null;
+  await refreshExpenseAfterFilterChange();
+}
+
+async function setCashMoveFilter(kind, value) {
+  cashMoveFilters[kind] = value || null;
+  await refreshCashMoveAfterFilterChange();
+}
+
+async function clearSaleFilters() {
+  saleFilters = { method: null, flag: null, cashScope: null };
+  await refreshSaleAfterFilterChange();
+}
+
+async function clearExpenseFilters() {
+  expenseFilters = { method: null, flag: null, cashScope: null };
+  await refreshExpenseAfterFilterChange();
+}
+
+async function clearCashMoveFilters() {
+  cashMoveFilters = { kind: null, direction: null };
+  await refreshCashMoveAfterFilterChange();
 }
 
 /* =========================
@@ -3295,6 +3533,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       resetSpicciModalForm();
       await loadSpicciMoves(currentDay);
+      await loadCashMoves(currentDay);
       await loadCoinsBalance(currentDay);
 
     } catch (err) {
@@ -3330,6 +3569,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
 
       await loadSpicciMoves(currentDay);
+      await loadCashMoves(currentDay);
       await loadCoinsBalance(currentDay);
 
     } catch (err) {
@@ -5161,6 +5401,9 @@ document.addEventListener("DOMContentLoaded", async function () {
           context.deviceName = row.dataset.posDeviceName || "";
           context.circuitId = row.dataset.posCircuitId || null;
           context.circuitName = row.dataset.posCircuitName || "";
+        } else if (type === "cash_move") {
+          context.kind = row.dataset.cashMoveKind || "";
+          context.direction = row.dataset.cashMoveDirection || "";
         }
 
         openContextMenu(e.clientX, e.clientY, context);
@@ -5203,6 +5446,9 @@ document.addEventListener("DOMContentLoaded", async function () {
         context.deviceName = row.dataset.posDeviceName || "";
         context.circuitId = row.dataset.posCircuitId || null;
         context.circuitName = row.dataset.posCircuitName || "";
+      } else if (type === "cash_move") {
+        context.kind = row.dataset.cashMoveKind || "";
+        context.direction = row.dataset.cashMoveDirection || "";
       }
 
       openContextMenu(rect.right - 8, rect.bottom + 4, context);
@@ -5241,7 +5487,11 @@ document.addEventListener("DOMContentLoaded", async function () {
           if (currentContext.type === "pos_move") {
             await openEditPosModal(currentContext.id);
           } else if (currentContext.type === "cash_move") {
-            await openEditCashMoveModal(currentContext.id);
+            if (currentContext.kind === "spicci") {
+              await openEditSpicciMove(currentContext.id);
+            } else {
+              await openEditCashMoveModal(currentContext.id);
+            }
           } else if (currentContext.type === "sale") {
             await openEditSaleModal(currentContext.id);
           } else if (currentContext.type === "expense") {
@@ -5253,7 +5503,11 @@ document.addEventListener("DOMContentLoaded", async function () {
           if (currentContext.type === "pos_move") {
             await deletePosMove(currentContext.id);
           } else if (currentContext.type === "cash_move") {
-            await deleteCashMove(currentContext.id);
+            if (currentContext.kind === "spicci") {
+              await deleteSpicciMove(currentContext.id);
+            } else {
+              await deleteCashMove(currentContext.id);
+            }
           } else if (currentContext.type === "sale") {
             const confirmed = window.confirm("Vuoi eliminare questo incasso?");
             if (!confirmed) return;
@@ -5307,20 +5561,31 @@ document.addEventListener("DOMContentLoaded", async function () {
           break;
 
         case "filter_kind":
-          alert("Filtro per tipo: prossimo step");
-          break;
-
         case "filter_method":
-          alert("Filtro per pagamento: prossimo step");
+        case "filter_offcash":
           break;
 
-        case "filter_offcash":
-          alert("Filtro fuori cassa: prossimo step");
+        case "filter_sale":
+          await setSaleFilter(item.dataset.filterKind, item.dataset.filterValue || null);
+          break;
+
+        case "filter_expense":
+          await setExpenseFilter(item.dataset.filterKind, item.dataset.filterValue || null);
+          break;
+
+        case "filter_cash_move":
+          await setCashMoveFilter(item.dataset.filterKind, item.dataset.filterValue || null);
           break;
 
         case "clear_filters":
           if (currentContext.type === "pos_move") {
             await clearPosFilters();
+          } else if (currentContext.type === "sale") {
+            await clearSaleFilters();
+          } else if (currentContext.type === "expense") {
+            await clearExpenseFilters();
+          } else if (currentContext.type === "cash_move") {
+            await clearCashMoveFilters();
           } else {
             alert("Reset filtri: prossimo step");
           }
@@ -6161,6 +6426,9 @@ function buildContextMenuHtml(context) {
   const canFilterPosDevice = entityType === "pos_move" && hasRows;
   const canFilterPosCircuit = entityType === "pos_move" && hasRows;
   const canClearPosFilters = entityType === "pos_move" && hasActivePosFilters();
+  const canClearSaleFilters = entityType === "sale" && hasActiveSaleFilters();
+  const canClearExpenseFilters = entityType === "expense" && hasActiveExpenseFilters();
+  const canClearCashMoveFilters = entityType === "cash_move" && hasActiveCashMoveFilters();
   const canReport = true;
 
   const btn = (label, action, enabled = true, danger = false) => {
@@ -6230,6 +6498,75 @@ function buildContextMenuHtml(context) {
     return rows.join("");
   };
 
+  const paymentFilterSubmenu = (entity, kind) => {
+    const filters = entity === "sale" ? saleFilters : expenseFilters;
+    const sourceRows = entity === "sale" ? lastSaleRows : lastExpenseRows;
+    const action = entity === "sale" ? "filter_sale" : "filter_expense";
+    const currentValue = filters[kind];
+
+    if (kind === "cashScope") {
+      return [
+        filterBtn("Tutti", action, "", "Tutti", !currentValue),
+        filterBtn("Cassa", action, "in_cash", "Cassa", currentValue === "in_cash"),
+        filterBtn("Fuori cassa", action, "off_cash", "Fuori cassa", currentValue === "off_cash"),
+      ].map(html => html.replace("data-filter-label=", `data-filter-kind="${kind}" data-filter-label=`)).join("");
+    }
+
+    const options = uniquePaymentFilterOptions(sourceRows, kind, filters);
+    const rows = [
+      filterBtn("Tutti", action, "", "Tutti", !currentValue),
+      filterBtn("Nessuno", action, "__none__", "Nessuno", currentValue === "__none__"),
+      ...options.map(opt => filterBtn(
+        escapeHtml(opt.label),
+        action,
+        opt.value,
+        opt.label,
+        String(currentValue || "") === String(opt.value)
+      ))
+    ];
+
+    return rows
+      .map(html => html.replace("data-filter-label=", `data-filter-kind="${kind}" data-filter-label=`))
+      .join("");
+  };
+
+  const cashMoveFilterSubmenu = (kind) => {
+    const action = "filter_cash_move";
+    const currentValue = cashMoveFilters[kind];
+
+    if (kind === "direction") {
+      return [
+        filterBtn("Tutti", action, "", "Tutti", !currentValue),
+        filterBtn("Prelievo", action, "out", "Prelievo", currentValue === "out"),
+        filterBtn("Versamento", action, "in", "Versamento", currentValue === "in"),
+      ].map(html => html.replace("data-filter-label=", `data-filter-kind="${kind}" data-filter-label=`)).join("");
+    }
+
+    const preferred = [
+      { value: "altro", label: "Movimento di cassa" },
+      { value: "spicci", label: "Spicci" },
+      { value: "incasso", label: "Incasso" },
+    ];
+    const present = uniqueCashMoveFilterOptions(kind);
+    const merged = new Map(preferred.map(opt => [opt.value, opt.label]));
+    for (const opt of present) merged.set(opt.value, opt.label);
+
+    const rows = [
+      filterBtn("Tutti", action, "", "Tutti", !currentValue),
+      ...Array.from(merged.entries()).map(([value, label]) => filterBtn(
+        escapeHtml(label),
+        action,
+        value,
+        label,
+        String(currentValue || "") === String(value)
+      ))
+    ];
+
+    return rows
+      .map(html => html.replace("data-filter-label=", `data-filter-kind="${kind}" data-filter-label=`))
+      .join("");
+  };
+
   const sections = [];
 
   const section = (title, content) => `
@@ -6269,8 +6606,9 @@ function buildContextMenuHtml(context) {
   if (showPanelMenu && entityType === "cash_move") {
     sections.push(`
       ${section(canInsert ? "" : "Quadrante", `
-        ${btn("Filtra per tipo", "filter_kind", canFilter)}
-        ${btn("Rimuovi filtri", "clear_filters", canFilter)}
+        ${submenu("Filtra per tipo movimento", canFilter, cashMoveFilterSubmenu("kind"))}
+        ${submenu("Filtra per direzione", canFilter, cashMoveFilterSubmenu("direction"))}
+        ${btn("Rimuovi filtri", "clear_filters", canClearCashMoveFilters)}
       `)}
     `);
   }
@@ -6278,9 +6616,10 @@ function buildContextMenuHtml(context) {
   if (showPanelMenu && entityType === "sale") {
     sections.push(`
       ${section(canInsert ? "" : "Quadrante", `
-        ${btn("Filtra per pagamento", "filter_method", canFilter)}
-        ${btn("Solo fuori cassa", "filter_offcash", canFilter)}
-        ${btn("Rimuovi filtri", "clear_filters", canFilter)}
+        ${submenu("Filtra per tipo incasso", canFilter, paymentFilterSubmenu("sale", "method"))}
+        ${submenu("Filtra per flag", canFilter, paymentFilterSubmenu("sale", "flag"))}
+        ${submenu("Filtra cassa/fuori cassa", canFilter, paymentFilterSubmenu("sale", "cashScope"))}
+        ${btn("Rimuovi filtri", "clear_filters", canClearSaleFilters)}
       `)}
     `);
   }
@@ -6288,9 +6627,10 @@ function buildContextMenuHtml(context) {
   if (showPanelMenu && entityType === "expense") {
     sections.push(`
       ${section(canInsert ? "" : "Quadrante", `
-        ${btn("Filtra per pagamento", "filter_method", canFilter)}
-        ${btn("Solo fuori cassa", "filter_offcash", canFilter)}
-        ${btn("Rimuovi filtri", "clear_filters", canFilter)}
+        ${submenu("Filtra per tipo spesa", canFilter, paymentFilterSubmenu("expense", "method"))}
+        ${submenu("Filtra per flag", canFilter, paymentFilterSubmenu("expense", "flag"))}
+        ${submenu("Filtra cassa/fuori cassa", canFilter, paymentFilterSubmenu("expense", "cashScope"))}
+        ${btn("Rimuovi filtri", "clear_filters", canClearExpenseFilters)}
       `)}
     `);
   }
