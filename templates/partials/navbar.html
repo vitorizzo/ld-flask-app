@@ -1,22 +1,31 @@
 {% macro render_menu(menu, is_root=True) %}
     {% set has_children = menu.children and (menu.children | length > 0) %}
-    <li class="{% if is_root %}nav-item{% else %}dropdown-item{% endif %}{% if has_children %} dropdown{% endif %}">
-        <a
-            href="{{ menu.route or '#' }}"
-            class="{% if is_root %}nav-link-enabled{% else %}dropdown-item{% endif %}{% if has_children %} dropdown-toggle{% endif %}"
-            id="menu-{{ menu.id }}"
-            {% if has_children %}data-bs-toggle="dropdown" aria-expanded="false"{% endif %}
-        >
-            {{ menu.name }}
-        </a>
-        {% if has_children %}
-            <ul class="dropdown-menu" aria-labelledby="menu-{{ menu.id }}">
-                {% for child in menu.children %}
-                    {{ render_menu(child, is_root=False) }}
-                {% endfor %}
-            </ul>
+    {% if menu.item_type == 'separator' %}
+        {% if is_root %}
+            <li class="nav-item menu-root-separator" aria-hidden="true"></li>
+        {% else %}
+            <li><hr class="dropdown-divider"></li>
         {% endif %}
-    </li>
+    {% else %}
+        <li class="{% if is_root %}nav-item{% else %}dropdown-item{% endif %}{% if has_children %} dropdown{% endif %}">
+            <a
+                href="{{ menu.route if menu.is_active else '#' }}"
+                class="{% if is_root %}{% if menu.is_active %}nav-link-enabled{% else %}nav-link-disabled disabled{% endif %}{% else %}dropdown-item{% if not menu.is_active %} disabled menu-item-inactive{% endif %}{% endif %}{% if has_children and menu.is_active %} dropdown-toggle{% endif %}"
+                id="menu-{{ menu.id }}"
+                {% if has_children and menu.is_active %}data-bs-toggle="dropdown" aria-expanded="false"{% endif %}
+                {% if not menu.is_active %}aria-disabled="true" tabindex="-1"{% endif %}
+            >
+                {{ menu.name }}
+            </a>
+            {% if has_children %}
+                <ul class="dropdown-menu" aria-labelledby="menu-{{ menu.id }}">
+                    {% for child in menu.children %}
+                        {{ render_menu(child, is_root=False) }}
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </li>
+    {% endif %}
 {% endmacro %}
 
 <nav class="navbar navbar-expand-lg">

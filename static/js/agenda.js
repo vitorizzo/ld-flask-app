@@ -795,11 +795,33 @@ let depositModal = null;
 let editingDepositId = null;
 
 /* =========================
+   MOVEMENT SEARCH MODALS
+========================= */
+
+const movementSearchCustomerModalEl = document.getElementById("movementSearchCustomerModal");
+const movementSearchCustomerText = document.getElementById("movementSearchCustomerText");
+const movementSearchCustomerFrom = document.getElementById("movementSearchCustomerFrom");
+const movementSearchCustomerTo = document.getElementById("movementSearchCustomerTo");
+const movementSearchCustomerBtn = document.getElementById("movementSearchCustomerBtn");
+const movementSearchCustomerResults = document.getElementById("movementSearchCustomerResults");
+
+const movementSearchAmountModalEl = document.getElementById("movementSearchAmountModal");
+const movementSearchAmountValue = document.getElementById("movementSearchAmountValue");
+const movementSearchAmountTolerance = document.getElementById("movementSearchAmountTolerance");
+const movementSearchAmountFrom = document.getElementById("movementSearchAmountFrom");
+const movementSearchAmountTo = document.getElementById("movementSearchAmountTo");
+const movementSearchAmountBtn = document.getElementById("movementSearchAmountBtn");
+const movementSearchAmountResults = document.getElementById("movementSearchAmountResults");
+
+let movementSearchCustomerModal = null;
+let movementSearchAmountModal = null;
+
+/* =========================
    DAY / PREVIEW
 ========================= */
 
 async function loadDay(dateStr) {
-  fetch(`/cassa/api/day?date=${dateStr}`)
+  return fetch(`/cassa/api/day?date=${dateStr}`)
     .then(r => r.json())
     .then(async data => {
       if (!data.ok) return;
@@ -1488,7 +1510,7 @@ async function loadIncassi(dayStr) {
     const rows = [];
     for (const s of sales) {
       for (const p of (s.payments || [])) {
-                const rawDescription = (p.description || s.notes || "").trim();
+        const rawDescription = (p.description || s.notes || "").trim();
         const rawCustomer = (s.customer_label || "").trim();
 
         let composedDesc = "";
@@ -1597,7 +1619,7 @@ async function loadSpese(dayStr) {
           is_checked: !!e.is_checked,
           created_at: p.created_at || e.created_at,
           flag: p.flag || "",
-          desc: p.description || e.notes || "",
+          desc: [e.supplier, (p.description || e.notes || "")].filter(Boolean).join(" - "),
           amount: Number(p.amount || 0),
           direction: p.direction || "out",
           method: p.method || "",
@@ -2202,6 +2224,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
   if (depositModalEl) {
     depositModal = new bootstrap.Modal(depositModalEl);
+  }
+
+  if (movementSearchCustomerModalEl) {
+    movementSearchCustomerModal = new bootstrap.Modal(movementSearchCustomerModalEl);
+  }
+
+  if (movementSearchAmountModalEl) {
+    movementSearchAmountModal = new bootstrap.Modal(movementSearchAmountModalEl);
   }
 
   (function initModalStack3D() {
@@ -4847,6 +4877,222 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  function setSearchDefaultDates(fromEl, toEl) {
+    const value = currentDay || toLocalYMD(new Date());
+    if (fromEl && !fromEl.value) fromEl.value = value;
+    if (toEl && !toEl.value) toEl.value = value;
+  }
+
+  function openMovementSearchCustomerModal() {
+    setSearchDefaultDates(movementSearchCustomerFrom, movementSearchCustomerTo);
+    if (movementSearchCustomerResults) {
+      movementSearchCustomerResults.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Nessuna ricerca eseguita</td></tr>`;
+    }
+    movementSearchCustomerModal?.show();
+    setTimeout(() => movementSearchCustomerText?.focus(), 150);
+  }
+
+  function openMovementSearchAmountModal() {
+    setSearchDefaultDates(movementSearchAmountFrom, movementSearchAmountTo);
+    if (movementSearchAmountTolerance && !movementSearchAmountTolerance.value) {
+      movementSearchAmountTolerance.value = "0,00";
+    }
+    if (movementSearchAmountResults) {
+      movementSearchAmountResults.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Nessuna ricerca eseguita</td></tr>`;
+    }
+    movementSearchAmountModal?.show();
+    setTimeout(() => movementSearchAmountValue?.focus(), 150);
+  }
+
+  function renderMovementSearchRows(tbody, rows) {
+    if (!tbody) return;
+
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Nessun movimento trovato</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rows.map(row => {
+      const canEdit = !!row.editable;
+      const canDelete = !!row.deletable;
+      const amount = formatEuro2(row.amount || 0);
+
+      return `
+        <tr
+          class="movement-search-row ${canEdit ? "cursor-pointer" : ""}"
+          data-kind="${escapeHtml(row.kind || "")}"
+          data-id="${escapeHtml(row.id || "")}"
+          data-day-date="${escapeHtml(row.day_date || "")}"
+          data-editable="${canEdit ? "1" : "0"}"
+        >
+          <td>${escapeHtml(row.day_date || "")}</td>
+          <td>${escapeHtml(row.kind_label || "")}</td>
+          <td>${escapeHtml(row.party || "")}</td>
+          <td>${escapeHtml(row.description || "")}</td>
+          <td>${escapeHtml(row.method || "")}</td>
+          <td class="text-end">${amount}</td>
+          <td class="text-end">
+            <button type="button" class="btn btn-sm btn-outline-primary movement-search-edit" ${canEdit ? "" : "disabled"}>Apri</button>
+            <button type="button" class="btn btn-sm btn-outline-danger movement-search-delete" ${canDelete ? "" : "disabled"}>Elimina</button>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  async function runMovementCustomerSearch() {
+    const params = new URLSearchParams({
+      customer: movementSearchCustomerText?.value || "",
+      date_from: movementSearchCustomerFrom?.value || "",
+      date_to: movementSearchCustomerTo?.value || ""
+    });
+
+    if (movementSearchCustomerResults) {
+      movementSearchCustomerResults.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Ricerca in corso...</td></tr>`;
+    }
+
+    const r = await fetch(`/cassa/api/search/customer?${params.toString()}`, {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" }
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) {
+      alert(data.error || "Errore ricerca cliente");
+      renderMovementSearchRows(movementSearchCustomerResults, []);
+      return;
+    }
+    renderMovementSearchRows(movementSearchCustomerResults, data.rows || []);
+  }
+
+  async function runMovementAmountSearch() {
+    const types = Array.from(document.querySelectorAll(".movement-search-type:checked"))
+      .map(el => el.value)
+      .join(",");
+    const params = new URLSearchParams({
+      amount: String(parseEuroToNumber(movementSearchAmountValue?.value || "0")),
+      tolerance: String(parseEuroToNumber(movementSearchAmountTolerance?.value || "0")),
+      date_from: movementSearchAmountFrom?.value || "",
+      date_to: movementSearchAmountTo?.value || "",
+      types
+    });
+
+    if (movementSearchAmountResults) {
+      movementSearchAmountResults.innerHTML = `<tr><td colspan="7" class="text-center text-muted">Ricerca in corso...</td></tr>`;
+    }
+
+    const r = await fetch(`/cassa/api/search/amount?${params.toString()}`, {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" }
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) {
+      alert(data.error || "Errore ricerca importo");
+      renderMovementSearchRows(movementSearchAmountResults, []);
+      return;
+    }
+    renderMovementSearchRows(movementSearchAmountResults, data.rows || []);
+  }
+
+  async function openMovementFromSearch(rowEl) {
+    if (!rowEl) return;
+
+    const kind = rowEl.dataset.kind;
+    const id = rowEl.dataset.id;
+    const dayDate = rowEl.dataset.dayDate;
+
+    if (dayDate && dayDate !== currentDay) {
+      await loadDay(dayDate);
+    }
+
+    if (kind === "sale") {
+      await openEditSaleModal(id);
+    } else if (kind === "expense") {
+      await openEditExpenseModal(id);
+    } else if (kind === "pos") {
+      await openEditPosModal(id);
+    } else if (kind === "cash_move") {
+      await openEditCashMoveModal(id);
+    }
+  }
+
+  async function deleteMovementFromSearch(rowEl) {
+    if (!rowEl || rowEl.dataset.editable !== "1") return;
+
+    const kind = rowEl.dataset.kind;
+    const id = rowEl.dataset.id;
+    const dayDate = rowEl.dataset.dayDate;
+
+    if (dayDate && dayDate !== currentDay) {
+      await loadDay(dayDate);
+    }
+
+    if (kind === "pos") {
+      await deletePosMove(id);
+    } else if (kind === "cash_move") {
+      await deleteCashMove(id);
+    } else if (kind === "sale") {
+      const confirmed = window.confirm("Vuoi eliminare questo incasso?");
+      if (!confirmed) return;
+      const r = await fetch(`/cassa/api/sales/${id}`, {
+        method: "DELETE",
+        headers: { "Accept": "application/json" },
+        credentials: "same-origin"
+      });
+      const data = await r.json();
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore eliminazione incasso");
+        return;
+      }
+      await refreshAgendaData();
+    } else if (kind === "expense") {
+      const confirmed = window.confirm("Vuoi eliminare questa spesa?");
+      if (!confirmed) return;
+      const r = await fetch(`/cassa/api/expenses/${id}`, {
+        method: "DELETE",
+        headers: { "Accept": "application/json" },
+        credentials: "same-origin"
+      });
+      const data = await r.json();
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore eliminazione spesa");
+        return;
+      }
+      await refreshAgendaData();
+    } else if (kind === "ecommerce") {
+      const confirmed = window.confirm("Vuoi eliminare questo movimento e-commerce?");
+      if (!confirmed) return;
+      const r = await fetch(`/cassa/api/ecommerce/${id}`, {
+        method: "DELETE",
+        headers: { "Accept": "application/json" },
+        credentials: "same-origin"
+      });
+      const data = await r.json();
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore eliminazione eCommerce");
+        return;
+      }
+      await refreshAgendaData();
+    } else if (kind === "deposit") {
+      const confirmed = window.confirm("Vuoi eliminare questo versamento?");
+      if (!confirmed) return;
+      const r = await fetch(`/cassa/api/deposits/${id}`, {
+        method: "DELETE",
+        headers: { "Accept": "application/json" },
+        credentials: "same-origin"
+      });
+      const data = await r.json();
+      if (!r.ok || !data.ok) {
+        alert(data.error || "Errore eliminazione versamento");
+        return;
+      }
+      await refreshAgendaData();
+    } else if (kind === "owner_take") {
+      await deleteOwnerTake(id);
+    }
+
+    rowEl.remove();
+  }
+
   const posList = document.getElementById("posList");
   const posPanel = document.getElementById("posPanel");
   const incassiList = document.getElementById("incassiList");
@@ -5046,6 +5292,14 @@ document.addEventListener("DOMContentLoaded", function () {
           }
           break;
 
+        case "search_customer":
+          openMovementSearchCustomerModal();
+          break;
+
+        case "search_amount":
+          openMovementSearchAmountModal();
+          break;
+
         case "report":
           await openDayReport();
           break;
@@ -5055,6 +5309,46 @@ document.addEventListener("DOMContentLoaded", function () {
       alert("Errore durante l'azione richiesta");
     } finally {
       closeContextMenu();
+    }
+  });
+
+  movementSearchCustomerBtn?.addEventListener("click", async () => {
+    try {
+      await runMovementCustomerSearch();
+    } catch (err) {
+      console.error("runMovementCustomerSearch error:", err);
+      alert("Errore di rete durante la ricerca cliente.");
+    }
+  });
+
+  movementSearchAmountBtn?.addEventListener("click", async () => {
+    try {
+      await runMovementAmountSearch();
+    } catch (err) {
+      console.error("runMovementAmountSearch error:", err);
+      alert("Errore di rete durante la ricerca importo.");
+    }
+  });
+
+  document.addEventListener("click", async (e) => {
+    const editBtn = e.target.closest(".movement-search-edit");
+    const deleteBtn = e.target.closest(".movement-search-delete");
+    const rowEl = e.target.closest(".movement-search-row");
+
+    if (!rowEl) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      if (deleteBtn) {
+        await deleteMovementFromSearch(rowEl);
+      } else {
+        await openMovementFromSearch(rowEl);
+      }
+    } catch (err) {
+      console.error("movement search action error:", err);
+      alert("Errore durante l'azione sul movimento.");
     }
   });
 
@@ -5968,6 +6262,8 @@ function buildContextMenuHtml(context) {
   if (showGeneralMenu) {
     sections.push(`
       ${section("Generale", `
+      ${btn("Ricerca per cliente", "search_customer", true)}
+      ${btn("Ricerca per importo", "search_amount", true)}
       ${btn("Report giornata", "report", canReport)}
       `)}
     `);

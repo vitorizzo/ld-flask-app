@@ -1413,6 +1413,232 @@ def api_days_active():
     })
 
 
+def _parse_search_period():
+    today = date.today()
+    raw_from = (request.args.get("date_from") or "").strip()
+    raw_to = (request.args.get("date_to") or "").strip()
+
+    try:
+        d_from = datetime.strptime(raw_from, "%Y-%m-%d").date() if raw_from else today
+        d_to = datetime.strptime(raw_to, "%Y-%m-%d").date() if raw_to else d_from
+    except ValueError:
+        return None, None, ("Formato date non valido. Usa YYYY-MM-DD", 400)
+
+    if d_from > d_to:
+        return None, None, ("La data iniziale non può essere successiva alla data finale", 400)
+
+    return d_from, d_to, None
+
+
+def _movement_row(kind, kind_label, day_date, movement_id, amount, party="", description="", method="", storage="az", editable=True, deletable=None):
+    if deletable is None:
+        deletable = editable
+
+    return {
+        "kind": kind,
+        "kind_label": kind_label,
+        "day_date": day_date.isoformat() if hasattr(day_date, "isoformat") else day_date,
+        "id": movement_id,
+        "amount": float(amount or 0),
+        "party": party or "",
+        "description": description or "",
+        "method": method or "",
+        "storage": storage or "az",
+        "editable": bool(editable),
+        "deletable": bool(deletable),
+    }
+
+
+@cassa_bp.get("/api/search/customer")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_search_customer_movements():
+    d_from, d_to, err = _parse_search_period()
+    if err:
+        message, status = err
+        return jsonify({"ok": False, "error": message}), status
+
+    q = (request.args.get("customer") or "").strip()
+    if not q:
+        return jsonify({"ok": False, "error": "Inserisci un cliente/fornitore da cercare"}), 400
+
+    like = f"%{q}%"
+    rows = []
+
+    sales = (
+        CashSale.query
+        .join(CashDay, CashDay.id == CashSale.cash_day_id)
+        .outerjoin(CashCustomer, CashCustomer.id == CashSale.customer_id)
+        .options(selectinload(CashSale.payments))
+        .filter(CashDay.day_date.between(d_from, d_to))
+        .filter(or_(
+            CashSale.customer_label.ilike(like),
+            CashCustomer.display_name.ilike(like),
+            CashCustomer.ragione_sociale.ilike(like),
+            CashCustomer.partita_iva.ilike(like),
+            CashCustomer.codice_cliente.ilike(like),
+        ))
+        .order_by(CashDay.day_date.asc(), CashSale.created_at.asc(), CashSale.id.asc())
+        .all()
+    )
+
+    for sale in sales:
+        party = sale.customer_label or (sale.customer.display_name if sale.customer else "")
+        for payment in sale.payments or []:
+            rows.append(_movement_row(
+                "sale", "Incasso", sale.cash_day.day_date, sale.id, payment.amount,
+                party=party, description=payment.description or sale.notes or "", method=payment.method
+            ))
+
+    expenses = (
+        CashExpense.query
+        .join(CashDay, CashDay.id == CashExpense.cash_day_id)
+        .options(selectinload(CashExpense.payments))
+        .filter(CashDay.day_date.between(d_from, d_to))
+        .filter(or_(CashExpense.supplier.ilike(like), CashExpense.notes.ilike(like)))
+        .order_by(CashDay.day_date.asc(), CashExpense.created_at.asc(), CashExpense.id.asc())
+        .all()
+    )
+
+    for expense in expenses:
+        for payment in expense.payments or []:
+            rows.append(_movement_row(
+                "expense", "Spesa", expense.cash_day.day_date, expense.id, payment.amount,
+                party=expense.supplier or "", description=payment.description or expense.notes or "", method=payment.method
+            ))
+
+    rows.sort(key=lambda x: (x["day_date"], x["kind_label"], str(x["id"])))
+    return jsonify({"ok": True, "rows": rows})
+
+
+@cassa_bp.get("/api/search/amount")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_search_amount_movements():
+    d_from, d_to, err = _parse_search_period()
+    if err:
+        message, status = err
+        return jsonify({"ok": False, "error": message}), status
+
+    try:
+        target = Decimal(str(request.args.get("amount") or ""))
+        tolerance = Decimal(str(request.args.get("tolerance") or "0"))
+    except (InvalidOperation, TypeError):
+        return jsonify({"ok": False, "error": "Importo o tolleranza non validi"}), 400
+
+    if target <= 0 or tolerance < 0:
+        return jsonify({"ok": False, "error": "Importo deve essere positivo e tolleranza non negativa"}), 400
+
+    selected = {
+        x.strip()
+        for x in (request.args.get("types") or "sale,expense,pos,cash_move,ecommerce,deposit,owner_take").split(",")
+        if x.strip()
+    }
+    allowed = {"sale", "expense", "pos", "cash_move", "ecommerce", "deposit", "owner_take"}
+    selected = selected & allowed
+    if not selected:
+        return jsonify({"ok": False, "error": "Seleziona almeno un tipo movimento"}), 400
+
+    low = target - tolerance
+    high = target + tolerance
+    rows = []
+
+    if "sale" in selected:
+        payments = (
+            CashSalePayment.query
+            .join(CashSale, CashSale.id == CashSalePayment.sale_id)
+            .join(CashDay, CashDay.id == CashSale.cash_day_id)
+            .filter(CashDay.day_date.between(d_from, d_to))
+            .filter(CashSalePayment.amount.between(low, high))
+            .order_by(CashDay.day_date.asc(), CashSalePayment.created_at.asc(), CashSalePayment.id.asc())
+            .all()
+        )
+        for p in payments:
+            sale = p.sale
+            rows.append(_movement_row("sale", "Incasso", sale.cash_day.day_date, sale.id, p.amount, party=sale.customer_label or "", description=p.description or sale.notes or "", method=p.method))
+
+    if "expense" in selected:
+        payments = (
+            CashExpensePayment.query
+            .join(CashExpense, CashExpense.id == CashExpensePayment.expense_id)
+            .join(CashDay, CashDay.id == CashExpense.cash_day_id)
+            .filter(CashDay.day_date.between(d_from, d_to))
+            .filter(CashExpensePayment.amount.between(low, high))
+            .order_by(CashDay.day_date.asc(), CashExpensePayment.created_at.asc(), CashExpensePayment.id.asc())
+            .all()
+        )
+        for p in payments:
+            expense = p.expense
+            rows.append(_movement_row("expense", "Spesa", expense.cash_day.day_date, expense.id, p.amount, party=expense.supplier or "", description=p.description or expense.notes or "", method=p.method))
+
+    if "pos" in selected:
+        moves = (
+            PosMove.query
+            .join(CashDay, CashDay.id == PosMove.cash_day_id)
+            .filter(CashDay.day_date.between(d_from, d_to))
+            .filter(PosMove.amount.between(low, high))
+            .order_by(CashDay.day_date.asc(), PosMove.created_at.asc(), PosMove.id.asc())
+            .all()
+        )
+        for m in moves:
+            rows.append(_movement_row("pos", "POS", m.cash_day.day_date, m.id, m.amount, description=m.notes or m.doc_ref or "", method="pos"))
+
+    if "cash_move" in selected:
+        moves = (
+            CashMove.query
+            .join(CashDay, CashDay.id == CashMove.cash_day_id)
+            .filter(CashDay.day_date.between(d_from, d_to))
+            .filter(CashMove.amount.between(low, high))
+            .order_by(CashDay.day_date.asc(), CashMove.created_at.asc(), CashMove.id.asc())
+            .all()
+        )
+        for m in moves:
+            rows.append(_movement_row("cash_move", "Movimento cassa", m.cash_day.day_date, m.id, m.amount, party=m.performed_by or "", description=m.notes or m.kind or "", method="cash"))
+
+    if "ecommerce" in selected:
+        moves = (
+            db.session.query(CashEcommerce, CashDay.day_date)
+            .join(CashDay, CashDay.id == CashEcommerce.cash_day_id)
+            .filter(CashDay.day_date.between(d_from, d_to))
+            .filter(CashEcommerce.amount.between(low, high))
+            .order_by(CashDay.day_date.asc(), CashEcommerce.created_at.asc(), CashEcommerce.id.asc())
+            .all()
+        )
+        for m, day_date in moves:
+            rows.append(_movement_row("ecommerce", "eCommerce", day_date, m.id, m.amount, description=m.description or "", method="ecommerce", editable=False, deletable=True))
+
+    if "deposit" in selected:
+        from models import CashDeposit
+        deposits = (
+            CashDeposit.query
+            .join(CashDay, CashDay.id == CashDeposit.cash_day_id)
+            .options(selectinload(CashDeposit.checks), selectinload(CashDeposit.bank))
+            .filter(CashDay.day_date.between(d_from, d_to))
+            .order_by(CashDay.day_date.asc(), CashDeposit.created_at.asc(), CashDeposit.id.asc())
+            .all()
+        )
+        for d in deposits:
+            total = Decimal(str(d.cash_amount or 0)) + sum(Decimal(str(link.check_amount or 0)) for link in (d.checks or []))
+            if low <= total <= high:
+                rows.append(_movement_row("deposit", "Versamento", d.cash_day.day_date, d.id, total, party=d.bank.name if d.bank else "", description=d.note or d.deposit_type or "", method="deposit", editable=False, deletable=True))
+
+    if "owner_take" in selected:
+        moves = (
+            CashOwnerTake.query
+            .join(CashDay, CashDay.id == CashOwnerTake.cash_day_id)
+            .filter(CashDay.day_date.between(d_from, d_to))
+            .order_by(CashDay.day_date.asc(), CashOwnerTake.created_at.asc(), CashOwnerTake.id.asc())
+            .all()
+        )
+        for m in moves:
+            total = Decimal(str(m.cash_amount or 0)) + Decimal(str(m.check_amount or 0))
+            if low <= total <= high:
+                rows.append(_movement_row("owner_take", "Prelievo titolare", m.cash_day.day_date, m.id, total, description=m.notes or m.take_type or "", method="owner_take", editable=False, deletable=True))
+
+    rows.sort(key=lambda x: (x["day_date"], x["kind_label"], str(x["id"])))
+    return jsonify({"ok": True, "rows": rows})
+
+
 @cassa_bp.post("/api/customers")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
@@ -3073,6 +3299,7 @@ def api_list_expenses(day_date):
             "created_at": e.created_at.isoformat() if e.created_at else None,
             "doc_ref": e.doc_ref,
             "notes": e.notes,
+            "supplier": e.supplier,
             "storage": "az",
             "payments": pay,
         })

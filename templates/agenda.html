@@ -1937,6 +1937,118 @@
   </div>
 </div>
 
+<div class="modal fade agenda-modal" id="movementSearchCustomerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Ricerca per cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-12 col-lg-5">
+            <label class="form-label" for="movementSearchCustomerText">Cliente / fornitore</label>
+            <input type="text" class="form-control" id="movementSearchCustomerText" autocomplete="off">
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="movementSearchCustomerFrom">Da</label>
+            <input type="date" class="form-control" id="movementSearchCustomerFrom">
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="movementSearchCustomerTo">A</label>
+            <input type="date" class="form-control" id="movementSearchCustomerTo">
+          </div>
+          <div class="col-12 col-lg-3 text-end">
+            <button type="button" class="btn btn-primary" id="movementSearchCustomerBtn">Cerca</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Tipo</th>
+                <th>Cliente/Fornitore</th>
+                <th>Descrizione</th>
+                <th>Metodo</th>
+                <th class="text-end">Importo</th>
+                <th class="text-end">Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="movementSearchCustomerResults">
+              <tr><td colspan="7" class="text-center text-muted">Nessuna ricerca eseguita</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade agenda-modal" id="movementSearchAmountModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Ricerca per importo</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="movementSearchAmountValue">Importo</label>
+            <input type="text" class="form-control text-end" id="movementSearchAmountValue" inputmode="decimal">
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="movementSearchAmountTolerance">Tolleranza</label>
+            <input type="text" class="form-control text-end" id="movementSearchAmountTolerance" inputmode="decimal" value="0,00">
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="movementSearchAmountFrom">Da</label>
+            <input type="date" class="form-control" id="movementSearchAmountFrom">
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="movementSearchAmountTo">A</label>
+            <input type="date" class="form-control" id="movementSearchAmountTo">
+          </div>
+          <div class="col-12 col-lg-4 text-end">
+            <button type="button" class="btn btn-primary" id="movementSearchAmountBtn">Cerca</button>
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-3 mb-3 small">
+          <label><input type="checkbox" class="movement-search-type" value="sale" checked> Incassi</label>
+          <label><input type="checkbox" class="movement-search-type" value="expense" checked> Spese</label>
+          <label><input type="checkbox" class="movement-search-type" value="pos" checked> POS</label>
+          <label><input type="checkbox" class="movement-search-type" value="cash_move" checked> Movimenti cassa</label>
+          <label><input type="checkbox" class="movement-search-type" value="ecommerce" checked> eCommerce</label>
+          <label><input type="checkbox" class="movement-search-type" value="deposit" checked> Versamenti</label>
+          <label><input type="checkbox" class="movement-search-type" value="owner_take" checked> Prelievi titolare</label>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Tipo</th>
+                <th>Cliente/Fornitore</th>
+                <th>Descrizione</th>
+                <th>Metodo</th>
+                <th class="text-end">Importo</th>
+                <th class="text-end">Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="movementSearchAmountResults">
+              <tr><td colspan="7" class="text-center text-muted">Nessuna ricerca eseguita</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="contextMenu" class="context-menu d-none">
   <div class="context-menu-item" data-action="edit">Modifica</div>
   <div class="context-menu-item" data-action="delete">Elimina</div>

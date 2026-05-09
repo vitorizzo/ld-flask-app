@@ -50,6 +50,15 @@ if (window.__menuMgmtInitDone) {
     if (!res.ok || !data.ok) throw new Error("toggle failed");
   }
 
+  async function apiToggleMenuVisible(id) {
+    const res = await fetch(`/settings/toggle_menu_visible/${id}`, {
+      method: "POST",
+      credentials: "same-origin"
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || "toggle visible failed");
+  }
+
   async function createMenu(payload) {
     const res = await fetch("/settings/create_menu", {
       method: "POST",
@@ -137,15 +146,23 @@ if (window.__menuMgmtInitDone) {
       li.dataset.id = n.id;
 
       const isActive = !!n.is_active;
+      const isVisible = (n.is_visible ?? true) === true;
+      const isSeparator = (n.item_type || "link") === "separator";
+      const title = isSeparator ? "Separatore" : escapeHtml(n.name ?? "");
+      const statusBadges = [
+        isSeparator ? `<span class="badge text-bg-secondary">separatore</span>` : "",
+        isVisible ? "" : `<span class="badge text-bg-warning">nascosto</span>`,
+        isActive ? "" : `<span class="badge text-bg-secondary">non attivo</span>`
+      ].filter(Boolean).join(" ");
 
       li.innerHTML = `
-        <div class="menu-row d-flex align-items-center gap-2 ${isActive ? "" : "menu-row-inactive"}">
+        <div class="menu-row d-flex align-items-center gap-2 ${isActive ? "" : "menu-row-inactive"} ${isVisible ? "" : "menu-row-hidden"} ${isSeparator ? "menu-row-separator" : ""}">
           <span class="menu-handle" title="Trascina per riordinare" style="cursor: grab;">
             ⠿
           </span>
 
           <span class="menu-node-title menu-title">
-            ${escapeHtml(n.name ?? "")} <small class="text-muted">w:${n.weight ?? 0}</small>
+            ${title} <small class="text-muted">w:${n.weight ?? 0}</small> ${statusBadges}
           </span>
 
           <div class="dropdown ms-auto">
@@ -157,10 +174,19 @@ if (window.__menuMgmtInitDone) {
 
             <ul class="dropdown-menu">
               <li><a class="dropdown-item" href="#" data-action="add-child" data-id="${n.id}">Aggiungi sotto-menu</a></li>
+              <li><a class="dropdown-item" href="#" data-action="add-separator-child" data-id="${n.id}">Aggiungi separatore</a></li>
               <li><a class="dropdown-item" href="#" data-action="edit" data-id="${n.id}">Modifica</a></li>
               <li><a class="dropdown-item" href="#" data-action="toggle-active" data-id="${n.id}">
                 ${((n.is_active ?? n.active ?? true) ? "Disattiva" : "Attiva")}
               </a></li>
+              <li>
+                ${isActive
+                  ? `<span class="dropdown-item disabled">Visibile fisso</span>`
+                  : `<a class="dropdown-item" href="#" data-action="toggle-visible" data-id="${n.id}">
+                      ${isVisible ? "Nascondi" : "Mostra"}
+                    </a>`
+                }
+              </li>
               <li><hr class="dropdown-divider"></li>
               <li><a class="dropdown-item text-danger" href="#" data-action="delete" data-id="${n.id}">Elimina</a></li>
             </ul>
@@ -270,8 +296,24 @@ if (window.__menuMgmtInitDone) {
         return;
       }
 
+      if (action === "add-separator-child") {
+        openModal({
+          mode: "add-separator",
+          parentId: id,
+          menu: { item_type: "separator", name: "", route: null, is_active: true, is_visible: true }
+        });
+        return;
+      }
+
       if (action === "toggle-active") {
         await apiToggleMenuActive(id);
+        setPendingApply(true);
+        await renderAll();
+        return;
+      }
+
+      if (action === "toggle-visible") {
+        await apiToggleMenuVisible(id);
         setPendingApply(true);
         await renderAll();
         return;
@@ -331,14 +373,19 @@ if (window.__menuMgmtInitDone) {
     const pid = (parentId ?? menu?.parent_id ?? null);
     document.getElementById("mm_parent_id").value = (pid === null) ? "" : String(pid);
 
+    document.getElementById("mm_item_type").value = menu?.item_type ?? "link";
     document.getElementById("mm_name").value = menu?.name ?? "";
     document.getElementById("mm_route").value = menu?.route ?? "";
     document.getElementById("mm_weight").value = menu?.weight ?? 0;
     document.getElementById("mm_is_active").checked = (menu?.is_active ?? true) === true;
+    document.getElementById("mm_is_visible").checked = (menu?.is_visible ?? true) === true;
     syncRoleSelectFromWeight(menu?.weight ?? 0);
+    updateTypeFields();
+    updateVisibilityFields();
 
     document.getElementById("menuModalTitle").textContent =
       (mode === "add-root") ? "Crea menu (root)" :
+      (mode === "add-separator") ? "Crea separatore" :
       (mode === "add-child") ? "Crea sotto-menu" :
       "Modifica menu";
 
@@ -383,6 +430,41 @@ if (window.__menuMgmtInitDone) {
     });
   }
 
+  function updateTypeFields() {
+    const typeSelect = document.getElementById("mm_item_type");
+    const routeInput = document.getElementById("mm_route");
+    const nameInput = document.getElementById("mm_name");
+    if (!typeSelect || !routeInput || !nameInput) return;
+
+    const isSeparator = typeSelect.value === "separator";
+    routeInput.disabled = isSeparator;
+    routeInput.value = isSeparator ? "" : routeInput.value;
+    nameInput.required = !isSeparator;
+    nameInput.placeholder = isSeparator ? "Separatore" : "";
+  }
+
+  function bindItemType() {
+    document.getElementById("mm_item_type")?.addEventListener("change", updateTypeFields);
+  }
+
+  function updateVisibilityFields() {
+    const activeInput = document.getElementById("mm_is_active");
+    const visibleInput = document.getElementById("mm_is_visible");
+    if (!activeInput || !visibleInput) return;
+
+    if (activeInput.checked) {
+      visibleInput.checked = true;
+      visibleInput.disabled = true;
+      return;
+    }
+
+    visibleInput.disabled = false;
+  }
+
+  function bindVisibilityRules() {
+    document.getElementById("mm_is_active")?.addEventListener("change", updateVisibilityFields);
+  }
+
   /* =========================
      MODAL SUBMIT
   ========================= */
@@ -400,19 +482,22 @@ if (window.__menuMgmtInitDone) {
 
       const id = (document.getElementById("mm_menu_id").value || "").trim();
       const parentIdRaw = (document.getElementById("mm_parent_id").value || "").trim();
+      const itemType = document.getElementById("mm_item_type").value || "link";
 
       const payload = {
         name: (document.getElementById("mm_name").value || "").trim(),
-        route: (document.getElementById("mm_route").value || "").trim() || null,
+        route: itemType === "separator" ? null : ((document.getElementById("mm_route").value || "").trim() || null),
         weight: Number(document.getElementById("mm_weight").value || 0),
-        is_active: document.getElementById("mm_is_active").checked
+        is_active: document.getElementById("mm_is_active").checked,
+        is_visible: document.getElementById("mm_is_active").checked || document.getElementById("mm_is_visible").checked,
+        item_type: itemType
       };
 
       // root => parent_id null (campo vuoto)
       payload.parent_id = parentIdRaw === "" ? null : Number(parentIdRaw);
 
       try {
-        if (!payload.name) throw new Error("Nome obbligatorio");
+        if (!payload.name && payload.item_type !== "separator") throw new Error("Nome obbligatorio");
 
         if (id) {
           await updateMenuJson({ id: Number(id), ...payload });
@@ -445,9 +530,19 @@ if (window.__menuMgmtInitDone) {
     bindActions(host);
     bindModalSubmit(renderAll);
     bindRoleWeight();
+    bindItemType();
+    bindVisibilityRules();
 
     document.getElementById("btnAddRootMenu")?.addEventListener("click", () => {
       openModal({ mode: "add-root", parentId: null });
+    });
+
+    document.getElementById("btnAddSeparator")?.addEventListener("click", () => {
+      openModal({
+        mode: "add-separator",
+        parentId: null,
+        menu: { item_type: "separator", name: "", route: null, is_active: true, is_visible: true }
+      });
     });
 
     document.getElementById("btnApplyMenuChanges")?.addEventListener("click", () => {
