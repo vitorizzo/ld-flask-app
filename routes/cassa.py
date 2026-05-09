@@ -138,6 +138,7 @@ def _derive_key(password: str, salt: bytes) -> bytes:
 
 _VAULT_REDIS_KEY = "private_vault:unlocked"
 _VAULT_STATE_VERSION_KEY = "private_vault:state_version"
+_VAULT_ACTIVE_KEY_ID = "private_vault:active_key_id"
 
 def _vault_get_state_version() -> int:
     try:
@@ -177,9 +178,11 @@ def _vault_force_lock() -> None:
     """
     try:
         _vault_set_unlocked_state(False)
+        _pri_clear_active_key()
     except Exception:
         logger.exception("Errore aggiornamento stato vault Redis")
 
+    _pri_clear_session_key()
     session["pri_vault_unlocked"] = False
 
 
@@ -347,6 +350,48 @@ def _pri_store_session_key(key: bytes, salt: bytes) -> str:
     return key_id
 
 
+def _pri_key_exists(key_id: str | None) -> bool:
+    if not key_id:
+        return False
+
+    r = get_redis()
+    return bool(r.get(f"pri_vault:key:{key_id}"))
+
+
+def _pri_set_active_key_id(key_id: str) -> None:
+    r = get_redis()
+    r.set(_VAULT_ACTIVE_KEY_ID, key_id)
+
+
+def _pri_clear_active_key() -> None:
+    r = get_redis()
+    key_id = r.get(_VAULT_ACTIVE_KEY_ID)
+    if key_id:
+        r.delete(f"pri_vault:key:{key_id}")
+    r.delete(_VAULT_ACTIVE_KEY_ID)
+
+
+def _pri_adopt_active_key_if_unlocked() -> bool:
+    if not _vault_get_unlocked_state():
+        session["pri_vault_unlocked"] = False
+        return False
+
+    session_key_id = session.get("pri_vault_key_id")
+    if _pri_key_exists(session_key_id):
+        session["pri_vault_unlocked"] = True
+        return True
+
+    r = get_redis()
+    active_key_id = r.get(_VAULT_ACTIVE_KEY_ID)
+    if _pri_key_exists(active_key_id):
+        session["pri_vault_key_id"] = active_key_id
+        session["pri_vault_unlocked"] = True
+        return True
+
+    session["pri_vault_unlocked"] = False
+    return False
+
+
 def _pri_get_session_key() -> bytes | None:
     key_id = session.get("pri_vault_key_id")
     if not key_id:
@@ -386,7 +431,7 @@ def _pri_load_year(year: int) -> dict:
     """
     Carica e decifra il file annuale PRI usando la chiave di sessione in RAM.
     """
-    if not session.get("pri_vault_unlocked"):
+    if not _pri_adopt_active_key_if_unlocked():
         raise RuntimeError("Vault non sbloccato")
 
     key = _pri_get_session_key()
@@ -815,7 +860,12 @@ def api_private_status():
         _vault_force_lock()
         unlocked = False
 
-    session["pri_vault_unlocked"] = unlocked
+    if unlocked:
+        unlocked = _pri_adopt_active_key_if_unlocked()
+        if not unlocked:
+            _vault_force_lock()
+    else:
+        session["pri_vault_unlocked"] = False
 
     return jsonify({
         "ok": True,
@@ -909,6 +959,7 @@ def api_private_unlock():
 
         # salva chiave in RAM
         key_id = _pri_store_session_key(key, salt)
+        _pri_set_active_key_id(key_id)
 
         _vault_set_unlocked_state(True)
         session["pri_vault_unlocked"] = True

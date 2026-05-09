@@ -2082,7 +2082,7 @@ function resetDepositForm() {
    INIT
 ========================= */
 
-document.addEventListener("DOMContentLoaded", function () {
+document.addEventListener("DOMContentLoaded", async function () {
   calendarInstance = flatpickr("#agendaCalendar", {
     inline: true,
     defaultDate: new Date(),
@@ -2096,7 +2096,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  refreshPrivateVaultStatus().catch(err => {
+  await refreshPrivateVaultStatus().catch(err => {
     console.error("initial vault status error:", err);
   });
 
@@ -2128,7 +2128,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   decorateMonth(calendarInstance.currentYear, calendarInstance.currentMonth);
-  loadDay(toLocalYMD(new Date()));
+  await loadDay(toLocalYMD(new Date()));
   startAssegniAutoRefresh();
 
   if (ownerTakeModalEl) {
