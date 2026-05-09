@@ -189,14 +189,14 @@ def create_app():
             """
             result = []
             for node in nodes:
-                if not node.is_active:
+                if not node.is_visible:
                     continue
                 if node.weight > user_role_weight:
                     continue
 
                 children = [
                     m for m in all_menus
-                    if m.parent_id == node.id and m.is_active and m.weight <= user_role_weight
+                    if m.parent_id == node.id and m.is_visible and m.weight <= user_role_weight
                 ]
 
                 children_tree = build_menu_tree(children, all_menus, user_role_weight)
@@ -207,6 +207,8 @@ def create_app():
                     "weight": node.weight,
                     "route": node.route,
                     "is_active": node.is_active,
+                    "is_visible": node.is_visible,
+                    "item_type": node.item_type,
                     "children": children_tree
                 })
             return result
@@ -216,7 +218,7 @@ def create_app():
         # Carichiamo TUTTI i menu ordinati in modo deterministico
         all_menus = (
             Menu.query
-            .filter(Menu.is_active.is_(True), Menu.weight <= user_role_weight)
+            .filter(Menu.is_visible.is_(True), Menu.weight <= user_role_weight)
             .order_by(asc(Menu.parent_id), asc(Menu.sort_order), asc(Menu.id))
             .all()
         )

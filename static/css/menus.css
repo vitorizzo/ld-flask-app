@@ -69,6 +69,26 @@
   text-decoration: line-through;
 }
 
+#menuTree .menu-row-hidden .menu-title {
+  color: rgba(0, 0, 0, 0.38);
+  font-style: italic;
+}
+
+#menuTree .menu-row-separator .menu-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+#menuTree .menu-row-separator .menu-title::before,
+#menuTree .menu-row-separator .menu-title::after {
+  content: "";
+  height: 1px;
+  flex: 1 1 auto;
+  background: rgba(74, 44, 42, 0.35);
+}
+
 /* sbiadisci badge e testi senza opacity globale */
 #menuTree .menu-row-inactive .badge {
   background: rgba(0, 0, 0, 0.10);

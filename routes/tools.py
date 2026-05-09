@@ -11,15 +11,16 @@ def get_user_menu():
     try:
         if current_user.is_authenticated:
             role_weight = current_user.max_role_weight
-            menus = Menu.query.filter(Menu.is_active == True).all()
+            menus = Menu.query.filter(Menu.is_visible == True, Menu.item_type == "link").all()
             user_menu = {
-                menu.name: "enabled" if role_weight >= menu.weight else "disabled"
+                menu.name: "enabled" if role_weight >= menu.weight and menu.is_active else "disabled"
                 for menu in menus
             }
             logger.debug(f"Generato menu per utente autenticato: peso ruolo {role_weight}")
         else:
             user_menu = {
-                menu.name: "disabled" for menu in Menu.query.filter(Menu.is_active == True).all()
+                menu.name: "disabled"
+                for menu in Menu.query.filter(Menu.is_visible == True, Menu.item_type == "link").all()
             }
             logger.debug("Generato menu per utente non autenticato (tutti disabilitati)")
         return user_menu

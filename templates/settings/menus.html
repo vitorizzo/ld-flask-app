@@ -32,6 +32,10 @@
                 Applica
               </button>
 
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddSeparator">
+                + Separatore
+              </button>
+
               <!-- ROOT CREATE -->
               <button type="button" class="btn-enabled-custom btn-sm" id="btnAddRootMenu">
                 + Nuovo menu (root)
@@ -65,6 +69,14 @@
           <div class="modal-body">
             <input type="hidden" id="mm_menu_id">
             <input type="hidden" id="mm_parent_id">
+
+            <div class="mb-3">
+              <label class="form-label" for="mm_item_type">Tipo voce</label>
+              <select class="form-select" id="mm_item_type">
+                <option value="link">Voce menu</option>
+                <option value="separator">Separatore</option>
+              </select>
+            </div>
 
             <div class="mb-3">
               <label class="form-label" for="mm_name">Nome</label>
@@ -104,6 +116,10 @@
               <label class="form-check-label m-0" for="mm_is_active">Attivo</label>
             </div>
 
+            <div class="form-check d-flex align-items-center gap-2 mt-2">
+              <input class="form-check-input m-0" type="checkbox" id="mm_is_visible">
+              <label class="form-check-label m-0" for="mm_is_visible">Visibile</label>
+            </div>
 
             {# Qui in futuro: select ruoli / eccezioni #}
           </div>

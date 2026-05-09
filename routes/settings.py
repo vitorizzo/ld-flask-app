@@ -364,6 +364,11 @@ def create_menu():
     data = request.get_json(silent=True) or {}
 
     name = (data.get("name") or "").strip()
+    item_type = (data.get("item_type") or "link").strip()
+    if item_type not in ("link", "separator"):
+        return jsonify(ok=False, error="Tipo menu non valido"), 400
+    if item_type == "separator" and not name:
+        name = "Separatore"
     if not name:
         return jsonify(ok=False, error="Nome obbligatorio"), 400
 
@@ -375,6 +380,9 @@ def create_menu():
     weight = int(data.get("weight") or 0)
     route = data.get("route") or None
     is_active = bool(data.get("is_active", True))
+    is_visible = bool(data.get("is_visible", True))
+    if is_active:
+        is_visible = True
 
     # sort_order = ultimo tra i fratelli + 1
     max_sort = (db.session.query(db.func.max(Menu.sort_order))
@@ -388,7 +396,9 @@ def create_menu():
         parent_id=parent_id,
         weight=weight,
         sort_order=sort_order,
-        is_active=is_active
+        is_active=is_active,
+        is_visible=is_visible,
+        item_type=item_type
     )
     db.session.add(m)
     db.session.commit()
@@ -409,12 +419,21 @@ def update_menu_json():
     m = Menu.query.get_or_404(int(mid))
 
     m.name = (data.get("name") or "").strip()
+    item_type = (data.get("item_type") or m.item_type or "link").strip()
+    if item_type not in ("link", "separator"):
+        return jsonify(ok=False, error="Tipo menu non valido"), 400
+    if item_type == "separator" and not m.name:
+        m.name = "Separatore"
     if not m.name:
         return jsonify(ok=False, error="Nome obbligatorio"), 400
 
     m.route = data.get("route") or None
     m.weight = int(data.get("weight") or 0)
     m.is_active = bool(data.get("is_active", True))
+    m.is_visible = bool(data.get("is_visible", True))
+    if m.is_active:
+        m.is_visible = True
+    m.item_type = item_type
 
     if "parent_id" in data:
         parent_id = data.get("parent_id")
@@ -488,5 +507,20 @@ def delete_menu(menu_id):
 def toggle_menu_active(menu_id):
     m = Menu.query.get_or_404(menu_id)
     m.is_active = not bool(m.is_active)
+    if m.is_active:
+        m.is_visible = True
     db.session.commit()
     return jsonify(ok=True, id=m.id, is_active=bool(m.is_active))
+
+
+@settings_bp.route("/toggle_menu_visible/<int:menu_id>", methods=["POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def toggle_menu_visible(menu_id):
+    m = Menu.query.get_or_404(menu_id)
+    if m.is_active:
+        return jsonify(ok=False, error="Un menu attivo è sempre visibile"), 400
+    m.is_visible = not bool(m.is_visible)
+    db.session.commit()
+    return jsonify(ok=True, id=m.id, is_visible=bool(m.is_visible))

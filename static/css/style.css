@@ -278,6 +278,20 @@ section {
       padding: 10px 20px;
       position: relative;
       cursor: not-allowed; /* Per comunicare disabilitazione */
+      pointer-events: none;
+    }
+
+    .dropdown-menu .menu-item-inactive {
+      color: #805f5d !important;
+      pointer-events: none;
+      cursor: default;
+    }
+
+    .menu-root-separator {
+      width: 1px;
+      min-height: 24px;
+      margin: 0 8px !important;
+      background: rgba(255, 255, 255, 0.35);
     }
 
     .navbar-nav .nav-link-enabled::before,

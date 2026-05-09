@@ -24,6 +24,8 @@ class Menu(db.Model):
     parent_id = db.Column(db.Integer, db.ForeignKey('menus.id'), nullable=True)
     route = db.Column(db.String(100), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
+    is_visible = db.Column(db.Boolean, nullable=False, default=True)
+    item_type = db.Column(db.String(20), nullable=False, default='link')
     parent = db.relationship('Menu', remote_side=[id], backref='children')
 
     def to_dict(self):
@@ -35,6 +37,8 @@ class Menu(db.Model):
             'route': self.route,
             'sort_order': self.sort_order,
             'is_active': self.is_active,
+            'is_visible': self.is_visible,
+            'item_type': self.item_type,
             'parent': self.parent.name if self.parent else None,
         }
 
