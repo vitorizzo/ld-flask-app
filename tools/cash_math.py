@@ -432,7 +432,7 @@ def calculate_closure_pure(
 
     assegni_in_pancia = _sum_amount(
         db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
-        .filter(CashCheck.status.in_(["received", "moved"]))
+        .filter(CashCheck.status.in_(["received", "moved", "spostato", "anticipato"]))
     )
 
     # =========================

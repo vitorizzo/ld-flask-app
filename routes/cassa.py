@@ -45,6 +45,8 @@ logger = get_logger("cassa", level=logging.INFO)
 
 MIN_AGENDA_WEIGHT = 40
 
+CHECK_IN_PANCIA_STATUSES = ("received", "moved", "spostato", "anticipato")
+
 _VAULT_VERSION = 1
 _KDF_ITERS = 200_000
 
@@ -1044,6 +1046,15 @@ def _compute_day_totals_from_db(cash_day, view: str) -> dict:
     }
 
 
+def _get_total_corrispettivi_for_day(cash_day_id: int) -> Decimal:
+    totale = (
+        db.session.query(func.coalesce(func.sum(CashReceiptClosure.amount), 0))
+        .filter(CashReceiptClosure.cash_day_id == cash_day_id)
+        .scalar()
+    )
+    return Decimal(str(totale or 0))
+
+
 def _calculate_progressive_saldo_versabile(cash_day: CashDay) -> Decimal:
     """
     Ricostruisce il saldo versabile progressivo della giornata,
@@ -1066,7 +1077,7 @@ def _calculate_progressive_saldo_versabile(cash_day: CashDay) -> Decimal:
     result = calculate_closure_pure(
         cash_day_id=cash_day.id,
         opening_float=Decimal(str(cash_day.opening_float or 0)),
-        total_corrispettivi=Decimal("0"),
+        total_corrispettivi=_get_total_corrispettivi_for_day(cash_day.id),
         fondo_finale=Decimal("0"),
         saldo_versabile_precedente=saldo_prev,
         saldo_movimenti_cassa=Decimal("0"),
@@ -1108,14 +1119,13 @@ def api_cash_day_preview(day_date):
     if not cash_day:
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
 
-    CHECK_IN_PANCIA = {"received", "spostato", "anticipato"}
     cutoff = next_banking_day(d)
 
     # Somma assegni "in pancia" versabili entro cutoff
     assegni_versabili = (
         db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
         .filter(
-            CashCheck.status.in_(CHECK_IN_PANCIA),
+            CashCheck.status.in_(CHECK_IN_PANCIA_STATUSES),
             CashCheck.due_date <= cutoff,
         )
         .scalar()
@@ -1125,7 +1135,7 @@ def api_cash_day_preview(day_date):
     assegni_postdatati = (
         db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
         .filter(
-            CashCheck.status.in_(CHECK_IN_PANCIA),
+            CashCheck.status.in_(CHECK_IN_PANCIA_STATUSES),
             CashCheck.due_date > cutoff,
         )
         .scalar()
@@ -1151,12 +1161,7 @@ def api_cash_day_preview(day_date):
     else:
         fondo_finale = _get_drawer_count_total_for_day(cash_day)
 
-    totale_corrispettivi = (
-        db.session.query(func.coalesce(func.sum(CashReceiptClosure.amount), 0))
-        .filter(CashReceiptClosure.cash_day_id == cash_day.id)
-        .scalar()
-    )
-    totale_corrispettivi = Decimal(str(totale_corrispettivi or 0))
+    totale_corrispettivi = _get_total_corrispettivi_for_day(cash_day.id)
 
     totale_owner_take_cash = (
         db.session.query(func.coalesce(func.sum(CashOwnerTake.cash_amount), 0))
@@ -1350,7 +1355,7 @@ def api_cash_day_preview(day_date):
         "totals": result,
         "checks_debug": {
             "cutoff_bancabile": cutoff.isoformat(),
-            "in_pancia_status": sorted(list(CHECK_IN_PANCIA)),
+            "in_pancia_status": sorted(list(CHECK_IN_PANCIA_STATUSES)),
             "versabili": float(assegni_versabili or 0),
             "postdatati": float(assegni_postdatati or 0),
         }
@@ -4923,7 +4928,7 @@ def api_available_checks_for_deposit(day_date):
         CashCheck.query
         .options(selectinload(CashCheck.customer))
         .filter(
-            CashCheck.status.in_(["received", "moved"]),
+            CashCheck.status.in_(CHECK_IN_PANCIA_STATUSES),
             CashCheck.received_date < d,
             CashCheck.due_date <= cutoff
         )
@@ -4958,11 +4963,9 @@ def api_available_checks_for_deposit(day_date):
         }
 
     # tutti gli assegni ancora "in pancia", anche non versabili oggi
-    checks_in_pancia_status = ["received", "moved"]
-
     saldo_assegni_in_pancia = (
         db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
-        .filter(CashCheck.status.in_(checks_in_pancia_status))
+        .filter(CashCheck.status.in_(CHECK_IN_PANCIA_STATUSES))
         .scalar()
     )
 
