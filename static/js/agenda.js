@@ -3153,6 +3153,12 @@ document.addEventListener("DOMContentLoaded", async function () {
       return;
     }
 
+    const unlocked = await refreshPrivateVaultStatus();
+    if (!unlocked) {
+      alert("Sblocca il vault per inserire versamenti o prelievi di cassa.");
+      return;
+    }
+
     resetCashMoveModalForm();
 
     if (cashMoveDateInput) {
@@ -6549,7 +6555,6 @@ function buildContextMenuHtml(context) {
     const preferred = [
       { value: "altro", label: "Movimento di cassa" },
       { value: "spicci", label: "Spicci" },
-      { value: "incasso", label: "Incasso" },
     ];
     const present = uniqueCashMoveFilterOptions(kind);
     const merged = new Map(preferred.map(opt => [opt.value, opt.label]));

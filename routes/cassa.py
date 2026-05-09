@@ -337,6 +337,39 @@ def _pri_find_cash_move(year: int, move_id: str):
     return None, None, None, None
 
 
+def _pri_find_cash_move_any_year(move_id: str, preferred_year: int | None = None):
+    years = []
+    if preferred_year:
+        years.append(preferred_year)
+    current_year = date.today().year
+    if current_year not in years:
+        years.append(current_year)
+
+    mount_root, vault_dir, cfg_year, _year_file = _vault_config()
+    if cfg_year not in years:
+        years.append(cfg_year)
+
+    try:
+        if os.path.isdir(vault_dir):
+            for name in os.listdir(vault_dir):
+                if not name.endswith(".enc"):
+                    continue
+                raw_year = name[:-4]
+                if raw_year.isdigit():
+                    year = int(raw_year)
+                    if year not in years:
+                        years.append(year)
+    except Exception:
+        logger.exception("Errore scansione anni vault PRI")
+
+    for year in years:
+        pri_data, day_node, idx, row = _pri_find_cash_move(year, move_id)
+        if pri_data:
+            return year, pri_data, day_node, idx, row
+
+    return None, None, None, None, None
+
+
 def _pri_store_session_key(key: bytes, salt: bytes) -> str:
     key_id = secrets.token_urlsafe(32)
     r = get_redis()
@@ -1244,6 +1277,7 @@ def api_cash_day_preview(day_date):
         db.session.query(func.coalesce(func.sum(CashMove.amount), 0))
         .filter(
             CashMove.cash_day_id == cash_day.id,
+            CashMove.kind.in_(["altro", "spicci"]),
             CashMove.direction == "in",
         )
         .scalar()
@@ -1253,6 +1287,7 @@ def api_cash_day_preview(day_date):
         db.session.query(func.coalesce(func.sum(CashMove.amount), 0))
         .filter(
             CashMove.cash_day_id == cash_day.id,
+            CashMove.kind.in_(["altro", "spicci"]),
             CashMove.direction == "out",
         )
         .scalar()
@@ -1370,7 +1405,10 @@ def api_cash_day_preview(day_date):
 
     has_cash_move_rows = (
                              db.session.query(func.count(CashMove.id))
-                             .filter(CashMove.cash_day_id == cash_day.id)
+                             .filter(
+                                 CashMove.cash_day_id == cash_day.id,
+                                 CashMove.kind.in_(["altro", "spicci"]),
+                             )
                              .scalar()
                          ) > 0
 
@@ -4165,7 +4203,10 @@ def api_list_cash_banks():
 
 
 # =========================
-# MOVIMENTI DI CASSA (prelievi/versamenti terzi + spicci)
+# MOVIMENTI DI CASSA
+# - kind=altro   -> vault PRI, visibile solo a vault sbloccato
+# - kind=spicci  -> DB aziendale, visibile anche nel quadrante
+# - kind=incasso -> DB aziendale, non visibile nel quadrante perche' gia' esposto nel cassetto
 # =========================
 
 @cassa_bp.post("/api/day/<day_date>/cash_moves", endpoint="api_create_cash_move")
@@ -4179,7 +4220,7 @@ def api_create_cash_move(day_date):
       "amount": -50.00,                 # negativo=prelievo (out), positivo=versamento (in)
       "performed_by": "Vito",           # chi prende/mette i soldi
       "notes": "Motivo (opzionale)",
-      "kind": "altro" | "spicci"        # default "altro"
+      "kind": "altro" | "spicci" | "incasso"        # default "altro"
     }
     """
     try:
@@ -4205,13 +4246,13 @@ def api_create_cash_move(day_date):
 
     notes = (data.get("notes") or "").strip() or None
     kind = (data.get("kind") or "altro").strip() or "altro"
+    if kind not in {"altro", "spicci", "incasso"}:
+        kind = "altro"
 
     direction = "in" if raw_amount > 0 else "out"
     amount = abs(raw_amount)
 
-    flag = "x"
-
-    if flag in {"+", "x"}:
+    if kind == "altro":
         if not session.get("pri_vault_unlocked"):
             return jsonify({"ok": False, "error": "Vault privato non sbloccato"}), 409
 
@@ -4238,7 +4279,7 @@ def api_create_cash_move(day_date):
             "notes": notes,
             "kind": kind,
             "method": "cash",
-            "flag": flag,
+            "flag": "x",
             "off_cash": False,
             "meta": {
                 "origin": "pri",
@@ -4304,6 +4345,7 @@ def api_list_cash_moves(day_date):
         moves = (
             CashMove.query
             .filter(CashMove.cash_day_id == cash_day.id)
+            .filter(CashMove.kind.in_(["spicci"]))
             .order_by(CashMove.created_at.asc())
             .all()
         )
@@ -4393,7 +4435,7 @@ def api_update_cash_move(cash_move_id):
       "amount": -50.00,          # negativo=prelievo (out), positivo=versamento (in)
       "performed_by": "Vito",
       "notes": "Motivo (opzionale)",
-      "kind": "altro" | "spicci"
+      "kind": "altro" | "spicci" | "incasso"
     }
     """
     data = request.get_json(silent=True) or {}
@@ -4409,6 +4451,8 @@ def api_update_cash_move(cash_move_id):
     performed_by = (data.get("performed_by") or "").strip() or None
     notes = (data.get("notes") or "").strip() or None
     kind = (data.get("kind") or "altro").strip() or "altro"
+    if kind not in {"altro", "spicci", "incasso"}:
+        kind = "altro"
 
     direction = "in" if raw_amount > 0 else "out"
     amount = abs(raw_amount)
@@ -4420,14 +4464,16 @@ def api_update_cash_move(cash_move_id):
         if not session.get("pri_vault_unlocked"):
             return jsonify({"ok": False, "error": "Vault privato non sbloccato"}), 409
 
-        year = date.today().year
+        year, _pri_data, day_node, _idx, _row = _pri_find_cash_move_any_year(cash_move_id)
+        if not year:
+            return jsonify({"ok": False, "error": "Movimento PRI non trovato"}), 404
 
         updated_row = _pri_update_cash_move(year, cash_move_id, {
             "direction": direction,
             "amount": float(amount),
             "performed_by": performed_by,
             "notes": notes,
-            "kind": kind,
+            "kind": "altro",
             "flag": "x",
             "method": "cash",
             "off_cash": False,
@@ -4439,7 +4485,6 @@ def api_update_cash_move(cash_move_id):
         if updated_row is False:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
-        pri_data, day_node, _, _ = _pri_find_cash_move(year, cash_move_id)
         if day_node:
             _bump_agenda_day_version(day_node["date"])
 
@@ -4501,8 +4546,7 @@ def api_delete_cash_move(cash_move_id):
         if not session.get("pri_vault_unlocked"):
             return jsonify({"ok": False, "error": "Vault privato non sbloccato"}), 409
 
-        year = date.today().year
-        pri_data, day_node, idx, row = _pri_find_cash_move(year, cash_move_id)
+        year, pri_data, day_node, idx, row = _pri_find_cash_move_any_year(cash_move_id)
 
         if not pri_data:
             return jsonify({"ok": False, "error": "Movimento PRI non trovato"}), 404
