@@ -706,6 +706,20 @@ def agenda():
     return render_template("agenda.html")
 
 
+@cassa_bp.route("/agenda/search/customer", methods=["GET"])
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def agenda_search_customer():
+    return render_template("agenda.html")
+
+
+@cassa_bp.route("/agenda/search/amount", methods=["GET"])
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def agenda_search_amount():
+    return render_template("agenda.html")
+
+
 # =========================
 # API: Day
 # =========================

@@ -4904,6 +4904,40 @@ document.addEventListener("DOMContentLoaded", async function () {
     setTimeout(() => movementSearchAmountValue?.focus(), 150);
   }
 
+  function getInitialMovementSearchAction() {
+    const params = new URLSearchParams(window.location.search || "");
+    const openParam = (params.get("open") || params.get("action") || "").trim().toLowerCase();
+    const path = (window.location.pathname || "").replace(/\/+$/, "");
+
+    if (["search_customer", "customer", "cliente", "ricerca_cliente"].includes(openParam)) {
+      return "search_customer";
+    }
+
+    if (["search_amount", "amount", "importo", "ricerca_importo"].includes(openParam)) {
+      return "search_amount";
+    }
+
+    if (path.endsWith("/cassa/agenda/search/customer")) {
+      return "search_customer";
+    }
+
+    if (path.endsWith("/cassa/agenda/search/amount")) {
+      return "search_amount";
+    }
+
+    return "";
+  }
+
+  function openInitialMovementSearchAction() {
+    const action = getInitialMovementSearchAction();
+
+    if (action === "search_customer") {
+      openMovementSearchCustomerModal();
+    } else if (action === "search_amount") {
+      openMovementSearchAmountModal();
+    }
+  }
+
   function renderMovementSearchRows(tbody, rows) {
     if (!tbody) return;
 
@@ -5329,6 +5363,8 @@ document.addEventListener("DOMContentLoaded", async function () {
       alert("Errore di rete durante la ricerca importo.");
     }
   });
+
+  openInitialMovementSearchAction();
 
   document.addEventListener("click", async (e) => {
     const editBtn = e.target.closest(".movement-search-edit");
