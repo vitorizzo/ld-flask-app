@@ -5167,12 +5167,20 @@ document.addEventListener("DOMContentLoaded", async function () {
       return "search_amount";
     }
 
+    if (["report", "day_report", "report_giornata"].includes(openParam)) {
+      return "report";
+    }
+
     if (path.endsWith("/cassa/agenda/search/customer")) {
       return "search_customer";
     }
 
     if (path.endsWith("/cassa/agenda/search/amount")) {
       return "search_amount";
+    }
+
+    if (path.endsWith("/cassa/agenda/report")) {
+      return "report";
     }
 
     return "";
@@ -5185,6 +5193,8 @@ document.addEventListener("DOMContentLoaded", async function () {
       openMovementSearchCustomerModal();
     } else if (action === "search_amount") {
       openMovementSearchAmountModal();
+    } else if (action === "report") {
+      openDayReport();
     }
   }
 
@@ -6657,7 +6667,7 @@ function buildContextMenuHtml(context) {
       ${section("Generale", `
       ${btn("Ricerca per cliente", "search_customer", true)}
       ${btn("Ricerca per importo", "search_amount", true)}
-      ${btn("Report giornata", "report", canReport)}
+      ${btn("Visualizza report", "report", canReport)}
       ${btn("Stampa report", "print_report", canReport)}
       `)}
     `);
@@ -7035,6 +7045,327 @@ async function printCompleteDayReport() {
     receipts,
   });
 
+  const win = window.open("", "_blank");
+  if (!win) {
+    alert("Popup bloccato dal browser. Consenti i popup per stampare il report.");
+    return;
+  }
+
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 300);
+}
+
+async function collectCompleteDayReportPayload() {
+  await refreshPrivateVaultStatus();
+
+  const view = priVaultUnlocked ? "complete" : "fiscal";
+  const [
+    preview,
+    sales,
+    expenses,
+    pos,
+    cashMoves,
+    deposits,
+    ownerTakes,
+    ecommerce,
+    receipts,
+    banks,
+  ] = await Promise.all([
+    fetchReportJson(`/cassa/api/day/${currentDay}/preview?view=${view}`, { ok: false, totals: {} }),
+    fetchReportJson(`/cassa/api/day/${currentDay}/sales`, { ok: false, sales: [] }),
+    fetchReportJson(`/cassa/api/day/${currentDay}/expenses`, { ok: false, expenses: [] }),
+    fetchReportJson(`/cassa/api/day/${currentDay}/pos_moves`, { ok: false, pos_moves: [] }),
+    fetchReportJson(`/cassa/api/day/${currentDay}/cash_moves`, { ok: false, cash_moves: [] }),
+    fetchReportJson(`/cassa/api/day/${currentDay}/deposits`, { ok: false, deposits: [], totals: {} }),
+    fetchReportJson(`/cassa/api/day/${currentDay}/owner-takes`, { ok: false, owner_takes: [] }),
+    fetchReportJson(`/cassa/api/day/${currentDay}/ecommerce`, { ok: false, ecommerce: [] }),
+    fetchReportJson(`/cassa/api/day/${currentDay}/receipt-closures`, []),
+    fetchReportJson("/cassa/api/banks", { ok: false, banks: [] }),
+  ]);
+
+  return { preview, sales, expenses, pos, cashMoves, deposits, ownerTakes, ecommerce, receipts, banks };
+}
+
+function reportDayLabel() {
+  if (!currentDay) return "";
+  const parts = String(currentDay).split("-");
+  if (parts.length !== 3) return currentDay;
+  return `${parts[2]}.${parts[1]}.${parts[0]}`;
+}
+
+function signedReportMoney(value) {
+  return `€ ${reportMoney(value)}`;
+}
+
+function reportTitleText() {
+  return `${priVaultUnlocked ? "Report completo" : "Report fiscale"} giornata ${reportDayLabel()}`;
+}
+
+function reportBankMap(payload) {
+  return new Map((payload.banks?.banks || []).map(bank => [String(bank.id), bank.name]));
+}
+
+function reportPosMaps(payload) {
+  const byId = new Map();
+  const byDeviceCircuit = new Map();
+
+  for (const move of payload.pos?.pos_moves || []) {
+    if (move.id != null) byId.set(String(move.id), move);
+    const key = `${move.pos_device_id || ""}|${move.pos_circuit_id || ""}`;
+    byDeviceCircuit.set(key, move);
+  }
+
+  return { byId, byDeviceCircuit };
+}
+
+function compactDescription(parts) {
+  return parts.map(x => String(x || "").trim()).filter(Boolean).join(" ");
+}
+
+function reportMovementDescription({ flag, party, description, suffix }) {
+  const core = [party, description].map(x => String(x || "").trim()).filter(Boolean).join(" - ");
+  const body = compactDescription([flag, core]);
+  return suffix ? `${body} (${suffix})` : body;
+}
+
+function paymentSuffix(payment, maps, bankMap) {
+  if (payment.method === "bank") {
+    return bankMap.get(String(payment.bank_id || "")) || "Banca";
+  }
+
+  if (payment.off_cash) {
+    return payment.off_cash_who || payment.off_cash_name || "Fuori cassa";
+  }
+
+  if (payment.method === "pos") {
+    const move = maps.byId.get(String(payment.pos_move_id || ""));
+    return move?.pos_device_name || "POS";
+  }
+
+  return "";
+}
+
+function isPrivateParty(label, storage) {
+  const text = String(label || "").trim().toLowerCase();
+  return storage === "pri" || text === "privato" || text === "privati";
+}
+
+function paymentRowsForReport(items, type, payload) {
+  const bankMap = reportBankMap(payload);
+  const posMaps = reportPosMaps(payload);
+  const rows = [];
+  let privateTotal = 0;
+
+  for (const item of items || []) {
+    const party = type === "sale" ? (item.customer_label || "") : (item.supplier || "");
+    const itemIsPrivate = isPrivateParty(party, item.storage);
+
+    for (const payment of item.payments || []) {
+      const amount = Number(payment.amount || 0);
+      if (itemIsPrivate) {
+        privateTotal += amount;
+        continue;
+      }
+
+      rows.push([
+        reportText(reportMovementDescription({
+          flag: payment.flag || "",
+          party,
+          description: payment.description || item.notes || "",
+          suffix: paymentSuffix(payment, posMaps, bankMap)
+        })),
+        signedReportMoney(amount),
+      ]);
+    }
+  }
+
+  if (privateTotal) {
+    rows.push([reportText("Totale Privati"), signedReportMoney(privateTotal)]);
+  }
+
+  return rows;
+}
+
+function posRecapRows(payload) {
+  const groups = new Map();
+  for (const move of payload.pos?.pos_moves || []) {
+    const device = move.pos_device_name || `POS ${move.pos_device_id || ""}`;
+    const circuit = move.pos_circuit_name || "Circuito";
+    const key = `${device}|${circuit}`;
+    const signed = move.direction === "out" ? -Number(move.amount || 0) : Number(move.amount || 0);
+    groups.set(key, {
+      device,
+      circuit,
+      total: (groups.get(key)?.total || 0) + signed
+    });
+  }
+
+  return Array.from(groups.values())
+    .sort((a, b) => `${a.device} ${a.circuit}`.localeCompare(`${b.device} ${b.circuit}`, "it"))
+    .map(row => [reportText(row.device), reportText(row.circuit), signedReportMoney(row.total)]);
+}
+
+function cashMoveSummaryRows(payload) {
+  let inTotal = 0;
+  let outTotal = 0;
+
+  for (const move of payload.cashMoves?.cash_moves || []) {
+    const amount = Number(move.amount || 0);
+    if (move.direction === "out") outTotal += amount;
+    else inTotal += amount;
+  }
+
+  return [
+    [reportText("Totale versamenti"), signedReportMoney(inTotal)],
+    [reportText("Totale prelievi"), signedReportMoney(outTotal)],
+  ];
+}
+
+function ecommerceRowsForReport(payload) {
+  return (payload.ecommerce?.ecommerce || []).map(row => [
+    reportText(row.description || ""),
+    signedReportMoney(row.amount),
+  ]);
+}
+
+function sumRows(rows, selector) {
+  return (rows || []).reduce((total, row) => total + Number(selector(row) || 0), 0);
+}
+
+function buildReportBodyHtml(payload) {
+  const totals = payload.preview?.totals || {};
+  const receiptTotal = sumRows(payload.receipts || [], row => row.amount);
+  const ecommerceTotal = sumRows(payload.ecommerce?.ecommerce || [], row => row.amount);
+  const depositTotal = Number(payload.deposits?.totals?.total_amount || 0);
+  const salesRows = paymentRowsForReport(payload.sales?.sales || [], "sale", payload);
+  const expenseRows = paymentRowsForReport(payload.expenses?.expenses || [], "expense", payload);
+  const closingRows = [
+    [reportText("Totale di giornata"), signedReportMoney(totals.totale_giornata)],
+    [reportText("Totale pagamenti elettronici"), signedReportMoney(totals.totale_incassi_elettronici)],
+    [reportText("Totale atteso nel cassetto"), signedReportMoney(totals.valore_atteso_cassetto)],
+    [reportText("Totale consegnato"), signedReportMoney(totals.incasso_consegnato)],
+    [reportText("Delta quadratura"), signedReportMoney(totals.delta_quadratura)],
+  ];
+
+  return `
+    <header class="print-report-header">
+      <div>
+        <h1>${escapeHtml(reportTitleText())}</h1>
+        <p>Generato il ${escapeHtml(new Date().toLocaleString("it-IT"))}</p>
+      </div>
+      <div class="print-report-brand">LD Enoteca</div>
+    </header>
+
+    <section class="print-kpi-grid">
+      <div class="print-kpi">
+        <span>Differenza fondo cassa</span>
+        <strong>${signedReportMoney(totals.delta_fondo)}</strong>
+      </div>
+      <div class="print-kpi">
+        <span>Corrispettivi</span>
+        <strong>${signedReportMoney(receiptTotal || totals.total_corrispettivi)}</strong>
+      </div>
+      <div class="print-kpi">
+        <span>Versamenti</span>
+        <strong>${signedReportMoney(depositTotal || totals.totale_versato_oggi)}</strong>
+      </div>
+      <div class="print-kpi">
+        <span>E-commerce</span>
+        <strong>${signedReportMoney(ecommerceTotal)}</strong>
+      </div>
+    </section>
+
+    <main class="print-report-grid">
+      ${reportTable("Incassi", ["Descrizione", "Importo"], salesRows)}
+      ${reportTable("Spese", ["Descrizione", "Importo"], expenseRows)}
+      ${reportTable("POS", ["Device", "Circuito", "Totale"], posRecapRows(payload))}
+      ${reportTable("Movimenti di cassa e spicci", ["Voce", "Totale"], cashMoveSummaryRows(payload))}
+      ${reportTable("E-commerce", ["Descrizione", "Importo"], ecommerceRowsForReport(payload))}
+      ${reportTable("Chiusura", ["Voce", "Importo"], closingRows)}
+    </main>
+  `;
+}
+
+function buildCompleteDayReportHtml(payload) {
+  return `
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(reportTitleText())}</title>
+  <style>${completeDayReportCss()}</style>
+</head>
+<body>
+  <div class="screen-actions">
+    <button onclick="window.print()">Stampa</button>
+  </div>
+  ${buildReportBodyHtml(payload)}
+</body>
+</html>`;
+}
+
+function completeDayReportCss() {
+  return `
+    @page { size: A4; margin: 11mm; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; color: #1c1c1c; font-size: 10.5px; margin: 0; background: #fff; }
+    .screen-actions { margin: 12px 0; }
+    .screen-actions button { padding: 7px 12px; }
+    .print-report-header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #222; padding-bottom: 8px; margin-bottom: 10px; }
+    .print-report-header h1 { font-size: 21px; margin: 0; letter-spacing: 0; }
+    .print-report-header p { margin: 4px 0 0; color: #666; }
+    .print-report-brand { font-weight: 700; border: 1px solid #222; padding: 7px 10px; }
+    .print-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 10px 0; }
+    .print-kpi { border: 1px solid #222; padding: 7px; min-height: 48px; }
+    .print-kpi span { display: block; color: #555; font-size: 9px; text-transform: uppercase; }
+    .print-kpi strong { display: block; text-align: right; margin-top: 7px; font-size: 14px; }
+    .print-report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start; }
+    .report-section { border: 1px solid #333; break-inside: avoid; background: #fff; }
+    .report-section h2 { font-size: 12px; margin: 0; padding: 5px 7px; background: #efefef; border-bottom: 1px solid #333; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #d4d4d4; padding: 4px 5px; vertical-align: top; }
+    th { background: #fafafa; font-weight: 700; text-align: left; }
+    td:last-child, th:last-child { text-align: right; white-space: nowrap; }
+    .muted { color: #777; text-align: center !important; }
+    @media print {
+      .screen-actions { display: none; }
+      .report-section { page-break-inside: avoid; }
+    }
+  `;
+}
+
+async function openDayReport() {
+  if (!currentDay) return;
+
+  const payload = await collectCompleteDayReportPayload();
+  const modalEl = document.getElementById("dayReportModal");
+  if (!modalEl) {
+    alert("Modale report non trovata");
+    return;
+  }
+
+  const dateEl = document.getElementById("dayReportDate");
+  if (dateEl) dateEl.textContent = reportDayLabel();
+
+  const body = modalEl.querySelector(".modal-body");
+  if (body) {
+    const previewCss = completeDayReportCss()
+      .replace(/@page\s*\{[^}]*\}/g, "")
+      .replace(/body\s*\{/g, ".report-preview {");
+    body.innerHTML = `<style>${previewCss}</style><div class="report-preview">${buildReportBodyHtml(payload)}</div>`;
+  }
+
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
+}
+
+async function printCompleteDayReport() {
+  if (!currentDay) return;
+
+  const payload = await collectCompleteDayReportPayload();
+  const html = buildCompleteDayReportHtml(payload);
   const win = window.open("", "_blank");
   if (!win) {
     alert("Popup bloccato dal browser. Consenti i popup per stampare il report.");
