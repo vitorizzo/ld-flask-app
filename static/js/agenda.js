@@ -7257,13 +7257,18 @@ function posRecapRows(payload) {
   const circuitList = Array.from(circuits).sort((a, b) => a.localeCompare(b, "it"));
   const rows = Array.from(deviceMap.entries())
     .sort(([a], [b]) => a.localeCompare(b, "it"))
-    .map(([device, totals]) => [
-      reportText(device),
-      ...circuitList.map(circuit => signedReportMoney(totals.get(circuit) || 0))
-    ]);
+    .map(([device, totals]) => {
+      const values = circuitList.map(circuit => Number(totals.get(circuit) || 0));
+      const total = values.reduce((sum, value) => sum + value, 0);
+      return [
+        reportText(device),
+        ...values.map(value => signedReportMoney(value)),
+        signedReportMoney(total),
+      ];
+    });
 
   return {
-    headers: ["Device", ...circuitList],
+    headers: ["Device", ...circuitList, "Totale"],
     rows,
   };
 }
@@ -7278,10 +7283,11 @@ function cashMoveSummaryRows(payload) {
     else inTotal += amount;
   }
 
-  return [
-    [reportText("Totale versamenti"), signedReportMoney(inTotal)],
-    [reportText("Totale prelievi"), signedReportMoney(outTotal)],
-  ];
+  return [[
+    signedReportMoney(inTotal),
+    signedReportMoney(outTotal),
+    signedReportMoney(inTotal - outTotal),
+  ]];
 }
 
 function ecommerceRowsForReport(payload) {
@@ -7356,7 +7362,7 @@ function buildReportBodyHtml(payload) {
     <main class="print-report-layout">
       <div class="print-band band-incassi">
         ${reportTable("Incassi", ["Descrizione", "Importo"], saleGroups.primary)}
-        ${reportTable("Incassi riservati", ["Descrizione", "Importo"], saleGroups.privateRows)}
+        ${reportTable("Incassi", ["Descrizione", "Importo"], saleGroups.privateRows)}
       </div>
       <div class="print-band band-spese">
         ${reportTable("E-commerce", ["Descrizione", "Importo"], ecommerceRowsForReport(payload))}
@@ -7365,7 +7371,7 @@ function buildReportBodyHtml(payload) {
       <div class="print-band band-chiusura">
         <div>
           ${reportTable("POS", posRecap.headers, posRecap.rows)}
-          ${reportTable("Movimenti di cassa e spicci", ["Voce", "Totale"], cashMoveSummaryRows(payload))}
+          ${reportTable("Movimenti di cassa e spicci", ["Tot Versamenti", "Tot Prelievi", "Tot Movimenti"], cashMoveSummaryRows(payload))}
         </div>
         ${reportTable("Chiusura", ["Voce", "Importo"], closingRows)}
       </div>
@@ -7406,15 +7412,19 @@ function completeDayReportCss() {
     .print-kpi { border: 1px solid #222; padding: 7px; min-height: 48px; }
     .print-kpi span { display: block; color: #555; font-size: 9px; text-transform: uppercase; }
     .print-kpi strong { display: block; text-align: right; margin-top: 7px; font-size: 14px; }
-    .print-report-layout { display: grid; grid-template-rows: 34fr 34fr 20fr; gap: 7px; height: 238mm; }
+    .print-report-layout { display: grid; grid-template-rows: 40fr 28fr 20fr; gap: 7px; height: 238mm; }
     .print-band { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-height: 0; }
-    .band-chiusura > div { display: grid; grid-template-rows: 1fr 1fr; gap: 7px; min-height: 0; }
+    .band-chiusura > div { display: grid; grid-template-rows: 1fr auto; gap: 7px; min-height: 0; }
     .report-section { border: 1px solid #333; break-inside: avoid; background: #fff; }
     .report-section h2 { font-size: 12px; margin: 0; padding: 5px 7px; background: #efefef; border-bottom: 1px solid #333; }
     table { width: 100%; border-collapse: collapse; }
     th, td { border-bottom: 1px solid #d4d4d4; padding: 3px 5px; vertical-align: top; }
     th { background: #fafafa; font-weight: 700; text-align: left; }
     td:last-child, th:last-child { text-align: right; white-space: nowrap; }
+    .band-chiusura .report-section:first-child th:not(:first-child),
+    .band-chiusura .report-section:first-child td:not(:first-child) { text-align: right; white-space: nowrap; }
+    .band-chiusura .report-section:last-child td { text-align: center; white-space: nowrap; }
+    .band-chiusura .report-section:last-child td:last-child { font-weight: 700; }
     .muted { color: #777; text-align: center !important; }
     @media print {
       .screen-actions { display: none; }
