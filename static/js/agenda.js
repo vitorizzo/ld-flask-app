@@ -5612,6 +5612,10 @@ document.addEventListener("DOMContentLoaded", async function () {
         case "report":
           await openDayReport();
           break;
+
+        case "print_report":
+          await printCompleteDayReport();
+          break;
       }
     } catch (err) {
       console.error("context menu action error:", err);
@@ -5923,6 +5927,10 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   document.getElementById("btnAddReceipt")?.addEventListener("click", async () => {
     await saveReceiptClosure();
+  });
+
+  document.getElementById("dayReportPrintBtn")?.addEventListener("click", async () => {
+    await printCompleteDayReport();
   });
 
   document.getElementById("rc_table")?.addEventListener("click", async (e) => {
@@ -6650,6 +6658,7 @@ function buildContextMenuHtml(context) {
       ${btn("Ricerca per cliente", "search_customer", true)}
       ${btn("Ricerca per importo", "search_amount", true)}
       ${btn("Report giornata", "report", canReport)}
+      ${btn("Stampa report", "print_report", canReport)}
       `)}
     `);
   }
@@ -6734,6 +6743,309 @@ async function openDayReport() {
     console.error("Errore caricamento report:", err);
     alert("Errore di rete durante il caricamento del report giornata.");
   }
+}
+
+async function fetchReportJson(url, fallback = null) {
+  try {
+    const res = await fetch(url, {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" },
+      cache: "no-store"
+    });
+    const data = await res.json();
+    if (!res.ok) return fallback;
+    return data;
+  } catch (err) {
+    console.error("fetchReportJson error:", url, err);
+    return fallback;
+  }
+}
+
+function reportMoney(value) {
+  const n = Number(value || 0);
+  return n.toLocaleString("it-IT", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  });
+}
+
+function reportDateTime(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString("it-IT");
+}
+
+function reportText(value) {
+  const s = String(value ?? "").trim();
+  return s ? escapeHtml(s) : "&nbsp;";
+}
+
+function reportTable(title, headers, rows, emptyText = "Nessun movimento") {
+  const head = headers.map(h => `<th>${escapeHtml(h)}</th>`).join("");
+  const body = rows.length
+    ? rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join("")}</tr>`).join("")
+    : `<tr><td colspan="${headers.length}" class="muted">${escapeHtml(emptyText)}</td></tr>`;
+
+  return `
+    <section class="report-section">
+      <h2>${escapeHtml(title)}</h2>
+      <table>
+        <thead><tr>${head}</tr></thead>
+        <tbody>${body}</tbody>
+      </table>
+    </section>
+  `;
+}
+
+function movementMethodLabel(method) {
+  return paymentMethodLabel(method || "cash");
+}
+
+function buildCompleteDayReportHtml(payload) {
+  const totals = payload.preview?.totals || {};
+  const sales = payload.sales?.sales || [];
+  const expenses = payload.expenses?.expenses || [];
+  const posMoves = payload.pos?.pos_moves || [];
+  const cashMoves = payload.cashMoves?.cash_moves || [];
+  const deposits = payload.deposits?.deposits || [];
+  const ownerTakes = payload.ownerTakes?.owner_takes || [];
+  const ecommerce = payload.ecommerce?.ecommerce || [];
+  const receipts = Array.isArray(payload.receipts) ? payload.receipts : [];
+  const vaultLabel = priVaultUnlocked ? "Vault sbloccato: movimenti PRI inclusi" : "Vault bloccato: movimenti PRI esclusi";
+
+  const summaryRows = [
+    ["Fondo iniziale", totals.fondo_iniziale],
+    ["Fondo finale", totals.fondo_finale],
+    ["Delta fondo", totals.delta_fondo],
+    ["Totale giornata", totals.totale_giornata],
+    ["Incasso calcolato", totals.incasso_calcolato],
+    ["Incasso consegnato", totals.incasso_consegnato],
+    ["Delta quadratura", totals.delta_quadratura],
+    ["Versabile iniziale", totals.saldo_versabile_precedente],
+    ["Versabile giornata", totals.versabile_giornata],
+    ["Versabile residuo", totals.versabile_residuo],
+    ["Versabile attuale", totals.saldo_versabile],
+    ["Totale versamenti", totals.totale_versato_oggi],
+  ].map(([label, value]) => [reportText(label), `€ ${reportMoney(value)}`]);
+
+  const salesRows = [];
+  for (const sale of sales) {
+    for (const payment of (sale.payments || [])) {
+      salesRows.push([
+        reportDateTime(payment.created_at || sale.created_at),
+        reportText(sale.customer_label || ""),
+        reportText(payment.description || sale.notes || ""),
+        reportText(payment.flag || ""),
+        reportText(movementMethodLabel(payment.method)),
+        payment.off_cash ? "Fuori cassa" : "Cassa",
+        `€ ${reportMoney(payment.amount)}`,
+        reportText(sale.storage === "pri" ? "PRI" : "AZ"),
+      ]);
+    }
+  }
+
+  const expenseRows = [];
+  for (const expense of expenses) {
+    for (const payment of (expense.payments || [])) {
+      expenseRows.push([
+        reportDateTime(payment.created_at || expense.created_at),
+        reportText(expense.supplier || ""),
+        reportText(payment.description || expense.notes || ""),
+        reportText(payment.flag || ""),
+        reportText(movementMethodLabel(payment.method)),
+        payment.off_cash ? "Fuori cassa" : "Cassa",
+        `€ ${reportMoney(payment.amount)}`,
+        reportText(expense.storage === "pri" ? "PRI" : "AZ"),
+      ]);
+    }
+  }
+
+  const posRows = posMoves.map(row => [
+    reportDateTime(row.created_at),
+    reportText(row.direction === "out" ? "Storno" : "Incasso"),
+    reportText(row.pos_device_name || ""),
+    reportText(row.pos_circuit_name || ""),
+    reportText(row.doc_ref || ""),
+    reportText(row.notes || ""),
+    `€ ${reportMoney(row.amount)}`,
+  ]);
+
+  const cashMoveRows = cashMoves.map(row => [
+    reportDateTime(row.created_at),
+    reportText(cashMoveKindLabel(row.kind)),
+    reportText(cashMoveDirectionLabel(row.direction)),
+    reportText(row.performed_by || ""),
+    reportText(row.notes || ""),
+    `€ ${reportMoney(row.amount)}`,
+    reportText(row.storage === "pri" ? "PRI" : "AZ"),
+  ]);
+
+  const receiptRows = receipts.map(row => [
+    reportDateTime(row.created_at),
+    reportText(row.closure_type || ""),
+    reportText(row.description || ""),
+    `€ ${reportMoney(row.amount)}`,
+  ]);
+
+  const ecommerceRows = ecommerce.map(row => [
+    reportDateTime(row.created_at),
+    reportText(row.description || ""),
+    `€ ${reportMoney(row.amount)}`,
+  ]);
+
+  const depositRows = deposits.map(row => {
+    const checksTotal = (row.checks || []).reduce((sum, check) => sum + Number(check.amount || check.check_amount || 0), 0);
+    const total = Number(row.cash_amount || 0) + checksTotal;
+    const checksText = (row.checks || [])
+      .map(check => `${check.check_number || check.id || ""} € ${reportMoney(check.amount || check.check_amount || 0)}`)
+      .join(", ");
+
+    return [
+      reportDateTime(row.created_at),
+      reportText(row.deposit_type || ""),
+      reportText(row.bank_name || row.bank?.name || ""),
+      `€ ${reportMoney(row.cash_amount)}`,
+      reportText(checksText),
+      `€ ${reportMoney(total)}`,
+      reportText(row.note || ""),
+    ];
+  });
+
+  const ownerTakeRows = ownerTakes.map(row => {
+    const checksText = (row.checks || [])
+      .map(check => `${check.check_number || check.id || ""} € ${reportMoney(check.amount || 0)}`)
+      .join(", ");
+
+    return [
+      reportDateTime(row.created_at),
+      reportText(row.take_type || ""),
+      `€ ${reportMoney(row.cash_amount)}`,
+      `€ ${reportMoney(row.check_amount)}`,
+      reportText(checksText),
+      `€ ${reportMoney(row.total_amount)}`,
+      reportText(row.notes || ""),
+    ];
+  });
+
+  return `
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <title>Report giornata ${escapeHtml(currentDay || "")}</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; color: #111; font-size: 11px; margin: 0; }
+    header { border-bottom: 2px solid #111; padding-bottom: 8px; margin-bottom: 12px; }
+    h1 { font-size: 20px; margin: 0 0 4px; }
+    h2 { font-size: 14px; margin: 16px 0 6px; }
+    .meta { display: flex; justify-content: space-between; gap: 12px; color: #555; }
+    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 12px; }
+    .summary-item { border: 1px solid #bbb; padding: 6px; min-height: 36px; }
+    .summary-label { color: #555; font-size: 10px; }
+    .summary-value { font-weight: 700; font-size: 13px; text-align: right; }
+    table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+    tr { page-break-inside: avoid; page-break-after: auto; }
+    th, td { border: 1px solid #ccc; padding: 4px 5px; vertical-align: top; }
+    th { background: #eee; text-align: left; font-weight: 700; }
+    td:last-child, th:last-child { text-align: right; }
+    .report-section { break-inside: avoid; margin-bottom: 10px; }
+    .muted { color: #777; text-align: center !important; }
+    .screen-actions { margin: 12px 0; }
+    .screen-actions button { padding: 7px 12px; }
+    @media print {
+      .screen-actions { display: none; }
+      body { font-size: 10px; }
+      h2 { break-after: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="screen-actions">
+    <button onclick="window.print()">Stampa</button>
+  </div>
+  <header>
+    <h1>Report completo giornata ${escapeHtml(currentDay || "")}</h1>
+    <div class="meta">
+      <div>${escapeHtml(vaultLabel)}</div>
+      <div>Generato: ${escapeHtml(new Date().toLocaleString("it-IT"))}</div>
+    </div>
+  </header>
+
+  <section class="summary">
+    ${summaryRows.map(([label, value]) => `
+      <div class="summary-item">
+        <div class="summary-label">${label}</div>
+        <div class="summary-value">${value}</div>
+      </div>
+    `).join("")}
+  </section>
+
+  ${reportTable("Incassi", ["Ora", "Cliente", "Descrizione", "Flag", "Metodo", "Cassa", "Importo", "Archivio"], salesRows)}
+  ${reportTable("Spese", ["Ora", "Fornitore", "Descrizione", "Flag", "Metodo", "Cassa", "Importo", "Archivio"], expenseRows)}
+  ${reportTable("POS", ["Ora", "Tipo", "Device", "Circuito", "Doc", "Note", "Importo"], posRows)}
+  ${reportTable("Movimenti di cassa e spicci", ["Ora", "Tipo", "Direzione", "Chi", "Note", "Importo", "Archivio"], cashMoveRows)}
+  ${reportTable("Corrispettivi", ["Ora", "Tipo", "Descrizione", "Importo"], receiptRows)}
+  ${reportTable("E-commerce", ["Ora", "Descrizione", "Importo"], ecommerceRows)}
+  ${reportTable("Versamenti", ["Ora", "Tipo", "Banca", "Contanti", "Assegni", "Totale", "Note"], depositRows)}
+  ${reportTable("Cassetto / Prelievi incasso", ["Ora", "Tipo", "Contanti", "Assegni", "Dettaglio assegni", "Totale", "Note"], ownerTakeRows)}
+</body>
+</html>`;
+}
+
+async function printCompleteDayReport() {
+  if (!currentDay) return;
+
+  await refreshPrivateVaultStatus();
+
+  const view = priVaultUnlocked ? "complete" : "fiscal";
+  const [
+    preview,
+    sales,
+    expenses,
+    pos,
+    cashMoves,
+    deposits,
+    ownerTakes,
+    ecommerce,
+    receipts,
+  ] = await Promise.all([
+    fetchReportJson(`/cassa/api/day/${currentDay}/preview?view=${view}`, { ok: false, totals: {} }),
+    fetchReportJson(`/cassa/api/day/${currentDay}/sales`, { ok: false, sales: [] }),
+    fetchReportJson(`/cassa/api/day/${currentDay}/expenses`, { ok: false, expenses: [] }),
+    fetchReportJson(`/cassa/api/day/${currentDay}/pos_moves`, { ok: false, pos_moves: [] }),
+    fetchReportJson(`/cassa/api/day/${currentDay}/cash_moves`, { ok: false, cash_moves: [] }),
+    fetchReportJson(`/cassa/api/day/${currentDay}/deposits`, { ok: false, deposits: [] }),
+    fetchReportJson(`/cassa/api/day/${currentDay}/owner-takes`, { ok: false, owner_takes: [] }),
+    fetchReportJson(`/cassa/api/day/${currentDay}/ecommerce`, { ok: false, ecommerce: [] }),
+    fetchReportJson(`/cassa/api/day/${currentDay}/receipt-closures`, []),
+  ]);
+
+  const html = buildCompleteDayReportHtml({
+    preview,
+    sales,
+    expenses,
+    pos,
+    cashMoves,
+    deposits,
+    ownerTakes,
+    ecommerce,
+    receipts,
+  });
+
+  const win = window.open("", "_blank");
+  if (!win) {
+    alert("Popup bloccato dal browser. Consenti i popup per stampare il report.");
+    return;
+  }
+
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  win.focus();
+  setTimeout(() => win.print(), 300);
 }
 
 function eur(v) {
