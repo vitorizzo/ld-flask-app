@@ -7235,18 +7235,32 @@ function sumRows(rows, selector) {
   return (rows || []).reduce((total, row) => total + Number(selector(row) || 0), 0);
 }
 
+function reportPaymentTotal(items, sign = 1) {
+  let total = 0;
+  for (const item of items || []) {
+    for (const payment of item.payments || []) {
+      total += Number(payment.amount || 0) * sign;
+    }
+  }
+  return total;
+}
+
 function buildReportBodyHtml(payload) {
   const totals = payload.preview?.totals || {};
   const receiptTotal = sumRows(payload.receipts || [], row => row.amount);
   const ecommerceTotal = sumRows(payload.ecommerce?.ecommerce || [], row => row.amount);
   const depositTotal = Number(payload.deposits?.totals?.total_amount || 0);
+  const salesTotal = reportPaymentTotal(payload.sales?.sales || [], 1);
+  const expensesTotal = reportPaymentTotal(payload.expenses?.expenses || [], -1);
+  const totalGiornata = salesTotal + ecommerceTotal + receiptTotal + expensesTotal;
   const salesRows = paymentRowsForReport(payload.sales?.sales || [], "sale", payload);
   const expenseRows = paymentRowsForReport(payload.expenses?.expenses || [], "expense", payload);
   const closingRows = [
-    [reportText("Totale di giornata"), signedReportMoney(totals.totale_giornata)],
+    [reportText("Totale di giornata"), signedReportMoney(totalGiornata)],
     [reportText("Totale pagamenti elettronici"), signedReportMoney(totals.totale_incassi_elettronici)],
     [reportText("Totale atteso nel cassetto"), signedReportMoney(totals.valore_atteso_cassetto)],
     [reportText("Totale consegnato"), signedReportMoney(totals.incasso_consegnato)],
+    [reportText("Totale Versabile"), signedReportMoney(totals.saldo_versabile)],
     [reportText("Delta quadratura"), signedReportMoney(totals.delta_quadratura)],
   ];
 
