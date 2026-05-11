@@ -7189,23 +7189,83 @@ function paymentRowsForReport(items, type, payload) {
   return rows;
 }
 
+function reportPaymentGroups(items, type, payload) {
+  const primary = [];
+  const privateRows = [];
+  const primaryFlags = new Set(["*", "**", "#", "!"]);
+  const privateFlags = new Set(["x", "+"]);
+  const bankMap = reportBankMap(payload);
+  const posMaps = reportPosMaps(payload);
+  let privateTotal = 0;
+
+  for (const item of items || []) {
+    const party = type === "sale" ? (item.customer_label || "") : (item.supplier || "");
+    const itemIsPrivate = isPrivateParty(party, item.storage);
+
+    for (const payment of item.payments || []) {
+      const amount = Number(payment.amount || 0);
+
+      if (itemIsPrivate) {
+        privateTotal += amount;
+        continue;
+      }
+
+      const row = [
+        reportText(reportMovementDescription({
+          flag: payment.flag || "",
+          party,
+          description: payment.description || item.notes || "",
+          suffix: paymentSuffix(payment, posMaps, bankMap)
+        })),
+        signedReportMoney(amount),
+      ];
+
+      const flag = payment.flag || "";
+      if (primaryFlags.has(flag)) {
+        primary.push(row);
+      } else if (privateFlags.has(flag)) {
+        privateRows.push(row);
+      }
+    }
+  }
+
+  if (privateTotal) {
+    privateRows.push([reportText("Totale Privati"), signedReportMoney(privateTotal)]);
+  }
+
+  return { primary, privateRows };
+}
+
 function posRecapRows(payload) {
-  const groups = new Map();
+  const deviceMap = new Map();
+  const circuits = new Set();
+
   for (const move of payload.pos?.pos_moves || []) {
     const device = move.pos_device_name || `POS ${move.pos_device_id || ""}`;
     const circuit = move.pos_circuit_name || "Circuito";
-    const key = `${device}|${circuit}`;
     const signed = move.direction === "out" ? -Number(move.amount || 0) : Number(move.amount || 0);
-    groups.set(key, {
-      device,
-      circuit,
-      total: (groups.get(key)?.total || 0) + signed
-    });
+    circuits.add(circuit);
+
+    if (!deviceMap.has(device)) {
+      deviceMap.set(device, new Map());
+    }
+
+    const totals = deviceMap.get(device);
+    totals.set(circuit, (totals.get(circuit) || 0) + signed);
   }
 
-  return Array.from(groups.values())
-    .sort((a, b) => `${a.device} ${a.circuit}`.localeCompare(`${b.device} ${b.circuit}`, "it"))
-    .map(row => [reportText(row.device), reportText(row.circuit), signedReportMoney(row.total)]);
+  const circuitList = Array.from(circuits).sort((a, b) => a.localeCompare(b, "it"));
+  const rows = Array.from(deviceMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b, "it"))
+    .map(([device, totals]) => [
+      reportText(device),
+      ...circuitList.map(circuit => signedReportMoney(totals.get(circuit) || 0))
+    ]);
+
+  return {
+    headers: ["Device", ...circuitList],
+    rows,
+  };
 }
 
 function cashMoveSummaryRows(payload) {
@@ -7253,14 +7313,15 @@ function buildReportBodyHtml(payload) {
   const salesTotal = reportPaymentTotal(payload.sales?.sales || [], 1);
   const expensesTotal = reportPaymentTotal(payload.expenses?.expenses || [], -1);
   const totalGiornata = salesTotal + ecommerceTotal + receiptTotal + expensesTotal;
-  const salesRows = paymentRowsForReport(payload.sales?.sales || [], "sale", payload);
+  const saleGroups = reportPaymentGroups(payload.sales?.sales || [], "sale", payload);
   const expenseRows = paymentRowsForReport(payload.expenses?.expenses || [], "expense", payload);
+  const posRecap = posRecapRows(payload);
   const closingRows = [
     [reportText("Totale di giornata"), signedReportMoney(totalGiornata)],
     [reportText("Totale pagamenti elettronici"), signedReportMoney(totals.totale_incassi_elettronici)],
     [reportText("Totale atteso nel cassetto"), signedReportMoney(totals.valore_atteso_cassetto)],
     [reportText("Totale consegnato"), signedReportMoney(totals.incasso_consegnato)],
-    [reportText("Totale Versabile"), signedReportMoney(totals.saldo_versabile)],
+    [reportText("Totale Versabile"), signedReportMoney(totals.versabile_giornata)],
     [reportText("Delta quadratura"), signedReportMoney(totals.delta_quadratura)],
   ];
 
@@ -7292,13 +7353,22 @@ function buildReportBodyHtml(payload) {
       </div>
     </section>
 
-    <main class="print-report-grid">
-      ${reportTable("Incassi", ["Descrizione", "Importo"], salesRows)}
-      ${reportTable("Spese", ["Descrizione", "Importo"], expenseRows)}
-      ${reportTable("POS", ["Device", "Circuito", "Totale"], posRecapRows(payload))}
-      ${reportTable("Movimenti di cassa e spicci", ["Voce", "Totale"], cashMoveSummaryRows(payload))}
-      ${reportTable("E-commerce", ["Descrizione", "Importo"], ecommerceRowsForReport(payload))}
-      ${reportTable("Chiusura", ["Voce", "Importo"], closingRows)}
+    <main class="print-report-layout">
+      <div class="print-band band-incassi">
+        ${reportTable("Incassi", ["Descrizione", "Importo"], saleGroups.primary)}
+        ${reportTable("Incassi riservati", ["Descrizione", "Importo"], saleGroups.privateRows)}
+      </div>
+      <div class="print-band band-spese">
+        ${reportTable("E-commerce", ["Descrizione", "Importo"], ecommerceRowsForReport(payload))}
+        ${reportTable("Spese", ["Descrizione", "Importo"], expenseRows)}
+      </div>
+      <div class="print-band band-chiusura">
+        <div>
+          ${reportTable("POS", posRecap.headers, posRecap.rows)}
+          ${reportTable("Movimenti di cassa e spicci", ["Voce", "Totale"], cashMoveSummaryRows(payload))}
+        </div>
+        ${reportTable("Chiusura", ["Voce", "Importo"], closingRows)}
+      </div>
     </main>
   `;
 }
@@ -7336,11 +7406,13 @@ function completeDayReportCss() {
     .print-kpi { border: 1px solid #222; padding: 7px; min-height: 48px; }
     .print-kpi span { display: block; color: #555; font-size: 9px; text-transform: uppercase; }
     .print-kpi strong { display: block; text-align: right; margin-top: 7px; font-size: 14px; }
-    .print-report-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: start; }
+    .print-report-layout { display: grid; grid-template-rows: 34fr 34fr 20fr; gap: 7px; height: 238mm; }
+    .print-band { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-height: 0; }
+    .band-chiusura > div { display: grid; grid-template-rows: 1fr 1fr; gap: 7px; min-height: 0; }
     .report-section { border: 1px solid #333; break-inside: avoid; background: #fff; }
     .report-section h2 { font-size: 12px; margin: 0; padding: 5px 7px; background: #efefef; border-bottom: 1px solid #333; }
     table { width: 100%; border-collapse: collapse; }
-    th, td { border-bottom: 1px solid #d4d4d4; padding: 4px 5px; vertical-align: top; }
+    th, td { border-bottom: 1px solid #d4d4d4; padding: 3px 5px; vertical-align: top; }
     th { background: #fafafa; font-weight: 700; text-align: left; }
     td:last-child, th:last-child { text-align: right; white-space: nowrap; }
     .muted { color: #777; text-align: center !important; }
