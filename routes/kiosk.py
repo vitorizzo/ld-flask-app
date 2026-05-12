@@ -201,6 +201,24 @@ def _attachment_counts_for_order_ids(order_ids: list[int]) -> dict[int, int]:
     return counts
 
 
+def _delivery_hint_flags_for_order_ids(order_ids: list[int]) -> dict[int, bool]:
+    if not order_ids:
+        return {}
+
+    flags = {int(order_id): False for order_id in order_ids}
+    events = (
+        SlackOrderEvent.query.filter(SlackOrderEvent.order_id.in_(order_ids))
+        .filter(SlackOrderEvent.type.in_(["created", "append_text", "note"]))
+        .all()
+    )
+
+    for ev in events:
+        if isinstance(ev.payload, dict) and ev.payload.get("delivery_hint"):
+            flags[int(ev.order_id)] = True
+
+    return flags
+
+
 def _public_attachment(order_id: int, attachment: dict) -> dict:
     file_id = str(attachment.get("id") or "")
     return {
@@ -681,7 +699,9 @@ def build_board_payload(route_id: int, show_closed_today: bool = True):
         .all()
     )
 
-    attachment_counts = _attachment_counts_for_order_ids([int(order.id) for order, _, _ in rows])
+    order_ids = [int(order.id) for order, _, _ in rows]
+    attachment_counts = _attachment_counts_for_order_ids(order_ids)
+    delivery_hint_flags = _delivery_hint_flags_for_order_ids(order_ids)
 
     # IMPORTANTE: non hardcodare più le colonne qui
     groups = {}
@@ -709,6 +729,7 @@ def build_board_payload(route_id: int, show_closed_today: bool = True):
                 "delivery_label": order.planned_delivery_at.strftime("%d/%m %H:%M")
                 if order.planned_delivery_at
                 else "",
+                "delivery_from_message": bool(delivery_hint_flags.get(int(order.id))),
                 "group_key": f"{route.id}|{(order.planned_delivery_at.date().isoformat() if order.planned_delivery_at else '')}|{(order.customer_key or order.customer_display or '').strip().lower()}",
                 "group_seq": getattr(order, "group_seq", 1) or 1,
                 "group_size": getattr(order, "group_size", 1) or 1,

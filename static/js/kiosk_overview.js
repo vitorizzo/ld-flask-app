@@ -273,6 +273,12 @@ window.kioskState = {
 
     const deliveryLabel = primary.delivery_label || "";
     const preview = primary.preview || "";
+    const deliveryFromMessage = vm.orders.some((o) => o.delivery_from_message);
+    const deliveryBadge = deliveryLabel
+      ? `<span class="order-delivery-badge ${deliveryFromMessage ? "is-from-message" : ""}" title="${
+          deliveryFromMessage ? "Consegna indicata nel messaggio Slack" : "Consegna stimata dal giro"
+        }">${escapeHtml(deliveryLabel)}</span>`
+      : "";
 
     const { prev, next } = getPrevNextStatus(vm.status);
 
@@ -317,6 +323,7 @@ window.kioskState = {
       ${edgeRight}
 
       <div class="order-topbar d-flex align-items-center justify-content-end" style="gap:8px; position: relative; z-index: 30;">
+        ${deliveryBadge}
         ${moveMenuHtml}
       </div>
 
@@ -710,6 +717,7 @@ window.kioskState = {
             notes_count: o.note_count || 0,
             issues_count: o.has_issues ? 1 : 0,
             attachment_count: o.attachment_count || 0,
+            delivery_from_message: Boolean(o.delivery_from_message),
             group_key: o.group_key || "",
             group_seq: o.group_seq || 1,
             group_size: o.group_size || 1,
