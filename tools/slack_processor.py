@@ -126,6 +126,14 @@ class SlackProcessor:
         "domenica": 6,
     }
 
+    _DELIVERY_TIME_ALIASES = [
+        (r"\b(?:all[' ]?apertura|apertura|appena apre|appena aprite)\b", time(9, 0), "apertura"),
+        (r"\b(?:stamattina|mattina|in mattinata)\b", time(10, 0), "mattina"),
+        (r"\b(?:mezzogiorno|pranzo|ora di pranzo)\b", time(12, 0), "pranzo"),
+        (r"\b(?:pomeriggio|nel pomeriggio|primo pomeriggio)\b", time(16, 0), "pomeriggio"),
+        (r"\b(?:sera|stasera|serata)\b", time(18, 0), "sera"),
+    ]
+
     def _normalize_customer_key(self, s: str) -> str:
         s = (s or "").strip().lower()
         s = re.sub(r"[^\w\s]", " ", s)
@@ -141,7 +149,7 @@ class SlackProcessor:
         if not lines:
             return ""
 
-        first = lines[0].strip()
+        first = re.sub(r"[*_~`]+", "", lines[0].strip()).strip()
 
         # Caso "Aggiunta "
         m = re.match(r"(?i)^\s*aggiunta\s+(.+?)\s*$", first)
@@ -173,8 +181,36 @@ class SlackProcessor:
             return route.default_time
         return time(hour=base_dt.hour, minute=base_dt.minute)
 
-    def _build_delivery_dt(self, base_dt: datetime, route: DeliveryRoute | None, target_date) -> datetime:
-        return datetime.combine(target_date, self._delivery_time_for_route(route, base_dt))
+    def _extract_delivery_time_from_text(
+        self,
+        normalized: str,
+        route: DeliveryRoute | None,
+        base_dt: datetime,
+    ) -> tuple[time, str]:
+        explicit = re.search(
+            r"\b(?:alle|ore|h)\s*(\d{1,2})(?:[:.,](\d{2}))?\b|\b(\d{1,2})[:.](\d{2})\b",
+            normalized,
+        )
+        if explicit:
+            hour = int(explicit.group(1) or explicit.group(3))
+            minute = int(explicit.group(2) or explicit.group(4) or 0)
+            if 0 <= hour <= 23 and 0 <= minute <= 59:
+                return time(hour, minute), explicit.group(0)
+
+        for pattern, target_time, label in self._DELIVERY_TIME_ALIASES:
+            if re.search(pattern, normalized):
+                return target_time, label
+
+        return self._delivery_time_for_route(route, base_dt), ""
+
+    def _build_delivery_dt(
+        self,
+        base_dt: datetime,
+        route: DeliveryRoute | None,
+        target_date,
+        target_time: time | None = None,
+    ) -> datetime:
+        return datetime.combine(target_date, target_time or self._delivery_time_for_route(route, base_dt))
 
     def _extract_delivery_dt_from_text(
         self,
@@ -191,14 +227,26 @@ class SlackProcessor:
         raw = text or ""
         normalized = raw.lower()
         normalized = normalized.replace("’", "'")
+        normalized = re.sub(r"[*_~`]+", " ", normalized)
+        normalized = re.sub(r"\s+", " ", normalized).strip()
+        target_time, time_hint = self._extract_delivery_time_from_text(normalized, route, base_dt)
+
+        def _hint(*parts: str) -> str:
+            return " ".join([p for p in parts if p]).strip()
 
         if re.search(r"\bdopodomani\b", normalized):
             target_date = (base_dt + timedelta(days=2)).date()
-            return self._build_delivery_dt(base_dt, route, target_date), "dopodomani"
+            return self._build_delivery_dt(base_dt, route, target_date, target_time), _hint("dopodomani", time_hint)
 
         if re.search(r"\bdomani\b", normalized):
             target_date = (base_dt + timedelta(days=1)).date()
-            return self._build_delivery_dt(base_dt, route, target_date), "domani"
+            return self._build_delivery_dt(base_dt, route, target_date, target_time), _hint("domani", time_hint)
+
+        if re.search(r"\boggi\b|\bstamattina\b|\bstasera\b", normalized):
+            target_dt = self._build_delivery_dt(base_dt, route, base_dt.date(), target_time)
+            if target_dt <= base_dt and time_hint:
+                target_dt = target_dt + timedelta(days=1)
+            return target_dt, _hint("oggi", time_hint)
 
         date_match = re.search(
             r"\b(?:consegna(?:re)?|consegnare|per|entro|il)\s+(?:il\s+)?(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b",
@@ -212,10 +260,15 @@ class SlackProcessor:
             if year < 100:
                 year += 2000
             try:
-                target_dt = self._build_delivery_dt(base_dt, route, datetime(year, month, day).date())
+                target_dt = self._build_delivery_dt(base_dt, route, datetime(year, month, day).date(), target_time)
                 if not year_raw and target_dt.date() < base_dt.date():
-                    target_dt = self._build_delivery_dt(base_dt, route, datetime(year + 1, month, day).date())
-                return target_dt, date_match.group(0)
+                    target_dt = self._build_delivery_dt(
+                        base_dt,
+                        route,
+                        datetime(year + 1, month, day).date(),
+                        target_time,
+                    )
+                return target_dt, _hint(date_match.group(0), time_hint)
             except ValueError:
                 pass
 
@@ -227,10 +280,10 @@ class SlackProcessor:
             if target_weekday is not None:
                 days_ahead = (target_weekday - base_dt.weekday()) % 7
                 target_date = (base_dt + timedelta(days=days_ahead)).date()
-                target_dt = self._build_delivery_dt(base_dt, route, target_date)
+                target_dt = self._build_delivery_dt(base_dt, route, target_date, target_time)
                 if target_dt <= base_dt:
                     target_dt = target_dt + timedelta(days=7)
-                return target_dt, weekday_match.group(0)
+                return target_dt, _hint(weekday_match.group(0), time_hint)
 
         return None, ""
 

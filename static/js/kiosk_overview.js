@@ -12,6 +12,7 @@ window.kioskState = {
 (() => {
   const API_ALL = "/kiosk/api/board/all?only_active=1&show_closed_today=1";
   const API_ORDER = (id) => `/kiosk/api/order/${id}`;
+  const API_REPARSE_DELIVERIES = "/kiosk/api/orders/reparse-deliveries";
   const API_STATUSES = "/kiosk/api/statuses";
 
   let refreshTimer = null;
@@ -860,11 +861,48 @@ window.kioskState = {
     }
   }
 
+  async function reparseDeliveries() {
+    const btn = $("#btn-reparse-deliveries");
+    const oldText = btn ? btn.textContent : "";
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "Riprogrammo...";
+    }
+
+    try {
+      const res = await fetch(API_REPARSE_DELIVERIES, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        cache: "no-store",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) {
+        throw new Error(json.error || `HTTP ${res.status}`);
+      }
+
+      await loadAndRender();
+      const changed = Number(json.changed || 0);
+      if (btn) btn.textContent = changed ? `Riprogrammate: ${changed}` : "Nessuna modifica";
+      window.setTimeout(() => {
+        if (btn) btn.textContent = oldText || "Riprogramma";
+      }, 2500);
+    } catch (err) {
+      console.error("[kiosk_overview] reparseDeliveries error", err);
+      alert(`Errore riprogrammazione: ${String(err.message || err)}`);
+      if (btn) btn.textContent = oldText || "Riprogramma";
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   async function start() {
     hookFilters();
 
     const btn = $("#btn-refresh");
     if (btn) btn.addEventListener("click", loadAndRender);
+
+    const reparseBtn = $("#btn-reparse-deliveries");
+    if (reparseBtn) reparseBtn.addEventListener("click", reparseDeliveries);
 
     await loadStatuses();
     await loadAndRender();

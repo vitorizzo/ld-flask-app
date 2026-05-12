@@ -208,7 +208,7 @@ def _delivery_hint_flags_for_order_ids(order_ids: list[int]) -> dict[int, bool]:
     flags = {int(order_id): False for order_id in order_ids}
     events = (
         SlackOrderEvent.query.filter(SlackOrderEvent.order_id.in_(order_ids))
-        .filter(SlackOrderEvent.type.in_(["created", "append_text", "note"]))
+        .filter(SlackOrderEvent.type.in_(["created", "append_text", "note", "delivery_reparse"]))
         .all()
     )
 
@@ -217,6 +217,15 @@ def _delivery_hint_flags_for_order_ids(order_ids: list[int]) -> dict[int, bool]:
             flags[int(ev.order_id)] = True
 
     return flags
+
+
+def _created_dt_from_slack_ts(ts: str | None, fallback: datetime | None = None) -> datetime:
+    try:
+        if ts:
+            return datetime.fromtimestamp(float(ts))
+    except Exception:
+        pass
+    return fallback or datetime.utcnow()
 
 
 def _public_attachment(order_id: int, attachment: dict) -> dict:
@@ -744,6 +753,130 @@ def build_board_payload(route_id: int, show_closed_today: bool = True):
         "delivery_dt": delivery_dt.isoformat() if delivery_dt else None,
         "groups": groups,
     }
+
+
+@kiosk_bp.post("/api/orders/reparse-deliveries")
+@login_required
+def kiosk_api_reparse_deliveries():
+    """
+    Ricalcola la consegna prevista delle card attive ripassando i testi nel
+    parser Slack corrente. Di default aggiorna solo quando trova una data/fascia
+    esplicita nel messaggio; con apply_defaults=1 ricalcola anche la consegna
+    default del giro per le card senza hint.
+    """
+    dry_run = request.args.get("dry_run", "0") == "1"
+    apply_defaults = request.args.get("apply_defaults", "0") == "1"
+    route_id = request.args.get("route_id", type=int)
+
+    q = SlackOrder.query.filter(
+        SlackOrder.status != "evaso",
+        SlackOrder.status.notin_(["annullato", "annullata", "cancellato", "cancelled"]),
+    )
+    if route_id:
+        q = q.filter(SlackOrder.route_id == route_id)
+
+    orders = q.order_by(SlackOrder.id.asc()).all()
+    processor = SlackProcessor()
+
+    checked = 0
+    changed = 0
+    skipped = 0
+    results = []
+
+    for order in orders:
+        checked += 1
+        route = DeliveryRoute.query.get(order.route_id) if order.route_id else None
+        base_dt = _created_dt_from_slack_ts(order.slack_message_ts, order.created_at)
+
+        events = (
+            SlackOrderEvent.query.filter(SlackOrderEvent.order_id == order.id)
+            .filter(SlackOrderEvent.type.in_(["created", "append_text", "note"]))
+            .order_by(SlackOrderEvent.created_at.asc())
+            .all()
+        )
+
+        candidates = []
+        for ev in events:
+            if isinstance(ev.payload, dict):
+                text = (ev.payload.get("text") or ev.payload.get("raw_text") or "").strip()
+                ts = ev.payload.get("ts") or order.slack_message_ts
+                candidates.append((text, _created_dt_from_slack_ts(ts, ev.created_at)))
+
+        if not candidates and order.raw_text:
+            candidates.append((order.raw_text, base_dt))
+
+        parsed_delivery_dt = None
+        delivery_hint = ""
+
+        for text, candidate_base_dt in candidates:
+            if not text:
+                continue
+            dt, hint = processor._extract_delivery_dt_from_text(text, candidate_base_dt, route)
+            if dt:
+                parsed_delivery_dt = dt
+                delivery_hint = hint
+
+        target_dt = parsed_delivery_dt
+        source = "message" if parsed_delivery_dt else ""
+
+        if not target_dt and apply_defaults and route:
+            target_dt = processor._compute_next_delivery_dt(base_dt, route)
+            source = "route_default"
+
+        if not target_dt:
+            skipped += 1
+            continue
+
+        old_iso = order.planned_delivery_at.isoformat() if order.planned_delivery_at else None
+        new_iso = target_dt.isoformat()
+        if old_iso == new_iso:
+            continue
+
+        changed += 1
+        results.append(
+            {
+                "id": order.id,
+                "customer": order.customer_display,
+                "old_planned_delivery_at": old_iso,
+                "new_planned_delivery_at": new_iso,
+                "source": source,
+                "hint": delivery_hint,
+            }
+        )
+
+        if dry_run:
+            continue
+
+        order.planned_delivery_at = target_dt
+        db.session.add(
+            SlackOrderEvent(
+                order_id=order.id,
+                type="delivery_reparse",
+                payload={
+                    "old_planned_delivery_at": old_iso,
+                    "new_planned_delivery_at": new_iso,
+                    "source": source,
+                    "delivery_hint": delivery_hint,
+                    "dry_run": False,
+                    "client_ip": _best_effort_client_ip(),
+                },
+            )
+        )
+
+    if not dry_run:
+        db.session.commit()
+
+    return jsonify(
+        {
+            "ok": True,
+            "dry_run": dry_run,
+            "apply_defaults": apply_defaults,
+            "checked": checked,
+            "changed": changed,
+            "skipped": skipped,
+            "results": results,
+        }
+    )
 
 
 @kiosk_bp.get("/api/statuses")
