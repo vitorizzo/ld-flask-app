@@ -153,6 +153,25 @@ window.kioskState = {
     return parts.join("");
   }
 
+  function deliveryStateFor(order, status) {
+    if (!order || !order.planned_delivery_at) return "";
+    if (String(status || "").toLowerCase() === "evaso") return "";
+
+    const due = new Date(order.planned_delivery_at);
+    if (Number.isNaN(due.getTime())) return "";
+
+    const now = new Date();
+    const diffMs = due.getTime() - now.getTime();
+    const deliveryWindowMs = 30 * 60 * 1000;
+    const soonWindowMs = 2 * 60 * 60 * 1000;
+    const isDelivering = ["in_consegna", "in consegna", "consegna"].includes(String(status || "").toLowerCase());
+
+    if (diffMs < -deliveryWindowMs) return "overdue";
+    if (diffMs <= deliveryWindowMs && !isDelivering) return "due-now";
+    if (diffMs <= soonWindowMs && diffMs > deliveryWindowMs) return "soon";
+    return "";
+  }
+
   function pickPrimaryOrder(orders) {
     return [...orders].sort((a, b) => {
       const sa = a.group_seq ?? 1;
@@ -275,6 +294,8 @@ window.kioskState = {
     const deliveryLabel = primary.delivery_label || "";
     const preview = primary.preview || "";
     const deliveryFromMessage = vm.orders.some((o) => o.delivery_from_message);
+    const deliveryState = deliveryStateFor(primary, vm.status);
+    if (deliveryState) div.classList.add(`delivery-${deliveryState}`);
     const deliveryBadge = deliveryLabel
       ? `<span class="order-delivery-badge ${deliveryFromMessage ? "is-from-message" : ""}" title="${
           deliveryFromMessage ? "Consegna indicata nel messaggio Slack" : "Consegna stimata dal giro"
@@ -719,6 +740,7 @@ window.kioskState = {
             issues_count: o.has_issues ? 1 : 0,
             attachment_count: o.attachment_count || 0,
             delivery_from_message: Boolean(o.delivery_from_message),
+            planned_delivery_at: o.planned_delivery_at || null,
             group_key: o.group_key || "",
             group_seq: o.group_seq || 1,
             group_size: o.group_size || 1,

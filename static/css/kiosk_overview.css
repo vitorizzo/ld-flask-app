@@ -462,6 +462,42 @@
     var(--route-bg) !important;
 }
 
+.order-card.delivery-soon {
+  border-color: rgba(13, 110, 253, 0.55);
+  box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.16), 0 8px 22px rgba(0,0,0,0.14);
+}
+
+.order-card.delivery-due-now {
+  border-color: rgba(255, 193, 7, 0.90);
+  box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.26), 0 8px 22px rgba(0,0,0,0.16);
+  animation: deliveryPulseAmber 1.2s ease-in-out infinite;
+}
+
+.order-card.delivery-overdue {
+  border-color: rgba(220, 53, 69, 0.95);
+  background:
+    linear-gradient(0deg, rgba(255,255,255,0.18), rgba(255,255,255,0.18)),
+    #dc3545 !important;
+  box-shadow: 0 0 0 3px rgba(220, 53, 69, 0.28), 0 10px 26px rgba(120,0,0,0.28);
+  animation: deliveryPulseRed 0.9s ease-in-out infinite;
+}
+
+.order-card.delivery-overdue .order-title,
+.order-card.delivery-overdue .order-meta,
+.order-card.delivery-overdue .order-preview {
+  color: #111;
+}
+
+@keyframes deliveryPulseAmber {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.12); }
+}
+
+@keyframes deliveryPulseRed {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.18); }
+}
+
 
 /* Hot-zone laterali */
 .kiosk-overview .kiosk-edge{
