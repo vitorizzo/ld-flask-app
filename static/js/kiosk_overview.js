@@ -265,6 +265,7 @@ window.kioskState = {
 
     const notesSum = vm.orders.reduce((acc, o) => acc + (o.notes_count || 0), 0);
     const issuesSum = vm.orders.reduce((acc, o) => acc + (o.issues_count ? 1 : 0), 0);
+    const attachmentsSum = vm.orders.reduce((acc, o) => acc + (o.attachment_count || 0), 0);
 
     const seqTotal = vm.seq_total || 1;
     const seqOn = new Set(vm.orders.map((o) => o.group_seq || 1));
@@ -325,6 +326,7 @@ window.kioskState = {
       <div class="order-badges">
         ${groupBadge ? `<span class="badge bg-secondary">${escapeHtml(groupBadge)}</span>` : ``}
         ${notesSum > 0 ? `<span class="badge bg-info">${notesSum}</span>` : ``}
+        ${attachmentsSum > 0 ? `<span class="badge bg-warning text-dark">Foto ${attachmentsSum}</span>` : ``}
         ${issuesSum > 0 ? `<span class="badge bg-danger">${issuesSum}</span>` : ``}
       </div>
       ${preview ? `<div class="order-preview">${escapeHtml(preview)}</div>` : ``}
@@ -495,6 +497,33 @@ window.kioskState = {
         </div>
       `);
 
+      if (Array.isArray(data.attachments) && data.attachments.length) {
+        parts.push(`
+          <hr/>
+          <div class="fw-bold">Allegati</div>
+          <div class="kiosk-attachments">
+            ${data.attachments
+              .map((a) => {
+                const titleText = escapeHtml(a.title || a.name || "Allegato");
+                if (a.is_image) {
+                  return `
+                    <a class="kiosk-attachment kiosk-attachment--image" href="${escapeHtml(a.url || "#")}" target="_blank" rel="noopener">
+                      <img src="${escapeHtml(a.thumb_url || a.url || "")}" alt="${titleText}" loading="lazy">
+                      <span>${titleText}</span>
+                    </a>
+                  `;
+                }
+                return `
+                  <a class="kiosk-attachment" href="${escapeHtml(a.url || "#")}" target="_blank" rel="noopener">
+                    <span>${titleText}</span>
+                  </a>
+                `;
+              })
+              .join("")}
+          </div>
+        `);
+      }
+
       if (Array.isArray(data.children) && data.children.length) {
         parts.push(`
           <hr/>
@@ -662,6 +691,7 @@ window.kioskState = {
             preview: (o.raw_text || "").trim().split("\n")[0].slice(0, 140),
             notes_count: o.note_count || 0,
             issues_count: o.has_issues ? 1 : 0,
+            attachment_count: o.attachment_count || 0,
             group_key: o.group_key || "",
             group_seq: o.group_seq || 1,
             group_size: o.group_size || 1,

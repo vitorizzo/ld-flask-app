@@ -2,7 +2,8 @@ import logging
 import hashlib
 from datetime import datetime, timezone, timedelta
 
-from flask import Blueprint, request, make_response, jsonify, render_template
+import requests
+from flask import Blueprint, request, make_response, jsonify, render_template, current_app, Response
 from flask_login import login_required
 from sqlalchemy import func
 
@@ -100,6 +101,81 @@ def _is_today_local(dt: datetime | None) -> bool:
     return local.date() == datetime.now().astimezone().date()
 
 
+def _event_attachments(payload) -> list[dict]:
+    if not isinstance(payload, dict):
+        return []
+    attachments = payload.get("attachments")
+    if not isinstance(attachments, list):
+        return []
+    return [a for a in attachments if isinstance(a, dict) and a.get("id")]
+
+
+def _order_attachments(order_id: int) -> list[dict]:
+    events = (
+        SlackOrderEvent.query.filter(SlackOrderEvent.order_id == order_id)
+        .order_by(SlackOrderEvent.created_at.asc())
+        .all()
+    )
+
+    out = []
+    seen = set()
+    for ev in events:
+        for attachment in _event_attachments(ev.payload):
+            file_id = str(attachment.get("id") or "")
+            if not file_id or file_id in seen:
+                continue
+            seen.add(file_id)
+            out.append(attachment)
+    return out
+
+
+def _attachment_counts_for_order_ids(order_ids: list[int]) -> dict[int, int]:
+    if not order_ids:
+        return {}
+
+    counts = {int(order_id): 0 for order_id in order_ids}
+    events = (
+        SlackOrderEvent.query.filter(SlackOrderEvent.order_id.in_(order_ids))
+        .filter(SlackOrderEvent.type.in_(["created", "append_text", "note"]))
+        .all()
+    )
+
+    seen = set()
+    for ev in events:
+        for attachment in _event_attachments(ev.payload):
+            key = (int(ev.order_id), str(attachment.get("id") or ""))
+            if not key[1] or key in seen:
+                continue
+            seen.add(key)
+            counts[int(ev.order_id)] = counts.get(int(ev.order_id), 0) + 1
+    return counts
+
+
+def _public_attachment(order_id: int, attachment: dict) -> dict:
+    file_id = str(attachment.get("id") or "")
+    return {
+        "id": file_id,
+        "title": attachment.get("title") or attachment.get("name") or "Allegato",
+        "name": attachment.get("name") or "",
+        "mimetype": attachment.get("mimetype") or "",
+        "filetype": attachment.get("filetype") or "",
+        "size": attachment.get("size"),
+        "is_image": bool(attachment.get("is_image")),
+        "permalink": attachment.get("permalink") or "",
+        "thumb_url": f"/kiosk/api/order/{order_id}/attachment/{file_id}?variant=thumb",
+        "url": f"/kiosk/api/order/{order_id}/attachment/{file_id}",
+    }
+
+
+def _pick_slack_attachment_url(attachment: dict, variant: str) -> str:
+    if variant == "thumb":
+        for key in ("thumb_1024", "thumb_720", "thumb_480", "thumb_360"):
+            if attachment.get(key):
+                return attachment[key]
+
+    return attachment.get("url_private_download") or attachment.get("url_private") or ""
+
+
 @kiosk_bp.get("/test")
 def kiosk_test():
     client_ip = _best_effort_client_ip()
@@ -171,8 +247,18 @@ def kiosk_api_order(order_id: int):
 
     children = []
     thread_notes = []
+    attachments = []
+    seen_attachments = set()
 
     for ev in events:
+        ev_attachments = _event_attachments(ev.payload)
+        for attachment in ev_attachments:
+            file_id = str(attachment.get("id") or "")
+            if not file_id or file_id in seen_attachments:
+                continue
+            seen_attachments.add(file_id)
+            attachments.append(_public_attachment(order.id, attachment))
+
         if ev.type in ("created", "append_text"):
             txt = ""
             try:
@@ -185,6 +271,7 @@ def kiosk_api_order(order_id: int):
                     "label": ev.type,
                     "ts": ev.created_at.isoformat() if ev.created_at else "",
                     "text": txt,
+                    "attachments_count": len(ev_attachments),
                 }
             )
 
@@ -199,6 +286,7 @@ def kiosk_api_order(order_id: int):
                 {
                     "at": ev.created_at.isoformat() if ev.created_at else "",
                     "text": txt,
+                    "attachments_count": len(ev_attachments),
                 }
             )
 
@@ -226,10 +314,63 @@ def kiosk_api_order(order_id: int):
                 "issues_count": issues_count,
                 "children": children,
                 "thread_notes": thread_notes,
+                "attachments": attachments,
             }
         ),
         200,
     )
+
+
+@kiosk_bp.get("/api/order/<int:order_id>/attachment/<file_id>")
+def kiosk_api_order_attachment(order_id: int, file_id: str):
+    order = SlackOrder.query.get(order_id)
+    if not order:
+        return jsonify({"error": "order_not_found"}), 404
+
+    attachment = None
+    for candidate in _order_attachments(order.id):
+        if str(candidate.get("id") or "") == str(file_id):
+            attachment = candidate
+            break
+
+    if not attachment:
+        return jsonify({"error": "attachment_not_found"}), 404
+
+    variant = (request.args.get("variant") or "full").strip().lower()
+    source_url = _pick_slack_attachment_url(attachment, variant)
+    if not source_url:
+        return jsonify({"error": "attachment_url_missing"}), 404
+
+    bot_token = current_app.config.get("SLACK_BOT_TOKEN", "") or ""
+    if not bot_token:
+        return jsonify({"error": "slack_bot_token_missing"}), 503
+
+    try:
+        upstream = requests.get(
+            source_url,
+            headers={"Authorization": f"Bearer {bot_token}"},
+            timeout=30,
+        )
+    except requests.RequestException:
+        logger.exception("[KIOSK] Slack attachment fetch failed order_id=%s file_id=%s", order_id, file_id)
+        return jsonify({"error": "attachment_fetch_failed"}), 502
+
+    if upstream.status_code >= 400:
+        logger.warning(
+            "[KIOSK] Slack attachment fetch status=%s order_id=%s file_id=%s",
+            upstream.status_code,
+            order_id,
+            file_id,
+        )
+        return jsonify({"error": "attachment_fetch_failed", "status": upstream.status_code}), 502
+
+    resp = Response(
+        upstream.content,
+        status=200,
+        content_type=upstream.headers.get("Content-Type") or attachment.get("mimetype") or "application/octet-stream",
+    )
+    resp.headers["Cache-Control"] = "private, max-age=300"
+    return resp
 
 
 @kiosk_bp.get("/board/<int:route_id>")
@@ -486,6 +627,8 @@ def build_board_payload(route_id: int, show_closed_today: bool = True):
         .all()
     )
 
+    attachment_counts = _attachment_counts_for_order_ids([int(order.id) for order, _, _ in rows])
+
     # IMPORTANTE: non hardcodare più le colonne qui
     groups = {}
 
@@ -511,6 +654,7 @@ def build_board_payload(route_id: int, show_closed_today: bool = True):
                 "has_issues": bool(order.has_issues),
                 "note_count": int(note_count or 0),
                 "msg_count": int(msg_count or 0),
+                "attachment_count": int(attachment_counts.get(int(order.id), 0)),
                 "planned_delivery_at": order.planned_delivery_at.isoformat()
                 if order.planned_delivery_at
                 else None,

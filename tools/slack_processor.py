@@ -139,6 +139,67 @@ class SlackProcessor:
         t = (text or "").lower()
         return any(k in t for k in self._ISSUE_KEYWORDS)
 
+    def _extract_message_text(self, event: dict) -> str:
+        """
+        Slack mette la didascalia dei file_share in campi diversi a seconda
+        del payload. Per gli ordini usiamo solo testo/caption reali.
+        """
+        candidates = [
+            event.get("text"),
+            (event.get("message") or {}).get("text"),
+            (event.get("original_message") or {}).get("text"),
+        ]
+        for value in candidates:
+            text = (value or "").strip()
+            if text:
+                return text
+        return ""
+
+    def _extract_file_attachments(self, event: dict) -> list[dict]:
+        files = event.get("files")
+        if not isinstance(files, list):
+            files = (event.get("message") or {}).get("files")
+        if not isinstance(files, list):
+            return []
+
+        attachments = []
+        for f in files:
+            if not isinstance(f, dict):
+                continue
+
+            file_id = (f.get("id") or "").strip()
+            if not file_id:
+                continue
+
+            mimetype = (f.get("mimetype") or "").strip()
+            filetype = (f.get("filetype") or "").strip()
+            is_image = bool(
+                mimetype.startswith("image/")
+                or filetype in {"jpg", "jpeg", "png", "gif", "webp", "heic", "heif"}
+                or any(f.get(k) for k in ("thumb_360", "thumb_480", "thumb_720", "thumb_1024"))
+            )
+
+            attachments.append(
+                {
+                    "id": file_id,
+                    "name": f.get("name") or "",
+                    "title": f.get("title") or f.get("name") or "",
+                    "mimetype": mimetype,
+                    "filetype": filetype,
+                    "size": f.get("size"),
+                    "is_image": is_image,
+                    "url_private": f.get("url_private") or "",
+                    "url_private_download": f.get("url_private_download") or "",
+                    "thumb_360": f.get("thumb_360") or "",
+                    "thumb_480": f.get("thumb_480") or "",
+                    "thumb_720": f.get("thumb_720") or "",
+                    "thumb_1024": f.get("thumb_1024") or "",
+                    "permalink": f.get("permalink") or "",
+                }
+            )
+
+        return attachments
+
     def _compute_next_delivery_dt(self, base_dt: datetime, route: DeliveryRoute) -> datetime:
         """
         base_dt: datetime del messaggio (timezone naive; coerente col resto dell'app)
@@ -499,6 +560,7 @@ class SlackProcessor:
         ts = data.get("ts")
         thread_ts = data.get("thread_ts")
         text = (data.get("text") or "").strip()
+        attachments = data.get("attachments") if isinstance(data.get("attachments"), list) else []
 
         if not channel_id or not ts:
             return
@@ -517,6 +579,7 @@ class SlackProcessor:
                     "user": data.get("user"),
                     "ts": ts,
                     "text": text,
+                    "attachments": attachments,
                 },
             )
             db.session.add(ev)
@@ -567,7 +630,7 @@ class SlackProcessor:
             SlackOrderEvent(
                 order_id=order.id,
                 type="created",
-                payload={"ts": ts, "user": data.get("user"), "text": text},
+                payload={"ts": ts, "user": data.get("user"), "text": text, "attachments": attachments},
             )
         )
         db.session.commit()
@@ -690,9 +753,15 @@ class SlackProcessor:
         Slack message (pubblici, privati, DM, ecc.)
         Normalizziamo tutto su trigger unico "message".
         """
-        # ignora messaggi "speciali" (bot_message, message_changed, ecc.)
-        if event.get("subtype"):
+        subtype = event.get("subtype")
+
+        # I file_share sono messaggi validi: la didascalia diventa testo ordine
+        # e i file allegati vengono salvati sulla card.
+        if subtype and subtype != "file_share":
             return None
+
+        text = self._extract_message_text(event)
+        attachments = self._extract_file_attachments(event)
 
         return {
             "trigger": "message",
@@ -702,7 +771,9 @@ class SlackProcessor:
                 "user": event.get("user"),
                 "ts": event.get("ts"),
                 "thread_ts": event.get("thread_ts"),
-                "text": event.get("text") or "",
+                "text": text,
+                "attachments": attachments,
+                "subtype": subtype or "",
             },
         }
 
