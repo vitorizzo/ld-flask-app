@@ -79,16 +79,52 @@ class SlackProcessor:
     _NOTE_KEYWORDS = [
         "subito",
         "domani",
+        "dopodomani",
         "pomeriggio",
         "stamattina",
         "stasera",
         "passa",
         "porto",
         "portare",
+        "consegna",
+        "consegnare",
+        "consegnato",
+        "consegnarlo",
+        "ritiro",
+        "ritirare",
+        "per lun",
+        "per mar",
+        "per mer",
+        "per gio",
+        "per ven",
+        "per sab",
+        "per dom",
         "scontrino",
         "fattura",
         "preso",
     ]
+
+    _WEEKDAY_ALIASES = {
+        "lun": 0,
+        "lunedì": 0,
+        "lunedi": 0,
+        "mar": 1,
+        "martedì": 1,
+        "martedi": 1,
+        "mer": 2,
+        "mercoledì": 2,
+        "mercoledi": 2,
+        "gio": 3,
+        "giovedì": 3,
+        "giovedi": 3,
+        "ven": 4,
+        "venerdì": 4,
+        "venerdi": 4,
+        "sab": 5,
+        "sabato": 5,
+        "dom": 6,
+        "domenica": 6,
+    }
 
     def _normalize_customer_key(self, s: str) -> str:
         s = (s or "").strip().lower()
@@ -131,6 +167,72 @@ class SlackProcessor:
             return candidate if candidate else first
 
         return first
+
+    def _delivery_time_for_route(self, route: DeliveryRoute | None, base_dt: datetime) -> time:
+        if route and route.default_time:
+            return route.default_time
+        return time(hour=base_dt.hour, minute=base_dt.minute)
+
+    def _build_delivery_dt(self, base_dt: datetime, route: DeliveryRoute | None, target_date) -> datetime:
+        return datetime.combine(target_date, self._delivery_time_for_route(route, base_dt))
+
+    def _extract_delivery_dt_from_text(
+        self,
+        text: str,
+        base_dt: datetime,
+        route: DeliveryRoute | None,
+    ) -> tuple[datetime | None, str]:
+        """
+        Estrae indicazioni semplici di consegna dal messaggio:
+        - domani / dopodomani
+        - per/consegna/consegnare + giorno settimana
+        - per/consegna/consegnare + data dd/mm o dd-mm
+        """
+        raw = text or ""
+        normalized = raw.lower()
+        normalized = normalized.replace("’", "'")
+
+        if re.search(r"\bdopodomani\b", normalized):
+            target_date = (base_dt + timedelta(days=2)).date()
+            return self._build_delivery_dt(base_dt, route, target_date), "dopodomani"
+
+        if re.search(r"\bdomani\b", normalized):
+            target_date = (base_dt + timedelta(days=1)).date()
+            return self._build_delivery_dt(base_dt, route, target_date), "domani"
+
+        date_match = re.search(
+            r"\b(?:consegna(?:re)?|consegnare|per|entro|il)\s+(?:il\s+)?(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?\b",
+            normalized,
+        )
+        if date_match:
+            day = int(date_match.group(1))
+            month = int(date_match.group(2))
+            year_raw = date_match.group(3)
+            year = int(year_raw) if year_raw else base_dt.year
+            if year < 100:
+                year += 2000
+            try:
+                target_dt = self._build_delivery_dt(base_dt, route, datetime(year, month, day).date())
+                if not year_raw and target_dt.date() < base_dt.date():
+                    target_dt = self._build_delivery_dt(base_dt, route, datetime(year + 1, month, day).date())
+                return target_dt, date_match.group(0)
+            except ValueError:
+                pass
+
+        weekday_re = r"\b(?:consegna(?:re)?|consegnare|per|entro)\s+(?:il\s+)?(lun(?:edì|edi)?|mar(?:tedì|tedi)?|mer(?:coledì|coledi)?|gio(?:vedì|vedi)?|ven(?:erdì|erdi)?|sab(?:ato)?|dom(?:enica)?)\b"
+        weekday_match = re.search(weekday_re, normalized)
+        if weekday_match:
+            token = weekday_match.group(1)
+            target_weekday = self._WEEKDAY_ALIASES.get(token)
+            if target_weekday is not None:
+                days_ahead = (target_weekday - base_dt.weekday()) % 7
+                target_date = (base_dt + timedelta(days=days_ahead)).date()
+                target_dt = self._build_delivery_dt(base_dt, route, target_date)
+                if target_dt <= base_dt:
+                    target_dt = target_dt + timedelta(days=7)
+                return target_dt, weekday_match.group(0)
+
+        return None, ""
 
     def _is_reply(self, ts: str | None, thread_ts: str | None) -> bool:
         return bool(thread_ts) and bool(ts) and thread_ts != ts
@@ -233,7 +335,7 @@ class SlackProcessor:
                 SlackOrder.slack_channel_id == channel_id,
                 SlackOrder.customer_key == customer_key,
                 SlackOrder.order_date == order_date,
-                SlackOrder.status != "evaso",
+                SlackOrder.status.notin_(["evaso", "annullato", "annullata", "cancellato", "cancelled"]),
             )
             .order_by(SlackOrder.id.desc())
             .first()
@@ -529,11 +631,14 @@ class SlackProcessor:
             )
 
             # 3) Solo upgrade (come prima) ma basato su order_index
-            if new_rank > current_rank:
+            is_cancelled = new_status in {"annullato", "annullata", "cancellato", "cancelled"}
+            if new_rank > current_rank or is_cancelled:
                 old_status = order.status
                 order.status = new_status
 
-                if bool(getattr(target_status, "is_terminal", False)) and not order.closed_at:
+                if is_cancelled:
+                    order.closed_at = datetime.utcnow()
+                elif bool(getattr(target_status, "is_terminal", False)) and not order.closed_at:
                     order.closed_at = datetime.utcnow()
 
                 db.session.add(
@@ -572,6 +677,19 @@ class SlackProcessor:
             if not order:
                 return
 
+            try:
+                reply_dt = datetime.fromtimestamp(float(ts))
+            except Exception:
+                reply_dt = datetime.utcnow()
+
+            parsed_delivery_dt, delivery_hint = self._extract_delivery_dt_from_text(
+                text,
+                reply_dt,
+                self._get_route_for_channel(channel_id),
+            )
+            if parsed_delivery_dt:
+                order.planned_delivery_at = parsed_delivery_dt
+
             ev = SlackOrderEvent(
                 order_id=order.id,
                 type="note",
@@ -580,6 +698,8 @@ class SlackProcessor:
                     "ts": ts,
                     "text": text,
                     "attachments": attachments,
+                    "delivery_hint": delivery_hint,
+                    "planned_delivery_at": parsed_delivery_dt.isoformat() if parsed_delivery_dt else None,
                 },
             )
             db.session.add(ev)
@@ -608,15 +728,45 @@ class SlackProcessor:
 
         order_date = created_dt.date()
         route = self._get_route_for_channel(channel_id)
+        parsed_delivery_dt, delivery_hint = self._extract_delivery_dt_from_text(text, created_dt, route)
+        planned_delivery_at = (
+            parsed_delivery_dt
+            or (self._compute_next_delivery_dt(created_dt, route) if route else None)
+        )
 
-        # Crea sempre un nuovo SlackOrder (anche se stesso cliente/stesso giorno)
+        existing_order = self._find_open_order(channel_id, customer_key, order_date)
+        if existing_order:
+            existing_order.raw_text = "\n\n".join([p for p in [existing_order.raw_text, text] if p])
+            if parsed_delivery_dt:
+                existing_order.planned_delivery_at = parsed_delivery_dt
+            if self._detect_issue(text):
+                existing_order.has_issues = True
+
+            db.session.add(
+                SlackOrderEvent(
+                    order_id=existing_order.id,
+                    type="append_text",
+                    payload={
+                        "ts": ts,
+                        "user": data.get("user"),
+                        "text": text,
+                        "attachments": attachments,
+                        "slack_message_ts": ts,
+                        "delivery_hint": delivery_hint,
+                        "planned_delivery_at": parsed_delivery_dt.isoformat() if parsed_delivery_dt else None,
+                    },
+                )
+            )
+            db.session.commit()
+            return
+
         order = SlackOrder(
             route_id=route.id if route else None,
             slack_channel_id=channel_id,
             customer_display=customer_display,
             customer_key=customer_key,
             order_date=order_date,
-            planned_delivery_at=self._compute_next_delivery_dt(created_dt, route) if route else None,
+            planned_delivery_at=planned_delivery_at,
             status="acquisito",
             raw_text=text,
             slack_message_ts=ts,
@@ -630,7 +780,14 @@ class SlackProcessor:
             SlackOrderEvent(
                 order_id=order.id,
                 type="created",
-                payload={"ts": ts, "user": data.get("user"), "text": text, "attachments": attachments},
+                payload={
+                    "ts": ts,
+                    "user": data.get("user"),
+                    "text": text,
+                    "attachments": attachments,
+                    "delivery_hint": delivery_hint,
+                    "planned_delivery_at": parsed_delivery_dt.isoformat() if parsed_delivery_dt else None,
+                },
             )
         )
         db.session.commit()

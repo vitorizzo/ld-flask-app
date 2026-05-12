@@ -17,6 +17,12 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
 ## Task corrente (metodologia Codex)
 
 - Rimossa dal manifesto Codex la procedura RAW/incolla-file e allineato il workflow a lettura diretta repository locale
+- Prospettiva AI futura annotata:
+  - introdurre un modulo astratto `AIProvider` configurabile, inizialmente su OpenAI API e in futuro sostituibile/affiancabile da provider locale tipo Ollama
+  - funzioni previste: trascrizione audio Slack, OCR/riconoscimento testo immagini Slack, assistente vini su catalogo prodotti
+  - per l'assistente vini usare approccio RAG: schede tecniche/documentazione indicizzate, risposte basate solo sui dati di catalogo disponibili
+  - prevedere cache dei risultati AI su DB, limiti di costo/configurazione, log dei consumi e flag di abilitazione tipo `AI_PROVIDER` / `SLACK_AI_EXTRACTION_ENABLED`
+  - evitare di legare il codice applicativo a un singolo vendor: il resto dell'app deve chiamare interfacce interne, non direttamente le API del provider
 
 ---
 

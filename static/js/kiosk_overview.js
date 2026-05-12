@@ -486,6 +486,16 @@ window.kioskState = {
       const safeTitle = escapeHtml(data.customer_display || "Ordine");
       const safeRoute = escapeHtml(data.route_name || "");
       const safeStatus = escapeHtml(data.status || "");
+      const deliveryText = data.planned_delivery_at
+        ? new Date(data.planned_delivery_at).toLocaleString("it-IT", {
+            day: "2-digit",
+            month: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          })
+        : "";
+      const deliveryHint = data.delivery_hint || "";
 
       const parts = [];
       parts.push(`
@@ -493,6 +503,13 @@ window.kioskState = {
           <div class="col-12"><div class="fw-bold">Cliente</div><div>${safeTitle}</div></div>
           <div class="col-12"><div class="fw-bold">Giro</div><div>${safeRoute}</div></div>
           <div class="col-12"><div class="fw-bold">Stato</div><div>${safeStatus}</div></div>
+          ${
+            deliveryText
+              ? `<div class="col-12"><div class="fw-bold">Consegna prevista</div><div>${escapeHtml(deliveryText)}${
+                  deliveryHint ? ` <span class="badge bg-warning text-dark">da messaggio</span>` : ``
+                }</div></div>`
+              : ``
+          }
           <div class="col-12"><div class="fw-bold">Testo</div><pre class="kiosk-pre">${escapeHtml(data.raw_text || "")}</pre></div>
         </div>
       `);
@@ -688,6 +705,7 @@ window.kioskState = {
             route_name: routeName,
             route_color: routeColor,
             customer_display: o.customer || "",
+            customer_key: o.customer_key || "",
             preview: (o.raw_text || "").trim().split("\n")[0].slice(0, 140),
             notes_count: o.note_count || 0,
             issues_count: o.has_issues ? 1 : 0,

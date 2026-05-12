@@ -101,6 +101,56 @@ def _is_today_local(dt: datetime | None) -> bool:
     return local.date() == datetime.now().astimezone().date()
 
 
+def _is_cancelled_status(status: str | None) -> bool:
+    return (status or "").strip().lower() in {"annullato", "annullata", "cancellato", "cancelled"}
+
+
+def _status_changed_today_by_event(order_id: int, target_statuses: set[str]) -> bool:
+    candidates = (
+        SlackOrderEvent.query.filter(
+            SlackOrderEvent.order_id == order_id,
+            SlackOrderEvent.type.in_(["status_change", "status_changed", "status_update"]),
+        )
+        .order_by(SlackOrderEvent.created_at.desc())
+        .limit(20)
+        .all()
+    )
+
+    normalized_targets = {s.strip().lower() for s in target_statuses if s}
+    for ev in candidates:
+        if not isinstance(ev.payload, dict):
+            continue
+        new_status = (
+            ev.payload.get("to_status")
+            or ev.payload.get("new_status")
+            or ev.payload.get("status")
+            or ev.payload.get("to")
+        )
+        if (new_status or "").strip().lower() in normalized_targets:
+            return _is_today_local(ev.created_at)
+
+    return False
+
+
+def _hide_closed_or_cancelled_order(order: SlackOrder, show_closed_today: bool = True) -> bool:
+    if order.status == "evaso":
+        if not show_closed_today:
+            return True
+        if order.closed_at:
+            return not _is_today_local(order.closed_at)
+        return not _status_changed_today_by_event(order.id, {"evaso"})
+
+    if _is_cancelled_status(order.status):
+        if order.closed_at:
+            return not _is_today_local(order.closed_at)
+        return not _status_changed_today_by_event(
+            order.id,
+            {"annullato", "annullata", "cancellato", "cancelled"},
+        )
+
+    return False
+
+
 def _event_attachments(payload) -> list[dict]:
     if not isinstance(payload, dict):
         return []
@@ -249,9 +299,18 @@ def kiosk_api_order(order_id: int):
     thread_notes = []
     attachments = []
     seen_attachments = set()
+    delivery_hints = []
 
     for ev in events:
         ev_attachments = _event_attachments(ev.payload)
+        if isinstance(ev.payload, dict) and ev.payload.get("delivery_hint"):
+            delivery_hints.append(
+                {
+                    "hint": ev.payload.get("delivery_hint"),
+                    "planned_delivery_at": ev.payload.get("planned_delivery_at"),
+                    "type": ev.type,
+                }
+            )
         for attachment in ev_attachments:
             file_id = str(attachment.get("id") or "")
             if not file_id or file_id in seen_attachments:
@@ -307,6 +366,7 @@ def kiosk_api_order(order_id: int):
                 "planned_delivery_at": order.planned_delivery_at.isoformat()
                 if order.planned_delivery_at
                 else None,
+                "delivery_hint": delivery_hints[-1]["hint"] if delivery_hints else "",
                 "created_at": order.created_at.isoformat() if order.created_at else None,
                 "closed_at": order.closed_at.isoformat() if order.closed_at else None,
                 "multi_count": multi_count,
@@ -482,14 +542,8 @@ def kiosk_board_all():
 
         filtered_rows = []
         for order, note_count, msg_count in rows:
-            if order.status == "evaso":
-                # mostra evasi solo se "oggi"
-                if order.closed_at:
-                    if not _is_today_local(order.closed_at):
-                        continue
-                else:
-                    if not _evaded_today_by_event(order.id):
-                        continue
+            if _hide_closed_or_cancelled_order(order, show_closed_today=True):
+                continue
             filtered_rows.append((order, note_count, msg_count))
 
         routes_out.append(
@@ -633,23 +687,14 @@ def build_board_payload(route_id: int, show_closed_today: bool = True):
     groups = {}
 
     for order, note_count, msg_count in rows:
-        if order.status == "evaso":
-            if not show_closed_today:
-                continue
-
-            # Preferisci closed_at (se presente)
-            if order.closed_at:
-                if not _is_today_local(order.closed_at):
-                    continue
-            else:
-                # fallback vecchio: evento
-                if not _evaded_today_by_event(order.id):
-                    continue
+        if _hide_closed_or_cancelled_order(order, show_closed_today=show_closed_today):
+            continue
 
         groups.setdefault(order.status, []).append(
             {
                 "id": order.id,
                 "customer": order.customer_display,
+                "customer_key": order.customer_key,
                 "status": order.status,
                 "has_issues": bool(order.has_issues),
                 "note_count": int(note_count or 0),
@@ -664,7 +709,7 @@ def build_board_payload(route_id: int, show_closed_today: bool = True):
                 "delivery_label": order.planned_delivery_at.strftime("%d/%m %H:%M")
                 if order.planned_delivery_at
                 else "",
-                "group_key": f"{route.id}|{(order.planned_delivery_at.date().isoformat() if order.planned_delivery_at else '')}|{(order.customer_display or '').strip()}",
+                "group_key": f"{route.id}|{(order.planned_delivery_at.date().isoformat() if order.planned_delivery_at else '')}|{(order.customer_key or order.customer_display or '').strip().lower()}",
                 "group_seq": getattr(order, "group_seq", 1) or 1,
                 "group_size": getattr(order, "group_size", 1) or 1,
             }
@@ -740,7 +785,9 @@ def set_order_status(order_id):
 
     # aggiorna DB
     order.status = new_status
-    if target_status.is_terminal and not order.closed_at:
+    if _is_cancelled_status(new_status):
+        order.closed_at = datetime.utcnow()
+    elif target_status.is_terminal and not order.closed_at:
         order.closed_at = datetime.utcnow()
 
     db.session.add(
