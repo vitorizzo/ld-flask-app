@@ -22,7 +22,7 @@ from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment, CashExpensePayment, \
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
     CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashOwnerTake, CashOwnerTakeCheck, \
-    CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck, CashIssuedCheck
+    CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck, CashIssuedCheck, CashDepositCheck
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
@@ -46,6 +46,17 @@ logger = get_logger("cassa", level=logging.INFO)
 MIN_AGENDA_WEIGHT = 40
 
 CHECK_IN_PANCIA_STATUSES = ("received", "moved", "spostato", "anticipato")
+CHECK_STATUSES = ("received", "moved", "spostato", "anticipato", "deposited", "cashed", "bounced", "withdrawn")
+CHECK_STATUS_LABELS = {
+    "received": "In pancia",
+    "moved": "Spostato",
+    "spostato": "Spostato",
+    "anticipato": "Anticipato",
+    "deposited": "Versato",
+    "cashed": "Incassato",
+    "bounced": "Insoluto",
+    "withdrawn": "Ritirato",
+}
 
 _VAULT_VERSION = 1
 _KDF_ITERS = 200_000
@@ -667,6 +678,120 @@ def _get_previous_check_status_before_deposit(check_id: int):
     return prev_event.to_status
 
 
+def _serialize_cash_check(check: CashCheck, include_events: bool = False):
+    customer = check.customer
+    item = {
+        "id": check.id,
+        "check_number": check.check_number,
+        "abi": check.abi,
+        "cab": check.cab,
+        "bank_name": check.bank_name,
+        "customer_id": check.customer_id,
+        "customer_display_name": customer.display_name if customer else None,
+        "amount": float(check.amount or 0),
+        "received_date": check.received_date.isoformat() if check.received_date else None,
+        "due_date": check.due_date.isoformat() if check.due_date else None,
+        "status": check.status,
+        "status_label": CHECK_STATUS_LABELS.get(check.status, check.status),
+        "note": check.note,
+        "created_at": check.created_at.isoformat() if check.created_at else None,
+        "updated_at": check.updated_at.isoformat() if check.updated_at else None,
+    }
+
+    if include_events:
+        events = (
+            CashCheckEvent.query
+            .filter(CashCheckEvent.check_id == check.id)
+            .order_by(CashCheckEvent.event_date.asc(), CashCheckEvent.id.asc())
+            .all()
+        )
+        item["events"] = [{
+            "id": event.id,
+            "from_status": event.from_status,
+            "to_status": event.to_status,
+            "to_status_label": CHECK_STATUS_LABELS.get(event.to_status, event.to_status),
+            "event_date": event.event_date.isoformat() if event.event_date else None,
+            "note": event.note,
+            "amount_spese": float(event.amount_spese or 0),
+            "customer_charge_amount": float(event.customer_charge_amount or 0),
+            "created_at": event.created_at.isoformat() if event.created_at else None,
+        } for event in events]
+
+    return item
+
+
+def _find_or_create_cash_customer(label: str):
+    display_name = (label or "").strip()
+    if not display_name:
+        raise ValueError("Cliente obbligatorio")
+
+    customer = (
+        CashCustomer.query
+        .filter(func.lower(CashCustomer.display_name) == display_name.lower())
+        .first()
+    )
+    if customer:
+        return customer
+
+    customer = CashCustomer(display_name=display_name)
+    db.session.add(customer)
+    db.session.flush()
+    return customer
+
+
+def _parse_check_payload(data, existing_check: CashCheck | None = None):
+    check_number = (data.get("check_number") or "").strip()
+    bank_name = (data.get("bank_name") or "").strip() or None
+    abi = (data.get("abi") or "").strip() or None
+    cab = (data.get("cab") or "").strip() or None
+    note = (data.get("note") or "").strip() or None
+    status = (data.get("status") or (existing_check.status if existing_check else "received")).strip()
+
+    if status not in CHECK_STATUSES:
+        raise ValueError("Stato assegno non valido")
+    if not check_number:
+        raise ValueError("Numero assegno obbligatorio")
+    if not bank_name:
+        raise ValueError("Banca assegno obbligatoria")
+
+    amount = _to_decimal_amount(data.get("amount"), "amount")
+    if amount <= 0:
+        raise ValueError("Importo assegno non valido")
+
+    try:
+        received_date = datetime.strptime(data.get("received_date"), "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        raise ValueError("Data ricezione non valida")
+
+    try:
+        due_date = datetime.strptime(data.get("due_date"), "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        raise ValueError("Data scadenza non valida")
+
+    customer_id = data.get("customer_id")
+    customer_label = (data.get("customer_label") or "").strip()
+
+    if customer_id:
+        customer = CashCustomer.query.filter_by(id=customer_id).first()
+        if not customer:
+            raise ValueError("Cliente non trovato")
+    else:
+        customer = _find_or_create_cash_customer(customer_label)
+
+    return {
+        "check_number": check_number,
+        "bank_name": bank_name,
+        "abi": abi,
+        "cab": cab,
+        "customer_id": customer.id,
+        "amount": amount,
+        "received_date": received_date,
+        "due_date": due_date,
+        "status": status,
+        "note": note,
+    }
+
+
 @cassa_bp.delete("/api/deposits/<int:deposit_id>")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
@@ -764,6 +889,13 @@ def agenda_report():
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def agenda_report_print():
+    return render_template("agenda.html")
+
+
+@cassa_bp.route("/agenda/checks", methods=["GET"])
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def agenda_checks():
     return render_template("agenda.html")
 
 
@@ -2132,6 +2264,190 @@ def api_checks_due():
         "cutoff_bancabile": cutoff.isoformat(),
         "checks": items
     })
+
+
+@cassa_bp.get("/api/checks")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_list_checks():
+    q_text = (request.args.get("q") or "").strip()
+    status = (request.args.get("status") or "").strip()
+    from_date = (request.args.get("from") or "").strip()
+    to_date = (request.args.get("to") or "").strip()
+
+    query = CashCheck.query.options(selectinload(CashCheck.customer))
+
+    if status:
+        if status == "in_pancia":
+            query = query.filter(CashCheck.status.in_(CHECK_IN_PANCIA_STATUSES))
+        elif status in CHECK_STATUSES:
+            query = query.filter(CashCheck.status == status)
+        else:
+            return jsonify({"ok": False, "error": "Stato assegno non valido"}), 400
+
+    if q_text:
+        like = f"%{q_text}%"
+        query = query.outerjoin(CashCustomer).filter(or_(
+            CashCheck.check_number.ilike(like),
+            CashCheck.bank_name.ilike(like),
+            CashCustomer.display_name.ilike(like),
+        ))
+
+    if from_date:
+        try:
+            query = query.filter(CashCheck.received_date >= datetime.strptime(from_date, "%Y-%m-%d").date())
+        except ValueError:
+            return jsonify({"ok": False, "error": "Data da non valida"}), 400
+
+    if to_date:
+        try:
+            query = query.filter(CashCheck.received_date <= datetime.strptime(to_date, "%Y-%m-%d").date())
+        except ValueError:
+            return jsonify({"ok": False, "error": "Data a non valida"}), 400
+
+    checks = (
+        query
+        .order_by(CashCheck.due_date.asc(), CashCheck.received_date.asc(), CashCheck.id.asc())
+        .limit(300)
+        .all()
+    )
+
+    return jsonify({
+        "ok": True,
+        "statuses": [{"value": key, "label": CHECK_STATUS_LABELS.get(key, key)} for key in CHECK_STATUSES],
+        "checks": [_serialize_cash_check(check) for check in checks],
+    })
+
+
+@cassa_bp.post("/api/checks")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_create_check():
+    data = request.get_json(silent=True) or {}
+
+    try:
+        values = _parse_check_payload(data)
+        duplicate = (
+            CashCheck.query
+            .filter(
+                func.lower(CashCheck.bank_name) == str(values["bank_name"]).lower(),
+                func.lower(CashCheck.check_number) == str(values["check_number"]).lower(),
+            )
+            .first()
+        )
+        if duplicate:
+            return jsonify({"ok": False, "error": "Esiste già un assegno con questa banca e questo numero"}), 409
+
+        check = CashCheck(**values)
+        db.session.add(check)
+        db.session.flush()
+        db.session.add(CashCheckEvent(
+            check_id=check.id,
+            from_status=None,
+            to_status=check.status,
+            event_date=check.received_date or date.today(),
+            created_by_user_id=getattr(current_user, "id", None),
+            note="Creazione assegno da gestione assegni",
+        ))
+        db.session.commit()
+        return jsonify({"ok": True, "check": _serialize_cash_check(check, include_events=True)}), 201
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_create_check error: %s", e)
+        return jsonify({"ok": False, "error": "Errore creazione assegno"}), 500
+
+
+@cassa_bp.get("/api/checks/<int:check_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_get_check(check_id):
+    check = CashCheck.query.options(selectinload(CashCheck.customer)).filter_by(id=check_id).first()
+    if not check:
+        return jsonify({"ok": False, "error": "Assegno non trovato"}), 404
+    return jsonify({"ok": True, "check": _serialize_cash_check(check, include_events=True)})
+
+
+@cassa_bp.put("/api/checks/<int:check_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_update_check(check_id):
+    check = CashCheck.query.filter_by(id=check_id).first()
+    if not check:
+        return jsonify({"ok": False, "error": "Assegno non trovato"}), 404
+
+    data = request.get_json(silent=True) or {}
+
+    try:
+        values = _parse_check_payload(data, existing_check=check)
+        duplicate = (
+            CashCheck.query
+            .filter(
+                CashCheck.id != check.id,
+                func.lower(CashCheck.bank_name) == str(values["bank_name"]).lower(),
+                func.lower(CashCheck.check_number) == str(values["check_number"]).lower(),
+            )
+            .first()
+        )
+        if duplicate:
+            return jsonify({"ok": False, "error": "Esiste già un assegno con questa banca e questo numero"}), 409
+
+        old_status = check.status
+        new_status = values.pop("status")
+
+        for key, value in values.items():
+            setattr(check, key, value)
+
+        if old_status != new_status:
+            change_check_status(
+                check=check,
+                new_status=new_status,
+                user_id=getattr(current_user, "id", None),
+                event_date=date.today(),
+                note=(data.get("status_note") or "Aggiornamento stato da gestione assegni").strip(),
+                amount_spese=Decimal("0"),
+                customer_charge_amount=Decimal("0"),
+            )
+        else:
+            check.status = new_status
+
+        db.session.commit()
+        return jsonify({"ok": True, "check": _serialize_cash_check(check, include_events=True)})
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_update_check error: %s", e)
+        return jsonify({"ok": False, "error": "Errore aggiornamento assegno"}), 500
+
+
+@cassa_bp.delete("/api/checks/<int:check_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_delete_check(check_id):
+    check = CashCheck.query.filter_by(id=check_id).first()
+    if not check:
+        return jsonify({"ok": False, "error": "Assegno non trovato"}), 404
+
+    linked = bool(
+        CashSaleCheck.query.filter_by(check_id=check_id).first()
+        or CashDepositCheck.query.filter_by(check_id=check_id).first()
+        or CashOwnerTakeCheck.query.filter_by(check_id=check_id).first()
+    )
+    if linked:
+        return jsonify({"ok": False, "error": "Assegno collegato a movimenti: elimina o modifica prima il movimento collegato"}), 409
+
+    try:
+        db.session.delete(check)
+        db.session.commit()
+        return jsonify({"ok": True, "check_id": check_id})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_delete_check error: %s", e)
+        return jsonify({"ok": False, "error": "Errore eliminazione assegno"}), 500
 
 
 @cassa_bp.post("/api/day/<day_date>/sales")

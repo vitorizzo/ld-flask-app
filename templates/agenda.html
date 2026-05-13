@@ -2052,6 +2052,117 @@
   </div>
 </div>
 
+<div class="modal fade agenda-modal" id="checksManagementModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Gestione assegni</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 mb-3">
+          <div class="col-12 col-lg-3">
+            <label class="form-label" for="checksFilterText">Cerca</label>
+            <input type="text" class="form-control" id="checksFilterText" placeholder="Cliente, banca, numero">
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="checksFilterStatus">Stato</label>
+            <select class="form-select" id="checksFilterStatus">
+              <option value="in_pancia">In pancia</option>
+              <option value="">Tutti</option>
+            </select>
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="checksFilterFrom">Ricevuti da</label>
+            <input type="date" class="form-control" id="checksFilterFrom">
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="checksFilterTo">Ricevuti a</label>
+            <input type="date" class="form-control" id="checksFilterTo">
+          </div>
+          <div class="col-6 col-lg-3 d-flex align-items-end justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-secondary" id="checksReloadBtn">Aggiorna</button>
+            <button type="button" class="btn btn-primary" id="checksNewBtn">Nuovo assegno</button>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-body">
+            <input type="hidden" id="checkEditId">
+            <input type="hidden" id="checkCustomerId">
+            <div class="row g-2 align-items-end">
+              <div class="col-12 col-lg-3">
+                <label class="form-label" for="checkCustomerLabel">Cliente</label>
+                <input type="text" class="form-control" id="checkCustomerLabel" autocomplete="off">
+              </div>
+              <div class="col-6 col-lg-2">
+                <label class="form-label" for="checkBankName">Banca</label>
+                <input type="text" class="form-control" id="checkBankName">
+              </div>
+              <div class="col-6 col-lg-2">
+                <label class="form-label" for="checkNumber">Numero</label>
+                <input type="text" class="form-control" id="checkNumber">
+              </div>
+              <div class="col-6 col-lg-1">
+                <label class="form-label" for="checkAbi">ABI</label>
+                <input type="text" class="form-control" id="checkAbi">
+              </div>
+              <div class="col-6 col-lg-1">
+                <label class="form-label" for="checkCab">CAB</label>
+                <input type="text" class="form-control" id="checkCab">
+              </div>
+              <div class="col-6 col-lg-1">
+                <label class="form-label" for="checkAmount">Importo</label>
+                <input type="text" class="form-control text-end" id="checkAmount" inputmode="decimal">
+              </div>
+              <div class="col-6 col-lg-2">
+                <label class="form-label" for="checkStatus">Stato</label>
+                <select class="form-select" id="checkStatus"></select>
+              </div>
+              <div class="col-6 col-lg-2">
+                <label class="form-label" for="checkReceivedDate">Ricezione</label>
+                <input type="date" class="form-control" id="checkReceivedDate">
+              </div>
+              <div class="col-6 col-lg-2">
+                <label class="form-label" for="checkDueDate">Scadenza</label>
+                <input type="date" class="form-control" id="checkDueDate">
+              </div>
+              <div class="col-12 col-lg-5">
+                <label class="form-label" for="checkNote">Note</label>
+                <input type="text" class="form-control" id="checkNote">
+              </div>
+              <div class="col-12 col-lg-3 text-end">
+                <button type="button" class="btn btn-outline-secondary" id="checkCancelBtn">Annulla</button>
+                <button type="button" class="btn btn-success" id="checkSaveBtn">Salva assegno</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Banca</th>
+                <th>Numero</th>
+                <th>Ricezione</th>
+                <th>Scadenza</th>
+                <th>Stato</th>
+                <th class="text-end">Importo</th>
+                <th class="text-end">Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="checksManagementRows">
+              <tr><td colspan="8" class="text-center text-muted">Nessun caricamento eseguito</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="contextMenu" class="context-menu d-none">
   <div class="context-menu-item" data-action="edit">Modifica</div>
   <div class="context-menu-item" data-action="delete">Elimina</div>
