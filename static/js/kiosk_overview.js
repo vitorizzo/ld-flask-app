@@ -13,9 +13,11 @@ window.kioskState = {
   const API_ALL = "/kiosk/api/board/all?only_active=1&show_closed_today=1";
   const API_ORDER = (id) => `/kiosk/api/order/${id}`;
   const API_REPARSE_DELIVERIES = "/kiosk/api/orders/reparse-deliveries";
+  const API_DELIVERY_SCHEDULE = "/kiosk/api/delivery-schedule";
   const API_STATUSES = "/kiosk/api/statuses";
 
   let refreshTimer = null;
+  let deliveryScheduleState = { routes: [], rules: [], weekdays: [], frequencies: [] };
 
   // Drag context (single dragged card at a time)
   let dragCtx = {
@@ -884,16 +886,19 @@ window.kioskState = {
     }
   }
 
-  async function reparseDeliveries() {
+  async function reparseDeliveries(options = {}) {
+    const applyDefaults = Boolean(options.applyDefaults);
+    const silent = Boolean(options.silent);
     const btn = $("#btn-reparse-deliveries");
     const oldText = btn ? btn.textContent : "";
-    if (btn) {
+    if (btn && !silent) {
       btn.disabled = true;
       btn.textContent = "Riprogrammo...";
     }
 
     try {
-      const res = await fetch(API_REPARSE_DELIVERIES, {
+      const url = `${API_REPARSE_DELIVERIES}${applyDefaults ? "?apply_defaults=1" : ""}`;
+      const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         cache: "no-store",
@@ -905,17 +910,263 @@ window.kioskState = {
 
       await loadAndRender();
       const changed = Number(json.changed || 0);
-      if (btn) btn.textContent = changed ? `Riprogrammate: ${changed}` : "Nessuna modifica";
-      window.setTimeout(() => {
-        if (btn) btn.textContent = oldText || "Riprogramma";
-      }, 2500);
+      if (btn && !silent) {
+        btn.textContent = changed ? `Riprogrammate: ${changed}` : "Nessuna modifica";
+        window.setTimeout(() => {
+          if (btn) btn.textContent = oldText || "Riprogramma";
+        }, 2500);
+      }
+      return json;
     } catch (err) {
       console.error("[kiosk_overview] reparseDeliveries error", err);
-      alert(`Errore riprogrammazione: ${String(err.message || err)}`);
-      if (btn) btn.textContent = oldText || "Riprogramma";
+      if (!silent) alert(`Errore riprogrammazione: ${String(err.message || err)}`);
+      if (btn && !silent) btn.textContent = oldText || "Riprogramma";
+      throw err;
     } finally {
-      if (btn) btn.disabled = false;
+      if (btn && !silent) btn.disabled = false;
     }
+  }
+
+  function setScheduleModeVisibility() {
+    const mode = $("#scheduleMode") ? $("#scheduleMode").value : "once";
+    const frequency = $("#scheduleFrequency") ? $("#scheduleFrequency").value : "weekly";
+    document.querySelectorAll(".schedule-field").forEach((el) => {
+      el.style.display = "none";
+    });
+    document.querySelectorAll(".schedule-field-frequency").forEach((el) => {
+      el.style.display = mode === "period" || mode === "definitive" ? "" : "none";
+    });
+    document.querySelectorAll(".schedule-field-weekday").forEach((el) => {
+      el.style.display = mode === "period" || mode === "definitive" ? "" : "none";
+    });
+    document.querySelectorAll(".schedule-field-second").forEach((el) => {
+      el.style.display =
+        (mode === "period" || mode === "definitive") && frequency === "twice_weekly" ? "" : "none";
+    });
+    document.querySelectorAll(".schedule-field-anchor").forEach((el) => {
+      el.style.display = mode === "definitive" && frequency === "biweekly" ? "" : "none";
+    });
+    document.querySelectorAll(".schedule-field-once").forEach((el) => {
+      el.style.display = mode === "once" ? "" : "none";
+    });
+    document.querySelectorAll(".schedule-field-period").forEach((el) => {
+      el.style.display = mode === "period" ? "" : "none";
+    });
+  }
+
+  function applySelectedRouteDefaults() {
+    const routeId = $("#scheduleRoute") ? Number($("#scheduleRoute").value) : null;
+    const route = deliveryScheduleState.routes.find((r) => Number(r.id) === routeId);
+    if (!route) return;
+
+    const timeInput = $("#scheduleTargetTime");
+    if (timeInput && !timeInput.value) timeInput.value = route.default_time || "";
+
+    const weekdaySelect = $("#scheduleTargetWeekday");
+    if (weekdaySelect && weekdaySelect.value === "") {
+      const weekday = Number(route.default_weekday || 1);
+      weekdaySelect.value = String(weekday >= 1 && weekday <= 7 ? weekday : 1);
+    }
+
+    const frequencySelect = $("#scheduleFrequency");
+    if (frequencySelect && !frequencySelect.value) frequencySelect.value = route.frequency || "weekly";
+
+    const secondWeekdaySelect = $("#scheduleSecondWeekday");
+    if (secondWeekdaySelect && route.second_weekday) secondWeekdaySelect.value = String(route.second_weekday);
+
+    const secondTimeInput = $("#scheduleSecondTime");
+    if (secondTimeInput && route.second_time && !secondTimeInput.value) secondTimeInput.value = route.second_time;
+
+    const anchorInput = $("#scheduleFrequencyAnchorDate");
+    if (anchorInput && route.frequency_anchor_date && !anchorInput.value) anchorInput.value = route.frequency_anchor_date;
+  }
+
+  function renderDeliverySchedule(data) {
+    deliveryScheduleState = {
+      routes: Array.isArray(data.routes) ? data.routes : [],
+      rules: Array.isArray(data.rules) ? data.rules : [],
+      weekdays: Array.isArray(data.weekdays) ? data.weekdays : [],
+      frequencies: Array.isArray(data.frequencies) ? data.frequencies : [],
+    };
+
+    const routeSelect = $("#scheduleRoute");
+    if (routeSelect) {
+      routeSelect.innerHTML = deliveryScheduleState.routes
+        .map((r) => `<option value="${r.id}">${escapeHtml(r.name)}</option>`)
+        .join("");
+    }
+
+    const weekdaySelect = $("#scheduleTargetWeekday");
+    if (weekdaySelect) {
+      weekdaySelect.innerHTML = deliveryScheduleState.weekdays
+        .map((w) => `<option value="${w.value}">${escapeHtml(w.label)}</option>`)
+        .join("");
+    }
+
+    const secondWeekdaySelect = $("#scheduleSecondWeekday");
+    if (secondWeekdaySelect) {
+      secondWeekdaySelect.innerHTML = deliveryScheduleState.weekdays
+        .map((w) => `<option value="${w.value}">${escapeHtml(w.label)}</option>`)
+        .join("");
+    }
+
+    const frequencySelect = $("#scheduleFrequency");
+    if (frequencySelect) {
+      frequencySelect.innerHTML = deliveryScheduleState.frequencies
+        .map((f) => `<option value="${f.value}">${escapeHtml(f.label)}</option>`)
+        .join("");
+    }
+
+    const routeBody = document.querySelector("#deliveryRoutesTable tbody");
+    if (routeBody) {
+      routeBody.innerHTML = deliveryScheduleState.routes.length
+        ? deliveryScheduleState.routes
+            .map(
+              (r) => `
+                <tr>
+                  <td>${escapeHtml(r.name)}</td>
+                  <td>${escapeHtml(r.default_weekday_label || "")}</td>
+                  <td>${escapeHtml(r.default_time || "")}</td>
+                  <td>${escapeHtml(r.frequency_label || "")}${
+                    r.frequency === "twice_weekly"
+                      ? ` · ${escapeHtml(r.second_weekday_label || "")} ${escapeHtml(r.second_time || "")}`
+                      : ``
+                  }</td>
+                  <td><code>${escapeHtml(r.slack_channel_id || "")}</code></td>
+                </tr>
+              `
+            )
+            .join("")
+        : `<tr><td colspan="5" class="text-muted">Nessun giro configurato</td></tr>`;
+    }
+
+    const rulesBody = document.querySelector("#deliveryRulesTable tbody");
+    if (rulesBody) {
+      rulesBody.innerHTML = deliveryScheduleState.rules.length
+        ? deliveryScheduleState.rules
+            .map((r) => {
+              const typeLabel = r.scope === "once" ? "Una volta" : "Periodo";
+              const period =
+                r.scope === "once"
+                  ? `${escapeHtml(r.source_date || "")} → ${escapeHtml(r.target_date || "")}`
+                  : `${escapeHtml(r.start_date || "")} → ${escapeHtml(r.end_date || "")}`;
+              const delivery =
+                r.scope === "once"
+                  ? `${escapeHtml(r.target_date || "")} ${escapeHtml(r.target_time || "")}`
+                  : `${escapeHtml(r.target_weekday_label || "")} ${escapeHtml(r.target_time || "")}`;
+              const frequency =
+                r.scope === "once"
+                  ? "Singola"
+                  : `${escapeHtml(r.frequency_label || "")}${
+                      r.frequency === "twice_weekly"
+                        ? ` · ${escapeHtml(r.second_weekday_label || "")} ${escapeHtml(r.second_time || "")}`
+                        : ``
+                    }`;
+              return `
+                <tr>
+                  <td>${escapeHtml(r.route_name || "")}</td>
+                  <td>${typeLabel}</td>
+                  <td>${period}</td>
+                  <td>${frequency}</td>
+                  <td>${delivery}</td>
+                  <td>${escapeHtml(r.note || "")}</td>
+                  <td class="text-end"><button class="btn btn-sm btn-outline-danger" type="button" data-delete-rule="${r.id}">Elimina</button></td>
+                </tr>
+              `;
+            })
+            .join("")
+        : `<tr><td colspan="7" class="text-muted">Nessuna variazione attiva</td></tr>`;
+
+      rulesBody.querySelectorAll("[data-delete-rule]").forEach((btn) => {
+        btn.addEventListener("click", async (ev) => {
+          const id = ev.currentTarget.getAttribute("data-delete-rule");
+          if (!id) return;
+          await deleteDeliveryScheduleRule(id);
+        });
+      });
+    }
+
+    setScheduleModeVisibility();
+    applySelectedRouteDefaults();
+  }
+
+  async function loadDeliverySchedule() {
+    const res = await fetch(API_DELIVERY_SCHEDULE, { cache: "no-store" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderDeliverySchedule(data);
+  }
+
+  async function openDeliveryScheduleModal() {
+    const modalEl = $("#deliveryScheduleModal");
+    if (modalEl && window.bootstrap) {
+      window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+    await loadDeliverySchedule();
+  }
+
+  async function saveDeliverySchedule(ev) {
+    ev.preventDefault();
+
+    const mode = $("#scheduleMode").value;
+    const payload = {
+      mode,
+      route_id: Number($("#scheduleRoute").value),
+      target_time: $("#scheduleTargetTime").value,
+      frequency: $("#scheduleFrequency") ? $("#scheduleFrequency").value : "weekly",
+      note: $("#scheduleNote").value,
+    };
+
+    if (mode === "once") {
+      payload.source_date = $("#scheduleSourceDate").value;
+      payload.target_date = $("#scheduleTargetDate").value;
+    }
+    if (mode === "period" || mode === "definitive") {
+      payload.target_weekday = Number($("#scheduleTargetWeekday").value);
+      if (payload.frequency === "twice_weekly") {
+        payload.second_weekday = Number($("#scheduleSecondWeekday").value);
+        payload.second_time = $("#scheduleSecondTime").value;
+      }
+      if (mode === "definitive" && payload.frequency === "biweekly") {
+        payload.frequency_anchor_date = $("#scheduleFrequencyAnchorDate").value;
+      }
+    }
+    if (mode === "period") {
+      payload.start_date = $("#scheduleStartDate").value;
+      payload.end_date = $("#scheduleEndDate").value;
+    }
+
+    const res = await fetch(API_DELIVERY_SCHEDULE, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) {
+      alert(`Errore salvataggio giro: ${escapeHtml(json.error || `HTTP ${res.status}`)}`);
+      return;
+    }
+
+    ev.currentTarget.reset();
+    setScheduleModeVisibility();
+    applySelectedRouteDefaults();
+    await loadDeliverySchedule();
+    await reparseDeliveries({ applyDefaults: true, silent: true });
+  }
+
+  async function deleteDeliveryScheduleRule(ruleId) {
+    const res = await fetch(`${API_DELIVERY_SCHEDULE}/${ruleId}`, {
+      method: "DELETE",
+      cache: "no-store",
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) {
+      alert(`Errore eliminazione variazione: ${escapeHtml(json.error || `HTTP ${res.status}`)}`);
+      return;
+    }
+    await loadDeliverySchedule();
+    await reparseDeliveries({ applyDefaults: true, silent: true });
   }
 
   async function start() {
@@ -926,6 +1177,27 @@ window.kioskState = {
 
     const reparseBtn = $("#btn-reparse-deliveries");
     if (reparseBtn) reparseBtn.addEventListener("click", reparseDeliveries);
+
+    const scheduleBtn = $("#btn-delivery-schedule");
+    if (scheduleBtn) scheduleBtn.addEventListener("click", openDeliveryScheduleModal);
+
+    const scheduleMode = $("#scheduleMode");
+    if (scheduleMode) scheduleMode.addEventListener("change", setScheduleModeVisibility);
+
+    const scheduleFrequency = $("#scheduleFrequency");
+    if (scheduleFrequency) scheduleFrequency.addEventListener("change", setScheduleModeVisibility);
+
+    const scheduleRoute = $("#scheduleRoute");
+    if (scheduleRoute) {
+      scheduleRoute.addEventListener("change", () => {
+        const timeInput = $("#scheduleTargetTime");
+        if (timeInput) timeInput.value = "";
+        applySelectedRouteDefaults();
+      });
+    }
+
+    const scheduleForm = $("#deliveryScheduleForm");
+    if (scheduleForm) scheduleForm.addEventListener("submit", saveDeliverySchedule);
 
     await loadStatuses();
     await loadAndRender();

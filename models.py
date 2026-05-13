@@ -728,6 +728,13 @@ class DeliveryRoute(db.Model):
 
     default_time = db.Column(db.Time, nullable=False)
 
+    frequency = db.Column(db.String(20), nullable=False, default="weekly")
+    # weekly | biweekly | twice_weekly
+
+    second_weekday = db.Column(db.Integer, nullable=True)
+    second_time = db.Column(db.Time, nullable=True)
+    frequency_anchor_date = db.Column(db.Date, nullable=True)
+
     is_active = db.Column(db.Boolean, default=True, nullable=False)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -757,6 +764,49 @@ class DeliveryOverride(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     route = db.relationship("DeliveryRoute", backref="overrides")
+
+
+class DeliveryScheduleRule(db.Model):
+    __tablename__ = "delivery_schedule_rules"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    route_id = db.Column(
+        db.Integer,
+        db.ForeignKey("delivery_routes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    scope = db.Column(db.String(20), nullable=False)
+    # once | period
+
+    source_date = db.Column(db.Date, nullable=True)
+    target_date = db.Column(db.Date, nullable=True)
+
+    start_date = db.Column(db.Date, nullable=True)
+    end_date = db.Column(db.Date, nullable=True)
+
+    target_weekday = db.Column(db.Integer, nullable=True)
+    target_time = db.Column(db.Time, nullable=False)
+    frequency = db.Column(db.String(20), nullable=False, default="weekly")
+    # weekly | biweekly | twice_weekly
+
+    second_weekday = db.Column(db.Integer, nullable=True)
+    second_time = db.Column(db.Time, nullable=True)
+
+    is_active = db.Column(db.Boolean, default=True, nullable=False, index=True)
+    note = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False,
+    )
+
+    route = db.relationship("DeliveryRoute", backref="schedule_rules")
 
 
 class SlackOrder(db.Model):

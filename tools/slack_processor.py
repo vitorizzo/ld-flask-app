@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 from flask import current_app
 from jinja2 import Template
 
-from models import SlackConnection, SlackOrder, SlackOrderEvent, DeliveryRoute, OrderStatus
+from models import SlackConnection, SlackOrder, SlackOrderEvent, DeliveryRoute, DeliveryScheduleRule, OrderStatus
 from tools.log_utils import get_logger
 from tools.slack_api import SlackAPI, SlackAPIConfig
 from extensions import db
@@ -213,6 +213,118 @@ class SlackProcessor:
     ) -> datetime:
         return datetime.combine(target_date, target_time or self._delivery_time_for_route(route, base_dt))
 
+    def _next_weekday_dt(self, base_dt: datetime, target_weekday: int, target_time: time) -> datetime:
+        delivery_weekday = int(target_weekday)
+        python_weekday = delivery_weekday - 1 if 1 <= delivery_weekday <= 7 else delivery_weekday
+        days_ahead = (python_weekday - base_dt.weekday()) % 7
+        candidate_date = (base_dt + timedelta(days=days_ahead)).date()
+        candidate_dt = datetime.combine(candidate_date, target_time)
+        if candidate_dt <= base_dt:
+            candidate_dt = candidate_dt + timedelta(days=7)
+        return candidate_dt
+
+    def _week_index(self, value_date) -> int:
+        iso = value_date.isocalendar()
+        return int(iso.year) * 53 + int(iso.week)
+
+    def _next_biweekly_dt(
+        self,
+        base_dt: datetime,
+        target_weekday: int,
+        target_time: time,
+        anchor_date,
+        end_date=None,
+    ) -> datetime | None:
+        anchor = anchor_date or base_dt.date()
+        candidate = self._next_weekday_dt(base_dt, target_weekday, target_time)
+        for _ in range(54):
+            if (self._week_index(candidate.date()) - self._week_index(anchor)) % 2 == 0:
+                if end_date and candidate.date() > end_date:
+                    return None
+                return candidate
+            candidate = candidate + timedelta(days=7)
+        return None
+
+    def _schedule_candidate(
+        self,
+        base_dt: datetime,
+        *,
+        frequency: str,
+        target_weekday: int,
+        target_time: time,
+        second_weekday: int | None = None,
+        second_time: time | None = None,
+        anchor_date=None,
+        end_date=None,
+    ) -> datetime | None:
+        frequency = frequency or "weekly"
+
+        if frequency == "biweekly":
+            return self._next_biweekly_dt(base_dt, target_weekday, target_time, anchor_date, end_date=end_date)
+
+        candidates = [self._next_weekday_dt(base_dt, target_weekday, target_time)]
+        if frequency == "twice_weekly" and second_weekday and second_time:
+            candidates.append(self._next_weekday_dt(base_dt, second_weekday, second_time))
+
+        if end_date:
+            candidates = [c for c in candidates if c.date() <= end_date]
+        return min(candidates) if candidates else None
+
+    def _apply_once_schedule_rule(self, route: DeliveryRoute, candidate_dt: datetime) -> datetime:
+        rule = (
+            DeliveryScheduleRule.query
+            .filter_by(route_id=route.id, scope="once", is_active=True, source_date=candidate_dt.date())
+            .order_by(DeliveryScheduleRule.id.desc())
+            .first()
+        )
+        if not rule or not rule.target_date:
+            return candidate_dt
+        return datetime.combine(rule.target_date, rule.target_time or candidate_dt.time())
+
+    def _period_schedule_candidate(self, base_dt: datetime, route: DeliveryRoute) -> datetime | None:
+        today = base_dt.date()
+        rules = (
+            DeliveryScheduleRule.query
+            .filter(
+                DeliveryScheduleRule.route_id == route.id,
+                DeliveryScheduleRule.scope == "period",
+                DeliveryScheduleRule.is_active.is_(True),
+                DeliveryScheduleRule.start_date.isnot(None),
+                DeliveryScheduleRule.end_date.isnot(None),
+                DeliveryScheduleRule.target_weekday.isnot(None),
+                DeliveryScheduleRule.end_date >= today,
+            )
+            .order_by(DeliveryScheduleRule.start_date.desc(), DeliveryScheduleRule.id.desc())
+            .all()
+        )
+
+        for rule in rules:
+            anchor = base_dt
+            if rule.start_date and rule.start_date > today:
+                anchor = datetime.combine(rule.start_date, time.min)
+
+            candidate = self._schedule_candidate(
+                anchor,
+                frequency=rule.frequency or "weekly",
+                target_weekday=int(rule.target_weekday),
+                target_time=rule.target_time,
+                second_weekday=rule.second_weekday,
+                second_time=rule.second_time,
+                anchor_date=rule.start_date,
+                end_date=rule.end_date,
+            )
+            if not candidate:
+                continue
+            while rule.start_date and candidate.date() < rule.start_date:
+                candidate += timedelta(days=7)
+
+            if rule.end_date and candidate.date() > rule.end_date:
+                continue
+
+            return candidate
+
+        return None
+
     def _extract_delivery_dt_from_text(
         self,
         text: str,
@@ -381,22 +493,27 @@ class SlackProcessor:
         route.default_weekday: 0=consegna immediata 1=lun ... 7=dom
         route.default_time: time
         """
+        period_candidate = self._period_schedule_candidate(base_dt, route)
+        if period_candidate:
+            return self._apply_once_schedule_rule(route, period_candidate)
+
         target_weekday = int(route.default_weekday)
         target_time = route.default_time
 
         if target_weekday == 0:
             candidate_dt = base_dt
         else:
-            # data candidata: stesso giorno della settimana nella stessa settimana di base_dt
-            days_ahead = (target_weekday - 1 - base_dt.weekday()) % 7
-            candidate_date = (base_dt + timedelta(days=days_ahead)).date()
-            candidate_dt = datetime.combine(candidate_date, target_time)
+            candidate_dt = self._schedule_candidate(
+                base_dt,
+                frequency=getattr(route, "frequency", None) or "weekly",
+                target_weekday=target_weekday,
+                target_time=target_time,
+                second_weekday=getattr(route, "second_weekday", None),
+                second_time=getattr(route, "second_time", None),
+                anchor_date=getattr(route, "frequency_anchor_date", None),
+            )
 
-            # se cade oggi ma è già passato -> settimana prossima
-            if candidate_dt <= base_dt:
-                candidate_dt = candidate_dt + timedelta(days=7)
-
-        return candidate_dt
+        return self._apply_once_schedule_rule(route, candidate_dt)
 
     def _get_route_for_channel(self, channel_id: str) -> DeliveryRoute | None:
         return DeliveryRoute.query.filter_by(slack_channel_id=channel_id, is_active=True).first()

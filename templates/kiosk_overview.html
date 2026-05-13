@@ -20,6 +20,9 @@
       </div>
 
       <div class="kiosk-head__right">
+        <button class="btn btn-sm btn-outline-dark" id="btn-delivery-schedule" type="button">
+          Giri
+        </button>
         <button class="btn btn-sm btn-outline-primary" id="btn-reparse-deliveries" type="button">
           Riprogramma
         </button>
@@ -110,6 +113,125 @@
       </div>
       <div class="modal-body" id="orderModalBody">
         <div class="text-muted">Caricamento...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal gestione giri -->
+<div class="modal fade" id="deliveryScheduleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Gestione giri</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div class="delivery-schedule-layout">
+          <form id="deliveryScheduleForm" class="delivery-schedule-form">
+            <div class="row g-2">
+              <div class="col-md-4">
+                <label class="form-label">Giro</label>
+                <select class="form-select" id="scheduleRoute" required></select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Tipo variazione</label>
+                <select class="form-select" id="scheduleMode" required>
+                  <option value="once">Una volta</option>
+                  <option value="period">Periodo</option>
+                  <option value="definitive">Definitiva</option>
+                </select>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Orario</label>
+                <input class="form-control" id="scheduleTargetTime" type="time" required>
+              </div>
+              <div class="col-md-4 schedule-field schedule-field-frequency">
+                <label class="form-label">Frequenza</label>
+                <select class="form-select" id="scheduleFrequency"></select>
+              </div>
+
+              <div class="col-md-4 schedule-field schedule-field-once">
+                <label class="form-label">Data giro originale</label>
+                <input class="form-control" id="scheduleSourceDate" type="date">
+              </div>
+              <div class="col-md-4 schedule-field schedule-field-once">
+                <label class="form-label">Nuova data</label>
+                <input class="form-control" id="scheduleTargetDate" type="date">
+              </div>
+
+              <div class="col-md-4 schedule-field schedule-field-period">
+                <label class="form-label">Dal</label>
+                <input class="form-control" id="scheduleStartDate" type="date">
+              </div>
+              <div class="col-md-4 schedule-field schedule-field-period">
+                <label class="form-label">Al</label>
+                <input class="form-control" id="scheduleEndDate" type="date">
+              </div>
+
+              <div class="col-md-4 schedule-field schedule-field-weekday">
+                <label class="form-label">Giorno</label>
+                <select class="form-select" id="scheduleTargetWeekday"></select>
+              </div>
+              <div class="col-md-4 schedule-field schedule-field-second">
+                <label class="form-label">Secondo giorno</label>
+                <select class="form-select" id="scheduleSecondWeekday"></select>
+              </div>
+              <div class="col-md-4 schedule-field schedule-field-second">
+                <label class="form-label">Secondo orario</label>
+                <input class="form-control" id="scheduleSecondTime" type="time">
+              </div>
+              <div class="col-md-4 schedule-field schedule-field-anchor">
+                <label class="form-label">Riferimento quindicinale</label>
+                <input class="form-control" id="scheduleFrequencyAnchorDate" type="date">
+              </div>
+              <div class="col-md-8">
+                <label class="form-label">Nota</label>
+                <input class="form-control" id="scheduleNote" type="text" placeholder="Festività, personale, periodo estivo...">
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2 mt-3">
+              <button class="btn btn-primary" type="submit">Salva variazione</button>
+            </div>
+          </form>
+
+          <hr>
+
+          <div class="fw-bold mb-2">Programmazione attuale</div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle" id="deliveryRoutesTable">
+              <thead>
+                <tr>
+                  <th>Giro</th>
+                  <th>Giorno</th>
+                  <th>Orario</th>
+                  <th>Frequenza</th>
+                  <th>Slack</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <div class="fw-bold mb-2">Variazioni attive</div>
+          <div class="table-responsive">
+            <table class="table table-sm align-middle" id="deliveryRulesTable">
+              <thead>
+                <tr>
+                  <th>Giro</th>
+                  <th>Tipo</th>
+                  <th>Periodo / data</th>
+                  <th>Frequenza</th>
+                  <th>Nuova consegna</th>
+                  <th>Nota</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>

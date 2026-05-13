@@ -1,6 +1,6 @@
 import logging
 import hashlib
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, time, timezone, timedelta
 
 import requests
 from flask import Blueprint, request, make_response, jsonify, render_template, current_app, Response
@@ -10,18 +10,110 @@ from sqlalchemy import func
 from extensions import db
 from tools.log_utils import get_logger
 from tools.slack_processor import SlackProcessor
-from models import SlackOrder, SlackOrderEvent, DeliveryRoute, OrderStatus
+from models import SlackOrder, SlackOrderEvent, DeliveryRoute, DeliveryScheduleRule, OrderStatus
 
 kiosk_bp = Blueprint("kiosk", __name__, url_prefix="/kiosk")
 logger = get_logger("kiosk", level=logging.INFO)
 
 # Legacy fallback (non deve più pilotare le colonne: ora sono dinamiche da DB)
 STATUS_ORDER = ["acquisito", "listato", "controllato", "evaso"]
+WEEKDAY_LABELS = ["Lunedì", "Martedì", "Mercoledì", "Giovedì", "Venerdì", "Sabato", "Domenica"]
+FREQUENCY_LABELS = {
+    "weekly": "Settimanale",
+    "biweekly": "Quindicinale",
+    "twice_weekly": "Due volte a settimana",
+}
 
 
 def _best_effort_client_ip():
     xff = request.headers.get("X-Forwarded-For", "")
     return xff.split(",")[0].strip() if xff else request.remote_addr
+
+
+def _parse_iso_date(value: str | None, field_name: str) -> date:
+    try:
+        return date.fromisoformat((value or "").strip())
+    except Exception:
+        raise ValueError(f"{field_name} non valida")
+
+
+def _parse_hhmm(value: str | None, field_name: str = "orario") -> time:
+    raw = (value or "").strip()
+    try:
+        return time.fromisoformat(raw if len(raw.split(":")) > 1 else f"{raw}:00")
+    except Exception:
+        raise ValueError(f"{field_name} non valido")
+
+
+def _parse_weekday(value, field_name: str = "giorno") -> int:
+    try:
+        weekday = int(value)
+    except Exception:
+        raise ValueError(f"{field_name} non valido")
+    if weekday < 1 or weekday > 7:
+        raise ValueError(f"{field_name} non valido")
+    return weekday
+
+
+def _parse_frequency(value: str | None) -> str:
+    frequency = (value or "weekly").strip()
+    if frequency not in FREQUENCY_LABELS:
+        raise ValueError("frequenza non valida")
+    return frequency
+
+
+def _weekday_label(value) -> str:
+    try:
+        weekday = int(value)
+    except Exception:
+        return ""
+    if weekday == 0:
+        return "Immediato"
+    if 1 <= weekday <= 7:
+        return WEEKDAY_LABELS[weekday - 1]
+    return ""
+
+
+def _route_to_dict(route: DeliveryRoute) -> dict:
+    return {
+        "id": route.id,
+        "name": route.name,
+        "slack_channel_id": route.slack_channel_id,
+        "default_weekday": route.default_weekday,
+        "default_weekday_label": _weekday_label(route.default_weekday),
+        "default_time": route.default_time.strftime("%H:%M") if route.default_time else "",
+        "frequency": getattr(route, "frequency", None) or "weekly",
+        "frequency_label": FREQUENCY_LABELS.get(getattr(route, "frequency", None) or "weekly", "Settimanale"),
+        "second_weekday": getattr(route, "second_weekday", None),
+        "second_weekday_label": _weekday_label(getattr(route, "second_weekday", None)),
+        "second_time": route.second_time.strftime("%H:%M") if getattr(route, "second_time", None) else "",
+        "frequency_anchor_date": route.frequency_anchor_date.isoformat() if getattr(route, "frequency_anchor_date", None) else None,
+        "is_active": bool(route.is_active),
+    }
+
+
+def _schedule_rule_to_dict(rule: DeliveryScheduleRule) -> dict:
+    route = rule.route
+    return {
+        "id": rule.id,
+        "route_id": rule.route_id,
+        "route_name": route.name if route else "",
+        "scope": rule.scope,
+        "source_date": rule.source_date.isoformat() if rule.source_date else None,
+        "target_date": rule.target_date.isoformat() if rule.target_date else None,
+        "start_date": rule.start_date.isoformat() if rule.start_date else None,
+        "end_date": rule.end_date.isoformat() if rule.end_date else None,
+        "target_weekday": rule.target_weekday,
+        "target_weekday_label": _weekday_label(rule.target_weekday),
+        "target_time": rule.target_time.strftime("%H:%M") if rule.target_time else "",
+        "frequency": rule.frequency or "weekly",
+        "frequency_label": FREQUENCY_LABELS.get(rule.frequency or "weekly", "Settimanale"),
+        "second_weekday": rule.second_weekday,
+        "second_weekday_label": _weekday_label(rule.second_weekday),
+        "second_time": rule.second_time.strftime("%H:%M") if rule.second_time else "",
+        "is_active": bool(rule.is_active),
+        "note": rule.note or "",
+    }
 
 
 def _next_delivery_dt(route: DeliveryRoute, now: datetime) -> datetime | None:
@@ -292,6 +384,133 @@ def kiosk_api_routes():
         for r in routes
     ]
     return jsonify(out), 200
+
+
+@kiosk_bp.get("/api/delivery-schedule")
+@login_required
+def kiosk_api_delivery_schedule():
+    routes = (
+        DeliveryRoute.query
+        .order_by(DeliveryRoute.is_active.desc(), DeliveryRoute.name.asc())
+        .all()
+    )
+    rules = (
+        DeliveryScheduleRule.query
+        .filter_by(is_active=True)
+        .order_by(
+            DeliveryScheduleRule.route_id.asc(),
+            DeliveryScheduleRule.scope.asc(),
+            DeliveryScheduleRule.start_date.asc().nullslast(),
+            DeliveryScheduleRule.source_date.asc().nullslast(),
+            DeliveryScheduleRule.id.desc(),
+        )
+        .all()
+    )
+
+    return jsonify(
+        {
+            "routes": [_route_to_dict(r) for r in routes],
+            "rules": [_schedule_rule_to_dict(r) for r in rules],
+            "weekdays": [{"value": i + 1, "label": label} for i, label in enumerate(WEEKDAY_LABELS)],
+            "frequencies": [{"value": value, "label": label} for value, label in FREQUENCY_LABELS.items()],
+        }
+    )
+
+
+@kiosk_bp.post("/api/delivery-schedule")
+@login_required
+def kiosk_api_save_delivery_schedule():
+    payload = request.get_json(silent=True) or {}
+    mode = (payload.get("mode") or "").strip()
+    route_id = payload.get("route_id")
+
+    route = DeliveryRoute.query.get(route_id)
+    if not route:
+        return jsonify({"ok": False, "error": "Giro non trovato"}), 404
+
+    try:
+        note = (payload.get("note") or "").strip() or None
+        frequency = _parse_frequency(payload.get("frequency"))
+        second_weekday = None
+        second_time = None
+        if frequency == "twice_weekly":
+            second_weekday = _parse_weekday(payload.get("second_weekday"), "secondo giorno")
+            second_time = _parse_hhmm(payload.get("second_time"), "secondo orario")
+
+        if mode == "definitive":
+            route.default_weekday = _parse_weekday(payload.get("target_weekday"))
+            route.default_time = _parse_hhmm(payload.get("target_time"))
+            route.frequency = frequency
+            route.second_weekday = second_weekday
+            route.second_time = second_time
+            route.frequency_anchor_date = (
+                _parse_iso_date(payload.get("frequency_anchor_date"), "data riferimento frequenza")
+                if frequency == "biweekly" and payload.get("frequency_anchor_date")
+                else date.today()
+                if frequency == "biweekly"
+                else None
+            )
+            db.session.commit()
+            return jsonify({"ok": True, "mode": mode, "route": _route_to_dict(route)})
+
+        if mode == "once":
+            source_date = _parse_iso_date(payload.get("source_date"), "data giro originale")
+            target_date = _parse_iso_date(payload.get("target_date"), "nuova data")
+            target_time = _parse_hhmm(payload.get("target_time"))
+
+            rule = DeliveryScheduleRule(
+                route_id=route.id,
+                scope="once",
+                source_date=source_date,
+                target_date=target_date,
+                target_time=target_time,
+                frequency="weekly",
+                is_active=True,
+                note=note,
+            )
+            db.session.add(rule)
+            db.session.commit()
+            return jsonify({"ok": True, "mode": mode, "rule": _schedule_rule_to_dict(rule)}), 201
+
+        if mode == "period":
+            start_date = _parse_iso_date(payload.get("start_date"), "data inizio")
+            end_date = _parse_iso_date(payload.get("end_date"), "data fine")
+            if end_date < start_date:
+                return jsonify({"ok": False, "error": "La data fine non può precedere la data inizio"}), 400
+
+            rule = DeliveryScheduleRule(
+                route_id=route.id,
+                scope="period",
+                start_date=start_date,
+                end_date=end_date,
+                target_weekday=_parse_weekday(payload.get("target_weekday")),
+                target_time=_parse_hhmm(payload.get("target_time")),
+                frequency=frequency,
+                second_weekday=second_weekday,
+                second_time=second_time,
+                is_active=True,
+                note=note,
+            )
+            db.session.add(rule)
+            db.session.commit()
+            return jsonify({"ok": True, "mode": mode, "rule": _schedule_rule_to_dict(rule)}), 201
+
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    return jsonify({"ok": False, "error": "Modalità non valida"}), 400
+
+
+@kiosk_bp.delete("/api/delivery-schedule/<int:rule_id>")
+@login_required
+def kiosk_api_delete_delivery_schedule(rule_id: int):
+    rule = DeliveryScheduleRule.query.get(rule_id)
+    if not rule:
+        return jsonify({"ok": False, "error": "Regola non trovata"}), 404
+
+    rule.is_active = False
+    db.session.commit()
+    return jsonify({"ok": True})
 
 
 @kiosk_bp.get("/api/board/<int:route_id>")

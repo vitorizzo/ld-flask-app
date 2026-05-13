@@ -19,6 +19,20 @@
 
 .kiosk-title { font-size: 1.3rem; font-weight: 700; }
 .kiosk-subtitle { font-size: 0.9rem; opacity: 0.8; }
+.kiosk-head__right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.delivery-schedule-form {
+  padding: 12px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid rgba(0,0,0,0.08);
+}
 
 /* =========================
    Colonne (scroll orizzontale)
