@@ -6793,15 +6793,16 @@ function reportText(value) {
 
 function reportTable(title, headers, rows, emptyText = "Nessun movimento") {
   const head = headers.map(h => `<th>${escapeHtml(h)}</th>`).join("");
+  const headerHtml = headers.length ? `<thead><tr>${head}</tr></thead>` : "";
   const body = rows.length
     ? rows.map(row => `<tr>${row.map(cell => `<td>${cell}</td>`).join("")}</tr>`).join("")
-    : `<tr><td colspan="${headers.length}" class="muted">${escapeHtml(emptyText)}</td></tr>`;
+    : `<tr><td colspan="${Math.max(headers.length, 1)}" class="muted">${escapeHtml(emptyText)}</td></tr>`;
 
   return `
     <section class="report-section">
       <h2>${escapeHtml(title)}</h2>
       <table>
-        <thead><tr>${head}</tr></thead>
+        ${headerHtml}
         <tbody>${body}</tbody>
       </table>
     </section>
@@ -7153,6 +7154,11 @@ function isPrivateParty(label, storage) {
   return storage === "pri" || text === "privato" || text === "privati";
 }
 
+function isPrivateCustomerLabel(label) {
+  const text = String(label || "").trim().toLowerCase();
+  return text === "privato" || text === "privati";
+}
+
 function paymentRowsForReport(items, type, payload) {
   const bankMap = reportBankMap(payload);
   const posMaps = reportPosMaps(payload);
@@ -7200,19 +7206,15 @@ function reportPaymentGroups(items, type, payload) {
 
   for (const item of items || []) {
     const party = type === "sale" ? (item.customer_label || "") : (item.supplier || "");
-    const itemIsPrivate = isPrivateParty(party, item.storage);
+    const isPrivateCustomer = type === "sale" && isPrivateCustomerLabel(party);
 
     for (const payment of item.payments || []) {
       const amount = Number(payment.amount || 0);
-
-      if (itemIsPrivate) {
-        privateTotal += amount;
-        continue;
-      }
+      const flag = payment.flag || "";
 
       const row = [
         reportText(reportMovementDescription({
-          flag: payment.flag || "",
+          flag,
           party,
           description: payment.description || item.notes || "",
           suffix: paymentSuffix(payment, posMaps, bankMap)
@@ -7220,11 +7222,14 @@ function reportPaymentGroups(items, type, payload) {
         signedReportMoney(amount),
       ];
 
-      const flag = payment.flag || "";
       if (primaryFlags.has(flag)) {
         primary.push(row);
       } else if (privateFlags.has(flag)) {
-        privateRows.push(row);
+        if (flag === "x" && isPrivateCustomer) {
+          privateTotal += amount;
+        } else {
+          privateRows.push(row);
+        }
       }
     }
   }
@@ -7234,6 +7239,18 @@ function reportPaymentGroups(items, type, payload) {
   }
 
   return { primary, privateRows };
+}
+
+function reportPaymentFlagTotal(items, targetFlag) {
+  let total = 0;
+  for (const item of items || []) {
+    for (const payment of item.payments || []) {
+      if ((payment.flag || "") === targetFlag) {
+        total += Number(payment.amount || 0);
+      }
+    }
+  }
+  return total;
 }
 
 function posRecapRows(payload) {
@@ -7322,14 +7339,21 @@ function buildReportBodyHtml(payload) {
   const saleGroups = reportPaymentGroups(payload.sales?.sales || [], "sale", payload);
   const expenseRows = paymentRowsForReport(payload.expenses?.expenses || [], "expense", payload);
   const posRecap = posRecapRows(payload);
+  const closingHeaders = priVaultUnlocked ? [] : ["Voce", "Importo"];
   const closingRows = [
     [reportText("Totale di giornata"), signedReportMoney(totalGiornata)],
     [reportText("Totale pagamenti elettronici"), signedReportMoney(totals.totale_incassi_elettronici)],
     [reportText("Totale atteso nel cassetto"), signedReportMoney(totals.valore_atteso_cassetto)],
     [reportText("Totale consegnato"), signedReportMoney(totals.incasso_consegnato)],
     [reportText("Totale Versabile"), signedReportMoney(totals.versabile_giornata)],
-    [reportText("Delta quadratura"), signedReportMoney(totals.delta_quadratura)],
   ];
+  if (priVaultUnlocked) {
+    closingRows.push(
+      [reportText("Totale x"), signedReportMoney(reportPaymentFlagTotal(payload.sales?.sales || [], "x"))],
+      [reportText("Totale +"), signedReportMoney(reportPaymentFlagTotal(payload.sales?.sales || [], "+"))],
+    );
+  }
+  closingRows.push([reportText("Delta quadratura"), signedReportMoney(totals.delta_quadratura)]);
 
   return `
     <header class="print-report-header">
@@ -7373,7 +7397,7 @@ function buildReportBodyHtml(payload) {
           ${reportTable("POS", posRecap.headers, posRecap.rows)}
           ${reportTable("Movimenti di cassa e spicci", ["Tot Versamenti", "Tot Prelievi", "Tot Movimenti"], cashMoveSummaryRows(payload))}
         </div>
-        ${reportTable("Chiusura", ["Voce", "Importo"], closingRows)}
+        ${reportTable("Chiusura", closingHeaders, closingRows)}
       </div>
     </main>
   `;
@@ -7423,8 +7447,9 @@ function completeDayReportCss() {
     td:last-child, th:last-child { text-align: right; white-space: nowrap; }
     .band-chiusura .report-section:first-child th:not(:first-child),
     .band-chiusura .report-section:first-child td:not(:first-child) { text-align: right; white-space: nowrap; }
-    .band-chiusura .report-section:last-child td { text-align: center; white-space: nowrap; }
-    .band-chiusura .report-section:last-child td:last-child { font-weight: 700; }
+    .band-chiusura .report-section:last-child td { white-space: nowrap; }
+    .band-chiusura .report-section:last-child td:first-child { text-align: left; }
+    .band-chiusura .report-section:last-child td:last-child { text-align: right; font-weight: 700; }
     .muted { color: #777; text-align: center !important; }
     @media print {
       .screen-actions { display: none; }
