@@ -189,7 +189,7 @@ class SlackProcessor:
         base_dt: datetime,
     ) -> tuple[time, str]:
         explicit = re.search(
-            r"\b(?:alle|ore|h)\s*(\d{1,2})(?:[:.,](\d{2}))?\b|\b(\d{1,2})[:.](\d{2})\b",
+            r"\b(?:dopo\s+le|dopo\s+le\s+ore|dalle|alle|ore|h)\s*(\d{1,2})(?:[:.,](\d{2}))?\b|\b(\d{1,2})[:.](\d{2})\b",
             normalized,
         )
         if explicit:
@@ -222,6 +222,16 @@ class SlackProcessor:
         if candidate_dt <= base_dt:
             candidate_dt = candidate_dt + timedelta(days=7)
         return candidate_dt
+
+    def _compute_route_delivery_without_rules(self, base_dt: datetime, route: DeliveryRoute) -> datetime:
+        target_weekday = int(route.default_weekday)
+        target_time = route.default_time
+        if target_weekday == 0:
+            candidate_dt = datetime.combine(base_dt.date(), target_time)
+            if candidate_dt <= base_dt:
+                candidate_dt = candidate_dt + timedelta(days=1)
+            return candidate_dt
+        return self._next_weekday_dt(base_dt, target_weekday, target_time)
 
     def _week_index(self, value_date) -> int:
         iso = value_date.isocalendar()
@@ -416,6 +426,19 @@ class SlackProcessor:
                 return target_dt, _hint(match.group(0), time_hint)
             except ValueError:
                 pass
+
+        if time_hint:
+            if route:
+                try:
+                    default_dt = self._compute_next_delivery_dt(base_dt, route)
+                except RuntimeError:
+                    default_dt = self._compute_route_delivery_without_rules(base_dt, route)
+                return datetime.combine(default_dt.date(), target_time), time_hint
+
+            target_dt = datetime.combine(base_dt.date(), target_time)
+            if target_dt <= base_dt:
+                target_dt = target_dt + timedelta(days=1)
+            return target_dt, time_hint
 
         return None, ""
 
