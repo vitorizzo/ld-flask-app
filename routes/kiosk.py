@@ -501,6 +501,95 @@ def kiosk_api_save_delivery_schedule():
     return jsonify({"ok": False, "error": "Modalità non valida"}), 400
 
 
+def _route_payload_from_request(payload: dict, route: DeliveryRoute | None = None) -> DeliveryRoute:
+    name = (payload.get("name") or "").strip()
+    slack_channel_id = (payload.get("slack_channel_id") or "").strip()
+    if not name:
+        raise ValueError("Nome giro obbligatorio")
+    if not slack_channel_id:
+        raise ValueError("Canale Slack obbligatorio")
+
+    frequency = _parse_frequency(payload.get("frequency"))
+    second_weekday = None
+    second_time = None
+    if frequency == "twice_weekly":
+        second_weekday = _parse_weekday(payload.get("second_weekday"), "secondo giorno")
+        second_time = _parse_hhmm(payload.get("second_time"), "secondo orario")
+
+    if route is None:
+        route = DeliveryRoute()
+
+    route.name = name
+    route.slack_channel_id = slack_channel_id
+    route.default_weekday = _parse_weekday(payload.get("default_weekday"))
+    route.default_time = _parse_hhmm(payload.get("default_time"))
+    route.frequency = frequency
+    route.second_weekday = second_weekday
+    route.second_time = second_time
+    route.frequency_anchor_date = (
+        _parse_iso_date(payload.get("frequency_anchor_date"), "data riferimento frequenza")
+        if frequency == "biweekly" and payload.get("frequency_anchor_date")
+        else date.today()
+        if frequency == "biweekly"
+        else None
+    )
+    route.is_active = bool(payload.get("is_active", True))
+    return route
+
+
+@kiosk_bp.post("/api/delivery-routes")
+@login_required
+def kiosk_api_create_delivery_route():
+    payload = request.get_json(silent=True) or {}
+    try:
+        route = _route_payload_from_request(payload)
+        db.session.add(route)
+        db.session.commit()
+        return jsonify({"ok": True, "route": _route_to_dict(route)}), 201
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception:
+        db.session.rollback()
+        logger.exception("[KIOSK] create delivery route failed")
+        return jsonify({"ok": False, "error": "Errore salvataggio giro"}), 500
+
+
+@kiosk_bp.put("/api/delivery-routes/<int:route_id>")
+@login_required
+def kiosk_api_update_delivery_route(route_id: int):
+    route = DeliveryRoute.query.get(route_id)
+    if not route:
+        return jsonify({"ok": False, "error": "Giro non trovato"}), 404
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        _route_payload_from_request(payload, route)
+        db.session.commit()
+        return jsonify({"ok": True, "route": _route_to_dict(route)})
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception:
+        db.session.rollback()
+        logger.exception("[KIOSK] update delivery route failed route_id=%s", route_id)
+        return jsonify({"ok": False, "error": "Errore aggiornamento giro"}), 500
+
+
+@kiosk_bp.delete("/api/delivery-routes/<int:route_id>")
+@login_required
+def kiosk_api_delete_delivery_route(route_id: int):
+    route = DeliveryRoute.query.get(route_id)
+    if not route:
+        return jsonify({"ok": False, "error": "Giro non trovato"}), 404
+
+    has_orders = SlackOrder.query.filter_by(route_id=route.id).first() is not None
+    if has_orders:
+        route.is_active = False
+    else:
+        db.session.delete(route)
+    db.session.commit()
+    return jsonify({"ok": True, "soft_deleted": has_orders})
+
+
 @kiosk_bp.delete("/api/delivery-schedule/<int:rule_id>")
 @login_required
 def kiosk_api_delete_delivery_schedule(rule_id: int):
@@ -1194,4 +1283,38 @@ def set_order_status(order_id):
         )
 
     return jsonify({"ok": True, "status": new_status})
+
+
+@kiosk_bp.put("/api/order/<int:order_id>/delivery")
+@login_required
+def set_order_delivery(order_id: int):
+    payload = request.get_json(silent=True) or {}
+    order = SlackOrder.query.get(order_id)
+    if not order:
+        return jsonify({"ok": False, "error": "order not found"}), 404
+
+    try:
+        target_date = _parse_iso_date(payload.get("date"), "data consegna")
+        target_time = _parse_hhmm(payload.get("time"), "orario consegna")
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    old_iso = order.planned_delivery_at.isoformat() if order.planned_delivery_at else None
+    new_dt = datetime.combine(target_date, target_time)
+    order.planned_delivery_at = new_dt
+    db.session.add(
+        SlackOrderEvent(
+            order_id=order.id,
+            type="delivery_manual",
+            payload={
+                "old_planned_delivery_at": old_iso,
+                "new_planned_delivery_at": new_dt.isoformat(),
+                "delivery_hint": "manuale",
+                "client_ip": _best_effort_client_ip(),
+            },
+        )
+    )
+    db.session.commit()
+
+    return jsonify({"ok": True, "planned_delivery_at": new_dt.isoformat()})
 

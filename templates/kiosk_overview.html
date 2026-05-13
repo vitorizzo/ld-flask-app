@@ -118,6 +118,37 @@
   </div>
 </div>
 
+<!-- Modal consegna card -->
+<div class="modal fade" id="orderDeliveryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="orderDeliveryModalTitle">Sposta consegna</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <form id="orderDeliveryForm">
+        <div class="modal-body">
+          <input type="hidden" id="orderDeliveryOrderId">
+          <div class="row g-2">
+            <div class="col-7">
+              <label class="form-label">Data</label>
+              <input class="form-control" id="orderDeliveryDate" type="date" required>
+            </div>
+            <div class="col-5">
+              <label class="form-label">Orario</label>
+              <input class="form-control" id="orderDeliveryTime" type="time" required>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-primary">Salva consegna</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- Modal gestione giri -->
 <div class="modal fade" id="deliveryScheduleModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
@@ -128,6 +159,55 @@
       </div>
       <div class="modal-body">
         <div class="delivery-schedule-layout">
+          <div class="fw-bold mb-2">Giri</div>
+          <form id="deliveryRouteForm" class="delivery-schedule-form mb-3">
+            <input type="hidden" id="deliveryRouteId">
+            <div class="row g-2">
+              <div class="col-md-3">
+                <label class="form-label">Nome</label>
+                <input class="form-control" id="deliveryRouteName" type="text" required>
+              </div>
+              <div class="col-md-3">
+                <label class="form-label">Canale Slack</label>
+                <input class="form-control" id="deliveryRouteSlack" type="text" required>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Giorno</label>
+                <select class="form-select" id="deliveryRouteWeekday" required></select>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Orario</label>
+                <input class="form-control" id="deliveryRouteTime" type="time" required>
+              </div>
+              <div class="col-md-2">
+                <label class="form-label">Frequenza</label>
+                <select class="form-select" id="deliveryRouteFrequency"></select>
+              </div>
+              <div class="col-md-3 route-second-field">
+                <label class="form-label">Secondo giorno</label>
+                <select class="form-select" id="deliveryRouteSecondWeekday"></select>
+              </div>
+              <div class="col-md-2 route-second-field">
+                <label class="form-label">Secondo orario</label>
+                <input class="form-control" id="deliveryRouteSecondTime" type="time">
+              </div>
+              <div class="col-md-3 route-anchor-field">
+                <label class="form-label">Riferimento quindicinale</label>
+                <input class="form-control" id="deliveryRouteAnchorDate" type="date">
+              </div>
+              <div class="col-md-2 d-flex align-items-end">
+                <div class="form-check">
+                  <input class="form-check-input" id="deliveryRouteActive" type="checkbox" checked>
+                  <label class="form-check-label" for="deliveryRouteActive">Attivo</label>
+                </div>
+              </div>
+            </div>
+            <div class="d-flex justify-content-end gap-2 mt-3">
+              <button class="btn btn-outline-secondary" id="btnRouteReset" type="button">Nuovo</button>
+              <button class="btn btn-primary" type="submit">Salva giro</button>
+            </div>
+          </form>
+
           <form id="deliveryScheduleForm" class="delivery-schedule-form">
             <div class="row g-2">
               <div class="col-md-4">
@@ -208,6 +288,7 @@
                   <th>Orario</th>
                   <th>Frequenza</th>
                   <th>Slack</th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody></tbody>

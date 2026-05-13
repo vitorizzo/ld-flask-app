@@ -12,8 +12,10 @@ window.kioskState = {
 (() => {
   const API_ALL = "/kiosk/api/board/all?only_active=1&show_closed_today=1";
   const API_ORDER = (id) => `/kiosk/api/order/${id}`;
+  const API_ORDER_DELIVERY = (id) => `/kiosk/api/order/${id}/delivery`;
   const API_REPARSE_DELIVERIES = "/kiosk/api/orders/reparse-deliveries";
   const API_DELIVERY_SCHEDULE = "/kiosk/api/delivery-schedule";
+  const API_DELIVERY_ROUTES = "/kiosk/api/delivery-routes";
   const API_STATUSES = "/kiosk/api/statuses";
 
   let refreshTimer = null;
@@ -300,9 +302,9 @@ window.kioskState = {
     const deliveryState = deliveryStateFor(primary, vm.status);
     if (deliveryState) div.classList.add(`delivery-${deliveryState}`);
     const deliveryBadge = deliveryLabel
-      ? `<span class="order-delivery-badge ${deliveryFromMessage ? "is-from-message" : ""}" title="${
+      ? `<button type="button" class="order-delivery-badge ${deliveryFromMessage ? "is-from-message" : ""}" data-edit-delivery="${primary.id}" title="${
           deliveryFromMessage ? "Consegna indicata nel messaggio Slack" : "Consegna stimata dal giro"
-        }">${escapeHtml(deliveryLabel)}</span>`
+        }">${escapeHtml(deliveryLabel)}</button>`
       : "";
 
     const { prev, next } = getPrevNextStatus(vm.status);
@@ -373,7 +375,16 @@ window.kioskState = {
       if (dragCtx.isDragging) return;
       if (ev.target.closest(".order-actions")) return;
       if (ev.target.closest(".kiosk-edge")) return; // edge gestisce click
+      if (ev.target.closest(".order-delivery-badge")) return;
       openFn();
+    });
+
+    div.querySelectorAll("[data-edit-delivery]").forEach((btn) => {
+      btn.addEventListener("click", (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        openOrderDeliveryModal(primary);
+      });
     });
 
     // Menu “…”: spostamento diretto a qualunque status
@@ -597,6 +608,68 @@ window.kioskState = {
     } catch (err) {
       if (body) body.innerHTML = `<div class="alert alert-danger">Errore caricamento ordine: ${escapeHtml(String(err))}</div>`;
     }
+  }
+
+  function toDateInputValue(value) {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  }
+
+  function toTimeInputValue(value) {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
+  function openOrderDeliveryModal(order) {
+    const modalEl = $("#orderDeliveryModal");
+    const title = $("#orderDeliveryModalTitle");
+    const idInput = $("#orderDeliveryOrderId");
+    const dateInput = $("#orderDeliveryDate");
+    const timeInput = $("#orderDeliveryTime");
+
+    if (title) title.textContent = `Sposta consegna - ${order.customer_display || `#${order.id}`}`;
+    if (idInput) idInput.value = String(order.id);
+    if (dateInput) dateInput.value = toDateInputValue(order.planned_delivery_at);
+    if (timeInput) timeInput.value = toTimeInputValue(order.planned_delivery_at);
+
+    if (modalEl && window.bootstrap) {
+      window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    }
+  }
+
+  async function saveOrderDelivery(ev) {
+    ev.preventDefault();
+    const orderId = $("#orderDeliveryOrderId") ? $("#orderDeliveryOrderId").value : "";
+    if (!orderId) return;
+
+    const payload = {
+      date: $("#orderDeliveryDate").value,
+      time: $("#orderDeliveryTime").value,
+    };
+
+    const res = await fetch(API_ORDER_DELIVERY(orderId), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) {
+      alert(`Errore salvataggio consegna: ${json.error || `HTTP ${res.status}`}`);
+      return;
+    }
+
+    const modalEl = $("#orderDeliveryModal");
+    if (modalEl && window.bootstrap) {
+      window.bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+    }
+    await loadAndRender();
   }
 
   function openGroupModal(vm) {
@@ -954,6 +1027,16 @@ window.kioskState = {
     });
   }
 
+  function setRouteFormVisibility() {
+    const frequency = $("#deliveryRouteFrequency") ? $("#deliveryRouteFrequency").value : "weekly";
+    document.querySelectorAll(".route-second-field").forEach((el) => {
+      el.style.display = frequency === "twice_weekly" ? "" : "none";
+    });
+    document.querySelectorAll(".route-anchor-field").forEach((el) => {
+      el.style.display = frequency === "biweekly" ? "" : "none";
+    });
+  }
+
   function applySelectedRouteDefaults() {
     const routeId = $("#scheduleRoute") ? Number($("#scheduleRoute").value) : null;
     const route = deliveryScheduleState.routes.find((r) => Number(r.id) === routeId);
@@ -1009,10 +1092,24 @@ window.kioskState = {
         .map((w) => `<option value="${w.value}">${escapeHtml(w.label)}</option>`)
         .join("");
     }
+    ["deliveryRouteWeekday", "deliveryRouteSecondWeekday"].forEach((id) => {
+      const select = document.getElementById(id);
+      if (select) {
+        select.innerHTML = deliveryScheduleState.weekdays
+          .map((w) => `<option value="${w.value}">${escapeHtml(w.label)}</option>`)
+          .join("");
+      }
+    });
 
     const frequencySelect = $("#scheduleFrequency");
     if (frequencySelect) {
       frequencySelect.innerHTML = deliveryScheduleState.frequencies
+        .map((f) => `<option value="${f.value}">${escapeHtml(f.label)}</option>`)
+        .join("");
+    }
+    const routeFrequencySelect = $("#deliveryRouteFrequency");
+    if (routeFrequencySelect) {
+      routeFrequencySelect.innerHTML = deliveryScheduleState.frequencies
         .map((f) => `<option value="${f.value}">${escapeHtml(f.label)}</option>`)
         .join("");
     }
@@ -1033,11 +1130,22 @@ window.kioskState = {
                       : ``
                   }</td>
                   <td><code>${escapeHtml(r.slack_channel_id || "")}</code></td>
+                  <td class="text-end">
+                    <button class="btn btn-sm btn-outline-primary" type="button" data-edit-route="${r.id}">Modifica</button>
+                    <button class="btn btn-sm btn-outline-danger" type="button" data-delete-route="${r.id}">Elimina</button>
+                  </td>
                 </tr>
               `
             )
             .join("")
-        : `<tr><td colspan="5" class="text-muted">Nessun giro configurato</td></tr>`;
+        : `<tr><td colspan="6" class="text-muted">Nessun giro configurato</td></tr>`;
+
+      routeBody.querySelectorAll("[data-edit-route]").forEach((btn) => {
+        btn.addEventListener("click", () => editDeliveryRoute(btn.getAttribute("data-edit-route")));
+      });
+      routeBody.querySelectorAll("[data-delete-route]").forEach((btn) => {
+        btn.addEventListener("click", () => deleteDeliveryRoute(btn.getAttribute("data-delete-route")));
+      });
     }
 
     const rulesBody = document.querySelector("#deliveryRulesTable tbody");
@@ -1088,6 +1196,7 @@ window.kioskState = {
 
     setScheduleModeVisibility();
     applySelectedRouteDefaults();
+    setRouteFormVisibility();
   }
 
   async function loadDeliverySchedule() {
@@ -1155,6 +1264,85 @@ window.kioskState = {
     await reparseDeliveries({ applyDefaults: true, silent: true });
   }
 
+  function resetDeliveryRouteForm() {
+    const form = $("#deliveryRouteForm");
+    if (form) form.reset();
+    const idInput = $("#deliveryRouteId");
+    if (idInput) idInput.value = "";
+    const active = $("#deliveryRouteActive");
+    if (active) active.checked = true;
+    setRouteFormVisibility();
+  }
+
+  function editDeliveryRoute(routeId) {
+    const route = deliveryScheduleState.routes.find((r) => String(r.id) === String(routeId));
+    if (!route) return;
+    $("#deliveryRouteId").value = String(route.id);
+    $("#deliveryRouteName").value = route.name || "";
+    $("#deliveryRouteSlack").value = route.slack_channel_id || "";
+    $("#deliveryRouteWeekday").value = String(route.default_weekday || 1);
+    $("#deliveryRouteTime").value = route.default_time || "";
+    $("#deliveryRouteFrequency").value = route.frequency || "weekly";
+    $("#deliveryRouteSecondWeekday").value = String(route.second_weekday || 1);
+    $("#deliveryRouteSecondTime").value = route.second_time || "";
+    $("#deliveryRouteAnchorDate").value = route.frequency_anchor_date || "";
+    $("#deliveryRouteActive").checked = Boolean(route.is_active);
+    setRouteFormVisibility();
+  }
+
+  async function saveDeliveryRoute(ev) {
+    ev.preventDefault();
+    const routeId = $("#deliveryRouteId").value;
+    const frequency = $("#deliveryRouteFrequency").value || "weekly";
+    const payload = {
+      name: $("#deliveryRouteName").value,
+      slack_channel_id: $("#deliveryRouteSlack").value,
+      default_weekday: Number($("#deliveryRouteWeekday").value),
+      default_time: $("#deliveryRouteTime").value,
+      frequency,
+      is_active: $("#deliveryRouteActive").checked,
+    };
+    if (frequency === "twice_weekly") {
+      payload.second_weekday = Number($("#deliveryRouteSecondWeekday").value);
+      payload.second_time = $("#deliveryRouteSecondTime").value;
+    }
+    if (frequency === "biweekly") {
+      payload.frequency_anchor_date = $("#deliveryRouteAnchorDate").value;
+    }
+
+    const url = routeId ? `${API_DELIVERY_ROUTES}/${routeId}` : API_DELIVERY_ROUTES;
+    const res = await fetch(url, {
+      method: routeId ? "PUT" : "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      cache: "no-store",
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) {
+      alert(`Errore salvataggio giro: ${json.error || `HTTP ${res.status}`}`);
+      return;
+    }
+    resetDeliveryRouteForm();
+    await loadDeliverySchedule();
+    await reparseDeliveries({ applyDefaults: true, silent: true });
+  }
+
+  async function deleteDeliveryRoute(routeId) {
+    if (!routeId) return;
+    const res = await fetch(`${API_DELIVERY_ROUTES}/${routeId}`, {
+      method: "DELETE",
+      cache: "no-store",
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) {
+      alert(`Errore eliminazione giro: ${json.error || `HTTP ${res.status}`}`);
+      return;
+    }
+    resetDeliveryRouteForm();
+    await loadDeliverySchedule();
+    await reparseDeliveries({ applyDefaults: true, silent: true });
+  }
+
   async function deleteDeliveryScheduleRule(ruleId) {
     const res = await fetch(`${API_DELIVERY_SCHEDULE}/${ruleId}`, {
       method: "DELETE",
@@ -1187,6 +1375,15 @@ window.kioskState = {
     const scheduleFrequency = $("#scheduleFrequency");
     if (scheduleFrequency) scheduleFrequency.addEventListener("change", setScheduleModeVisibility);
 
+    const routeFrequency = $("#deliveryRouteFrequency");
+    if (routeFrequency) routeFrequency.addEventListener("change", setRouteFormVisibility);
+
+    const routeForm = $("#deliveryRouteForm");
+    if (routeForm) routeForm.addEventListener("submit", saveDeliveryRoute);
+
+    const routeReset = $("#btnRouteReset");
+    if (routeReset) routeReset.addEventListener("click", resetDeliveryRouteForm);
+
     const scheduleRoute = $("#scheduleRoute");
     if (scheduleRoute) {
       scheduleRoute.addEventListener("change", () => {
@@ -1198,6 +1395,9 @@ window.kioskState = {
 
     const scheduleForm = $("#deliveryScheduleForm");
     if (scheduleForm) scheduleForm.addEventListener("submit", saveDeliverySchedule);
+
+    const orderDeliveryForm = $("#orderDeliveryForm");
+    if (orderDeliveryForm) orderDeliveryForm.addEventListener("submit", saveOrderDelivery);
 
     await loadStatuses();
     await loadAndRender();
