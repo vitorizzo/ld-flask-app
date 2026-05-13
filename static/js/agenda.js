@@ -5174,6 +5174,10 @@ document.addEventListener("DOMContentLoaded", async function () {
       return "report";
     }
 
+    if (["print_report", "stampa_report"].includes(openParam)) {
+      return "print_report";
+    }
+
     if (path.endsWith("/cassa/agenda/search/customer")) {
       return "search_customer";
     }
@@ -5184,6 +5188,10 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     if (path.endsWith("/cassa/agenda/report")) {
       return "report";
+    }
+
+    if (path.endsWith("/cassa/agenda/report/print")) {
+      return "print_report";
     }
 
     return "";
@@ -5198,6 +5206,8 @@ document.addEventListener("DOMContentLoaded", async function () {
       openMovementSearchAmountModal();
     } else if (action === "report") {
       openDayReport();
+    } else if (action === "print_report") {
+      printCompleteDayReport();
     }
   }
 
@@ -7343,11 +7353,12 @@ function buildReportBodyHtml(payload) {
   const expenseRows = paymentRowsForReport(payload.expenses?.expenses || [], "expense", payload);
   const posRecap = posRecapRows(payload);
   const closingHeaders = priVaultUnlocked ? [] : ["Voce", "Importo"];
+  const deliveredTotal = priVaultUnlocked ? totals.incasso_consegnato : totals.valore_atteso_cassetto;
   const closingRows = [
     [reportText("Totale di giornata"), signedReportMoney(totalGiornata)],
     [reportText("Totale pagamenti elettronici"), signedReportMoney(totals.totale_incassi_elettronici)],
     [reportText("Totale atteso nel cassetto"), signedReportMoney(totals.valore_atteso_cassetto)],
-    [reportText("Totale consegnato"), signedReportMoney(totals.incasso_consegnato)],
+    [reportText("Totale consegnato"), signedReportMoney(deliveredTotal)],
     [reportText("Totale Versabile"), signedReportMoney(totals.versabile_giornata)],
   ];
   if (priVaultUnlocked) {
