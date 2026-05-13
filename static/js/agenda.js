@@ -905,6 +905,7 @@ async function loadPreview(dateStr) {
     const totVers = (t.totale_versato_oggi ?? t.totale_versamenti ?? t.totVersamenti);
     const cor = (t.total_corrispettivi ?? t.corrispettivi ?? t.corrispettivi_totali);
     const consegnato = (t.incasso_consegnato ?? t.incassoConsegnato);
+    const cassettoDisplay = priVaultUnlocked ? consegnato : ic;
     const hasCorrispettivi = !!t.has_corrispettivi;
     const hasFondoIniziale = !!t.has_fondo_iniziale;
     const hasFondoFinale = !!t.has_fondo_finale;
@@ -940,7 +941,7 @@ async function loadPreview(dateStr) {
     setText("kpiTotEcommerce", _fmt2(totEcommerce));
     setText("kpiTotVersamenti", _fmt2(totVers));
     setText("kpiCorrispettivi", _fmt2(cor));
-    setText("kpiIncassoConsegnato", _fmt2(consegnato));
+    setText("kpiIncassoConsegnato", _fmt2(cassettoDisplay));
 
     updateDepositCashUi();
   } catch (err) {
@@ -2384,6 +2385,8 @@ document.addEventListener("DOMContentLoaded", async function () {
   normalizeCurrencyInput(spicciMoveAmountInput);
 
   document.getElementById("kpiCassettoBox")?.addEventListener("click", async () => {
+    await refreshPrivateVaultStatus();
+    if (!priVaultUnlocked) return;
     await openOwnerTakeModal();
   });
 
@@ -3155,7 +3158,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     const unlocked = await refreshPrivateVaultStatus();
     if (!unlocked) {
-      alert("Sblocca il vault per inserire versamenti o prelievi di cassa.");
+      alert("Attenzione! Funzione ancora non implementata");
       return;
     }
 
