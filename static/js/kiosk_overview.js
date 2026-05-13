@@ -155,7 +155,8 @@ window.kioskState = {
 
   function deliveryStateFor(order, status) {
     if (!order || !order.planned_delivery_at) return "";
-    if (String(status || "").toLowerCase() === "evaso") return "";
+    const statusNorm = String(status || "").toLowerCase();
+    if (["evaso", "annullato", "annullata", "cancellato", "cancelled"].includes(statusNorm)) return "";
 
     const due = new Date(order.planned_delivery_at);
     if (Number.isNaN(due.getTime())) return "";
@@ -164,7 +165,7 @@ window.kioskState = {
     const diffMs = due.getTime() - now.getTime();
     const deliveryWindowMs = 30 * 60 * 1000;
     const soonWindowMs = 2 * 60 * 60 * 1000;
-    const isDelivering = ["in_consegna", "in consegna", "consegna"].includes(String(status || "").toLowerCase());
+    const isDelivering = ["in_consegna", "in consegna", "consegna"].includes(statusNorm);
 
     if (diffMs < -deliveryWindowMs) return "overdue";
     if (diffMs <= deliveryWindowMs && !isDelivering) return "due-now";

@@ -79,6 +79,7 @@ class SlackProcessor:
     _NOTE_KEYWORDS = [
         "subito",
         "domani",
+        "domattina",
         "dopodomani",
         "pomeriggio",
         "stamattina",
@@ -128,7 +129,7 @@ class SlackProcessor:
 
     _DELIVERY_TIME_ALIASES = [
         (r"\b(?:all[' ]?apertura|apertura|appena apre|appena aprite)\b", time(9, 0), "apertura"),
-        (r"\b(?:stamattina|mattina|in mattinata)\b", time(10, 0), "mattina"),
+        (r"\b(?:domattina|stamattina|mattina|in mattinata)\b", time(10, 0), "mattina"),
         (r"\b(?:mezzogiorno|pranzo|ora di pranzo)\b", time(12, 0), "pranzo"),
         (r"\b(?:pomeriggio|nel pomeriggio|primo pomeriggio)\b", time(16, 0), "pomeriggio"),
         (r"\b(?:sera|stasera|serata)\b", time(18, 0), "sera"),
@@ -238,7 +239,7 @@ class SlackProcessor:
             target_date = (base_dt + timedelta(days=2)).date()
             return self._build_delivery_dt(base_dt, route, target_date, target_time), _hint("dopodomani", time_hint)
 
-        if re.search(r"\bdomani\b", normalized):
+        if re.search(r"\b(?:domani|domattina)\b", normalized):
             target_date = (base_dt + timedelta(days=1)).date()
             return self._build_delivery_dt(base_dt, route, target_date, target_time), _hint("domani", time_hint)
 
@@ -284,6 +285,25 @@ class SlackProcessor:
                 if target_dt <= base_dt:
                     target_dt = target_dt + timedelta(days=7)
                 return target_dt, _hint(weekday_match.group(0), time_hint)
+
+        weekday_day_re = r"\b(lun(?:edì|edi)?|mar(?:tedì|tedi)?|mer(?:coledì|coledi)?|gio(?:vedì|vedi)?|ven(?:erdì|erdi)?|sab(?:ato)?|dom(?:enica)?)\s+(\d{1,2})\b"
+        weekday_day_matches = list(re.finditer(weekday_day_re, normalized))
+        if weekday_day_matches:
+            match = weekday_day_matches[-1]
+            day = int(match.group(2))
+            year = base_dt.year
+            month = base_dt.month
+            try:
+                target_date = datetime(year, month, day).date()
+                if target_date < base_dt.date():
+                    if month == 12:
+                        target_date = datetime(year + 1, 1, day).date()
+                    else:
+                        target_date = datetime(year, month + 1, day).date()
+                target_dt = self._build_delivery_dt(base_dt, route, target_date, target_time)
+                return target_dt, _hint(match.group(0), time_hint)
+            except ValueError:
+                pass
 
         return None, ""
 
