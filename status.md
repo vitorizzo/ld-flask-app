@@ -1,7 +1,7 @@
 TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
 Data aggiornamento: 2026-04-12
-test
+
 ---
 
 ## 🔄 Stato generale modulo Agenda / Cassa
