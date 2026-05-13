@@ -46,7 +46,7 @@ logger = get_logger("cassa", level=logging.INFO)
 MIN_AGENDA_WEIGHT = 40
 
 CHECK_IN_PANCIA_STATUSES = ("received", "moved", "spostato", "anticipato")
-CHECK_STATUSES = ("received", "moved", "spostato", "anticipato", "deposited", "cashed", "bounced", "withdrawn")
+CHECK_STATUSES = ("received", "moved", "spostato", "anticipato", "deposited", "cashed", "bounced", "protested", "withdrawn")
 CHECK_STATUS_LABELS = {
     "received": "In pancia",
     "moved": "Spostato",
@@ -55,6 +55,7 @@ CHECK_STATUS_LABELS = {
     "deposited": "Versato",
     "cashed": "Incassato",
     "bounced": "Insoluto",
+    "protested": "Protestato",
     "withdrawn": "Ritirato",
 }
 
@@ -2276,14 +2277,14 @@ def api_list_checks():
     to_date = (request.args.get("to") or "").strip()
 
     query = CashCheck.query.options(selectinload(CashCheck.customer))
+    summary_query = db.session.query(
+        CashCheck.status,
+        func.coalesce(func.sum(CashCheck.amount), 0),
+        func.count(CashCheck.id),
+    )
 
-    if status:
-        if status == "in_pancia":
-            query = query.filter(CashCheck.status.in_(CHECK_IN_PANCIA_STATUSES))
-        elif status in CHECK_STATUSES:
-            query = query.filter(CashCheck.status == status)
-        else:
-            return jsonify({"ok": False, "error": "Stato assegno non valido"}), 400
+    if status and status != "in_pancia" and status not in CHECK_STATUSES:
+        return jsonify({"ok": False, "error": "Stato assegno non valido"}), 400
 
     if q_text:
         like = f"%{q_text}%"
@@ -2292,18 +2293,38 @@ def api_list_checks():
             CashCheck.bank_name.ilike(like),
             CashCustomer.display_name.ilike(like),
         ))
+        summary_query = summary_query.outerjoin(CashCustomer).filter(or_(
+            CashCheck.check_number.ilike(like),
+            CashCheck.bank_name.ilike(like),
+            CashCustomer.display_name.ilike(like),
+        ))
 
     if from_date:
         try:
-            query = query.filter(CashCheck.received_date >= datetime.strptime(from_date, "%Y-%m-%d").date())
+            parsed_from = datetime.strptime(from_date, "%Y-%m-%d").date()
+            query = query.filter(CashCheck.received_date >= parsed_from)
+            summary_query = summary_query.filter(CashCheck.received_date >= parsed_from)
         except ValueError:
             return jsonify({"ok": False, "error": "Data da non valida"}), 400
 
     if to_date:
         try:
-            query = query.filter(CashCheck.received_date <= datetime.strptime(to_date, "%Y-%m-%d").date())
+            parsed_to = datetime.strptime(to_date, "%Y-%m-%d").date()
+            query = query.filter(CashCheck.received_date <= parsed_to)
+            summary_query = summary_query.filter(CashCheck.received_date <= parsed_to)
         except ValueError:
             return jsonify({"ok": False, "error": "Data a non valida"}), 400
+
+    summary_by_status = {
+        status_key: {"amount": Decimal(str(total or 0)), "count": int(count or 0)}
+        for status_key, total, count in summary_query.group_by(CashCheck.status).all()
+    }
+
+    if status:
+        if status == "in_pancia":
+            query = query.filter(CashCheck.status.in_(CHECK_IN_PANCIA_STATUSES))
+        else:
+            query = query.filter(CashCheck.status == status)
 
     checks = (
         query
@@ -2315,6 +2336,20 @@ def api_list_checks():
     return jsonify({
         "ok": True,
         "statuses": [{"value": key, "label": CHECK_STATUS_LABELS.get(key, key)} for key in CHECK_STATUSES],
+        "summary": {
+            "in_pancia": {
+                "amount": float(sum((summary_by_status.get(key, {}).get("amount", Decimal("0")) for key in CHECK_IN_PANCIA_STATUSES), Decimal("0"))),
+                "count": sum((summary_by_status.get(key, {}).get("count", 0) for key in CHECK_IN_PANCIA_STATUSES), 0),
+            },
+            "deposited": {
+                "amount": float(summary_by_status.get("deposited", {}).get("amount", Decimal("0"))),
+                "count": summary_by_status.get("deposited", {}).get("count", 0),
+            },
+            "bounced_protested": {
+                "amount": float(sum((summary_by_status.get(key, {}).get("amount", Decimal("0")) for key in ("bounced", "protested")), Decimal("0"))),
+                "count": sum((summary_by_status.get(key, {}).get("count", 0) for key in ("bounced", "protested")), 0),
+            },
+        },
         "checks": [_serialize_cash_check(check) for check in checks],
     })
 

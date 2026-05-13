@@ -842,6 +842,7 @@ const checksFilterTo = document.getElementById("checksFilterTo");
 const checksReloadBtn = document.getElementById("checksReloadBtn");
 const checksNewBtn = document.getElementById("checksNewBtn");
 const checksManagementRows = document.getElementById("checksManagementRows");
+const checksStatusBar = document.getElementById("checksStatusBar");
 const checkEditId = document.getElementById("checkEditId");
 const checkCustomerId = document.getElementById("checkCustomerId");
 const checkCustomerLabel = document.getElementById("checkCustomerLabel");
@@ -866,6 +867,7 @@ let checkStatusOptions = [
   { value: "deposited", label: "Versato" },
   { value: "cashed", label: "Incassato" },
   { value: "bounced", label: "Insoluto" },
+  { value: "protested", label: "Protestato" },
   { value: "withdrawn", label: "Ritirato" },
 ];
 
@@ -2394,6 +2396,20 @@ function resetCheckForm() {
   if (checkSaveBtn) checkSaveBtn.textContent = "Salva assegno";
 }
 
+function renderChecksStatusBar(summary = {}) {
+  if (!checksStatusBar) return;
+
+  const inPancia = summary.in_pancia || {};
+  const deposited = summary.deposited || {};
+  const bounced = summary.bounced_protested || {};
+
+  checksStatusBar.innerHTML = `
+    <span class="badge text-bg-light border">In pancia: ${eur(inPancia.amount || 0)} (${Number(inPancia.count || 0)})</span>
+    <span class="badge text-bg-light border">Versati: ${eur(deposited.amount || 0)} (${Number(deposited.count || 0)})</span>
+    <span class="badge text-bg-light border">Insoluti/protestati: ${eur(bounced.amount || 0)} (${Number(bounced.count || 0)})</span>
+  `;
+}
+
 async function loadChecksManagement() {
   if (!checksManagementRows) return;
 
@@ -2422,6 +2438,8 @@ async function loadChecksManagement() {
       checkStatusOptions = data.statuses;
       renderCheckStatusOptions();
     }
+
+    renderChecksStatusBar(data.summary || {});
 
     const checks = data.checks || [];
     if (!checks.length) {
