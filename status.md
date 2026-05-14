@@ -1,6 +1,6 @@
 TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
-Data aggiornamento: 2026-04-12
+Data aggiornamento: 2026-05-14
 
 ---
 
@@ -16,6 +16,12 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
 
 ## Task corrente (metodologia Codex)
 
+- Stato aggiornato al ciclo corrente di sviluppo Agenda / Cassa / Ordini:
+  - report giornata completo/fiscale rifinito e collegato a menù
+  - modalità fiscale allineata su KPI e report
+  - gestione assegni avviata con endpoint, CRUD, stati e status bar riepilogativa
+  - gestione menu riparata e resa applicabile senza cambio pagina
+  - parser Slack ordini esteso per allegati e indicazioni consegna
 - Rimossa dal manifesto Codex la procedura RAW/incolla-file e allineato il workflow a lettura diretta repository locale
 - Prospettiva AI futura annotata:
   - introdurre un modulo astratto `AIProvider` configurabile, inizialmente su OpenAI API e in futuro sostituibile/affiancabile da provider locale tipo Ollama
@@ -27,6 +33,115 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
 ---
 
 ## ✅ Completato / stabile
+
+### Report giornata
+- Creato report giornata con vista completa/fiscale:
+  - titolo “Report completo giornata dd.mm.yyyy” se vault sbloccato
+  - titolo “Report fiscale giornata dd.mm.yyyy” se vault bloccato
+- Collegamenti menu previsti:
+  - `/cassa/agenda/report` per visualizzare report
+  - `/cassa/agenda/report/print` per stampa diretta
+- Nel report fiscale:
+  - `Totale consegnato` visualizzato uguale a `Totale atteso nel cassetto`
+  - dati PRI esclusi
+- Nel report completo:
+  - intestazione Chiusura senza header colonne
+  - aggiunti `Totale x` e `Totale +` sotto `Totale Versabile`
+  - `Totale consegnato` resta il valore reale
+- Sezione incassi corretta:
+  - flag `+` dettagliati
+  - `Totale Privati` somma solo flag `x` del cliente `Privato` / `Privati`
+
+### Gestione assegni
+- Aggiunta route menu:
+  - `/cassa/agenda/checks`
+- Aggiunte API:
+  - `GET /cassa/api/checks`
+  - `POST /cassa/api/checks`
+  - `GET /cassa/api/checks/<id>`
+  - `PUT /cassa/api/checks/<id>`
+  - `DELETE /cassa/api/checks/<id>`
+- Aggiunta modale `Gestione assegni`:
+  - lista filtrabile per testo, stato, data ricezione da/a
+  - creazione assegno
+  - modifica dati assegno
+  - aggiornamento stato
+  - eliminazione solo se non collegato a movimenti/versamenti/prelievi
+- Stati gestiti:
+  - in pancia / ricevuto
+  - spostato
+  - anticipato
+  - versato
+  - incassato
+  - insoluto
+  - protestato
+  - ritirato
+- Ogni cambio stato passa da `CashCheckEvent`.
+- Aggiunta status bar in fondo alla modale con:
+  - totale assegni in pancia
+  - totale assegni versati
+  - totale assegni insoluti/protestati
+- Nota: la gestione assegni è un buon punto di partenza, da rifinire con l’uso reale.
+
+### Modalità fiscale / full
+- KPI `Cassetto` in modalità fiscale visualizzato uguale al `Totale di Giornata`.
+- In modalità fiscale il click su `Cassetto` non apre la modale.
+- In modalità fiscale il pulsante `+` dei movimenti di cassa mostra:
+  - “Attenzione! Funzione ancora non implementata”
+- Corretto caricamento iniziale vault:
+  - UI e movimenti privati ora vengono riallineati allo stato reale all’avvio.
+
+### Filtri quadranti
+- Aggiunti filtri contestuali POS:
+  - per device
+  - per circuito
+  - reset filtri
+  - totale POS filtrato racchiuso tra parentesi quando un filtro è attivo
+- I filtri POS sono sottomenù con valori presenti nel quadrante e voci `tutti` / `nessuno`.
+- Aggiunti filtri per:
+  - incassi: tipo incasso, flag, cassa/fuori cassa
+  - spese: tipo incasso/pagamento, flag, cassa/fuori cassa
+  - movimenti di cassa: tipo movimento, direzione
+- Corretto comportamento livelli menù contestuali:
+  - click su pulsante riga: solo menù riga
+  - click destro quadrante: menù riga + quadrante + generale
+
+### Gestione Menu
+- Riparata app `Gestione Menu`:
+  - drag & drop funzionante anche per sottomenù
+  - azioni menù riga ripristinate
+  - `Nuovo Menù (root)` ripristinato
+  - aggiunto pulsante `Applica`
+  - modifiche operative senza cambiare pagina
+- Aggiunta gestione separatori.
+- Aggiunto flag `visibile/non visibile`.
+- Semantica attuale:
+  - attivo: voce visibile e funzionante
+  - non attivo ma visibile: voce visibile in grigio, funzione non ancora attiva
+
+### Ordini Slack / consegne
+- Parser Slack esteso per messaggi con allegati:
+  - didascalia usata come testo ordine
+  - foto/audio allegati alla card ordine
+- Annotata prospettiva AI:
+  - trascrizione audio
+  - OCR immagini
+  - valutazione costi OpenAI API vs locale
+- Migliorato parsing consegna:
+  - `domani mattina`, `domattina`, `dopo le 17`, fasce orarie e indicazioni simili
+  - badge consegna accanto alle azioni card
+  - route/pulsante `Riprogramma` per ricalcolare consegne attive
+- Aggiunte evidenze card:
+  - prossime alla consegna
+  - lampeggio se in orario consegna e non in stato `in Consegna`
+  - rosso/lampeggio se consegna oltrepassata
+  - esclusi gli ordini `annullato` dal lampeggio
+- Aggiunta gestione giri:
+  - modale gestione giri
+  - variazioni una tantum / periodo / definitive
+  - giorno, orario e frequenza
+  - CRUD giri
+  - possibilità di spostare consegna card cliccando sul badge
 
 ### Giornata / preview / KPI
 - Creazione o recupero giornata tramite `/cassa/api/day`
@@ -164,12 +279,26 @@ Esito:
 ## 🔜 Prossimo task
 Il prossimo step previsto è:
 
-### Doppio archivio DB / chiavetta criptata
-Implementazione della logica a doppio archivio come discusso in precedenza:
-- archivio standard su database
-- archivio riservato su chiavetta criptata
-- coordinamento tra i due livelli di persistenza
-- relativa integrazione nel modulo Agenda / Cassa
+### Consolidamento Agenda / Cassa
+- Testare in uso reale la nuova gestione assegni:
+  - CRUD
+  - cambio stato
+  - status bar riepilogativa
+  - interazione con versamenti, cassetto e versabile
+- Rifinire la modale gestione assegni in base ai casi reali emersi.
+- Proseguire rifinitura report giornata:
+  - impaginazione finale
+  - verifica stampa su una/due pagine
+  - eventuali totali aggiuntivi richiesti dall’uso.
+- Continuare test regressione modalità fiscale/full:
+  - KPI
+  - report
+  - lock/unlock vault
+  - visibilità movimenti PRI.
+- Proseguire test ordini Slack:
+  - parsing consegna
+  - allegati
+  - giri e riprogrammazione.
 
 ---
 
@@ -227,6 +356,15 @@ Prima di intervenire:
   - KPI fiscal/full
   - lock/unlock vault
   - mount/unmount chiavetta.
+- Verificare in produzione la gestione assegni appena avviata:
+  - totali status bar
+  - duplicati banca/numero
+  - cancellazione assegni collegati
+  - stati `versato`, `incassato`, `insoluto`, `protestato`, `ritirato`.
+- Verificare report fiscale/completo dopo le ultime correzioni:
+  - `Totale consegnato` in fiscale uguale ad atteso cassetto
+  - `Totale x` / `Totale +` solo in completo
+  - `Totale Privati` solo per cliente Privato con flag `x`.
 - Valutare sostituzione futura del bump manuale con hook centralizzato SQLAlchemy.
 - Sistemare definitivamente gestione robusta chiavetta USB:
   - rimozione improvvisa
