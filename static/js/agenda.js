@@ -4,6 +4,7 @@ let lastPaymentMode = "cash";
 let currentPreviewTotals = {};
 let editingOperationType = null;   // "sale" | "expense" | null
 let editingOperationId = null;
+let editingOperationCheckIds = [];
 let priVaultUnlocked = false;
 let lastKnownVaultState = null;
 let vaultPollInterval = null;
@@ -2524,7 +2525,7 @@ async function saveManagedCheck() {
     resetCheckForm();
     await loadChecksManagement();
     if (currentDay) {
-      await refreshAgendaSections(["preview", "assegni"]);
+      await refreshAgendaSections(["preview", "incassi", "assegni"]);
     }
   } catch (err) {
     console.error("saveManagedCheck error:", err);
@@ -2551,7 +2552,7 @@ async function deleteManagedCheck(checkId) {
     }
     await loadChecksManagement();
     if (currentDay) {
-      await refreshAgendaSections(["preview", "assegni"]);
+      await refreshAgendaSections(["preview", "incassi", "assegni"]);
     }
   } catch (err) {
     console.error("deleteManagedCheck error:", err);
@@ -4164,6 +4165,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       const payments = sale.payments || [];
       if (!payments.length) return;
+      editingOperationCheckIds = payments
+        .filter(p => p.method === "check" && p.check_id)
+        .map(p => Number(p.check_id));
 
       if (opFlag) opFlag.value = payments[0].flag || "*";
 
@@ -4188,17 +4192,19 @@ document.addEventListener("DOMContentLoaded", async function () {
           await loadBanks(bankSelect);
           if (bankSelect) bankSelect.value = String(p.bank_id || "");
         } else if (p.method === "check") {
-          const checkBankName = document.getElementById("checkBankName");
-          const checkBankABI = document.getElementById("checkBankABI");
-          const checkBankCAB = document.getElementById("checkBankCAB");
-          const checkNumber = document.getElementById("checkNumber");
-          const checkDueDate = document.getElementById("checkDueDate");
+          const checkBankName = document.getElementById("checkSaleBankName");
+          const checkBankABI = document.getElementById("checkSaleBankABI");
+          const checkBankCAB = document.getElementById("checkSaleBankCAB");
+          const checkNumber = document.getElementById("checkSaleNumber");
+          const checkDueDate = document.getElementById("checkSaleDueDate");
+          const checkAmount = document.getElementById("checkSaleAmount");
 
           if (checkBankName) checkBankName.value = p.bank_name || "";
           if (checkBankABI) checkBankABI.value = p.abi || "";
           if (checkBankCAB) checkBankCAB.value = p.cab || "";
           if (checkNumber) checkNumber.value = p.check_number || "";
           if (checkDueDate) checkDueDate.value = p.due_date || "";
+          if (checkAmount) checkAmount.value = formatEuro2(p.amount || 0);
         }
       } else {
         setPaymentMode("multi");
@@ -4305,6 +4311,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       const payments = expense.payments || [];
       if (!payments.length) return;
+      editingOperationCheckIds = [];
 
       if (opFlag) opFlag.value = payments[0].flag || "*";
 
@@ -4330,16 +4337,18 @@ document.addEventListener("DOMContentLoaded", async function () {
           await loadBanks(bankSelect);
           if (bankSelect) bankSelect.value = String(p.bank_id || "");
         } else if (p.method === "check") {
-          const bankSelect = document.getElementById("checkBankSelect");
+          const bankSelect = document.getElementById("checkExpenseBankSelect");
 
           await loadBanks(bankSelect);
           if (bankSelect) bankSelect.value = String(p.bank_id || "");
 
-          const checkNumber = document.getElementById("checkNumber");
-          const checkDueDate = document.getElementById("checkDueDate");
+          const checkNumber = document.getElementById("checkExpenseNumber");
+          const checkDueDate = document.getElementById("checkExpenseDueDate");
+          const checkAmount = document.getElementById("checkExpenseAmount");
 
           if (checkNumber) checkNumber.value = p.check_number || "";
           if (checkDueDate) checkDueDate.value = p.due_date || "";
+          if (checkAmount) checkAmount.value = formatEuro2(p.amount || 0);
         }
       } else {
         setPaymentMode("multi");
@@ -4393,6 +4402,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   function resetOperationEditState() {
     editingOperationType = null;
     editingOperationId = null;
+    editingOperationCheckIds = [];
 
     const saveBtn = document.getElementById("opSaveBtn");
     if (saveBtn) saveBtn.textContent = "Salva";
@@ -4999,6 +5009,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           payments: [
             {
               method: "check",
+              check_id: editingOperationCheckIds[0] || null,
               amount: amount,
               bank_name,
               abi,
@@ -5041,6 +5052,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     const payments = [];
+    let checkPaymentIndex = 0;
 
     for (const row of rows) {
       const method = row.querySelector(".multi-method")?.value || "cash";
@@ -5150,6 +5162,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         payments.push({
           method: "check",
+          check_id: editingOperationCheckIds[checkPaymentIndex++] || null,
           amount,
           bank_name,
           abi,
@@ -5371,6 +5384,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       await refreshAgendaSections([
         "preview",
         opType === "expense" ? "spese" : "incassi",
+        opType === "sale" ? "assegni" : null,
         opType === "sale" ? "pos" : null
       ].filter(Boolean));
 

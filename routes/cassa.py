@@ -793,6 +793,144 @@ def _parse_check_payload(data, existing_check: CashCheck | None = None):
     }
 
 
+def _ensure_unique_cash_check(bank_name, check_number, exclude_check_id=None):
+    query = CashCheck.query.filter(
+        func.lower(CashCheck.bank_name) == str(bank_name).lower(),
+        func.lower(CashCheck.check_number) == str(check_number).lower(),
+    )
+    if exclude_check_id:
+        query = query.filter(CashCheck.id != exclude_check_id)
+
+    if query.first():
+        raise ValueError("Esiste giÃ  un assegno con questa banca e questo numero")
+
+
+def _linked_day_dates_for_check(check: CashCheck):
+    day_dates = set()
+    if check and check.received_date:
+        day_dates.add(check.received_date.isoformat())
+
+    if not check or not check.id:
+        return day_dates
+
+    sale_days = (
+        db.session.query(CashDay.day_date)
+        .join(CashSale, CashSale.cash_day_id == CashDay.id)
+        .join(CashSaleCheck, CashSaleCheck.sale_id == CashSale.id)
+        .filter(CashSaleCheck.check_id == check.id)
+        .all()
+    )
+    for (day_date_value,) in sale_days:
+        if day_date_value:
+            day_dates.add(day_date_value.isoformat())
+
+    try:
+        from models import CashDeposit
+        deposit_days = (
+            db.session.query(CashDay.day_date)
+            .join(CashDeposit, CashDeposit.cash_day_id == CashDay.id)
+            .join(CashDepositCheck, CashDepositCheck.deposit_id == CashDeposit.id)
+            .filter(CashDepositCheck.check_id == check.id)
+            .all()
+        )
+        for (day_date_value,) in deposit_days:
+            if day_date_value:
+                day_dates.add(day_date_value.isoformat())
+    except Exception:
+        logger.exception("Errore ricerca giornate versamenti assegno")
+
+    owner_take_days = (
+        db.session.query(CashDay.day_date)
+        .join(CashOwnerTake, CashOwnerTake.cash_day_id == CashDay.id)
+        .join(CashOwnerTakeCheck, CashOwnerTakeCheck.owner_take_id == CashOwnerTake.id)
+        .filter(CashOwnerTakeCheck.check_id == check.id)
+        .all()
+    )
+    for (day_date_value,) in owner_take_days:
+        if day_date_value:
+            day_dates.add(day_date_value.isoformat())
+
+    return day_dates
+
+
+def _bump_agenda_versions_for_check(check: CashCheck, extra_day_dates=None):
+    day_dates = _linked_day_dates_for_check(check)
+    for day_date_value in extra_day_dates or []:
+        if day_date_value:
+            day_dates.add(str(day_date_value))
+
+    for day_date_value in day_dates:
+        _bump_agenda_day_version(day_date_value)
+
+
+def _sync_sale_payment_amounts_for_check(check: CashCheck):
+    if not check or not check.id:
+        return
+
+    sale_links = (
+        CashSaleCheck.query
+        .options(selectinload(CashSaleCheck.sale).selectinload(CashSale.payments))
+        .filter(CashSaleCheck.check_id == check.id)
+        .all()
+    )
+
+    for sale_link in sale_links:
+        sale = sale_link.sale
+        if not sale:
+            continue
+
+        check_links = sorted(sale.checks or [], key=lambda item: item.id or 0)
+        check_payments = sorted(
+            [payment for payment in (sale.payments or []) if payment.method == "check"],
+            key=lambda item: item.id or 0,
+        )
+
+        try:
+            check_index = next(
+                idx for idx, item in enumerate(check_links)
+                if item.check_id == check.id
+            )
+        except StopIteration:
+            continue
+
+        sale_link.check_amount = check.amount
+        if check_index < len(check_payments):
+            check_payments[check_index].amount = check.amount
+
+
+def _apply_sale_check_payload(check, payment_data, *, customer_id, amount, received_date, note, row_idx):
+    bank_name = (payment_data.get("bank_name") or "").strip()
+    abi = (payment_data.get("abi") or "").strip() or None
+    cab = (payment_data.get("cab") or "").strip() or None
+    check_number = (payment_data.get("check_number") or "").strip()
+    due_date_raw = payment_data.get("due_date")
+
+    if not bank_name:
+        raise ValueError(f"Missing bank_name at row {row_idx}")
+    if not check_number:
+        raise ValueError(f"Missing check_number at row {row_idx}")
+    if not due_date_raw:
+        raise ValueError(f"Missing due_date at row {row_idx}")
+
+    due_date = _parse_due_date(due_date_raw)
+    _ensure_unique_cash_check(bank_name, check_number, check.id if check else None)
+
+    if check is None:
+        check = CashCheck(status="received")
+
+    check.check_number = check_number
+    check.abi = abi
+    check.cab = cab
+    check.bank_name = bank_name
+    check.customer_id = customer_id
+    check.amount = amount
+    check.received_date = received_date
+    check.due_date = due_date
+    check.note = note
+
+    return check
+
+
 @cassa_bp.delete("/api/deposits/<int:deposit_id>")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
@@ -2362,15 +2500,9 @@ def api_create_check():
 
     try:
         values = _parse_check_payload(data)
-        duplicate = (
-            CashCheck.query
-            .filter(
-                func.lower(CashCheck.bank_name) == str(values["bank_name"]).lower(),
-                func.lower(CashCheck.check_number) == str(values["check_number"]).lower(),
-            )
-            .first()
-        )
-        if duplicate:
+        _ensure_unique_cash_check(values["bank_name"], values["check_number"])
+        if False:
+            pass
             return jsonify({"ok": False, "error": "Esiste già un assegno con questa banca e questo numero"}), 409
 
         check = CashCheck(**values)
@@ -2385,6 +2517,7 @@ def api_create_check():
             note="Creazione assegno da gestione assegni",
         ))
         db.session.commit()
+        _bump_agenda_versions_for_check(check)
         return jsonify({"ok": True, "check": _serialize_cash_check(check, include_events=True)}), 201
     except ValueError as e:
         db.session.rollback()
@@ -2416,17 +2549,11 @@ def api_update_check(check_id):
     data = request.get_json(silent=True) or {}
 
     try:
+        old_day_dates = _linked_day_dates_for_check(check)
         values = _parse_check_payload(data, existing_check=check)
-        duplicate = (
-            CashCheck.query
-            .filter(
-                CashCheck.id != check.id,
-                func.lower(CashCheck.bank_name) == str(values["bank_name"]).lower(),
-                func.lower(CashCheck.check_number) == str(values["check_number"]).lower(),
-            )
-            .first()
-        )
-        if duplicate:
+        _ensure_unique_cash_check(values["bank_name"], values["check_number"], check.id)
+        if False:
+            pass
             return jsonify({"ok": False, "error": "Esiste già un assegno con questa banca e questo numero"}), 409
 
         old_status = check.status
@@ -2434,6 +2561,8 @@ def api_update_check(check_id):
 
         for key, value in values.items():
             setattr(check, key, value)
+
+        _sync_sale_payment_amounts_for_check(check)
 
         if old_status != new_status:
             change_check_status(
@@ -2449,6 +2578,7 @@ def api_update_check(check_id):
             check.status = new_status
 
         db.session.commit()
+        _bump_agenda_versions_for_check(check, old_day_dates)
         return jsonify({"ok": True, "check": _serialize_cash_check(check, include_events=True)})
     except ValueError as e:
         db.session.rollback()
@@ -2765,7 +2895,7 @@ def api_list_sales(day_date):
 
     if cash_day:
         for s in cash_day.sales:
-            sale_checks = list(s.checks or [])
+            sale_checks = sorted(s.checks or [], key=lambda item: item.id or 0)
             check_idx = 0
 
             pay = []
@@ -3352,13 +3482,15 @@ def api_update_sale(sale_id):
     day_date = cash_day.day_date
 
     try:
-        # 1) elimina eventuali assegni collegati
-        for sale_check in (sale.checks or []):
-            linked_check = sale_check.check
-            if linked_check:
-                db.session.delete(linked_check)
+        existing_sale_checks = sorted(sale.checks or [], key=lambda item: item.id or 0)
+        existing_checks_by_id = {
+            sale_check.check.id: sale_check.check
+            for sale_check in existing_sale_checks
+            if sale_check.check
+        }
+        reused_check_ids = set()
 
-        # 2) elimina eventuali pos_move collegati ai pagamenti POS
+        # 1) elimina eventuali pos_move collegati ai pagamenti POS
         for payment in (sale.payments or []):
             for link in (payment.pos_links or []):
                 if link.pos_move:
@@ -3370,17 +3502,17 @@ def api_update_sale(sale_id):
 
         db.session.flush()
 
-        # 3) elimina righe ponte assegni e pagamenti
+        # 2) elimina righe ponte assegni e pagamenti
         CashSaleCheck.query.filter_by(sale_id=sale.id).delete()
         CashSalePayment.query.filter_by(sale_id=sale.id).delete()
         db.session.flush()
 
-        # 4) aggiorna testata incasso
+        # 3) aggiorna testata incasso
         sale.customer_id = customer_id
         sale.customer_label = customer_label
         sale.notes = description
 
-        # 5) ricrea pagamenti
+        # 4) ricrea pagamenti
         for idx, p in enumerate(payments_data, start=1):
             method = (p.get("method") or "").strip().lower()
             if method not in {"cash", "pos", "bank", "check"}:
@@ -3439,45 +3571,42 @@ def api_update_sale(sale_id):
                 if not customer_id:
                     raise ValueError(f"Customer required for check payment at row {idx}")
 
-                bank_name = (p.get("bank_name") or "").strip()
-                abi = (p.get("abi") or "").strip() or None
-                cab = (p.get("cab") or "").strip() or None
-                check_number = (p.get("check_number") or "").strip()
-                due_date_raw = p.get("due_date")
+                raw_check_id = p.get("check_id")
+                check = None
+                if raw_check_id:
+                    try:
+                        check = existing_checks_by_id.get(int(raw_check_id))
+                    except (TypeError, ValueError):
+                        check = None
 
-                if not bank_name:
-                    raise ValueError(f"Missing bank_name at row {idx}")
-                if not check_number:
-                    raise ValueError(f"Missing check_number at row {idx}")
-                if not due_date_raw:
-                    raise ValueError(f"Missing due_date at row {idx}")
+                    if not check:
+                        raise ValueError(f"Assegno collegato non trovato at row {idx}")
 
-                due_date = _parse_due_date(due_date_raw)
-
-                check = CashCheck(
-                    check_number=check_number,
-                    abi=abi,
-                    cab=cab,
-                    bank_name=bank_name,
+                is_new_check = check is None
+                check = _apply_sale_check_payload(
+                    check,
+                    p,
                     customer_id=customer_id,
                     amount=amount,
                     received_date=day_date,
-                    due_date=due_date,
-                    status="received",
                     note=description,
+                    row_idx=idx,
                 )
                 db.session.add(check)
                 db.session.flush()
 
-                change_check_status(
-                    check=check,
-                    new_status="received",
-                    user_id=getattr(current_user, "id", None),
-                    event_date=day_date,
-                    note=description,
-                    amount_spese=Decimal("0"),
-                    customer_charge_amount=Decimal("0"),
-                )
+                reused_check_ids.add(check.id)
+
+                if is_new_check:
+                    change_check_status(
+                        check=check,
+                        new_status="received",
+                        user_id=getattr(current_user, "id", None),
+                        event_date=day_date,
+                        note=description,
+                        amount_spese=Decimal("0"),
+                        customer_charge_amount=Decimal("0"),
+                    )
 
                 db.session.add(
                     CashSaleCheck(
@@ -3486,6 +3615,17 @@ def api_update_sale(sale_id):
                         check_amount=amount,
                     )
                 )
+
+        for old_check_id, old_check in existing_checks_by_id.items():
+            if old_check_id in reused_check_ids:
+                continue
+
+            linked_elsewhere = bool(
+                CashDepositCheck.query.filter_by(check_id=old_check_id).first()
+                or CashOwnerTakeCheck.query.filter_by(check_id=old_check_id).first()
+            )
+            if not linked_elsewhere:
+                db.session.delete(old_check)
 
         db.session.commit()
         _bump_agenda_day_version(day_date.isoformat())
