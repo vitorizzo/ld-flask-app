@@ -2798,7 +2798,7 @@ async function loadIssuedChecksManagement() {
       headers: { "Accept": "application/json" },
       cache: "no-store"
     });
-    const data = await r.json();
+    const data = await readJsonResponse(r, "Errore caricamento assegni emessi");
 
     if (!r.ok || !data.ok) {
       issuedChecksManagementRows.innerHTML = `<tr><td colspan="8" class="text-center text-danger">${escapeHtml(data.error || "Errore caricamento assegni emessi")}</td></tr>`;

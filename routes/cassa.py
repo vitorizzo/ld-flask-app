@@ -2617,70 +2617,79 @@ def api_set_issued_check_registered(check_id):
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def api_list_issued_checks():
-    q_text = (request.args.get("q") or "").strip()
-    status = (request.args.get("status") or "").strip()
-    flag = (request.args.get("flag") or "").strip()
-    from_date = (request.args.get("from") or "").strip()
-    to_date = (request.args.get("to") or "").strip()
+    try:
+        q_text = (request.args.get("q") or "").strip()
+        status = (request.args.get("status") or "").strip()
+        flag = (request.args.get("flag") or "").strip()
+        from_date = (request.args.get("from") or "").strip()
+        to_date = (request.args.get("to") or "").strip()
 
-    query = (
-        CashIssuedCheck.query
-        .options(
-            selectinload(CashIssuedCheck.bank),
-            selectinload(CashIssuedCheck.expense),
+        query = (
+            CashIssuedCheck.query
+            .options(
+                selectinload(CashIssuedCheck.bank),
+                selectinload(CashIssuedCheck.expense),
+            )
+            .join(CashExpense, CashExpense.id == CashIssuedCheck.expense_id)
+            .outerjoin(CashBank, CashBank.id == CashIssuedCheck.bank_id)
         )
-        .join(CashExpense, CashExpense.id == CashIssuedCheck.expense_id)
-        .outerjoin(CashBank, CashBank.id == CashIssuedCheck.bank_id)
-    )
 
-    if q_text:
-        like = f"%{q_text}%"
-        query = query.filter(or_(
-            CashIssuedCheck.check_number.ilike(like),
-            CashBank.name.ilike(like),
-            CashExpense.supplier.ilike(like),
-            CashExpense.notes.ilike(like),
-        ))
+        if q_text:
+            like = f"%{q_text}%"
+            query = query.filter(or_(
+                CashIssuedCheck.check_number.ilike(like),
+                CashBank.name.ilike(like),
+                CashExpense.supplier.ilike(like),
+                CashExpense.notes.ilike(like),
+            ))
 
-    if status:
-        try:
-            normalized_status = _normalize_issued_check_status(status)
-        except ValueError as e:
-            return jsonify({"ok": False, "error": str(e)}), 400
-        query = query.filter(CashIssuedCheck.status == normalized_status)
+        if status:
+            try:
+                normalized_status = _normalize_issued_check_status(status)
+            except ValueError as e:
+                return jsonify({"ok": False, "error": str(e)}), 400
+            query = query.filter(CashIssuedCheck.status == normalized_status)
 
-    if flag:
-        if flag not in {"*", "**"}:
-            return jsonify({"ok": False, "error": "Flag assegno emesso non valido"}), 400
-        query = query.filter(CashIssuedCheck.flag == flag)
+        if flag:
+            if flag not in {"*", "**"}:
+                return jsonify({"ok": False, "error": "Flag assegno emesso non valido"}), 400
+            query = query.filter(CashIssuedCheck.flag == flag)
 
-    if from_date:
-        try:
-            parsed_from = datetime.strptime(from_date, "%Y-%m-%d").date()
-            query = query.filter(CashIssuedCheck.due_date >= parsed_from)
-        except ValueError:
-            return jsonify({"ok": False, "error": "Data da non valida"}), 400
+        if from_date:
+            try:
+                parsed_from = datetime.strptime(from_date, "%Y-%m-%d").date()
+                query = query.filter(CashIssuedCheck.due_date >= parsed_from)
+            except ValueError:
+                return jsonify({"ok": False, "error": "Data da non valida"}), 400
 
-    if to_date:
-        try:
-            parsed_to = datetime.strptime(to_date, "%Y-%m-%d").date()
-            query = query.filter(CashIssuedCheck.due_date <= parsed_to)
-        except ValueError:
-            return jsonify({"ok": False, "error": "Data a non valida"}), 400
+        if to_date:
+            try:
+                parsed_to = datetime.strptime(to_date, "%Y-%m-%d").date()
+                query = query.filter(CashIssuedCheck.due_date <= parsed_to)
+            except ValueError:
+                return jsonify({"ok": False, "error": "Data a non valida"}), 400
 
-    rows = (
-        query
-        .order_by(CashIssuedCheck.due_date.asc().nullslast(), CashIssuedCheck.created_at.desc(), CashIssuedCheck.id.desc())
-        .limit(300)
-        .all()
-    )
+        rows = (
+            query
+            .order_by(
+                CashIssuedCheck.due_date.is_(None).asc(),
+                CashIssuedCheck.due_date.asc(),
+                CashIssuedCheck.created_at.desc(),
+                CashIssuedCheck.id.desc(),
+            )
+            .limit(300)
+            .all()
+        )
 
-    ref_date = date.today()
-    return jsonify({
-        "ok": True,
-        "statuses": [{"value": key, "label": ISSUED_CHECK_STATUS_LABELS[key]} for key in ISSUED_CHECK_STATUSES],
-        "checks": [_serialize_issued_check_for_returning(row, ref_date) for row in rows],
-    })
+        ref_date = date.today()
+        return jsonify({
+            "ok": True,
+            "statuses": [{"value": key, "label": ISSUED_CHECK_STATUS_LABELS[key]} for key in ISSUED_CHECK_STATUSES],
+            "checks": [_serialize_issued_check_for_returning(row, ref_date) for row in rows],
+        })
+    except Exception as e:
+        logger.exception("api_list_issued_checks error: %s", e)
+        return jsonify({"ok": False, "error": "Errore caricamento assegni emessi"}), 500
 
 
 @cassa_bp.put("/api/issued-checks/<int:check_id>")
