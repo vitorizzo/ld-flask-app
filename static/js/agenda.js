@@ -58,6 +58,19 @@ function eur(amount) {
   return n.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
 }
 
+async function readJsonResponse(response, fallbackError = "Risposta non valida dal server") {
+  const text = await response.text();
+  try {
+    return JSON.parse(text);
+  } catch (err) {
+    console.error(fallbackError, {
+      status: response.status,
+      body: text.slice(0, 500)
+    });
+    return { ok: false, error: fallbackError };
+  }
+}
+
 function parseEuroToNumber(raw) {
   if (raw == null) return 0;
 
@@ -904,9 +917,12 @@ let issuedCheckStatusOptions = [
 
 async function loadDay(dateStr) {
   return fetch(`/cassa/api/day?date=${dateStr}`)
-    .then(r => r.json())
+    .then(r => readJsonResponse(r, "Errore durante il caricamento della giornata"))
     .then(async data => {
-      if (!data.ok) return;
+      if (!data.ok) {
+        console.error(data.error || "Errore durante il caricamento della giornata");
+        return;
+      }
 
       currentDay = data.day.day_date;
 

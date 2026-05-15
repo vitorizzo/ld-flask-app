@@ -12,7 +12,7 @@ from cryptography.exceptions import InvalidTag
 from decimal import Decimal, InvalidOperation
 from datetime import date, datetime, timedelta
 from sqlalchemy import exists, or_, and_, func
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import noload, selectinload
 
 from tools.redis_utils import get_redis
 from tools.log_utils import get_logger
@@ -1069,23 +1069,45 @@ def api_get_or_create_day():
     else:
         target_date = date.today()
 
-    opening_float = float(_find_latest_previous_cash_balance(target_date) or 0)
+    try:
+        opening_float = float(_find_latest_previous_cash_balance(target_date) or 0)
+    except Exception:
+        db.session.rollback()
+        logger.exception("Impossibile calcolare il fondo cassa iniziale per %s", target_date)
+        opening_float = 0
 
-    day = CashDay.query.filter_by(day_date=target_date).first()
-
-    if not day:
-        day = CashDay(
-            day_date=target_date,
-            opening_float=opening_float,
-            status="open",
+    try:
+        day = (
+            CashDay.query
+            .options(
+                noload(CashDay.sales),
+                noload(CashDay.expenses),
+                noload(CashDay.cash_moves),
+                noload(CashDay.pos_moves),
+                noload(CashDay.deposits),
+                noload(CashDay.closure),
+            )
+            .filter_by(day_date=target_date)
+            .first()
         )
-        db.session.add(day)
-        db.session.commit()
-    else:
-        current_opening = float(day.opening_float or 0)
-        if day.status != "closed" and current_opening != opening_float:
-            day.opening_float = opening_float
+
+        if not day:
+            day = CashDay(
+                day_date=target_date,
+                opening_float=opening_float,
+                status="open",
+            )
+            db.session.add(day)
             db.session.commit()
+        else:
+            current_opening = float(day.opening_float or 0)
+            if day.status != "closed" and current_opening != opening_float:
+                day.opening_float = opening_float
+                db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Errore durante il caricamento della giornata cassa %s", target_date)
+        return jsonify({"ok": False, "error": "Errore durante il caricamento della giornata"}), 500
 
     return jsonify({
         "ok": True,
@@ -2289,6 +2311,11 @@ def _find_latest_previous_cash_balance(target_date: date) -> Decimal:
     previous_days = (
         CashDay.query
         .options(
+            noload(CashDay.sales),
+            noload(CashDay.expenses),
+            noload(CashDay.cash_moves),
+            noload(CashDay.pos_moves),
+            noload(CashDay.deposits),
             selectinload(CashDay.closure),
             selectinload(CashDay.drawer_count).selectinload(CashDrawerCount.lines),
         )
