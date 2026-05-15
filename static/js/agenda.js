@@ -1335,16 +1335,16 @@ function renderAssegniScadenza(items) {
     title.className = c.is_received_today ? "fw-bold" : "fw-semibold";
     const bank = (c.bank_name || "Banca?").trim();
     const num = (c.check_number || "").trim();
-    title.textContent = `${bank} • ${num}`;
+    title.textContent = num ? `${bank} - ${num}` : bank;
 
     const meta = document.createElement("div");
     meta.className = "small text-muted";
     const cust = (c.customer && (c.customer.display_name || c.customer.name || c.customer.ragione_sociale))
       ? (c.customer.display_name || c.customer.name || c.customer.ragione_sociale)
       : "Cliente?";
-    const due = c.due_date || "—";
-    const rec = c.received_date || "—";
-    meta.textContent = `Cliente: ${cust} • Scadenza: ${due} • Ricevuto: ${rec}`;
+    const due = c.due_date || "-";
+    const rec = c.received_date || "-";
+    meta.textContent = `Cliente: ${cust} - Scadenza: ${due} - Ricevuto: ${rec}`;
 
     left.appendChild(title);
     left.appendChild(meta);
@@ -1421,13 +1421,13 @@ function renderAssegniRientranti(items) {
     title.className = "fw-semibold";
     const bank = (c.bank_name || "Banca?").trim();
     const num = (c.check_number || "").trim();
-    title.textContent = `${bank} â€¢ ${num}`;
+    title.textContent = num ? `${bank} - ${num}` : bank;
 
     const meta = document.createElement("div");
     meta.className = "small text-muted";
     const supplier = c.supplier || "Beneficiario?";
-    const due = c.due_date || "â€”";
-    meta.textContent = `${supplier} â€¢ Rientro: ${due}`;
+    const due = c.due_date || "-";
+    meta.textContent = `${supplier} - Rientro: ${due}`;
 
     textWrap.appendChild(title);
     textWrap.appendChild(meta);
@@ -2920,13 +2920,29 @@ async function deleteIssuedCheck(checkId) {
 async function openIssuedChecksManagementModal() {
   renderIssuedCheckStatusOptions();
   resetIssuedCheckForm();
-  await loadBanks(issuedCheckBankSelect);
+
   if (!issuedChecksManagementModal) {
+    const modalEl = document.getElementById("issuedChecksManagementModal");
+    if (modalEl && window.bootstrap?.Modal) {
+      issuedChecksManagementModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    }
+  }
+
+  if (!issuedChecksManagementModal) {
+    console.error("Modale gestione assegni emessi non disponibile.");
     alert("Modale gestione assegni emessi non disponibile.");
     return;
   }
+
   issuedChecksManagementModal.show();
-  await loadIssuedChecksManagement();
+
+  try {
+    await loadBanks(issuedCheckBankSelect);
+    await loadIssuedChecksManagement();
+  } catch (err) {
+    console.error("openIssuedChecksManagementModal error:", err);
+    alert("Errore durante il caricamento degli assegni emessi.");
+  }
 }
 
 /* =========================
@@ -5818,7 +5834,14 @@ document.addEventListener("DOMContentLoaded", async function () {
       return "checks";
     }
 
-    if (["issued_checks", "assegni_emessi", "gestione_assegni_emessi"].includes(openParam)) {
+    if ([
+      "issued_checks",
+      "issued-checks",
+      "assegni_emessi",
+      "assegni-emessi",
+      "gestione_assegni_emessi",
+      "gestione-assegni-emessi"
+    ].includes(openParam)) {
       return "issued_checks";
     }
 
