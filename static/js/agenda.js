@@ -872,6 +872,32 @@ let checkStatusOptions = [
   { value: "withdrawn", label: "Ritirato" },
 ];
 
+const issuedChecksManagementModalEl = document.getElementById("issuedChecksManagementModal");
+const issuedChecksFilterText = document.getElementById("issuedChecksFilterText");
+const issuedChecksFilterStatus = document.getElementById("issuedChecksFilterStatus");
+const issuedChecksFilterFlag = document.getElementById("issuedChecksFilterFlag");
+const issuedChecksFilterFrom = document.getElementById("issuedChecksFilterFrom");
+const issuedChecksFilterTo = document.getElementById("issuedChecksFilterTo");
+const issuedChecksReloadBtn = document.getElementById("issuedChecksReloadBtn");
+const issuedChecksManagementRows = document.getElementById("issuedChecksManagementRows");
+const issuedCheckEditId = document.getElementById("issuedCheckEditId");
+const issuedCheckFlag = document.getElementById("issuedCheckFlag");
+const issuedCheckBankSelect = document.getElementById("issuedCheckBankSelect");
+const issuedCheckNumber = document.getElementById("issuedCheckNumber");
+const issuedCheckAmount = document.getElementById("issuedCheckAmount");
+const issuedCheckDueDate = document.getElementById("issuedCheckDueDate");
+const issuedCheckStatus = document.getElementById("issuedCheckStatus");
+const issuedCheckNote = document.getElementById("issuedCheckNote");
+const issuedCheckCancelBtn = document.getElementById("issuedCheckCancelBtn");
+const issuedCheckSaveBtn = document.getElementById("issuedCheckSaveBtn");
+
+let issuedChecksManagementModal = null;
+let issuedCheckStatusOptions = [
+  { value: "emesso", label: "Emesso" },
+  { value: "registrato", label: "Registrato" },
+  { value: "rientrato", label: "Rientrato" },
+];
+
 /* =========================
    DAY / PREVIEW
 ========================= */
@@ -1836,17 +1862,24 @@ async function loadSpese(dayStr) {
     const allRows = [];
     for (const e of expenses) {
       for (const p of (e.payments || [])) {
+        let desc = [e.supplier, (p.description || e.notes || "")].filter(Boolean).join(" - ");
+        if (p.method === "check" && p.issued_check_flag === "**" && p.due_date) {
+          desc = [desc, `scad. ${p.due_date}`].filter(Boolean).join(" - ");
+        }
+
         allRows.push({
           expense_id: e.id,
           storage: e.storage || "az",
           is_checked: !!e.is_checked,
           created_at: p.created_at || e.created_at,
           flag: p.flag || "",
-          desc: [e.supplier, (p.description || e.notes || "")].filter(Boolean).join(" - "),
+          desc,
           amount: Number(p.amount || 0),
           direction: p.direction || "out",
           method: p.method || "",
           off_cash: !!p.off_cash,
+          issued_check_flag: p.issued_check_flag || "",
+          due_date: p.due_date || "",
         });
       }
     }
@@ -1872,6 +1905,9 @@ async function loadSpese(dayStr) {
       if (x.method === "pos") badges.push(`<span class="badge badge-soft badge-pos">POS</span>`);
       if (x.method === "bank") badges.push(`<span class="badge badge-soft badge-bank">BANCA</span>`);
       if (x.method === "check") badges.push(`<span class="badge badge-soft badge-bank">ASSEGNO</span>`);
+      if (x.method === "check" && x.issued_check_flag === "**" && x.due_date) {
+        badges.push(`<span class="badge badge-soft badge-bank">SCAD. ${escapeHtml(x.due_date)}</span>`);
+      }
       if (x.off_cash) badges.push(`<span class="badge badge-soft badge-offcash">FUORI CASSA</span>`);
 
       const isChecked = x.storage === "pri"
@@ -2703,6 +2739,180 @@ async function openChecksManagementModal() {
   await loadChecksManagement();
 }
 
+function renderIssuedCheckStatusOptions() {
+  const options = issuedCheckStatusOptions
+    .map(item => `<option value="${escapeHtml(item.value)}">${escapeHtml(item.label)}</option>`)
+    .join("");
+
+  if (issuedCheckStatus) issuedCheckStatus.innerHTML = options;
+
+  if (issuedChecksFilterStatus) {
+    const currentValue = issuedChecksFilterStatus.value || "";
+    issuedChecksFilterStatus.innerHTML = `<option value="">Tutti</option>${options}`;
+    issuedChecksFilterStatus.value = currentValue;
+  }
+}
+
+function resetIssuedCheckForm() {
+  if (issuedCheckEditId) issuedCheckEditId.value = "";
+  if (issuedCheckFlag) issuedCheckFlag.value = "*";
+  if (issuedCheckBankSelect) issuedCheckBankSelect.value = "";
+  if (issuedCheckNumber) issuedCheckNumber.value = "";
+  if (issuedCheckAmount) issuedCheckAmount.value = "0,00";
+  if (issuedCheckDueDate) issuedCheckDueDate.value = "";
+  if (issuedCheckStatus) issuedCheckStatus.value = "emesso";
+  if (issuedCheckNote) issuedCheckNote.value = "";
+}
+
+async function loadIssuedChecksManagement() {
+  if (!issuedChecksManagementRows) return;
+
+  const qs = new URLSearchParams();
+  if (issuedChecksFilterText?.value) qs.set("q", issuedChecksFilterText.value.trim());
+  if (issuedChecksFilterStatus?.value) qs.set("status", issuedChecksFilterStatus.value);
+  if (issuedChecksFilterFlag?.value) qs.set("flag", issuedChecksFilterFlag.value);
+  if (issuedChecksFilterFrom?.value) qs.set("from", issuedChecksFilterFrom.value);
+  if (issuedChecksFilterTo?.value) qs.set("to", issuedChecksFilterTo.value);
+
+  issuedChecksManagementRows.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Caricamento...</td></tr>`;
+
+  try {
+    const r = await fetch(`/cassa/api/issued-checks?${qs.toString()}`, {
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" },
+      cache: "no-store"
+    });
+    const data = await r.json();
+
+    if (!r.ok || !data.ok) {
+      issuedChecksManagementRows.innerHTML = `<tr><td colspan="8" class="text-center text-danger">${escapeHtml(data.error || "Errore caricamento assegni emessi")}</td></tr>`;
+      return;
+    }
+
+    if (Array.isArray(data.statuses) && data.statuses.length) {
+      issuedCheckStatusOptions = data.statuses;
+      renderIssuedCheckStatusOptions();
+    }
+
+    const rows = data.checks || [];
+    if (!rows.length) {
+      issuedChecksManagementRows.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Nessun assegno emesso trovato</td></tr>`;
+      return;
+    }
+
+    issuedChecksManagementRows.innerHTML = rows.map(row => `
+      <tr data-issued-check-id="${row.id}">
+        <td>${escapeHtml(row.supplier || "")}</td>
+        <td>${escapeHtml(row.flag || "")}</td>
+        <td>${escapeHtml(row.bank_name || "")}</td>
+        <td>${escapeHtml(row.check_number || "")}</td>
+        <td>${escapeHtml(row.due_date || "")}</td>
+        <td>${escapeHtml(row.status_label || row.status || "")}</td>
+        <td class="text-end">${formatEuro2(row.amount || 0)}</td>
+        <td class="text-end">
+          <button type="button" class="btn btn-sm btn-outline-secondary btn-issued-check-edit" data-row='${escapeHtml(JSON.stringify(row))}'>Modifica</button>
+          <button type="button" class="btn btn-sm btn-outline-danger btn-issued-check-delete" data-id="${row.id}">Elimina</button>
+        </td>
+      </tr>
+    `).join("");
+  } catch (err) {
+    console.error("loadIssuedChecksManagement error:", err);
+    issuedChecksManagementRows.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Errore di rete</td></tr>`;
+  }
+}
+
+async function startEditIssuedCheck(row) {
+  if (issuedCheckEditId) issuedCheckEditId.value = row.id || "";
+  if (issuedCheckFlag) issuedCheckFlag.value = row.flag || "*";
+  await loadBanks(issuedCheckBankSelect);
+  if (issuedCheckBankSelect) issuedCheckBankSelect.value = String(row.bank_id || "");
+  if (issuedCheckNumber) issuedCheckNumber.value = row.check_number || "";
+  if (issuedCheckAmount) issuedCheckAmount.value = formatEuro2(row.amount || 0);
+  if (issuedCheckDueDate) issuedCheckDueDate.value = row.due_date || "";
+  if (issuedCheckStatus) issuedCheckStatus.value = row.status || "emesso";
+  if (issuedCheckNote) issuedCheckNote.value = row.description || "";
+}
+
+async function saveIssuedCheck() {
+  const id = (issuedCheckEditId?.value || "").trim();
+  if (!id) {
+    alert("Seleziona un assegno emesso da modificare.");
+    return;
+  }
+
+  const payload = {
+    flag: issuedCheckFlag?.value || "*",
+    bank_id: Number(issuedCheckBankSelect?.value || 0),
+    check_number: (issuedCheckNumber?.value || "").trim(),
+    amount: parseEuroToNumber(issuedCheckAmount?.value || "0"),
+    due_date: issuedCheckDueDate?.value || "",
+    status: issuedCheckStatus?.value || "emesso",
+    note: (issuedCheckNote?.value || "").trim(),
+  };
+
+  try {
+    if (issuedCheckSaveBtn) issuedCheckSaveBtn.disabled = true;
+    const r = await fetch(`/cassa/api/issued-checks/${id}`, {
+      method: "PUT",
+      credentials: "same-origin",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) {
+      alert(data.error || "Errore salvataggio assegno emesso");
+      return;
+    }
+
+    resetIssuedCheckForm();
+    await loadIssuedChecksManagement();
+    await refreshAgendaSections(["preview", "spese", "assegni_rientranti"]);
+  } catch (err) {
+    console.error("saveIssuedCheck error:", err);
+    alert("Errore di rete durante il salvataggio assegno emesso");
+  } finally {
+    if (issuedCheckSaveBtn) issuedCheckSaveBtn.disabled = false;
+  }
+}
+
+async function deleteIssuedCheck(checkId) {
+  if (!checkId) return;
+  if (!window.confirm("Vuoi eliminare questo assegno emesso?")) return;
+
+  try {
+    const r = await fetch(`/cassa/api/issued-checks/${checkId}`, {
+      method: "DELETE",
+      credentials: "same-origin",
+      headers: { "Accept": "application/json" }
+    });
+    const data = await r.json();
+    if (!r.ok || !data.ok) {
+      alert(data.error || "Errore eliminazione assegno emesso");
+      return;
+    }
+    await loadIssuedChecksManagement();
+    await refreshAgendaSections(["preview", "spese", "assegni_rientranti"]);
+  } catch (err) {
+    console.error("deleteIssuedCheck error:", err);
+    alert("Errore di rete durante l'eliminazione assegno emesso");
+  }
+}
+
+async function openIssuedChecksManagementModal() {
+  renderIssuedCheckStatusOptions();
+  resetIssuedCheckForm();
+  await loadBanks(issuedCheckBankSelect);
+  if (!issuedChecksManagementModal) {
+    alert("Modale gestione assegni emessi non disponibile.");
+    return;
+  }
+  issuedChecksManagementModal.show();
+  await loadIssuedChecksManagement();
+}
+
 /* =========================
    INIT
 ========================= */
@@ -2762,9 +2972,13 @@ document.addEventListener("DOMContentLoaded", async function () {
   if (checksManagementModalEl) {
     checksManagementModal = new bootstrap.Modal(checksManagementModalEl);
   }
+  if (issuedChecksManagementModalEl) {
+    issuedChecksManagementModal = new bootstrap.Modal(issuedChecksManagementModalEl);
+  }
 
   normalizeCurrencyInput(ownerTakeCashAmountInput);
   normalizeCurrencyInput(checkAmount);
+  normalizeCurrencyInput(issuedCheckAmount);
 
   normalizeCurrencyInput(posMoveAmountInput);
   normalizeCurrencyInput(cashMoveAmountInput);
@@ -5066,6 +5280,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     if (mode === "check") {
       if (base.opType === "expense") {
+        if (!["*", "**"].includes(base.flag)) {
+          return { ok: false, error: "Gli assegni emessi possono avere solo flag * o **." };
+        }
         const bank_id = Number(document.getElementById("checkExpenseBankSelect")?.value || 0);
         const check_number = (document.getElementById("checkExpenseNumber")?.value || "").trim();
         const due_date = (document.getElementById("checkExpenseDueDate")?.value || "").trim();
@@ -5079,8 +5296,8 @@ document.addEventListener("DOMContentLoaded", async function () {
           return { ok: false, error: "Inserisci il numero assegno." };
         }
 
-        if (!due_date) {
-          return { ok: false, error: "Inserisci la data di scadenza." };
+        if (base.flag === "**" && !due_date) {
+          return { ok: false, error: "Inserisci la data di scadenza per assegno postdatato." };
         }
 
         if (Math.abs(checkAmount - amount) > 0.009) {
@@ -5253,6 +5470,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       if (method === "check") {
         if (base.opType === "expense") {
+          if (!["*", "**"].includes(base.flag)) {
+            return { ok: false, error: "Gli assegni emessi possono avere solo flag * o **." };
+          }
           const bank_id = Number(row.querySelector(".multi-check-expense-bank-select")?.value || 0);
           const check_number = (row.querySelector(".multi-check-expense-number")?.value || "").trim();
           const due_date = (row.querySelector(".multi-check-expense-due-date")?.value || "").trim();
@@ -5264,8 +5484,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             return { ok: false, error: "Inserisci il numero assegno per ogni riga assegno spesa." };
           }
 
-          if (!due_date) {
-            return { ok: false, error: "Inserisci la scadenza per ogni riga assegno spesa." };
+          if (base.flag === "**" && !due_date) {
+            return { ok: false, error: "Inserisci la scadenza per ogni riga assegno spesa postdatato." };
           }
 
           payments.push({
@@ -5582,6 +5802,10 @@ document.addEventListener("DOMContentLoaded", async function () {
       return "checks";
     }
 
+    if (["issued_checks", "assegni_emessi", "gestione_assegni_emessi"].includes(openParam)) {
+      return "issued_checks";
+    }
+
     if (path.endsWith("/cassa/agenda/search/customer")) {
       return "search_customer";
     }
@@ -5602,6 +5826,10 @@ document.addEventListener("DOMContentLoaded", async function () {
       return "checks";
     }
 
+    if (path.endsWith("/cassa/agenda/issued-checks")) {
+      return "issued_checks";
+    }
+
     return "";
   }
 
@@ -5618,6 +5846,8 @@ document.addEventListener("DOMContentLoaded", async function () {
       printCompleteDayReport();
     } else if (action === "checks") {
       openChecksManagementModal();
+    } else if (action === "issued_checks") {
+      openIssuedChecksManagementModal();
     }
   }
 
@@ -6105,6 +6335,50 @@ document.addEventListener("DOMContentLoaded", async function () {
   checksFilterStatus?.addEventListener("change", async () => {
     await loadChecksManagement();
   });
+
+  issuedChecksReloadBtn?.addEventListener("click", async () => {
+    await loadIssuedChecksManagement();
+  });
+
+  issuedCheckCancelBtn?.addEventListener("click", resetIssuedCheckForm);
+
+  issuedCheckSaveBtn?.addEventListener("click", async () => {
+    await saveIssuedCheck();
+  });
+
+  issuedCheckFlag?.addEventListener("change", () => {
+    if (issuedCheckFlag.value !== "**" && issuedCheckDueDate) {
+      issuedCheckDueDate.value = "";
+    }
+  });
+
+  issuedChecksManagementRows?.addEventListener("click", async (e) => {
+    const editBtn = e.target.closest(".btn-issued-check-edit");
+    if (editBtn) {
+      try {
+        await startEditIssuedCheck(JSON.parse(editBtn.dataset.row || "{}"));
+      } catch (err) {
+        console.error("issued check edit parse error:", err);
+        alert("Errore caricamento assegno emesso");
+      }
+      return;
+    }
+
+    const deleteBtn = e.target.closest(".btn-issued-check-delete");
+    if (deleteBtn) {
+      await deleteIssuedCheck(deleteBtn.dataset.id);
+    }
+  });
+
+  issuedChecksFilterText?.addEventListener("keydown", async (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      await loadIssuedChecksManagement();
+    }
+  });
+
+  issuedChecksFilterStatus?.addEventListener("change", loadIssuedChecksManagement);
+  issuedChecksFilterFlag?.addEventListener("change", loadIssuedChecksManagement);
 
   movementSearchCustomerBtn?.addEventListener("click", async () => {
     try {

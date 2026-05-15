@@ -2116,15 +2116,16 @@ class CashIssuedCheck(db.Model):
     )
 
     check_number = db.Column(db.String(50), nullable=False)
-    due_date = db.Column(db.Date, nullable=False)
+    flag = db.Column(db.String(2), nullable=False, default="*")
+    due_date = db.Column(db.Date, nullable=True)
     amount = db.Column(db.Numeric(12, 2), nullable=False)
     registered_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
 
     status = db.Column(
         db.String(20),
         nullable=False,
-        default="issued",
-    )  # issued | delivered | paid | cancelled
+        default="emesso",
+    )  # emesso | registrato | rientrato
 
     note = db.Column(db.String(255), nullable=True)
 

@@ -23,7 +23,7 @@ from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck,
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
     CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashOwnerTake, CashOwnerTakeCheck, \
     CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck, CashIssuedCheck, CashDepositCheck
-from tools.cash_math import calculate_closure_pure, next_banking_day, is_banking_day, _sum_amount
+from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
 
@@ -57,6 +57,12 @@ CHECK_STATUS_LABELS = {
     "bounced": "Insoluto",
     "protested": "Protestato",
     "withdrawn": "Ritirato",
+}
+ISSUED_CHECK_STATUSES = ("emesso", "registrato", "rientrato")
+ISSUED_CHECK_STATUS_LABELS = {
+    "emesso": "Emesso",
+    "registrato": "Registrato",
+    "rientrato": "Rientrato",
 }
 
 _VAULT_VERSION = 1
@@ -1035,6 +1041,13 @@ def agenda_report_print():
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def agenda_checks():
+    return render_template("agenda.html")
+
+
+@cassa_bp.route("/agenda/issued-checks", methods=["GET"])
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def agenda_issued_checks():
     return render_template("agenda.html")
 
 
@@ -2405,28 +2418,86 @@ def api_checks_due():
     })
 
 
-def _issued_check_window_end(ref_date: date) -> date:
-    tomorrow = ref_date + timedelta(days=1)
-    if not is_banking_day(ref_date) or not is_banking_day(tomorrow):
-        return tomorrow
-    return ref_date
+def _normalize_issued_check_status(status):
+    value = (status or "emesso").strip().lower()
+    legacy = {
+        "issued": "emesso",
+        "delivered": "registrato",
+        "paid": "rientrato",
+        "cancelled": "rientrato",
+    }
+    value = legacy.get(value, value)
+    if value not in ISSUED_CHECK_STATUSES:
+        raise ValueError("Stato assegno emesso non valido")
+    return value
 
 
 def _serialize_issued_check_for_returning(row: CashIssuedCheck, ref_date: date):
     registered_date = row.registered_at.date() if row.registered_at else None
     expense = row.expense
+    status = _normalize_issued_check_status(row.status)
     return {
         "id": row.id,
         "bank_name": row.bank.name if row.bank else None,
         "bank_id": row.bank_id,
         "check_number": row.check_number,
+        "flag": row.flag or ("**" if row.due_date else "*"),
         "amount": float(row.amount or 0),
         "due_date": row.due_date.isoformat() if row.due_date else None,
+        "status": status,
+        "status_label": ISSUED_CHECK_STATUS_LABELS.get(status, status),
         "registered_at": row.registered_at.isoformat() if row.registered_at else None,
         "is_registered_today": bool(registered_date == ref_date),
         "supplier": expense.supplier if expense else None,
         "description": expense.notes if expense else row.note,
     }
+
+
+def _parse_issued_check_update_payload(data):
+    flag = (data.get("flag") or "*").strip()
+    if flag not in {"*", "**"}:
+        raise ValueError("Flag assegno emesso non valido")
+
+    bank_id = data.get("bank_id")
+    if not bank_id:
+        raise ValueError("Banca emittente obbligatoria")
+    _validate_bank(bank_id)
+
+    check_number = (data.get("check_number") or "").strip()
+    if not check_number:
+        raise ValueError("Numero assegno obbligatorio")
+
+    amount = _to_decimal_amount(data.get("amount"), "amount")
+    due_date = None
+    due_date_raw = (data.get("due_date") or "").strip()
+    if flag == "**":
+        if not due_date_raw:
+            raise ValueError("Scadenza obbligatoria per assegno postdatato")
+        try:
+            due_date = date.fromisoformat(due_date_raw)
+        except Exception:
+            raise ValueError("Data scadenza non valida")
+
+    status = _normalize_issued_check_status(data.get("status"))
+    note = (data.get("note") or "").strip() or None
+
+    return {
+        "flag": flag,
+        "bank_id": bank_id,
+        "check_number": check_number,
+        "amount": amount,
+        "due_date": due_date,
+        "status": status,
+        "note": note,
+    }
+
+
+def _issued_check_day_date(row: CashIssuedCheck):
+    expense = row.expense
+    if not expense:
+        return None
+    cash_day = CashDay.query.filter_by(id=expense.cash_day_id).first()
+    return cash_day.day_date if cash_day else None
 
 
 @cassa_bp.get("/api/issued-checks/returning")
@@ -2443,7 +2514,6 @@ def api_issued_checks_returning():
     else:
         ref_date = date.today()
 
-    window_end = _issued_check_window_end(ref_date)
     next_day = ref_date + timedelta(days=1)
 
     checks = (
@@ -2453,12 +2523,15 @@ def api_issued_checks_returning():
             selectinload(CashIssuedCheck.expense),
         )
         .filter(
-            CashIssuedCheck.due_date >= ref_date,
-            CashIssuedCheck.due_date <= window_end,
-            CashIssuedCheck.status != "cancelled",
+            CashIssuedCheck.due_date.isnot(None),
+            CashIssuedCheck.due_date <= ref_date,
             or_(
-                CashIssuedCheck.registered_at.is_(None),
                 and_(
+                    CashIssuedCheck.due_date <= ref_date,
+                    CashIssuedCheck.status.in_(("emesso", "issued")),
+                ),
+                and_(
+                    CashIssuedCheck.status.in_(("registrato", "delivered")),
                     CashIssuedCheck.registered_at >= datetime.combine(ref_date, datetime.min.time()),
                     CashIssuedCheck.registered_at < datetime.combine(next_day, datetime.min.time()),
                 ),
@@ -2472,7 +2545,6 @@ def api_issued_checks_returning():
     return jsonify({
         "ok": True,
         "ref_date": ref_date.isoformat(),
-        "window_end": window_end.isoformat(),
         "checks": [_serialize_issued_check_for_returning(row, ref_date) for row in checks],
     })
 
@@ -2499,6 +2571,7 @@ def api_set_issued_check_registered(check_id):
 
     try:
         row.registered_at = datetime.utcnow() if registered else None
+        row.status = "registrato" if registered else "emesso"
         db.session.commit()
 
         _bump_agenda_day_version(ref_date.isoformat())
@@ -2511,6 +2584,141 @@ def api_set_issued_check_registered(check_id):
         db.session.rollback()
         logger.exception("api_set_issued_check_registered error: %s", e)
         return jsonify({"ok": False, "error": "Errore aggiornamento assegno emesso"}), 500
+
+
+@cassa_bp.get("/api/issued-checks")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_list_issued_checks():
+    q_text = (request.args.get("q") or "").strip()
+    status = (request.args.get("status") or "").strip()
+    flag = (request.args.get("flag") or "").strip()
+    from_date = (request.args.get("from") or "").strip()
+    to_date = (request.args.get("to") or "").strip()
+
+    query = (
+        CashIssuedCheck.query
+        .options(
+            selectinload(CashIssuedCheck.bank),
+            selectinload(CashIssuedCheck.expense),
+        )
+        .join(CashExpense, CashExpense.id == CashIssuedCheck.expense_id)
+        .outerjoin(CashBank, CashBank.id == CashIssuedCheck.bank_id)
+    )
+
+    if q_text:
+        like = f"%{q_text}%"
+        query = query.filter(or_(
+            CashIssuedCheck.check_number.ilike(like),
+            CashBank.name.ilike(like),
+            CashExpense.supplier.ilike(like),
+            CashExpense.notes.ilike(like),
+        ))
+
+    if status:
+        try:
+            normalized_status = _normalize_issued_check_status(status)
+        except ValueError as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
+        query = query.filter(CashIssuedCheck.status == normalized_status)
+
+    if flag:
+        if flag not in {"*", "**"}:
+            return jsonify({"ok": False, "error": "Flag assegno emesso non valido"}), 400
+        query = query.filter(CashIssuedCheck.flag == flag)
+
+    if from_date:
+        try:
+            parsed_from = datetime.strptime(from_date, "%Y-%m-%d").date()
+            query = query.filter(CashIssuedCheck.due_date >= parsed_from)
+        except ValueError:
+            return jsonify({"ok": False, "error": "Data da non valida"}), 400
+
+    if to_date:
+        try:
+            parsed_to = datetime.strptime(to_date, "%Y-%m-%d").date()
+            query = query.filter(CashIssuedCheck.due_date <= parsed_to)
+        except ValueError:
+            return jsonify({"ok": False, "error": "Data a non valida"}), 400
+
+    rows = (
+        query
+        .order_by(CashIssuedCheck.due_date.asc().nullslast(), CashIssuedCheck.created_at.desc(), CashIssuedCheck.id.desc())
+        .limit(300)
+        .all()
+    )
+
+    ref_date = date.today()
+    return jsonify({
+        "ok": True,
+        "statuses": [{"value": key, "label": ISSUED_CHECK_STATUS_LABELS[key]} for key in ISSUED_CHECK_STATUSES],
+        "checks": [_serialize_issued_check_for_returning(row, ref_date) for row in rows],
+    })
+
+
+@cassa_bp.put("/api/issued-checks/<int:check_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_update_issued_check(check_id):
+    row = (
+        CashIssuedCheck.query
+        .options(selectinload(CashIssuedCheck.expense))
+        .filter_by(id=check_id)
+        .first()
+    )
+    if not row:
+        return jsonify({"ok": False, "error": "Assegno emesso non trovato"}), 404
+
+    data = request.get_json(silent=True) or {}
+    try:
+        values = _parse_issued_check_update_payload(data)
+        old_day_date = _issued_check_day_date(row)
+
+        for key, value in values.items():
+            setattr(row, key, value)
+
+        if row.status == "registrato" and not row.registered_at:
+            row.registered_at = datetime.utcnow()
+        elif row.status != "registrato":
+            row.registered_at = None
+
+        db.session.commit()
+
+        day_date = old_day_date or _issued_check_day_date(row)
+        if day_date:
+            _bump_agenda_day_version(day_date.isoformat())
+
+        return jsonify({"ok": True, "check": _serialize_issued_check_for_returning(row, date.today())})
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_update_issued_check error: %s", e)
+        return jsonify({"ok": False, "error": "Errore aggiornamento assegno emesso"}), 500
+
+
+@cassa_bp.delete("/api/issued-checks/<int:check_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_delete_issued_check(check_id):
+    row = CashIssuedCheck.query.options(selectinload(CashIssuedCheck.expense)).filter_by(id=check_id).first()
+    if not row:
+        return jsonify({"ok": False, "error": "Assegno emesso non trovato"}), 404
+
+    try:
+        day_date = _issued_check_day_date(row)
+        db.session.delete(row)
+        db.session.commit()
+
+        if day_date:
+            _bump_agenda_day_version(day_date.isoformat())
+
+        return jsonify({"ok": True, "check_id": check_id})
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_delete_issued_check error: %s", e)
+        return jsonify({"ok": False, "error": "Errore eliminazione assegno emesso"}), 500
 
 
 @cassa_bp.get("/api/checks")
@@ -3926,9 +4134,11 @@ def api_create_expense(day_date):
                 payment.bank_id = bank_id
 
             elif method == "check":
+                if flag not in {"*", "**"}:
+                    raise ValueError(f"Invalid issued check flag at row {idx}")
                 bank_id = p.get("bank_id")
                 check_number = (p.get("check_number") or "").strip()
-                due_date_raw = p.get("due_date")
+                due_date_raw = (p.get("due_date") or "").strip()
 
                 if not bank_id:
                     raise ValueError(f"Missing bank_id at row {idx}")
@@ -3936,13 +4146,14 @@ def api_create_expense(day_date):
                 if not check_number:
                     raise ValueError(f"Missing check_number at row {idx}")
 
-                if not due_date_raw:
-                    raise ValueError(f"Missing due_date at row {idx}")
-
-                try:
-                    due_date = date.fromisoformat(due_date_raw)
-                except Exception:
-                    raise ValueError(f"Invalid due_date format at row {idx}")
+                due_date = None
+                if flag == "**":
+                    if not due_date_raw:
+                        raise ValueError(f"Missing due_date at row {idx}")
+                    try:
+                        due_date = date.fromisoformat(due_date_raw)
+                    except Exception:
+                        raise ValueError(f"Invalid due_date format at row {idx}")
 
                 payment.bank_id = bank_id
 
@@ -3950,8 +4161,10 @@ def api_create_expense(day_date):
                     expense=exp,
                     bank_id=bank_id,
                     check_number=check_number,
+                    flag=flag if flag in {"*", "**"} else "*",
                     due_date=due_date,
                     amount=amount,
+                    status="emesso",
                 )
 
                 db.session.add(issued_check)
@@ -3984,7 +4197,12 @@ def api_list_expenses(day_date):
 
     cash_day = (
         CashDay.query
-        .options(selectinload(CashDay.expenses).selectinload(CashExpense.payments))
+        .options(
+            selectinload(CashDay.expenses).selectinload(CashExpense.payments),
+            selectinload(CashDay.expenses)
+            .selectinload(CashExpense.issued_checks)
+            .selectinload(CashIssuedCheck.bank),
+        )
         .filter(CashDay.day_date == d)
         .first()
     )
@@ -3994,8 +4212,10 @@ def api_list_expenses(day_date):
     items = []
     for e in cash_day.expenses:
         pay = []
+        issued_checks = sorted(e.issued_checks or [], key=lambda item: item.id or 0)
+        issued_idx = 0
         for p in (e.payments or []):
-            pay.append({
+            row = {
                 "id": p.id,
                 "direction": p.direction,
                 "method": p.method,
@@ -4006,7 +4226,21 @@ def api_list_expenses(day_date):
                 "pos_card_label": p.pos_card_label,
                 "pos_is_personal": bool(p.pos_is_personal),
                 "created_at": p.created_at.isoformat() if p.created_at else None,
-            })
+            }
+            if p.method == "check":
+                issued = issued_checks[issued_idx] if issued_idx < len(issued_checks) else None
+                issued_idx += 1
+                if issued:
+                    row.update({
+                        "issued_check_id": issued.id,
+                        "bank_id": issued.bank_id,
+                        "bank_name": issued.bank.name if issued.bank else None,
+                        "check_number": issued.check_number,
+                        "due_date": issued.due_date.isoformat() if issued.due_date else None,
+                        "issued_check_flag": issued.flag or ("**" if issued.due_date else "*"),
+                        "issued_check_status": _normalize_issued_check_status(issued.status),
+                    })
+            pay.append(row)
         items.append({
             "id": e.id,
             "created_at": e.created_at.isoformat() if e.created_at else None,
@@ -4270,21 +4504,25 @@ def api_update_expense(expense_id):
                         payment.bank_id = bank_id
 
                     elif method == "check":
+                        if flag not in {"*", "**"}:
+                            raise ValueError(f"Invalid issued check flag at row {idx_p}")
                         bank_id = p.get("bank_id")
                         check_number = (p.get("check_number") or "").strip()
-                        due_date_raw = p.get("due_date")
+                        due_date_raw = (p.get("due_date") or "").strip()
 
                         if not bank_id:
                             raise ValueError(f"Missing bank_id at row {idx_p}")
                         if not check_number:
                             raise ValueError(f"Missing check_number at row {idx_p}")
-                        if not due_date_raw:
-                            raise ValueError(f"Missing due_date at row {idx_p}")
 
-                        try:
-                            due_date = date.fromisoformat(due_date_raw)
-                        except Exception:
-                            raise ValueError(f"Invalid due_date format at row {idx_p}")
+                        due_date = None
+                        if flag == "**":
+                            if not due_date_raw:
+                                raise ValueError(f"Missing due_date at row {idx_p}")
+                            try:
+                                due_date = date.fromisoformat(due_date_raw)
+                            except Exception:
+                                raise ValueError(f"Invalid due_date format at row {idx_p}")
 
                         payment.bank_id = bank_id
 
@@ -4292,8 +4530,10 @@ def api_update_expense(expense_id):
                             expense=exp,
                             bank_id=bank_id,
                             check_number=check_number,
+                            flag=flag if flag in {"*", "**"} else "*",
                             due_date=due_date,
                             amount=amount,
+                            status="emesso",
                         )
                         db.session.add(issued_check)
 
@@ -4516,9 +4756,11 @@ def api_update_expense(expense_id):
                 payment.bank_id = bank_id
 
             elif method == "check":
+                if flag not in {"*", "**"}:
+                    raise ValueError(f"Invalid issued check flag at row {idx}")
                 bank_id = p.get("bank_id")
                 check_number = (p.get("check_number") or "").strip()
-                due_date_raw = p.get("due_date")
+                due_date_raw = (p.get("due_date") or "").strip()
 
                 if not bank_id:
                     raise ValueError(f"Missing bank_id at row {idx}")
@@ -4526,13 +4768,14 @@ def api_update_expense(expense_id):
                 if not check_number:
                     raise ValueError(f"Missing check_number at row {idx}")
 
-                if not due_date_raw:
-                    raise ValueError(f"Missing due_date at row {idx}")
-
-                try:
-                    due_date = date.fromisoformat(due_date_raw)
-                except Exception:
-                    raise ValueError(f"Invalid due_date format at row {idx}")
+                due_date = None
+                if flag == "**":
+                    if not due_date_raw:
+                        raise ValueError(f"Missing due_date at row {idx}")
+                    try:
+                        due_date = date.fromisoformat(due_date_raw)
+                    except Exception:
+                        raise ValueError(f"Invalid due_date format at row {idx}")
 
                 payment.bank_id = bank_id
 
@@ -4540,8 +4783,10 @@ def api_update_expense(expense_id):
                     expense=expense,
                     bank_id=bank_id,
                     check_number=check_number,
+                    flag=flag if flag in {"*", "**"} else "*",
                     due_date=due_date,
                     amount=amount,
+                    status="emesso",
                 )
 
                 db.session.add(issued_check)

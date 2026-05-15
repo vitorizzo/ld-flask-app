@@ -2183,6 +2183,116 @@
   </div>
 </div>
 
+<div class="modal fade agenda-modal" id="issuedChecksManagementModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Gestione assegni emessi</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 mb-3">
+          <div class="col-12 col-lg-3">
+            <label class="form-label" for="issuedChecksFilterText">Cerca</label>
+            <input type="text" class="form-control" id="issuedChecksFilterText" placeholder="Fornitore, banca, numero">
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="issuedChecksFilterStatus">Stato</label>
+            <select class="form-select" id="issuedChecksFilterStatus">
+              <option value="">Tutti</option>
+            </select>
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="issuedChecksFilterFlag">Flag</label>
+            <select class="form-select" id="issuedChecksFilterFlag">
+              <option value="">Tutti</option>
+              <option value="*">*</option>
+              <option value="**">**</option>
+            </select>
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="issuedChecksFilterFrom">Scadenza da</label>
+            <input type="date" class="form-control" id="issuedChecksFilterFrom">
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="issuedChecksFilterTo">Scadenza a</label>
+            <input type="date" class="form-control" id="issuedChecksFilterTo">
+          </div>
+          <div class="col-12 col-lg-1 d-flex align-items-end justify-content-end">
+            <button type="button" class="btn btn-outline-secondary" id="issuedChecksReloadBtn">Aggiorna</button>
+          </div>
+        </div>
+
+        <div class="card mb-3">
+          <div class="card-body">
+            <input type="hidden" id="issuedCheckEditId">
+            <div class="row g-2 align-items-end">
+              <div class="col-6 col-lg-1">
+                <label class="form-label" for="issuedCheckFlag">Flag</label>
+                <select class="form-select" id="issuedCheckFlag">
+                  <option value="*">*</option>
+                  <option value="**">**</option>
+                </select>
+              </div>
+              <div class="col-12 col-lg-3">
+                <label class="form-label" for="issuedCheckBankSelect">Banca emittente</label>
+                <select class="form-select" id="issuedCheckBankSelect"></select>
+              </div>
+              <div class="col-6 col-lg-2">
+                <label class="form-label" for="issuedCheckNumber">Numero</label>
+                <input type="text" class="form-control" id="issuedCheckNumber">
+              </div>
+              <div class="col-6 col-lg-2">
+                <label class="form-label" for="issuedCheckAmount">Importo</label>
+                <input type="text" class="form-control text-end" id="issuedCheckAmount" inputmode="decimal">
+              </div>
+              <div class="col-6 col-lg-2">
+                <label class="form-label" for="issuedCheckDueDate">Scadenza</label>
+                <input type="date" class="form-control" id="issuedCheckDueDate">
+              </div>
+              <div class="col-6 col-lg-2">
+                <label class="form-label" for="issuedCheckStatus">Stato</label>
+                <select class="form-select" id="issuedCheckStatus"></select>
+              </div>
+              <div class="col-12 col-lg-9">
+                <label class="form-label" for="issuedCheckNote">Note</label>
+                <input type="text" class="form-control" id="issuedCheckNote">
+              </div>
+              <div class="col-12 col-lg-3 text-end">
+                <button type="button" class="btn btn-outline-secondary" id="issuedCheckCancelBtn">Annulla</button>
+                <button type="button" class="btn btn-success" id="issuedCheckSaveBtn">Salva modifica</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle">
+            <thead>
+              <tr>
+                <th>Fornitore</th>
+                <th>Flag</th>
+                <th>Banca</th>
+                <th>Numero</th>
+                <th>Scadenza</th>
+                <th>Stato</th>
+                <th class="text-end">Importo</th>
+                <th class="text-end">Azioni</th>
+              </tr>
+            </thead>
+            <tbody id="issuedChecksManagementRows">
+              <tr><td colspan="8" class="text-center text-muted">Nessun caricamento eseguito</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="contextMenu" class="context-menu d-none">
   <div class="context-menu-item" data-action="edit">Modifica</div>
   <div class="context-menu-item" data-action="delete">Elimina</div>

@@ -17,6 +17,8 @@ depends_on = None
 
 def upgrade():
     with op.batch_alter_table("cash_issued_checks", schema=None) as batch_op:
+        batch_op.add_column(sa.Column("flag", sa.String(length=2), nullable=False, server_default="*"))
+        batch_op.alter_column("due_date", existing_type=sa.Date(), nullable=True)
         batch_op.add_column(sa.Column("registered_at", sa.DateTime(timezone=True), nullable=True))
         batch_op.create_index(
             batch_op.f("ix_cash_issued_checks_registered_at"),
@@ -24,8 +26,19 @@ def upgrade():
             unique=False,
         )
 
+    op.execute(
+        "UPDATE cash_issued_checks "
+        "SET status = CASE "
+        "WHEN status = 'paid' THEN 'rientrato' "
+        "WHEN status = 'delivered' THEN 'registrato' "
+        "WHEN status = 'cancelled' THEN 'rientrato' "
+        "ELSE 'emesso' END"
+    )
+
 
 def downgrade():
     with op.batch_alter_table("cash_issued_checks", schema=None) as batch_op:
         batch_op.drop_index(batch_op.f("ix_cash_issued_checks_registered_at"))
         batch_op.drop_column("registered_at")
+        batch_op.alter_column("due_date", existing_type=sa.Date(), nullable=False)
+        batch_op.drop_column("flag")
