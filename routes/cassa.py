@@ -23,7 +23,7 @@ from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck,
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
     CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashOwnerTake, CashOwnerTakeCheck, \
     CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck, CashIssuedCheck, CashDepositCheck
-from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
+from tools.cash_math import calculate_closure_pure, next_banking_day, is_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
 
@@ -2405,6 +2405,114 @@ def api_checks_due():
     })
 
 
+def _issued_check_window_end(ref_date: date) -> date:
+    tomorrow = ref_date + timedelta(days=1)
+    if not is_banking_day(ref_date) or not is_banking_day(tomorrow):
+        return tomorrow
+    return ref_date
+
+
+def _serialize_issued_check_for_returning(row: CashIssuedCheck, ref_date: date):
+    registered_date = row.registered_at.date() if row.registered_at else None
+    expense = row.expense
+    return {
+        "id": row.id,
+        "bank_name": row.bank.name if row.bank else None,
+        "bank_id": row.bank_id,
+        "check_number": row.check_number,
+        "amount": float(row.amount or 0),
+        "due_date": row.due_date.isoformat() if row.due_date else None,
+        "registered_at": row.registered_at.isoformat() if row.registered_at else None,
+        "is_registered_today": bool(registered_date == ref_date),
+        "supplier": expense.supplier if expense else None,
+        "description": expense.notes if expense else row.note,
+    }
+
+
+@cassa_bp.get("/api/issued-checks/returning")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_issued_checks_returning():
+    date_str = (request.args.get("date") or "").strip()
+
+    if date_str:
+        try:
+            ref_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"ok": False, "error": "Invalid date format. Use YYYY-MM-DD"}), 400
+    else:
+        ref_date = date.today()
+
+    window_end = _issued_check_window_end(ref_date)
+    next_day = ref_date + timedelta(days=1)
+
+    checks = (
+        CashIssuedCheck.query
+        .options(
+            selectinload(CashIssuedCheck.bank),
+            selectinload(CashIssuedCheck.expense),
+        )
+        .filter(
+            CashIssuedCheck.due_date >= ref_date,
+            CashIssuedCheck.due_date <= window_end,
+            CashIssuedCheck.status != "cancelled",
+            or_(
+                CashIssuedCheck.registered_at.is_(None),
+                and_(
+                    CashIssuedCheck.registered_at >= datetime.combine(ref_date, datetime.min.time()),
+                    CashIssuedCheck.registered_at < datetime.combine(next_day, datetime.min.time()),
+                ),
+            ),
+        )
+        .order_by(CashIssuedCheck.due_date.asc(), CashIssuedCheck.id.asc())
+        .limit(80)
+        .all()
+    )
+
+    return jsonify({
+        "ok": True,
+        "ref_date": ref_date.isoformat(),
+        "window_end": window_end.isoformat(),
+        "checks": [_serialize_issued_check_for_returning(row, ref_date) for row in checks],
+    })
+
+
+@cassa_bp.put("/api/issued-checks/<int:check_id>/registered")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_set_issued_check_registered(check_id):
+    row = CashIssuedCheck.query.filter_by(id=check_id).first()
+    if not row:
+        return jsonify({"ok": False, "error": "Assegno emesso non trovato"}), 404
+
+    data = request.get_json(silent=True) or {}
+    registered = bool(data.get("registered", False))
+    ref_date_str = (data.get("date") or "").strip()
+
+    if ref_date_str:
+        try:
+            ref_date = datetime.strptime(ref_date_str, "%Y-%m-%d").date()
+        except ValueError:
+            return jsonify({"ok": False, "error": "Invalid date format. Use YYYY-MM-DD"}), 400
+    else:
+        ref_date = date.today()
+
+    try:
+        row.registered_at = datetime.utcnow() if registered else None
+        db.session.commit()
+
+        _bump_agenda_day_version(ref_date.isoformat())
+
+        return jsonify({
+            "ok": True,
+            "check": _serialize_issued_check_for_returning(row, ref_date),
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_set_issued_check_registered error: %s", e)
+        return jsonify({"ok": False, "error": "Errore aggiornamento assegno emesso"}), 500
+
+
 @cassa_bp.get("/api/checks")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
@@ -2501,10 +2609,6 @@ def api_create_check():
     try:
         values = _parse_check_payload(data)
         _ensure_unique_cash_check(values["bank_name"], values["check_number"])
-        if False:
-            pass
-            return jsonify({"ok": False, "error": "Esiste già un assegno con questa banca e questo numero"}), 409
-
         check = CashCheck(**values)
         db.session.add(check)
         db.session.flush()
@@ -2552,10 +2656,6 @@ def api_update_check(check_id):
         old_day_dates = _linked_day_dates_for_check(check)
         values = _parse_check_payload(data, existing_check=check)
         _ensure_unique_cash_check(values["bank_name"], values["check_number"], check.id)
-        if False:
-            pass
-            return jsonify({"ok": False, "error": "Esiste già un assegno con questa banca e questo numero"}), 409
-
         old_status = check.status
         new_status = values.pop("status")
 

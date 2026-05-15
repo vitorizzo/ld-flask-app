@@ -1001,6 +1001,7 @@ async function refreshAgendaSections(sections = []) {
   if (sections.includes("cash_moves")) jobs.push(loadCashMoves(currentDay));
   if (sections.includes("coins")) jobs.push(loadCoinsBalance(currentDay));
   if (sections.includes("assegni")) jobs.push(loadAssegniScadenza(currentDay, false));
+  if (sections.includes("assegni_rientranti")) jobs.push(loadAssegniRientranti(currentDay));
 
   await Promise.all(jobs);
 }
@@ -1016,7 +1017,8 @@ async function refreshAgendaData() {
     loadSpese(currentDay),
     loadPosMoves(currentDay),
     loadCashMoves(currentDay),
-    loadCoinsBalance(currentDay)
+    loadCoinsBalance(currentDay),
+    loadAssegniRientranti(currentDay)
   ]);
 
   loadAssegniScadenza(currentDay, false);
@@ -1341,6 +1343,135 @@ function loadAssegniScadenza(dateStr = null, includeTodayReceived = false) {
       }
     });
 }
+
+function renderAssegniRientranti(items) {
+  const list = document.getElementById("assegniRientrantiList");
+  if (!list) return;
+
+  list.innerHTML = "";
+
+  if (!items || !items.length) {
+    const empty = document.createElement("div");
+    empty.className = "list-group-item text-muted small";
+    empty.textContent = "Nessun assegno rientrante";
+    list.appendChild(empty);
+    return;
+  }
+
+  for (const c of items) {
+    const row = document.createElement("label");
+    row.className = "list-group-item d-flex justify-content-between align-items-start gap-2";
+    row.dataset.issuedCheckId = String(c.id || "");
+
+    const leftWrap = document.createElement("div");
+    leftWrap.className = "d-flex align-items-start gap-2 me-2";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.className = "form-check-input mt-1 issued-check-registered";
+    checkbox.checked = !!c.is_registered_today;
+    checkbox.dataset.checkId = String(c.id || "");
+
+    const textWrap = document.createElement("div");
+    textWrap.className = c.is_registered_today ? "text-decoration-line-through text-muted" : "";
+
+    const title = document.createElement("div");
+    title.className = "fw-semibold";
+    const bank = (c.bank_name || "Banca?").trim();
+    const num = (c.check_number || "").trim();
+    title.textContent = `${bank} â€¢ ${num}`;
+
+    const meta = document.createElement("div");
+    meta.className = "small text-muted";
+    const supplier = c.supplier || "Beneficiario?";
+    const due = c.due_date || "â€”";
+    meta.textContent = `${supplier} â€¢ Rientro: ${due}`;
+
+    textWrap.appendChild(title);
+    textWrap.appendChild(meta);
+
+    leftWrap.appendChild(checkbox);
+    leftWrap.appendChild(textWrap);
+
+    const right = document.createElement("div");
+    right.className = c.is_registered_today ? "text-end text-decoration-line-through text-muted" : "text-end";
+
+    const amt = document.createElement("div");
+    amt.className = "fw-bold";
+    amt.textContent = eur(c.amount);
+
+    right.appendChild(amt);
+
+    row.appendChild(leftWrap);
+    row.appendChild(right);
+
+    list.appendChild(row);
+  }
+}
+
+function loadAssegniRientranti(dateStr = null) {
+  const ref = dateStr || currentDay || toLocalYMD(new Date());
+  const qs = new URLSearchParams({ date: ref });
+
+  return fetch(`/cassa/api/issued-checks/returning?${qs.toString()}`, {
+    credentials: "same-origin",
+    headers: { "Accept": "application/json" },
+    cache: "no-store"
+  })
+    .then(r => r.json())
+    .then(data => {
+      if (!data.ok) return;
+      renderAssegniRientranti(data.checks || []);
+    })
+    .catch(() => {
+      const list = document.getElementById("assegniRientrantiList");
+      if (list) {
+        list.innerHTML = `<div class="list-group-item text-danger small">Errore caricamento assegni rientranti</div>`;
+      }
+    });
+}
+
+async function toggleAssegnoRientrante(checkId, registered) {
+  if (!checkId) return;
+
+  const r = await fetch(`/cassa/api/issued-checks/${encodeURIComponent(checkId)}/registered`, {
+    method: "PUT",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    body: JSON.stringify({
+      registered: !!registered,
+      date: currentDay || toLocalYMD(new Date())
+    })
+  });
+
+  const data = await r.json();
+  if (!r.ok || !data.ok) {
+    throw new Error(data.error || "Errore aggiornamento assegno rientrante");
+  }
+
+  await loadAssegniRientranti(currentDay);
+}
+
+document.getElementById("assegniRientrantiList")?.addEventListener("change", async (e) => {
+  const checkbox = e.target.closest(".issued-check-registered");
+  if (!checkbox) return;
+
+  const previousValue = !checkbox.checked;
+  checkbox.disabled = true;
+
+  try {
+    await toggleAssegnoRientrante(checkbox.dataset.checkId, checkbox.checked);
+  } catch (err) {
+    console.error("toggleAssegnoRientrante error:", err);
+    checkbox.checked = previousValue;
+    alert(err.message || "Errore aggiornamento assegno rientrante");
+  } finally {
+    checkbox.disabled = false;
+  }
+});
 
 /* =========================
    RENDER LISTE GIORNATA
@@ -2246,6 +2377,7 @@ function startAssegniAutoRefresh() {
   assegniInterval = setInterval(() => {
     if (document.visibilityState === "visible") {
       loadAssegniScadenza(currentDay, false);
+      loadAssegniRientranti(currentDay);
     }
   }, 30000);
 }
@@ -5385,6 +5517,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         "preview",
         opType === "expense" ? "spese" : "incassi",
         opType === "sale" ? "assegni" : null,
+        opType === "expense" ? "assegni_rientranti" : null,
         opType === "sale" ? "pos" : null
       ].filter(Boolean));
 
@@ -6654,6 +6787,7 @@ document.getElementById("speseList")?.addEventListener("change", async (e) => {
 document.addEventListener("visibilitychange", function () {
   if (document.visibilityState === "visible") {
     loadAssegniScadenza(currentDay, false);
+    loadAssegniRientranti(currentDay);
     startAssegniAutoRefresh();
   } else {
     stopAssegniAutoRefresh();

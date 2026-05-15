@@ -2118,6 +2118,7 @@ class CashIssuedCheck(db.Model):
     check_number = db.Column(db.String(50), nullable=False)
     due_date = db.Column(db.Date, nullable=False)
     amount = db.Column(db.Numeric(12, 2), nullable=False)
+    registered_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
 
     status = db.Column(
         db.String(20),
