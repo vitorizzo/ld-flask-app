@@ -12,17 +12,57 @@ file_bp = Blueprint("file_bp", __name__)
 
 # Cartella dove il gestionale esporta i file
 ESTRAZIONI_FOLDER = "/dati/discorete/estrazioni"
+ALLOWED_EXPORT_EXTENSIONS = {".csv", ".txt", ".pdf"}
+
+
+def _export_folder():
+    return os.getenv("EXPORT_FOLDER") or current_app.config.get("EXPORT_FOLDER") or ESTRAZIONI_FOLDER
+
+
+def _resolve_export_file(filename):
+    safe_name = os.path.basename(filename or "")
+    if not safe_name:
+        raise FileNotFoundError("Nome file non valido")
+
+    _, ext = os.path.splitext(safe_name)
+    if ext.lower() not in ALLOWED_EXPORT_EXTENSIONS:
+        raise FileNotFoundError(f"Estensione file non consentita: {safe_name}")
+
+    folder = _export_folder()
+    direct_path = os.path.join(folder, safe_name)
+    if os.path.exists(direct_path):
+        return folder, safe_name, direct_path
+
+    upper_name = safe_name.upper()
+    upper_path = os.path.join(folder, upper_name)
+    if os.path.exists(upper_path):
+        return folder, upper_name, upper_path
+
+    lower_name = safe_name.lower()
+    lower_path = os.path.join(folder, lower_name)
+    if os.path.exists(lower_path):
+        return folder, lower_name, lower_path
+
+    if os.path.isdir(folder):
+        safe_lower = safe_name.lower()
+        for existing_name in os.listdir(folder):
+            if existing_name.lower() == safe_lower:
+                resolved_path = os.path.join(folder, existing_name)
+                if os.path.isfile(resolved_path):
+                    return folder, existing_name, resolved_path
+
+    raise FileNotFoundError(f"File non trovato: {os.path.join(folder, safe_name)}")
 
 
 def serve_risorsa_back(filename):
-    local_folder = current_app.config['EXPORT_FOLDER']
-    local_file_path = os.path.join(local_folder, filename.upper())
+    local_folder = _export_folder()
+    _, resolved_name, local_file_path = _resolve_export_file(filename)
     remote_file_url = current_app.config['EXPORT_FOLDER_URL'].rstrip('/') + '/' + filename.upper()
     remote_file_url = remote_file_url.replace("\\", "/")
 
     if os.path.exists(local_file_path):
         logger.info(f"File locale trovato: {local_file_path}")
-        return send_from_directory(local_folder, filename.upper(), as_attachment=True)
+        return send_from_directory(local_folder, resolved_name, as_attachment=True)
     else:
         logger.warning(f"File locale non trovato. Cerco di scaricare: {remote_file_url}")
         response = requests.get(remote_file_url, stream=True)
@@ -49,18 +89,13 @@ def serve_risorsa(filename):
     """
     Funzione compatibile anche fuori dal contesto Flask (es. nei Celery task)
     """
-    local_folder = os.getenv("EXPORT_FOLDER", ESTRAZIONI_FOLDER)
-    file_path = os.path.join(local_folder, filename.upper())
-
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"File non trovato: {file_path}")
-
+    _, _, file_path = _resolve_export_file(filename)
     return file_path  # restituisce il path, non l'oggetto file o una response Flask
 
 
 @file_bp.route("/lista_export")
 def lista_export():
-    folder = os.getenv("EXPORT_FOLDER", ESTRAZIONI_FOLDER)
+    folder = _export_folder()
     logger.debug(f"Percorso EXPORT_FOLDER = {folder}")
     if not os.path.exists(folder):
         return jsonify({"error": "Cartella di export non trovata"}), 500
@@ -87,5 +122,6 @@ def lista_export():
 @log_task(logger)
 def get_exported_file(filename):
     logger.info(f"Richiesta di esportazione file: {filename}")
-    logger.debug(f"Percorso EXPORT_FOLDER_URL = {current_app.config['EXPORT_FOLDER_URL']}")
-    return send_from_directory(current_app.config['EXPORT_FOLDER_URL'], filename.upper(), as_attachment=True)
+    folder, resolved_name, _ = _resolve_export_file(filename)
+    logger.debug(f"Percorso EXPORT_FOLDER = {folder}")
+    return send_from_directory(folder, resolved_name, as_attachment=True)

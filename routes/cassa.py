@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
 from decimal import Decimal, InvalidOperation
 from datetime import date, datetime, timedelta
-from sqlalchemy import exists, or_, and_, func
+from sqlalchemy import case, exists, or_, and_, func
 from sqlalchemy.orm import noload, selectinload
 
 from tools.redis_utils import get_redis
@@ -2462,7 +2462,10 @@ def _normalize_issued_check_status(status):
 def _serialize_issued_check_for_returning(row: CashIssuedCheck, ref_date: date):
     registered_date = row.registered_at.date() if row.registered_at else None
     expense = row.expense
-    status = _normalize_issued_check_status(row.status)
+    try:
+        status = _normalize_issued_check_status(row.status)
+    except ValueError:
+        status = "emesso"
     return {
         "id": row.id,
         "bank_name": row.bank.name if row.bank else None,
@@ -2597,7 +2600,7 @@ def api_set_issued_check_registered(check_id):
         ref_date = date.today()
 
     try:
-        row.registered_at = datetime.utcnow() if registered else None
+        row.registered_at = datetime.combine(ref_date, datetime.min.time()) if registered else None
         row.status = "registrato" if registered else "emesso"
         db.session.commit()
 
@@ -2672,7 +2675,7 @@ def api_list_issued_checks():
         rows = (
             query
             .order_by(
-                CashIssuedCheck.due_date.is_(None).asc(),
+                case((CashIssuedCheck.due_date.is_(None), 1), else_=0).asc(),
                 CashIssuedCheck.due_date.asc(),
                 CashIssuedCheck.created_at.desc(),
                 CashIssuedCheck.id.desc(),

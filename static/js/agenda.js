@@ -1460,7 +1460,7 @@ function loadAssegniRientranti(dateStr = null) {
     headers: { "Accept": "application/json" },
     cache: "no-store"
   })
-    .then(r => r.json())
+    .then(r => readJsonResponse(r, "Errore caricamento assegni rientranti"))
     .then(data => {
       if (!data.ok) return;
       renderAssegniRientranti(data.checks || []);
@@ -1489,7 +1489,7 @@ async function toggleAssegnoRientrante(checkId, registered) {
     })
   });
 
-  const data = await r.json();
+  const data = await readJsonResponse(r, "Errore aggiornamento assegno rientrante");
   if (!r.ok || !data.ok) {
     throw new Error(data.error || "Errore aggiornamento assegno rientrante");
   }
