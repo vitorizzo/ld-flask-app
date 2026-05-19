@@ -23,5 +23,5 @@ def clear_all_tasks():
     from tools.redis_utils import clear_all_task_statuses
     clear_all_task_statuses()
     flash("Tutti i task sono stati eliminati dalla memoria temporanea.", "success")
-    return redirect(request.referrer or url_for("task_bp.task_status"))
+    return redirect(request.referrer or url_for("home"))
 

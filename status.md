@@ -372,3 +372,41 @@ Prima di intervenire:
   - automount
   - recovery da stato autofs/mount incoerente.
 - Rimuovere password vault hardcoded nel JS (`TEST123`) quando si passa a soluzione definitiva.
+
+---
+
+## Aggiornamento situazione - 2026-05-19
+
+### Task Agenda / Cassa
+
+- La fase Agenda / Cassa descritta sopra e' da considerare chiusa per il lavoro immediato.
+- Le formule e la chiusura cassa sono state trattate nel ciclo precedente; se si dovra' riaprire il tema, rileggere sempre i file reali prima di intervenire.
+- Punto da ricordare: `cash_math.py` non va ricostruito da memoria, perche' era gia' stato corretto manualmente e va preso come fonte effettiva.
+
+### Task corrente: import anagrafiche da gestionale
+
+Il lavoro da riprendere dopo aggiornamento Codex e' l'importazione delle anagrafiche esportate dal gestionale.
+
+Stato noto:
+- prima di riprendere l'import, e' stata corretta la cancellazione dei task nel monitor basso:
+  - `static/js/task_status.js` ora usa `task.task_id` invece di `task.id`;
+  - `tools/task_monitor.py` revoca il task e rimuove lo stato Redis dal monitor;
+  - `tools/redis_utils.py` scrive le nuove chiavi come `task_status:<id>` e cancella anche le vecchie `task_status: <id>`;
+- l'import anagrafiche non funziona correttamente e va diagnosticato;
+- il gestionale espone/esportava file collegati a clienti e fornitori;
+- erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
+- nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;
+- il task Celery collegato e' `config.tasks.import_anagrafiche_task`, che chiama `tools.importazioni.import_anagrafiche`.
+
+Punto di ripartenza consigliato:
+- rileggere `tools/importazioni.py`;
+- verificare come vengono risolti percorso/nome file per clienti e fornitori;
+- controllare se l'import si aspetta CSV locali, file remoti da `/exported`, oppure entrambi;
+- verificare struttura dei modelli anagrafica/business registry in `models.py`;
+- riprodurre l'errore con un comando mirato prima di modificare codice.
+
+### Nota operativa per nuova chat / post aggiornamento
+
+Se la chat viene riaperta dopo aggiornamento, ripartire da:
+
+`Import anagrafiche gestionale non funzionante: controllare tools/importazioni.py, config.tasks.import_anagrafiche_task, file esportati clienti/fornitori e mapping verso modelli anagrafica.`

@@ -40,7 +40,7 @@ def set_task_status(task_id, status_dict):
     r = get_redis()
     if "name" not in status_dict:
         status_dict["name"] = task_id
-    r.set(f"task_status: {task_id}", json.dumps(status_dict))
+    r.set(f"task_status:{task_id}", json.dumps(status_dict))
 
 
 def get_all_tasks_status():
@@ -52,7 +52,7 @@ def get_all_tasks_status():
         if not raw:
             continue
         task = json.loads(raw)
-        task["task_id"] = key.replace("task_status:", "")
+        task["task_id"] = key.replace("task_status:", "", 1).strip()
         stato = (task.get("stato", "") or "").lower()
         if stato not in ("completato", "errore", "fallito"):
             task_list.append(task)
@@ -62,8 +62,11 @@ def get_all_tasks_status():
 def clear_task_status(task_id):
     """Rimuove lo stato del task (quando completato)"""
     r = get_redis()
-    # FIX: niente spazio dopo i due punti
-    r.delete(f"task_status: {task_id}")
+    task_id = (task_id or "").strip()
+    if not task_id:
+        return 0
+    # Compatibilita' con le vecchie chiavi scritte come "task_status: <id>".
+    return r.delete(f"task_status:{task_id}", f"task_status: {task_id}")
 
 
 def clear_all_task_statuses():

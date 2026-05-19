@@ -22,15 +22,18 @@ document.addEventListener('DOMContentLoaded', function () {
                 taskList.innerHTML = '';
 
                 tasks.forEach(task => {
-                    totalProgress += task.progress;
+                    const taskId = task.task_id || task.id || "";
+                    const progress = Number(task.progress || 0);
+                    totalProgress += progress;
+
                     const li = document.createElement('li');
                     li.classList.add('list-group-item');
                     li.innerHTML = `
                         <div class="d-flex justify-content-between align-items-center">
-                            <span><strong>${task.name || "Task"}</strong><br><small class="text-muted">${task.task_id}</small> — ${task.progress}%</span>
+                            <span><strong>${task.name || "Task"}</strong><br><small class="text-muted">${taskId}</small> - ${progress}%</span>
                             <div class="btn-group btn-group-sm" role="group">
-                                <button class="btn btn-outline-info" onclick="fetchTaskDetails('${task.id}')">📄</button>
-                                <button class="btn btn-outline-danger" onclick="killTask('${task.id}')">🛑</button>
+                                <button class="btn btn-outline-info" onclick="fetchTaskDetails('${taskId}')">Dettagli</button>
+                                <button class="btn btn-outline-danger" onclick="killTask('${taskId}')">Stop</button>
                             </div>
                         </div>
                     `;
@@ -49,9 +52,9 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    setInterval(fetchStatus, 2000);  // ogni 2 secondi
+    fetchStatus();
+    setInterval(fetchStatus, 2000);
 
-    // toggle dettagli
     expandIcon.addEventListener('click', function () {
         expanded = !expanded;
         details.classList.toggle('d-none', !expanded);
@@ -64,7 +67,7 @@ async function fetchTaskDetails(taskId) {
     try {
         const res = await fetch(`/task_manage/status/${taskId}`);
         const data = await res.json();
-        alert(`🧾 Stato del task:\n\nID: ${data.id}\nStato: ${data.stato}\nSuccesso: ${data.successful}\nRisultato: ${data.result}`);
+        alert(`Stato del task:\n\nID: ${data.id}\nStato: ${data.status}\nSuccesso: ${data.successful}\nRisultato: ${data.result}`);
     } catch (err) {
         alert("Errore nel recuperare i dettagli del task.");
         console.error(err);
@@ -76,7 +79,7 @@ async function killTask(taskId) {
     try {
         const res = await fetch(`/task_manage/kill/${taskId}`, { method: "POST" });
         const data = await res.json();
-        alert(`🛑 ${data.message}`);
+        alert(data.message);
     } catch (err) {
         alert("Errore nel terminare il task.");
         console.error(err);

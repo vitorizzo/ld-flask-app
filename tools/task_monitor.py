@@ -1,6 +1,6 @@
 from celery.result import AsyncResult
-from celery.app.control import Control
 from config.celery_app import celery
+from tools.redis_utils import clear_task_status
 
 
 def get_task_status(task_id):
@@ -18,5 +18,9 @@ def get_task_status(task_id):
 
 def kill_task(task_id):
     """Revoca e termina un task Celery attivo."""
+    task_id = (task_id or "").strip()
+    if not task_id:
+        return {"message": "ID task mancante.", "cleared": 0}
     celery.control.revoke(task_id, terminate=True, signal='SIGKILL')
-    return {"message": f"Task {task_id} revocato e terminato."}
+    cleared = clear_task_status(task_id)
+    return {"message": f"Task {task_id} revocato e rimosso dal monitor.", "cleared": cleared}
