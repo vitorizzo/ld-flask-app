@@ -23,7 +23,11 @@ beat_schedule = {
         'task': 'config.tasks.import_barcode_task',
         'schedule': crontab(hour='4', minute='20'),
     },
+    'import-anagrafiche': {
+        'task': 'config.tasks.import_anagrafiche_task',
+        'schedule': crontab(hour='4', minute='30'),
+    },
 }
 
 timezone = 'Europe/Rome'
-logger.info("Scheduler Celery (beat) configurato con 3 task giornalieri.")
+logger.info("Scheduler Celery (beat) configurato con 4 task giornalieri.")

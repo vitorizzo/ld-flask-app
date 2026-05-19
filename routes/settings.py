@@ -1,4 +1,4 @@
-from flask import request, flash, render_template, Blueprint, jsonify
+from flask import request, flash, render_template, Blueprint, jsonify, redirect
 from flask_login import login_required
 from flask_socketio import SocketIO
 from sqlalchemy import asc
@@ -223,7 +223,10 @@ def lancia_import_anagrafiche():
     task = import_anagrafiche_task.delay()
     from tools.redis_utils import update_task, status_string
     update_task(task.id, "Importazione anagrafiche TeamSystem", 0, status_string['attached'])
-    return '', 204
+    if request.accept_mimetypes.best == "application/json" or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": True, "task_id": task.id}), 202
+    flash("Importazione anagrafiche avviata.", "success")
+    return redirect(request.referrer or "/importazioni/storico")
 
 
 @settings_bp.route("/import_conflicts", methods=["GET"])

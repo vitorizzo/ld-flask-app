@@ -22,7 +22,8 @@ from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment, CashExpensePayment, \
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
     CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashOwnerTake, CashOwnerTakeCheck, \
-    CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck, CashIssuedCheck, CashDepositCheck
+    CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck, CashIssuedCheck, CashDepositCheck, BusinessRegistry, \
+    BusinessRegistryContact
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
@@ -2234,6 +2235,8 @@ def api_customers_suggest():
 
         out.append({
             "id": cid,
+            "registry_id": None,
+            "kind": "customer",
             "display": display,
             "display_name": display_name,
             "ragione_sociale": ragione_sociale,
@@ -2242,15 +2245,65 @@ def api_customers_suggest():
             "matched_alias": alias,
         })
 
+    registry_rows = (
+        db.session.query(BusinessRegistry)
+        .outerjoin(BusinessRegistryContact, BusinessRegistryContact.registry_id == BusinessRegistry.id)
+        .filter(
+            BusinessRegistry.is_active.is_(True),
+            or_(
+                BusinessRegistry.display_name.ilike(like),
+                BusinessRegistry.legal_name.ilike(like),
+                BusinessRegistry.vat_number.ilike(like),
+                BusinessRegistry.tax_code.ilike(like),
+                BusinessRegistry.source_code.ilike(like),
+                BusinessRegistryContact.value.ilike(like),
+            )
+        )
+        .order_by(
+            BusinessRegistry.kind.asc(),
+            BusinessRegistry.legal_name.asc().nullslast(),
+            BusinessRegistry.display_name.asc(),
+            BusinessRegistry.id.asc(),
+        )
+        .limit(30)
+        .all()
+    )
+
+    for registry in registry_rows:
+        existing_customer_id = None
+        if registry.kind == "customer" and registry.source_code:
+            existing = CashCustomer.query.filter_by(codice_cliente=registry.source_code).first()
+            existing_customer_id = existing.id if existing else None
+
+        label = "Cliente" if registry.kind == "customer" else "Fornitore"
+        display_name = registry.display_name or registry.legal_name or registry.source_code
+        detail = registry.city or registry.vat_number or registry.source_code
+        display = f"{display_name} ({label}{': ' + detail if detail else ''})"
+
+        out.append({
+            "id": existing_customer_id,
+            "registry_id": registry.id,
+            "kind": registry.kind,
+            "display": display,
+            "display_name": display_name,
+            "ragione_sociale": registry.legal_name,
+            "partita_iva": registry.vat_number,
+            "codice_cliente": registry.source_code if registry.kind == "customer" else None,
+            "codice_fornitore": registry.source_code if registry.kind == "supplier" else None,
+            "matched_alias": None,
+        })
+
     # Dedup: outerjoin può produrre più righe (più alias)
     seen = set()
     dedup = []
     for x in out:
-        k = (x["id"], x["display"])
+        k = (x.get("kind"), x.get("id"), x.get("registry_id"), x["display"])
         if k in seen:
             continue
         seen.add(k)
         dedup.append(x)
+        if len(dedup) >= 30:
+            break
 
     return jsonify({"ok": True, "customers": dedup})
 

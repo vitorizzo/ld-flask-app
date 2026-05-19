@@ -4808,8 +4808,13 @@ document.addEventListener("DOMContentLoaded", async function () {
   async function ensureSelectedCustomer() {
     const opCustomerInput = document.getElementById("opCustomer");
     const opCustomerIdInput = document.getElementById("opCustomerId");
+    const opType = document.getElementById("opType")?.value || "sale";
 
     if (!opCustomerInput || !opCustomerIdInput) {
+      return { ok: true, customer_id: null };
+    }
+
+    if (opType === "expense") {
       return { ok: true, customer_id: null };
     }
 
@@ -6614,7 +6619,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     input.addEventListener("change", () => {
       const chosen = findByDisplay(input.value);
-      hiddenId.value = chosen ? String(chosen.id) : "";
+      hiddenId.value = chosen && chosen.kind !== "supplier" && chosen.id ? String(chosen.id) : "";
     });
   })();
 
