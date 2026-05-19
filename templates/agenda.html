@@ -500,7 +500,7 @@
 
         <div class="row g-2 align-items-end">
           <div class="col-12">
-            <label class="form-label">Cliente</label>
+            <label class="form-label" id="opCustomerLabel">Cliente</label>
 
             <div class="input-group">
               <input id="opCustomer" class="form-control" list="opCustomerList" placeholder="Cerca cliente...">
@@ -984,7 +984,7 @@
     <div class="modal-content">
 
       <div class="modal-header">
-        <h5 class="modal-title">Seleziona cliente</h5>
+        <h5 class="modal-title" id="customerSearchTitle">Seleziona cliente</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
 
@@ -1005,7 +1005,7 @@
             <table class="table table-sm table-hover align-middle mb-0">
               <thead>
                 <tr>
-                  <th>Cliente</th>
+                  <th id="customerSearchMainHeader">Cliente</th>
                   <th>Ragione sociale</th>
                   <th>P.IVA</th>
                   <th>Codice</th>

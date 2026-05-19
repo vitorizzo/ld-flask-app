@@ -1904,6 +1904,7 @@ def api_search_customer_movements():
         return jsonify({"ok": False, "error": "Inserisci un cliente/fornitore da cercare"}), 400
 
     like = f"%{q}%"
+    out = []
     rows = []
 
     sales = (
@@ -2187,69 +2188,76 @@ def api_customers_suggest():
       customers: [{id, display, display_name, ragione_sociale, partita_iva, codice_cliente, matched_alias}]
     """
     q = (request.args.get("q") or "").strip()
+    requested_kind = (request.args.get("kind") or "customer").strip().lower()
+    if requested_kind not in {"customer", "supplier", "all"}:
+        requested_kind = "customer"
     if len(q) < 2:
         return jsonify({"ok": True, "customers": []})
 
     like = f"%{q}%"
 
-    # Outerjoin per includere anche clienti senza alias
-    rows = (
-        db.session.query(
-            CashCustomer.id,
-            CashCustomer.display_name,
-            CashCustomer.ragione_sociale,
-            CashCustomer.partita_iva,
-            CashCustomer.codice_cliente,
-            CashCustomerAlias.alias,
-        )
-        .outerjoin(CashCustomerAlias, CashCustomerAlias.customer_id == CashCustomer.id)
-        .filter(
-            or_(
-                CashCustomerAlias.alias.ilike(like),
-                CashCustomer.display_name.ilike(like),
-                CashCustomer.ragione_sociale.ilike(like),
-                CashCustomer.partita_iva.ilike(like),
-                CashCustomer.codice_cliente.ilike(like),
+    if requested_kind in {"customer", "all"}:
+        # Outerjoin per includere anche clienti senza alias
+        rows = (
+            db.session.query(
+                CashCustomer.id,
+                CashCustomer.display_name,
+                CashCustomer.ragione_sociale,
+                CashCustomer.partita_iva,
+                CashCustomer.codice_cliente,
+                CashCustomerAlias.alias,
             )
+            .outerjoin(CashCustomerAlias, CashCustomerAlias.customer_id == CashCustomer.id)
+            .filter(
+                or_(
+                    CashCustomerAlias.alias.ilike(like),
+                    CashCustomer.display_name.ilike(like),
+                    CashCustomer.ragione_sociale.ilike(like),
+                    CashCustomer.partita_iva.ilike(like),
+                    CashCustomer.codice_cliente.ilike(like),
+                )
+            )
+            .order_by(
+                CashCustomer.ragione_sociale.asc().nullslast(),
+                CashCustomer.display_name.asc().nullslast(),
+                CashCustomer.id.asc(),
+            )
+            .limit(20)
+            .all()
         )
-        .order_by(
-            CashCustomer.ragione_sociale.asc().nullslast(),
-            CashCustomer.display_name.asc().nullslast(),
-            CashCustomer.id.asc(),
-        )
-        .limit(20)
-        .all()
-    )
 
-    out = []
-    for (cid, display_name, ragione_sociale, piva, codice_cliente, alias) in rows:
-        base = (alias or display_name or "").strip()
-        rs = (ragione_sociale or "").strip()
+        for (cid, display_name, ragione_sociale, piva, codice_cliente, alias) in rows:
+            base = (alias or display_name or "").strip()
+            rs = (ragione_sociale or "").strip()
 
-        # Se matcho per alias e ho ragione sociale: "davide (DFL SRL)"
-        if alias and rs and base.lower() != rs.lower():
-            display = f"{base} ({rs})"
-        else:
-            # fallback: display_name o ragione sociale o altro
-            display = base or rs or (codice_cliente or "").strip() or (piva or "").strip() or f"Cliente {cid}"
+            # Se matcho per alias e ho ragione sociale: "davide (DFL SRL)"
+            if alias and rs and base.lower() != rs.lower():
+                display = f"{base} ({rs})"
+            else:
+                # fallback: display_name o ragione sociale o altro
+                display = base or rs or (codice_cliente or "").strip() or (piva or "").strip() or f"Cliente {cid}"
 
-        out.append({
-            "id": cid,
-            "registry_id": None,
-            "kind": "customer",
-            "display": display,
-            "display_name": display_name,
-            "ragione_sociale": ragione_sociale,
-            "partita_iva": piva,
-            "codice_cliente": codice_cliente,
-            "matched_alias": alias,
-        })
+            out.append({
+                "id": cid,
+                "registry_id": None,
+                "kind": "customer",
+                "display": display,
+                "display_name": display_name,
+                "ragione_sociale": ragione_sociale,
+                "partita_iva": piva,
+                "codice_cliente": codice_cliente,
+                "codice_fornitore": None,
+                "matched_alias": alias,
+            })
 
     registry_rows = (
         db.session.query(BusinessRegistry)
         .outerjoin(BusinessRegistryContact, BusinessRegistryContact.registry_id == BusinessRegistry.id)
         .filter(
             BusinessRegistry.is_active.is_(True),
+            BusinessRegistry.kind.in_(
+                ["customer", "supplier"] if requested_kind == "all" else [requested_kind]
+            ),
             or_(
                 BusinessRegistry.display_name.ilike(like),
                 BusinessRegistry.legal_name.ilike(like),
@@ -2275,10 +2283,10 @@ def api_customers_suggest():
             existing = CashCustomer.query.filter_by(codice_cliente=registry.source_code).first()
             existing_customer_id = existing.id if existing else None
 
-        label = "Cliente" if registry.kind == "customer" else "Fornitore"
         display_name = registry.display_name or registry.legal_name or registry.source_code
-        detail = registry.city or registry.vat_number or registry.source_code
-        display = f"{display_name} ({label}{': ' + detail if detail else ''})"
+        detail_parts = [registry.city, registry.vat_number, registry.source_code]
+        detail = " - ".join(str(x) for x in detail_parts if x)
+        display = f"{display_name}{' (' + detail + ')' if detail else ''}"
 
         out.append({
             "id": existing_customer_id,
@@ -2297,7 +2305,8 @@ def api_customers_suggest():
     seen = set()
     dedup = []
     for x in out:
-        k = (x.get("kind"), x.get("id"), x.get("registry_id"), x["display"])
+        code = x.get("codice_cliente") if x.get("kind") == "customer" else x.get("codice_fornitore")
+        k = (x.get("kind"), code or x.get("id") or x.get("registry_id"))
         if k in seen:
             continue
         seen.add(k)

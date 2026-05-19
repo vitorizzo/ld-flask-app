@@ -367,8 +367,12 @@ function fetchActiveDays(year, month) {
     .then(data => data.ok ? data.days.map(d => d.day_date) : []);
 }
 
-async function fetchCustomerSuggest(q) {
-  const url = `/cassa/api/customers/suggest?q=${encodeURIComponent(q)}`;
+function getCurrentRegistryKind() {
+  return (document.getElementById("opType")?.value || "sale") === "expense" ? "supplier" : "customer";
+}
+
+async function fetchCustomerSuggest(q, kind = "customer") {
+  const url = `/cassa/api/customers/suggest?q=${encodeURIComponent(q)}&kind=${encodeURIComponent(kind)}`;
   const r = await fetch(url, {
     credentials: "same-origin",
     headers: { "Accept": "application/json" }
@@ -4491,16 +4495,23 @@ document.addEventListener("DOMContentLoaded", async function () {
     const opFlag = document.getElementById("opFlag");
     const opCustomerId = document.getElementById("opCustomerId");
     const opCustomer = document.getElementById("opCustomer");
+    const opCustomerLabel = document.getElementById("opCustomerLabel");
+    const btnCustomerNew = document.getElementById("btnCustomerNew");
     const opOffCash = document.getElementById("opOffCash");
     const opOffCashWho = document.getElementById("opOffCashWho");
     const opOffCashBox = document.getElementById("opOffCashBox");
 
     if (opType) opType.value = type;
+    if (opCustomerLabel) opCustomerLabel.textContent = type === "expense" ? "Fornitore" : "Cliente";
     if (opAmountInput) opAmountInput.value = "0,00";
     if (opDesc) opDesc.value = "";
     if (opFlag) opFlag.value = "*";
     if (opCustomerId) opCustomerId.value = "";
-    if (opCustomer) opCustomer.value = "";
+    if (opCustomer) {
+      opCustomer.value = "";
+      opCustomer.placeholder = type === "expense" ? "Cerca fornitore..." : "Cerca cliente...";
+    }
+    if (btnCustomerNew) btnCustomerNew.classList.toggle("d-none", type === "expense");
     if (opOffCash) opOffCash.checked = false;
     if (opOffCashWho) opOffCashWho.value = "";
     if (opOffCashBox) opOffCashBox.classList.add("d-none");
@@ -4700,11 +4711,15 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       const opDesc = document.getElementById("opDesc");
       const opFlag = document.getElementById("opFlag");
+      const opCustomer = document.getElementById("opCustomer");
+      const opCustomerId = document.getElementById("opCustomerId");
       const opOffCash = document.getElementById("opOffCash");
       const opOffCashWho = document.getElementById("opOffCashWho");
       const opOffCashBox = document.getElementById("opOffCashBox");
 
       if (opDesc) opDesc.value = expense.notes || "";
+      if (opCustomer) opCustomer.value = expense.supplier || "";
+      if (opCustomerId) opCustomerId.value = "";
 
       const payments = expense.payments || [];
       if (!payments.length) return;
@@ -4828,8 +4843,8 @@ document.addEventListener("DOMContentLoaded", async function () {
       return { ok: true, customer_id: null };
     }
 
-    const items = await fetchCustomerSuggest(rawText);
-    const exact = items.find(x => String(x.display || "").trim() === rawText);
+    const items = await fetchCustomerSuggest(rawText, "customer");
+    const exact = items.find(x => String(x.display || "").trim() === rawText && x.kind === "customer" && x.id);
 
     if (!exact) {
       return {
@@ -6611,7 +6626,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       clearTimeout(t);
       t = setTimeout(async () => {
-        const items = await fetchCustomerSuggest(q);
+        const items = await fetchCustomerSuggest(q, getCurrentRegistryKind());
         lastItems = items;
         renderDatalist(items);
       }, 180);
@@ -6619,7 +6634,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     input.addEventListener("change", () => {
       const chosen = findByDisplay(input.value);
-      hiddenId.value = chosen && chosen.kind !== "supplier" && chosen.id ? String(chosen.id) : "";
+      hiddenId.value = chosen && chosen.kind === "customer" && chosen.id ? String(chosen.id) : "";
     });
   })();
 
@@ -6635,28 +6650,36 @@ document.addEventListener("DOMContentLoaded", async function () {
     const tbody = document.getElementById("customerSearchResults");
     const selId = document.getElementById("customerSelectedId");
     const selDisp = document.getElementById("customerSelectedDisplay");
+    const title = document.getElementById("customerSearchTitle");
+    const mainHeader = document.getElementById("customerSearchMainHeader");
     const btnConfirm = document.getElementById("customerPickConfirm");
     const opInput = document.getElementById("opCustomer");
     const opHiddenId = document.getElementById("opCustomerId");
 
     if (!qInput || !btnGo || !tbody || !selId || !selDisp || !btnConfirm || !opInput || !opHiddenId) return;
 
-    function setSelected(id, display) {
+    let selectedItem = null;
+
+    function setSelected(item) {
+      selectedItem = item || null;
+      const id = selectedItem && selectedItem.kind === "customer" && selectedItem.id ? selectedItem.id : "";
+      const display = selectedItem ? selectedItem.display : "";
       selId.value = id ? String(id) : "";
       selDisp.value = display || "";
-      btnConfirm.disabled = !selId.value;
+      btnConfirm.disabled = !selectedItem;
     }
 
     async function runSearch() {
       const q = (qInput.value || "").trim();
-      setSelected("", "");
+      const kind = getCurrentRegistryKind();
+      setSelected(null);
 
       if (q.length < 2) {
         tbody.innerHTML = `<tr><td colspan="4" class="text-muted">Inserisci almeno 2 caratteri</td></tr>`;
         return;
       }
 
-      const items = await fetchCustomerSuggest(q);
+      const items = await fetchCustomerSuggest(q, kind);
       if (!items.length) {
         tbody.innerHTML = `<tr><td colspan="4" class="text-muted">Nessun risultato</td></tr>`;
         return;
@@ -6670,20 +6693,26 @@ document.addEventListener("DOMContentLoaded", async function () {
           <td class="fw-semibold">${escapeHtml(it.display || "")}</td>
           <td>${escapeHtml(it.ragione_sociale || "")}</td>
           <td>${escapeHtml(it.partita_iva || "")}</td>
-          <td>${escapeHtml(it.codice_cliente || "")}</td>
+          <td>${escapeHtml(it.codice_cliente || it.codice_fornitore || "")}</td>
         `;
         tr.addEventListener("click", () => {
           [...tbody.querySelectorAll("tr")].forEach(x => x.classList.remove("table-active"));
           tr.classList.add("table-active");
-          setSelected(it.id, it.display);
+          setSelected(it);
         });
         tbody.appendChild(tr);
       });
     }
 
     btnOpen.addEventListener("click", () => {
+      const isSupplier = getCurrentRegistryKind() === "supplier";
+      if (title) title.textContent = isSupplier ? "Seleziona fornitore" : "Seleziona cliente";
+      if (mainHeader) mainHeader.textContent = isSupplier ? "Fornitore" : "Cliente";
+      qInput.placeholder = isSupplier
+        ? "Nome, ragione sociale, P.IVA, codice fornitore..."
+        : "Nome/alias, ragione sociale, P.IVA, codice cliente...";
       qInput.value = (opInput.value || "").trim();
-      setSelected("", "");
+      setSelected(null);
       tbody.innerHTML = `<tr><td colspan="4" class="text-muted">Inserisci un testo e premi Cerca</td></tr>`;
       bsModal.show();
       setTimeout(() => qInput.focus(), 150);
@@ -6699,7 +6728,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
 
     btnConfirm.addEventListener("click", () => {
-      if (!selId.value) return;
+      if (!selectedItem) return;
       opHiddenId.value = selId.value;
       opInput.value = selDisp.value;
       bsModal.hide();
