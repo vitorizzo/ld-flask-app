@@ -1071,6 +1071,99 @@ class CashCustomerAlias(db.Model):
             "alias_type": self.alias_type,
         }
 
+
+class BusinessRegistry(db.Model):
+    __tablename__ = "business_registries"
+    __table_args__ = (
+        db.UniqueConstraint("kind", "source", "source_code", name="uq_business_registry_kind_source_code"),
+        db.Index("ix_business_registry_kind_display", "kind", "display_name"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(20), nullable=False, index=True)  # customer|supplier
+    source = db.Column(db.String(40), nullable=False, default="teamsystem", index=True)
+    source_company_code = db.Column(db.String(16), nullable=True)
+    source_record_type = db.Column(db.String(8), nullable=True)
+    source_code = db.Column(db.String(64), nullable=False, index=True)
+
+    display_name = db.Column(db.String(255), nullable=False, index=True)
+    legal_name = db.Column(db.String(255), nullable=True, index=True)
+    vat_number = db.Column(db.String(32), nullable=True, index=True)
+    tax_code = db.Column(db.String(32), nullable=True, index=True)
+
+    address = db.Column(db.String(255), nullable=True)
+    zip_code = db.Column(db.String(16), nullable=True, index=True)
+    city = db.Column(db.String(120), nullable=True, index=True)
+    province = db.Column(db.String(8), nullable=True, index=True)
+    country = db.Column(db.String(4), nullable=True, default="IT")
+
+    source_payload = db.Column(db.JSON, nullable=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+        nullable=False,
+    )
+
+    contacts = db.relationship(
+        "BusinessRegistryContact",
+        backref="registry",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "kind": self.kind,
+            "source": self.source,
+            "source_code": self.source_code,
+            "display_name": self.display_name,
+            "legal_name": self.legal_name,
+            "vat_number": self.vat_number,
+            "tax_code": self.tax_code,
+            "address": self.address,
+            "zip_code": self.zip_code,
+            "city": self.city,
+            "province": self.province,
+            "country": self.country,
+            "is_active": self.is_active,
+        }
+
+
+class BusinessRegistryContact(db.Model):
+    __tablename__ = "business_registry_contacts"
+    __table_args__ = (
+        db.UniqueConstraint("registry_id", "contact_type", "value", name="uq_business_registry_contact_value"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    registry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("business_registries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    contact_type = db.Column(db.String(20), nullable=False, index=True)  # email|pec|phone|mobile|fax
+    value = db.Column(db.String(255), nullable=False, index=True)
+    label = db.Column(db.String(80), nullable=True)
+    source_column = db.Column(db.String(16), nullable=True)
+    is_primary = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "registry_id": self.registry_id,
+            "contact_type": self.contact_type,
+            "value": self.value,
+            "label": self.label,
+            "source_column": self.source_column,
+            "is_primary": self.is_primary,
+        }
+
 # --- Giornata / Chiusura -------------------------------------------------------
 
 class CashDay(db.Model):

@@ -12,7 +12,8 @@ def inizializza_db_moduli():
         {"nome": "articoli", "descrizione": "Archivio articoli"},
         {"nome": "giacenze", "descrizione": "Archivio giacenze"},
         {"nome": "barcode", "descrizione": "Codici a barre"},
-        {"nome": "prestashop", "descrizione": "Dati da Prestashop"}
+        {"nome": "prestashop", "descrizione": "Dati da Prestashop"},
+        {"nome": "anagrafiche", "descrizione": "Anagrafiche clienti e fornitori"}
     ]
 
     aggiunti = 0

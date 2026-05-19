@@ -104,6 +104,25 @@ function formatEuro2(n) {
   });
 }
 
+function formatDateIT(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+
+  const match = raw.match(/^(\d{4})-(\d{2})-(\d{2})(.*)$/);
+  if (match) {
+    return `${match[3]}-${match[2]}-${match[1]}`;
+  }
+
+  return raw;
+}
+
+function formatDateTimeIT(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return formatDateIT(value);
+  return d.toLocaleString("it-IT").replaceAll("/", "-");
+}
+
 function isNonEmpty(value) {
   return String(value || "").trim().length > 0;
 }
@@ -571,8 +590,8 @@ async function loadOwnerTakeAvailableChecks(dayStr) {
         <td>${escapeHtml(c.bank_name || "")}</td>
         <td>${escapeHtml(c.check_number || "")}</td>
         <td>${escapeHtml(c.customer_display_name || "")}</td>
-        <td>${escapeHtml(c.received_date || "")}</td>
-        <td>${escapeHtml(c.due_date || "")}</td>
+        <td>${escapeHtml(formatDateIT(c.received_date))}</td>
+        <td>${escapeHtml(formatDateIT(c.due_date))}</td>
         <td class="text-end">${formatEuro2(c.amount || 0)}</td>
       </tr>
     `).join("");
@@ -631,7 +650,7 @@ async function loadOwnerTakes(dayStr) {
 
     ownerTakeTableBody.innerHTML = rows.map(row => `
       <tr data-owner-take-id="${row.id}">
-        <td>${row.created_at ? new Date(row.created_at).toLocaleString() : ""}</td>
+        <td>${formatDateTimeIT(row.created_at)}</td>
         <td>${row.take_type === "serale" ? "Prelievo serale" : "Prelievo parziale"}</td>
         <td class="text-end">${formatEuro2(row.cash_amount || 0)}</td>
         <td class="text-end">${formatEuro2(row.check_amount || 0)}</td>
@@ -926,7 +945,7 @@ async function loadDay(dateStr) {
 
       currentDay = data.day.day_date;
 
-      setText("dayDateTitle", currentDay);
+      setText("dayDateTitle", formatDateIT(currentDay));
       setText("dayId", data.day.id);
       setText("dayOpeningFloat", Number(data.day.opening_float || 0).toFixed(2));
       setText("dayStatusBadge", String(data.day.status || "—").toUpperCase());
@@ -1342,8 +1361,8 @@ function renderAssegniScadenza(items) {
     const cust = (c.customer && (c.customer.display_name || c.customer.name || c.customer.ragione_sociale))
       ? (c.customer.display_name || c.customer.name || c.customer.ragione_sociale)
       : "Cliente?";
-    const due = c.due_date || "-";
-    const rec = c.received_date || "-";
+    const due = formatDateIT(c.due_date) || "-";
+    const rec = formatDateIT(c.received_date) || "-";
     meta.textContent = `Cliente: ${cust} - Scadenza: ${due} - Ricevuto: ${rec}`;
 
     left.appendChild(title);
@@ -1426,7 +1445,7 @@ function renderAssegniRientranti(items) {
     const meta = document.createElement("div");
     meta.className = "small text-muted";
     const supplier = c.supplier || "Beneficiario?";
-    const due = c.due_date || "-";
+    const due = formatDateIT(c.due_date) || "-";
     meta.textContent = `${supplier} - Rientro: ${due}`;
 
     textWrap.appendChild(title);
@@ -1880,7 +1899,7 @@ async function loadSpese(dayStr) {
       for (const p of (e.payments || [])) {
         let desc = [e.supplier, (p.description || e.notes || "")].filter(Boolean).join(" - ");
         if (p.method === "check" && p.issued_check_flag === "**" && p.due_date) {
-          desc = [desc, `scad. ${p.due_date}`].filter(Boolean).join(" - ");
+          desc = [desc, `scad. ${formatDateIT(p.due_date)}`].filter(Boolean).join(" - ");
         }
 
         allRows.push({
@@ -1922,7 +1941,7 @@ async function loadSpese(dayStr) {
       if (x.method === "bank") badges.push(`<span class="badge badge-soft badge-bank">BANCA</span>`);
       if (x.method === "check") badges.push(`<span class="badge badge-soft badge-bank">ASSEGNO</span>`);
       if (x.method === "check" && x.issued_check_flag === "**" && x.due_date) {
-        badges.push(`<span class="badge badge-soft badge-bank">SCAD. ${escapeHtml(x.due_date)}</span>`);
+        badges.push(`<span class="badge badge-soft badge-bank">SCAD. ${escapeHtml(formatDateIT(x.due_date))}</span>`);
       }
       if (x.off_cash) badges.push(`<span class="badge badge-soft badge-offcash">FUORI CASSA</span>`);
 
@@ -2637,8 +2656,8 @@ async function loadChecksManagement() {
         <td>${escapeHtml(row.customer_display_name || "")}</td>
         <td>${escapeHtml(row.bank_name || "")}</td>
         <td>${escapeHtml(row.check_number || "")}</td>
-        <td>${escapeHtml(row.received_date || "")}</td>
-        <td>${escapeHtml(row.due_date || "")}</td>
+        <td>${escapeHtml(formatDateIT(row.received_date))}</td>
+        <td>${escapeHtml(formatDateIT(row.due_date))}</td>
         <td>${escapeHtml(row.status_label || row.status || "")}</td>
         <td class="text-end">${formatEuro2(row.amount || 0)}</td>
         <td class="text-end">
@@ -2822,7 +2841,7 @@ async function loadIssuedChecksManagement() {
         <td>${escapeHtml(row.flag || "")}</td>
         <td>${escapeHtml(row.bank_name || "")}</td>
         <td>${escapeHtml(row.check_number || "")}</td>
-        <td>${escapeHtml(row.due_date || "")}</td>
+        <td>${escapeHtml(formatDateIT(row.due_date))}</td>
         <td>${escapeHtml(row.status_label || row.status || "")}</td>
         <td class="text-end">${formatEuro2(row.amount || 0)}</td>
         <td class="text-end">
@@ -4023,7 +4042,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         return `
           <tr data-spicci-id="${row.id}">
-            <td>${row.created_at ? new Date(row.created_at).toLocaleString() : ""}</td>
+            <td>${formatDateTimeIT(row.created_at)}</td>
             <td>${row.direction === "out" ? "Prelievo" : "Versamento"}</td>
             <td>${escapeHtml(row.performed_by || "")}</td>
             <td>${escapeHtml(row.notes || "")}</td>
@@ -4871,8 +4890,8 @@ document.addEventListener("DOMContentLoaded", async function () {
           <td>${escapeHtml(c.bank_name || "")}</td>
           <td>${escapeHtml(c.check_number || "")}</td>
           <td>${escapeHtml(c.customer_display_name || "")}</td>
-          <td>${escapeHtml(c.received_date || "")}</td>
-          <td>${escapeHtml(c.due_date || "")}</td>
+          <td>${escapeHtml(formatDateIT(c.received_date))}</td>
+          <td>${escapeHtml(formatDateIT(c.due_date))}</td>
           <td class="text-end">${formatEuro2(c.amount || 0)}</td>
         </tr>
       `).join("");
@@ -4930,7 +4949,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       depositTableBody.innerHTML = rows.map(row => `
         <tr data-deposit-id="${row.id}">
-          <td>${escapeHtml(row.deposit_date || "")}</td>
+          <td>${escapeHtml(formatDateIT(row.deposit_date))}</td>
           <td>${escapeHtml(row.deposit_type || "")}</td>
           <td>${escapeHtml(row.bank_name || "-")}</td>
           <td class="text-end">${formatEuro2(row.cash_amount || 0)}</td>
@@ -5125,7 +5144,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       tbody.innerHTML = rows.map(row => `
         <tr data-id="${row.id}">
-          <td>${row.created_at ? new Date(row.created_at).toLocaleString() : ""}</td>
+          <td>${formatDateTimeIT(row.created_at)}</td>
           <td>${row.closure_type === "fine_giornata" ? "Fine giornata" : "Intermedia"}</td>
           <td>${Number(row.amount).toFixed(2)} €</td>
           <td class="text-end">
@@ -5911,7 +5930,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           data-day-date="${escapeHtml(row.day_date || "")}"
           data-editable="${canEdit ? "1" : "0"}"
         >
-          <td>${escapeHtml(row.day_date || "")}</td>
+          <td>${escapeHtml(formatDateIT(row.day_date))}</td>
           <td>${escapeHtml(row.kind_label || "")}</td>
           <td>${escapeHtml(row.party || "")}</td>
           <td>${escapeHtml(row.description || "")}</td>
@@ -7565,10 +7584,7 @@ function reportMoney(value) {
 }
 
 function reportDateTime(value) {
-  if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleString("it-IT");
+  return formatDateTimeIT(value);
 }
 
 function reportText(value) {
@@ -7766,7 +7782,7 @@ function buildCompleteDayReportHtml(payload) {
     <h1>Report completo giornata ${escapeHtml(currentDay || "")}</h1>
     <div class="meta">
       <div>${escapeHtml(vaultLabel)}</div>
-      <div>Generato: ${escapeHtml(new Date().toLocaleString("it-IT"))}</div>
+      <div>Generato: ${escapeHtml(formatDateTimeIT(new Date().toISOString()))}</div>
     </div>
   </header>
 
@@ -8145,7 +8161,7 @@ function buildReportBodyHtml(payload) {
     <header class="print-report-header">
       <div>
         <h1>${escapeHtml(reportTitleText())}</h1>
-        <p>Generato il ${escapeHtml(new Date().toLocaleString("it-IT"))}</p>
+        <p>Generato il ${escapeHtml(formatDateTimeIT(new Date().toISOString()))}</p>
       </div>
       <div class="print-report-brand">LD Enoteca</div>
     </header>

@@ -1,9 +1,19 @@
 import csv
+import re
 from datetime import datetime
 
 from tools.ps_util import get_all_products, get_product_images
 from extensions import db
-from models import Articoli, Barcode, Giacenza, Importazione
+from models import (
+    Articoli,
+    Barcode,
+    BusinessRegistry,
+    BusinessRegistryContact,
+    CashCustomer,
+    CashCustomerAlias,
+    Giacenza,
+    Importazione,
+)
 from flask import jsonify
 from tools.log_utils import log_task, get_logger
 
@@ -14,6 +24,334 @@ def clean_text(text):
     if text:
         return text.encode('ascii', 'ignore').decode('ascii')
     return text
+
+
+def _clean_registry_text(value):
+    if value is None:
+        return None
+    value = str(value).strip()
+    return value or None
+
+
+def _clean_zero_value(value):
+    value = _clean_registry_text(value)
+    if not value:
+        return None
+    compact = re.sub(r"\D", "", value)
+    if compact and set(compact) == {"0"}:
+        return None
+    if value in {"00000", "000000", "0000000", "00000000", "000000000", "000000000000000000"}:
+        return None
+    return value
+
+
+def _field(row, index):
+    return row[index].strip() if index < len(row) and row[index] is not None else ""
+
+
+def _normalize_phone(*parts):
+    joined = "".join(_clean_registry_text(part) or "" for part in parts)
+    digits = re.sub(r"\D", "", joined)
+    if not digits or set(digits) == {"0"} or len(digits) < 5:
+        return None
+    return digits
+
+
+def _normalize_email(value):
+    value = _clean_registry_text(value)
+    if not value or "@" not in value:
+        return None
+    value = value.strip().strip(";,.").lower()
+    return value if "@" in value else None
+
+
+def _email_contact_type(value):
+    lowered = (value or "").lower()
+    if any(marker in lowered for marker in ("pec.", "legalmail", "postacertificata", "@pec")):
+        return "pec"
+    return "email"
+
+
+def _split_vat_tax(primary_value, alternate_value=None):
+    vat_number = None
+    tax_code = None
+
+    for value in (primary_value, alternate_value):
+        value = _clean_zero_value(value)
+        if not value:
+            continue
+        compact = re.sub(r"\s+", "", value).upper()
+        digits = re.sub(r"\D", "", compact)
+        if compact.isdigit() and len(digits) == 11 and not vat_number:
+            vat_number = compact
+        elif not tax_code:
+            tax_code = compact
+
+    return vat_number, tax_code
+
+
+def _upsert_registry_contact(registry, contact_type, value, label=None, source_column=None, is_primary=False):
+    if not value:
+        return False
+
+    existing = next(
+        (
+            contact
+            for contact in registry.contacts
+            if contact.contact_type == contact_type and contact.value == value
+        ),
+        None,
+    )
+    if existing:
+        existing.label = label or existing.label
+        existing.source_column = source_column or existing.source_column
+        existing.is_primary = bool(existing.is_primary or is_primary)
+        return False
+
+    db.session.add(BusinessRegistryContact(
+        registry=registry,
+        contact_type=contact_type,
+        value=value,
+        label=label,
+        source_column=source_column,
+        is_primary=bool(is_primary),
+    ))
+    return True
+
+
+def _sync_cash_customer_from_registry(registry):
+    if registry.kind != "customer":
+        return None, False
+
+    customer = None
+    if registry.source_code:
+        customer = CashCustomer.query.filter_by(codice_cliente=registry.source_code).first()
+    if not customer and registry.vat_number:
+        customer = CashCustomer.query.filter_by(partita_iva=registry.vat_number).first()
+
+    created = False
+    if not customer:
+        customer = CashCustomer(
+            display_name=registry.display_name,
+            ragione_sociale=registry.legal_name,
+            partita_iva=registry.vat_number,
+            codice_cliente=registry.source_code,
+        )
+        db.session.add(customer)
+        db.session.flush()
+        created = True
+    else:
+        customer.display_name = registry.display_name or customer.display_name
+        customer.ragione_sociale = registry.legal_name or customer.ragione_sociale
+        customer.partita_iva = registry.vat_number or customer.partita_iva
+        customer.codice_cliente = registry.source_code or customer.codice_cliente
+
+    alias_value = registry.legal_name or registry.display_name
+    if alias_value:
+        exists = CashCustomerAlias.query.filter_by(customer_id=customer.id, alias=alias_value).first()
+        if not exists:
+            db.session.add(CashCustomerAlias(customer_id=customer.id, alias=alias_value, alias_type="business"))
+
+    return customer, created
+
+
+def _parse_registry_row(row, kind):
+    source_code = _clean_zero_value(_field(row, 2))
+    legal_name = _clean_registry_text(_field(row, 3))
+    if not source_code or not legal_name:
+        return None
+
+    vat_or_tax = _clean_zero_value(_field(row, 8))
+    alternate_tax = _clean_zero_value(_field(row, 9))
+    vat_number, tax_code = _split_vat_tax(vat_or_tax, alternate_tax)
+
+    payload = {
+        "source_record_type": _clean_registry_text(_field(row, 0)),
+        "source_company_code": _clean_registry_text(_field(row, 1)),
+        "columns": {
+            "0": _clean_registry_text(_field(row, 0)),
+            "1": _clean_registry_text(_field(row, 1)),
+            "2": source_code,
+            "3": legal_name,
+            "4": _clean_registry_text(_field(row, 4)),
+            "5": _clean_registry_text(_field(row, 5)),
+            "6": _clean_registry_text(_field(row, 6)),
+            "7": _clean_registry_text(_field(row, 7)),
+            "8": vat_or_tax,
+            "9": alternate_tax,
+            "52": _clean_registry_text(_field(row, 52)),
+            "53": _clean_registry_text(_field(row, 53)),
+            "54": _clean_registry_text(_field(row, 54)),
+            "55": _clean_registry_text(_field(row, 55)),
+            "130": _clean_registry_text(_field(row, 130)),
+            "160": _clean_registry_text(_field(row, 160)),
+            "203": _clean_registry_text(_field(row, 203)),
+        },
+    }
+
+    return {
+        "kind": kind,
+        "source": "teamsystem",
+        "source_record_type": _clean_registry_text(_field(row, 0)),
+        "source_company_code": _clean_registry_text(_field(row, 1)),
+        "source_code": source_code,
+        "display_name": legal_name,
+        "legal_name": legal_name,
+        "vat_number": vat_number,
+        "tax_code": tax_code,
+        "address": _clean_registry_text(_field(row, 4)) or _clean_registry_text(_field(row, 163)),
+        "zip_code": _clean_zero_value(_field(row, 5)),
+        "city": _clean_registry_text(_field(row, 6)),
+        "province": _clean_registry_text(_field(row, 7)),
+        "country": "IT",
+        "source_payload": payload,
+        "contacts": [
+            ("phone", _normalize_phone(_field(row, 52), _field(row, 53)), "telefono", "52+53", True),
+            ("fax", _normalize_phone(_field(row, 54), _field(row, 55)), "fax", "54+55", False),
+            ("mobile", _normalize_phone(_field(row, 130)), "cellulare", "130", False),
+        ],
+        "emails": [
+            (_normalize_email(_field(row, 160)), "email/pec principale", "160", True),
+            (_normalize_email(_field(row, 203)), "email/pec alternativa", "203", False),
+        ],
+    }
+
+
+def _import_registry_file(file_name, kind, task_id=None, task_name="Importazione anagrafiche", progress_offset=0, progress_span=50):
+    from routes.esportazioni_teamsystem import serve_risorsa
+    from tools.redis_utils import update_task, status_string
+
+    file_csv = serve_risorsa(file_name)
+    logger.info("File anagrafiche %s: %s", kind, file_csv)
+
+    counters = {
+        "created": 0,
+        "updated": 0,
+        "unchanged": 0,
+        "contacts_created": 0,
+        "cash_customers_created": 0,
+        "skipped": 0,
+        "total_rows": 0,
+    }
+
+    with open(file_csv, "r", encoding="utf-8-sig", errors="ignore", newline="") as csvfile:
+        rows = list(csv.reader(csvfile, delimiter="\t"))
+
+    counters["total_rows"] = len(rows)
+    for index, row in enumerate(rows):
+        parsed = _parse_registry_row(row, kind)
+        if not parsed:
+            counters["skipped"] += 1
+            continue
+
+        registry = BusinessRegistry.query.filter_by(
+            kind=kind,
+            source=parsed["source"],
+            source_code=parsed["source_code"],
+        ).first()
+
+        created = False
+        if not registry:
+            registry = BusinessRegistry(
+                kind=kind,
+                source=parsed["source"],
+                source_code=parsed["source_code"],
+            )
+            db.session.add(registry)
+            db.session.flush()
+            created = True
+
+        changed = created
+        for field in (
+            "source_record_type",
+            "source_company_code",
+            "display_name",
+            "legal_name",
+            "vat_number",
+            "tax_code",
+            "address",
+            "zip_code",
+            "city",
+            "province",
+            "country",
+            "source_payload",
+        ):
+            value = parsed[field]
+            if getattr(registry, field) != value:
+                setattr(registry, field, value)
+                changed = True
+        registry.is_active = True
+
+        for contact_type, value, label, source_column, is_primary in parsed["contacts"]:
+            if _upsert_registry_contact(registry, contact_type, value, label, source_column, is_primary):
+                counters["contacts_created"] += 1
+
+        for value, label, source_column, is_primary in parsed["emails"]:
+            if value:
+                contact_type = _email_contact_type(value)
+                if _upsert_registry_contact(registry, contact_type, value, label, source_column, is_primary):
+                    counters["contacts_created"] += 1
+
+        if kind == "customer":
+            _, customer_created = _sync_cash_customer_from_registry(registry)
+            if customer_created:
+                counters["cash_customers_created"] += 1
+
+        if created:
+            counters["created"] += 1
+        elif changed:
+            counters["updated"] += 1
+        else:
+            counters["unchanged"] += 1
+
+        if index % 100 == 0:
+            progress = progress_offset + int((index / max(len(rows), 1)) * progress_span)
+            update_task(task_id, task_name, progress, status_string["update"])
+            db.session.flush()
+
+    return counters
+
+
+@log_task(logger)
+def import_anagrafiche(task_id=None):
+    from tools.redis_utils import update_task, clear_task_status, status_string
+
+    task_name = "Importazione anagrafiche TeamSystem"
+    update_task(task_id, task_name, 0, status_string["start"])
+    logger.info(">>> Entrata nella funzione: import_anagrafiche()")
+
+    summary = {}
+    try:
+        db.create_all()
+        summary["customers"] = _import_registry_file(
+            "exp_clienti.csv",
+            "customer",
+            task_id=task_id,
+            task_name=task_name,
+            progress_offset=0,
+            progress_span=50,
+        )
+        db.session.flush()
+        summary["suppliers"] = _import_registry_file(
+            "exp_fornitori.csv",
+            "supplier",
+            task_id=task_id,
+            task_name=task_name,
+            progress_offset=50,
+            progress_span=50,
+        )
+        db.session.commit()
+        update_task(task_id, task_name, 100, status_string["end"])
+        if task_id:
+            clear_task_status(task_id)
+        registra_importazione("anagrafiche", esito=True)
+        return {"success": True, "message": "Anagrafiche importate con successo", "summary": summary}
+    except Exception as e:
+        logger.exception("Errore durante l'importazione anagrafiche:")
+        db.session.rollback()
+        update_task(task_id, task_name, 0, status_string["error"], e)
+        registra_importazione("anagrafiche", esito=False, messaggio=str(e))
+        return {"success": False, "error": str(e), "summary": summary}
 
 
 @log_task(logger)
