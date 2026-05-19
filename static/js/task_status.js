@@ -24,13 +24,21 @@ document.addEventListener('DOMContentLoaded', function () {
                 tasks.forEach(task => {
                     const taskId = task.task_id || task.id || "";
                     const progress = Number(task.progress || 0);
+                    const state = (task.stato || task.status || "").toString();
+                    const error = (task.errore || task.error || "").toString();
+                    const isError = ["errore", "error", "fallito", "failed"].some(value => state.toLowerCase().includes(value));
                     totalProgress += progress;
 
                     const li = document.createElement('li');
                     li.classList.add('list-group-item');
+                    if (isError) li.classList.add('task-status-error');
                     li.innerHTML = `
                         <div class="d-flex justify-content-between align-items-center">
-                            <span><strong>${task.name || "Task"}</strong><br><small class="text-muted">${taskId}</small> - ${progress}%</span>
+                            <span>
+                                <strong>${task.name || "Task"}</strong>
+                                <br><small class="text-muted">${taskId}</small> - ${progress}% - ${state || "stato sconosciuto"}
+                                ${error ? `<br><small class="text-danger">${error}</small>` : ""}
+                            </span>
                             <div class="btn-group btn-group-sm" role="group">
                                 <button class="btn btn-outline-info" onclick="fetchTaskDetails('${taskId}')">Dettagli</button>
                                 <button class="btn btn-outline-danger" onclick="killTask('${taskId}')">Stop</button>

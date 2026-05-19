@@ -54,6 +54,75 @@ def _resolve_export_file(filename):
     raise FileNotFoundError(f"File non trovato: {os.path.join(folder, safe_name)}")
 
 
+def _download_export_file(filename):
+    safe_name = os.path.basename(filename or "")
+    if not safe_name:
+        raise FileNotFoundError("Nome file non valido")
+
+    _, ext = os.path.splitext(safe_name)
+    if ext.lower() not in ALLOWED_EXPORT_EXTENSIONS:
+        raise FileNotFoundError(f"Estensione file non consentita: {safe_name}")
+
+    base_url = current_app.config.get("EXPORT_FOLDER_URL")
+    if not base_url:
+        raise FileNotFoundError(f"File non trovato e EXPORT_FOLDER_URL non configurato: {safe_name}")
+
+    candidate_names = []
+    for candidate in (safe_name, safe_name.upper(), safe_name.lower()):
+        if candidate not in candidate_names:
+            candidate_names.append(candidate)
+
+    response = None
+    last_error = None
+    for candidate in candidate_names:
+        for remote_file_url in (
+            f"{base_url.rstrip('/')}/get/{candidate}",
+            f"{base_url.rstrip('/')}/{candidate}",
+        ):
+            remote_file_url = remote_file_url.replace("\\", "/")
+            logger.warning("File export locale non trovato. Provo download remoto: %s", remote_file_url)
+            try:
+                response = requests.get(remote_file_url, stream=True, timeout=60)
+                logger.info("Download export %s: HTTP %s", candidate, response.status_code)
+                if response.status_code == 404:
+                    last_error = FileNotFoundError(f"File remoto non trovato: {remote_file_url}")
+                    response = None
+                    continue
+                response.raise_for_status()
+                preview = response.text[:300] if response.encoding else ""
+                if preview.strip().startswith(("/", "\\")):
+                    possible_path = preview.strip()
+                    if os.path.exists(possible_path):
+                        logger.info("Il server ha restituito un path locale valido: %s", possible_path)
+                        return possible_path
+                    last_error = ValueError(f"Il server ha restituito solo un path non accessibile: {possible_path}")
+                    response = None
+                    continue
+                break
+            except requests.RequestException as exc:
+                last_error = exc
+                response = None
+        if response is not None:
+            break
+
+    if response is None:
+        raise FileNotFoundError(f"Impossibile scaricare {safe_name}: {last_error}")
+
+    content_type = response.headers.get("Content-Type", "")
+    if "text/html" in content_type.lower():
+        preview = response.text[:300]
+        raise ValueError(f"Il server ha restituito HTML invece del file {safe_name}: {preview}")
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=ext.lower(), mode="wb") as temp_file:
+        for chunk in response.iter_content(chunk_size=8192):
+            if chunk:
+                temp_file.write(chunk)
+        temp_file_path = temp_file.name
+
+    logger.info("File export %s scaricato in: %s", safe_name, temp_file_path)
+    return temp_file_path
+
+
 def serve_risorsa_back(filename):
     local_folder = _export_folder()
     _, resolved_name, local_file_path = _resolve_export_file(filename)
@@ -89,8 +158,11 @@ def serve_risorsa(filename):
     """
     Funzione compatibile anche fuori dal contesto Flask (es. nei Celery task)
     """
-    _, _, file_path = _resolve_export_file(filename)
-    return file_path  # restituisce il path, non l'oggetto file o una response Flask
+    try:
+        _, _, file_path = _resolve_export_file(filename)
+        return file_path  # restituisce il path, non l'oggetto file o una response Flask
+    except FileNotFoundError:
+        return _download_export_file(filename)
 
 
 @file_bp.route("/lista_export")

@@ -392,7 +392,13 @@ Stato noto:
   - `static/js/task_status.js` ora usa `task.task_id` invece di `task.id`;
   - `tools/task_monitor.py` revoca il task e rimuove lo stato Redis dal monitor;
   - `tools/redis_utils.py` scrive le nuove chiavi come `task_status:<id>` e cancella anche le vecchie `task_status: <id>`;
-- l'import anagrafiche non funziona correttamente e va diagnosticato;
+- import anagrafiche corretto e verificato manualmente il 2026-05-19:
+  - causa 1: `serve_risorsa()` cercava solo file locali in `EXPORT_FOLDER`; ora usa fallback remoto su `EXPORT_FOLDER_URL/get/<file>`;
+  - causa 2: `BusinessRegistry` veniva flushato prima di valorizzare `display_name`, violando il NOT NULL;
+  - causa 3: lo storico errori poteva fallire se `Importazione.messaggio` superava 255 caratteri;
+  - causa 4: il monitor task nascondeva gli errori, facendo sparire il task anche in caso di fallimento;
+  - import manuale verificato: `business_registries=2935`, `business_registry_contacts=2485`, `cash_customers=1970`;
+  - riesecuzione idempotente verificata: clienti `unchanged=2002`, fornitori `unchanged=933`, fornitori saltati `3`;
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

@@ -54,7 +54,7 @@ def get_all_tasks_status():
         task = json.loads(raw)
         task["task_id"] = key.replace("task_status:", "", 1).strip()
         stato = (task.get("stato", "") or "").lower()
-        if stato not in ("completato", "errore", "fallito"):
+        if stato not in ("completato",):
             task_list.append(task)
     return task_list
 

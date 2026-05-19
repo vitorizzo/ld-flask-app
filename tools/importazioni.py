@@ -119,15 +119,19 @@ def _upsert_registry_contact(registry, contact_type, value, label=None, source_c
     return True
 
 
-def _sync_cash_customer_from_registry(registry):
+def _sync_cash_customer_from_registry(registry, customer_by_code=None, customer_by_vat=None):
     if registry.kind != "customer":
         return None, False
 
     customer = None
     if registry.source_code:
-        customer = CashCustomer.query.filter_by(codice_cliente=registry.source_code).first()
+        customer = (customer_by_code or {}).get(registry.source_code)
+        if customer is None and customer_by_code is None:
+            customer = CashCustomer.query.filter_by(codice_cliente=registry.source_code).first()
     if not customer and registry.vat_number:
-        customer = CashCustomer.query.filter_by(partita_iva=registry.vat_number).first()
+        customer = (customer_by_vat or {}).get(registry.vat_number)
+        if customer is None and customer_by_vat is None:
+            customer = CashCustomer.query.filter_by(partita_iva=registry.vat_number).first()
 
     created = False
     if not customer:
@@ -138,7 +142,6 @@ def _sync_cash_customer_from_registry(registry):
             codice_cliente=registry.source_code,
         )
         db.session.add(customer)
-        db.session.flush()
         created = True
     else:
         customer.display_name = registry.display_name or customer.display_name
@@ -148,9 +151,14 @@ def _sync_cash_customer_from_registry(registry):
 
     alias_value = registry.legal_name or registry.display_name
     if alias_value:
-        exists = CashCustomerAlias.query.filter_by(customer_id=customer.id, alias=alias_value).first()
+        exists = any(alias.alias == alias_value for alias in customer.aliases)
         if not exists:
-            db.session.add(CashCustomerAlias(customer_id=customer.id, alias=alias_value, alias_type="business"))
+            customer.aliases.append(CashCustomerAlias(alias=alias_value, alias_type="business"))
+
+    if customer_by_code is not None and registry.source_code:
+        customer_by_code[registry.source_code] = customer
+    if customer_by_vat is not None and registry.vat_number:
+        customer_by_vat[registry.vat_number] = customer
 
     return customer, created
 
@@ -237,78 +245,108 @@ def _import_registry_file(file_name, kind, task_id=None, task_name="Importazione
     with open(file_csv, "r", encoding="utf-8-sig", errors="ignore", newline="") as csvfile:
         rows = list(csv.reader(csvfile, delimiter="\t"))
 
-    counters["total_rows"] = len(rows)
-    for index, row in enumerate(rows):
+    parsed_rows = []
+    for row in rows:
         parsed = _parse_registry_row(row, kind)
-        if not parsed:
+        if parsed:
+            parsed_rows.append(parsed)
+        else:
             counters["skipped"] += 1
-            continue
 
-        registry = BusinessRegistry.query.filter_by(
-            kind=kind,
-            source=parsed["source"],
-            source_code=parsed["source_code"],
-        ).first()
+    source_codes = [parsed["source_code"] for parsed in parsed_rows]
+    registry_by_key = {
+        (registry.kind, registry.source, registry.source_code): registry
+        for registry in BusinessRegistry.query.filter(
+            BusinessRegistry.kind == kind,
+            BusinessRegistry.source == "teamsystem",
+            BusinessRegistry.source_code.in_(source_codes or [""]),
+        ).all()
+    }
 
-        created = False
-        if not registry:
-            registry = BusinessRegistry(
-                kind=kind,
-                source=parsed["source"],
-                source_code=parsed["source_code"],
+    customer_by_code = None
+    customer_by_vat = None
+    if kind == "customer":
+        vat_numbers = [parsed["vat_number"] for parsed in parsed_rows if parsed.get("vat_number")]
+        customers = CashCustomer.query.filter(
+            db.or_(
+                CashCustomer.codice_cliente.in_(source_codes or [""]),
+                CashCustomer.partita_iva.in_(vat_numbers or [""]),
             )
-            db.session.add(registry)
-            db.session.flush()
-            created = True
+        ).all()
+        customer_by_code = {customer.codice_cliente: customer for customer in customers if customer.codice_cliente}
+        customer_by_vat = {customer.partita_iva: customer for customer in customers if customer.partita_iva}
 
-        changed = created
-        for field in (
-            "source_record_type",
-            "source_company_code",
-            "display_name",
-            "legal_name",
-            "vat_number",
-            "tax_code",
-            "address",
-            "zip_code",
-            "city",
-            "province",
-            "country",
-            "source_payload",
-        ):
-            value = parsed[field]
-            if getattr(registry, field) != value:
-                setattr(registry, field, value)
-                changed = True
-        registry.is_active = True
+    counters["total_rows"] = len(rows)
+    logger.info("Import anagrafiche %s: lette %s righe da %s", kind, counters["total_rows"], file_csv)
+    with db.session.no_autoflush:
+        for index, parsed in enumerate(parsed_rows):
+            registry_key = (kind, parsed["source"], parsed["source_code"])
+            registry = registry_by_key.get(registry_key)
 
-        for contact_type, value, label, source_column, is_primary in parsed["contacts"]:
-            if _upsert_registry_contact(registry, contact_type, value, label, source_column, is_primary):
-                counters["contacts_created"] += 1
+            created = False
+            if not registry:
+                registry = BusinessRegistry(
+                    kind=kind,
+                    source=parsed["source"],
+                    source_code=parsed["source_code"],
+                    display_name=parsed["display_name"],
+                    legal_name=parsed["legal_name"],
+                )
+                db.session.add(registry)
+                registry_by_key[registry_key] = registry
+                created = True
 
-        for value, label, source_column, is_primary in parsed["emails"]:
-            if value:
-                contact_type = _email_contact_type(value)
+            changed = created
+            for field in (
+                "source_record_type",
+                "source_company_code",
+                "display_name",
+                "legal_name",
+                "vat_number",
+                "tax_code",
+                "address",
+                "zip_code",
+                "city",
+                "province",
+                "country",
+                "source_payload",
+            ):
+                value = parsed[field]
+                if getattr(registry, field) != value:
+                    setattr(registry, field, value)
+                    changed = True
+            registry.is_active = True
+
+            for contact_type, value, label, source_column, is_primary in parsed["contacts"]:
                 if _upsert_registry_contact(registry, contact_type, value, label, source_column, is_primary):
                     counters["contacts_created"] += 1
 
-        if kind == "customer":
-            _, customer_created = _sync_cash_customer_from_registry(registry)
-            if customer_created:
-                counters["cash_customers_created"] += 1
+            for value, label, source_column, is_primary in parsed["emails"]:
+                if value:
+                    contact_type = _email_contact_type(value)
+                    if _upsert_registry_contact(registry, contact_type, value, label, source_column, is_primary):
+                        counters["contacts_created"] += 1
 
-        if created:
-            counters["created"] += 1
-        elif changed:
-            counters["updated"] += 1
-        else:
-            counters["unchanged"] += 1
+            if kind == "customer":
+                _, customer_created = _sync_cash_customer_from_registry(registry, customer_by_code, customer_by_vat)
+                if customer_created:
+                    counters["cash_customers_created"] += 1
 
-        if index % 100 == 0:
-            progress = progress_offset + int((index / max(len(rows), 1)) * progress_span)
-            update_task(task_id, task_name, progress, status_string["update"])
-            db.session.flush()
+            if created:
+                counters["created"] += 1
+            elif changed:
+                counters["updated"] += 1
+            else:
+                counters["unchanged"] += 1
 
+            if index % 100 == 0:
+                progress = progress_offset + int((index / max(len(rows), 1)) * progress_span)
+                update_task(task_id, task_name, progress, status_string["update"])
+                db.session.flush()
+
+    db.session.flush()
+
+    logger.info("Import anagrafiche %s completato: %s", kind, counters)
     return counters
 
 
@@ -737,6 +775,10 @@ def run_import_barcode(task_id=None):
 
 
 def registra_importazione(modulo, esito=True, messaggio=None):
+    if messaggio is not None:
+        messaggio = str(messaggio)
+        if len(messaggio) > 255:
+            messaggio = messaggio[:252] + "..."
     nuova_import = Importazione(
         modulo=modulo,
         timestamp=datetime.now(),

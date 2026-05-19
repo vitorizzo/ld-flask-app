@@ -51,6 +51,11 @@
     padding: 0.5rem 0.75rem;
 }
 
+#task-status-list li.task-status-error {
+    background-color: #3b2224;
+    border-left: 4px solid #dc3545;
+}
+
 #task-status-list li span {
     display: block;
 }
