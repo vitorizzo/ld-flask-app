@@ -2195,6 +2195,7 @@ def api_customers_suggest():
         return jsonify({"ok": True, "customers": []})
 
     like = f"%{q}%"
+    out = []
 
     if requested_kind in {"customer", "all"}:
         # Outerjoin per includere anche clienti senza alias

@@ -6679,9 +6679,16 @@ document.addEventListener("DOMContentLoaded", async function () {
         return;
       }
 
-      const items = await fetchCustomerSuggest(q, kind);
-      if (!items.length) {
-        tbody.innerHTML = `<tr><td colspan="4" class="text-muted">Nessun risultato</td></tr>`;
+      let items = [];
+      try {
+        items = await fetchCustomerSuggest(q, kind);
+        if (!items.length) {
+          tbody.innerHTML = `<tr><td colspan="4" class="text-muted">Nessun risultato</td></tr>`;
+          return;
+        }
+      } catch (err) {
+        console.error("customer search error:", err);
+        tbody.innerHTML = `<tr><td colspan="4" class="text-danger">Errore durante la ricerca</td></tr>`;
         return;
       }
 
