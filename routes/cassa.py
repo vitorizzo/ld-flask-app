@@ -1624,7 +1624,9 @@ def api_cash_day_preview(day_date):
     # Totali PRI per modalità full
     # =========================
     pri_sales_cash = Decimal("0")
+    pri_sales_fuori_cassa = Decimal("0")
     pri_expenses_cash = Decimal("0")
+    pri_expenses_fuori_cassa = Decimal("0")
     pri_cash_moves_in = Decimal("0")
     pri_cash_moves_out = Decimal("0")
 
@@ -1639,11 +1641,19 @@ def api_cash_day_preview(day_date):
             if day_node:
                 for row in day_node.get("sales", []):
                     if row.get("method") == "cash":
-                        pri_sales_cash += Decimal(str(row.get("amount") or 0))
+                        amount = Decimal(str(row.get("amount") or 0))
+                        if row.get("off_cash"):
+                            pri_sales_fuori_cassa += amount
+                        else:
+                            pri_sales_cash += amount
 
                 for row in day_node.get("expenses", []):
                     if row.get("method") == "cash":
-                        pri_expenses_cash += Decimal(str(row.get("amount") or 0))
+                        amount = Decimal(str(row.get("amount") or 0))
+                        if row.get("off_cash"):
+                            pri_expenses_fuori_cassa += amount
+                        else:
+                            pri_expenses_cash += amount
 
                 for row in day_node.get("cash_moves", []):
                     amount = Decimal(str(row.get("amount") or 0))
@@ -1685,7 +1695,9 @@ def api_cash_day_preview(day_date):
     result["cash_moves_net_amount"] = float(saldo_movimenti_cassa)
     result["total_corrispettivi"] = float(totale_corrispettivi)
     result["pri_sales_cash"] = float(pri_sales_cash)
+    result["pri_sales_fuori_cassa"] = float(pri_sales_fuori_cassa)
     result["pri_expenses_cash"] = float(pri_expenses_cash)
+    result["pri_expenses_fuori_cassa"] = float(pri_expenses_fuori_cassa)
     result["pri_cash_moves_in"] = float(pri_cash_moves_in)
     result["pri_cash_moves_out"] = float(pri_cash_moves_out)
     result["pri_cash_net"] = float(pri_cash_net)
