@@ -3,15 +3,17 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div>
-    <h1 class="h4 mb-1">{{ title }}</h1>
-    <div class="text-muted small">Bozza rubrica con contatti associabili a piu anagrafiche.</div>
+<section class="welcome-section">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-1">{{ title }}</h1>
+      <div class="text-muted small">Bozza rubrica con contatti associabili a piu anagrafiche.</div>
+    </div>
+    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#registryBookModal">
+      Apri rubrica
+    </button>
   </div>
-  <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#registryBookModal">
-    Apri rubrica
-  </button>
-</div>
+</section>
 
 <div class="modal fade" id="registryBookModal" tabindex="-1" aria-hidden="true" data-kind="{{ kind }}">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">

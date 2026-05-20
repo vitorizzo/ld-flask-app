@@ -3,58 +3,149 @@
 {% block title %}Associazione clienti-giri{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div>
-    <h1 class="h4 mb-1">Associazione clienti-giri</h1>
-    <div class="text-muted small">Bozza operativa per collegare clienti anagrafici ai giri di consegna.</div>
+<section class="welcome-section">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-1">Associazione clienti-giri</h1>
+      <div class="text-muted small">Collega le anagrafiche cliente ai giri di consegna.</div>
+    </div>
+    <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#customerRoutesModal">
+      Apri associazione
+    </button>
   </div>
-  <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#customerRoutesModal">
-    Apri associazione
-  </button>
-</div>
+
+  <div class="row g-2 align-items-end mb-3">
+    <div class="col-12 col-md-6">
+      <label class="form-label" for="routeSelect">Giro</label>
+      <select class="form-select" id="routeSelect"></select>
+    </div>
+    <div class="col-6 col-md-3 d-grid">
+      <button class="btn btn-outline-secondary" type="button" id="routeCreateOpenBtn">Nuovo giro</button>
+    </div>
+    <div class="col-6 col-md-3 d-grid">
+      <button class="btn btn-primary" type="button" id="routeCustomerAddOpenBtn">Aggiungi anagrafica</button>
+    </div>
+  </div>
+
+  <div class="border rounded p-3 bg-light">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h2 class="h6 mb-0">Anagrafiche associate</h2>
+      <span class="badge text-bg-secondary" id="assignedCount">0</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Codice</th>
+            <th>P.IVA</th>
+            <th>Citta</th>
+            <th class="text-end"></th>
+          </tr>
+        </thead>
+        <tbody id="assignedRows">
+          <tr><td colspan="5" class="text-muted">Seleziona un giro</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
 
 <div class="modal fade" id="customerRoutesModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Clienti nei giri</h5>
+        <h5 class="modal-title">Associa anagrafiche al giro</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
       <div class="modal-body">
         <div class="row g-2 align-items-end mb-3">
-          <div class="col-12 col-md-4">
-            <label class="form-label" for="routeSelect">Giro</label>
-            <select class="form-select" id="routeSelect"></select>
-          </div>
-          <div class="col-12 col-md-6">
+          <div class="col-12 col-md-9">
             <label class="form-label" for="customerRouteSearch">Cerca cliente</label>
             <input class="form-control" id="customerRouteSearch" autocomplete="off" placeholder="Nome, P.IVA, codice cliente">
           </div>
-          <div class="col-12 col-md-2 d-grid">
+          <div class="col-12 col-md-3 d-grid">
             <button class="btn btn-outline-secondary" id="customerRouteSearchBtn" type="button">Cerca</button>
           </div>
         </div>
-
         <div class="table-responsive">
           <table class="table table-sm table-hover align-middle">
             <thead>
               <tr>
-                <th style="width: 44px"></th>
                 <th>Cliente</th>
                 <th>Codice</th>
                 <th>P.IVA</th>
-                <th>Citta</th>
+                <th>Giro attuale</th>
+                <th class="text-end"></th>
               </tr>
             </thead>
             <tbody id="customerRouteRows">
-              <tr><td colspan="5" class="text-muted">Caricamento...</td></tr>
+              <tr><td colspan="5" class="text-muted">Inserisci un testo e premi Cerca</td></tr>
             </tbody>
           </table>
         </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Chiudi</button>
-        <button class="btn btn-primary" type="button" id="customerRouteSaveBtn">Salva associazioni</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="routeCustomerAddModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Aggiungi anagrafica al giro</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div class="input-group mb-3">
+          <input class="form-control" id="quickCustomerSearch" autocomplete="off" placeholder="Cerca cliente">
+          <button class="btn btn-outline-secondary" id="quickCustomerSearchBtn" type="button">Cerca</button>
+        </div>
+        <div id="quickCustomerRows" class="list-group">
+          <div class="list-group-item text-muted">Inserisci un testo e premi Cerca</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="routeCreateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Nuovo giro</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label" for="routeName">Nome giro</label>
+          <input class="form-control" id="routeName" autocomplete="off">
+        </div>
+        <div class="row g-2">
+          <div class="col-6">
+            <label class="form-label" for="routeWeekday">Giorno</label>
+            <select class="form-select" id="routeWeekday">
+              <option value="1">Lunedi</option>
+              <option value="2">Martedi</option>
+              <option value="3">Mercoledi</option>
+              <option value="4">Giovedi</option>
+              <option value="5">Venerdi</option>
+              <option value="6">Sabato</option>
+              <option value="7">Domenica</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="routeTime">Ora</label>
+            <input class="form-control" id="routeTime" type="time" value="09:00">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Annulla</button>
+        <button class="btn btn-primary" type="button" id="routeCreateSaveBtn">Crea</button>
       </div>
     </div>
   </div>
@@ -65,11 +156,15 @@
 <script>
 (() => {
   const routeSelect = document.getElementById("routeSelect");
-  const searchInput = document.getElementById("customerRouteSearch");
-  const searchBtn = document.getElementById("customerRouteSearchBtn");
-  const rowsEl = document.getElementById("customerRouteRows");
-  const saveBtn = document.getElementById("customerRouteSaveBtn");
-  const modalEl = document.getElementById("customerRoutesModal");
+  const assignedRows = document.getElementById("assignedRows");
+  const assignedCount = document.getElementById("assignedCount");
+  const customerRouteRows = document.getElementById("customerRouteRows");
+  const customerRouteSearch = document.getElementById("customerRouteSearch");
+  const quickCustomerRows = document.getElementById("quickCustomerRows");
+  const quickCustomerSearch = document.getElementById("quickCustomerSearch");
+  const routeCreateModal = new bootstrap.Modal(document.getElementById("routeCreateModal"));
+  const addModal = new bootstrap.Modal(document.getElementById("routeCustomerAddModal"));
+  let routes = [];
   let customers = [];
 
   function esc(value) {
@@ -80,73 +175,191 @@
     return Number(routeSelect.value || 0);
   }
 
-  function render() {
-    const routeId = selectedRouteId();
-    if (!customers.length) {
-      rowsEl.innerHTML = `<tr><td colspan="5" class="text-muted">Nessun cliente trovato</td></tr>`;
-      return;
-    }
-    rowsEl.innerHTML = customers.map(c => {
-      const checked = (c.route_ids || []).includes(routeId) ? "checked" : "";
-      return `
-        <tr>
-          <td><input class="form-check-input customer-route-check" type="checkbox" value="${c.id}" ${checked}></td>
-          <td class="fw-semibold">${esc(c.display_name || c.display)}</td>
-          <td>${esc(c.source_code)}</td>
-          <td>${esc(c.vat_number)}</td>
-          <td>${esc([c.city, c.province].filter(Boolean).join(" "))}</td>
-        </tr>
-      `;
-    }).join("");
+  function currentRouteName() {
+    const route = routes.find(r => Number(r.id) === selectedRouteId());
+    return route ? route.name : "";
   }
 
-  async function loadData() {
-    const q = searchInput.value.trim();
-    rowsEl.innerHTML = `<tr><td colspan="5" class="text-muted">Caricamento...</td></tr>`;
+  async function loadData(q = "") {
+    const keepRoute = selectedRouteId();
     const res = await fetch(`/registry/api/routes/customers?q=${encodeURIComponent(q)}`, { credentials: "same-origin" });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || "Errore caricamento");
-    routeSelect.innerHTML = (data.routes || []).map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join("");
+    routes = data.routes || [];
     customers = data.customers || [];
-    render();
+    routeSelect.innerHTML = routes.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join("");
+    if (keepRoute && routes.some(r => Number(r.id) === keepRoute)) routeSelect.value = String(keepRoute);
+    renderAssigned();
   }
 
-  async function save() {
+  function assignedCustomers() {
+    const routeId = selectedRouteId();
+    return customers.filter(c => (c.route_ids || []).includes(routeId));
+  }
+
+  function renderAssigned() {
+    const rows = assignedCustomers();
+    assignedCount.textContent = String(rows.length);
+    if (!selectedRouteId()) {
+      assignedRows.innerHTML = `<tr><td colspan="5" class="text-muted">Nessun giro disponibile</td></tr>`;
+      return;
+    }
+    if (!rows.length) {
+      assignedRows.innerHTML = `<tr><td colspan="5" class="text-muted">Nessuna anagrafica associata a ${esc(currentRouteName())}</td></tr>`;
+      return;
+    }
+    assignedRows.innerHTML = rows.map(c => `
+      <tr>
+        <td class="fw-semibold">${esc(c.display_name || c.display)}</td>
+        <td>${esc(c.source_code)}</td>
+        <td>${esc(c.vat_number)}</td>
+        <td>${esc([c.city, c.province].filter(Boolean).join(" "))}</td>
+        <td class="text-end"><button class="btn btn-sm btn-outline-danger" data-remove="${c.id}" type="button">Elimina</button></td>
+      </tr>
+    `).join("");
+  }
+
+  function customerRowClass(c) {
+    const assigned = Boolean(c.assigned_route_id);
+    return assigned ? "text-muted fst-italic" : "";
+  }
+
+  async function assignCustomer(registryId, replace = false) {
     const routeId = selectedRouteId();
     if (!routeId) return;
-    const registryIds = Array.from(document.querySelectorAll(".customer-route-check:checked")).map(el => Number(el.value));
-    saveBtn.disabled = true;
-    try {
-      const res = await fetch(`/registry/api/routes/${routeId}/customers`, {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ registry_ids: registryIds }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || "Errore salvataggio");
-      await loadData();
-    } catch (err) {
-      alert(err.message || "Errore salvataggio");
-    } finally {
-      saveBtn.disabled = false;
+    const res = await fetch(`/registry/api/routes/${routeId}/customers/${registryId}`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ replace }),
+    });
+    const data = await res.json();
+    if (res.status === 409 && data.needs_confirm) {
+      if (!confirm(data.message || "Cliente gia associato a un altro giro. Sostituire associazione?")) return;
+      return assignCustomer(registryId, true);
     }
+    if (!res.ok || !data.ok) throw new Error(data.error || "Errore associazione");
+    await loadData(customerRouteSearch.value.trim() || quickCustomerSearch.value.trim());
   }
 
-  routeSelect?.addEventListener("change", render);
-  searchBtn?.addEventListener("click", () => loadData().catch(err => {
-    rowsEl.innerHTML = `<tr><td colspan="5" class="text-danger">${esc(err.message)}</td></tr>`;
-  }));
-  searchInput?.addEventListener("keydown", e => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      searchBtn.click();
+  async function removeCustomer(registryId) {
+    const routeId = selectedRouteId();
+    const res = await fetch(`/registry/api/routes/${routeId}/customers/${registryId}`, {
+      method: "DELETE",
+      credentials: "same-origin",
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || "Errore eliminazione");
+    await loadData(customerRouteSearch.value.trim() || quickCustomerSearch.value.trim());
+  }
+
+  function renderSearchRows(target, rows) {
+    if (!rows.length) {
+      target.innerHTML = target === quickCustomerRows
+        ? `<div class="list-group-item text-muted">Nessun cliente trovato</div>`
+        : `<tr><td colspan="5" class="text-muted">Nessun cliente trovato</td></tr>`;
+      return;
     }
+    if (target === quickCustomerRows) {
+      target.innerHTML = rows.map(c => `
+        <button class="list-group-item list-group-item-action ${customerRowClass(c)}" data-add="${c.id}" type="button">
+          <span class="fw-semibold">${esc(c.display_name || c.display)}</span>
+          <span class="small ms-2">${esc(c.source_code || "")}</span>
+          ${c.assigned_route_name ? `<span class="small ms-2">gia in ${esc(c.assigned_route_name)}</span>` : ""}
+        </button>
+      `).join("");
+      return;
+    }
+    target.innerHTML = rows.map(c => `
+      <tr class="${customerRowClass(c)}">
+        <td class="fw-semibold">${esc(c.display_name || c.display)}</td>
+        <td>${esc(c.source_code)}</td>
+        <td>${esc(c.vat_number)}</td>
+        <td>${esc(c.assigned_route_name || "")}</td>
+        <td class="text-end"><button class="btn btn-sm btn-outline-primary" data-add="${c.id}" type="button">Associa</button></td>
+      </tr>
+    `).join("");
+  }
+
+  async function runSearch(input, target) {
+    const q = input.value.trim();
+    if (q.length < 2) {
+      renderSearchRows(target, []);
+      return;
+    }
+    await loadData(q);
+    renderSearchRows(target, customers);
+  }
+
+  async function createRoute() {
+    const name = document.getElementById("routeName").value.trim();
+    const default_weekday = document.getElementById("routeWeekday").value;
+    const default_time = document.getElementById("routeTime").value || "09:00";
+    if (!name) return;
+    const res = await fetch("/registry/api/routes", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, default_weekday, default_time }),
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) {
+      alert(data.error || "Errore creazione giro");
+      return;
+    }
+    routeCreateModal.hide();
+    await loadData();
+    routeSelect.value = String(data.route.id);
+    renderAssigned();
+  }
+
+  routeSelect.addEventListener("change", renderAssigned);
+  assignedRows.addEventListener("click", e => {
+    const btn = e.target.closest("[data-remove]");
+    if (!btn) return;
+    removeCustomer(btn.dataset.remove).catch(err => alert(err.message));
   });
-  saveBtn?.addEventListener("click", save);
-  modalEl?.addEventListener("shown.bs.modal", () => loadData().catch(err => {
-    rowsEl.innerHTML = `<tr><td colspan="5" class="text-danger">${esc(err.message)}</td></tr>`;
-  }));
+  customerRouteRows.addEventListener("click", e => {
+    const btn = e.target.closest("[data-add]");
+    if (!btn) return;
+    assignCustomer(btn.dataset.add).catch(err => alert(err.message));
+  });
+  quickCustomerRows.addEventListener("click", e => {
+    const btn = e.target.closest("[data-add]");
+    if (!btn) return;
+    assignCustomer(btn.dataset.add).then(() => addModal.hide()).catch(err => alert(err.message));
+  });
+  document.getElementById("customerRouteSearchBtn").addEventListener("click", () => {
+    runSearch(customerRouteSearch, customerRouteRows).catch(err => {
+      customerRouteRows.innerHTML = `<tr><td colspan="5" class="text-danger">${esc(err.message)}</td></tr>`;
+    });
+  });
+  document.getElementById("quickCustomerSearchBtn").addEventListener("click", () => {
+    runSearch(quickCustomerSearch, quickCustomerRows).catch(err => {
+      quickCustomerRows.innerHTML = `<div class="list-group-item text-danger">${esc(err.message)}</div>`;
+    });
+  });
+  document.getElementById("routeCreateOpenBtn").addEventListener("click", () => routeCreateModal.show());
+  document.getElementById("routeCustomerAddOpenBtn").addEventListener("click", () => {
+    quickCustomerSearch.value = "";
+    quickCustomerRows.innerHTML = `<div class="list-group-item text-muted">Inserisci un testo e premi Cerca</div>`;
+    addModal.show();
+  });
+  document.getElementById("routeCreateSaveBtn").addEventListener("click", () => createRoute().catch(err => alert(err.message)));
+  [customerRouteSearch, quickCustomerSearch].forEach(input => {
+    input.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        input === customerRouteSearch
+          ? document.getElementById("customerRouteSearchBtn").click()
+          : document.getElementById("quickCustomerSearchBtn").click();
+      }
+    });
+  });
+
+  loadData().catch(err => {
+    assignedRows.innerHTML = `<tr><td colspan="5" class="text-danger">${esc(err.message)}</td></tr>`;
+  });
 })();
 </script>
 {% endblock %}

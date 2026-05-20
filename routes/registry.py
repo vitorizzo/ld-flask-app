@@ -1,3 +1,5 @@
+from datetime import date, time
+
 from flask import Blueprint, jsonify, render_template, request
 from flask_login import login_required
 from sqlalchemy import or_
@@ -47,11 +49,19 @@ def _registry_to_dict(registry, include_contacts=False, include_routes=False):
             if link.is_active and link.contact and link.contact.is_active
         ]
     if include_routes:
-        data["route_ids"] = [
-            link.route_id
+        active_links = [
+            link
             for link in registry.delivery_route_links
             if link.is_active and link.route and link.route.is_active
         ]
+        data["route_ids"] = [link.route_id for link in active_links]
+        data["routes"] = [
+            {"id": link.route_id, "name": link.route.name}
+            for link in active_links
+        ]
+        first_link = active_links[0] if active_links else None
+        data["assigned_route_id"] = first_link.route_id if first_link else None
+        data["assigned_route_name"] = first_link.route.name if first_link and first_link.route else None
     return data
 
 
@@ -133,6 +143,39 @@ def api_route_customers_index():
     })
 
 
+@registry_bp.post("/api/routes")
+@login_required
+@role_required(100)
+def api_routes_create():
+    data = request.get_json(silent=True) or {}
+    name = (data.get("name") or "").strip()
+    if not name:
+        return jsonify({"ok": False, "error": "Nome giro obbligatorio"}), 400
+
+    slack_channel_id = (data.get("slack_channel_id") or "").strip() or f"manual-{name.lower().replace(' ', '-')}"
+    weekday = int(data.get("default_weekday") or 1)
+    if weekday < 1 or weekday > 7:
+        weekday = 1
+    raw_time = (data.get("default_time") or "09:00").strip()
+    try:
+        default_time = time.fromisoformat(raw_time)
+    except ValueError:
+        default_time = time(9, 0)
+
+    route = DeliveryRoute(
+        name=name,
+        slack_channel_id=slack_channel_id,
+        default_weekday=weekday,
+        default_time=default_time,
+        frequency=(data.get("frequency") or "weekly").strip() or "weekly",
+        frequency_anchor_date=date.today(),
+        is_active=True,
+    )
+    db.session.add(route)
+    db.session.commit()
+    return jsonify({"ok": True, "route": {"id": route.id, "name": route.name}}), 201
+
+
 @registry_bp.post("/api/routes/<int:route_id>/customers")
 @login_required
 @role_required(100)
@@ -177,6 +220,60 @@ def api_route_customers_replace(route_id):
 
     db.session.commit()
     return jsonify({"ok": True, "route_id": route.id, "registry_ids": [x for x in normalized_ids if x in valid_ids]})
+
+
+@registry_bp.post("/api/routes/<int:route_id>/customers/<int:registry_id>")
+@login_required
+@role_required(100)
+def api_route_customer_assign(route_id, registry_id):
+    route = DeliveryRoute.query.filter_by(id=route_id, is_active=True).first()
+    if not route:
+        return jsonify({"ok": False, "error": "Giro non trovato"}), 404
+
+    registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first()
+    if not registry:
+        return jsonify({"ok": False, "error": "Cliente non trovato"}), 404
+
+    data = request.get_json(silent=True) or {}
+    replace = bool(data.get("replace"))
+
+    active_links = DeliveryRouteCustomer.query.filter_by(registry_id=registry.id, is_active=True).all()
+    other_links = [link for link in active_links if link.route_id != route.id]
+    if other_links and not replace:
+        return jsonify({
+            "ok": False,
+            "needs_confirm": True,
+            "message": f"Cliente gia' associato al giro {other_links[0].route.name if other_links[0].route else other_links[0].route_id}. Sostituire associazione?",
+            "current_routes": [
+                {"id": link.route_id, "name": link.route.name if link.route else ""}
+                for link in other_links
+            ],
+        }), 409
+
+    for link in other_links:
+        link.is_active = False
+
+    link = DeliveryRouteCustomer.query.filter_by(route_id=route.id, registry_id=registry.id).first()
+    if not link:
+        max_sort = db.session.query(db.func.coalesce(db.func.max(DeliveryRouteCustomer.sort_order), -1)).filter_by(route_id=route.id, is_active=True).scalar()
+        link = DeliveryRouteCustomer(route_id=route.id, registry_id=registry.id, sort_order=int(max_sort or -1) + 1)
+        db.session.add(link)
+    link.is_active = True
+
+    db.session.commit()
+    return jsonify({"ok": True, "route_id": route.id, "registry_id": registry.id})
+
+
+@registry_bp.delete("/api/routes/<int:route_id>/customers/<int:registry_id>")
+@login_required
+@role_required(100)
+def api_route_customer_delete(route_id, registry_id):
+    link = DeliveryRouteCustomer.query.filter_by(route_id=route_id, registry_id=registry_id, is_active=True).first()
+    if not link:
+        return jsonify({"ok": False, "error": "Associazione non trovata"}), 404
+    link.is_active = False
+    db.session.commit()
+    return jsonify({"ok": True})
 
 
 @registry_bp.get("/api/registries")

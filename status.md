@@ -427,6 +427,17 @@ Stato noto:
   - test API lettura: clienti `A.B.S.` = 3 risultati, fornitori `BAKER` = 1 risultato, clienti-giri `A.B.S.` = 3 clienti + 8 giri.
   - fix permessi 2026-05-20: `routes/registry.py` deve usare `tools.role_required.role_required`, non `routes.decorators.role_required`, per rispettare `active_roles`, `max_role_weight` e wildcard ruoli;
   - verificato con utente `dev` peso `999`: `/registry/customer-routes`, `/registry/customers`, `/registry/suppliers` rispondono `200`.
+  - revisione UX associazione clienti-giri:
+    - pagine registry dentro `section.welcome-section`;
+    - `/registry/customer-routes` mostra in pagina tendina giri e box anagrafiche associate;
+    - ogni riga associata ha pulsante `Elimina` che disattiva l'associazione;
+    - aggiunti endpoint puntuali:
+      - `POST /registry/api/routes`;
+      - `POST /registry/api/routes/<route_id>/customers/<registry_id>`;
+      - `DELETE /registry/api/routes/<route_id>/customers/<registry_id>`;
+    - anagrafiche gia' associate a un giro sono esposte con `assigned_route_id/assigned_route_name` e visualizzate in corsivo/sbiadite;
+    - se si seleziona un'anagrafica gia' associata a un altro giro, API risponde `409 needs_confirm` e UI chiede conferma per sostituire;
+    - test scrivi/rimuovi eseguito su giro `marsica` e cliente `A.B.S. SPA`: associazione persistita e poi rimossa correttamente.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;
