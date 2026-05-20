@@ -1164,6 +1164,176 @@ class BusinessRegistryContact(db.Model):
             "is_primary": self.is_primary,
         }
 
+
+class RegistryContact(db.Model):
+    __tablename__ = "registry_contacts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    display_name = db.Column(db.String(255), nullable=False, index=True)
+    role = db.Column(db.String(120), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+        nullable=False,
+    )
+
+    points = db.relationship(
+        "RegistryContactPoint",
+        backref="contact",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    registry_links = db.relationship(
+        "BusinessRegistryContactLink",
+        backref="contact",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "display_name": self.display_name,
+            "role": self.role,
+            "notes": self.notes,
+            "is_active": self.is_active,
+            "points": [point.to_dict() for point in self.points],
+        }
+
+
+class RegistryContactPoint(db.Model):
+    __tablename__ = "registry_contact_points"
+    __table_args__ = (
+        db.UniqueConstraint("contact_id", "contact_type", "value", name="uq_registry_contact_point_value"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    contact_id = db.Column(
+        db.Integer,
+        db.ForeignKey("registry_contacts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    contact_type = db.Column(db.String(20), nullable=False, index=True)
+    value = db.Column(db.String(255), nullable=False, index=True)
+    label = db.Column(db.String(80), nullable=True)
+    is_primary = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "contact_id": self.contact_id,
+            "contact_type": self.contact_type,
+            "value": self.value,
+            "label": self.label,
+            "is_primary": self.is_primary,
+        }
+
+
+class BusinessRegistryContactLink(db.Model):
+    __tablename__ = "business_registry_contact_links"
+    __table_args__ = (
+        db.UniqueConstraint("registry_id", "contact_id", name="uq_business_registry_contact_link"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    registry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("business_registries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    contact_id = db.Column(
+        db.Integer,
+        db.ForeignKey("registry_contacts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    role = db.Column(db.String(120), nullable=True)
+    is_primary = db.Column(db.Boolean, nullable=False, default=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+        nullable=False,
+    )
+
+    registry = db.relationship(
+        "BusinessRegistry",
+        backref=db.backref("contact_links", cascade="all, delete-orphan", lazy="selectin"),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "registry_id": self.registry_id,
+            "contact_id": self.contact_id,
+            "role": self.role,
+            "is_primary": self.is_primary,
+            "is_active": self.is_active,
+            "notes": self.notes,
+            "contact": self.contact.to_dict() if self.contact else None,
+        }
+
+
+class DeliveryRouteCustomer(db.Model):
+    __tablename__ = "delivery_route_customers"
+    __table_args__ = (
+        db.UniqueConstraint("route_id", "registry_id", name="uq_delivery_route_customer"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    route_id = db.Column(
+        db.Integer,
+        db.ForeignKey("delivery_routes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    registry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("business_registries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+        nullable=False,
+    )
+
+    route = db.relationship(
+        "DeliveryRoute",
+        backref=db.backref("customer_links", cascade="all, delete-orphan", lazy="selectin"),
+    )
+    registry = db.relationship(
+        "BusinessRegistry",
+        backref=db.backref("delivery_route_links", cascade="all, delete-orphan", lazy="selectin"),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "route_id": self.route_id,
+            "registry_id": self.registry_id,
+            "sort_order": self.sort_order,
+            "is_active": self.is_active,
+            "notes": self.notes,
+        }
+
 # --- Giornata / Chiusura -------------------------------------------------------
 
 class CashDay(db.Model):

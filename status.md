@@ -405,6 +405,26 @@ Stato noto:
   - modale spesa cerca solo fornitori e non valorizza `customer_id`;
   - dedup risultati per tipo+codice, cosi' CashCustomer e BusinessRegistry con stesso codice non appaiono come doppioni;
   - verificato DB: nessun duplicato per `CashCustomer.codice_cliente`, nessun duplicato per `CashCustomer.partita_iva`, nessun duplicato per `BusinessRegistry(kind, source_code)`.
+- Bozza 2026-05-20 per funzioni anagrafiche successive:
+  - migration applicata `d4e5f6a7b8c9`;
+  - nuove tabelle:
+    - `delivery_route_customers`: associa clienti (`BusinessRegistry.kind=customer`) ai giri (`DeliveryRoute`);
+    - `registry_contacts`: contatti autonomi riusabili su piu' anagrafiche;
+    - `registry_contact_points`: telefoni/email/PEC del contatto;
+    - `business_registry_contact_links`: ponte contatto-anagrafica, dissociabile senza cancellare il contatto;
+  - nuovo blueprint `/registry`;
+  - endpoint pagina da mettere a menu:
+    - `/registry/customer-routes` = modale associazione clienti-giri;
+    - `/registry/customers` = rubrica clienti;
+    - `/registry/suppliers` = rubrica fornitori;
+  - API bozza:
+    - `GET /registry/api/routes/customers`;
+    - `POST /registry/api/routes/<route_id>/customers`;
+    - `GET /registry/api/registries?kind=customer|supplier&q=...`;
+    - `POST /registry/api/registries/<registry_id>/contacts`;
+    - `DELETE /registry/api/registries/<registry_id>/contacts/<contact_id>`;
+  - verifiche dopo migration: `DeliveryRoute=8`, `BusinessRegistry customer=2002`, `BusinessRegistry supplier=933`;
+  - test API lettura: clienti `A.B.S.` = 3 risultati, fornitori `BAKER` = 1 risultato, clienti-giri `A.B.S.` = 3 clienti + 8 giri.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

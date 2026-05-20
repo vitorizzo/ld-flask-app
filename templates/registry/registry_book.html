@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h4 mb-1">{{ title }}</h1>
+    <div class="text-muted small">Bozza rubrica con contatti associabili a piu anagrafiche.</div>
+  </div>
+  <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#registryBookModal">
+    Apri rubrica
+  </button>
+</div>
+
+<div class="modal fade" id="registryBookModal" tabindex="-1" aria-hidden="true" data-kind="{{ kind }}">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">{{ title }}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-12 col-md-10">
+            <label class="form-label" for="registrySearch">Cerca</label>
+            <input class="form-control" id="registrySearch" autocomplete="off" placeholder="Nome, P.IVA, codice, contatto">
+          </div>
+          <div class="col-12 col-md-2 d-grid">
+            <button class="btn btn-outline-secondary" id="registrySearchBtn" type="button">Cerca</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle">
+            <thead>
+              <tr>
+                <th>Anagrafica</th>
+                <th>Codice</th>
+                <th>P.IVA</th>
+                <th>Contatti importati</th>
+                <th>Contatti associati</th>
+                <th style="width: 120px"></th>
+              </tr>
+            </thead>
+            <tbody id="registryRows">
+              <tr><td colspan="6" class="text-muted">Caricamento...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="contactLinkModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Associa contatto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="contactRegistryId">
+        <div class="mb-2">
+          <label class="form-label" for="contactDisplayName">Nome contatto</label>
+          <input class="form-control" id="contactDisplayName" autocomplete="off">
+        </div>
+        <div class="mb-2">
+          <label class="form-label" for="contactRole">Ruolo</label>
+          <input class="form-control" id="contactRole" autocomplete="off" placeholder="Agente, socio, amministrazione...">
+        </div>
+        <div class="row g-2">
+          <div class="col-12 col-md-4">
+            <label class="form-label" for="contactPointType">Tipo</label>
+            <select class="form-select" id="contactPointType">
+              <option value="phone">Telefono</option>
+              <option value="mobile">Cellulare</option>
+              <option value="email">Email</option>
+              <option value="pec">PEC</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-8">
+            <label class="form-label" for="contactPointValue">Valore</label>
+            <input class="form-control" id="contactPointValue" autocomplete="off">
+          </div>
+        </div>
+        <div class="mt-2">
+          <label class="form-label" for="contactNotes">Note</label>
+          <textarea class="form-control" id="contactNotes" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Annulla</button>
+        <button class="btn btn-primary" type="button" id="contactSaveBtn">Salva</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+  const modalEl = document.getElementById("registryBookModal");
+  const kind = modalEl?.dataset.kind || "customer";
+  const rowsEl = document.getElementById("registryRows");
+  const searchInput = document.getElementById("registrySearch");
+  const searchBtn = document.getElementById("registrySearchBtn");
+  const linkModalEl = document.getElementById("contactLinkModal");
+  const linkModal = linkModalEl ? new bootstrap.Modal(linkModalEl) : null;
+  const saveBtn = document.getElementById("contactSaveBtn");
+  let registries = [];
+
+  function esc(value) {
+    return String(value || "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  }
+
+  function contactSummary(points) {
+    return (points || []).map(p => `${p.contact_type}: ${p.value}`).join("<br>");
+  }
+
+  function render() {
+    if (!registries.length) {
+      rowsEl.innerHTML = `<tr><td colspan="6" class="text-muted">Nessuna anagrafica trovata</td></tr>`;
+      return;
+    }
+    rowsEl.innerHTML = registries.map(r => {
+      const legacy = (r.legacy_contacts || []).map(c => `${esc(c.contact_type)}: ${esc(c.value)}`).join("<br>");
+      const linked = (r.contact_links || []).map(l => {
+        const c = l.contact || {};
+        const points = contactSummary(c.points || []);
+        return `
+          <div class="mb-1">
+            <strong>${esc(c.display_name)}</strong>${l.role ? ` <span class="text-muted">(${esc(l.role)})</span>` : ""}
+            ${points ? `<br><span class="small">${points}</span>` : ""}
+            <button class="btn btn-link btn-sm text-danger p-0 ms-1" data-unlink="${r.id}:${c.id}" type="button">Dissocia</button>
+          </div>
+        `;
+      }).join("");
+      return `
+        <tr>
+          <td class="fw-semibold">${esc(r.display_name || r.display)}</td>
+          <td>${esc(r.source_code)}</td>
+          <td>${esc(r.vat_number)}</td>
+          <td class="small">${legacy || "<span class='text-muted'>-</span>"}</td>
+          <td class="small">${linked || "<span class='text-muted'>-</span>"}</td>
+          <td><button class="btn btn-outline-primary btn-sm" data-link="${r.id}" type="button">Contatto</button></td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  async function loadData() {
+    rowsEl.innerHTML = `<tr><td colspan="6" class="text-muted">Caricamento...</td></tr>`;
+    const q = searchInput.value.trim();
+    const res = await fetch(`/registry/api/registries?kind=${encodeURIComponent(kind)}&q=${encodeURIComponent(q)}`, {
+      credentials: "same-origin",
+    });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || "Errore caricamento");
+    registries = data.registries || [];
+    render();
+  }
+
+  function openContactModal(registryId) {
+    document.getElementById("contactRegistryId").value = registryId;
+    document.getElementById("contactDisplayName").value = "";
+    document.getElementById("contactRole").value = "";
+    document.getElementById("contactPointValue").value = "";
+    document.getElementById("contactNotes").value = "";
+    linkModal?.show();
+  }
+
+  async function saveContact() {
+    const registryId = document.getElementById("contactRegistryId").value;
+    const displayName = document.getElementById("contactDisplayName").value.trim();
+    const role = document.getElementById("contactRole").value.trim();
+    const pointType = document.getElementById("contactPointType").value;
+    const pointValue = document.getElementById("contactPointValue").value.trim();
+    const notes = document.getElementById("contactNotes").value.trim();
+    if (!registryId || !displayName) return;
+
+    saveBtn.disabled = true;
+    try {
+      const points = pointValue ? [{ contact_type: pointType, value: pointValue, is_primary: true }] : [];
+      const res = await fetch(`/registry/api/registries/${registryId}/contacts`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ display_name: displayName, role, link_role: role, notes, points }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Errore salvataggio");
+      linkModal?.hide();
+      await loadData();
+    } catch (err) {
+      alert(err.message || "Errore salvataggio");
+    } finally {
+      saveBtn.disabled = false;
+    }
+  }
+
+  rowsEl?.addEventListener("click", async e => {
+    const linkBtn = e.target.closest("[data-link]");
+    if (linkBtn) {
+      openContactModal(linkBtn.dataset.link);
+      return;
+    }
+    const unlinkBtn = e.target.closest("[data-unlink]");
+    if (unlinkBtn) {
+      const [registryId, contactId] = unlinkBtn.dataset.unlink.split(":");
+      if (!confirm("Dissociare questo contatto dall'anagrafica?")) return;
+      const res = await fetch(`/registry/api/registries/${registryId}/contacts/${contactId}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        alert(data.error || "Errore dissociazione");
+        return;
+      }
+      await loadData();
+    }
+  });
+
+  searchBtn?.addEventListener("click", () => loadData().catch(err => {
+    rowsEl.innerHTML = `<tr><td colspan="6" class="text-danger">${esc(err.message)}</td></tr>`;
+  }));
+  searchInput?.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      searchBtn.click();
+    }
+  });
+  saveBtn?.addEventListener("click", saveContact);
+  modalEl?.addEventListener("shown.bs.modal", () => loadData().catch(err => {
+    rowsEl.innerHTML = `<tr><td colspan="6" class="text-danger">${esc(err.message)}</td></tr>`;
+  }));
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Associazione clienti-giri{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h1 class="h4 mb-1">Associazione clienti-giri</h1>
+    <div class="text-muted small">Bozza operativa per collegare clienti anagrafici ai giri di consegna.</div>
+  </div>
+  <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#customerRoutesModal">
+    Apri associazione
+  </button>
+</div>
+
+<div class="modal fade" id="customerRoutesModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Clienti nei giri</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-12 col-md-4">
+            <label class="form-label" for="routeSelect">Giro</label>
+            <select class="form-select" id="routeSelect"></select>
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label" for="customerRouteSearch">Cerca cliente</label>
+            <input class="form-control" id="customerRouteSearch" autocomplete="off" placeholder="Nome, P.IVA, codice cliente">
+          </div>
+          <div class="col-12 col-md-2 d-grid">
+            <button class="btn btn-outline-secondary" id="customerRouteSearchBtn" type="button">Cerca</button>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle">
+            <thead>
+              <tr>
+                <th style="width: 44px"></th>
+                <th>Cliente</th>
+                <th>Codice</th>
+                <th>P.IVA</th>
+                <th>Citta</th>
+              </tr>
+            </thead>
+            <tbody id="customerRouteRows">
+              <tr><td colspan="5" class="text-muted">Caricamento...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Chiudi</button>
+        <button class="btn btn-primary" type="button" id="customerRouteSaveBtn">Salva associazioni</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+  const routeSelect = document.getElementById("routeSelect");
+  const searchInput = document.getElementById("customerRouteSearch");
+  const searchBtn = document.getElementById("customerRouteSearchBtn");
+  const rowsEl = document.getElementById("customerRouteRows");
+  const saveBtn = document.getElementById("customerRouteSaveBtn");
+  const modalEl = document.getElementById("customerRoutesModal");
+  let customers = [];
+
+  function esc(value) {
+    return String(value || "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
+  }
+
+  function selectedRouteId() {
+    return Number(routeSelect.value || 0);
+  }
+
+  function render() {
+    const routeId = selectedRouteId();
+    if (!customers.length) {
+      rowsEl.innerHTML = `<tr><td colspan="5" class="text-muted">Nessun cliente trovato</td></tr>`;
+      return;
+    }
+    rowsEl.innerHTML = customers.map(c => {
+      const checked = (c.route_ids || []).includes(routeId) ? "checked" : "";
+      return `
+        <tr>
+          <td><input class="form-check-input customer-route-check" type="checkbox" value="${c.id}" ${checked}></td>
+          <td class="fw-semibold">${esc(c.display_name || c.display)}</td>
+          <td>${esc(c.source_code)}</td>
+          <td>${esc(c.vat_number)}</td>
+          <td>${esc([c.city, c.province].filter(Boolean).join(" "))}</td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  async function loadData() {
+    const q = searchInput.value.trim();
+    rowsEl.innerHTML = `<tr><td colspan="5" class="text-muted">Caricamento...</td></tr>`;
+    const res = await fetch(`/registry/api/routes/customers?q=${encodeURIComponent(q)}`, { credentials: "same-origin" });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || "Errore caricamento");
+    routeSelect.innerHTML = (data.routes || []).map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join("");
+    customers = data.customers || [];
+    render();
+  }
+
+  async function save() {
+    const routeId = selectedRouteId();
+    if (!routeId) return;
+    const registryIds = Array.from(document.querySelectorAll(".customer-route-check:checked")).map(el => Number(el.value));
+    saveBtn.disabled = true;
+    try {
+      const res = await fetch(`/registry/api/routes/${routeId}/customers`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ registry_ids: registryIds }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Errore salvataggio");
+      await loadData();
+    } catch (err) {
+      alert(err.message || "Errore salvataggio");
+    } finally {
+      saveBtn.disabled = false;
+    }
+  }
+
+  routeSelect?.addEventListener("change", render);
+  searchBtn?.addEventListener("click", () => loadData().catch(err => {
+    rowsEl.innerHTML = `<tr><td colspan="5" class="text-danger">${esc(err.message)}</td></tr>`;
+  }));
+  searchInput?.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      searchBtn.click();
+    }
+  });
+  saveBtn?.addEventListener("click", save);
+  modalEl?.addEventListener("shown.bs.modal", () => loadData().catch(err => {
+    rowsEl.innerHTML = `<tr><td colspan="5" class="text-danger">${esc(err.message)}</td></tr>`;
+  }));
+})();
+</script>
+{% endblock %}
