@@ -94,21 +94,21 @@ def _search_registries(kind, q="", limit=80):
 
 @registry_bp.get("/customer-routes")
 @login_required
-@role_required(100)
+@role_required(30)
 def customer_routes_page():
     return render_template("registry/customer_routes.html")
 
 
 @registry_bp.get("/customers")
 @login_required
-@role_required(100)
+@role_required(30)
 def customers_book_page():
     return render_template("registry/registry_book.html", kind="customer", title="Rubrica clienti")
 
 
 @registry_bp.get("/suppliers")
 @login_required
-@role_required(100)
+@role_required(40)
 def suppliers_book_page():
     return render_template("registry/registry_book.html", kind="supplier", title="Rubrica fornitori")
 
