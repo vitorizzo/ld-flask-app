@@ -115,7 +115,7 @@ def suppliers_book_page():
 
 @registry_bp.get("/api/routes/customers")
 @login_required
-@role_required(100)
+@role_required(30)
 def api_route_customers_index():
     q = (request.args.get("q") or "").strip()
     routes = (
@@ -162,7 +162,7 @@ def api_route_customers_index():
 
 @registry_bp.post("/api/routes")
 @login_required
-@role_required(100)
+@role_required(30)
 def api_routes_create():
     data = request.get_json(silent=True) or {}
     name = (data.get("name") or "").strip()
@@ -195,7 +195,7 @@ def api_routes_create():
 
 @registry_bp.post("/api/routes/<int:route_id>/customers")
 @login_required
-@role_required(100)
+@role_required(30)
 def api_route_customers_replace(route_id):
     route = DeliveryRoute.query.filter_by(id=route_id).first()
     if not route:
@@ -241,7 +241,7 @@ def api_route_customers_replace(route_id):
 
 @registry_bp.post("/api/routes/<int:route_id>/customers/<int:registry_id>")
 @login_required
-@role_required(100)
+@role_required(30)
 def api_route_customer_assign(route_id, registry_id):
     route = DeliveryRoute.query.filter_by(id=route_id, is_active=True).first()
     if not route:
@@ -283,7 +283,7 @@ def api_route_customer_assign(route_id, registry_id):
 
 @registry_bp.delete("/api/routes/<int:route_id>/customers/<int:registry_id>")
 @login_required
-@role_required(100)
+@role_required(30)
 def api_route_customer_delete(route_id, registry_id):
     link = DeliveryRouteCustomer.query.filter_by(route_id=route_id, registry_id=registry_id, is_active=True).first()
     if not link:
@@ -295,7 +295,7 @@ def api_route_customer_delete(route_id, registry_id):
 
 @registry_bp.get("/api/registries")
 @login_required
-@role_required(100)
+@role_required(30)
 def api_registries_index():
     kind = (request.args.get("kind") or "customer").strip().lower()
     if kind not in {"customer", "supplier"}:
@@ -314,7 +314,7 @@ def api_registries_index():
 
 @registry_bp.post("/api/registries/<int:registry_id>/contacts")
 @login_required
-@role_required(100)
+@role_required(30)
 def api_registry_contact_link(registry_id):
     registry = BusinessRegistry.query.filter_by(id=registry_id).first()
     if not registry:
@@ -367,7 +367,7 @@ def api_registry_contact_link(registry_id):
 
 @registry_bp.delete("/api/registries/<int:registry_id>/contacts/<int:contact_id>")
 @login_required
-@role_required(100)
+@role_required(30)
 def api_registry_contact_unlink(registry_id, contact_id):
     link = BusinessRegistryContactLink.query.filter_by(registry_id=registry_id, contact_id=contact_id).first()
     if not link:
