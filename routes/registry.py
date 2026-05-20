@@ -12,7 +12,7 @@ from models import (
     RegistryContact,
     RegistryContactPoint,
 )
-from routes.decorators import role_required
+from tools.role_required import role_required
 
 
 registry_bp = Blueprint("registry", __name__)
