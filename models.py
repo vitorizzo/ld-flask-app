@@ -1334,6 +1334,98 @@ class DeliveryRouteCustomer(db.Model):
             "notes": self.notes,
         }
 
+
+class RouteOrderBoardEntry(db.Model):
+    __tablename__ = "route_order_board_entries"
+    __table_args__ = (
+        db.UniqueConstraint("route_id", "registry_id", "board_date", name="uq_route_order_board_entry"),
+        db.Index("ix_route_order_board_entries_route_board", "route_id", "board_date"),
+        db.Index("ix_route_order_board_entries_planned", "route_id", "planned_delivery_at"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    route_id = db.Column(
+        db.Integer,
+        db.ForeignKey("delivery_routes.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    registry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("business_registries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    board_date = db.Column(db.Date, nullable=False, index=True)
+    planned_delivery_at = db.Column(db.DateTime, nullable=False, index=True)
+    status = db.Column(db.String(40), nullable=False, default="da_chiamare", index=True)
+    order_note = db.Column(db.Text, nullable=True)
+    list_done = db.Column(db.Boolean, nullable=False, default=False)
+    slack_channel_id = db.Column(db.String(50), nullable=True)
+    slack_message_ts = db.Column(db.String(50), nullable=True)
+    slack_thread_ts = db.Column(db.String(50), nullable=True)
+    sent_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+        nullable=False,
+    )
+
+    route = db.relationship("DeliveryRoute", backref=db.backref("order_board_entries", lazy="selectin"))
+    registry = db.relationship("BusinessRegistry", backref=db.backref("route_order_entries", lazy="selectin"))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "route_id": self.route_id,
+            "registry_id": self.registry_id,
+            "board_date": self.board_date.isoformat() if self.board_date else None,
+            "planned_delivery_at": self.planned_delivery_at.isoformat() if self.planned_delivery_at else None,
+            "status": self.status,
+            "order_note": self.order_note or "",
+            "list_done": self.list_done,
+            "slack_channel_id": self.slack_channel_id,
+            "slack_message_ts": self.slack_message_ts,
+            "sent_at": self.sent_at.isoformat() if self.sent_at else None,
+        }
+
+
+class BusinessRegistryAlert(db.Model):
+    __tablename__ = "business_registry_alerts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    registry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("business_registries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    message = db.Column(db.String(255), nullable=False)
+    start_date = db.Column(db.Date, nullable=True, index=True)
+    end_date = db.Column(db.Date, nullable=True, index=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+        nullable=False,
+    )
+
+    registry = db.relationship("BusinessRegistry", backref=db.backref("alerts", cascade="all, delete-orphan", lazy="selectin"))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "registry_id": self.registry_id,
+            "message": self.message,
+            "start_date": self.start_date.isoformat() if self.start_date else None,
+            "end_date": self.end_date.isoformat() if self.end_date else None,
+            "is_active": self.is_active,
+        }
+
 # --- Giornata / Chiusura -------------------------------------------------------
 
 class CashDay(db.Model):

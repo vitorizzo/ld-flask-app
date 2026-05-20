@@ -254,6 +254,7 @@ def create_app():
     from routes.slack import slack_bp
     from routes.cassa import cassa_bp
     from routes.registry import registry_bp
+    from routes.route_orders import route_orders_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(settings_bp, url_prefix="/settings")
@@ -273,6 +274,7 @@ def create_app():
     app.register_blueprint(kiosk_bp, url_prefix="/kiosk")
     app.register_blueprint(cassa_bp, url_prefix="/cassa")
     app.register_blueprint(registry_bp, url_prefix="/registry")
+    app.register_blueprint(route_orders_bp, url_prefix="/route-orders")
 
     @app.cli.command("cleanup-reset-tokens")
     @click.option("--retention-days", default=30, show_default=True, type=int,

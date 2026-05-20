@@ -1,0 +1,445 @@
+{% extends "base.html" %}
+
+{% block title %}Plancia ordini giri{% endblock %}
+
+{% block extra_css %}
+<style>
+  .route-board-toolbar {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) auto auto;
+    gap: .75rem;
+    align-items: end;
+  }
+  .route-board-table th,
+  .route-board-table td {
+    vertical-align: middle;
+  }
+  .route-board-customer {
+    font-weight: 600;
+  }
+  .route-board-phones a {
+    white-space: nowrap;
+  }
+  .route-board-note-preview {
+    max-width: 280px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .route-board-actions {
+    display: flex;
+    gap: .35rem;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+  }
+  .route-board-actions .btn {
+    width: 2.25rem;
+    height: 2.25rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  @media (max-width: 768px) {
+    .route-board-toolbar {
+      grid-template-columns: 1fr;
+    }
+    .route-board-actions {
+      justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="welcome-section">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-1">Plancia ordini giri</h1>
+      <div class="text-muted small">Chiamate clienti, note ordine e invio Slack per giro.</div>
+    </div>
+    <span class="badge text-bg-secondary">staff</span>
+  </div>
+
+  <div class="route-board-toolbar mb-3">
+    <div>
+      <label class="form-label" for="routeSelect">Giro</label>
+      <select class="form-select" id="routeSelect"></select>
+    </div>
+    <div>
+      <label class="form-label d-block" for="deliveryDateBtn">Prossima consegna</label>
+      <button class="btn btn-outline-primary" id="deliveryDateBtn" type="button">
+        -
+      </button>
+    </div>
+    <div class="text-muted small" id="boardSummary">-</div>
+  </div>
+
+  <div class="border rounded bg-light p-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h2 class="h6 mb-0">Clienti del giro</h2>
+      <span class="badge text-bg-secondary" id="customerCount">0</span>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle route-board-table mb-0">
+        <thead>
+          <tr>
+            <th>Cliente</th>
+            <th>Contatti</th>
+            <th>Stato</th>
+            <th>Lista fatta</th>
+            <th>Nota</th>
+            <th class="text-end">Azioni</th>
+          </tr>
+        </thead>
+        <tbody id="boardRows">
+          <tr><td colspan="6" class="text-muted">Caricamento...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Ordine cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="noteCustomerId">
+        <label class="form-label" for="orderNote">Nota ordine</label>
+        <textarea class="form-control" id="orderNote" rows="8"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button>
+        <button class="btn btn-primary" type="button" id="noteSaveBtn">Salva</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="deliveryDateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Data consegna</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="deliveryCustomerId">
+        <div class="mb-3">
+          <label class="form-label" for="deliveryPreset">Date successive del giro</label>
+          <select class="form-select" id="deliveryPreset"></select>
+        </div>
+        <div>
+          <label class="form-label" for="deliveryCustomDate">Data personalizzata</label>
+          <input class="form-control" type="date" id="deliveryCustomDate">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button>
+        <button class="btn btn-primary" type="button" id="deliverySaveBtn">Applica</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="alertsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Avvisi cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="alertCustomerId">
+        <div class="mb-3">
+          <label class="form-label" for="alertMessage">Avviso</label>
+          <input class="form-control" id="alertMessage" maxlength="255" placeholder="es. chiuso dal 01/06 al 02/06">
+        </div>
+        <div class="row g-2 mb-3">
+          <div class="col">
+            <label class="form-label" for="alertStart">Dal</label>
+            <input class="form-control" type="date" id="alertStart">
+          </div>
+          <div class="col">
+            <label class="form-label" for="alertEnd">Al</label>
+            <input class="form-control" type="date" id="alertEnd">
+          </div>
+        </div>
+        <button class="btn btn-primary w-100 mb-3" id="alertCreateBtn" type="button">Aggiungi avviso</button>
+        <div class="list-group" id="alertsList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+  const routeSelect = document.getElementById("routeSelect");
+  const rowsEl = document.getElementById("boardRows");
+  const customerCount = document.getElementById("customerCount");
+  const deliveryDateBtn = document.getElementById("deliveryDateBtn");
+  const boardSummary = document.getElementById("boardSummary");
+  const noteModal = new bootstrap.Modal(document.getElementById("noteModal"));
+  const deliveryModal = new bootstrap.Modal(document.getElementById("deliveryDateModal"));
+  const alertsModal = new bootstrap.Modal(document.getElementById("alertsModal"));
+  let state = { routes: [], route: null, customers: [], next_delivery_at: null, upcoming_delivery_dates: [], statuses: [] };
+
+  function fmtDateTime(value) {
+    if (!value) return "-";
+    const d = new Date(value);
+    return d.toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
+  }
+
+  function esc(value) {
+    return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch]));
+  }
+
+  async function api(url, options = {}) {
+    const res = await fetch(url, {
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      ...options,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) throw new Error(data.error || "Operazione non riuscita");
+    return data;
+  }
+
+  function selectedRouteId() {
+    return routeSelect.value || (state.route ? state.route.id : "");
+  }
+
+  function renderRoutes() {
+    routeSelect.innerHTML = state.routes.map(route => (
+      `<option value="${route.id}" ${state.route && route.id === state.route.id ? "selected" : ""}>${esc(route.name)}</option>`
+    )).join("");
+  }
+
+  function renderDeliveryPresets() {
+    const preset = document.getElementById("deliveryPreset");
+    preset.innerHTML = state.upcoming_delivery_dates.map(value => (
+      `<option value="${esc(value)}">${esc(fmtDateTime(value))}</option>`
+    )).join("");
+  }
+
+  function alertsTitle(alerts) {
+    return (alerts || []).map(alert => alert.message).join("\n");
+  }
+
+  function renderRows() {
+    customerCount.textContent = state.customers.length;
+    deliveryDateBtn.textContent = fmtDateTime(state.next_delivery_at);
+    boardSummary.textContent = state.route ? `${state.customers.length} clienti associati` : "-";
+    renderDeliveryPresets();
+    if (!state.customers.length) {
+      rowsEl.innerHTML = `<tr><td colspan="6" class="text-muted">Nessun cliente associato a questo giro.</td></tr>`;
+      return;
+    }
+    rowsEl.innerHTML = state.customers.map(customer => {
+      const entry = customer.entry || {};
+      const phones = (customer.phones || []).length
+        ? customer.phones.map(phone => `<a href="tel:${esc(phone.value)}" class="me-2">${esc(phone.value)}</a>`).join("")
+        : `<span class="text-muted">-</span>`;
+      const alertBadge = customer.alerts && customer.alerts.length
+        ? `<span title="${esc(alertsTitle(customer.alerts))}" class="ms-1">⚠️</span>`
+        : "";
+      const statusOptions = state.statuses.map(status => (
+        `<option value="${esc(status.code)}" ${entry.status === status.code ? "selected" : ""}>${esc(status.label)}</option>`
+      )).join("");
+      return `
+        <tr data-customer-id="${customer.id}">
+          <td>
+            <span class="route-board-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span>
+            <div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div>
+          </td>
+          <td class="route-board-phones">${phones}</td>
+          <td><select class="form-select form-select-sm" data-action="status">${statusOptions}</select></td>
+          <td class="text-center"><input class="form-check-input" type="checkbox" data-action="listDone" ${entry.list_done ? "checked" : ""}></td>
+          <td><div class="route-board-note-preview text-muted">${esc(entry.order_note || "")}</div></td>
+          <td>
+            <div class="route-board-actions">
+              <button class="btn btn-outline-secondary btn-sm" type="button" data-action="note" title="Ordine"><i class="fa-regular fa-note-sticky"></i></button>
+              <button class="btn btn-outline-primary btn-sm" type="button" data-action="date" title="Consegna">${entry.planned_delivery_at ? '<i class="fa-regular fa-calendar"></i>' : '<i class="fa-solid fa-calendar-plus"></i>'}</button>
+              <button class="btn btn-outline-warning btn-sm" type="button" data-action="alerts" title="Avvisi"><i class="fa-solid fa-triangle-exclamation"></i></button>
+              <button class="btn btn-success btn-sm" type="button" data-action="slack" title="Invia su Slack"><i class="fa-brands fa-slack"></i></button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  function customerById(id) {
+    return state.customers.find(customer => String(customer.id) === String(id));
+  }
+
+  async function loadBoard(routeId = "") {
+    rowsEl.innerHTML = `<tr><td colspan="6" class="text-muted">Caricamento...</td></tr>`;
+    const suffix = routeId ? `?route_id=${encodeURIComponent(routeId)}` : "";
+    state = await api(`/route-orders/api/board${suffix}`);
+    renderRoutes();
+    renderRows();
+  }
+
+  async function saveEntry(customerId, patch) {
+    const customer = customerById(customerId);
+    const body = {
+      route_id: selectedRouteId(),
+      registry_id: customerId,
+      entry_id: customer.entry && customer.entry.id,
+      board_date: state.next_delivery_at ? state.next_delivery_at.slice(0, 10) : null,
+      ...patch,
+    };
+    const data = await api("/route-orders/api/entries", { method: "POST", body: JSON.stringify(body) });
+    customer.entry = data.entry;
+    renderRows();
+  }
+
+  routeSelect.addEventListener("change", () => loadBoard(routeSelect.value).catch(err => alert(err.message)));
+
+  deliveryDateBtn.addEventListener("click", () => {
+    document.getElementById("deliveryCustomerId").value = "";
+    document.getElementById("deliveryCustomDate").value = "";
+    renderDeliveryPresets();
+    deliveryModal.show();
+  });
+
+  rowsEl.addEventListener("change", event => {
+    const row = event.target.closest("tr[data-customer-id]");
+    if (!row) return;
+    const customerId = row.dataset.customerId;
+    if (event.target.dataset.action === "status") {
+      saveEntry(customerId, { status: event.target.value }).catch(err => alert(err.message));
+    }
+    if (event.target.dataset.action === "listDone") {
+      saveEntry(customerId, { list_done: event.target.checked }).catch(err => alert(err.message));
+    }
+  });
+
+  rowsEl.addEventListener("click", async event => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const row = button.closest("tr[data-customer-id]");
+    const customerId = row.dataset.customerId;
+    const customer = customerById(customerId);
+    if (button.dataset.action === "note") {
+      document.getElementById("noteCustomerId").value = customerId;
+      document.getElementById("orderNote").value = (customer.entry && customer.entry.order_note) || "";
+      noteModal.show();
+    }
+    if (button.dataset.action === "date") {
+      document.getElementById("deliveryCustomerId").value = customerId;
+      document.getElementById("deliveryCustomDate").value = "";
+      renderDeliveryPresets();
+      deliveryModal.show();
+    }
+    if (button.dataset.action === "alerts") {
+      document.getElementById("alertCustomerId").value = customerId;
+      document.getElementById("alertMessage").value = "";
+      document.getElementById("alertStart").value = "";
+      document.getElementById("alertEnd").value = "";
+      await loadAlerts(customerId);
+      alertsModal.show();
+    }
+    if (button.dataset.action === "slack") {
+      try {
+        if (!customer.entry || !customer.entry.id) {
+          await saveEntry(customerId, {});
+        }
+        const fresh = customerById(customerId);
+        const data = await api(`/route-orders/api/entries/${fresh.entry.id}/send-slack`, { method: "POST", body: "{}" });
+        fresh.entry = data.entry;
+        renderRows();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  });
+
+  document.getElementById("noteSaveBtn").addEventListener("click", () => {
+    const customerId = document.getElementById("noteCustomerId").value;
+    saveEntry(customerId, { order_note: document.getElementById("orderNote").value })
+      .then(() => noteModal.hide())
+      .catch(err => alert(err.message));
+  });
+
+  document.getElementById("deliverySaveBtn").addEventListener("click", () => {
+    const customerId = document.getElementById("deliveryCustomerId").value;
+    const customDate = document.getElementById("deliveryCustomDate").value;
+    const preset = document.getElementById("deliveryPreset").value;
+    const value = customDate || preset;
+    if (customerId) {
+      saveEntry(customerId, { planned_delivery_at: value })
+        .then(() => deliveryModal.hide())
+        .catch(err => alert(err.message));
+      return;
+    }
+    api(`/route-orders/api/routes/${selectedRouteId()}/delivery-date`, {
+      method: "POST",
+      body: JSON.stringify({
+        source_date: state.next_delivery_at ? state.next_delivery_at.slice(0, 10) : null,
+        target_delivery_at: value,
+      }),
+    })
+      .then(() => loadBoard(selectedRouteId()))
+      .then(() => deliveryModal.hide())
+      .catch(err => alert(err.message));
+  });
+
+  async function loadAlerts(customerId) {
+    const list = document.getElementById("alertsList");
+    const data = await api(`/route-orders/api/registries/${customerId}/alerts`);
+    list.innerHTML = data.alerts.length ? data.alerts.map(alert => `
+      <div class="list-group-item d-flex justify-content-between align-items-start">
+        <div>
+          <div>${esc(alert.message)}</div>
+          <div class="small text-muted">${esc(alert.start_date || "-")} / ${esc(alert.end_date || "-")}</div>
+        </div>
+        <button class="btn btn-sm btn-outline-danger" type="button" data-alert-delete="${alert.id}"><i class="fa-solid fa-trash"></i></button>
+      </div>
+    `).join("") : `<div class="text-muted">Nessun avviso attivo.</div>`;
+  }
+
+  document.getElementById("alertCreateBtn").addEventListener("click", async () => {
+    const customerId = document.getElementById("alertCustomerId").value;
+    try {
+      await api(`/route-orders/api/registries/${customerId}/alerts`, {
+        method: "POST",
+        body: JSON.stringify({
+          message: document.getElementById("alertMessage").value,
+          start_date: document.getElementById("alertStart").value,
+          end_date: document.getElementById("alertEnd").value,
+        }),
+      });
+      await loadAlerts(customerId);
+      await loadBoard(selectedRouteId());
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  document.getElementById("alertsList").addEventListener("click", async event => {
+    const button = event.target.closest("[data-alert-delete]");
+    if (!button) return;
+    const customerId = document.getElementById("alertCustomerId").value;
+    try {
+      await api(`/route-orders/api/alerts/${button.dataset.alertDelete}`, { method: "DELETE" });
+      await loadAlerts(customerId);
+      await loadBoard(selectedRouteId());
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  loadBoard().catch(err => {
+    rowsEl.innerHTML = `<tr><td colspan="6" class="text-danger">${esc(err.message)}</td></tr>`;
+  });
+})();
+</script>
+{% endblock %}
