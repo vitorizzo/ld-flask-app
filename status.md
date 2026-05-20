@@ -438,6 +438,8 @@ Stato noto:
     - anagrafiche gia' associate a un giro sono esposte con `assigned_route_id/assigned_route_name` e visualizzate in corsivo/sbiadite;
     - se si seleziona un'anagrafica gia' associata a un altro giro, API risponde `409 needs_confirm` e UI chiede conferma per sostituire;
     - test scrivi/rimuovi eseguito su giro `marsica` e cliente `A.B.S. SPA`: associazione persistita e poi rimossa correttamente.
+    - fix visualizzazione multi-associazione: `GET /registry/api/routes/customers` restituisce anche `assigned_customers` separato dai risultati di ricerca, cosi' il box del giro mostra tutte le anagrafiche associate anche dopo una ricerca filtrata;
+    - test controllato: due clienti associati allo stesso giro restano entrambi visibili in `assigned_customers` anche con ricerca senza risultati, poi rimossi.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

@@ -166,6 +166,7 @@
   const addModal = new bootstrap.Modal(document.getElementById("routeCustomerAddModal"));
   let routes = [];
   let customers = [];
+  let assignedCustomersCache = [];
 
   function esc(value) {
     return String(value || "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -187,6 +188,7 @@
     if (!res.ok || !data.ok) throw new Error(data.error || "Errore caricamento");
     routes = data.routes || [];
     customers = data.customers || [];
+    assignedCustomersCache = data.assigned_customers || [];
     routeSelect.innerHTML = routes.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join("");
     if (keepRoute && routes.some(r => Number(r.id) === keepRoute)) routeSelect.value = String(keepRoute);
     renderAssigned();
@@ -194,7 +196,7 @@
 
   function assignedCustomers() {
     const routeId = selectedRouteId();
-    return customers.filter(c => (c.route_ids || []).includes(routeId));
+    return assignedCustomersCache.filter(c => (c.route_ids || []).includes(routeId));
   }
 
   function renderAssigned() {

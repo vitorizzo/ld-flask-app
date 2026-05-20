@@ -125,6 +125,19 @@ def api_route_customers_index():
         .all()
     )
     customers = _search_registries("customer", q=q, limit=250)
+    assigned_customers = (
+        BusinessRegistry.query
+        .join(DeliveryRouteCustomer, DeliveryRouteCustomer.registry_id == BusinessRegistry.id)
+        .join(DeliveryRoute, DeliveryRoute.id == DeliveryRouteCustomer.route_id)
+        .filter(
+            BusinessRegistry.kind == "customer",
+            BusinessRegistry.is_active.is_(True),
+            DeliveryRouteCustomer.is_active.is_(True),
+            DeliveryRoute.is_active.is_(True),
+        )
+        .order_by(DeliveryRouteCustomer.sort_order.asc(), BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc())
+        .all()
+    )
     return jsonify({
         "ok": True,
         "routes": [
@@ -139,6 +152,10 @@ def api_route_customers_index():
         "customers": [
             _registry_to_dict(customer, include_routes=True)
             for customer in customers
+        ],
+        "assigned_customers": [
+            _registry_to_dict(customer, include_routes=True)
+            for customer in assigned_customers
         ],
     })
 
