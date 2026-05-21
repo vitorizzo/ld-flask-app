@@ -474,6 +474,11 @@ Stato noto:
     - `flask db upgrade` ok;
     - test lettura `/route-orders/api/board` con utente `office` peso 40: 200 OK;
     - test scrittura controllato su `route_order_board_entries`: creazione riga, risposta JSON e cancellazione riga test ok.
+  - fix 2026-05-21 dopo test utente:
+    - recupero telefoni plancia reso esplicito da `business_registry_contacts` e dai contatti riusabili collegati, senza dipendere dalle relationship gia' caricate;
+    - gli alert futuri non scaduti sono ora mostrati in plancia come hint/indicatore, non solo quelli gia' attivi alla data odierna;
+    - l'errore Slack sull'aggiunta reaction `white_check_mark` non blocca piu' l'invio/salvataggio dell'ordine: viene restituito come warning;
+    - verificato API: giro `aquila` mostra i telefoni importati; giro `lago` mostra l'alert futuro di `AMELIE SRL`.
 - Nota upgrade futura menu/permessi:
   - oggi il menu confronta `Menu.weight` con `current_user.max_role_weight`;
   - da valutare una plancia developer per attribuire il peso alle funzioni/route e derivare da li' anche la visibilita' menu, evitando di dichiarare il peso direttamente sulla voce menu.

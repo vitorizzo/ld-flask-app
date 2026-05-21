@@ -229,7 +229,10 @@
   }
 
   function alertsTitle(alerts) {
-    return (alerts || []).map(alert => alert.message).join("\n");
+    return (alerts || []).map(alert => {
+      const range = [alert.start_date, alert.end_date].filter(Boolean).join(" - ");
+      return range ? `${alert.message} (${range})` : alert.message;
+    }).join("\n");
   }
 
   function renderRows() {
@@ -244,7 +247,7 @@
     rowsEl.innerHTML = state.customers.map(customer => {
       const entry = customer.entry || {};
       const phones = (customer.phones || []).length
-        ? customer.phones.map(phone => `<a href="tel:${esc(phone.value)}" class="me-2">${esc(phone.value)}</a>`).join("")
+        ? customer.phones.map(phone => `<a href="tel:${esc(phone.value)}" class="me-2" title="${esc(phone.label || "")}">${esc(phone.value)}</a>`).join("")
         : `<span class="text-muted">-</span>`;
       const alertBadge = customer.alerts && customer.alerts.length
         ? `<span title="${esc(alertsTitle(customer.alerts))}" class="ms-1">⚠️</span>`
@@ -356,6 +359,9 @@
         const data = await api(`/route-orders/api/entries/${fresh.entry.id}/send-slack`, { method: "POST", body: "{}" });
         fresh.entry = data.entry;
         renderRows();
+        if (data.reaction_warning) {
+          alert(`Ordine inviato su Slack, ma la reaction lista fatta non e' stata applicata: ${data.reaction_warning}`);
+        }
       } catch (err) {
         alert(err.message);
       }

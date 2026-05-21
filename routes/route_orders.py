@@ -8,10 +8,12 @@ from extensions import db
 from models import (
     BusinessRegistry,
     BusinessRegistryAlert,
+    BusinessRegistryContactLink,
     BusinessRegistryContact,
     DeliveryRoute,
     DeliveryRouteCustomer,
     DeliveryScheduleRule,
+    RegistryContact,
     RegistryContactPoint,
     RouteOrderBoardEntry,
 )
@@ -197,7 +199,7 @@ def _upcoming_delivery_dates(route, count=8):
     return dates
 
 
-def _active_alerts_query(registry_ids, today):
+def _visible_alerts_query(registry_ids, today):
     if not registry_ids:
         return []
     return (
@@ -205,7 +207,6 @@ def _active_alerts_query(registry_ids, today):
         .filter(
             BusinessRegistryAlert.registry_id.in_(registry_ids),
             BusinessRegistryAlert.is_active.is_(True),
-            or_(BusinessRegistryAlert.start_date.is_(None), BusinessRegistryAlert.start_date <= today),
             or_(BusinessRegistryAlert.end_date.is_(None), BusinessRegistryAlert.end_date >= today),
         )
         .order_by(BusinessRegistryAlert.id.desc())
@@ -216,18 +217,40 @@ def _active_alerts_query(registry_ids, today):
 def _phone_contacts(registry):
     phones = []
     seen = set()
-    for contact in registry.contacts:
+
+    legacy_contacts = (
+        BusinessRegistryContact.query
+        .filter(
+            BusinessRegistryContact.registry_id == registry.id,
+            BusinessRegistryContact.contact_type.in_(("phone", "mobile")),
+        )
+        .order_by(BusinessRegistryContact.is_primary.desc(), BusinessRegistryContact.id.asc())
+        .all()
+    )
+    for contact in legacy_contacts:
         if contact.contact_type in {"phone", "mobile"} and contact.value not in seen:
             phones.append({"label": contact.label or contact.contact_type, "value": contact.value})
             seen.add(contact.value)
-    for link in registry.contact_links:
-        if not link.is_active or not link.contact or not link.contact.is_active:
+
+    linked_points = (
+        db.session.query(BusinessRegistryContactLink, RegistryContact, RegistryContactPoint)
+        .join(RegistryContact, RegistryContact.id == BusinessRegistryContactLink.contact_id)
+        .join(RegistryContactPoint, RegistryContactPoint.contact_id == RegistryContact.id)
+        .filter(
+            BusinessRegistryContactLink.registry_id == registry.id,
+            BusinessRegistryContactLink.is_active.is_(True),
+            RegistryContact.is_active.is_(True),
+            RegistryContactPoint.contact_type.in_(("phone", "mobile")),
+        )
+        .order_by(BusinessRegistryContactLink.is_primary.desc(), RegistryContactPoint.is_primary.desc(), RegistryContactPoint.id.asc())
+        .all()
+    )
+    for link, contact, point in linked_points:
+        if point.value in seen:
             continue
-        for point in link.contact.points:
-            if point.contact_type in {"phone", "mobile"} and point.value not in seen:
-                label_parts = [link.contact.display_name, point.label or point.contact_type]
-                phones.append({"label": " - ".join(x for x in label_parts if x), "value": point.value})
-                seen.add(point.value)
+        label_parts = [contact.display_name, point.label or point.contact_type]
+        phones.append({"label": " - ".join(x for x in label_parts if x), "value": point.value})
+        seen.add(point.value)
     return phones
 
 
@@ -314,7 +337,7 @@ def api_board():
         entries_by_registry.setdefault(entry.registry_id, []).append(entry)
 
     alerts_by_registry = {}
-    for alert in _active_alerts_query(registry_ids, date.today()):
+    for alert in _visible_alerts_query(registry_ids, date.today()):
         alerts_by_registry.setdefault(alert.registry_id, []).append(alert)
 
     rows = []
@@ -448,10 +471,14 @@ def api_send_slack(entry_id):
     entry.slack_message_ts = ts
     entry.slack_thread_ts = ts
     entry.sent_at = datetime.utcnow()
+    reaction_warning = None
     if entry.list_done and ts:
-        api.add_reaction(route.slack_channel_id, ts, "white_check_mark")
+        try:
+            api.add_reaction(route.slack_channel_id, ts, "white_check_mark")
+        except Exception as exc:
+            reaction_warning = str(exc)
     db.session.commit()
-    return jsonify({"ok": True, "entry": entry.to_dict()})
+    return jsonify({"ok": True, "entry": entry.to_dict(), "reaction_warning": reaction_warning})
 
 
 @route_orders_bp.get("/api/registries/<int:registry_id>/alerts")
