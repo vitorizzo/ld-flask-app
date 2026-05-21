@@ -3,6 +3,7 @@
 {% block title %}Plancia ordini giri{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css') }}">
 <style>
   .route-board-toolbar {
     display: grid;
@@ -78,7 +79,7 @@
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section">
+<section class="welcome-section registry-tools-section route-board-section">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
       <h1 class="h4 mb-1">Plancia ordini giri</h1>
@@ -101,13 +102,13 @@
     <div class="text-muted small" id="boardSummary">-</div>
   </div>
 
-  <div class="border rounded bg-light p-3">
+  <div class="registry-tools-panel p-3">
     <div class="d-flex justify-content-between align-items-center mb-2">
       <h2 class="h6 mb-0">Clienti del giro</h2>
       <span class="badge text-bg-secondary" id="customerCount">0</span>
     </div>
     <div class="table-responsive">
-      <table class="table table-sm table-hover align-middle route-board-table mb-0">
+      <table class="table table-sm table-hover align-middle route-board-table registry-tools-table mb-0">
         <thead>
           <tr>
             <th>Cliente</th>
@@ -126,7 +127,7 @@
   </div>
 </section>
 
-<div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade registry-tools-modal" id="noteModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -146,7 +147,7 @@
   </div>
 </div>
 
-<div class="modal fade" id="deliveryDateModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade registry-tools-modal" id="deliveryDateModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -172,7 +173,7 @@
   </div>
 </div>
 
-<div class="modal fade" id="alertsModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade registry-tools-modal" id="alertsModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -202,7 +203,7 @@
   </div>
 </div>
 
-<div class="modal fade" id="contactsModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade registry-tools-modal" id="contactsModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">

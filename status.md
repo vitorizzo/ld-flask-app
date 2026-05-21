@@ -494,6 +494,11 @@ Stato noto:
     - se Slack non restituisce `ts`, `/route-orders/api/entries/<id>/send-slack` torna errore esplicito invece di saltare silenziosamente la reaction;
     - le reaction `lista fatta` e `annulla ordine` vengono aggiunte usando lo stesso percorso delle automazioni: `SlackProcessor.execute_actions()` con action `addReaction`;
     - verificato che gli stati leggono le reaction configurate: `listato -> white_check_mark`, `annullato -> x`.
+  - revisione grafica 2026-05-21:
+    - aggiunto stylesheet condiviso `static/css/registry_tools.css` per plancia ordini giri, associazione clienti-giri e rubriche;
+    - corretto il problema testo bianco su fondo bianco forzando contrasto scuro su pannelli, tabelle, modali, input e liste delle pagine create;
+    - la `welcome-section` della plancia/anagrafiche usa larghezza `80vw` con `max-width: 1600px`, cosi' la plancia ordini giri ha piu' spazio utile;
+    - verificato caricamento template Jinja: `route_orders/board.html`, `registry/customer_routes.html`, `registry/registry_book.html`.
 - Nota upgrade futura menu/permessi:
   - oggi il menu confronta `Menu.weight` con `current_user.max_role_weight`;
   - da valutare una plancia developer per attribuire il peso alle funzioni/route e derivare da li' anche la visibilita' menu, evitando di dichiarare il peso direttamente sulla voce menu.

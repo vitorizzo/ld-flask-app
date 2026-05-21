@@ -1,0 +1,120 @@
+.registry-tools-section {
+  width: 80vw;
+  max-width: 1600px;
+  min-width: min(100%, 320px);
+  text-align: left;
+}
+
+.registry-tools-section h1,
+.registry-tools-section h2,
+.registry-tools-section h3,
+.registry-tools-section h4 {
+  text-align: left;
+}
+
+.registry-tools-section .text-muted {
+  color: rgba(255, 255, 255, 0.72) !important;
+}
+
+.registry-tools-panel {
+  background: #f8f9fa;
+  color: #212529;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 8px;
+}
+
+.registry-tools-panel .text-muted,
+.registry-tools-modal .text-muted {
+  color: #6c757d !important;
+}
+
+.registry-tools-table,
+.registry-tools-table.table {
+  width: 100%;
+  margin: 0;
+  color: #212529;
+  --bs-table-color: #212529;
+  --bs-table-bg: #ffffff;
+  --bs-table-striped-color: #212529;
+  --bs-table-hover-color: #111827;
+  --bs-table-hover-bg: #eef2f7;
+}
+
+.registry-tools-table th,
+.registry-tools-table td,
+.registry-tools-modal table th,
+.registry-tools-modal table td {
+  color: #212529;
+  border-color: #dee2e6;
+}
+
+.registry-tools-table thead th,
+.registry-tools-modal table thead th {
+  background: #e9ecef;
+  color: #4a2c2a;
+}
+
+.registry-tools-modal .modal-content {
+  background: #f8f9fa;
+  color: #212529;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+}
+
+.registry-tools-modal .modal-header {
+  background: #4a2c2a;
+  color: #ffffff;
+  border-bottom: 0;
+}
+
+.registry-tools-modal .modal-title {
+  color: #ffffff;
+}
+
+.registry-tools-modal .modal-body,
+.registry-tools-modal .modal-footer {
+  background: #f8f9fa;
+  color: #212529;
+}
+
+.registry-tools-modal .form-label,
+.registry-tools-modal .form-check-label,
+.registry-tools-section .form-label {
+  color: #212529;
+}
+
+.registry-tools-modal .modal-header .btn-close {
+  filter: invert(1) grayscale(100%);
+}
+
+.registry-tools-modal .form-control,
+.registry-tools-modal .form-select,
+.registry-tools-section .form-control,
+.registry-tools-section .form-select {
+  color: #212529;
+  background-color: #ffffff;
+  border-color: #ced4da;
+}
+
+.registry-tools-modal .list-group-item {
+  background: #ffffff;
+  color: #212529;
+}
+
+.registry-tools-modal .list-group-item-action:hover,
+.registry-tools-modal .list-group-item-action:focus {
+  background: #eef2f7;
+  color: #111827;
+}
+
+.registry-tools-modal .fst-italic,
+.registry-tools-table .fst-italic {
+  color: #6c757d !important;
+}
+
+@media (max-width: 992px) {
+  .registry-tools-section {
+    width: 96vw;
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+}

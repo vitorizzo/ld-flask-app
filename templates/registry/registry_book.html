@@ -2,8 +2,12 @@
 
 {% block title %}{{ title }}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css') }}">
+{% endblock %}
+
 {% block content %}
-<section class="welcome-section">
+<section class="welcome-section registry-tools-section">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
       <h1 class="h4 mb-1">{{ title }}</h1>
@@ -15,7 +19,7 @@
   </div>
 </section>
 
-<div class="modal fade" id="registryBookModal" tabindex="-1" aria-hidden="true" data-kind="{{ kind }}">
+<div class="modal fade registry-tools-modal" id="registryBookModal" tabindex="-1" aria-hidden="true" data-kind="{{ kind }}">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
@@ -34,7 +38,7 @@
         </div>
 
         <div class="table-responsive">
-          <table class="table table-sm table-hover align-middle">
+          <table class="table table-sm table-hover align-middle registry-tools-table">
             <thead>
               <tr>
                 <th>Anagrafica</th>
@@ -58,7 +62,7 @@
   </div>
 </div>
 
-<div class="modal fade" id="contactLinkModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade registry-tools-modal" id="contactLinkModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
