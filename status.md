@@ -502,6 +502,35 @@ Stato noto:
   - micro-fix 2026-05-21:
     - centrata la `welcome-section` della plancia ordini giri anche quando supera la larghezza del container Bootstrap;
     - rimossa l'evidenza lampeggiante delle card in stato `inconsegna` nella visualizzazione ordini.
+- PWA 2026-05-21:
+  - implementato primo strato `share_target` nel manifest:
+    - action `/pwa/share`;
+    - supporto a `title`, `text`, `url` e file `image/*`, `audio/*`, `text/plain`, `application/pdf`;
+  - nuovo blueprint `/pwa` registrato in app factory;
+  - nuova pagina review condivisione:
+    - `/pwa/share/<intent_id>`;
+  - nuove API push:
+    - `GET /pwa/api/push/config`;
+    - `POST /pwa/api/push/subscribe`;
+    - `POST /pwa/api/push/unsubscribe`;
+    - `POST /pwa/api/push/test`;
+  - nuove tabelle migrate con revision `f6a7b8c9d0e1`:
+    - `shared_order_intents`;
+    - `push_subscriptions`;
+  - service worker aggiornato a cache `ldapp-cache-v4` con gestione `push` e `notificationclick`;
+  - aggiunto JS globale `static/js/pwa_push.js`;
+  - aggiunta voce profilo `Abilita notifiche`;
+  - installata dipendenza `pywebpush==2.0.3` e aggiornata `requirements.txt`;
+  - generate chiavi VAPID locali:
+    - `private_key.pem` / `public_key.pem` ignorate da git;
+    - `.env.local` aggiornato con `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY_FILE`, `VAPID_SUBJECT`;
+    - corretto encoding `.env.local` rimuovendo BOM iniziale che impediva a `python-dotenv` di leggere `DATABASE_URL`;
+  - verifiche:
+    - `flask db upgrade` ok;
+    - `py_compile` ok;
+    - endpoint `/pwa/*` registrati;
+    - `GET /pwa/api/push/config` torna `enabled=True`;
+    - test controllato share target: creazione redirect `/pwa/share/<id>` e cancellazione bozza ok.
 - Nota upgrade futura menu/permessi:
   - oggi il menu confronta `Menu.weight` con `current_user.max_role_weight`;
   - da valutare una plancia developer per attribuire il peso alle funzioni/route e derivare da li' anche la visibilita' menu, evitando di dichiarare il peso direttamente sulla voce menu.

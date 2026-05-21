@@ -269,6 +269,73 @@ class UserRole(db.Model):
         return False
 
 
+class PushSubscription(db.Model):
+    __tablename__ = "push_subscriptions"
+    __table_args__ = (
+        db.UniqueConstraint("endpoint", name="uq_push_subscriptions_endpoint"),
+        db.Index("ix_push_subscriptions_user_active", "user_id", "is_active"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    endpoint = db.Column(db.Text, nullable=False)
+    p256dh = db.Column(db.Text, nullable=False)
+    auth = db.Column(db.Text, nullable=False)
+    user_agent = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+        nullable=False,
+    )
+
+    user = db.relationship("User", backref=db.backref("push_subscriptions", lazy="dynamic"))
+
+    def to_webpush(self):
+        return {
+            "endpoint": self.endpoint,
+            "keys": {
+                "p256dh": self.p256dh,
+                "auth": self.auth,
+            },
+        }
+
+
+class SharedOrderIntent(db.Model):
+    __tablename__ = "shared_order_intents"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True)
+    title = db.Column(db.String(255), nullable=True)
+    text = db.Column(db.Text, nullable=True)
+    url = db.Column(db.Text, nullable=True)
+    files = db.Column(db.JSON, nullable=True)
+    status = db.Column(db.String(30), nullable=False, default="received", index=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+        nullable=False,
+    )
+
+    user = db.relationship("User", backref=db.backref("shared_order_intents", lazy="dynamic"))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "title": self.title,
+            "text": self.text,
+            "url": self.url,
+            "files": self.files or [],
+            "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
 class Inventario(db.Model):
     __tablename__ = 'inventari'
 

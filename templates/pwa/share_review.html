@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Ordine condiviso{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="welcome-section registry-tools-section">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-1">Ordine condiviso</h1>
+      <div class="text-muted small">Contenuto ricevuto dalla condivisione del dispositivo.</div>
+    </div>
+    <a class="btn btn-outline-light" href="/route-orders/board">Plancia giri</a>
+  </div>
+
+  <div class="registry-tools-panel p-3">
+    {% if intent.title %}
+      <div class="mb-3">
+        <div class="small text-muted">Titolo</div>
+        <div class="fw-semibold">{{ intent.title }}</div>
+      </div>
+    {% endif %}
+    {% if intent.text %}
+      <div class="mb-3">
+        <div class="small text-muted">Testo ordine</div>
+        <pre class="bg-white border rounded p-3 mb-0" style="white-space: pre-wrap; color: #212529;">{{ intent.text }}</pre>
+      </div>
+    {% endif %}
+    {% if intent.url %}
+      <div class="mb-3">
+        <div class="small text-muted">Link</div>
+        <a href="{{ intent.url }}" target="_blank" rel="noopener">{{ intent.url }}</a>
+      </div>
+    {% endif %}
+    {% if intent.files %}
+      <div class="mb-3">
+        <div class="small text-muted">Allegati</div>
+        <div class="list-group">
+          {% for file in intent.files %}
+            <a class="list-group-item list-group-item-action" href="{{ file.url }}" target="_blank" rel="noopener">
+              {{ file.filename }} <span class="text-muted small">{{ file.content_type }}</span>
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+    <div class="alert alert-info mb-0">
+      Bozza ricevuta. Il prossimo step sara' collegarla alla scelta cliente/giro e all'invio Slack dalla plancia.
+    </div>
+  </div>
+</section>
+{% endblock %}

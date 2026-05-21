@@ -117,7 +117,11 @@ def create_app():
         TRELLO_SECRET=os.getenv("TRELLO_SECRET"),
         TRELLO_TOKEN=os.getenv("TRELLO_TOKEN"),
         SLACK_SIGNING_SECRET=os.getenv("SLACK_SIGNING_SECRET"),
-        SLACK_BOT_TOKEN=os.getenv("SLACK_BOT_TOKEN")
+        SLACK_BOT_TOKEN=os.getenv("SLACK_BOT_TOKEN"),
+        VAPID_PUBLIC_KEY=os.getenv("VAPID_PUBLIC_KEY"),
+        VAPID_PRIVATE_KEY=os.getenv("VAPID_PRIVATE_KEY"),
+        VAPID_PRIVATE_KEY_FILE=os.getenv("VAPID_PRIVATE_KEY_FILE"),
+        VAPID_SUBJECT=os.getenv("VAPID_SUBJECT", "mailto:admin@ldenoteca.it")
     )
 
     if not app.config.get("SECRET_KEY"):
@@ -255,6 +259,7 @@ def create_app():
     from routes.cassa import cassa_bp
     from routes.registry import registry_bp
     from routes.route_orders import route_orders_bp
+    from routes.pwa import pwa_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(settings_bp, url_prefix="/settings")
@@ -275,6 +280,7 @@ def create_app():
     app.register_blueprint(cassa_bp, url_prefix="/cassa")
     app.register_blueprint(registry_bp, url_prefix="/registry")
     app.register_blueprint(route_orders_bp, url_prefix="/route-orders")
+    app.register_blueprint(pwa_bp, url_prefix="/pwa")
 
     @app.cli.command("cleanup-reset-tokens")
     @click.option("--retention-days", default=30, show_default=True, type=int,
