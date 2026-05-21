@@ -13,9 +13,12 @@ from models import (
     DeliveryRoute,
     DeliveryRouteCustomer,
     DeliveryScheduleRule,
+    OrderStatus,
     RegistryContact,
     RegistryContactPoint,
     RouteOrderBoardEntry,
+    SlackOrder,
+    SlackOrderEvent,
 )
 from tools.role_required import role_required
 from tools.slack_api import SlackAPI, SlackAPIConfig
@@ -229,7 +232,15 @@ def _phone_contacts(registry):
     )
     for contact in legacy_contacts:
         if contact.contact_type in {"phone", "mobile"} and contact.value not in seen:
-            phones.append({"label": contact.label or contact.contact_type, "value": contact.value})
+            phones.append({
+                "id": f"legacy:{contact.id}",
+                "source": "legacy",
+                "contact_id": contact.id,
+                "label": contact.label or contact.contact_type,
+                "type": contact.contact_type,
+                "value": contact.value,
+                "display_name": "",
+            })
             seen.add(contact.value)
 
     linked_points = (
@@ -249,9 +260,83 @@ def _phone_contacts(registry):
         if point.value in seen:
             continue
         label_parts = [contact.display_name, point.label or point.contact_type]
-        phones.append({"label": " - ".join(x for x in label_parts if x), "value": point.value})
+        phones.append({
+            "id": f"linked:{point.id}",
+            "source": "linked",
+            "contact_id": contact.id,
+            "point_id": point.id,
+            "label": point.label or point.contact_type,
+            "type": point.contact_type,
+            "value": point.value,
+            "display_name": contact.display_name,
+            "full_label": " - ".join(x for x in label_parts if x),
+        })
         seen.add(point.value)
     return phones
+
+
+def _status_reaction(status_code, fallback):
+    status = OrderStatus.query.filter_by(code=status_code).first()
+    reaction = (status.slack_reaction if status else "") or fallback
+    return SlackAPI._norm_reaction_name(reaction)
+
+
+def _ensure_slack_order(entry, status_code=None):
+    order = None
+    if entry.slack_channel_id and entry.slack_thread_ts:
+        order = (
+            SlackOrder.query
+            .filter_by(slack_channel_id=entry.slack_channel_id, slack_thread_ts=entry.slack_thread_ts)
+            .order_by(SlackOrder.id.desc())
+            .first()
+        )
+    if order:
+        if status_code and order.status != status_code:
+            old_status = order.status
+            order.status = status_code
+            db.session.add(SlackOrderEvent(
+                order_id=order.id,
+                type="status_change",
+                payload={"from": old_status, "to": status_code, "via": "route_order_board"},
+            ))
+        return order
+
+    if not entry.slack_channel_id or not entry.slack_message_ts:
+        return None
+
+    registry = entry.registry
+    order = SlackOrder(
+        route_id=entry.route_id,
+        slack_channel_id=entry.slack_channel_id,
+        customer_display=_label_registry(registry),
+        customer_key=registry.source_code or str(registry.id),
+        order_date=(entry.sent_at or datetime.utcnow()).date(),
+        planned_delivery_at=entry.planned_delivery_at,
+        status=status_code or "acquisito",
+        raw_text=_format_slack_message(registry, entry),
+        slack_message_ts=entry.slack_message_ts,
+        slack_thread_ts=entry.slack_thread_ts or entry.slack_message_ts,
+        has_issues=False,
+    )
+    db.session.add(order)
+    db.session.flush()
+    db.session.add(SlackOrderEvent(
+        order_id=order.id,
+        type="created",
+        payload={"via": "route_order_board", "board_entry_id": entry.id},
+    ))
+    return order
+
+
+def _set_list_done_reaction(entry, enabled):
+    if not entry.slack_channel_id or not entry.slack_message_ts:
+        return
+    api = SlackAPI(SlackAPIConfig(bot_token=current_app.config.get("SLACK_BOT_TOKEN", "") or ""))
+    reaction = _status_reaction("listato", "white_check_mark")
+    if enabled:
+        api.add_reaction(entry.slack_channel_id, entry.slack_message_ts, reaction)
+    else:
+        api.remove_reaction(entry.slack_channel_id, entry.slack_message_ts, reaction)
 
 
 def _entry_for_customer(entries_by_registry, registry_id, board_date):
@@ -403,18 +488,16 @@ def api_save_entry():
         entry.planned_delivery_at = planned_delivery_at
 
     db.session.flush()
-    reaction_warning = None
     if entry.slack_channel_id and entry.slack_message_ts and "list_done" in data:
         try:
-            api = SlackAPI(SlackAPIConfig(bot_token=current_app.config.get("SLACK_BOT_TOKEN", "") or ""))
+            _set_list_done_reaction(entry, entry.list_done)
             if entry.list_done:
-                api.add_reaction(entry.slack_channel_id, entry.slack_message_ts, "white_check_mark")
-            else:
-                api.remove_reaction(entry.slack_channel_id, entry.slack_message_ts, "white_check_mark")
+                _ensure_slack_order(entry, "listato")
         except Exception as exc:
-            reaction_warning = str(exc)
+            db.session.rollback()
+            return jsonify({"ok": False, "error": f"Reaction lista fatta non applicata: {exc}"}), 502
     db.session.commit()
-    return jsonify({"ok": True, "entry": entry.to_dict(), "reaction_warning": reaction_warning})
+    return jsonify({"ok": True, "entry": entry.to_dict()})
 
 
 @route_orders_bp.post("/api/routes/<int:route_id>/delivery-date")
@@ -471,14 +554,136 @@ def api_send_slack(entry_id):
     entry.slack_message_ts = ts
     entry.slack_thread_ts = ts
     entry.sent_at = datetime.utcnow()
-    reaction_warning = None
+    target_status = "listato" if entry.list_done else "acquisito"
     if entry.list_done and ts:
         try:
-            api.add_reaction(route.slack_channel_id, ts, "white_check_mark")
+            api.add_reaction(route.slack_channel_id, ts, _status_reaction("listato", "white_check_mark"))
         except Exception as exc:
-            reaction_warning = str(exc)
+            db.session.rollback()
+            return jsonify({"ok": False, "error": f"Ordine inviato, ma reaction lista fatta non applicata: {exc}"}), 502
+    _ensure_slack_order(entry, target_status)
     db.session.commit()
-    return jsonify({"ok": True, "entry": entry.to_dict(), "reaction_warning": reaction_warning})
+    return jsonify({"ok": True, "entry": entry.to_dict()})
+
+
+@route_orders_bp.post("/api/entries/<int:entry_id>/cancel")
+@login_required
+@role_required(30)
+def api_cancel_order(entry_id):
+    entry = RouteOrderBoardEntry.query.get_or_404(entry_id)
+    if not entry.slack_channel_id or not entry.slack_message_ts:
+        entry.order_note = None
+        entry.list_done = False
+        entry.status = "da_chiamare"
+        db.session.commit()
+        return jsonify({"ok": True, "entry": entry.to_dict()})
+
+    bot_token = current_app.config.get("SLACK_BOT_TOKEN", "") or ""
+    if not bot_token:
+        return jsonify({"ok": False, "error": "SLACK_BOT_TOKEN mancante"}), 503
+    api = SlackAPI(SlackAPIConfig(bot_token=bot_token))
+    try:
+        if entry.list_done:
+            api.remove_reaction(entry.slack_channel_id, entry.slack_message_ts, _status_reaction("listato", "white_check_mark"))
+        api.add_reaction(entry.slack_channel_id, entry.slack_message_ts, _status_reaction("annullato", "x"))
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": f"Reaction annullamento non applicata: {exc}"}), 502
+
+    entry.order_note = None
+    entry.list_done = False
+    entry.status = "da_chiamare"
+    order = _ensure_slack_order(entry, "annullato")
+    if order and not order.closed_at:
+        order.closed_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"ok": True, "entry": entry.to_dict()})
+
+
+@route_orders_bp.get("/api/registries/<int:registry_id>/phone-contacts")
+@login_required
+@role_required(30)
+def api_registry_phone_contacts(registry_id):
+    registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first()
+    if not registry:
+        return jsonify({"ok": False, "error": "Cliente non valido"}), 404
+    return jsonify({"ok": True, "contacts": _phone_contacts(registry)})
+
+
+@route_orders_bp.post("/api/registries/<int:registry_id>/phone-contacts")
+@login_required
+@role_required(30)
+def api_registry_phone_contact_create(registry_id):
+    registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first()
+    if not registry:
+        return jsonify({"ok": False, "error": "Cliente non valido"}), 404
+    data = request.get_json(silent=True) or {}
+    display_name = (data.get("display_name") or "").strip()
+    value = (data.get("value") or "").strip()
+    contact_type = (data.get("type") or "phone").strip()
+    label = (data.get("label") or "").strip() or contact_type
+    if contact_type not in {"phone", "mobile"} or not value:
+        return jsonify({"ok": False, "error": "Tipo o numero non valido"}), 400
+    contact = RegistryContact(display_name=display_name or _label_registry(registry))
+    point = RegistryContactPoint(contact=contact, contact_type=contact_type, value=value, label=label, is_primary=True)
+    link = BusinessRegistryContactLink(registry=registry, contact=contact, is_primary=False, role=label)
+    db.session.add_all([contact, point, link])
+    db.session.commit()
+    return jsonify({"ok": True, "contacts": _phone_contacts(registry)})
+
+
+@route_orders_bp.put("/api/phone-contacts/<source>/<int:item_id>")
+@login_required
+@role_required(30)
+def api_registry_phone_contact_update(source, item_id):
+    data = request.get_json(silent=True) or {}
+    value = (data.get("value") or "").strip()
+    contact_type = (data.get("type") or "phone").strip()
+    label = (data.get("label") or "").strip() or contact_type
+    display_name = (data.get("display_name") or "").strip()
+    if contact_type not in {"phone", "mobile"} or not value:
+        return jsonify({"ok": False, "error": "Tipo o numero non valido"}), 400
+    if source == "legacy":
+        contact = BusinessRegistryContact.query.get_or_404(item_id)
+        contact.contact_type = contact_type
+        contact.value = value
+        contact.label = label
+        registry = contact.registry
+    elif source == "linked":
+        point = RegistryContactPoint.query.get_or_404(item_id)
+        point.contact_type = contact_type
+        point.value = value
+        point.label = label
+        if display_name and point.contact:
+            point.contact.display_name = display_name
+        registry = point.contact.registry_links[0].registry if point.contact and point.contact.registry_links else None
+    else:
+        return jsonify({"ok": False, "error": "Origine contatto non valida"}), 400
+    db.session.commit()
+    return jsonify({"ok": True, "contacts": _phone_contacts(registry) if registry else []})
+
+
+@route_orders_bp.delete("/api/phone-contacts/<source>/<int:item_id>")
+@login_required
+@role_required(30)
+def api_registry_phone_contact_delete(source, item_id):
+    registry = None
+    if source == "legacy":
+        contact = BusinessRegistryContact.query.get_or_404(item_id)
+        registry = contact.registry
+        db.session.delete(contact)
+    elif source == "linked":
+        point = RegistryContactPoint.query.get_or_404(item_id)
+        contact = point.contact
+        registry = contact.registry_links[0].registry if contact and contact.registry_links else None
+        db.session.delete(point)
+        if contact and not contact.points:
+            for link in contact.registry_links:
+                link.is_active = False
+    else:
+        return jsonify({"ok": False, "error": "Origine contatto non valida"}), 400
+    db.session.commit()
+    return jsonify({"ok": True, "contacts": _phone_contacts(registry) if registry else []})
 
 
 @route_orders_bp.get("/api/registries/<int:registry_id>/alerts")

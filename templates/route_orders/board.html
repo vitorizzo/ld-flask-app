@@ -18,7 +18,30 @@
     font-weight: 600;
   }
   .route-board-phones a {
+    color: #0d6efd;
     white-space: nowrap;
+  }
+  .route-board-phone-row {
+    display: grid;
+    grid-template-columns: minmax(72px, auto) minmax(110px, 1fr) auto;
+    gap: .35rem;
+    align-items: center;
+    margin-bottom: .25rem;
+  }
+  .route-board-phone-label {
+    color: #495057;
+    font-size: .78rem;
+  }
+  .route-board-phone-actions {
+    display: inline-flex;
+    gap: .2rem;
+  }
+  .route-board-phone-actions .btn {
+    width: 1.75rem;
+    height: 1.75rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
   .route-board-note-preview {
     max-width: 280px;
@@ -38,6 +61,9 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
+  }
+  .route-board-actions .btn-danger {
+    color: #fff;
   }
   @media (max-width: 768px) {
     .route-board-toolbar {
@@ -85,7 +111,7 @@
         <thead>
           <tr>
             <th>Cliente</th>
-            <th>Contatti</th>
+            <th style="min-width: 260px">Contatti</th>
             <th>Stato</th>
             <th>Lista fatta</th>
             <th>Nota</th>
@@ -175,6 +201,44 @@
     </div>
   </div>
 </div>
+
+<div class="modal fade" id="contactsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Contatti cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="contactCustomerId">
+        <input type="hidden" id="contactSource">
+        <input type="hidden" id="contactItemId">
+        <div class="mb-2">
+          <label class="form-label" for="contactDisplayName">Nome contatto</label>
+          <input class="form-control" id="contactDisplayName" autocomplete="off">
+        </div>
+        <div class="row g-2">
+          <div class="col-12 col-md-4">
+            <label class="form-label" for="contactType">Tipo</label>
+            <select class="form-select" id="contactType">
+              <option value="phone">Telefono</option>
+              <option value="mobile">Cellulare</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-8">
+            <label class="form-label" for="contactValue">Numero</label>
+            <input class="form-control" id="contactValue" autocomplete="off">
+          </div>
+        </div>
+        <div class="mt-2">
+          <label class="form-label" for="contactLabel">Etichetta</label>
+          <input class="form-control" id="contactLabel" autocomplete="off" placeholder="telefono, cellulare, amministrazione...">
+        </div>
+        <button class="btn btn-primary w-100 mt-3" type="button" id="contactSaveBtn">Salva contatto</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -188,6 +252,7 @@
   const noteModal = new bootstrap.Modal(document.getElementById("noteModal"));
   const deliveryModal = new bootstrap.Modal(document.getElementById("deliveryDateModal"));
   const alertsModal = new bootstrap.Modal(document.getElementById("alertsModal"));
+  const contactsModal = new bootstrap.Modal(document.getElementById("contactsModal"));
   let state = { routes: [], route: null, customers: [], next_delivery_at: null, upcoming_delivery_dates: [], statuses: [] };
 
   function fmtDateTime(value) {
@@ -247,8 +312,18 @@
     rowsEl.innerHTML = state.customers.map(customer => {
       const entry = customer.entry || {};
       const phones = (customer.phones || []).length
-        ? customer.phones.map(phone => `<a href="tel:${esc(phone.value)}" class="me-2" title="${esc(phone.label || "")}">${esc(phone.value)}</a>`).join("")
-        : `<span class="text-muted">-</span>`;
+        ? customer.phones.map(phone => `
+          <div class="route-board-phone-row">
+            <span class="route-board-phone-label">${esc(phone.full_label || phone.label || phone.type || "telefono")}</span>
+            <a href="tel:${esc(phone.value)}" title="${esc(phone.full_label || phone.label || "")}">${esc(phone.value)}</a>
+            <span class="route-board-phone-actions">
+              <button class="btn btn-outline-secondary btn-sm" type="button" data-action="contact-edit" data-contact-id="${esc(phone.id)}" title="Modifica contatto"><i class="fa-solid fa-pen"></i></button>
+              <button class="btn btn-outline-danger btn-sm" type="button" data-action="contact-delete" data-contact-id="${esc(phone.id)}" title="Cancella contatto"><i class="fa-solid fa-trash"></i></button>
+            </span>
+          </div>
+        `).join("")
+        : `<span class="text-muted small">Nessun numero</span>`;
+      const addContact = `<button class="btn btn-outline-primary btn-sm mt-1" type="button" data-action="contact-add"><i class="fa-solid fa-plus"></i> Contatto</button>`;
       const alertBadge = customer.alerts && customer.alerts.length
         ? `<span title="${esc(alertsTitle(customer.alerts))}" class="ms-1">⚠️</span>`
         : "";
@@ -261,7 +336,7 @@
             <span class="route-board-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span>
             <div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div>
           </td>
-          <td class="route-board-phones">${phones}</td>
+          <td class="route-board-phones">${phones}${addContact}</td>
           <td><select class="form-select form-select-sm" data-action="status">${statusOptions}</select></td>
           <td class="text-center"><input class="form-check-input" type="checkbox" data-action="listDone" ${entry.list_done ? "checked" : ""}></td>
           <td><div class="route-board-note-preview text-muted">${esc(entry.order_note || "")}</div></td>
@@ -271,6 +346,7 @@
               <button class="btn btn-outline-primary btn-sm" type="button" data-action="date" title="Consegna">${entry.planned_delivery_at ? '<i class="fa-regular fa-calendar"></i>' : '<i class="fa-solid fa-calendar-plus"></i>'}</button>
               <button class="btn btn-outline-warning btn-sm" type="button" data-action="alerts" title="Avvisi"><i class="fa-solid fa-triangle-exclamation"></i></button>
               <button class="btn btn-success btn-sm" type="button" data-action="slack" title="Invia su Slack"><i class="fa-brands fa-slack"></i></button>
+              <button class="btn btn-danger btn-sm" type="button" data-action="cancel" title="Annulla ordine"><i class="fa-solid fa-ban"></i></button>
             </div>
           </td>
         </tr>
@@ -350,6 +426,23 @@
       await loadAlerts(customerId);
       alertsModal.show();
     }
+    if (button.dataset.action === "contact-add") {
+      openContactModal(customerId);
+    }
+    if (button.dataset.action === "contact-edit") {
+      const contact = (customer.phones || []).find(phone => phone.id === button.dataset.contactId);
+      if (contact) openContactModal(customerId, contact);
+    }
+    if (button.dataset.action === "contact-delete") {
+      if (!confirm("Cancellare questo contatto?")) return;
+      const [source, id] = button.dataset.contactId.split(":");
+      try {
+        await api(`/route-orders/api/phone-contacts/${source}/${id}`, { method: "DELETE" });
+        await loadBoard(selectedRouteId());
+      } catch (err) {
+        alert(err.message);
+      }
+    }
     if (button.dataset.action === "slack") {
       try {
         if (!customer.entry || !customer.entry.id) {
@@ -359,12 +452,57 @@
         const data = await api(`/route-orders/api/entries/${fresh.entry.id}/send-slack`, { method: "POST", body: "{}" });
         fresh.entry = data.entry;
         renderRows();
-        if (data.reaction_warning) {
-          alert(`Ordine inviato su Slack, ma la reaction lista fatta non e' stata applicata: ${data.reaction_warning}`);
-        }
       } catch (err) {
         alert(err.message);
       }
+    }
+    if (button.dataset.action === "cancel") {
+      if (!confirm("Annullare l'ordine e svuotare la nota?")) return;
+      try {
+        if (!customer.entry || !customer.entry.id) {
+          await saveEntry(customerId, {});
+        }
+        const fresh = customerById(customerId);
+        const data = await api(`/route-orders/api/entries/${fresh.entry.id}/cancel`, { method: "POST", body: "{}" });
+        fresh.entry = data.entry;
+        renderRows();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  });
+
+  function openContactModal(customerId, contact = null) {
+    document.getElementById("contactCustomerId").value = customerId;
+    document.getElementById("contactSource").value = contact ? contact.source : "";
+    document.getElementById("contactItemId").value = contact ? (contact.point_id || contact.contact_id) : "";
+    document.getElementById("contactDisplayName").value = contact ? (contact.display_name || "") : "";
+    document.getElementById("contactType").value = contact ? (contact.type || "phone") : "phone";
+    document.getElementById("contactValue").value = contact ? (contact.value || "") : "";
+    document.getElementById("contactLabel").value = contact ? (contact.label || "") : "";
+    contactsModal.show();
+  }
+
+  document.getElementById("contactSaveBtn").addEventListener("click", async () => {
+    const customerId = document.getElementById("contactCustomerId").value;
+    const source = document.getElementById("contactSource").value;
+    const itemId = document.getElementById("contactItemId").value;
+    const body = {
+      display_name: document.getElementById("contactDisplayName").value,
+      type: document.getElementById("contactType").value,
+      value: document.getElementById("contactValue").value,
+      label: document.getElementById("contactLabel").value,
+    };
+    try {
+      if (source && itemId) {
+        await api(`/route-orders/api/phone-contacts/${source}/${itemId}`, { method: "PUT", body: JSON.stringify(body) });
+      } else {
+        await api(`/route-orders/api/registries/${customerId}/phone-contacts`, { method: "POST", body: JSON.stringify(body) });
+      }
+      contactsModal.hide();
+      await loadBoard(selectedRouteId());
+    } catch (err) {
+      alert(err.message);
     }
   });
 

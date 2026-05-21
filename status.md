@@ -479,6 +479,16 @@ Stato noto:
     - gli alert futuri non scaduti sono ora mostrati in plancia come hint/indicatore, non solo quelli gia' attivi alla data odierna;
     - l'errore Slack sull'aggiunta reaction `white_check_mark` non blocca piu' l'invio/salvataggio dell'ordine: viene restituito come warning;
     - verificato API: giro `aquila` mostra i telefoni importati; giro `lago` mostra l'alert futuro di `AMELIE SRL`.
+  - revisione 2026-05-21:
+    - i telefoni in plancia sono ora visualizzati uno per riga con etichetta e numero cliccabile;
+    - aggiunta gestione contatti direttamente dalla riga cliente:
+      - pulsante `Contatto` per aggiungere un numero;
+      - pulsanti modifica/cancellazione su ogni numero;
+      - endpoint dedicati `phone-contacts` per contatti importati e contatti riusabili;
+    - l'invio Slack dalla plancia crea/aggancia anche uno `SlackOrder`, cosi' la bacheca ordini puo' gestire gli stati;
+    - la reaction `listato` usa la configurazione `OrderStatus.slack_reaction` (`:white_check_mark:`) ed e' obbligatoria: se fallisce, la chiamata torna errore invece che warning;
+    - aggiunto pulsante `Annulla ordine`, che applica la reaction dello stato `annullato` (`:x:`), resetta nota/lista fatta nella plancia e aggiorna lo `SlackOrder` ad annullato se presente;
+    - verifiche: `py_compile` ok, template Jinja caricato, endpoint route-orders registrati, test controllato creazione/rimozione contatto ok.
 - Nota upgrade futura menu/permessi:
   - oggi il menu confronta `Menu.weight` con `current_user.max_role_weight`;
   - da valutare una plancia developer per attribuire il peso alle funzioni/route e derivare da li' anche la visibilita' menu, evitando di dichiarare il peso direttamente sulla voce menu.
