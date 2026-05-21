@@ -499,6 +499,9 @@ Stato noto:
     - corretto il problema testo bianco su fondo bianco forzando contrasto scuro su pannelli, tabelle, modali, input e liste delle pagine create;
     - la `welcome-section` della plancia/anagrafiche usa larghezza `80vw` con `max-width: 1600px`, cosi' la plancia ordini giri ha piu' spazio utile;
     - verificato caricamento template Jinja: `route_orders/board.html`, `registry/customer_routes.html`, `registry/registry_book.html`.
+  - micro-fix 2026-05-21:
+    - centrata la `welcome-section` della plancia ordini giri anche quando supera la larghezza del container Bootstrap;
+    - rimossa l'evidenza lampeggiante delle card in stato `inconsegna` nella visualizzazione ordini.
 - Nota upgrade futura menu/permessi:
   - oggi il menu confronta `Menu.weight` con `current_user.max_role_weight`;
   - da valutare una plancia developer per attribuire il peso alle funzioni/route e derivare da li' anche la visibilita' menu, evitando di dichiarare il peso direttamente sulla voce menu.

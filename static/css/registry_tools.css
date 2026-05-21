@@ -1,8 +1,15 @@
 .registry-tools-section {
+  box-sizing: border-box;
   width: 80vw;
   max-width: 1600px;
   min-width: min(100%, 320px);
   text-align: left;
+}
+
+.route-board-section {
+  margin-left: 50% !important;
+  margin-right: 0 !important;
+  transform: translateX(-50%);
 }
 
 .registry-tools-section h1,

@@ -169,10 +169,11 @@ window.kioskState = {
     const diffMs = due.getTime() - now.getTime();
     const deliveryWindowMs = 30 * 60 * 1000;
     const soonWindowMs = 2 * 60 * 60 * 1000;
-    const isDelivering = ["in_consegna", "in consegna", "consegna"].includes(statusNorm);
+    const isDelivering = ["inconsegna", "in_consegna", "in consegna", "consegna"].includes(statusNorm);
 
+    if (isDelivering) return "";
     if (diffMs < -deliveryWindowMs) return "overdue";
-    if (diffMs <= deliveryWindowMs && !isDelivering) return "due-now";
+    if (diffMs <= deliveryWindowMs) return "due-now";
     if (diffMs <= soonWindowMs && diffMs > deliveryWindowMs) return "soon";
     return "";
   }
