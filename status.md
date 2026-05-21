@@ -489,6 +489,11 @@ Stato noto:
     - la reaction `listato` usa la configurazione `OrderStatus.slack_reaction` (`:white_check_mark:`) ed e' obbligatoria: se fallisce, la chiamata torna errore invece che warning;
     - aggiunto pulsante `Annulla ordine`, che applica la reaction dello stato `annullato` (`:x:`), resetta nota/lista fatta nella plancia e aggiorna lo `SlackOrder` ad annullato se presente;
     - verifiche: `py_compile` ok, template Jinja caricato, endpoint route-orders registrati, test controllato creazione/rimozione contatto ok.
+  - fix reaction 2026-05-21:
+    - `SlackAPI.post_message()` ora restituisce `resp.data` come gia' faceva `send_message`, cosi' la plancia recupera correttamente il `ts` del messaggio Slack;
+    - se Slack non restituisce `ts`, `/route-orders/api/entries/<id>/send-slack` torna errore esplicito invece di saltare silenziosamente la reaction;
+    - le reaction `lista fatta` e `annulla ordine` vengono aggiunte usando lo stesso percorso delle automazioni: `SlackProcessor.execute_actions()` con action `addReaction`;
+    - verificato che gli stati leggono le reaction configurate: `listato -> white_check_mark`, `annullato -> x`.
 - Nota upgrade futura menu/permessi:
   - oggi il menu confronta `Menu.weight` con `current_user.max_role_weight`;
   - da valutare una plancia developer per attribuire il peso alle funzioni/route e derivare da li' anche la visibilita' menu, evitando di dichiarare il peso direttamente sulla voce menu.

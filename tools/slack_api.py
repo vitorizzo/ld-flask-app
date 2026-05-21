@@ -80,7 +80,7 @@ class SlackAPI:
                 unfurl_links=unfurl_links,
                 unfurl_media=unfurl_media,
             )
-            return dict(resp)
+            return resp.data if hasattr(resp, "data") else dict(resp)
         except SlackApiError as e:
             err = e.response.get("error") if e.response else str(e)
             logger.error("Slack chat_postMessage failed: %s", err)

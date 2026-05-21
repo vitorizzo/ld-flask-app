@@ -22,6 +22,7 @@ from models import (
 )
 from tools.role_required import role_required
 from tools.slack_api import SlackAPI, SlackAPIConfig
+from tools.slack_processor import SlackProcessor
 
 
 route_orders_bp = Blueprint("route_orders", __name__)
@@ -330,12 +331,15 @@ def _ensure_slack_order(entry, status_code=None):
 
 def _set_list_done_reaction(entry, enabled):
     if not entry.slack_channel_id or not entry.slack_message_ts:
-        return
-    api = SlackAPI(SlackAPIConfig(bot_token=current_app.config.get("SLACK_BOT_TOKEN", "") or ""))
+        raise RuntimeError("channel/ts Slack mancanti")
     reaction = _status_reaction("listato", "white_check_mark")
     if enabled:
-        api.add_reaction(entry.slack_channel_id, entry.slack_message_ts, reaction)
+        SlackProcessor().execute_actions(
+            [{"action_type": "addReaction", "config_json": {"reaction": reaction}}],
+            {"channel": entry.slack_channel_id, "ts": entry.slack_message_ts},
+        )
     else:
+        api = SlackAPI(SlackAPIConfig(bot_token=current_app.config.get("SLACK_BOT_TOKEN", "") or ""))
         api.remove_reaction(entry.slack_channel_id, entry.slack_message_ts, reaction)
 
 
@@ -549,7 +553,9 @@ def api_send_slack(entry_id):
 
     api = SlackAPI(SlackAPIConfig(bot_token=bot_token))
     response = api.post_message(route.slack_channel_id, _format_slack_message(registry, entry))
-    ts = response.get("ts")
+    ts = response.get("ts") or (response.get("message") or {}).get("ts")
+    if not ts:
+        return jsonify({"ok": False, "error": f"Slack non ha restituito il timestamp del messaggio: {response}"}), 502
     entry.slack_channel_id = route.slack_channel_id
     entry.slack_message_ts = ts
     entry.slack_thread_ts = ts
@@ -557,7 +563,7 @@ def api_send_slack(entry_id):
     target_status = "listato" if entry.list_done else "acquisito"
     if entry.list_done and ts:
         try:
-            api.add_reaction(route.slack_channel_id, ts, _status_reaction("listato", "white_check_mark"))
+            _set_list_done_reaction(entry, True)
         except Exception as exc:
             db.session.rollback()
             return jsonify({"ok": False, "error": f"Ordine inviato, ma reaction lista fatta non applicata: {exc}"}), 502
@@ -585,7 +591,10 @@ def api_cancel_order(entry_id):
     try:
         if entry.list_done:
             api.remove_reaction(entry.slack_channel_id, entry.slack_message_ts, _status_reaction("listato", "white_check_mark"))
-        api.add_reaction(entry.slack_channel_id, entry.slack_message_ts, _status_reaction("annullato", "x"))
+        SlackProcessor().execute_actions(
+            [{"action_type": "addReaction", "config_json": {"reaction": _status_reaction("annullato", "x")}}],
+            {"channel": entry.slack_channel_id, "ts": entry.slack_message_ts},
+        )
     except Exception as exc:
         db.session.rollback()
         return jsonify({"ok": False, "error": f"Reaction annullamento non applicata: {exc}"}), 502
