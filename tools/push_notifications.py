@@ -41,28 +41,52 @@ def send_push_to_subscriptions(subscriptions: Iterable[PushSubscription], payloa
     cfg = push_config()
     sent = 0
     failed = 0
+    errors = []
     for sub in subscriptions:
         if not sub.is_active:
             continue
         try:
-            webpush(
+            response = webpush(
                 subscription_info=sub.to_webpush(),
                 data=json.dumps(payload),
                 vapid_private_key=cfg["private_key"],
                 vapid_claims={"sub": cfg["subject"]},
+                ttl=60,
             )
             sent += 1
+            logger.info(
+                "Push inviata subscription=%s status=%s",
+                sub.id,
+                getattr(response, "status_code", None),
+            )
         except WebPushException as exc:
             failed += 1
             status_code = getattr(getattr(exc, "response", None), "status_code", None)
+            body = ""
+            try:
+                body = (getattr(exc.response, "text", "") or "")[:500] if exc.response is not None else ""
+            except Exception:
+                body = ""
             if status_code in {404, 410}:
                 sub.is_active = False
+            errors.append({
+                "subscription_id": sub.id,
+                "status": status_code,
+                "error": str(exc),
+                "body": body,
+            })
             logger.warning("Push fallita subscription=%s status=%s error=%s", sub.id, status_code, exc)
         except Exception as exc:
             failed += 1
+            errors.append({
+                "subscription_id": sub.id,
+                "status": None,
+                "error": str(exc),
+                "body": "",
+            })
             logger.exception("Errore invio push subscription=%s: %s", sub.id, exc)
     db.session.commit()
-    return {"sent": sent, "failed": failed}
+    return {"sent": sent, "failed": failed, "errors": errors}
 
 
 def send_push_to_user(user_id: int, title: str, body: str, url: str = "/"):
