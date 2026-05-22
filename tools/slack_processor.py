@@ -754,6 +754,42 @@ class SlackProcessor:
     # ============================================================
     # Side effects Orders + normalizzatori + dispatcher
     # ============================================================
+    def _mark_order_deleted(self, channel_id: str, message_ts: str, *, via: str, payload: dict | None = None) -> None:
+        order = (
+            SlackOrder.query
+            .filter(
+                SlackOrder.slack_channel_id == channel_id,
+                (SlackOrder.slack_message_ts == message_ts) | (SlackOrder.slack_thread_ts == message_ts),
+            )
+            .order_by(SlackOrder.id.desc())
+            .first()
+        )
+        if not order:
+            return
+
+        old_status = order.status
+        order.status = "cancellato"
+        order.closed_at = datetime.utcnow()
+        db.session.add(SlackOrderEvent(
+            order_id=order.id,
+            type="status_change",
+            payload={
+                "from": old_status,
+                "to": "cancellato",
+                "via": via,
+                "deleted_ts": message_ts,
+                **(payload or {}),
+            },
+        ))
+        entries = (
+            RouteOrderBoardEntry.query
+            .filter_by(slack_channel_id=channel_id, slack_message_ts=message_ts)
+            .all()
+        )
+        for entry in entries:
+            db.session.delete(entry)
+        db.session.commit()
+
     def _orders_side_effect(self, normalized: dict) -> None:
         trigger = normalized.get("trigger")
         data = normalized.get("data") or {}
@@ -886,41 +922,7 @@ class SlackProcessor:
             deleted_ts = data.get("deleted_ts") or data.get("ts")
             if not channel_id or not deleted_ts:
                 return
-            order = (
-                SlackOrder.query
-                .filter(
-                    SlackOrder.slack_channel_id == channel_id,
-                    (SlackOrder.slack_message_ts == deleted_ts) | (SlackOrder.slack_thread_ts == deleted_ts),
-                )
-                .order_by(SlackOrder.id.desc())
-                .first()
-            )
-            if not order:
-                return
-            old_status = order.status
-            order.status = "cancellato"
-            order.closed_at = datetime.utcnow()
-            db.session.add(SlackOrderEvent(
-                order_id=order.id,
-                type="status_change",
-                payload={
-                    "from": old_status,
-                    "to": "cancellato",
-                    "via": "slack_message_deleted",
-                    "deleted_ts": deleted_ts,
-                },
-            ))
-            entry = (
-                RouteOrderBoardEntry.query
-                .filter_by(slack_channel_id=channel_id, slack_message_ts=deleted_ts)
-                .order_by(RouteOrderBoardEntry.id.desc())
-                .first()
-            )
-            if entry:
-                entry.order_note = None
-                entry.list_done = False
-                entry.status = "da_chiamare"
-            db.session.commit()
+            self._mark_order_deleted(channel_id, deleted_ts, via="slack_message_deleted")
             return
 
         if trigger == "message_changed":
@@ -929,6 +931,14 @@ class SlackProcessor:
             text = (data.get("text") or "").strip()
             attachments = data.get("attachments") if isinstance(data.get("attachments"), list) else []
             if not channel_id or not ts:
+                return
+            if text.lower() in {"this message was deleted.", "this message was deleted"}:
+                self._mark_order_deleted(
+                    channel_id,
+                    ts,
+                    via="slack_message_changed_deleted",
+                    payload={"to_text": text},
+                )
                 return
             order = (
                 SlackOrder.query

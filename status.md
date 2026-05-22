@@ -620,6 +620,17 @@ Stato noto:
       - endpoint `POST /pwa/api/share/<intent_id>/files`;
       - upload manuale sostituisce la diagnostica e aggiorna `SharedOrderIntent.files`;
     - test controllato ok: intent con diagnostica + upload manuale `foto.jpg` salva correttamente metadata e path statico.
+  - fix cancellazione Slack 2026-05-22:
+    - test reale: cancellando da bacheca/Slack, Slack emette talvolta `message_changed` con testo `This message was deleted.` invece di `message_deleted`;
+    - lo Slack processor ora tratta quel testo come cancellazione:
+      - marca `SlackOrder.status = cancellato`;
+      - chiude l'ordine;
+      - elimina le righe `RouteOrderBoardEntry` collegate, invece di copiare il testo nella nota plancia;
+    - bonifica DB locale eseguita sugli ordini `1059` e `1060`, che erano rimasti con raw text `This message was deleted.`; eliminata la riga plancia collegata `22`;
+    - test controllato endpoint `DELETE /kiosk/api/order/<id>` ok: anche se Slack risponde `channel_not_found`, l'ordine locale viene eliminato e la risposta e' `ok=True` con `warning`, non 500.
+  - micro-fix share UX 2026-05-22:
+    - dopo invio riuscito dell'ordine a LDApp, la pagina `/pwa/share/<id>` tenta `window.close()`;
+    - se il browser non consente la chiusura automatica, dopo breve fallback reindirizza a `/kiosk` invece di lasciare la pagina di condivisione aperta.
 - Nota upgrade futura menu/permessi:
   - oggi il menu confronta `Menu.weight` con `current_user.max_role_weight`;
   - da valutare una plancia developer per attribuire il peso alle funzioni/route e derivare da li' anche la visibilita' menu, evitando di dichiarare il peso direttamente sulla voce menu.

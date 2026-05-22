@@ -334,6 +334,12 @@
         }),
       });
       setStatus("Ordine acquisito da LDApp e pubblicato sui display collegati.", "success");
+      setTimeout(() => {
+        window.close();
+        setTimeout(() => {
+          window.location.href = "/kiosk";
+        }, 300);
+      }, 700);
     } catch (err) {
       setStatus(err.message, "danger");
       updateSendState();
