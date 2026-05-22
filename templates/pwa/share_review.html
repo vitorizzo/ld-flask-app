@@ -133,7 +133,7 @@
       {% if intent.files %}
         <div class="mb-3">
           <div class="small text-muted">Allegati</div>
-          <div class="list-group">
+          <div class="list-group" id="sharedFilesList">
             {% for file in intent.files %}
               {% if file.diagnostic %}
                 <div class="list-group-item shared-order-file">
@@ -150,7 +150,22 @@
             {% endfor %}
           </div>
         </div>
+      {% else %}
+        <div class="mb-3">
+          <div class="small text-muted">Allegati</div>
+          <div class="list-group" id="sharedFilesList">
+            <div class="list-group-item text-muted">Nessun allegato ricevuto.</div>
+          </div>
+        </div>
       {% endif %}
+
+      <div class="mb-3">
+        <label class="form-label" for="manualShareFiles">Aggiungi allegato</label>
+        <input class="form-control" type="file" id="manualShareFiles" multiple accept="image/*,video/*,audio/*,application/pdf,text/plain">
+        <button class="btn btn-outline-primary btn-sm mt-2" type="button" id="manualShareUploadBtn">
+          <i class="fa-solid fa-paperclip"></i> Carica allegato
+        </button>
+      </div>
     </div>
   </div>
 </section>
@@ -170,6 +185,9 @@
   const listDone = document.getElementById("shareListDone");
   const sendBtn = document.getElementById("shareSendBtn");
   const statusEl = document.getElementById("shareStatus");
+  const manualFiles = document.getElementById("manualShareFiles");
+  const manualUploadBtn = document.getElementById("manualShareUploadBtn");
+  const sharedFilesList = document.getElementById("sharedFilesList");
   let selectedCustomer = null;
   let searchTimer = null;
 
@@ -196,6 +214,31 @@
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.ok === false) throw new Error(data.error || "Operazione non riuscita");
     return data;
+  }
+
+  async function uploadApi(url, formData) {
+    const res = await fetch(url, {
+      method: "POST",
+      credentials: "same-origin",
+      body: formData,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) throw new Error(data.error || "Upload non riuscito");
+    return data;
+  }
+
+  function renderFiles(files) {
+    if (!sharedFilesList) return;
+    const realFiles = (files || []).filter(file => !file.diagnostic);
+    if (!realFiles.length) {
+      sharedFilesList.innerHTML = '<div class="list-group-item text-muted">Nessun allegato ricevuto.</div>';
+      return;
+    }
+    sharedFilesList.innerHTML = realFiles.map(file => `
+      <a class="list-group-item list-group-item-action shared-order-file" href="${esc(file.url || "#")}" target="_blank" rel="noopener">
+        ${esc(file.filename || "Allegato")} <span class="text-muted small">${esc(file.content_type || "")}</span>
+      </a>
+    `).join("");
   }
 
   function renderCustomers(customers) {
@@ -294,6 +337,28 @@
     } catch (err) {
       setStatus(err.message, "danger");
       updateSendState();
+    }
+  });
+
+  manualUploadBtn.addEventListener("click", async () => {
+    const files = Array.from(manualFiles.files || []);
+    if (!files.length) {
+      setStatus("Seleziona almeno un file.", "warning");
+      return;
+    }
+    const formData = new FormData();
+    files.forEach(file => formData.append("file", file, file.name));
+    manualUploadBtn.disabled = true;
+    setStatus("Caricamento allegato...", "muted");
+    try {
+      const data = await uploadApi(`/pwa/api/share/${intentId}/files`, formData);
+      renderFiles(data.files || []);
+      manualFiles.value = "";
+      setStatus("Allegato caricato in LDApp.", "success");
+    } catch (err) {
+      setStatus(err.message, "danger");
+    } finally {
+      manualUploadBtn.disabled = false;
     }
   });
 

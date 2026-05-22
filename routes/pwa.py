@@ -294,6 +294,42 @@ def share_customers(intent_id):
     })
 
 
+@pwa_bp.post("/api/share/<int:intent_id>/files")
+@login_required
+@role_required(30)
+def share_add_files(intent_id):
+    intent = _intent_access_or_404(intent_id)
+    if not intent:
+        return jsonify({"ok": False, "error": "Accesso negato"}), 403
+
+    uploaded = [item for item in (intent.files or []) if not item.get("diagnostic")]
+    files = []
+    for _, values in request.files.lists():
+        files.extend(values)
+    if not files:
+        return jsonify({"ok": False, "error": "Nessun file ricevuto"}), 400
+
+    for file in files:
+        if not file:
+            continue
+        raw_filename = file.filename or f"allegato-{len(uploaded) + 1}{mimetypes.guess_extension(file.mimetype or '') or ''}"
+        filename = secure_filename(raw_filename) or f"allegato-{len(uploaded) + 1}"
+        target = os.path.join(_share_upload_folder(), f"{datetime.utcnow().strftime('%H%M%S%f')}_{filename}")
+        file.save(target)
+        uploaded.append({
+            "id": f"pwa-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}-{len(uploaded) + 1}",
+            "filename": filename,
+            "content_type": file.mimetype,
+            "size": os.path.getsize(target),
+            "url": _public_upload_path(target),
+            "static_path": _static_rel_path(target),
+        })
+
+    intent.files = uploaded
+    db.session.commit()
+    return jsonify({"ok": True, "intent": intent.to_dict(), "files": uploaded})
+
+
 @pwa_bp.post("/api/share/<int:intent_id>/send")
 @login_required
 @role_required(30)

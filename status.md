@@ -613,6 +613,13 @@ Stato noto:
       - aggiunte estensioni `.jpg`, `.jpeg`, `.png`, `.webp`, `.heic`, `.heif`, `.pdf`;
       - rimosso doppio descrittore `files/file` e fallback generico `*/*`, che su alcuni Web Share Target puo' dare comportamento ambiguo;
     - manifest versionato a `v=20260522-3` e service worker portato a `ldapp-cache-v7`.
+  - fallback Samsung Internet 2026-05-22:
+    - test reale utente da Samsung Galaxy S25 / Samsung Internet: share foto continua a produrre multipart vuoto (`form_keys=[]`, `file_keys=[]`), quindi il browser apre la PWA ma non passa il file al Web Share Target;
+    - aggiunto fallback operativo nella pagina `/pwa/share/<id>`:
+      - input `Aggiungi allegato`;
+      - endpoint `POST /pwa/api/share/<intent_id>/files`;
+      - upload manuale sostituisce la diagnostica e aggiorna `SharedOrderIntent.files`;
+    - test controllato ok: intent con diagnostica + upload manuale `foto.jpg` salva correttamente metadata e path statico.
 - Nota upgrade futura menu/permessi:
   - oggi il menu confronta `Menu.weight` con `current_user.max_role_weight`;
   - da valutare una plancia developer per attribuire il peso alle funzioni/route e derivare da li' anche la visibilita' menu, evitando di dichiarare il peso direttamente sulla voce menu.
