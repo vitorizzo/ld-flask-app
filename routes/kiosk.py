@@ -11,7 +11,8 @@ from sqlalchemy import func
 from extensions import db
 from tools.log_utils import get_logger
 from tools.slack_processor import SlackProcessor
-from models import SlackOrder, SlackOrderEvent, DeliveryRoute, DeliveryScheduleRule, OrderStatus
+from tools.slack_api import SlackAPI, SlackAPIConfig
+from models import SlackOrder, SlackOrderEvent, DeliveryRoute, DeliveryScheduleRule, OrderStatus, RouteOrderBoardEntry
 
 kiosk_bp = Blueprint("kiosk", __name__, url_prefix="/kiosk")
 logger = get_logger("kiosk", level=logging.INFO)
@@ -1321,6 +1322,41 @@ def set_order_status(order_id):
         )
 
     return jsonify({"ok": True, "status": new_status})
+
+
+@kiosk_bp.delete("/api/order/<int:order_id>")
+@login_required
+def delete_order(order_id: int):
+    order = SlackOrder.query.get(order_id)
+    if not order:
+        return jsonify({"ok": False, "error": "order not found"}), 404
+
+    slack_warning = None
+    if order.slack_channel_id and order.slack_message_ts:
+        bot_token = current_app.config.get("SLACK_BOT_TOKEN", "") or ""
+        if bot_token:
+            try:
+                SlackAPI(SlackAPIConfig(bot_token=bot_token)).delete_message(order.slack_channel_id, order.slack_message_ts)
+            except Exception as exc:
+                slack_warning = f"Messaggio Slack non cancellato: {exc}"
+                logger.exception("[KIOSK] Slack delete failed order_id=%s", order.id)
+        else:
+            slack_warning = "SLACK_BOT_TOKEN mancante: cancellazione locale eseguita"
+
+    entries = (
+        RouteOrderBoardEntry.query
+        .filter_by(slack_channel_id=order.slack_channel_id, slack_message_ts=order.slack_message_ts)
+        .all()
+    )
+    for entry in entries:
+        db.session.delete(entry)
+    db.session.delete(order)
+    db.session.commit()
+
+    payload = {"ok": True}
+    if slack_warning:
+        payload["warning"] = slack_warning
+    return jsonify(payload)
 
 
 @kiosk_bp.put("/api/order/<int:order_id>/delivery")

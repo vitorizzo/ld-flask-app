@@ -621,29 +621,43 @@ def api_delete_order(entry_id):
     entry = RouteOrderBoardEntry.query.get_or_404(entry_id)
     channel_id = entry.slack_channel_id
     message_ts = entry.slack_message_ts
-    order = None
+    slack_warning = None
+    orders = []
     if channel_id and message_ts:
-        order = (
+        orders = (
             SlackOrder.query
             .filter_by(slack_channel_id=channel_id, slack_message_ts=message_ts)
             .order_by(SlackOrder.id.desc())
-            .first()
+            .all()
         )
 
     if channel_id and message_ts:
         bot_token = current_app.config.get("SLACK_BOT_TOKEN", "") or ""
-        if not bot_token:
-            return jsonify({"ok": False, "error": "SLACK_BOT_TOKEN mancante"}), 503
-        try:
-            SlackAPI(SlackAPIConfig(bot_token=bot_token)).delete_message(channel_id, message_ts)
-        except Exception as exc:
-            return jsonify({"ok": False, "error": f"Messaggio Slack non cancellato: {exc}"}), 502
+        if bot_token:
+            try:
+                SlackAPI(SlackAPIConfig(bot_token=bot_token)).delete_message(channel_id, message_ts)
+            except Exception as exc:
+                slack_warning = f"Messaggio Slack non cancellato: {exc}"
+                current_app.logger.exception("Delete Slack message failed channel=%s ts=%s", channel_id, message_ts)
+        else:
+            slack_warning = "SLACK_BOT_TOKEN mancante: cancellazione locale eseguita"
 
-    if order:
+    for order in orders:
         db.session.delete(order)
-    db.session.delete(entry)
+
+    linked_entries = []
+    if channel_id and message_ts:
+        linked_entries = RouteOrderBoardEntry.query.filter_by(slack_channel_id=channel_id, slack_message_ts=message_ts).all()
+    if not linked_entries:
+        linked_entries = [entry]
+    for linked_entry in linked_entries:
+        db.session.delete(linked_entry)
+
     db.session.commit()
-    return jsonify({"ok": True})
+    payload = {"ok": True}
+    if slack_warning:
+        payload["warning"] = slack_warning
+    return jsonify(payload)
 
 
 @route_orders_bp.get("/api/registries/<int:registry_id>/phone-contacts")

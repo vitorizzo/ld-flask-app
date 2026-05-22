@@ -576,6 +576,25 @@ Stato noto:
       - aggiunto `send_push_to_staff`;
       - invio push su nuovo ordine da share PWA, da plancia giri e da Slack processor;
     - verifiche: `py_compile` ok su PWA, route-orders, kiosk, Slack API, Slack processor e push notifications; rendering pagina share ok; canale diretto locale risolto su `carsoli` / `CAX2A3C9F`.
+  - fix follow-up 2026-05-22:
+    - PWA share allegati:
+      - `/pwa/share` ora acquisisce tutti i file presenti in `request.files`, indipendentemente dal nome campo usato dal browser (`files`, `file`, chiavi custom, ecc.);
+      - se non arrivano file, viene loggata diagnostica con `form_keys`, `file_keys` e `content_type`;
+      - test controllato ok: file inviato sotto chiave arbitraria `weirdkey` salvato in `SharedOrderIntent.files` con metadata e path statico;
+    - aggiornamento PWA:
+      - cache service worker portata a `ldapp-cache-v6`;
+      - aggiunto listener `SKIP_WAITING`;
+      - manifest link versionato `v=20260522-2`;
+      - registrazione service worker forza `registration.update()` e reload su `controllerchange`;
+      - manifest e `/pwa/*` esclusi dal cache-first, sempre network-first/no-store;
+    - eliminazione ordini:
+      - plancia ordini: `DELETE /route-orders/api/entries/<entry_id>` non fallisce piu' tutta l'operazione se Slack non cancella il messaggio; cancella comunque DB/plancia/bacheca e torna eventuale `warning`;
+      - bacheca ordini: aggiunto endpoint `DELETE /kiosk/api/order/<order_id>` e voce `Elimina ordine` nel menu della card;
+      - eliminazione da bacheca rimuove anche eventuali righe plancia collegate e prova a cancellare il messaggio Slack scritto dal bot;
+    - verifiche:
+      - `py_compile` ok;
+      - rendering PWA ok;
+      - test controlled share file con chiave arbitraria ok.
 - Nota upgrade futura menu/permessi:
   - oggi il menu confronta `Menu.weight` con `current_user.max_role_weight`;
   - da valutare una plancia developer per attribuire il peso alle funzioni/route e derivare da li' anche la visibilita' menu, evitando di dichiarare il peso direttamente sulla voce menu.

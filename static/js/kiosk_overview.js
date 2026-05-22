@@ -13,6 +13,7 @@ window.kioskState = {
   const API_ALL = "/kiosk/api/board/all?only_active=1&show_closed_today=1";
   const API_ORDER = (id) => `/kiosk/api/order/${id}`;
   const API_ORDER_DELIVERY = (id) => `/kiosk/api/order/${id}/delivery`;
+  const API_ORDER_DELETE = (id) => `/kiosk/api/order/${id}`;
   const API_REPARSE_DELIVERIES = "/kiosk/api/orders/reparse-deliveries";
   const API_DELIVERY_SCHEDULE = "/kiosk/api/delivery-schedule";
   const API_DELIVERY_ROUTES = "/kiosk/api/delivery-routes";
@@ -143,6 +144,19 @@ window.kioskState = {
     for (const id of orderIds) {
       await setOrderStatus(id, targetCode);
     }
+  }
+
+  async function deleteOrder(orderId) {
+    const res = await fetch(API_ORDER_DELETE(orderId), {
+      method: "DELETE",
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json.ok === false) {
+      throw new Error(json.error || `HTTP ${res.status}`);
+    }
+    return json;
   }
 
   function buildSeqIndicator(seqTotal, seqOnSet) {
@@ -325,6 +339,8 @@ window.kioskState = {
                   )}</a></li>`
               )
               .join("")}
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item text-danger" href="#" data-delete-order="1">Elimina ordine</a></li>
           </ul>
         </div>
       `
@@ -405,6 +421,32 @@ window.kioskState = {
         } catch (e) {
           console.error("[kiosk_overview] move error", e);
           alert(`Errore spostamento: ${String(e.message || e)}`);
+        } finally {
+          div.classList.remove("is-busy");
+        }
+      });
+    });
+
+    div.querySelectorAll("[data-delete-order]").forEach((btn) => {
+      btn.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        const ids = isGroup ? vm.orders.map((o) => o.id) : [primary.id];
+        const label = isGroup ? `${ids.length} ordini` : "questo ordine";
+        if (!confirm(`Eliminare ${label} da bacheca, plancia e Slack?`)) return;
+
+        div.classList.add("is-busy");
+        try {
+          const warnings = [];
+          for (const id of ids) {
+            const result = await deleteOrder(id);
+            if (result.warning) warnings.push(result.warning);
+          }
+          if (warnings.length) alert(warnings.join("\n"));
+          await loadAndRender();
+        } catch (e) {
+          console.error("[kiosk_overview] delete order error", e);
+          alert(`Errore eliminazione: ${String(e.message || e)}`);
         } finally {
           div.classList.remove("is-busy");
         }

@@ -170,7 +170,16 @@ def share_target():
     url = (request.form.get("url") or "").strip()
     uploaded = []
 
-    files = request.files.getlist("files") + request.files.getlist("file")
+    files = []
+    for _, values in request.files.lists():
+        files.extend(values)
+    if not files:
+        current_app.logger.info(
+            "PWA share senza file: form_keys=%s file_keys=%s content_type=%s",
+            list(request.form.keys()),
+            list(request.files.keys()),
+            request.content_type,
+        )
     for file in files:
         if not file:
             continue

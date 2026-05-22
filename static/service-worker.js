@@ -1,4 +1,4 @@
-const CACHE_NAME = "ldapp-cache-v4"; // bump per forzare update
+const CACHE_NAME = "ldapp-cache-v6"; // bump per forzare update
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -23,6 +23,12 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
+
 self.addEventListener("fetch", (event) => {
   const req = event.request;
 
@@ -34,8 +40,8 @@ self.addEventListener("fetch", (event) => {
   // ✅ Non cache-are roba non HTTP(S) (chrome-extension, data, blob, ecc.)
   if (url.protocol !== "http:" && url.protocol !== "https:") return;
 
-  // API interne: sempre rete, mai cache forzata
-  if (url.pathname.startsWith("/trello/")) {
+  // API interne e manifest: sempre rete, mai cache forzata
+  if (url.pathname.startsWith("/trello/") || url.pathname.startsWith("/pwa/") || url.pathname.endsWith("/manifest.json")) {
     event.respondWith(
       fetch(req, { cache: "no-store" }).catch(() => caches.match(req))
     );
