@@ -187,6 +187,19 @@ class SlackAPI:
             logger.exception("Errore inatteso in SlackAPI.remove_reaction")
             raise
 
+    def delete_message(self, channel: str, timestamp: str) -> Dict[str, Any]:
+        """Cancella un messaggio Slack scritto dal bot."""
+        try:
+            resp = self.client.chat_delete(channel=channel, ts=timestamp)
+            return resp.data if hasattr(resp, "data") else dict(resp)
+        except SlackApiError as e:
+            err = e.response.get("error") if e.response else str(e)
+            logger.error("Slack chat_delete failed: %s", err)
+            raise
+        except Exception:
+            logger.exception("Errore inatteso in SlackAPI.delete_message")
+            raise
+
     def get_permalink(self, channel: str, message_ts: str) -> Optional[str]:
         """
         Ritorna il permalink di un messaggio (utile per mapping Trello <-> Slack).

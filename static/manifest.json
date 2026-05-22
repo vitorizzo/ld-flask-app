@@ -19,9 +19,22 @@
           "name": "files",
           "accept": [
             "image/*",
+            "video/*",
             "audio/*",
             "text/plain",
-            "application/pdf"
+            "application/pdf",
+            "*/*"
+          ]
+        },
+        {
+          "name": "file",
+          "accept": [
+            "image/*",
+            "video/*",
+            "audio/*",
+            "text/plain",
+            "application/pdf",
+            "*/*"
           ]
         }
       ]

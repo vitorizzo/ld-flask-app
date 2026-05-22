@@ -6,7 +6,7 @@ from typing import Iterable
 from flask import current_app
 
 from extensions import db
-from models import PushSubscription
+from models import PushSubscription, User
 from tools.log_utils import get_logger
 
 logger = get_logger("push_notifications")
@@ -91,4 +91,17 @@ def send_push_to_subscriptions(subscriptions: Iterable[PushSubscription], payloa
 
 def send_push_to_user(user_id: int, title: str, body: str, url: str = "/"):
     subscriptions = PushSubscription.query.filter_by(user_id=user_id, is_active=True).all()
+    return send_push_to_subscriptions(subscriptions, {"title": title, "body": body, "url": url})
+
+
+def send_push_to_staff(title: str, body: str, url: str = "/", min_weight: int = 30):
+    users = User.query.all()
+    user_ids = [user.id for user in users if (user.max_role_weight or 0) >= min_weight]
+    if not user_ids:
+        return {"sent": 0, "failed": 0, "errors": []}
+    subscriptions = (
+        PushSubscription.query
+        .filter(PushSubscription.user_id.in_(user_ids), PushSubscription.is_active.is_(True))
+        .all()
+    )
     return send_push_to_subscriptions(subscriptions, {"title": title, "body": body, "url": url})

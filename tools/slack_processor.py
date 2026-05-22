@@ -978,6 +978,35 @@ class SlackProcessor:
         if not channel_id or not ts:
             return
 
+        existing_by_ts = (
+            SlackOrder.query
+            .filter(
+                SlackOrder.slack_channel_id == channel_id,
+                (SlackOrder.slack_message_ts == ts) | (SlackOrder.slack_thread_ts == ts),
+            )
+            .order_by(SlackOrder.id.desc())
+            .first()
+        )
+        if existing_by_ts:
+            if attachments:
+                db.session.add(SlackOrderEvent(
+                    order_id=existing_by_ts.id,
+                    type="note",
+                    payload={
+                        "text": "Allegati rilevati dal messaggio Slack gia' registrato",
+                        "attachments": attachments,
+                        "via": "slack_existing_message",
+                        "ts": ts,
+                    },
+                ))
+                db.session.commit()
+            return
+
+        # I messaggi generati dal bot LDApp sono gia' stati creati nel DB dal flusso applicativo.
+        # Se arrivano qui senza match sul timestamp, li ignoriamo per evitare doppie card.
+        if data.get("bot_id") or data.get("app_id"):
+            return
+
         # Reply -> NOTE su ordine esistente (thread root = thread_ts)
         if self._is_reply(ts, thread_ts):
             root_ts = thread_ts
@@ -1066,6 +1095,11 @@ class SlackProcessor:
                 )
             )
             db.session.commit()
+            try:
+                from tools.push_notifications import send_push_to_staff
+                send_push_to_staff("Ordine aggiornato", existing_order.customer_display, f"/kiosk?order_id={existing_order.id}")
+            except Exception:
+                logger.exception("Push ordine aggiornato fallita")
             return
 
         order = SlackOrder(
@@ -1099,6 +1133,11 @@ class SlackProcessor:
             )
         )
         db.session.commit()
+        try:
+            from tools.push_notifications import send_push_to_staff
+            send_push_to_staff("Nuovo ordine", customer_display, f"/kiosk?order_id={order.id}")
+        except Exception:
+            logger.exception("Push nuovo ordine Slack fallita")
         return
 
     # ============================================================
@@ -1264,6 +1303,8 @@ class SlackProcessor:
                 "text": text,
                 "attachments": attachments,
                 "subtype": subtype or "",
+                "bot_id": event.get("bot_id"),
+                "app_id": event.get("app_id"),
             },
         }
 

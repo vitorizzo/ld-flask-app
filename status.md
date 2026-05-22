@@ -558,6 +558,24 @@ Stato noto:
       - `message_changed` aggiorna `raw_text` dell'ordine e la nota plancia collegata;
       - reaction di stato annullato/cancellato da Slack resetta anche la riga della plancia;
     - verifiche: `py_compile` ok su PWA, kiosk, Slack API e Slack processor; endpoint share testati in modalita' giro e diretta; rendering template ok.
+  - fix integrazione ordini 2026-05-22:
+    - la share page non espone piu' l'azione come invio Slack: pulsante e messaggi parlano di invio a LDApp, con Slack trattato come display collegato;
+    - manifest PWA allargato per share file:
+      - accetta sia parametro `files` sia parametro `file`;
+      - aggiunti `video/*` e fallback `*/*`;
+      - i file condivisi senza filename vengono salvati con nome generato da mimetype;
+    - aggiunta API Slack `chat_delete` per cancellare messaggi pubblicati dal bot;
+    - plancia ordini giri:
+      - aggiunto pulsante `Elimina ordine`;
+      - nuovo endpoint `DELETE /route-orders/api/entries/<entry_id>` che cancella messaggio Slack, card `SlackOrder` e riga plancia;
+      - `Annulla ordine` resta separato e applica la reaction di annullamento;
+    - corretto doppio processamento:
+      - lo Slack processor ignora i messaggi bot/app non gia' agganciati;
+      - se arriva un evento Slack con timestamp gia' presente in `SlackOrder`, non crea una seconda card e al massimo aggancia allegati;
+    - notifiche push:
+      - aggiunto `send_push_to_staff`;
+      - invio push su nuovo ordine da share PWA, da plancia giri e da Slack processor;
+    - verifiche: `py_compile` ok su PWA, route-orders, kiosk, Slack API, Slack processor e push notifications; rendering pagina share ok; canale diretto locale risolto su `carsoli` / `CAX2A3C9F`.
 - Nota upgrade futura menu/permessi:
   - oggi il menu confronta `Menu.weight` con `current_user.max_role_weight`;
   - da valutare una plancia developer per attribuire il peso alle funzioni/route e derivare da li' anche la visibilita' menu, evitando di dichiarare il peso direttamente sulla voce menu.

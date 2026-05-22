@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import mimetypes
 from datetime import datetime
 
 from flask import Blueprint, current_app, jsonify, redirect, render_template, request, url_for
@@ -19,7 +20,7 @@ from models import (
     SlackOrder,
     SlackOrderEvent,
 )
-from tools.push_notifications import is_push_configured, push_config, send_push_to_user
+from tools.push_notifications import is_push_configured, push_config, send_push_to_staff, send_push_to_user
 from tools.role_required import role_required
 from tools.slack_api import SlackAPI, SlackAPIConfig
 from tools.slack_processor import SlackProcessor
@@ -59,6 +60,8 @@ def _shared_file_abs_path(file_info):
 def _shared_attachments(intent):
     out = []
     for index, file_info in enumerate(intent.files or []):
+        if file_info.get("diagnostic"):
+            continue
         content_type = file_info.get("content_type") or file_info.get("mimetype") or ""
         filename = file_info.get("filename") or file_info.get("name") or f"allegato-{index + 1}"
         out.append({
@@ -167,13 +170,14 @@ def share_target():
     url = (request.form.get("url") or "").strip()
     uploaded = []
 
-    files = request.files.getlist("files") or request.files.getlist("file") or []
+    files = request.files.getlist("files") + request.files.getlist("file")
     for file in files:
-        if not file or not file.filename:
+        if not file:
             continue
-        filename = secure_filename(file.filename)
+        raw_filename = file.filename or f"condivisione-{len(uploaded) + 1}{mimetypes.guess_extension(file.mimetype or '') or ''}"
+        filename = secure_filename(raw_filename)
         if not filename:
-            continue
+            filename = f"condivisione-{len(uploaded) + 1}"
         target = os.path.join(_share_upload_folder(), f"{datetime.utcnow().strftime('%H%M%S%f')}_{filename}")
         file.save(target)
         uploaded.append({
@@ -403,6 +407,10 @@ def share_send_order(intent_id):
 
     intent.status = "sent"
     db.session.commit()
+    try:
+        send_push_to_staff("Nuovo ordine", _customer_label(registry), f"/kiosk?order_id={order.id}")
+    except Exception:
+        current_app.logger.exception("Invio push nuovo ordine fallito")
     return jsonify({"ok": True, "entry": entry.to_dict() if entry else None, "order_id": order.id, "intent": intent.to_dict()})
 
 

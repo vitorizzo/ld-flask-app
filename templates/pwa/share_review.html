@@ -106,7 +106,7 @@
       </div>
 
       <button class="btn btn-success w-100" type="button" id="shareSendBtn" disabled>
-        <i class="fa-brands fa-slack"></i> Invia ordine su Slack
+        <i class="fa-solid fa-paper-plane"></i> Invia ordine a LDApp
       </button>
       <div class="shared-order-status small mt-2" id="shareStatus"></div>
     </div>
@@ -269,7 +269,7 @@
   sendBtn.addEventListener("click", async () => {
     if (!selectedCustomer) return;
     sendBtn.disabled = true;
-    setStatus("Invio in corso...", "muted");
+      setStatus("Invio a LDApp in corso...", "muted");
     try {
       await api(`/pwa/api/share/${intentId}/send`, {
         method: "POST",
@@ -281,7 +281,7 @@
           list_done: listDone.checked,
         }),
       });
-      setStatus("Ordine inviato su Slack e salvato nella plancia.", "success");
+      setStatus("Ordine acquisito da LDApp e pubblicato sui display collegati.", "success");
     } catch (err) {
       setStatus(err.message, "danger");
       updateSendState();

@@ -23,6 +23,7 @@ from models import (
 from tools.role_required import role_required
 from tools.slack_api import SlackAPI, SlackAPIConfig
 from tools.slack_processor import SlackProcessor
+from tools.push_notifications import send_push_to_staff
 
 
 route_orders_bp = Blueprint("route_orders", __name__)
@@ -569,6 +570,10 @@ def api_send_slack(entry_id):
             return jsonify({"ok": False, "error": f"Ordine inviato, ma reaction lista fatta non applicata: {exc}"}), 502
     _ensure_slack_order(entry, target_status)
     db.session.commit()
+    try:
+        send_push_to_staff("Nuovo ordine giro", _label_registry(registry), "/kiosk")
+    except Exception:
+        current_app.logger.exception("Invio push ordine giro fallito")
     return jsonify({"ok": True, "entry": entry.to_dict()})
 
 
@@ -607,6 +612,38 @@ def api_cancel_order(entry_id):
         order.closed_at = datetime.utcnow()
     db.session.commit()
     return jsonify({"ok": True, "entry": entry.to_dict()})
+
+
+@route_orders_bp.delete("/api/entries/<int:entry_id>")
+@login_required
+@role_required(30)
+def api_delete_order(entry_id):
+    entry = RouteOrderBoardEntry.query.get_or_404(entry_id)
+    channel_id = entry.slack_channel_id
+    message_ts = entry.slack_message_ts
+    order = None
+    if channel_id and message_ts:
+        order = (
+            SlackOrder.query
+            .filter_by(slack_channel_id=channel_id, slack_message_ts=message_ts)
+            .order_by(SlackOrder.id.desc())
+            .first()
+        )
+
+    if channel_id and message_ts:
+        bot_token = current_app.config.get("SLACK_BOT_TOKEN", "") or ""
+        if not bot_token:
+            return jsonify({"ok": False, "error": "SLACK_BOT_TOKEN mancante"}), 503
+        try:
+            SlackAPI(SlackAPIConfig(bot_token=bot_token)).delete_message(channel_id, message_ts)
+        except Exception as exc:
+            return jsonify({"ok": False, "error": f"Messaggio Slack non cancellato: {exc}"}), 502
+
+    if order:
+        db.session.delete(order)
+    db.session.delete(entry)
+    db.session.commit()
+    return jsonify({"ok": True})
 
 
 @route_orders_bp.get("/api/registries/<int:registry_id>/phone-contacts")
