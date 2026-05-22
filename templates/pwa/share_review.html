@@ -135,9 +135,18 @@
           <div class="small text-muted">Allegati</div>
           <div class="list-group">
             {% for file in intent.files %}
-              <a class="list-group-item list-group-item-action shared-order-file" href="{{ file.url }}" target="_blank" rel="noopener">
-                {{ file.filename }} <span class="text-muted small">{{ file.content_type }}</span>
-              </a>
+              {% if file.diagnostic %}
+                <div class="list-group-item shared-order-file">
+                  <div class="text-warning fw-semibold">Nessun allegato ricevuto dal dispositivo</div>
+                  <div class="text-muted small">Campi form: {{ file.form_keys|join(", ") or "-" }}</div>
+                  <div class="text-muted small">Campi file: {{ file.file_keys|join(", ") or "-" }}</div>
+                  <div class="text-muted small">Content-Type: {{ file.content_type or "-" }}</div>
+                </div>
+              {% else %}
+                <a class="list-group-item list-group-item-action shared-order-file" href="{{ file.url }}" target="_blank" rel="noopener">
+                  {{ file.filename }} <span class="text-muted small">{{ file.content_type }}</span>
+                </a>
+              {% endif %}
             {% endfor %}
           </div>
         </div>

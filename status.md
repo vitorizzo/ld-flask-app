@@ -595,6 +595,16 @@ Stato noto:
       - `py_compile` ok;
       - rendering PWA ok;
       - test controlled share file con chiave arbitraria ok.
+  - diagnostica share allegati 2026-05-22:
+    - dal DB locale le ultime condivisioni reali PWA risultavano con `SharedOrderIntent.files=[]`, quindi il file non arrivava al backend dal browser/PWA;
+    - aggiunta diagnostica persistente nella bozza quando `/pwa/share` non riceve file:
+      - `form_keys`;
+      - `file_keys`;
+      - `content_type`;
+      - `content_length`;
+    - la pagina share mostra il box diagnostico "Nessun allegato ricevuto dal dispositivo" invece di fallire silenziosamente;
+    - `_upload_shared_files_to_slack` ignora le righe diagnostiche;
+    - test controllato ok: share multipart senza file crea diagnostica in `SharedOrderIntent.files`.
 - Nota upgrade futura menu/permessi:
   - oggi il menu confronta `Menu.weight` con `current_user.max_role_weight`;
   - da valutare una plancia developer per attribuire il peso alle funzioni/route e derivare da li' anche la visibilita' menu, evitando di dichiarare il peso direttamente sulla voce menu.

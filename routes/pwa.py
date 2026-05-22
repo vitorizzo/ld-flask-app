@@ -45,6 +45,8 @@ def _static_rel_path(abs_path):
 
 
 def _shared_file_abs_path(file_info):
+    if file_info.get("diagnostic"):
+        return None
     rel = (file_info.get("static_path") or "").strip().replace("\\", "/")
     if not rel and file_info.get("url", "").startswith("/static/"):
         rel = file_info["url"][len("/static/"):]
@@ -132,6 +134,8 @@ def _format_order_message(registry, note, planned_delivery_at=None):
 def _upload_shared_files_to_slack(api, channel_id, thread_ts, intent):
     uploaded = []
     for file_info in intent.files or []:
+        if file_info.get("diagnostic"):
+            continue
         abs_path = _shared_file_abs_path(file_info)
         if not abs_path:
             raise RuntimeError(f"file condiviso non trovato: {file_info.get('filename') or file_info.get('url') or 'allegato'}")
@@ -180,6 +184,14 @@ def share_target():
             list(request.files.keys()),
             request.content_type,
         )
+        uploaded.append({
+            "diagnostic": True,
+            "message": "Nessun file ricevuto dal browser nel multipart della share",
+            "form_keys": list(request.form.keys()),
+            "file_keys": list(request.files.keys()),
+            "content_type": request.content_type,
+            "content_length": request.content_length,
+        })
     for file in files:
         if not file:
             continue
