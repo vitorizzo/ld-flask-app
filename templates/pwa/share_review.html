@@ -4,52 +4,271 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css') }}">
+<style>
+  .shared-order-body {
+    white-space: pre-wrap;
+    color: #212529;
+    background: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    min-height: 140px;
+  }
+
+  .shared-order-actions {
+    display: flex;
+    gap: .5rem;
+    flex-wrap: wrap;
+  }
+
+  .shared-order-file {
+    color: #212529;
+  }
+
+  .shared-order-grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 420px) 1fr;
+    gap: 1rem;
+    align-items: start;
+  }
+
+  .shared-order-customer-results {
+    max-height: 260px;
+    overflow: auto;
+  }
+
+  .shared-order-customer-results .list-group-item.active {
+    background: #4a2c2a;
+    border-color: #4a2c2a;
+    color: #ffffff;
+  }
+
+  .shared-order-status {
+    min-height: 1.5rem;
+  }
+
+  @media (max-width: 992px) {
+    .shared-order-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
 {% endblock %}
 
 {% block content %}
 <section class="welcome-section registry-tools-section">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-      <h1 class="h4 mb-1">Ordine condiviso</h1>
-      <div class="text-muted small">Contenuto ricevuto dalla condivisione del dispositivo.</div>
+      <h1 class="h4 mb-1">Ordine ricevuto</h1>
+      <div class="text-muted small">Contenuto condiviso dal dispositivo.</div>
     </div>
-    <a class="btn btn-outline-light" href="/route-orders/board">Plancia giri</a>
+    <div class="shared-order-actions">
+      {% if intent.text %}
+        <button class="btn btn-outline-light" type="button" id="copySharedOrder">
+          <i class="fa-regular fa-copy"></i> Copia
+        </button>
+      {% endif %}
+      <a class="btn btn-outline-light" href="/route-orders/board">
+        <i class="fa-solid fa-table-list"></i> Plancia giri
+      </a>
+    </div>
   </div>
 
-  <div class="registry-tools-panel p-3">
-    {% if intent.title %}
+  <div class="shared-order-grid">
+    <div class="registry-tools-panel p-3">
       <div class="mb-3">
-        <div class="small text-muted">Titolo</div>
-        <div class="fw-semibold">{{ intent.title }}</div>
+        <label class="form-label" for="shareRouteSelect">Giro</label>
+        <select class="form-select" id="shareRouteSelect"></select>
       </div>
-    {% endif %}
-    {% if intent.text %}
+
       <div class="mb-3">
-        <div class="small text-muted">Testo ordine</div>
-        <pre class="bg-white border rounded p-3 mb-0" style="white-space: pre-wrap; color: #212529;">{{ intent.text }}</pre>
+        <label class="form-label" for="shareCustomerSearch">Cliente</label>
+        <input class="form-control" id="shareCustomerSearch" autocomplete="off" placeholder="Cerca cliente nel giro">
+        <div class="list-group shared-order-customer-results mt-2" id="shareCustomerResults"></div>
       </div>
-    {% endif %}
-    {% if intent.url %}
+
       <div class="mb-3">
-        <div class="small text-muted">Link</div>
-        <a href="{{ intent.url }}" target="_blank" rel="noopener">{{ intent.url }}</a>
+        <label class="form-label" for="shareOrderNote">Ordine da inviare</label>
+        <textarea class="form-control" id="shareOrderNote" rows="10">{{ suggested_note }}</textarea>
       </div>
-    {% endif %}
-    {% if intent.files %}
-      <div class="mb-3">
-        <div class="small text-muted">Allegati</div>
-        <div class="list-group">
-          {% for file in intent.files %}
-            <a class="list-group-item list-group-item-action" href="{{ file.url }}" target="_blank" rel="noopener">
-              {{ file.filename }} <span class="text-muted small">{{ file.content_type }}</span>
-            </a>
-          {% endfor %}
+
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="shareListDone">
+        <label class="form-check-label" for="shareListDone">Lista fatta</label>
+      </div>
+
+      <button class="btn btn-success w-100" type="button" id="shareSendBtn" disabled>
+        <i class="fa-brands fa-slack"></i> Invia ordine su Slack
+      </button>
+      <div class="shared-order-status small mt-2" id="shareStatus"></div>
+    </div>
+
+    <div class="registry-tools-panel p-3">
+      {% if intent.title %}
+        <div class="mb-3">
+          <div class="small text-muted">Titolo</div>
+          <div class="fw-semibold">{{ intent.title }}</div>
         </div>
-      </div>
-    {% endif %}
-    <div class="alert alert-info mb-0">
-      Bozza ricevuta. Il prossimo step sara' collegarla alla scelta cliente/giro e all'invio Slack dalla plancia.
+      {% endif %}
+      {% if intent.text %}
+        <div class="mb-3">
+          <div class="small text-muted">Testo ricevuto</div>
+          <div class="shared-order-body" id="sharedOrderText">{{ intent.text }}</div>
+        </div>
+      {% endif %}
+      {% if intent.url %}
+        <div class="mb-3">
+          <div class="small text-muted">Link</div>
+          <a href="{{ intent.url }}" target="_blank" rel="noopener">{{ intent.url }}</a>
+        </div>
+      {% endif %}
+      {% if intent.files %}
+        <div class="mb-3">
+          <div class="small text-muted">Allegati</div>
+          <div class="list-group">
+            {% for file in intent.files %}
+              <a class="list-group-item list-group-item-action shared-order-file" href="{{ file.url }}" target="_blank" rel="noopener">
+                {{ file.filename }} <span class="text-muted small">{{ file.content_type }}</span>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
     </div>
   </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+  const intentId = {{ intent.id }};
+  const copyBtn = document.getElementById("copySharedOrder");
+  const textEl = document.getElementById("sharedOrderText");
+  const routeSelect = document.getElementById("shareRouteSelect");
+  const customerSearch = document.getElementById("shareCustomerSearch");
+  const customerResults = document.getElementById("shareCustomerResults");
+  const orderNote = document.getElementById("shareOrderNote");
+  const listDone = document.getElementById("shareListDone");
+  const sendBtn = document.getElementById("shareSendBtn");
+  const statusEl = document.getElementById("shareStatus");
+  let selectedCustomer = null;
+  let searchTimer = null;
+
+  function esc(value) {
+    return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch]));
+  }
+
+  function setStatus(message, tone = "muted") {
+    statusEl.className = `shared-order-status small mt-2 text-${tone}`;
+    statusEl.textContent = message || "";
+  }
+
+  function updateSendState() {
+    sendBtn.disabled = !routeSelect.value || !selectedCustomer || !orderNote.value.trim();
+  }
+
+  async function api(url, options = {}) {
+    const res = await fetch(url, {
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
+      ...options,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) throw new Error(data.error || "Operazione non riuscita");
+    return data;
+  }
+
+  function renderCustomers(customers) {
+    if (!customers.length) {
+      customerResults.innerHTML = '<div class="list-group-item text-muted">Nessun cliente trovato.</div>';
+      return;
+    }
+    customerResults.innerHTML = customers.map(customer => `
+      <button class="list-group-item list-group-item-action" type="button" data-customer-id="${customer.id}">
+        <div class="fw-semibold">${esc(customer.display)}</div>
+        <div class="small text-muted">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div>
+      </button>
+    `).join("");
+  }
+
+  async function loadCustomers() {
+    selectedCustomer = null;
+    updateSendState();
+    const routeId = routeSelect.value;
+    if (!routeId) {
+      customerResults.innerHTML = '<div class="list-group-item text-muted">Seleziona un giro.</div>';
+      return;
+    }
+    const q = customerSearch.value.trim();
+    const data = await api(`/pwa/api/share/${intentId}/customers?route_id=${encodeURIComponent(routeId)}&q=${encodeURIComponent(q)}`);
+    renderCustomers(data.customers || []);
+  }
+
+  async function loadOptions() {
+    const data = await api(`/pwa/api/share/${intentId}/options`);
+    routeSelect.innerHTML = (data.routes || []).map(route => (
+      `<option value="${route.id}">${esc(route.name)}</option>`
+    )).join("");
+    if (!routeSelect.value) {
+      customerResults.innerHTML = '<div class="list-group-item text-muted">Nessun giro attivo.</div>';
+      return;
+    }
+    await loadCustomers();
+  }
+
+  if (copyBtn && textEl) {
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(textEl.textContent || "");
+        copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> Copiato';
+        setTimeout(() => {
+          copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i> Copia';
+        }, 1800);
+      } catch (err) {
+        alert("Non riesco a copiare automaticamente il testo.");
+      }
+    });
+  }
+
+  routeSelect.addEventListener("change", () => loadCustomers().catch(err => setStatus(err.message, "danger")));
+  customerSearch.addEventListener("input", () => {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => loadCustomers().catch(err => setStatus(err.message, "danger")), 250);
+  });
+  orderNote.addEventListener("input", updateSendState);
+
+  customerResults.addEventListener("click", event => {
+    const item = event.target.closest("[data-customer-id]");
+    if (!item) return;
+    selectedCustomer = item.dataset.customerId;
+    customerResults.querySelectorAll(".list-group-item").forEach(el => el.classList.remove("active"));
+    item.classList.add("active");
+    updateSendState();
+  });
+
+  sendBtn.addEventListener("click", async () => {
+    if (!selectedCustomer) return;
+    sendBtn.disabled = true;
+    setStatus("Invio in corso...", "muted");
+    try {
+      await api(`/pwa/api/share/${intentId}/send`, {
+        method: "POST",
+        body: JSON.stringify({
+          route_id: routeSelect.value,
+          registry_id: selectedCustomer,
+          order_note: orderNote.value,
+          list_done: listDone.checked,
+        }),
+      });
+      setStatus("Ordine inviato su Slack e salvato nella plancia.", "success");
+    } catch (err) {
+      setStatus(err.message, "danger");
+      updateSendState();
+    }
+  });
+
+  loadOptions().catch(err => setStatus(err.message, "danger"));
+})();
+</script>
 {% endblock %}

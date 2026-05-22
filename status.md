@@ -531,6 +531,22 @@ Stato noto:
     - endpoint `/pwa/*` registrati;
     - `GET /pwa/api/push/config` torna `enabled=True`;
     - test controllato share target: creazione redirect `/pwa/share/<id>` e cancellazione bozza ok.
+    - test reale notifiche push da browser completato: subscription salvata e notifica ricevuta correttamente;
+    - endpoint test push arricchito con dettagli `errors` per diagnosi futura di invii falliti.
+  - micro-fix share target 2026-05-21:
+    - dopo reinstallazione PWA il target di condivisione compare correttamente tra le destinazioni del telefono;
+    - rimossa dalla pagina `/pwa/share/<id>` la nota provvisoria "Bozza ricevuta..." mostrata all'utente;
+    - aggiunti pulsanti rapidi `Copia` e `Plancia giri` nella pagina di ricezione ordine condiviso;
+    - verificato caricamento template Jinja della pagina share review.
+  - evoluzione share target 2026-05-21:
+    - la pagina `/pwa/share/<id>` ora permette di selezionare il giro, cercare un cliente appartenente al giro e modificare la nota ordine precompilata;
+    - aggiunto invio diretto su Slack dalla pagina share, con creazione/aggiornamento della riga in `route_order_board_entries`;
+    - se `Lista fatta` e' spuntato, l'invio applica la stessa reaction usata dalla plancia ordini giri;
+    - nuovi endpoint staff:
+      - `GET /pwa/api/share/<intent_id>/options`;
+      - `GET /pwa/api/share/<intent_id>/customers`;
+      - `POST /pwa/api/share/<intent_id>/send`;
+    - test controllato endpoint options/clienti ok: 8 giri attivi e clienti restituiti per il primo giro.
 - Nota upgrade futura menu/permessi:
   - oggi il menu confronta `Menu.weight` con `current_user.max_role_weight`;
   - da valutare una plancia developer per attribuire il peso alle funzioni/route e derivare da li' anche la visibilita' menu, evitando di dichiarare il peso direttamente sulla voce menu.
