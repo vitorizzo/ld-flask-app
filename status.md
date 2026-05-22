@@ -605,6 +605,14 @@ Stato noto:
     - la pagina share mostra il box diagnostico "Nessun allegato ricevuto dal dispositivo" invece di fallire silenziosamente;
     - `_upload_shared_files_to_slack` ignora le righe diagnostiche;
     - test controllato ok: share multipart senza file crea diagnostica in `SharedOrderIntent.files`.
+  - fix manifest share allegati 2026-05-22:
+    - test reale utente: share foto produce POST multipart ma senza campi form e senza campi file (`form_keys=[]`, `file_keys=[]`);
+    - manifest PWA reso piu' conservativo:
+      - un solo parametro file `name=file`;
+      - aggiunti MIME espliciti `image/jpeg`, `image/png`, `image/webp`, `image/heic`, `image/heif`;
+      - aggiunte estensioni `.jpg`, `.jpeg`, `.png`, `.webp`, `.heic`, `.heif`, `.pdf`;
+      - rimosso doppio descrittore `files/file` e fallback generico `*/*`, che su alcuni Web Share Target puo' dare comportamento ambiguo;
+    - manifest versionato a `v=20260522-3` e service worker portato a `ldapp-cache-v7`.
 - Nota upgrade futura menu/permessi:
   - oggi il menu confronta `Menu.weight` con `current_user.max_role_weight`;
   - da valutare una plancia developer per attribuire il peso alle funzioni/route e derivare da li' anche la visibilita' menu, evitando di dichiarare il peso direttamente sulla voce menu.

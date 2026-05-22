@@ -1,4 +1,4 @@
-const CACHE_NAME = "ldapp-cache-v6"; // bump per forzare update
+const CACHE_NAME = "ldapp-cache-v7"; // bump per forzare update
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
