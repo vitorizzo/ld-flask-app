@@ -77,6 +77,14 @@
   <div class="shared-order-grid">
     <div class="registry-tools-panel p-3">
       <div class="mb-3">
+        <label class="form-label" for="shareOrderType">Tipo ordine</label>
+        <select class="form-select" id="shareOrderType">
+          <option value="route">Ordine di giro</option>
+          <option value="direct">Ordine diretto - Carsoli</option>
+        </select>
+      </div>
+
+      <div class="mb-3">
         <label class="form-label" for="shareRouteSelect">Giro</label>
         <select class="form-select" id="shareRouteSelect"></select>
       </div>
@@ -145,6 +153,7 @@
   const intentId = {{ intent.id }};
   const copyBtn = document.getElementById("copySharedOrder");
   const textEl = document.getElementById("sharedOrderText");
+  const orderType = document.getElementById("shareOrderType");
   const routeSelect = document.getElementById("shareRouteSelect");
   const customerSearch = document.getElementById("shareCustomerSearch");
   const customerResults = document.getElementById("shareCustomerResults");
@@ -165,7 +174,8 @@
   }
 
   function updateSendState() {
-    sendBtn.disabled = !routeSelect.value || !selectedCustomer || !orderNote.value.trim();
+    const needsRoute = orderType.value !== "direct";
+    sendBtn.disabled = (needsRoute && !routeSelect.value) || !selectedCustomer || !orderNote.value.trim();
   }
 
   async function api(url, options = {}) {
@@ -196,12 +206,12 @@
     selectedCustomer = null;
     updateSendState();
     const routeId = routeSelect.value;
-    if (!routeId) {
+    if (orderType.value !== "direct" && !routeId) {
       customerResults.innerHTML = '<div class="list-group-item text-muted">Seleziona un giro.</div>';
       return;
     }
     const q = customerSearch.value.trim();
-    const data = await api(`/pwa/api/share/${intentId}/customers?route_id=${encodeURIComponent(routeId)}&q=${encodeURIComponent(q)}`);
+    const data = await api(`/pwa/api/share/${intentId}/customers?type=${encodeURIComponent(orderType.value)}&route_id=${encodeURIComponent(routeId)}&q=${encodeURIComponent(q)}`);
     renderCustomers(data.customers || []);
   }
 
@@ -215,6 +225,14 @@
       return;
     }
     await loadCustomers();
+  }
+
+  function syncOrderTypeUi() {
+    const direct = orderType.value === "direct";
+    routeSelect.disabled = direct;
+    routeSelect.closest(".mb-3").style.display = direct ? "none" : "";
+    customerSearch.placeholder = direct ? "Cerca cliente" : "Cerca cliente nel giro";
+    loadCustomers().catch(err => setStatus(err.message, "danger"));
   }
 
   if (copyBtn && textEl) {
@@ -231,6 +249,7 @@
     });
   }
 
+  orderType.addEventListener("change", syncOrderTypeUi);
   routeSelect.addEventListener("change", () => loadCustomers().catch(err => setStatus(err.message, "danger")));
   customerSearch.addEventListener("input", () => {
     clearTimeout(searchTimer);
@@ -257,6 +276,7 @@
         body: JSON.stringify({
           route_id: routeSelect.value,
           registry_id: selectedCustomer,
+          type: orderType.value,
           order_note: orderNote.value,
           list_done: listDone.checked,
         }),
@@ -268,7 +288,7 @@
     }
   });
 
-  loadOptions().catch(err => setStatus(err.message, "danger"));
+  loadOptions().then(syncOrderTypeUi).catch(err => setStatus(err.message, "danger"));
 })();
 </script>
 {% endblock %}

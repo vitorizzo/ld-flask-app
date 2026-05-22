@@ -547,6 +547,17 @@ Stato noto:
       - `GET /pwa/api/share/<intent_id>/customers`;
       - `POST /pwa/api/share/<intent_id>/send`;
     - test controllato endpoint options/clienti ok: 8 giri attivi e clienti restituiti per il primo giro.
+  - integrazione ordini condivisi 2026-05-22:
+    - aggiunta scelta `Ordine di giro` / `Ordine diretto - Carsoli` nella pagina share;
+    - in modalita' diretta la ricerca cliente non e' vincolata al giro e l'ordine viene inviato sul canale del giro `carsoli` (`CAX2A3C9F` nel DB locale);
+    - gli allegati condivisi da telefono vengono salvati con metadata persistenti (`id`, `static_path`, `content_type`, `size`) e caricati nel thread Slack dell'ordine;
+    - la visualizzazione ordini ora sa servire anche allegati locali `pwa_share`, non solo file privati Slack;
+    - gli ordini creati dalla webapp scrivono eventi `SlackOrderEvent` con allegati, cosi' la card in visualizzazione ordini mostra foto/file condivisi;
+    - primo allineamento Slack -> app:
+      - `message_deleted` marca l'ordine come `cancellato`, lo chiude e resetta l'eventuale riga plancia;
+      - `message_changed` aggiorna `raw_text` dell'ordine e la nota plancia collegata;
+      - reaction di stato annullato/cancellato da Slack resetta anche la riga della plancia;
+    - verifiche: `py_compile` ok su PWA, kiosk, Slack API e Slack processor; endpoint share testati in modalita' giro e diretta; rendering template ok.
 - Nota upgrade futura menu/permessi:
   - oggi il menu confronta `Menu.weight` con `current_user.max_role_weight`;
   - da valutare una plancia developer per attribuire il peso alle funzioni/route e derivare da li' anche la visibilita' menu, evitando di dichiarare il peso direttamente sulla voce menu.

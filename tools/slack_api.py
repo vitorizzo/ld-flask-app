@@ -104,6 +104,37 @@ class SlackAPI:
             logger.exception("Errore inatteso in SlackAPI.send_message")
             raise
 
+    def upload_file(
+        self,
+        channel: str,
+        file_path: str,
+        *,
+        title: str | None = None,
+        filename: str | None = None,
+        thread_ts: str | None = None,
+        initial_comment: str | None = None,
+    ) -> Dict[str, Any]:
+        """Carica un file in Slack, opzionalmente nel thread di un messaggio."""
+        try:
+            kwargs = {
+                "channel": channel,
+                "file": file_path,
+                "title": title,
+                "filename": filename,
+                "initial_comment": initial_comment,
+            }
+            if thread_ts:
+                kwargs["thread_ts"] = thread_ts
+            resp = self.client.files_upload_v2(**{k: v for k, v in kwargs.items() if v})
+            return resp.data if hasattr(resp, "data") else dict(resp)
+        except SlackApiError as e:
+            err = e.response.get("error") if e.response else str(e)
+            logger.error("Slack files_upload_v2 failed: %s", err)
+            raise
+        except Exception:
+            logger.exception("Errore inatteso in SlackAPI.upload_file")
+            raise
+
     def add_reaction(self, channel: str, timestamp: str, name: str) -> Dict[str, Any]:
         """
         Aggiunge una reaction ad un messaggio.

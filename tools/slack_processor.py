@@ -10,7 +10,7 @@ from typing import Any, Dict, Optional
 from flask import current_app
 from jinja2 import Template
 
-from models import SlackConnection, SlackOrder, SlackOrderEvent, DeliveryRoute, DeliveryScheduleRule, OrderStatus
+from models import SlackConnection, SlackOrder, SlackOrderEvent, DeliveryRoute, DeliveryScheduleRule, OrderStatus, RouteOrderBoardEntry
 from tools.log_utils import get_logger
 from tools.slack_api import SlackAPI, SlackAPIConfig
 from extensions import db
@@ -851,6 +851,16 @@ class SlackProcessor:
 
                 if is_cancelled:
                     order.closed_at = datetime.utcnow()
+                    entry = (
+                        RouteOrderBoardEntry.query
+                        .filter_by(slack_channel_id=channel_id, slack_message_ts=item_ts)
+                        .order_by(RouteOrderBoardEntry.id.desc())
+                        .first()
+                    )
+                    if entry:
+                        entry.order_note = None
+                        entry.list_done = False
+                        entry.status = "da_chiamare"
                 elif bool(getattr(target_status, "is_terminal", False)) and not order.closed_at:
                     order.closed_at = datetime.utcnow()
 
@@ -869,6 +879,91 @@ class SlackProcessor:
                     )
                 )
                 db.session.commit()
+            return
+
+        if trigger == "message_deleted":
+            channel_id = data.get("channel")
+            deleted_ts = data.get("deleted_ts") or data.get("ts")
+            if not channel_id or not deleted_ts:
+                return
+            order = (
+                SlackOrder.query
+                .filter(
+                    SlackOrder.slack_channel_id == channel_id,
+                    (SlackOrder.slack_message_ts == deleted_ts) | (SlackOrder.slack_thread_ts == deleted_ts),
+                )
+                .order_by(SlackOrder.id.desc())
+                .first()
+            )
+            if not order:
+                return
+            old_status = order.status
+            order.status = "cancellato"
+            order.closed_at = datetime.utcnow()
+            db.session.add(SlackOrderEvent(
+                order_id=order.id,
+                type="status_change",
+                payload={
+                    "from": old_status,
+                    "to": "cancellato",
+                    "via": "slack_message_deleted",
+                    "deleted_ts": deleted_ts,
+                },
+            ))
+            entry = (
+                RouteOrderBoardEntry.query
+                .filter_by(slack_channel_id=channel_id, slack_message_ts=deleted_ts)
+                .order_by(RouteOrderBoardEntry.id.desc())
+                .first()
+            )
+            if entry:
+                entry.order_note = None
+                entry.list_done = False
+                entry.status = "da_chiamare"
+            db.session.commit()
+            return
+
+        if trigger == "message_changed":
+            channel_id = data.get("channel")
+            ts = data.get("ts")
+            text = (data.get("text") or "").strip()
+            attachments = data.get("attachments") if isinstance(data.get("attachments"), list) else []
+            if not channel_id or not ts:
+                return
+            order = (
+                SlackOrder.query
+                .filter_by(slack_channel_id=channel_id, slack_message_ts=ts)
+                .order_by(SlackOrder.id.desc())
+                .first()
+            )
+            if not order:
+                return
+            old_text = order.raw_text or ""
+            if text:
+                order.raw_text = text
+            db.session.add(SlackOrderEvent(
+                order_id=order.id,
+                type="message_changed",
+                payload={
+                    "from_text": old_text,
+                    "to_text": text,
+                    "attachments": attachments,
+                    "via": "slack_message_changed",
+                    "ts": ts,
+                },
+            ))
+            entry = (
+                RouteOrderBoardEntry.query
+                .filter_by(slack_channel_id=channel_id, slack_message_ts=ts)
+                .order_by(RouteOrderBoardEntry.id.desc())
+                .first()
+            )
+            if entry and text:
+                lines = [line for line in text.splitlines() if line.strip()]
+                if lines and lines[0].strip().startswith("*") and lines[0].strip().endswith("*"):
+                    lines = lines[1:]
+                entry.order_note = "\n".join(lines).strip() or entry.order_note
+            db.session.commit()
             return
 
         if trigger != "message":
@@ -1124,6 +1219,31 @@ class SlackProcessor:
         Normalizziamo tutto su trigger unico "message".
         """
         subtype = event.get("subtype")
+
+        if subtype == "message_deleted":
+            previous = event.get("previous_message") or {}
+            return {
+                "trigger": "message_deleted",
+                "data": {
+                    "channel": event.get("channel") or previous.get("channel"),
+                    "deleted_ts": event.get("deleted_ts") or previous.get("ts"),
+                    "ts": event.get("ts") or event.get("deleted_ts") or previous.get("ts"),
+                    "previous_text": previous.get("text") or "",
+                },
+            }
+
+        if subtype == "message_changed":
+            message = event.get("message") or {}
+            return {
+                "trigger": "message_changed",
+                "data": {
+                    "channel": event.get("channel") or message.get("channel"),
+                    "ts": message.get("ts") or event.get("message_ts"),
+                    "text": self._extract_message_text(message),
+                    "attachments": self._extract_file_attachments(message),
+                    "previous_text": (event.get("previous_message") or {}).get("text") or "",
+                },
+            }
 
         # I file_share sono messaggi validi: la didascalia diventa testo ordine
         # e i file allegati vengono salvati sulla card.

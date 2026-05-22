@@ -1,9 +1,10 @@
 import logging
 import hashlib
+import os
 from datetime import date, datetime, time, timezone, timedelta
 
 import requests
-from flask import Blueprint, request, make_response, jsonify, render_template, current_app, Response
+from flask import Blueprint, request, make_response, jsonify, render_template, current_app, Response, send_file
 from flask_login import login_required
 from sqlalchemy import func
 
@@ -322,6 +323,19 @@ def _created_dt_from_slack_ts(ts: str | None, fallback: datetime | None = None) 
 
 def _public_attachment(order_id: int, attachment: dict) -> dict:
     file_id = str(attachment.get("id") or "")
+    if attachment.get("source") == "pwa_share":
+        return {
+            "id": file_id,
+            "title": attachment.get("title") or attachment.get("name") or "Allegato",
+            "name": attachment.get("name") or "",
+            "mimetype": attachment.get("mimetype") or "",
+            "filetype": attachment.get("filetype") or "",
+            "size": attachment.get("size"),
+            "is_image": bool(attachment.get("is_image")),
+            "permalink": attachment.get("permalink") or "",
+            "thumb_url": f"/kiosk/api/order/{order_id}/attachment/{file_id}?variant=thumb",
+            "url": f"/kiosk/api/order/{order_id}/attachment/{file_id}",
+        }
     return {
         "id": file_id,
         "title": attachment.get("title") or attachment.get("name") or "Allegato",
@@ -343,6 +357,21 @@ def _pick_slack_attachment_url(attachment: dict, variant: str) -> str:
                 return attachment[key]
 
     return attachment.get("url_private_download") or attachment.get("url_private") or ""
+
+
+def _local_attachment_path(attachment: dict) -> str | None:
+    if attachment.get("source") != "pwa_share":
+        return None
+    rel = (attachment.get("static_path") or "").strip().replace("\\", "/").lstrip("/")
+    if not rel.startswith("uploads/shared_orders/"):
+        return None
+    candidate = os.path.abspath(os.path.join(current_app.static_folder, rel))
+    static_root = os.path.abspath(current_app.static_folder)
+    if not candidate.startswith(static_root + os.sep):
+        return None
+    if not os.path.exists(candidate):
+        return None
+    return candidate
 
 
 @kiosk_bp.get("/test")
@@ -730,6 +759,15 @@ def kiosk_api_order_attachment(order_id: int, file_id: str):
 
     if not attachment:
         return jsonify({"error": "attachment_not_found"}), 404
+
+    local_path = _local_attachment_path(attachment)
+    if local_path:
+        return send_file(
+            local_path,
+            mimetype=attachment.get("mimetype") or "application/octet-stream",
+            download_name=attachment.get("name") or None,
+            conditional=True,
+        )
 
     variant = (request.args.get("variant") or "full").strip().lower()
     source_url = _pick_slack_attachment_url(attachment, variant)
