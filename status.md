@@ -732,6 +732,20 @@ Stato noto:
     - verifiche:
       - `py_compile` ok su `routes/route_orders.py` e `routes/pwa.py`;
       - endpoint Diretti ok: primo ordine tecnico `acquisito`, `board_status=ordine_fatto`.
+  - fix integrazione plancia/bacheca 2026-05-23:
+    - corretto errore 500 dopo invio Slack da plancia Giro:
+      - `_ensure_slack_order` usava una variabile `channel_id` non definita dopo il post Slack;
+      - ora usa `entry.slack_channel_id`, quindi la card bacheca viene creata nello stesso flusso;
+    - invio Slack da Giro e Diretti ora intercetta eccezioni Slack e ritorna errore JSON esplicito `502`, evitando HTTP 500 generici;
+    - nuovo ordine diretto resetta eventuali flag `documento emesso` sugli altri ordini aperti dello stesso cliente/canale;
+    - aggiunto timbro stato bacheca su ogni ordine in plancia:
+      - `Acquisito`, `Listato`, `Preparato`, `Controllato`, `In consegna`, `Evaso`, `Annullato`;
+    - gli ordini `Evaso` risultano sbiaditi e non selezionabili per il bulk `Segna evasi`;
+    - selezione massiva Giro e Diretti ignora le checkbox disabilitate;
+    - bulk status lato backend ignora ordini gia' nello stato target;
+    - verifica:
+      - `py_compile` ok su `routes/route_orders.py` e `routes/pwa.py`;
+      - test `_ensure_slack_order` su DB produzione con rollback ok su entry `26`, senza creazione persistente di nuovi ordini.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

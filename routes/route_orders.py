@@ -327,11 +327,11 @@ def _ensure_slack_order(entry, status_code=None):
     db.session.add(order)
     db.session.flush()
     _reset_documents_for_customer_orders(
-        channel_id,
+        entry.slack_channel_id,
         order.customer_key,
         exclude_order_id=order.id,
-        via="route_order_board_direct",
-        reason="new_direct_order_same_customer",
+        via="route_order_board",
+        reason="new_route_order_same_customer",
     )
     db.session.add(SlackOrderEvent(
         order_id=order.id,
@@ -503,13 +503,29 @@ def _reset_documents_for_customer_orders(channel_id, customer_key, *, exclude_or
 
 def _board_status_for_order(order):
     status = (order.status or "").strip()
-    if status in {"acquisito", "listato", "controllato", "evaso"}:
+    if status in {"acquisito", "listato", "preparato", "controllato", "in_consegna", "inconsegna", "evaso"}:
         return "ordine_fatto"
     if status == "annullato":
         return "annullato"
     if status in {item["code"] for item in BOARD_STATUSES}:
         return "ordine_fatto"
     return status or "ordine_fatto"
+
+
+def _order_status_label(status_code):
+    labels = {
+        "acquisito": "Acquisito",
+        "listato": "Listato",
+        "preparato": "Preparato",
+        "controllato": "Controllato",
+        "in_consegna": "In consegna",
+        "inconsegna": "In consegna",
+        "evaso": "Evaso",
+        "annullato": "Annullato",
+        "cancellato": "Cancellato",
+    }
+    status = OrderStatus.query.filter_by(code=status_code).first()
+    return status.label if status else labels.get((status_code or "").strip(), status_code or "")
 
 
 def _order_to_dict(order):
@@ -521,6 +537,7 @@ def _order_to_dict(order):
         "order_date": order.order_date.isoformat() if order.order_date else None,
         "planned_delivery_at": order.planned_delivery_at.isoformat() if order.planned_delivery_at else None,
         "status": order.status,
+        "status_label": _order_status_label(order.status),
         "board_status": _board_status_for_order(order),
         "raw_text": order.raw_text or "",
         "document_issued": bool(getattr(order, "document_issued", False)),
@@ -900,11 +917,9 @@ def api_orders_bulk_status():
     valid_status = OrderStatus.query.filter_by(code=target_status).first()
     if not valid_status:
         return jsonify({"ok": False, "error": "Stato non valido"}), 400
-    orders = SlackOrder.query.filter(SlackOrder.id.in_(ids)).all()
+    orders = SlackOrder.query.filter(SlackOrder.id.in_(ids), SlackOrder.status != target_status).all()
     for order in orders:
         old_status = order.status
-        if old_status == target_status:
-            continue
         order.status = target_status
         if target_status == "evaso":
             order.evaded_at = datetime.utcnow()
@@ -944,7 +959,11 @@ def api_direct_order_create():
     attachments = _save_uploaded_files(_files_from_request())
     message_text = _format_direct_message(registry, note, planned_delivery_at)
     api = SlackAPI(SlackAPIConfig(bot_token=bot_token))
-    response = api.post_message(channel_id, message_text)
+    try:
+        response = api.post_message(channel_id, message_text)
+    except Exception as exc:
+        current_app.logger.exception("Invio Slack ordine diretto fallito")
+        return jsonify({"ok": False, "error": f"Invio Slack fallito: {exc}"}), 502
     ts = response.get("ts") or (response.get("message") or {}).get("ts")
     if not ts:
         return jsonify({"ok": False, "error": f"Slack non ha restituito il timestamp del messaggio: {response}"}), 502
@@ -968,6 +987,13 @@ def api_direct_order_create():
     )
     db.session.add(order)
     db.session.flush()
+    _reset_documents_for_customer_orders(
+        channel_id,
+        order.customer_key,
+        exclude_order_id=order.id,
+        via="route_order_board_direct",
+        reason="new_direct_order_same_customer",
+    )
     db.session.add(SlackOrderEvent(
         order_id=order.id,
         type="created",
@@ -1092,7 +1118,11 @@ def api_send_slack(entry_id):
         return jsonify({"ok": False, "error": "SLACK_BOT_TOKEN mancante"}), 503
 
     api = SlackAPI(SlackAPIConfig(bot_token=bot_token))
-    response = api.post_message(route.slack_channel_id, _format_slack_message(registry, entry))
+    try:
+        response = api.post_message(route.slack_channel_id, _format_slack_message(registry, entry))
+    except Exception as exc:
+        current_app.logger.exception("Invio Slack ordine giro fallito entry_id=%s", entry.id)
+        return jsonify({"ok": False, "error": f"Invio Slack fallito: {exc}"}), 502
     ts = response.get("ts") or (response.get("message") or {}).get("ts")
     if not ts:
         return jsonify({"ok": False, "error": f"Slack non ha restituito il timestamp del messaggio: {response}"}), 502

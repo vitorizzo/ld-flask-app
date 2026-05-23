@@ -42,9 +42,27 @@
   .route-board-phone-row a { color: #0d6efd; white-space: nowrap; }
   .route-board-orders { display: grid; gap: .45rem; min-width: 320px; }
   .route-board-order { border: 1px solid #dee2e6; border-radius: 8px; padding: .55rem; background: #f8f9fa; }
+  .route-board-order.is-evaded { opacity: .58; }
   .route-board-order__head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .35rem; }
   .route-board-order__note { color: #212529; white-space: pre-wrap; font-size: .9rem; }
   .route-board-order__meta { color: #6c757d; font-size: .78rem; }
+  .route-board-status-stamp {
+    display: inline-block;
+    margin-left: .35rem;
+    padding: .12rem .4rem;
+    border: 1px solid #4A2C2A;
+    border-radius: 4px;
+    color: #4A2C2A;
+    background: #fff;
+    font-size: .72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    transform: rotate(-2deg);
+  }
+  .route-board-status-stamp.is-evaded {
+    border-color: #198754;
+    color: #198754;
+  }
   .route-board-direct-customer { font-weight: 700; color: #212529; }
   .route-board-actions { display: flex; gap: .35rem; justify-content: flex-end; flex-wrap: wrap; }
   .route-board-actions .btn { min-width: 2.1rem; }
@@ -296,13 +314,14 @@
     if (!orders || !orders.length) return `<div class="text-muted small">Nessun ordine postato.</div>`;
     const statusOptionsSource = mode === "direct" ? directStatuses : state.statuses;
     return `<div class="route-board-orders">${orders.map(order => `
-      <div class="route-board-order" data-order-id="${order.id}">
+      <div class="route-board-order ${order.status === "evaso" ? "is-evaded" : ""}" data-order-id="${order.id}">
         <div class="route-board-order__head">
           <div>
-            <input class="form-check-input me-1" type="checkbox" data-order-select value="${order.id}">
+            <input class="form-check-input me-1" type="checkbox" data-order-select value="${order.id}" ${order.status === "evaso" ? "disabled" : ""}>
             <select class="form-select form-select-sm d-inline-block w-auto" data-action="order-status" data-order-id="${order.id}">
               ${statusSelectOptions(order, statusOptionsSource)}
             </select>
+            <span class="route-board-status-stamp ${order.status === "evaso" ? "is-evaded" : ""}">${esc(order.status_label || order.status || "")}</span>
           </div>
           <label class="small mb-0"><input class="form-check-input me-1" type="checkbox" data-action="document" data-order-id="${order.id}" ${order.document_issued ? "checked" : ""}> Documento</label>
         </div>
@@ -413,7 +432,7 @@
       return `
         <tr data-direct-customer-id="${esc(customer.id || "")}">
           <td><span class="route-board-direct-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span>${orders.length ? documentBadge : ""}<div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div></td>
-          <td>${phones}${customer.id ? '<button class="btn btn-outline-primary btn-sm mt-1" type="button" data-action="direct-contact-add"><i class="fa-solid fa-plus"></i> Contatto</button>' : ""}</td>
+          <td>${phones}<button class="btn btn-outline-primary btn-sm mt-1" type="button" data-action="direct-contact-add" ${customer.id ? "" : "disabled title='Cliente non collegato a una anagrafica'"}><i class="fa-solid fa-plus"></i> Contatto</button></td>
           <td>${latest.id ? `<select class="form-select form-select-sm" data-action="direct-latest-status" data-order-id="${latest.id}">${statusOptions}</select>` : '<span class="text-muted small">-</span>'}</td>
           <td class="text-center"><input class="form-check-input" type="checkbox" data-direct-list-done ${latest.status === "listato" ? "checked" : ""} ${latest.id ? "" : "disabled"}></td>
           <td>${renderOrders(orders, "direct")}</td>
@@ -444,16 +463,16 @@
 
   routeSelect.addEventListener("change", () => loadBoard(routeSelect.value).catch(err => alert(err.message)));
   onlyWithOrders.addEventListener("change", () => loadBoard(selectedRouteId()).catch(err => alert(err.message)));
-  document.getElementById("selectAllOrders").addEventListener("click", () => document.querySelectorAll("[data-order-select]").forEach(cb => cb.checked = true));
+  document.getElementById("selectAllOrders").addEventListener("click", () => document.querySelectorAll("[data-order-select]:not(:disabled)").forEach(cb => cb.checked = true));
   document.getElementById("bulkEvadeBtn").addEventListener("click", async () => {
-    const ids = Array.from(document.querySelectorAll("[data-order-select]:checked")).map(cb => cb.value);
+    const ids = Array.from(document.querySelectorAll("[data-order-select]:checked:not(:disabled)")).map(cb => cb.value);
     if (!ids.length) return alert("Seleziona almeno un ordine.");
     await api("/route-orders/api/orders/bulk-status", { method: "POST", body: JSON.stringify({ order_ids: ids, status: "evaso" }) });
     await loadBoard(selectedRouteId());
   });
-  document.getElementById("selectAllDirectOrders").addEventListener("click", () => document.querySelectorAll("#directOrders [data-order-select]").forEach(cb => cb.checked = true));
+  document.getElementById("selectAllDirectOrders").addEventListener("click", () => document.querySelectorAll("#directOrders [data-order-select]:not(:disabled)").forEach(cb => cb.checked = true));
   document.getElementById("bulkEvadeDirectBtn").addEventListener("click", async () => {
-    const ids = Array.from(document.querySelectorAll("#directOrders [data-order-select]:checked")).map(cb => cb.value);
+    const ids = Array.from(document.querySelectorAll("#directOrders [data-order-select]:checked:not(:disabled)")).map(cb => cb.value);
     if (!ids.length) return alert("Seleziona almeno un ordine fuori giro.");
     await api("/route-orders/api/orders/bulk-status", { method: "POST", body: JSON.stringify({ order_ids: ids, status: "evaso" }) });
     await loadDirectOrders();
