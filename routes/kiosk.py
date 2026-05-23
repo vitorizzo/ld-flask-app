@@ -727,6 +727,7 @@ def kiosk_api_order(order_id: int):
                 "route_color": _route_light_color(route.id) if route else "#f1f3f5",
                 "customer_display": order.customer_display,
                 "status": order.status,
+                "document_issued": bool(getattr(order, "document_issued", False)),
                 "raw_text": order.raw_text or "",
                 "planned_delivery_at": order.planned_delivery_at.isoformat()
                 if order.planned_delivery_at
@@ -939,6 +940,7 @@ def kiosk_board_all():
                     "route_color": r_color,
                     "customer_display": order.customer_display,
                     "status": order.status,
+                    "document_issued": bool(getattr(order, "document_issued", False)),
                     "multi_count": int(msg_count or 0),
                     "notes_count": int(note_count or 0),
                     "issues_count": 1 if bool(order.has_issues) else 0,
@@ -1073,6 +1075,7 @@ def build_board_payload(route_id: int, show_closed_today: bool = True):
                 "customer_key": order.customer_key,
                 "status": order.status,
                 "has_issues": bool(order.has_issues),
+                "document_issued": bool(getattr(order, "document_issued", False)),
                 "note_count": int(note_count or 0),
                 "msg_count": int(msg_count or 0),
                 "attachment_count": int(attachment_counts.get(int(order.id), 0)),

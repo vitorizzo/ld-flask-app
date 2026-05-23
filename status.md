@@ -634,6 +634,45 @@ Stato noto:
 - Nota upgrade futura menu/permessi:
   - oggi il menu confronta `Menu.weight` con `current_user.max_role_weight`;
   - da valutare una plancia developer per attribuire il peso alle funzioni/route e derivare da li' anche la visibilita' menu, evitando di dichiarare il peso direttamente sulla voce menu.
+- Plancia ordini giri / layout operativo 2026-05-23:
+  - aggiunta migrazione `a2b3c4d5e6f7_add_document_flag_to_slack_orders.py`;
+  - `SlackOrder` ora ha `document_issued` e `document_issued_at` per distinguere ordini con documento emesso / da emettere;
+  - `RouteOrderBoardEntry` ora conserva `order_attachments` temporanei, usati per allegare file dalla plancia prima dell'invio Slack;
+  - backend plancia:
+    - `/route-orders/api/board` restituisce gli ordini reali collegati a ogni cliente, permettendo ordini multipli per lo stesso cliente;
+    - filtro `only_with_orders=1` per mostrare solo clienti con ordini;
+    - `POST /route-orders/api/direct-orders` crea ordini diretti con allegati e li invia a LDApp/Slack;
+    - `GET /route-orders/api/direct-orders` mostra gli ordini diretti attuali;
+    - `POST /route-orders/api/orders/<id>/document` aggiorna il flag documento;
+    - `POST /route-orders/api/orders/bulk-status` consente evasione massiva/parziale degli ordini selezionati;
+    - `POST /route-orders/api/entries/<id>/attachments` salva allegati della plancia prima del post;
+    - `POST /route-orders/api/orders/<id>/attachments` aggiunge allegati a ordini gia' postati;
+  - UI plancia:
+    - due modalita': `Giro` e `Diretti`;
+    - righe clienti con ordini multipli visualizzati in schede interne;
+    - checkbox documento per ogni ordine;
+    - selezione ordini e pulsante `Segna evasi`;
+    - inserimento ordine diretto con ricerca cliente, testo, data personalizzata e allegati;
+    - il post da plancia porta lo stato chiamata a `Ordine fatto`; l'annullamento porta a `Ordine annullato`;
+  - layout applicazione:
+    - aggiunti fold laterali rapidi per Agenda, Plancia ordini e Bacheca ordini;
+    - visibilita' fold con logica peso: staff vede plancia/bacheca, agenda da peso 40 in su, cliente/visitatore non vede i fold;
+    - home trasformata in pulsantiera rapida con inserisci ordine, rubrica clienti, bacheca, informazioni articoli, LD Selection e agenda dove consentita;
+    - link LD Selection predisposto su `/static/documents/LD_Selection.pdf` (file PDF da posizionare nel deploy se non presente);
+  - verifiche:
+    - `flask db upgrade` locale eseguito fino a `a2b3c4d5e6f7`;
+    - `py_compile` ok su `routes/route_orders.py`, `routes/kiosk.py`, `models.py`;
+    - rendering template plancia ok;
+    - endpoint `/route-orders/api/board` testato con utente staff/dev: risposta `ok=True`, 8 giri, 10 clienti nel primo giro locale.
+  - follow-up documento 2026-05-23:
+    - se un ordine gia' marcato con documento emesso riceve una nuova aggiunta, il flag viene tolto automaticamente;
+    - casi coperti:
+      - risposta/nota nel thread Slack;
+      - nuovo messaggio Slack accodato allo stesso cliente/giorno;
+      - modifica del testo root su Slack;
+      - allegati aggiunti dalla plancia a ordine gia' esistente;
+    - viene registrato un evento `SlackOrderEvent` con motivo del reset;
+    - verifica: `py_compile` ok su `routes/route_orders.py` e `tools/slack_processor.py`.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

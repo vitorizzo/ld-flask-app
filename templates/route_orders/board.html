@@ -5,75 +5,31 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css') }}">
 <style>
-  .route-board-toolbar {
-    display: grid;
-    grid-template-columns: minmax(220px, 1fr) auto auto;
-    gap: .75rem;
-    align-items: end;
-  }
-  .route-board-table th,
-  .route-board-table td {
-    vertical-align: middle;
-  }
-  .route-board-customer {
-    font-weight: 600;
-  }
-  .route-board-phones a {
-    color: #0d6efd;
-    white-space: nowrap;
-  }
-  .route-board-phone-row {
-    display: grid;
-    grid-template-columns: minmax(72px, auto) minmax(110px, 1fr) auto;
-    gap: .35rem;
-    align-items: center;
-    margin-bottom: .25rem;
-  }
-  .route-board-phone-label {
-    color: #495057;
-    font-size: .78rem;
-  }
-  .route-board-phone-actions {
-    display: inline-flex;
-    gap: .2rem;
-  }
-  .route-board-phone-actions .btn {
-    width: 1.75rem;
-    height: 1.75rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .route-board-note-preview {
-    max-width: 280px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .route-board-actions {
-    display: flex;
-    gap: .35rem;
-    justify-content: flex-end;
-    flex-wrap: nowrap;
-  }
-  .route-board-actions .btn {
-    width: 2.25rem;
-    height: 2.25rem;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-  }
-  .route-board-actions .btn-danger {
-    color: #fff;
-  }
-  @media (max-width: 768px) {
-    .route-board-toolbar {
-      grid-template-columns: 1fr;
-    }
-    .route-board-actions {
-      justify-content: flex-start;
-      flex-wrap: wrap;
-    }
+  .route-board-section { max-width: 80%; margin-left: auto; margin-right: auto; text-align: left; }
+  .route-board-top { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto auto; gap: .75rem; align-items: end; }
+  .route-board-mode { display: inline-flex; gap: .25rem; padding: .25rem; background: #f1f3f5; border-radius: 8px; }
+  .route-board-mode button { border: 0; border-radius: 6px; padding: .45rem .75rem; background: transparent; color: #495057; }
+  .route-board-mode button.active { background: #4A2C2A; color: #fff; }
+  .route-board-panel { background: #fff; color: #212529; border-radius: 8px; border: 1px solid #dee2e6; }
+  .route-board-panel .table { width: 100%; margin: 0; color: #212529; }
+  .route-board-customer { font-weight: 700; color: #212529; }
+  .route-board-phone-row { display: grid; grid-template-columns: minmax(82px, auto) minmax(118px, 1fr) auto; gap: .35rem; align-items: center; margin-bottom: .25rem; }
+  .route-board-phone-label { color: #495057; font-size: .78rem; }
+  .route-board-phone-row a { color: #0d6efd; white-space: nowrap; }
+  .route-board-orders { display: grid; gap: .45rem; min-width: 320px; }
+  .route-board-order { border: 1px solid #dee2e6; border-radius: 8px; padding: .55rem; background: #f8f9fa; }
+  .route-board-order__head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .35rem; }
+  .route-board-order__note { color: #212529; white-space: pre-wrap; font-size: .9rem; }
+  .route-board-order__meta { color: #6c757d; font-size: .78rem; }
+  .route-board-actions { display: flex; gap: .35rem; justify-content: flex-end; flex-wrap: wrap; }
+  .route-board-actions .btn { min-width: 2.1rem; }
+  .route-board-empty { color: #6c757d; padding: .75rem; }
+  .route-board-bulk { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+  .direct-board { display: none; }
+  .direct-board.active, .route-board.active { display: block; }
+  @media (max-width: 1100px) {
+    .route-board-section { max-width: 96%; }
+    .route-board-top { grid-template-columns: 1fr; }
   }
 </style>
 {% endblock %}
@@ -82,163 +38,147 @@
 <section class="welcome-section registry-tools-section route-board-section">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
-      <h1 class="h4 mb-1">Plancia ordini giri</h1>
-      <div class="text-muted small">Chiamate clienti, note ordine e invio Slack per giro.</div>
+      <h1 class="h4 mb-1">Plancia ordini</h1>
+      <div class="text-muted small">Giri, ordini diretti, allegati e stato documenti.</div>
     </div>
-    <span class="badge text-bg-secondary">staff</span>
+    <div class="route-board-mode" role="tablist">
+      <button type="button" class="active" data-mode="route">Giro</button>
+      <button type="button" data-mode="direct">Diretti</button>
+    </div>
   </div>
 
-  <div class="route-board-toolbar mb-3">
-    <div>
-      <label class="form-label" for="routeSelect">Giro</label>
-      <select class="form-select" id="routeSelect"></select>
+  <div class="route-board active" id="routeBoard">
+    <div class="route-board-top mb-3">
+      <div>
+        <label class="form-label" for="routeSelect">Giro</label>
+        <select class="form-select" id="routeSelect"></select>
+      </div>
+      <div>
+        <label class="form-label d-block" for="deliveryDateBtn">Prossima consegna</label>
+        <button class="btn btn-outline-primary" id="deliveryDateBtn" type="button">-</button>
+      </div>
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" id="onlyWithOrders">
+        <label class="form-check-label" for="onlyWithOrders">Solo clienti con ordine</label>
+      </div>
+      <div class="route-board-bulk">
+        <button class="btn btn-outline-secondary btn-sm" type="button" id="selectAllOrders">Seleziona ordini</button>
+        <button class="btn btn-success btn-sm" type="button" id="bulkEvadeBtn">Segna evasi</button>
+      </div>
     </div>
-    <div>
-      <label class="form-label d-block" for="deliveryDateBtn">Prossima consegna</label>
-      <button class="btn btn-outline-primary" id="deliveryDateBtn" type="button">
-        -
-      </button>
+
+    <div class="route-board-panel p-3">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h6 mb-0">Clienti del giro</h2>
+        <span class="badge text-bg-secondary" id="customerCount">0</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th style="min-width: 250px">Contatti</th>
+              <th>Stato chiamata</th>
+              <th>Lista</th>
+              <th>Ordini</th>
+              <th class="text-end">Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="boardRows"><tr><td colspan="6" class="route-board-empty">Caricamento...</td></tr></tbody>
+        </table>
+      </div>
     </div>
-    <div class="text-muted small" id="boardSummary">-</div>
   </div>
 
-  <div class="registry-tools-panel p-3">
-    <div class="d-flex justify-content-between align-items-center mb-2">
-      <h2 class="h6 mb-0">Clienti del giro</h2>
-      <span class="badge text-bg-secondary" id="customerCount">0</span>
+  <div class="direct-board" id="directBoard">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div class="text-muted small">Ordini fuori consegna programmata, inviati sul canale diretto.</div>
+      <button class="btn btn-primary" id="newDirectOrderBtn" type="button"><i class="fa-solid fa-plus"></i> Inserisci ordine</button>
     </div>
-    <div class="table-responsive">
-      <table class="table table-sm table-hover align-middle route-board-table registry-tools-table mb-0">
-        <thead>
-          <tr>
-            <th>Cliente</th>
-            <th style="min-width: 260px">Contatti</th>
-            <th>Stato</th>
-            <th>Lista fatta</th>
-            <th>Nota</th>
-            <th class="text-end">Azioni</th>
-          </tr>
-        </thead>
-        <tbody id="boardRows">
-          <tr><td colspan="6" class="text-muted">Caricamento...</td></tr>
-        </tbody>
-      </table>
+    <div class="route-board-panel p-3">
+      <div id="directOrders" class="route-board-orders"><div class="route-board-empty">Gli ordini diretti compariranno dopo l'inserimento.</div></div>
     </div>
   </div>
 </section>
 
 <div class="modal fade registry-tools-modal" id="noteModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Ordine cliente</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="noteCustomerId">
-        <label class="form-label" for="orderNote">Nota ordine</label>
-        <textarea class="form-control" id="orderNote" rows="8"></textarea>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button>
-        <button class="btn btn-primary" type="button" id="noteSaveBtn">Salva</button>
-      </div>
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Ordine cliente</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="noteCustomerId">
+      <label class="form-label" for="orderNote">Nota ordine</label>
+      <textarea class="form-control" id="orderNote" rows="7"></textarea>
+      <label class="form-label mt-3" for="orderFiles">Allegati</label>
+      <input class="form-control" type="file" id="orderFiles" multiple>
+      <div class="form-text">Gli allegati vengono inviati insieme all'ordine quando lo pubblichi su Slack.</div>
     </div>
-  </div>
+    <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button><button class="btn btn-primary" type="button" id="noteSaveBtn">Salva</button></div>
+  </div></div>
+</div>
+
+<div class="modal fade registry-tools-modal" id="directModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Ordine diretto</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body">
+      <label class="form-label" for="directCustomerSearch">Cliente</label>
+      <input class="form-control" id="directCustomerSearch" autocomplete="off" placeholder="Cerca cliente">
+      <select class="form-select mt-2" id="directCustomerSelect" size="5"></select>
+      <label class="form-label mt-3" for="directNote">Ordine</label>
+      <textarea class="form-control" id="directNote" rows="6"></textarea>
+      <label class="form-label mt-3" for="directDeliveryDate">Consegna personalizzata</label>
+      <input class="form-control" type="date" id="directDeliveryDate">
+      <label class="form-label mt-3" for="directFiles">Allegati</label>
+      <input class="form-control" type="file" id="directFiles" multiple>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button><button class="btn btn-primary" type="button" id="directSendBtn">Invia a LDApp</button></div>
+  </div></div>
 </div>
 
 <div class="modal fade registry-tools-modal" id="deliveryDateModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Data consegna</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="deliveryCustomerId">
-        <div class="mb-3">
-          <label class="form-label" for="deliveryPreset">Date successive del giro</label>
-          <select class="form-select" id="deliveryPreset"></select>
-        </div>
-        <div>
-          <label class="form-label" for="deliveryCustomDate">Data personalizzata</label>
-          <input class="form-control" type="date" id="deliveryCustomDate">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button>
-        <button class="btn btn-primary" type="button" id="deliverySaveBtn">Applica</button>
-      </div>
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Data consegna</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="deliveryCustomerId">
+      <label class="form-label" for="deliveryPreset">Date successive del giro</label>
+      <select class="form-select" id="deliveryPreset"></select>
+      <label class="form-label mt-3" for="deliveryCustomDate">Data personalizzata</label>
+      <input class="form-control" type="date" id="deliveryCustomDate">
     </div>
-  </div>
+    <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button><button class="btn btn-primary" type="button" id="deliverySaveBtn">Applica</button></div>
+  </div></div>
 </div>
 
 <div class="modal fade registry-tools-modal" id="alertsModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Avvisi cliente</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Avvisi cliente</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="alertCustomerId">
+      <label class="form-label" for="alertMessage">Avviso</label>
+      <input class="form-control" id="alertMessage" maxlength="255" placeholder="es. chiuso dal 01/06 al 02/06">
+      <div class="row g-2 mt-1 mb-3">
+        <div class="col"><label class="form-label" for="alertStart">Dal</label><input class="form-control" type="date" id="alertStart"></div>
+        <div class="col"><label class="form-label" for="alertEnd">Al</label><input class="form-control" type="date" id="alertEnd"></div>
       </div>
-      <div class="modal-body">
-        <input type="hidden" id="alertCustomerId">
-        <div class="mb-3">
-          <label class="form-label" for="alertMessage">Avviso</label>
-          <input class="form-control" id="alertMessage" maxlength="255" placeholder="es. chiuso dal 01/06 al 02/06">
-        </div>
-        <div class="row g-2 mb-3">
-          <div class="col">
-            <label class="form-label" for="alertStart">Dal</label>
-            <input class="form-control" type="date" id="alertStart">
-          </div>
-          <div class="col">
-            <label class="form-label" for="alertEnd">Al</label>
-            <input class="form-control" type="date" id="alertEnd">
-          </div>
-        </div>
-        <button class="btn btn-primary w-100 mb-3" id="alertCreateBtn" type="button">Aggiungi avviso</button>
-        <div class="list-group" id="alertsList"></div>
-      </div>
+      <button class="btn btn-primary w-100 mb-3" id="alertCreateBtn" type="button">Aggiungi avviso</button>
+      <div class="list-group" id="alertsList"></div>
     </div>
-  </div>
+  </div></div>
 </div>
 
 <div class="modal fade registry-tools-modal" id="contactsModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Contatti cliente</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Contatti cliente</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="contactCustomerId"><input type="hidden" id="contactSource"><input type="hidden" id="contactItemId">
+      <label class="form-label" for="contactDisplayName">Nome contatto</label><input class="form-control" id="contactDisplayName" autocomplete="off">
+      <div class="row g-2 mt-1">
+        <div class="col-12 col-md-4"><label class="form-label" for="contactType">Tipo</label><select class="form-select" id="contactType"><option value="phone">Telefono</option><option value="mobile">Cellulare</option></select></div>
+        <div class="col-12 col-md-8"><label class="form-label" for="contactValue">Numero</label><input class="form-control" id="contactValue" autocomplete="off"></div>
       </div>
-      <div class="modal-body">
-        <input type="hidden" id="contactCustomerId">
-        <input type="hidden" id="contactSource">
-        <input type="hidden" id="contactItemId">
-        <div class="mb-2">
-          <label class="form-label" for="contactDisplayName">Nome contatto</label>
-          <input class="form-control" id="contactDisplayName" autocomplete="off">
-        </div>
-        <div class="row g-2">
-          <div class="col-12 col-md-4">
-            <label class="form-label" for="contactType">Tipo</label>
-            <select class="form-select" id="contactType">
-              <option value="phone">Telefono</option>
-              <option value="mobile">Cellulare</option>
-            </select>
-          </div>
-          <div class="col-12 col-md-8">
-            <label class="form-label" for="contactValue">Numero</label>
-            <input class="form-control" id="contactValue" autocomplete="off">
-          </div>
-        </div>
-        <div class="mt-2">
-          <label class="form-label" for="contactLabel">Etichetta</label>
-          <input class="form-control" id="contactLabel" autocomplete="off" placeholder="telefono, cellulare, amministrazione...">
-        </div>
-        <button class="btn btn-primary w-100 mt-3" type="button" id="contactSaveBtn">Salva contatto</button>
-      </div>
+      <label class="form-label mt-2" for="contactLabel">Etichetta</label><input class="form-control" id="contactLabel" autocomplete="off">
+      <button class="btn btn-primary w-100 mt-3" type="button" id="contactSaveBtn">Salva contatto</button>
     </div>
-  </div>
+  </div></div>
 </div>
 {% endblock %}
 
@@ -249,356 +189,268 @@
   const rowsEl = document.getElementById("boardRows");
   const customerCount = document.getElementById("customerCount");
   const deliveryDateBtn = document.getElementById("deliveryDateBtn");
-  const boardSummary = document.getElementById("boardSummary");
+  const onlyWithOrders = document.getElementById("onlyWithOrders");
   const noteModal = new bootstrap.Modal(document.getElementById("noteModal"));
+  const directModal = new bootstrap.Modal(document.getElementById("directModal"));
   const deliveryModal = new bootstrap.Modal(document.getElementById("deliveryDateModal"));
   const alertsModal = new bootstrap.Modal(document.getElementById("alertsModal"));
   const contactsModal = new bootstrap.Modal(document.getElementById("contactsModal"));
   let state = { routes: [], route: null, customers: [], next_delivery_at: null, upcoming_delivery_dates: [], statuses: [] };
+  let directOrders = [];
 
-  function fmtDateTime(value) {
-    if (!value) return "-";
-    const d = new Date(value);
-    return d.toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" });
-  }
-
-  function esc(value) {
-    return String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch]));
-  }
+  const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch]));
+  const fmtDate = value => value ? new Date(value).toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : "-";
+  const selectedRouteId = () => routeSelect.value || (state.route ? state.route.id : "");
+  const customerById = id => state.customers.find(customer => String(customer.id) === String(id));
 
   async function api(url, options = {}) {
-    const res = await fetch(url, {
-      credentials: "same-origin",
-      headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-      ...options,
-    });
+    const res = await fetch(url, { credentials: "same-origin", headers: { "Content-Type": "application/json", ...(options.headers || {}) }, ...options });
     const data = await res.json().catch(() => ({}));
-    if (!res.ok || data.ok === false) throw new Error(data.error || "Operazione non riuscita");
+    if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
     return data;
   }
 
-  function selectedRouteId() {
-    return routeSelect.value || (state.route ? state.route.id : "");
+  async function uploadFiles(url, files) {
+    if (!files || !files.length) return null;
+    const form = new FormData();
+    Array.from(files).forEach(file => form.append("files", file));
+    const res = await fetch(url, { method: "POST", credentials: "same-origin", body: form });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
   }
 
   function renderRoutes() {
-    routeSelect.innerHTML = state.routes.map(route => (
-      `<option value="${route.id}" ${state.route && route.id === state.route.id ? "selected" : ""}>${esc(route.name)}</option>`
-    )).join("");
+    routeSelect.innerHTML = state.routes.map(route => `<option value="${route.id}" ${state.route && route.id === state.route.id ? "selected" : ""}>${esc(route.name)}</option>`).join("");
   }
 
   function renderDeliveryPresets() {
     const preset = document.getElementById("deliveryPreset");
-    preset.innerHTML = state.upcoming_delivery_dates.map(value => (
-      `<option value="${esc(value)}">${esc(fmtDateTime(value))}</option>`
-    )).join("");
+    preset.innerHTML = state.upcoming_delivery_dates.map(value => `<option value="${esc(value)}">${esc(fmtDate(value))}</option>`).join("");
   }
 
   function alertsTitle(alerts) {
-    return (alerts || []).map(alert => {
-      const range = [alert.start_date, alert.end_date].filter(Boolean).join(" - ");
-      return range ? `${alert.message} (${range})` : alert.message;
-    }).join("\n");
+    return (alerts || []).map(alert => [alert.message, [alert.start_date, alert.end_date].filter(Boolean).join(" - ")].filter(Boolean).join(" ")).join("\n");
+  }
+
+  function renderOrders(orders) {
+    if (!orders || !orders.length) return `<div class="text-muted small">Nessun ordine postato.</div>`;
+    return `<div class="route-board-orders">${orders.map(order => `
+      <div class="route-board-order" data-order-id="${order.id}">
+        <div class="route-board-order__head">
+          <div>
+            <input class="form-check-input me-1" type="checkbox" data-order-select value="${order.id}">
+            <span class="badge text-bg-light">${esc(order.status)}</span>
+            ${order.document_issued ? '<span class="badge text-bg-success">documento</span>' : '<span class="badge text-bg-warning">doc da emettere</span>'}
+          </div>
+          <label class="small mb-0"><input class="form-check-input me-1" type="checkbox" data-action="document" data-order-id="${order.id}" ${order.document_issued ? "checked" : ""}> Documento</label>
+        </div>
+        <div class="route-board-order__note">${esc(order.raw_text)}</div>
+        <div class="route-board-order__meta">#${order.id} ${esc(fmtDate(order.planned_delivery_at || order.order_date))}</div>
+        <div class="route-board-actions mt-2">
+          <button class="btn btn-outline-secondary btn-sm" type="button" data-action="order-attach" data-order-id="${order.id}" title="Allega file"><i class="fa-solid fa-paperclip"></i></button>
+          <button class="btn btn-outline-danger btn-sm" type="button" data-action="order-delete" data-order-id="${order.id}" title="Elimina"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      </div>`).join("")}</div>`;
   }
 
   function renderRows() {
     customerCount.textContent = state.customers.length;
-    deliveryDateBtn.textContent = fmtDateTime(state.next_delivery_at);
-    boardSummary.textContent = state.route ? `${state.customers.length} clienti associati` : "-";
+    deliveryDateBtn.textContent = fmtDate(state.next_delivery_at);
     renderDeliveryPresets();
     if (!state.customers.length) {
-      rowsEl.innerHTML = `<tr><td colspan="6" class="text-muted">Nessun cliente associato a questo giro.</td></tr>`;
+      rowsEl.innerHTML = `<tr><td colspan="6" class="route-board-empty">Nessun cliente da mostrare.</td></tr>`;
       return;
     }
     rowsEl.innerHTML = state.customers.map(customer => {
       const entry = customer.entry || {};
-      const phones = (customer.phones || []).length
-        ? customer.phones.map(phone => `
-          <div class="route-board-phone-row">
-            <span class="route-board-phone-label">${esc(phone.full_label || phone.label || phone.type || "telefono")}</span>
-            <a href="tel:${esc(phone.value)}" title="${esc(phone.full_label || phone.label || "")}">${esc(phone.value)}</a>
-            <span class="route-board-phone-actions">
-              <button class="btn btn-outline-secondary btn-sm" type="button" data-action="contact-edit" data-contact-id="${esc(phone.id)}" title="Modifica contatto"><i class="fa-solid fa-pen"></i></button>
-              <button class="btn btn-outline-danger btn-sm" type="button" data-action="contact-delete" data-contact-id="${esc(phone.id)}" title="Cancella contatto"><i class="fa-solid fa-trash"></i></button>
-            </span>
-          </div>
-        `).join("")
-        : `<span class="text-muted small">Nessun numero</span>`;
-      const addContact = `<button class="btn btn-outline-primary btn-sm mt-1" type="button" data-action="contact-add"><i class="fa-solid fa-plus"></i> Contatto</button>`;
-      const alertBadge = customer.alerts && customer.alerts.length
-        ? `<span title="${esc(alertsTitle(customer.alerts))}" class="ms-1">⚠️</span>`
-        : "";
-      const statusOptions = state.statuses.map(status => (
-        `<option value="${esc(status.code)}" ${entry.status === status.code ? "selected" : ""}>${esc(status.label)}</option>`
-      )).join("");
+      const phones = (customer.phones || []).length ? customer.phones.map(phone => `
+        <div class="route-board-phone-row">
+          <span class="route-board-phone-label">${esc(phone.full_label || phone.label || phone.type || "telefono")}</span>
+          <a href="tel:${esc(phone.value)}">${esc(phone.value)}</a>
+          <span>
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-action="contact-edit" data-contact-id="${esc(phone.id)}"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn btn-outline-danger btn-sm" type="button" data-action="contact-delete" data-contact-id="${esc(phone.id)}"><i class="fa-solid fa-trash"></i></button>
+          </span>
+        </div>`).join("") : `<span class="text-muted small">Nessun numero</span>`;
+      const statusOptions = state.statuses.map(status => `<option value="${esc(status.code)}" ${entry.status === status.code ? "selected" : ""}>${esc(status.label)}</option>`).join("");
+      const alertBadge = customer.alerts && customer.alerts.length ? `<span title="${esc(alertsTitle(customer.alerts))}" class="ms-1">⚠</span>` : "";
       return `
         <tr data-customer-id="${customer.id}">
-          <td>
-            <span class="route-board-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span>
-            <div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div>
-          </td>
-          <td class="route-board-phones">${phones}${addContact}</td>
+          <td><span class="route-board-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span><div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div></td>
+          <td>${phones}<button class="btn btn-outline-primary btn-sm mt-1" type="button" data-action="contact-add"><i class="fa-solid fa-plus"></i> Contatto</button></td>
           <td><select class="form-select form-select-sm" data-action="status">${statusOptions}</select></td>
           <td class="text-center"><input class="form-check-input" type="checkbox" data-action="listDone" ${entry.list_done ? "checked" : ""}></td>
-          <td><div class="route-board-note-preview text-muted">${esc(entry.order_note || "")}</div></td>
-          <td>
-            <div class="route-board-actions">
-              <button class="btn btn-outline-secondary btn-sm" type="button" data-action="note" title="Ordine"><i class="fa-regular fa-note-sticky"></i></button>
-              <button class="btn btn-outline-primary btn-sm" type="button" data-action="date" title="Consegna">${entry.planned_delivery_at ? '<i class="fa-regular fa-calendar"></i>' : '<i class="fa-solid fa-calendar-plus"></i>'}</button>
-              <button class="btn btn-outline-warning btn-sm" type="button" data-action="alerts" title="Avvisi"><i class="fa-solid fa-triangle-exclamation"></i></button>
-              <button class="btn btn-success btn-sm" type="button" data-action="slack" title="Invia su Slack"><i class="fa-brands fa-slack"></i></button>
-              <button class="btn btn-danger btn-sm" type="button" data-action="cancel" title="Annulla ordine"><i class="fa-solid fa-ban"></i></button>
-              <button class="btn btn-outline-danger btn-sm" type="button" data-action="delete-order" title="Elimina ordine"><i class="fa-solid fa-trash"></i></button>
-            </div>
-          </td>
-        </tr>
-      `;
+          <td>${renderOrders(customer.orders || [])}</td>
+          <td><div class="route-board-actions">
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-action="note" title="Ordine"><i class="fa-regular fa-note-sticky"></i></button>
+            <button class="btn btn-outline-primary btn-sm" type="button" data-action="date" title="Consegna"><i class="fa-regular fa-calendar"></i></button>
+            <button class="btn btn-outline-warning btn-sm" type="button" data-action="alerts" title="Avvisi"><i class="fa-solid fa-triangle-exclamation"></i></button>
+            <button class="btn btn-success btn-sm" type="button" data-action="slack" title="Invia su Slack"><i class="fa-brands fa-slack"></i></button>
+            <button class="btn btn-danger btn-sm" type="button" data-action="cancel" title="Annulla"><i class="fa-solid fa-ban"></i></button>
+          </div></td>
+        </tr>`;
     }).join("");
   }
 
-  function customerById(id) {
-    return state.customers.find(customer => String(customer.id) === String(id));
-  }
-
   async function loadBoard(routeId = "") {
-    rowsEl.innerHTML = `<tr><td colspan="6" class="text-muted">Caricamento...</td></tr>`;
-    const suffix = routeId ? `?route_id=${encodeURIComponent(routeId)}` : "";
-    state = await api(`/route-orders/api/board${suffix}`);
+    rowsEl.innerHTML = `<tr><td colspan="6" class="route-board-empty">Caricamento...</td></tr>`;
+    const params = new URLSearchParams();
+    if (routeId) params.set("route_id", routeId);
+    if (onlyWithOrders.checked) params.set("only_with_orders", "1");
+    state = await api(`/route-orders/api/board?${params.toString()}`);
     renderRoutes();
     renderRows();
   }
 
   async function saveEntry(customerId, patch) {
     const customer = customerById(customerId);
-    const body = {
-      route_id: selectedRouteId(),
-      registry_id: customerId,
-      entry_id: customer.entry && customer.entry.id,
-      board_date: state.next_delivery_at ? state.next_delivery_at.slice(0, 10) : null,
-      ...patch,
-    };
+    const body = { route_id: selectedRouteId(), registry_id: customerId, entry_id: customer.entry && customer.entry.id, board_date: state.next_delivery_at ? state.next_delivery_at.slice(0, 10) : null, ...patch };
     const data = await api("/route-orders/api/entries", { method: "POST", body: JSON.stringify(body) });
     customer.entry = data.entry;
     renderRows();
+    return data.entry;
   }
 
-  routeSelect.addEventListener("change", () => loadBoard(routeSelect.value).catch(err => alert(err.message)));
+  async function loadDirectCustomers(q = "") {
+    const data = await api(`/route-orders/api/customers?q=${encodeURIComponent(q)}`);
+    document.getElementById("directCustomerSelect").innerHTML = data.customers.map(c => `<option value="${c.id}">${esc(c.display)} ${esc(c.city || "")}</option>`).join("");
+  }
 
-  deliveryDateBtn.addEventListener("click", () => {
-    document.getElementById("deliveryCustomerId").value = "";
-    document.getElementById("deliveryCustomDate").value = "";
-    renderDeliveryPresets();
-    deliveryModal.show();
+  function renderDirectOrders() {
+    document.getElementById("directOrders").innerHTML = directOrders.length ? renderOrders(directOrders) : `<div class="route-board-empty">Nessun ordine diretto inserito in questa sessione.</div>`;
+  }
+
+  async function loadDirectOrders() {
+    const data = await api("/route-orders/api/direct-orders");
+    directOrders = data.orders || [];
+    renderDirectOrders();
+  }
+
+  document.querySelectorAll("[data-mode]").forEach(button => button.addEventListener("click", () => {
+    document.querySelectorAll("[data-mode]").forEach(el => el.classList.toggle("active", el === button));
+    document.getElementById("routeBoard").classList.toggle("active", button.dataset.mode === "route");
+    document.getElementById("directBoard").classList.toggle("active", button.dataset.mode === "direct");
+    if (button.dataset.mode === "direct") loadDirectOrders().catch(err => alert(err.message));
+  }));
+
+  routeSelect.addEventListener("change", () => loadBoard(routeSelect.value).catch(err => alert(err.message)));
+  onlyWithOrders.addEventListener("change", () => loadBoard(selectedRouteId()).catch(err => alert(err.message)));
+  document.getElementById("selectAllOrders").addEventListener("click", () => document.querySelectorAll("[data-order-select]").forEach(cb => cb.checked = true));
+  document.getElementById("bulkEvadeBtn").addEventListener("click", async () => {
+    const ids = Array.from(document.querySelectorAll("[data-order-select]:checked")).map(cb => cb.value);
+    if (!ids.length) return alert("Seleziona almeno un ordine.");
+    await api("/route-orders/api/orders/bulk-status", { method: "POST", body: JSON.stringify({ order_ids: ids, status: "evaso" }) });
+    await loadBoard(selectedRouteId());
   });
+
+  deliveryDateBtn.addEventListener("click", () => { document.getElementById("deliveryCustomerId").value = ""; document.getElementById("deliveryCustomDate").value = ""; renderDeliveryPresets(); deliveryModal.show(); });
 
   rowsEl.addEventListener("change", event => {
     const row = event.target.closest("tr[data-customer-id]");
-    if (!row) return;
-    const customerId = row.dataset.customerId;
-    if (event.target.dataset.action === "status") {
-      saveEntry(customerId, { status: event.target.value }).catch(err => alert(err.message));
-    }
-    if (event.target.dataset.action === "listDone") {
-      saveEntry(customerId, { list_done: event.target.checked }).catch(err => alert(err.message));
-    }
+    if (row && event.target.dataset.action === "status") saveEntry(row.dataset.customerId, { status: event.target.value }).catch(err => alert(err.message));
+    if (row && event.target.dataset.action === "listDone") saveEntry(row.dataset.customerId, { list_done: event.target.checked }).catch(err => alert(err.message));
+    if (event.target.dataset.action === "document") api(`/route-orders/api/orders/${event.target.dataset.orderId}/document`, { method: "POST", body: JSON.stringify({ document_issued: event.target.checked }) }).then(() => loadBoard(selectedRouteId())).catch(err => alert(err.message));
   });
 
   rowsEl.addEventListener("click", async event => {
     const button = event.target.closest("button[data-action]");
     if (!button) return;
     const row = button.closest("tr[data-customer-id]");
-    const customerId = row.dataset.customerId;
-    const customer = customerById(customerId);
-    if (button.dataset.action === "note") {
-      document.getElementById("noteCustomerId").value = customerId;
-      document.getElementById("orderNote").value = (customer.entry && customer.entry.order_note) || "";
-      noteModal.show();
-    }
-    if (button.dataset.action === "date") {
-      document.getElementById("deliveryCustomerId").value = customerId;
-      document.getElementById("deliveryCustomDate").value = "";
-      renderDeliveryPresets();
-      deliveryModal.show();
-    }
-    if (button.dataset.action === "alerts") {
-      document.getElementById("alertCustomerId").value = customerId;
-      document.getElementById("alertMessage").value = "";
-      document.getElementById("alertStart").value = "";
-      document.getElementById("alertEnd").value = "";
-      await loadAlerts(customerId);
-      alertsModal.show();
-    }
-    if (button.dataset.action === "contact-add") {
-      openContactModal(customerId);
-    }
-    if (button.dataset.action === "contact-edit") {
-      const contact = (customer.phones || []).find(phone => phone.id === button.dataset.contactId);
-      if (contact) openContactModal(customerId, contact);
-    }
-    if (button.dataset.action === "contact-delete") {
-      if (!confirm("Cancellare questo contatto?")) return;
-      const [source, id] = button.dataset.contactId.split(":");
-      try {
-        await api(`/route-orders/api/phone-contacts/${source}/${id}`, { method: "DELETE" });
-        await loadBoard(selectedRouteId());
-      } catch (err) {
-        alert(err.message);
-      }
-    }
-    if (button.dataset.action === "slack") {
-      try {
-        if (!customer.entry || !customer.entry.id) {
-          await saveEntry(customerId, {});
-        }
-        const fresh = customerById(customerId);
-        const data = await api(`/route-orders/api/entries/${fresh.entry.id}/send-slack`, { method: "POST", body: "{}" });
-        fresh.entry = data.entry;
-        renderRows();
-      } catch (err) {
-        alert(err.message);
-      }
-    }
-    if (button.dataset.action === "cancel") {
-      if (!confirm("Annullare l'ordine e svuotare la nota?")) return;
-      try {
-        if (!customer.entry || !customer.entry.id) {
-          await saveEntry(customerId, {});
-        }
-        const fresh = customerById(customerId);
-        const data = await api(`/route-orders/api/entries/${fresh.entry.id}/cancel`, { method: "POST", body: "{}" });
-        fresh.entry = data.entry;
-        renderRows();
-      } catch (err) {
-        alert(err.message);
-      }
-    }
-    if (button.dataset.action === "delete-order") {
-      if (!customer.entry || !customer.entry.id) {
-        alert("Nessun ordine da eliminare.");
-        return;
-      }
-      if (!confirm("Eliminare l'ordine da plancia, bacheca e Slack?")) return;
-      try {
-        await api(`/route-orders/api/entries/${customer.entry.id}`, { method: "DELETE" });
-        await loadBoard(selectedRouteId());
-      } catch (err) {
-        alert(err.message);
-      }
-    }
-  });
-
-  function openContactModal(customerId, contact = null) {
-    document.getElementById("contactCustomerId").value = customerId;
-    document.getElementById("contactSource").value = contact ? contact.source : "";
-    document.getElementById("contactItemId").value = contact ? (contact.point_id || contact.contact_id) : "";
-    document.getElementById("contactDisplayName").value = contact ? (contact.display_name || "") : "";
-    document.getElementById("contactType").value = contact ? (contact.type || "phone") : "phone";
-    document.getElementById("contactValue").value = contact ? (contact.value || "") : "";
-    document.getElementById("contactLabel").value = contact ? (contact.label || "") : "";
-    contactsModal.show();
-  }
-
-  document.getElementById("contactSaveBtn").addEventListener("click", async () => {
-    const customerId = document.getElementById("contactCustomerId").value;
-    const source = document.getElementById("contactSource").value;
-    const itemId = document.getElementById("contactItemId").value;
-    const body = {
-      display_name: document.getElementById("contactDisplayName").value,
-      type: document.getElementById("contactType").value,
-      value: document.getElementById("contactValue").value,
-      label: document.getElementById("contactLabel").value,
-    };
+    const customerId = row ? row.dataset.customerId : null;
+    const customer = customerId ? customerById(customerId) : null;
     try {
-      if (source && itemId) {
-        await api(`/route-orders/api/phone-contacts/${source}/${itemId}`, { method: "PUT", body: JSON.stringify(body) });
-      } else {
-        await api(`/route-orders/api/registries/${customerId}/phone-contacts`, { method: "POST", body: JSON.stringify(body) });
-      }
-      contactsModal.hide();
-      await loadBoard(selectedRouteId());
-    } catch (err) {
-      alert(err.message);
+      if (button.dataset.action === "note") { document.getElementById("noteCustomerId").value = customerId; document.getElementById("orderNote").value = (customer.entry && customer.entry.order_note) || ""; document.getElementById("orderFiles").value = ""; noteModal.show(); }
+      if (button.dataset.action === "date") { document.getElementById("deliveryCustomerId").value = customerId; document.getElementById("deliveryCustomDate").value = ""; renderDeliveryPresets(); deliveryModal.show(); }
+      if (button.dataset.action === "alerts") { document.getElementById("alertCustomerId").value = customerId; document.getElementById("alertMessage").value = ""; document.getElementById("alertStart").value = ""; document.getElementById("alertEnd").value = ""; await loadAlerts(customerId); alertsModal.show(); }
+      if (button.dataset.action === "contact-add") openContactModal(customerId);
+      if (button.dataset.action === "contact-edit") { const contact = (customer.phones || []).find(phone => phone.id === button.dataset.contactId); if (contact) openContactModal(customerId, contact); }
+      if (button.dataset.action === "contact-delete") { if (!confirm("Cancellare questo contatto?")) return; const [source, id] = button.dataset.contactId.split(":"); await api(`/route-orders/api/phone-contacts/${source}/${id}`, { method: "DELETE" }); await loadBoard(selectedRouteId()); }
+      if (button.dataset.action === "slack") { if (!customer.entry || !customer.entry.id) await saveEntry(customerId, {}); const fresh = customerById(customerId); await api(`/route-orders/api/entries/${fresh.entry.id}/send-slack`, { method: "POST", body: "{}" }); await loadBoard(selectedRouteId()); }
+      if (button.dataset.action === "cancel") { if (!confirm("Annullare l'ordine?")) return; if (!customer.entry || !customer.entry.id) await saveEntry(customerId, {}); const fresh = customerById(customerId); await api(`/route-orders/api/entries/${fresh.entry.id}/cancel`, { method: "POST", body: "{}" }); await loadBoard(selectedRouteId()); }
+      if (button.dataset.action === "order-attach") { const input = document.createElement("input"); input.type = "file"; input.multiple = true; input.onchange = async () => { await uploadFiles(`/route-orders/api/orders/${button.dataset.orderId}/attachments`, input.files); await loadBoard(selectedRouteId()); }; input.click(); }
+      if (button.dataset.action === "order-delete") { if (!confirm("Eliminare l'ordine da plancia, bacheca e Slack?")) return; await api(`/kiosk/api/order/${button.dataset.orderId}`, { method: "DELETE" }); await loadBoard(selectedRouteId()); }
+    } catch (err) { alert(err.message); }
+  });
+
+  document.getElementById("directOrders").addEventListener("change", event => {
+    if (event.target.dataset.action === "document") {
+      api(`/route-orders/api/orders/${event.target.dataset.orderId}/document`, { method: "POST", body: JSON.stringify({ document_issued: event.target.checked }) })
+        .then(loadDirectOrders)
+        .catch(err => alert(err.message));
     }
   });
 
-  document.getElementById("noteSaveBtn").addEventListener("click", () => {
+  document.getElementById("directOrders").addEventListener("click", async event => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    try {
+      if (button.dataset.action === "order-attach") {
+        const input = document.createElement("input");
+        input.type = "file";
+        input.multiple = true;
+        input.onchange = async () => { await uploadFiles(`/route-orders/api/orders/${button.dataset.orderId}/attachments`, input.files); await loadDirectOrders(); };
+        input.click();
+      }
+      if (button.dataset.action === "order-delete") {
+        if (!confirm("Eliminare l'ordine da plancia, bacheca e Slack?")) return;
+        await api(`/kiosk/api/order/${button.dataset.orderId}`, { method: "DELETE" });
+        await loadDirectOrders();
+      }
+    } catch (err) { alert(err.message); }
+  });
+
+  document.getElementById("noteSaveBtn").addEventListener("click", async () => {
     const customerId = document.getElementById("noteCustomerId").value;
-    saveEntry(customerId, { order_note: document.getElementById("orderNote").value })
-      .then(() => noteModal.hide())
-      .catch(err => alert(err.message));
+    try {
+      const entry = await saveEntry(customerId, { order_note: document.getElementById("orderNote").value });
+      await uploadFiles(`/route-orders/api/entries/${entry.id}/attachments`, document.getElementById("orderFiles").files);
+      noteModal.hide();
+      await loadBoard(selectedRouteId());
+    } catch (err) { alert(err.message); }
+  });
+
+  document.getElementById("newDirectOrderBtn").addEventListener("click", async () => { document.getElementById("directCustomerSearch").value = ""; document.getElementById("directNote").value = ""; document.getElementById("directDeliveryDate").value = ""; document.getElementById("directFiles").value = ""; await loadDirectCustomers(); directModal.show(); });
+  document.getElementById("directCustomerSearch").addEventListener("input", event => loadDirectCustomers(event.target.value).catch(err => alert(err.message)));
+  document.getElementById("directSendBtn").addEventListener("click", async () => {
+    const form = new FormData();
+    form.append("registry_id", document.getElementById("directCustomerSelect").value);
+    form.append("order_note", document.getElementById("directNote").value);
+    form.append("planned_delivery_at", document.getElementById("directDeliveryDate").value);
+    Array.from(document.getElementById("directFiles").files || []).forEach(file => form.append("files", file));
+    const res = await fetch("/route-orders/api/direct-orders", { method: "POST", credentials: "same-origin", body: form });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok === false) return alert(data.error || `HTTP ${res.status}`);
+    directOrders.unshift(data.order);
+    renderDirectOrders();
+    directModal.hide();
   });
 
   document.getElementById("deliverySaveBtn").addEventListener("click", () => {
     const customerId = document.getElementById("deliveryCustomerId").value;
-    const customDate = document.getElementById("deliveryCustomDate").value;
-    const preset = document.getElementById("deliveryPreset").value;
-    const value = customDate || preset;
-    if (customerId) {
-      saveEntry(customerId, { planned_delivery_at: value })
-        .then(() => deliveryModal.hide())
-        .catch(err => alert(err.message));
-      return;
-    }
-    api(`/route-orders/api/routes/${selectedRouteId()}/delivery-date`, {
-      method: "POST",
-      body: JSON.stringify({
-        source_date: state.next_delivery_at ? state.next_delivery_at.slice(0, 10) : null,
-        target_delivery_at: value,
-      }),
-    })
-      .then(() => loadBoard(selectedRouteId()))
-      .then(() => deliveryModal.hide())
-      .catch(err => alert(err.message));
+    const value = document.getElementById("deliveryCustomDate").value || document.getElementById("deliveryPreset").value;
+    if (customerId) saveEntry(customerId, { planned_delivery_at: value }).then(() => deliveryModal.hide()).catch(err => alert(err.message));
+    else api(`/route-orders/api/routes/${selectedRouteId()}/delivery-date`, { method: "POST", body: JSON.stringify({ source_date: state.next_delivery_at ? state.next_delivery_at.slice(0, 10) : null, target_delivery_at: value }) }).then(() => loadBoard(selectedRouteId())).then(() => deliveryModal.hide()).catch(err => alert(err.message));
+  });
+
+  function openContactModal(customerId, contact = null) {
+    document.getElementById("contactCustomerId").value = customerId; document.getElementById("contactSource").value = contact ? contact.source : ""; document.getElementById("contactItemId").value = contact ? (contact.point_id || contact.contact_id) : ""; document.getElementById("contactDisplayName").value = contact ? (contact.display_name || "") : ""; document.getElementById("contactType").value = contact ? (contact.type || "phone") : "phone"; document.getElementById("contactValue").value = contact ? (contact.value || "") : ""; document.getElementById("contactLabel").value = contact ? (contact.label || "") : ""; contactsModal.show();
+  }
+  document.getElementById("contactSaveBtn").addEventListener("click", async () => {
+    const customerId = document.getElementById("contactCustomerId").value; const source = document.getElementById("contactSource").value; const itemId = document.getElementById("contactItemId").value;
+    const body = { display_name: document.getElementById("contactDisplayName").value, type: document.getElementById("contactType").value, value: document.getElementById("contactValue").value, label: document.getElementById("contactLabel").value };
+    if (source && itemId) await api(`/route-orders/api/phone-contacts/${source}/${itemId}`, { method: "PUT", body: JSON.stringify(body) }); else await api(`/route-orders/api/registries/${customerId}/phone-contacts`, { method: "POST", body: JSON.stringify(body) });
+    contactsModal.hide(); await loadBoard(selectedRouteId());
   });
 
   async function loadAlerts(customerId) {
-    const list = document.getElementById("alertsList");
     const data = await api(`/route-orders/api/registries/${customerId}/alerts`);
-    list.innerHTML = data.alerts.length ? data.alerts.map(alert => `
-      <div class="list-group-item d-flex justify-content-between align-items-start">
-        <div>
-          <div>${esc(alert.message)}</div>
-          <div class="small text-muted">${esc(alert.start_date || "-")} / ${esc(alert.end_date || "-")}</div>
-        </div>
-        <button class="btn btn-sm btn-outline-danger" type="button" data-alert-delete="${alert.id}"><i class="fa-solid fa-trash"></i></button>
-      </div>
-    `).join("") : `<div class="text-muted">Nessun avviso attivo.</div>`;
+    document.getElementById("alertsList").innerHTML = data.alerts.length ? data.alerts.map(alert => `<div class="list-group-item d-flex justify-content-between align-items-start"><div><div>${esc(alert.message)}</div><div class="small text-muted">${esc(alert.start_date || "-")} / ${esc(alert.end_date || "-")}</div></div><button class="btn btn-sm btn-outline-danger" type="button" data-alert-delete="${alert.id}"><i class="fa-solid fa-trash"></i></button></div>`).join("") : `<div class="text-muted">Nessun avviso attivo.</div>`;
   }
+  document.getElementById("alertCreateBtn").addEventListener("click", async () => { const customerId = document.getElementById("alertCustomerId").value; await api(`/route-orders/api/registries/${customerId}/alerts`, { method: "POST", body: JSON.stringify({ message: document.getElementById("alertMessage").value, start_date: document.getElementById("alertStart").value, end_date: document.getElementById("alertEnd").value }) }); await loadAlerts(customerId); await loadBoard(selectedRouteId()); });
+  document.getElementById("alertsList").addEventListener("click", async event => { const button = event.target.closest("[data-alert-delete]"); if (!button) return; await api(`/route-orders/api/alerts/${button.dataset.alertDelete}`, { method: "DELETE" }); await loadAlerts(document.getElementById("alertCustomerId").value); await loadBoard(selectedRouteId()); });
 
-  document.getElementById("alertCreateBtn").addEventListener("click", async () => {
-    const customerId = document.getElementById("alertCustomerId").value;
-    try {
-      await api(`/route-orders/api/registries/${customerId}/alerts`, {
-        method: "POST",
-        body: JSON.stringify({
-          message: document.getElementById("alertMessage").value,
-          start_date: document.getElementById("alertStart").value,
-          end_date: document.getElementById("alertEnd").value,
-        }),
-      });
-      await loadAlerts(customerId);
-      await loadBoard(selectedRouteId());
-    } catch (err) {
-      alert(err.message);
-    }
-  });
-
-  document.getElementById("alertsList").addEventListener("click", async event => {
-    const button = event.target.closest("[data-alert-delete]");
-    if (!button) return;
-    const customerId = document.getElementById("alertCustomerId").value;
-    try {
-      await api(`/route-orders/api/alerts/${button.dataset.alertDelete}`, { method: "DELETE" });
-      await loadAlerts(customerId);
-      await loadBoard(selectedRouteId());
-    } catch (err) {
-      alert(err.message);
-    }
-  });
-
-  loadBoard().catch(err => {
-    rowsEl.innerHTML = `<tr><td colspan="6" class="text-danger">${esc(err.message)}</td></tr>`;
-  });
+  loadBoard().catch(err => rowsEl.innerHTML = `<tr><td colspan="6" class="text-danger">${esc(err.message)}</td></tr>`);
 })();
 </script>
 {% endblock %}

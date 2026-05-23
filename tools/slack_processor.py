@@ -449,6 +449,23 @@ class SlackProcessor:
         t = (text or "").lower()
         return any(k in t for k in self._ISSUE_KEYWORDS)
 
+    def _reset_document_issued(self, order: SlackOrder, *, via: str, reason: str) -> None:
+        if not order or not getattr(order, "document_issued", False):
+            return
+        order.document_issued = False
+        order.document_issued_at = None
+        db.session.add(
+            SlackOrderEvent(
+                order_id=order.id,
+                type="note",
+                payload={
+                    "text": "Documento riportato da emettere per nuova aggiunta ordine",
+                    "via": via,
+                    "reason": reason,
+                },
+            )
+        )
+
     def _extract_message_text(self, event: dict) -> str:
         """
         Slack mette la didascalia dei file_share in campi diversi a seconda
@@ -951,6 +968,7 @@ class SlackProcessor:
             old_text = order.raw_text or ""
             if text:
                 order.raw_text = text
+                self._reset_document_issued(order, via="slack_message_changed", reason="message_text_changed")
             db.session.add(SlackOrderEvent(
                 order_id=order.id,
                 type="message_changed",
@@ -999,6 +1017,7 @@ class SlackProcessor:
         )
         if existing_by_ts:
             if attachments:
+                self._reset_document_issued(existing_by_ts, via="slack_existing_message", reason="attachments_added")
                 db.session.add(SlackOrderEvent(
                     order_id=existing_by_ts.id,
                     type="note",
@@ -1036,6 +1055,8 @@ class SlackProcessor:
             )
             if parsed_delivery_dt:
                 order.planned_delivery_at = parsed_delivery_dt
+            if text or attachments:
+                self._reset_document_issued(order, via="slack_thread_reply", reason="reply_added")
 
             ev = SlackOrderEvent(
                 order_id=order.id,
@@ -1084,6 +1105,7 @@ class SlackProcessor:
         existing_order = self._find_open_order(channel_id, customer_key, order_date)
         if existing_order:
             existing_order.raw_text = "\n\n".join([p for p in [existing_order.raw_text, text] if p])
+            self._reset_document_issued(existing_order, via="slack_append_text", reason="new_root_message_same_customer")
             if parsed_delivery_dt:
                 existing_order.planned_delivery_at = parsed_delivery_dt
             if self._detect_issue(text):
