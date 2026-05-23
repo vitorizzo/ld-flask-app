@@ -714,6 +714,24 @@ Stato noto:
     - verifica endpoint Diretti ok: risposta con `customers`, `phones`, `alerts`, `orders`;
     - render test plancia ok: presenti contatti, stato ordine, annulla e invia Slack per Diretti;
     - verifica: `py_compile` ok su `routes/route_orders.py`.
+  - fix Diretti bulk/stati/documenti 2026-05-23:
+    - aggiunti nel box Fuori giro i pulsanti `Seleziona ordini` e `Segna evasi`;
+    - distinta la differenza tra stato tecnico bacheca e stato operativo plancia:
+      - `acquisito`, `listato`, `controllato`, `evaso` vengono mostrati in plancia come `Ordine fatto`;
+      - `annullato` viene mostrato come `Ordine annullato`;
+      - l'endpoint ora ritorna anche `board_status`;
+    - la select degli ordini diretti usa stati operativi `Ordine fatto` / `Ordine annullato`, evitando il fallback errato su `Da chiamare`;
+    - `POST /route-orders/api/orders/<id>/status` traduce `ordine_fatto` nello stato tecnico corretto (`acquisito`, oppure mantiene `listato` se gia' listato);
+    - reset automatico `documento emesso` esteso:
+      - nuovo ordine diretto dello stesso cliente;
+      - nuovo ordine da PWA/share dello stesso cliente;
+      - oltre ai casi gia' coperti di note/allegati/modifiche sullo stesso ordine;
+    - bonifica DB produzione:
+      - normalizzato ordine diretto `1074` da `da_chiamare` ad `acquisito`;
+      - aggiunto evento `status_change` con `via=normalize_direct_order_status`;
+    - verifiche:
+      - `py_compile` ok su `routes/route_orders.py` e `routes/pwa.py`;
+      - endpoint Diretti ok: primo ordine tecnico `acquisito`, `board_status=ordine_fatto`.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

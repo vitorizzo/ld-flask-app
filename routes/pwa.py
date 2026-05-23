@@ -334,7 +334,13 @@ def share_add_files(intent_id):
 @login_required
 @role_required(30)
 def share_send_order(intent_id):
-    from routes.route_orders import _ensure_slack_order, _format_slack_message, _next_delivery_dt, _set_list_done_reaction
+    from routes.route_orders import (
+        _ensure_slack_order,
+        _format_slack_message,
+        _next_delivery_dt,
+        _reset_documents_for_customer_orders,
+        _set_list_done_reaction,
+    )
 
     intent = _intent_access_or_404(intent_id)
     if not intent:
@@ -450,6 +456,13 @@ def share_send_order(intent_id):
         )
         db.session.add(order)
         db.session.flush()
+        _reset_documents_for_customer_orders(
+            channel_id,
+            order.customer_key,
+            exclude_order_id=order.id,
+            via="pwa_share",
+            reason="new_shared_order_same_customer",
+        )
         db.session.add(SlackOrderEvent(
             order_id=order.id,
             type="created",

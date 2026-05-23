@@ -326,6 +326,13 @@ def _ensure_slack_order(entry, status_code=None):
     )
     db.session.add(order)
     db.session.flush()
+    _reset_documents_for_customer_orders(
+        channel_id,
+        order.customer_key,
+        exclude_order_id=order.id,
+        via="route_order_board_direct",
+        reason="new_direct_order_same_customer",
+    )
     db.session.add(SlackOrderEvent(
         order_id=order.id,
         type="created",
@@ -480,6 +487,31 @@ def _reset_document_issued(order, *, via, reason):
     ))
 
 
+def _reset_documents_for_customer_orders(channel_id, customer_key, *, exclude_order_id=None, via, reason):
+    if not channel_id or not customer_key:
+        return
+    query = SlackOrder.query.filter(
+        SlackOrder.slack_channel_id == channel_id,
+        SlackOrder.customer_key == customer_key,
+        SlackOrder.document_issued.is_(True),
+    )
+    if exclude_order_id:
+        query = query.filter(SlackOrder.id != exclude_order_id)
+    for order in query.all():
+        _reset_document_issued(order, via=via, reason=reason)
+
+
+def _board_status_for_order(order):
+    status = (order.status or "").strip()
+    if status in {"acquisito", "listato", "controllato", "evaso"}:
+        return "ordine_fatto"
+    if status == "annullato":
+        return "annullato"
+    if status in {item["code"] for item in BOARD_STATUSES}:
+        return "ordine_fatto"
+    return status or "ordine_fatto"
+
+
 def _order_to_dict(order):
     return {
         "id": order.id,
@@ -489,6 +521,7 @@ def _order_to_dict(order):
         "order_date": order.order_date.isoformat() if order.order_date else None,
         "planned_delivery_at": order.planned_delivery_at.isoformat() if order.planned_delivery_at else None,
         "status": order.status,
+        "board_status": _board_status_for_order(order),
         "raw_text": order.raw_text or "",
         "document_issued": bool(getattr(order, "document_issued", False)),
         "document_issued_at": order.document_issued_at.isoformat() if getattr(order, "document_issued_at", None) else None,
@@ -802,10 +835,14 @@ def api_order_document(order_id):
 def api_order_status(order_id):
     order = SlackOrder.query.get_or_404(order_id)
     data = request.get_json(silent=True) or {}
-    new_status = (data.get("status") or "").strip()
+    requested_status = (data.get("status") or "").strip()
+    new_status = requested_status
+    if requested_status == "ordine_fatto":
+        new_status = "listato" if order.status == "listato" else "acquisito"
     valid_codes = {status["code"] for status in BOARD_STATUSES}
     valid_codes.update(code for code, in db.session.query(OrderStatus.code).all())
-    if new_status not in valid_codes:
+    valid_codes.update({"acquisito", "listato", "controllato", "evaso"})
+    if requested_status not in valid_codes and new_status not in valid_codes:
         return jsonify({"ok": False, "error": "Stato non valido"}), 400
     old_status = order.status
     if old_status != new_status:
@@ -817,7 +854,7 @@ def api_order_status(order_id):
         db.session.add(SlackOrderEvent(
             order_id=order.id,
             type="status_change",
-            payload={"from": old_status, "to": new_status, "via": "route_order_board"},
+            payload={"from": old_status, "to": new_status, "requested": requested_status, "via": "route_order_board"},
         ))
         db.session.commit()
         try:

@@ -116,9 +116,13 @@
   </div>
 
   <div class="direct-board" id="directBoard">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-      <div class="text-muted small">Ordini fuori consegna programmata, inviati sul canale diretto.</div>
-      <button class="btn btn-primary" id="newDirectOrderBtn" type="button"><i class="fa-solid fa-plus"></i> Inserisci ordine</button>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="text-muted small">Ordini fuori consegna programmata, inviati sul canale diretto.</div>
+      <div class="route-board-bulk">
+        <button class="btn btn-outline-secondary btn-sm" type="button" id="selectAllDirectOrders">Seleziona ordini</button>
+        <button class="btn btn-success btn-sm" type="button" id="bulkEvadeDirectBtn">Segna evasi</button>
+        <button class="btn btn-primary" id="newDirectOrderBtn" type="button"><i class="fa-solid fa-plus"></i> Inserisci ordine</button>
+      </div>
     </div>
     <div class="route-board-panel p-3">
       <div class="d-flex justify-content-between align-items-center mb-2">
@@ -248,6 +252,10 @@
   const selectedRouteId = () => routeSelect.value || (state.route ? state.route.id : "");
   const customerById = id => state.customers.find(customer => String(customer.id) === String(id));
   const directCustomerById = id => directCustomers.find(customer => String(customer.id) === String(id));
+  const directStatuses = [
+    { code: "ordine_fatto", label: "Ordine fatto" },
+    { code: "annullato", label: "Ordine annullato" },
+  ];
 
   async function api(url, options = {}) {
     const res = await fetch(url, { credentials: "same-origin", headers: { "Content-Type": "application/json", ...(options.headers || {}) }, ...options });
@@ -279,15 +287,21 @@
     return (alerts || []).map(alert => [alert.message, [alert.start_date, alert.end_date].filter(Boolean).join(" - ")].filter(Boolean).join(" ")).join("\n");
   }
 
-  function renderOrders(orders) {
+  function statusSelectOptions(order, options) {
+    const selected = order.board_status || order.status || "ordine_fatto";
+    return options.map(status => `<option value="${esc(status.code)}" ${selected === status.code ? "selected" : ""}>${esc(status.label)}</option>`).join("");
+  }
+
+  function renderOrders(orders, mode = "route") {
     if (!orders || !orders.length) return `<div class="text-muted small">Nessun ordine postato.</div>`;
+    const statusOptionsSource = mode === "direct" ? directStatuses : state.statuses;
     return `<div class="route-board-orders">${orders.map(order => `
       <div class="route-board-order" data-order-id="${order.id}">
         <div class="route-board-order__head">
           <div>
             <input class="form-check-input me-1" type="checkbox" data-order-select value="${order.id}">
             <select class="form-select form-select-sm d-inline-block w-auto" data-action="order-status" data-order-id="${order.id}">
-              ${state.statuses.map(status => `<option value="${esc(status.code)}" ${order.status === status.code ? "selected" : ""}>${esc(status.label)}</option>`).join("")}
+              ${statusSelectOptions(order, statusOptionsSource)}
             </select>
           </div>
           <label class="small mb-0"><input class="form-check-input me-1" type="checkbox" data-action="document" data-order-id="${order.id}" ${order.document_issued ? "checked" : ""}> Documento</label>
@@ -394,7 +408,7 @@
           </span>
         </div>`).join("") : `<span class="text-muted small">Nessun numero</span>`;
       const latest = orders[0] || {};
-      const statusOptions = state.statuses.map(status => `<option value="${esc(status.code)}" ${latest.status === status.code ? "selected" : ""}>${esc(status.label)}</option>`).join("");
+      const statusOptions = statusSelectOptions(latest, directStatuses);
       const alertBadge = customer.alerts && customer.alerts.length ? `<span title="${esc(alertsTitle(customer.alerts))}" class="ms-1">⚠</span>` : "";
       return `
         <tr data-direct-customer-id="${esc(customer.id || "")}">
@@ -402,7 +416,7 @@
           <td>${phones}${customer.id ? '<button class="btn btn-outline-primary btn-sm mt-1" type="button" data-action="direct-contact-add"><i class="fa-solid fa-plus"></i> Contatto</button>' : ""}</td>
           <td>${latest.id ? `<select class="form-select form-select-sm" data-action="direct-latest-status" data-order-id="${latest.id}">${statusOptions}</select>` : '<span class="text-muted small">-</span>'}</td>
           <td class="text-center"><input class="form-check-input" type="checkbox" data-direct-list-done ${latest.status === "listato" ? "checked" : ""} ${latest.id ? "" : "disabled"}></td>
-          <td>${renderOrders(orders)}</td>
+          <td>${renderOrders(orders, "direct")}</td>
           <td><div class="route-board-actions">
             <button class="btn btn-outline-secondary btn-sm" type="button" data-action="direct-note" title="Ordine"><i class="fa-regular fa-note-sticky"></i></button>
             <button class="btn btn-outline-primary btn-sm" type="button" data-action="direct-date" data-order-id="${latest.id || ""}" title="Consegna"><i class="fa-regular fa-calendar"></i></button>
@@ -436,6 +450,13 @@
     if (!ids.length) return alert("Seleziona almeno un ordine.");
     await api("/route-orders/api/orders/bulk-status", { method: "POST", body: JSON.stringify({ order_ids: ids, status: "evaso" }) });
     await loadBoard(selectedRouteId());
+  });
+  document.getElementById("selectAllDirectOrders").addEventListener("click", () => document.querySelectorAll("#directOrders [data-order-select]").forEach(cb => cb.checked = true));
+  document.getElementById("bulkEvadeDirectBtn").addEventListener("click", async () => {
+    const ids = Array.from(document.querySelectorAll("#directOrders [data-order-select]:checked")).map(cb => cb.value);
+    if (!ids.length) return alert("Seleziona almeno un ordine fuori giro.");
+    await api("/route-orders/api/orders/bulk-status", { method: "POST", body: JSON.stringify({ order_ids: ids, status: "evaso" }) });
+    await loadDirectOrders();
   });
 
   deliveryDateBtn.addEventListener("click", () => { document.getElementById("deliveryCustomerId").value = ""; document.getElementById("deliveryCustomDate").value = ""; renderDeliveryPresets(); deliveryModal.show(); });
