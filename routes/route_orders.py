@@ -497,6 +497,30 @@ def _order_to_dict(order):
     }
 
 
+def _registry_for_order(order):
+    key = str(order.customer_key or "").strip()
+    registry = None
+    if key:
+        registry = BusinessRegistry.query.filter_by(kind="customer", source_code=key, is_active=True).first()
+        if not registry and key.isdigit():
+            registry = BusinessRegistry.query.filter_by(id=int(key), kind="customer", is_active=True).first()
+    if not registry:
+        registry = (
+            BusinessRegistry.query
+            .filter(
+                BusinessRegistry.kind == "customer",
+                BusinessRegistry.is_active.is_(True),
+                or_(
+                    BusinessRegistry.display_name == order.customer_display,
+                    BusinessRegistry.legal_name == order.customer_display,
+                ),
+            )
+            .order_by(BusinessRegistry.id.asc())
+            .first()
+        )
+    return registry
+
+
 def _orders_for_customers(route_id, registry_ids, board_date):
     if not registry_ids:
         return {}
@@ -772,6 +796,61 @@ def api_order_document(order_id):
     return jsonify({"ok": True, "order": _order_to_dict(order)})
 
 
+@route_orders_bp.post("/api/orders/<int:order_id>/status")
+@login_required
+@role_required(30)
+def api_order_status(order_id):
+    order = SlackOrder.query.get_or_404(order_id)
+    data = request.get_json(silent=True) or {}
+    new_status = (data.get("status") or "").strip()
+    valid_codes = {status["code"] for status in BOARD_STATUSES}
+    valid_codes.update(code for code, in db.session.query(OrderStatus.code).all())
+    if new_status not in valid_codes:
+        return jsonify({"ok": False, "error": "Stato non valido"}), 400
+    old_status = order.status
+    if old_status != new_status:
+        order.status = new_status
+        if new_status == "evaso":
+            order.evaded_at = datetime.utcnow()
+        if new_status in {"annullato", "cancellato", "evaso"} and not order.closed_at:
+            order.closed_at = datetime.utcnow()
+        db.session.add(SlackOrderEvent(
+            order_id=order.id,
+            type="status_change",
+            payload={"from": old_status, "to": new_status, "via": "route_order_board"},
+        ))
+        db.session.commit()
+        try:
+            SlackProcessor().sync_order_status_reactions(order, old_status_code=old_status, new_status_code=new_status)
+        except Exception:
+            current_app.logger.exception("Sync reaction status failed order_id=%s", order.id)
+    return jsonify({"ok": True, "order": _order_to_dict(order)})
+
+
+@route_orders_bp.post("/api/orders/<int:order_id>/delivery")
+@login_required
+@role_required(30)
+def api_order_delivery(order_id):
+    order = SlackOrder.query.get_or_404(order_id)
+    data = request.get_json(silent=True) or {}
+    target_dt = _parse_datetime(data.get("planned_delivery_at"), time(9, 0))
+    if not target_dt:
+        return jsonify({"ok": False, "error": "Data consegna non valida"}), 400
+    old_iso = order.planned_delivery_at.isoformat() if order.planned_delivery_at else None
+    order.planned_delivery_at = target_dt
+    db.session.add(SlackOrderEvent(
+        order_id=order.id,
+        type="delivery_manual",
+        payload={
+            "old_planned_delivery_at": old_iso,
+            "new_planned_delivery_at": target_dt.isoformat(),
+            "via": "route_order_board",
+        },
+    ))
+    db.session.commit()
+    return jsonify({"ok": True, "order": _order_to_dict(order)})
+
+
 @route_orders_bp.post("/api/orders/bulk-status")
 @login_required
 @role_required(30)
@@ -886,7 +965,46 @@ def api_direct_orders():
         .limit(80)
         .all()
     )
-    return jsonify({"ok": True, "orders": [_order_to_dict(order) for order in orders]})
+    registry_ids = []
+    groups = {}
+    loose_index = 0
+    for order in orders:
+        registry = _registry_for_order(order)
+        if registry:
+            key = f"registry:{registry.id}"
+            registry_ids.append(registry.id)
+            if key not in groups:
+                groups[key] = {
+                    "id": registry.id,
+                    "display": _label_registry(registry),
+                    "source_code": registry.source_code,
+                    "city": registry.city,
+                    "phones": _phone_contacts(registry),
+                    "alerts": [],
+                    "orders": [],
+                }
+        else:
+            loose_index += 1
+            key = f"order:{loose_index}"
+            groups[key] = {
+                "id": None,
+                "display": order.customer_display,
+                "source_code": order.customer_key,
+                "city": "",
+                "phones": [],
+                "alerts": [],
+                "orders": [],
+            }
+        groups[key]["orders"].append(_order_to_dict(order))
+
+    alerts_by_registry = {}
+    for alert in _visible_alerts_query(registry_ids, date.today()):
+        alerts_by_registry.setdefault(alert.registry_id, []).append(alert)
+    for group in groups.values():
+        if group["id"]:
+            group["alerts"] = [alert.to_dict() for alert in alerts_by_registry.get(group["id"], [])]
+
+    return jsonify({"ok": True, "customers": list(groups.values()), "orders": [_order_to_dict(order) for order in orders]})
 
 
 @route_orders_bp.post("/api/routes/<int:route_id>/delivery-date")

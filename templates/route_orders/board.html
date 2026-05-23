@@ -130,11 +130,14 @@
           <thead>
             <tr>
               <th>Cliente</th>
+              <th style="min-width: 250px">Contatti</th>
+              <th>Stato</th>
+              <th>Lista</th>
               <th>Ordini</th>
               <th class="text-end">Azioni</th>
             </tr>
           </thead>
-          <tbody id="directOrders"><tr><td colspan="3" class="route-board-empty">Gli ordini diretti compariranno dopo l'inserimento.</td></tr></tbody>
+          <tbody id="directOrders"><tr><td colspan="6" class="route-board-empty">Gli ordini diretti compariranno dopo l'inserimento.</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -237,11 +240,14 @@
   const contactsModal = new bootstrap.Modal(document.getElementById("contactsModal"));
   let state = { routes: [], route: null, customers: [], next_delivery_at: null, upcoming_delivery_dates: [], statuses: [] };
   let directOrders = [];
+  let directCustomers = [];
+  let directPrefillCustomerId = "";
 
   const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch]));
   const fmtDate = value => value ? new Date(value).toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : "-";
   const selectedRouteId = () => routeSelect.value || (state.route ? state.route.id : "");
   const customerById = id => state.customers.find(customer => String(customer.id) === String(id));
+  const directCustomerById = id => directCustomers.find(customer => String(customer.id) === String(id));
 
   async function api(url, options = {}) {
     const res = await fetch(url, { credentials: "same-origin", headers: { "Content-Type": "application/json", ...(options.headers || {}) }, ...options });
@@ -280,7 +286,9 @@
         <div class="route-board-order__head">
           <div>
             <input class="form-check-input me-1" type="checkbox" data-order-select value="${order.id}">
-            <span class="badge text-bg-light">${esc(order.status)}</span>
+            <select class="form-select form-select-sm d-inline-block w-auto" data-action="order-status" data-order-id="${order.id}">
+              ${state.statuses.map(status => `<option value="${esc(status.code)}" ${order.status === status.code ? "selected" : ""}>${esc(status.label)}</option>`).join("")}
+            </select>
           </div>
           <label class="small mb-0"><input class="form-check-input me-1" type="checkbox" data-action="document" data-order-id="${order.id}" ${order.document_issued ? "checked" : ""}> Documento</label>
         </div>
@@ -359,29 +367,49 @@
   async function loadDirectCustomers(q = "") {
     const data = await api(`/route-orders/api/customers?q=${encodeURIComponent(q)}`);
     document.getElementById("directCustomerSelect").innerHTML = data.customers.map(c => `<option value="${c.id}">${esc(c.display)} ${esc(c.city || "")}</option>`).join("");
+    if (directPrefillCustomerId) {
+      document.getElementById("directCustomerSelect").value = directPrefillCustomerId;
+      directPrefillCustomerId = "";
+    }
   }
 
   function renderDirectOrders() {
     const tbody = document.getElementById("directOrders");
-    document.getElementById("directCount").textContent = String(directOrders.length);
-    if (!directOrders.length) {
-      tbody.innerHTML = `<tr><td colspan="3" class="route-board-empty">Nessun ordine diretto da mostrare.</td></tr>`;
+    document.getElementById("directCount").textContent = String(directCustomers.length);
+    if (!directCustomers.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="route-board-empty">Nessun ordine diretto da mostrare.</td></tr>`;
       return;
     }
-    const groups = new Map();
-    directOrders.forEach(order => {
-      const key = order.customer_key || order.customer_display || `order-${order.id}`;
-      if (!groups.has(key)) groups.set(key, { display: order.customer_display || "Cliente", orders: [] });
-      groups.get(key).orders.push(order);
-    });
-    tbody.innerHTML = Array.from(groups.values()).map(group => {
-      const allDocumentsIssued = group.orders.length && group.orders.every(order => order.document_issued);
+    tbody.innerHTML = directCustomers.map(customer => {
+      const orders = customer.orders || [];
+      const allDocumentsIssued = orders.length && orders.every(order => order.document_issued);
       const documentBadge = `<div class="mt-1"><span class="badge ${allDocumentsIssued ? "text-bg-success" : "text-bg-warning"}">${allDocumentsIssued ? "documenti emessi" : "doc da emettere"}</span></div>`;
+      const phones = (customer.phones || []).length ? customer.phones.map(phone => `
+        <div class="route-board-phone-row">
+          <span class="route-board-phone-label">${esc(phone.full_label || phone.label || phone.type || "telefono")}</span>
+          <a href="tel:${esc(phone.value)}">${esc(phone.value)}</a>
+          <span>
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-action="direct-contact-edit" data-contact-id="${esc(phone.id)}"><i class="fa-solid fa-pen"></i></button>
+            <button class="btn btn-outline-danger btn-sm" type="button" data-action="direct-contact-delete" data-contact-id="${esc(phone.id)}"><i class="fa-solid fa-trash"></i></button>
+          </span>
+        </div>`).join("") : `<span class="text-muted small">Nessun numero</span>`;
+      const latest = orders[0] || {};
+      const statusOptions = state.statuses.map(status => `<option value="${esc(status.code)}" ${latest.status === status.code ? "selected" : ""}>${esc(status.label)}</option>`).join("");
+      const alertBadge = customer.alerts && customer.alerts.length ? `<span title="${esc(alertsTitle(customer.alerts))}" class="ms-1">⚠</span>` : "";
       return `
-        <tr>
-          <td><span class="route-board-direct-customer">${esc(group.display)}</span>${documentBadge}</td>
-          <td>${renderOrders(group.orders)}</td>
-          <td class="text-end"><button class="btn btn-outline-primary btn-sm" type="button" data-direct-add><i class="fa-solid fa-plus"></i></button></td>
+        <tr data-direct-customer-id="${esc(customer.id || "")}">
+          <td><span class="route-board-direct-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span>${orders.length ? documentBadge : ""}<div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div></td>
+          <td>${phones}${customer.id ? '<button class="btn btn-outline-primary btn-sm mt-1" type="button" data-action="direct-contact-add"><i class="fa-solid fa-plus"></i> Contatto</button>' : ""}</td>
+          <td>${latest.id ? `<select class="form-select form-select-sm" data-action="direct-latest-status" data-order-id="${latest.id}">${statusOptions}</select>` : '<span class="text-muted small">-</span>'}</td>
+          <td class="text-center"><input class="form-check-input" type="checkbox" data-direct-list-done ${latest.status === "listato" ? "checked" : ""} ${latest.id ? "" : "disabled"}></td>
+          <td>${renderOrders(orders)}</td>
+          <td><div class="route-board-actions">
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-action="direct-note" title="Ordine"><i class="fa-regular fa-note-sticky"></i></button>
+            <button class="btn btn-outline-primary btn-sm" type="button" data-action="direct-date" data-order-id="${latest.id || ""}" title="Consegna"><i class="fa-regular fa-calendar"></i></button>
+            <button class="btn btn-outline-warning btn-sm" type="button" data-action="direct-alerts" title="Avvisi"><i class="fa-solid fa-triangle-exclamation"></i></button>
+            <button class="btn btn-success btn-sm" type="button" data-action="direct-slack" title="Invia su Slack"><i class="fa-brands fa-slack"></i></button>
+            <button class="btn btn-danger btn-sm" type="button" data-action="direct-cancel" data-order-id="${latest.id || ""}" title="Annulla"><i class="fa-solid fa-ban"></i></button>
+          </div></td>
         </tr>`;
     }).join("");
   }
@@ -389,6 +417,7 @@
   async function loadDirectOrders() {
     const data = await api("/route-orders/api/direct-orders");
     directOrders = data.orders || [];
+    directCustomers = data.customers || [];
     renderDirectOrders();
   }
 
@@ -416,6 +445,7 @@
     if (row && event.target.dataset.action === "status") saveEntry(row.dataset.customerId, { status: event.target.value }).catch(err => alert(err.message));
     if (row && event.target.dataset.action === "listDone") saveEntry(row.dataset.customerId, { list_done: event.target.checked }).catch(err => alert(err.message));
     if (event.target.dataset.action === "document") api(`/route-orders/api/orders/${event.target.dataset.orderId}/document`, { method: "POST", body: JSON.stringify({ document_issued: event.target.checked }) }).then(() => loadBoard(selectedRouteId())).catch(err => alert(err.message));
+    if (event.target.dataset.action === "order-status") api(`/route-orders/api/orders/${event.target.dataset.orderId}/status`, { method: "POST", body: JSON.stringify({ status: event.target.value }) }).then(() => loadBoard(selectedRouteId())).catch(err => alert(err.message));
   });
 
   rowsEl.addEventListener("click", async event => {
@@ -444,6 +474,20 @@
         .then(loadDirectOrders)
         .catch(err => alert(err.message));
     }
+    if (event.target.dataset.action === "order-status" || event.target.dataset.action === "direct-latest-status") {
+      api(`/route-orders/api/orders/${event.target.dataset.orderId}/status`, { method: "POST", body: JSON.stringify({ status: event.target.value }) })
+        .then(loadDirectOrders)
+        .catch(err => alert(err.message));
+    }
+    if (event.target.dataset.directListDone !== undefined) {
+      const select = event.target.closest("tr").querySelector("[data-action='direct-latest-status']");
+      if (select) {
+        const status = event.target.checked ? "listato" : "acquisito";
+        api(`/route-orders/api/orders/${select.dataset.orderId}/status`, { method: "POST", body: JSON.stringify({ status }) })
+          .then(loadDirectOrders)
+          .catch(err => alert(err.message));
+      }
+    }
   });
 
   document.getElementById("directOrders").addEventListener("click", async event => {
@@ -455,6 +499,51 @@
       return;
     }
     try {
+      const row = button.closest("tr[data-direct-customer-id]");
+      const customerId = row ? row.dataset.directCustomerId : "";
+      const customer = customerId ? directCustomerById(customerId) : null;
+      if (button.dataset.action === "direct-note" || button.dataset.action === "direct-slack") {
+        directPrefillCustomerId = customerId;
+        document.getElementById("newDirectOrderBtn").click();
+      }
+      if (button.dataset.action === "direct-date") {
+        const orderId = button.dataset.orderId;
+        if (!orderId) return alert("Nessun ordine diretto su cui impostare la consegna.");
+        document.getElementById("deliveryCustomerId").value = `order:${orderId}`;
+        document.getElementById("deliveryCustomDate").value = "";
+        renderDeliveryPresets();
+        deliveryModal.show();
+      }
+      if (button.dataset.action === "direct-alerts") {
+        if (!customerId) return alert("Cliente non collegato a un'anagrafica.");
+        document.getElementById("alertCustomerId").value = customerId;
+        document.getElementById("alertMessage").value = "";
+        document.getElementById("alertStart").value = "";
+        document.getElementById("alertEnd").value = "";
+        await loadAlerts(customerId);
+        alertsModal.show();
+      }
+      if (button.dataset.action === "direct-contact-add") {
+        if (!customerId) return alert("Cliente non collegato a un'anagrafica.");
+        openContactModal(customerId, null, "direct");
+      }
+      if (button.dataset.action === "direct-contact-edit") {
+        const contact = (customer && customer.phones || []).find(phone => phone.id === button.dataset.contactId);
+        if (contact) openContactModal(customerId, contact, "direct");
+      }
+      if (button.dataset.action === "direct-contact-delete") {
+        if (!confirm("Cancellare questo contatto?")) return;
+        const [source, id] = button.dataset.contactId.split(":");
+        await api(`/route-orders/api/phone-contacts/${source}/${id}`, { method: "DELETE" });
+        await loadDirectOrders();
+      }
+      if (button.dataset.action === "direct-cancel") {
+        const orderId = button.dataset.orderId;
+        if (!orderId) return alert("Nessun ordine diretto da annullare.");
+        if (!confirm("Annullare questo ordine diretto?")) return;
+        await api(`/route-orders/api/orders/${orderId}/status`, { method: "POST", body: JSON.stringify({ status: "annullato" }) });
+        await loadDirectOrders();
+      }
       if (button.dataset.action === "order-attach") {
         const input = document.createElement("input");
         input.type = "file";
@@ -491,34 +580,46 @@
     const res = await fetch("/route-orders/api/direct-orders", { method: "POST", credentials: "same-origin", body: form });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.ok === false) return alert(data.error || `HTTP ${res.status}`);
-    directOrders.unshift(data.order);
-    renderDirectOrders();
+    await loadDirectOrders();
     directModal.hide();
   });
 
   document.getElementById("deliverySaveBtn").addEventListener("click", () => {
     const customerId = document.getElementById("deliveryCustomerId").value;
     const value = document.getElementById("deliveryCustomDate").value || document.getElementById("deliveryPreset").value;
+    if (customerId.startsWith("order:")) {
+      api(`/route-orders/api/orders/${customerId.slice(6)}/delivery`, { method: "POST", body: JSON.stringify({ planned_delivery_at: value }) })
+        .then(loadDirectOrders)
+        .then(() => deliveryModal.hide())
+        .catch(err => alert(err.message));
+      return;
+    }
     if (customerId) saveEntry(customerId, { planned_delivery_at: value }).then(() => deliveryModal.hide()).catch(err => alert(err.message));
     else api(`/route-orders/api/routes/${selectedRouteId()}/delivery-date`, { method: "POST", body: JSON.stringify({ source_date: state.next_delivery_at ? state.next_delivery_at.slice(0, 10) : null, target_delivery_at: value }) }).then(() => loadBoard(selectedRouteId())).then(() => deliveryModal.hide()).catch(err => alert(err.message));
   });
 
-  function openContactModal(customerId, contact = null) {
+  function openContactModal(customerId, contact = null, sourceView = "route") {
     document.getElementById("contactCustomerId").value = customerId; document.getElementById("contactSource").value = contact ? contact.source : ""; document.getElementById("contactItemId").value = contact ? (contact.point_id || contact.contact_id) : ""; document.getElementById("contactDisplayName").value = contact ? (contact.display_name || "") : ""; document.getElementById("contactType").value = contact ? (contact.type || "phone") : "phone"; document.getElementById("contactValue").value = contact ? (contact.value || "") : ""; document.getElementById("contactLabel").value = contact ? (contact.label || "") : ""; contactsModal.show();
+    contactsModal._sourceView = sourceView;
   }
   document.getElementById("contactSaveBtn").addEventListener("click", async () => {
     const customerId = document.getElementById("contactCustomerId").value; const source = document.getElementById("contactSource").value; const itemId = document.getElementById("contactItemId").value;
     const body = { display_name: document.getElementById("contactDisplayName").value, type: document.getElementById("contactType").value, value: document.getElementById("contactValue").value, label: document.getElementById("contactLabel").value };
     if (source && itemId) await api(`/route-orders/api/phone-contacts/${source}/${itemId}`, { method: "PUT", body: JSON.stringify(body) }); else await api(`/route-orders/api/registries/${customerId}/phone-contacts`, { method: "POST", body: JSON.stringify(body) });
-    contactsModal.hide(); await loadBoard(selectedRouteId());
+    contactsModal.hide();
+    if (contactsModal._sourceView === "direct") await loadDirectOrders(); else await loadBoard(selectedRouteId());
   });
 
   async function loadAlerts(customerId) {
     const data = await api(`/route-orders/api/registries/${customerId}/alerts`);
     document.getElementById("alertsList").innerHTML = data.alerts.length ? data.alerts.map(alert => `<div class="list-group-item d-flex justify-content-between align-items-start"><div><div>${esc(alert.message)}</div><div class="small text-muted">${esc(alert.start_date || "-")} / ${esc(alert.end_date || "-")}</div></div><button class="btn btn-sm btn-outline-danger" type="button" data-alert-delete="${alert.id}"><i class="fa-solid fa-trash"></i></button></div>`).join("") : `<div class="text-muted">Nessun avviso attivo.</div>`;
   }
-  document.getElementById("alertCreateBtn").addEventListener("click", async () => { const customerId = document.getElementById("alertCustomerId").value; await api(`/route-orders/api/registries/${customerId}/alerts`, { method: "POST", body: JSON.stringify({ message: document.getElementById("alertMessage").value, start_date: document.getElementById("alertStart").value, end_date: document.getElementById("alertEnd").value }) }); await loadAlerts(customerId); await loadBoard(selectedRouteId()); });
-  document.getElementById("alertsList").addEventListener("click", async event => { const button = event.target.closest("[data-alert-delete]"); if (!button) return; await api(`/route-orders/api/alerts/${button.dataset.alertDelete}`, { method: "DELETE" }); await loadAlerts(document.getElementById("alertCustomerId").value); await loadBoard(selectedRouteId()); });
+  async function refreshActiveBoard() {
+    if (document.getElementById("directBoard").classList.contains("active")) await loadDirectOrders();
+    else await loadBoard(selectedRouteId());
+  }
+  document.getElementById("alertCreateBtn").addEventListener("click", async () => { const customerId = document.getElementById("alertCustomerId").value; await api(`/route-orders/api/registries/${customerId}/alerts`, { method: "POST", body: JSON.stringify({ message: document.getElementById("alertMessage").value, start_date: document.getElementById("alertStart").value, end_date: document.getElementById("alertEnd").value }) }); await loadAlerts(customerId); await refreshActiveBoard(); });
+  document.getElementById("alertsList").addEventListener("click", async event => { const button = event.target.closest("[data-alert-delete]"); if (!button) return; await api(`/route-orders/api/alerts/${button.dataset.alertDelete}`, { method: "DELETE" }); await loadAlerts(document.getElementById("alertCustomerId").value); await refreshActiveBoard(); });
 
   loadBoard().catch(err => rowsEl.innerHTML = `<tr><td colspan="6" class="text-danger">${esc(err.message)}</td></tr>`);
 })();

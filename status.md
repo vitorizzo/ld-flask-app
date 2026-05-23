@@ -695,6 +695,25 @@ Stato noto:
       - plancia contiene tabs, Agenda e sezione `Clienti fuori giro`;
       - bacheca contiene tabs e linguetta Bacheca attiva;
     - verifica: `py_compile` ok su route ordini, Slack processor e kiosk.
+  - allineamento funzionale Diretti 2026-05-23:
+    - endpoint `/route-orders/api/direct-orders` ora restituisce anche righe cliente con `phones`, `alerts` e `orders`, non solo la lista piatta degli ordini;
+    - aggiunti endpoint:
+      - `POST /route-orders/api/orders/<id>/status`;
+      - `POST /route-orders/api/orders/<id>/delivery`;
+    - box Diretti allineato alla struttura del box Giro:
+      - colonna cliente;
+      - colonna contatti;
+      - colonna stato con `Ordine annullato`;
+      - colonna lista;
+      - colonna ordini;
+      - azioni ordine, consegna, avvisi, invia su Slack, annulla;
+    - lo stato dei singoli ordini ora e' modificabile anche dalla scheda ordine interna;
+    - `Ordine` e `Invia su Slack` nei Diretti aprono la modale di inserimento ordine diretto;
+    - `Consegna` nei Diretti aggiorna la data dell'ultimo ordine diretto del cliente;
+    - `Avvisi` e contatti nei Diretti usano gli stessi endpoint della vista Giro;
+    - verifica endpoint Diretti ok: risposta con `customers`, `phones`, `alerts`, `orders`;
+    - render test plancia ok: presenti contatti, stato ordine, annulla e invia Slack per Diretti;
+    - verifica: `py_compile` ok su `routes/route_orders.py`.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;
