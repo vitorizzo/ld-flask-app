@@ -1,0 +1,79 @@
+.context-tabs {
+    position: fixed;
+    left: max(0px, calc(5vw - 34px));
+    top: 232px;
+    z-index: 1060;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    pointer-events: none;
+}
+
+.kiosk-body .context-tabs {
+    left: 0;
+}
+
+.context-tab {
+    pointer-events: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 34px;
+    min-height: 108px;
+    padding: 10px 6px;
+    border: 1px solid rgba(255,255,255,0.35);
+    border-left: 0;
+    border-radius: 0 7px 7px 0;
+    background: #4A2C2A;
+    color: #fff;
+    box-shadow: 2px 3px 8px rgba(0,0,0,0.18);
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
+    font-family: "Oswald", Helvetica, sans-serif;
+    font-size: .86rem;
+    line-height: 1;
+    text-decoration: none;
+}
+
+.context-tab i {
+    transform: rotate(90deg);
+    font-size: .86rem;
+}
+
+.context-tab:hover,
+.context-tab:focus {
+    color: #fff;
+    background: #B91C1C;
+}
+
+.context-tab.active {
+    background: #fff;
+    color: #4A2C2A;
+    border-color: #4A2C2A;
+    box-shadow: 2px 3px 8px rgba(0,0,0,0.12);
+}
+
+.context-tab.active:hover,
+.context-tab.active:focus {
+    background: #fff;
+    color: #4A2C2A;
+}
+
+@media (max-width: 768px) {
+    .context-tabs {
+        top: auto;
+        bottom: 58px;
+    }
+
+    .context-tab {
+        width: 32px;
+        min-height: 44px;
+        padding: 9px 5px;
+    }
+
+    .context-tab span {
+        display: none;
+    }
+}
