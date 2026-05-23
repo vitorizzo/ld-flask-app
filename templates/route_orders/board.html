@@ -18,6 +18,23 @@
   .route-board-mode button { border: 0; border-radius: 6px; padding: .45rem .75rem; background: transparent; color: #495057; }
   .route-board-mode button.active { background: #4A2C2A; color: #fff; }
   .route-board-panel { background: #fff; color: #212529; border-radius: 8px; border: 1px solid #dee2e6; }
+  .route-board-section .route-board-panel,
+  .route-board-section .route-board-panel td,
+  .route-board-section .route-board-panel th,
+  .route-board-section .route-board-panel label,
+  .route-board-section .route-board-panel .form-check-label,
+  .route-board-section .route-board-panel .route-board-order__note,
+  .route-board-section .route-board-panel .route-board-direct-customer,
+  .route-board-section .modal-body,
+  .route-board-section input,
+  .route-board-section textarea,
+  .route-board-section select { color: #212529; }
+  .route-board-section > .d-flex .text-muted { color: rgba(255,255,255,.78) !important; }
+  .route-board-section .form-control,
+  .route-board-section .form-select { background: #fff; color: #212529; }
+  .route-board-section .route-board-panel .text-muted,
+  .route-board-section .route-board-panel .route-board-empty,
+  .route-board-section .route-board-order__meta { color: #6c757d !important; }
   .route-board-panel .table { width: 100%; margin: 0; color: #212529; }
   .route-board-customer { font-weight: 700; color: #212529; }
   .route-board-phone-row { display: grid; grid-template-columns: minmax(82px, auto) minmax(118px, 1fr) auto; gap: .35rem; align-items: center; margin-bottom: .25rem; }
@@ -28,6 +45,7 @@
   .route-board-order__head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .35rem; }
   .route-board-order__note { color: #212529; white-space: pre-wrap; font-size: .9rem; }
   .route-board-order__meta { color: #6c757d; font-size: .78rem; }
+  .route-board-direct-customer { font-weight: 700; color: #212529; }
   .route-board-actions { display: flex; gap: .35rem; justify-content: flex-end; flex-wrap: wrap; }
   .route-board-actions .btn { min-width: 2.1rem; }
   .route-board-empty { color: #6c757d; padding: .75rem; }
@@ -103,7 +121,22 @@
       <button class="btn btn-primary" id="newDirectOrderBtn" type="button"><i class="fa-solid fa-plus"></i> Inserisci ordine</button>
     </div>
     <div class="route-board-panel p-3">
-      <div id="directOrders" class="route-board-orders"><div class="route-board-empty">Gli ordini diretti compariranno dopo l'inserimento.</div></div>
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h6 mb-0">Clienti fuori giro</h2>
+        <span class="badge text-bg-secondary" id="directCount">0</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-sm table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Cliente</th>
+              <th>Ordini</th>
+              <th class="text-end">Azioni</th>
+            </tr>
+          </thead>
+          <tbody id="directOrders"><tr><td colspan="3" class="route-board-empty">Gli ordini diretti compariranno dopo l'inserimento.</td></tr></tbody>
+        </table>
+      </div>
     </div>
   </div>
 </section>
@@ -329,7 +362,28 @@
   }
 
   function renderDirectOrders() {
-    document.getElementById("directOrders").innerHTML = directOrders.length ? renderOrders(directOrders) : `<div class="route-board-empty">Nessun ordine diretto inserito in questa sessione.</div>`;
+    const tbody = document.getElementById("directOrders");
+    document.getElementById("directCount").textContent = String(directOrders.length);
+    if (!directOrders.length) {
+      tbody.innerHTML = `<tr><td colspan="3" class="route-board-empty">Nessun ordine diretto da mostrare.</td></tr>`;
+      return;
+    }
+    const groups = new Map();
+    directOrders.forEach(order => {
+      const key = order.customer_key || order.customer_display || `order-${order.id}`;
+      if (!groups.has(key)) groups.set(key, { display: order.customer_display || "Cliente", orders: [] });
+      groups.get(key).orders.push(order);
+    });
+    tbody.innerHTML = Array.from(groups.values()).map(group => {
+      const allDocumentsIssued = group.orders.length && group.orders.every(order => order.document_issued);
+      const documentBadge = `<div class="mt-1"><span class="badge ${allDocumentsIssued ? "text-bg-success" : "text-bg-warning"}">${allDocumentsIssued ? "documenti emessi" : "doc da emettere"}</span></div>`;
+      return `
+        <tr>
+          <td><span class="route-board-direct-customer">${esc(group.display)}</span>${documentBadge}</td>
+          <td>${renderOrders(group.orders)}</td>
+          <td class="text-end"><button class="btn btn-outline-primary btn-sm" type="button" data-direct-add><i class="fa-solid fa-plus"></i></button></td>
+        </tr>`;
+    }).join("");
   }
 
   async function loadDirectOrders() {
@@ -394,7 +448,12 @@
 
   document.getElementById("directOrders").addEventListener("click", async event => {
     const button = event.target.closest("button[data-action]");
-    if (!button) return;
+    if (!button) {
+      if (event.target.closest("[data-direct-add]")) {
+        document.getElementById("newDirectOrderBtn").click();
+      }
+      return;
+    }
     try {
       if (button.dataset.action === "order-attach") {
         const input = document.createElement("input");

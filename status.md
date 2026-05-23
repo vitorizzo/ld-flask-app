@@ -683,6 +683,18 @@ Stato noto:
       - `doc da emettere` se almeno un ordine non e' flaggato;
     - verifica route Flask: Agenda risulta esposta su `/cassa/agenda`;
     - verifica: `py_compile` ok su `routes/route_orders.py` e `tools/slack_processor.py`.
+  - rifinitura notebook/plancia 2026-05-23:
+    - linguette rese piu' piccole e aderenti al bordo del foglio, stile rubrica telefonica;
+    - linguetta attiva in negativo: sfondo bianco e testo marrone;
+    - partial unico `templates/partials/context_tabs.html`;
+    - CSS dedicato `static/css/context_tabs.css`;
+    - linguette incluse anche in `base_kiosk.html`, quindi visibili anche sulla bacheca ordini;
+    - box Diretti uniformato al box clienti del giro con tabella `Cliente / Ordini / Azioni`;
+    - colori del pannello plancia rinforzati per evitare note/testi bianco su bianco;
+    - render test autenticato ok:
+      - plancia contiene tabs, Agenda e sezione `Clienti fuori giro`;
+      - bacheca contiene tabs e linguetta Bacheca attiva;
+    - verifica: `py_compile` ok su route ordini, Slack processor e kiosk.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

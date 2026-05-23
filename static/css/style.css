@@ -656,48 +656,6 @@ h1,h2,h3,h4{
     to { opacity: 1; transform: translate(-50%, 0); }
   }
 
-.context-tabs {
-    position: fixed;
-    left: 0;
-    top: 225px;
-    z-index: 1040;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    align-items: flex-start;
-}
-
-.context-tab {
-    display: grid;
-    grid-template-columns: 22px auto;
-    align-items: center;
-    gap: 7px;
-    min-width: 116px;
-    padding: 12px 10px;
-    border-radius: 0 8px 8px 0;
-    background: rgba(74, 44, 42, 0.95);
-    color: #fff;
-    box-shadow: 0 6px 16px rgba(0,0,0,0.25);
-    writing-mode: vertical-rl;
-    text-orientation: mixed;
-    transform: rotate(180deg);
-    border: 1px solid rgba(255,255,255,0.2);
-    border-left: 0;
-    transition: background-color .18s ease, padding-left .18s ease;
-}
-
-.context-tab:hover,
-.context-tab:focus {
-    color: #fff;
-    background: #B91C1C;
-    padding-left: 16px;
-}
-
-.context-tab i {
-    text-align: center;
-    transform: rotate(90deg);
-}
-
 .quick-actions {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -721,18 +679,4 @@ h1,h2,h3,h4{
 .quick-action:hover {
     background: #B91C1C;
     color: #fff;
-}
-
-@media (max-width: 768px) {
-    .context-tabs {
-        top: auto;
-        bottom: 58px;
-    }
-    .context-tab {
-        min-width: 44px;
-        padding: 10px 8px;
-    }
-    .context-tab span {
-        display: none;
-    }
 }
