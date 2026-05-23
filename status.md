@@ -673,6 +673,16 @@ Stato noto:
       - allegati aggiunti dalla plancia a ordine gia' esistente;
     - viene registrato un evento `SlackOrderEvent` con motivo del reset;
     - verifica: `py_compile` ok su `routes/route_orders.py` e `tools/slack_processor.py`.
+  - correzioni UI plancia 2026-05-23:
+    - fold laterali trasformati in tab verticali stile notebook;
+    - link Agenda corretto da `/agenda` a `/cassa/agenda`;
+    - larghezza plancia portata a `90vw` per migliorare leggibilita';
+    - switch `Giro | Diretti` reso esclusivo: la sezione giri viene nascosta quando si passa a Diretti;
+    - badge documento spostato sotto il nome cliente:
+      - `documenti emessi` se tutti gli ordini del cliente sono flaggati;
+      - `doc da emettere` se almeno un ordine non e' flaggato;
+    - verifica route Flask: Agenda risulta esposta su `/cassa/agenda`;
+    - verifica: `py_compile` ok su `routes/route_orders.py` e `tools/slack_processor.py`.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

@@ -22,7 +22,7 @@
         <a class="quick-action" href="/search/ricerca_x_descrizione"><i class="fa-solid fa-magnifying-glass"></i><span>Informazioni articoli</span></a>
         <a class="quick-action" href="/static/documents/LD_Selection.pdf" target="_blank" rel="noopener"><i class="fa-regular fa-file-pdf"></i><span>LD Selection</span></a>
         {% if current_user.is_authenticated and current_user.max_role_weight >= 40 %}
-            <a class="quick-action" href="/agenda"><i class="fa-regular fa-calendar-days"></i><span>Agenda</span></a>
+            <a class="quick-action" href="/cassa/agenda"><i class="fa-regular fa-calendar-days"></i><span>Agenda</span></a>
         {% endif %}
     </div>
 </section>

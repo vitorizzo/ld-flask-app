@@ -656,40 +656,46 @@ h1,h2,h3,h4{
     to { opacity: 1; transform: translate(-50%, 0); }
   }
 
-.context-folds {
+.context-tabs {
     position: fixed;
     left: 0;
-    top: 230px;
+    top: 225px;
     z-index: 1040;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
+    align-items: flex-start;
 }
 
-.context-fold {
+.context-tab {
     display: grid;
-    grid-template-columns: 28px auto;
+    grid-template-columns: 22px auto;
     align-items: center;
-    gap: 8px;
-    min-width: 126px;
-    transform: translateX(-88px);
-    padding: 10px 12px;
+    gap: 7px;
+    min-width: 116px;
+    padding: 12px 10px;
     border-radius: 0 8px 8px 0;
     background: rgba(74, 44, 42, 0.95);
     color: #fff;
     box-shadow: 0 6px 16px rgba(0,0,0,0.25);
-    transition: transform .18s ease, background-color .18s ease;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    border: 1px solid rgba(255,255,255,0.2);
+    border-left: 0;
+    transition: background-color .18s ease, padding-left .18s ease;
 }
 
-.context-fold:hover,
-.context-fold:focus {
-    transform: translateX(0);
+.context-tab:hover,
+.context-tab:focus {
     color: #fff;
     background: #B91C1C;
+    padding-left: 16px;
 }
 
-.context-fold i {
+.context-tab i {
     text-align: center;
+    transform: rotate(90deg);
 }
 
 .quick-actions {
@@ -718,15 +724,15 @@ h1,h2,h3,h4{
 }
 
 @media (max-width: 768px) {
-    .context-folds {
+    .context-tabs {
         top: auto;
         bottom: 58px;
     }
-    .context-fold {
+    .context-tab {
         min-width: 44px;
-        transform: translateX(-2px);
+        padding: 10px 8px;
     }
-    .context-fold span {
+    .context-tab span {
         display: none;
     }
 }

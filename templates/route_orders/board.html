@@ -5,7 +5,14 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css') }}">
 <style>
-  .route-board-section { max-width: 80%; margin-left: auto; margin-right: auto; text-align: left; }
+  .route-board-section {
+    width: 90vw;
+    max-width: 90vw;
+    margin-left: 50%;
+    margin-right: 0;
+    transform: translateX(-50%);
+    text-align: left;
+  }
   .route-board-top { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto auto; gap: .75rem; align-items: end; }
   .route-board-mode { display: inline-flex; gap: .25rem; padding: .25rem; background: #f1f3f5; border-radius: 8px; }
   .route-board-mode button { border: 0; border-radius: 6px; padding: .45rem .75rem; background: transparent; color: #495057; }
@@ -25,10 +32,10 @@
   .route-board-actions .btn { min-width: 2.1rem; }
   .route-board-empty { color: #6c757d; padding: .75rem; }
   .route-board-bulk { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
-  .direct-board { display: none; }
-  .direct-board.active, .route-board.active { display: block; }
+  #routeBoard, .direct-board { display: none; }
+  #routeBoard.active, .direct-board.active { display: block; }
   @media (max-width: 1100px) {
-    .route-board-section { max-width: 96%; }
+    .route-board-section { width: 96vw; max-width: 96vw; }
     .route-board-top { grid-template-columns: 1fr; }
   }
 </style>
@@ -241,7 +248,6 @@
           <div>
             <input class="form-check-input me-1" type="checkbox" data-order-select value="${order.id}">
             <span class="badge text-bg-light">${esc(order.status)}</span>
-            ${order.document_issued ? '<span class="badge text-bg-success">documento</span>' : '<span class="badge text-bg-warning">doc da emettere</span>'}
           </div>
           <label class="small mb-0"><input class="form-check-input me-1" type="checkbox" data-action="document" data-order-id="${order.id}" ${order.document_issued ? "checked" : ""}> Documento</label>
         </div>
@@ -275,9 +281,14 @@
         </div>`).join("") : `<span class="text-muted small">Nessun numero</span>`;
       const statusOptions = state.statuses.map(status => `<option value="${esc(status.code)}" ${entry.status === status.code ? "selected" : ""}>${esc(status.label)}</option>`).join("");
       const alertBadge = customer.alerts && customer.alerts.length ? `<span title="${esc(alertsTitle(customer.alerts))}" class="ms-1">⚠</span>` : "";
+      const hasOrders = (customer.orders || []).length > 0;
+      const allDocumentsIssued = hasOrders && (customer.orders || []).every(order => order.document_issued);
+      const documentBadge = hasOrders
+        ? `<div class="mt-1"><span class="badge ${allDocumentsIssued ? "text-bg-success" : "text-bg-warning"}">${allDocumentsIssued ? "documenti emessi" : "doc da emettere"}</span></div>`
+        : "";
       return `
         <tr data-customer-id="${customer.id}">
-          <td><span class="route-board-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span><div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div></td>
+          <td><span class="route-board-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span>${documentBadge}<div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div></td>
           <td>${phones}<button class="btn btn-outline-primary btn-sm mt-1" type="button" data-action="contact-add"><i class="fa-solid fa-plus"></i> Contatto</button></td>
           <td><select class="form-select form-select-sm" data-action="status">${statusOptions}</select></td>
           <td class="text-center"><input class="form-check-input" type="checkbox" data-action="listDone" ${entry.list_done ? "checked" : ""}></td>
