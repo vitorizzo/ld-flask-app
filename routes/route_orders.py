@@ -1,8 +1,11 @@
+import mimetypes
+import os
 from datetime import date, datetime, time, timedelta
 
 from flask import Blueprint, current_app, jsonify, render_template, request
 from flask_login import login_required
 from sqlalchemy import or_
+from werkzeug.utils import secure_filename
 
 from extensions import db
 from models import (
@@ -35,6 +38,7 @@ BOARD_STATUSES = [
     {"code": "salta_giro", "label": "Salta il giro"},
     {"code": "chiama_lui", "label": "Chiama lui"},
     {"code": "non_risponde", "label": "Non risponde"},
+    {"code": "annullato", "label": "Ordine annullato"},
 ]
 
 
@@ -377,6 +381,182 @@ def _format_slack_message(registry, entry):
     return "\n".join(lines)
 
 
+def _upload_folder():
+    folder = os.path.join(current_app.static_folder, "uploads", "route_orders", datetime.utcnow().strftime("%Y%m%d"))
+    os.makedirs(folder, exist_ok=True)
+    return folder
+
+
+def _static_rel_path(abs_path):
+    return os.path.relpath(abs_path, current_app.static_folder).replace(os.sep, "/")
+
+
+def _public_upload_path(abs_path):
+    return f"/static/{_static_rel_path(abs_path)}"
+
+
+def _save_uploaded_files(files):
+    saved = []
+    for file in files:
+        if not file:
+            continue
+        raw_filename = file.filename or f"allegato-{len(saved) + 1}{mimetypes.guess_extension(file.mimetype or '') or ''}"
+        filename = secure_filename(raw_filename) or f"allegato-{len(saved) + 1}"
+        target = os.path.join(_upload_folder(), f"{datetime.utcnow().strftime('%H%M%S%f')}_{filename}")
+        file.save(target)
+        saved.append({
+            "id": f"route-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}-{len(saved) + 1}",
+            "source": "route_board",
+            "name": filename,
+            "title": filename,
+            "filename": filename,
+            "mimetype": file.mimetype,
+            "content_type": file.mimetype,
+            "filetype": os.path.splitext(filename)[1].lstrip(".").lower(),
+            "size": os.path.getsize(target),
+            "is_image": (file.mimetype or "").startswith("image/"),
+            "url": _public_upload_path(target),
+            "static_path": _static_rel_path(target),
+        })
+    return saved
+
+
+def _files_from_request():
+    files = []
+    for _, values in request.files.lists():
+        files.extend(values)
+    return files
+
+
+def _attachment_abs_path(file_info):
+    rel = (file_info.get("static_path") or "").strip().replace("\\", "/")
+    if not rel and (file_info.get("url") or "").startswith("/static/"):
+        rel = file_info["url"][len("/static/"):]
+    if not rel.startswith("uploads/route_orders/") and not rel.startswith("uploads/shared_orders/"):
+        return None
+    candidate = os.path.abspath(os.path.join(current_app.static_folder, rel))
+    static_root = os.path.abspath(current_app.static_folder)
+    if not candidate.startswith(static_root + os.sep) or not os.path.exists(candidate):
+        return None
+    return candidate
+
+
+def _upload_attachments_to_slack(api, channel_id, thread_ts, attachments):
+    for file_info in attachments or []:
+        abs_path = _attachment_abs_path(file_info)
+        if not abs_path:
+            raise RuntimeError(f"allegato non trovato: {file_info.get('filename') or file_info.get('name') or 'file'}")
+        filename = file_info.get("filename") or file_info.get("name") or os.path.basename(abs_path)
+        api.upload_file(channel_id, abs_path, title=filename, filename=filename, thread_ts=thread_ts)
+
+
+def _add_attachment_event(order, attachments, via="route_order_board"):
+    if not order or not attachments:
+        return
+    db.session.add(SlackOrderEvent(
+        order_id=order.id,
+        type="note",
+        payload={
+            "text": "Allegati ordine",
+            "attachments": attachments,
+            "via": via,
+        },
+    ))
+
+
+def _reset_document_issued(order, *, via, reason):
+    if not order or not getattr(order, "document_issued", False):
+        return
+    order.document_issued = False
+    order.document_issued_at = None
+    db.session.add(SlackOrderEvent(
+        order_id=order.id,
+        type="note",
+        payload={
+            "text": "Documento riportato da emettere per nuova aggiunta ordine",
+            "via": via,
+            "reason": reason,
+        },
+    ))
+
+
+def _order_to_dict(order):
+    return {
+        "id": order.id,
+        "route_id": order.route_id,
+        "customer_display": order.customer_display,
+        "customer_key": order.customer_key,
+        "order_date": order.order_date.isoformat() if order.order_date else None,
+        "planned_delivery_at": order.planned_delivery_at.isoformat() if order.planned_delivery_at else None,
+        "status": order.status,
+        "raw_text": order.raw_text or "",
+        "document_issued": bool(getattr(order, "document_issued", False)),
+        "document_issued_at": order.document_issued_at.isoformat() if getattr(order, "document_issued_at", None) else None,
+        "slack_channel_id": order.slack_channel_id,
+        "slack_message_ts": order.slack_message_ts,
+    }
+
+
+def _orders_for_customers(route_id, registry_ids, board_date):
+    if not registry_ids:
+        return {}
+    keys = [str(value) for value in registry_ids]
+    codes = [
+        code for code, in db.session.query(BusinessRegistry.source_code)
+        .filter(BusinessRegistry.id.in_(registry_ids), BusinessRegistry.source_code.isnot(None))
+        .all()
+    ]
+    keys.extend(codes)
+    orders = (
+        SlackOrder.query
+        .filter(
+            SlackOrder.route_id == route_id,
+            SlackOrder.customer_key.in_(keys),
+            or_(
+                SlackOrder.order_date >= board_date,
+                SlackOrder.planned_delivery_at >= datetime.combine(board_date, time.min),
+            ),
+            SlackOrder.status.notin_(["cancellato"]),
+        )
+        .order_by(SlackOrder.created_at.asc(), SlackOrder.id.asc())
+        .all()
+    )
+    out = {}
+    code_to_id = dict(
+        db.session.query(BusinessRegistry.source_code, BusinessRegistry.id)
+        .filter(BusinessRegistry.id.in_(registry_ids), BusinessRegistry.source_code.isnot(None))
+        .all()
+    )
+    for order in orders:
+        registry_id = int(order.customer_key) if str(order.customer_key).isdigit() and int(order.customer_key) in registry_ids else code_to_id.get(order.customer_key)
+        if registry_id:
+            out.setdefault(registry_id, []).append(_order_to_dict(order))
+    return out
+
+
+def _direct_order_route():
+    configured = (current_app.config.get("DIRECT_ORDER_SLACK_CHANNEL_ID") or current_app.config.get("PWA_DIRECT_ORDER_SLACK_CHANNEL_ID") or "").strip()
+    if configured:
+        route = DeliveryRoute.query.filter_by(slack_channel_id=configured, is_active=True).first()
+        return route, configured
+    route = (
+        DeliveryRoute.query
+        .filter(DeliveryRoute.is_active.is_(True), DeliveryRoute.name.ilike("%carsoli%"))
+        .order_by(DeliveryRoute.id.asc())
+        .first()
+    )
+    return route, route.slack_channel_id if route else ""
+
+
+def _format_direct_message(registry, note, planned_delivery_at=None):
+    lines = [f"*{_label_registry(registry)}*"]
+    if note:
+        lines.append(note.strip())
+    if planned_delivery_at:
+        lines.append(f"Consegna: {planned_delivery_at.strftime('%d/%m/%Y')}")
+    return "\n".join(lines)
+
+
 @route_orders_bp.get("/board")
 @login_required
 @role_required(30)
@@ -389,6 +569,7 @@ def board_page():
 @role_required(30)
 def api_board():
     route_id = request.args.get("route_id", type=int)
+    only_with_orders = request.args.get("only_with_orders") in {"1", "true", "yes"}
     routes = DeliveryRoute.query.filter_by(is_active=True).order_by(DeliveryRoute.name.asc()).all()
     selected_route = DeliveryRoute.query.filter_by(id=route_id, is_active=True).first() if route_id else (routes[0] if routes else None)
     if not selected_route:
@@ -425,6 +606,7 @@ def api_board():
     entries_by_registry = {}
     for entry in entries:
         entries_by_registry.setdefault(entry.registry_id, []).append(entry)
+    orders_by_registry = _orders_for_customers(selected_route.id, registry_ids, board_date)
 
     alerts_by_registry = {}
     for alert in _visible_alerts_query(registry_ids, date.today()):
@@ -433,6 +615,9 @@ def api_board():
     rows = []
     for customer in customers:
         entry = _entry_for_customer(entries_by_registry, customer.id, board_date)
+        customer_orders = orders_by_registry.get(customer.id, [])
+        if only_with_orders and not customer_orders:
+            continue
         rows.append({
             "id": customer.id,
             "display": _label_registry(customer),
@@ -441,6 +626,7 @@ def api_board():
             "phones": _phone_contacts(customer),
             "alerts": [alert.to_dict() for alert in alerts_by_registry.get(customer.id, [])],
             "entry": _entry_to_dict(entry),
+            "orders": customer_orders,
         })
 
     return jsonify({
@@ -505,6 +691,204 @@ def api_save_entry():
     return jsonify({"ok": True, "entry": entry.to_dict()})
 
 
+@route_orders_bp.get("/api/customers")
+@login_required
+@role_required(30)
+def api_customers():
+    q = (request.args.get("q") or "").strip()
+    query = BusinessRegistry.query.filter(BusinessRegistry.kind == "customer", BusinessRegistry.is_active.is_(True))
+    if q:
+        like = f"%{q}%"
+        query = query.filter(or_(
+            BusinessRegistry.display_name.ilike(like),
+            BusinessRegistry.legal_name.ilike(like),
+            BusinessRegistry.source_code.ilike(like),
+            BusinessRegistry.vat_number.ilike(like),
+            BusinessRegistry.tax_code.ilike(like),
+            BusinessRegistry.city.ilike(like),
+        ))
+    customers = query.order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc()).limit(40).all()
+    return jsonify({
+        "ok": True,
+        "customers": [{
+            "id": customer.id,
+            "display": _label_registry(customer),
+            "source_code": customer.source_code,
+            "city": customer.city,
+        } for customer in customers],
+    })
+
+
+@route_orders_bp.post("/api/entries/<int:entry_id>/attachments")
+@login_required
+@role_required(30)
+def api_entry_attachments(entry_id):
+    entry = RouteOrderBoardEntry.query.get_or_404(entry_id)
+    saved = _save_uploaded_files(_files_from_request())
+    if not saved:
+        return jsonify({"ok": False, "error": "Nessun file ricevuto"}), 400
+    entry.order_attachments = (entry.order_attachments or []) + saved
+    db.session.commit()
+    return jsonify({"ok": True, "entry": entry.to_dict(), "attachments": entry.order_attachments or []})
+
+
+@route_orders_bp.post("/api/orders/<int:order_id>/attachments")
+@login_required
+@role_required(30)
+def api_order_attachments(order_id):
+    order = SlackOrder.query.get_or_404(order_id)
+    saved = _save_uploaded_files(_files_from_request())
+    if not saved:
+        return jsonify({"ok": False, "error": "Nessun file ricevuto"}), 400
+    bot_token = current_app.config.get("SLACK_BOT_TOKEN", "") or ""
+    if bot_token and order.slack_channel_id and order.slack_message_ts:
+        try:
+            _upload_attachments_to_slack(SlackAPI(SlackAPIConfig(bot_token=bot_token)), order.slack_channel_id, order.slack_message_ts, saved)
+        except Exception as exc:
+            db.session.rollback()
+            return jsonify({"ok": False, "error": f"Allegati non caricati su Slack: {exc}"}), 502
+    _reset_document_issued(order, via="route_order_board_attachment", reason="attachments_added")
+    _add_attachment_event(order, saved, via="route_order_board")
+    db.session.commit()
+    return jsonify({"ok": True, "order": _order_to_dict(order), "attachments": saved})
+
+
+@route_orders_bp.post("/api/orders/<int:order_id>/document")
+@login_required
+@role_required(30)
+def api_order_document(order_id):
+    order = SlackOrder.query.get_or_404(order_id)
+    data = request.get_json(silent=True) or {}
+    issued = bool(data.get("document_issued"))
+    old_value = bool(getattr(order, "document_issued", False))
+    order.document_issued = issued
+    order.document_issued_at = datetime.utcnow() if issued else None
+    db.session.add(SlackOrderEvent(
+        order_id=order.id,
+        type="note",
+        payload={"text": "Documento emesso" if issued else "Documento da emettere", "via": "route_order_board", "from": old_value, "to": issued},
+    ))
+    db.session.commit()
+    return jsonify({"ok": True, "order": _order_to_dict(order)})
+
+
+@route_orders_bp.post("/api/orders/bulk-status")
+@login_required
+@role_required(30)
+def api_orders_bulk_status():
+    data = request.get_json(silent=True) or {}
+    ids = [int(value) for value in (data.get("order_ids") or []) if str(value).isdigit()]
+    target_status = (data.get("status") or "evaso").strip()
+    if not ids:
+        return jsonify({"ok": False, "error": "Nessun ordine selezionato"}), 400
+    valid_status = OrderStatus.query.filter_by(code=target_status).first()
+    if not valid_status:
+        return jsonify({"ok": False, "error": "Stato non valido"}), 400
+    orders = SlackOrder.query.filter(SlackOrder.id.in_(ids)).all()
+    for order in orders:
+        old_status = order.status
+        if old_status == target_status:
+            continue
+        order.status = target_status
+        if target_status == "evaso":
+            order.evaded_at = datetime.utcnow()
+        if valid_status.is_terminal and not order.closed_at:
+            order.closed_at = datetime.utcnow()
+        db.session.add(SlackOrderEvent(
+            order_id=order.id,
+            type="status_change",
+            payload={"from": old_status, "to": target_status, "via": "route_order_board_bulk"},
+        ))
+    db.session.commit()
+    for order in orders:
+        try:
+            SlackProcessor().sync_order_status_reactions(order, old_status_code=None, new_status_code=target_status)
+        except Exception:
+            current_app.logger.exception("Sync reaction bulk failed order_id=%s", order.id)
+    return jsonify({"ok": True, "updated": len(orders)})
+
+
+@route_orders_bp.post("/api/direct-orders")
+@login_required
+@role_required(30)
+def api_direct_order_create():
+    registry = BusinessRegistry.query.filter_by(id=request.form.get("registry_id", type=int), kind="customer", is_active=True).first()
+    if not registry:
+        return jsonify({"ok": False, "error": "Cliente non valido"}), 404
+    note = (request.form.get("order_note") or "").strip()
+    if not note:
+        return jsonify({"ok": False, "error": "Testo ordine mancante"}), 400
+    planned_delivery_at = _parse_datetime(request.form.get("planned_delivery_at"), time(9, 0))
+    direct_route, channel_id = _direct_order_route()
+    if not channel_id:
+        return jsonify({"ok": False, "error": "Canale diretto Carsoli non configurato"}), 400
+    bot_token = current_app.config.get("SLACK_BOT_TOKEN", "") or ""
+    if not bot_token:
+        return jsonify({"ok": False, "error": "SLACK_BOT_TOKEN mancante"}), 503
+    attachments = _save_uploaded_files(_files_from_request())
+    message_text = _format_direct_message(registry, note, planned_delivery_at)
+    api = SlackAPI(SlackAPIConfig(bot_token=bot_token))
+    response = api.post_message(channel_id, message_text)
+    ts = response.get("ts") or (response.get("message") or {}).get("ts")
+    if not ts:
+        return jsonify({"ok": False, "error": f"Slack non ha restituito il timestamp del messaggio: {response}"}), 502
+    try:
+        _upload_attachments_to_slack(api, channel_id, ts, attachments)
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": f"Ordine inviato, ma allegati non caricati su Slack: {exc}"}), 502
+    order = SlackOrder(
+        route_id=direct_route.id if direct_route else None,
+        slack_channel_id=channel_id,
+        customer_display=_label_registry(registry),
+        customer_key=registry.source_code or str(registry.id),
+        order_date=datetime.utcnow().date(),
+        planned_delivery_at=planned_delivery_at,
+        status="acquisito",
+        raw_text=message_text,
+        slack_message_ts=ts,
+        slack_thread_ts=ts,
+        has_issues=False,
+    )
+    db.session.add(order)
+    db.session.flush()
+    db.session.add(SlackOrderEvent(
+        order_id=order.id,
+        type="created",
+        payload={"ts": ts, "text": message_text, "attachments": attachments, "via": "route_order_board_direct"},
+    ))
+    db.session.commit()
+    try:
+        send_push_to_staff("Nuovo ordine diretto", _label_registry(registry), f"/kiosk?order_id={order.id}")
+    except Exception:
+        current_app.logger.exception("Invio push ordine diretto fallito")
+    return jsonify({"ok": True, "order": _order_to_dict(order)})
+
+
+@route_orders_bp.get("/api/direct-orders")
+@login_required
+@role_required(30)
+def api_direct_orders():
+    direct_route, channel_id = _direct_order_route()
+    if not channel_id:
+        return jsonify({"ok": True, "orders": []})
+    orders = (
+        SlackOrder.query
+        .filter(
+            SlackOrder.slack_channel_id == channel_id,
+            or_(
+                SlackOrder.order_date >= date.today(),
+                SlackOrder.planned_delivery_at >= datetime.combine(date.today(), time.min),
+            ),
+            SlackOrder.status.notin_(["cancellato"]),
+        )
+        .order_by(SlackOrder.created_at.desc(), SlackOrder.id.desc())
+        .limit(80)
+        .all()
+    )
+    return jsonify({"ok": True, "orders": [_order_to_dict(order) for order in orders]})
+
+
 @route_orders_bp.post("/api/routes/<int:route_id>/delivery-date")
 @login_required
 @role_required(30)
@@ -557,10 +941,16 @@ def api_send_slack(entry_id):
     ts = response.get("ts") or (response.get("message") or {}).get("ts")
     if not ts:
         return jsonify({"ok": False, "error": f"Slack non ha restituito il timestamp del messaggio: {response}"}), 502
+    try:
+        _upload_attachments_to_slack(api, route.slack_channel_id, ts, entry.order_attachments or [])
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": f"Ordine inviato, ma allegati non caricati su Slack: {exc}"}), 502
     entry.slack_channel_id = route.slack_channel_id
     entry.slack_message_ts = ts
     entry.slack_thread_ts = ts
     entry.sent_at = datetime.utcnow()
+    entry.status = "ordine_fatto"
     target_status = "listato" if entry.list_done else "acquisito"
     if entry.list_done and ts:
         try:
@@ -568,7 +958,8 @@ def api_send_slack(entry_id):
         except Exception as exc:
             db.session.rollback()
             return jsonify({"ok": False, "error": f"Ordine inviato, ma reaction lista fatta non applicata: {exc}"}), 502
-    _ensure_slack_order(entry, target_status)
+    order = _ensure_slack_order(entry, target_status)
+    _add_attachment_event(order, entry.order_attachments or [], via="route_order_board")
     db.session.commit()
     try:
         send_push_to_staff("Nuovo ordine giro", _label_registry(registry), "/kiosk")
@@ -585,7 +976,7 @@ def api_cancel_order(entry_id):
     if not entry.slack_channel_id or not entry.slack_message_ts:
         entry.order_note = None
         entry.list_done = False
-        entry.status = "da_chiamare"
+        entry.status = "annullato"
         db.session.commit()
         return jsonify({"ok": True, "entry": entry.to_dict()})
 
@@ -606,7 +997,7 @@ def api_cancel_order(entry_id):
 
     entry.order_note = None
     entry.list_done = False
-    entry.status = "da_chiamare"
+    entry.status = "annullato"
     order = _ensure_slack_order(entry, "annullato")
     if order and not order.closed_at:
         order.closed_at = datetime.utcnow()

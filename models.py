@@ -921,6 +921,8 @@ class SlackOrder(db.Model):
     )
 
     evaded_at = db.Column(db.DateTime, nullable=True, index=True)
+    document_issued = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    document_issued_at = db.Column(db.DateTime, nullable=True)
 
     route = db.relationship("DeliveryRoute", backref="orders")
 
@@ -1427,6 +1429,7 @@ class RouteOrderBoardEntry(db.Model):
     planned_delivery_at = db.Column(db.DateTime, nullable=False, index=True)
     status = db.Column(db.String(40), nullable=False, default="da_chiamare", index=True)
     order_note = db.Column(db.Text, nullable=True)
+    order_attachments = db.Column(db.JSON, nullable=True)
     list_done = db.Column(db.Boolean, nullable=False, default=False)
     slack_channel_id = db.Column(db.String(50), nullable=True)
     slack_message_ts = db.Column(db.String(50), nullable=True)
@@ -1452,6 +1455,7 @@ class RouteOrderBoardEntry(db.Model):
             "planned_delivery_at": self.planned_delivery_at.isoformat() if self.planned_delivery_at else None,
             "status": self.status,
             "order_note": self.order_note or "",
+            "order_attachments": self.order_attachments or [],
             "list_done": self.list_done,
             "slack_channel_id": self.slack_channel_id,
             "slack_message_ts": self.slack_message_ts,
