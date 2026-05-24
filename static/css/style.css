@@ -14,7 +14,10 @@ body {
 body.app-shell {
     --app-header-height: 140px;
     --app-footer-height: 82px;
-    --app-tabs-width: 42px;
+    --app-tabs-fixed-width: 42px;
+    --app-tabs-open-width: 0px;
+    --app-tabs-gap: 8px;
+    --app-tabs-width: calc(var(--app-tabs-fixed-width) + var(--app-tabs-open-width) + var(--app-tabs-gap));
     --app-content-gap: 16px;
     min-height: 100vh;
     overflow: hidden;
@@ -23,8 +26,15 @@ body.app-shell {
 body.kiosk-body {
     --app-header-height: 0px;
     --app-footer-height: 0px;
-    --app-tabs-width: 42px;
+    --app-tabs-fixed-width: 42px;
+    --app-tabs-open-width: 0px;
+    --app-tabs-gap: 8px;
+    --app-tabs-width: calc(var(--app-tabs-fixed-width) + var(--app-tabs-open-width) + var(--app-tabs-gap));
     --app-content-gap: 16px;
+}
+
+html[data-has-page-tabs="1"] body.app-shell {
+    --app-tabs-open-width: 170px;
 }
 
 main.app-content {
@@ -566,7 +576,10 @@ h1,h2,h3,h4{
     body.app-shell {
         --app-header-height: 112px;
         --app-footer-height: 68px;
-        --app-tabs-width: 34px;
+        --app-tabs-fixed-width: 34px;
+        --app-tabs-open-width: 0px;
+        --app-tabs-gap: 6px;
+        --app-tabs-width: calc(var(--app-tabs-fixed-width) + var(--app-tabs-open-width) + var(--app-tabs-gap));
         --app-content-gap: 12px;
     }
 

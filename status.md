@@ -755,6 +755,35 @@ Stato noto:
     - le linguette usano variabili CSS per allinearsi al layout sia in base standard sia in kiosk;
     - il messaggio flash e' stato spostato in overlay fisso sotto la navbar per restare visibile nel nuovo frame;
     - verifica: `py_compile` ok su `routes/route_orders.py` e `routes/pwa.py`.
+  - tab pagina dinamico 2026-05-24:
+    - aggiunto nel notebook un secondo livello di linguette per le pagine aperte fuori dai tre contesti fissi:
+      - le pagine dinamiche si registrano in `sessionStorage`;
+      - ogni linguetta ha il titolo pagina e un pulsante `x` di chiusura;
+      - la chiusura di un tab dinamico riporta al tab precedente se presente, altrimenti all'ultima linguetta fissa visitata;
+    - linguette fisse mantenute immutate:
+      - `Agenda`;
+      - `Plancia ordini`;
+      - `Bacheca ordini`;
+    - le route fisse sono state rese precise sulle sole pagine richieste, senza inglobare prefissi più ampi;
+    - il layout centrale si allarga solo quando esistono pagine dinamiche aperte;
+    - la barra dinamica e' disabilitata sui layout kiosk;
+    - verifica: modifiche in `templates/base.html`, `templates/partials/context_tabs.html`, `static/css/context_tabs.css`, `static/css/style.css`, `static/js/base.js`.
+  - etichette esplicite tab dinamici 2026-05-24:
+    - aggiunta in `static/js/base.js` una mappa label per le pagine aperte piu' comuni, cosi' le linguette non usano piu' nomi grezzi o tecnici;
+    - esempi coperti:
+      - `Gestione menù`;
+      - `Associazione clienti-giri`;
+      - `Rubrica clienti`;
+      - `Rubrica fornitori`;
+      - `Conflitti import`;
+      - `Gestione azioni Trello`;
+      - `Connessioni Trello`;
+      - `Condivisione ordine`;
+      - `Installazione app`;
+      - `Gestione foto profilo`;
+      - `Modifica profilo`;
+    - fallback finale ancora basato su titolo pagina e poi sul path leggibile;
+    - verifica: route reali allineate con i path usati nella mappa.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

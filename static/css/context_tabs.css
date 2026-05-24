@@ -5,19 +5,41 @@
     bottom: var(--app-footer-height);
     z-index: 1060;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     align-items: flex-start;
     gap: 2px;
     pointer-events: none;
     width: var(--app-tabs-width);
     padding-top: 12px;
     padding-bottom: 12px;
+    overflow: hidden;
 }
 
 .kiosk-body .context-tabs {
     left: 0;
     top: 0;
     bottom: 0;
+}
+
+.context-tabs-fixed {
+    pointer-events: none;
+    width: var(--app-tabs-fixed-width);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+.context-tabs-pages {
+    pointer-events: none;
+    width: var(--app-tabs-open-width);
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 2px;
+    overflow-y: auto;
+    padding-left: 6px;
+    max-height: 100%;
 }
 
 .context-tab {
@@ -67,11 +89,81 @@
     color: #4A2C2A;
 }
 
+.context-tab-page {
+    pointer-events: auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 164px;
+    min-height: 42px;
+    padding: 8px 10px 8px 12px;
+    border: 1px solid rgba(255,255,255,0.35);
+    border-left: 0;
+    border-radius: 0 7px 7px 0;
+    background: #6c3c35;
+    color: #fff;
+    box-shadow: 2px 3px 8px rgba(0,0,0,0.18);
+    writing-mode: horizontal-tb;
+    transform: none;
+    font-family: "Oswald", Helvetica, sans-serif;
+    font-size: .82rem;
+    line-height: 1;
+    text-decoration: none;
+    text-align: left;
+}
+
+.context-tab-page__link {
+    flex: 1 1 auto;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+}
+
+.context-tab-page:hover,
+.context-tab-page:focus {
+    color: #fff;
+    background: #B91C1C;
+}
+
+.context-tab-page.active {
+    background: #fff;
+    color: #4A2C2A;
+    border-color: #4A2C2A;
+}
+
+.context-tab-page.active:hover,
+.context-tab-page.active:focus {
+    background: #fff;
+    color: #4A2C2A;
+}
+
+.context-tab-page__label {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.context-tab-page__close {
+    flex: 0 0 auto;
+    margin-left: 10px;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font-size: 1rem;
+    line-height: 1;
+    padding: 0;
+    cursor: pointer;
+}
+
 @media (max-width: 768px) {
     .context-tabs {
         top: var(--app-header-height);
         bottom: var(--app-footer-height);
-        width: 32px;
+        width: var(--app-tabs-fixed-width);
         padding-top: 8px;
         padding-bottom: 8px;
     }
@@ -83,6 +175,10 @@
     }
 
     .context-tab span {
+        display: none;
+    }
+
+    .context-tabs-pages {
         display: none;
     }
 }

@@ -1,16 +1,19 @@
 {% if current_user.is_authenticated and current_user.max_role_weight >= 30 %}
   {% set current_path = request.path %}
   <nav class="context-tabs" aria-label="Scorciatoie operative">
-    {% if current_user.max_role_weight >= 40 %}
-      <a class="context-tab{% if current_path.startswith('/cassa/agenda') %} active{% endif %}" href="/cassa/agenda" title="Agenda">
-        <i class="fa-regular fa-calendar-days"></i><span>Agenda</span>
+    <div class="context-tabs-fixed" aria-label="Pagine fisse">
+      {% if current_user.max_role_weight >= 40 %}
+        <a class="context-tab{% if current_path == '/cassa/agenda' %} active{% endif %}" href="/cassa/agenda" title="Agenda">
+          <i class="fa-regular fa-calendar-days"></i><span>Agenda</span>
+        </a>
+      {% endif %}
+      <a class="context-tab{% if current_path == '/route-orders/board' %} active{% endif %}" href="/route-orders/board" title="Plancia ordini">
+        <i class="fa-regular fa-clipboard"></i><span>Plancia</span>
       </a>
-    {% endif %}
-    <a class="context-tab{% if current_path.startswith('/route-orders') %} active{% endif %}" href="/route-orders/board" title="Plancia ordini">
-      <i class="fa-regular fa-clipboard"></i><span>Plancia</span>
-    </a>
-    <a class="context-tab{% if current_path.startswith('/kiosk') %} active{% endif %}" href="/kiosk/board/all" title="Bacheca ordini">
-      <i class="fa-solid fa-table-columns"></i><span>Bacheca</span>
-    </a>
+      <a class="context-tab{% if current_path == '/kiosk/board/all' %} active{% endif %}" href="/kiosk/board/all" title="Bacheca ordini">
+        <i class="fa-solid fa-table-columns"></i><span>Bacheca</span>
+      </a>
+    </div>
+    <div class="context-tabs-pages" id="openPageTabs" aria-label="Pagine aperte"></div>
   </nav>
 {% endif %}

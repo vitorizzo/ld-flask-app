@@ -1,9 +1,27 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="it" data-tabs-enabled="{{ 1 if current_user.is_authenticated and current_user.max_role_weight >= 30 else 0 }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LD Enoteca{% endblock %}</title>
+    <script>
+      (function () {
+        try {
+          const root = document.documentElement;
+          if (root.dataset.tabsEnabled !== "1") return;
+          const storageKey = "ldapp.page_tabs.v1";
+          const tabs = JSON.parse(sessionStorage.getItem(storageKey) || "[]");
+          const path = window.location.pathname || "/";
+          const hasDynamicTab = Array.isArray(tabs) && tabs.some(tab => tab && !tab.fixed);
+          const isFixedPage = path === "/cassa/agenda" || path === "/route-orders/board" || path === "/kiosk/board/all";
+          if (hasDynamicTab || !isFixedPage) {
+            root.dataset.hasPageTabs = "1";
+          }
+        } catch (err) {
+          console.warn("Tab state init failed", err);
+        }
+      })();
+    </script>
     <!-- Font Awesome 5 -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/v5-font-face.min.css" rel="stylesheet">
