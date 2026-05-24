@@ -828,6 +828,16 @@ Stato noto:
     - l'ultima modale aperta viene forzata in cima con `modal-top`;
     - il blocco agenda risulta verificato con `node --check static/js/agenda.js`;
     - il notebook resta sotto il piano modali anche dopo il restack.
+  - z-index modali agenda 2026-05-24:
+    - alzati i livelli delle modali/backdrop agenda sopra navbar e footer fissi (`2055/2050`);
+    - aggiunta una regola CSS esplicita per `modal.show` e `modal-backdrop.show` dell'agenda;
+    - la modale top torna completamente opaca e interagibile;
+    - verifica: `git diff --check` e `node --check` ok su agenda/base scripts.
+  - modali sopra navbar/footer 2026-05-24:
+    - portate le variabili Bootstrap `--bs-modal-zindex` e `--bs-backdrop-zindex` a `3000/2990` sia in `style.css` sia via JS su `body`, per evitare che navbar/footer restino sopra al backdrop;
+    - rimossa l'opacita' residua dalla modal underlay dell'agenda, lasciando solo lo spostamento e la saturazione ridotta;
+    - la modale attiva deve ora restare pienamente leggibile e cliccabile sopra al notebook e sopra ai fixed header/footer;
+    - verifica: `node --check static/js/agenda.js` ok.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

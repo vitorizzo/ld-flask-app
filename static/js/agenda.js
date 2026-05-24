@@ -3135,20 +3135,25 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   (function initModalStack3D() {
-    const BASE_MODAL_Z = 1055;
-    const BASE_BACKDROP_Z = 1050;
+    const BASE_MODAL_Z = 3000;
+    const BASE_BACKDROP_Z = 2990;
     const STEP = 20;
     const modalStack = [];
+
+    if (document.body) {
+      document.body.style.setProperty("--bs-modal-zindex", String(BASE_MODAL_Z));
+      document.body.style.setProperty("--bs-backdrop-zindex", String(BASE_BACKDROP_Z));
+    }
 
     function restack() {
       const modals = modalStack.filter(m => m && m.classList.contains("show"));
       modals.forEach((m, i) => {
-        m.style.zIndex = String(BASE_MODAL_Z + i * STEP);
+        m.style.setProperty("z-index", String(BASE_MODAL_Z + i * STEP));
       });
 
       const backdrops = Array.from(document.querySelectorAll(".modal-backdrop"));
       backdrops.forEach((bd, i) => {
-        bd.style.zIndex = String(BASE_BACKDROP_Z + i * STEP);
+        bd.style.setProperty("z-index", String(BASE_BACKDROP_Z + i * STEP));
       });
 
       modals.forEach((m, i) => {

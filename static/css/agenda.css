@@ -379,6 +379,11 @@
 .modal-backdrop.show {
   opacity: 0.7;
   backdrop-filter: blur(2px);
+  z-index: 2990 !important;
+}
+
+.modal.show {
+  z-index: 3000 !important;
 }
 
 .agenda-modal .modal-content {
@@ -480,7 +485,7 @@
 }
 
 .modal.modal-underlay .modal-content {
-  opacity: 0.96;
+  opacity: 1;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
   pointer-events: auto;
 }
@@ -491,6 +496,7 @@
 
 .modal.modal-top .modal-content {
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.32);
+  opacity: 1;
 }
 
 .agenda-modal #payPosBox .card {
