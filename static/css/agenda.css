@@ -377,13 +377,13 @@
 ========================= */
 
 .modal-backdrop.show {
-  opacity: 0.7;
-  backdrop-filter: blur(2px);
-  z-index: 2990 !important;
+  opacity: 0.22;
+  backdrop-filter: none;
+  z-index: 2090 !important;
 }
 
 .modal.show {
-  z-index: 3000 !important;
+  z-index: 2100 !important;
 }
 
 .agenda-modal .modal-content {

@@ -834,7 +834,8 @@ Stato noto:
     - la modale top torna completamente opaca e interagibile;
     - verifica: `git diff --check` e `node --check` ok su agenda/base scripts.
   - modali sopra navbar/footer 2026-05-24:
-    - portate le variabili Bootstrap `--bs-modal-zindex` e `--bs-backdrop-zindex` a `3000/2990` sia in `style.css` sia via JS su `body`, per evitare che navbar/footer restino sopra al backdrop;
+    - portate le variabili Bootstrap `--bs-modal-zindex` e `--bs-backdrop-zindex` a `2100/2090` sia in `style.css` sia via JS su `body`, per tenere modale sopra navbar/footer senza spegnere tutta la UI;
+    - abbassata l'opacita' della backdrop agenda a `0.22` e rimosso il blur, per evitare l'effetto "schermo spento";
     - rimossa l'opacita' residua dalla modal underlay dell'agenda, lasciando solo lo spostamento e la saturazione ridotta;
     - la modale attiva deve ora restare pienamente leggibile e cliccabile sopra al notebook e sopra ai fixed header/footer;
     - verifica: `node --check static/js/agenda.js` ok.

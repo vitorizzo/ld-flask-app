@@ -3135,8 +3135,8 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   (function initModalStack3D() {
-    const BASE_MODAL_Z = 3000;
-    const BASE_BACKDROP_Z = 2990;
+    const BASE_MODAL_Z = 2100;
+    const BASE_BACKDROP_Z = 2090;
     const STEP = 20;
     const modalStack = [];
 
@@ -3148,7 +3148,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     function restack() {
       const modals = modalStack.filter(m => m && m.classList.contains("show"));
       modals.forEach((m, i) => {
-        m.style.setProperty("z-index", String(BASE_MODAL_Z + i * STEP));
+      m.style.setProperty("z-index", String(BASE_MODAL_Z + i * STEP));
       });
 
       const backdrops = Array.from(document.querySelectorAll(".modal-backdrop"));
