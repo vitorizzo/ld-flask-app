@@ -33,10 +33,6 @@ body.kiosk-body {
     --app-content-gap: 16px;
 }
 
-html[data-has-page-tabs="1"] body.app-shell {
-    --app-tabs-open-width: 170px;
-}
-
 main.app-content {
     position: fixed;
     top: var(--app-header-height);

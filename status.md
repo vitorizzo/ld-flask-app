@@ -795,6 +795,20 @@ Stato noto:
     - verifiche:
       - `node --check static/js/base.js` ok;
       - `git diff --check` senza errori di patch.
+  - tab dinamici verticali 2026-05-24:
+    - le linguette dinamiche sono state riallineate allo stesso orientamento verticale delle fisse;
+    - la colonna dinamica resta sotto le fisse e non apre piu' una fascia orizzontale separata;
+    - la larghezza laterale occupata dal notebook resta quella delle tab verticali, senza allargare ulteriormente la shell;
+    - verifica: `node --check static/js/base.js` ok.
+  - bordo pagina notebook 2026-05-24:
+    - aggiunta una linea verticale separatrice sul lato destro del notebook per simulare il bordo della pagina;
+    - aumentata la spaziatura tra le tab fisse e quelle dinamiche per dare piu' respiro visivo;
+    - il bordo viene nascosto sui layout mobili;
+    - verifica: `git diff --check` e `node --check static/js/base.js` ok.
+  - rifinitura bordo notebook 2026-05-24:
+    - il bordo pagina ha ora una linea piu' sottile con lieve ombra e un alone laterale per effetto carta/rubrica;
+    - le tab mantengono la stessa geometria verticale, ma il margine visivo lato contenuto e' piu' morbido;
+    - verifica: `git diff --check` su `static/css/context_tabs.css` e `node --check static/js/base.js` ok.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;
