@@ -823,6 +823,11 @@ Stato noto:
     - rimosso il blocco `pointer-events: none` dalla modal underlay dell'agenda, cosi' una modale eventualmente classificata come underlay resta interagibile;
     - il notebook resta piu' basso nel piano degli z-index per non coprire i dialoghi;
     - verifica: `git diff --check` su `static/css/context_tabs.css` e `static/css/agenda.css` ok.
+  - modal stack agenda 2026-05-24:
+    - la pila delle modali dell'agenda ora segue l'ordine di apertura effettivo invece dell'ordine DOM;
+    - l'ultima modale aperta viene forzata in cima con `modal-top`;
+    - il blocco agenda risulta verificato con `node --check static/js/agenda.js`;
+    - il notebook resta sotto il piano modali anche dopo il restack.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

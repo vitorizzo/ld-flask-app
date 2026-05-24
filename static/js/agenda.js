@@ -3138,9 +3138,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     const BASE_MODAL_Z = 1055;
     const BASE_BACKDROP_Z = 1050;
     const STEP = 20;
+    const modalStack = [];
 
     function restack() {
-      const modals = Array.from(document.querySelectorAll(".modal.show"));
+      const modals = modalStack.filter(m => m && m.classList.contains("show"));
       modals.forEach((m, i) => {
         m.style.zIndex = String(BASE_MODAL_Z + i * STEP);
       });
@@ -3157,8 +3158,22 @@ document.addEventListener("DOMContentLoaded", async function () {
       });
     }
 
-    document.addEventListener("shown.bs.modal", restack);
-    document.addEventListener("hidden.bs.modal", () => requestAnimationFrame(restack));
+    document.addEventListener("shown.bs.modal", event => {
+      const modal = event.target;
+      if (!modal || !modal.classList || !modal.classList.contains("modal")) return;
+      const existing = modalStack.indexOf(modal);
+      if (existing !== -1) modalStack.splice(existing, 1);
+      modalStack.push(modal);
+      restack();
+    });
+
+    document.addEventListener("hidden.bs.modal", event => {
+      const modal = event.target;
+      const idx = modalStack.indexOf(modal);
+      if (idx !== -1) modalStack.splice(idx, 1);
+      requestAnimationFrame(restack);
+    });
+
     document.addEventListener("show.bs.modal", () => setTimeout(restack, 0));
   })();
 

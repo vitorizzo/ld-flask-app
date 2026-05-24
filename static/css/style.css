@@ -14,9 +14,9 @@ body {
 body.app-shell {
     --app-header-height: 140px;
     --app-footer-height: 82px;
-    --app-tabs-fixed-width: 42px;
+    --app-tabs-fixed-width: 34px;
     --app-tabs-open-width: 0px;
-    --app-tabs-gap: 8px;
+    --app-tabs-gap: 0px;
     --app-tabs-width: calc(var(--app-tabs-fixed-width) + var(--app-tabs-open-width) + var(--app-tabs-gap));
     --app-content-gap: 16px;
     min-height: 100vh;
@@ -26,9 +26,9 @@ body.app-shell {
 body.kiosk-body {
     --app-header-height: 0px;
     --app-footer-height: 0px;
-    --app-tabs-fixed-width: 42px;
+    --app-tabs-fixed-width: 34px;
     --app-tabs-open-width: 0px;
-    --app-tabs-gap: 8px;
+    --app-tabs-gap: 0px;
     --app-tabs-width: calc(var(--app-tabs-fixed-width) + var(--app-tabs-open-width) + var(--app-tabs-gap));
     --app-content-gap: 16px;
 }
