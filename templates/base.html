@@ -26,7 +26,7 @@
     {% block extra_css %}{% endblock %}
 
 </head>
-<body>
+<body class="app-shell">
     <!-- Navbar -->
     {% if not kiosk_mode %}
         {% include "partials/navbar.html" %}
@@ -51,7 +51,7 @@
     {% endif %}
 
     <!-- Contenuto specifico -->
-    <main class="container py-4">
+    <main class="app-content container-fluid py-4">
         {% block content %}{% endblock %}
     </main>
     {% include 'partials/task_status.html' %}

@@ -11,8 +11,61 @@ body {
     font-family: "Oswald", Helvetica, sans-serif;
 }
 
-.py-4{
-    min-height: 700px;
+body.app-shell {
+    --app-header-height: 140px;
+    --app-footer-height: 82px;
+    --app-tabs-width: 42px;
+    --app-content-gap: 16px;
+    min-height: 100vh;
+    overflow: hidden;
+}
+
+body.kiosk-body {
+    --app-header-height: 0px;
+    --app-footer-height: 0px;
+    --app-tabs-width: 42px;
+    --app-content-gap: 16px;
+}
+
+main.app-content {
+    position: fixed;
+    top: var(--app-header-height);
+    left: 0;
+    right: 0;
+    bottom: var(--app-footer-height);
+    overflow: auto;
+    box-sizing: border-box;
+    padding: var(--app-content-gap) var(--app-content-gap) var(--app-content-gap) calc(var(--app-tabs-width) + var(--app-content-gap));
+}
+
+main.app-content.py-4 {
+    min-height: 0;
+}
+
+body.app-shell #flash-message {
+    position: fixed;
+    top: calc(var(--app-header-height) + 8px);
+    left: calc(var(--app-tabs-width) + 12px);
+    right: 12px;
+    z-index: 1085;
+}
+
+body.kiosk-body #flash-message {
+    top: 8px;
+    left: calc(var(--app-tabs-width) + 12px);
+}
+
+body.kiosk-body main.app-content {
+    top: 0;
+    bottom: 0;
+}
+
+body.kiosk-body main.kiosk-content {
+    padding-top: var(--app-content-gap);
+}
+
+body.kiosk-body main.kiosk-content.py-4 {
+    min-height: 0;
 }
 
 a {
@@ -47,6 +100,11 @@ section {
 }
 
 .navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1070;
   background-color: #4A2C2A; /* Marrone principale */
   background-image: url('/static/images/bg-bottom-pattern.png'); /* Separatore in alto */
   background-repeat: repeat-x;
@@ -481,6 +539,10 @@ h1,h2,h3,h4{
     }
 
 .footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
     text-align: center;
     background-color: #4A2C2A; /* Marrone simile a quello del sito */
     background-image: url('/static/images/bg-top-pattern.png'); /* Separatore in alto */
@@ -488,10 +550,34 @@ h1,h2,h3,h4{
     background-position: top; /* Posiziona l'immagine in alto */
     background-size: contain;
     color: #ddd;
-    padding: 60px 0 10px 0;
-    bottom: 0;
-    left: 0;
-    width: 100%;
+    height: 82px;
+    padding: 0 0 10px 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 1070;
+}
+
+.footer p {
+    margin: 0;
+}
+
+@media (max-width: 992px) {
+    body.app-shell {
+        --app-header-height: 112px;
+        --app-footer-height: 68px;
+        --app-tabs-width: 34px;
+        --app-content-gap: 12px;
+    }
+
+    .navbar {
+        height: 112px;
+        padding-bottom: 12px;
+    }
+
+    .footer {
+        height: 68px;
+    }
 }
 
 /* Modale selezione annata */

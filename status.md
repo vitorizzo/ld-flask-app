@@ -746,6 +746,15 @@ Stato noto:
     - verifica:
       - `py_compile` ok su `routes/route_orders.py` e `routes/pwa.py`;
       - test `_ensure_slack_order` su DB produzione con rollback ok su entry `26`, senza creazione persistente di nuovi ordini.
+  - layout notebook 2026-05-24:
+    - `base.html` e `base_kiosk.html` portati a layout a viewport fisso:
+      - navbar ancorata in alto;
+      - footer ancorato in basso;
+      - linguette notebook in colonna fissa a sinistra tra navbar e footer;
+      - contenuto della webapp in area centrale scrollabile senza sovrapposizioni;
+    - le linguette usano variabili CSS per allinearsi al layout sia in base standard sia in kiosk;
+    - il messaggio flash e' stato spostato in overlay fisso sotto la navbar per restare visibile nel nuovo frame;
+    - verifica: `py_compile` ok su `routes/route_orders.py` e `routes/pwa.py`.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

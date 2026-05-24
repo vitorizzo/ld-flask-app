@@ -12,9 +12,11 @@
   {% block head %}{% endblock %}
 </head>
 
-<body class="kiosk-body">
+<body class="app-shell kiosk-body">
   {% include "partials/context_tabs.html" %}
-  {% block content %}{% endblock %}
+  <main class="app-content kiosk-content">
+    {% block content %}{% endblock %}
+  </main>
 
   <!-- Bootstrap JS bundle (fondamentale per Modal) -->
   <!-- <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script> -->
