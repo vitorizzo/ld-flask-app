@@ -382,6 +382,20 @@
   z-index: 2090 !important;
 }
 
+body.app-shell .modal-backdrop.show {
+  top: var(--app-header-height);
+  left: var(--app-tabs-width);
+  right: 0;
+  bottom: var(--app-footer-height);
+}
+
+body.kiosk-body .modal-backdrop.show {
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
 .modal.show {
   z-index: 2100 !important;
 }

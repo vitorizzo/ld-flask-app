@@ -836,6 +836,7 @@ Stato noto:
   - modali sopra navbar/footer 2026-05-24:
     - portate le variabili Bootstrap `--bs-modal-zindex` e `--bs-backdrop-zindex` a `2100/2090` sia in `style.css` sia via JS su `body`, per tenere modale sopra navbar/footer senza spegnere tutta la UI;
     - abbassata l'opacita' della backdrop agenda a `0.22` e rimosso il blur, per evitare l'effetto "schermo spento";
+    - la backdrop della modale agenda e' stata confinata all'area di lavoro tra navbar, footer e colonne laterali, cosi' header e footer restano liberi;
     - rimossa l'opacita' residua dalla modal underlay dell'agenda, lasciando solo lo spostamento e la saturazione ridotta;
     - la modale attiva deve ora restare pienamente leggibile e cliccabile sopra al notebook e sopra ai fixed header/footer;
     - verifica: `node --check static/js/agenda.js` ok.
