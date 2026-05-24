@@ -482,7 +482,7 @@
 .modal.modal-underlay .modal-content {
   opacity: 0.96;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .modal.modal-top .modal-dialog {

@@ -12,7 +12,7 @@
     width: max-content;
     padding-top: 12px;
     padding-bottom: 12px;
-    padding-right: 0;
+    padding-right: 1px;
     overflow: visible;
 }
 
@@ -20,7 +20,7 @@
     content: "";
     position: absolute;
     top: 10px;
-    right: -1px;
+    right: 0;
     bottom: 10px;
     width: 1px;
     background: linear-gradient(to bottom, rgba(74, 44, 42, 0.12), rgba(74, 44, 42, 0.78), rgba(74, 44, 42, 0.12));
@@ -34,7 +34,7 @@
     content: "";
     position: absolute;
     top: 8px;
-    right: -7px;
+    right: -6px;
     bottom: 8px;
     width: 8px;
     background: linear-gradient(to right, rgba(74, 44, 42, 0.08), rgba(74, 44, 42, 0));
@@ -54,6 +54,7 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 2px;
+    margin-right: -1px;
 }
 
 .context-tabs-pages {
@@ -67,6 +68,7 @@
     padding-top: 12px;
     padding-left: 0;
     max-height: 100%;
+    margin-right: -1px;
 }
 
 .context-tab {

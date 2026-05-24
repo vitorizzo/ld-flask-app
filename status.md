@@ -819,6 +819,10 @@ Stato noto:
     - la linea pagina e le linguette restano visibili sulle viste normali ma non interferiscono con i dialoghi;
     - la linea separatrice e' stata avvicinata al bordo delle linguette per migliorare l'aggancio visivo;
     - verifica: `git diff --check` su `static/css/context_tabs.css` e `static/css/style.css` ok, `node --check static/js/base.js` ok.
+  - fix modale agenda 2026-05-24:
+    - rimosso il blocco `pointer-events: none` dalla modal underlay dell'agenda, cosi' una modale eventualmente classificata come underlay resta interagibile;
+    - il notebook resta piu' basso nel piano degli z-index per non coprire i dialoghi;
+    - verifica: `git diff --check` su `static/css/context_tabs.css` e `static/css/agenda.css` ok.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;
