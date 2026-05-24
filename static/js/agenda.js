@@ -3153,7 +3153,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       const backdrops = Array.from(document.querySelectorAll(".modal-backdrop"));
       backdrops.forEach((bd, i) => {
-        bd.style.setProperty("z-index", String(BASE_BACKDROP_Z + i * STEP));
+        bd.style.setProperty("z-index", String(BASE_BACKDROP_Z));
       });
 
       modals.forEach((m, i) => {
