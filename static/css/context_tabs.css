@@ -89,6 +89,7 @@
     font-size: .86rem;
     line-height: 1;
     text-decoration: none;
+    margin-right: -1px;
 }
 
 .context-tab i {
@@ -106,7 +107,9 @@
     background: #fff;
     color: #4A2C2A;
     border-color: #4A2C2A;
+    border-right-color: transparent;
     box-shadow: 2px 3px 8px rgba(0,0,0,0.12);
+    z-index: 2;
 }
 
 .context-tab.active:hover,
@@ -138,6 +141,7 @@
     text-decoration: none;
     text-align: left;
     overflow: visible;
+    margin-right: -1px;
 }
 
 .context-tab-page__link {
@@ -164,6 +168,8 @@
     background: #fff;
     color: #4A2C2A;
     border-color: #4A2C2A;
+    border-right-color: transparent;
+    z-index: 2;
 }
 
 .context-tab-page.active:hover,
@@ -179,6 +185,8 @@
     text-overflow: ellipsis;
     white-space: normal;
     text-align: center;
+    transform: rotate(180deg);
+    transform-origin: center center;
 }
 
 .context-tab-page__close {

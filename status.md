@@ -809,6 +809,11 @@ Stato noto:
     - il bordo pagina ha ora una linea piu' sottile con lieve ombra e un alone laterale per effetto carta/rubrica;
     - le tab mantengono la stessa geometria verticale, ma il margine visivo lato contenuto e' piu' morbido;
     - verifica: `git diff --check` su `static/css/context_tabs.css` e `node --check static/js/base.js` ok.
+  - allineamento linguette notebook 2026-05-24:
+    - le linguette ora risultano agganciate alla linea verticale con margine negativo sul lato destro;
+    - la linguetta attiva nasconde il tratto di bordo lato contenuto, cosi' non mostra la linea di selezione;
+    - le label delle linguette dinamiche sono ruotate di 180 gradi per uniformarle al verso richiesto;
+    - verifica: `git diff --check` su `static/css/context_tabs.css` e `node --check static/js/base.js` ok.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;
