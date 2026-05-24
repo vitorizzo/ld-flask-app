@@ -784,6 +784,17 @@ Stato noto:
       - `Modifica profilo`;
     - fallback finale ancora basato su titolo pagina e poi sul path leggibile;
     - verifica: route reali allineate con i path usati nella mappa.
+  - shell pagina uniforme 2026-05-24:
+    - `Agenda`, `Plancia ordini` e `Status ordini` sono state portate tutte a una `welcome-section` piena altezza:
+      - la sezione riempie l'area di lavoro;
+      - il contenuto interno scorre solo quando supera lo spazio disponibile;
+      - sono stati evitati sbordi fuori dal frame della `welcome-section`;
+    - `Plancia ordini` non usa piu' il centraggio/traslazione a `90vw`, ma occupa tutta la shell con flex layout;
+    - `Status ordini` e' stata racchiusa in una `welcome-section` dedicata, cosi' non resta piu' allo stato brado;
+    - le linguette dinamiche restano aggiunte a quelle statiche e la barra notebook continua a vivere nel layout fisso;
+    - verifiche:
+      - `node --check static/js/base.js` ok;
+      - `git diff --check` senza errori di patch.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

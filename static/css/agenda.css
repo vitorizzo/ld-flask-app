@@ -10,20 +10,15 @@
 
 .welcome-section.agenda-page {
   position: relative;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 95vw;
-  max-width: 2000px;
+  width: 100%;
+  max-width: none;
   margin: 0;
-  padding-left: 0;
-  padding-right: 0;
-  overflow-x: auto;
+  padding: 0;
+  overflow: hidden;
 }
 
-@supports (width: 100dvw) {
-  .welcome-section.agenda-page {
-    width: 95dvw;
-  }
+.welcome-section.agenda-page > .container-fluid {
+  padding: 16px;
 }
 
 #agendaCalendar {
