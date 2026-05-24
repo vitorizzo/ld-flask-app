@@ -838,6 +838,7 @@ Stato noto:
     - abbassata l'opacita' della backdrop agenda a `0.22` e rimosso il blur, per evitare l'effetto "schermo spento";
     - la backdrop della modale agenda e' stata confinata all'area di lavoro tra navbar, footer e colonne laterali, cosi' header e footer restano liberi;
     - i backdrop multipli non vengono piu' impilati sopra la modale: tutti restano al medesimo livello inferiore al dialogo attivo;
+    - le modali agenda vengono spostate nel `body` al bootstrap del JS, per evitare che restino intrappolate nello stacking del contenitore pagina e risultino visibili ma non interagibili;
     - rimossa l'opacita' residua dalla modal underlay dell'agenda, lasciando solo lo spostamento e la saturazione ridotta;
     - la modale attiva deve ora restare pienamente leggibile e cliccabile sopra al notebook e sopra ai fixed header/footer;
     - verifica: `node --check static/js/agenda.js` ok.

@@ -3140,6 +3140,12 @@ document.addEventListener("DOMContentLoaded", async function () {
     const STEP = 20;
     const modalStack = [];
 
+    document.querySelectorAll(".agenda-modal").forEach(modal => {
+      if (modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+      }
+    });
+
     if (document.body) {
       document.body.style.setProperty("--bs-modal-zindex", String(BASE_MODAL_Z));
       document.body.style.setProperty("--bs-backdrop-zindex", String(BASE_BACKDROP_Z));
