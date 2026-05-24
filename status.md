@@ -814,6 +814,11 @@ Stato noto:
     - la linguetta attiva nasconde il tratto di bordo lato contenuto, cosi' non mostra la linea di selezione;
     - le label delle linguette dinamiche sono ruotate di 180 gradi per uniformarle al verso richiesto;
     - verifica: `git diff --check` su `static/css/context_tabs.css` e `node --check static/js/base.js` ok.
+  - stack modali notebook 2026-05-24:
+    - abbassato il `z-index` del notebook sotto il piano delle modali Bootstrap/Agena per evitare ombre e blocchi di interazione;
+    - la linea pagina e le linguette restano visibili sulle viste normali ma non interferiscono con i dialoghi;
+    - la linea separatrice e' stata avvicinata al bordo delle linguette per migliorare l'aggancio visivo;
+    - verifica: `git diff --check` su `static/css/context_tabs.css` e `static/css/style.css` ok, `node --check static/js/base.js` ok.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;
