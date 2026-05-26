@@ -1,9 +1,10 @@
 # routes/logs_diplay.py
-import re
-
-import logging
-from flask import Blueprint, render_template, request
 import os
+import re
+import logging
+from pathlib import Path
+
+from flask import Blueprint, render_template, request
 
 from config.paths_config import LOGS_FOLDER
 from tools.log_utils import get_logger
@@ -12,12 +13,42 @@ logger = get_logger("logs_viewer", level=logging.DEBUG)
 
 logs_bp = Blueprint("logs_bp", __name__, url_prefix="/logs")
 
+BASE_LOG_RE = re.compile(r"^(?P<name>.+)\.log$")
+ROTATED_LOG_RE = re.compile(r"^.+\.log\.\d+$")
+
+
+def _available_log_files() -> list[str]:
+    log_dir = Path(LOGS_FOLDER)
+    if not log_dir.exists():
+        return []
+
+    files = []
+    for entry in log_dir.iterdir():
+        if not entry.is_file():
+            continue
+        name = entry.name
+        if name == ".gitkeep":
+            continue
+        if name.startswith(".__") and name.endswith(".lock"):
+            continue
+        if ROTATED_LOG_RE.match(name):
+            continue
+        if not BASE_LOG_RE.match(name):
+            continue
+        files.append(name)
+
+    return sorted(files, key=lambda name: (0 if name == "main.log" else 1, name.lower()))
+
 
 @logs_bp.route("/view")
 def visualizza_logs():
     logger.info(f"chiamata route visualizza logs")
+    files = _available_log_files()
     selected_file = request.args.get("file", "main.log")
     selected_level = request.args.get("level", "").upper()
+
+    if selected_file not in files:
+        selected_file = "main.log" if "main.log" in files else (files[0] if files else "main.log")
 
     file_path = os.path.join(LOGS_FOLDER, selected_file)
     logs = []
@@ -48,6 +79,7 @@ def visualizza_logs():
                     })
 
     return render_template("logs_display.html",
-                           files=os.listdir(LOGS_FOLDER),
+                           files=files,
                            selected_file=selected_file,
+                           selected_level=selected_level,
                            log_content=logs)

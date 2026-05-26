@@ -1,14 +1,17 @@
 # app/trello_client.py
 
+import logging
 import requests
 from flask import current_app
 from sqlalchemy.orm.exc import NoResultFound
 
 from extensions import db
 from models import TrelloConnection
+from tools.log_utils import get_logger
 
 
 BASE_URL = 'https://api.trello.com/1'
+logger = get_logger("trello_client", level=logging.INFO)
 
 
 class TrelloClientError(Exception):
@@ -42,7 +45,7 @@ def create_webhook(board_id: str, callback_url: str) -> str:
     }
     resp = requests.post(url, params=params)
     if not resp.ok:
-        current_app.logger.error(f"Trello create_webhook error: {resp.text}")
+        logger.error(f"Trello create_webhook error: {resp.text}")
         raise TrelloClientError(f"Errore creando webhook: {resp.status_code}")
     data = resp.json()
     # Salvo l'ID del webhook sul DB
@@ -72,7 +75,7 @@ def delete_webhook(webhook_id: str) -> None:
     params = {'key': api_key, 'token': token}
     resp = requests.delete(url, params=params)
     if not resp.ok:
-        current_app.logger.error(f"Trello delete_webhook error: {resp.text}")
+        logger.error(f"Trello delete_webhook error: {resp.text}")
         raise TrelloClientError(f"Errore eliminando webhook: {resp.status_code}")
 
     # Rimuovo l'ID dal record DB, se presente

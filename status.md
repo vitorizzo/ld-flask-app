@@ -858,6 +858,11 @@ Stato noto:
     - il nodo della modale viene spostato nel `body` all'avvio dello script, cosi' non resta intrappolato nella section che contiene l'iframe;
     - prima del `navigator.share` la modale viene chiusa, cosi' lo share sheet non resta sovrapposto al dialogo aperto;
     - la modale apre il focus sulla tendina versione per migliorare l'usabilita';
+  - audit log progetto 2026-05-26:
+    - il viewer dei log mostra solo i file `.log` base, esclude backup rotati e lock file, e ordina la lista mettendo `main.log` in testa;
+    - il viewer valida la selezione e ripiega su `main.log` se arriva un file non ammesso;
+    - i log dispersi in `current_app.logger` nei moduli principali (`route_orders`, `pwa`, `trello`, `trello_client`) sono stati riportati ai logger di modulo, cosi' finiscono anche nei file dedicati oltre che in `main.log`;
+    - verifica: `python -m py_compile routes/logs_display.py routes/route_orders.py routes/pwa.py routes/trello.py tools/trello_client.py tools/log_utils.py` ok.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

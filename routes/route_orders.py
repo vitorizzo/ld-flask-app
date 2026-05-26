@@ -1,3 +1,4 @@
+import logging
 import mimetypes
 import os
 from datetime import date, datetime, time, timedelta
@@ -27,9 +28,11 @@ from tools.role_required import role_required
 from tools.slack_api import SlackAPI, SlackAPIConfig
 from tools.slack_processor import SlackProcessor
 from tools.push_notifications import send_push_to_staff
+from tools.log_utils import get_logger
 
 
 route_orders_bp = Blueprint("route_orders", __name__)
+logger = get_logger("route_orders", level=logging.DEBUG)
 
 BOARD_STATUSES = [
     {"code": "da_chiamare", "label": "Da chiamare"},
@@ -877,7 +880,7 @@ def api_order_status(order_id):
         try:
             SlackProcessor().sync_order_status_reactions(order, old_status_code=old_status, new_status_code=new_status)
         except Exception:
-            current_app.logger.exception("Sync reaction status failed order_id=%s", order.id)
+            logger.exception("Sync reaction status failed order_id=%s", order.id)
     return jsonify({"ok": True, "order": _order_to_dict(order)})
 
 
@@ -935,7 +938,7 @@ def api_orders_bulk_status():
         try:
             SlackProcessor().sync_order_status_reactions(order, old_status_code=None, new_status_code=target_status)
         except Exception:
-            current_app.logger.exception("Sync reaction bulk failed order_id=%s", order.id)
+            logger.exception("Sync reaction bulk failed order_id=%s", order.id)
     return jsonify({"ok": True, "updated": len(orders)})
 
 
@@ -962,7 +965,7 @@ def api_direct_order_create():
     try:
         response = api.post_message(channel_id, message_text)
     except Exception as exc:
-        current_app.logger.exception("Invio Slack ordine diretto fallito")
+        logger.exception("Invio Slack ordine diretto fallito")
         return jsonify({"ok": False, "error": f"Invio Slack fallito: {exc}"}), 502
     ts = response.get("ts") or (response.get("message") or {}).get("ts")
     if not ts:
@@ -1003,7 +1006,7 @@ def api_direct_order_create():
     try:
         send_push_to_staff("Nuovo ordine diretto", _label_registry(registry), f"/kiosk?order_id={order.id}")
     except Exception:
-        current_app.logger.exception("Invio push ordine diretto fallito")
+        logger.exception("Invio push ordine diretto fallito")
     return jsonify({"ok": True, "order": _order_to_dict(order)})
 
 
@@ -1121,7 +1124,7 @@ def api_send_slack(entry_id):
     try:
         response = api.post_message(route.slack_channel_id, _format_slack_message(registry, entry))
     except Exception as exc:
-        current_app.logger.exception("Invio Slack ordine giro fallito entry_id=%s", entry.id)
+        logger.exception("Invio Slack ordine giro fallito entry_id=%s", entry.id)
         return jsonify({"ok": False, "error": f"Invio Slack fallito: {exc}"}), 502
     ts = response.get("ts") or (response.get("message") or {}).get("ts")
     if not ts:
@@ -1149,7 +1152,7 @@ def api_send_slack(entry_id):
     try:
         send_push_to_staff("Nuovo ordine giro", _label_registry(registry), "/kiosk")
     except Exception:
-        current_app.logger.exception("Invio push ordine giro fallito")
+        logger.exception("Invio push ordine giro fallito")
     return jsonify({"ok": True, "entry": entry.to_dict()})
 
 
@@ -1214,7 +1217,7 @@ def api_delete_order(entry_id):
                 SlackAPI(SlackAPIConfig(bot_token=bot_token)).delete_message(channel_id, message_ts)
             except Exception as exc:
                 slack_warning = f"Messaggio Slack non cancellato: {exc}"
-                current_app.logger.exception("Delete Slack message failed channel=%s ts=%s", channel_id, message_ts)
+                logger.exception("Delete Slack message failed channel=%s ts=%s", channel_id, message_ts)
         else:
             slack_warning = "SLACK_BOT_TOKEN mancante: cancellazione locale eseguita"
 

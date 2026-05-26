@@ -17,7 +17,7 @@
       <select name="level" id="level" class="form-select" onchange="this.form.submit()">
         <option value="">Tutti</option>
         {% for lvl in ['DEBUG', 'INFO', 'WARNING', 'ERROR'] %}
-          <option value="{{ lvl }}" {% if lvl == request.args.get('level') %}selected{% endif %}>{{ lvl }}</option>
+          <option value="{{ lvl }}" {% if lvl == selected_level %}selected{% endif %}>{{ lvl }}</option>
         {% endfor %}
       </select>
     </div>

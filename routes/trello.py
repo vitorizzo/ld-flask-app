@@ -87,7 +87,7 @@ def list_boards():
 def handle_webhook(conn_id):
     logger.info(f'route: /trello/webhook/{conn_id} <HEAD, POST>')
     if request.method == 'HEAD':
-        current_app.logger.info("↔️  Trello HEAD check, OK")
+        logger.info("↔️  Trello HEAD check, OK")
         return '', 200
 
     conn = TrelloConnection.query.get_or_404(conn_id)
@@ -103,13 +103,13 @@ def handle_webhook(conn_id):
     expected = base64.b64encode(mac).decode('utf-8')
 
     if not hmac.compare_digest(signature, expected):
-        current_app.logger.warning(
+        logger.warning(
             f"❌ HMAC mismatch (got {signature!r}, expected {expected!r})"
         )
         abort(401)
 
     payload = request.get_json(force=True)
-    current_app.logger.info(f"🎯 Ricevuto evento Trello per conn_id={conn_id}")
+    logger.info(f"🎯 Ricevuto evento Trello per conn_id={conn_id}")
     process_trello_event(connection=conn, payload=payload)
     return '', 200
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import mimetypes
 from datetime import datetime
+import logging
 
 from flask import Blueprint, current_app, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -21,12 +22,14 @@ from models import (
     SlackOrderEvent,
 )
 from tools.push_notifications import is_push_configured, push_config, send_push_to_staff, send_push_to_user
+from tools.log_utils import get_logger
 from tools.role_required import role_required
 from tools.slack_api import SlackAPI, SlackAPIConfig
 from tools.slack_processor import SlackProcessor
 
 
 pwa_bp = Blueprint("pwa", __name__)
+logger = get_logger("pwa", level=logging.DEBUG)
 
 
 def _share_upload_folder():
@@ -178,7 +181,7 @@ def share_target():
     for _, values in request.files.lists():
         files.extend(values)
     if not files:
-        current_app.logger.info(
+        logger.info(
             "PWA share senza file: form_keys=%s file_keys=%s content_type=%s",
             list(request.form.keys()),
             list(request.files.keys()),
@@ -480,7 +483,7 @@ def share_send_order(intent_id):
     try:
         send_push_to_staff("Nuovo ordine", _customer_label(registry), f"/kiosk?order_id={order.id}")
     except Exception:
-        current_app.logger.exception("Invio push nuovo ordine fallito")
+        logger.exception("Invio push nuovo ordine fallito")
     return jsonify({"ok": True, "entry": entry.to_dict() if entry else None, "order_id": order.id, "intent": intent.to_dict()})
 
 
