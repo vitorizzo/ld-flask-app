@@ -842,6 +842,11 @@ Stato noto:
     - rimossa l'opacita' residua dalla modal underlay dell'agenda, lasciando solo lo spostamento e la saturazione ridotta;
     - la modale attiva deve ora restare pienamente leggibile e cliccabile sopra al notebook e sopra ai fixed header/footer;
     - verifica: `node --check static/js/agenda.js` ok.
+  - ld selection notebook tab 2026-05-26:
+    - il pulsante home LD Selection punta ora a una route interna `/ld-selection` invece che al PDF statico diretto;
+    - aggiunta la pagina contenitore `templates/documents/ld_selection.html` con iframe del PDF;
+    - registrata la nuova label in `static/js/base.js` cosi' la pagina apre una linguetta del notebook;
+    - verifica: `python -m py_compile routes/documents.py` ok.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

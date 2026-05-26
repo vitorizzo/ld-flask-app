@@ -42,6 +42,7 @@
     { test: path => path === "/app_installation", label: "Installazione app" },
     { test: path => path === "/upload_photo", label: "Gestione foto profilo" },
     { test: path => path === "/edit_profile", label: "Modifica profilo" },
+    { test: path => path === "/ld-selection", label: "LD Selection" },
   ];
 
   function loadTabs() {
