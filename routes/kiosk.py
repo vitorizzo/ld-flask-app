@@ -1002,7 +1002,8 @@ def kiosk_api_board_all():
     )
 
 
-@kiosk_bp.route("/kiosk-ordini")
+@kiosk_bp.get("")
+@kiosk_bp.get("/kiosk-ordini")
 @login_required  # opzionale
 def kiosk_ordini_embed():
     return render_template("kiosk_ordini_embed.html")

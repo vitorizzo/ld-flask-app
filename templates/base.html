@@ -13,7 +13,7 @@
           const tabs = JSON.parse(sessionStorage.getItem(storageKey) || "[]");
           const path = window.location.pathname || "/";
           const hasDynamicTab = Array.isArray(tabs) && tabs.some(tab => tab && !tab.fixed);
-          const isFixedPage = path === "/cassa/agenda" || path === "/route-orders/board" || path === "/kiosk/board/all";
+          const isFixedPage = path === "/cassa/agenda" || path === "/route-orders/board" || path === "/kiosk";
           if (hasDynamicTab || !isFixedPage) {
             root.dataset.hasPageTabs = "1";
           }

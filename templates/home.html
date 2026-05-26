@@ -17,7 +17,7 @@
         {% if current_user.is_authenticated and current_user.max_role_weight >= 30 %}
             <a class="quick-action" href="/route-orders/board"><i class="fa-solid fa-plus"></i><span>Inserisci ordine</span></a>
             <a class="quick-action" href="/registry/customers"><i class="fa-regular fa-address-book"></i><span>Rubrica clienti</span></a>
-            <a class="quick-action" href="/kiosk/board/all"><i class="fa-solid fa-table-columns"></i><span>Bacheca ordini</span></a>
+            <a class="quick-action" href="/kiosk"><i class="fa-solid fa-table-columns"></i><span>Bacheca ordini</span></a>
         {% endif %}
         <a class="quick-action" href="/search/ricerca_x_descrizione"><i class="fa-solid fa-magnifying-glass"></i><span>Informazioni articoli</span></a>
         <a class="quick-action" href="{{ url_for('documents.ld_selection') }}"><i class="fa-regular fa-file-pdf"></i><span>LD Selection</span></a>

@@ -1,7 +1,7 @@
 (() => {
   const STORAGE_KEY = "ldapp.page_tabs.v1";
   const LAST_FIXED_KEY = "ldapp.page_tabs.last_fixed.v1";
-  const FIXED_PATHS = new Set(["/cassa/agenda", "/route-orders/board", "/kiosk/board/all"]);
+  const FIXED_PATHS = new Set(["/cassa/agenda", "/route-orders/board", "/kiosk"]);
   const PAGE_LABELS = [
     { test: path => path === "/settings/menus", label: "Gestione menù" },
     { test: path => path === "/registry/customer-routes", label: "Associazione clienti-giri" },
@@ -22,6 +22,7 @@
     { test: path => path === "/upload_photo", label: "Gestione foto profilo" },
     { test: path => path === "/edit_profile", label: "Modifica profilo" },
     { test: path => path === "/ld-selection", label: "LD Selection" },
+    { test: path => path === "/kiosk", label: "Bacheca ordini" },
     { test: path => path === "/logs/view", label: "log viewer" },
   ];
 
