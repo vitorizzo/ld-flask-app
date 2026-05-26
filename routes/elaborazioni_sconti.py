@@ -1,16 +1,20 @@
-import logging
+﻿import logging
 
 from flask import Blueprint, render_template, request, jsonify
 from math import prod
 from tools.log_utils import log_task, get_logger
 from tools.auth_manager import role_required
 import tools.role_required as rr
+import sys
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 # Logger per il modulo elaborazioni_sconti
 # logger = get_logger("sconti")  # crea automaticamente il file sconti.log
-print("🧩 MODULO elaborazioni_sconti.py IMPORTATO")
+
 logger = get_logger("sconti", level=logging.DEBUG)
-logger.debug("🧪 Logger 'sconti' inizializzato correttamente - test DEBUG")
+logger.debug("Logger 'sconti' inizializzato correttamente - test DEBUG")
 
 sconti_bp = Blueprint('sconti', __name__, template_folder='../templates')
 
@@ -46,7 +50,6 @@ def calcola_sconto_combinazione(acquistati, omaggio):
 @log_task(logger)
 @sconti_bp.route('/elaborazione-sconti')
 def elaborazione_sconti():
-    print(f"🔍 Handler nel logger 'sconti': {logger.handlers}")
     logger.debug(f"Caricamento pagina elaborazione sconti")
     return render_template('functions/elaborazione_sconti.html')
 
@@ -60,8 +63,8 @@ def test_roles():
 @role_required(40)
 @sconti_bp.route('/test-log')
 def test_log_sconti():
-    logger.debug("🔥 Questo è un log di DEBUG dal server Flask")
-    logger.info("📘 Questo è un log di INFO dal server Flask")
+    logger.debug("ðŸ”¥ Questo Ã¨ un log di DEBUG dal server Flask")
+    logger.info("ðŸ“˜ Questo Ã¨ un log di INFO dal server Flask")
     return "Log test inviati al logger 'sconti'"
 
 
@@ -86,13 +89,11 @@ def calcola_sconto_merce_endpoint():
     data = request.json
     val_merce_acquistata = data.get('val_acquisto')
     val_merce_omaggio = data.get('val_omaggio')
-    logger.debug("Test log DEBUG sconti — valore acquisto = %s", str(val_merce_acquistata))
-    logger.info("Test log INFO sconti — valore omaggio = %s", str(val_merce_omaggio))
-    logger.warning("⚠️ Test WARNING — questo log deve apparire sempre!")
+    logger.debug("Test log DEBUG sconti - valore acquisto = %s", str(val_merce_acquistata))
+    logger.info("Test log INFO sconti - valore omaggio = %s", str(val_merce_omaggio))
+    logger.warning("Test WARNING - questo log deve apparire sempre!")
     # logger.debug(f"Valore Merce Acquistata = {val_merce_acquistata}")
     # logger.debug(f"Valore Merce Omaggio = {val_merce_omaggio}")
-    print(f"Valore Merce Acquistata = {val_merce_acquistata}")
-    print(f"Valore Merce Omaggio = {val_merce_omaggio}")
     if val_merce_acquistata is None or val_merce_omaggio is None:
         logger.warning("Parametri mancanti nel calcolo sconto merce.")
         return jsonify({'error': 'I campi merce acquistata e merce omaggio sono obbligatori.'}), 400
@@ -121,3 +122,4 @@ def calcola_sconto_complementare_endpoint():
     sconti_fissi = request.json.get('sconti_fissi', [])
     risultato = calcola_sconto_complementare(sconto_finale, sconti_fissi)
     return jsonify({'sconto_complementare': risultato})
+

@@ -257,10 +257,10 @@ def create_app():
     from routes.app_installation import installation_bp
     from routes.slack import slack_bp
     from routes.cassa import cassa_bp
-from routes.registry import registry_bp
-from routes.route_orders import route_orders_bp
-from routes.pwa import pwa_bp
-from routes.documents import documents_bp
+    from routes.registry import registry_bp
+    from routes.route_orders import route_orders_bp
+    from routes.pwa import pwa_bp
+    from routes.documents import documents_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(settings_bp, url_prefix="/settings")
