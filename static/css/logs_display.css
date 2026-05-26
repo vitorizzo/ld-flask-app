@@ -16,13 +16,19 @@
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
 }
 
+.logs-page.welcome-section {
+  overflow: hidden;
+}
+
 .logs-page .container-fluid {
   min-height: 0;
+  height: 100%;
   overflow: hidden !important;
 }
 
 .logs-page .logs-content {
   min-height: 0;
+  flex: 1 1 auto;
   overflow: hidden;
 }
 
@@ -33,6 +39,8 @@
 .logs-page .log-viewer {
   min-height: 0;
   flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
   max-height: none;
 }
 

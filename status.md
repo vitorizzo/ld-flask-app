@@ -22,6 +22,10 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
   - gestione assegni avviata con endpoint, CRUD, stati e status bar riepilogativa
   - gestione menu riparata e resa applicabile senza cambio pagina
   - parser Slack ordini esteso per allegati e indicazioni consegna
+  - notebook tab deduplicato per pagina: riapertura modulo esistente porta il tab in primo piano senza crearne uno nuovo
+  - tab log viewer etichettato come `log viewer`
+  - layout di gestione menù e visualizzazione log riportati a shell piena con scroll interno
+  - gestione menù e log viewer riallineati alla stessa logica di overflow della agenda
 - Rimossa dal manifesto Codex la procedura RAW/incolla-file e allineato il workflow a lettura diretta repository locale
 - Prospettiva AI futura annotata:
   - introdurre un modulo astratto `AIProvider` configurabile, inizialmente su OpenAI API e in futuro sostituibile/affiancabile da provider locale tipo Ollama
@@ -868,6 +872,10 @@ Stato noto:
     - la plancia ordini torna a usare un layout flex reale su `routeBoard` e `directBoard`, cosi' la tabella clienti del giro ha overflow verticale raggiungibile oltre le righe iniziali;
     - la modalita' attiva della plancia non viene piu' forzata a `display:block`, evitando il blocco del chain di altezza;
     - il viewer log ha ora un wrapper intermedio `d-flex flex-column` con `min-height: 0`, necessario per attivare lo scroll interno reale;
+  - notebook riapertura tab 2026-05-26:
+    - il notebook ora identifica i tab dinamici per chiave di pagina (path) e non li duplica quando la stessa vista viene riaperta;
+    - il tab della visualizzazione log e' etichettato `Log Viewer`;
+    - la pagina `Gestione menù` e' stata portata a layout `page-shell` pieno, con card e tree scrollabili senza sbordo;
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

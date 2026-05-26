@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}LD Enoteca - Gestione Menù{% endblock %}
+{% block title %}LD Enoteca - Gestione menù{% endblock %}
 
 {% block extra_css %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/menus.css') }}">
@@ -8,58 +8,41 @@
 
 {% block scripts %}
   {{ super() }}
-
-  <!-- SortableJS -->
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-
-  <!-- JS gestione menu -->
   <script src="{{ url_for('static', filename='js/menu_management.js') }}"></script>
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section">
-
-  <div class="container-fluid">
-    <div class="row">
-      <div class="col-12">
-
-        <div class="card mt-3">
-          <div class="card-header d-flex align-items-center justify-content-between">
-            <strong>Struttura menu (drag&drop)</strong>
-
-            <div class="d-flex align-items-center gap-2">
-              <button type="button" class="btn btn-sm btn-outline-primary" id="btnApplyMenuChanges" disabled>
-                Applica
-              </button>
-
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddSeparator">
-                + Separatore
-              </button>
-
-              <!-- ROOT CREATE -->
-              <button type="button" class="btn-enabled-custom btn-sm" id="btnAddRootMenu">
-                + Nuovo menu (root)
-              </button>
-            </div>
-          </div>
-
-          <div class="card-body">
-            <div id="menuTree"></div>
-            <small class="text-muted">
-              Trascina le voci per cambiare ordine e gerarchia. Usa “⋮” per creare sotto-menu o modificare.
-            </small>
-          </div>
+<section class="welcome-section page-shell menus-page">
+  <div class="container-fluid h-100 d-flex flex-column">
+    <div class="card menu-card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <strong>Struttura menu (drag&drop)</strong>
+        <div class="d-flex align-items-center gap-2">
+          <button type="button" class="btn btn-sm btn-outline-primary" id="btnApplyMenuChanges" disabled>
+            Applica
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddSeparator">
+            + Separatore
+          </button>
+          <button type="button" class="btn-enabled-custom btn-sm" id="btnAddRootMenu">
+            + Nuovo menu (root)
+          </button>
         </div>
+      </div>
 
+      <div class="card-body menu-card-body">
+        <div id="menuTree"></div>
+        <small class="text-muted">
+          Trascina le voci per cambiare ordine e gerarchia. Usa "⋮" per creare sotto-menu o modificare.
+        </small>
       </div>
     </div>
   </div>
 
-  <!-- MODALE: Crea / Modifica menu -->
   <div class="modal fade" id="menuModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
-
         <div class="modal-header">
           <h5 class="modal-title" id="menuModalTitle">Menu</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
@@ -90,10 +73,8 @@
 
             <div class="mb-3">
               <label class="form-label" for="mm_role_weight">Ruolo (peso)</label>
-
               <select class="form-select" id="mm_role_weight">
                 <option value="">— Seleziona ruolo —</option>
-                {# Se hai roles disponibili in pagina, usa questo loop #}
                 {% for role in roles %}
                   <option value="{{ role.weight }}">{{ role.name }} ({{ role.weight }})</option>
                 {% endfor %}
@@ -120,8 +101,6 @@
               <input class="form-check-input m-0" type="checkbox" id="mm_is_visible">
               <label class="form-check-label m-0" for="mm_is_visible">Visibile</label>
             </div>
-
-            {# Qui in futuro: select ruoli / eccezioni #}
           </div>
 
           <div class="modal-footer">
@@ -129,7 +108,6 @@
             <button type="submit" class="btn btn-primary" id="mm_submit">Salva</button>
           </div>
         </form>
-
       </div>
     </div>
   </div>

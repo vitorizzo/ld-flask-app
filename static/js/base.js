@@ -1,24 +1,3 @@
-/* document.addEventListener('DOMContentLoaded', function () {
-  const container = document.getElementById('flash-message');
-  if (!container) return;
-
-  const alerts = Array.from(container.querySelectorAll('.alert'));
-  alerts.forEach((el) => {
-    // chiusura automatica dopo 4s
-    setTimeout(() => {
-      try {
-        // usa la API di Bootstrap 5 per chiudere l'alert in modo pulito
-        const bsAlert = bootstrap.Alert.getOrCreateInstance(el);
-        bsAlert.close();
-      } catch (e) {
-        // fallback: rimuovi manualmente
-        el.classList.remove('show');
-        setTimeout(() => el.remove(), 200);
-      }
-    }, 4000);
-  });
-}); */
-
 (() => {
   const STORAGE_KEY = "ldapp.page_tabs.v1";
   const LAST_FIXED_KEY = "ldapp.page_tabs.last_fixed.v1";
@@ -43,13 +22,32 @@
     { test: path => path === "/upload_photo", label: "Gestione foto profilo" },
     { test: path => path === "/edit_profile", label: "Modifica profilo" },
     { test: path => path === "/ld-selection", label: "LD Selection" },
+    { test: path => path === "/logs/view", label: "log viewer" },
   ];
+
+  function tabKeyFromUrl(url) {
+    try {
+      return new URL(url, window.location.origin).pathname || "/";
+    } catch (err) {
+      return (url || "/").split("?")[0] || "/";
+    }
+  }
 
   function loadTabs() {
     try {
       const raw = sessionStorage.getItem(STORAGE_KEY);
       const tabs = JSON.parse(raw || "[]");
-      return Array.isArray(tabs) ? tabs.filter(tab => tab && tab.url) : [];
+      if (!Array.isArray(tabs)) return [];
+      const seen = new Set();
+      const normalized = [];
+      for (const tab of tabs) {
+        if (!tab || !tab.url) continue;
+        const key = tab.key || tabKeyFromUrl(tab.url);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        normalized.push({ ...tab, key });
+      }
+      return normalized;
     } catch (err) {
       console.warn("Failed to load page tabs", err);
       return [];
@@ -80,13 +78,16 @@
   }
 
   function currentTab() {
-      const path = window.location.pathname || "/";
-      const search = window.location.search || "";
-      return {
-        url: `${path}${search}`,
+    const path = window.location.pathname || "/";
+    const search = window.location.search || "";
+    const url = `${path}${search}`;
+    const mappedLabel = PAGE_LABELS.find(entry => entry.test(path));
+    return {
+      url,
+      key: tabKeyFromUrl(url),
       path,
       fixed: FIXED_PATHS.has(path),
-      label: normalizeLabel(document.title) || labelFromPath(path),
+      label: mappedLabel ? mappedLabel.label : (normalizeLabel(document.title) || labelFromPath(path)),
     };
   }
 
@@ -113,15 +114,15 @@
       sessionStorage.setItem(LAST_FIXED_KEY, tab.url);
       return;
     }
-    const tabs = loadTabs();
-    const filtered = tabs.filter(item => item.url !== tab.url);
-    filtered.push({
+    const tabs = loadTabs().filter(item => item.key !== tab.key);
+    tabs.push({
       url: tab.url,
+      key: tab.key,
       label: tab.label,
       fixed: false,
       lastActiveAt: Date.now(),
     });
-    saveTabs(filtered);
+    saveTabs(tabs);
     document.documentElement.dataset.hasPageTabs = "1";
   }
 
@@ -129,26 +130,26 @@
     const host = document.getElementById("openPageTabs");
     if (!host || document.documentElement.dataset.tabsEnabled !== "1" || document.body.classList.contains("kiosk-body")) return;
     const tabs = loadTabs();
-    const activeUrl = currentTab().url;
+    const activeKey = currentTab().key;
     if (!tabs.length) {
       host.innerHTML = "";
       return;
     }
     host.innerHTML = tabs.map(tab => `
-      <div class="context-tab-page${tab.url === activeUrl ? " active" : ""}" data-page-tab-url="${tab.url}">
+      <div class="context-tab-page${tab.key === activeKey ? " active" : ""}" data-page-tab-key="${tab.key}">
         <a class="context-tab-page__link" href="${tab.url}" title="${tab.label}">
           <span class="context-tab-page__label">${tab.label}</span>
         </a>
-        <button type="button" class="context-tab-page__close" data-page-tab-close="${tab.url}" aria-label="Chiudi ${tab.label}">&times;</button>
+        <button type="button" class="context-tab-page__close" data-page-tab-close="${tab.key}" aria-label="Chiudi ${tab.label}">&times;</button>
       </div>
     `).join("");
   }
 
-  function closePageTab(closedUrl) {
-    const activeUrl = currentTab().url;
-    const tabs = loadTabs().filter(tab => tab.url !== closedUrl);
+  function closePageTab(closedKey) {
+    const activeKey = currentTab().key;
+    const tabs = loadTabs().filter(tab => tab.key !== closedKey);
     saveTabs(tabs);
-    if (closedUrl === activeUrl) {
+    if (closedKey === activeKey) {
       if (tabs.length) {
         window.location.href = tabs[tabs.length - 1].url;
         return;
