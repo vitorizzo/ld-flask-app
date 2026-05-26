@@ -35,7 +35,7 @@
 </section>
 
 {% if can_share %}
-<div class="modal fade agenda-modal" id="ldSelectionShareModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-selection-modal" id="ldSelectionShareModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
@@ -71,6 +71,24 @@
 {% block scripts %}
   {{ super() }}
   {% if can_share %}
+  <style>
+    .ld-selection-modal {
+      z-index: 5000 !important;
+    }
+
+    .ld-selection-modal .modal-dialog {
+      z-index: 5001 !important;
+    }
+
+    .ld-selection-modal .modal-content {
+      opacity: 1 !important;
+      pointer-events: auto !important;
+    }
+
+    .modal-backdrop.show {
+      z-index: 4990 !important;
+    }
+  </style>
   <script>
     (function () {
       const defaultPdfUrl = {{ pdf_url|tojson }};
@@ -109,7 +127,13 @@
       }
 
       if (shareBtn && shareModal) {
-        shareBtn.addEventListener("click", () => shareModal.show());
+        shareBtn.addEventListener("click", () => {
+          shareModal.show();
+          requestAnimationFrame(() => {
+            const version = document.getElementById("ldSelectionVersion");
+            if (version) version.focus();
+          });
+        });
       }
 
       if (shareSelectedBtn) {
