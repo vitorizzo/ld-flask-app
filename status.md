@@ -27,6 +27,7 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
   - layout di gestione menù e visualizzazione log riportati a shell piena con scroll interno
   - gestione menù e log viewer riallineati alla stessa logica di overflow della agenda
   - separata la visuale kiosk: `/kiosk` per la versione dentro la webapp, `/kiosk/board/all` per i display fullscreen esterni
+  - rimossi i tab laterali dalla base fullscreen kiosk: la vista pura non monta più il notebook della webapp
 - Rimossa dal manifesto Codex la procedura RAW/incolla-file e allineato il workflow a lettura diretta repository locale
 - Prospettiva AI futura annotata:
   - introdurre un modulo astratto `AIProvider` configurabile, inizialmente su OpenAI API e in futuro sostituibile/affiancabile da provider locale tipo Ollama
