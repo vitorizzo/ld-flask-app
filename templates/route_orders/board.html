@@ -24,7 +24,7 @@
   .route-board-section.page-shell > .direct-board.active {
     flex: 1 1 auto;
     min-height: 0;
-    display: flex;
+    display: flex !important;
     flex-direction: column;
     gap: 12px;
   }
@@ -38,6 +38,7 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow: auto;
+    max-height: none;
   }
   .route-board-section .route-board-panel,
   .route-board-section .route-board-panel td,
@@ -90,7 +91,8 @@
   .route-board-empty { color: #6c757d; padding: .75rem; }
   .route-board-bulk { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
   #routeBoard, .direct-board { display: none; }
-  #routeBoard.active, .direct-board.active { display: block; }
+  #routeBoard.active, .direct-board.active { display: flex !important; }
+  .direct-board.active { flex-direction: column; gap: 12px; }
   @media (max-width: 1100px) {
     .route-board-top { grid-template-columns: 1fr; }
   }
@@ -156,12 +158,12 @@
   <div class="direct-board" id="directBoard">
       <div class="d-flex justify-content-between align-items-center mb-3">
         <div class="text-muted small">Ordini fuori consegna programmata, inviati sul canale diretto.</div>
-      <div class="route-board-bulk">
-        <button class="btn btn-outline-secondary btn-sm" type="button" id="selectAllDirectOrders">Seleziona ordini</button>
-        <button class="btn btn-success btn-sm" type="button" id="bulkEvadeDirectBtn">Segna evasi</button>
-        <button class="btn btn-primary" id="newDirectOrderBtn" type="button"><i class="fa-solid fa-plus"></i> Inserisci ordine</button>
+        <div class="route-board-bulk">
+          <button class="btn btn-outline-secondary btn-sm" type="button" id="selectAllDirectOrders">Seleziona ordini</button>
+          <button class="btn btn-success btn-sm" type="button" id="bulkEvadeDirectBtn">Segna evasi</button>
+          <button class="btn btn-primary" id="newDirectOrderBtn" type="button"><i class="fa-solid fa-plus"></i> Inserisci ordine</button>
+        </div>
       </div>
-    </div>
     <div class="route-board-panel p-3">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <h2 class="h6 mb-0">Clienti fuori giro</h2>

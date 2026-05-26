@@ -863,6 +863,10 @@ Stato noto:
     - il viewer valida la selezione e ripiega su `main.log` se arriva un file non ammesso;
     - i log dispersi in `current_app.logger` nei moduli principali (`route_orders`, `pwa`, `trello`, `trello_client`) sono stati riportati ai logger di modulo, cosi' finiscono anche nei file dedicati oltre che in `main.log`;
     - verifica: `python -m py_compile routes/logs_display.py routes/route_orders.py routes/pwa.py routes/trello.py tools/trello_client.py tools/log_utils.py` ok.
+  - layout log e plancia 2026-05-26:
+    - la pagina log ora usa una `welcome-section page-shell` piena altezza, con il viewer interno che scrolla senza sbordare dal contenitore;
+    - la plancia ordini torna a usare un layout flex reale su `routeBoard` e `directBoard`, cosi' la tabella clienti del giro ha overflow verticale raggiungibile oltre le righe iniziali;
+    - la modalita' attiva della plancia non viene piu' forzata a `display:block`, evitando il blocco del chain di altezza;
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

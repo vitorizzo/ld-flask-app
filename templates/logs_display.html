@@ -1,61 +1,64 @@
 {% extends "base.html" %}
+
 {% block content %}
-<section class="welcome-section">
-  <h2>📜 Visualizzazione Log</h2>
+<section class="welcome-section page-shell logs-page">
+  <div class="container-fluid h-100 d-flex flex-column">
+    <h2 class="mb-3">📝 Visualizzazione Log</h2>
 
-  <form method="get" class="row g-3 mb-4 align-items-end">
-    <div class="col-md-4">
-      <label for="file" class="form-label">Seleziona log</label>
-      <select name="file" id="file" class="form-select" onchange="this.form.submit()">
-        {% for f in files %}
-          <option value="{{ f }}" {% if f == selected_file %}selected{% endif %}>{{ f }}</option>
-        {% endfor %}
-      </select>
-    </div>
-    <div class="col-md-2">
-      <label for="level" class="form-label">Livello</label>
-      <select name="level" id="level" class="form-select" onchange="this.form.submit()">
-        <option value="">Tutti</option>
-        {% for lvl in ['DEBUG', 'INFO', 'WARNING', 'ERROR'] %}
-          <option value="{{ lvl }}" {% if lvl == selected_level %}selected{% endif %}>{{ lvl }}</option>
-        {% endfor %}
-      </select>
-    </div>
-  </form>
+    <form method="get" class="row g-3 mb-3 align-items-end flex-shrink-0">
+      <div class="col-md-4">
+        <label for="file" class="form-label">Seleziona log</label>
+        <select name="file" id="file" class="form-select" onchange="this.form.submit()">
+          {% for f in files %}
+            <option value="{{ f }}" {% if f == selected_file %}selected{% endif %}>{{ f }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label for="level" class="form-label">Livello</label>
+        <select name="level" id="level" class="form-select" onchange="this.form.submit()">
+          <option value="">Tutti</option>
+          {% for lvl in ['DEBUG', 'INFO', 'WARNING', 'ERROR'] %}
+            <option value="{{ lvl }}" {% if lvl == selected_level %}selected{% endif %}>{{ lvl }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
 
-  {% if log_content %}
-    <div class="log-viewer"
-     style="white-space: normal;">
-      {% for log in log_content %}
-        {% if log.match %}
-          <div class="log-line">
-            <span class="text-secondary">{{ log.timestamp }}</span>
-            <span class="text-info">{{ log.module }}</span>
-            {% if log.level == 'INFO' %}
-              <span class="badge bg-success">{{ log.level }}</span>
-            {% elif log.level == 'DEBUG' %}
-              <span class="badge bg-primary">{{ log.level }}</span>
-            {% elif log.level == 'WARNING' %}
-              <span class="badge bg-warning text-dark">{{ log.level }}</span>
-            {% elif log.level == 'ERROR' %}
-              <span class="badge bg-danger">{{ log.level }}</span>
+    <div class="flex-grow-1 min-h-0">
+      {% if log_content %}
+        <div class="log-viewer">
+          {% for log in log_content %}
+            {% if log.match %}
+              <div class="log-line">
+                <span class="text-secondary">{{ log.timestamp }}</span>
+                <span class="text-info">{{ log.module }}</span>
+                {% if log.level == 'INFO' %}
+                  <span class="badge bg-success">{{ log.level }}</span>
+                {% elif log.level == 'DEBUG' %}
+                  <span class="badge bg-primary">{{ log.level }}</span>
+                {% elif log.level == 'WARNING' %}
+                  <span class="badge bg-warning text-dark">{{ log.level }}</span>
+                {% elif log.level == 'ERROR' %}
+                  <span class="badge bg-danger">{{ log.level }}</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ log.level }}</span>
+                {% endif %}
+                <span>{{ log.message }}</span>
+              </div>
             {% else %}
-              <span class="badge bg-secondary">{{ log.level }}</span>
+              {% set text = log.raw.strip() %}
+              {% if text %}
+                <div class="text-muted">{{ text }}</div>
+              {% endif %}
             {% endif %}
-            <span>{{ log.message }}</span>
-          </div>
-        {% else %}
-          {% set text = log.raw.strip() %}
-          {% if text %}
-            <div class="text-muted">{{ text }}</div>
-          {% endif %}
-        {% endif %}
-
-      {% endfor %}
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-warning">Nessun contenuto disponibile per il file selezionato.</div>
+      {% endif %}
     </div>
-  {% else %}
-    <div class="alert alert-warning">Nessun contenuto disponibile per il file selezionato.</div>
-  {% endif %}
+  </div>
 </section>
 {% endblock %}
 

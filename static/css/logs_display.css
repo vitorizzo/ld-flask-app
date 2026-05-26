@@ -1,7 +1,9 @@
 /* logs_display.css */
 .log-viewer {
-  max-height: 65vh;
+  height: 100%;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: auto;
   font-family: 'Courier New', monospace;
   font-size: 0.9rem;
   white-space: pre-wrap;
@@ -14,12 +16,27 @@
   box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
 }
 
+.logs-page .container-fluid {
+  min-height: 0;
+  overflow: hidden !important;
+}
+
+.logs-page form {
+  flex-shrink: 0;
+}
+
+.logs-page .log-viewer {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
 .log-line {
   display: grid;
   grid-template-columns: 170px 140px 100px auto;
   gap: 8px;
   padding: 2px 0;
   align-items: center;
+  min-width: 0;
 }
 
 .log-line:hover {
