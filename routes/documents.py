@@ -18,15 +18,44 @@ def _ld_selection_pdf_filename() -> str:
     return "documents/LD_Selection_top.pdf"
 
 
+def _ld_selection_share_versions() -> list[dict[str, str]]:
+    return [
+        {
+            "key": "top",
+            "label": "LD Selection top",
+            "filename": "documents/LD_Selection_top.pdf",
+        },
+        {
+            "key": "standard",
+            "label": "LD Selection standard",
+            "filename": "documents/LD_Selection.pdf",
+        },
+        {
+            "key": "pro",
+            "label": "LD Selection horeca",
+            "filename": "documents/LD_Selection_pro.pdf",
+        },
+    ]
+
+
 @documents_bp.route("/ld-selection", methods=["GET"])
 @login_required
 def ld_selection():
     pdf_filename = _ld_selection_pdf_filename()
     pdf_url = url_for("static", filename=pdf_filename, _external=True)
     can_share = (current_user.max_role_weight or 0) >= 30
+    share_versions = [
+        {
+            "key": version["key"],
+            "label": version["label"],
+            "url": url_for("static", filename=version["filename"], _external=True),
+        }
+        for version in _ld_selection_share_versions()
+    ]
     return render_template(
         "documents/ld_selection.html",
         pdf_url=pdf_url,
         pdf_filename=pdf_filename.rsplit("/", 1)[-1],
         can_share=can_share,
+        share_versions=share_versions,
     )

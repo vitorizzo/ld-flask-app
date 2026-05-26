@@ -849,7 +849,7 @@ Stato noto:
     - verifica: `python -m py_compile routes/documents.py` ok.
   - ld selection per ruolo 2026-05-26:
     - la route `/ld-selection` sceglie ora il PDF in base al ruolo attivo: `LD_Selection_top.pdf` per staff e superiori, `LD_Selection.pdf` per customer, `LD_Selection_pro.pdf` per horeca;
-    - per staff e superiori sono visibili i pulsanti di condivisione via share nativo, mail, WhatsApp, Telegram e copia link;
+    - per staff e superiori e' rimasto un solo flusso di condivisione con modale intermedia di scelta versione, share nativo e copia link;
     - il PDF viene passato come URL assoluto alla pagina per rendere la condivisione immediata;
     - verifica: `python -m py_compile routes/documents.py tools/app_factory.py` ok.
 - il gestionale espone/esportava file collegati a clienti e fornitori;

@@ -16,18 +16,9 @@
     </div>
     {% if can_share %}
     <div class="d-flex flex-wrap gap-2 mb-3">
-      <button type="button" class="btn btn-light btn-sm" id="shareNativeBtn">
+      <button type="button" class="btn btn-light btn-sm" id="openShareModalBtn">
         <i class="fa-solid fa-share-nodes me-1"></i>Condividi
       </button>
-      <a class="btn btn-outline-light btn-sm" href="mailto:?subject={{ 'LD Selection'|urlencode }}&body={{ ('Catalogo LD Selection: ' ~ pdf_url)|urlencode }}">
-        <i class="fa-regular fa-envelope me-1"></i>Mail
-      </a>
-      <a class="btn btn-outline-light btn-sm" href="https://wa.me/?text={{ ('Catalogo LD Selection: ' ~ pdf_url)|urlencode }}" target="_blank" rel="noopener">
-        <i class="fa-brands fa-whatsapp me-1"></i>WhatsApp
-      </a>
-      <a class="btn btn-outline-light btn-sm" href="https://t.me/share/url?url={{ pdf_url|urlencode }}&text={{ 'Catalogo LD Selection'|urlencode }}" target="_blank" rel="noopener">
-        <i class="fa-brands fa-telegram me-1"></i>Telegram
-      </a>
       <button type="button" class="btn btn-outline-light btn-sm" id="copyPdfLinkBtn">
         <i class="fa-regular fa-copy me-1"></i>Copia link
       </button>
@@ -42,6 +33,39 @@
     </div>
   </div>
 </section>
+
+{% if can_share %}
+<div class="modal fade agenda-modal" id="ldSelectionShareModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Condividi LD Selection</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label" for="ldSelectionVersion">Versione da condividere</label>
+        <select class="form-select" id="ldSelectionVersion">
+          {% for version in share_versions %}
+            <option value="{{ version.url }}" {% if version.url == pdf_url %}selected{% endif %}>{{ version.label }}</option>
+          {% endfor %}
+        </select>
+        <div class="form-text mt-2">
+          La condivisione invia un link al PDF selezionato, non il file allegato.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="button" class="btn btn-outline-light" id="copySelectedPdfLinkBtn">
+          <i class="fa-regular fa-copy me-1"></i>Copia link
+        </button>
+        <button type="button" class="btn btn-primary" id="shareSelectedPdfBtn">
+          <i class="fa-solid fa-share-nodes me-1"></i>Condividi
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -49,34 +73,61 @@
   {% if can_share %}
   <script>
     (function () {
-      const pdfUrl = {{ pdf_url|tojson }};
-      const shareTitle = "LD Selection";
-      const shareText = "Catalogo LD Selection";
-      const nativeBtn = document.getElementById("shareNativeBtn");
+      const defaultPdfUrl = {{ pdf_url|tojson }};
+      const shareModalEl = document.getElementById("ldSelectionShareModal");
+      const shareModal = shareModalEl ? bootstrap.Modal.getOrCreateInstance(shareModalEl) : null;
+      const shareBtn = document.getElementById("openShareModalBtn");
       const copyBtn = document.getElementById("copyPdfLinkBtn");
+      const copySelectedBtn = document.getElementById("copySelectedPdfLinkBtn");
+      const shareSelectedBtn = document.getElementById("shareSelectedPdfBtn");
+      const versionSelect = document.getElementById("ldSelectionVersion");
 
-      if (nativeBtn) {
-        nativeBtn.addEventListener("click", async () => {
-          try {
-            if (navigator.share) {
-              await navigator.share({ title: shareTitle, text: shareText, url: pdfUrl });
-              return;
-            }
-            await navigator.clipboard.writeText(pdfUrl);
-            nativeBtn.innerHTML = '<i class="fa-regular fa-copy me-1"></i>Link copiato';
-          } catch (err) {
-            console.warn("Share failed", err);
-          }
-        });
+      function selectedUrl() {
+        return (versionSelect && versionSelect.value) ? versionSelect.value : defaultPdfUrl;
       }
 
       if (copyBtn) {
         copyBtn.addEventListener("click", async () => {
           try {
-            await navigator.clipboard.writeText(pdfUrl);
+            await navigator.clipboard.writeText(defaultPdfUrl);
             copyBtn.innerHTML = '<i class="fa-regular fa-copy me-1"></i>Link copiato';
           } catch (err) {
             console.warn("Copy failed", err);
+          }
+        });
+      }
+
+      if (copySelectedBtn) {
+        copySelectedBtn.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(selectedUrl());
+            copySelectedBtn.innerHTML = '<i class="fa-regular fa-copy me-1"></i>Link copiato';
+          } catch (err) {
+            console.warn("Copy selected failed", err);
+          }
+        });
+      }
+
+      if (shareBtn && shareModal) {
+        shareBtn.addEventListener("click", () => shareModal.show());
+      }
+
+      if (shareSelectedBtn) {
+        shareSelectedBtn.addEventListener("click", async () => {
+          const pdfUrl = selectedUrl();
+          try {
+            if (navigator.share) {
+              await navigator.share({
+                title: "LD Selection",
+                text: "Catalogo LD Selection",
+                url: pdfUrl,
+              });
+            } else {
+              await navigator.clipboard.writeText(pdfUrl);
+              shareSelectedBtn.innerHTML = '<i class="fa-regular fa-copy me-1"></i>Link copiato';
+            }
+          } catch (err) {
+            console.warn("Share failed", err);
           }
         });
       }
