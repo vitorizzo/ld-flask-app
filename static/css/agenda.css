@@ -493,22 +493,22 @@ body.kiosk-body .modal-backdrop.show {
    STACKED MODALS / EFFETTO 3D
 ========================= */
 
-.modal.modal-underlay .modal-dialog {
+.agenda-modal.modal.modal-underlay .modal-dialog {
   transform: translateY(10px) scale(0.98);
   filter: saturate(0.92);
 }
 
-.modal.modal-underlay .modal-content {
+.agenda-modal.modal.modal-underlay .modal-content {
   opacity: 1;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
   pointer-events: auto;
 }
 
-.modal.modal-top .modal-dialog {
+.agenda-modal.modal.modal-top .modal-dialog {
   transform: translateY(0) scale(1);
 }
 
-.modal.modal-top .modal-content {
+.agenda-modal.modal.modal-top .modal-content {
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.32);
   opacity: 1;
 }

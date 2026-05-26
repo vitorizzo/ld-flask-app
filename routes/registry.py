@@ -92,6 +92,29 @@ def _search_registries(kind, q="", limit=80):
     )
 
 
+def _sync_contact_points(contact, points, replace=True):
+    if not isinstance(points, list):
+        return
+    if replace:
+        contact.points[:] = []
+    existing = {
+        (point.contact_type, point.value): point
+        for point in contact.points
+    }
+    for point in points:
+        contact_type = (point.get("contact_type") or point.get("type") or "").strip().lower()
+        value = (point.get("value") or "").strip()
+        if not contact_type or not value:
+            continue
+        key = (contact_type, value)
+        item = existing.get(key)
+        if not item:
+            item = RegistryContactPoint(contact_type=contact_type, value=value)
+            contact.points.append(item)
+        item.label = (point.get("label") or "").strip() or None
+        item.is_primary = bool(point.get("is_primary"))
+
+
 @registry_bp.get("/customer-routes")
 @login_required
 @role_required(30)
@@ -337,20 +360,7 @@ def api_registry_contact_link(registry_id):
             notes=(data.get("notes") or "").strip() or None,
         )
         db.session.add(contact)
-
-        points = data.get("points") or []
-        if isinstance(points, list):
-            for point in points:
-                contact_type = (point.get("contact_type") or point.get("type") or "").strip().lower()
-                value = (point.get("value") or "").strip()
-                if not contact_type or not value:
-                    continue
-                contact.points.append(RegistryContactPoint(
-                    contact_type=contact_type,
-                    value=value,
-                    label=(point.get("label") or "").strip() or None,
-                    is_primary=bool(point.get("is_primary")),
-                ))
+        _sync_contact_points(contact, data.get("points") or [], replace=True)
 
     link = BusinessRegistryContactLink.query.filter_by(registry_id=registry.id, contact_id=contact.id).first()
     if not link:
@@ -363,6 +373,29 @@ def api_registry_contact_link(registry_id):
 
     db.session.commit()
     return jsonify({"ok": True, "registry": _registry_to_dict(registry, include_contacts=True)})
+
+
+@registry_bp.put("/api/contacts/<int:contact_id>")
+@login_required
+@role_required(30)
+def api_registry_contact_update(contact_id):
+    contact = RegistryContact.query.filter_by(id=contact_id).first()
+    if not contact:
+        return jsonify({"ok": False, "error": "Contatto non trovato"}), 404
+
+    data = request.get_json(silent=True) or {}
+    display_name = (data.get("display_name") or "").strip()
+    if display_name:
+        contact.display_name = display_name
+    if "role" in data:
+        contact.role = (data.get("role") or "").strip() or None
+    if "notes" in data:
+        contact.notes = (data.get("notes") or "").strip() or None
+    if "points" in data:
+        _sync_contact_points(contact, data.get("points") or [], replace=True)
+
+    db.session.commit()
+    return jsonify({"ok": True, "contact": contact.to_dict()})
 
 
 @registry_bp.delete("/api/registries/<int:registry_id>/contacts/<int:contact_id>")

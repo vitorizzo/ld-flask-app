@@ -7,6 +7,15 @@
   text-align: left;
 }
 
+.registry-book-page {
+  overflow: hidden;
+}
+
+.registry-book-page > .container-fluid {
+  min-height: 0;
+  overflow: hidden;
+}
+
 .registry-tools-section.page-shell {
   padding: 18px;
   overflow: hidden;
@@ -34,6 +43,164 @@
   color: #212529;
   border: 1px solid rgba(0, 0, 0, 0.12);
   border-radius: 8px;
+}
+
+.registry-book-search {
+  min-width: min(520px, 100%);
+}
+
+.registry-book-layout {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.registry-book-main {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.registry-book-list {
+  height: 100%;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 6px;
+}
+
+.registry-book-index {
+  flex: 0 0 44px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: stretch;
+  overflow: auto;
+  padding-left: 4px;
+}
+
+.registry-book-index__item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 28px;
+  border-radius: 6px;
+  background: rgba(74, 44, 42, 0.9);
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.8rem;
+}
+
+.registry-book-index__item:hover,
+.registry-book-index__item:focus {
+  background: #b91c1c;
+  color: #fff;
+}
+
+.registry-letter-group {
+  margin-bottom: 18px;
+}
+
+.registry-letter-group__head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(74, 44, 42, 0.92);
+  color: #fff;
+  font-weight: 700;
+}
+
+.registry-letter-group__body {
+  display: grid;
+  gap: 12px;
+}
+
+.registry-card {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+  background: #fff;
+  color: #212529;
+  padding: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.registry-card__head {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: start;
+  margin-bottom: 10px;
+}
+
+.registry-card__title {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.registry-card__meta {
+  font-size: 0.8rem;
+  color: #6c757d;
+}
+
+.registry-card__body {
+  display: grid;
+  gap: 12px;
+}
+
+.registry-card__section {
+  display: grid;
+  gap: 8px;
+}
+
+.registry-card__section-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #4a2c2a;
+}
+
+.registry-contact-row {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: start;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #f8f9fa;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.registry-contact-row--inactive {
+  opacity: 0.65;
+}
+
+.registry-contact-row__main {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.registry-contact-row__actions {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.registry-contact-name {
+  font-weight: 700;
+  color: #212529;
+}
+
+.registry-contact-meta,
+.registry-contact-notes {
+  font-size: 0.84rem;
+  color: #6c757d;
+  white-space: pre-wrap;
+}
+
+.registry-legacy-item {
+  font-size: 0.85rem;
+  color: #212529;
+  padding: 6px 0;
+  border-bottom: 1px dashed rgba(0, 0, 0, 0.08);
 }
 
 .registry-tools-panel .text-muted,

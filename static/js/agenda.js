@@ -3152,7 +3152,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     function restack() {
-      const modals = modalStack.filter(m => m && m.classList.contains("show"));
+      const modals = modalStack.filter(m => m && m.classList.contains("show") && m.classList.contains("agenda-modal"));
       modals.forEach((m, i) => {
       m.style.setProperty("z-index", String(BASE_MODAL_Z + i * STEP));
       });
@@ -3171,7 +3171,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     document.addEventListener("shown.bs.modal", event => {
       const modal = event.target;
-      if (!modal || !modal.classList || !modal.classList.contains("modal")) return;
+      if (!modal || !modal.classList || !modal.classList.contains("modal") || !modal.classList.contains("agenda-modal")) return;
       const existing = modalStack.indexOf(modal);
       if (existing !== -1) modalStack.splice(existing, 1);
       modalStack.push(modal);
