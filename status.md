@@ -847,6 +847,11 @@ Stato noto:
     - aggiunta la pagina contenitore `templates/documents/ld_selection.html` con iframe del PDF;
     - registrata la nuova label in `static/js/base.js` cosi' la pagina apre una linguetta del notebook;
     - verifica: `python -m py_compile routes/documents.py` ok.
+  - ld selection per ruolo 2026-05-26:
+    - la route `/ld-selection` sceglie ora il PDF in base al ruolo attivo: `LD_Selection_top.pdf` per staff e superiori, `LD_Selection.pdf` per customer, `LD_Selection_pro.pdf` per horeca;
+    - per staff e superiori sono visibili i pulsanti di condivisione via share nativo, mail, WhatsApp, Telegram e copia link;
+    - il PDF viene passato come URL assoluto alla pagina per rendere la condivisione immediata;
+    - verifica: `python -m py_compile routes/documents.py tools/app_factory.py` ok.
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;
