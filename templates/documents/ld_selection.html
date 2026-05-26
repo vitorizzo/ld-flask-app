@@ -85,6 +85,10 @@
       pointer-events: auto !important;
     }
 
+    .ld-selection-modal .modal-backdrop {
+      z-index: 4990 !important;
+    }
+
     .modal-backdrop.show {
       z-index: 4990 !important;
     }
@@ -93,6 +97,9 @@
     (function () {
       const defaultPdfUrl = {{ pdf_url|tojson }};
       const shareModalEl = document.getElementById("ldSelectionShareModal");
+      if (shareModalEl && shareModalEl.parentElement !== document.body) {
+        document.body.appendChild(shareModalEl);
+      }
       const shareModal = shareModalEl ? bootstrap.Modal.getOrCreateInstance(shareModalEl) : null;
       const shareBtn = document.getElementById("openShareModalBtn");
       const copyBtn = document.getElementById("copyPdfLinkBtn");
