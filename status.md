@@ -30,6 +30,8 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
   - rimossi i tab laterali dalla base fullscreen kiosk: la vista pura non monta più il notebook della webapp
   - rubriche clienti/fornitori convertite in pagine dirette con ricerca e indice alfabetico laterale
   - fixato il restack dell'agenda per non spegnere le modali non-agenda (rubriche, gestione menu, ecc.)
+  - modale di modifica menu spostata nel body per evitare il piano disabilitato
+  - ricerca prodotto per descrizione uniformata alla shell agenda e arricchita con scansione barcode diretta
 - Rimossa dal manifesto Codex la procedura RAW/incolla-file e allineato il workflow a lettura diretta repository locale
 - Prospettiva AI futura annotata:
   - introdurre un modulo astratto `AIProvider` configurabile, inizialmente su OpenAI API e in futuro sostituibile/affiancabile da provider locale tipo Ollama

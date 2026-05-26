@@ -1,37 +1,69 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 
 {% block title %}LD Enoteca - Ricerca Prodotto per Descrizione{% endblock %}
 
-{% block content %}
-<div class="container mt-4" style="color:black">
-    <h2 class="text-center">Ricerca Prodotto</h2>
+{% block extra_css %}
+<style>
+  .search-page {
+    overflow: hidden;
+  }
+  .search-page > .container-fluid {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .search-shell {
+    min-height: 0;
+    overflow: hidden;
+  }
+  .search-results-wrap {
+    min-height: 0;
+    overflow: auto;
+  }
+  .search-topbar {
+    flex-shrink: 0;
+  }
+</style>
+{% endblock %}
 
-    <!-- Input di ricerca con icona -->
-    <div class="input-group mb-3">
+{% block content %}
+<section class="welcome-section page-shell search-page">
+  <div class="container-fluid h-100 d-flex flex-column">
+    <div class="search-topbar d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+      <div>
+        <h1 class="h4 mb-1">Ricerca Prodotto</h1>
+        <div class="text-muted small">Ricerca per descrizione oppure scansione barcode con accesso rapido alla scheda.</div>
+      </div>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <button type="button" class="btn btn-outline-secondary" id="search-scan-button">
+          <i class="fa-solid fa-camera me-1"></i>Scansiona barcode
+        </button>
+      </div>
+    </div>
+
+    <div class="search-shell d-flex flex-column min-h-0 flex-grow-1">
+      <div class="input-group mb-3">
         <span class="input-group-text"><i class="bi bi-search"></i></span>
         <input type="text" id="search-description-input" class="form-control" placeholder="Inserisci parte della descrizione...">
-    </div>
+      </div>
 
-    <!-- Checkbox per visualizzare tutti i prodotti -->
-    <div class="form-check mb-3">
+      <div class="form-check mb-3">
         <input class="form-check-input" type="checkbox" id="search-show-all-products">
         <label class="form-check-label" for="search-show-all-products">Tutti i prodotti</label>
-    </div>
+      </div>
 
-    <!-- Risultati -->
-    <div id="search-results-wrapper" class="card shadow-sm mb-4" style="display: none;">
+      <div id="search-results-wrapper" class="card shadow-sm mb-4 search-results-wrap" style="display: none;">
         <ul id="search-results-list" class="list-group list-group-flush"></ul>
-    </div>
+      </div>
 
-    <!-- Paginazione -->
-    <div id="search-pagination-controls" class="d-flex justify-content-center mt-3" style="display: none;">
+      <div id="search-pagination-controls" class="d-flex justify-content-center mt-auto pt-2" style="display: none;">
         <button id="search-prev-page" class="btn btn-outline-primary me-2" disabled>◀ Precedente</button>
         <span id="search-pagina-info" class="align-self-center"></span>
         <button id="search-next-page" class="btn btn-outline-primary ms-2">Successiva ▶</button>
+      </div>
     </div>
-</div>
+  </div>
+</section>
 
-<!-- Modal per visualizzare la Scheda Articolo -->
 <div class="modal fade" id="product-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
@@ -48,10 +80,43 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://unpkg.com/@zxing/library@latest"></script>
+<script src="{{ url_for('static', filename='js/scanner.js') }}"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="{{ url_for('static', filename='js/search_by_description.js') }}"></script>
 <script>
   document.addEventListener("DOMContentLoaded", function () {
+    const scanButton = document.getElementById("search-scan-button");
+    const searchInput = document.getElementById("search-description-input");
+
+    function openBarcodeResult(barcode) {
+      fetch('/search/articoli_by_barcode_multipli?barcode=' + encodeURIComponent(barcode), { credentials: "same-origin" })
+        .then(response => response.json())
+        .then(data => {
+          if (!data || !data.success) {
+            alert(data?.error || "Prodotto non trovato!");
+            return;
+          }
+
+          if (data.singolo && data.articolo?.cod_art) {
+            window.location.href = '/search/scheda_articolo/' + data.articolo.cod_art;
+            return;
+          }
+
+          const articolo = data.articoli?.[0];
+          if (articolo?.cod_art) {
+            window.location.href = '/search/scheda_articolo/' + articolo.cod_art;
+            return;
+          }
+
+          alert("Barcode letto, ma nessun articolo apribile.");
+        })
+        .catch(err => {
+          console.error("Errore durante la ricerca barcode:", err);
+          alert("Errore durante la ricerca del prodotto.");
+        });
+    }
+
     if (typeof initSearchByDescription === "function") {
       initSearchByDescription({
         inputId: 'search-description-input',
@@ -66,17 +131,18 @@
         },
         modalIframeId: 'product-modal-iframe',
         modalTriggerId: 'product-modal',
-        showButton: true, // Mostra solo il pulsante per aprire la scheda
+        showButton: true,
         onRowClick: (prodotto) => {
-          // Comportamento custom per l'inventario: popola il form
-          document.getElementById("barcode").value = prodotto.codice;
-          if (typeof aggiornaValoriArticolo === "function") {
-            aggiornaValoriArticolo(prodotto.codice);
-          }
+          window.location.href = '/search/scheda_articolo/' + prodotto.cod_art;
         }
       });
-    } else {
-      console.error("initSearchByDescription non trovato! Assicurati che search_by_description.js sia caricato correttamente.");
+    }
+
+    if (scanButton) {
+      initScanner("search-scan-button", "search-description-input", (val) => {
+        searchInput.value = val;
+        openBarcodeResult(val);
+      });
     }
   });
 </script>

@@ -527,6 +527,11 @@ if (window.__menuMgmtInitDone) {
     const host = document.getElementById("menuTree");
     if (!host) return;
 
+    const modalEl = document.getElementById("menuModal");
+    if (modalEl && modalEl.parentElement !== document.body) {
+      document.body.appendChild(modalEl);
+    }
+
     bindActions(host);
     bindModalSubmit(renderAll);
     bindRoleWeight();
