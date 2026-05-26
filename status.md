@@ -867,6 +867,7 @@ Stato noto:
     - la pagina log ora usa una `welcome-section page-shell` piena altezza, con il viewer interno che scrolla senza sbordare dal contenitore;
     - la plancia ordini torna a usare un layout flex reale su `routeBoard` e `directBoard`, cosi' la tabella clienti del giro ha overflow verticale raggiungibile oltre le righe iniziali;
     - la modalita' attiva della plancia non viene piu' forzata a `display:block`, evitando il blocco del chain di altezza;
+    - il viewer log ha ora un wrapper intermedio `d-flex flex-column` con `min-height: 0`, necessario per attivare lo scroll interno reale;
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
 - nella cartella locale `esportazioni/` risultano presenti al momento `ARTICOLI.CSV`, `GIAC_LD.CSV` e `STAECCLI.pdf`, ma non i CSV anagrafiche clienti/fornitori;

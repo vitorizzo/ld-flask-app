@@ -21,6 +21,11 @@
   overflow: hidden !important;
 }
 
+.logs-page .logs-content {
+  min-height: 0;
+  overflow: hidden;
+}
+
 .logs-page form {
   flex-shrink: 0;
 }
@@ -28,6 +33,7 @@
 .logs-page .log-viewer {
   min-height: 0;
   flex: 1 1 auto;
+  max-height: none;
 }
 
 .log-line {
