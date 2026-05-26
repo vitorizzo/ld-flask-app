@@ -147,6 +147,9 @@
         shareSelectedBtn.addEventListener("click", async () => {
           const pdfUrl = selectedUrl();
           try {
+            if (shareModal) {
+              shareModal.hide();
+            }
             if (navigator.share) {
               await navigator.share({
                 title: "LD Selection",

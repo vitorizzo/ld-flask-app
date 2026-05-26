@@ -856,6 +856,7 @@ Stato noto:
     - la modale intermedia di condivisione non usa piu' la classe agenda-modal e ha un proprio z-index dedicato (`5000+`) per non ereditare le regole dell'agenda;
     - il backdrop della share modal resta sotto il dialogo e sopra l'iframe del PDF, cosi' la finestra torna cliccabile;
     - il nodo della modale viene spostato nel `body` all'avvio dello script, cosi' non resta intrappolato nella section che contiene l'iframe;
+    - prima del `navigator.share` la modale viene chiusa, cosi' lo share sheet non resta sovrapposto al dialogo aperto;
     - la modale apre il focus sulla tendina versione per migliorare l'usabilita';
 - il gestionale espone/esportava file collegati a clienti e fornitori;
 - erano stati considerati nomi come `EXP_CLIENTI`, `EXP_FORNITORI`, `ECCLI.CSV`, `ECFOR.CSV` e endpoint sotto `https://ldapp.ldenoteca.it/exported/`;
