@@ -8,7 +8,7 @@
 
 {% block content %}
 <section class="wine-card-view-page">
-  <div class="wine-card-view" style="font-family: {{ (card.layout_config or {}).get('font_family', 'serif') }};">
+  <div class="wine-card-view {{ layout_config.get('css_class', 'wine-template-classic') }}" style="{{ style_vars }}">
     <header class="wine-card-view-header">
       <div class="wine-card-view-brand">LD Enoteca</div>
       {% if card.venue_name %}

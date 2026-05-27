@@ -91,6 +91,12 @@ class WineCard(db.Model):
         nullable=True,
         index=True,
     )
+    template_id = db.Column(
+        db.Integer,
+        db.ForeignKey("wine_card_templates.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     source_card_id = db.Column(
         db.Integer,
         db.ForeignKey("wine_cards.id", ondelete="SET NULL"),
@@ -117,6 +123,7 @@ class WineCard(db.Model):
     )
 
     customer = db.relationship("BusinessRegistry", backref=db.backref("wine_cards", lazy="selectin"))
+    template = db.relationship("WineCardTemplate")
     source_card = db.relationship("WineCard", remote_side=[id])
     created_by = db.relationship("User")
     items = db.relationship(
@@ -138,6 +145,7 @@ class WineCard(db.Model):
         return {
             "id": self.id,
             "customer_registry_id": self.customer_registry_id,
+            "template_id": self.template_id,
             "source_card_id": self.source_card_id,
             "title": self.title,
             "venue_name": self.venue_name,
@@ -147,6 +155,40 @@ class WineCard(db.Model):
             "customer_view_token": self.customer_view_token,
             "layout_config": self.layout_config or {},
             "items_count": len(self.items or []),
+        }
+
+
+class WineCardTemplate(db.Model):
+    __tablename__ = "wine_card_templates"
+    __table_args__ = (
+        db.Index("ix_wine_card_templates_active_order", "is_active", "sort_order"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(80), nullable=False, unique=True, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.String(255), nullable=True)
+    layout_config = db.Column(JSONB, nullable=False, default=dict)
+    is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "code": self.code,
+            "name": self.name,
+            "description": self.description,
+            "layout_config": self.layout_config or {},
+            "is_active": self.is_active,
+            "sort_order": self.sort_order,
         }
 
 

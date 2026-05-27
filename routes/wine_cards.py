@@ -6,7 +6,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import or_
 
 from extensions import db
-from models import Articoli, BusinessRegistry, WineCard, WineCardItem, WineCardSection
+from models import Articoli, BusinessRegistry, WineCard, WineCardItem, WineCardSection, WineCardTemplate
 from tools.role_required import role_required
 
 
@@ -111,6 +111,55 @@ def _staff_customer_options(limit=120):
     )
 
 
+def _active_templates():
+    return (
+        WineCardTemplate.query
+        .filter(WineCardTemplate.is_active.is_(True))
+        .order_by(WineCardTemplate.sort_order.asc(), WineCardTemplate.name.asc())
+        .all()
+    )
+
+
+def _default_template_id():
+    template = (
+        WineCardTemplate.query
+        .filter(WineCardTemplate.is_active.is_(True))
+        .order_by(WineCardTemplate.sort_order.asc(), WineCardTemplate.id.asc())
+        .first()
+    )
+    return template.id if template else None
+
+
+def _merged_layout_config(card):
+    config = dict(card.template.layout_config or {}) if card.template else {}
+    config.update(card.layout_config or {})
+    return config
+
+
+def _view_style_vars(config):
+    mapping = {
+        "font_family": "--wine-font",
+        "heading_font_family": "--wine-heading-font",
+        "accent_font_family": "--wine-accent-font",
+        "text_color": "--wine-text-color",
+        "background_color": "--wine-bg",
+        "heading_size": "--wine-heading-size",
+        "subtitle_size": "--wine-subtitle-size",
+        "section_size": "--wine-section-size",
+        "item_size": "--wine-item-size",
+        "meta_size": "--wine-meta-size",
+        "price_x": "--wine-price-x",
+        "item_gap": "--wine-item-gap",
+        "section_gap": "--wine-section-gap",
+    }
+    parts = []
+    for key, css_var in mapping.items():
+        value = (config.get(key) or "").strip() if isinstance(config.get(key), str) else config.get(key)
+        if value:
+            parts.append(f"{css_var}: {value}")
+    return "; ".join(parts)
+
+
 @wine_cards_bp.get("/")
 @login_required
 @role_required(30)
@@ -140,6 +189,7 @@ def create():
             title = "Nuova carta vini"
         card = WineCard(
             title=title,
+            template_id=request.form.get("template_id", type=int) or _default_template_id(),
             venue_name=(request.form.get("venue_name") or "").strip() or None,
             subtitle=(request.form.get("subtitle") or "").strip() or None,
             customer_registry_id=request.form.get("customer_registry_id", type=int),
@@ -156,7 +206,7 @@ def create():
         db.session.add(card)
         db.session.commit()
         return redirect(url_for("wine_cards.detail", card_id=card.id))
-    return render_template("wine_cards/form.html", card=None, customers=_staff_customer_options())
+    return render_template("wine_cards/form.html", card=None, customers=_staff_customer_options(), templates=_active_templates())
 
 
 @wine_cards_bp.get("/<int:card_id>")
@@ -169,6 +219,7 @@ def detail(card_id):
         card=card,
         customer_label=_customer_label,
         sections_with_items=_sections_with_items(card),
+        templates=_active_templates(),
     )
 
 
@@ -181,6 +232,7 @@ def update(card_id):
     card.venue_name = (request.form.get("venue_name") or "").strip() or None
     card.subtitle = (request.form.get("subtitle") or "").strip() or None
     card.customer_registry_id = request.form.get("customer_registry_id", type=int)
+    card.template_id = request.form.get("template_id", type=int) or None
     card.status = (request.form.get("status") or "draft").strip() or "draft"
     card.customer_view_enabled = request.form.get("customer_view_enabled") == "1"
     card.layout_config = {
@@ -201,6 +253,7 @@ def duplicate(card_id):
     source = WineCard.query.get_or_404(card_id)
     card = WineCard(
         customer_registry_id=source.customer_registry_id,
+        template_id=source.template_id,
         source_card_id=source.id,
         created_by_user_id=current_user.id,
         title=f"Copia di {source.title}",
@@ -376,6 +429,8 @@ def customer_view(token):
         card=card,
         visible_items=visible_items,
         sections_with_items=_sections_with_items(card, visible_only=True),
+        layout_config=_merged_layout_config(card),
+        style_vars=_view_style_vars(_merged_layout_config(card)),
         customer_label=_customer_label,
         customer_mode=(current_user.max_role_weight or 0) < 30,
     )

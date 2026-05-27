@@ -33,6 +33,14 @@
           </select>
         </div>
         <div class="col-12 col-md-6">
+          <label class="form-label" for="template_id">Template</label>
+          <select class="form-select" id="template_id" name="template_id">
+            {% for template in templates %}
+              <option value="{{ template.id }}">{{ template.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-6">
           <label class="form-label" for="venue_name">Insegna cliente</label>
           <input class="form-control" id="venue_name" name="venue_name" autocomplete="off">
         </div>

@@ -39,6 +39,15 @@
               <input class="form-control" id="customer_registry_id" name="customer_registry_id" value="{{ card.customer_registry_id or '' }}" placeholder="ID anagrafica cliente">
             </div>
             <div class="col-12">
+              <label class="form-label" for="template_id">Template</label>
+              <select class="form-select" id="template_id" name="template_id">
+                <option value="">Nessun template</option>
+                {% for template in templates %}
+                  <option value="{{ template.id }}" {% if card.template_id == template.id %}selected{% endif %}>{{ template.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
               <label class="form-label" for="venue_name">Insegna</label>
               <input class="form-control" id="venue_name" name="venue_name" value="{{ card.venue_name or '' }}">
             </div>
