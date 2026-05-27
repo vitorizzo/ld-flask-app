@@ -89,6 +89,43 @@
 
       <div class="wine-card-main min-h-0">
         <div class="wine-card-panel mb-3">
+          <h2 class="h6">Sezioni</h2>
+          <form method="post" action="{{ url_for('wine_cards.add_section', card_id=card.id) }}" class="row g-2 align-items-end mb-2">
+            <div class="col-12 col-md-9">
+              <label class="form-label" for="sectionTitle">Nuova sezione</label>
+              <input class="form-control" id="sectionTitle" name="title" autocomplete="off" placeholder="Birre, Distillati, Vini al calice...">
+            </div>
+            <div class="col-12 col-md-3 text-end">
+              <button class="btn btn-outline-primary" type="submit">Aggiungi sezione</button>
+            </div>
+          </form>
+          <div class="wine-card-sections">
+            {% for section in card.sections %}
+              <form method="post" action="{{ url_for('wine_cards.update_section', card_id=card.id, section_id=section.id) }}" class="row g-2 align-items-center">
+                <input type="hidden" name="is_visible" value="0">
+                <div class="col-3 col-md-2">
+                  <input class="form-control form-control-sm" name="sort_order" value="{{ section.sort_order }}">
+                </div>
+                <div class="col-6 col-md-5">
+                  <input class="form-control form-control-sm" name="title" value="{{ section.title }}">
+                </div>
+                <div class="col-3 col-md-2">
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="is_visible" value="1" {% if section.is_visible %}checked{% endif %}>
+                    <label class="form-check-label small">Visibile</label>
+                  </div>
+                </div>
+                <div class="col-12 col-md-3 text-end">
+                  <button class="btn btn-sm btn-outline-primary" type="submit">Salva</button>
+                </div>
+              </form>
+            {% else %}
+              <div class="text-muted small">Nessuna sezione configurata.</div>
+            {% endfor %}
+          </div>
+        </div>
+
+        <div class="wine-card-panel mb-3">
           <h2 class="h6">Aggiungi articolo</h2>
           <form method="post" action="{{ url_for('wine_cards.add_item', card_id=card.id) }}" class="row g-2 align-items-end">
             <div class="col-12 col-lg-3">
@@ -101,8 +138,13 @@
               <input class="form-control" id="cod_art" name="cod_art" required>
             </div>
             <div class="col-12 col-lg-2">
-              <label class="form-label" for="category">Categoria</label>
-              <input class="form-control" id="category" name="category" placeholder="Bollicine, Rossi...">
+              <label class="form-label" for="section_title">Sezione</label>
+              <input class="form-control" id="section_title" name="section_title" list="wineCardSectionOptions" placeholder="Bollicine, Birre...">
+              <datalist id="wineCardSectionOptions">
+                {% for section in card.sections %}
+                  <option value="{{ section.title }}">
+                {% endfor %}
+              </datalist>
             </div>
             <div class="col-12 col-lg-2">
               <label class="form-label" for="winery">Cantina</label>
@@ -128,7 +170,9 @@
 
         <div class="wine-card-panel wine-card-items">
           <h2 class="h6">Articoli in carta</h2>
-          {% for item in card.items %}
+          {% for section, items in sections_with_items %}
+            <div class="wine-card-section-title">{{ section.title if section else "Senza sezione" }}</div>
+            {% for item in items %}
             <div class="wine-card-item-row">
               <form method="post" action="{{ url_for('wine_cards.update_item', card_id=card.id, item_id=item.id) }}">
                 <input type="hidden" name="is_visible" value="0">
@@ -138,8 +182,8 @@
                     <input class="form-control" name="sort_order" value="{{ item.sort_order }}">
                   </div>
                   <div class="col-6 col-lg-2">
-                    <label class="form-label">Categoria</label>
-                    <input class="form-control" name="category" value="{{ item.category or '' }}">
+                    <label class="form-label">Sezione</label>
+                    <input class="form-control" name="section_title" list="wineCardSectionOptions" value="{{ item.section.title if item.section else item.category or '' }}">
                   </div>
                   <div class="col-12 col-lg-3">
                     <label class="form-label">Descrizione</label>
@@ -173,6 +217,7 @@
                 <button class="btn btn-sm btn-outline-danger" type="submit">Elimina</button>
               </form>
             </div>
+            {% endfor %}
           {% else %}
             <div class="text-muted py-3">Nessun articolo inserito.</div>
           {% endfor %}

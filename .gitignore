@@ -51,3 +51,6 @@ ld-flask-app/
 
 .env
 .env.local
+
+# === FOLDER DI SCAMBIO CON CODEX ===
+docs/carta dei vini - esempi/

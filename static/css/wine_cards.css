@@ -28,6 +28,21 @@
   font-weight: 700;
 }
 
+.wine-card-sections {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.wine-card-section-title {
+  font-weight: 700;
+  color: #67472f;
+  background: #f4eee7;
+  border: 1px solid rgba(40, 34, 28, 0.08);
+  border-radius: 6px;
+  padding: 0.45rem 0.6rem;
+  margin-top: 0.8rem;
+}
+
 .wine-card-search-results {
   position: absolute;
   z-index: 20;

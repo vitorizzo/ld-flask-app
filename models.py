@@ -126,6 +126,13 @@ class WineCard(db.Model):
         lazy="selectin",
         order_by="WineCardItem.sort_order.asc()",
     )
+    sections = db.relationship(
+        "WineCardSection",
+        back_populates="card",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="WineCardSection.sort_order.asc()",
+    )
 
     def to_dict(self):
         return {
@@ -143,6 +150,49 @@ class WineCard(db.Model):
         }
 
 
+class WineCardSection(db.Model):
+    __tablename__ = "wine_card_sections"
+    __table_args__ = (
+        db.UniqueConstraint("card_id", "code", name="uq_wine_card_section_card_code"),
+        db.Index("ix_wine_card_sections_card_visible_order", "card_id", "is_visible", "sort_order"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    card_id = db.Column(db.Integer, db.ForeignKey("wine_cards.id", ondelete="CASCADE"), nullable=False, index=True)
+    code = db.Column(db.String(80), nullable=False, index=True)
+    title = db.Column(db.String(160), nullable=False)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    is_visible = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    notes = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    card = db.relationship("WineCard", back_populates="sections")
+    items = db.relationship(
+        "WineCardItem",
+        back_populates="section",
+        lazy="selectin",
+        order_by="WineCardItem.sort_order.asc()",
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "card_id": self.card_id,
+            "code": self.code,
+            "title": self.title,
+            "sort_order": self.sort_order,
+            "is_visible": self.is_visible,
+            "notes": self.notes,
+        }
+
+
 class WineCardItem(db.Model):
     __tablename__ = "wine_card_items"
     __table_args__ = (
@@ -152,6 +202,7 @@ class WineCardItem(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     card_id = db.Column(db.Integer, db.ForeignKey("wine_cards.id", ondelete="CASCADE"), nullable=False, index=True)
+    section_id = db.Column(db.Integer, db.ForeignKey("wine_card_sections.id", ondelete="SET NULL"), nullable=True, index=True)
     cod_art = db.Column(db.String(255), db.ForeignKey("articoli.cod_art", ondelete="SET NULL"), nullable=True, index=True)
 
     sort_order = db.Column(db.Integer, nullable=False, default=0)
@@ -172,12 +223,14 @@ class WineCardItem(db.Model):
     )
 
     card = db.relationship("WineCard", back_populates="items")
+    section = db.relationship("WineCardSection", back_populates="items")
     article = db.relationship("Articoli")
 
     def to_dict(self):
         return {
             "id": self.id,
             "card_id": self.card_id,
+            "section_id": self.section_id,
             "cod_art": self.cod_art,
             "sort_order": self.sort_order,
             "category": self.category,

@@ -18,25 +18,23 @@
       {% if card.subtitle %}<p>{{ card.subtitle }}</p>{% endif %}
     </header>
 
-    {% set current_category = namespace(value=None) %}
     <div class="wine-card-view-list">
-      {% for item in visible_items %}
-        {% if item.category != current_category.value %}
-          {% set current_category.value = item.category %}
-          <h2>{{ item.category or "Selezione" }}</h2>
-        {% endif %}
-        <article class="wine-card-view-item">
-          <div>
-            <h3>{{ item.display_description }}</h3>
-            <div class="wine-card-view-meta">
-              {% if item.winery %}<span>{{ item.winery }}</span>{% endif %}
-              {% if item.region %}<span>{{ item.region }}</span>{% endif %}
+      {% for section, items in sections_with_items %}
+        <h2>{{ section.title if section else "Selezione" }}</h2>
+        {% for item in items %}
+          <article class="wine-card-view-item">
+            <div>
+              <h3>{{ item.display_description }}</h3>
+              <div class="wine-card-view-meta">
+                {% if item.winery %}<span>{{ item.winery }}</span>{% endif %}
+                {% if item.region %}<span>{{ item.region }}</span>{% endif %}
+              </div>
             </div>
-          </div>
-          {% if item.sale_price is not none %}
-            <div class="wine-card-view-price">{{ "%.2f"|format(item.sale_price) }} €</div>
-          {% endif %}
-        </article>
+            {% if item.sale_price is not none %}
+              <div class="wine-card-view-price">{{ "%.2f"|format(item.sale_price) }} €</div>
+            {% endif %}
+          </article>
+        {% endfor %}
       {% else %}
         <div class="text-muted text-center py-5">Carta vini in preparazione.</div>
       {% endfor %}

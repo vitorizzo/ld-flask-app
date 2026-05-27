@@ -47,9 +47,34 @@ def upgrade():
     op.create_index("ix_wine_cards_title", "wine_cards", ["title"])
 
     op.create_table(
+        "wine_card_sections",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("card_id", sa.Integer(), nullable=False),
+        sa.Column("code", sa.String(length=80), nullable=False),
+        sa.Column("title", sa.String(length=160), nullable=False),
+        sa.Column("sort_order", sa.Integer(), nullable=False),
+        sa.Column("is_visible", sa.Boolean(), nullable=False, server_default=sa.true()),
+        sa.Column("notes", sa.Text(), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(["card_id"], ["wine_cards.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("card_id", "code", name="uq_wine_card_section_card_code"),
+    )
+    op.create_index("ix_wine_card_sections_card_id", "wine_card_sections", ["card_id"])
+    op.create_index(
+        "ix_wine_card_sections_card_visible_order",
+        "wine_card_sections",
+        ["card_id", "is_visible", "sort_order"],
+    )
+    op.create_index("ix_wine_card_sections_code", "wine_card_sections", ["code"])
+    op.create_index("ix_wine_card_sections_is_visible", "wine_card_sections", ["is_visible"])
+
+    op.create_table(
         "wine_card_items",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("card_id", sa.Integer(), nullable=False),
+        sa.Column("section_id", sa.Integer(), nullable=True),
         sa.Column("cod_art", sa.String(length=255), nullable=True),
         sa.Column("sort_order", sa.Integer(), nullable=False),
         sa.Column("category", sa.String(length=120), nullable=True),
@@ -62,6 +87,7 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(["card_id"], ["wine_cards.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["section_id"], ["wine_card_sections.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["cod_art"], ["articoli.cod_art"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("card_id", "cod_art", name="uq_wine_card_item_card_cod_art"),
@@ -71,15 +97,23 @@ def upgrade():
     op.create_index("ix_wine_card_items_category", "wine_card_items", ["category"])
     op.create_index("ix_wine_card_items_cod_art", "wine_card_items", ["cod_art"])
     op.create_index("ix_wine_card_items_is_visible", "wine_card_items", ["is_visible"])
+    op.create_index("ix_wine_card_items_section_id", "wine_card_items", ["section_id"])
 
 
 def downgrade():
+    op.execute("DROP INDEX IF EXISTS ix_wine_card_items_section_id")
     op.drop_index("ix_wine_card_items_is_visible", table_name="wine_card_items")
     op.drop_index("ix_wine_card_items_cod_art", table_name="wine_card_items")
     op.drop_index("ix_wine_card_items_category", table_name="wine_card_items")
     op.drop_index("ix_wine_card_items_card_id", table_name="wine_card_items")
     op.drop_index("ix_wine_card_items_card_category", table_name="wine_card_items")
     op.drop_table("wine_card_items")
+
+    op.execute("DROP INDEX IF EXISTS ix_wine_card_sections_is_visible")
+    op.execute("DROP INDEX IF EXISTS ix_wine_card_sections_code")
+    op.execute("DROP INDEX IF EXISTS ix_wine_card_sections_card_visible_order")
+    op.execute("DROP INDEX IF EXISTS ix_wine_card_sections_card_id")
+    op.execute("DROP TABLE IF EXISTS wine_card_sections")
 
     op.drop_index("ix_wine_cards_title", table_name="wine_cards")
     op.drop_index("ix_wine_cards_status", table_name="wine_cards")
