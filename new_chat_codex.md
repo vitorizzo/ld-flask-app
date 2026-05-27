@@ -183,6 +183,25 @@ Non riesporre contenuti inutilmente
 
 Ridurre output ridondanti
 
+9. Scelta modello Codex per la sessione
+
+Il modello della sessione Codex viene scelto dall'utente nell'ambiente/interfaccia e Codex non può cambiarlo autonomamente durante la chat.
+
+Codex deve però valutare la task prima di iniziare e, se il modello corrente non è adeguato, deve segnalarlo all'utente prima di procedere.
+
+Tabella operativa:
+
+- Task ordinari di sviluppo, fix mirati, UI, route, API, template, CSS/JS: GPT-5.4 come modello consigliato.
+- Task critici o ad alto rischio: GPT-5.5 consigliato.
+  Esempi: formule contabili, `cash_math.py`, migrazioni DB complesse, refactor trasversali, sincronizzazione Redis, vault/USB, import massivi, modifiche che coinvolgono molte aree del progetto.
+- Task leggeri di lettura, riassunto, ricerca semplice o controlli localizzati: GPT-5.4-mini può essere sufficiente.
+
+Se il modello corrente è inferiore a quello consigliato per la task, Codex deve dirlo chiaramente e chiedere se l'utente vuole cambiare modello o procedere comunque.
+
+Questa regola riguarda solo il modello usato da Codex durante lo sviluppo.
+
+Le future funzioni AI interne a LD-Flask-App devono invece usare una scelta modello codificata nell'applicazione, tramite configurazione e un layer astratto tipo `AIProvider`, con modello selezionabile in base alla funzione applicativa, costi, cache, log e flag di abilitazione.
+
 REGOLA OPERATIVA AVANZATA
 
 Se l'utente scrive in testa al messaggio:
