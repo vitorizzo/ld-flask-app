@@ -431,6 +431,7 @@ def customer_view(token):
         sections_with_items=_sections_with_items(card, visible_only=True),
         layout_config=_merged_layout_config(card),
         style_vars=_view_style_vars(_merged_layout_config(card)),
+        back_url=request.args.get("back") or url_for("wine_cards.detail", card_id=card.id),
         customer_label=_customer_label,
         customer_mode=(current_user.max_role_weight or 0) < 30,
     )

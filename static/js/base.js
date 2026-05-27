@@ -23,7 +23,9 @@
     { test: path => path === "/edit_profile", label: "Modifica profilo" },
     { test: path => path === "/ld-selection", label: "LD Selection" },
     { test: path => path === "/wine-cards" || path === "/wine-cards/", label: "Carte vini" },
-    { test: path => path.startsWith("/wine-cards/"), label: "Carta vini" },
+    { test: path => path === "/wine-cards/new", label: "Nuova carta vini" },
+    { test: path => path.startsWith("/wine-cards/view/"), label: "Preview carta vini" },
+    { test: path => path.startsWith("/wine-cards/"), label: "Modifica carta vini" },
     { test: path => path === "/kiosk", label: "Bacheca ordini" },
     { test: path => path === "/logs/view", label: "log viewer" },
   ];

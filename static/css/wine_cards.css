@@ -11,9 +11,30 @@
 .wine-card-editor,
 .wine-card-panel {
   background: #fff;
+  color: #2f2924;
   border: 1px solid rgba(40, 34, 28, 0.12);
   border-radius: 8px;
   padding: 1rem;
+}
+
+.wine-cards-page .form-label,
+.wine-cards-page .form-check-label,
+.wine-cards-page label,
+.wine-cards-page .table,
+.wine-cards-page .wine-cards-list,
+.wine-cards-page .wine-card-panel,
+.wine-cards-page .wine-card-editor {
+  color: #2f2924;
+}
+
+.wine-cards-page .text-muted {
+  color: #6f6259 !important;
+}
+
+.wine-cards-page .form-control,
+.wine-cards-page .form-select {
+  color: #2f2924;
+  background-color: #fff;
 }
 
 .wine-card-layout {
@@ -100,6 +121,14 @@
   overflow: auto;
   background: #eee9e1;
   padding: 2rem;
+}
+
+.wine-card-view-toolbar {
+  max-width: 860px;
+  margin: 0 auto 0.75rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .wine-card-view {
@@ -288,7 +317,8 @@
 
   .app-navbar,
   .context-tabs,
-  .app-footer {
+  .app-footer,
+  .wine-card-view-toolbar {
     display: none !important;
   }
 
