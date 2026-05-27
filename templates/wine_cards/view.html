@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}{{ card.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/wine_cards.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="wine-card-view-page">
+  <div class="wine-card-view" style="font-family: {{ (card.layout_config or {}).get('font_family', 'serif') }};">
+    <header class="wine-card-view-header">
+      <div class="wine-card-view-brand">LD Enoteca</div>
+      {% if card.venue_name %}
+        <div class="wine-card-view-venue">{{ card.venue_name }}</div>
+      {% endif %}
+      <h1>{{ card.title }}</h1>
+      {% if card.subtitle %}<p>{{ card.subtitle }}</p>{% endif %}
+    </header>
+
+    {% set current_category = namespace(value=None) %}
+    <div class="wine-card-view-list">
+      {% for item in visible_items %}
+        {% if item.category != current_category.value %}
+          {% set current_category.value = item.category %}
+          <h2>{{ item.category or "Selezione" }}</h2>
+        {% endif %}
+        <article class="wine-card-view-item">
+          <div>
+            <h3>{{ item.display_description }}</h3>
+            <div class="wine-card-view-meta">
+              {% if item.winery %}<span>{{ item.winery }}</span>{% endif %}
+              {% if item.region %}<span>{{ item.region }}</span>{% endif %}
+            </div>
+          </div>
+          {% if item.sale_price is not none %}
+            <div class="wine-card-view-price">{{ "%.2f"|format(item.sale_price) }} €</div>
+          {% endif %}
+        </article>
+      {% else %}
+        <div class="text-muted text-center py-5">Carta vini in preparazione.</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

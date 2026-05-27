@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}{{ card.title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/wine_cards.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="welcome-section page-shell wine-cards-page" data-wine-card-id="{{ card.id }}">
+  <div class="container-fluid h-100 d-flex flex-column">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+      <div>
+        <h1 class="h4 mb-1">{{ card.title }}</h1>
+        <div class="text-muted small">{{ customer_label(card.customer) or "Nessun cliente associato" }}</div>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        {% if card.customer_view_token %}
+          <a class="btn btn-outline-secondary" href="{{ url_for('wine_cards.customer_view', token=card.customer_view_token) }}" target="_blank">Preview cliente</a>
+        {% endif %}
+        <form method="post" action="{{ url_for('wine_cards.duplicate', card_id=card.id) }}">
+          <button class="btn btn-outline-primary" type="submit">Duplica</button>
+        </form>
+        <a class="btn btn-outline-secondary" href="{{ url_for('wine_cards.index') }}">Elenco</a>
+      </div>
+    </div>
+
+    <div class="wine-card-layout flex-grow-1 min-h-0">
+      <div class="wine-card-panel">
+        <h2 class="h6">Impostazioni</h2>
+        <form method="post" action="{{ url_for('wine_cards.update', card_id=card.id) }}">
+          <div class="row g-2">
+            <div class="col-12">
+              <label class="form-label" for="title">Titolo</label>
+              <input class="form-control" id="title" name="title" value="{{ card.title }}" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="customer_registry_id">Cliente</label>
+              <input class="form-control" id="customer_registry_id" name="customer_registry_id" value="{{ card.customer_registry_id or '' }}" placeholder="ID anagrafica cliente">
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="venue_name">Insegna</label>
+              <input class="form-control" id="venue_name" name="venue_name" value="{{ card.venue_name or '' }}">
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="subtitle">Sottotitolo</label>
+              <input class="form-control" id="subtitle" name="subtitle" value="{{ card.subtitle or '' }}">
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="status">Stato</label>
+              <select class="form-select" id="status" name="status">
+                {% for status in ["draft", "published", "archived"] %}
+                  <option value="{{ status }}" {% if card.status == status %}selected{% endif %}>{{ status }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="font_family">Font</label>
+              <select class="form-select" id="font_family" name="font_family">
+                {% set font_family = (card.layout_config or {}).get("font_family", "serif") %}
+                {% for value, label in [("serif", "Classico"), ("sans-serif", "Moderno"), ("monospace", "Tecnico")] %}
+                  <option value="{{ value }}" {% if font_family == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="background">Background</label>
+              <input class="form-control" id="background" name="background" value="{{ (card.layout_config or {}).get('background') or '' }}">
+            </div>
+            <div class="col-6">
+              <label class="form-label" for="logo_position">Loghi</label>
+              <select class="form-select" id="logo_position" name="logo_position">
+                {% set logo_position = (card.layout_config or {}).get("logo_position", "top") %}
+                {% for value, label in [("top", "In alto"), ("split", "Separati"), ("bottom", "In basso")] %}
+                  <option value="{{ value }}" {% if logo_position == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="customer_view_enabled" name="customer_view_enabled" value="1" {% if card.customer_view_enabled %}checked{% endif %}>
+                <label class="form-check-label" for="customer_view_enabled">Abilita vista cliente horeca</label>
+              </div>
+            </div>
+          </div>
+          <button class="btn btn-primary w-100 mt-3" type="submit">Salva impostazioni</button>
+        </form>
+      </div>
+
+      <div class="wine-card-main min-h-0">
+        <div class="wine-card-panel mb-3">
+          <h2 class="h6">Aggiungi articolo</h2>
+          <form method="post" action="{{ url_for('wine_cards.add_item', card_id=card.id) }}" class="row g-2 align-items-end">
+            <div class="col-12 col-lg-3">
+              <label class="form-label" for="articleSearch">Cerca articolo</label>
+              <input class="form-control" id="articleSearch" autocomplete="off" placeholder="Descrizione o codice">
+              <div class="wine-card-search-results" id="articleSearchResults"></div>
+            </div>
+            <div class="col-12 col-lg-2">
+              <label class="form-label" for="cod_art">Codice</label>
+              <input class="form-control" id="cod_art" name="cod_art" required>
+            </div>
+            <div class="col-12 col-lg-2">
+              <label class="form-label" for="category">Categoria</label>
+              <input class="form-control" id="category" name="category" placeholder="Bollicine, Rossi...">
+            </div>
+            <div class="col-12 col-lg-2">
+              <label class="form-label" for="winery">Cantina</label>
+              <input class="form-control" id="winery" name="winery">
+            </div>
+            <div class="col-12 col-lg-2">
+              <label class="form-label" for="region">Regione</label>
+              <input class="form-control" id="region" name="region">
+            </div>
+            <div class="col-12 col-lg-1">
+              <label class="form-label" for="sale_price">Prezzo</label>
+              <input class="form-control" id="sale_price" name="sale_price">
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="display_description">Descrizione mostrata</label>
+              <input class="form-control" id="display_description" name="display_description">
+            </div>
+            <div class="col-12 text-end">
+              <button class="btn btn-primary" type="submit">Aggiungi</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="wine-card-panel wine-card-items">
+          <h2 class="h6">Articoli in carta</h2>
+          {% for item in card.items %}
+            <div class="wine-card-item-row">
+              <form method="post" action="{{ url_for('wine_cards.update_item', card_id=card.id, item_id=item.id) }}">
+                <input type="hidden" name="is_visible" value="0">
+                <div class="row g-2 align-items-end">
+                  <div class="col-6 col-lg-1">
+                    <label class="form-label">Ordine</label>
+                    <input class="form-control" name="sort_order" value="{{ item.sort_order }}">
+                  </div>
+                  <div class="col-6 col-lg-2">
+                    <label class="form-label">Categoria</label>
+                    <input class="form-control" name="category" value="{{ item.category or '' }}">
+                  </div>
+                  <div class="col-12 col-lg-3">
+                    <label class="form-label">Descrizione</label>
+                    <input class="form-control" name="display_description" value="{{ item.display_description }}">
+                  </div>
+                  <div class="col-12 col-lg-2">
+                    <label class="form-label">Cantina</label>
+                    <input class="form-control" name="winery" value="{{ item.winery or '' }}">
+                  </div>
+                  <div class="col-6 col-lg-2">
+                    <label class="form-label">Regione</label>
+                    <input class="form-control" name="region" value="{{ item.region or '' }}">
+                  </div>
+                  <div class="col-6 col-lg-1">
+                    <label class="form-label">Prezzo</label>
+                    <input class="form-control" name="sale_price" value="{{ item.sale_price or '' }}">
+                  </div>
+                  <div class="col-12 col-lg-1">
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" name="is_visible" value="1" {% if item.is_visible %}checked{% endif %}>
+                      <label class="form-check-label">Visibile</label>
+                    </div>
+                  </div>
+                  <div class="col-12 d-flex justify-content-between align-items-center">
+                    <div class="text-muted small">{{ item.cod_art or "senza codice" }}</div>
+                    <button class="btn btn-sm btn-outline-primary" type="submit">Salva</button>
+                  </div>
+                </div>
+              </form>
+              <form method="post" action="{{ url_for('wine_cards.delete_item', card_id=card.id, item_id=item.id) }}" class="wine-card-delete-form">
+                <button class="btn btn-sm btn-outline-danger" type="submit">Elimina</button>
+              </form>
+            </div>
+          {% else %}
+            <div class="text-muted py-3">Nessun articolo inserito.</div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/wine_cards.js') }}"></script>
+{% endblock %}

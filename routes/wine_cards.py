@@ -1,0 +1,259 @@
+from decimal import Decimal, InvalidOperation
+import secrets
+
+from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
+from flask_login import current_user, login_required
+from sqlalchemy import or_
+
+from extensions import db
+from models import Articoli, BusinessRegistry, WineCard, WineCardItem
+from tools.role_required import role_required
+
+
+wine_cards_bp = Blueprint("wine_cards", __name__, template_folder="../templates")
+
+
+def _customer_label(customer):
+    if not customer:
+        return ""
+    return customer.display_name or customer.legal_name or customer.source_code or f"Cliente {customer.id}"
+
+
+def _new_customer_view_token():
+    while True:
+        token = secrets.token_urlsafe(32)
+        if not WineCard.query.filter_by(customer_view_token=token).first():
+            return token
+
+
+def _parse_money(value):
+    raw = (value or "").strip().replace(",", ".")
+    if not raw:
+        return None
+    try:
+        return Decimal(raw)
+    except InvalidOperation:
+        return None
+
+
+def _article_display_description(article):
+    parts = [article.descrizione or "", article.descrizione_aggiuntiva or ""]
+    return " ".join(part.strip() for part in parts if part and part.strip()).strip()
+
+
+def _staff_customer_options(limit=120):
+    return (
+        BusinessRegistry.query
+        .filter(BusinessRegistry.kind == "customer", BusinessRegistry.is_active.is_(True))
+        .order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc())
+        .limit(limit)
+        .all()
+    )
+
+
+@wine_cards_bp.get("/")
+@login_required
+@role_required(30)
+def index():
+    q = (request.args.get("q") or "").strip()
+    query = WineCard.query.outerjoin(BusinessRegistry, WineCard.customer_registry_id == BusinessRegistry.id)
+    if q:
+        like = f"%{q}%"
+        query = query.filter(or_(
+            WineCard.title.ilike(like),
+            WineCard.venue_name.ilike(like),
+            BusinessRegistry.display_name.ilike(like),
+            BusinessRegistry.legal_name.ilike(like),
+            BusinessRegistry.source_code.ilike(like),
+        ))
+    cards = query.order_by(WineCard.updated_at.desc(), WineCard.id.desc()).limit(200).all()
+    return render_template("wine_cards/index.html", cards=cards, q=q, customer_label=_customer_label)
+
+
+@wine_cards_bp.route("/new", methods=["GET", "POST"])
+@login_required
+@role_required(30)
+def create():
+    if request.method == "POST":
+        title = (request.form.get("title") or "").strip()
+        if not title:
+            title = "Nuova carta vini"
+        card = WineCard(
+            title=title,
+            venue_name=(request.form.get("venue_name") or "").strip() or None,
+            subtitle=(request.form.get("subtitle") or "").strip() or None,
+            customer_registry_id=request.form.get("customer_registry_id", type=int),
+            status="draft",
+            customer_view_enabled=request.form.get("customer_view_enabled") == "1",
+            customer_view_token=_new_customer_view_token(),
+            layout_config={
+                "font_family": (request.form.get("font_family") or "").strip() or "serif",
+                "background": (request.form.get("background") or "").strip() or None,
+                "logo_position": (request.form.get("logo_position") or "").strip() or "top",
+            },
+            created_by_user_id=current_user.id,
+        )
+        db.session.add(card)
+        db.session.commit()
+        return redirect(url_for("wine_cards.detail", card_id=card.id))
+    return render_template("wine_cards/form.html", card=None, customers=_staff_customer_options())
+
+
+@wine_cards_bp.get("/<int:card_id>")
+@login_required
+@role_required(30)
+def detail(card_id):
+    card = WineCard.query.get_or_404(card_id)
+    return render_template("wine_cards/detail.html", card=card, customer_label=_customer_label)
+
+
+@wine_cards_bp.post("/<int:card_id>/update")
+@login_required
+@role_required(30)
+def update(card_id):
+    card = WineCard.query.get_or_404(card_id)
+    card.title = (request.form.get("title") or "").strip() or card.title
+    card.venue_name = (request.form.get("venue_name") or "").strip() or None
+    card.subtitle = (request.form.get("subtitle") or "").strip() or None
+    card.customer_registry_id = request.form.get("customer_registry_id", type=int)
+    card.status = (request.form.get("status") or "draft").strip() or "draft"
+    card.customer_view_enabled = request.form.get("customer_view_enabled") == "1"
+    card.layout_config = {
+        "font_family": (request.form.get("font_family") or "").strip() or "serif",
+        "background": (request.form.get("background") or "").strip() or None,
+        "logo_position": (request.form.get("logo_position") or "").strip() or "top",
+    }
+    if not card.customer_view_token:
+        card.customer_view_token = _new_customer_view_token()
+    db.session.commit()
+    return redirect(url_for("wine_cards.detail", card_id=card.id))
+
+
+@wine_cards_bp.post("/<int:card_id>/duplicate")
+@login_required
+@role_required(30)
+def duplicate(card_id):
+    source = WineCard.query.get_or_404(card_id)
+    card = WineCard(
+        customer_registry_id=source.customer_registry_id,
+        source_card_id=source.id,
+        created_by_user_id=current_user.id,
+        title=f"Copia di {source.title}",
+        venue_name=source.venue_name,
+        subtitle=source.subtitle,
+        status="draft",
+        customer_view_enabled=False,
+        customer_view_token=_new_customer_view_token(),
+        layout_config=dict(source.layout_config or {}),
+    )
+    db.session.add(card)
+    db.session.flush()
+    for index, item in enumerate(source.items or []):
+        db.session.add(WineCardItem(
+            card_id=card.id,
+            cod_art=item.cod_art,
+            sort_order=index,
+            category=item.category,
+            display_description=item.display_description,
+            winery=item.winery,
+            region=item.region,
+            sale_price=item.sale_price,
+            is_visible=item.is_visible,
+            notes=item.notes,
+        ))
+    db.session.commit()
+    return redirect(url_for("wine_cards.detail", card_id=card.id))
+
+
+@wine_cards_bp.post("/<int:card_id>/items")
+@login_required
+@role_required(30)
+def add_item(card_id):
+    card = WineCard.query.get_or_404(card_id)
+    cod_art = (request.form.get("cod_art") or "").strip()
+    article = Articoli.query.filter_by(cod_art=cod_art).first() if cod_art else None
+    if not article:
+        abort(404)
+    next_order = (max([item.sort_order for item in card.items] or [-1]) + 1)
+    item = WineCardItem(
+        card_id=card.id,
+        cod_art=article.cod_art,
+        sort_order=next_order,
+        category=(request.form.get("category") or "").strip() or None,
+        display_description=(request.form.get("display_description") or "").strip() or _article_display_description(article),
+        winery=(request.form.get("winery") or "").strip() or None,
+        region=(request.form.get("region") or "").strip() or None,
+        sale_price=_parse_money(request.form.get("sale_price")) or article.prezzo,
+        is_visible=True,
+    )
+    db.session.add(item)
+    db.session.commit()
+    return redirect(url_for("wine_cards.detail", card_id=card.id))
+
+
+@wine_cards_bp.post("/<int:card_id>/items/<int:item_id>/update")
+@login_required
+@role_required(30)
+def update_item(card_id, item_id):
+    item = WineCardItem.query.filter_by(card_id=card_id, id=item_id).first_or_404()
+    item.sort_order = request.form.get("sort_order", type=int) or 0
+    item.category = (request.form.get("category") or "").strip() or None
+    item.display_description = (request.form.get("display_description") or "").strip() or item.display_description
+    item.winery = (request.form.get("winery") or "").strip() or None
+    item.region = (request.form.get("region") or "").strip() or None
+    item.sale_price = _parse_money(request.form.get("sale_price"))
+    item.is_visible = request.form.get("is_visible") == "1"
+    item.notes = (request.form.get("notes") or "").strip() or None
+    db.session.commit()
+    return redirect(url_for("wine_cards.detail", card_id=card_id))
+
+
+@wine_cards_bp.post("/<int:card_id>/items/<int:item_id>/delete")
+@login_required
+@role_required(30)
+def delete_item(card_id, item_id):
+    item = WineCardItem.query.filter_by(card_id=card_id, id=item_id).first_or_404()
+    db.session.delete(item)
+    db.session.commit()
+    return redirect(url_for("wine_cards.detail", card_id=card_id))
+
+
+@wine_cards_bp.get("/api/articles")
+@login_required
+@role_required(30)
+def api_articles():
+    q = (request.args.get("q") or "").strip()
+    query = Articoli.query
+    if q:
+        like = f"%{q}%"
+        query = query.filter(or_(
+            Articoli.cod_art.ilike(like),
+            Articoli.descrizione.ilike(like),
+            Articoli.descrizione_aggiuntiva.ilike(like),
+        ))
+    rows = query.order_by(Articoli.descrizione.asc(), Articoli.cod_art.asc()).limit(30).all()
+    return jsonify({"ok": True, "articles": [
+        {
+            "cod_art": row.cod_art,
+            "description": _article_display_description(row),
+            "price": float(row.prezzo) if row.prezzo is not None else None,
+        }
+        for row in rows
+    ]})
+
+
+@wine_cards_bp.get("/view/<token>")
+@login_required
+@role_required(30, roles=["customer_horeca"])
+def customer_view(token):
+    card = WineCard.query.filter_by(customer_view_token=token).first_or_404()
+    if (current_user.max_role_weight or 0) < 30 and not card.customer_view_enabled:
+        abort(403)
+    visible_items = [item for item in card.items if item.is_visible]
+    return render_template(
+        "wine_cards/view.html",
+        card=card,
+        visible_items=visible_items,
+        customer_label=_customer_label,
+        customer_mode=(current_user.max_role_weight or 0) < 30,
+    )

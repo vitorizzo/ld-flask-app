@@ -77,6 +77,119 @@ class Articoli(db.Model):
         return f"<Articolo {self.cod_art}>"
 
 
+class WineCard(db.Model):
+    __tablename__ = "wine_cards"
+    __table_args__ = (
+        db.Index("ix_wine_cards_customer_status", "customer_registry_id", "status"),
+        db.Index("ix_wine_cards_title", "title"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    customer_registry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("business_registries.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    source_card_id = db.Column(
+        db.Integer,
+        db.ForeignKey("wine_cards.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True, index=True)
+
+    title = db.Column(db.String(180), nullable=False)
+    venue_name = db.Column(db.String(180), nullable=True)
+    subtitle = db.Column(db.String(255), nullable=True)
+    status = db.Column(db.String(24), nullable=False, default="draft", index=True)
+
+    customer_view_enabled = db.Column(db.Boolean, nullable=False, default=False, index=True)
+    customer_view_token = db.Column(db.String(64), nullable=True, unique=True, index=True)
+    layout_config = db.Column(JSONB, nullable=True)
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    customer = db.relationship("BusinessRegistry", backref=db.backref("wine_cards", lazy="selectin"))
+    source_card = db.relationship("WineCard", remote_side=[id])
+    created_by = db.relationship("User")
+    items = db.relationship(
+        "WineCardItem",
+        back_populates="card",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+        order_by="WineCardItem.sort_order.asc()",
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "customer_registry_id": self.customer_registry_id,
+            "source_card_id": self.source_card_id,
+            "title": self.title,
+            "venue_name": self.venue_name,
+            "subtitle": self.subtitle,
+            "status": self.status,
+            "customer_view_enabled": self.customer_view_enabled,
+            "customer_view_token": self.customer_view_token,
+            "layout_config": self.layout_config or {},
+            "items_count": len(self.items or []),
+        }
+
+
+class WineCardItem(db.Model):
+    __tablename__ = "wine_card_items"
+    __table_args__ = (
+        db.UniqueConstraint("card_id", "cod_art", name="uq_wine_card_item_card_cod_art"),
+        db.Index("ix_wine_card_items_card_category", "card_id", "category"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    card_id = db.Column(db.Integer, db.ForeignKey("wine_cards.id", ondelete="CASCADE"), nullable=False, index=True)
+    cod_art = db.Column(db.String(255), db.ForeignKey("articoli.cod_art", ondelete="SET NULL"), nullable=True, index=True)
+
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    category = db.Column(db.String(120), nullable=True, index=True)
+    display_description = db.Column(db.String(255), nullable=False)
+    winery = db.Column(db.String(180), nullable=True)
+    region = db.Column(db.String(120), nullable=True)
+    sale_price = db.Column(db.Numeric(10, 2), nullable=True)
+    is_visible = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    notes = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    card = db.relationship("WineCard", back_populates="items")
+    article = db.relationship("Articoli")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "card_id": self.card_id,
+            "cod_art": self.cod_art,
+            "sort_order": self.sort_order,
+            "category": self.category,
+            "display_description": self.display_description,
+            "winery": self.winery,
+            "region": self.region,
+            "sale_price": float(self.sale_price) if self.sale_price is not None else None,
+            "is_visible": self.is_visible,
+            "notes": self.notes,
+        }
+
+
 class Barcode(db.Model):
     __tablename__ = "barcode"
 

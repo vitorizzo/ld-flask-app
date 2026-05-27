@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Nuova carta vini{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/wine_cards.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="welcome-section page-shell wine-cards-page">
+  <div class="container-fluid h-100 d-flex flex-column">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h1 class="h4 mb-1">Nuova carta vini</h1>
+        <div class="text-muted small">Crea una carta vuota, poi aggiungi articoli e campi visualizzati.</div>
+      </div>
+      <a class="btn btn-outline-secondary" href="{{ url_for('wine_cards.index') }}">Elenco</a>
+    </div>
+
+    <form method="post" class="wine-card-editor">
+      <div class="row g-3">
+        <div class="col-12 col-lg-7">
+          <label class="form-label" for="title">Titolo carta</label>
+          <input class="form-control" id="title" name="title" required autocomplete="off" placeholder="Carta dei vini">
+        </div>
+        <div class="col-12 col-lg-5">
+          <label class="form-label" for="customer_registry_id">Cliente</label>
+          <select class="form-select" id="customer_registry_id" name="customer_registry_id">
+            <option value="">Nessun cliente associato</option>
+            {% for customer in customers %}
+              <option value="{{ customer.id }}">{{ customer.display_name or customer.legal_name or customer.source_code }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="venue_name">Insegna cliente</label>
+          <input class="form-control" id="venue_name" name="venue_name" autocomplete="off">
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="subtitle">Sottotitolo</label>
+          <input class="form-control" id="subtitle" name="subtitle" autocomplete="off">
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label" for="font_family">Font</label>
+          <select class="form-select" id="font_family" name="font_family">
+            <option value="serif">Classico</option>
+            <option value="sans-serif">Moderno</option>
+            <option value="monospace">Tecnico</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label" for="background">Background</label>
+          <input class="form-control" id="background" name="background" autocomplete="off" placeholder="Nome colore o file">
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label" for="logo_position">Posizione loghi</label>
+          <select class="form-select" id="logo_position" name="logo_position">
+            <option value="top">In alto</option>
+            <option value="split">Separati</option>
+            <option value="bottom">In basso</option>
+          </select>
+        </div>
+        <div class="col-12">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="customer_view_enabled" name="customer_view_enabled" value="1">
+            <label class="form-check-label" for="customer_view_enabled">Abilita visualizzazione cliente horeca</label>
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <a class="btn btn-outline-secondary" href="{{ url_for('wine_cards.index') }}">Annulla</a>
+        <button class="btn btn-primary" type="submit">Crea carta</button>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

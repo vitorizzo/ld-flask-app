@@ -22,6 +22,8 @@
     { test: path => path === "/upload_photo", label: "Gestione foto profilo" },
     { test: path => path === "/edit_profile", label: "Modifica profilo" },
     { test: path => path === "/ld-selection", label: "LD Selection" },
+    { test: path => path === "/wine-cards" || path === "/wine-cards/", label: "Carte vini" },
+    { test: path => path.startsWith("/wine-cards/"), label: "Carta vini" },
     { test: path => path === "/kiosk", label: "Bacheca ordini" },
     { test: path => path === "/logs/view", label: "log viewer" },
   ];

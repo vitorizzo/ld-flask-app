@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Carte vini{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/wine_cards.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="welcome-section page-shell wine-cards-page">
+  <div class="container-fluid h-100 d-flex flex-column">
+    <div class="wine-cards-header d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+      <div>
+        <h1 class="h4 mb-1">Carte vini</h1>
+        <div class="text-muted small">Archivio interno delle carte personalizzate per clienti horeca.</div>
+      </div>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <form class="d-flex gap-2" method="get">
+          <input class="form-control" name="q" value="{{ q }}" autocomplete="off" placeholder="Cerca carta o cliente">
+          <button class="btn btn-outline-secondary" type="submit">Cerca</button>
+        </form>
+        <a class="btn btn-primary" href="{{ url_for('wine_cards.create') }}">Nuova carta</a>
+      </div>
+    </div>
+
+    <div class="wine-cards-list flex-grow-1 min-h-0">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>Carta</th>
+            <th>Cliente</th>
+            <th>Stato</th>
+            <th>Righe</th>
+            <th>Vista cliente</th>
+            <th class="text-end">Azioni</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for card in cards %}
+            <tr>
+              <td>
+                <div class="fw-semibold">{{ card.title }}</div>
+                {% if card.venue_name %}<div class="text-muted small">{{ card.venue_name }}</div>{% endif %}
+              </td>
+              <td>{{ customer_label(card.customer) or "-" }}</td>
+              <td>{{ card.status }}</td>
+              <td>{{ card.items|length }}</td>
+              <td>{{ "abilitata" if card.customer_view_enabled else "disabilitata" }}</td>
+              <td class="text-end">
+                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('wine_cards.detail', card_id=card.id) }}">Apri</a>
+              </td>
+            </tr>
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-muted py-4 text-center">Nessuna carta vini presente.</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+{% endblock %}
