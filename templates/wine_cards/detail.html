@@ -28,7 +28,7 @@
     <div class="wine-card-layout flex-grow-1 min-h-0">
       <div class="wine-card-panel">
         <h2 class="h6">Impostazioni</h2>
-        <form method="post" action="{{ url_for('wine_cards.update', card_id=card.id) }}">
+        <form method="post" action="{{ url_for('wine_cards.update', card_id=card.id) }}" id="wineCardSettingsForm">
           <div class="row g-2">
             <div class="col-12">
               <label class="form-label" for="title">Titolo</label>
@@ -40,7 +40,7 @@
             </div>
             <div class="col-12">
               <label class="form-label" for="template_id">Template</label>
-              <select class="form-select" id="template_id" name="template_id">
+              <select class="form-select" id="template_id" name="template_id" data-auto-submit="settings">
                 <option value="">Nessun template</option>
                 {% for template in templates %}
                   <option value="{{ template.id }}" {% if card.template_id == template.id %}selected{% endif %}>{{ template.name }}</option>

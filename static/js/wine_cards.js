@@ -68,3 +68,17 @@
       .replace(/'/g, "&#039;");
   }
 })();
+
+(() => {
+  const settingsForm = document.getElementById("wineCardSettingsForm");
+  const templateSelect = document.querySelector("[data-auto-submit='settings']");
+  if (!settingsForm || !templateSelect) return;
+
+  templateSelect.addEventListener("change", () => {
+    if (settingsForm.requestSubmit) {
+      settingsForm.requestSubmit();
+      return;
+    }
+    settingsForm.submit();
+  });
+})();
