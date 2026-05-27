@@ -36,6 +36,10 @@ def _parse_money(value):
         return None
 
 
+def _form_bool(name):
+    return "1" in request.form.getlist(name)
+
+
 def _article_display_description(article):
     parts = [article.descrizione or "", article.descrizione_aggiuntiva or ""]
     return " ".join(part.strip() for part in parts if part and part.strip()).strip()
@@ -341,7 +345,7 @@ def update_item(card_id, item_id):
     item.winery = (request.form.get("winery") or "").strip() or None
     item.region = (request.form.get("region") or "").strip() or None
     item.sale_price = _parse_money(request.form.get("sale_price"))
-    item.is_visible = request.form.get("is_visible") == "1"
+    item.is_visible = _form_bool("is_visible")
     item.notes = (request.form.get("notes") or "").strip() or None
     db.session.commit()
     return redirect(url_for("wine_cards.detail", card_id=card_id))
@@ -374,7 +378,7 @@ def update_section(card_id, section_id):
         if not conflict:
             section.code = new_code
     section.sort_order = request.form.get("sort_order", type=int) or 0
-    section.is_visible = request.form.get("is_visible") == "1"
+    section.is_visible = _form_bool("is_visible")
     section.notes = (request.form.get("notes") or "").strip() or None
     for item in section.items or []:
         item.category = section.title
