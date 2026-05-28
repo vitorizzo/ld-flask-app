@@ -1,5 +1,5 @@
 body {
-    background-image: url('/static/images/background-homepage.jpg');
+    background-image: url('/static/images/backgrounds/background-homepage.jpg');
     background-size: auto;
     background-repeat: repeat;
     background-position: center;
@@ -119,7 +119,7 @@ section {
   right: 0;
   z-index: 1070;
   background-color: #4A2C2A; /* Marrone principale */
-  background-image: url('/static/images/bg-bottom-pattern.png'); /* Separatore in alto */
+  background-image: url('/static/images/backgrounds/bg-bottom-pattern.png'); /* Separatore in alto */
   background-repeat: repeat-x;
   background-position: bottom;
   background-size: fixed;
@@ -589,7 +589,7 @@ h1,h2,h3,h4{
     bottom: 0;
     text-align: center;
     background-color: #4A2C2A; /* Marrone simile a quello del sito */
-    background-image: url('/static/images/bg-top-pattern.png'); /* Separatore in alto */
+    background-image: url('/static/images/backgrounds/bg-top-pattern.png'); /* Separatore in alto */
     background-repeat: repeat-x;
     background-position: top; /* Posiziona l'immagine in alto */
     background-size: contain;

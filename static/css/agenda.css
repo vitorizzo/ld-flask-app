@@ -115,11 +115,11 @@
 }
 
 .agenda-day-header.vault-locked {
-  background-image: url("/static/images/rain-drops.jpg");
+  background-image: url("/static/images/backgrounds/rain-drops.jpg");
 }
 
 .agenda-day-header.vault-unlocked {
-  background-image: url("/static/images/blue-sky.jpg");
+  background-image: url("/static/images/backgrounds/blue-sky.jpg");
 }
 
 /* =========================

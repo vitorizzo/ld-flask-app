@@ -12,13 +12,29 @@
     <a class="btn btn-outline-secondary" href="{{ back_url }}">&larr; Torna alla carta</a>
   </div>
   <div class="wine-card-view {{ layout_config.get('css_class', 'wine-template-classic') }}" style="{{ style_vars }}">
+    {% if layout_config.get("background_image") %}
+      <div class="wine-card-view-bg" style="background-image: url('{{ url_for('static', filename=layout_config.get('background_image')) }}')"></div>
+    {% endif %}
     <header class="wine-card-view-header">
-      <div class="wine-card-view-brand">LD Enoteca</div>
-      {% if card.venue_name %}
-        <div class="wine-card-view-venue">{{ card.venue_name }}</div>
-      {% endif %}
-      <h1>{{ card.title }}</h1>
-      {% if card.subtitle %}<p>{{ card.subtitle }}</p>{% endif %}
+      <div class="wine-card-logo-slot wine-card-logo-slot--company">
+        {% if layout_config.get("company_logo") %}
+          <img src="{{ url_for('static', filename=layout_config.get('company_logo')) }}" alt="Logo azienda">
+        {% else %}
+          <span>LD Enoteca</span>
+        {% endif %}
+      </div>
+      <div class="wine-card-view-title">
+        {% if card.venue_name %}
+          <div class="wine-card-view-venue">{{ card.venue_name }}</div>
+        {% endif %}
+        <h1>{{ card.title }}</h1>
+        {% if card.subtitle %}<p>{{ card.subtitle }}</p>{% endif %}
+      </div>
+      <div class="wine-card-logo-slot wine-card-logo-slot--customer">
+        {% if layout_config.get("customer_logo") %}
+          <img src="{{ url_for('static', filename=layout_config.get('customer_logo')) }}" alt="Logo cliente">
+        {% endif %}
+      </div>
     </header>
 
     <div class="wine-card-view-list">
@@ -29,8 +45,9 @@
             <div>
               <h3>{{ item.display_description }}</h3>
               <div class="wine-card-view-meta">
-                {% if item.winery %}<span>{{ item.winery }}</span>{% endif %}
-                {% if item.region %}<span>{{ item.region }}</span>{% endif %}
+                {% if item.winery or item.region %}
+                  <span>{{ item.winery or "" }}{% if item.winery and item.region %} ({{ item.region }}){% elif item.region %}{{ item.region }}{% endif %}</span>
+                {% endif %}
               </div>
             </div>
             {% if item.sale_price is not none %}

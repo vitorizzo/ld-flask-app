@@ -28,7 +28,7 @@
     <div class="wine-card-layout flex-grow-1 min-h-0">
       <div class="wine-card-panel">
         <h2 class="h6">Impostazioni</h2>
-        <form method="post" action="{{ url_for('wine_cards.update', card_id=card.id) }}" id="wineCardSettingsForm">
+        <form method="post" action="{{ url_for('wine_cards.update', card_id=card.id) }}" id="wineCardSettingsForm" enctype="multipart/form-data">
           <div class="row g-2">
             <div class="col-12">
               <label class="form-label" for="title">Titolo</label>
@@ -90,6 +90,27 @@
                 <input class="form-check-input" type="checkbox" id="customer_view_enabled" name="customer_view_enabled" value="1" {% if card.customer_view_enabled %}checked{% endif %}>
                 <label class="form-check-label" for="customer_view_enabled">Abilita vista cliente horeca</label>
               </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="customer_logo">Logo cliente</label>
+              <input class="form-control" id="customer_logo" name="customer_logo" type="file" accept=".png,.jpg,.jpeg,.webp">
+              {% if (card.layout_config or {}).get("customer_logo") %}
+                <div class="text-muted small mt-1">{{ (card.layout_config or {}).get("customer_logo") }}</div>
+              {% endif %}
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="company_logo">Logo azienda</label>
+              <input class="form-control" id="company_logo" name="company_logo" type="file" accept=".png,.jpg,.jpeg,.webp">
+              {% if (card.layout_config or {}).get("company_logo") %}
+                <div class="text-muted small mt-1">{{ (card.layout_config or {}).get("company_logo") }}</div>
+              {% endif %}
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="background_image">Immagine background</label>
+              <input class="form-control" id="background_image" name="background_image" type="file" accept=".png,.jpg,.jpeg,.webp">
+              {% if (card.layout_config or {}).get("background_image") %}
+                <div class="text-muted small mt-1">{{ (card.layout_config or {}).get("background_image") }}</div>
+              {% endif %}
             </div>
           </div>
           <button class="btn btn-primary w-100 mt-3" type="submit">Salva impostazioni</button>

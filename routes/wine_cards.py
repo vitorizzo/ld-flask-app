@@ -1,9 +1,11 @@
 from decimal import Decimal, InvalidOperation
 import secrets
+from pathlib import Path
 
 from flask import Blueprint, abort, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import or_
+from werkzeug.utils import secure_filename
 
 from extensions import db
 from models import Articoli, BusinessRegistry, WineCard, WineCardItem, WineCardSection, WineCardTemplate
@@ -11,6 +13,12 @@ from tools.role_required import role_required
 
 
 wine_cards_bp = Blueprint("wine_cards", __name__, template_folder="../templates")
+
+ASSET_UPLOADS = {
+    "customer_logo": ("loghi_clienti", {"png", "jpg", "jpeg", "webp"}),
+    "company_logo": ("loghi_azienda", {"png", "jpg", "jpeg", "webp"}),
+    "background_image": ("backgrounds", {"png", "jpg", "jpeg", "webp"}),
+}
 
 
 def _customer_label(customer):
@@ -164,6 +172,37 @@ def _view_style_vars(config):
     return "; ".join(parts)
 
 
+def _save_card_asset(field_name):
+    uploaded = request.files.get(field_name)
+    if not uploaded or not uploaded.filename:
+        return None
+    folder_name, allowed_ext = ASSET_UPLOADS[field_name]
+    original = secure_filename(uploaded.filename)
+    suffix = original.rsplit(".", 1)[-1].lower() if "." in original else ""
+    if suffix not in allowed_ext:
+        abort(400)
+    stem = original.rsplit(".", 1)[0] if "." in original else original
+    filename = f"{stem}-{secrets.token_hex(4)}.{suffix}"
+    target_dir = Path(wine_cards_bp.root_path).parent / "static" / "images" / folder_name
+    target_dir.mkdir(parents=True, exist_ok=True)
+    uploaded.save(target_dir / filename)
+    return f"images/{folder_name}/{filename}"
+
+
+def _layout_from_form(existing=None):
+    config = dict(existing or {})
+    config.update({
+        "font_family": (request.form.get("font_family") or "").strip() or "serif",
+        "background": (request.form.get("background") or "").strip() or None,
+        "logo_position": (request.form.get("logo_position") or "").strip() or "top",
+    })
+    for field_name in ASSET_UPLOADS:
+        saved_path = _save_card_asset(field_name)
+        if saved_path:
+            config[field_name] = saved_path
+    return config
+
+
 @wine_cards_bp.get("/")
 @login_required
 @role_required(30)
@@ -200,11 +239,7 @@ def create():
             status="draft",
             customer_view_enabled=request.form.get("customer_view_enabled") == "1",
             customer_view_token=_new_customer_view_token(),
-            layout_config={
-                "font_family": (request.form.get("font_family") or "").strip() or "serif",
-                "background": (request.form.get("background") or "").strip() or None,
-                "logo_position": (request.form.get("logo_position") or "").strip() or "top",
-            },
+            layout_config=_layout_from_form(),
             created_by_user_id=current_user.id,
         )
         db.session.add(card)
@@ -239,11 +274,7 @@ def update(card_id):
     card.template_id = request.form.get("template_id", type=int) or None
     card.status = (request.form.get("status") or "draft").strip() or "draft"
     card.customer_view_enabled = request.form.get("customer_view_enabled") == "1"
-    card.layout_config = {
-        "font_family": (request.form.get("font_family") or "").strip() or "serif",
-        "background": (request.form.get("background") or "").strip() or None,
-        "logo_position": (request.form.get("logo_position") or "").strip() or "top",
-    }
+    card.layout_config = _layout_from_form(card.layout_config or {})
     if not card.customer_view_token:
         card.customer_view_token = _new_customer_view_token()
     db.session.commit()

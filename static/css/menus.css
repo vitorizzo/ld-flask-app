@@ -168,7 +168,7 @@
    MODAL THEME (scoped)
 ========================= */
 #menuModal .modal-content{
-  background-image: url('/static/images/background-homepage.jpg');
+  background-image: url('/static/images/backgrounds/background-homepage.jpg');
   background-size: auto;
   background-repeat: repeat;
   background-position: center;

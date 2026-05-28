@@ -17,7 +17,7 @@
       <a class="btn btn-outline-secondary" href="{{ url_for('wine_cards.index') }}">Elenco</a>
     </div>
 
-    <form method="post" class="wine-card-editor">
+    <form method="post" class="wine-card-editor" enctype="multipart/form-data">
       <div class="row g-3">
         <div class="col-12 col-lg-7">
           <label class="form-label" for="title">Titolo carta</label>
@@ -73,6 +73,18 @@
             <input class="form-check-input" type="checkbox" id="customer_view_enabled" name="customer_view_enabled" value="1">
             <label class="form-check-label" for="customer_view_enabled">Abilita visualizzazione cliente horeca</label>
           </div>
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label" for="customer_logo">Logo cliente</label>
+          <input class="form-control" id="customer_logo" name="customer_logo" type="file" accept=".png,.jpg,.jpeg,.webp">
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label" for="company_logo">Logo azienda</label>
+          <input class="form-control" id="company_logo" name="company_logo" type="file" accept=".png,.jpg,.jpeg,.webp">
+        </div>
+        <div class="col-12 col-md-4">
+          <label class="form-label" for="background_image">Immagine background</label>
+          <input class="form-control" id="background_image" name="background_image" type="file" accept=".png,.jpg,.jpeg,.webp">
         </div>
       </div>
 
