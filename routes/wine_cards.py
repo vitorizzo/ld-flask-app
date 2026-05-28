@@ -19,6 +19,8 @@ ASSET_UPLOADS = {
     "company_logo": ("loghi_azienda", {"png", "jpg", "jpeg", "webp"}),
     "background_image": ("backgrounds", {"png", "jpg", "jpeg", "webp"}),
 }
+LOGO_VERTICAL_POSITIONS = {"header", "footer"}
+LOGO_ALIGNMENTS = {"left", "center", "right"}
 
 
 def _customer_label(customer):
@@ -132,6 +134,25 @@ def _active_templates():
     )
 
 
+def _asset_options(field_name):
+    folder_name, allowed_ext = ASSET_UPLOADS[field_name]
+    asset_dir = Path(wine_cards_bp.root_path).parent / "static" / "images" / folder_name
+    if not asset_dir.exists():
+        return []
+    options = []
+    for path in sorted(asset_dir.iterdir(), key=lambda row: row.name.lower()):
+        if path.is_file() and path.suffix.lower().lstrip(".") in allowed_ext:
+            options.append({
+                "label": path.name,
+                "value": f"images/{folder_name}/{path.name}",
+            })
+    return options
+
+
+def _asset_options_by_field():
+    return {field_name: _asset_options(field_name) for field_name in ASSET_UPLOADS}
+
+
 def _default_template_id():
     template = (
         WineCardTemplate.query
@@ -172,6 +193,51 @@ def _view_style_vars(config):
     return "; ".join(parts)
 
 
+def _logo_height(value, default=18):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(8, min(parsed, 60))
+
+
+def _layout_logo_config(config, logo_key, default_vertical="header", default_align="left"):
+    vertical = (request.form.get(f"{logo_key}_vertical") or config.get(f"{logo_key}_vertical") or default_vertical).strip()
+    align = (request.form.get(f"{logo_key}_align") or config.get(f"{logo_key}_align") or default_align).strip()
+    config[f"{logo_key}_vertical"] = vertical if vertical in LOGO_VERTICAL_POSITIONS else default_vertical
+    config[f"{logo_key}_align"] = align if align in LOGO_ALIGNMENTS else default_align
+    config[f"{logo_key}_height_mm"] = _logo_height(
+        request.form.get(f"{logo_key}_height_mm") or config.get(f"{logo_key}_height_mm"),
+        default=18,
+    )
+
+
+def _logo_layout(config):
+    slots = {
+        "header": {"left": [], "center": [], "right": []},
+        "footer": {"left": [], "center": [], "right": []},
+    }
+    for logo_key, alt, default_align in [
+        ("company_logo", "Logo azienda", "left"),
+        ("customer_logo", "Logo cliente", "right"),
+    ]:
+        path = config.get(logo_key)
+        if not path:
+            continue
+        vertical = config.get(f"{logo_key}_vertical") or "header"
+        align = config.get(f"{logo_key}_align") or default_align
+        if vertical not in slots:
+            vertical = "header"
+        if align not in slots[vertical]:
+            align = default_align
+        slots[vertical][align].append({
+            "path": path,
+            "alt": alt,
+            "height": _logo_height(config.get(f"{logo_key}_height_mm"), default=18),
+        })
+    return slots
+
+
 def _save_card_asset(field_name):
     uploaded = request.files.get(field_name)
     if not uploaded or not uploaded.filename:
@@ -194,8 +260,19 @@ def _layout_from_form(existing=None):
     config.update({
         "font_family": (request.form.get("font_family") or "").strip() or "serif",
         "background": (request.form.get("background") or "").strip() or None,
-        "logo_position": (request.form.get("logo_position") or "").strip() or "top",
     })
+    for field_name in ASSET_UPLOADS:
+        selected_path = (request.form.get(f"{field_name}_selected") or "").strip()
+        if selected_path == "__clear__":
+            config.pop(field_name, None)
+        elif selected_path:
+            folder_name = ASSET_UPLOADS[field_name][0]
+            if selected_path.startswith(f"images/{folder_name}/"):
+                config[field_name] = selected_path
+
+    _layout_logo_config(config, "company_logo", default_vertical="header", default_align="left")
+    _layout_logo_config(config, "customer_logo", default_vertical="header", default_align="right")
+
     for field_name in ASSET_UPLOADS:
         saved_path = _save_card_asset(field_name)
         if saved_path:
@@ -245,7 +322,13 @@ def create():
         db.session.add(card)
         db.session.commit()
         return redirect(url_for("wine_cards.detail", card_id=card.id))
-    return render_template("wine_cards/form.html", card=None, customers=_staff_customer_options(), templates=_active_templates())
+    return render_template(
+        "wine_cards/form.html",
+        card=None,
+        customers=_staff_customer_options(),
+        templates=_active_templates(),
+        asset_options=_asset_options_by_field(),
+    )
 
 
 @wine_cards_bp.get("/<int:card_id>")
@@ -259,6 +342,7 @@ def detail(card_id):
         customer_label=_customer_label,
         sections_with_items=_sections_with_items(card),
         templates=_active_templates(),
+        asset_options=_asset_options_by_field(),
     )
 
 
@@ -459,13 +543,15 @@ def customer_view(token):
     if (current_user.max_role_weight or 0) < 30 and not card.customer_view_enabled:
         abort(403)
     visible_items = [item for item in card.items if item.is_visible]
+    layout_config = _merged_layout_config(card)
     return render_template(
         "wine_cards/view.html",
         card=card,
         visible_items=visible_items,
         sections_with_items=_sections_with_items(card, visible_only=True),
-        layout_config=_merged_layout_config(card),
-        style_vars=_view_style_vars(_merged_layout_config(card)),
+        layout_config=layout_config,
+        logo_layout=_logo_layout(layout_config),
+        style_vars=_view_style_vars(layout_config),
         back_url=request.args.get("back") or url_for("wine_cards.detail", card_id=card.id),
         customer_label=_customer_label,
         customer_mode=(current_user.max_role_weight or 0) < 30,

@@ -17,6 +17,13 @@
   padding: 1rem;
 }
 
+.wine-card-asset-box {
+  border: 1px solid rgba(40, 34, 28, 0.12);
+  border-radius: 8px;
+  padding: 0.75rem;
+  background: #fbfaf7;
+}
+
 .wine-cards-page .form-label,
 .wine-cards-page .form-check-label,
 .wine-cards-page label,
@@ -146,6 +153,8 @@
   --wine-item-gap: 0.62cm;
   --wine-section-gap: 0.82cm;
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: min(100%, 210mm);
   min-height: 297mm;
   box-sizing: border-box;
@@ -174,13 +183,17 @@
 }
 
 .wine-card-view-header {
-  display: grid;
-  grid-template-columns: 34mm minmax(0, 1fr) 34mm;
-  align-items: start;
-  gap: 8mm;
   border-bottom: 1px solid rgba(43, 37, 32, 0.2);
   padding-bottom: 12mm;
   margin-bottom: 12mm;
+}
+
+.wine-card-logo-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6mm;
+  align-items: start;
+  min-height: 8mm;
 }
 
 .wine-card-view-title {
@@ -196,18 +209,30 @@
 }
 
 .wine-card-logo-slot {
-  min-height: 22mm;
   display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  align-items: center;
+  min-height: 8mm;
   color: #7a6758;
   font-size: 8pt;
   text-transform: uppercase;
 }
 
+.wine-card-logo-slot--left {
+  justify-content: flex-start;
+}
+
+.wine-card-logo-slot--center {
+  justify-content: center;
+}
+
+.wine-card-logo-slot--right {
+  justify-content: flex-end;
+}
+
 .wine-card-logo-slot img {
-  max-width: 34mm;
-  max-height: 24mm;
+  width: auto;
+  max-width: 100%;
+  max-height: 60mm;
   object-fit: contain;
 }
 
@@ -236,12 +261,20 @@
   text-align: left;
 }
 
+.wine-card-view-list {
+  flex: 1 0 auto;
+}
+
 .wine-card-view-item {
   display: grid;
   grid-template-columns: minmax(0, var(--wine-price-x)) auto;
   gap: 1rem;
   padding: var(--wine-item-gap) 0 0;
   border-bottom: 1px solid rgba(43, 37, 32, 0.12);
+}
+
+.wine-card-view-item > div {
+  text-align: left;
 }
 
 .wine-card-view-item h3 {
@@ -262,6 +295,12 @@
 .wine-card-view-price {
   font-weight: 700;
   white-space: nowrap;
+  text-align: right;
+}
+
+.wine-card-view-footer {
+  margin-top: auto;
+  padding-top: 12mm;
 }
 
 .wine-template-classic .wine-card-view-header {
@@ -332,13 +371,6 @@
   gap: 0.4cm;
   padding-bottom: 0.45cm;
   margin-bottom: 0.35cm;
-}
-
-.wine-template-compact .wine-card-view-brand,
-.wine-template-compact .wine-card-view-venue,
-.wine-template-compact .wine-card-view-header h1,
-.wine-template-compact .wine-card-view-header p {
-  grid-column: 1;
 }
 
 .wine-template-compact .wine-card-view-title {

@@ -7,6 +7,14 @@
 {% endblock %}
 
 {% block content %}
+{% macro render_logo_slot(logos, align) -%}
+  <div class="wine-card-logo-slot wine-card-logo-slot--{{ align }}">
+    {% for logo in logos %}
+      <img src="{{ url_for('static', filename=logo.path) }}" alt="{{ logo.alt }}" style="height: {{ logo.height }}mm;">
+    {% endfor %}
+  </div>
+{%- endmacro %}
+
 <section class="wine-card-view-page">
   <div class="wine-card-view-toolbar">
     <a class="btn btn-outline-secondary" href="{{ back_url }}">&larr; Torna alla carta</a>
@@ -16,12 +24,10 @@
       <div class="wine-card-view-bg" style="background-image: url('{{ url_for('static', filename=layout_config.get('background_image')) }}')"></div>
     {% endif %}
     <header class="wine-card-view-header">
-      <div class="wine-card-logo-slot wine-card-logo-slot--company">
-        {% if layout_config.get("company_logo") %}
-          <img src="{{ url_for('static', filename=layout_config.get('company_logo')) }}" alt="Logo azienda">
-        {% else %}
-          <span>LD Enoteca</span>
-        {% endif %}
+      <div class="wine-card-logo-row">
+        {{ render_logo_slot(logo_layout.header.left, "left") }}
+        {{ render_logo_slot(logo_layout.header.center, "center") }}
+        {{ render_logo_slot(logo_layout.header.right, "right") }}
       </div>
       <div class="wine-card-view-title">
         {% if card.venue_name %}
@@ -29,11 +35,6 @@
         {% endif %}
         <h1>{{ card.title }}</h1>
         {% if card.subtitle %}<p>{{ card.subtitle }}</p>{% endif %}
-      </div>
-      <div class="wine-card-logo-slot wine-card-logo-slot--customer">
-        {% if layout_config.get("customer_logo") %}
-          <img src="{{ url_for('static', filename=layout_config.get('customer_logo')) }}" alt="Logo cliente">
-        {% endif %}
       </div>
     </header>
 
@@ -51,7 +52,7 @@
               </div>
             </div>
             {% if item.sale_price is not none %}
-              <div class="wine-card-view-price">{{ "%.2f"|format(item.sale_price) }} €</div>
+              <div class="wine-card-view-price">{{ "%.2f"|format(item.sale_price) }} &euro;</div>
             {% endif %}
           </article>
         {% endfor %}
@@ -59,6 +60,14 @@
         <div class="text-muted text-center py-5">Carta vini in preparazione.</div>
       {% endfor %}
     </div>
+
+    <footer class="wine-card-view-footer">
+      <div class="wine-card-logo-row">
+        {{ render_logo_slot(logo_layout.footer.left, "left") }}
+        {{ render_logo_slot(logo_layout.footer.center, "center") }}
+        {{ render_logo_slot(logo_layout.footer.right, "right") }}
+      </div>
+    </footer>
   </div>
 </section>
 {% endblock %}

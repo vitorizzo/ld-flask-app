@@ -60,30 +60,93 @@
           <label class="form-label" for="background">Background</label>
           <input class="form-control" id="background" name="background" autocomplete="off" placeholder="Nome colore o file">
         </div>
-        <div class="col-12 col-md-4">
-          <label class="form-label" for="logo_position">Posizione loghi</label>
-          <select class="form-select" id="logo_position" name="logo_position">
-            <option value="top">In alto</option>
-            <option value="split">Separati</option>
-            <option value="bottom">In basso</option>
-          </select>
-        </div>
         <div class="col-12">
           <div class="form-check">
             <input class="form-check-input" type="checkbox" id="customer_view_enabled" name="customer_view_enabled" value="1">
             <label class="form-check-label" for="customer_view_enabled">Abilita visualizzazione cliente horeca</label>
           </div>
         </div>
-        <div class="col-12 col-md-4">
-          <label class="form-label" for="customer_logo">Logo cliente</label>
-          <input class="form-control" id="customer_logo" name="customer_logo" type="file" accept=".png,.jpg,.jpeg,.webp">
+        <div class="col-12 col-lg-6">
+          <div class="wine-card-asset-box">
+            <div class="fw-semibold mb-2">Logo azienda</div>
+            <label class="form-label" for="company_logo_selected">Seleziona dal server</label>
+            <select class="form-select mb-2" id="company_logo_selected" name="company_logo_selected">
+              <option value="">Nessun logo</option>
+              {% for option in asset_options.company_logo %}
+                <option value="{{ option.value }}" {% if option.value.endswith('logo-ldenoteca-bianco.png') %}selected{% endif %}>{{ option.label }}</option>
+              {% endfor %}
+            </select>
+            <label class="form-label" for="company_logo">Carica nuovo logo</label>
+            <input class="form-control mb-2" id="company_logo" name="company_logo" type="file" accept=".png,.jpg,.jpeg,.webp">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label" for="company_logo_vertical">Area</label>
+                <select class="form-select" id="company_logo_vertical" name="company_logo_vertical">
+                  <option value="header" selected>Intestazione</option>
+                  <option value="footer">Piede</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label" for="company_logo_align">Posizione</label>
+                <select class="form-select" id="company_logo_align" name="company_logo_align">
+                  <option value="left" selected>Sinistra</option>
+                  <option value="center">Centro</option>
+                  <option value="right">Destra</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="company_logo_height_mm">Altezza logo (mm)</label>
+                <input class="form-control" id="company_logo_height_mm" name="company_logo_height_mm" type="number" min="8" max="60" value="18">
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="col-12 col-md-4">
-          <label class="form-label" for="company_logo">Logo azienda</label>
-          <input class="form-control" id="company_logo" name="company_logo" type="file" accept=".png,.jpg,.jpeg,.webp">
+        <div class="col-12 col-lg-6">
+          <div class="wine-card-asset-box">
+            <div class="fw-semibold mb-2">Logo cliente</div>
+            <label class="form-label" for="customer_logo_selected">Seleziona dal server</label>
+            <select class="form-select mb-2" id="customer_logo_selected" name="customer_logo_selected">
+              <option value="">Nessun logo</option>
+              {% for option in asset_options.customer_logo %}
+                <option value="{{ option.value }}">{{ option.label }}</option>
+              {% endfor %}
+            </select>
+            <label class="form-label" for="customer_logo">Carica nuovo logo</label>
+            <input class="form-control mb-2" id="customer_logo" name="customer_logo" type="file" accept=".png,.jpg,.jpeg,.webp">
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label" for="customer_logo_vertical">Area</label>
+                <select class="form-select" id="customer_logo_vertical" name="customer_logo_vertical">
+                  <option value="header" selected>Intestazione</option>
+                  <option value="footer">Piede</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label class="form-label" for="customer_logo_align">Posizione</label>
+                <select class="form-select" id="customer_logo_align" name="customer_logo_align">
+                  <option value="left">Sinistra</option>
+                  <option value="center">Centro</option>
+                  <option value="right" selected>Destra</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="customer_logo_height_mm">Altezza logo (mm)</label>
+                <input class="form-control" id="customer_logo_height_mm" name="customer_logo_height_mm" type="number" min="8" max="60" value="18">
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="col-12 col-md-4">
-          <label class="form-label" for="background_image">Immagine background</label>
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="background_image_selected">Background dal server</label>
+          <select class="form-select" id="background_image_selected" name="background_image_selected">
+            <option value="">Nessun background</option>
+            {% for option in asset_options.background_image %}
+              <option value="{{ option.value }}">{{ option.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="background_image">Carica background</label>
           <input class="form-control" id="background_image" name="background_image" type="file" accept=".png,.jpg,.jpeg,.webp">
         </div>
       </div>

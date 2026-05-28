@@ -76,15 +76,6 @@
               <label class="form-label" for="background">Background</label>
               <input class="form-control" id="background" name="background" value="{{ (card.layout_config or {}).get('background') or '' }}">
             </div>
-            <div class="col-6">
-              <label class="form-label" for="logo_position">Loghi</label>
-              <select class="form-select" id="logo_position" name="logo_position">
-                {% set logo_position = (card.layout_config or {}).get("logo_position", "top") %}
-                {% for value, label in [("top", "In alto"), ("split", "Separati"), ("bottom", "In basso")] %}
-                  <option value="{{ value }}" {% if logo_position == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-              </select>
-            </div>
             <div class="col-12">
               <div class="form-check">
                 <input class="form-check-input" type="checkbox" id="customer_view_enabled" name="customer_view_enabled" value="1" {% if card.customer_view_enabled %}checked{% endif %}>
@@ -92,24 +83,103 @@
               </div>
             </div>
             <div class="col-12">
-              <label class="form-label" for="customer_logo">Logo cliente</label>
-              <input class="form-control" id="customer_logo" name="customer_logo" type="file" accept=".png,.jpg,.jpeg,.webp">
-              {% if (card.layout_config or {}).get("customer_logo") %}
-                <div class="text-muted small mt-1">{{ (card.layout_config or {}).get("customer_logo") }}</div>
-              {% endif %}
+              {% set cfg = card.layout_config or {} %}
+              <div class="wine-card-asset-box">
+                <div class="fw-semibold mb-2">Logo azienda</div>
+                <label class="form-label" for="company_logo_selected">Seleziona dal server</label>
+                <select class="form-select mb-2" id="company_logo_selected" name="company_logo_selected">
+                  <option value="">Mantieni attuale</option>
+                  <option value="__clear__">Nessun logo</option>
+                  {% for option in asset_options.company_logo %}
+                    <option value="{{ option.value }}" {% if cfg.get("company_logo") == option.value %}selected{% endif %}>{{ option.label }}</option>
+                  {% endfor %}
+                </select>
+                <label class="form-label" for="company_logo">Carica nuovo logo</label>
+                <input class="form-control mb-2" id="company_logo" name="company_logo" type="file" accept=".png,.jpg,.jpeg,.webp">
+                {% if cfg.get("company_logo") %}
+                  <div class="text-muted small mb-2">{{ cfg.get("company_logo") }}</div>
+                {% endif %}
+                <div class="row g-2">
+                  <div class="col-6">
+                    <label class="form-label" for="company_logo_vertical">Area</label>
+                    <select class="form-select" id="company_logo_vertical" name="company_logo_vertical">
+                      {% set company_logo_vertical = cfg.get("company_logo_vertical", "header") %}
+                      {% for value, label in [("header", "Intestazione"), ("footer", "Piede")] %}
+                        <option value="{{ value }}" {% if company_logo_vertical == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label" for="company_logo_align">Posizione</label>
+                    <select class="form-select" id="company_logo_align" name="company_logo_align">
+                      {% set company_logo_align = cfg.get("company_logo_align", "left") %}
+                      {% for value, label in [("left", "Sinistra"), ("center", "Centro"), ("right", "Destra")] %}
+                        <option value="{{ value }}" {% if company_logo_align == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="company_logo_height_mm">Altezza logo (mm)</label>
+                    <input class="form-control" id="company_logo_height_mm" name="company_logo_height_mm" type="number" min="8" max="60" value="{{ cfg.get('company_logo_height_mm', 18) }}">
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="col-12">
-              <label class="form-label" for="company_logo">Logo azienda</label>
-              <input class="form-control" id="company_logo" name="company_logo" type="file" accept=".png,.jpg,.jpeg,.webp">
-              {% if (card.layout_config or {}).get("company_logo") %}
-                <div class="text-muted small mt-1">{{ (card.layout_config or {}).get("company_logo") }}</div>
-              {% endif %}
+              <div class="wine-card-asset-box">
+                <div class="fw-semibold mb-2">Logo cliente</div>
+                <label class="form-label" for="customer_logo_selected">Seleziona dal server</label>
+                <select class="form-select mb-2" id="customer_logo_selected" name="customer_logo_selected">
+                  <option value="">Mantieni attuale</option>
+                  <option value="__clear__">Nessun logo</option>
+                  {% for option in asset_options.customer_logo %}
+                    <option value="{{ option.value }}" {% if cfg.get("customer_logo") == option.value %}selected{% endif %}>{{ option.label }}</option>
+                  {% endfor %}
+                </select>
+                <label class="form-label" for="customer_logo">Carica nuovo logo</label>
+                <input class="form-control mb-2" id="customer_logo" name="customer_logo" type="file" accept=".png,.jpg,.jpeg,.webp">
+                {% if cfg.get("customer_logo") %}
+                  <div class="text-muted small mb-2">{{ cfg.get("customer_logo") }}</div>
+                {% endif %}
+                <div class="row g-2">
+                  <div class="col-6">
+                    <label class="form-label" for="customer_logo_vertical">Area</label>
+                    <select class="form-select" id="customer_logo_vertical" name="customer_logo_vertical">
+                      {% set customer_logo_vertical = cfg.get("customer_logo_vertical", "header") %}
+                      {% for value, label in [("header", "Intestazione"), ("footer", "Piede")] %}
+                        <option value="{{ value }}" {% if customer_logo_vertical == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label" for="customer_logo_align">Posizione</label>
+                    <select class="form-select" id="customer_logo_align" name="customer_logo_align">
+                      {% set customer_logo_align = cfg.get("customer_logo_align", "right") %}
+                      {% for value, label in [("left", "Sinistra"), ("center", "Centro"), ("right", "Destra")] %}
+                        <option value="{{ value }}" {% if customer_logo_align == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-12">
+                    <label class="form-label" for="customer_logo_height_mm">Altezza logo (mm)</label>
+                    <input class="form-control" id="customer_logo_height_mm" name="customer_logo_height_mm" type="number" min="8" max="60" value="{{ cfg.get('customer_logo_height_mm', 18) }}">
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="col-12">
-              <label class="form-label" for="background_image">Immagine background</label>
+              <label class="form-label" for="background_image_selected">Background dal server</label>
+              <select class="form-select mb-2" id="background_image_selected" name="background_image_selected">
+                <option value="">Mantieni attuale</option>
+                <option value="__clear__">Nessun background</option>
+                {% for option in asset_options.background_image %}
+                  <option value="{{ option.value }}" {% if cfg.get("background_image") == option.value %}selected{% endif %}>{{ option.label }}</option>
+                {% endfor %}
+              </select>
+              <label class="form-label" for="background_image">Carica background</label>
               <input class="form-control" id="background_image" name="background_image" type="file" accept=".png,.jpg,.jpeg,.webp">
-              {% if (card.layout_config or {}).get("background_image") %}
-                <div class="text-muted small mt-1">{{ (card.layout_config or {}).get("background_image") }}</div>
+              {% if cfg.get("background_image") %}
+                <div class="text-muted small mt-1">{{ cfg.get("background_image") }}</div>
               {% endif %}
             </div>
           </div>
