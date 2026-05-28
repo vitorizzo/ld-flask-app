@@ -56,6 +56,11 @@
   font-weight: 700;
 }
 
+.wine-card-settings-panel {
+  max-height: 100%;
+  overflow: auto;
+}
+
 .wine-card-sections {
   display: grid;
   gap: 0.45rem;
