@@ -24,6 +24,21 @@
   background: #fbfaf7;
 }
 
+.wine-card-style-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.wine-card-style-control {
+  border-top: 1px solid rgba(40, 34, 28, 0.1);
+  padding-top: 0.75rem;
+}
+
+.wine-card-style-control:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
 .wine-cards-page .form-label,
 .wine-cards-page .form-check-label,
 .wine-cards-page label,
@@ -178,7 +193,7 @@
   z-index: 0;
   background-position: center;
   background-size: cover;
-  opacity: 0.16;
+  opacity: var(--wine-bg-opacity, 0.16);
   pointer-events: none;
 }
 

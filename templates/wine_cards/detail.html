@@ -7,6 +7,64 @@
 {% endblock %}
 
 {% block content %}
+{% macro text_style_controls(key, spec, cfg, font_options, align_options) -%}
+  <div class="wine-card-style-control">
+    <input type="hidden" name="{{ key }}_visible" value="0">
+    <input type="hidden" name="{{ key }}_bold" value="0">
+    <input type="hidden" name="{{ key }}_italic" value="0">
+    <input type="hidden" name="{{ key }}_uppercase" value="0">
+    <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+      <div class="fw-semibold">{{ spec.label }}</div>
+      <div class="form-check m-0">
+        <input class="form-check-input" type="checkbox" id="{{ key }}_visible" name="{{ key }}_visible" value="1" {% if cfg.get(key ~ "_visible", true) %}checked{% endif %}>
+        <label class="form-check-label small" for="{{ key }}_visible">Visibile</label>
+      </div>
+    </div>
+    <div class="row g-2">
+      <div class="col-4">
+        <label class="form-label" for="{{ key }}_size_pt">Pt</label>
+        <input class="form-control form-control-sm" id="{{ key }}_size_pt" name="{{ key }}_size_pt" type="number" min="6" max="60" value="{{ cfg.get(key ~ '_size_pt', spec.size) }}">
+      </div>
+      <div class="col-8">
+        <label class="form-label" for="{{ key }}_font_family">Font</label>
+        <select class="form-select form-select-sm" id="{{ key }}_font_family" name="{{ key }}_font_family">
+          {% set selected_font = cfg.get(key ~ "_font_family", spec.font) %}
+          {% for value, label in font_options %}
+            <option value="{{ value }}" {% if selected_font == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6">
+        <label class="form-label" for="{{ key }}_align">Allineamento</label>
+        <select class="form-select form-select-sm" id="{{ key }}_align" name="{{ key }}_align">
+          {% set selected_align = cfg.get(key ~ "_align", spec.align) %}
+          {% for value, label in align_options %}
+            <option value="{{ value }}" {% if selected_align == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-6">
+        <label class="form-label" for="{{ key }}_color">Colore</label>
+        <input class="form-control form-control-sm" id="{{ key }}_color" name="{{ key }}_color" value="{{ cfg.get(key ~ '_color', spec.color) or '' }}" placeholder="#404040">
+      </div>
+      <div class="col-12 d-flex flex-wrap gap-3">
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="{{ key }}_bold" name="{{ key }}_bold" value="1" {% if cfg.get(key ~ "_bold", spec.bold) %}checked{% endif %}>
+          <label class="form-check-label small" for="{{ key }}_bold">Grassetto</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="{{ key }}_italic" name="{{ key }}_italic" value="1" {% if cfg.get(key ~ "_italic", spec.italic) %}checked{% endif %}>
+          <label class="form-check-label small" for="{{ key }}_italic">Corsivo</label>
+        </div>
+        <div class="form-check">
+          <input class="form-check-input" type="checkbox" id="{{ key }}_uppercase" name="{{ key }}_uppercase" value="1" {% if cfg.get(key ~ "_uppercase", spec.uppercase) %}checked{% endif %}>
+          <label class="form-check-label small" for="{{ key }}_uppercase">Maiuscolo</label>
+        </div>
+      </div>
+    </div>
+  </div>
+{%- endmacro %}
+
 <section class="welcome-section page-shell wine-cards-page" data-wine-card-id="{{ card.id }}">
   <div class="container-fluid h-100 d-flex flex-column">
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
@@ -85,7 +143,24 @@
             <div class="col-12">
               {% set cfg = card.layout_config or {} %}
               <div class="wine-card-asset-box">
-                <div class="fw-semibold mb-2">Logo azienda</div>
+                <div class="fw-semibold mb-2">Elementi testo</div>
+                <div class="wine-card-style-grid">
+                  {% for key, spec in text_layout_elements.items() %}
+                    {{ text_style_controls(key, spec, cfg, font_options, align_options) }}
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+            <div class="col-12">
+              <div class="wine-card-asset-box">
+                <input type="hidden" name="company_logo_visible" value="0">
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                  <div class="fw-semibold">Logo azienda</div>
+                  <div class="form-check m-0">
+                    <input class="form-check-input" type="checkbox" id="company_logo_visible" name="company_logo_visible" value="1" {% if cfg.get("company_logo_visible", true) %}checked{% endif %}>
+                    <label class="form-check-label small" for="company_logo_visible">Visibile</label>
+                  </div>
+                </div>
                 <label class="form-label" for="company_logo_selected">Seleziona dal server</label>
                 <select class="form-select mb-2" id="company_logo_selected" name="company_logo_selected">
                   <option value="">Mantieni attuale</option>
@@ -127,7 +202,14 @@
             </div>
             <div class="col-12">
               <div class="wine-card-asset-box">
-                <div class="fw-semibold mb-2">Logo cliente</div>
+                <input type="hidden" name="customer_logo_visible" value="0">
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                  <div class="fw-semibold">Logo cliente</div>
+                  <div class="form-check m-0">
+                    <input class="form-check-input" type="checkbox" id="customer_logo_visible" name="customer_logo_visible" value="1" {% if cfg.get("customer_logo_visible", true) %}checked{% endif %}>
+                    <label class="form-check-label small" for="customer_logo_visible">Visibile</label>
+                  </div>
+                </div>
                 <label class="form-label" for="customer_logo_selected">Seleziona dal server</label>
                 <select class="form-select mb-2" id="customer_logo_selected" name="customer_logo_selected">
                   <option value="">Mantieni attuale</option>
@@ -168,19 +250,31 @@
               </div>
             </div>
             <div class="col-12">
-              <label class="form-label" for="background_image_selected">Background dal server</label>
-              <select class="form-select mb-2" id="background_image_selected" name="background_image_selected">
-                <option value="">Mantieni attuale</option>
-                <option value="__clear__">Nessun background</option>
-                {% for option in asset_options.background_image %}
-                  <option value="{{ option.value }}" {% if cfg.get("background_image") == option.value %}selected{% endif %}>{{ option.label }}</option>
-                {% endfor %}
-              </select>
-              <label class="form-label" for="background_image">Carica background</label>
-              <input class="form-control" id="background_image" name="background_image" type="file" accept=".png,.jpg,.jpeg,.webp">
-              {% if cfg.get("background_image") %}
-                <div class="text-muted small mt-1">{{ cfg.get("background_image") }}</div>
-              {% endif %}
+              <div class="wine-card-asset-box">
+                <input type="hidden" name="background_image_visible" value="0">
+                <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+                  <div class="fw-semibold">Background</div>
+                  <div class="form-check m-0">
+                    <input class="form-check-input" type="checkbox" id="background_image_visible" name="background_image_visible" value="1" {% if cfg.get("background_image_visible", true) %}checked{% endif %}>
+                    <label class="form-check-label small" for="background_image_visible">Visibile</label>
+                  </div>
+                </div>
+                <label class="form-label" for="background_image_selected">Background dal server</label>
+                <select class="form-select mb-2" id="background_image_selected" name="background_image_selected">
+                  <option value="">Mantieni attuale</option>
+                  <option value="__clear__">Nessun background</option>
+                  {% for option in asset_options.background_image %}
+                    <option value="{{ option.value }}" {% if cfg.get("background_image") == option.value %}selected{% endif %}>{{ option.label }}</option>
+                  {% endfor %}
+                </select>
+                <label class="form-label" for="background_image_opacity">Opacita background</label>
+                <input class="form-control mb-2" id="background_image_opacity" name="background_image_opacity" type="number" min="0" max="1" step="0.05" value="{{ cfg.get('background_image_opacity', 0.16) }}">
+                <label class="form-label" for="background_image">Carica background</label>
+                <input class="form-control" id="background_image" name="background_image" type="file" accept=".png,.jpg,.jpeg,.webp">
+                {% if cfg.get("background_image") %}
+                  <div class="text-muted small mt-1">{{ cfg.get("background_image") }}</div>
+                {% endif %}
+              </div>
             </div>
           </div>
           <button class="btn btn-primary w-100 mt-3" type="submit">Salva impostazioni</button>

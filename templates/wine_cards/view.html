@@ -20,7 +20,7 @@
     <a class="btn btn-outline-secondary" href="{{ back_url }}">&larr; Torna alla carta</a>
   </div>
   <div class="wine-card-view {{ layout_config.get('css_class', 'wine-template-classic') }}" style="{{ style_vars }}">
-    {% if layout_config.get("background_image") %}
+    {% if visible_elements.background_image and layout_config.get("background_image") %}
       <div class="wine-card-view-bg" style="background-image: url('{{ url_for('static', filename=layout_config.get('background_image')) }}')"></div>
     {% endif %}
     <header class="wine-card-view-header">
@@ -30,29 +30,39 @@
         {{ render_logo_slot(logo_layout.header.right, "right") }}
       </div>
       <div class="wine-card-view-title">
-        {% if card.venue_name %}
-          <div class="wine-card-view-venue">{{ card.venue_name }}</div>
+        {% if visible_elements.venue and card.venue_name %}
+          <div class="wine-card-view-venue" style="{{ element_styles.venue }}">{{ card.venue_name }}</div>
         {% endif %}
-        <h1>{{ card.title }}</h1>
-        {% if card.subtitle %}<p>{{ card.subtitle }}</p>{% endif %}
+        {% if visible_elements.title %}
+          <h1 style="{{ element_styles.title }}">{{ card.title }}</h1>
+        {% endif %}
+        {% if visible_elements.subtitle and card.subtitle %}
+          <p style="{{ element_styles.subtitle }}">{{ card.subtitle }}</p>
+        {% endif %}
       </div>
     </header>
 
     <div class="wine-card-view-list">
       {% for section, items in sections_with_items %}
-        <h2>{{ section.title if section else "Selezione" }}</h2>
+        {% if visible_elements.section %}
+          <h2 style="{{ element_styles.section }}">{{ section.title if section else "Selezione" }}</h2>
+        {% endif %}
         {% for item in items %}
           <article class="wine-card-view-item">
             <div>
-              <h3>{{ item.display_description }}</h3>
-              <div class="wine-card-view-meta">
+              {% if visible_elements.item %}
+                <h3 style="{{ element_styles.item }}">{{ item.display_description }}</h3>
+              {% endif %}
+              {% if visible_elements.meta %}
+              <div class="wine-card-view-meta" style="{{ element_styles.meta }}">
                 {% if item.winery or item.region %}
                   <span>{{ item.winery or "" }}{% if item.winery and item.region %} ({{ item.region }}){% elif item.region %}{{ item.region }}{% endif %}</span>
                 {% endif %}
               </div>
+              {% endif %}
             </div>
-            {% if item.sale_price is not none %}
-              <div class="wine-card-view-price">{{ "%.2f"|format(item.sale_price) }} &euro;</div>
+            {% if visible_elements.price and item.sale_price is not none %}
+              <div class="wine-card-view-price" style="{{ element_styles.price }}">{{ "%.2f"|format(item.sale_price) }} &euro;</div>
             {% endif %}
           </article>
         {% endfor %}

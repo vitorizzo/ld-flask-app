@@ -21,6 +21,87 @@ ASSET_UPLOADS = {
 }
 LOGO_VERTICAL_POSITIONS = {"header", "footer"}
 LOGO_ALIGNMENTS = {"left", "center", "right"}
+TEXT_LAYOUT_ELEMENTS = {
+    "venue": {
+        "label": "Insegna",
+        "size": 14,
+        "font": "var(--wine-heading-font)",
+        "color": "",
+        "align": "center",
+        "bold": False,
+        "italic": False,
+        "uppercase": False,
+    },
+    "title": {
+        "label": "Titolo carta",
+        "size": 20,
+        "font": "var(--wine-heading-font)",
+        "color": "",
+        "align": "center",
+        "bold": True,
+        "italic": False,
+        "uppercase": False,
+    },
+    "subtitle": {
+        "label": "Sottotitolo",
+        "size": 14,
+        "font": "var(--wine-accent-font)",
+        "color": "",
+        "align": "center",
+        "bold": False,
+        "italic": False,
+        "uppercase": False,
+    },
+    "section": {
+        "label": "Titoli sezione",
+        "size": 15,
+        "font": "var(--wine-heading-font)",
+        "color": "#735338",
+        "align": "left",
+        "bold": True,
+        "italic": False,
+        "uppercase": True,
+    },
+    "item": {
+        "label": "Nome articolo",
+        "size": 14,
+        "font": "var(--wine-font)",
+        "color": "",
+        "align": "left",
+        "bold": False,
+        "italic": False,
+        "uppercase": False,
+    },
+    "meta": {
+        "label": "Cantina e regione",
+        "size": 11,
+        "font": "var(--wine-font)",
+        "color": "#71665d",
+        "align": "left",
+        "bold": False,
+        "italic": False,
+        "uppercase": False,
+    },
+    "price": {
+        "label": "Prezzo",
+        "size": 14,
+        "font": "var(--wine-font)",
+        "color": "",
+        "align": "right",
+        "bold": True,
+        "italic": False,
+        "uppercase": False,
+    },
+}
+FONT_OPTIONS = [
+    ("var(--wine-font)", "Base"),
+    ("var(--wine-heading-font)", "Titoli"),
+    ("var(--wine-accent-font)", "Corsivo decorativo"),
+    ("serif", "Serif"),
+    ("sans-serif", "Sans serif"),
+    ("monospace", "Monospace"),
+]
+ALIGN_OPTIONS = [("left", "Sinistra"), ("center", "Centro"), ("right", "Destra")]
 
 
 def _customer_label(customer):
@@ -184,6 +265,7 @@ def _view_style_vars(config):
         "price_x": "--wine-price-x",
         "item_gap": "--wine-item-gap",
         "section_gap": "--wine-section-gap",
+        "background_image_opacity": "--wine-bg-opacity",
     }
     parts = []
     for key, css_var in mapping.items():
@@ -191,6 +273,57 @@ def _view_style_vars(config):
         if value:
             parts.append(f"{css_var}: {value}")
     return "; ".join(parts)
+
+
+def _coerce_int(value, default, minimum, maximum):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(parsed, maximum))
+
+
+def _coerce_float(value, default, minimum, maximum):
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(parsed, maximum))
+
+
+def _layout_visible(config, key, default=True):
+    value = config.get(f"{key}_visible")
+    return default if value is None else bool(value)
+
+
+def _text_element_style(config, key):
+    defaults = TEXT_LAYOUT_ELEMENTS[key]
+    styles = {
+        "font-size": f"{_coerce_int(config.get(f'{key}_size_pt'), defaults['size'], 6, 60)}pt",
+        "font-family": config.get(f"{key}_font_family") or defaults["font"],
+        "text-align": config.get(f"{key}_align") or defaults["align"],
+        "font-weight": "700" if _layout_visible(config, f"{key}_bold", defaults["bold"]) else "400",
+        "font-style": "italic" if _layout_visible(config, f"{key}_italic", defaults["italic"]) else "normal",
+        "text-transform": "uppercase" if _layout_visible(config, f"{key}_uppercase", defaults["uppercase"]) else "none",
+    }
+    color = config.get(f"{key}_color") or defaults["color"]
+    if color:
+        styles["color"] = color
+    return "; ".join(f"{name}: {value}" for name, value in styles.items())
+
+
+def _text_element_styles(config):
+    return {key: _text_element_style(config, key) for key in TEXT_LAYOUT_ELEMENTS}
+
+
+def _visible_elements(config):
+    visible = {key: _layout_visible(config, key, True) for key in TEXT_LAYOUT_ELEMENTS}
+    visible.update({
+        "company_logo": _layout_visible(config, "company_logo", True),
+        "customer_logo": _layout_visible(config, "customer_logo", True),
+        "background_image": _layout_visible(config, "background_image", True),
+    })
+    return visible
 
 
 def _logo_height(value, default=18):
@@ -221,6 +354,8 @@ def _logo_layout(config):
         ("company_logo", "Logo azienda", "left"),
         ("customer_logo", "Logo cliente", "right"),
     ]:
+        if not _layout_visible(config, logo_key, True):
+            continue
         path = config.get(logo_key)
         if not path:
             continue
@@ -261,6 +396,34 @@ def _layout_from_form(existing=None):
         "font_family": (request.form.get("font_family") or "").strip() or "serif",
         "background": (request.form.get("background") or "").strip() or None,
     })
+    if "background_image_visible" in request.form:
+        config["background_image_visible"] = _form_bool("background_image_visible")
+    else:
+        config["background_image_visible"] = _layout_visible(config, "background_image", True)
+    config["background_image_opacity"] = _coerce_float(
+        request.form.get("background_image_opacity") or config.get("background_image_opacity"),
+        0.16,
+        0,
+        1,
+    )
+    for key, defaults in TEXT_LAYOUT_ELEMENTS.items():
+        if f"{key}_visible" in request.form:
+            config[f"{key}_visible"] = _form_bool(f"{key}_visible")
+        else:
+            config[f"{key}_visible"] = _layout_visible(config, key, True)
+        config[f"{key}_size_pt"] = _coerce_int(request.form.get(f"{key}_size_pt"), defaults["size"], 6, 60)
+        font_family = (request.form.get(f"{key}_font_family") or defaults["font"]).strip()
+        config[f"{key}_font_family"] = font_family
+        color = (request.form.get(f"{key}_color") or "").strip()
+        config[f"{key}_color"] = color or defaults["color"] or None
+        align = (request.form.get(f"{key}_align") or defaults["align"]).strip()
+        config[f"{key}_align"] = align if align in {value for value, _ in ALIGN_OPTIONS} else defaults["align"]
+        config[f"{key}_bold"] = _form_bool(f"{key}_bold") if f"{key}_bold" in request.form else _layout_visible(config, f"{key}_bold", defaults["bold"])
+        config[f"{key}_italic"] = _form_bool(f"{key}_italic") if f"{key}_italic" in request.form else _layout_visible(config, f"{key}_italic", defaults["italic"])
+        config[f"{key}_uppercase"] = _form_bool(f"{key}_uppercase") if f"{key}_uppercase" in request.form else _layout_visible(config, f"{key}_uppercase", defaults["uppercase"])
+
+    config["company_logo_visible"] = _form_bool("company_logo_visible") if "company_logo_visible" in request.form else _layout_visible(config, "company_logo", True)
+    config["customer_logo_visible"] = _form_bool("customer_logo_visible") if "customer_logo_visible" in request.form else _layout_visible(config, "customer_logo", True)
     for field_name in ASSET_UPLOADS:
         selected_path = (request.form.get(f"{field_name}_selected") or "").strip()
         if selected_path == "__clear__":
@@ -328,6 +491,9 @@ def create():
         customers=_staff_customer_options(),
         templates=_active_templates(),
         asset_options=_asset_options_by_field(),
+        text_layout_elements=TEXT_LAYOUT_ELEMENTS,
+        font_options=FONT_OPTIONS,
+        align_options=ALIGN_OPTIONS,
     )
 
 
@@ -343,6 +509,9 @@ def detail(card_id):
         sections_with_items=_sections_with_items(card),
         templates=_active_templates(),
         asset_options=_asset_options_by_field(),
+        text_layout_elements=TEXT_LAYOUT_ELEMENTS,
+        font_options=FONT_OPTIONS,
+        align_options=ALIGN_OPTIONS,
     )
 
 
@@ -551,6 +720,8 @@ def customer_view(token):
         sections_with_items=_sections_with_items(card, visible_only=True),
         layout_config=layout_config,
         logo_layout=_logo_layout(layout_config),
+        element_styles=_text_element_styles(layout_config),
+        visible_elements=_visible_elements(layout_config),
         style_vars=_view_style_vars(layout_config),
         back_url=request.args.get("back") or url_for("wine_cards.detail", card_id=card.id),
         customer_label=_customer_label,
