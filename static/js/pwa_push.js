@@ -10,6 +10,16 @@
     return outputArray;
   }
 
+  function arrayBufferToBase64Url(buffer) {
+    if (!buffer) return "";
+    const bytes = new Uint8Array(buffer);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i += 1) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return window.btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
   async function api(url, options) {
     const res = await fetch(url, {
       credentials: "same-origin",
@@ -38,6 +48,13 @@
 
     const registration = await navigator.serviceWorker.ready;
     let subscription = await registration.pushManager.getSubscription();
+    const currentKey = subscription?.options?.applicationServerKey
+      ? arrayBufferToBase64Url(subscription.options.applicationServerKey)
+      : "";
+    if (subscription && currentKey && currentKey !== cfg.public_key) {
+      await subscription.unsubscribe();
+      subscription = null;
+    }
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,

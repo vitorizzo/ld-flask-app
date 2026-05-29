@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 from typing import Iterable
+from urllib.parse import urlparse
+import uuid
 
 from flask import current_app
 
@@ -10,6 +13,9 @@ from models import PushSubscription, User
 from tools.log_utils import get_logger
 
 logger = get_logger("push_notifications")
+INVALID_SUBSCRIPTION_STATUSES = {400, 401, 403, 404, 410}
+PUSH_TTL_SECONDS = 300
+PUSH_TIMEOUT_SECONDS = 8
 
 
 def push_config():
@@ -39,25 +45,35 @@ def send_push_to_subscriptions(subscriptions: Iterable[PushSubscription], payloa
         raise RuntimeError("Dipendenza pywebpush non installata") from exc
 
     cfg = push_config()
+    prepared_payload = {
+        **(payload or {}),
+        "notification_id": (payload or {}).get("notification_id") or uuid.uuid4().hex,
+        "sent_at": (payload or {}).get("sent_at") or datetime.now(timezone.utc).isoformat(),
+    }
     sent = 0
     failed = 0
     errors = []
     for sub in subscriptions:
         if not sub.is_active:
             continue
+        endpoint_host = urlparse(sub.endpoint or "").netloc
         try:
             response = webpush(
                 subscription_info=sub.to_webpush(),
-                data=json.dumps(payload),
+                data=json.dumps(prepared_payload),
                 vapid_private_key=cfg["private_key"],
                 vapid_claims={"sub": cfg["subject"]},
-                ttl=60,
+                ttl=PUSH_TTL_SECONDS,
+                timeout=PUSH_TIMEOUT_SECONDS,
+                headers={"Urgency": "high"},
             )
             sent += 1
             logger.info(
-                "Push inviata subscription=%s status=%s",
+                "Push inviata subscription=%s host=%s status=%s notification_id=%s",
                 sub.id,
+                endpoint_host,
                 getattr(response, "status_code", None),
+                prepared_payload["notification_id"],
             )
         except WebPushException as exc:
             failed += 1
@@ -67,24 +83,40 @@ def send_push_to_subscriptions(subscriptions: Iterable[PushSubscription], payloa
                 body = (getattr(exc.response, "text", "") or "")[:500] if exc.response is not None else ""
             except Exception:
                 body = ""
-            if status_code in {404, 410}:
+            if status_code in INVALID_SUBSCRIPTION_STATUSES:
                 sub.is_active = False
             errors.append({
                 "subscription_id": sub.id,
+                "endpoint_host": endpoint_host,
                 "status": status_code,
                 "error": str(exc),
                 "body": body,
             })
-            logger.warning("Push fallita subscription=%s status=%s error=%s", sub.id, status_code, exc)
+            logger.warning(
+                "Push fallita subscription=%s host=%s status=%s inactive=%s notification_id=%s error=%s",
+                sub.id,
+                endpoint_host,
+                status_code,
+                status_code in INVALID_SUBSCRIPTION_STATUSES,
+                prepared_payload["notification_id"],
+                exc,
+            )
         except Exception as exc:
             failed += 1
             errors.append({
                 "subscription_id": sub.id,
+                "endpoint_host": endpoint_host,
                 "status": None,
                 "error": str(exc),
                 "body": "",
             })
-            logger.exception("Errore invio push subscription=%s: %s", sub.id, exc)
+            logger.exception(
+                "Errore invio push subscription=%s host=%s notification_id=%s: %s",
+                sub.id,
+                endpoint_host,
+                prepared_payload["notification_id"],
+                exc,
+            )
     db.session.commit()
     return {"sent": sent, "failed": failed, "errors": errors}
 

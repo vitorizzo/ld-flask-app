@@ -1,4 +1,5 @@
-const CACHE_NAME = "ldapp-cache-v7"; // bump per forzare update
+const CACHE_NAME = "ldapp-cache-v8"; // bump per forzare update
+const MAX_PUSH_AGE_MS = 10 * 60 * 1000;
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -69,13 +70,24 @@ self.addEventListener("push", (event) => {
     data = { title: "LDApp", body: event.data ? event.data.text() : "" };
   }
 
+  if (data.sent_at) {
+    const sentAtMs = Date.parse(data.sent_at);
+    if (Number.isFinite(sentAtMs) && Date.now() - sentAtMs > MAX_PUSH_AGE_MS) {
+      return;
+    }
+  }
+
   const title = data.title || "LDApp";
   const options = {
     body: data.body || "",
     icon: "/static/icons/icon-192.png",
     badge: "/static/icons/icon-192.png",
+    tag: data.notification_id || undefined,
+    timestamp: data.sent_at ? Date.parse(data.sent_at) : Date.now(),
     data: {
       url: data.url || "/",
+      notification_id: data.notification_id || null,
+      sent_at: data.sent_at || null,
     },
   };
 
