@@ -2229,6 +2229,39 @@ def api_create_customer():
     }), 201
 
 
+@cassa_bp.post("/api/customers/resolve-registry")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_resolve_customer_registry():
+    data = request.get_json(silent=True) or {}
+    registry_id = data.get("registry_id")
+    if not registry_id:
+        return jsonify({"ok": False, "error": "registry_id mancante"}), 400
+
+    try:
+        customer = _cash_customer_from_registry(registry_id)
+        db.session.commit()
+    except ValueError as e:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(e)}), 400
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_resolve_customer_registry error: %s", e)
+        return jsonify({"ok": False, "error": "Errore risoluzione cliente"}), 500
+
+    return jsonify({
+        "ok": True,
+        "customer": {
+            "id": customer.id,
+            "display": customer.display_name,
+            "display_name": customer.display_name,
+            "ragione_sociale": customer.ragione_sociale,
+            "partita_iva": customer.partita_iva,
+            "codice_cliente": customer.codice_cliente,
+        }
+    })
+
+
 @cassa_bp.get("/api/customers/suggest")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)

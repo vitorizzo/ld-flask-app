@@ -382,6 +382,30 @@ async function fetchCustomerSuggest(q, kind = "customer") {
   return data.customers || [];
 }
 
+async function resolveCustomerRegistry(registryId) {
+  const id = Number(registryId || 0);
+  if (!id) return null;
+  const r = await fetch("/cassa/api/customers/resolve-registry", {
+    method: "POST",
+    credentials: "same-origin",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    body: JSON.stringify({ registry_id: id })
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok || !data.ok) {
+    throw new Error(data.error || "Errore selezione cliente");
+  }
+  return data.customer || null;
+}
+
+function isPrivateCustomerLabel(label) {
+  const text = String(label || "").trim().toLowerCase();
+  return text === "privato" || text === "privati";
+}
+
 /* =========================
    POS MODAL REFS
 ========================= */
@@ -4871,14 +4895,31 @@ document.addEventListener("DOMContentLoaded", async function () {
       return { ok: true, customer_id: Number(currentId), customer_registry_id: null };
     }
 
-    const currentRegistryId = String(opCustomerRegistryIdInput?.value || "").trim();
-    if (currentRegistryId) {
-      return { ok: true, customer_id: null, customer_registry_id: Number(currentRegistryId) };
-    }
-
     const rawText = String(opCustomerInput.value || "").trim();
     if (!rawText) {
       return { ok: true, customer_id: null, customer_registry_id: null };
+    }
+
+    if (isPrivateCustomerLabel(rawText)) {
+      return { ok: true, customer_id: null, customer_registry_id: null, is_private_customer: true };
+    }
+
+    const currentRegistryId = String(opCustomerRegistryIdInput?.value || "").trim();
+    if (currentRegistryId) {
+      try {
+        const customer = await resolveCustomerRegistry(currentRegistryId);
+        if (customer?.id) {
+          opCustomerIdInput.value = String(customer.id);
+          if (opCustomerRegistryIdInput) opCustomerRegistryIdInput.value = "";
+          opCustomerInput.value = customer.display || customer.display_name || rawText;
+          return { ok: true, customer_id: Number(customer.id), customer_registry_id: null };
+        }
+      } catch (err) {
+        return {
+          ok: false,
+          error: err.message || "Cliente non selezionato correttamente."
+        };
+      }
     }
 
     const items = await fetchCustomerSuggest(rawText, "customer");
@@ -4891,14 +4932,35 @@ document.addEventListener("DOMContentLoaded", async function () {
       };
     }
 
-    opCustomerIdInput.value = exact.id ? String(exact.id) : "";
-    if (opCustomerRegistryIdInput) opCustomerRegistryIdInput.value = exact.registry_id ? String(exact.registry_id) : "";
-    opCustomerInput.value = exact.display || rawText;
+    let customerId = exact.id ? Number(exact.id) : null;
+    let display = exact.display || rawText;
+    if (!customerId && exact.registry_id) {
+      try {
+        const customer = await resolveCustomerRegistry(exact.registry_id);
+        customerId = customer?.id ? Number(customer.id) : null;
+        display = customer?.display || customer?.display_name || display;
+      } catch (err) {
+        return {
+          ok: false,
+          error: err.message || "Cliente non selezionato correttamente."
+        };
+      }
+    }
+    if (!customerId) {
+      return {
+        ok: false,
+        error: "Cliente non selezionato correttamente. Sceglilo dalla lista o dalla ricerca avanzata."
+      };
+    }
+
+    opCustomerIdInput.value = String(customerId);
+    if (opCustomerRegistryIdInput) opCustomerRegistryIdInput.value = "";
+    opCustomerInput.value = display;
 
     return {
       ok: true,
-      customer_id: exact.id ? Number(exact.id) : null,
-      customer_registry_id: exact.registry_id ? Number(exact.registry_id) : null
+      customer_id: customerId,
+      customer_registry_id: null
     };
   }
 
@@ -5259,6 +5321,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       description,
       customer_id: ensuredCustomer.customer_id,
       customer_registry_id: ensuredCustomer.customer_registry_id,
+      is_private_customer: !!ensuredCustomer.is_private_customer,
       customer_label: customerLabel || null,
       off_cash: offCash,
       off_cash_who: offCashWho || null,
@@ -5454,7 +5517,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       const due_date = (document.getElementById("checkSaleDueDate")?.value || "").trim();
       const checkAmount = parseEuroToNumber(document.getElementById("checkSaleAmount")?.value || "0");
 
-      if (!base.customer_id && !base.customer_registry_id) {
+      if (!base.customer_id) {
         return { ok: false, error: "Per un assegno devi selezionare un cliente." };
       }
 
@@ -5619,7 +5682,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           continue;
         }
 
-        if (!base.customer_id && !base.customer_registry_id) {
+        if (!base.customer_id) {
           return { ok: false, error: "Per gli assegni devi selezionare un cliente." };
         }
 
@@ -6686,11 +6749,26 @@ document.addEventListener("DOMContentLoaded", async function () {
       }, 180);
     });
 
-    input.addEventListener("change", () => {
+    input.addEventListener("change", async () => {
       const chosen = findByDisplay(input.value);
-      hiddenId.value = chosen && chosen.kind === "customer" && chosen.id ? String(chosen.id) : "";
-      if (hiddenRegistryId) {
-        hiddenRegistryId.value = chosen && chosen.kind === "customer" && chosen.registry_id ? String(chosen.registry_id) : "";
+      hiddenId.value = "";
+      if (hiddenRegistryId) hiddenRegistryId.value = "";
+      if (!chosen || chosen.kind !== "customer") return;
+      if (chosen.id) {
+        hiddenId.value = String(chosen.id);
+        return;
+      }
+      if (chosen.registry_id) {
+        try {
+          const customer = await resolveCustomerRegistry(chosen.registry_id);
+          if (customer?.id) {
+            hiddenId.value = String(customer.id);
+            input.value = customer.display || customer.display_name || input.value;
+          }
+        } catch (err) {
+          console.error("resolve customer registry from suggest error:", err);
+          alert(err.message || "Errore selezione cliente");
+        }
       }
     });
   })();
@@ -6792,12 +6870,32 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
     });
 
-    btnConfirm.addEventListener("click", () => {
+    btnConfirm.addEventListener("click", async () => {
       if (!selectedItem) return;
-      opHiddenId.value = selId.value;
-      if (opHiddenRegistryId) opHiddenRegistryId.value = selectedItem.registry_id ? String(selectedItem.registry_id) : "";
-      opInput.value = selDisp.value;
-      bsModal.hide();
+      btnConfirm.disabled = true;
+      try {
+        if (selectedItem.kind === "customer" && !selectedItem.id && selectedItem.registry_id) {
+          const customer = await resolveCustomerRegistry(selectedItem.registry_id);
+          selectedItem = {
+            ...selectedItem,
+            id: customer?.id || null,
+            display: customer?.display || customer?.display_name || selectedItem.display,
+          };
+        }
+        if (selectedItem.kind === "customer" && !selectedItem.id) {
+          alert("Cliente non selezionato correttamente.");
+          return;
+        }
+        opHiddenId.value = selectedItem.kind === "customer" && selectedItem.id ? String(selectedItem.id) : "";
+        if (opHiddenRegistryId) opHiddenRegistryId.value = "";
+        opInput.value = selectedItem.display || selDisp.value;
+        bsModal.hide();
+      } catch (err) {
+        console.error("resolve customer registry from modal error:", err);
+        alert(err.message || "Errore selezione cliente");
+      } finally {
+        btnConfirm.disabled = false;
+      }
     });
   })();
 
@@ -8053,11 +8151,6 @@ function paymentSuffix(payment, maps, bankMap) {
 function isPrivateParty(label, storage) {
   const text = String(label || "").trim().toLowerCase();
   return storage === "pri" || text === "privato" || text === "privati";
-}
-
-function isPrivateCustomerLabel(label) {
-  const text = String(label || "").trim().toLowerCase();
-  return text === "privato" || text === "privati";
 }
 
 function paymentRowsForReport(items, type, payload) {
