@@ -4520,6 +4520,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     const opDesc = document.getElementById("opDesc");
     const opFlag = document.getElementById("opFlag");
     const opCustomerId = document.getElementById("opCustomerId");
+    const opCustomerRegistryId = document.getElementById("opCustomerRegistryId");
     const opCustomer = document.getElementById("opCustomer");
     const opCustomerLabel = document.getElementById("opCustomerLabel");
     const btnCustomerNew = document.getElementById("btnCustomerNew");
@@ -4533,6 +4534,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (opDesc) opDesc.value = "";
     if (opFlag) opFlag.value = "*";
     if (opCustomerId) opCustomerId.value = "";
+    if (opCustomerRegistryId) opCustomerRegistryId.value = "";
     if (opCustomer) {
       opCustomer.value = "";
       opCustomer.placeholder = type === "expense" ? "Cerca fornitore..." : "Cerca cliente...";
@@ -4588,6 +4590,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       const opDesc = document.getElementById("opDesc");
       const opFlag = document.getElementById("opFlag");
       const opCustomerId = document.getElementById("opCustomerId");
+      const opCustomerRegistryId = document.getElementById("opCustomerRegistryId");
       const opCustomer = document.getElementById("opCustomer");
       const opOffCash = document.getElementById("opOffCash");
       const opOffCashWho = document.getElementById("opOffCashWho");
@@ -4595,6 +4598,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       if (opDesc) opDesc.value = sale.notes || "";
       if (opCustomerId) opCustomerId.value = sale.customer_id ? String(sale.customer_id) : "";
+      if (opCustomerRegistryId) opCustomerRegistryId.value = "";
       if (opCustomer) opCustomer.value = sale.customer_label || "";
 
       const payments = sale.payments || [];
@@ -4739,6 +4743,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       const opFlag = document.getElementById("opFlag");
       const opCustomer = document.getElementById("opCustomer");
       const opCustomerId = document.getElementById("opCustomerId");
+      const opCustomerRegistryId = document.getElementById("opCustomerRegistryId");
       const opOffCash = document.getElementById("opOffCash");
       const opOffCashWho = document.getElementById("opOffCashWho");
       const opOffCashBox = document.getElementById("opOffCashBox");
@@ -4746,6 +4751,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       if (opDesc) opDesc.value = expense.notes || "";
       if (opCustomer) opCustomer.value = expense.supplier || "";
       if (opCustomerId) opCustomerId.value = "";
+      if (opCustomerRegistryId) opCustomerRegistryId.value = "";
 
       const payments = expense.payments || [];
       if (!payments.length) return;
@@ -4849,28 +4855,34 @@ document.addEventListener("DOMContentLoaded", async function () {
   async function ensureSelectedCustomer() {
     const opCustomerInput = document.getElementById("opCustomer");
     const opCustomerIdInput = document.getElementById("opCustomerId");
+    const opCustomerRegistryIdInput = document.getElementById("opCustomerRegistryId");
     const opType = document.getElementById("opType")?.value || "sale";
 
     if (!opCustomerInput || !opCustomerIdInput) {
-      return { ok: true, customer_id: null };
+      return { ok: true, customer_id: null, customer_registry_id: null };
     }
 
     if (opType === "expense") {
-      return { ok: true, customer_id: null };
+      return { ok: true, customer_id: null, customer_registry_id: null };
     }
 
     const currentId = String(opCustomerIdInput.value || "").trim();
     if (currentId) {
-      return { ok: true, customer_id: Number(currentId) };
+      return { ok: true, customer_id: Number(currentId), customer_registry_id: null };
+    }
+
+    const currentRegistryId = String(opCustomerRegistryIdInput?.value || "").trim();
+    if (currentRegistryId) {
+      return { ok: true, customer_id: null, customer_registry_id: Number(currentRegistryId) };
     }
 
     const rawText = String(opCustomerInput.value || "").trim();
     if (!rawText) {
-      return { ok: true, customer_id: null };
+      return { ok: true, customer_id: null, customer_registry_id: null };
     }
 
     const items = await fetchCustomerSuggest(rawText, "customer");
-    const exact = items.find(x => String(x.display || "").trim() === rawText && x.kind === "customer" && x.id);
+    const exact = items.find(x => String(x.display || "").trim() === rawText && x.kind === "customer" && (x.id || x.registry_id));
 
     if (!exact) {
       return {
@@ -4879,10 +4891,15 @@ document.addEventListener("DOMContentLoaded", async function () {
       };
     }
 
-    opCustomerIdInput.value = String(exact.id);
+    opCustomerIdInput.value = exact.id ? String(exact.id) : "";
+    if (opCustomerRegistryIdInput) opCustomerRegistryIdInput.value = exact.registry_id ? String(exact.registry_id) : "";
     opCustomerInput.value = exact.display || rawText;
 
-    return { ok: true, customer_id: Number(exact.id) };
+    return {
+      ok: true,
+      customer_id: exact.id ? Number(exact.id) : null,
+      customer_registry_id: exact.registry_id ? Number(exact.registry_id) : null
+    };
   }
 
   async function loadAvailableDepositChecks(dayStr) {
@@ -5241,6 +5258,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       flag,
       description,
       customer_id: ensuredCustomer.customer_id,
+      customer_registry_id: ensuredCustomer.customer_registry_id,
       customer_label: customerLabel || null,
       off_cash: offCash,
       off_cash_who: offCashWho || null,
@@ -5261,7 +5279,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         return { ok: false, error: "Inserisci almeno una descrizione o un fornitore/beneficiario." };
       }
     } else {
-      if (!base.description && !base.customer_id && !base.customer_label) {
+      if (!base.description && !base.customer_id && !base.customer_registry_id && !base.customer_label) {
         return { ok: false, error: "Inserisci almeno una descrizione o seleziona un cliente." };
       }
     }
@@ -5273,6 +5291,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           description: base.description,
           flag: base.flag,
           customer_id: base.customer_id,
+          customer_registry_id: base.customer_registry_id,
           customer_label: base.customer_label,
           off_cash: base.off_cash,
           off_cash_who: base.off_cash_who,
@@ -5303,6 +5322,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             description: base.description,
             flag: base.flag,
             customer_id: base.customer_id,
+            customer_registry_id: base.customer_registry_id,
             customer_label: base.customer_label,
             off_cash: base.off_cash,
             off_cash_who: base.off_cash_who,
@@ -5334,6 +5354,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           description: base.description,
           flag: base.flag,
           customer_id: base.customer_id,
+          customer_registry_id: base.customer_registry_id,
           customer_label: base.customer_label,
           off_cash: base.off_cash,
           off_cash_who: base.off_cash_who,
@@ -5361,6 +5382,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           description: base.description,
           flag: base.flag,
           customer_id: base.customer_id,
+          customer_registry_id: base.customer_registry_id,
           customer_label: base.customer_label,
           off_cash: base.off_cash,
           off_cash_who: base.off_cash_who,
@@ -5408,6 +5430,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             description: base.description,
             flag: base.flag,
             customer_id: base.customer_id,
+            customer_registry_id: base.customer_registry_id,
             customer_label: base.customer_label,
             off_cash: base.off_cash,
             off_cash_who: base.off_cash_who,
@@ -5431,7 +5454,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       const due_date = (document.getElementById("checkSaleDueDate")?.value || "").trim();
       const checkAmount = parseEuroToNumber(document.getElementById("checkSaleAmount")?.value || "0");
 
-      if (!base.customer_id) {
+      if (!base.customer_id && !base.customer_registry_id) {
         return { ok: false, error: "Per un assegno devi selezionare un cliente." };
       }
 
@@ -5449,6 +5472,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           description: base.description,
           flag: base.flag,
           customer_id: base.customer_id,
+          customer_registry_id: base.customer_registry_id,
           customer_label: base.customer_label,
           off_cash: base.off_cash,
           off_cash_who: base.off_cash_who,
@@ -5492,7 +5516,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         return { ok: false, error: "Inserisci almeno una descrizione o un fornitore/beneficiario." };
       }
     } else {
-      if (!base.description && !base.customer_id && !base.customer_label) {
+      if (!base.description && !base.customer_id && !base.customer_registry_id && !base.customer_label) {
         return { ok: false, error: "Inserisci almeno una descrizione o seleziona un cliente." };
       }
     }
@@ -5595,7 +5619,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           continue;
         }
 
-        if (!base.customer_id) {
+        if (!base.customer_id && !base.customer_registry_id) {
           return { ok: false, error: "Per gli assegni devi selezionare un cliente." };
         }
 
@@ -5637,6 +5661,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         description: base.description,
         flag: base.flag,
         customer_id: base.customer_id,
+        customer_registry_id: base.customer_registry_id,
         customer_label: base.customer_label,
         off_cash: base.off_cash,
         off_cash_who: base.off_cash_who,
@@ -6605,6 +6630,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         const c = data.customer || {};
 
         if (opCustomerIdInput) opCustomerIdInput.value = c.id ? String(c.id) : "";
+        if (opCustomerRegistryIdInput) opCustomerRegistryIdInput.value = "";
         if (opCustomerInput) opCustomerInput.value = c.display || c.display_name || "";
 
         bsModal.hide();
@@ -6621,6 +6647,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     const input = document.getElementById("opCustomer");
     const list = document.getElementById("opCustomerList");
     const hiddenId = document.getElementById("opCustomerId");
+    const hiddenRegistryId = document.getElementById("opCustomerRegistryId");
     if (!input || !list || !hiddenId) return;
 
     let lastItems = [];
@@ -6642,6 +6669,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     input.addEventListener("input", () => {
       hiddenId.value = "";
+      if (hiddenRegistryId) hiddenRegistryId.value = "";
       const q = input.value.trim();
 
       if (q.length < 2) {
@@ -6661,6 +6689,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     input.addEventListener("change", () => {
       const chosen = findByDisplay(input.value);
       hiddenId.value = chosen && chosen.kind === "customer" && chosen.id ? String(chosen.id) : "";
+      if (hiddenRegistryId) {
+        hiddenRegistryId.value = chosen && chosen.kind === "customer" && chosen.registry_id ? String(chosen.registry_id) : "";
+      }
     });
   })();
 
@@ -6681,6 +6712,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     const btnConfirm = document.getElementById("customerPickConfirm");
     const opInput = document.getElementById("opCustomer");
     const opHiddenId = document.getElementById("opCustomerId");
+    const opHiddenRegistryId = document.getElementById("opCustomerRegistryId");
 
     if (!qInput || !btnGo || !tbody || !selId || !selDisp || !btnConfirm || !opInput || !opHiddenId) return;
 
@@ -6763,6 +6795,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     btnConfirm.addEventListener("click", () => {
       if (!selectedItem) return;
       opHiddenId.value = selId.value;
+      if (opHiddenRegistryId) opHiddenRegistryId.value = selectedItem.registry_id ? String(selectedItem.registry_id) : "";
       opInput.value = selDisp.value;
       bsModal.hide();
     });

@@ -747,6 +747,59 @@ def _find_or_create_cash_customer(label: str):
     return customer
 
 
+def _cash_customer_from_registry(registry_id):
+    if not registry_id:
+        return None
+    registry = (
+        BusinessRegistry.query
+        .filter(
+            BusinessRegistry.id == registry_id,
+            BusinessRegistry.kind == "customer",
+            BusinessRegistry.is_active.is_(True),
+        )
+        .first()
+    )
+    if not registry:
+        raise ValueError("Cliente anagrafica non trovato")
+
+    customer = None
+    if registry.source_code:
+        customer = CashCustomer.query.filter_by(codice_cliente=registry.source_code).first()
+    if not customer and registry.vat_number:
+        customer = CashCustomer.query.filter_by(partita_iva=registry.vat_number).first()
+    if customer:
+        return customer
+
+    display_name = registry.display_name or registry.legal_name or registry.source_code
+    if not display_name:
+        raise ValueError("Cliente anagrafica senza nome")
+
+    customer = CashCustomer(
+        display_name=display_name,
+        ragione_sociale=registry.legal_name,
+        partita_iva=registry.vat_number,
+        codice_cliente=registry.source_code,
+    )
+    db.session.add(customer)
+    db.session.flush()
+    return customer
+
+
+def _resolve_sale_customer(data, customer_id, customer_label):
+    if customer_id:
+        customer = CashCustomer.query.filter_by(id=customer_id).first()
+        if not customer:
+            raise ValueError("Customer not found")
+        return customer.id, customer_label
+
+    customer_registry_id = data.get("customer_registry_id")
+    if customer_registry_id:
+        customer = _cash_customer_from_registry(customer_registry_id)
+        return customer.id, customer_label or customer.display_name
+
+    return None, customer_label
+
+
 def _parse_check_payload(data, existing_check: CashCheck | None = None):
     check_number = (data.get("check_number") or "").strip()
     bank_name = (data.get("bank_name") or "").strip() or None
@@ -3061,17 +3114,17 @@ def api_create_sale(day_date):
     customer_id = data.get("customer_id")
     customer_label = (data.get("customer_label") or "").strip() or None
 
-    if not description and not customer_id and not customer_label:
+    if not description and not customer_id and not data.get("customer_registry_id") and not customer_label:
         return jsonify({
             "ok": False,
             "error": "Inserisci almeno una descrizione o seleziona un cliente"
         }), 400
     off_cash = bool(data.get("off_cash", False))
 
-    if customer_id:
-        customer = CashCustomer.query.filter_by(id=customer_id).first()
-        if not customer:
-            return jsonify({"ok": False, "error": "Customer not found"}), 400
+    try:
+        customer_id, customer_label = _resolve_sale_customer(data, customer_id, customer_label)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
 
     try:
         payments_data = _normalize_payments_payload(data)
@@ -3528,17 +3581,17 @@ def api_update_sale(sale_id):
     customer_id = data.get("customer_id")
     customer_label = (data.get("customer_label") or "").strip() or None
 
-    if not description and not customer_id and not customer_label:
+    if not description and not customer_id and not data.get("customer_registry_id") and not customer_label:
         return jsonify({
             "ok": False,
             "error": "Inserisci almeno una descrizione o seleziona un cliente"
         }), 400
     off_cash = bool(data.get("off_cash", False))
 
-    if customer_id:
-        customer = CashCustomer.query.filter_by(id=customer_id).first()
-        if not customer:
-            return jsonify({"ok": False, "error": "Customer not found"}), 400
+    try:
+        customer_id, customer_label = _resolve_sale_customer(data, customer_id, customer_label)
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
 
     try:
         payments_data = _normalize_payments_payload(data)
