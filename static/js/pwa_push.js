@@ -1,4 +1,6 @@
 (function () {
+  const AUTO_REPAIR_THROTTLE_MS = 30 * 60 * 1000;
+
   function urlBase64ToUint8Array(base64String) {
     const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
     const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -31,7 +33,7 @@
     return data;
   }
 
-  async function enablePush() {
+  async function ensurePushSubscription({ requestPermission = false } = {}) {
     if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) {
       throw new Error("Notifiche push non supportate da questo browser");
     }
@@ -41,9 +43,16 @@
       throw new Error("Notifiche push non configurate sul server");
     }
 
-    const permission = await Notification.requestPermission();
+    const permission = requestPermission
+      ? await Notification.requestPermission()
+      : Notification.permission;
     if (permission !== "granted") {
       throw new Error("Permesso notifiche non concesso");
+    }
+
+    const serviceWorkerRegistration = await navigator.serviceWorker.getRegistration();
+    if (serviceWorkerRegistration) {
+      await serviceWorkerRegistration.update().catch(() => undefined);
     }
 
     const registration = await navigator.serviceWorker.ready;
@@ -52,6 +61,10 @@
       ? arrayBufferToBase64Url(subscription.options.applicationServerKey)
       : "";
     if (subscription && currentKey && currentKey !== cfg.public_key) {
+      await api("/pwa/api/push/unsubscribe", {
+        method: "POST",
+        body: JSON.stringify({ endpoint: subscription.endpoint }),
+      }).catch(() => undefined);
       await subscription.unsubscribe();
       subscription = null;
     }
@@ -66,6 +79,10 @@
       body: JSON.stringify(subscription.toJSON()),
     });
     return true;
+  }
+
+  async function enablePush() {
+    return ensurePushSubscription({ requestPermission: true });
   }
 
   async function disablePush() {
@@ -85,7 +102,25 @@
     return api("/pwa/api/push/test", { method: "POST", body: "{}" });
   }
 
-  window.LDAppPush = { enablePush, disablePush, testPush };
+  async function autoRepairPushSubscription({ force = false } = {}) {
+    if (!("Notification" in window) || Notification.permission !== "granted") return false;
+
+    const now = Date.now();
+    const lastRun = Number(window.localStorage.getItem("ldappPushAutoRepairAt") || 0);
+    if (!force && lastRun && now - lastRun < AUTO_REPAIR_THROTTLE_MS) return false;
+
+    try {
+      await ensurePushSubscription({ requestPermission: false });
+      window.localStorage.setItem("ldappPushAutoRepairAt", String(now));
+      return true;
+    } catch (err) {
+      console.warn("Riparazione automatica notifiche non riuscita:", err);
+      window.localStorage.setItem("ldappPushAutoRepairAt", String(now));
+      return false;
+    }
+  }
+
+  window.LDAppPush = { enablePush, disablePush, testPush, autoRepairPushSubscription };
 
   document.addEventListener("click", async (event) => {
     const btn = event.target.closest("[data-pwa-push-enable]");
@@ -102,4 +137,22 @@
       btn.disabled = false;
     }
   });
+
+  document.addEventListener("DOMContentLoaded", () => {
+    autoRepairPushSubscription();
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+      autoRepairPushSubscription();
+    }
+  });
+
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.addEventListener("message", (event) => {
+      if (event.data?.type === "LDAPP_SW_ACTIVATED") {
+        autoRepairPushSubscription({ force: true });
+      }
+    });
+  }
 })();

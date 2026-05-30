@@ -1,4 +1,4 @@
-const CACHE_NAME = "ldapp-cache-v8"; // bump per forzare update
+const CACHE_NAME = "ldapp-cache-v9"; // bump per forzare update
 const MAX_PUSH_AGE_MS = 10 * 60 * 1000;
 
 self.addEventListener("install", (event) => {
@@ -17,11 +17,18 @@ self.addEventListener("install", (event) => {
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.map((key) => (key !== CACHE_NAME ? caches.delete(key) : undefined)))
-    )
+    caches.keys()
+      .then((keys) =>
+        Promise.all(keys.map((key) => (key !== CACHE_NAME ? caches.delete(key) : undefined)))
+      )
+      .then(() => self.clients.claim())
+      .then(() => clients.matchAll({ type: "window", includeUncontrolled: true }))
+      .then((clientList) => {
+        clientList.forEach((client) => {
+          client.postMessage({ type: "LDAPP_SW_ACTIVATED", cacheName: CACHE_NAME });
+        });
+      })
   );
-  self.clients.claim();
 });
 
 self.addEventListener("message", (event) => {
@@ -42,7 +49,7 @@ self.addEventListener("fetch", (event) => {
   if (url.protocol !== "http:" && url.protocol !== "https:") return;
 
   // API interne e manifest: sempre rete, mai cache forzata
-  if (url.pathname.startsWith("/trello/") || url.pathname.startsWith("/pwa/") || url.pathname.endsWith("/manifest.json")) {
+  if (url.pathname.startsWith("/trello/") || url.pathname.startsWith("/pwa/") || url.pathname.endsWith("/manifest.json") || url.pathname.endsWith("/app-version.json")) {
     event.respondWith(
       fetch(req, { cache: "no-store" }).catch(() => caches.match(req))
     );

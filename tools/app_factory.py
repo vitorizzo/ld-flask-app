@@ -2,7 +2,7 @@ import logging
 import os
 import click
 
-from flask import Flask, render_template, send_from_directory, make_response, session
+from flask import Flask, render_template, send_from_directory, make_response, session, jsonify
 from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from dotenv import load_dotenv
@@ -19,6 +19,48 @@ from routes.tools import get_user_menu
 load_dotenv()
 # Determina la root del progetto (supponendo che questo file sia in tools/)
 project_root = os.path.dirname(os.path.dirname(__file__))
+
+
+def _compute_app_version(base_path):
+    explicit_version = (
+        os.getenv("APP_VERSION")
+        or os.getenv("RENDER_GIT_COMMIT")
+        or os.getenv("GIT_COMMIT")
+    )
+    if explicit_version:
+        return explicit_version[:40]
+
+    latest_mtime = 0.0
+    version_paths = [
+        "app.py",
+        "models.py",
+        "tools",
+        "routes",
+        "templates",
+        os.path.join("static", "css"),
+        os.path.join("static", "js"),
+        os.path.join("static", "service-worker.js"),
+        os.path.join("static", "manifest.json"),
+    ]
+    ignored_dirs = {"__pycache__", ".git", ".pytest_cache", "venv", ".venv"}
+
+    for relative_path in version_paths:
+        absolute_path = os.path.join(base_path, relative_path)
+        if os.path.isfile(absolute_path):
+            latest_mtime = max(latest_mtime, os.path.getmtime(absolute_path))
+            continue
+        if not os.path.isdir(absolute_path):
+            continue
+        for root, dirs, files in os.walk(absolute_path):
+            dirs[:] = [name for name in dirs if name not in ignored_dirs]
+            for filename in files:
+                filepath = os.path.join(root, filename)
+                try:
+                    latest_mtime = max(latest_mtime, os.path.getmtime(filepath))
+                except OSError:
+                    continue
+
+    return str(int(latest_mtime))
 
 # PRIMA definiamo i path dei .env
 # dotenv_path = os.path.join(project_root, ".env")
@@ -121,7 +163,8 @@ def create_app():
         VAPID_PUBLIC_KEY=os.getenv("VAPID_PUBLIC_KEY"),
         VAPID_PRIVATE_KEY=os.getenv("VAPID_PRIVATE_KEY"),
         VAPID_PRIVATE_KEY_FILE=os.getenv("VAPID_PRIVATE_KEY_FILE"),
-        VAPID_SUBJECT=os.getenv("VAPID_SUBJECT", "mailto:admin@ldenoteca.it")
+        VAPID_SUBJECT=os.getenv("VAPID_SUBJECT", "mailto:admin@ldenoteca.it"),
+        APP_VERSION=_compute_app_version(base)
     )
 
     if not app.config.get("SECRET_KEY"):
@@ -182,7 +225,18 @@ def create_app():
     # --- CONTEXT PROCESSORS ---
     @app.context_processor
     def inject_user_menu():
-        return {"user_menu": get_user_menu()}
+        return {
+            "user_menu": get_user_menu(),
+            "app_version": app.config.get("APP_VERSION", "dev"),
+        }
+
+    @app.route("/app-version.json")
+    def app_version():
+        response = jsonify({
+            "version": app.config.get("APP_VERSION", "dev"),
+        })
+        response.headers["Cache-Control"] = "no-store, max-age=0"
+        return response
 
     @app.context_processor
     def inject_menus():
