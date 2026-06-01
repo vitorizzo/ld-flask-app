@@ -1,0 +1,52 @@
+{% extends "base_kiosk.html" %}
+
+{% block head %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_order_detail.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="order-detail" data-order-id="{{ order.id }}">
+  <header class="order-detail__header">
+    <a class="order-detail__back" href="/kiosk" aria-label="Torna alla bacheca">
+      <i class="fa-solid fa-arrow-left"></i>
+    </a>
+    <div>
+      <div class="order-detail__eyebrow">Ordine #{{ order.id }}</div>
+      <h1>{{ order.customer_display or "Cliente" }}</h1>
+      <div class="order-detail__meta">
+        {% if route %}<span>{{ route.name }}</span>{% endif %}
+        <span data-current-status>{{ order.status }}</span>
+        {% if order.planned_delivery_at %}
+          <span>{{ order.planned_delivery_at.strftime("%d/%m/%Y %H:%M") }}</span>
+        {% endif %}
+      </div>
+    </div>
+  </header>
+
+  <div class="order-detail__status">
+    {% for status in statuses %}
+      <button
+        class="order-detail__status-btn{% if status.code == order.status %} is-active{% endif %}"
+        type="button"
+        data-status="{{ status.code }}"
+      >
+        {{ status.label }}
+      </button>
+    {% endfor %}
+  </div>
+
+  <article class="order-detail__panel">
+    <div class="order-detail__panel-title">Testo ordine</div>
+    <pre class="order-detail__text">{{ order.raw_text or "" }}</pre>
+  </article>
+
+  <article class="order-detail__panel" data-detail-extra>
+    <div class="order-detail__panel-title">Dettagli</div>
+    <div class="order-detail__loading">Caricamento...</div>
+  </article>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/kiosk_order_detail.js') }}"></script>
+{% endblock %}
