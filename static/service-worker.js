@@ -1,5 +1,35 @@
-const CACHE_NAME = "ldapp-cache-v9"; // bump per forzare update
+const CACHE_NAME = "ldapp-cache-v10"; // bump per forzare update
 const MAX_PUSH_AGE_MS = 10 * 60 * 1000;
+
+function notificationUrl(data) {
+  return new URL((data && data.url) || "/", self.location.origin).href;
+}
+
+function openOrFocusUrl(targetUrl) {
+  return clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+    for (const client of clientList) {
+      if ("focus" in client) {
+        client.navigate(targetUrl);
+        return client.focus();
+      }
+    }
+    if (clients.openWindow) return clients.openWindow(targetUrl);
+    return undefined;
+  });
+}
+
+function updateOrderStatus(orderId, status) {
+  if (!orderId || !status) return Promise.reject(new Error("Azione ordine non valida"));
+  return fetch(`/route-orders/api/orders/${orderId}/status`, {
+    method: "POST",
+    credentials: "same-origin",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify({ status }),
+  }).then((response) => {
+    if (!response.ok) throw new Error(`Aggiornamento stato fallito: ${response.status}`);
+    return response.json();
+  });
+}
 
 self.addEventListener("install", (event) => {
   self.skipWaiting();
@@ -10,6 +40,12 @@ self.addEventListener("install", (event) => {
         "/static/css/style.css",
         "/static/icons/icon-192.png",
         "/static/icons/icon-512.png",
+        "/static/icons/notification-order.svg",
+        "/static/icons/order-status-listed.svg",
+        "/static/icons/order-status-ready.svg",
+        "/static/icons/order-status-delivery.svg",
+        "/static/icons/order-status-done.svg",
+        "/static/icons/order-status-cancelled.svg",
       ]);
     })
   );
@@ -87,14 +123,21 @@ self.addEventListener("push", (event) => {
   const title = data.title || "LDApp";
   const options = {
     body: data.body || "",
-    icon: "/static/icons/icon-192.png",
-    badge: "/static/icons/icon-192.png",
-    tag: data.notification_id || undefined,
+    icon: data.icon || "/static/icons/icon-192.png",
+    badge: data.badge || "/static/icons/icon-192.png",
+    tag: data.tag || data.notification_id || undefined,
+    renotify: Boolean(data.renotify),
     timestamp: data.sent_at ? Date.parse(data.sent_at) : Date.now(),
+    actions: Array.isArray(data.actions) ? data.actions.slice(0, 2) : [],
     data: {
       url: data.url || "/",
       notification_id: data.notification_id || null,
       sent_at: data.sent_at || null,
+      category: data.category || null,
+      order_id: data.order_id || null,
+      order_status: data.order_status || null,
+      badge: data.badge || null,
+      icon: data.icon || null,
     },
   };
 
@@ -103,18 +146,19 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const targetUrl = new URL((event.notification.data && event.notification.data.url) || "/", self.location.origin).href;
+  const data = event.notification.data || {};
+  const targetUrl = notificationUrl(data);
+  const action = event.action || "default";
 
-  event.waitUntil(
-    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if ("focus" in client) {
-          client.navigate(targetUrl);
-          return client.focus();
-        }
-      }
-      if (clients.openWindow) return clients.openWindow(targetUrl);
-      return undefined;
-    })
-  );
+  if (action.startsWith("status:")) {
+    const status = action.slice("status:".length);
+    event.waitUntil(
+      updateOrderStatus(data.order_id, status)
+        .then(() => openOrFocusUrl(targetUrl))
+        .catch(() => openOrFocusUrl(targetUrl))
+    );
+    return;
+  }
+
+  event.waitUntil(openOrFocusUrl(targetUrl));
 });

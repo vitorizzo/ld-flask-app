@@ -102,6 +102,10 @@
     return api("/pwa/api/push/test", { method: "POST", body: "{}" });
   }
 
+  async function testOrderPush() {
+    return api("/pwa/api/push/test-order", { method: "POST", body: "{}" });
+  }
+
   async function autoRepairPushSubscription({ force = false } = {}) {
     if (!("Notification" in window) || Notification.permission !== "granted") return false;
 
@@ -120,7 +124,7 @@
     }
   }
 
-  window.LDAppPush = { enablePush, disablePush, testPush, autoRepairPushSubscription };
+  window.LDAppPush = { enablePush, disablePush, testPush, testOrderPush, autoRepairPushSubscription };
 
   document.addEventListener("click", async (event) => {
     const btn = event.target.closest("[data-pwa-push-enable]");
@@ -133,6 +137,22 @@
       alert("Notifiche abilitate su questo dispositivo.");
     } catch (err) {
       alert(err.message || "Errore abilitazione notifiche");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  document.addEventListener("click", async (event) => {
+    const btn = event.target.closest("[data-pwa-push-test-order]");
+    if (!btn) return;
+    event.preventDefault();
+    btn.disabled = true;
+    try {
+      await ensurePushSubscription({ requestPermission: true });
+      const result = await testOrderPush();
+      alert(`Notifica ordine inviata. Ordine #${result.order_id}, stato ${result.status}.`);
+    } catch (err) {
+      alert(err.message || "Errore invio notifica ordine");
     } finally {
       btn.disabled = false;
     }

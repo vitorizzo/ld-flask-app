@@ -27,7 +27,7 @@ from models import (
 from tools.role_required import role_required
 from tools.slack_api import SlackAPI, SlackAPIConfig
 from tools.slack_processor import SlackProcessor
-from tools.push_notifications import send_push_to_staff
+from tools.push_notifications import send_order_push_to_staff
 from tools.log_utils import get_logger
 
 
@@ -1004,7 +1004,7 @@ def api_direct_order_create():
     ))
     db.session.commit()
     try:
-        send_push_to_staff("Nuovo ordine diretto", _label_registry(registry), f"/kiosk?order_id={order.id}")
+        send_order_push_to_staff(order, title="Nuovo ordine diretto", body=_label_registry(registry))
     except Exception:
         logger.exception("Invio push ordine diretto fallito")
     return jsonify({"ok": True, "order": _order_to_dict(order)})
@@ -1150,7 +1150,7 @@ def api_send_slack(entry_id):
     _add_attachment_event(order, entry.order_attachments or [], via="route_order_board")
     db.session.commit()
     try:
-        send_push_to_staff("Nuovo ordine giro", _label_registry(registry), "/kiosk")
+        send_order_push_to_staff(order, title="Nuovo ordine giro", body=_label_registry(registry))
     except Exception:
         logger.exception("Invio push ordine giro fallito")
     return jsonify({"ok": True, "entry": entry.to_dict()})

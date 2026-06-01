@@ -1128,8 +1128,8 @@ class SlackProcessor:
             )
             db.session.commit()
             try:
-                from tools.push_notifications import send_push_to_staff
-                send_push_to_staff("Ordine aggiornato", existing_order.customer_display, f"/kiosk?order_id={existing_order.id}")
+                from tools.push_notifications import send_order_push_to_staff
+                send_order_push_to_staff(existing_order, title="Ordine aggiornato")
             except Exception:
                 logger.exception("Push ordine aggiornato fallita")
             return
@@ -1166,8 +1166,8 @@ class SlackProcessor:
         )
         db.session.commit()
         try:
-            from tools.push_notifications import send_push_to_staff
-            send_push_to_staff("Nuovo ordine", customer_display, f"/kiosk?order_id={order.id}")
+            from tools.push_notifications import send_order_push_to_staff
+            send_order_push_to_staff(order, title="Nuovo ordine")
         except Exception:
             logger.exception("Push nuovo ordine Slack fallita")
         return

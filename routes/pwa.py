@@ -21,7 +21,13 @@ from models import (
     SlackOrder,
     SlackOrderEvent,
 )
-from tools.push_notifications import is_push_configured, push_config, send_push_to_staff, send_push_to_user
+from tools.push_notifications import (
+    is_push_configured,
+    order_push_payload,
+    push_config,
+    send_order_push_to_staff,
+    send_push_to_user,
+)
 from tools.log_utils import get_logger
 from tools.role_required import role_required
 from tools.slack_api import SlackAPI, SlackAPIConfig
@@ -481,7 +487,7 @@ def share_send_order(intent_id):
     intent.status = "sent"
     db.session.commit()
     try:
-        send_push_to_staff("Nuovo ordine", _customer_label(registry), f"/kiosk?order_id={order.id}")
+        send_order_push_to_staff(order, title="Nuovo ordine", body=_customer_label(registry))
     except Exception:
         logger.exception("Invio push nuovo ordine fallito")
     return jsonify({"ok": True, "entry": entry.to_dict() if entry else None, "order_id": order.id, "intent": intent.to_dict()})
@@ -548,3 +554,24 @@ def push_test():
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 503
     return jsonify({"ok": True, **result})
+
+
+@pwa_bp.post("/api/push/test-order")
+@login_required
+@role_required(30)
+def push_test_order():
+    order = SlackOrder.query.order_by(SlackOrder.id.desc()).first()
+    if not order:
+        return jsonify({"ok": False, "error": "Nessun ordine disponibile per il test"}), 404
+    payload = order_push_payload(order, title="Test notifica ordine")
+    try:
+        result = send_push_to_user(
+            current_user.id,
+            payload["title"],
+            payload["body"],
+            payload["url"],
+            payload=payload,
+        )
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 503
+    return jsonify({"ok": True, "order_id": order.id, "status": order.status, **result})

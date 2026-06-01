@@ -72,6 +72,9 @@
                         <li><a class="dropdown-item" href="{{ url_for('auth.edit_profile') }}">Modifica Informazioni</a></li>
                         <li><a class="dropdown-item" href="{{ url_for('auth.upload_photo') }}">Gestisci Foto Profilo</a></li>
                         <li><button class="dropdown-item" type="button" data-pwa-push-enable>Abilita notifiche</button></li>
+                        {% if current_user.max_role_weight >= 30 %}
+                            <li><button class="dropdown-item" type="button" data-pwa-push-test-order>Test notifica ordine</button></li>
+                        {% endif %}
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">Log Out</a></li>
                     </ul>
