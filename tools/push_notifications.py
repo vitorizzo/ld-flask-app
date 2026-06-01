@@ -159,13 +159,13 @@ def send_push_to_staff(title: str, body: str, url: str = "/", min_weight: int = 
 
 
 def _order_notification_actions(status: str):
-    actions = [{"action": "view-order", "title": "Visualizza"}]
+    actions = [{"action": "view-order", "title": "Apri", "icon": "/static/icons/notification-order.svg"}]
     if status in {"acquisito", "listato"}:
-        actions.append({"action": "status:preparato", "title": "Segna pronto"})
+        actions.append({"action": "status:preparato", "title": "Pronto", "icon": ORDER_STATUS_BADGES["preparato"]})
     elif status in {"preparato", "controllato"}:
-        actions.append({"action": "status:inconsegna", "title": "In consegna"})
+        actions.append({"action": "status:inconsegna", "title": "Consegna", "icon": ORDER_STATUS_BADGES["inconsegna"]})
     elif status == "inconsegna":
-        actions.append({"action": "status:evaso", "title": "Evadi"})
+        actions.append({"action": "status:evaso", "title": "Evadi", "icon": ORDER_STATUS_BADGES["evaso"]})
     return actions
 
 

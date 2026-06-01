@@ -106,6 +106,14 @@
     return api("/pwa/api/push/test-order", { method: "POST", body: "{}" });
   }
 
+  function notificationActionSupportLabel() {
+    if (!("Notification" in window)) return "azioni non rilevabili";
+    if (typeof Notification.maxActions === "number") {
+      return `${Notification.maxActions} azioni supportate dal browser`;
+    }
+    return "supporto azioni non dichiarato dal browser";
+  }
+
   async function autoRepairPushSubscription({ force = false } = {}) {
     if (!("Notification" in window) || Notification.permission !== "granted") return false;
 
@@ -150,7 +158,7 @@
     try {
       await ensurePushSubscription({ requestPermission: true });
       const result = await testOrderPush();
-      alert(`Notifica ordine inviata. Ordine #${result.order_id}, stato ${result.status}.`);
+      alert(`Notifica ordine inviata. Ordine #${result.order_id}, stato ${result.status}. ${notificationActionSupportLabel()}.`);
     } catch (err) {
       alert(err.message || "Errore invio notifica ordine");
     } finally {

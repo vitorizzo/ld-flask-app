@@ -1,4 +1,4 @@
-const CACHE_NAME = "ldapp-cache-v10"; // bump per forzare update
+const CACHE_NAME = "ldapp-cache-v11"; // bump per forzare update
 const MAX_PUSH_AGE_MS = 10 * 60 * 1000;
 
 function notificationUrl(data) {
@@ -127,6 +127,9 @@ self.addEventListener("push", (event) => {
     badge: data.badge || "/static/icons/icon-192.png",
     tag: data.tag || data.notification_id || undefined,
     renotify: Boolean(data.renotify),
+    requireInteraction: Boolean(data.requireInteraction),
+    silent: false,
+    vibrate: [120, 60, 120],
     timestamp: data.sent_at ? Date.parse(data.sent_at) : Date.now(),
     actions: Array.isArray(data.actions) ? data.actions.slice(0, 2) : [],
     data: {
