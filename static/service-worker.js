@@ -1,5 +1,15 @@
-const CACHE_NAME = "ldapp-cache-v11"; // bump per forzare update
+const CACHE_NAME = "ldapp-cache-v12"; // bump per forzare update
 const MAX_PUSH_AGE_MS = 10 * 60 * 1000;
+
+function supportedNotificationActions(actions) {
+  if (!Array.isArray(actions)) return [];
+  const maxActions =
+    typeof Notification !== "undefined" && typeof Notification.maxActions === "number"
+      ? Notification.maxActions
+      : 2;
+  if (maxActions <= 0) return [];
+  return actions.slice(0, maxActions);
+}
 
 function notificationUrl(data) {
   return new URL((data && data.url) || "/", self.location.origin).href;
@@ -40,12 +50,6 @@ self.addEventListener("install", (event) => {
         "/static/css/style.css",
         "/static/icons/icon-192.png",
         "/static/icons/icon-512.png",
-        "/static/icons/notification-order.svg",
-        "/static/icons/order-status-listed.svg",
-        "/static/icons/order-status-ready.svg",
-        "/static/icons/order-status-delivery.svg",
-        "/static/icons/order-status-done.svg",
-        "/static/icons/order-status-cancelled.svg",
       ]);
     })
   );
@@ -127,11 +131,8 @@ self.addEventListener("push", (event) => {
     badge: data.badge || "/static/icons/icon-192.png",
     tag: data.tag || data.notification_id || undefined,
     renotify: Boolean(data.renotify),
-    requireInteraction: Boolean(data.requireInteraction),
-    silent: false,
-    vibrate: [120, 60, 120],
     timestamp: data.sent_at ? Date.parse(data.sent_at) : Date.now(),
-    actions: Array.isArray(data.actions) ? data.actions.slice(0, 2) : [],
+    actions: supportedNotificationActions(data.actions),
     data: {
       url: data.url || "/",
       notification_id: data.notification_id || null,
@@ -144,7 +145,18 @@ self.addEventListener("push", (event) => {
     },
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    self.registration.showNotification(title, options).catch(() => {
+      const fallbackOptions = {
+        body: data.body || "",
+        icon: "/static/icons/icon-192.png",
+        badge: "/static/icons/icon-192.png",
+        tag: data.tag || data.notification_id || undefined,
+        data: options.data,
+      };
+      return self.registration.showNotification(title, fallbackOptions);
+    })
+  );
 });
 
 self.addEventListener("notificationclick", (event) => {

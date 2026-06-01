@@ -396,6 +396,23 @@ Auto refresh ogni 10s
     return resp
 
 
+@kiosk_bp.get("/order/<int:order_id>")
+def kiosk_order_detail(order_id: int):
+    order = SlackOrder.query.get_or_404(order_id)
+    statuses = (
+        OrderStatus.query.filter_by(is_visible=True)
+        .order_by(OrderStatus.order_index.asc())
+        .all()
+    )
+    return render_template(
+        "kiosk_order_detail.html",
+        order=order,
+        route=DeliveryRoute.query.get(order.route_id) if order.route_id else None,
+        statuses=statuses,
+        kiosk_mode=True,
+    )
+
+
 @kiosk_bp.get("/api/routes")
 def kiosk_api_routes():
     routes = (
