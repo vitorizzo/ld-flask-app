@@ -1,0 +1,176 @@
+.shipping-page {
+  max-width: 1400px;
+  margin: 0 auto;
+  color: #1f2937;
+}
+
+.shipping-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.shipping-header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 800;
+}
+
+.shipping-header p {
+  margin: 4px 0 0;
+  color: #6b7280;
+}
+
+.shipping-toolbar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(150px, 220px) auto;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.shipping-grid {
+  display: grid;
+  grid-template-columns: minmax(360px, 1fr) minmax(360px, 0.9fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.shipping-panel {
+  background: #fff;
+  border: 1px solid rgba(31, 41, 55, 0.1);
+  border-radius: 8px;
+  min-height: 240px;
+}
+
+.shipping-panel__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(31, 41, 55, 0.08);
+}
+
+.shipping-panel__head h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.shipping-list {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.shipping-item {
+  border: 1px solid rgba(31, 41, 55, 0.1);
+  border-radius: 8px;
+  padding: 10px;
+  background: #f9fafb;
+  cursor: pointer;
+}
+
+.shipping-item.is-active {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.shipping-item__top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.shipping-item__title {
+  font-weight: 800;
+}
+
+.shipping-item__meta {
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.shipping-status {
+  white-space: nowrap;
+  border-radius: 999px;
+  padding: 3px 8px;
+  background: #e5e7eb;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.shipping-detail {
+  padding: 14px;
+}
+
+.shipping-empty {
+  color: #6b7280;
+}
+
+.shipping-detail__title {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.shipping-detail__title h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 900;
+}
+
+.shipping-detail__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.shipping-detail__field {
+  border: 1px solid rgba(31, 41, 55, 0.1);
+  border-radius: 8px;
+  padding: 8px;
+  background: #f9fafb;
+}
+
+.shipping-detail__label {
+  color: #6b7280;
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.shipping-event {
+  border-left: 3px solid #2563eb;
+  padding: 8px 10px;
+  background: #f9fafb;
+  margin-bottom: 8px;
+}
+
+.shipping-poleepo {
+  margin-top: 14px;
+}
+
+@media (max-width: 860px) {
+  .shipping-header,
+  .shipping-grid {
+    display: block;
+  }
+
+  .shipping-header .btn {
+    margin-top: 12px;
+  }
+
+  .shipping-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .shipping-panel {
+    margin-bottom: 12px;
+  }
+}

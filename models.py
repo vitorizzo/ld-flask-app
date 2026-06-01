@@ -1695,6 +1695,200 @@ class BusinessRegistryAlert(db.Model):
 
     registry = db.relationship("BusinessRegistry", backref=db.backref("alerts", cascade="all, delete-orphan", lazy="selectin"))
 
+
+class CourierIntegration(db.Model):
+    __tablename__ = "courier_integrations"
+    __table_args__ = (
+        db.UniqueConstraint("code", name="uq_courier_integrations_code"),
+        db.Index("ix_courier_integrations_enabled", "is_enabled"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(30), nullable=False)
+    name = db.Column(db.String(80), nullable=False)
+    is_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    base_url = db.Column(db.String(255), nullable=True)
+    credentials = db.Column(db.JSON, nullable=True)
+    settings = db.Column(db.JSON, nullable=True)
+    last_sync_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+        nullable=False,
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "code": self.code,
+            "name": self.name,
+            "is_enabled": bool(self.is_enabled),
+            "base_url": self.base_url,
+            "settings": self.settings or {},
+            "last_sync_at": self.last_sync_at.isoformat() if self.last_sync_at else None,
+        }
+
+
+class Shipment(db.Model):
+    __tablename__ = "shipments"
+    __table_args__ = (
+        db.UniqueConstraint("courier_code", "tracking_number", name="uq_shipments_courier_tracking"),
+        db.Index("ix_shipments_status", "status"),
+        db.Index("ix_shipments_courier_status", "courier_code", "status"),
+        db.Index("ix_shipments_customer_registry_id", "customer_registry_id"),
+        db.Index("ix_shipments_external_order_id", "external_order_id"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    courier_code = db.Column(db.String(30), nullable=False, index=True)
+    courier_name = db.Column(db.String(80), nullable=True)
+    tracking_number = db.Column(db.String(120), nullable=False)
+    status = db.Column(db.String(40), nullable=False, default="created", index=True)
+    status_label = db.Column(db.String(120), nullable=True)
+    customer_registry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("business_registries.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    customer_name = db.Column(db.String(255), nullable=True)
+    recipient_name = db.Column(db.String(255), nullable=True)
+    recipient_address = db.Column(db.Text, nullable=True)
+    external_order_id = db.Column(db.String(120), nullable=True, index=True)
+    source = db.Column(db.String(40), nullable=True)
+    reference = db.Column(db.String(120), nullable=True)
+    shipped_at = db.Column(db.DateTime, nullable=True)
+    delivered_at = db.Column(db.DateTime, nullable=True)
+    last_tracking_at = db.Column(db.DateTime, nullable=True)
+    last_error = db.Column(db.Text, nullable=True)
+    raw_payload = db.Column(db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+        nullable=False,
+    )
+
+    customer = db.relationship("BusinessRegistry", backref=db.backref("shipments", lazy="selectin"))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "courier_code": self.courier_code,
+            "courier_name": self.courier_name,
+            "tracking_number": self.tracking_number,
+            "status": self.status,
+            "status_label": self.status_label,
+            "customer_registry_id": self.customer_registry_id,
+            "customer_name": self.customer_name,
+            "recipient_name": self.recipient_name,
+            "recipient_address": self.recipient_address,
+            "external_order_id": self.external_order_id,
+            "source": self.source,
+            "reference": self.reference,
+            "shipped_at": self.shipped_at.isoformat() if self.shipped_at else None,
+            "delivered_at": self.delivered_at.isoformat() if self.delivered_at else None,
+            "last_tracking_at": self.last_tracking_at.isoformat() if self.last_tracking_at else None,
+            "last_error": self.last_error,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class ShipmentTrackingEvent(db.Model):
+    __tablename__ = "shipment_tracking_events"
+    __table_args__ = (
+        db.Index("ix_shipment_tracking_events_shipment_at", "shipment_id", "event_at"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    shipment_id = db.Column(
+        db.Integer,
+        db.ForeignKey("shipments.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    event_at = db.Column(db.DateTime, nullable=True)
+    status = db.Column(db.String(80), nullable=True)
+    location = db.Column(db.String(180), nullable=True)
+    description = db.Column(db.Text, nullable=True)
+    raw_payload = db.Column(db.JSON, nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+
+    shipment = db.relationship(
+        "Shipment",
+        backref=db.backref("tracking_events", cascade="all, delete-orphan", lazy="selectin"),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "shipment_id": self.shipment_id,
+            "event_at": self.event_at.isoformat() if self.event_at else None,
+            "status": self.status,
+            "location": self.location,
+            "description": self.description,
+        }
+
+
+class ExternalOrder(db.Model):
+    __tablename__ = "external_orders"
+    __table_args__ = (
+        db.UniqueConstraint("source", "external_id", name="uq_external_orders_source_external_id"),
+        db.Index("ix_external_orders_source_status", "source", "status"),
+        db.Index("ix_external_orders_customer_registry_id", "customer_registry_id"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    source = db.Column(db.String(40), nullable=False, default="poleepo", index=True)
+    external_id = db.Column(db.String(120), nullable=False)
+    order_number = db.Column(db.String(120), nullable=True, index=True)
+    status = db.Column(db.String(40), nullable=False, default="imported", index=True)
+    customer_registry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("business_registries.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    customer_name = db.Column(db.String(255), nullable=True)
+    recipient_name = db.Column(db.String(255), nullable=True)
+    recipient_address = db.Column(db.Text, nullable=True)
+    order_total = db.Column(db.Numeric(12, 2), nullable=True)
+    currency = db.Column(db.String(3), nullable=True)
+    ordered_at = db.Column(db.DateTime, nullable=True)
+    raw_payload = db.Column(db.JSON, nullable=True)
+    last_sync_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+        nullable=False,
+    )
+
+    customer = db.relationship("BusinessRegistry", backref=db.backref("external_orders", lazy="selectin"))
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "source": self.source,
+            "external_id": self.external_id,
+            "order_number": self.order_number,
+            "status": self.status,
+            "customer_registry_id": self.customer_registry_id,
+            "customer_name": self.customer_name,
+            "recipient_name": self.recipient_name,
+            "recipient_address": self.recipient_address,
+            "order_total": float(self.order_total) if self.order_total is not None else None,
+            "currency": self.currency,
+            "ordered_at": self.ordered_at.isoformat() if self.ordered_at else None,
+            "last_sync_at": self.last_sync_at.isoformat() if self.last_sync_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
     def to_dict(self):
         return {
             "id": self.id,

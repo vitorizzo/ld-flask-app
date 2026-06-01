@@ -316,6 +316,7 @@ def create_app():
     from routes.pwa import pwa_bp
     from routes.documents import documents_bp
     from routes.wine_cards import wine_cards_bp
+    from routes.shipping import shipping_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(settings_bp, url_prefix="/settings")
@@ -339,6 +340,7 @@ def create_app():
     app.register_blueprint(pwa_bp, url_prefix="/pwa")
     app.register_blueprint(documents_bp)
     app.register_blueprint(wine_cards_bp, url_prefix="/wine-cards")
+    app.register_blueprint(shipping_bp, url_prefix="/shipping")
 
     @app.cli.command("cleanup-reset-tokens")
     @click.option("--retention-days", default=30, show_default=True, type=int,

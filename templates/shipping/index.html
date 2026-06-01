@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}Spedizioni{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shipping.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="shipping-page">
+  <header class="shipping-header">
+    <div>
+      <h1>Spedizioni</h1>
+      <p>Tracking corrieri e ordini Poleepo.</p>
+    </div>
+    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#shipmentModal">
+      <i class="fa-solid fa-plus"></i> Nuova spedizione
+    </button>
+  </header>
+
+  <div class="shipping-toolbar">
+    <input class="form-control" id="shippingSearch" placeholder="Cerca tracking, cliente, riferimento...">
+    <select class="form-select" id="shippingCourierFilter">
+      <option value="">Tutti i corrieri</option>
+      {% for courier in couriers %}
+        <option value="{{ courier.code }}">{{ courier.name }}</option>
+      {% endfor %}
+    </select>
+    <button class="btn btn-outline-secondary" type="button" id="shippingRefreshBtn">
+      <i class="fa-solid fa-rotate"></i>
+    </button>
+  </div>
+
+  <div class="shipping-grid">
+    <section class="shipping-panel">
+      <div class="shipping-panel__head">
+        <h2>Tracking</h2>
+        <span id="shipmentsCount">0</span>
+      </div>
+      <div class="shipping-list" id="shipmentsList"></div>
+    </section>
+
+    <section class="shipping-panel">
+      <div class="shipping-panel__head">
+        <h2>Dettaglio</h2>
+      </div>
+      <div class="shipping-detail" id="shipmentDetail">
+        <div class="shipping-empty">Seleziona una spedizione.</div>
+      </div>
+    </section>
+  </div>
+
+  <section class="shipping-panel shipping-poleepo">
+    <div class="shipping-panel__head">
+      <h2>Ordini Poleepo</h2>
+      <button class="btn btn-sm btn-outline-primary" type="button" id="poleepoImportBtn">Importa</button>
+    </div>
+    <div class="shipping-list shipping-list--orders" id="poleepoOrdersList"></div>
+  </section>
+</section>
+
+<div class="modal fade" id="shipmentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" id="shipmentForm">
+      <div class="modal-header">
+        <h5 class="modal-title">Nuova spedizione</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-6">
+            <label class="form-label" for="shipmentCourier">Corriere</label>
+            <select class="form-select" id="shipmentCourier" required>
+              {% for courier in couriers %}
+                <option value="{{ courier.code }}">{{ courier.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="shipmentTracking">Tracking</label>
+            <input class="form-control" id="shipmentTracking" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="shipmentCustomer">Cliente</label>
+            <input class="form-control" id="shipmentCustomer">
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="shipmentRecipient">Destinatario</label>
+            <input class="form-control" id="shipmentRecipient">
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="shipmentReference">Riferimento</label>
+            <input class="form-control" id="shipmentReference">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="submit" class="btn btn-primary">Salva</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/shipping.js') }}"></script>
+{% endblock %}
