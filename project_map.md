@@ -42,6 +42,97 @@ Nel flusso Codex locale la lettura avviene direttamente dai file del repository,
 
 ---
 
+# MODULO SPEDIZIONI / CORRIERI / POLEEPO
+
+## Stato Architetturale
+
+Modulo creato come hub separato per:
+- tracking spedizioni affidate a corrieri
+- integrazioni BRT / GLS / DHL
+- import ordini esterni da Poleepo
+
+Il modulo e' volutamente separato dalla bacheca ordini Slack/Kiosk, ma prevede riferimenti opzionali verso:
+- anagrafiche clienti `BusinessRegistry`
+- ordini esterni `ExternalOrder`
+- spedizioni `Shipment`
+
+Route principale:
+- `/shipping`
+
+Blueprint:
+- `/routes/shipping.py`
+
+Connettori:
+- `/tools/shipping_connectors.py`
+
+Frontend:
+- `templates/shipping/index.html`
+- `static/js/shipping.js`
+- `static/css/shipping.css`
+
+Migrazione:
+- `migrations/versions/c4d5e6f7a8b9_add_shipping_tracking.py`
+
+## Modelli coinvolti
+
+- `CourierIntegration`
+- `Shipment`
+- `ShipmentTrackingEvent`
+- `ExternalOrder`
+
+## Tabelle create
+
+- `courier_integrations`
+- `shipments`
+- `shipment_tracking_events`
+- `external_orders`
+
+## Menu
+
+La migrazione aggiunge voce menu:
+- nome: `Spedizioni`
+- route: `/shipping`
+- peso: `30`
+
+## Corrieri
+
+Seed iniziale in `courier_integrations`:
+- `brt`
+- `gls`
+- `dhl`
+- `poleepo`
+
+I connettori BRT/GLS/DHL sono predisposti ma non ancora collegati alle API reali: servono specifiche endpoint, autenticazione e formato risposta.
+
+## Poleepo
+
+Variabili lette da configurazione:
+- `POLEEPO_URL`
+- `POLEEPO_PKEY`
+- `POLEEPO_PPKEY`
+
+Documentazione usata:
+- `https://developers.poleepo.cloud/docs/api/`
+
+Flusso implementato:
+- `POST /oauth/access_token`
+- `GET /orders`
+- normalizzazione record verso `ExternalOrder`
+
+Stato reale ultimo test:
+- chiamata HTTP a Poleepo riuscita;
+- autenticazione OAuth riuscita con `POLEEPO_PKEY` come `client_id` e `POLEEPO_PPKEY` come `client_secret`;
+- `GET /orders` restituisce ordini reali;
+- import iniziale completato con 100 ordini;
+- import incrementale corretto: `updated_after` viene inviato in formato UTC/RFC3339 senza microsecondi.
+
+Conclusione operativa:
+- codice integrazione Poleepo presente;
+- credenziali OAuth validate;
+- endpoint `POST /shipping/api/poleepo/import` operativo.
+
+---
+
 # MODULO AGENDA / CASSA
 
 ## Stato Architetturale

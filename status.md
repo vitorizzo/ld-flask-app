@@ -1,6 +1,6 @@
 TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
-Data aggiornamento: 2026-05-14
+Data aggiornamento: 2026-06-02
 
 ---
 
@@ -15,6 +15,75 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
 ---
 
 ## Task corrente (metodologia Codex)
+
+- Aggiornamento 2026-06-02:
+  - creato modulo `Spedizioni` raggiungibile da `/shipping`;
+  - aggiunta voce menu `Spedizioni` con peso `30`;
+  - aggiunta migrazione `c4d5e6f7a8b9_add_shipping_tracking.py`, gia' applicata localmente:
+    - `courier_integrations`;
+    - `shipments`;
+    - `shipment_tracking_events`;
+    - `external_orders`;
+  - aggiunti modelli:
+    - `CourierIntegration`;
+    - `Shipment`;
+    - `ShipmentTrackingEvent`;
+    - `ExternalOrder`;
+  - aggiunti file:
+    - `routes/shipping.py`;
+    - `tools/shipping_connectors.py`;
+    - `templates/shipping/index.html`;
+    - `static/js/shipping.js`;
+    - `static/css/shipping.css`;
+  - UI spedizioni:
+    - elenco tracking;
+    - ricerca per tracking/cliente/riferimento;
+    - filtro corriere;
+    - creazione manuale spedizione;
+    - dettaglio spedizione con eventi tracking;
+    - sezione ordini Poleepo importati;
+  - seed integrazioni:
+    - `brt`;
+    - `gls`;
+    - `dhl`;
+    - `poleepo`;
+  - connettori BRT/GLS/DHL:
+    - predisposti ma non ancora collegati alle API reali;
+    - servono credenziali, endpoint e formato risposta;
+  - Poleepo:
+    - lette da app config le variabili `POLEEPO_URL`, `POLEEPO_PKEY`, `POLEEPO_PPKEY`;
+    - implementato `PoleepoConnector` secondo documentazione ufficiale API `2022-03`;
+    - flusso implementato:
+      - `POST /oauth/access_token`;
+      - `GET /orders`;
+      - normalizzazione verso `ExternalOrder`;
+    - endpoint import:
+      - `POST /shipping/api/poleepo/import`;
+    - test reale API:
+      - chiamata raggiunge Poleepo;
+      - OAuth riuscito con `POLEEPO_PKEY` come `client_id` e `POLEEPO_PPKEY` come `client_secret`;
+      - `GET /orders` restituisce ordini reali;
+      - import iniziale completato con 100 ordini;
+      - import incrementale corretto: `updated_after` ora viene inviato in UTC/RFC3339 senza microsecondi;
+      - test rotta import: `200`, importati 2 nuovi ordini;
+    - stato operativo:
+      - codice pronto;
+      - credenziali validate;
+      - endpoint `POST /shipping/api/poleepo/import` operativo.
+  - notifiche/PWA ultimi interventi:
+    - introdotto controllo versione app tramite `/app-version.json`;
+    - aggiunto `static/js/app_update.js` per polling versione e reload controllato;
+    - notifiche ordine arricchite con categoria/tag/azioni testuali;
+    - creato dettaglio ordine standalone `/kiosk/order/<id>`;
+    - le notifiche ordine ora puntano al dettaglio ordine invece della bacheca generale;
+    - per compatibilita' mobile sono stati rimossi SVG e action icon dal payload notifiche, mantenendo PNG sicuro `icon-192.png`;
+    - service worker portato fino a `ldapp-cache-v12`;
+    - nota: su PC le azioni notifica risultavano visibili; su dispositivi mobili il comportamento dipende da browser/PWA e `Notification.maxActions`.
+  - verifiche eseguite:
+    - `python -m py_compile` su moduli shipping/Poleepo/app factory;
+    - `node --check static/js/shipping.js`;
+    - `flask db upgrade` ok fino a `c4d5e6f7a8b9`;
+    - route `/shipping/*` registrate.
 
 - Stato aggiornato al ciclo corrente di sviluppo Agenda / Cassa / Ordini:
   - report giornata completo/fiscale rifinito e collegato a menù

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 
 import requests
@@ -70,6 +70,14 @@ def connector_for(code: str, integration=None):
     if not cls:
         raise ShippingConnectorError("Corriere non supportato")
     return cls(integration=integration)
+
+
+def _format_poleepo_datetime(value: datetime | None):
+    if not value:
+        return None
+    if value.tzinfo:
+        value = value.astimezone(timezone.utc).replace(tzinfo=None)
+    return value.replace(microsecond=0).isoformat() + "Z"
 
 
 class PoleepoConnector:
@@ -145,8 +153,9 @@ class PoleepoConnector:
     def import_orders(self, since: datetime | None = None) -> list[dict]:
         token = self.access_token()
         params = {"offset": 0, "max": 100}
-        if since:
-            params["updated_after"] = since.isoformat()
+        updated_after = _format_poleepo_datetime(since)
+        if updated_after:
+            params["updated_after"] = updated_after
         payload = self._request("GET", "/orders", token=token, params=params)
         return payload.get("data") or []
 
