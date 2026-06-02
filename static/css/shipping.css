@@ -1,7 +1,11 @@
 .shipping-page {
+  overflow: hidden;
+  color: #1f2937;
+}
+
+.shipping-page > .container-fluid {
   max-width: 1400px;
   margin: 0 auto;
-  color: #1f2937;
 }
 
 .shipping-header {
@@ -161,6 +165,7 @@
 
 .shipping-poleepo {
   margin-top: 14px;
+  margin-bottom: 0;
 }
 
 .shipping-accounts {
@@ -196,6 +201,37 @@
 .shipping-tag.is-muted {
   background: #f3f4f6;
   color: #6b7280;
+}
+
+.shipping-modal {
+  z-index: 5000 !important;
+}
+
+.shipping-modal .modal-dialog {
+  z-index: 5001 !important;
+}
+
+.shipping-modal .modal-content {
+  background: #fff;
+  color: #1f2937;
+  border: 0;
+  border-radius: 8px;
+}
+
+.shipping-modal .form-label,
+.shipping-modal .form-check-label,
+.shipping-modal .modal-title {
+  color: #1f2937;
+}
+
+.shipping-modal .form-control,
+.shipping-modal .form-select {
+  color: #1f2937;
+  background-color: #fff;
+}
+
+body.app-shell .modal-backdrop.show {
+  z-index: 4990 !important;
 }
 
 @media (max-width: 860px) {
