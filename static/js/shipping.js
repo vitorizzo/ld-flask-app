@@ -10,6 +10,8 @@
   const el = {
     search: document.getElementById("shippingSearch"),
     courier: document.getElementById("shippingCourierFilter"),
+    lifecycle: document.getElementById("shippingLifecycleFilter"),
+    status: document.getElementById("shippingStatusFilter"),
     refresh: document.getElementById("shippingRefreshBtn"),
     refreshOpen: document.getElementById("shippingRefreshOpenBtn"),
     list: document.getElementById("shipmentsList"),
@@ -55,6 +57,24 @@
 
   function statusLabel(shipment) {
     return shipment.status_label || shipment.status || "created";
+  }
+
+  function formatDateTime(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    return date.toLocaleString("it-IT", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function summaryField(label, value) {
+    if (value === null || value === undefined || value === "") return "";
+    return `<div class="shipping-detail__field"><div class="shipping-detail__label">${escapeHtml(label)}</div><div>${escapeHtml(value)}</div></div>`;
   }
 
   function accountTypeLabel(type) {
@@ -163,6 +183,7 @@
   function renderDetail(payload) {
     const shipment = payload.shipment;
     const events = payload.events || [];
+    const summary = payload.tracking_summary || {};
     el.detail.innerHTML = `
       <div class="shipping-detail__title">
         <div>
@@ -178,7 +199,14 @@
         <div class="shipping-detail__field"><div class="shipping-detail__label">Riferimento</div><div>${escapeHtml(shipment.reference || shipment.external_order_id || "")}</div></div>
         <div class="shipping-detail__field"><div class="shipping-detail__label">Account</div><div>${escapeHtml(shipment.courier_account_name || "Automatico")}</div></div>
         <div class="shipping-detail__field"><div class="shipping-detail__label">Provenienza</div><div>${escapeHtml(shipment.source || "")}</div></div>
+        ${summaryField("Data spedizione", summary.shipment_date || formatDateTime(shipment.shipped_at))}
+        ${summaryField("Servizio", summary.service)}
+        ${summaryField("Filiale arrivo", summary.arrival_branch)}
+        ${summaryField("Colli", summary.parcels)}
+        ${summaryField("Peso kg", summary.weight_kg)}
+        ${summaryField("Ultimo aggiornamento", formatDateTime(shipment.last_tracking_at))}
       </div>
+      ${summary.status_text ? `<div class="alert alert-light border">${escapeHtml(summary.status_text)}</div>` : ""}
       ${shipment.last_error ? `<div class="alert alert-warning">${escapeHtml(shipment.last_error)}</div>` : ""}
       <div class="fw-bold mb-2">Eventi tracking</div>
       ${
@@ -187,9 +215,9 @@
               .map(
                 (event) => `
                   <div class="shipping-event">
-                    <div class="fw-bold">${escapeHtml(event.status || "")}</div>
+                    <div class="shipping-event__time">${escapeHtml(formatDateTime(event.event_at))}</div>
                     <div>${escapeHtml(event.description || "")}</div>
-                    <div class="text-muted">${escapeHtml(event.location || "")} ${escapeHtml(event.event_at || "")}</div>
+                    <div class="shipping-event__meta">${escapeHtml(event.location || "")} ${escapeHtml(event.status || "")}</div>
                   </div>
                 `
               )
@@ -203,6 +231,8 @@
     const params = new URLSearchParams();
     if (el.search.value.trim()) params.set("q", el.search.value.trim());
     if (el.courier.value) params.set("courier", el.courier.value);
+    if (el.lifecycle.value) params.set("lifecycle", el.lifecycle.value);
+    if (el.status.value) params.set("status", el.status.value);
     const data = await api(`/shipping/api/shipments?${params.toString()}`);
     state.shipments = data.shipments || [];
     renderShipments();
@@ -252,6 +282,8 @@
 
   el.search.addEventListener("input", scheduleLoad);
   el.courier.addEventListener("change", scheduleLoad);
+  el.lifecycle.addEventListener("change", scheduleLoad);
+  el.status.addEventListener("change", scheduleLoad);
   el.refresh.addEventListener("click", () => loadShipments().catch((err) => alert(err.message)));
   el.refreshOpen.addEventListener("click", async () => {
     try {

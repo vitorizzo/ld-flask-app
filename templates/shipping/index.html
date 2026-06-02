@@ -32,6 +32,17 @@
           <option value="{{ courier.code }}">{{ courier.name }}</option>
         {% endfor %}
       </select>
+      <select class="form-select" id="shippingLifecycleFilter">
+        <option value="">Attive e chiuse</option>
+        <option value="active">Solo attive</option>
+        <option value="closed">Solo chiuse</option>
+      </select>
+      <select class="form-select" id="shippingStatusFilter">
+        <option value="">Tutti gli stati</option>
+        {% for status in statuses %}
+          <option value="{{ status.value }}">{{ status.label }}</option>
+        {% endfor %}
+      </select>
       <button class="btn btn-outline-secondary" type="button" id="shippingRefreshBtn">
         <i class="fa-solid fa-rotate"></i>
       </button>

@@ -168,6 +168,10 @@ Uso previsto:
 - solo tracking, nessuna creazione spedizione dalla webapp;
 - le spedizioni vengono create da Poleepo e importate in LD Flask App;
 - il refresh usa l'account corriere BRT `webservice`.
+- la lista spedizioni e' ordinata per `shipped_at` decrescente;
+- filtri supportati: corriere, stato e ciclo `active/closed`;
+- il dettaglio spedizione include riepilogo BRT ed eventi tracking con data/ora;
+- gli eventi tracking vengono aggiornati in modo idempotente, senza duplicati per stesso evento.
 
 Stato ultimo test:
 - Poleepo restituisce `tracking_code` e `parcel_id` da `/shippings/{id}`;

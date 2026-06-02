@@ -36,7 +36,7 @@
 
 .shipping-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(150px, 220px) auto auto;
+  grid-template-columns: minmax(220px, 1fr) minmax(130px, 170px) minmax(140px, 170px) minmax(150px, 190px) auto auto;
   gap: 10px;
   margin-bottom: 14px;
 }
@@ -161,6 +161,17 @@
   padding: 8px 10px;
   background: #f9fafb;
   margin-bottom: 8px;
+}
+
+.shipping-event__time {
+  color: #374151;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.shipping-event__meta {
+  color: #6b7280;
+  font-size: 0.86rem;
 }
 
 .shipping-poleepo {

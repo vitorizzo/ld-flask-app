@@ -21,6 +21,14 @@ from tools.shipping_connectors import (
 shipping_bp = Blueprint("shipping", __name__)
 logger = get_logger("shipping")
 NOTIFIABLE_SHIPMENT_STATUSES = {"out_for_delivery", "delivered", "exception"}
+SHIPMENT_STATUS_OPTIONS = [
+    {"value": "created", "label": "Creata"},
+    {"value": "in_transit", "label": "Partita / in transito"},
+    {"value": "out_for_delivery", "label": "In consegna"},
+    {"value": "delivered", "label": "Completa"},
+    {"value": "exception", "label": "Problema"},
+    {"value": "unknown", "label": "Sconosciuta"},
+]
 
 
 def _parse_datetime(value):
@@ -191,6 +199,16 @@ def _refresh_shipment_tracking(shipment):
     shipment.last_error = None
     shipment.raw_payload = result.raw_payload
     for item in result.events:
+        existing_event = ShipmentTrackingEvent.query.filter_by(
+            shipment_id=shipment.id,
+            event_at=item.get("event_at"),
+            location=item.get("location"),
+            description=item.get("description"),
+        ).first()
+        if existing_event:
+            existing_event.status = item.get("status")
+            existing_event.raw_payload = item.get("raw_payload") or {}
+            continue
         db.session.add(ShipmentTrackingEvent(
             shipment_id=shipment.id,
             event_at=item.get("event_at"),
@@ -207,6 +225,7 @@ def _shipment_query():
     q = (request.args.get("q") or "").strip()
     courier = (request.args.get("courier") or "").strip().lower()
     status = (request.args.get("status") or "").strip()
+    lifecycle = (request.args.get("lifecycle") or "").strip()
     if q:
         like = f"%{q}%"
         query = query.filter(
@@ -222,14 +241,56 @@ def _shipment_query():
         query = query.filter(Shipment.courier_code == courier)
     if status:
         query = query.filter(Shipment.status == status)
+    if lifecycle == "active":
+        query = query.filter(Shipment.status != "delivered")
+    elif lifecycle == "closed":
+        query = query.filter(Shipment.status == "delivered")
     return query
+
+
+def _brt_tracking_summary(raw_payload):
+    response = (raw_payload or {}).get("ttParcelIdResponse") or {}
+    bolla = response.get("bolla") or {}
+    shipment_data = bolla.get("dati_spedizione") or {}
+    delivery_data = bolla.get("dati_consegna") or {}
+    references = bolla.get("riferimenti") or {}
+    goods = bolla.get("merce") or {}
+    return {
+        "current_time": response.get("currentTimeUTC") or None,
+        "response_time": response.get("risposta_timestamp") or None,
+        "shipment_id": shipment_data.get("spedizione_id") or None,
+        "shipment_date": shipment_data.get("spedizione_data") or None,
+        "service": shipment_data.get("servizio") or None,
+        "arrival_branch": shipment_data.get("filiale_arrivo") or None,
+        "arrival_branch_url": shipment_data.get("filiale_arrivo_URL") or None,
+        "status_text": " ".join(
+            str(piece or "").strip()
+            for piece in [
+                shipment_data.get("descrizione_stato_sped_parte1"),
+                shipment_data.get("descrizione_stato_sped_parte2"),
+                shipment_data.get("stato_sped_parte1"),
+                shipment_data.get("stato_sped_parte2"),
+            ]
+            if str(piece or "").strip()
+        ) or None,
+        "expected_delivery_date": delivery_data.get("data_teorica_consegna") or None,
+        "delivered_date": delivery_data.get("data_consegna_merce") or None,
+        "delivered_time": delivery_data.get("ora_consegna_merce") or None,
+        "delivered_to": delivery_data.get("firmatario_consegna") or None,
+        "sender_reference": references.get("riferimento_mittente_alfabetico") or None,
+        "numeric_reference": references.get("riferimento_mittente_numerico") or None,
+        "parcels": goods.get("colli") or None,
+        "weight_kg": goods.get("peso_kg") or None,
+        "volume_m3": goods.get("volume_m3") or None,
+        "goods_type": goods.get("natura_merce") or None,
+    }
 
 
 @shipping_bp.get("/")
 @login_required
 @role_required(30)
 def index():
-    return render_template("shipping/index.html", couriers=courier_options())
+    return render_template("shipping/index.html", couriers=courier_options(), statuses=SHIPMENT_STATUS_OPTIONS)
 
 
 @shipping_bp.get("/api/shipments")
@@ -238,7 +299,11 @@ def index():
 def api_shipments():
     shipments = (
         _shipment_query()
-        .order_by(Shipment.updated_at.desc(), Shipment.id.desc())
+        .order_by(
+            Shipment.shipped_at.desc().nullslast(),
+            Shipment.created_at.desc(),
+            Shipment.id.desc(),
+        )
         .limit(200)
         .all()
     )
@@ -338,6 +403,7 @@ def api_shipment_detail(shipment_id):
     return jsonify({
         "ok": True,
         "shipment": shipment.to_dict(),
+        "tracking_summary": _brt_tracking_summary(shipment.raw_payload) if shipment.courier_code == "brt" else {},
         "events": [event.to_dict() for event in sorted(shipment.tracking_events, key=lambda item: item.event_at or item.created_at, reverse=True)],
     })
 
