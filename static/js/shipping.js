@@ -24,6 +24,12 @@
     poleepoList: document.getElementById("poleepoOrdersList"),
   };
 
+  document.querySelectorAll(".shipping-modal").forEach((modal) => {
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+  });
+
   function escapeHtml(value) {
     return String(value || "")
       .replaceAll("&", "&amp;")

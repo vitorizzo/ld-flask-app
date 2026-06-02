@@ -203,7 +203,8 @@
   color: #6b7280;
 }
 
-.shipping-modal {
+.shipping-modal.modal,
+.shipping-modal.modal.show {
   z-index: 5000 !important;
 }
 
