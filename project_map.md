@@ -142,7 +142,9 @@ Documentazione usata:
 Flusso implementato:
 - `POST /oauth/access_token`
 - `GET /orders`
+- `GET /shippings/{id}`
 - normalizzazione record verso `ExternalOrder`
+- normalizzazione spedizioni Poleepo verso `Shipment`
 
 Stato reale ultimo test:
 - chiamata HTTP a Poleepo riuscita;
@@ -155,6 +157,24 @@ Conclusione operativa:
 - codice integrazione Poleepo presente;
 - credenziali OAuth validate;
 - endpoint `POST /shipping/api/poleepo/import` operativo.
+- endpoint `POST /shipping/api/poleepo/sync-shipments` operativo.
+
+## Tracking BRT
+
+Endpoint tracking provato:
+- `GET https://api.brt.it/rest/v1/tracking/parcelID/{parcel_id}`
+
+Uso previsto:
+- solo tracking, nessuna creazione spedizione dalla webapp;
+- le spedizioni vengono create da Poleepo e importate in LD Flask App;
+- il refresh usa l'account corriere BRT `webservice`.
+
+Stato ultimo test:
+- Poleepo restituisce `tracking_code` e `parcel_id` da `/shippings/{id}`;
+- sincronizzazione spedizioni Poleepo riuscita;
+- creati record `Shipment` BRT con `source='poleepo'`;
+- chiamata BRT tracking risponde HTTP `200`, ma payload applicativo con errore `MISSING PARAM`;
+- serve documentazione BRT sul parametro mancante richiesto da `tracking/parcelID`.
 
 ---
 

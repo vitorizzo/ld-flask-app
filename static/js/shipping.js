@@ -11,6 +11,7 @@
     search: document.getElementById("shippingSearch"),
     courier: document.getElementById("shippingCourierFilter"),
     refresh: document.getElementById("shippingRefreshBtn"),
+    refreshOpen: document.getElementById("shippingRefreshOpenBtn"),
     list: document.getElementById("shipmentsList"),
     count: document.getElementById("shipmentsCount"),
     detail: document.getElementById("shipmentDetail"),
@@ -21,6 +22,7 @@
     accountList: document.getElementById("courierAccountsList"),
     accountCount: document.getElementById("courierAccountsCount"),
     poleepoImport: document.getElementById("poleepoImportBtn"),
+    poleepoSyncShipments: document.getElementById("poleepoSyncShipmentsBtn"),
     poleepoList: document.getElementById("poleepoOrdersList"),
   };
 
@@ -251,6 +253,15 @@
   el.search.addEventListener("input", scheduleLoad);
   el.courier.addEventListener("change", scheduleLoad);
   el.refresh.addEventListener("click", () => loadShipments().catch((err) => alert(err.message)));
+  el.refreshOpen.addEventListener("click", async () => {
+    try {
+      const result = await api("/shipping/api/shipments/refresh-open", { method: "POST", body: "{}" });
+      await loadShipments();
+      alert(`Spedizioni aggiornate: ${result.refreshed}. Cambi stato: ${result.changed}. Errori: ${(result.errors || []).length}.`);
+    } catch (err) {
+      alert(err.message);
+    }
+  });
   el.shipmentCourier.addEventListener("change", renderShipmentAccountOptions);
   el.list.addEventListener("click", (event) => {
     const item = event.target.closest("[data-shipment-id]");
@@ -332,8 +343,19 @@
   });
   el.poleepoImport.addEventListener("click", async () => {
     try {
-      await api("/shipping/api/poleepo/import", { method: "POST", body: "{}" });
+      const result = await api("/shipping/api/poleepo/import", { method: "POST", body: "{}" });
+      await loadShipments();
       await loadPoleepoOrders();
+      alert(`Ordini: ${result.imported} nuovi, ${result.updated} aggiornati. Spedizioni: ${result.shipments_imported || 0} nuove, ${result.shipments_updated || 0} aggiornate.`);
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+  el.poleepoSyncShipments.addEventListener("click", async () => {
+    try {
+      const result = await api("/shipping/api/poleepo/sync-shipments", { method: "POST", body: JSON.stringify({ limit: 100 }) });
+      await loadShipments();
+      alert(`Spedizioni Poleepo: ${result.imported} nuove, ${result.updated} aggiornate. Errori: ${(result.errors || []).length}.`);
     } catch (err) {
       alert(err.message);
     }

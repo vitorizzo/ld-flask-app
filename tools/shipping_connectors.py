@@ -45,6 +45,51 @@ class BaseCourierConnector:
 class BrtConnector(BaseCourierConnector):
     code = "brt"
     name = "BRT"
+    default_tracking_url = "https://api.brt.it/rest/v1/tracking/parcelID/{tracking_number}"
+
+    def _tracking_url(self, account, tracking_number: str):
+        configured = (account.extra_config or {}).get("tracking_url") or account.base_url or self.default_tracking_url
+        if "{parcel_id}" in configured:
+            return configured.format(parcel_id=tracking_number, tracking_number=tracking_number)
+        if "{tracking_number}" in configured:
+            return configured.format(tracking_number=tracking_number, parcel_id=tracking_number)
+        return configured.rstrip("/") + f"/{tracking_number}"
+
+    def track(self, tracking_number: str) -> TrackingResult:
+        if not self.accounts:
+            raise ShippingConnectorNotConfigured("Nessun account BRT configurato")
+
+        last_error = None
+        for account in self.accounts:
+            if not account.username or not account.password_encrypted:
+                continue
+            url = self._tracking_url(account, tracking_number)
+            try:
+                response = requests.get(
+                    url,
+                    auth=(account.username, account.password_encrypted),
+                    headers={"Accept": "application/json"},
+                    timeout=20,
+                )
+            except requests.RequestException as exc:
+                last_error = str(exc)
+                continue
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = {"raw": response.text[:1000]}
+            if response.status_code >= 400:
+                last_error = f"BRT HTTP {response.status_code}"
+                continue
+            result = _normalize_brt_tracking(payload)
+            execution = ((payload.get("ttParcelIdResponse") or {}).get("executionMessage") or {})
+            if execution.get("severity") == "ERROR" and result.status == "unknown":
+                code = execution.get("codeDesc") or execution.get("code") or "Errore BRT"
+                last_error = str(code)
+                continue
+            return result
+
+        raise ShippingConnectorError(last_error or "Tracking BRT non disponibile")
 
 
 class GlsConnector(BaseCourierConnector):
@@ -162,6 +207,11 @@ class PoleepoConnector:
         payload = self._request("GET", "/orders", token=token, params=params)
         return payload.get("data") or []
 
+    def shipping_detail(self, shipping_id) -> dict:
+        token = self.access_token()
+        payload = self._request("GET", f"/shippings/{shipping_id}", token=token)
+        return payload.get("data") or {}
+
 
 def _join_name(*parts):
     return " ".join(str(part).strip() for part in parts if str(part or "").strip())
@@ -198,6 +248,84 @@ def _parse_remote_datetime(value):
     except ValueError:
         return None
     return parsed.replace(tzinfo=None) if parsed.tzinfo else parsed
+
+
+def _parse_brt_event_datetime(date_value, time_value):
+    date_raw = str(date_value or "").strip()
+    time_raw = str(time_value or "").strip()
+    if not date_raw:
+        return None
+    candidates = [
+        f"{date_raw} {time_raw}".strip(),
+        date_raw,
+    ]
+    formats = [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%d/%m/%Y %H:%M:%S",
+        "%d/%m/%Y %H:%M",
+        "%d-%m-%Y %H:%M:%S",
+        "%d-%m-%Y %H:%M",
+        "%Y-%m-%d",
+        "%d/%m/%Y",
+        "%d-%m-%Y",
+    ]
+    for candidate in candidates:
+        for fmt in formats:
+            try:
+                return datetime.strptime(candidate, fmt)
+            except ValueError:
+                continue
+    return None
+
+
+def _shipment_status_from_text(value):
+    text = str(value or "").strip().lower()
+    if not text:
+        return "unknown", "Sconosciuto"
+    if "consegn" in text:
+        return "delivered", "Consegnata"
+    if "in consegna" in text or "messa in consegna" in text:
+        return "out_for_delivery", "In consegna"
+    if any(token in text for token in ("giacenza", "mancata", "non consegn", "errore", "anomalia", "respinta")):
+        return "exception", "Problema"
+    if any(token in text for token in ("partita", "ritirata", "transito", "hub", "filiale", "affidata")):
+        return "in_transit", "In transito"
+    return "unknown", value
+
+
+def _normalize_brt_tracking(payload):
+    response = payload.get("ttParcelIdResponse") if isinstance(payload, dict) else {}
+    response = response or {}
+    shipment_data = ((response.get("bolla") or {}).get("dati_spedizione") or {})
+    status_text = " ".join(
+        str(piece or "").strip()
+        for piece in [
+            shipment_data.get("descrizione_stato_sped_parte1"),
+            shipment_data.get("descrizione_stato_sped_parte2"),
+            shipment_data.get("stato_sped_parte1"),
+            shipment_data.get("stato_sped_parte2"),
+        ]
+        if str(piece or "").strip()
+    )
+    events = []
+    for wrapper in response.get("lista_eventi") or []:
+        event = wrapper.get("evento") if isinstance(wrapper, dict) else {}
+        if not event or not any(event.values()):
+            continue
+        description = str(event.get("descrizione") or "").strip()
+        event_status, _ = _shipment_status_from_text(description)
+        events.append({
+            "event_at": _parse_brt_event_datetime(event.get("data"), event.get("ora")),
+            "status": event_status,
+            "location": event.get("filiale") or None,
+            "description": description,
+            "raw_payload": event,
+        })
+    if events and not status_text:
+        status_text = events[0].get("description") or ""
+    status, status_label = _shipment_status_from_text(status_text)
+    return TrackingResult(status=status, status_label=status_label, events=events, raw_payload=payload)
 
 
 def normalize_poleepo_order(order: dict) -> dict:

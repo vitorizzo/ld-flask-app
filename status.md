@@ -68,6 +68,10 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
       - test rotta import: `200`, importati 2 nuovi ordini;
       - corretto `ExternalOrder.to_dict`: un metodo duplicato degli alert sovrascriveva la serializzazione degli ordini e causava `HTTP 500` nel box ordini Poleepo;
       - test rotta elenco ordini Poleepo: `200`;
+      - aggiunto dettaglio spedizioni Poleepo via `GET /shippings/{id}`;
+      - aggiunto endpoint `POST /shipping/api/poleepo/sync-shipments`;
+      - sincronizzazione reale su 20 ordini: create 15 spedizioni BRT da payload Poleepo;
+      - le spedizioni importate usano `parcel_id` come `tracking_number` e `source='poleepo'`;
     - stato operativo:
       - codice pronto;
       - credenziali validate;
@@ -81,7 +85,13 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
     - aggiunta UI nella pagina `/shipping` per creare/modificare account corriere;
     - le spedizioni possono selezionare un account specifico oppure usare selezione automatica;
     - il refresh tracking prova prima l'account associato alla spedizione, poi gli altri account attivi dello stesso corriere;
-    - connettori BRT/GLS/DHL ancora da collegare agli endpoint reali.
+    - BRT tracking-only:
+      - implementato connettore su `GET https://api.brt.it/rest/v1/tracking/parcelID/{tracking_number}`;
+      - test reale con account BRT webservice: HTTP `200`, ma risposta applicativa `MISSING PARAM`;
+      - endpoint `POST /shipping/api/shipments/refresh-open` operativo;
+      - notifiche PWA predisposte su cambi stato `out_for_delivery`, `delivered`, `exception`;
+      - serve chiarimento BRT sul parametro mancante del tracking;
+    - GLS/DHL ancora da collegare agli endpoint reali.
   - notifiche/PWA ultimi interventi:
     - introdotto controllo versione app tramite `/app-version.json`;
     - aggiunto `static/js/app_update.js` per polling versione e reload controllato;

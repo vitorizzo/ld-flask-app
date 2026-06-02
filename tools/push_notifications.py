@@ -35,6 +35,14 @@ ORDER_STATUS_LABELS = {
     "evaso": "Evaso",
     "annullato": "Annullato",
 }
+SHIPMENT_STATUS_LABELS = {
+    "created": "Creata",
+    "in_transit": "In transito",
+    "out_for_delivery": "In consegna",
+    "delivered": "Consegnata",
+    "exception": "Problema",
+    "unknown": "Sconosciuta",
+}
 
 
 def push_config():
@@ -192,6 +200,41 @@ def order_push_payload(order, *, title: str = "Nuovo ordine", body: str | None =
 
 def send_order_push_to_staff(order, *, title: str = "Nuovo ordine", body: str | None = None, url: str | None = None, min_weight: int = 30):
     payload = order_push_payload(order, title=title, body=body, url=url)
+    return send_push_to_staff(
+        payload["title"],
+        payload["body"],
+        payload["url"],
+        min_weight=min_weight,
+        payload=payload,
+    )
+
+
+def shipment_push_payload(shipment, *, title: str = "Spedizione aggiornata", body: str | None = None, url: str | None = None):
+    shipment_id = getattr(shipment, "id", None)
+    status = (getattr(shipment, "status", None) or "unknown").strip()
+    status_label = SHIPMENT_STATUS_LABELS.get(status, getattr(shipment, "status_label", None) or status)
+    tracking = getattr(shipment, "tracking_number", None) or "Tracking"
+    customer = getattr(shipment, "customer_name", None) or getattr(shipment, "recipient_name", None) or ""
+    message = body or " - ".join(part for part in [tracking, customer, status_label] if part)
+    target_url = url or (f"/shipping?shipment_id={shipment_id}" if shipment_id else "/shipping")
+    return {
+        "title": title,
+        "body": message,
+        "url": target_url,
+        "category": "shipment",
+        "tag": f"shipment-{shipment_id}" if shipment_id else f"shipment-{tracking}",
+        "icon": ORDER_NOTIFICATION_ICON,
+        "badge": ORDER_NOTIFICATION_ICON,
+        "renotify": True,
+        "shipment_id": shipment_id,
+        "shipment_status": status,
+        "tracking_number": tracking,
+        "actions": [{"action": "view-shipment", "title": "Apri"}],
+    }
+
+
+def send_shipment_push_to_staff(shipment, *, title: str = "Spedizione aggiornata", body: str | None = None, url: str | None = None, min_weight: int = 30):
+    payload = shipment_push_payload(shipment, title=title, body=body, url=url)
     return send_push_to_staff(
         payload["title"],
         payload["body"],

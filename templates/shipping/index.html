@@ -35,6 +35,9 @@
       <button class="btn btn-outline-secondary" type="button" id="shippingRefreshBtn">
         <i class="fa-solid fa-rotate"></i>
       </button>
+      <button class="btn btn-outline-primary" type="button" id="shippingRefreshOpenBtn">
+        <i class="fa-solid fa-route"></i> Aggiorna aperte
+      </button>
     </div>
 
     <section class="shipping-panel shipping-accounts">
@@ -67,7 +70,10 @@
     <section class="shipping-panel shipping-poleepo">
       <div class="shipping-panel__head">
         <h2>Ordini Poleepo</h2>
-        <button class="btn btn-sm btn-outline-primary" type="button" id="poleepoImportBtn">Importa</button>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-secondary" type="button" id="poleepoSyncShipmentsBtn">Sincronizza spedizioni</button>
+          <button class="btn btn-sm btn-outline-primary" type="button" id="poleepoImportBtn">Importa</button>
+        </div>
       </div>
       <div class="shipping-list shipping-list--orders" id="poleepoOrdersList"></div>
     </section>
