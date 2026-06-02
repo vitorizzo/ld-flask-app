@@ -66,6 +66,8 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
       - import iniziale completato con 100 ordini;
       - import incrementale corretto: `updated_after` ora viene inviato in UTC/RFC3339 senza microsecondi;
       - test rotta import: `200`, importati 2 nuovi ordini;
+      - corretto `ExternalOrder.to_dict`: un metodo duplicato degli alert sovrascriveva la serializzazione degli ordini e causava `HTTP 500` nel box ordini Poleepo;
+      - test rotta elenco ordini Poleepo: `200`;
     - stato operativo:
       - codice pronto;
       - credenziali validate;

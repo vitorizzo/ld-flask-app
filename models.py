@@ -1695,6 +1695,16 @@ class BusinessRegistryAlert(db.Model):
 
     registry = db.relationship("BusinessRegistry", backref=db.backref("alerts", cascade="all, delete-orphan", lazy="selectin"))
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "registry_id": self.registry_id,
+            "message": self.message,
+            "start_date": self.start_date.isoformat() if self.start_date else None,
+            "end_date": self.end_date.isoformat() if self.end_date else None,
+            "is_active": self.is_active,
+        }
+
 
 class CourierIntegration(db.Model):
     __tablename__ = "courier_integrations"
@@ -1887,16 +1897,6 @@ class ExternalOrder(db.Model):
             "ordered_at": self.ordered_at.isoformat() if self.ordered_at else None,
             "last_sync_at": self.last_sync_at.isoformat() if self.last_sync_at else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
-        }
-
-    def to_dict(self):
-        return {
-            "id": self.id,
-            "registry_id": self.registry_id,
-            "message": self.message,
-            "start_date": self.start_date.isoformat() if self.start_date else None,
-            "end_date": self.end_date.isoformat() if self.end_date else None,
-            "is_active": self.is_active,
         }
 
 # --- Giornata / Chiusura -------------------------------------------------------
