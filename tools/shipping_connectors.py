@@ -28,15 +28,18 @@ class BaseCourierConnector:
     code = ""
     name = ""
 
-    def __init__(self, integration=None):
+    def __init__(self, integration=None, accounts=None):
         self.integration = integration
+        self.accounts = accounts or []
 
     @property
     def is_configured(self):
-        return bool(self.integration and self.integration.is_enabled and self.integration.credentials)
+        return bool(self.integration and self.integration.is_enabled and self.integration.credentials) or bool(self.accounts)
 
     def track(self, tracking_number: str) -> TrackingResult:
-        raise ShippingConnectorNotConfigured(f"Connettore {self.name} non configurato")
+        if not self.accounts:
+            raise ShippingConnectorNotConfigured(f"Nessun account {self.name} configurato")
+        raise ShippingConnectorNotConfigured(f"Tracking {self.name} non ancora collegato al web service reale")
 
 
 class BrtConnector(BaseCourierConnector):
@@ -65,11 +68,11 @@ def courier_options():
     return [{"code": cls.code, "name": cls.name} for cls in COURIER_CONNECTORS.values()]
 
 
-def connector_for(code: str, integration=None):
+def connector_for(code: str, integration=None, accounts=None):
     cls = COURIER_CONNECTORS.get((code or "").strip().lower())
     if not cls:
         raise ShippingConnectorError("Corriere non supportato")
-    return cls(integration=integration)
+    return cls(integration=integration, accounts=accounts)
 
 
 def _format_poleepo_datetime(value: datetime | None):

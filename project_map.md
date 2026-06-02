@@ -76,6 +76,7 @@ Migrazione:
 ## Modelli coinvolti
 
 - `CourierIntegration`
+- `CourierAccount`
 - `Shipment`
 - `ShipmentTrackingEvent`
 - `ExternalOrder`
@@ -83,6 +84,7 @@ Migrazione:
 ## Tabelle create
 
 - `courier_integrations`
+- `courier_accounts`
 - `shipments`
 - `shipment_tracking_events`
 - `external_orders`
@@ -103,6 +105,29 @@ Seed iniziale in `courier_integrations`:
 - `poleepo`
 
 I connettori BRT/GLS/DHL sono predisposti ma non ancora collegati alle API reali: servono specifiche endpoint, autenticazione e formato risposta.
+
+## Account corrieri
+
+Gli account corriere sono separati dalle integrazioni generali per supportare piu' credenziali per lo stesso corriere:
+- `portal`: spedizioni create dal portale del corriere, ad esempio EasySpedWeb;
+- `webservice`: spedizioni create via ecommerce/Poleepo/API.
+
+Tabella:
+- `courier_accounts`
+
+Campi principali:
+- `courier_code`
+- `account_type`
+- `name`
+- `base_url`
+- `username`
+- `password_encrypted`
+- `extra_config`
+- `is_enabled`
+
+Le password sono cifrate con `tools.crypto.EncryptedString` e `FERNET_KEY`; non sono restituite al frontend, che riceve solo `has_password`.
+
+Le spedizioni possono avere `courier_account_id`; se non presente, il refresh tracking prova gli account attivi del corriere.
 
 ## Poleepo
 

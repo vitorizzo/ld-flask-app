@@ -4,7 +4,7 @@ from flask import Blueprint, jsonify, render_template, request
 from flask_login import login_required
 
 from extensions import db
-from models import CourierIntegration, ExternalOrder, Shipment, ShipmentTrackingEvent
+from models import CourierAccount, CourierIntegration, ExternalOrder, Shipment, ShipmentTrackingEvent
 from tools.role_required import role_required
 from tools.shipping_connectors import (
     PoleepoConnector,
@@ -23,6 +23,17 @@ def _parse_datetime(value):
     if not value:
         return None
     return datetime.fromisoformat(str(value).strip())
+
+
+def _parse_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _account_payload(account):
+    return account.to_dict()
 
 
 def _shipment_query():
@@ -68,6 +79,56 @@ def api_shipments():
     return jsonify({"ok": True, "shipments": [shipment.to_dict() for shipment in shipments]})
 
 
+@shipping_bp.get("/api/courier-accounts")
+@login_required
+@role_required(30)
+def api_courier_accounts():
+    courier = (request.args.get("courier") or "").strip().lower()
+    query = CourierAccount.query
+    if courier:
+        query = query.filter(CourierAccount.courier_code == courier)
+    accounts = query.order_by(CourierAccount.courier_code, CourierAccount.account_type, CourierAccount.name).all()
+    return jsonify({"ok": True, "accounts": [_account_payload(account) for account in accounts]})
+
+
+@shipping_bp.post("/api/courier-accounts")
+@login_required
+@role_required(30)
+def api_save_courier_account():
+    data = request.get_json(silent=True) or {}
+    account_id = _parse_int(data.get("id"))
+    courier_code = (data.get("courier_code") or "").strip().lower()
+    account_type = (data.get("account_type") or "").strip().lower()
+    name = (data.get("name") or "").strip()
+    if courier_code not in {item["code"] for item in courier_options()}:
+        return jsonify({"ok": False, "error": "Corriere non valido"}), 400
+    if account_type not in {"portal", "webservice"}:
+        return jsonify({"ok": False, "error": "Tipo account non valido"}), 400
+    if not name:
+        return jsonify({"ok": False, "error": "Nome account mancante"}), 400
+
+    account = CourierAccount.query.get(account_id) if account_id else None
+    if not account:
+        account = CourierAccount()
+        db.session.add(account)
+    account.courier_code = courier_code
+    account.account_type = account_type
+    account.name = name
+    account.base_url = (data.get("base_url") or "").strip() or None
+    account.username = (data.get("username") or "").strip() or None
+    password = data.get("password")
+    if password:
+        account.password_encrypted = str(password)
+    account.extra_config = data.get("extra_config") if isinstance(data.get("extra_config"), dict) else {}
+    account.is_enabled = bool(data.get("is_enabled", True))
+    try:
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": f"Errore salvataggio account corriere: {exc}"}), 500
+    return jsonify({"ok": True, "account": _account_payload(account)})
+
+
 @shipping_bp.post("/api/shipments")
 @login_required
 @role_required(30)
@@ -84,7 +145,14 @@ def api_create_shipment():
     if not shipment:
         shipment = Shipment(courier_code=courier_code, tracking_number=tracking_number)
         db.session.add(shipment)
+    account_id = _parse_int(data.get("courier_account_id"))
+    account = None
+    if account_id:
+        account = CourierAccount.query.filter_by(id=account_id, courier_code=courier_code).first()
+        if not account:
+            return jsonify({"ok": False, "error": "Account corriere non valido"}), 400
     shipment.courier_name = next((item["name"] for item in courier_options() if item["code"] == courier_code), courier_code.upper())
+    shipment.courier_account_id = account.id if account else None
     shipment.customer_name = (data.get("customer_name") or "").strip() or None
     shipment.recipient_name = (data.get("recipient_name") or "").strip() or None
     shipment.recipient_address = (data.get("recipient_address") or "").strip() or None
@@ -114,8 +182,20 @@ def api_shipment_detail(shipment_id):
 def api_refresh_shipment(shipment_id):
     shipment = Shipment.query.get_or_404(shipment_id)
     integration = CourierIntegration.query.filter_by(code=shipment.courier_code).first()
+    accounts = []
+    if shipment.courier_account_id:
+        account = CourierAccount.query.filter_by(id=shipment.courier_account_id, is_enabled=True).first()
+        if account:
+            accounts.append(account)
+    accounts_query = CourierAccount.query.filter(
+        CourierAccount.courier_code == shipment.courier_code,
+        CourierAccount.is_enabled.is_(True),
+    )
+    if shipment.courier_account_id:
+        accounts_query = accounts_query.filter(CourierAccount.id != shipment.courier_account_id)
+    accounts.extend(accounts_query.order_by(CourierAccount.account_type, CourierAccount.name).all())
     try:
-        result = connector_for(shipment.courier_code, integration).track(shipment.tracking_number)
+        result = connector_for(shipment.courier_code, integration, accounts=accounts).track(shipment.tracking_number)
     except ShippingConnectorNotConfigured as exc:
         shipment.last_error = str(exc)
         db.session.commit()

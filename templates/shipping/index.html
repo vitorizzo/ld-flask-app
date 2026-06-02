@@ -13,9 +13,14 @@
       <h1>Spedizioni</h1>
       <p>Tracking corrieri e ordini Poleepo.</p>
     </div>
-    <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#shipmentModal">
-      <i class="fa-solid fa-plus"></i> Nuova spedizione
-    </button>
+    <div class="shipping-header__actions">
+      <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#courierAccountModal">
+        <i class="fa-solid fa-key"></i> Account corriere
+      </button>
+      <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#shipmentModal">
+        <i class="fa-solid fa-plus"></i> Nuova spedizione
+      </button>
+    </div>
   </header>
 
   <div class="shipping-toolbar">
@@ -30,6 +35,14 @@
       <i class="fa-solid fa-rotate"></i>
     </button>
   </div>
+
+  <section class="shipping-panel shipping-accounts">
+    <div class="shipping-panel__head">
+      <h2>Account corrieri</h2>
+      <span id="courierAccountsCount">0</span>
+    </div>
+    <div class="shipping-list shipping-list--accounts" id="courierAccountsList"></div>
+  </section>
 
   <div class="shipping-grid">
     <section class="shipping-panel">
@@ -81,6 +94,12 @@
             <input class="form-control" id="shipmentTracking" required>
           </div>
           <div class="col-12">
+            <label class="form-label" for="shipmentCourierAccount">Account corriere</label>
+            <select class="form-select" id="shipmentCourierAccount">
+              <option value="">Automatico</option>
+            </select>
+          </div>
+          <div class="col-12">
             <label class="form-label" for="shipmentCustomer">Cliente</label>
             <input class="form-control" id="shipmentCustomer">
           </div>
@@ -95,6 +114,68 @@
         </div>
       </div>
       <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="submit" class="btn btn-primary">Salva</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="modal fade" id="courierAccountModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" id="courierAccountForm">
+      <div class="modal-header">
+        <h5 class="modal-title">Account corriere</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="courierAccountId">
+        <div class="row g-3">
+          <div class="col-6">
+            <label class="form-label" for="courierAccountCourier">Corriere</label>
+            <select class="form-select" id="courierAccountCourier" required>
+              {% for courier in couriers %}
+                <option value="{{ courier.code }}">{{ courier.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="courierAccountType">Tipo</label>
+            <select class="form-select" id="courierAccountType" required>
+              <option value="portal">Portale</option>
+              <option value="webservice">Web service</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="courierAccountName">Nome</label>
+            <input class="form-control" id="courierAccountName" placeholder="BRT Portale" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="courierAccountBaseUrl">Endpoint</label>
+            <input class="form-control" id="courierAccountBaseUrl">
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="courierAccountUsername">Utente</label>
+            <input class="form-control" id="courierAccountUsername" autocomplete="off">
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="courierAccountPassword">Password</label>
+            <input class="form-control" id="courierAccountPassword" type="password" autocomplete="new-password" placeholder="Lascia vuoto per non modificare">
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="courierAccountExtra">Config extra JSON</label>
+            <textarea class="form-control" id="courierAccountExtra" rows="3" placeholder='{"customer_code": "..."}'></textarea>
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="courierAccountEnabled" checked>
+              <label class="form-check-label" for="courierAccountEnabled">Account attivo</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-account-reset>Nuovo</button>
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
         <button type="submit" class="btn btn-primary">Salva</button>
       </div>

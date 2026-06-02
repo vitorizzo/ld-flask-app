@@ -3,6 +3,7 @@
 
   const state = {
     shipments: [],
+    accounts: [],
     selectedId: null,
   };
 
@@ -14,6 +15,11 @@
     count: document.getElementById("shipmentsCount"),
     detail: document.getElementById("shipmentDetail"),
     form: document.getElementById("shipmentForm"),
+    shipmentCourier: document.getElementById("shipmentCourier"),
+    shipmentAccount: document.getElementById("shipmentCourierAccount"),
+    accountForm: document.getElementById("courierAccountForm"),
+    accountList: document.getElementById("courierAccountsList"),
+    accountCount: document.getElementById("courierAccountsCount"),
     poleepoImport: document.getElementById("poleepoImportBtn"),
     poleepoList: document.getElementById("poleepoOrdersList"),
   };
@@ -43,6 +49,84 @@
     return shipment.status_label || shipment.status || "created";
   }
 
+  function accountTypeLabel(type) {
+    return type === "webservice" ? "Web service" : "Portale";
+  }
+
+  function accountName(account) {
+    return `${(account.courier_code || "").toUpperCase()} - ${account.name || accountTypeLabel(account.account_type)}`;
+  }
+
+  function parseExtraConfig() {
+    const raw = document.getElementById("courierAccountExtra").value.trim();
+    if (!raw) return {};
+    return JSON.parse(raw);
+  }
+
+  function resetAccountForm() {
+    el.accountForm.reset();
+    document.getElementById("courierAccountId").value = "";
+    document.getElementById("courierAccountEnabled").checked = true;
+    document.getElementById("courierAccountExtra").value = "";
+  }
+
+  function fillAccountForm(account) {
+    document.getElementById("courierAccountId").value = account.id || "";
+    document.getElementById("courierAccountCourier").value = account.courier_code || "brt";
+    document.getElementById("courierAccountType").value = account.account_type || "portal";
+    document.getElementById("courierAccountName").value = account.name || "";
+    document.getElementById("courierAccountBaseUrl").value = account.base_url || "";
+    document.getElementById("courierAccountUsername").value = account.username || "";
+    document.getElementById("courierAccountPassword").value = "";
+    document.getElementById("courierAccountExtra").value = Object.keys(account.extra_config || {}).length
+      ? JSON.stringify(account.extra_config, null, 2)
+      : "";
+    document.getElementById("courierAccountEnabled").checked = account.is_enabled !== false;
+  }
+
+  function renderAccounts() {
+    if (!el.accountList) return;
+    el.accountCount.textContent = String(state.accounts.length);
+    if (!state.accounts.length) {
+      el.accountList.innerHTML = `<div class="shipping-empty">Nessun account corriere configurato.</div>`;
+      renderShipmentAccountOptions();
+      return;
+    }
+    el.accountList.innerHTML = state.accounts
+      .map(
+        (account) => `
+          <div class="shipping-item" data-account-id="${account.id}">
+            <div class="shipping-item__top">
+              <div>
+                <div class="shipping-item__title">${escapeHtml(accountName(account))}</div>
+                <div class="shipping-item__meta">${escapeHtml(account.username || "Utente non indicato")}</div>
+              </div>
+              <span class="shipping-status">${escapeHtml(accountTypeLabel(account.account_type))}</span>
+            </div>
+            <div class="shipping-account__tags">
+              <span class="shipping-tag ${account.is_enabled ? "is-ok" : "is-muted"}">${account.is_enabled ? "Attivo" : "Disattivo"}</span>
+              <span class="shipping-tag ${account.has_password ? "is-ok" : "is-muted"}">${account.has_password ? "Password salvata" : "Password mancante"}</span>
+            </div>
+          </div>
+        `
+      )
+      .join("");
+    renderShipmentAccountOptions();
+  }
+
+  function renderShipmentAccountOptions() {
+    if (!el.shipmentAccount || !el.shipmentCourier) return;
+    const selected = el.shipmentAccount.value;
+    const courier = el.shipmentCourier.value;
+    const accounts = state.accounts.filter((account) => account.courier_code === courier && account.is_enabled !== false);
+    el.shipmentAccount.innerHTML = `<option value="">Automatico</option>${accounts
+      .map((account) => `<option value="${account.id}">${escapeHtml(accountName(account))}</option>`)
+      .join("")}`;
+    if ([...el.shipmentAccount.options].some((option) => option.value === selected)) {
+      el.shipmentAccount.value = selected;
+    }
+  }
+
   function renderShipments() {
     if (!el.list) return;
     el.count.textContent = String(state.shipments.length);
@@ -58,6 +142,7 @@
               <div>
                 <div class="shipping-item__title">${escapeHtml(shipment.courier_name || shipment.courier_code)} ${escapeHtml(shipment.tracking_number)}</div>
                 <div class="shipping-item__meta">${escapeHtml(shipment.customer_name || shipment.recipient_name || "Cliente non indicato")}</div>
+                <div class="shipping-item__meta">${escapeHtml(shipment.courier_account_name || shipment.source || "")}</div>
               </div>
               <span class="shipping-status">${escapeHtml(statusLabel(shipment))}</span>
             </div>
@@ -83,6 +168,8 @@
         <div class="shipping-detail__field"><div class="shipping-detail__label">Cliente</div><div>${escapeHtml(shipment.customer_name || "")}</div></div>
         <div class="shipping-detail__field"><div class="shipping-detail__label">Destinatario</div><div>${escapeHtml(shipment.recipient_name || "")}</div></div>
         <div class="shipping-detail__field"><div class="shipping-detail__label">Riferimento</div><div>${escapeHtml(shipment.reference || shipment.external_order_id || "")}</div></div>
+        <div class="shipping-detail__field"><div class="shipping-detail__label">Account</div><div>${escapeHtml(shipment.courier_account_name || "Automatico")}</div></div>
+        <div class="shipping-detail__field"><div class="shipping-detail__label">Provenienza</div><div>${escapeHtml(shipment.source || "")}</div></div>
       </div>
       ${shipment.last_error ? `<div class="alert alert-warning">${escapeHtml(shipment.last_error)}</div>` : ""}
       <div class="fw-bold mb-2">Eventi tracking</div>
@@ -143,6 +230,12 @@
       : `<div class="shipping-empty">Nessun ordine Poleepo importato.</div>`;
   }
 
+  async function loadAccounts() {
+    const data = await api("/shipping/api/courier-accounts");
+    state.accounts = data.accounts || [];
+    renderAccounts();
+  }
+
   let searchTimer = null;
   function scheduleLoad() {
     window.clearTimeout(searchTimer);
@@ -152,6 +245,7 @@
   el.search.addEventListener("input", scheduleLoad);
   el.courier.addEventListener("change", scheduleLoad);
   el.refresh.addEventListener("click", () => loadShipments().catch((err) => alert(err.message)));
+  el.shipmentCourier.addEventListener("change", renderShipmentAccountOptions);
   el.list.addEventListener("click", (event) => {
     const item = event.target.closest("[data-shipment-id]");
     if (!item) return;
@@ -169,10 +263,52 @@
       await selectShipment(button.dataset.refreshShipment).catch(() => undefined);
     }
   });
+  el.accountList.addEventListener("click", (event) => {
+    const item = event.target.closest("[data-account-id]");
+    if (!item) return;
+    const account = state.accounts.find((candidate) => String(candidate.id) === String(item.dataset.accountId));
+    if (!account) return;
+    fillAccountForm(account);
+    bootstrap.Modal.getOrCreateInstance(document.getElementById("courierAccountModal")).show();
+  });
+  el.accountForm.addEventListener("click", (event) => {
+    if (!event.target.closest("[data-account-reset]")) return;
+    resetAccountForm();
+  });
+  el.accountForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    let extraConfig = {};
+    try {
+      extraConfig = parseExtraConfig();
+    } catch (err) {
+      alert("Config extra JSON non valido");
+      return;
+    }
+    const payload = {
+      id: document.getElementById("courierAccountId").value || null,
+      courier_code: document.getElementById("courierAccountCourier").value,
+      account_type: document.getElementById("courierAccountType").value,
+      name: document.getElementById("courierAccountName").value,
+      base_url: document.getElementById("courierAccountBaseUrl").value,
+      username: document.getElementById("courierAccountUsername").value,
+      password: document.getElementById("courierAccountPassword").value,
+      extra_config: extraConfig,
+      is_enabled: document.getElementById("courierAccountEnabled").checked,
+    };
+    try {
+      await api("/shipping/api/courier-accounts", { method: "POST", body: JSON.stringify(payload) });
+      bootstrap.Modal.getOrCreateInstance(document.getElementById("courierAccountModal")).hide();
+      resetAccountForm();
+      await loadAccounts();
+    } catch (err) {
+      alert(err.message);
+    }
+  });
   el.form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const payload = {
       courier_code: document.getElementById("shipmentCourier").value,
+      courier_account_id: document.getElementById("shipmentCourierAccount").value || null,
       tracking_number: document.getElementById("shipmentTracking").value,
       customer_name: document.getElementById("shipmentCustomer").value,
       recipient_name: document.getElementById("shipmentRecipient").value,
@@ -197,6 +333,9 @@
     }
   });
 
+  loadAccounts().catch((err) => {
+    el.accountList.innerHTML = `<div class="text-danger">${escapeHtml(err.message)}</div>`;
+  });
   loadShipments().catch((err) => alert(err.message));
   loadPoleepoOrders().catch((err) => {
     el.poleepoList.innerHTML = `<div class="text-danger">${escapeHtml(err.message)}</div>`;

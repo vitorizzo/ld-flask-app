@@ -1741,6 +1741,50 @@ class CourierIntegration(db.Model):
         }
 
 
+class CourierAccount(db.Model):
+    __tablename__ = "courier_accounts"
+    __table_args__ = (
+        db.UniqueConstraint("courier_code", "account_type", "name", name="uq_courier_accounts_code_type_name"),
+        db.Index("ix_courier_accounts_courier_enabled", "courier_code", "is_enabled"),
+        db.Index("ix_courier_accounts_account_type", "account_type"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    courier_code = db.Column(db.String(30), nullable=False, index=True)
+    account_type = db.Column(db.String(30), nullable=False, default="portal", index=True)
+    name = db.Column(db.String(120), nullable=False)
+    base_url = db.Column(db.String(255), nullable=True)
+    username = db.Column(db.String(180), nullable=True)
+    password_encrypted = db.Column(EncryptedString(1024), nullable=True)
+    extra_config = db.Column(db.JSON, nullable=True)
+    is_enabled = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+        nullable=False,
+    )
+
+    def to_dict(self, include_secret=False):
+        data = {
+            "id": self.id,
+            "courier_code": self.courier_code,
+            "account_type": self.account_type,
+            "name": self.name,
+            "base_url": self.base_url,
+            "username": self.username,
+            "has_password": bool(self.password_encrypted),
+            "extra_config": self.extra_config or {},
+            "is_enabled": bool(self.is_enabled),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+        if include_secret:
+            data["password"] = self.password_encrypted
+        return data
+
+
 class Shipment(db.Model):
     __tablename__ = "shipments"
     __table_args__ = (
@@ -1753,6 +1797,12 @@ class Shipment(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     courier_code = db.Column(db.String(30), nullable=False, index=True)
+    courier_account_id = db.Column(
+        db.Integer,
+        db.ForeignKey("courier_accounts.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     courier_name = db.Column(db.String(80), nullable=True)
     tracking_number = db.Column(db.String(120), nullable=False)
     status = db.Column(db.String(40), nullable=False, default="created", index=True)
@@ -1783,11 +1833,15 @@ class Shipment(db.Model):
     )
 
     customer = db.relationship("BusinessRegistry", backref=db.backref("shipments", lazy="selectin"))
+    courier_account = db.relationship("CourierAccount", backref=db.backref("shipments", lazy="selectin"))
 
     def to_dict(self):
         return {
             "id": self.id,
             "courier_code": self.courier_code,
+            "courier_account_id": self.courier_account_id,
+            "courier_account_name": self.courier_account.name if self.courier_account else None,
+            "courier_account_type": self.courier_account.account_type if self.courier_account else None,
             "courier_name": self.courier_name,
             "tracking_number": self.tracking_number,
             "status": self.status,

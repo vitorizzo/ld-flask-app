@@ -72,6 +72,16 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
       - codice pronto;
       - credenziali validate;
       - endpoint `POST /shipping/api/poleepo/import` operativo.
+  - Account corrieri:
+    - aggiunto modello `CourierAccount`;
+    - aggiunta migrazione `d5e6f7a8b9c0_add_courier_accounts.py`, applicata localmente;
+    - creata tabella `courier_accounts`;
+    - aggiunto `shipments.courier_account_id`;
+    - password account cifrata con `EncryptedString`/`FERNET_KEY`;
+    - aggiunta UI nella pagina `/shipping` per creare/modificare account corriere;
+    - le spedizioni possono selezionare un account specifico oppure usare selezione automatica;
+    - il refresh tracking prova prima l'account associato alla spedizione, poi gli altri account attivi dello stesso corriere;
+    - connettori BRT/GLS/DHL ancora da collegare agli endpoint reali.
   - notifiche/PWA ultimi interventi:
     - introdotto controllo versione app tramite `/app-version.json`;
     - aggiunto `static/js/app_update.js` per polling versione e reload controllato;
@@ -84,7 +94,7 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
   - verifiche eseguite:
     - `python -m py_compile` su moduli shipping/Poleepo/app factory;
     - `node --check static/js/shipping.js`;
-    - `flask db upgrade` ok fino a `c4d5e6f7a8b9`;
+    - `flask db upgrade` ok fino a `d5e6f7a8b9c0`;
     - route `/shipping/*` registrate.
 
 - Stato aggiornato al ciclo corrente di sviluppo Agenda / Cassa / Ordini:
