@@ -7,10 +7,12 @@ from extensions import db
 from models import CourierIntegration, ExternalOrder, Shipment, ShipmentTrackingEvent
 from tools.role_required import role_required
 from tools.shipping_connectors import (
+    PoleepoConnector,
     ShippingConnectorError,
     ShippingConnectorNotConfigured,
     connector_for,
     courier_options,
+    normalize_poleepo_order,
 )
 
 
@@ -166,6 +168,50 @@ def api_external_orders():
 @role_required(30)
 def api_poleepo_import():
     integration = CourierIntegration.query.filter_by(code="poleepo").first()
-    if not integration or not integration.is_enabled:
-        return jsonify({"ok": False, "error": "Integrazione Poleepo non configurata"}), 409
-    return jsonify({"ok": False, "error": "Import Poleepo pronto per il collegamento API, ma mancano specifiche e credenziali"}), 409
+    if not integration:
+        integration = CourierIntegration(code="poleepo", name="Poleepo", is_enabled=True)
+        db.session.add(integration)
+        db.session.flush()
+    latest_sync = (
+        ExternalOrder.query.filter_by(source="poleepo")
+        .order_by(ExternalOrder.last_sync_at.desc().nullslast(), ExternalOrder.updated_at.desc())
+        .first()
+    )
+    since = latest_sync.last_sync_at if latest_sync and latest_sync.last_sync_at else None
+    connector = PoleepoConnector(integration=integration)
+    try:
+        remote_orders = connector.import_orders(since=since)
+    except ShippingConnectorNotConfigured as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 409
+    except ShippingConnectorError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 502
+
+    imported = 0
+    updated = 0
+    now = datetime.utcnow()
+    for remote_order in remote_orders:
+        normalized = normalize_poleepo_order(remote_order)
+        if not normalized["external_id"]:
+            continue
+        order = ExternalOrder.query.filter_by(source="poleepo", external_id=normalized["external_id"]).first()
+        if not order:
+            order = ExternalOrder(source="poleepo", external_id=normalized["external_id"])
+            db.session.add(order)
+            imported += 1
+        else:
+            updated += 1
+        order.order_number = normalized["order_number"]
+        order.status = normalized["status"]
+        order.customer_name = normalized["customer_name"]
+        order.recipient_name = normalized["recipient_name"]
+        order.recipient_address = normalized["recipient_address"]
+        order.order_total = normalized["order_total"]
+        order.currency = normalized["currency"]
+        order.ordered_at = normalized["ordered_at"]
+        order.raw_payload = normalized["raw_payload"]
+        order.last_sync_at = now
+    if integration:
+        integration.last_sync_at = now
+        integration.is_enabled = True
+    db.session.commit()
+    return jsonify({"ok": True, "imported": imported, "updated": updated, "total": len(remote_orders)})

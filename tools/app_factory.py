@@ -164,6 +164,9 @@ def create_app():
         VAPID_PRIVATE_KEY=os.getenv("VAPID_PRIVATE_KEY"),
         VAPID_PRIVATE_KEY_FILE=os.getenv("VAPID_PRIVATE_KEY_FILE"),
         VAPID_SUBJECT=os.getenv("VAPID_SUBJECT", "mailto:admin@ldenoteca.it"),
+        POLEEPO_URL=os.getenv("POLEEPO_URL"),
+        POLEEPO_PKEY=os.getenv("POLEEPO_PKEY"),
+        POLEEPO_PPKEY=os.getenv("POLEEPO_PPKEY"),
         APP_VERSION=_compute_app_version(base)
     )
 
