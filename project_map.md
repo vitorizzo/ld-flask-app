@@ -173,8 +173,9 @@ Stato ultimo test:
 - Poleepo restituisce `tracking_code` e `parcel_id` da `/shippings/{id}`;
 - sincronizzazione spedizioni Poleepo riuscita;
 - creati record `Shipment` BRT con `source='poleepo'`;
-- chiamata BRT tracking risponde HTTP `200`, ma payload applicativo con errore `MISSING PARAM`;
-- serve documentazione BRT sul parametro mancante richiesto da `tracking/parcelID`.
+- `OPTIONS` su endpoint tracking espone WADL con header obbligatori `userID` e `password`;
+- chiamata BRT tracking funzionante usando header `userID`/`password`, non Basic Auth;
+- eventi tracking BRT salvati in `shipment_tracking_events`.
 
 ---
 

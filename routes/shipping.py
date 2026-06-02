@@ -197,7 +197,7 @@ def _refresh_shipment_tracking(shipment):
             status=item.get("status"),
             location=item.get("location"),
             description=item.get("description"),
-            raw_payload=item,
+            raw_payload=item.get("raw_payload") or {},
         ))
     return previous_status
 

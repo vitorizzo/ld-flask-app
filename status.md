@@ -87,10 +87,11 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
     - il refresh tracking prova prima l'account associato alla spedizione, poi gli altri account attivi dello stesso corriere;
     - BRT tracking-only:
       - implementato connettore su `GET https://api.brt.it/rest/v1/tracking/parcelID/{tracking_number}`;
-      - test reale con account BRT webservice: HTTP `200`, ma risposta applicativa `MISSING PARAM`;
+      - risolto `MISSING PARAM`: il WADL esposto da `OPTIONS` indica header obbligatori `userID` e `password`;
+      - il tracking BRT usa header `userID`/`password`, non Basic Auth;
+      - test reale su spedizione recente: tracking BRT `200`, eventi salvati e `last_error` pulito;
       - endpoint `POST /shipping/api/shipments/refresh-open` operativo;
       - notifiche PWA predisposte su cambi stato `out_for_delivery`, `delivered`, `exception`;
-      - serve chiarimento BRT sul parametro mancante del tracking;
     - GLS/DHL ancora da collegare agli endpoint reali.
   - notifiche/PWA ultimi interventi:
     - introdotto controllo versione app tramite `/app-version.json`;

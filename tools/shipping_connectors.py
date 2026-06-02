@@ -67,8 +67,11 @@ class BrtConnector(BaseCourierConnector):
             try:
                 response = requests.get(
                     url,
-                    auth=(account.username, account.password_encrypted),
-                    headers={"Accept": "application/json"},
+                    headers={
+                        "Accept": "application/json",
+                        "userID": account.username,
+                        "password": account.password_encrypted,
+                    },
                     timeout=20,
                 )
             except requests.RequestException as exc:
@@ -266,9 +269,12 @@ def _parse_brt_event_datetime(date_value, time_value):
         "%d/%m/%Y %H:%M",
         "%d-%m-%Y %H:%M:%S",
         "%d-%m-%Y %H:%M",
+        "%d.%m.%Y %H.%M",
+        "%d.%m.%Y %H.%M.%S",
         "%Y-%m-%d",
         "%d/%m/%Y",
         "%d-%m-%Y",
+        "%d.%m.%Y",
     ]
     for candidate in candidates:
         for fmt in formats:
@@ -283,10 +289,12 @@ def _shipment_status_from_text(value):
     text = str(value or "").strip().lower()
     if not text:
         return "unknown", "Sconosciuto"
-    if "consegn" in text:
-        return "delivered", "Consegnata"
     if "in consegna" in text or "messa in consegna" in text:
         return "out_for_delivery", "In consegna"
+    if "disponibile per il ritiro" in text or "fermopoint" in text:
+        return "out_for_delivery", "Disponibile per ritiro"
+    if "consegn" in text:
+        return "delivered", "Consegnata"
     if any(token in text for token in ("giacenza", "mancata", "non consegn", "errore", "anomalia", "respinta")):
         return "exception", "Problema"
     if any(token in text for token in ("partita", "ritirata", "transito", "hub", "filiale", "affidata")):
