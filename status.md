@@ -151,6 +151,7 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
     - il pulsante standard `Importa spedizioni` resta limitato agli ultimi ordini/recenti per uso ordinario.
   - Correzioni UI/processo spedizioni 2026-06-03:
     - nella lista spedizioni viene mostrato esplicitamente il nome account corriere associato;
+    - aggiunto filtro `Account corriere` nella pagina `/shipping/shipments`, oltre al filtro macro `Corriere`;
     - lista spedizioni e dettaglio hanno scroll indipendenti;
     - i pulsanti `Importa spedizioni` e `Importa storico spedizioni` sono stati spostati nella pagina `/shipping/shipments`;
     - import storico ordini e import storico spedizioni vengono avviati come task Celery in background;

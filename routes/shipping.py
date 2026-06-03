@@ -309,6 +309,7 @@ def _shipment_query():
     query = Shipment.query
     q = (request.args.get("q") or "").strip()
     courier = (request.args.get("courier") or "").strip().lower()
+    courier_account_id = _parse_int(request.args.get("courier_account_id"))
     status = (request.args.get("status") or "").strip()
     lifecycle = (request.args.get("lifecycle") or "").strip()
     if q:
@@ -324,6 +325,8 @@ def _shipment_query():
         )
     if courier:
         query = query.filter(Shipment.courier_code == courier)
+    if courier_account_id:
+        query = query.filter(Shipment.courier_account_id == courier_account_id)
     if status:
         query = query.filter(Shipment.status == status)
     if lifecycle == "active":

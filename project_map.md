@@ -195,7 +195,7 @@ Conclusione operativa:
 - endpoint `GET /shipping/api/external-orders` restituisce `total` e mostra gli ultimi 200 ordini locali.
 - lo sync spedizioni supporta modalita' storica con `include_old=true` e `sync_all=true`, processando tutti gli ordini Poleepo locali.
 - l'arricchimento BRT aggiorna spedizioni gia' salvate usando il payload tracking: data spedizione, riferimento, destinatario/indirizzo quando disponibili.
-- UI spedizioni: lista tracking e dettaglio hanno scroll indipendenti; comandi import spedizioni ordinario/storico sono nella pagina `/shipping/shipments`.
+- UI spedizioni: lista tracking e dettaglio hanno scroll indipendenti; comandi import spedizioni ordinario/storico sono nella pagina `/shipping/shipments`; filtri disponibili per corriere, account corriere, ciclo attiva/chiusa e stato.
 
 ## Tracking BRT
 

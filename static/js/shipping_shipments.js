@@ -11,6 +11,7 @@
   const el = {
     search: document.getElementById("shippingSearch"),
     courier: document.getElementById("shippingCourierFilter"),
+    account: document.getElementById("shippingAccountFilter"),
     lifecycle: document.getElementById("shippingLifecycleFilter"),
     status: document.getElementById("shippingStatusFilter"),
     refresh: document.getElementById("shippingRefreshBtn"),
@@ -39,6 +40,18 @@
       .join("")}`;
     if ([...el.shipmentAccount.options].some((option) => option.value === selected)) {
       el.shipmentAccount.value = selected;
+    }
+  }
+
+  function renderAccountFilterOptions() {
+    const selected = el.account.value;
+    const courier = el.courier.value;
+    const accounts = state.accounts.filter((account) => !courier || account.courier_code === courier);
+    el.account.innerHTML = `<option value="">Tutti gli account</option>${accounts
+      .map((account) => `<option value="${account.id}">${escapeHtml(accountName(account))}</option>`)
+      .join("")}`;
+    if ([...el.account.options].some((option) => option.value === selected)) {
+      el.account.value = selected;
     }
   }
 
@@ -118,6 +131,7 @@
   async function loadAccounts() {
     const data = await api("/shipping/api/courier-accounts");
     state.accounts = data.accounts || [];
+    renderAccountFilterOptions();
     renderShipmentAccountOptions();
   }
 
@@ -125,6 +139,7 @@
     const params = new URLSearchParams();
     if (el.search.value.trim()) params.set("q", el.search.value.trim());
     if (el.courier.value) params.set("courier", el.courier.value);
+    if (el.account.value) params.set("courier_account_id", el.account.value);
     if (el.lifecycle.value) params.set("lifecycle", el.lifecycle.value);
     if (el.status.value) params.set("status", el.status.value);
     const data = await api(`/shipping/api/shipments?${params.toString()}`);
@@ -157,7 +172,11 @@
   }
 
   el.search.addEventListener("input", scheduleLoad);
-  el.courier.addEventListener("change", scheduleLoad);
+  el.courier.addEventListener("change", () => {
+    renderAccountFilterOptions();
+    scheduleLoad();
+  });
+  el.account.addEventListener("change", scheduleLoad);
   el.lifecycle.addEventListener("change", scheduleLoad);
   el.status.addEventListener("change", scheduleLoad);
   el.refresh.addEventListener("click", () => loadShipments().catch((err) => alert(err.message)));
