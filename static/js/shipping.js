@@ -170,7 +170,8 @@
               <div>
                 <div class="shipping-item__title">${escapeHtml(shipment.courier_name || shipment.courier_code)} ${escapeHtml(shipment.tracking_number)}</div>
                 <div class="shipping-item__meta">${escapeHtml(shipment.customer_name || shipment.recipient_name || "Cliente non indicato")}</div>
-                <div class="shipping-item__meta">${escapeHtml(shipment.courier_account_name || shipment.source || "")}</div>
+                <div class="shipping-item__meta">${escapeHtml(formatDateTime(shipment.shipped_at) || "Data spedizione non disponibile")}</div>
+                <div class="shipping-item__meta">${escapeHtml(shipment.courier_account_name || shipment.source || "")}${shipment.last_tracking_at ? ` · Agg. ${escapeHtml(formatDateTime(shipment.last_tracking_at))}` : ""}</div>
               </div>
               <span class="shipping-status">${escapeHtml(statusLabel(shipment))}</span>
             </div>
@@ -258,6 +259,7 @@
                   <div>
                     <div class="shipping-item__title">${escapeHtml(order.order_number || order.external_id)}</div>
                     <div class="shipping-item__meta">${escapeHtml(order.customer_name || order.recipient_name || "")}</div>
+                    <div class="shipping-item__meta">${escapeHtml(formatDateTime(order.ordered_at) || "Data ordine non disponibile")}</div>
                   </div>
                   <span class="shipping-status">${escapeHtml(order.status)}</span>
                 </div>

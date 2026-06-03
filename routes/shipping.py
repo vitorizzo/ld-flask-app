@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import Blueprint, jsonify, render_template, request
 from flask_login import login_required
@@ -21,12 +21,14 @@ from tools.shipping_connectors import (
 shipping_bp = Blueprint("shipping", __name__)
 logger = get_logger("shipping")
 NOTIFIABLE_SHIPMENT_STATUSES = {"out_for_delivery", "delivered", "exception"}
+TRACKING_LOOKBACK_DAYS = 180
 SHIPMENT_STATUS_OPTIONS = [
     {"value": "created", "label": "Creata"},
     {"value": "in_transit", "label": "Partita / in transito"},
     {"value": "out_for_delivery", "label": "In consegna"},
     {"value": "delivered", "label": "Completa"},
     {"value": "exception", "label": "Problema"},
+    {"value": "expired", "label": "Storica"},
     {"value": "unknown", "label": "Sconosciuta"},
 ]
 
@@ -95,6 +97,18 @@ def _parse_poleepo_shipping_ids(raw_payload):
         if value is not None and str(value).strip():
             ids.append(str(value).strip())
     return ids
+
+
+def _recent_order_cutoff():
+    return datetime.utcnow() - timedelta(days=TRACKING_LOOKBACK_DAYS)
+
+
+def _should_sync_order_shipments(order, include_old=False):
+    if include_old:
+        return True
+    if not order.ordered_at:
+        return False
+    return order.ordered_at >= _recent_order_cutoff()
 
 
 def _default_courier_account(courier_code):
@@ -173,6 +187,19 @@ def _notify_shipment_status_change(shipment, previous_status):
         return None
 
 
+def _mark_expired_if_stale_not_found(shipment, error_text):
+    if "SHIPMENT NOT FOUND" not in str(error_text or "").upper():
+        return False
+    if not shipment.shipped_at:
+        return False
+    if shipment.shipped_at >= datetime.utcnow() - timedelta(days=TRACKING_LOOKBACK_DAYS):
+        return False
+    shipment.status = "expired"
+    shipment.status_label = "Storica"
+    shipment.last_error = None
+    return True
+
+
 def _accounts_for_shipment(shipment):
     accounts = []
     if shipment.courier_account_id:
@@ -242,9 +269,9 @@ def _shipment_query():
     if status:
         query = query.filter(Shipment.status == status)
     if lifecycle == "active":
-        query = query.filter(Shipment.status != "delivered")
+        query = query.filter(Shipment.status.notin_(["delivered", "expired"]))
     elif lifecycle == "closed":
-        query = query.filter(Shipment.status == "delivered")
+        query = query.filter(Shipment.status.in_(["delivered", "expired"]))
     return query
 
 
@@ -420,7 +447,8 @@ def api_refresh_shipment(shipment_id):
         db.session.commit()
         return jsonify({"ok": False, "error": str(exc), "shipment": shipment.to_dict()}), 409
     except ShippingConnectorError as exc:
-        shipment.last_error = str(exc)
+        if not _mark_expired_if_stale_not_found(shipment, str(exc)):
+            shipment.last_error = str(exc)
         db.session.commit()
         return jsonify({"ok": False, "error": str(exc), "shipment": shipment.to_dict()}), 502
 
@@ -437,7 +465,7 @@ def api_refresh_open_shipments():
     limit = min(max(_parse_int(data.get("limit")) or 50, 1), 200)
     shipments = (
         Shipment.query
-        .filter(Shipment.status.notin_(["delivered"]))
+        .filter(Shipment.status.notin_(["delivered", "expired"]))
         .order_by(Shipment.last_tracking_at.asc().nullsfirst(), Shipment.updated_at.asc())
         .limit(limit)
         .all()
@@ -452,8 +480,9 @@ def api_refresh_open_shipments():
             if shipment.status != previous_status:
                 changed.append((shipment.id, previous_status, shipment.status))
         except (ShippingConnectorNotConfigured, ShippingConnectorError) as exc:
-            shipment.last_error = str(exc)
-            errors.append({"shipment_id": shipment.id, "error": str(exc)})
+            if not _mark_expired_if_stale_not_found(shipment, str(exc)):
+                shipment.last_error = str(exc)
+                errors.append({"shipment_id": shipment.id, "error": str(exc)})
         except Exception as exc:
             shipment.last_error = str(exc)
             errors.append({"shipment_id": shipment.id, "error": str(exc)})
@@ -492,10 +521,20 @@ def api_external_orders():
 def api_poleepo_sync_shipments():
     data = request.get_json(silent=True) or {}
     limit = _parse_int(data.get("limit")) or 100
+    include_old = bool(data.get("include_old"))
     connector = PoleepoConnector()
-    orders = (
+    orders_query = (
         ExternalOrder.query.filter_by(source="poleepo")
-        .order_by(ExternalOrder.updated_at.desc(), ExternalOrder.id.desc())
+        .filter(ExternalOrder.ordered_at.isnot(None))
+    )
+    if not include_old:
+        orders_query = orders_query.filter(ExternalOrder.ordered_at >= _recent_order_cutoff())
+    orders = (
+        orders_query
+        .order_by(
+            ExternalOrder.ordered_at.desc().nullslast(),
+            ExternalOrder.id.desc(),
+        )
         .limit(min(max(limit, 1), 300))
         .all()
     )
@@ -577,10 +616,11 @@ def api_poleepo_import():
             order.ordered_at = normalized["ordered_at"]
             order.raw_payload = normalized["raw_payload"]
             order.last_sync_at = now
-            shipment_result = _sync_order_shipments_from_poleepo(connector, order)
-            shipments_imported += shipment_result["imported"]
-            shipments_updated += shipment_result["updated"]
-            shipment_errors.extend({"order_id": order.id, **item} for item in shipment_result["errors"])
+            if _should_sync_order_shipments(order):
+                shipment_result = _sync_order_shipments_from_poleepo(connector, order)
+                shipments_imported += shipment_result["imported"]
+                shipments_updated += shipment_result["updated"]
+                shipment_errors.extend({"order_id": order.id, **item} for item in shipment_result["errors"])
         if integration:
             integration.last_sync_at = now
             integration.is_enabled = True

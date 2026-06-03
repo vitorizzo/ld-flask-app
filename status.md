@@ -92,6 +92,9 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
       - test reale su spedizione recente: tracking BRT `200`, eventi salvati e `last_error` pulito;
       - lista spedizioni ordinata per data spedizione dalla piu' recente alla piu' vecchia;
       - aggiunti filtri UI/API per corriere, stato e ciclo `attive/chiuse`;
+      - aggiunta visualizzazione data ordine su ordini Poleepo e data spedizione su spedizioni;
+      - corretta sync spedizioni Poleepo: ora usa `ordered_at` e non `updated_at`, evitando di importare vecchi ordini 2023 toccati dall'import 2026;
+      - spedizioni storiche oltre 180 giorni marcate `expired`/`Storica` e rimosse dalle attive;
       - dettaglio tracking arricchito con riepilogo reale BRT ed eventi con data/ora;
       - inserimento eventi tracking reso idempotente per evitare duplicati sui refresh successivi;
       - endpoint `POST /shipping/api/shipments/refresh-open` operativo;

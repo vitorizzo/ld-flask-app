@@ -170,6 +170,10 @@ Uso previsto:
 - il refresh usa l'account corriere BRT `webservice`.
 - la lista spedizioni e' ordinata per `shipped_at` decrescente;
 - filtri supportati: corriere, stato e ciclo `active/closed`;
+- ordini Poleepo ordinati per `ordered_at` decrescente e mostrati con data ordine;
+- sync spedizioni Poleepo ordinata/filtrata per `ordered_at`, non per `updated_at`;
+- default sync spedizioni: solo ordini negli ultimi 180 giorni;
+- spedizioni storiche oltre 180 giorni marcate `expired`/`Storica` e escluse dal filtro `active`;
 - il dettaglio spedizione include riepilogo BRT ed eventi tracking con data/ora;
 - gli eventi tracking vengono aggiornati in modo idempotente, senza duplicati per stesso evento.
 
