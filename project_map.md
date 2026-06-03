@@ -174,6 +174,8 @@ Flusso implementato:
 - `GET /shippings/{id}`
 - normalizzazione record verso `ExternalOrder`
 - normalizzazione spedizioni Poleepo verso `Shipment`
+- import ordini Poleepo paginato con `offset`/`max` fino a esaurimento pagine;
+- UI con import incrementale e import storico completo.
 
 Stato reale ultimo test:
 - chiamata HTTP a Poleepo riuscita;
@@ -187,6 +189,7 @@ Conclusione operativa:
 - credenziali OAuth validate;
 - endpoint `POST /shipping/api/poleepo/import` operativo.
 - endpoint `POST /shipping/api/poleepo/sync-shipments` operativo.
+- endpoint `GET /shipping/api/external-orders` restituisce `total` e mostra gli ultimi 200 ordini locali.
 
 ## Tracking BRT
 

@@ -135,6 +135,14 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
       - `static/js/shipping_accounts.js`;
     - aggiunta migrazione `f7a8b9c0d1e2_split_shipping_menu.py` per creare le tre voci figlie del menu `Spedizioni`;
     - dashboard riepilogativa rimandata a quando account, ordini e tracking saranno stabilizzati.
+  - Correzione ordini Poleepo 2026-06-03:
+    - sistemato layout pagina ordini con scroll interno lista e wrapping testi lunghi;
+    - individuata causa ordini mancanti: il connettore leggeva solo `offset=0&max=100`;
+    - `PoleepoConnector.import_orders` ora pagina con `offset`/`max` fino a esaurimento pagine;
+    - aggiunto pulsante `Importa storico` che invia `force_full=true`;
+    - l'import incrementale resta disponibile come `Importa ordini`;
+    - `GET /shipping/api/external-orders` restituisce conteggio totale locale e limite visualizzato;
+    - verifica lettura remota non distruttiva: Poleepo restituisce 383 ordini nelle prime pagine, contro 102 presenti localmente prima dell'import storico.
 
 - Stato aggiornato al ciclo corrente di sviluppo Agenda / Cassa / Ordini:
   - report giornata completo/fiscale rifinito e collegato a menù

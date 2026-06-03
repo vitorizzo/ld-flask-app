@@ -5,13 +5,14 @@
 
   const el = {
     importBtn: document.getElementById("poleepoImportBtn"),
+    importFullBtn: document.getElementById("poleepoImportFullBtn"),
     syncShipments: document.getElementById("poleepoSyncShipmentsBtn"),
     list: document.getElementById("poleepoOrdersList"),
     count: document.getElementById("poleepoOrdersCount"),
   };
 
-  function renderOrders(orders) {
-    el.count.textContent = String(orders.length);
+  function renderOrders(orders, total, limit) {
+    el.count.textContent = total > orders.length ? `${orders.length}/${total}` : String(orders.length);
     el.list.innerHTML = orders.length
       ? orders
           .map(
@@ -28,20 +29,36 @@
               </div>
             `
           )
-          .join("")
+          .join("") +
+        (total > orders.length
+          ? `<div class="shipping-empty">Visualizzati gli ultimi ${escapeHtml(limit)} ordini su ${escapeHtml(total)} presenti in archivio.</div>`
+          : "")
       : `<div class="shipping-empty">Nessun ordine Poleepo importato.</div>`;
   }
 
   async function loadOrders() {
     const data = await api("/shipping/api/external-orders");
-    renderOrders(data.orders || []);
+    renderOrders(data.orders || [], data.total || 0, data.limit || 200);
+  }
+
+  async function importOrders(payload) {
+    const result = await api("/shipping/api/poleepo/import", { method: "POST", body: JSON.stringify(payload || {}) });
+    await loadOrders();
+    alert(`Ordini: ${result.imported} nuovi, ${result.updated} aggiornati. Spedizioni: ${result.shipments_imported || 0} nuove, ${result.shipments_updated || 0} aggiornate. Letti da Poleepo: ${result.total || 0}.`);
   }
 
   el.importBtn.addEventListener("click", async () => {
     try {
-      const result = await api("/shipping/api/poleepo/import", { method: "POST", body: "{}" });
-      await loadOrders();
-      alert(`Ordini: ${result.imported} nuovi, ${result.updated} aggiornati. Spedizioni: ${result.shipments_imported || 0} nuove, ${result.shipments_updated || 0} aggiornate.`);
+      await importOrders({});
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  el.importFullBtn.addEventListener("click", async () => {
+    if (!window.confirm("Importare lo storico completo Poleepo? L'operazione puo' richiedere piu' tempo.")) return;
+    try {
+      await importOrders({ force_full: true });
     } catch (err) {
       alert(err.message);
     }

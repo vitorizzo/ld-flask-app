@@ -6,6 +6,7 @@
 .shipping-page > .container-fluid {
   max-width: 1400px;
   margin: 0 auto;
+  min-height: 0;
 }
 
 .shipping-header {
@@ -32,6 +33,10 @@
   gap: 8px;
   flex-wrap: wrap;
   justify-content: flex-end;
+}
+
+.shipping-header__actions .btn {
+  white-space: normal;
 }
 
 .shipping-subnav {
@@ -85,6 +90,8 @@
   border: 1px solid rgba(31, 41, 55, 0.1);
   border-radius: 8px;
   min-height: 240px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .shipping-panel__head {
@@ -106,6 +113,7 @@
   gap: 8px;
   padding: 12px;
   align-content: start;
+  min-width: 0;
 }
 
 .shipping-item {
@@ -117,6 +125,8 @@
   background: #f9fafb;
   color: inherit;
   cursor: pointer;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .shipping-item.is-active {
@@ -128,10 +138,12 @@
   display: flex;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
 }
 
 .shipping-item__title {
   font-weight: 800;
+  overflow-wrap: anywhere;
 }
 
 .shipping-item__meta {
@@ -214,6 +226,14 @@
 .shipping-poleepo {
   margin-top: 14px;
   margin-bottom: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.shipping-list--orders {
+  overflow: auto;
 }
 
 .shipping-accounts {

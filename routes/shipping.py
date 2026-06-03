@@ -571,8 +571,9 @@ def api_external_orders():
                 ExternalOrder.recipient_name.ilike(like),
             )
         )
+    total = query.count()
     orders = query.order_by(ExternalOrder.ordered_at.desc().nullslast(), ExternalOrder.id.desc()).limit(200).all()
-    return jsonify({"ok": True, "orders": [order.to_dict() for order in orders]})
+    return jsonify({"ok": True, "orders": [order.to_dict() for order in orders], "total": total, "limit": 200})
 
 
 @shipping_bp.post("/api/poleepo/sync-shipments")

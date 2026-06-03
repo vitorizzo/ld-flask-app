@@ -201,14 +201,26 @@ class PoleepoConnector:
             raise ShippingConnectorError("Access token Poleepo non presente nella risposta")
         return token
 
-    def import_orders(self, since: datetime | None = None) -> list[dict]:
+    def import_orders(self, since: datetime | None = None, *, page_size: int = 100, max_pages: int = 50) -> list[dict]:
         token = self.access_token()
-        params = {"offset": 0, "max": 100}
         updated_after = _format_poleepo_datetime(since)
-        if updated_after:
-            params["updated_after"] = updated_after
-        payload = self._request("GET", "/orders", token=token, params=params)
-        return payload.get("data") or []
+        orders = []
+        offset = 0
+        page_size = min(max(int(page_size or 100), 1), 100)
+        max_pages = min(max(int(max_pages or 50), 1), 200)
+        for _page in range(max_pages):
+            params = {"offset": offset, "max": page_size}
+            if updated_after:
+                params["updated_after"] = updated_after
+            payload = self._request("GET", "/orders", token=token, params=params)
+            page_orders = payload.get("data") or []
+            if not page_orders:
+                break
+            orders.extend(page_orders)
+            if len(page_orders) < page_size:
+                break
+            offset += page_size
+        return orders
 
     def shipping_detail(self, shipping_id) -> dict:
         token = self.access_token()
