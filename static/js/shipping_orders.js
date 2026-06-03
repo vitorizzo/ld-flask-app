@@ -7,6 +7,7 @@
     importBtn: document.getElementById("poleepoImportBtn"),
     importFullBtn: document.getElementById("poleepoImportFullBtn"),
     syncShipments: document.getElementById("poleepoSyncShipmentsBtn"),
+    syncShipmentsFull: document.getElementById("poleepoSyncShipmentsFullBtn"),
     list: document.getElementById("poleepoOrdersList"),
     count: document.getElementById("poleepoOrdersCount"),
   };
@@ -47,6 +48,11 @@
     alert(`Ordini: ${result.imported} nuovi, ${result.updated} aggiornati. Spedizioni: ${result.shipments_imported || 0} nuove, ${result.shipments_updated || 0} aggiornate. Letti da Poleepo: ${result.total || 0}.`);
   }
 
+  async function syncShipments(payload) {
+    const result = await api("/shipping/api/poleepo/sync-shipments", { method: "POST", body: JSON.stringify(payload || {}) });
+    alert(`Spedizioni Poleepo: ${result.imported} nuove, ${result.updated} aggiornate. Ordini processati: ${result.processed_orders || 0}/${result.total_orders || 0}. Errori: ${(result.errors || []).length}.`);
+  }
+
   el.importBtn.addEventListener("click", async () => {
     try {
       await importOrders({});
@@ -66,8 +72,16 @@
 
   el.syncShipments.addEventListener("click", async () => {
     try {
-      const result = await api("/shipping/api/poleepo/sync-shipments", { method: "POST", body: JSON.stringify({ limit: 100 }) });
-      alert(`Spedizioni Poleepo: ${result.imported} nuove, ${result.updated} aggiornate. Errori: ${(result.errors || []).length}.`);
+      await syncShipments({ limit: 100 });
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+
+  el.syncShipmentsFull.addEventListener("click", async () => {
+    if (!window.confirm("Sincronizzare le spedizioni collegate a tutti gli ordini Poleepo importati? L'operazione puo' richiedere piu' tempo.")) return;
+    try {
+      await syncShipments({ include_old: true, sync_all: true });
     } catch (err) {
       alert(err.message);
     }

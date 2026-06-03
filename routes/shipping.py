@@ -581,8 +581,9 @@ def api_external_orders():
 @role_required(30)
 def api_poleepo_sync_shipments():
     data = request.get_json(silent=True) or {}
-    limit = _parse_int(data.get("limit")) or 100
     include_old = bool(data.get("include_old"))
+    sync_all = bool(data.get("sync_all"))
+    limit = None if sync_all else (_parse_int(data.get("limit")) or 100)
     connector = PoleepoConnector()
     orders_query = (
         ExternalOrder.query.filter_by(source="poleepo")
@@ -596,9 +597,11 @@ def api_poleepo_sync_shipments():
             ExternalOrder.ordered_at.desc().nullslast(),
             ExternalOrder.id.desc(),
         )
-        .limit(min(max(limit, 1), 300))
-        .all()
     )
+    total_orders = orders_query.count()
+    if limit:
+        orders_query = orders_query.limit(min(max(limit, 1), 300))
+    orders = orders_query.all()
     imported = 0
     updated = 0
     errors = []
@@ -618,7 +621,14 @@ def api_poleepo_sync_shipments():
     except Exception as exc:
         db.session.rollback()
         return jsonify({"ok": False, "error": f"Errore sincronizzazione spedizioni Poleepo: {exc}"}), 500
-    return jsonify({"ok": True, "imported": imported, "updated": updated, "errors": errors[:20]})
+    return jsonify({
+        "ok": True,
+        "processed_orders": len(orders),
+        "total_orders": total_orders,
+        "imported": imported,
+        "updated": updated,
+        "errors": errors[:20],
+    })
 
 
 @shipping_bp.post("/api/poleepo/import")

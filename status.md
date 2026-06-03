@@ -143,6 +143,12 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
     - l'import incrementale resta disponibile come `Importa ordini`;
     - `GET /shipping/api/external-orders` restituisce conteggio totale locale e limite visualizzato;
     - verifica lettura remota non distruttiva: Poleepo restituisce 383 ordini nelle prime pagine, contro 102 presenti localmente prima dell'import storico.
+  - Correzione spedizioni Poleepo 2026-06-03:
+    - lo sync spedizioni non e' piu' limitato a massimo 300 ordini quando viene richiesta la modalita' storica;
+    - `POST /shipping/api/poleepo/sync-shipments` accetta `sync_all=true` e `include_old=true` per processare tutti gli ordini Poleepo locali;
+    - la risposta espone `processed_orders` e `total_orders`;
+    - aggiunto pulsante `Sync storico spedizioni` nella pagina `/shipping/orders`;
+    - il pulsante standard `Sincronizza spedizioni` resta limitato agli ultimi ordini/recenti per uso ordinario.
 
 - Stato aggiornato al ciclo corrente di sviluppo Agenda / Cassa / Ordini:
   - report giornata completo/fiscale rifinito e collegato a menù

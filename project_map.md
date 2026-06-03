@@ -190,6 +190,7 @@ Conclusione operativa:
 - endpoint `POST /shipping/api/poleepo/import` operativo.
 - endpoint `POST /shipping/api/poleepo/sync-shipments` operativo.
 - endpoint `GET /shipping/api/external-orders` restituisce `total` e mostra gli ultimi 200 ordini locali.
+- lo sync spedizioni supporta modalita' storica con `include_old=true` e `sync_all=true`, processando tutti gli ordini Poleepo locali.
 
 ## Tracking BRT
 
