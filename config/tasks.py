@@ -34,3 +34,39 @@ def import_barcode_task(self):
 @log_task(logger)
 def import_anagrafiche_task(self):
     return import_anagrafiche(task_id=self.request.id)
+
+
+@celery.task(bind=True)
+@log_task(logger)
+def import_poleepo_orders_task(self, options=None):
+    from routes.shipping import run_poleepo_import
+    try:
+        return run_poleepo_import(options or {}, task_id=self.request.id)
+    except Exception as exc:
+        from tools.redis_utils import status_string, update_task
+        update_task(self.request.id, "Import ordini Poleepo", 0, status_string["error"], exc)
+        raise
+
+
+@celery.task(bind=True)
+@log_task(logger)
+def sync_poleepo_shipments_task(self, options=None):
+    from routes.shipping import run_poleepo_sync_shipments
+    try:
+        return run_poleepo_sync_shipments(options or {}, task_id=self.request.id)
+    except Exception as exc:
+        from tools.redis_utils import status_string, update_task
+        update_task(self.request.id, "Sync spedizioni Poleepo", 0, status_string["error"], exc)
+        raise
+
+
+@celery.task(bind=True)
+@log_task(logger)
+def refresh_open_shipments_task(self, options=None):
+    from routes.shipping import run_refresh_open_shipments
+    try:
+        return run_refresh_open_shipments(options or {}, task_id=self.request.id)
+    except Exception as exc:
+        from tools.redis_utils import status_string, update_task
+        update_task(self.request.id, "Aggiornamento tracking spedizioni aperte", 0, status_string["error"], exc)
+        raise

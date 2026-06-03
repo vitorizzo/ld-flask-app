@@ -147,8 +147,20 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
     - lo sync spedizioni non e' piu' limitato a massimo 300 ordini quando viene richiesta la modalita' storica;
     - `POST /shipping/api/poleepo/sync-shipments` accetta `sync_all=true` e `include_old=true` per processare tutti gli ordini Poleepo locali;
     - la risposta espone `processed_orders` e `total_orders`;
-    - aggiunto pulsante `Sync storico spedizioni` nella pagina `/shipping/orders`;
-    - il pulsante standard `Sincronizza spedizioni` resta limitato agli ultimi ordini/recenti per uso ordinario.
+    - aggiunto pulsante `Importa storico spedizioni` nella pagina `/shipping/orders`;
+    - il pulsante standard `Importa spedizioni` resta limitato agli ultimi ordini/recenti per uso ordinario.
+  - Correzioni UI/processo spedizioni 2026-06-03:
+    - nella lista spedizioni viene mostrato esplicitamente il nome account corriere associato;
+    - lista spedizioni e dettaglio hanno scroll indipendenti;
+    - import storico ordini e import storico spedizioni vengono avviati come task Celery in background;
+    - il monitor task globale mostra avanzamento tramite Redis;
+    - aggiunti task Celery:
+      - `config.tasks.import_poleepo_orders_task`;
+      - `config.tasks.sync_poleepo_shipments_task`;
+      - `config.tasks.refresh_open_shipments_task`;
+    - Celery Beat pianifica import ordini Poleepo, sync spedizioni Poleepo e refresh tracking aperte;
+    - arricchimento dati BRT da payload tracking salvato: data spedizione, riferimento e destinatario/indirizzo quando BRT li restituisce;
+    - verifica non distruttiva su payload BRT: recuperati `shipped_at`, riferimento e localita/provincia destinatario da record esistente.
 
 - Stato aggiornato al ciclo corrente di sviluppo Agenda / Cassa / Ordini:
   - report giornata completo/fiscale rifinito e collegato a menù

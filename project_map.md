@@ -176,6 +176,8 @@ Flusso implementato:
 - normalizzazione spedizioni Poleepo verso `Shipment`
 - import ordini Poleepo paginato con `offset`/`max` fino a esaurimento pagine;
 - UI con import incrementale e import storico completo.
+- import/sync storici avviati come task Celery in background con avanzamento nel monitor task globale.
+- Celery Beat pianifica import ordini Poleepo, sync spedizioni Poleepo e refresh tracking spedizioni aperte.
 
 Stato reale ultimo test:
 - chiamata HTTP a Poleepo riuscita;
@@ -191,6 +193,7 @@ Conclusione operativa:
 - endpoint `POST /shipping/api/poleepo/sync-shipments` operativo.
 - endpoint `GET /shipping/api/external-orders` restituisce `total` e mostra gli ultimi 200 ordini locali.
 - lo sync spedizioni supporta modalita' storica con `include_old=true` e `sync_all=true`, processando tutti gli ordini Poleepo locali.
+- l'arricchimento BRT aggiorna spedizioni gia' salvate usando il payload tracking: data spedizione, riferimento, destinatario/indirizzo quando disponibili.
 
 ## Tracking BRT
 

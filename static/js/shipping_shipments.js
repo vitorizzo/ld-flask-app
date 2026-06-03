@@ -53,9 +53,10 @@
             <div class="shipping-item__top">
               <div>
                 <div class="shipping-item__title">${escapeHtml(shipment.courier_name || shipment.courier_code)} ${escapeHtml(shipment.tracking_number)}</div>
+                <div class="shipping-item__meta"><strong>Account:</strong> ${escapeHtml(shipment.courier_account_name || "Automatico / non associato")}</div>
                 <div class="shipping-item__meta">${escapeHtml(shipment.customer_name || shipment.recipient_name || "Cliente non indicato")}</div>
                 <div class="shipping-item__meta">${escapeHtml(formatDateTime(shipment.shipped_at) || "Data spedizione non disponibile")}</div>
-                <div class="shipping-item__meta">${escapeHtml(shipment.courier_account_name || shipment.source || "")}${shipment.last_tracking_at ? ` - Agg. ${escapeHtml(formatDateTime(shipment.last_tracking_at))}` : ""}</div>
+                <div class="shipping-item__meta">${escapeHtml(shipment.source || "")}${shipment.last_tracking_at ? ` - Agg. ${escapeHtml(formatDateTime(shipment.last_tracking_at))}` : ""}</div>
               </div>
               <span class="shipping-status">${escapeHtml(statusLabel(shipment))}</span>
             </div>

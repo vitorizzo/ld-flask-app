@@ -44,12 +44,20 @@
 
   async function importOrders(payload) {
     const result = await api("/shipping/api/poleepo/import", { method: "POST", body: JSON.stringify(payload || {}) });
+    if (result.queued) {
+      alert(`Task avviato in background: ${result.task_id}. Avanzamento visibile nella barra processi.`);
+      return;
+    }
     await loadOrders();
     alert(`Ordini: ${result.imported} nuovi, ${result.updated} aggiornati. Spedizioni: ${result.shipments_imported || 0} nuove, ${result.shipments_updated || 0} aggiornate. Letti da Poleepo: ${result.total || 0}.`);
   }
 
   async function syncShipments(payload) {
     const result = await api("/shipping/api/poleepo/sync-shipments", { method: "POST", body: JSON.stringify(payload || {}) });
+    if (result.queued) {
+      alert(`Task avviato in background: ${result.task_id}. Avanzamento visibile nella barra processi.`);
+      return;
+    }
     alert(`Spedizioni Poleepo: ${result.imported} nuove, ${result.updated} aggiornate. Ordini processati: ${result.processed_orders || 0}/${result.total_orders || 0}. Errori: ${(result.errors || []).length}.`);
   }
 
@@ -79,7 +87,7 @@
   });
 
   el.syncShipmentsFull.addEventListener("click", async () => {
-    if (!window.confirm("Sincronizzare le spedizioni collegate a tutti gli ordini Poleepo importati? L'operazione puo' richiedere piu' tempo.")) return;
+    if (!window.confirm("Importare le spedizioni collegate a tutti gli ordini Poleepo importati? L'operazione puo' richiedere piu' tempo.")) return;
     try {
       await syncShipments({ include_old: true, sync_all: true });
     } catch (err) {

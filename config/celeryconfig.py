@@ -27,7 +27,22 @@ beat_schedule = {
         'task': 'config.tasks.import_anagrafiche_task',
         'schedule': crontab(hour='4', minute='30'),
     },
+    'poleepo-import-orders': {
+        'task': 'config.tasks.import_poleepo_orders_task',
+        'schedule': crontab(minute='*/15'),
+        'args': ({'background': True},),
+    },
+    'poleepo-sync-shipments': {
+        'task': 'config.tasks.sync_poleepo_shipments_task',
+        'schedule': crontab(minute='*/20'),
+        'args': ({'limit': 150},),
+    },
+    'shipping-refresh-open': {
+        'task': 'config.tasks.refresh_open_shipments_task',
+        'schedule': crontab(minute='*/30'),
+        'args': ({'limit': 100},),
+    },
 }
 
 timezone = 'Europe/Rome'
-logger.info("Scheduler Celery (beat) configurato con 4 task giornalieri.")
+logger.info("Scheduler Celery (beat) configurato con task giornalieri e sync spedizioni/Poleepo periodici.")

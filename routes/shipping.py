@@ -36,7 +36,27 @@ SHIPMENT_STATUS_OPTIONS = [
 def _parse_datetime(value):
     if not value:
         return None
-    return datetime.fromisoformat(str(value).strip())
+    raw = str(value).strip()
+    for fmt in (
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+        "%d.%m.%Y %H:%M:%S",
+        "%d.%m.%Y %H:%M",
+        "%d.%m.%Y %H.%M.%S",
+        "%d.%m.%Y %H.%M",
+        "%d/%m/%Y %H:%M:%S",
+        "%d/%m/%Y %H:%M",
+        "%d-%m-%Y %H:%M:%S",
+        "%d-%m-%Y %H:%M",
+        "%d.%m.%Y",
+        "%d/%m/%Y",
+        "%d-%m-%Y",
+    ):
+        try:
+            return datetime.strptime(raw.replace("Z", ""), fmt)
+        except ValueError:
+            continue
+    return datetime.fromisoformat(raw)
 
 
 def _parse_date(value):
@@ -262,6 +282,7 @@ def _refresh_shipment_tracking(shipment):
     shipment.last_tracking_at = datetime.utcnow()
     shipment.last_error = None
     shipment.raw_payload = result.raw_payload
+    _enrich_shipment_from_brt_tracking(shipment)
     for item in result.events:
         existing_event = ShipmentTrackingEvent.query.filter_by(
             shipment_id=shipment.id,
@@ -350,6 +371,55 @@ def _brt_tracking_summary(raw_payload):
     }
 
 
+def _enrich_shipment_from_brt_tracking(shipment):
+    if shipment.courier_code != "brt" or not shipment.raw_payload:
+        return
+    response = (shipment.raw_payload or {}).get("ttParcelIdResponse") or {}
+    bolla = response.get("bolla") or {}
+    shipment_data = bolla.get("dati_spedizione") or {}
+    delivery_data = bolla.get("dati_consegna") or {}
+    recipient = bolla.get("destinatario") or {}
+    references = bolla.get("riferimenti") or {}
+
+    if not shipment.shipped_at and shipment_data.get("spedizione_data"):
+        shipment.shipped_at = _parse_datetime(shipment_data.get("spedizione_data"))
+    if not shipment.reference:
+        shipment.reference = (
+            str(references.get("riferimento_mittente_alfabetico") or "").strip()
+            or str(references.get("riferimento_mittente_numerico") or "").strip()
+            or None
+        )
+    if not shipment.recipient_name:
+        shipment.recipient_name = (
+            str(recipient.get("ragione_sociale") or "").strip()
+            or str(recipient.get("referente_consegna") or "").strip()
+            or None
+        )
+    if not shipment.recipient_address:
+        pieces = [
+            recipient.get("indirizzo"),
+            recipient.get("cap"),
+            recipient.get("localita"),
+            recipient.get("sigla_provincia"),
+            recipient.get("sigla_nazione"),
+        ]
+        shipment.recipient_address = ", ".join(str(piece).strip() for piece in pieces if str(piece or "").strip()) or None
+    if not shipment.delivered_at and delivery_data.get("data_consegna_merce"):
+        delivered_raw = " ".join(
+            str(piece or "").strip()
+            for piece in [delivery_data.get("data_consegna_merce"), delivery_data.get("ora_consegna_merce")]
+            if str(piece or "").strip()
+        )
+        shipment.delivered_at = _parse_datetime(delivered_raw)
+
+
+def _task_update(task_id, name, progress, status, exception=None):
+    if not task_id:
+        return
+    from tools.redis_utils import status_string, update_task
+    update_task(task_id, name, progress, status_string.get(status, status), exception)
+
+
 @shipping_bp.get("/")
 @login_required
 @role_required(30)
@@ -392,6 +462,9 @@ def api_shipments():
         .limit(200)
         .all()
     )
+    for shipment in shipments:
+        _enrich_shipment_from_brt_tracking(shipment)
+    db.session.commit()
     return jsonify({"ok": True, "shipments": [shipment.to_dict() for shipment in shipments]})
 
 
@@ -487,6 +560,8 @@ def api_create_shipment():
 @role_required(30)
 def api_shipment_detail(shipment_id):
     shipment = Shipment.query.get_or_404(shipment_id)
+    _enrich_shipment_from_brt_tracking(shipment)
+    db.session.commit()
     return jsonify({
         "ok": True,
         "shipment": shipment.to_dict(),
@@ -521,7 +596,17 @@ def api_refresh_shipment(shipment_id):
 @login_required
 @role_required(30)
 def api_refresh_open_shipments():
-    data = request.get_json(silent=True) or {}
+    try:
+        return jsonify(run_refresh_open_shipments(request.get_json(silent=True) or {}))
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": f"Errore aggiornamento spedizioni aperte: {exc}"}), 500
+
+
+def run_refresh_open_shipments(data=None, task_id=None):
+    data = data or {}
+    task_name = "Aggiornamento tracking spedizioni aperte"
+    _task_update(task_id, task_name, 0, "start")
     limit = min(max(_parse_int(data.get("limit")) or 50, 1), 200)
     shipments = (
         Shipment.query
@@ -533,7 +618,7 @@ def api_refresh_open_shipments():
     refreshed = 0
     errors = []
     changed = []
-    for shipment in shipments:
+    for index, shipment in enumerate(shipments, start=1):
         try:
             previous_status = _refresh_shipment_tracking(shipment)
             refreshed += 1
@@ -546,13 +631,17 @@ def api_refresh_open_shipments():
         except Exception as exc:
             shipment.last_error = str(exc)
             errors.append({"shipment_id": shipment.id, "error": str(exc)})
+        if task_id and (index == 1 or index % 5 == 0 or index == len(shipments)):
+            progress = int((index / max(len(shipments), 1)) * 100)
+            _task_update(task_id, task_name, progress, "update")
     db.session.commit()
     notifications = []
     for shipment_id, previous_status, _new_status in changed:
         shipment = Shipment.query.get(shipment_id)
         if shipment:
             notifications.append(_notify_shipment_status_change(shipment, previous_status))
-    return jsonify({"ok": True, "refreshed": refreshed, "changed": len(changed), "errors": errors[:20], "notifications": notifications})
+    _task_update(task_id, task_name, 100, "end")
+    return {"ok": True, "refreshed": refreshed, "changed": len(changed), "errors": errors[:20], "notifications": notifications}
 
 
 @shipping_bp.get("/api/external-orders")
@@ -576,14 +665,13 @@ def api_external_orders():
     return jsonify({"ok": True, "orders": [order.to_dict() for order in orders], "total": total, "limit": 200})
 
 
-@shipping_bp.post("/api/poleepo/sync-shipments")
-@login_required
-@role_required(30)
-def api_poleepo_sync_shipments():
-    data = request.get_json(silent=True) or {}
+def run_poleepo_sync_shipments(data=None, task_id=None):
+    data = data or {}
     include_old = bool(data.get("include_old"))
     sync_all = bool(data.get("sync_all"))
     limit = None if sync_all else (_parse_int(data.get("limit")) or 100)
+    task_name = "Sync spedizioni Poleepo storico" if sync_all or include_old else "Sync spedizioni Poleepo"
+    _task_update(task_id, task_name, 0, "start")
     connector = PoleepoConnector()
     orders_query = (
         ExternalOrder.query.filter_by(source="poleepo")
@@ -591,7 +679,7 @@ def api_poleepo_sync_shipments():
     )
     if not include_old:
         orders_query = orders_query.filter(ExternalOrder.ordered_at >= _recent_order_cutoff())
-    orders = (
+    ordered_query = (
         orders_query
         .order_by(
             ExternalOrder.ordered_at.desc().nullslast(),
@@ -600,18 +688,46 @@ def api_poleepo_sync_shipments():
     )
     total_orders = orders_query.count()
     if limit:
-        orders_query = orders_query.limit(min(max(limit, 1), 300))
-    orders = orders_query.all()
+        ordered_query = ordered_query.limit(min(max(limit, 1), 300))
+    orders = ordered_query.all()
     imported = 0
     updated = 0
     errors = []
+    for index, order in enumerate(orders, start=1):
+        result = _sync_order_shipments_from_poleepo(connector, order)
+        imported += result["imported"]
+        updated += result["updated"]
+        errors.extend({"order_id": order.id, **item} for item in result["errors"])
+        if task_id and (index == 1 or index % 5 == 0 or index == len(orders)):
+            progress = int((index / max(len(orders), 1)) * 100)
+            _task_update(task_id, task_name, progress, "update")
+        if index % 20 == 0:
+            db.session.commit()
+    db.session.commit()
+    _task_update(task_id, task_name, 100, "end")
+    return {
+        "ok": True,
+        "processed_orders": len(orders),
+        "total_orders": total_orders,
+        "imported": imported,
+        "updated": updated,
+        "errors": errors[:20],
+    }
+
+
+@shipping_bp.post("/api/poleepo/sync-shipments")
+@login_required
+@role_required(30)
+def api_poleepo_sync_shipments():
+    data = request.get_json(silent=True) or {}
+    if data.get("sync_all") or data.get("background"):
+        from config.tasks import sync_poleepo_shipments_task
+        from tools.redis_utils import status_string, update_task
+        task = sync_poleepo_shipments_task.delay(data)
+        update_task(task.id, "Sync spedizioni Poleepo storico", 0, status_string["attached"])
+        return jsonify({"ok": True, "queued": True, "task_id": task.id}), 202
     try:
-        for order in orders:
-            result = _sync_order_shipments_from_poleepo(connector, order)
-            imported += result["imported"]
-            updated += result["updated"]
-            errors.extend({"order_id": order.id, **item} for item in result["errors"])
-        db.session.commit()
+        result = run_poleepo_sync_shipments(data)
     except ShippingConnectorNotConfigured as exc:
         db.session.rollback()
         return jsonify({"ok": False, "error": str(exc)}), 409
@@ -621,22 +737,14 @@ def api_poleepo_sync_shipments():
     except Exception as exc:
         db.session.rollback()
         return jsonify({"ok": False, "error": f"Errore sincronizzazione spedizioni Poleepo: {exc}"}), 500
-    return jsonify({
-        "ok": True,
-        "processed_orders": len(orders),
-        "total_orders": total_orders,
-        "imported": imported,
-        "updated": updated,
-        "errors": errors[:20],
-    })
+    return jsonify(result)
 
 
-@shipping_bp.post("/api/poleepo/import")
-@login_required
-@role_required(30)
-def api_poleepo_import():
+def run_poleepo_import(data=None, task_id=None):
+    data = data or {}
+    task_name = "Import storico ordini Poleepo" if data.get("force_full") else "Import ordini Poleepo"
+    _task_update(task_id, task_name, 0, "start")
     try:
-        data = request.get_json(silent=True) or {}
         integration = CourierIntegration.query.filter_by(code="poleepo").first()
         if not integration:
             integration = CourierIntegration(code="poleepo", name="Poleepo", is_enabled=True)
@@ -652,12 +760,10 @@ def api_poleepo_import():
             since = latest_sync.last_sync_at
         connector = PoleepoConnector(integration=integration)
         remote_orders = connector.import_orders(since=since)
-    except ShippingConnectorNotConfigured as exc:
+    except (ShippingConnectorNotConfigured, ShippingConnectorError) as exc:
         db.session.rollback()
-        return jsonify({"ok": False, "error": str(exc)}), 409
-    except ShippingConnectorError as exc:
-        db.session.rollback()
-        return jsonify({"ok": False, "error": str(exc)}), 502
+        _task_update(task_id, task_name, 0, "error", exc)
+        raise
 
     imported = 0
     updated = 0
@@ -666,7 +772,7 @@ def api_poleepo_import():
     shipment_errors = []
     now = datetime.utcnow()
     try:
-        for remote_order in remote_orders:
+        for index, remote_order in enumerate(remote_orders, start=1):
             normalized = normalize_poleepo_order(remote_order)
             if not normalized["external_id"]:
                 continue
@@ -692,14 +798,20 @@ def api_poleepo_import():
                 shipments_imported += shipment_result["imported"]
                 shipments_updated += shipment_result["updated"]
                 shipment_errors.extend({"order_id": order.id, **item} for item in shipment_result["errors"])
+            if task_id and (index == 1 or index % 10 == 0 or index == len(remote_orders)):
+                progress = int((index / max(len(remote_orders), 1)) * 100)
+                _task_update(task_id, task_name, progress, "update")
+            if index % 50 == 0:
+                db.session.commit()
         if integration:
             integration.last_sync_at = now
             integration.is_enabled = True
         db.session.commit()
     except Exception as exc:
         db.session.rollback()
-        return jsonify({"ok": False, "error": f"Errore salvataggio ordini Poleepo: {exc}"}), 500
-    return jsonify({
+        _task_update(task_id, task_name, 0, "error", exc)
+        raise
+    result = {
         "ok": True,
         "imported": imported,
         "updated": updated,
@@ -707,4 +819,31 @@ def api_poleepo_import():
         "shipments_imported": shipments_imported,
         "shipments_updated": shipments_updated,
         "shipment_errors": shipment_errors[:20],
-    })
+    }
+    _task_update(task_id, task_name, 100, "end")
+    return result
+
+
+@shipping_bp.post("/api/poleepo/import")
+@login_required
+@role_required(30)
+def api_poleepo_import():
+    data = request.get_json(silent=True) or {}
+    if data.get("force_full") or data.get("background"):
+        from config.tasks import import_poleepo_orders_task
+        from tools.redis_utils import status_string, update_task
+        task = import_poleepo_orders_task.delay(data)
+        update_task(task.id, "Import storico ordini Poleepo", 0, status_string["attached"])
+        return jsonify({"ok": True, "queued": True, "task_id": task.id}), 202
+    try:
+        result = run_poleepo_import(data)
+    except ShippingConnectorNotConfigured as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 409
+    except ShippingConnectorError as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 502
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": f"Errore import ordini Poleepo: {exc}"}), 500
+    return jsonify(result)

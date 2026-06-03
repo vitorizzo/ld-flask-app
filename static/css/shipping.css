@@ -7,6 +7,7 @@
   max-width: 1400px;
   margin: 0 auto;
   min-height: 0;
+  overflow: hidden;
 }
 
 .shipping-header {
@@ -83,6 +84,9 @@
   grid-template-columns: minmax(360px, 1fr) minmax(360px, 0.9fr);
   gap: 14px;
   align-items: start;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .shipping-panel {
@@ -92,6 +96,8 @@
   min-height: 240px;
   min-width: 0;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .shipping-panel__head {
@@ -114,6 +120,7 @@
   padding: 12px;
   align-content: start;
   min-width: 0;
+  overflow: auto;
 }
 
 .shipping-item {
@@ -164,6 +171,7 @@
 
 .shipping-detail {
   padding: 14px;
+  overflow: auto;
 }
 
 .shipping-empty {
