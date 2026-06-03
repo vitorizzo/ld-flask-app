@@ -39,6 +39,12 @@ def _parse_datetime(value):
     return datetime.fromisoformat(str(value).strip())
 
 
+def _parse_date(value):
+    if not value:
+        return None
+    return datetime.fromisoformat(str(value).strip()).date()
+
+
 def _parse_int(value):
     try:
         return int(value)
@@ -111,11 +117,38 @@ def _should_sync_order_shipments(order, include_old=False):
     return order.ordered_at >= _recent_order_cutoff()
 
 
-def _default_courier_account(courier_code):
-    return (
-        CourierAccount.query.filter_by(courier_code=courier_code, account_type="webservice", is_enabled=True).order_by(CourierAccount.id).first()
-        or CourierAccount.query.filter_by(courier_code=courier_code, is_enabled=True).order_by(CourierAccount.id).first()
-    )
+def _reference_date_for_account(*values):
+    for value in values:
+        if not value:
+            continue
+        if hasattr(value, "date"):
+            return value.date()
+        return value
+    return None
+
+
+def _account_valid_for(account, reference_date):
+    if not reference_date:
+        return True
+    if account.valid_from and account.valid_from > reference_date:
+        return False
+    if account.valid_to and account.valid_to < reference_date:
+        return False
+    return True
+
+
+def _account_sort_key(account, reference_date):
+    valid = _account_valid_for(account, reference_date)
+    type_priority = 0 if account.account_type == "webservice" else 1
+    start = account.valid_from or datetime.min.date()
+    return (0 if valid else 1, type_priority, -start.toordinal(), account.id or 0)
+
+
+def _default_courier_account(courier_code, reference_date=None):
+    accounts = CourierAccount.query.filter_by(courier_code=courier_code, is_enabled=True).all()
+    if not accounts:
+        return None
+    return sorted(accounts, key=lambda account: _account_sort_key(account, reference_date))[0]
 
 
 def _shipment_tracking_number(shipping_data):
@@ -141,8 +174,11 @@ def _upsert_shipment_from_poleepo(order, shipping_data):
         shipment = Shipment(courier_code=courier_code, tracking_number=tracking_number)
         db.session.add(shipment)
         created = True
-    account = _default_courier_account(courier_code)
-    shipment.courier_account_id = shipment.courier_account_id or (account.id if account else None)
+    shipping_date = _parse_datetime(shipping_data.get("creation_date"))
+    reference_date = _reference_date_for_account(shipping_date, order.ordered_at)
+    account = _default_courier_account(courier_code, reference_date=reference_date)
+    if not shipment.courier_account_id or not _account_valid_for(shipment.courier_account, reference_date):
+        shipment.courier_account_id = account.id if account else None
     shipment.courier_name = next((item["name"] for item in courier_options() if item["code"] == courier_code), courier_code.upper())
     shipment.source = "poleepo"
     shipment.external_order_id = order.external_id
@@ -150,7 +186,7 @@ def _upsert_shipment_from_poleepo(order, shipping_data):
     shipment.customer_name = order.customer_name
     shipment.recipient_name = _recipient_from_poleepo(shipping_data.get("delivery_address")) or order.recipient_name
     shipment.recipient_address = _address_from_poleepo(shipping_data.get("delivery_address")) or order.recipient_address
-    shipment.shipped_at = _parse_datetime(shipping_data.get("creation_date"))
+    shipment.shipped_at = shipping_date
     shipment.raw_payload = {"poleepo_shipping": shipping_data}
     return shipment, created
 
@@ -202,6 +238,7 @@ def _mark_expired_if_stale_not_found(shipment, error_text):
 
 def _accounts_for_shipment(shipment):
     accounts = []
+    reference_date = _reference_date_for_account(shipment.shipped_at, shipment.created_at)
     if shipment.courier_account_id:
         account = CourierAccount.query.filter_by(id=shipment.courier_account_id, is_enabled=True).first()
         if account:
@@ -212,8 +249,8 @@ def _accounts_for_shipment(shipment):
     )
     if shipment.courier_account_id:
         accounts_query = accounts_query.filter(CourierAccount.id != shipment.courier_account_id)
-    accounts.extend(accounts_query.order_by(CourierAccount.account_type, CourierAccount.name).all())
-    return accounts
+    accounts.extend(accounts_query.all())
+    return sorted(accounts, key=lambda account: _account_sort_key(account, reference_date))
 
 
 def _refresh_shipment_tracking(shipment):
@@ -374,6 +411,8 @@ def api_save_courier_account():
     account.name = name
     account.base_url = (data.get("base_url") or "").strip() or None
     account.username = (data.get("username") or "").strip() or None
+    account.valid_from = _parse_date(data.get("valid_from"))
+    account.valid_to = _parse_date(data.get("valid_to"))
     password = data.get("password")
     if password:
         account.password_encrypted = str(password)

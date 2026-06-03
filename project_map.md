@@ -122,12 +122,19 @@ Campi principali:
 - `base_url`
 - `username`
 - `password_encrypted`
+- `valid_from`
+- `valid_to`
 - `extra_config`
 - `is_enabled`
 
 Le password sono cifrate con `tools.crypto.EncryptedString` e `FERNET_KEY`; non sono restituite al frontend, che riceve solo `has_password`.
 
 Le spedizioni possono avere `courier_account_id`; se non presente, il refresh tracking prova gli account attivi del corriere.
+
+La scelta automatica account considera la data spedizione o, se manca, la data ordine/creazione:
+- account collegato alla spedizione provato per primo solo se coerente con la validita';
+- account con `valid_from`/`valid_to` compatibile preferiti agli account fuori periodo;
+- account senza date restano validi come fallback.
 
 ## Poleepo
 

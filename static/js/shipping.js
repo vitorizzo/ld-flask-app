@@ -1,4 +1,4 @@
-(function () {
+﻿(function () {
   "use strict";
 
   const state = {
@@ -106,6 +106,8 @@
     document.getElementById("courierAccountBaseUrl").value = account.base_url || "";
     document.getElementById("courierAccountUsername").value = account.username || "";
     document.getElementById("courierAccountPassword").value = "";
+    document.getElementById("courierAccountValidFrom").value = account.valid_from || "";
+    document.getElementById("courierAccountValidTo").value = account.valid_to || "";
     document.getElementById("courierAccountExtra").value = Object.keys(account.extra_config || {}).length
       ? JSON.stringify(account.extra_config, null, 2)
       : "";
@@ -134,6 +136,7 @@
             <div class="shipping-account__tags">
               <span class="shipping-tag ${account.is_enabled ? "is-ok" : "is-muted"}">${account.is_enabled ? "Attivo" : "Disattivo"}</span>
               <span class="shipping-tag ${account.has_password ? "is-ok" : "is-muted"}">${account.has_password ? "Password salvata" : "Password mancante"}</span>
+              <span class="shipping-tag is-muted">${escapeHtml(account.valid_from || "inizio libero")} - ${escapeHtml(account.valid_to || "fine libera")}</span>
             </div>
           </div>
         `
@@ -171,7 +174,7 @@
                 <div class="shipping-item__title">${escapeHtml(shipment.courier_name || shipment.courier_code)} ${escapeHtml(shipment.tracking_number)}</div>
                 <div class="shipping-item__meta">${escapeHtml(shipment.customer_name || shipment.recipient_name || "Cliente non indicato")}</div>
                 <div class="shipping-item__meta">${escapeHtml(formatDateTime(shipment.shipped_at) || "Data spedizione non disponibile")}</div>
-                <div class="shipping-item__meta">${escapeHtml(shipment.courier_account_name || shipment.source || "")}${shipment.last_tracking_at ? ` · Agg. ${escapeHtml(formatDateTime(shipment.last_tracking_at))}` : ""}</div>
+                <div class="shipping-item__meta">${escapeHtml(shipment.courier_account_name || shipment.source || "")}${shipment.last_tracking_at ? ` - Agg. ${escapeHtml(formatDateTime(shipment.last_tracking_at))}` : ""}</div>
               </div>
               <span class="shipping-status">${escapeHtml(statusLabel(shipment))}</span>
             </div>
@@ -343,6 +346,8 @@
       base_url: document.getElementById("courierAccountBaseUrl").value,
       username: document.getElementById("courierAccountUsername").value,
       password: document.getElementById("courierAccountPassword").value,
+      valid_from: document.getElementById("courierAccountValidFrom").value || null,
+      valid_to: document.getElementById("courierAccountValidTo").value || null,
       extra_config: extraConfig,
       is_enabled: document.getElementById("courierAccountEnabled").checked,
     };

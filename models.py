@@ -1756,6 +1756,8 @@ class CourierAccount(db.Model):
     base_url = db.Column(db.String(255), nullable=True)
     username = db.Column(db.String(180), nullable=True)
     password_encrypted = db.Column(EncryptedString(1024), nullable=True)
+    valid_from = db.Column(db.Date, nullable=True, index=True)
+    valid_to = db.Column(db.Date, nullable=True, index=True)
     extra_config = db.Column(db.JSON, nullable=True)
     is_enabled = db.Column(db.Boolean, nullable=False, default=True, index=True)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
@@ -1775,6 +1777,8 @@ class CourierAccount(db.Model):
             "base_url": self.base_url,
             "username": self.username,
             "has_password": bool(self.password_encrypted),
+            "valid_from": self.valid_from.isoformat() if self.valid_from else None,
+            "valid_to": self.valid_to.isoformat() if self.valid_to else None,
             "extra_config": self.extra_config or {},
             "is_enabled": bool(self.is_enabled),
             "created_at": self.created_at.isoformat() if self.created_at else None,

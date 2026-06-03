@@ -76,15 +76,17 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
       - codice pronto;
       - credenziali validate;
       - endpoint `POST /shipping/api/poleepo/import` operativo.
-  - Account corrieri:
-    - aggiunto modello `CourierAccount`;
-    - aggiunta migrazione `d5e6f7a8b9c0_add_courier_accounts.py`, applicata localmente;
-    - creata tabella `courier_accounts`;
-    - aggiunto `shipments.courier_account_id`;
-    - password account cifrata con `EncryptedString`/`FERNET_KEY`;
-    - aggiunta UI nella pagina `/shipping` per creare/modificare account corriere;
-    - le spedizioni possono selezionare un account specifico oppure usare selezione automatica;
-    - il refresh tracking prova prima l'account associato alla spedizione, poi gli altri account attivi dello stesso corriere;
+    - Account corrieri:
+      - aggiunto modello `CourierAccount`;
+      - aggiunta migrazione `d5e6f7a8b9c0_add_courier_accounts.py`, applicata localmente;
+      - aggiunta migrazione `e6f7a8b9c0d1_add_courier_account_validity.py`, applicata localmente;
+      - creata tabella `courier_accounts`;
+      - aggiunto `shipments.courier_account_id`;
+      - aggiunti `valid_from` e `valid_to` agli account corriere;
+      - password account cifrata con `EncryptedString`/`FERNET_KEY`;
+      - aggiunta UI nella pagina `/shipping` per creare/modificare account corriere;
+      - le spedizioni possono selezionare un account specifico oppure usare selezione automatica;
+      - il refresh tracking prova account compatibili con la data spedizione/ordine, usando account senza date come fallback;
     - BRT tracking-only:
       - implementato connettore su `GET https://api.brt.it/rest/v1/tracking/parcelID/{tracking_number}`;
       - risolto `MISSING PARAM`: il WADL esposto da `OPTIONS` indica header obbligatori `userID` e `password`;
@@ -112,7 +114,7 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
   - verifiche eseguite:
     - `python -m py_compile` su moduli shipping/Poleepo/app factory;
     - `node --check static/js/shipping.js`;
-    - `flask db upgrade` ok fino a `d5e6f7a8b9c0`;
+    - `flask db upgrade` ok fino a `e6f7a8b9c0d1`;
     - route `/shipping/*` registrate.
 
 - Stato aggiornato al ciclo corrente di sviluppo Agenda / Cassa / Ordini:
