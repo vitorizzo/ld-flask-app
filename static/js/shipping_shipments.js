@@ -15,6 +15,8 @@
     status: document.getElementById("shippingStatusFilter"),
     refresh: document.getElementById("shippingRefreshBtn"),
     refreshOpen: document.getElementById("shippingRefreshOpenBtn"),
+    syncShipments: document.getElementById("poleepoSyncShipmentsBtn"),
+    syncShipmentsFull: document.getElementById("poleepoSyncShipmentsFullBtn"),
     list: document.getElementById("shipmentsList"),
     count: document.getElementById("shipmentsCount"),
     detail: document.getElementById("shipmentDetail"),
@@ -138,6 +140,16 @@
     renderDetail(data);
   }
 
+  async function syncPoleepoShipments(payload) {
+    const result = await api("/shipping/api/poleepo/sync-shipments", { method: "POST", body: JSON.stringify(payload || {}) });
+    if (result.queued) {
+      alert(`Task avviato in background: ${result.task_id}. Avanzamento visibile nella barra processi.`);
+      return;
+    }
+    await loadShipments();
+    alert(`Spedizioni Poleepo: ${result.imported} nuove, ${result.updated} aggiornate. Ordini processati: ${result.processed_orders || 0}/${result.total_orders || 0}. Errori: ${(result.errors || []).length}.`);
+  }
+
   let searchTimer = null;
   function scheduleLoad() {
     window.clearTimeout(searchTimer);
@@ -154,6 +166,21 @@
       const result = await api("/shipping/api/shipments/refresh-open", { method: "POST", body: "{}" });
       await loadShipments();
       alert(`Spedizioni aggiornate: ${result.refreshed}. Cambi stato: ${result.changed}. Errori: ${(result.errors || []).length}.`);
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+  el.syncShipments.addEventListener("click", async () => {
+    try {
+      await syncPoleepoShipments({ limit: 100 });
+    } catch (err) {
+      alert(err.message);
+    }
+  });
+  el.syncShipmentsFull.addEventListener("click", async () => {
+    if (!window.confirm("Importare le spedizioni collegate a tutti gli ordini Poleepo importati? L'operazione puo' richiedere piu' tempo.")) return;
+    try {
+      await syncPoleepoShipments({ include_old: true, sync_all: true });
     } catch (err) {
       alert(err.message);
     }

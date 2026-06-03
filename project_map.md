@@ -178,6 +178,7 @@ Flusso implementato:
 - UI con import incrementale e import storico completo.
 - import/sync storici avviati come task Celery in background con avanzamento nel monitor task globale.
 - Celery Beat pianifica import ordini Poleepo, sync spedizioni Poleepo e refresh tracking spedizioni aperte.
+- il monitor task usa Redis; `tools/redis_utils.py` legge `REDIS_HOST` oppure il fallback da `CELERY_BROKER_URL`.
 
 Stato reale ultimo test:
 - chiamata HTTP a Poleepo riuscita;
@@ -194,6 +195,7 @@ Conclusione operativa:
 - endpoint `GET /shipping/api/external-orders` restituisce `total` e mostra gli ultimi 200 ordini locali.
 - lo sync spedizioni supporta modalita' storica con `include_old=true` e `sync_all=true`, processando tutti gli ordini Poleepo locali.
 - l'arricchimento BRT aggiorna spedizioni gia' salvate usando il payload tracking: data spedizione, riferimento, destinatario/indirizzo quando disponibili.
+- UI spedizioni: lista tracking e dettaglio hanno scroll indipendenti; comandi import spedizioni ordinario/storico sono nella pagina `/shipping/shipments`.
 
 ## Tracking BRT
 

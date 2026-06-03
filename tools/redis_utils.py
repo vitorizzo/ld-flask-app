@@ -2,11 +2,14 @@ import os
 import json
 import redis
 from functools import lru_cache
+from urllib.parse import urlparse
+from redis.exceptions import RedisError
 
 # opzionale: permette override via env
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+_broker_url = urlparse(os.getenv("CELERY_BROKER_URL", ""))
+REDIS_HOST = os.getenv("REDIS_HOST") or (_broker_url.hostname if _broker_url.scheme == "redis" else None) or "localhost"
+REDIS_PORT = int(os.getenv("REDIS_PORT") or (_broker_url.port if _broker_url.scheme == "redis" and _broker_url.port else 6379))
+REDIS_DB = int(os.getenv("REDIS_DB") or ((_broker_url.path or "/0").lstrip("/") if _broker_url.scheme == "redis" else "0") or "0")
 
 status_string = {
     "start": "avviato",
@@ -33,7 +36,10 @@ def update_task(task_id, descrizione, progress, status, exception=None):
     }
     if status in ("errore", "error") and exception:
         data["errore"] = str(exception)
-    set_task_status(task_id, data)
+    try:
+        set_task_status(task_id, data)
+    except RedisError:
+        return
 
 
 def set_task_status(task_id, status_dict):
@@ -45,10 +51,16 @@ def set_task_status(task_id, status_dict):
 
 def get_all_tasks_status():
     r = get_redis()
-    keys = r.keys("task_status:*")
+    try:
+        keys = r.keys("task_status:*")
+    except RedisError:
+        return []
     task_list = []
     for key in keys:
-        raw = r.get(key)
+        try:
+            raw = r.get(key)
+        except RedisError:
+            continue
         if not raw:
             continue
         task = json.loads(raw)
@@ -66,11 +78,17 @@ def clear_task_status(task_id):
     if not task_id:
         return 0
     # Compatibilita' con le vecchie chiavi scritte come "task_status: <id>".
-    return r.delete(f"task_status:{task_id}", f"task_status: {task_id}")
+    try:
+        return r.delete(f"task_status:{task_id}", f"task_status: {task_id}")
+    except RedisError:
+        return 0
 
 
 def clear_all_task_statuses():
     r = get_redis()
-    keys = r.keys("task_status:*")
-    if keys:
-        r.delete(*keys)
+    try:
+        keys = r.keys("task_status:*")
+        if keys:
+            r.delete(*keys)
+    except RedisError:
+        return

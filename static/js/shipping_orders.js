@@ -6,8 +6,6 @@
   const el = {
     importBtn: document.getElementById("poleepoImportBtn"),
     importFullBtn: document.getElementById("poleepoImportFullBtn"),
-    syncShipments: document.getElementById("poleepoSyncShipmentsBtn"),
-    syncShipmentsFull: document.getElementById("poleepoSyncShipmentsFullBtn"),
     list: document.getElementById("poleepoOrdersList"),
     count: document.getElementById("poleepoOrdersCount"),
   };
@@ -52,15 +50,6 @@
     alert(`Ordini: ${result.imported} nuovi, ${result.updated} aggiornati. Spedizioni: ${result.shipments_imported || 0} nuove, ${result.shipments_updated || 0} aggiornate. Letti da Poleepo: ${result.total || 0}.`);
   }
 
-  async function syncShipments(payload) {
-    const result = await api("/shipping/api/poleepo/sync-shipments", { method: "POST", body: JSON.stringify(payload || {}) });
-    if (result.queued) {
-      alert(`Task avviato in background: ${result.task_id}. Avanzamento visibile nella barra processi.`);
-      return;
-    }
-    alert(`Spedizioni Poleepo: ${result.imported} nuove, ${result.updated} aggiornate. Ordini processati: ${result.processed_orders || 0}/${result.total_orders || 0}. Errori: ${(result.errors || []).length}.`);
-  }
-
   el.importBtn.addEventListener("click", async () => {
     try {
       await importOrders({});
@@ -73,23 +62,6 @@
     if (!window.confirm("Importare lo storico completo Poleepo? L'operazione puo' richiedere piu' tempo.")) return;
     try {
       await importOrders({ force_full: true });
-    } catch (err) {
-      alert(err.message);
-    }
-  });
-
-  el.syncShipments.addEventListener("click", async () => {
-    try {
-      await syncShipments({ limit: 100 });
-    } catch (err) {
-      alert(err.message);
-    }
-  });
-
-  el.syncShipmentsFull.addEventListener("click", async () => {
-    if (!window.confirm("Importare le spedizioni collegate a tutti gli ordini Poleepo importati? L'operazione puo' richiedere piu' tempo.")) return;
-    try {
-      await syncShipments({ include_old: true, sync_all: true });
     } catch (err) {
       alert(err.message);
     }

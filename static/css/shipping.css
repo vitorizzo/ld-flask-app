@@ -3,7 +3,7 @@
   color: #1f2937;
 }
 
-.shipping-page > .container-fluid {
+.welcome-section.page-shell.shipping-page > .container-fluid {
   max-width: 1400px;
   margin: 0 auto;
   min-height: 0;
@@ -83,7 +83,7 @@
   display: grid;
   grid-template-columns: minmax(360px, 1fr) minmax(360px, 0.9fr);
   gap: 14px;
-  align-items: start;
+  align-items: stretch;
   flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
@@ -120,6 +120,8 @@
   padding: 12px;
   align-content: start;
   min-width: 0;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
 }
 
@@ -171,6 +173,8 @@
 
 .shipping-detail {
   padding: 14px;
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
 }
 

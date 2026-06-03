@@ -152,8 +152,13 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
   - Correzioni UI/processo spedizioni 2026-06-03:
     - nella lista spedizioni viene mostrato esplicitamente il nome account corriere associato;
     - lista spedizioni e dettaglio hanno scroll indipendenti;
+    - i pulsanti `Importa spedizioni` e `Importa storico spedizioni` sono stati spostati nella pagina `/shipping/shipments`;
     - import storico ordini e import storico spedizioni vengono avviati come task Celery in background;
     - il monitor task globale mostra avanzamento tramite Redis;
+    - corretto monitor task globale:
+      - non va piu' in HTTP 500 se Redis non e' raggiungibile;
+      - usa `CELERY_BROKER_URL` come fallback per host/porta/db Redis se `REDIS_HOST` non e' impostato;
+      - la barra task viene posizionata sopra il footer fisso;
     - aggiunti task Celery:
       - `config.tasks.import_poleepo_orders_task`;
       - `config.tasks.sync_poleepo_shipments_task`;

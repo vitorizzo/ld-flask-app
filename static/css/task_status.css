@@ -1,12 +1,14 @@
 #task-status-wrapper {
     position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    z-index: 1050;
+    bottom: var(--app-footer-height, 0px);
+    left: var(--app-tabs-width, 0px);
+    right: 0;
+    width: auto;
+    z-index: 2080;
     background-color: #343a40;
     color: white;
     font-size: 0.9rem;
+    box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.22);
 }
 
 #task-status-bar {
