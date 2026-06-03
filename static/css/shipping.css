@@ -1,5 +1,5 @@
 .shipping-page {
-  overflow: hidden;
+  overflow: visible;
   color: #1f2937;
 }
 
@@ -34,11 +34,43 @@
   justify-content: flex-end;
 }
 
+.shipping-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.shipping-subnav__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(31, 41, 55, 0.12);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.92rem;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.shipping-subnav__link:hover,
+.shipping-subnav__link.is-active {
+  border-color: #2563eb;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .shipping-toolbar {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(130px, 170px) minmax(140px, 170px) minmax(150px, 190px) auto auto;
   gap: 10px;
   margin-bottom: 14px;
+}
+
+.shipping-toolbar--shipments {
+  align-items: center;
 }
 
 .shipping-grid {
@@ -73,13 +105,17 @@
   display: grid;
   gap: 8px;
   padding: 12px;
+  align-content: start;
 }
 
 .shipping-item {
+  display: block;
+  width: 100%;
   border: 1px solid rgba(31, 41, 55, 0.1);
   border-radius: 8px;
   padding: 10px;
   background: #f9fafb;
+  color: inherit;
   cursor: pointer;
 }
 
@@ -106,6 +142,7 @@
 
 .shipping-status {
   white-space: nowrap;
+  align-self: flex-start;
   border-radius: 999px;
   padding: 3px 8px;
   background: #e5e7eb;
@@ -180,7 +217,6 @@
 }
 
 .shipping-accounts {
-  margin-bottom: 14px;
   min-height: 0;
 }
 
@@ -264,7 +300,26 @@ body.app-shell .modal-backdrop.show {
     grid-template-columns: 1fr;
   }
 
+  .shipping-subnav {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
   .shipping-panel {
     margin-bottom: 12px;
+  }
+
+  .shipping-detail__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shipping-item__top,
+  .shipping-detail__title {
+    display: block;
+  }
+
+  .shipping-status {
+    display: inline-block;
+    margin-top: 8px;
   }
 }

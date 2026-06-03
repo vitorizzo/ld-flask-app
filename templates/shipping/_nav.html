@@ -1,0 +1,11 @@
+<nav class="shipping-subnav" aria-label="Sezioni spedizioni">
+  <a class="shipping-subnav__link {% if active == 'shipments' %}is-active{% endif %}" href="{{ url_for('shipping.shipments') }}">
+    <i class="fa-solid fa-truck-fast"></i> Spedizioni
+  </a>
+  <a class="shipping-subnav__link {% if active == 'orders' %}is-active{% endif %}" href="{{ url_for('shipping.orders') }}">
+    <i class="fa-solid fa-boxes-stacked"></i> Ordini Poleepo
+  </a>
+  <a class="shipping-subnav__link {% if active == 'accounts' %}is-active{% endif %}" href="{{ url_for('shipping.accounts') }}">
+    <i class="fa-solid fa-key"></i> Account corrieri
+  </a>
+</nav>

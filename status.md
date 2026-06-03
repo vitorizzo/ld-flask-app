@@ -116,6 +116,25 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
     - `node --check static/js/shipping.js`;
     - `flask db upgrade` ok fino a `e6f7a8b9c0d1`;
     - route `/shipping/*` registrate.
+  - Aggiornamento 2026-06-03:
+    - separata la pagina monolitica `/shipping` in tre viste operative:
+      - `/shipping/shipments` per consultazione tracking spedizioni;
+      - `/shipping/orders` per ordini Poleepo e sync spedizioni collegate;
+      - `/shipping/accounts` per gestione account corrieri;
+    - `/shipping` resta route padre e reindirizza a `/shipping/shipments`;
+    - aggiunta sottNavigazione interna tra le tre sezioni;
+    - aggiunti template dedicati:
+      - `templates/shipping/shipments.html`;
+      - `templates/shipping/orders.html`;
+      - `templates/shipping/accounts.html`;
+      - `templates/shipping/_nav.html`;
+    - aggiunti script dedicati:
+      - `static/js/shipping_common.js`;
+      - `static/js/shipping_shipments.js`;
+      - `static/js/shipping_orders.js`;
+      - `static/js/shipping_accounts.js`;
+    - aggiunta migrazione `f7a8b9c0d1e2_split_shipping_menu.py` per creare le tre voci figlie del menu `Spedizioni`;
+    - dashboard riepilogativa rimandata a quando account, ordini e tracking saranno stabilizzati.
 
 - Stato aggiornato al ciclo corrente di sviluppo Agenda / Cassa / Ordini:
   - report giornata completo/fiscale rifinito e collegato a menù

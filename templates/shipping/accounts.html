@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Account corrieri{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shipping.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="welcome-section page-shell shipping-page">
+  <div class="container-fluid h-100 d-flex flex-column">
+    <header class="shipping-header">
+      <div>
+        <h1>Account corrieri</h1>
+        <p>Credenziali portale e web service usate per tracking e integrazioni.</p>
+      </div>
+      <div class="shipping-header__actions">
+        <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#courierAccountModal">
+          <i class="fa-solid fa-plus"></i> Nuovo account
+        </button>
+      </div>
+    </header>
+
+    {% set active = "accounts" %}
+    {% include "shipping/_nav.html" with context %}
+
+    <section class="shipping-panel shipping-accounts">
+      <div class="shipping-panel__head">
+        <h2>Account configurati</h2>
+        <span id="courierAccountsCount">0</span>
+      </div>
+      <div class="shipping-list shipping-list--accounts" id="courierAccountsList"></div>
+    </section>
+  </div>
+</section>
+
+<div class="modal fade shipping-modal" id="courierAccountModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form class="modal-content" id="courierAccountForm">
+      <div class="modal-header">
+        <h5 class="modal-title">Account corriere</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="courierAccountId">
+        <div class="row g-3">
+          <div class="col-6">
+            <label class="form-label" for="courierAccountCourier">Corriere</label>
+            <select class="form-select" id="courierAccountCourier" required>
+              {% for courier in couriers %}
+                <option value="{{ courier.code }}">{{ courier.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="courierAccountType">Tipo</label>
+            <select class="form-select" id="courierAccountType" required>
+              <option value="portal">Portale</option>
+              <option value="webservice">Web service</option>
+            </select>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="courierAccountName">Nome</label>
+            <input class="form-control" id="courierAccountName" placeholder="BRT Portale" required>
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="courierAccountBaseUrl">Endpoint</label>
+            <input class="form-control" id="courierAccountBaseUrl">
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="courierAccountUsername">Utente</label>
+            <input class="form-control" id="courierAccountUsername" autocomplete="off">
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="courierAccountPassword">Password</label>
+            <input class="form-control" id="courierAccountPassword" type="password" autocomplete="new-password" placeholder="Lascia vuoto per non modificare">
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="courierAccountValidFrom">Valida dal</label>
+            <input class="form-control" id="courierAccountValidFrom" type="date">
+          </div>
+          <div class="col-6">
+            <label class="form-label" for="courierAccountValidTo">Valida al</label>
+            <input class="form-control" id="courierAccountValidTo" type="date">
+          </div>
+          <div class="col-12">
+            <label class="form-label" for="courierAccountExtra">Config extra JSON</label>
+            <textarea class="form-control" id="courierAccountExtra" rows="3" placeholder='{"customer_code": "..."}'></textarea>
+          </div>
+          <div class="col-12">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="courierAccountEnabled" checked>
+              <label class="form-check-label" for="courierAccountEnabled">Account attivo</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-account-reset>Nuovo</button>
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+        <button type="submit" class="btn btn-primary">Salva</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  window.shippingPage = { active: "accounts" };
+</script>
+<script src="{{ url_for('static', filename='js/shipping_common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/shipping_accounts.js') }}"></script>
+{% endblock %}

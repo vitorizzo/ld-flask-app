@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Ordini Poleepo{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shipping.css') }}">
+{% endblock %}
+
+{% block content %}
+<section class="welcome-section page-shell shipping-page">
+  <div class="container-fluid h-100 d-flex flex-column">
+    <header class="shipping-header">
+      <div>
+        <h1>Ordini Poleepo</h1>
+        <p>Importazione ordini e sincronizzazione delle spedizioni collegate.</p>
+      </div>
+      <div class="shipping-header__actions">
+        <button class="btn btn-outline-secondary" type="button" id="poleepoSyncShipmentsBtn">
+          <i class="fa-solid fa-link"></i> Sincronizza spedizioni
+        </button>
+        <button class="btn btn-primary" type="button" id="poleepoImportBtn">
+          <i class="fa-solid fa-download"></i> Importa ordini
+        </button>
+      </div>
+    </header>
+
+    {% set active = "orders" %}
+    {% include "shipping/_nav.html" with context %}
+
+    <section class="shipping-panel shipping-poleepo">
+      <div class="shipping-panel__head">
+        <h2>Ordini importati</h2>
+        <span id="poleepoOrdersCount">0</span>
+      </div>
+      <div class="shipping-list shipping-list--orders" id="poleepoOrdersList"></div>
+    </section>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  window.shippingPage = { active: "orders" };
+</script>
+<script src="{{ url_for('static', filename='js/shipping_common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/shipping_orders.js') }}"></script>
+{% endblock %}

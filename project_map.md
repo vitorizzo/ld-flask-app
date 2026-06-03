@@ -58,6 +58,12 @@ Il modulo e' volutamente separato dalla bacheca ordini Slack/Kiosk, ma prevede r
 
 Route principale:
 - `/shipping`
+- redirect operativo verso `/shipping/shipments`
+
+Route operative:
+- `/shipping/shipments` - consultazione tracking spedizioni
+- `/shipping/orders` - ordini Poleepo
+- `/shipping/accounts` - account corrieri
 
 Blueprint:
 - `/routes/shipping.py`
@@ -66,12 +72,21 @@ Connettori:
 - `/tools/shipping_connectors.py`
 
 Frontend:
-- `templates/shipping/index.html`
-- `static/js/shipping.js`
+- `templates/shipping/shipments.html`
+- `templates/shipping/orders.html`
+- `templates/shipping/accounts.html`
+- `templates/shipping/_nav.html`
+- `static/js/shipping_common.js`
+- `static/js/shipping_shipments.js`
+- `static/js/shipping_orders.js`
+- `static/js/shipping_accounts.js`
 - `static/css/shipping.css`
 
 Migrazione:
 - `migrations/versions/c4d5e6f7a8b9_add_shipping_tracking.py`
+- `migrations/versions/d5e6f7a8b9c0_add_courier_accounts.py`
+- `migrations/versions/e6f7a8b9c0d1_add_courier_account_validity.py`
+- `migrations/versions/f7a8b9c0d1e2_split_shipping_menu.py`
 
 ## Modelli coinvolti
 
@@ -95,6 +110,13 @@ La migrazione aggiunge voce menu:
 - nome: `Spedizioni`
 - route: `/shipping`
 - peso: `30`
+
+La voce `Spedizioni` e' un contenitore con tre voci figlie:
+- `Consultazione spedizioni` -> `/shipping/shipments`
+- `Ordini Poleepo` -> `/shipping/orders`
+- `Account corrieri` -> `/shipping/accounts`
+
+La dashboard riepilogativa resta sospesa finche' consultazione, ordini e account non sono stabilizzati.
 
 ## Corrieri
 

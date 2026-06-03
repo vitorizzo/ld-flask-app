@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from flask import Blueprint, jsonify, render_template, request
+from flask import Blueprint, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required
 
 from extensions import db
@@ -354,7 +354,28 @@ def _brt_tracking_summary(raw_payload):
 @login_required
 @role_required(30)
 def index():
-    return render_template("shipping/index.html", couriers=courier_options(), statuses=SHIPMENT_STATUS_OPTIONS)
+    return redirect(url_for("shipping.shipments"))
+
+
+@shipping_bp.get("/shipments")
+@login_required
+@role_required(30)
+def shipments():
+    return render_template("shipping/shipments.html", couriers=courier_options(), statuses=SHIPMENT_STATUS_OPTIONS)
+
+
+@shipping_bp.get("/accounts")
+@login_required
+@role_required(30)
+def accounts():
+    return render_template("shipping/accounts.html", couriers=courier_options())
+
+
+@shipping_bp.get("/orders")
+@login_required
+@role_required(30)
+def orders():
+    return render_template("shipping/orders.html")
 
 
 @shipping_bp.get("/api/shipments")
