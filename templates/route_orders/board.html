@@ -277,6 +277,21 @@
   const customerCount = document.getElementById("customerCount");
   const deliveryDateBtn = document.getElementById("deliveryDateBtn");
   const onlyWithOrders = document.getElementById("onlyWithOrders");
+
+  document.querySelectorAll(".registry-tools-modal").forEach(modalEl => {
+    if (modalEl.parentElement !== document.body) {
+      document.body.appendChild(modalEl);
+    }
+    modalEl.addEventListener("show.bs.modal", () => {
+      document.body.classList.add("registry-tools-modal-open");
+    });
+    modalEl.addEventListener("hidden.bs.modal", () => {
+      if (!document.querySelector(".registry-tools-modal.show")) {
+        document.body.classList.remove("registry-tools-modal-open");
+      }
+    });
+  });
+
   const noteModal = new bootstrap.Modal(document.getElementById("noteModal"));
   const directModal = new bootstrap.Modal(document.getElementById("directModal"));
   const deliveryModal = new bootstrap.Modal(document.getElementById("deliveryDateModal"));

@@ -240,6 +240,19 @@
   border: 1px solid rgba(0, 0, 0, 0.18);
 }
 
+.registry-tools-modal.modal,
+.registry-tools-modal.modal.show {
+  z-index: 5000 !important;
+}
+
+.registry-tools-modal .modal-dialog {
+  z-index: 5001 !important;
+}
+
+body.registry-tools-modal-open .modal-backdrop.show {
+  z-index: 4990 !important;
+}
+
 .registry-tools-modal .modal-header {
   background: #4a2c2a;
   color: #ffffff;
