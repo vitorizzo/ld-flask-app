@@ -23,7 +23,14 @@ status_string = {
 @lru_cache(maxsize=1)
 def get_redis():
     # Non connette attivamente finché non fai un comando, ma evitiamo globale a import-time.
-    return redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB, decode_responses=True)
+    return redis.Redis(
+        host=REDIS_HOST,
+        port=REDIS_PORT,
+        db=REDIS_DB,
+        decode_responses=True,
+        socket_connect_timeout=1,
+        socket_timeout=1,
+    )
 
 
 def update_task(task_id, descrizione, progress, status, exception=None):

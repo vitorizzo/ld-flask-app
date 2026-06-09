@@ -288,7 +288,12 @@ class WineCardItem(db.Model):
 class Barcode(db.Model):
     __tablename__ = "barcode"
 
-    id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    id = db.Column(
+        db.BigInteger,
+        primary_key=True,
+        autoincrement=True,
+        server_default=db.text("nextval('barcode_id_seq'::regclass)")
+    )
 
     cod_bar = db.Column(db.String(255), nullable=False, index=True)
     cod_art = db.Column(db.String(255), nullable=True)  # retrocompatibilità

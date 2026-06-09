@@ -728,44 +728,77 @@ def run_import_barcode(task_id=None):
     logger.info(">>> Entrata nella funzione: run_import_barcode()")
     logger.info("Importazione codici a barre avviata...")
     db.create_all()
-    db.session.query(Barcode).delete()
-    db.session.commit()
-    logger.info("Tabella codici a barre svuotata.")
-
-    file_csv = serve_risorsa("BARSEQ.CSV")
-    logger.info(f"File CSV: {file_csv}")
+    counters = {
+        "inserted": 0,
+        "duplicates": 0,
+        "missing_article": 0,
+        "skipped": 0,
+        "total_rows": 0,
+    }
     try:
+        file_csv = serve_risorsa("BARSEQ.CSV")
+        logger.info(f"File CSV: {file_csv}")
         with open(file_csv, 'r', encoding='utf-8', errors='ignore') as csvfile:
             reader = list(csv.reader(csvfile, delimiter='\t'))
             total_rows = len(reader)
+            counters["total_rows"] = max(total_rows - 1, 0)
             logger.info(f"Righe totali: {total_rows}")
+
+            barcode_rows = []
+            seen_keys = set()
 
             with db.session.no_autoflush:
                 for index, row in enumerate(reader):
                     if index > 0 and len(row) >= 5:
-                        cod_bar = clean_text(row[3])
-                        cod_art = clean_text(row[0])
-                        cod_bar = cod_bar.strip()
-                        logger.debug("DEBUG: contenuto senza spazi di cod_bar: %s", cod_bar)
-                        logger.debug("DEBUG: contenuto senza spazi di cod_art: %s", cod_art)
+                        cod_bar = clean_text(row[3]).strip()
+                        cod_art = clean_text(row[0]).strip()
                         if cod_bar and cod_art:
-                            nuovo_barcode = Barcode(
-                                cod_bar=cod_bar,
-                                cod_art=cod_art
-                            )
-                            db.session.add(nuovo_barcode)
-                            db.session.flush()
+                            unique_key = (cod_bar, cod_art)
+                            if unique_key in seen_keys:
+                                counters["duplicates"] += 1
+                                continue
+                            seen_keys.add(unique_key)
+                            barcode_rows.append({
+                                "cod_bar": cod_bar,
+                                "cod_art": cod_art,
+                            })
+                        else:
+                            counters["skipped"] += 1
+                    elif index > 0:
+                        counters["skipped"] += 1
                     # 🔁 Aggiorna progresso ogni 50 righe
-                    if index % 50 == 0:
-                        progresso = int((index / total_rows) * 100)
+                    if index % 500 == 0:
+                        progresso = int((index / max(total_rows, 1)) * 80)
                         update_task(task_id, task_name, progresso, status_string['update'])
+        db.session.query(Barcode).delete()
+        logger.info("Tabella codici a barre svuotata.")
+        if barcode_rows:
+            db.session.execute(Barcode.__table__.insert(), barcode_rows)
+            db.session.execute(db.text("""
+                UPDATE barcode
+                SET id_art = articoli.id_art
+                FROM articoli
+                WHERE barcode.cod_art = articoli.cod_art
+            """))
+            counters["missing_article"] = db.session.execute(db.text("""
+                SELECT COUNT(*)
+                FROM barcode
+                WHERE id_art IS NULL
+            """)).scalar() or 0
+        counters["inserted"] = len(barcode_rows)
         db.session.commit()
         logger.info("Codici a Barre importati con successo!")
+        logger.info("Summary import barcode: %s", counters)
         update_task(task_id, task_name, 100, status_string['end'])
         if task_id:
             clear_task_status(task_id)
         registra_importazione("barcode", esito=True)
-        return {'success': True, 'message': 'Codici a Barre importati con successo!', 'progress': 100}
+        return {
+            'success': True,
+            'message': 'Codici a Barre importati con successo!',
+            'progress': 100,
+            'summary': counters,
+        }
     except Exception as e:
         logger.exception("Errore durante l'importazione dei codici a barre:")
         db.session.rollback()
@@ -779,11 +812,19 @@ def registra_importazione(modulo, esito=True, messaggio=None):
         messaggio = str(messaggio)
         if len(messaggio) > 255:
             messaggio = messaggio[:252] + "..."
-    nuova_import = Importazione(
-        modulo=modulo,
-        timestamp=datetime.now(),
-        esito=esito,
-        messaggio=messaggio
-    )
-    db.session.add(nuova_import)
-    db.session.commit()
+    try:
+        db.session.rollback()
+    except Exception:
+        db.session.remove()
+    try:
+        nuova_import = Importazione(
+            modulo=modulo,
+            timestamp=datetime.now(),
+            esito=esito,
+            messaggio=messaggio
+        )
+        db.session.add(nuova_import)
+        db.session.commit()
+    except Exception:
+        logger.exception("Errore durante la registrazione dello storico importazioni")
+        db.session.rollback()
