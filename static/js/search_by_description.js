@@ -99,9 +99,13 @@ window.initSearchByDescription = function (config) {
 
     if (btn) {
       const cod_art = btn.dataset.cod_art;
-      modalIframe.src = `/search/scheda_articolo/${cod_art}`;
-      const modal = new bootstrap.Modal(document.getElementById(modalId));
-      modal.show();
+      if (typeof config.onRowClick === "function") {
+        config.onRowClick({ cod_art });
+      } else if (modalIframe && modalId) {
+        modalIframe.src = `/search/scheda_articolo/${cod_art}`;
+        const modal = new bootstrap.Modal(document.getElementById(modalId));
+        modal.show();
+      }
     } else if (item && !btn) {
       const articolo = {
         cod_art: item.dataset.cod_art,

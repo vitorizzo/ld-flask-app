@@ -1,69 +1,108 @@
 {% extends "base.html" %}
-{% block content %}
-<section class="welcome-section">
-    <h2>🧾 Storico aggiornamenti archivi</h2>
 
-    <!-- Form di filtro -->
-    <form method="get" class="row g-3 mb-4">
-        <div class="col-md-3">
-            <label for="modulo" class="form-label">Modulo</label>
-            <select name="modulo" id="modulo" class="form-select">
-                <option value="">Tutti</option>
-                {% for m in moduli %}
-                    <option value="{{ m.nome }}" {% if request.args.get('modulo') == m.nome %}selected{% endif %}>{{ m.nome }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        <div class="col-md-2">
-            <label for="esito" class="form-label">Esito</label>
-            <select name="esito" id="esito" class="form-select">
-                <option value="">Tutti</option>
-                <option value="successo" {% if request.args.get('esito') == 'successo' %}selected{% endif %}>✅ Successo</option>
-                <option value="errore" {% if request.args.get('esito') == 'errore' %}selected{% endif %}>❌ Errore</option>
-            </select>
-        </div>
-        <div class="col-md-2">
-            <label for="ultimi" class="form-label">Ultimi</label>
-            <select name="ultimi" id="ultimi" class="form-select">
-                <option value="">Tutti</option>
-                <option value="10" {% if request.args.get('ultimi') == '10' %}selected{% endif %}>Ultimi 10</option>
-                <option value="50" {% if request.args.get('ultimi') == '50' %}selected{% endif %}>Ultimi 50</option>
-                <option value="100" {% if request.args.get('ultimi') == '100' %}selected{% endif %}>Ultimi 100</option>
-            </select>
-        </div>
-        <div class="col-md-2">
-            <label for="da_data" class="form-label">Da data</label>
-            <input type="date" name="da_data" id="da_data" class="form-control" value="{{ request.args.get('da_data', '') }}">
-        </div>
-        <div class="col-md-2">
-            <label for="a_data" class="form-label">A data</label>
-            <input type="date" name="a_data" id="a_data" class="form-control" value="{{ request.args.get('a_data', '') }}">
-        </div>
-        <div class="col-md-1 d-flex align-items-end">
-            <button type="submit" class="btn btn-primary w-100">Filtra</button>
-        </div>
+{% block extra_css %}
+<style>
+  .imports-history-page {
+    overflow: hidden;
+  }
+  .imports-history-page .imports-history-header,
+  .imports-history-page .imports-history-filters {
+    flex: 0 0 auto;
+  }
+  .imports-history-table-wrap {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+    background: rgba(255, 255, 255, 0.96);
+    border-radius: 6px;
+  }
+  .imports-history-table {
+    width: 100%;
+    min-width: 860px;
+    margin: 0;
+    color: #212529;
+  }
+  .imports-history-table th,
+  .imports-history-table td {
+    vertical-align: top;
+  }
+  .imports-history-table .message-cell {
+    max-width: 520px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="welcome-section page-shell imports-history-page">
+  <div class="container-fluid h-100 d-flex flex-column">
+    <div class="imports-history-header">
+      <h2 class="h4 mb-3">Storico aggiornamenti archivi</h2>
+    </div>
+
+    <form method="get" class="row g-3 mb-4 imports-history-filters">
+      <div class="col-md-3">
+        <label for="modulo" class="form-label">Modulo</label>
+        <select name="modulo" id="modulo" class="form-select">
+          <option value="">Tutti</option>
+          {% for m in moduli %}
+            <option value="{{ m.nome }}" {% if request.args.get('modulo') == m.nome %}selected{% endif %}>{{ m.nome }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label for="esito" class="form-label">Esito</label>
+        <select name="esito" id="esito" class="form-select">
+          <option value="">Tutti</option>
+          <option value="successo" {% if request.args.get('esito') == 'successo' %}selected{% endif %}>Successo</option>
+          <option value="errore" {% if request.args.get('esito') == 'errore' %}selected{% endif %}>Errore</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label for="ultimi" class="form-label">Ultimi</label>
+        <select name="ultimi" id="ultimi" class="form-select">
+          <option value="">Tutti</option>
+          <option value="10" {% if request.args.get('ultimi') == '10' %}selected{% endif %}>Ultimi 10</option>
+          <option value="50" {% if request.args.get('ultimi') == '50' %}selected{% endif %}>Ultimi 50</option>
+          <option value="100" {% if request.args.get('ultimi') == '100' %}selected{% endif %}>Ultimi 100</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label for="da_data" class="form-label">Da data</label>
+        <input type="date" name="da_data" id="da_data" class="form-control" value="{{ request.args.get('da_data', '') }}">
+      </div>
+      <div class="col-md-2">
+        <label for="a_data" class="form-label">A data</label>
+        <input type="date" name="a_data" id="a_data" class="form-control" value="{{ request.args.get('a_data', '') }}">
+      </div>
+      <div class="col-md-1 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary w-100">Filtra</button>
+      </div>
     </form>
 
-    <!-- Tabella risultati -->
-    <table class="table table-bordered table-striped mt-3">
-        <thead class="thead-dark">
-            <tr>
-                <th>Archivio</th>
-                <th>Data</th>
-                <th>Esito</th>
-                <th>Messaggio</th>
-            </tr>
+    <div class="imports-history-table-wrap">
+      <table class="table table-bordered table-striped table-hover imports-history-table">
+        <thead class="table-dark">
+          <tr>
+            <th>Archivio</th>
+            <th>Data</th>
+            <th>Esito</th>
+            <th>Messaggio</th>
+          </tr>
         </thead>
         <tbody>
-            {% for r in storico %}
+          {% for r in storico %}
             <tr class="{{ 'table-success' if r.esito else 'table-danger' }}">
-                <td>{{ r.modulo }}</td>
-                <td>{{ r.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}</td>
-                <td>{{ '✅ Successo' if r.esito else '❌ Errore' }}</td>
-                <td>{{ r.messaggio or '-' }}</td>
+              <td>{{ r.modulo }}</td>
+              <td>{{ r.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+              <td>{{ 'Successo' if r.esito else 'Errore' }}</td>
+              <td class="message-cell">{{ r.messaggio or '-' }}</td>
             </tr>
-            {% endfor %}
+          {% endfor %}
         </tbody>
-    </table>
+      </table>
+    </div>
+  </div>
 </section>
 {% endblock %}
