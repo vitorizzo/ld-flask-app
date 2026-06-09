@@ -31,11 +31,23 @@ document.addEventListener("DOMContentLoaded", function() {
     fetch('/search/articoli_by_barcode_multipli?barcode=' + encodeURIComponent(barcode))
       .then(response => response.json())
       .then(data => {
-        if (data && data.success) {
-          window.location.href = '/search/scheda_articolo/' + data.product;
-        } else {
-          alert("Prodotto non trovato!");
+        if (!data || !data.success) {
+          alert(data?.error || "Prodotto non trovato!");
+          return;
         }
+
+        if (data.singolo && data.articolo?.cod_art) {
+          window.location.href = '/search/scheda_articolo/' + encodeURIComponent(data.articolo.cod_art);
+          return;
+        }
+
+        const articolo = data.articoli?.[0];
+        if (articolo?.cod_art) {
+          window.location.href = '/search/scheda_articolo/' + encodeURIComponent(articolo.cod_art);
+          return;
+        }
+
+        alert("Barcode trovato, ma nessun articolo apribile.");
       })
       .catch(err => {
         console.error("Errore durante la fetch:", err);
@@ -44,11 +56,8 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 
   // Inizializza scanner con il nuovo modulo
-  initScanner("scan-button", "barcode", {
-    autoSubmit: true,
-    onSuccess: (val) => {
-      searchButton.click();
-    }
+  initScanner("scan-button", "barcode", () => {
+    searchButton.click();
   });
 });
 </script>
