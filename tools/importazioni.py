@@ -736,7 +736,7 @@ def run_import_barcode(task_id=None):
         "total_rows": 0,
     }
     try:
-        file_csv = serve_risorsa("BARSEQ.CSV")
+        file_csv = serve_risorsa("CODBAR.CSV")
         logger.info(f"File CSV: {file_csv}")
         with open(file_csv, 'r', encoding='utf-8', errors='ignore') as csvfile:
             reader = list(csv.reader(csvfile, delimiter='\t'))
@@ -749,7 +749,7 @@ def run_import_barcode(task_id=None):
 
             with db.session.no_autoflush:
                 for index, row in enumerate(reader):
-                    if index > 0 and len(row) >= 5:
+                    if index > 0 and len(row) >= 4:
                         cod_bar = clean_text(row[3]).strip()
                         cod_art = clean_text(row[0]).strip()
                         if cod_bar and cod_art:
