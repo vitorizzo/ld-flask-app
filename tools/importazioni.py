@@ -13,6 +13,7 @@ from models import (
     CashCustomerAlias,
     Giacenza,
     Importazione,
+    ProductPlatformLink,
 )
 from flask import jsonify
 from tools.log_utils import log_task, get_logger
@@ -434,6 +435,16 @@ def import_ps(task_id=None):
 
             cod_art = prodotto['cod_art']
             pid = prodotto['id']
+            platform_link = ProductPlatformLink.query.filter_by(cod_art=cod_art, platform="prestashop").first()
+            if not platform_link:
+                platform_link = ProductPlatformLink(cod_art=cod_art, platform="prestashop")
+                db.session.add(platform_link)
+            platform_link.external_id = str(pid)
+            platform_link.external_url = prodotto.get("external_url")
+            platform_link.status = "present"
+            platform_link.last_sync_at = datetime.utcnow()
+            platform_link.last_error = None
+            platform_link.raw_payload = prodotto.get("raw_payload")
 
             existing_articolo = Articoli.query.filter_by(cod_art=cod_art).first()
             if not existing_articolo:
@@ -443,10 +454,13 @@ def import_ps(task_id=None):
                     prezzo=float(prodotto['price'])
                 )
                 db.session.add(nuovo_articolo)
+                db.session.flush()
+                platform_link.id_art = nuovo_articolo.id_art
                 counters["created"] += 1
                 logger.info(f"Articolo {cod_art} inserito.")
             else:
                 counters["existing"] += 1
+                platform_link.id_art = existing_articolo.id_art
                 logger.info(f"Articolo {cod_art} già presente, salto inserimento.")
 
             p_images = get_product_images(pid, cod_art)

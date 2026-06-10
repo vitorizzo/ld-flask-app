@@ -3,7 +3,7 @@ from pprint import pprint
 import requests
 from requests.auth import HTTPBasicAuth
 from extensions import db
-from models import Immagini, Sincro, SchedeProdotti
+from models import Immagini, Sincro, SchedeProdotti, ProductAsset, ProductPlatformField
 from dotenv import load_dotenv
 from pathlib import Path
 import xmltodict
@@ -98,7 +98,9 @@ def get_product_payload(product_id):
         'name': name,
         'price': prod_data['price'],
         'cod_art': cod_art,
-        'description': description
+        'description': description,
+        'external_url': prod_data.get('@xlink:href'),
+        'raw_payload': prod_data,
     }
 
 
@@ -109,6 +111,51 @@ def get_all_products():
         product = get_product_payload(product_id)
         if product:
             yield product
+
+
+def _upsert_platform_field(cod_art, platform, field_name, value_text, source_external_id=None, language="it"):
+    field = ProductPlatformField.query.filter_by(
+        cod_art=cod_art,
+        platform=platform,
+        field_name=field_name,
+        language=language or "",
+    ).first()
+    if not field:
+        field = ProductPlatformField(
+            cod_art=cod_art,
+            platform=platform,
+            field_name=field_name,
+            language=language or "",
+        )
+        db.session.add(field)
+    field.value_text = value_text or ""
+    field.source_external_id = str(source_external_id) if source_external_id is not None else None
+
+
+def _upsert_product_asset(cod_art, source_platform, local_path=None, remote_url=None, source_external_id=None, filename=None):
+    query = ProductAsset.query.filter_by(
+        cod_art=cod_art,
+        asset_type="image",
+        source_platform=source_platform,
+    )
+    if local_path:
+        asset = query.filter_by(local_path=local_path).first()
+    elif remote_url:
+        asset = query.filter_by(remote_url=remote_url).first()
+    else:
+        asset = None
+    if not asset:
+        asset = ProductAsset(
+            cod_art=cod_art,
+            asset_type="image",
+            source_platform=source_platform,
+            local_path=local_path,
+            remote_url=remote_url,
+        )
+        db.session.add(asset)
+    asset.source_external_id = str(source_external_id) if source_external_id is not None else None
+    asset.original_filename = filename or asset.original_filename
+
 
 def get_product_descriptions(product_id):
     logger.info(f"get_product_descriptions(): Recupero descrizione per prodotto {product_id}")
@@ -130,6 +177,8 @@ def get_product_descriptions(product_id):
 
     description = next((item.get('#text', '') for item in lang_desc if item.get('@id') == '1'), lang_desc[0].get('#text', '')) if isinstance(lang_desc, list) else lang_desc.get('#text', '')
     description_short = next((item.get('#text', '') for item in lang_short_desc if item.get('@id') == '1'), lang_short_desc[0].get('#text', '')) if isinstance(lang_short_desc, list) else lang_short_desc.get('#text', '')
+    _upsert_platform_field(cod_art, "prestashop", "description", description, source_external_id=product_id)
+    _upsert_platform_field(cod_art, "prestashop", "description_short", description_short, source_external_id=product_id)
 
     if not SchedeProdotti.query.filter_by(cod_art=cod_art).first():
         db.session.add(SchedeProdotti(descrizione=description, short=description_short, cod_art=cod_art))
@@ -165,9 +214,16 @@ def get_product_images(product_id, cod_art):
 
                 if not Immagini.query.filter_by(file_img=file_name, cod_art=cod_art).first():
                     db.session.add(Immagini(file_img=file_name, cod_art=cod_art))
-                    db.session.commit()
                 else:
                     logger.debug(f"Record Immagini già presente per {file_name} - {cod_art}")
+                _upsert_product_asset(
+                    cod_art,
+                    "prestashop",
+                    local_path=f"images/products/{file_name}",
+                    remote_url=image_url,
+                    source_external_id=image_id,
+                    filename=file_name,
+                )
                 images.append(file_name)
             else:
                 logger.warning(f"Errore nel recupero immagine {image_id}: HTTP {image_response.status_code}")

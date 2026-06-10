@@ -50,6 +50,49 @@
   .product-sheet-barcodes .badge {
     font-size: .86rem;
   }
+  .product-sheet-platforms {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .product-platform-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid #ced4da;
+    border-radius: 999px;
+    padding: 6px 10px;
+    background: #f8f9fa;
+    color: #6c757d;
+    font-size: .84rem;
+    font-weight: 700;
+  }
+  .product-platform-badge--active {
+    border-color: #198754;
+    background: #d1e7dd;
+    color: #0f5132;
+  }
+  .product-platform-badge--error {
+    border-color: #dc3545;
+    background: #f8d7da;
+    color: #842029;
+  }
+  .product-image-frame {
+    position: relative;
+  }
+  .product-image-source {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 2;
+    border-radius: 999px;
+    padding: 5px 9px;
+    background: rgba(17, 24, 39, .82);
+    color: #fff;
+    font-size: .78rem;
+    font-weight: 700;
+    text-transform: capitalize;
+  }
   .product-img {
     max-height: 56vh;
     object-fit: contain;
@@ -109,8 +152,12 @@
               <div class="carousel-inner">
                 {% for immagine in product.immagini %}
                   <div class="carousel-item {% if loop.first %}active{% endif %}">
-                    <img src="{{ url_for('static', filename='images/products/' ~ immagine) }}"
-                         class="d-block w-100 product-img" alt="Immagine {{ loop.index }}">
+                    <div class="product-image-frame">
+                      <span class="product-image-source">{{ immagine.source_platform }}</span>
+                      <img src="{{ immagine.url }}"
+                           data-source-platform="{{ immagine.source_platform }}"
+                           class="d-block w-100 product-img" alt="Immagine {{ loop.index }}">
+                    </div>
                   </div>
                 {% endfor %}
               </div>
@@ -147,6 +194,29 @@
             <div class="product-sheet-meta__item">
               <span class="product-sheet-meta__label">Online</span>
               <span class="product-sheet-meta__value">{{ product.www }}</span>
+            </div>
+          </div>
+
+          <div>
+            <h2 class="h6">Piattaforme</h2>
+            <div class="product-sheet-platforms">
+              {% for platform in product.platforms %}
+                <span class="product-platform-badge {% if platform.active %}product-platform-badge--active{% elif platform.status == 'error' %}product-platform-badge--error{% endif %}"
+                      title="{{ platform.label }}: {{ platform.status }}">
+                  {% if platform.key == "prestashop" %}
+                    <i class="fa-solid fa-store"></i>
+                  {% elif platform.key == "poleepo" %}
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                  {% elif platform.key == "amazon" %}
+                    <i class="fa-brands fa-amazon"></i>
+                  {% elif platform.key == "ebay" %}
+                    <i class="fa-brands fa-ebay"></i>
+                  {% else %}
+                    <i class="fa-solid fa-globe"></i>
+                  {% endif %}
+                  {{ platform.label }}
+                </span>
+              {% endfor %}
             </div>
           </div>
 

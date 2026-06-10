@@ -371,6 +371,131 @@ class Sincro(db.Model):
         }
 
 
+class ProductPlatformLink(db.Model):
+    __tablename__ = "product_platform_links"
+    __table_args__ = (
+        db.UniqueConstraint("cod_art", "platform", name="uq_product_platform_links_cod_art_platform"),
+        db.Index("ix_product_platform_links_platform_status", "platform", "status"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    cod_art = db.Column(db.String(255), db.ForeignKey("articoli.cod_art", ondelete="CASCADE"), nullable=False, index=True)
+    id_art = db.Column(db.BigInteger, db.ForeignKey("articoli.id_art"), nullable=True, index=True)
+    platform = db.Column(db.String(40), nullable=False, index=True)
+    external_id = db.Column(db.String(255), nullable=True, index=True)
+    external_url = db.Column(db.String(1000), nullable=True)
+    status = db.Column(db.String(40), nullable=False, default="present", index=True)
+    last_sync_at = db.Column(db.DateTime, nullable=True)
+    last_error = db.Column(db.Text, nullable=True)
+    raw_payload = db.Column(JSONB, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    articolo = db.relationship("Articoli", foreign_keys=[cod_art], backref="platform_links")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "cod_art": self.cod_art,
+            "platform": self.platform,
+            "external_id": self.external_id,
+            "external_url": self.external_url,
+            "status": self.status,
+            "last_sync_at": self.last_sync_at.isoformat() if self.last_sync_at else None,
+            "last_error": self.last_error,
+        }
+
+
+class ProductAsset(db.Model):
+    __tablename__ = "product_assets"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "cod_art",
+            "asset_type",
+            "source_platform",
+            "local_path",
+            "remote_url",
+            name="uq_product_assets_source",
+        ),
+        db.Index("ix_product_assets_cod_art_type", "cod_art", "asset_type"),
+        db.Index("ix_product_assets_source_platform", "source_platform"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    cod_art = db.Column(db.String(255), db.ForeignKey("articoli.cod_art", ondelete="CASCADE"), nullable=False, index=True)
+    id_art = db.Column(db.BigInteger, db.ForeignKey("articoli.id_art"), nullable=True, index=True)
+    asset_type = db.Column(db.String(40), nullable=False, default="image")
+    source_platform = db.Column(db.String(40), nullable=False, default="manual", index=True)
+    source_external_id = db.Column(db.String(255), nullable=True)
+    local_path = db.Column(db.String(1000), nullable=True)
+    remote_url = db.Column(db.String(1000), nullable=True)
+    original_filename = db.Column(db.String(255), nullable=True)
+    content_hash = db.Column(db.String(128), nullable=True, index=True)
+    mime_type = db.Column(db.String(120), nullable=True)
+    is_primary = db.Column(db.Boolean, nullable=False, default=False)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    metadata_json = db.Column(JSONB, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    articolo = db.relationship("Articoli", foreign_keys=[cod_art], backref="assets")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "cod_art": self.cod_art,
+            "asset_type": self.asset_type,
+            "source_platform": self.source_platform,
+            "source_external_id": self.source_external_id,
+            "local_path": self.local_path,
+            "remote_url": self.remote_url,
+            "original_filename": self.original_filename,
+            "is_primary": self.is_primary,
+            "sort_order": self.sort_order,
+        }
+
+
+class ProductPlatformField(db.Model):
+    __tablename__ = "product_platform_fields"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "cod_art",
+            "platform",
+            "field_name",
+            "language",
+            name="uq_product_platform_fields_value",
+        ),
+        db.Index("ix_product_platform_fields_cod_art_platform", "cod_art", "platform"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    cod_art = db.Column(db.String(255), db.ForeignKey("articoli.cod_art", ondelete="CASCADE"), nullable=False, index=True)
+    id_art = db.Column(db.BigInteger, db.ForeignKey("articoli.id_art"), nullable=True, index=True)
+    platform = db.Column(db.String(40), nullable=False, index=True)
+    field_name = db.Column(db.String(80), nullable=False)
+    language = db.Column(db.String(10), nullable=False, default="")
+    value_text = db.Column(db.Text, nullable=True)
+    value_json = db.Column(JSONB, nullable=True)
+    source_external_id = db.Column(db.String(255), nullable=True)
+    last_sync_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    articolo = db.relationship("Articoli", foreign_keys=[cod_art], backref="platform_fields")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "cod_art": self.cod_art,
+            "platform": self.platform,
+            "field_name": self.field_name,
+            "language": self.language,
+            "value_text": self.value_text,
+            "source_external_id": self.source_external_id,
+            "last_sync_at": self.last_sync_at.isoformat() if self.last_sync_at else None,
+        }
+
+
 class Giacenza(db.Model):
     id_art = db.Column(db.BigInteger, db.ForeignKey('articoli.id_art'), index=True, nullable=True)
     cod_art = db.Column(db.String(255), primary_key=True)

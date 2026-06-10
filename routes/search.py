@@ -2,7 +2,18 @@ from flask import Blueprint, render_template, jsonify, request, abort, url_for
 from flask_login import login_required
 
 from extensions import db
-from models import Barcode, Articoli, Giacenza, Immagini, SchedeProdotti, Inventario, InventarioRiga, InventarioExport
+from models import (
+    Barcode,
+    Articoli,
+    Giacenza,
+    Immagini,
+    ProductAsset,
+    ProductPlatformLink,
+    SchedeProdotti,
+    Inventario,
+    InventarioRiga,
+    InventarioExport,
+)
 from routes.tools import clean_text
 from tools.log_utils import log_task, get_logger
 from sqlalchemy import or_
@@ -16,16 +27,62 @@ search_bp = Blueprint('search', __name__, template_folder='../templates')
 @log_task(logger)
 def get_product_by_code(cod_art):
     prod = Articoli.query.filter_by(cod_art=cod_art).first()
-    immagini = [img.file_img for img in Immagini.query.filter_by(cod_art=cod_art).all()]
+    asset_rows = (
+        ProductAsset.query
+        .filter_by(cod_art=cod_art, asset_type="image")
+        .order_by(ProductAsset.is_primary.desc(), ProductAsset.sort_order.asc(), ProductAsset.id.asc())
+        .all()
+    )
+    immagini = [
+        {
+            "url": url_for("static", filename=asset.local_path) if asset.local_path else asset.remote_url,
+            "file_img": asset.original_filename,
+            "source_platform": asset.source_platform,
+            "source_external_id": asset.source_external_id,
+        }
+        for asset in asset_rows
+        if asset.local_path or asset.remote_url
+    ]
+    if not immagini:
+        immagini = [
+            {
+                "url": url_for("static", filename=f"images/products/{img.file_img}"),
+                "file_img": img.file_img,
+                "source_platform": "legacy",
+                "source_external_id": None,
+            }
+            for img in Immagini.query.filter_by(cod_art=cod_art).all()
+        ]
     giacenze = Giacenza.query.filter_by(cod_art=cod_art).first()
 
     if prod:
         scheda = SchedeProdotti.query.filter_by(cod_art=cod_art).first()
         scheda_art = clean_text(scheda.descrizione) if scheda else "---"
         barcode_rows = Barcode.query.filter_by(cod_art=cod_art).order_by(Barcode.cod_bar.asc()).all()
+        platform_links = {
+            row.platform: row
+            for row in ProductPlatformLink.query.filter_by(cod_art=cod_art).all()
+        }
+        platform_labels = {
+            "prestashop": "Prestashop",
+            "poleepo": "Poleepo",
+            "amazon": "Amazon",
+            "ebay": "Ebay",
+        }
+        platforms = [
+            {
+                "key": key,
+                "label": label,
+                "active": key in platform_links and platform_links[key].status not in ("absent", "error"),
+                "status": platform_links[key].status if key in platform_links else "absent",
+                "external_id": platform_links[key].external_id if key in platform_links else None,
+            }
+            for key, label in platform_labels.items()
+        ]
         return {
             "cod_art": cod_art,
             "barcodes": [row.cod_bar for row in barcode_rows],
+            "platforms": platforms,
             "descrizione": prod.descrizione,
             "descrizione_aggiuntiva": prod.descrizione_aggiuntiva,
             "prezzo": prod.prezzo,
