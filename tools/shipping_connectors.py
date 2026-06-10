@@ -222,6 +222,31 @@ class PoleepoConnector:
             offset += page_size
         return orders
 
+    @property
+    def products_path(self):
+        configured = self.integration.settings.get("products_path") if self.integration and self.integration.settings else None
+        return configured or current_app.config.get("POLEEPO_PRODUCTS_PATH") or "/products"
+
+    def import_products(self, *, page_size: int = 100, max_pages: int = 50) -> list[dict]:
+        token = self.access_token()
+        products = []
+        offset = 0
+        page_size = min(max(int(page_size or 100), 1), 100)
+        max_pages = min(max(int(max_pages or 50), 1), 200)
+        for _page in range(max_pages):
+            params = {"offset": offset, "max": page_size}
+            payload = self._request("GET", self.products_path, token=token, params=params)
+            page_products = payload.get("data") or []
+            if isinstance(page_products, dict):
+                page_products = page_products.get("items") or page_products.get("products") or page_products.get("data") or []
+            if not page_products:
+                break
+            products.extend(page_products)
+            if len(page_products) < page_size:
+                break
+            offset += page_size
+        return products
+
     def shipping_detail(self, shipping_id) -> dict:
         token = self.access_token()
         payload = self._request("GET", f"/shippings/{shipping_id}", token=token)

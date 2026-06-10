@@ -10,6 +10,7 @@
     { test: path => path === "/settings/import_conflicts", label: "Conflitti import" },
     { test: path => path === "/settings/import_articoli", label: "Import articoli" },
     { test: path => path === "/settings/import_ps_data", label: "Import PS data" },
+    { test: path => path === "/settings/import_poleepo_products", label: "Import prodotti Poleepo" },
     { test: path => path === "/settings/import_giacenze", label: "Import giacenze" },
     { test: path => path === "/settings/import_barcode", label: "Import barcode" },
     { test: path => path === "/settings/import_anagrafiche", label: "Import anagrafiche" },

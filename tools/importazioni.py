@@ -1,6 +1,7 @@
 import csv
 import re
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
 
 from tools.ps_util import get_product_ids, get_product_images, get_product_payload
 from extensions import db
@@ -11,14 +12,139 @@ from models import (
     BusinessRegistryContact,
     CashCustomer,
     CashCustomerAlias,
+    CourierIntegration,
     Giacenza,
     Importazione,
+    ProductAsset,
+    ProductPlatformField,
     ProductPlatformLink,
 )
 from flask import jsonify
 from tools.log_utils import log_task, get_logger
 
 logger = get_logger('importazioni')
+
+
+def _first_value(payload, *keys):
+    for key in keys:
+        value = payload.get(key) if isinstance(payload, dict) else None
+        if value is not None and str(value).strip() != "":
+            return value
+    return None
+
+
+def _first_nested_value(payload, *paths):
+    for path in paths:
+        value = payload
+        for key in path:
+            value = value.get(key) if isinstance(value, dict) else None
+            if value is None:
+                break
+        if value is not None and str(value).strip() != "":
+            return value
+    return None
+
+
+def _normalize_poleepo_product(product):
+    external_id = _first_value(product, "id", "product_id", "external_id", "reference_id")
+    cod_art = _first_value(product, "sku", "reference", "code", "cod_art", "source_id", "barcode")
+    name = _first_value(product, "name", "title", "description", "label") or cod_art
+    description = _first_value(product, "description", "long_description", "body", "html_description")
+    short_description = _first_value(product, "short_description", "subtitle", "summary")
+    price = _first_value(product, "price", "sell_price", "sale_price", "regular_price")
+    external_url = _first_value(product, "url", "permalink", "link")
+
+    images = []
+    raw_images = _first_value(product, "images", "pictures", "media", "image")
+    if isinstance(raw_images, str):
+        images.append({"url": raw_images, "id": None, "filename": raw_images.rsplit("/", 1)[-1]})
+    elif isinstance(raw_images, dict):
+        url = _first_value(raw_images, "url", "src", "link")
+        if url:
+            images.append({
+                "url": url,
+                "id": _first_value(raw_images, "id", "image_id"),
+                "filename": _first_value(raw_images, "filename", "name") or url.rsplit("/", 1)[-1],
+            })
+    elif isinstance(raw_images, list):
+        for image in raw_images:
+            if isinstance(image, str):
+                images.append({"url": image, "id": None, "filename": image.rsplit("/", 1)[-1]})
+            elif isinstance(image, dict):
+                url = _first_value(image, "url", "src", "link")
+                if url:
+                    images.append({
+                        "url": url,
+                        "id": _first_value(image, "id", "image_id"),
+                        "filename": _first_value(image, "filename", "name") or url.rsplit("/", 1)[-1],
+                    })
+
+    return {
+        "external_id": str(external_id).strip() if external_id is not None else "",
+        "cod_art": str(cod_art).strip() if cod_art is not None else "",
+        "name": str(name).strip() if name is not None else "",
+        "description": str(description or ""),
+        "short_description": str(short_description or ""),
+        "price": price,
+        "external_url": external_url,
+        "images": images,
+        "raw_payload": product,
+    }
+
+
+def _decimal_or_zero(value):
+    if value is None or value == "":
+        return Decimal("0")
+    if isinstance(value, dict):
+        value = _first_value(value, "amount", "value", "price", "tax_included")
+    try:
+        return Decimal(str(value).replace(",", "."))
+    except (InvalidOperation, ValueError, TypeError):
+        return Decimal("0")
+
+
+def _upsert_platform_field(cod_art, platform, field_name, value_text, source_external_id=None, language="it"):
+    field = ProductPlatformField.query.filter_by(
+        cod_art=cod_art,
+        platform=platform,
+        field_name=field_name,
+        language=language or "",
+    ).first()
+    if not field:
+        field = ProductPlatformField(
+            cod_art=cod_art,
+            platform=platform,
+            field_name=field_name,
+            language=language or "",
+        )
+        db.session.add(field)
+    field.value_text = value_text or ""
+    field.source_external_id = str(source_external_id) if source_external_id is not None else None
+    field.last_sync_at = datetime.utcnow()
+
+
+def _upsert_remote_asset(cod_art, platform, image, sort_order=0):
+    remote_url = image.get("url")
+    if not remote_url:
+        return None
+    asset = ProductAsset.query.filter_by(
+        cod_art=cod_art,
+        asset_type="image",
+        source_platform=platform,
+        remote_url=remote_url,
+    ).first()
+    if not asset:
+        asset = ProductAsset(
+            cod_art=cod_art,
+            asset_type="image",
+            source_platform=platform,
+            remote_url=remote_url,
+        )
+        db.session.add(asset)
+    asset.source_external_id = str(image.get("id")) if image.get("id") is not None else None
+    asset.original_filename = image.get("filename") or asset.original_filename
+    asset.sort_order = sort_order
+    return asset
 
 
 def clean_text(text):
@@ -488,6 +614,122 @@ def import_ps(task_id=None):
         db.session.rollback()
         update_task(task_id, task_name, 0, status_string['error'], e)
         registra_importazione("prestashop", esito=False, messaggio=str(e))
+        return {"success": False, "error": str(e), "summary": counters}
+
+
+@log_task(logger)
+def import_poleepo_products(task_id=None, options=None):
+    from tools.redis_utils import update_task, status_string
+    from tools.shipping_connectors import PoleepoConnector, ShippingConnectorError, ShippingConnectorNotConfigured
+
+    options = options or {}
+    task_name = "Importazione prodotti da Poleepo"
+    update_task(task_id, task_name, 0, status_string["start"])
+
+    counters = {
+        "created": 0,
+        "existing": 0,
+        "links": 0,
+        "fields": 0,
+        "assets": 0,
+        "skipped": 0,
+        "errors": 0,
+        "total_rows": 0,
+    }
+
+    try:
+        integration = CourierIntegration.query.filter_by(code="poleepo").first()
+        if not integration:
+            integration = CourierIntegration(code="poleepo", name="Poleepo", is_enabled=True)
+            db.session.add(integration)
+            db.session.flush()
+
+        connector = PoleepoConnector(integration=integration)
+        remote_products = connector.import_products(
+            page_size=options.get("page_size", 100),
+            max_pages=options.get("max_pages", 50),
+        )
+        counters["total_rows"] = len(remote_products)
+
+        if not remote_products:
+            registra_importazione("poleepo_prodotti", esito=True, messaggio="Nessun prodotto Poleepo da importare")
+            update_task(task_id, task_name, 100, status_string["end"])
+            return {"success": True, "message": "Nessun prodotto Poleepo da importare", "summary": counters}
+
+        for index, raw_product in enumerate(remote_products, start=1):
+            try:
+                prodotto = _normalize_poleepo_product(raw_product)
+                cod_art = prodotto["cod_art"]
+                external_id = prodotto["external_id"]
+                if not cod_art:
+                    counters["skipped"] += 1
+                    continue
+
+                articolo = Articoli.query.filter_by(cod_art=cod_art).first()
+                if not articolo:
+                    articolo = Articoli(
+                        cod_art=cod_art,
+                        descrizione=prodotto["name"] or cod_art,
+                        prezzo=_decimal_or_zero(prodotto["price"]),
+                    )
+                    db.session.add(articolo)
+                    db.session.flush()
+                    counters["created"] += 1
+                else:
+                    counters["existing"] += 1
+
+                link = ProductPlatformLink.query.filter_by(cod_art=cod_art, platform="poleepo").first()
+                if not link:
+                    link = ProductPlatformLink(cod_art=cod_art, platform="poleepo")
+                    db.session.add(link)
+                    counters["links"] += 1
+                link.id_art = articolo.id_art
+                link.external_id = external_id or None
+                link.external_url = prodotto["external_url"]
+                link.status = "present"
+                link.last_sync_at = datetime.utcnow()
+                link.last_error = None
+                link.raw_payload = prodotto["raw_payload"]
+
+                if prodotto["description"]:
+                    _upsert_platform_field(cod_art, "poleepo", "description", prodotto["description"], external_id)
+                    counters["fields"] += 1
+                if prodotto["short_description"]:
+                    _upsert_platform_field(cod_art, "poleepo", "description_short", prodotto["short_description"], external_id)
+                    counters["fields"] += 1
+
+                for image_index, image in enumerate(prodotto["images"]):
+                    if _upsert_remote_asset(cod_art, "poleepo", image, image_index):
+                        counters["assets"] += 1
+
+            except Exception as item_exc:
+                counters["errors"] += 1
+                logger.exception("Errore import prodotto Poleepo: %s", item_exc)
+
+            if task_id and (index == 1 or index % 10 == 0 or index == len(remote_products)):
+                progress = int((index / max(len(remote_products), 1)) * 100)
+                update_task(task_id, task_name, progress, status_string["update"])
+
+            if index % 50 == 0:
+                db.session.commit()
+
+        integration.last_sync_at = datetime.utcnow()
+        integration.is_enabled = True
+        db.session.commit()
+        registra_importazione("poleepo_prodotti", esito=True, messaggio=str(counters))
+        update_task(task_id, task_name, 100, status_string["end"])
+        return {"success": True, "message": "Prodotti Poleepo importati", "summary": counters}
+
+    except (ShippingConnectorNotConfigured, ShippingConnectorError) as e:
+        db.session.rollback()
+        update_task(task_id, task_name, 0, status_string["error"], e)
+        registra_importazione("poleepo_prodotti", esito=False, messaggio=str(e))
+        return {"success": False, "error": str(e), "summary": counters}
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("Errore durante l'importazione prodotti Poleepo")
+        update_task(task_id, task_name, 0, status_string["error"], e)
+        registra_importazione("poleepo_prodotti", esito=False, messaggio=str(e))
         return {"success": False, "error": str(e), "summary": counters}
 
 

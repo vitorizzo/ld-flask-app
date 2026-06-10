@@ -1,6 +1,13 @@
 # config/tasks.py
 from config.celery_app import celery
-from tools.importazioni import import_anagrafiche, import_articoli, import_giacenze, import_ps, run_import_barcode
+from tools.importazioni import (
+    import_anagrafiche,
+    import_articoli,
+    import_giacenze,
+    import_poleepo_products,
+    import_ps,
+    run_import_barcode,
+)
 from tools.log_utils import log_task, get_logger
 
 logger = get_logger('tasks')
@@ -16,6 +23,12 @@ def import_articoli_task(self):
 @log_task(logger)
 def import_ps_task(self):
     return import_ps(task_id=self.request.id)
+
+
+@celery.task(bind=True)
+@log_task(logger)
+def import_poleepo_products_task(self, options=None):
+    return import_poleepo_products(task_id=self.request.id, options=options or {})
 
 
 @celery.task(bind=True)

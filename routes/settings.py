@@ -6,7 +6,14 @@ from sqlalchemy import asc
 from extensions import db
 from models import Menu, Role, ImportConflict, Articoli
 from tools.role_required import role_required
-from config.tasks import import_anagrafiche_task, import_articoli_task, import_barcode_task, import_giacenze_task, import_ps_task
+from config.tasks import (
+    import_anagrafiche_task,
+    import_articoli_task,
+    import_barcode_task,
+    import_giacenze_task,
+    import_poleepo_products_task,
+    import_ps_task,
+)
 from tools.ps_util import get_product_by_code
 from tools.log_utils import log_task, get_logger
 import hashlib
@@ -116,6 +123,18 @@ def lancia_import_prestashop():
     task = import_ps_task.delay()
     from tools.redis_utils import update_task, status_string
     update_task(task.id, "Importazione dati da Prestashop", 0, status_string['attached'])
+    return '', 204
+
+
+@settings_bp.route('/import_poleepo_products', methods=['GET', 'POST'])
+@login_required
+@role_required(500)
+@log_task(logger)
+def lancia_import_prodotti_poleepo():
+    logger.info("Importazione prodotti Poleepo richiesta.")
+    task = import_poleepo_products_task.delay({})
+    from tools.redis_utils import update_task, status_string
+    update_task(task.id, "Importazione prodotti da Poleepo", 0, status_string['attached'])
     return '', 204
 
 

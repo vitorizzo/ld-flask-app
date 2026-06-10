@@ -13,6 +13,7 @@ def inizializza_db_moduli():
         {"nome": "giacenze", "descrizione": "Archivio giacenze"},
         {"nome": "barcode", "descrizione": "Codici a barre"},
         {"nome": "prestashop", "descrizione": "Dati da Prestashop"},
+        {"nome": "poleepo_prodotti", "descrizione": "Prodotti da Poleepo"},
         {"nome": "anagrafiche", "descrizione": "Anagrafiche clienti e fornitori"}
     ]
 
