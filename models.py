@@ -329,8 +329,8 @@ class Immagini(db.Model):
 
 
 class SchedeProdotti(db.Model):
-    descrizione = db.Column(db.String(5000), nullable=True)
-    short = db.Column(db.String(5000), nullable=True)
+    descrizione = db.Column(db.Text, nullable=True)
+    short = db.Column(db.Text, nullable=True)
     cod_art = db.Column(db.String(255), primary_key=True)
     id_art = db.Column(
         db.BigInteger,

@@ -24,13 +24,6 @@ IMAGES_FOLDER = basedir / 'static' / 'images' / 'products'
 IMAGES_FOLDER.mkdir(parents=True, exist_ok=True)
 
 
-def _truncate_product_text(value, max_length=5000):
-    if not value:
-        return ""
-    value = str(value)
-    return value[:max_length]
-
-
 def get_product_by_code(cod_art):
     logger.info(f"get_product_by_code(): Cerco il prodotto con codice {cod_art}")
     try:
@@ -137,8 +130,6 @@ def get_product_descriptions(product_id):
 
     description = next((item.get('#text', '') for item in lang_desc if item.get('@id') == '1'), lang_desc[0].get('#text', '')) if isinstance(lang_desc, list) else lang_desc.get('#text', '')
     description_short = next((item.get('#text', '') for item in lang_short_desc if item.get('@id') == '1'), lang_short_desc[0].get('#text', '')) if isinstance(lang_short_desc, list) else lang_short_desc.get('#text', '')
-    description = _truncate_product_text(description)
-    description_short = _truncate_product_text(description_short)
 
     if not SchedeProdotti.query.filter_by(cod_art=cod_art).first():
         db.session.add(SchedeProdotti(descrizione=description, short=description_short, cod_art=cod_art))
