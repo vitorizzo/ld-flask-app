@@ -400,10 +400,27 @@ def import_ps(task_id=None):
     update_task(task_id, task_name, 0, status_string['start'])
     logger.info(">>> Entrata nella funzione: import_ps()")
     logger.info("Importazione Prestashop avviata...")
+    counters = {
+        "created": 0,
+        "existing": 0,
+        "images": 0,
+        "total_rows": 0,
+    }
 
     try:
-        products = get_all_products()
+        products = list(get_all_products())
         total_rows = len(products)
+        counters["total_rows"] = total_rows
+
+        if total_rows == 0:
+            update_task(task_id, task_name, 100, status_string['end'])
+            registra_importazione("prestashop", esito=True)
+            return {
+                "success": True,
+                "message": "Nessun prodotto Prestashop da importare",
+                "progress": 100,
+                "summary": counters,
+            }
 
         for index, prodotto in enumerate(products):
             cod_art = prodotto['cod_art']
@@ -417,13 +434,15 @@ def import_ps(task_id=None):
                     prezzo=float(prodotto['price'])
                 )
                 db.session.add(nuovo_articolo)
-                db.session.commit()
+                counters["created"] += 1
                 logger.info(f"Articolo {cod_art} inserito.")
             else:
+                counters["existing"] += 1
                 logger.info(f"Articolo {cod_art} già presente, salto inserimento.")
 
             p_images = get_product_images(pid, cod_art)
             prodotto['images'] = p_images
+            counters["images"] += len(p_images)
 
             if index % 50 == 0:
                 progresso = int((index / total_rows) * 100)
@@ -431,14 +450,22 @@ def import_ps(task_id=None):
 
             logger.info(f"Prodotto {cod_art} importato: {prodotto['name']} con {len(p_images)} immagini.")
 
+        db.session.commit()
         update_task(task_id, task_name, 100, status_string['end'])
         registra_importazione("prestashop", esito=True)
+        return {
+            "success": True,
+            "message": "Dati Prestashop importati con successo",
+            "progress": 100,
+            "summary": counters,
+        }
 
     except Exception as e:
         logger.exception("Errore durante l'importazione Prestashop")
+        db.session.rollback()
         update_task(task_id, task_name, 0, status_string['error'], e)
         registra_importazione("prestashop", esito=False, messaggio=str(e))
-        raise
+        return {"success": False, "error": str(e), "summary": counters}
 
 
 @log_task(logger)

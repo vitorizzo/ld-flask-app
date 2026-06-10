@@ -13,7 +13,9 @@ from tools.log_utils import get_logger
 logger = get_logger('ps_util')
 
 basedir = Path(__file__).resolve().parent.parent
-load_dotenv(basedir / '.env')
+load_dotenv(basedir / '.env', override=False)
+load_dotenv(basedir / '.env.local', override=True)
+load_dotenv(basedir / '.env.defaults', override=False)
 
 PS_URL = os.getenv("PRESTASHOP_URL")
 PS_KEY = os.getenv("PRESTASHOP_KEY")
