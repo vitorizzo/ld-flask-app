@@ -60,6 +60,25 @@
     white-space: pre-wrap;
     overflow-wrap: anywhere;
   }
+  .product-image-modal.modal,
+  .product-image-modal.modal.show {
+    z-index: 5000 !important;
+  }
+  .product-image-modal .modal-dialog {
+    z-index: 5001 !important;
+  }
+  body.product-image-modal-open .modal-backdrop.show {
+    z-index: 4990 !important;
+  }
+  .product-image-modal .modal-body {
+    background: #111827;
+  }
+  .product-image-modal .carousel-item img {
+    width: 100%;
+    height: calc(100vh - 78px);
+    object-fit: contain;
+    background: #111827;
+  }
 </style>
 {% endblock %}
 
@@ -154,7 +173,7 @@
   </div>
 </section>
 
-<div class="modal fade" id="fullscreen-carousel-modal" tabindex="-1" aria-hidden="true">
+<div class="modal fade product-image-modal" id="fullscreen-carousel-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-fullscreen">
     <div class="modal-content">
       <div class="modal-header">
