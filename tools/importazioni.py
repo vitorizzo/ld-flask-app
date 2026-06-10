@@ -2,7 +2,7 @@ import csv
 import re
 from datetime import datetime
 
-from tools.ps_util import get_all_products, get_product_images
+from tools.ps_util import get_product_ids, get_product_images, get_product_payload
 from extensions import db
 from models import (
     Articoli,
@@ -404,12 +404,13 @@ def import_ps(task_id=None):
         "created": 0,
         "existing": 0,
         "images": 0,
+        "skipped": 0,
         "total_rows": 0,
     }
 
     try:
-        products = list(get_all_products())
-        total_rows = len(products)
+        product_ids = get_product_ids()
+        total_rows = len(product_ids)
         counters["total_rows"] = total_rows
 
         if total_rows == 0:
@@ -422,7 +423,15 @@ def import_ps(task_id=None):
                 "summary": counters,
             }
 
-        for index, prodotto in enumerate(products):
+        for index, product_id in enumerate(product_ids):
+            prodotto = get_product_payload(product_id)
+            if not prodotto:
+                counters["skipped"] += 1
+                if index % 10 == 0:
+                    progresso = int(((index + 1) / total_rows) * 100)
+                    update_task(task_id, task_name, progresso, status_string['update'])
+                continue
+
             cod_art = prodotto['cod_art']
             pid = prodotto['id']
 
@@ -444,8 +453,8 @@ def import_ps(task_id=None):
             prodotto['images'] = p_images
             counters["images"] += len(p_images)
 
-            if index % 50 == 0:
-                progresso = int((index / total_rows) * 100)
+            if index % 10 == 0:
+                progresso = int(((index + 1) / total_rows) * 100)
                 update_task(task_id, task_name, progresso, status_string['update'])
 
             logger.info(f"Prodotto {cod_art} importato: {prodotto['name']} con {len(p_images)} immagini.")

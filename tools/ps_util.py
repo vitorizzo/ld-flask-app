@@ -23,6 +23,14 @@ PS_KEY = os.getenv("PRESTASHOP_KEY")
 IMAGES_FOLDER = basedir / 'static' / 'images' / 'products'
 IMAGES_FOLDER.mkdir(parents=True, exist_ok=True)
 
+
+def _truncate_product_text(value, max_length=5000):
+    if not value:
+        return ""
+    value = str(value)
+    return value[:max_length]
+
+
 def get_product_by_code(cod_art):
     logger.info(f"get_product_by_code(): Cerco il prodotto con codice {cod_art}")
     try:
@@ -64,41 +72,50 @@ def get_product_details(product_id):
     return None
 
 
-def get_all_products():
-    logger.info("get_all_products(): Inizio recupero lista prodotti da Prestashop")
-    db.create_all()
+def get_product_ids():
+    logger.info("get_product_ids(): Recupero lista ID prodotti da Prestashop")
     response = requests.get(f"{PS_URL}/products", params={'ws_key': PS_KEY})
     response.raise_for_status()
     products_data = xmltodict.parse(response.content)
     products = products_data['prestashop']['products']['product']
     if not isinstance(products, list):
         products = [products]
+    return [product['@id'] for product in products]
 
-    for product in products:
-        pid = product['@id']
-        prod_response = requests.get(f"{PS_URL}/products/{pid}", params={'ws_key': PS_KEY})
-        prod_response.raise_for_status()
-        prod_info = xmltodict.parse(prod_response.content)
-        prod_data = prod_info['prestashop']['product']
 
-        lang_name = prod_data['name']['language']
-        name = next((item.get('#text', '') for item in lang_name if item.get('@id') == '1'), lang_name[0].get('#text', '')) if isinstance(lang_name, list) else lang_name.get('#text', '')
+def get_product_payload(product_id):
+    prod_response = requests.get(f"{PS_URL}/products/{product_id}", params={'ws_key': PS_KEY})
+    prod_response.raise_for_status()
+    prod_info = xmltodict.parse(prod_response.content)
+    prod_data = prod_info['prestashop']['product']
 
-        cod_art = prod_data.get('reference')
-        if not cod_art or not cod_art.strip():
-            logger.warning(f"Prodotto {pid} senza reference, salto.")
-            continue
-        cod_art = cod_art.strip()
+    lang_name = prod_data['name']['language']
+    name = next((item.get('#text', '') for item in lang_name if item.get('@id') == '1'), lang_name[0].get('#text', '')) if isinstance(lang_name, list) else lang_name.get('#text', '')
 
-        description = get_product_descriptions(pid)
+    cod_art = prod_data.get('reference')
+    if not cod_art or not cod_art.strip():
+        logger.warning(f"Prodotto {product_id} senza reference, salto.")
+        return None
+    cod_art = cod_art.strip()
 
-        yield {
-            'id': pid,
-            'name': name,
-            'price': prod_data['price'],
-            'cod_art': cod_art,
-            'description': description
-        }
+    description = get_product_descriptions(product_id)
+
+    return {
+        'id': product_id,
+        'name': name,
+        'price': prod_data['price'],
+        'cod_art': cod_art,
+        'description': description
+    }
+
+
+def get_all_products():
+    logger.info("get_all_products(): Inizio recupero lista prodotti da Prestashop")
+    db.create_all()
+    for product_id in get_product_ids():
+        product = get_product_payload(product_id)
+        if product:
+            yield product
 
 def get_product_descriptions(product_id):
     logger.info(f"get_product_descriptions(): Recupero descrizione per prodotto {product_id}")
@@ -120,6 +137,8 @@ def get_product_descriptions(product_id):
 
     description = next((item.get('#text', '') for item in lang_desc if item.get('@id') == '1'), lang_desc[0].get('#text', '')) if isinstance(lang_desc, list) else lang_desc.get('#text', '')
     description_short = next((item.get('#text', '') for item in lang_short_desc if item.get('@id') == '1'), lang_short_desc[0].get('#text', '')) if isinstance(lang_short_desc, list) else lang_short_desc.get('#text', '')
+    description = _truncate_product_text(description)
+    description_short = _truncate_product_text(description_short)
 
     if not SchedeProdotti.query.filter_by(cod_art=cod_art).first():
         db.session.add(SchedeProdotti(descrizione=description, short=description_short, cod_art=cod_art))
