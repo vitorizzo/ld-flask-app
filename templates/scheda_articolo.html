@@ -2,72 +2,158 @@
 
 {% block title %}LD Enoteca - Scheda Articolo{% endblock %}
 
-{% block content %}
-<section class="welcome-section">
-  <div class="container mt-4">
-    <h2 class="text-center">{{ product.descrizione }}</h2>
-    <h3 class="text-center">{{ product.descrizione_aggiuntiva }}</h3>
+{% block extra_css %}
+<style>
+  .product-sheet-page {
+    overflow: hidden;
+  }
+  .product-sheet-page > .container-fluid {
+    min-height: 0;
+    overflow: auto;
+  }
+  .product-sheet-title {
+    flex: 0 0 auto;
+  }
+  .product-sheet-card {
+    background: rgba(255, 255, 255, 0.96);
+    color: #212529;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 8px;
+    padding: 16px;
+  }
+  .product-sheet-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 10px;
+  }
+  .product-sheet-meta__item {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .product-sheet-meta__label {
+    display: block;
+    color: #6c757d;
+    font-size: .78rem;
+    text-transform: uppercase;
+  }
+  .product-sheet-meta__value {
+    font-weight: 700;
+    overflow-wrap: anywhere;
+  }
+  .product-sheet-barcodes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  .product-sheet-barcodes .badge {
+    font-size: .86rem;
+  }
+  .product-img {
+    max-height: 56vh;
+    object-fit: contain;
+    background: #f8f9fa;
+    cursor: zoom-in;
+  }
+  .product-sheet-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+</style>
+{% endblock %}
 
-    <!-- Carosello e informazioni affiancate -->
-    <div class="row my-4">
-      <!-- Carosello sulla sinistra -->
-      <div class="col-md-6">
-        <div id="productCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-touch="true">
-          <!-- Indicatori -->
-          <div class="carousel-indicators">
-            {% for immagine in product.immagini %}
-              <button type="button"
-                      data-bs-target="#productCarousel"
-                      data-bs-slide-to="{{ loop.index0 }}"
-                      {% if loop.first %}class="active" aria-current="true"{% endif %}
-                      aria-label="Slide {{ loop.index }}"></button>
-            {% endfor %}
-          </div>
-          <!-- Immagini -->
-          <div class="carousel-inner">
-            {% for immagine in product.immagini %}
-              <div class="carousel-item {% if loop.first %}active{% endif %}">
-                <img src="{{ url_for('static', filename='images/products/' ~ immagine) }}"
-                     class="d-block w-100 product-img" alt="Immagine {{ loop.index }}">
+{% block content %}
+<section class="welcome-section page-shell product-sheet-page">
+  <div class="container-fluid h-100 d-flex flex-column">
+    <div class="product-sheet-title mb-3">
+      <h1 class="h3 mb-1">{{ product.descrizione }}</h1>
+      {% if product.descrizione_aggiuntiva %}
+        <div class="h5 text-white-50 mb-0">{{ product.descrizione_aggiuntiva }}</div>
+      {% endif %}
+    </div>
+
+    <div class="row g-3 flex-grow-1 min-h-0">
+      <div class="col-12 col-lg-7">
+        <div class="product-sheet-card h-100">
+          {% if product.immagini %}
+            <div id="productCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-touch="true">
+              <div class="carousel-indicators">
+                {% for immagine in product.immagini %}
+                  <button type="button"
+                          data-bs-target="#productCarousel"
+                          data-bs-slide-to="{{ loop.index0 }}"
+                          {% if loop.first %}class="active" aria-current="true"{% endif %}
+                          aria-label="Slide {{ loop.index }}"></button>
+                {% endfor %}
               </div>
-            {% endfor %}
-          </div>
-          <!-- Controlli frecce -->
-          <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
-            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-            <span class="visually-hidden">Precedente</span>
-          </button>
-          <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
-            <span class="carousel-control-next-icon" aria-hidden="true"></span>
-            <span class="visually-hidden">Successiva</span>
-          </button>
+              <div class="carousel-inner">
+                {% for immagine in product.immagini %}
+                  <div class="carousel-item {% if loop.first %}active{% endif %}">
+                    <img src="{{ url_for('static', filename='images/products/' ~ immagine) }}"
+                         class="d-block w-100 product-img" alt="Immagine {{ loop.index }}">
+                  </div>
+                {% endfor %}
+              </div>
+              <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Precedente</span>
+              </button>
+              <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Successiva</span>
+              </button>
+            </div>
+          {% else %}
+            <div class="text-muted text-center py-5">Nessuna immagine disponibile.</div>
+          {% endif %}
         </div>
       </div>
 
-      <!-- Informazioni prodotto sulla destra -->
-      <div class="col-md-6">
-        <ul class="list-group">
-          <li class="list-group-item"><strong>Codice:</strong> {{ product.codice }}</li>
-          <li class="list-group-item"><strong>Prezzo:</strong> {{ product.prezzo }} €</li>
-          <li class="list-group-item">
-            <strong>Giacenza:</strong>
-            {{ product.inStore }} in negozio, {{ product.www }} online
-          </li>
-        </ul>
-      </div>
-    </div>
+      <div class="col-12 col-lg-5">
+        <div class="product-sheet-card h-100 d-flex flex-column gap-3">
+          <div class="product-sheet-meta">
+            <div class="product-sheet-meta__item">
+              <span class="product-sheet-meta__label">Codice articolo</span>
+              <span class="product-sheet-meta__value">{{ product.cod_art }}</span>
+            </div>
+            <div class="product-sheet-meta__item">
+              <span class="product-sheet-meta__label">Prezzo</span>
+              <span class="product-sheet-meta__value">{{ product.prezzo }} EUR</span>
+            </div>
+            <div class="product-sheet-meta__item">
+              <span class="product-sheet-meta__label">Negozio</span>
+              <span class="product-sheet-meta__value">{{ product.inStore }}</span>
+            </div>
+            <div class="product-sheet-meta__item">
+              <span class="product-sheet-meta__label">Online</span>
+              <span class="product-sheet-meta__value">{{ product.www }}</span>
+            </div>
+          </div>
 
-    <!-- Scheda Tecnica centrata in fondo -->
-    <div class="row my-4">
-      <div class="col-12 text-center">
-        <h4>Scheda Tecnica</h4>
-        <p>{{ product.scheda_tecnica or "Nessuna scheda tecnica disponibile." }}</p>
+          <div>
+            <h2 class="h6">Codici a barre</h2>
+            {% if product.barcodes %}
+              <div class="product-sheet-barcodes">
+                {% for barcode in product.barcodes %}
+                  <span class="badge text-bg-secondary">{{ barcode }}</span>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="text-muted">Nessun codice a barre associato.</div>
+            {% endif %}
+          </div>
+
+          <div class="flex-grow-1 min-h-0">
+            <h2 class="h6">Scheda tecnica</h2>
+            <div class="product-sheet-text">{{ product.scheda_tecnica or "Nessuna scheda tecnica disponibile." }}</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Modal Full-Screen per il Carosello -->
 <div class="modal fade" id="fullscreen-carousel-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-fullscreen">
     <div class="modal-content">
@@ -77,21 +163,18 @@
       </div>
       <div class="modal-body">
         <div id="fullscreen-carousel" class="carousel slide" data-bs-ride="carousel">
-          <div class="carousel-inner" id="fullscreen-carousel-images">
-            <!-- Le immagini vengono aggiunte dinamicamente -->
-          </div>
+          <div class="carousel-inner" id="fullscreen-carousel-images"></div>
           <button class="carousel-control-prev" type="button" data-bs-target="#fullscreen-carousel" data-bs-slide="prev">
             <span class="carousel-control-prev-icon" aria-hidden="true"></span>
-            <span class="visually-hidden">Previous</span>
+            <span class="visually-hidden">Precedente</span>
           </button>
           <button class="carousel-control-next" type="button" data-bs-target="#fullscreen-carousel" data-bs-slide="next">
             <span class="carousel-control-next-icon" aria-hidden="true"></span>
-            <span class="visually-hidden">Next</span>
+            <span class="visually-hidden">Successiva</span>
           </button>
         </div>
       </div>
     </div>
   </div>
 </div>
-
 {% endblock %}

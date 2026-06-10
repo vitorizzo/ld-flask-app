@@ -22,8 +22,10 @@ def get_product_by_code(cod_art):
     if prod:
         scheda = SchedeProdotti.query.filter_by(cod_art=cod_art).first()
         scheda_art = clean_text(scheda.descrizione) if scheda else "---"
+        barcode_rows = Barcode.query.filter_by(cod_art=cod_art).order_by(Barcode.cod_bar.asc()).all()
         return {
             "cod_art": cod_art,
+            "barcodes": [row.cod_bar for row in barcode_rows],
             "descrizione": prod.descrizione,
             "descrizione_aggiuntiva": prod.descrizione_aggiuntiva,
             "prezzo": prod.prezzo,
