@@ -71,6 +71,8 @@ def get_all_products():
     response.raise_for_status()
     products_data = xmltodict.parse(response.content)
     products = products_data['prestashop']['products']['product']
+    if not isinstance(products, list):
+        products = [products]
 
     for product in products:
         pid = product['@id']
@@ -82,11 +84,13 @@ def get_all_products():
         lang_name = prod_data['name']['language']
         name = next((item.get('#text', '') for item in lang_name if item.get('@id') == '1'), lang_name[0].get('#text', '')) if isinstance(lang_name, list) else lang_name.get('#text', '')
 
-        description = get_product_descriptions(pid)
         cod_art = prod_data.get('reference')
         if not cod_art or not cod_art.strip():
             logger.warning(f"Prodotto {pid} senza reference, salto.")
             continue
+        cod_art = cod_art.strip()
+
+        description = get_product_descriptions(pid)
 
         yield {
             'id': pid,
@@ -103,18 +107,22 @@ def get_product_descriptions(product_id):
     prod_info = xmltodict.parse(response.content)
     prod_data = prod_info['prestashop']['product']
     cod_art = prod_data.get('reference')
+    if not cod_art or not cod_art.strip():
+        logger.warning(f"Prodotto {product_id} senza reference, salto salvataggio scheda.")
+        return ["", ""]
+    cod_art = cod_art.strip()
+
     lang_desc = prod_data.get('description', {}).get('language', '')
     lang_short_desc = prod_data.get('description_short', {}).get('language', '')
 
     if not lang_desc and cod_art:
-        return ""
+        return ["", ""]
 
     description = next((item.get('#text', '') for item in lang_desc if item.get('@id') == '1'), lang_desc[0].get('#text', '')) if isinstance(lang_desc, list) else lang_desc.get('#text', '')
     description_short = next((item.get('#text', '') for item in lang_short_desc if item.get('@id') == '1'), lang_short_desc[0].get('#text', '')) if isinstance(lang_short_desc, list) else lang_short_desc.get('#text', '')
 
     if not SchedeProdotti.query.filter_by(cod_art=cod_art).first():
         db.session.add(SchedeProdotti(descrizione=description, short=description_short, cod_art=cod_art))
-        db.session.commit()
         logger.info(f"Salvata nuova scheda prodotto per {cod_art}")
     else:
         logger.info(f"Record per {cod_art} già esistente, nessun inserimento")
