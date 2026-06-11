@@ -90,16 +90,15 @@
   .route-board-actions .btn { min-width: 2.1rem; }
   .route-board-empty { color: #6c757d; padding: .75rem; }
   .route-board-bulk { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
-  .route-board-unmatched { display: grid; gap: .5rem; min-width: 0; }
-  .route-board-unmatched__item { border: 1px solid #f0c36d; border-radius: 8px; background: #fff8e5; padding: .65rem; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; align-items: center; min-width: 0; }
-  .route-board-unmatched__body { min-width: 0; overflow: hidden; }
+  #unmatchedOrdersPanel { flex: 0 0 auto; width: 100%; max-width: 100%; overflow: hidden; }
+  .route-board-unmatched { display: grid; gap: .5rem; width: 100%; max-width: 100%; min-width: 0; overflow: hidden; }
+  .route-board-unmatched__item { border: 1px solid #f0c36d; border-radius: 8px; background: #fff8e5; padding: .65rem; display: flex; flex-direction: column; gap: .65rem; align-items: stretch; width: 100%; max-width: 100%; min-width: 0; overflow: hidden; box-sizing: border-box; }
+  .route-board-unmatched__body { width: 100%; max-width: 100%; min-width: 0; overflow: hidden; }
   .route-board-unmatched__title { font-weight: 700; color: #5c3d00; }
   .route-board-unmatched .route-board-order__note,
-  .route-board-unmatched .route-board-order__meta { overflow-wrap: anywhere; word-break: break-word; }
-  @media (max-width: 760px) {
-    .route-board-unmatched__item { grid-template-columns: 1fr; }
-    .route-board-unmatched__item .btn { justify-self: start; }
-  }
+  .route-board-unmatched .route-board-order__meta { max-width: 100%; overflow: hidden; overflow-wrap: anywhere; word-break: break-all; white-space: pre-wrap; }
+  .route-board-unmatched__actions { display: flex; justify-content: flex-start; max-width: 100%; }
+  .route-board-unmatched__actions .btn { max-width: 100%; }
   #routeBoard, .direct-board { display: none; }
   #routeBoard.active, .direct-board.active { display: flex !important; }
   .direct-board.active { flex-direction: column; gap: 12px; }
@@ -430,7 +429,9 @@
           <div class="route-board-order__note">${esc(order.raw_text)}</div>
           <div class="route-board-order__meta">#${order.id} ${esc(fmtDate(order.planned_delivery_at || order.order_date))} - chiave Slack: ${esc(order.customer_key || "")}</div>
         </div>
-        <button class="btn btn-primary btn-sm" type="button" data-action="unmatched-associate" data-order-id="${order.id}"><i class="fa-solid fa-link"></i> Associa</button>
+        <div class="route-board-unmatched__actions">
+          <button class="btn btn-primary btn-sm" type="button" data-action="unmatched-associate" data-order-id="${order.id}"><i class="fa-solid fa-link"></i> Associa</button>
+        </div>
       </div>`).join("");
   }
 

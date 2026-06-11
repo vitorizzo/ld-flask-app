@@ -1156,3 +1156,10 @@ Fix layout plancia ordini 2026-06-11:
 - aggiunti `min-width: 0`, contenitore body interno e wrapping forzato su testo/metadati degli ordini;
 - su viewport stretti il pulsante `Associa` passa sotto il testo per evitare overflow orizzontale;
 - verifica `node --check` sullo script estratto dal template ok.
+
+Secondo fix layout box ordini da associare 2026-06-11:
+- rimossa la griglia a due colonne dalle card degli ordini non associati;
+- ogni card ora e' verticale, con azione `Associa` sotto il testo;
+- aggiunti limiti espliciti `width/max-width/min-width/overflow` su panel, lista, card e body;
+- applicato `word-break: break-all` sui testi ordine/metadati per impedire overflow anche con token lunghi;
+- verifica `node --check` sullo script estratto dal template ok.
