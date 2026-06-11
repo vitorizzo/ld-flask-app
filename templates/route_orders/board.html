@@ -90,9 +90,16 @@
   .route-board-actions .btn { min-width: 2.1rem; }
   .route-board-empty { color: #6c757d; padding: .75rem; }
   .route-board-bulk { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
-  .route-board-unmatched { display: grid; gap: .5rem; }
-  .route-board-unmatched__item { border: 1px solid #f0c36d; border-radius: 8px; background: #fff8e5; padding: .65rem; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; align-items: center; }
+  .route-board-unmatched { display: grid; gap: .5rem; min-width: 0; }
+  .route-board-unmatched__item { border: 1px solid #f0c36d; border-radius: 8px; background: #fff8e5; padding: .65rem; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; align-items: center; min-width: 0; }
+  .route-board-unmatched__body { min-width: 0; overflow: hidden; }
   .route-board-unmatched__title { font-weight: 700; color: #5c3d00; }
+  .route-board-unmatched .route-board-order__note,
+  .route-board-unmatched .route-board-order__meta { overflow-wrap: anywhere; word-break: break-word; }
+  @media (max-width: 760px) {
+    .route-board-unmatched__item { grid-template-columns: 1fr; }
+    .route-board-unmatched__item .btn { justify-self: start; }
+  }
   #routeBoard, .direct-board { display: none; }
   #routeBoard.active, .direct-board.active { display: flex !important; }
   .direct-board.active { flex-direction: column; gap: 12px; }
@@ -418,7 +425,7 @@
     }
     unmatchedOrdersList.innerHTML = orders.map(order => `
       <div class="route-board-unmatched__item" data-unmatched-order-id="${order.id}">
-        <div>
+        <div class="route-board-unmatched__body">
           <div class="route-board-unmatched__title">${esc(order.customer_display || "Cliente non riconosciuto")}</div>
           <div class="route-board-order__note">${esc(order.raw_text)}</div>
           <div class="route-board-order__meta">#${order.id} ${esc(fmtDate(order.planned_delivery_at || order.order_date))} - chiave Slack: ${esc(order.customer_key || "")}</div>

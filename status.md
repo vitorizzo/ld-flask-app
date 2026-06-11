@@ -1150,3 +1150,9 @@ Follow-up plancia ordini / associazione Slack 2026-06-11:
   - `python -m py_compile routes/route_orders.py` ok;
   - `node --check` sullo script estratto da `templates/route_orders/board.html` ok;
   - render template `route_orders/board.html` ok con `associateOrderModal` e `unmatchedOrdersPanel` presenti.
+
+Fix layout plancia ordini 2026-06-11:
+- corretto box `Ordini da associare` in `templates/route_orders/board.html`;
+- aggiunti `min-width: 0`, contenitore body interno e wrapping forzato su testo/metadati degli ordini;
+- su viewport stretti il pulsante `Associa` passa sotto il testo per evitare overflow orizzontale;
+- verifica `node --check` sullo script estratto dal template ok.
