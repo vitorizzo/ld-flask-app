@@ -16,8 +16,24 @@
     box-sizing: border-box;
   }
 
+  .customer-routes-page {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .customer-routes-page .registry-tools-panel {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
   .customer-routes-page .table-responsive {
-    overflow-x: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
   }
 
   .customer-routes-page .registry-tools-table {

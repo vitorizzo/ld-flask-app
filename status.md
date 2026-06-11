@@ -1174,3 +1174,9 @@ Fix associazione clienti-giri 2026-06-11:
 - verifiche:
   - `node --check` sullo script estratto da `templates/registry/customer_routes.html` ok;
   - render template `/registry/customer-routes` ok con `routeCustomerAddModal` presente.
+
+Follow-up scroll associazione clienti-giri 2026-06-11:
+- la sezione `customer-routes-page` ora usa layout flex verticale;
+- il panel `Anagrafiche associate` occupa lo spazio disponibile con `min-height: 0`;
+- la `.table-responsive` interna ha `overflow: auto`, quindi la lista clienti del giro scorre dentro il box;
+- verifica `node --check` sullo script estratto da `templates/registry/customer_routes.html` ok.
