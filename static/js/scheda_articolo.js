@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var carouselElement = document.getElementById("productCarousel");
     var uploadForm = document.getElementById("productImageUploadForm");
     var contextMenu = document.getElementById("productImageContextMenu");
+    var closeButton = document.getElementById("productSheetCloseBtn");
     var draggedImage = null;
 
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (element) {
@@ -115,6 +116,17 @@ document.addEventListener("DOMContentLoaded", function () {
             hideContextMenu();
         }
     });
+
+    if (closeButton) {
+        closeButton.addEventListener("click", function () {
+            var fallbackUrl = closeButton.dataset.fallbackUrl || "/search/ricerca_x_descrizione";
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = fallbackUrl;
+            }
+        });
+    }
 
     if (!modalElement) {
         return;

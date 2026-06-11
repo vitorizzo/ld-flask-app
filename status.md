@@ -1088,3 +1088,10 @@ Stato operativo:
 - pubblicazione immagine verso piattaforme esterne non implementata;
 - Ebay/Amazon restano disabilitati;
 - creazione nuova immagine resta disabilitata, da discutere in seguito.
+
+Follow-up 2026-06-11:
+- aggiunto pulsante `Chiudi` nella testata della scheda prodotto;
+- il pulsante torna alla pagina precedente tramite `history.back()`;
+- se non esiste cronologia utile, ripiega su `/search/ricerca_x_descrizione`;
+- verifica `node --check static/js/scheda_articolo.js` ok;
+- render template scheda prodotto `BB01502` ok con pulsante presente.

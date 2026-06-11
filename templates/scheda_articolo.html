@@ -13,6 +13,16 @@
   }
   .product-sheet-title {
     flex: 0 0 auto;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  .product-sheet-title__text {
+    min-width: 0;
+  }
+  .product-sheet-close {
+    flex: 0 0 auto;
   }
   .product-sheet-card {
     background: rgba(255, 255, 255, 0.96);
@@ -219,6 +229,13 @@
     color: #adb5bd;
   }
   @media (max-width: 767.98px) {
+    .product-sheet-title {
+      align-items: stretch;
+      flex-direction: column;
+    }
+    .product-sheet-close {
+      align-self: flex-start;
+    }
     .product-image-tools {
       grid-template-columns: 1fr;
     }
@@ -237,10 +254,19 @@
 <section class="welcome-section page-shell product-sheet-page" data-product-code="{{ product.cod_art }}">
   <div class="container-fluid h-100 d-flex flex-column">
     <div class="product-sheet-title mb-3">
-      <h1 class="h3 mb-1">{{ product.descrizione }}</h1>
-      {% if product.descrizione_aggiuntiva %}
-        <div class="h5 text-white-50 mb-0">{{ product.descrizione_aggiuntiva }}</div>
-      {% endif %}
+      <div class="product-sheet-title__text">
+        <h1 class="h3 mb-1">{{ product.descrizione }}</h1>
+        {% if product.descrizione_aggiuntiva %}
+          <div class="h5 text-white-50 mb-0">{{ product.descrizione_aggiuntiva }}</div>
+        {% endif %}
+      </div>
+      <button class="btn btn-outline-light product-sheet-close" type="button"
+              id="productSheetCloseBtn"
+              data-fallback-url="{{ url_for('search.ricerca_x_descrizione') }}"
+              aria-label="Chiudi scheda prodotto">
+        <i class="fa-solid fa-xmark"></i>
+        Chiudi
+      </button>
     </div>
 
     <div class="row g-3 flex-grow-1 min-h-0">
