@@ -1095,3 +1095,15 @@ Follow-up 2026-06-11:
 - se non esiste cronologia utile, ripiega su `/search/ricerca_x_descrizione`;
 - verifica `node --check static/js/scheda_articolo.js` ok;
 - render template scheda prodotto `BB01502` ok con pulsante presente.
+
+Fix plancia ordini 2026-06-11:
+- individuato errore di associazione ordini tra `PIZZERIA CORRADO SAS di MOSCA S.` e `BALLISTIC SRLS`;
+- causa: `_orders_for_customers()` interpretava una `SlackOrder.customer_key` numerica prima come `BusinessRegistry.id` e solo dopo come `BusinessRegistry.source_code`;
+- caso reale:
+  - Pizzeria Corrado: `BusinessRegistry.id=1178`, `source_code=01232`;
+  - Ballistic SRLS: `BusinessRegistry.id=1232`, `source_code=01286`;
+  - la chiave ordine `01232` veniva convertita in intero `1232`, finendo sulla riga Ballistic;
+- correzione in `routes/route_orders.py`: match esatto su `source_code` prima del fallback su ID numerico;
+- verifica mapping giro `marsica`:
+  - Ballistic -> ordine `1172`;
+  - Pizzeria Corrado -> ordini `1174`, `1241`.

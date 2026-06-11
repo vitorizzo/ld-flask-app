@@ -605,7 +605,10 @@ def _orders_for_customers(route_id, registry_ids, board_date):
         .all()
     )
     for order in orders:
-        registry_id = int(order.customer_key) if str(order.customer_key).isdigit() and int(order.customer_key) in registry_ids else code_to_id.get(order.customer_key)
+        key = str(order.customer_key or "").strip()
+        registry_id = code_to_id.get(key)
+        if not registry_id and key.isdigit() and int(key) in registry_ids:
+            registry_id = int(key)
         if registry_id:
             out.setdefault(registry_id, []).append(_order_to_dict(order))
     return out
