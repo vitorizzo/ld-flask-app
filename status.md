@@ -1050,4 +1050,41 @@ Punto di ripartenza consigliato:
 
 Se la chat viene riaperta dopo aggiornamento, ripartire da:
 
-`Import anagrafiche gestionale non funzionante: controllare tools/importazioni.py, config.tasks.import_anagrafiche_task, file esportati clienti/fornitori e mapping verso modelli anagrafica.`
+`Schede prodotto: completare la gestione immagini per piattaforma partendo da ProductAsset, routes/search.py, templates/scheda_articolo.html e static/js/scheda_articolo.js.`
+
+---
+
+## Aggiornamento 2026-06-11 - Schede prodotto / immagini piattaforme
+
+Contesto ripreso:
+- ristrutturato import articoli da Prestashop;
+- dati prodotto targetizzati per fonte/piattaforma;
+- campi piattaforma gia' visualizzati nella scheda prodotto;
+- immagini prodotto con badge di provenienza;
+- badge presenza piattaforme per Prestashop, Poleepo, Ebay, Amazon;
+- import prodotti Poleepo gia' presente.
+
+Intervento eseguito localmente:
+- esteso `routes/search.py` con metadati immagine piu' completi e slot piattaforme;
+- aggiunto endpoint `POST /search/scheda_articolo/<cod_art>/images`;
+- upload immagini da PC tramite LDApp salvato in `static/images/products/ldapp/`;
+- nuovo asset registrato come `ProductAsset(source_platform='ldapp')`;
+- deduplica tramite `content_hash` per articolo;
+- immagini legacy e vecchi asset `manual` mappati nello slot `LDApp`;
+- aggiornata `templates/scheda_articolo.html` con barra thumbnail piattaforme sopra il carousel;
+- aggiunto pulsante upload manuale e pulsante creazione immagine disabilitato;
+- aggiunto menu contestuale su immagine con azioni verso Prestashop/Poleepo/Ebay/Amazon disabilitate;
+- predisposto drag/drop su slot piattaforma, con azione esterna ancora non implementata;
+- aggiornato `static/js/scheda_articolo.js` per upload async, context menu, drag/drop e selezione immagine da slot.
+
+Verifiche eseguite:
+- `python -m py_compile routes/search.py` ok;
+- `node --check static/js/scheda_articolo.js` ok;
+- render template scheda prodotto su articolo reale `BB01502` ok;
+- serializzazione `BB01502`: 1 immagine, slot `prestashop` popolato.
+
+Stato operativo:
+- upload immagini LDApp implementato;
+- pubblicazione immagine verso piattaforme esterne non implementata;
+- Ebay/Amazon restano disabilitati;
+- creazione nuova immagine resta disabilitata, da discutere in seguito.

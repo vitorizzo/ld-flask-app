@@ -1,5 +1,11 @@
-from flask import Blueprint, render_template, jsonify, request, abort, url_for
+import hashlib
+import mimetypes
+import os
+from datetime import datetime
+
+from flask import Blueprint, current_app, render_template, jsonify, request, abort, url_for
 from flask_login import login_required
+from werkzeug.utils import secure_filename
 
 from extensions import db
 from models import (
@@ -23,6 +29,62 @@ logger = get_logger('search')
 
 search_bp = Blueprint('search', __name__, template_folder='../templates')
 
+PRODUCT_IMAGE_PLATFORMS = {
+    "prestashop": {"label": "Prestashop", "enabled": False, "icon": "fa-solid fa-store"},
+    "poleepo": {"label": "Poleepo", "enabled": False, "icon": "fa-solid fa-cloud-arrow-up"},
+    "ebay": {"label": "Ebay", "enabled": False, "icon": "fa-brands fa-ebay"},
+    "amazon": {"label": "Amazon", "enabled": False, "icon": "fa-brands fa-amazon"},
+    "ldapp": {"label": "LDApp", "enabled": True, "icon": "fa-solid fa-folder-open"},
+}
+ALLOWED_PRODUCT_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+
+
+def _asset_public_url(asset):
+    return url_for("static", filename=asset.local_path) if asset.local_path else asset.remote_url
+
+
+def _serialize_product_asset(asset):
+    return {
+        "id": asset.id,
+        "url": _asset_public_url(asset),
+        "file_img": asset.original_filename,
+        "source_platform": asset.source_platform,
+        "source_external_id": asset.source_external_id,
+        "is_primary": bool(asset.is_primary),
+        "sort_order": asset.sort_order,
+    }
+
+
+def _platform_image_slots(images):
+    grouped = {}
+    for image in images:
+        platform = image.get("source_platform") or "ldapp"
+        if platform in {"legacy", "manual"}:
+            platform = "ldapp"
+        grouped.setdefault(platform, []).append(image)
+
+    return [
+        {
+            "key": key,
+            "label": config["label"],
+            "enabled": config["enabled"],
+            "icon": config["icon"],
+            "images": grouped.get(key, []),
+            "primary_image": (grouped.get(key) or [None])[0],
+        }
+        for key, config in PRODUCT_IMAGE_PLATFORMS.items()
+    ]
+
+
+def _safe_product_image_filename(cod_art, filename):
+    original = secure_filename(filename or "")
+    _, ext = os.path.splitext(original)
+    ext = ext.lower()
+    if ext not in ALLOWED_PRODUCT_IMAGE_EXTENSIONS:
+        return None
+    safe_code = secure_filename(cod_art) or "product"
+    return f"{safe_code}_{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}{ext}"
+
 
 @log_task(logger)
 def get_product_by_code(cod_art):
@@ -33,23 +95,17 @@ def get_product_by_code(cod_art):
         .order_by(ProductAsset.is_primary.desc(), ProductAsset.sort_order.asc(), ProductAsset.id.asc())
         .all()
     )
-    immagini = [
-        {
-            "url": url_for("static", filename=asset.local_path) if asset.local_path else asset.remote_url,
-            "file_img": asset.original_filename,
-            "source_platform": asset.source_platform,
-            "source_external_id": asset.source_external_id,
-        }
-        for asset in asset_rows
-        if asset.local_path or asset.remote_url
-    ]
+    immagini = [_serialize_product_asset(asset) for asset in asset_rows if asset.local_path or asset.remote_url]
     if not immagini:
         immagini = [
             {
+                "id": None,
                 "url": url_for("static", filename=f"images/products/{img.file_img}"),
                 "file_img": img.file_img,
                 "source_platform": "legacy",
                 "source_external_id": None,
+                "is_primary": False,
+                "sort_order": 0,
             }
             for img in Immagini.query.filter_by(cod_art=cod_art).all()
         ]
@@ -63,26 +119,22 @@ def get_product_by_code(cod_art):
             row.platform: row
             for row in ProductPlatformLink.query.filter_by(cod_art=cod_art).all()
         }
-        platform_labels = {
-            "prestashop": "Prestashop",
-            "poleepo": "Poleepo",
-            "amazon": "Amazon",
-            "ebay": "Ebay",
-        }
         platforms = [
             {
                 "key": key,
-                "label": label,
+                "label": config["label"],
                 "active": key in platform_links and platform_links[key].status not in ("absent", "error"),
                 "status": platform_links[key].status if key in platform_links else "absent",
                 "external_id": platform_links[key].external_id if key in platform_links else None,
             }
-            for key, label in platform_labels.items()
+            for key, config in PRODUCT_IMAGE_PLATFORMS.items()
+            if key != "ldapp"
         ]
         return {
             "cod_art": cod_art,
             "barcodes": [row.cod_bar for row in barcode_rows],
             "platforms": platforms,
+            "image_slots": _platform_image_slots(immagini),
             "descrizione": prod.descrizione,
             "descrizione_aggiuntiva": prod.descrizione_aggiuntiva,
             "prezzo": prod.prezzo,
@@ -104,6 +156,66 @@ def scheda_articolo(cod_art):
         logger.warning(f"Articolo {cod_art} non trovato - abort 404")
         abort(404)
     return render_template('scheda_articolo.html', product=product)
+
+
+@search_bp.post('/scheda_articolo/<cod_art>/images')
+@login_required
+def upload_product_image(cod_art):
+    articolo = Articoli.query.filter_by(cod_art=cod_art).first()
+    if not articolo:
+        return jsonify({"ok": False, "error": "Articolo non trovato."}), 404
+
+    uploaded = request.files.get("image")
+    if not uploaded or not uploaded.filename:
+        return jsonify({"ok": False, "error": "Nessuna immagine selezionata."}), 400
+
+    filename = _safe_product_image_filename(cod_art, uploaded.filename)
+    if not filename:
+        return jsonify({"ok": False, "error": "Formato immagine non consentito."}), 400
+
+    target_dir = os.path.join(current_app.static_folder, "images", "products", "ldapp")
+    os.makedirs(target_dir, exist_ok=True)
+    target_path = os.path.join(target_dir, filename)
+    uploaded.save(target_path)
+
+    with open(target_path, "rb") as saved_file:
+        content_hash = hashlib.sha256(saved_file.read()).hexdigest()
+
+    relative_path = f"images/products/ldapp/{filename}"
+    asset = ProductAsset.query.filter_by(
+        cod_art=cod_art,
+        asset_type="image",
+        source_platform="ldapp",
+        content_hash=content_hash,
+    ).first()
+    if not asset:
+        max_sort = (
+            db.session.query(db.func.max(ProductAsset.sort_order))
+            .filter_by(cod_art=cod_art, asset_type="image")
+            .scalar()
+            or 0
+        )
+        asset = ProductAsset(
+            cod_art=cod_art,
+            id_art=articolo.id_art,
+            asset_type="image",
+            source_platform="ldapp",
+            local_path=relative_path,
+            original_filename=uploaded.filename,
+            content_hash=content_hash,
+            mime_type=uploaded.mimetype or mimetypes.guess_type(filename)[0],
+            sort_order=max_sort + 1,
+        )
+        db.session.add(asset)
+    else:
+        if os.path.exists(target_path) and asset.local_path != relative_path:
+            os.remove(target_path)
+        asset.local_path = asset.local_path or relative_path
+        asset.original_filename = asset.original_filename or uploaded.filename
+        asset.mime_type = asset.mime_type or uploaded.mimetype or mimetypes.guess_type(filename)[0]
+
+    db.session.commit()
+    return jsonify({"ok": True, "asset": _serialize_product_asset(asset)})
 
 
 @search_bp.route('/ricerca_x_barcode', methods=['GET', 'POST'])

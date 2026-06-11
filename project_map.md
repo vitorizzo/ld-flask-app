@@ -225,6 +225,60 @@ Stato ultimo test:
 
 ---
 
+# MODULO SCHEDE PRODOTTO / IMMAGINI PIATTAFORME
+
+## Stato Architetturale
+
+La scheda prodotto e' esposta da:
+- `/search/scheda_articolo/<cod_art>`
+
+File principali:
+- `routes/search.py`
+- `templates/scheda_articolo.html`
+- `static/js/scheda_articolo.js`
+
+Modelli coinvolti:
+- `Articoli`
+- `Immagini` come fallback legacy
+- `ProductAsset`
+- `ProductPlatformLink`
+- `ProductPlatformField`
+- `SchedeProdotti`
+
+Il sistema immagini moderno usa `ProductAsset` con:
+- `cod_art`
+- `asset_type='image'`
+- `source_platform`
+- `local_path`
+- `remote_url`
+- `source_external_id`
+- `content_hash`
+- `mime_type`
+- `is_primary`
+- `sort_order`
+
+Le immagini importate da Prestashop e Poleepo vengono tracciate con la piattaforma sorgente.
+La scheda prodotto mostra badge di provenienza sulle immagini e badge presenza piattaforma.
+
+## Intervento corrente 2026-06-11
+
+La scheda prodotto e' stata estesa con:
+- barra superiore di thumbnail per piattaforma sopra il carousel immagini;
+- slot piattaforme: Prestashop, Poleepo, Ebay, Amazon, LDApp;
+- immagini legacy e vecchi asset `manual` mostrati nello slot LDApp;
+- upload immagine da PC tramite LDApp con `POST /search/scheda_articolo/<cod_art>/images`;
+- salvataggio upload in `static/images/products/ldapp/`;
+- creazione/aggiornamento record `ProductAsset(source_platform='ldapp')`;
+- deduplica per `content_hash` sullo stesso articolo;
+- pulsante creazione nuova immagine presente ma disabilitato;
+- menu contestuale sulle immagini con voci `Aggiungi a Prestashop/Poleepo/Ebay/Amazon` presenti ma disabilitate;
+- drag/drop sugli slot predisposto lato UI, con invio a piattaforme esterne non ancora implementato.
+
+Le integrazioni di upload verso Prestashop, Poleepo, Ebay e Amazon non sono ancora operative.
+Il prossimo step tecnico sara' implementare endpoint/adapter specifici per pubblicare una immagine esistente verso una piattaforma abilitata.
+
+---
+
 # MODULO AGENDA / CASSA
 
 ## Stato Architetturale

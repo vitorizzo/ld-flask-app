@@ -173,6 +173,12 @@ aggiornare project_map.md se necessario
 
 NON modificare new_chat_codex.md salvo richiesta esplicita
 
+Dopo ogni intervento tecnico concluso o ogni cambio di contesto operativo rilevante, Codex deve aggiornare puntualmente:
+
+- status.md con stato reale, verifiche e prossimo punto di ripartenza;
+- project_map.md se sono cambiati architettura, moduli, route, modelli o file chiave;
+- new_chat_codex.md solo se cambia il metodo operativo o se l'utente lo richiede esplicitamente.
+
 8. Performance e gestione chat lunghe
 
 Preferire sempre lettura diretta dei file repository
@@ -229,6 +235,6 @@ Se non è stato letto, non esiste.
 
 Versione
 
-Versione: 1.0
-Stato: manifesto operativo Codex locale
+Versione: 1.1
+Stato: manifesto operativo Codex locale con aggiornamento puntuale dei file di coordinamento
 Aggiornare solo previo accordo esplicito
