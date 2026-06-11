@@ -1163,3 +1163,14 @@ Secondo fix layout box ordini da associare 2026-06-11:
 - aggiunti limiti espliciti `width/max-width/min-width/overflow` su panel, lista, card e body;
 - applicato `word-break: break-all` sui testi ordine/metadati per impedire overflow anche con token lunghi;
 - verifica `node --check` sullo script estratto dal template ok.
+
+Fix associazione clienti-giri 2026-06-11:
+- corretto overflow dati in `templates/registry/customer_routes.html`;
+- aggiunti vincoli locali su pagina, panel, `table-responsive`, tabella e risultati rapidi;
+- tabella associazioni impostata a `table-layout: fixed` con scroll orizzontale interno al box;
+- risultati di `Aggiungi anagrafica` resi verticali e wrappabili;
+- le modali `.registry-tools-modal` della pagina vengono spostate in `document.body` prima dell'istanza Bootstrap;
+- gestita classe `registry-tools-modal-open` per mantenere z-index/backdrop coerenti;
+- verifiche:
+  - `node --check` sullo script estratto da `templates/registry/customer_routes.html` ok;
+  - render template `/registry/customer-routes` ok con `routeCustomerAddModal` presente.
