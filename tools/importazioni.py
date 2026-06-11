@@ -3,6 +3,8 @@ import re
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
+from sqlalchemy.orm import selectinload
+
 from tools.ps_util import get_product_ids, get_product_images, get_product_payload
 from extensions import db
 from models import (
@@ -394,12 +396,16 @@ def _import_registry_file(file_name, kind, task_id=None, task_name="Importazione
     customer_by_vat = None
     if kind == "customer":
         vat_numbers = [parsed["vat_number"] for parsed in parsed_rows if parsed.get("vat_number")]
-        customers = CashCustomer.query.filter(
-            db.or_(
-                CashCustomer.codice_cliente.in_(source_codes or [""]),
-                CashCustomer.partita_iva.in_(vat_numbers or [""]),
+        customers = (
+            CashCustomer.query.options(selectinload(CashCustomer.aliases))
+            .filter(
+                db.or_(
+                    CashCustomer.codice_cliente.in_(source_codes or [""]),
+                    CashCustomer.partita_iva.in_(vat_numbers or [""]),
+                )
             )
-        ).all()
+            .all()
+        )
         customer_by_code = {customer.codice_cliente: customer for customer in customers if customer.codice_cliente}
         customer_by_vat = {customer.partita_iva: customer for customer in customers if customer.partita_iva}
 
