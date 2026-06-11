@@ -277,6 +277,18 @@ La scheda prodotto e' stata estesa con:
 Le integrazioni di upload verso Prestashop, Poleepo, Ebay e Amazon non sono ancora operative.
 Il prossimo step tecnico sara' implementare endpoint/adapter specifici per pubblicare una immagine esistente verso una piattaforma abilitata.
 
+## Permessi scheda prodotto
+
+Soglia ruolo:
+- `office` = weight `40`
+
+Regole operative:
+- utenti con `max_role_weight >= 40` possono vedere provenienza immagini, badge piattaforme e strumenti di gestione immagini;
+- utenti sotto `office` vedono solo la gallery immagini, senza badge provenienza e senza badge piattaforme;
+- upload immagini LDApp e invio immagini a piattaforme sono consentiti solo da `office` in su;
+- pubblicazione prodotto verso piattaforme sara' consentita solo da `office` in su;
+- se un articolo non risulta presente su una piattaforma (`ProductPlatformLink` assente o status `absent/error`), non si deve poter inviare/cambiare immagine su quella piattaforma.
+
 ---
 
 # MODULO AGENDA / CASSA

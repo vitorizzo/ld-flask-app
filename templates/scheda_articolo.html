@@ -272,44 +272,46 @@
     <div class="row g-3 flex-grow-1 min-h-0">
       <div class="col-12 col-lg-7">
         <div class="product-sheet-card h-100">
-          <div class="product-image-tools">
-            <div class="product-image-slots" aria-label="Immagini per piattaforma">
-              {% for slot in product.image_slots %}
-                <button type="button"
-                        class="product-image-slot"
-                        data-platform="{{ slot.key }}"
-                        data-platform-enabled="{{ '1' if slot.enabled else '0' }}"
-                        data-bs-toggle="tooltip"
-                        data-bs-title="{{ slot.label }}{% if not slot.enabled %}: invio non ancora implementato{% endif %}"
-                        {% if not slot.enabled %}aria-disabled="true"{% endif %}>
-                  <span class="product-image-slot__thumb">
-                    {% if slot.primary_image %}
-                      <img src="{{ slot.primary_image.url }}" alt="{{ slot.label }}">
-                    {% else %}
+          {% if product.can_manage_images %}
+            <div class="product-image-tools">
+              <div class="product-image-slots" aria-label="Immagini per piattaforma">
+                {% for slot in product.image_slots %}
+                  <button type="button"
+                          class="product-image-slot"
+                          data-platform="{{ slot.key }}"
+                          data-platform-enabled="{{ '1' if slot.enabled else '0' }}"
+                          data-bs-toggle="tooltip"
+                          data-bs-title="{{ slot.label }}{% if not slot.enabled %}: invio non ancora implementato{% endif %}"
+                          {% if not slot.enabled %}aria-disabled="true"{% endif %}>
+                    <span class="product-image-slot__thumb">
+                      {% if slot.primary_image %}
+                        <img src="{{ slot.primary_image.url }}" alt="{{ slot.label }}">
+                      {% else %}
+                        <i class="{{ slot.icon }}"></i>
+                      {% endif %}
+                    </span>
+                    <span class="product-image-slot__label">
                       <i class="{{ slot.icon }}"></i>
-                    {% endif %}
-                  </span>
-                  <span class="product-image-slot__label">
-                    <i class="{{ slot.icon }}"></i>
-                    <span>{{ slot.label }}</span>
-                  </span>
+                      <span>{{ slot.label }}</span>
+                    </span>
+                  </button>
+                {% endfor %}
+              </div>
+              <form class="product-image-upload" id="productImageUploadForm"
+                    action="{{ url_for('search.upload_product_image', cod_art=product.cod_art) }}"
+                    method="post" enctype="multipart/form-data">
+                <input class="form-control form-control-sm" type="file" name="image" accept="image/png,image/jpeg,image/webp">
+                <button class="btn btn-sm btn-primary" type="submit">
+                  <i class="fa-solid fa-upload"></i>
+                  Carica
                 </button>
-              {% endfor %}
+                <button class="btn btn-sm btn-outline-secondary" type="button" disabled
+                        data-bs-toggle="tooltip" data-bs-title="Creazione immagine non ancora disponibile">
+                  <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </button>
+              </form>
             </div>
-            <form class="product-image-upload" id="productImageUploadForm"
-                  action="{{ url_for('search.upload_product_image', cod_art=product.cod_art) }}"
-                  method="post" enctype="multipart/form-data">
-              <input class="form-control form-control-sm" type="file" name="image" accept="image/png,image/jpeg,image/webp">
-              <button class="btn btn-sm btn-primary" type="submit">
-                <i class="fa-solid fa-upload"></i>
-                Carica
-              </button>
-              <button class="btn btn-sm btn-outline-secondary" type="button" disabled
-                      data-bs-toggle="tooltip" data-bs-title="Creazione immagine non ancora disponibile">
-                <i class="fa-solid fa-wand-magic-sparkles"></i>
-              </button>
-            </form>
-          </div>
+          {% endif %}
           {% if product.immagini %}
             <div id="productCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-touch="true">
               <div class="carousel-indicators">
@@ -325,11 +327,13 @@
                 {% for immagine in product.immagini %}
                   <div class="carousel-item {% if loop.first %}active{% endif %}">
                     <div class="product-image-frame">
-                      <span class="product-image-source">{{ immagine.source_platform }}</span>
+                      {% if product.can_manage_images %}
+                        <span class="product-image-source">{{ immagine.source_platform }}</span>
+                      {% endif %}
                       <img src="{{ immagine.url }}"
                            data-asset-id="{{ immagine.id or '' }}"
                            data-source-platform="{{ immagine.source_platform }}"
-                           draggable="true"
+                           {% if product.can_manage_images %}draggable="true"{% endif %}
                            class="d-block w-100 product-img" alt="Immagine {{ loop.index }}">
                     </div>
                   </div>
@@ -371,28 +375,30 @@
             </div>
           </div>
 
-          <div>
-            <h2 class="h6">Piattaforme</h2>
-            <div class="product-sheet-platforms">
-              {% for platform in product.platforms %}
-                <span class="product-platform-badge {% if platform.active %}product-platform-badge--active{% elif platform.status == 'error' %}product-platform-badge--error{% endif %}"
-                      title="{{ platform.label }}: {{ platform.status }}">
-                  {% if platform.key == "prestashop" %}
-                    <i class="fa-solid fa-store"></i>
-                  {% elif platform.key == "poleepo" %}
-                    <i class="fa-solid fa-cloud-arrow-up"></i>
-                  {% elif platform.key == "amazon" %}
-                    <i class="fa-brands fa-amazon"></i>
-                  {% elif platform.key == "ebay" %}
-                    <i class="fa-brands fa-ebay"></i>
-                  {% else %}
-                    <i class="fa-solid fa-globe"></i>
-                  {% endif %}
-                  {{ platform.label }}
-                </span>
-              {% endfor %}
+          {% if product.can_manage_images %}
+            <div>
+              <h2 class="h6">Piattaforme</h2>
+              <div class="product-sheet-platforms">
+                {% for platform in product.platforms %}
+                  <span class="product-platform-badge {% if platform.active %}product-platform-badge--active{% elif platform.status == 'error' %}product-platform-badge--error{% endif %}"
+                        title="{{ platform.label }}: {{ platform.status }}">
+                    {% if platform.key == "prestashop" %}
+                      <i class="fa-solid fa-store"></i>
+                    {% elif platform.key == "poleepo" %}
+                      <i class="fa-solid fa-cloud-arrow-up"></i>
+                    {% elif platform.key == "amazon" %}
+                      <i class="fa-brands fa-amazon"></i>
+                    {% elif platform.key == "ebay" %}
+                      <i class="fa-brands fa-ebay"></i>
+                    {% else %}
+                      <i class="fa-solid fa-globe"></i>
+                    {% endif %}
+                    {{ platform.label }}
+                  </span>
+                {% endfor %}
+              </div>
             </div>
-          </div>
+          {% endif %}
 
           <div>
             <h2 class="h6">Codici a barre</h2>
@@ -441,22 +447,24 @@
   </div>
 </div>
 
-<div class="product-image-context-menu" id="productImageContextMenu" aria-hidden="true">
-  <button type="button" data-platform="prestashop" disabled>
-    <i class="fa-solid fa-store"></i>
-    Aggiungi a Prestashop
-  </button>
-  <button type="button" data-platform="poleepo" disabled>
-    <i class="fa-solid fa-cloud-arrow-up"></i>
-    Aggiungi a Poleepo
-  </button>
-  <button type="button" data-platform="ebay" disabled>
-    <i class="fa-brands fa-ebay"></i>
-    Aggiungi a Ebay
-  </button>
-  <button type="button" data-platform="amazon" disabled>
-    <i class="fa-brands fa-amazon"></i>
-    Aggiungi ad Amazon
-  </button>
-</div>
+{% if product.can_manage_images %}
+  <div class="product-image-context-menu" id="productImageContextMenu" aria-hidden="true">
+    {% for platform in product.platforms %}
+      <button type="button" data-platform="{{ platform.key }}" {% if not platform.active %}disabled{% else %}disabled{% endif %}>
+        {% if platform.key == "prestashop" %}
+          <i class="fa-solid fa-store"></i>
+        {% elif platform.key == "poleepo" %}
+          <i class="fa-solid fa-cloud-arrow-up"></i>
+        {% elif platform.key == "amazon" %}
+          <i class="fa-brands fa-amazon"></i>
+        {% elif platform.key == "ebay" %}
+          <i class="fa-brands fa-ebay"></i>
+        {% else %}
+          <i class="fa-solid fa-globe"></i>
+        {% endif %}
+        Aggiungi a {{ platform.label }}
+      </button>
+    {% endfor %}
+  </div>
+{% endif %}
 {% endblock %}

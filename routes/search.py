@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 from flask import Blueprint, current_app, render_template, jsonify, request, abort, url_for
-from flask_login import login_required
+from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
 from extensions import db
@@ -37,6 +37,11 @@ PRODUCT_IMAGE_PLATFORMS = {
     "ldapp": {"label": "LDApp", "enabled": True, "icon": "fa-solid fa-folder-open"},
 }
 ALLOWED_PRODUCT_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+OFFICE_ROLE_WEIGHT = 40
+
+
+def _can_manage_product_images():
+    return bool(current_user.is_authenticated and (current_user.max_role_weight or 0) >= OFFICE_ROLE_WEIGHT)
 
 
 def _asset_public_url(asset):
@@ -135,6 +140,8 @@ def get_product_by_code(cod_art):
             "barcodes": [row.cod_bar for row in barcode_rows],
             "platforms": platforms,
             "image_slots": _platform_image_slots(immagini),
+            "can_manage_images": _can_manage_product_images(),
+            "can_publish_products": _can_manage_product_images(),
             "descrizione": prod.descrizione,
             "descrizione_aggiuntiva": prod.descrizione_aggiuntiva,
             "prezzo": prod.prezzo,
@@ -161,6 +168,9 @@ def scheda_articolo(cod_art):
 @search_bp.post('/scheda_articolo/<cod_art>/images')
 @login_required
 def upload_product_image(cod_art):
+    if not _can_manage_product_images():
+        return jsonify({"ok": False, "error": "Accesso negato"}), 403
+
     articolo = Articoli.query.filter_by(cod_art=cod_art).first()
     if not articolo:
         return jsonify({"ok": False, "error": "Articolo non trovato."}), 404

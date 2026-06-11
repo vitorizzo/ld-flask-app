@@ -1107,3 +1107,23 @@ Fix plancia ordini 2026-06-11:
 - verifica mapping giro `marsica`:
   - Ballistic -> ordine `1172`;
   - Pizzeria Corrado -> ordini `1174`, `1241`.
+
+Follow-up scheda prodotto permessi 2026-06-11:
+- verificati ruoli reali DB:
+  - `staff=30`;
+  - `office=40`;
+  - `admin=100`;
+- aggiunta soglia `OFFICE_ROLE_WEIGHT = 40` in `routes/search.py`;
+- `get_product_by_code()` espone `can_manage_images` e `can_publish_products`;
+- utenti sotto office non vedono:
+  - badge provenienza immagini;
+  - badge piattaforme;
+  - barra thumbnail piattaforme;
+  - upload immagini;
+  - menu contestuale invio piattaforme;
+- endpoint `POST /search/scheda_articolo/<cod_art>/images` rifiuta utenti sotto office;
+- verifiche:
+  - `python -m py_compile routes/search.py` ok;
+  - `node --check static/js/scheda_articolo.js` ok;
+  - render simulato ruoli `20/30/40/100`: strumenti visibili solo da `40` in su;
+  - helper ruolo: `30=False`, `40=True`.
