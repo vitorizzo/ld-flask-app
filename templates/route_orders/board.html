@@ -90,6 +90,9 @@
   .route-board-actions .btn { min-width: 2.1rem; }
   .route-board-empty { color: #6c757d; padding: .75rem; }
   .route-board-bulk { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
+  .route-board-unmatched { display: grid; gap: .5rem; }
+  .route-board-unmatched__item { border: 1px solid #f0c36d; border-radius: 8px; background: #fff8e5; padding: .65rem; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .75rem; align-items: center; }
+  .route-board-unmatched__title { font-weight: 700; color: #5c3d00; }
   #routeBoard, .direct-board { display: none; }
   #routeBoard.active, .direct-board.active { display: flex !important; }
   .direct-board.active { flex-direction: column; gap: 12px; }
@@ -130,6 +133,14 @@
         <button class="btn btn-outline-secondary btn-sm" type="button" id="selectAllOrders">Seleziona ordini</button>
         <button class="btn btn-success btn-sm" type="button" id="bulkEvadeBtn">Segna evasi</button>
       </div>
+    </div>
+
+    <div class="route-board-panel p-3" id="unmatchedOrdersPanel" style="display:none;">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h2 class="h6 mb-0">Ordini da associare</h2>
+        <span class="badge text-bg-warning" id="unmatchedOrdersCount">0</span>
+      </div>
+      <div class="route-board-unmatched" id="unmatchedOrdersList"></div>
     </div>
 
     <div class="route-board-panel p-3">
@@ -221,6 +232,21 @@
   </div></div>
 </div>
 
+<div class="modal fade registry-tools-modal" id="associateOrderModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title">Associa ordine a cliente</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body">
+      <input type="hidden" id="associateOrderId">
+      <div class="route-board-order__note mb-3" id="associateOrderPreview"></div>
+      <label class="form-label" for="associateCustomerSearch">Cliente</label>
+      <input class="form-control" id="associateCustomerSearch" autocomplete="off" placeholder="Cerca cliente">
+      <select class="form-select mt-2" id="associateCustomerSelect" size="6"></select>
+      <div class="form-text">L'ordine verra' agganciato all'anagrafica scelta usando codice cliente o ID interno.</div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button><button class="btn btn-primary" type="button" id="associateOrderSaveBtn">Associa</button></div>
+  </div></div>
+</div>
+
 <div class="modal fade registry-tools-modal" id="deliveryDateModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Data consegna</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
@@ -277,6 +303,9 @@
   const customerCount = document.getElementById("customerCount");
   const deliveryDateBtn = document.getElementById("deliveryDateBtn");
   const onlyWithOrders = document.getElementById("onlyWithOrders");
+  const unmatchedOrdersPanel = document.getElementById("unmatchedOrdersPanel");
+  const unmatchedOrdersList = document.getElementById("unmatchedOrdersList");
+  const unmatchedOrdersCount = document.getElementById("unmatchedOrdersCount");
 
   document.querySelectorAll(".registry-tools-modal").forEach(modalEl => {
     if (modalEl.parentElement !== document.body) {
@@ -294,10 +323,11 @@
 
   const noteModal = new bootstrap.Modal(document.getElementById("noteModal"));
   const directModal = new bootstrap.Modal(document.getElementById("directModal"));
+  const associateOrderModal = new bootstrap.Modal(document.getElementById("associateOrderModal"));
   const deliveryModal = new bootstrap.Modal(document.getElementById("deliveryDateModal"));
   const alertsModal = new bootstrap.Modal(document.getElementById("alertsModal"));
   const contactsModal = new bootstrap.Modal(document.getElementById("contactsModal"));
-  let state = { routes: [], route: null, customers: [], next_delivery_at: null, upcoming_delivery_dates: [], statuses: [] };
+  let state = { routes: [], route: null, customers: [], unmatched_orders: [], next_delivery_at: null, upcoming_delivery_dates: [], statuses: [] };
   let directOrders = [];
   let directCustomers = [];
   let directPrefillCustomerId = "";
@@ -365,16 +395,43 @@
         <div class="route-board-order__note">${esc(order.raw_text)}</div>
         <div class="route-board-order__meta">#${order.id} ${esc(fmtDate(order.planned_delivery_at || order.order_date))}</div>
         <div class="route-board-actions mt-2">
+          <button class="btn btn-outline-primary btn-sm" type="button" data-action="order-associate" data-order-id="${order.id}" title="Associa cliente"><i class="fa-solid fa-link"></i></button>
           <button class="btn btn-outline-secondary btn-sm" type="button" data-action="order-attach" data-order-id="${order.id}" title="Allega file"><i class="fa-solid fa-paperclip"></i></button>
           <button class="btn btn-outline-danger btn-sm" type="button" data-action="order-delete" data-order-id="${order.id}" title="Elimina"><i class="fa-solid fa-trash"></i></button>
         </div>
       </div>`).join("")}</div>`;
   }
 
+  function orderById(orderId) {
+    const fromRows = (state.customers || []).flatMap(customer => customer.orders || []);
+    const fromDirect = (directCustomers || []).flatMap(customer => customer.orders || []);
+    return [...(state.unmatched_orders || []), ...fromRows, ...fromDirect].find(order => String(order.id) === String(orderId));
+  }
+
+  function renderUnmatchedOrders() {
+    const orders = state.unmatched_orders || [];
+    unmatchedOrdersCount.textContent = String(orders.length);
+    unmatchedOrdersPanel.style.display = orders.length ? "" : "none";
+    if (!orders.length) {
+      unmatchedOrdersList.innerHTML = "";
+      return;
+    }
+    unmatchedOrdersList.innerHTML = orders.map(order => `
+      <div class="route-board-unmatched__item" data-unmatched-order-id="${order.id}">
+        <div>
+          <div class="route-board-unmatched__title">${esc(order.customer_display || "Cliente non riconosciuto")}</div>
+          <div class="route-board-order__note">${esc(order.raw_text)}</div>
+          <div class="route-board-order__meta">#${order.id} ${esc(fmtDate(order.planned_delivery_at || order.order_date))} - chiave Slack: ${esc(order.customer_key || "")}</div>
+        </div>
+        <button class="btn btn-primary btn-sm" type="button" data-action="unmatched-associate" data-order-id="${order.id}"><i class="fa-solid fa-link"></i> Associa</button>
+      </div>`).join("");
+  }
+
   function renderRows() {
     customerCount.textContent = state.customers.length;
     deliveryDateBtn.textContent = fmtDate(state.next_delivery_at);
     renderDeliveryPresets();
+    renderUnmatchedOrders();
     if (!state.customers.length) {
       rowsEl.innerHTML = `<tr><td colspan="6" class="route-board-empty">Nessun cliente da mostrare.</td></tr>`;
       return;
@@ -441,6 +498,21 @@
       document.getElementById("directCustomerSelect").value = directPrefillCustomerId;
       directPrefillCustomerId = "";
     }
+  }
+
+  async function loadAssociateCustomers(q = "") {
+    const data = await api(`/route-orders/api/customers?q=${encodeURIComponent(q)}`);
+    document.getElementById("associateCustomerSelect").innerHTML = data.customers.map(c => `<option value="${c.id}">${esc(c.display)} ${esc(c.city || "")}</option>`).join("");
+  }
+
+  async function openAssociateOrderModal(orderId) {
+    const order = orderById(orderId) || { id: orderId, raw_text: "" };
+    document.getElementById("associateOrderId").value = orderId;
+    document.getElementById("associateOrderPreview").textContent = order.raw_text || order.customer_display || `Ordine #${orderId}`;
+    const search = document.getElementById("associateCustomerSearch");
+    search.value = order.customer_display || "";
+    await loadAssociateCustomers(search.value);
+    associateOrderModal.show();
   }
 
   function renderDirectOrders() {
@@ -540,8 +612,17 @@
       if (button.dataset.action === "contact-delete") { if (!confirm("Cancellare questo contatto?")) return; const [source, id] = button.dataset.contactId.split(":"); await api(`/route-orders/api/phone-contacts/${source}/${id}`, { method: "DELETE" }); await loadBoard(selectedRouteId()); }
       if (button.dataset.action === "slack") { if (!customer.entry || !customer.entry.id) await saveEntry(customerId, {}); const fresh = customerById(customerId); await api(`/route-orders/api/entries/${fresh.entry.id}/send-slack`, { method: "POST", body: "{}" }); await loadBoard(selectedRouteId()); }
       if (button.dataset.action === "cancel") { if (!confirm("Annullare l'ordine?")) return; if (!customer.entry || !customer.entry.id) await saveEntry(customerId, {}); const fresh = customerById(customerId); await api(`/route-orders/api/entries/${fresh.entry.id}/cancel`, { method: "POST", body: "{}" }); await loadBoard(selectedRouteId()); }
+      if (button.dataset.action === "order-associate") { await openAssociateOrderModal(button.dataset.orderId); }
       if (button.dataset.action === "order-attach") { const input = document.createElement("input"); input.type = "file"; input.multiple = true; input.onchange = async () => { await uploadFiles(`/route-orders/api/orders/${button.dataset.orderId}/attachments`, input.files); await loadBoard(selectedRouteId()); }; input.click(); }
       if (button.dataset.action === "order-delete") { if (!confirm("Eliminare l'ordine da plancia, bacheca e Slack?")) return; await api(`/kiosk/api/order/${button.dataset.orderId}`, { method: "DELETE" }); await loadBoard(selectedRouteId()); }
+    } catch (err) { alert(err.message); }
+  });
+
+  unmatchedOrdersList.addEventListener("click", async event => {
+    const button = event.target.closest("button[data-action='unmatched-associate']");
+    if (!button) return;
+    try {
+      await openAssociateOrderModal(button.dataset.orderId);
     } catch (err) { alert(err.message); }
   });
 
@@ -621,6 +702,9 @@
         await api(`/route-orders/api/orders/${orderId}/status`, { method: "POST", body: JSON.stringify({ status: "annullato" }) });
         await loadDirectOrders();
       }
+      if (button.dataset.action === "order-associate") {
+        await openAssociateOrderModal(button.dataset.orderId);
+      }
       if (button.dataset.action === "order-attach") {
         const input = document.createElement("input");
         input.type = "file";
@@ -648,6 +732,18 @@
 
   document.getElementById("newDirectOrderBtn").addEventListener("click", async () => { document.getElementById("directCustomerSearch").value = ""; document.getElementById("directNote").value = ""; document.getElementById("directDeliveryDate").value = ""; document.getElementById("directFiles").value = ""; await loadDirectCustomers(); directModal.show(); });
   document.getElementById("directCustomerSearch").addEventListener("input", event => loadDirectCustomers(event.target.value).catch(err => alert(err.message)));
+  document.getElementById("associateCustomerSearch").addEventListener("input", event => loadAssociateCustomers(event.target.value).catch(err => alert(err.message)));
+  document.getElementById("associateOrderSaveBtn").addEventListener("click", async () => {
+    const orderId = document.getElementById("associateOrderId").value;
+    const registryId = document.getElementById("associateCustomerSelect").value;
+    if (!orderId || !registryId) return alert("Seleziona un ordine e un cliente.");
+    await api(`/route-orders/api/orders/${orderId}/customer`, {
+      method: "POST",
+      body: JSON.stringify({ registry_id: registryId, route_id: selectedRouteId() }),
+    });
+    associateOrderModal.hide();
+    await refreshActiveBoard();
+  });
   document.getElementById("directSendBtn").addEventListener("click", async () => {
     const form = new FormData();
     form.append("registry_id", document.getElementById("directCustomerSelect").value);

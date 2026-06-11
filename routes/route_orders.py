@@ -574,21 +574,11 @@ def _registry_for_order(order):
     return registry
 
 
-def _orders_for_customers(route_id, registry_ids, board_date):
-    if not registry_ids:
-        return {}
-    keys = [str(value) for value in registry_ids]
-    codes = [
-        code for code, in db.session.query(BusinessRegistry.source_code)
-        .filter(BusinessRegistry.id.in_(registry_ids), BusinessRegistry.source_code.isnot(None))
-        .all()
-    ]
-    keys.extend(codes)
-    orders = (
+def _route_orders_for_board(route_id, board_date):
+    return (
         SlackOrder.query
         .filter(
             SlackOrder.route_id == route_id,
-            SlackOrder.customer_key.in_(keys),
             or_(
                 SlackOrder.order_date >= board_date,
                 SlackOrder.planned_delivery_at >= datetime.combine(board_date, time.min),
@@ -598,20 +588,33 @@ def _orders_for_customers(route_id, registry_ids, board_date):
         .order_by(SlackOrder.created_at.asc(), SlackOrder.id.asc())
         .all()
     )
+
+
+def _orders_for_customers(route_id, registry_ids, board_date):
+    if not registry_ids:
+        return {}
+    registry_id_set = set(registry_ids)
+    orders = _route_orders_for_board(route_id, board_date)
     out = {}
-    code_to_id = dict(
-        db.session.query(BusinessRegistry.source_code, BusinessRegistry.id)
-        .filter(BusinessRegistry.id.in_(registry_ids), BusinessRegistry.source_code.isnot(None))
-        .all()
-    )
     for order in orders:
-        key = str(order.customer_key or "").strip()
-        registry_id = code_to_id.get(key)
-        if not registry_id and key.isdigit() and int(key) in registry_ids:
-            registry_id = int(key)
-        if registry_id:
-            out.setdefault(registry_id, []).append(_order_to_dict(order))
+        registry = _registry_for_order(order)
+        if registry and registry.id in registry_id_set:
+            out.setdefault(registry.id, []).append(_order_to_dict(order))
     return out
+
+
+def _unmatched_orders_for_customers(route_id, registry_ids, board_date):
+    if not registry_ids:
+        return []
+    registry_id_set = set(registry_ids)
+    orders = _route_orders_for_board(route_id, board_date)
+    unmatched = []
+    for order in orders:
+        registry = _registry_for_order(order)
+        if registry and registry.id in registry_id_set:
+            continue
+        unmatched.append(_order_to_dict(order))
+    return unmatched
 
 
 def _direct_order_route():
@@ -687,6 +690,7 @@ def api_board():
     for entry in entries:
         entries_by_registry.setdefault(entry.registry_id, []).append(entry)
     orders_by_registry = _orders_for_customers(selected_route.id, registry_ids, board_date)
+    unmatched_orders = _unmatched_orders_for_customers(selected_route.id, registry_ids, board_date)
 
     alerts_by_registry = {}
     for alert in _visible_alerts_query(registry_ids, date.today()):
@@ -717,6 +721,7 @@ def api_board():
         "upcoming_delivery_dates": [value.isoformat() for value in _upcoming_delivery_dates(selected_route)],
         "statuses": BOARD_STATUSES,
         "customers": rows,
+        "unmatched_orders": unmatched_orders,
     })
 
 
@@ -904,6 +909,46 @@ def api_order_delivery(order_id):
         payload={
             "old_planned_delivery_at": old_iso,
             "new_planned_delivery_at": target_dt.isoformat(),
+            "via": "route_order_board",
+        },
+    ))
+    db.session.commit()
+    return jsonify({"ok": True, "order": _order_to_dict(order)})
+
+
+@route_orders_bp.post("/api/orders/<int:order_id>/customer")
+@login_required
+@role_required(30)
+def api_order_customer(order_id):
+    order = SlackOrder.query.get_or_404(order_id)
+    data = request.get_json(silent=True) or {}
+    registry = BusinessRegistry.query.filter_by(id=data.get("registry_id"), kind="customer", is_active=True).first()
+    if not registry:
+        return jsonify({"ok": False, "error": "Cliente non valido"}), 404
+
+    old_payload = {
+        "customer_display": order.customer_display,
+        "customer_key": order.customer_key,
+        "route_id": order.route_id,
+    }
+    order.customer_display = _label_registry(registry)
+    order.customer_key = registry.source_code or str(registry.id)
+    requested_route_id = data.get("route_id")
+    if requested_route_id and not order.route_id:
+        route = DeliveryRoute.query.filter_by(id=requested_route_id, is_active=True).first()
+        if route:
+            order.route_id = route.id
+    db.session.add(SlackOrderEvent(
+        order_id=order.id,
+        type="customer_link",
+        payload={
+            "from": old_payload,
+            "to": {
+                "registry_id": registry.id,
+                "customer_display": order.customer_display,
+                "customer_key": order.customer_key,
+                "route_id": order.route_id,
+            },
             "via": "route_order_board",
         },
     ))

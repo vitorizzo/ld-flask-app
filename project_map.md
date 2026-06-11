@@ -291,6 +291,41 @@ Regole operative:
 
 ---
 
+# MODULO PLANCIA ORDINI / BACHECA SLACK
+
+## Stato Architetturale
+
+La plancia ordini giri e' esposta da:
+- `/route-orders/board`
+
+File principali:
+- `routes/route_orders.py`
+- `templates/route_orders/board.html`
+- `routes/kiosk.py` per la bacheca ordini
+- `tools/slack_processor.py` per import/normalizzazione messaggi Slack
+
+Modelli coinvolti:
+- `SlackOrder`
+- `SlackOrderEvent`
+- `DeliveryRoute`
+- `DeliveryRouteCustomer`
+- `RouteOrderBoardEntry`
+- `BusinessRegistry`
+
+Gli ordini arrivati da Slack possono avere `SlackOrder.customer_key` derivata dal nome libero del messaggio, quindi non sempre coincidono con `BusinessRegistry.source_code` o `BusinessRegistry.id`.
+
+## Associazione ordini Slack a clienti
+
+Intervento 2026-06-11:
+- `/route-orders/api/board` restituisce anche `unmatched_orders`, cioe' ordini del giro/data che non si risolvono su un cliente del giro;
+- la plancia mostra un box `Ordini da associare` sopra la tabella clienti quando esistono ordini non agganciati;
+- nuovo endpoint `POST /route-orders/api/orders/<order_id>/customer` per associare manualmente un ordine a una anagrafica cliente;
+- l'associazione aggiorna `SlackOrder.customer_display` e `SlackOrder.customer_key` usando label e `source_code`/ID del cliente;
+- l'operazione viene storicizzata in `SlackOrderEvent(type='customer_link')`;
+- la risoluzione ordini della plancia usa `_registry_for_order()` anche per match esatti su `display_name`/`legal_name`, non solo chiavi `source_code`/ID.
+
+---
+
 # MODULO AGENDA / CASSA
 
 ## Stato Architetturale

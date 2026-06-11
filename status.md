@@ -1127,3 +1127,26 @@ Follow-up scheda prodotto permessi 2026-06-11:
   - `node --check static/js/scheda_articolo.js` ok;
   - render simulato ruoli `20/30/40/100`: strumenti visibili solo da `40` in su;
   - helper ruolo: `30=False`, `40=True`.
+
+Follow-up plancia ordini / associazione Slack 2026-06-11:
+- problema affrontato: ordini arrivati da Slack con nome cliente diverso dall'anagrafica non comparivano sulla riga cliente del giro;
+- causa tecnica: `tools/slack_processor.py` salva `SlackOrder.customer_key` come chiave normalizzata dal testo Slack, mentre la plancia agganciava gli ordini a `BusinessRegistry` tramite `source_code`/ID;
+- aggiunta funzione `_route_orders_for_board()` in `routes/route_orders.py` per avere una base unica degli ordini del giro/data;
+- aggiornata `_orders_for_customers()` per risolvere gli ordini tramite `_registry_for_order()`, includendo anche match esatti su `display_name`/`legal_name`;
+- aggiunta `_unmatched_orders_for_customers()` e campo API `unmatched_orders` in `GET /route-orders/api/board`;
+- aggiunto endpoint `POST /route-orders/api/orders/<order_id>/customer`:
+  - valida `BusinessRegistry(kind='customer', is_active=True)`;
+  - aggiorna `SlackOrder.customer_display` e `SlackOrder.customer_key`;
+  - registra `SlackOrderEvent(type='customer_link')` con valori precedenti e nuovi;
+- aggiornata UI `templates/route_orders/board.html`:
+  - box `Ordini da associare` sopra la tabella clienti;
+  - modale di ricerca cliente e conferma associazione;
+  - pulsante link sulle card ordine gia' visibili per correggere manualmente associazioni;
+- verifica DB reale:
+  - giro `aquila`, data consegna `2026-06-12`;
+  - `matched_orders 1`;
+  - `unmatched [1281]`;
+- verifiche tecniche:
+  - `python -m py_compile routes/route_orders.py` ok;
+  - `node --check` sullo script estratto da `templates/route_orders/board.html` ok;
+  - render template `route_orders/board.html` ok con `associateOrderModal` e `unmatchedOrdersPanel` presenti.
