@@ -1211,3 +1211,18 @@ UX modale POS Agenda 2026-06-13:
 - premendo `Enter` nella modale viene eseguito `savePosMove()`;
 - premendo `Esc` la modale viene chiusa senza salvare;
 - verifica `node --check static/js/agenda.js` ok.
+
+UX modale movimenti di cassa Agenda 2026-06-13:
+- aggiornata `static/js/agenda.js` per la modale `#cashMoveModal`;
+- all'apertura, focus automatico su `#cashMoveAmount` con valore selezionato;
+- premendo `Tab` dall'importo il focus passa direttamente al campo `#cashMovePerformedBy` (`Chi`);
+- premendo `Enter` nella modale viene eseguito `saveCashMove()`;
+- premendo `Esc` la modale viene chiusa senza salvare;
+- verifica `node --check static/js/agenda.js` ok.
+
+UX modale Incasso/Spesa Agenda 2026-06-13:
+- aggiornata `static/js/agenda.js` per la modale unica `#opModal`;
+- premendo `Enter` nella modale viene eseguito `saveOperation()` sia per incassi sia per spese;
+- premendo `Esc` la modale viene chiusa senza salvare;
+- alla chiusura viene riabilitato `#opSaveBtn` in caso di stato residuo;
+- verifica `node --check static/js/agenda.js` ok.
