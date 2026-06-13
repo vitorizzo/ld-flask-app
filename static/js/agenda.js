@@ -1152,20 +1152,24 @@ async function openDrawerCountModal() {
 
 function getDrawerInitialInput() {
   if (!drawerRowsEl) return null;
-  return (
-    drawerRowsEl.querySelector('.drawer-qty[data-denom="0.10"]') ||
-    drawerRowsEl.querySelector('.drawer-qty[data-denom="0.1"]') ||
-    drawerRowsEl.querySelector(".drawer-qty")
-  );
+  const inputs = Array.from(drawerRowsEl.querySelectorAll(".drawer-qty"));
+  return inputs.find(input => Math.abs(Number(input.dataset.denom || 0) - 0.10) < 0.001) || inputs[0] || null;
 }
 
 function focusDrawerInitialInput() {
   const input = getDrawerInitialInput();
   if (!input) return;
-  setTimeout(() => {
+
+  const selectInput = () => {
     input.focus();
     input.select();
-  }, 0);
+    if (typeof input.setSelectionRange === "function") {
+      input.setSelectionRange(0, String(input.value || "").length);
+    }
+  };
+
+  requestAnimationFrame(selectInput);
+  setTimeout(selectInput, 120);
 }
 
 function handleDrawerModalKeydown(event) {
@@ -1264,9 +1268,11 @@ function renderDrawerRows(lines) {
       <td>€ ${escapeHtml(String(line.denomination))}</td>
       <td>
         <input
-          type="number"
+          type="text"
           min="0"
           step="1"
+          inputmode="numeric"
+          pattern="[0-9]*"
           class="form-control form-control-sm drawer-qty"
           data-denom="${escapeHtml(String(line.denomination))}"
           value="${Number(line.quantity || 0)}"

@@ -1236,3 +1236,9 @@ UX modale conteggio fondocassa Agenda 2026-06-13:
 - premendo `Esc` la modale viene chiusa senza salvare;
 - `#drawerSaveBtn` viene disabilitato durante il salvataggio e riabilitato in uscita;
 - verifica `node --check static/js/agenda.js` ok.
+
+Fix selezione iniziale conteggio fondocassa 2026-06-13:
+- reso robusto il lookup del taglio `0.10` usando confronto numerico su `data-denom`;
+- i campi quantita' `.drawer-qty` passano da `type="number"` a `type="text"` con `inputmode="numeric"` e `pattern="[0-9]*"`, per permettere selezione completa del valore;
+- il focus/selezione viene applicato sia con `requestAnimationFrame` sia con fallback `setTimeout(120)`, evitando race con il focus trap della modale Bootstrap;
+- verifica `node --check static/js/agenda.js` ok.
