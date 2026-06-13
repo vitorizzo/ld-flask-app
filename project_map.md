@@ -753,6 +753,33 @@ Correzioni rispetto a v2.3:
 - gestione completa ciclo vita assegni
 - regole per insoluti / richiamati / ripresentati
 
+## Snapshot chiusura e Vault PRI
+
+Per ridurre i tempi di apertura giornata, la preview non deve ricalcolare ricorsivamente il saldo versabile su tutta la storia.
+
+Regola architetturale:
+
+- dati aziendali/fiscali: DB;
+- dati privati: vault PRI cifrato;
+- snapshot fiscale/AZ: persistito nel DB e utilizzabile anche con vault bloccato;
+- snapshot PRI: persistito nel vault annuale cifrato e leggibile solo con vault sbloccato;
+- report fiscale: mostra solo snapshot/dati AZ;
+- report completo: compone runtime AZ + PRI mantenendo il confine tra le fonti;
+- modifiche su giornate chiuse: solo eventi/audit non distruttivi, con `before/after`, utente, data/ora, motivo e impatto sui progressivi;
+- se una giornata chiusa viene modificata, gli snapshot dal giorno modificato in avanti vanno marcati/ricalcolati.
+
+Stato implementazione 2026-06-13:
+
+- `CashClosure` contiene i campi per snapshot fiscale/AZ e saldo versabile progressivo finale;
+- migrazione `1a2b3c4d5e6f_add_cash_closure_fiscal_snapshot.py` applicata al DB;
+- `routes/cassa.py` usa un calcolo progressivo aggregato per la preview al posto della ricorsione storica;
+- la preview usa un calcolo giornaliero aggregato e non carica piu' tutte le righe incasso/spesa in eager loading;
+- `static/js/agenda.js` carica preview e liste in parallelo nella normale apertura giornata;
+- resta da implementare la chiusura/snapshot persistito:
+  - salvataggio snapshot fiscale in DB;
+  - salvataggio snapshot PRI nel vault cifrato annuale;
+  - audit non distruttivo e ricalcolo a cascata per modifiche su giorni chiusi.
+
 ---
 
 # Versione

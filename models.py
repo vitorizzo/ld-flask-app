@@ -2178,6 +2178,15 @@ class CashClosure(db.Model):
 
     closing_cash_drawer = db.Column(db.Numeric(12, 2), nullable=False, default=0)  # fondo cassa lasciato nel cassetto
 
+    fiscal_snapshot_version = db.Column(db.Integer, nullable=False, default=1)
+    fiscal_snapshot = db.Column(JSONB, nullable=True)
+    fiscal_snapshot_created_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    fiscal_snapshot_stale = db.Column(db.Boolean, nullable=False, default=False)
+
+    saldo_versabile_precedente = db.Column(db.Numeric(12, 2), nullable=True)
+    versabile_giornata = db.Column(db.Numeric(12, 2), nullable=True)
+    saldo_versabile_finale = db.Column(db.Numeric(12, 2), nullable=True)
+
     anomaly_flag = db.Column(db.Boolean, nullable=False, default=False)
     anomaly_note = db.Column(db.Text, nullable=True)
 

@@ -1139,8 +1139,6 @@ async function loadPreview(dateStr) {
 async function refreshAgendaSections(sections = []) {
   if (!currentDay) return;
 
-  await refreshPrivateVaultStatus();
-
   const jobs = [];
 
   if (sections.includes("preview")) jobs.push(loadPreview(currentDay));
@@ -1158,10 +1156,8 @@ async function refreshAgendaSections(sections = []) {
 async function refreshAgendaData() {
   if (!currentDay) return;
 
-  await refreshPrivateVaultStatus();
-
-  await loadPreview(currentDay);
   await Promise.all([
+    loadPreview(currentDay),
     loadIncassi(currentDay),
     loadSpese(currentDay),
     loadPosMoves(currentDay),

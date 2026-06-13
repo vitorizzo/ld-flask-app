@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
 from decimal import Decimal, InvalidOperation
 from datetime import date, datetime, timedelta
-from sqlalchemy import case, exists, or_, and_, func
+from sqlalchemy import case, exists, or_, and_, func, text
 from sqlalchemy.orm import noload, selectinload
 
 from tools.redis_utils import get_redis
@@ -23,7 +23,7 @@ from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck,
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
     CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashOwnerTake, CashOwnerTakeCheck, \
     CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck, CashIssuedCheck, CashDepositCheck, BusinessRegistry, \
-    BusinessRegistryContact
+    BusinessRegistryContact, CashClosure, CashDeposit
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
@@ -1527,6 +1527,545 @@ def _get_total_corrispettivi_for_day(cash_day_id: int) -> Decimal:
     return Decimal(str(totale or 0))
 
 
+def _sum_decimal(query) -> Decimal:
+    return Decimal(str(query.scalar() or 0))
+
+
+def _latest_fiscal_snapshot_before(target_date: date):
+    return (
+        db.session.query(CashDay, CashClosure)
+        .join(CashClosure, CashClosure.cash_day_id == CashDay.id)
+        .filter(
+            CashDay.day_date < target_date,
+            CashDay.status == "closed",
+            CashClosure.fiscal_snapshot_stale.is_(False),
+            CashClosure.saldo_versabile_finale.isnot(None),
+        )
+        .order_by(CashDay.day_date.desc(), CashClosure.created_at.desc())
+        .first()
+    )
+
+
+def _sum_sale_payments_between(start_after: date | None, end_before: date, **filters) -> Decimal:
+    q = (
+        db.session.query(func.coalesce(func.sum(CashSalePayment.amount), 0))
+        .join(CashSale, CashSale.id == CashSalePayment.sale_id)
+        .join(CashDay, CashDay.id == CashSale.cash_day_id)
+        .filter(CashDay.day_date < end_before)
+    )
+    if start_after is not None:
+        q = q.filter(CashDay.day_date > start_after)
+    for attr, value in filters.items():
+        column = getattr(CashSalePayment, attr)
+        if isinstance(value, (set, list, tuple)):
+            q = q.filter(column.in_(value))
+        elif value is True:
+            q = q.filter(column.is_(True))
+        elif value is False:
+            q = q.filter(column.is_(False))
+        else:
+            q = q.filter(column == value)
+    return _sum_decimal(q)
+
+
+def _sum_expense_payments_between(start_after: date | None, end_before: date, **filters) -> Decimal:
+    q = (
+        db.session.query(func.coalesce(func.sum(CashExpensePayment.amount), 0))
+        .join(CashExpense, CashExpense.id == CashExpensePayment.expense_id)
+        .join(CashDay, CashDay.id == CashExpense.cash_day_id)
+        .filter(CashDay.day_date < end_before)
+    )
+    if start_after is not None:
+        q = q.filter(CashDay.day_date > start_after)
+    for attr, value in filters.items():
+        column = getattr(CashExpensePayment, attr)
+        if isinstance(value, (set, list, tuple)):
+            q = q.filter(column.in_(value))
+        elif value is True:
+            q = q.filter(column.is_(True))
+        elif value is False:
+            q = q.filter(column.is_(False))
+        else:
+            q = q.filter(column == value)
+    return _sum_decimal(q)
+
+
+def _sum_pos_moves_between(start_after: date | None, end_before: date, direction: str) -> Decimal:
+    q = (
+        db.session.query(func.coalesce(func.sum(PosMove.amount), 0))
+        .join(CashDay, CashDay.id == PosMove.cash_day_id)
+        .filter(CashDay.day_date < end_before, PosMove.direction == direction)
+    )
+    if start_after is not None:
+        q = q.filter(CashDay.day_date > start_after)
+    return _sum_decimal(q)
+
+
+def _sum_receipts_between(start_after: date | None, end_before: date) -> Decimal:
+    q = (
+        db.session.query(func.coalesce(func.sum(CashReceiptClosure.amount), 0))
+        .join(CashDay, CashDay.id == CashReceiptClosure.cash_day_id)
+        .filter(CashDay.day_date < end_before)
+    )
+    if start_after is not None:
+        q = q.filter(CashDay.day_date > start_after)
+    return _sum_decimal(q)
+
+
+def _sum_deposits_between(start_after: date | None, end_before: date) -> Decimal:
+    cash_q = (
+        db.session.query(func.coalesce(func.sum(CashDeposit.cash_amount), 0))
+        .join(CashDay, CashDay.id == CashDeposit.cash_day_id)
+        .filter(CashDay.day_date < end_before)
+    )
+    check_q = (
+        db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
+        .join(CashDepositCheck, CashDepositCheck.check_id == CashCheck.id)
+        .join(CashDeposit, CashDeposit.id == CashDepositCheck.deposit_id)
+        .join(CashDay, CashDay.id == CashDeposit.cash_day_id)
+        .filter(CashDay.day_date < end_before)
+    )
+    if start_after is not None:
+        cash_q = cash_q.filter(CashDay.day_date > start_after)
+        check_q = check_q.filter(CashDay.day_date > start_after)
+    return _sum_decimal(cash_q) + _sum_decimal(check_q)
+
+
+def _calculate_progressive_saldo_versabile_fast(target_date: date) -> tuple[Decimal, dict]:
+    """
+    Calcola il saldo versabile precedente a target_date.
+    Usa l'ultimo snapshot fiscale chiuso disponibile e aggrega in SQL solo il tratto successivo.
+    """
+    sql = text("""
+        WITH base AS (
+            SELECT
+                cd.day_date AS snapshot_day,
+                cc.saldo_versabile_finale AS saldo_base
+            FROM cash_days cd
+            JOIN cash_closures cc ON cc.cash_day_id = cd.id
+            WHERE cd.day_date < :target_date
+              AND cd.status = 'closed'
+              AND cc.fiscal_snapshot_stale = FALSE
+              AND cc.saldo_versabile_finale IS NOT NULL
+            ORDER BY cd.day_date DESC, cc.created_at DESC
+            LIMIT 1
+        ),
+        bounds AS (
+            SELECT
+                (SELECT snapshot_day FROM base) AS snapshot_day,
+                COALESCE((SELECT saldo_base FROM base), 0) AS saldo_base
+        ),
+        sale_sums AS (
+            SELECT
+                COALESCE(SUM(CASE
+                    WHEN p.direction = 'in'
+                     AND p.method = 'cash'
+                     AND p.flag IN ('*', '**')
+                     AND p.off_cash = FALSE
+                    THEN p.amount ELSE 0 END), 0) AS incassi_cash_azienda,
+                COALESCE(SUM(CASE
+                    WHEN p.direction = 'in'
+                     AND p.method = 'check'
+                     AND p.flag = '*'
+                    THEN p.amount ELSE 0 END), 0) AS assegni_odierni,
+                COALESCE(SUM(CASE
+                    WHEN p.direction = 'in'
+                     AND p.method = 'pos'
+                     AND p.flag IN ('*', '**')
+                    THEN p.amount ELSE 0 END), 0) AS pos_sale_in,
+                COALESCE(SUM(CASE
+                    WHEN p.direction = 'in'
+                     AND p.method = 'check'
+                     AND p.flag = '**'
+                    THEN p.amount ELSE 0 END), 0) AS assegni_postdatati
+            FROM cash_sale_payments p
+            JOIN cash_sales s ON s.id = p.sale_id
+            JOIN cash_days cd ON cd.id = s.cash_day_id
+            CROSS JOIN bounds b
+            WHERE cd.day_date < :target_date
+              AND (b.snapshot_day IS NULL OR cd.day_date > b.snapshot_day)
+        ),
+        expense_sums AS (
+            SELECT
+                COALESCE(SUM(CASE
+                    WHEN p.direction = 'out'
+                     AND p.method = 'cash'
+                     AND p.flag IN ('*', '**')
+                     AND p.off_cash = FALSE
+                    THEN p.amount ELSE 0 END), 0) AS spese_cash_azienda,
+                COALESCE(SUM(CASE
+                    WHEN p.method = 'pos'
+                     AND p.pos_is_personal = TRUE
+                    THEN p.amount ELSE 0 END), 0) AS spese_pos_personali
+            FROM cash_expense_payments p
+            JOIN cash_expenses e ON e.id = p.expense_id
+            JOIN cash_days cd ON cd.id = e.cash_day_id
+            CROSS JOIN bounds b
+            WHERE cd.day_date < :target_date
+              AND (b.snapshot_day IS NULL OR cd.day_date > b.snapshot_day)
+        ),
+        pos_sums AS (
+            SELECT
+                COALESCE(SUM(CASE WHEN pm.direction = 'in' THEN pm.amount ELSE 0 END), 0) AS pos_in,
+                COALESCE(SUM(CASE WHEN pm.direction = 'out' THEN pm.amount ELSE 0 END), 0) AS pos_out
+            FROM pos_moves pm
+            JOIN cash_days cd ON cd.id = pm.cash_day_id
+            CROSS JOIN bounds b
+            WHERE cd.day_date < :target_date
+              AND (b.snapshot_day IS NULL OR cd.day_date > b.snapshot_day)
+        ),
+        receipt_sums AS (
+            SELECT COALESCE(SUM(r.amount), 0) AS totale_corrispettivi
+            FROM cash_receipt_closures r
+            JOIN cash_days cd ON cd.id = r.cash_day_id
+            CROSS JOIN bounds b
+            WHERE cd.day_date < :target_date
+              AND (b.snapshot_day IS NULL OR cd.day_date > b.snapshot_day)
+        ),
+        deposit_sums AS (
+            SELECT
+                COALESCE((
+                    SELECT SUM(d.cash_amount)
+                    FROM cash_deposits d
+                    JOIN cash_days cd ON cd.id = d.cash_day_id
+                    CROSS JOIN bounds b
+                    WHERE cd.day_date < :target_date
+                      AND (b.snapshot_day IS NULL OR cd.day_date > b.snapshot_day)
+                ), 0)
+                +
+                COALESCE((
+                    SELECT SUM(ch.amount)
+                    FROM cash_checks ch
+                    JOIN cash_deposit_checks dc ON dc.check_id = ch.id
+                    JOIN cash_deposits d ON d.id = dc.deposit_id
+                    JOIN cash_days cd ON cd.id = d.cash_day_id
+                    CROSS JOIN bounds b
+                    WHERE cd.day_date < :target_date
+                      AND (b.snapshot_day IS NULL OR cd.day_date > b.snapshot_day)
+                ), 0) AS totale_versato
+        )
+        SELECT
+            b.snapshot_day,
+            (
+                b.saldo_base
+                + (
+                    ss.incassi_cash_azienda
+                    + ss.assegni_odierni
+                    + ss.pos_sale_in
+                    + rs.totale_corrispettivi
+                    - es.spese_cash_azienda
+                    - ps.pos_out
+                    - (ps.pos_in - ps.pos_out)
+                    - es.spese_pos_personali
+                )
+                + ss.assegni_postdatati
+                - ds.totale_versato
+            ) AS saldo
+        FROM bounds b
+        CROSS JOIN sale_sums ss
+        CROSS JOIN expense_sums es
+        CROSS JOIN pos_sums ps
+        CROSS JOIN receipt_sums rs
+        CROSS JOIN deposit_sums ds
+    """)
+    row = db.session.execute(sql, {"target_date": target_date}).mappings().first()
+    snapshot_day = row["snapshot_day"] if row else None
+    return _to_dec(row["saldo"] if row else 0), {
+        "source": "snapshot_plus_aggregate" if snapshot_day else "aggregate_from_start",
+        "snapshot_day": snapshot_day.isoformat() if hasattr(snapshot_day, "isoformat") else snapshot_day,
+        "range_end_before": target_date.isoformat(),
+    }
+
+
+def _calculate_closure_fast_from_db(
+    cash_day_id: int,
+    opening_float: Decimal,
+    total_corrispettivi: Decimal,
+    fondo_finale: Decimal,
+    saldo_versabile_precedente: Decimal,
+    incasso_consegnato: Decimal,
+    tolleranza: Decimal = Decimal("2.00"),
+) -> dict:
+    sql = text("""
+        WITH sale_sums AS (
+            SELECT
+                COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='cash' AND p.flag IN ('*','**') AND p.off_cash=FALSE THEN p.amount ELSE 0 END), 0) AS incassi_cash_azienda,
+                COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='cash' AND p.off_cash=FALSE THEN p.amount ELSE 0 END), 0) AS incassi_cash,
+                COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='cash' AND p.flag IN ('*','**') AND p.off_cash=TRUE THEN p.amount ELSE 0 END), 0) AS incassi_fuori_cassa,
+                COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='bank' AND p.flag IN ('*','**') THEN p.amount ELSE 0 END), 0) AS incassi_bank,
+                COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='check' AND p.flag IN ('*','**') THEN p.amount ELSE 0 END), 0) AS incassi_check,
+                COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='pos' AND p.flag IN ('*','**') THEN p.amount ELSE 0 END), 0) AS pos_payment_in,
+                COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='check' AND p.flag='*' THEN p.amount ELSE 0 END), 0) AS assegni_odierni,
+                COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='check' AND p.flag='**' THEN p.amount ELSE 0 END), 0) AS assegni_postdatati
+            FROM cash_sale_payments p
+            JOIN cash_sales s ON s.id = p.sale_id
+            WHERE s.cash_day_id = :cash_day_id
+        ),
+        expense_sums AS (
+            SELECT
+                COALESCE(SUM(CASE WHEN p.direction='out' AND p.method='cash' AND p.off_cash=FALSE THEN p.amount ELSE 0 END), 0) AS spese_cash,
+                COALESCE(SUM(CASE WHEN p.direction='out' AND p.method='cash' AND p.flag IN ('*','**') AND p.off_cash=FALSE THEN p.amount ELSE 0 END), 0) AS spese_cash_azienda,
+                COALESCE(SUM(CASE WHEN p.direction='out' AND p.method='cash' AND p.flag IN ('*','**') AND p.off_cash=TRUE THEN p.amount ELSE 0 END), 0) AS spese_fuori_cassa,
+                COALESCE(SUM(CASE WHEN p.direction='out' AND p.method='bank' AND p.flag IN ('*','**') THEN p.amount ELSE 0 END), 0) AS spese_bank,
+                COALESCE(SUM(CASE WHEN p.direction='out' AND p.method='pos' AND p.flag IN ('*','**') THEN p.amount ELSE 0 END), 0) AS spese_pos,
+                COALESCE(SUM(CASE WHEN p.method='pos' AND p.pos_is_personal=TRUE THEN p.amount ELSE 0 END), 0) AS spese_pos_personali
+            FROM cash_expense_payments p
+            JOIN cash_expenses e ON e.id = p.expense_id
+            WHERE e.cash_day_id = :cash_day_id
+        ),
+        pos_sums AS (
+            SELECT
+                COALESCE(SUM(CASE WHEN direction='in' THEN amount ELSE 0 END), 0) AS pos_in,
+                COALESCE(SUM(CASE WHEN direction='out' THEN amount ELSE 0 END), 0) AS pos_out
+            FROM pos_moves
+            WHERE cash_day_id = :cash_day_id
+        ),
+        cash_move_sums AS (
+            SELECT
+                COALESCE(SUM(CASE WHEN kind='altro' AND direction='in' THEN amount ELSE 0 END), 0) AS cash_moves_in_altro,
+                COALESCE(SUM(CASE WHEN kind='altro' AND direction='out' THEN amount ELSE 0 END), 0) AS cash_moves_out_altro,
+                COALESCE(SUM(CASE WHEN kind='spicci' AND direction='in' THEN amount ELSE 0 END), 0) AS spicci_in,
+                COALESCE(SUM(CASE WHEN kind='spicci' AND direction='out' THEN amount ELSE 0 END), 0) AS spicci_out,
+                COUNT(*) AS cash_move_count
+            FROM cash_moves
+            WHERE cash_day_id = :cash_day_id
+        ),
+        deposit_cash_sums AS (
+            SELECT
+                COALESCE(SUM(cash_amount), 0) AS depositi_cash_oggi,
+                COALESCE(SUM(CASE WHEN deposit_type='versamento_intermedio' THEN cash_amount ELSE 0 END), 0) AS depositi_intermedi_cash,
+                COALESCE(SUM(CASE WHEN deposit_type='versamento_incasso' THEN cash_amount ELSE 0 END), 0) AS depositi_incasso_cash
+            FROM cash_deposits
+            WHERE cash_day_id = :cash_day_id
+        ),
+        deposit_check_sums AS (
+            SELECT
+                COALESCE(SUM(ch.amount), 0) AS depositi_assegni_oggi,
+                COALESCE(SUM(CASE WHEN d.deposit_type='versamento_intermedio' THEN ch.amount ELSE 0 END), 0) AS depositi_intermedi_assegni,
+                COALESCE(SUM(CASE WHEN d.deposit_type='versamento_incasso' THEN ch.amount ELSE 0 END), 0) AS depositi_incasso_assegni
+            FROM cash_deposits d
+            JOIN cash_deposit_checks dc ON dc.deposit_id = d.id
+            JOIN cash_checks ch ON ch.id = dc.check_id
+            WHERE d.cash_day_id = :cash_day_id
+        ),
+        check_sums AS (
+            SELECT COALESCE(SUM(amount), 0) AS assegni_in_pancia
+            FROM cash_checks
+            WHERE status IN ('received', 'moved', 'spostato', 'anticipato')
+        )
+        SELECT *
+        FROM sale_sums
+        CROSS JOIN expense_sums
+        CROSS JOIN pos_sums
+        CROSS JOIN cash_move_sums
+        CROSS JOIN deposit_cash_sums
+        CROSS JOIN deposit_check_sums
+        CROSS JOIN check_sums
+    """)
+    row = db.session.execute(sql, {"cash_day_id": cash_day_id}).mappings().first() or {}
+
+    def d(key):
+        return _to_dec(row.get(key, 0))
+
+    opening_float = _to_dec(opening_float)
+    total_corrispettivi = _to_dec(total_corrispettivi)
+    fondo_finale = _to_dec(fondo_finale)
+    saldo_versabile_precedente = _to_dec(saldo_versabile_precedente)
+    incasso_consegnato = _to_dec(incasso_consegnato)
+    tolleranza = _to_dec(tolleranza)
+
+    delta_fondo = fondo_finale - opening_float
+    has_fondo_iniziale = opening_float > Decimal("0")
+    has_fondo_finale = fondo_finale > Decimal("0")
+    has_corrispettivi = total_corrispettivi > Decimal("0")
+
+    incassi_cash_azienda = d("incassi_cash_azienda")
+    incassi_cash = d("incassi_cash")
+    incassi_fuori_cassa = d("incassi_fuori_cassa")
+    incassi_bank = d("incassi_bank")
+    incassi_check = d("incassi_check")
+    pos_in = d("pos_payment_in")
+    incassi_pos = d("pos_in")
+    storni_pos = d("pos_out")
+    totale_pos = incassi_pos - storni_pos
+
+    spese_cash = d("spese_cash")
+    spese_cash_azienda = d("spese_cash_azienda")
+    spese_fuori_cassa = d("spese_fuori_cassa")
+    spese_bank = d("spese_bank")
+    spese_pos = d("spese_pos")
+    spese_pos_personali = d("spese_pos_personali")
+
+    cash_moves_in_altro = d("cash_moves_in_altro")
+    cash_moves_out_altro = d("cash_moves_out_altro")
+    saldo_movimenti_cassa_altro = cash_moves_in_altro - cash_moves_out_altro
+    spicci_in = d("spicci_in")
+    spicci_out = d("spicci_out")
+    saldo_spicci = spicci_in - spicci_out
+    saldo_movimenti_cassa_totale = saldo_movimenti_cassa_altro + saldo_spicci
+    cash_moves_in_amount = cash_moves_in_altro + spicci_in
+    cash_moves_out_amount = cash_moves_out_altro + spicci_out
+
+    assegni_odierni = d("assegni_odierni")
+    assegni_postdatati = d("assegni_postdatati")
+
+    depositi_cash_oggi = d("depositi_cash_oggi")
+    depositi_assegni_oggi = d("depositi_assegni_oggi")
+    totale_versato_oggi = depositi_cash_oggi + depositi_assegni_oggi
+    depositi_intermedi_cash = d("depositi_intermedi_cash")
+    depositi_intermedi_assegni = d("depositi_intermedi_assegni")
+    totale_versato_intermedio = depositi_intermedi_cash + depositi_intermedi_assegni
+    depositi_incasso_cash = d("depositi_incasso_cash")
+    depositi_incasso_assegni = d("depositi_incasso_assegni")
+    totale_versato_incasso = depositi_incasso_cash + depositi_incasso_assegni
+
+    assegni_in_pancia = d("assegni_in_pancia")
+
+    totale_incassi_lordi = (
+        incassi_cash
+        + pos_in
+        + incassi_bank
+        + incassi_check
+        + total_corrispettivi
+        + incassi_fuori_cassa
+    )
+    totale_incassi_fisici = incassi_cash + incassi_check + total_corrispettivi
+    totale_incassi_elettronici = totale_pos + incassi_bank
+    totale_incassi_fuori_cassa = incassi_fuori_cassa
+    totale_spese_fisiche = spese_cash
+    totale_spese_elettroniche = spese_pos + spese_bank
+    totale_spese_fuori_cassa = spese_fuori_cassa
+
+    contanti_fisici = (
+        totale_incassi_lordi
+        - totale_pos
+        - spese_cash
+        - incassi_bank
+        - incassi_fuori_cassa
+        + saldo_movimenti_cassa_altro
+        + saldo_spicci
+    )
+
+    versabile_giornata = (
+        incassi_cash_azienda
+        + assegni_odierni
+        + pos_in
+        + total_corrispettivi
+        - spese_cash_azienda
+        - storni_pos
+        - totale_pos
+        - spese_pos_personali
+    )
+
+    massimo_contanti_incasso = saldo_versabile_precedente - assegni_in_pancia
+    if massimo_contanti_incasso < Decimal("0.00"):
+        massimo_contanti_incasso = Decimal("0.00")
+
+    debito_contanti_incasso = depositi_incasso_cash - massimo_contanti_incasso
+    if debito_contanti_incasso < Decimal("0.00"):
+        debito_contanti_incasso = Decimal("0.00")
+
+    saldo_attuale = (
+        saldo_versabile_precedente
+        + versabile_giornata
+        + assegni_postdatati
+        - totale_versato_oggi
+    )
+    versabile_residuo = (
+        versabile_giornata
+        - totale_versato_intermedio
+        - debito_contanti_incasso
+    )
+
+    atteso_cassetto_operativo = (
+        totale_incassi_lordi
+        - totale_pos
+        - incassi_bank
+        - incassi_fuori_cassa
+        - spese_cash
+        + saldo_movimenti_cassa_altro
+        + saldo_spicci
+    )
+    incasso_calcolato = atteso_cassetto_operativo - delta_fondo
+    valore_atteso_cassetto = incasso_calcolato
+    delta_quadratura = incasso_consegnato - valore_atteso_cassetto
+    anomalia = abs(delta_quadratura) > tolleranza
+    totale_giornata_is_partial = not (
+        has_corrispettivi and has_fondo_iniziale and has_fondo_finale
+    )
+
+    return {
+        "fondo_iniziale": opening_float,
+        "fondo_finale": fondo_finale,
+        "delta_fondo": delta_fondo,
+        "incassi_cash": incassi_cash,
+        "spese_cash": spese_cash,
+        "contanti_fisici": contanti_fisici,
+        "totale_pos": totale_pos,
+        "incassi_fuori_cassa": incassi_fuori_cassa,
+        "incassi_pos": pos_in,
+        "incassi_bank": incassi_bank,
+        "incassi_check": incassi_check,
+        "corrispettivi": total_corrispettivi,
+        "totale_incassi_lordi": totale_incassi_lordi,
+        "totale_incassi_fisici": totale_incassi_fisici,
+        "totale_incassi_elettronici": totale_incassi_elettronici,
+        "totale_incassi_fuori_cassa": totale_incassi_fuori_cassa,
+        "spese_fuori_cassa": spese_fuori_cassa,
+        "spese_pos": spese_pos,
+        "spese_bank": spese_bank,
+        "totale_spese_fisiche": totale_spese_fisiche,
+        "totale_spese_elettroniche": totale_spese_elettroniche,
+        "totale_spese_fuori_cassa": totale_spese_fuori_cassa,
+        "spese_pos_personali": float(spese_pos_personali or 0),
+        "cash_moves_in_altro": cash_moves_in_altro,
+        "cash_moves_out_altro": cash_moves_out_altro,
+        "saldo_movimenti_cassa_altro": saldo_movimenti_cassa_altro,
+        "cash_moves_in_amount": cash_moves_in_amount,
+        "cash_moves_out_amount": cash_moves_out_amount,
+        "cash_moves_count": int(row.get("cash_move_count") or 0),
+        "spicci_in": spicci_in,
+        "spicci_out": spicci_out,
+        "saldo_spicci": saldo_spicci,
+        "saldo_movimenti_cassa": saldo_movimenti_cassa_totale,
+        "assegni_odierni": assegni_odierni,
+        "assegni_postdatati": assegni_postdatati,
+        "atteso_cassetto_operativo": atteso_cassetto_operativo,
+        "incasso_calcolato": incasso_calcolato,
+        "incasso_consegnato": incasso_consegnato,
+        "valore_atteso_cassetto": valore_atteso_cassetto,
+        "delta_quadratura": delta_quadratura,
+        "anomalia": anomalia,
+        "versabile_giornata": versabile_giornata,
+        "versabile_residuo": versabile_residuo,
+        "saldo_versabile": saldo_attuale,
+        "saldo_attuale": saldo_attuale,
+        "depositi_cash_oggi": depositi_cash_oggi,
+        "depositi_assegni_oggi": depositi_assegni_oggi,
+        "totale_versato_oggi": totale_versato_oggi,
+        "depositi_intermedi_cash": depositi_intermedi_cash,
+        "depositi_intermedi_assegni": depositi_intermedi_assegni,
+        "totale_versato_intermedio": totale_versato_intermedio,
+        "depositi_incasso_cash": depositi_incasso_cash,
+        "depositi_incasso_assegni": depositi_incasso_assegni,
+        "totale_versato_incasso": totale_versato_incasso,
+        "assegni_in_pancia": assegni_in_pancia,
+        "massimo_contanti_incasso": massimo_contanti_incasso,
+        "debito_contanti_incasso": debito_contanti_incasso,
+        "has_corrispettivi": has_corrispettivi,
+        "has_fondo_iniziale": has_fondo_iniziale,
+        "has_fondo_finale": has_fondo_finale,
+        "totale_giornata_is_partial": totale_giornata_is_partial,
+        "note": (
+            "Corrispettivi inclusi negli incassi lordi. "
+            "I POS vengono trattati come incassi cash-like e sottratti una sola volta "
+            "nel calcolo del cassetto atteso tramite PosMove netto. "
+            "Assegni fisicamente presenti nel cassetto. "
+            "Movimenti di cassa e spicci separati."
+        ),
+    }
+
+
 def _calculate_progressive_saldo_versabile(cash_day: CashDay) -> Decimal:
     """
     Ricostruisce il saldo versabile progressivo della giornata,
@@ -1576,13 +2115,15 @@ def api_cash_day_preview(day_date):
     except ValueError:
         return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
 
-    # Carico con eager loading per evitare N+1.
     cash_day = (
         CashDay.query
         .options(
-            selectinload(CashDay.sales).selectinload(CashSale.payments),
-            selectinload(CashDay.expenses).selectinload(CashExpense.payments),
-            selectinload(CashDay.drawer_count).selectinload(CashDrawerCount.lines),
+            noload(CashDay.sales),
+            noload(CashDay.expenses),
+            noload(CashDay.cash_moves),
+            noload(CashDay.pos_moves),
+            noload(CashDay.deposits),
+            noload(CashDay.closure),
         )
         .filter(CashDay.day_date == d)
         .first()
@@ -1593,39 +2134,29 @@ def api_cash_day_preview(day_date):
 
     cutoff = next_banking_day(d)
 
-    # Somma assegni "in pancia" versabili entro cutoff
-    assegni_versabili = (
-        db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
-        .filter(
-            CashCheck.status.in_(CHECK_IN_PANCIA_STATUSES),
-            CashCheck.due_date <= cutoff,
+    checks_debug_row = (
+        db.session.query(
+            func.coalesce(func.sum(case(
+                (CashCheck.due_date <= cutoff, CashCheck.amount),
+                else_=0,
+            )), 0).label("versabili"),
+            func.coalesce(func.sum(case(
+                (CashCheck.due_date > cutoff, CashCheck.amount),
+                else_=0,
+            )), 0).label("postdatati"),
         )
-        .scalar()
+        .filter(CashCheck.status.in_(CHECK_IN_PANCIA_STATUSES))
+        .first()
     )
-
-    # Somma assegni "in pancia" postdatati oltre cutoff
-    assegni_postdatati = (
-        db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
-        .filter(
-            CashCheck.status.in_(CHECK_IN_PANCIA_STATUSES),
-            CashCheck.due_date > cutoff,
-        )
-        .scalar()
-    )
+    assegni_versabili = getattr(checks_debug_row, "versabili", 0) or 0
+    assegni_postdatati = getattr(checks_debug_row, "postdatati", 0) or 0
 
     saldo_prev_qs = request.args.get("saldo_prev")
+    saldo_prev_meta = {"source": "querystring", "snapshot_day": None}
     if saldo_prev_qs is not None and str(saldo_prev_qs).strip() != "":
         saldo_versabile_precedente = Decimal(str(saldo_prev_qs))
     else:
-        prev_day = (
-            CashDay.query
-            .filter(CashDay.day_date < d)
-            .order_by(CashDay.day_date.desc())
-            .first()
-        )
-        saldo_versabile_precedente = (
-            _calculate_progressive_saldo_versabile(prev_day) if prev_day else Decimal("0")
-        )
+        saldo_versabile_precedente, saldo_prev_meta = _calculate_progressive_saldo_versabile_fast(d)
 
     fondo_finale_qs = request.args.get("fondo_finale")
     if fondo_finale_qs is not None and str(fondo_finale_qs).strip() != "":
@@ -1635,44 +2166,18 @@ def api_cash_day_preview(day_date):
 
     totale_corrispettivi = _get_total_corrispettivi_for_day(cash_day.id)
 
-    totale_owner_take_cash = (
-        db.session.query(func.coalesce(func.sum(CashOwnerTake.cash_amount), 0))
-        .filter(CashOwnerTake.cash_day_id == cash_day.id)
-        .scalar()
-    )
-
-    totale_owner_take_checks = (
-        db.session.query(func.coalesce(func.sum(CashOwnerTake.check_amount), 0))
-        .filter(CashOwnerTake.cash_day_id == cash_day.id)
-        .scalar()
-    )
-
-    totale_cash_moves_in = (
-        db.session.query(func.coalesce(func.sum(CashMove.amount), 0))
-        .filter(
-            CashMove.cash_day_id == cash_day.id,
-            CashMove.kind.in_(["altro", "spicci"]),
-            CashMove.direction == "in",
+    owner_take_row = (
+        db.session.query(
+            func.coalesce(func.sum(CashOwnerTake.cash_amount), 0).label("cash_amount"),
+            func.coalesce(func.sum(CashOwnerTake.check_amount), 0).label("check_amount"),
+            func.count(CashOwnerTake.id).label("row_count"),
         )
-        .scalar()
+        .filter(CashOwnerTake.cash_day_id == cash_day.id)
+        .first()
     )
-
-    totale_cash_moves_out = (
-        db.session.query(func.coalesce(func.sum(CashMove.amount), 0))
-        .filter(
-            CashMove.cash_day_id == cash_day.id,
-            CashMove.kind.in_(["altro", "spicci"]),
-            CashMove.direction == "out",
-        )
-        .scalar()
-    )
-
-    totale_owner_take_cash = Decimal(str(totale_owner_take_cash or 0))
-    totale_owner_take_checks = Decimal(str(totale_owner_take_checks or 0))
-    totale_cash_moves_in = Decimal(str(totale_cash_moves_in or 0))
-    totale_cash_moves_out = Decimal(str(totale_cash_moves_out or 0))
-
-    saldo_movimenti_cassa = totale_cash_moves_in - totale_cash_moves_out
+    totale_owner_take_cash = Decimal(str(getattr(owner_take_row, "cash_amount", 0) or 0))
+    totale_owner_take_checks = Decimal(str(getattr(owner_take_row, "check_amount", 0) or 0))
+    has_owner_take_rows = bool(getattr(owner_take_row, "row_count", 0) or 0)
 
     # =========================
     # Totali PRI per modalità full
@@ -1731,22 +2236,21 @@ def api_cash_day_preview(day_date):
         + totale_owner_take_checks
     )
 
-    result = calculate_closure_pure(
+    result = _calculate_closure_fast_from_db(
         cash_day_id=cash_day.id,
         opening_float=cash_day.opening_float,
         total_corrispettivi=totale_corrispettivi,
         fondo_finale=fondo_finale,
         saldo_versabile_precedente=saldo_versabile_precedente,
-        saldo_movimenti_cassa=saldo_movimenti_cassa,
         incasso_consegnato=totale_incasso_consegnato,
     )
 
     result["incasso_consegnato"] = float(totale_incasso_consegnato)
     result["owner_take_cash_amount"] = float(totale_owner_take_cash)
     result["owner_take_check_amount"] = float(totale_owner_take_checks)
-    result["cash_moves_in_amount"] = float(totale_cash_moves_in)
-    result["cash_moves_out_amount"] = float(totale_cash_moves_out)
-    result["cash_moves_net_amount"] = float(saldo_movimenti_cassa)
+    result["cash_moves_in_amount"] = float(Decimal(str(result.get("cash_moves_in_amount") or 0)))
+    result["cash_moves_out_amount"] = float(Decimal(str(result.get("cash_moves_out_amount") or 0)))
+    result["cash_moves_net_amount"] = float(Decimal(str(result.get("saldo_movimenti_cassa") or 0)))
     result["total_corrispettivi"] = float(totale_corrispettivi)
     result["pri_sales_cash"] = float(pri_sales_cash)
     result["pri_sales_fuori_cassa"] = float(pri_sales_fuori_cassa)
@@ -1760,8 +2264,6 @@ def api_cash_day_preview(day_date):
     # =========================
     # Display full/fiscal per KPI
     # =========================
-    vault_unlocked = _vault_get_unlocked_state()
-
     valore_atteso_fiscal = Decimal(str(result.get("valore_atteso_cassetto", 0)))
     incasso_calcolato_fiscal = Decimal(str(result.get("incasso_calcolato", 0)))
     delta_quadratura_fiscal = Decimal(str(result.get("delta_quadratura", 0)))
@@ -1783,20 +2285,7 @@ def api_cash_day_preview(day_date):
     result["incasso_calcolato"] = float(incasso_calcolato_display)
     result["delta_quadratura"] = float(delta_quadratura_display)
 
-    has_owner_take_rows = (
-                              db.session.query(func.count(CashOwnerTake.id))
-                              .filter(CashOwnerTake.cash_day_id == cash_day.id)
-                              .scalar()
-                          ) > 0
-
-    has_cash_move_rows = (
-                             db.session.query(func.count(CashMove.id))
-                             .filter(
-                                 CashMove.cash_day_id == cash_day.id,
-                                 CashMove.kind.in_(["altro", "spicci"]),
-                             )
-                             .scalar()
-                         ) > 0
+    has_cash_move_rows = int(result.get("cash_moves_count") or 0) > 0
 
     quadratura_available = bool(
         (has_owner_take_rows or has_cash_move_rows)
@@ -1847,6 +2336,7 @@ def api_cash_day_preview(day_date):
             "in_pancia_status": sorted(list(CHECK_IN_PANCIA_STATUSES)),
             "versabili": float(assegni_versabili or 0),
             "postdatati": float(assegni_postdatati or 0),
+            "saldo_prev_source": saldo_prev_meta,
         }
     })
 

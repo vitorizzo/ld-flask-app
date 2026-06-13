@@ -1305,3 +1305,55 @@ Barra giornata Agenda 2026-06-13:
 - il click sui pulsanti non propaga alla card giornata, evitando il toggle del vault;
 - aggiunto CSS dedicato in `static/css/agenda.css`;
 - verifica `node --check static/js/agenda.js` ok.
+
+Misura tempi apertura giornata Agenda 2026-06-13:
+- richiesta diagnostica su `2026-06-13` vuoto e `2026-06-12` pieno;
+- misura fatta sugli endpoint Flask reali con accesso DB remoto, bypassando solo i decorator di autenticazione nel test locale per evitare redirect del test client;
+- `loadDay()` chiama `/api/day`, poi `preview`, poi in parallelo incassi/spese/POS/movimenti/saldo spicci/assegni rientranti; assegni in scadenza parte fuori dal blocco atteso;
+- endpoint `preview` (`api_cash_day_preview`) non termina entro 90s su entrambi i giorni;
+- il collo di bottiglia e' `_calculate_progressive_saldo_versabile()`, che ricostruisce ricorsivamente il saldo su tutte le giornate precedenti;
+- misura senza `preview`, processo caldo:
+  - `2026-06-12` pieno: stima UI `3.545s` (`/api/day` `0.629s`, massimo parallelo `2.917s`);
+  - `2026-06-13` vuoto: stima UI `3.242s` (`/api/day` `0.673s`, massimo parallelo `2.569s`);
+- rispetto ai target indicati: pieno nel range 3/4s solo escludendo preview; vuoto sopra il target 1/2s anche escludendo preview; con preview il caricamento reale e' nettamente fuori target.
+
+Decisione architetturale snapshot chiusura Agenda 2026-06-13:
+- obiettivo: raggiungere apertura giornata entro 3/4s evitando il ricalcolo ricorsivo del saldo versabile progressivo;
+- vincolo funzionale confermato: dati aziendali/fiscali restano nel DB, dati privati restano nel vault PRI;
+- lo snapshot non deve essere un totale unico indistinto:
+  - snapshot fiscale/AZ persistito nel DB, leggibile anche a vault bloccato;
+  - snapshot PRI persistito nel vault cifrato annuale, leggibile solo a vault sbloccato;
+  - snapshot completo = composizione runtime di AZ + PRI solo in modalita' report completa;
+- in modalita' report fiscale devono essere mostrati solo dati AZ/DB;
+- in modalita' report completa devono essere mostrati AZ + PRI, mantenendo evidenza del perimetro dati;
+- modifiche su giornate gia' chiuse non devono essere distruttive:
+  - registrare audit con utente, data/ora, entita', before/after, motivo e impatto sui progressivi;
+  - permettere visualizzazione degli effetti prima/dopo;
+  - permettere rimozione/reversione tramite evento compensativo, non cancellazione silenziosa;
+  - ricalcolare snapshot dal giorno modificato in avanti solo quando serve.
+
+Performance apertura giornata Agenda 2026-06-13:
+- aggiunta migrazione `1a2b3c4d5e6f_add_cash_closure_fiscal_snapshot.py`;
+- aggiunti su `CashClosure` campi snapshot fiscale/AZ:
+  - `fiscal_snapshot_version`;
+  - `fiscal_snapshot`;
+  - `fiscal_snapshot_created_at`;
+  - `fiscal_snapshot_stale`;
+  - `saldo_versabile_precedente`;
+  - `versabile_giornata`;
+  - `saldo_versabile_finale`;
+- migrazione applicata al DB remoto (`flask db upgrade`: `c0d1e2f3a4b5 -> 1a2b3c4d5e6f`);
+- `api_cash_day_preview()` non usa piu' `_calculate_progressive_saldo_versabile()` ricorsiva;
+- aggiunto calcolo progressivo veloce:
+  - usa l'ultimo snapshot fiscale chiuso valido, se presente;
+  - in assenza di snapshot ricostruisce il saldo precedente con una singola query aggregata SQL;
+- aggiunto calcolo giornaliero fast per la preview con una query aggregata invece di molte query separate;
+- rimosso eager loading non necessario di incassi/spese nella preview;
+- ridotte da due a una le letture dello stato vault dentro la preview;
+- `refreshAgendaData()` ora carica preview e liste in parallelo, non piu' preview prima e liste dopo;
+- stima apertura warm con DB remoto:
+  - `2026-06-12` pieno: `3.607s`;
+  - `2026-06-13` vuoto: `3.627s`;
+- primo giro freddo del processo ancora piu' lento (`2026-06-12` pieno `5.356s`) per costo iniziale DB/cache;
+- verifiche ok: `python -m py_compile routes/cassa.py models.py`, `node --check static/js/agenda.js`.
+- ancora da fare: endpoint/azione di chiusura che persiste effettivamente lo snapshot fiscale e snapshot PRI nel vault, piu' audit non distruttivo delle modifiche su giornate chiuse.
