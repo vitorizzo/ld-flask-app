@@ -1272,3 +1272,27 @@ UX modale corrispettivi Agenda 2026-06-13:
 - premendo `Enter` nella modale viene eseguito `saveReceiptClosure()` come click su `Aggiungi` / `Salva`;
 - rimosso dal footer della modale il pulsante `Stampa report completo`;
 - verifica `node --check static/js/agenda.js` ok.
+
+UX modale Cassetto / Prelievi titolare Agenda 2026-06-13:
+- aggiornata `static/js/agenda.js` per la modale `#ownerTakeModal`;
+- all'apertura, focus automatico su `#ownerTakeCashAmount` con valore selezionato;
+- ordine Tab esplicito:
+  - contanti;
+  - tipo prelievo `#ownerTakeType`;
+  - checkbox assegni disponibili, nell'ordine della tabella;
+- `Nota` e pulsante `Salva prelievo` vengono esclusi dalla tabulazione standard ma restano selezionabili col mouse;
+- l'ordine Tab viene ricalcolato dopo ogni reload degli assegni disponibili;
+- premendo `Enter` nella modale viene eseguito `saveOwnerTake()` come click su `Salva prelievo`;
+- verifica `node --check static/js/agenda.js` ok.
+
+UX modale Spicci Agenda 2026-06-13:
+- aggiornata `static/js/agenda.js` per la modale `#spicciModal`;
+- all'apertura, focus automatico su `#spicciMoveAmount` con valore selezionato;
+- ordine Tab esplicito:
+  - importo;
+  - chi `#spicciMovePerformedBy`;
+  - tipo `#spicciMoveType`;
+- `Note` e pulsante `Salva` vengono esclusi dalla tabulazione standard ma restano selezionabili col mouse;
+- premendo `Enter` nella modale viene eseguito `saveSpicciMove()` come click su `Salva`;
+- premendo `Esc` la modale viene chiusa senza salvare;
+- verifica `node --check static/js/agenda.js` ok.

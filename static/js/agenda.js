@@ -3313,6 +3313,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   if (spicciModalEl) {
     spicciModal = new bootstrap.Modal(spicciModalEl);
+    spicciModalEl.addEventListener("shown.bs.modal", focusSpicciAmountInput);
+    spicciModalEl.addEventListener("keydown", handleSpicciModalKeydown);
+    spicciModalEl.addEventListener("hidden.bs.modal", () => {
+      spicciMoveSaveBtn?.removeAttribute("disabled");
+    });
   }
 
   if (ecommerceModalEl) {
@@ -4302,6 +4307,70 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     if (spicciMoveSaveBtn) {
       spicciMoveSaveBtn.textContent = "Salva";
+    }
+    configureSpicciTabOrder();
+  }
+
+  function spicciOrderedFocusTargets() {
+    return [
+      spicciMoveAmountInput,
+      spicciMovePerformedByInput,
+      spicciMoveTypeSelect,
+    ].filter(Boolean);
+  }
+
+  function configureSpicciTabOrder() {
+    [
+      spicciMoveNotesInput,
+      spicciMoveSaveBtn,
+    ].filter(Boolean).forEach(el => {
+      el.tabIndex = -1;
+    });
+
+    spicciOrderedFocusTargets().forEach((el, index) => {
+      el.tabIndex = index + 1;
+    });
+  }
+
+  function focusSpicciAmountInput() {
+    configureSpicciTabOrder();
+    if (!spicciMoveAmountInput) return;
+
+    const focusAmount = () => {
+      spicciMoveAmountInput.focus();
+      spicciMoveAmountInput.select?.();
+      if (typeof spicciMoveAmountInput.setSelectionRange === "function") {
+        spicciMoveAmountInput.setSelectionRange(
+          0,
+          String(spicciMoveAmountInput.value || "").length
+        );
+      }
+    };
+
+    requestAnimationFrame(focusAmount);
+    window.setTimeout(focusAmount, 120);
+  }
+
+  function handleSpicciModalKeydown(event) {
+    if (!spicciModalEl || !spicciModalEl.classList.contains("show")) return;
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (spicciModal) {
+        spicciModal.hide();
+      }
+      return;
+    }
+
+    if (event.key !== "Enter") return;
+
+    const target = event.target;
+    const tagName = String(target?.tagName || "").toLowerCase();
+    if (tagName === "textarea" || target?.isContentEditable) return;
+
+    event.preventDefault();
+    if (!spicciMoveSaveBtn?.disabled) {
+      saveSpicciMove();
     }
   }
 
