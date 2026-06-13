@@ -1821,6 +1821,42 @@ async function openEcommerceModal() {
   ecommerceModal.show();
 }
 
+function focusEcommerceAmountInput() {
+  if (!ecoAmountInput) return;
+
+  const selectInput = () => {
+    ecoAmountInput.focus();
+    ecoAmountInput.select();
+    if (typeof ecoAmountInput.setSelectionRange === "function") {
+      ecoAmountInput.setSelectionRange(0, String(ecoAmountInput.value || "").length);
+    }
+  };
+
+  requestAnimationFrame(selectInput);
+  setTimeout(selectInput, 120);
+}
+
+function handleEcommerceModalKeydown(event) {
+  if (!ecommerceModalEl || !ecommerceModalEl.classList.contains("show")) return;
+
+  if (event.key === "Tab" && !event.shiftKey && event.target === ecoAmountInput && ecoDescriptionInput) {
+    event.preventDefault();
+    ecoDescriptionInput.focus();
+    ecoDescriptionInput.select();
+    return;
+  }
+
+  if (event.key === "Enter") {
+    const target = event.target;
+    const tagName = String(target?.tagName || "").toLowerCase();
+    if (tagName === "textarea" || target?.isContentEditable) return;
+    event.preventDefault();
+    if (!ecoAddBtn?.disabled) {
+      saveEcommerce();
+    }
+  }
+}
+
 async function loadIncassi(dayStr) {
   const listEl = document.getElementById("incassiList");
   const totalEl = document.getElementById("totIncassi");
@@ -3216,6 +3252,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   if (ecommerceModalEl) {
     ecommerceModal = new bootstrap.Modal(ecommerceModalEl);
+    ecommerceModalEl.addEventListener("shown.bs.modal", focusEcommerceAmountInput);
+    ecommerceModalEl.addEventListener("keydown", handleEcommerceModalKeydown);
+    ecommerceModalEl.addEventListener("hidden.bs.modal", () => {
+      ecoAddBtn?.removeAttribute("disabled");
+    });
   }
 
   if (depositModalEl) {
@@ -7491,7 +7532,7 @@ document.addEventListener("visibilitychange", function () {
   }
 });
 
-ecoAddBtn?.addEventListener("click", async () => {
+async function saveEcommerce() {
   const amountRaw = ecoAmountInput?.value;
   const description = (ecoDescriptionInput?.value || "").trim();
 
@@ -7516,6 +7557,8 @@ ecoAddBtn?.addEventListener("click", async () => {
   const method = isEdit ? "PUT" : "POST";
 
   try {
+    if (ecoAddBtn) ecoAddBtn.disabled = true;
+
     const r = await fetch(url, {
       method,
       headers: {
@@ -7547,7 +7590,13 @@ ecoAddBtn?.addEventListener("click", async () => {
   } catch (err) {
     console.error("ecoSave error:", err);
     alert("Errore di rete");
+  } finally {
+    if (ecoAddBtn) ecoAddBtn.disabled = false;
   }
+}
+
+ecoAddBtn?.addEventListener("click", async () => {
+  await saveEcommerce();
 });
 
 ecoTableBody?.addEventListener("click", async (e) => {

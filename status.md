@@ -1242,3 +1242,12 @@ Fix selezione iniziale conteggio fondocassa 2026-06-13:
 - i campi quantita' `.drawer-qty` passano da `type="number"` a `type="text"` con `inputmode="numeric"` e `pattern="[0-9]*"`, per permettere selezione completa del valore;
 - il focus/selezione viene applicato sia con `requestAnimationFrame` sia con fallback `setTimeout(120)`, evitando race con il focus trap della modale Bootstrap;
 - verifica `node --check static/js/agenda.js` ok.
+
+UX modale e-commerce Agenda 2026-06-13:
+- aggiornati `templates/agenda.html` e `static/js/agenda.js` per la modale `#ecommerceModal`;
+- campo `#ecoAmount` convertito a `type="text"` con `inputmode="decimal"` per selezione affidabile del valore;
+- all'apertura, focus automatico su `#ecoAmount` con valore selezionato;
+- premendo `Tab` dall'importo il focus passa direttamente a `#ecoDescription`;
+- premendo `Enter` nella modale viene eseguito `saveEcommerce()` come click su `Aggiungi` / `Salva modifica`;
+- `#ecoAddBtn` viene disabilitato durante il salvataggio e riabilitato in uscita;
+- verifica `node --check static/js/agenda.js` ok.
