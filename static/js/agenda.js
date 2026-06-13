@@ -1150,6 +1150,46 @@ async function openDrawerCountModal() {
   }
 }
 
+function getDrawerInitialInput() {
+  if (!drawerRowsEl) return null;
+  return (
+    drawerRowsEl.querySelector('.drawer-qty[data-denom="0.10"]') ||
+    drawerRowsEl.querySelector('.drawer-qty[data-denom="0.1"]') ||
+    drawerRowsEl.querySelector(".drawer-qty")
+  );
+}
+
+function focusDrawerInitialInput() {
+  const input = getDrawerInitialInput();
+  if (!input) return;
+  setTimeout(() => {
+    input.focus();
+    input.select();
+  }, 0);
+}
+
+function handleDrawerModalKeydown(event) {
+  if (!drawerModalEl || !drawerModalEl.classList.contains("show")) return;
+
+  if (event.key === "Enter") {
+    const target = event.target;
+    const tagName = String(target?.tagName || "").toLowerCase();
+    if (tagName === "textarea" || target?.isContentEditable) return;
+    event.preventDefault();
+    if (!drawerSaveBtn?.disabled) {
+      saveDrawerCount();
+    }
+    return;
+  }
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    if (drawerModal) {
+      drawerModal.hide();
+    }
+  }
+}
+
 function isExpenseOperation() {
   return (document.getElementById("opType")?.value || "") === "expense";
 }
@@ -1291,6 +1331,8 @@ async function saveDrawerCount() {
   });
 
   try {
+    if (drawerSaveBtn) drawerSaveBtn.disabled = true;
+
     const res = await fetch(`/cassa/api/day/${currentDay}/drawer-count`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "Accept": "application/json" },
@@ -1313,6 +1355,8 @@ async function saveDrawerCount() {
   } catch (err) {
     console.error("saveDrawerCount error:", err);
     alert("Errore di rete durante il salvataggio del fondo cassa.");
+  } finally {
+    if (drawerSaveBtn) drawerSaveBtn.disabled = false;
   }
 }
 
@@ -3110,6 +3154,13 @@ document.addEventListener("DOMContentLoaded", async function () {
   const saveBtn = document.getElementById("opSaveBtn");
   const paymentWarning = document.getElementById("paymentWarning");
 
+  if (opModalEl) {
+    opModalEl.addEventListener("keydown", handleOperationModalKeydown);
+    opModalEl.addEventListener("hidden.bs.modal", () => {
+      saveBtn?.removeAttribute("disabled");
+    });
+  }
+
   const posDeviceSelect = document.getElementById("posDeviceSelect");
   const posCircuitSelect = document.getElementById("posCircuitSelect");
   const bankSelect = document.getElementById("bankSelect");
@@ -3128,6 +3179,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   if (drawerModalEl) {
     drawerModal = new bootstrap.Modal(drawerModalEl);
+    drawerModalEl.addEventListener("shown.bs.modal", focusDrawerInitialInput);
+    drawerModalEl.addEventListener("keydown", handleDrawerModalKeydown);
+    drawerModalEl.addEventListener("hidden.bs.modal", () => {
+      drawerSaveBtn?.removeAttribute("disabled");
+    });
   }
 
   if (posModalEl) {
@@ -3141,6 +3197,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   if (cashMoveModalEl) {
     cashMoveModal = new bootstrap.Modal(cashMoveModalEl);
+    cashMoveModalEl.addEventListener("shown.bs.modal", focusCashMoveAmountInput);
+    cashMoveModalEl.addEventListener("keydown", handleCashMoveModalKeydown);
+    cashMoveModalEl.addEventListener("hidden.bs.modal", () => {
+      cashMoveSaveBtn?.removeAttribute("disabled");
+    });
   }
 
   if (spicciModalEl) {
@@ -3882,6 +3943,43 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   }
 
+  function focusCashMoveAmountInput() {
+    if (!cashMoveAmountInput) return;
+    setTimeout(() => {
+      cashMoveAmountInput.focus();
+      cashMoveAmountInput.select();
+    }, 0);
+  }
+
+  function handleCashMoveModalKeydown(event) {
+    if (!cashMoveModalEl || !cashMoveModalEl.classList.contains("show")) return;
+
+    if (event.key === "Tab" && !event.shiftKey && event.target === cashMoveAmountInput && cashMovePerformedByInput) {
+      event.preventDefault();
+      cashMovePerformedByInput.focus();
+      cashMovePerformedByInput.select();
+      return;
+    }
+
+    if (event.key === "Enter") {
+      const target = event.target;
+      const tagName = String(target?.tagName || "").toLowerCase();
+      if (tagName === "textarea" || target?.isContentEditable) return;
+      event.preventDefault();
+      if (!cashMoveSaveBtn?.disabled) {
+        saveCashMove();
+      }
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (cashMoveModal) {
+        cashMoveModal.hide();
+      }
+    }
+  }
+
   function resetCashMoveModalForm() {
     editingCashMoveId = null;
 
@@ -4616,6 +4714,28 @@ document.addEventListener("DOMContentLoaded", async function () {
     clearPaymentWarning();
 
     opModal.show();
+  }
+
+  function handleOperationModalKeydown(event) {
+    if (!opModalEl || !opModalEl.classList.contains("show")) return;
+
+    if (event.key === "Enter") {
+      const target = event.target;
+      const tagName = String(target?.tagName || "").toLowerCase();
+      if (tagName === "textarea" || target?.isContentEditable) return;
+      event.preventDefault();
+      if (!saveBtn?.disabled) {
+        saveOperation();
+      }
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (opModal) {
+        opModal.hide();
+      }
+    }
   }
 
   async function openEditSaleModal(saleId) {
