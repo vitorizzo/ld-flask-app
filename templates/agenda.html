@@ -80,6 +80,30 @@
         <!-- Day header -->
         <div class="card shadow-sm mb-3 agenda-day-header" id="agendaDayHeader" role="button">
           <div class="card-body">
+            <div class="agenda-day-actions" aria-label="Azioni report giornata">
+              <button
+                type="button"
+                class="btn btn-light btn-sm agenda-day-action-btn"
+                id="btnDayReportView"
+                aria-label="Visualizza report"
+                title="Visualizza report"
+                data-bs-toggle="tooltip"
+                data-bs-placement="left"
+                data-bs-title="Visualizza report">
+                <i class="fa-solid fa-file-lines" aria-hidden="true"></i>
+              </button>
+              <button
+                type="button"
+                class="btn btn-light btn-sm agenda-day-action-btn"
+                id="btnDayReportPrint"
+                aria-label="Stampa report"
+                title="Stampa report"
+                data-bs-toggle="tooltip"
+                data-bs-placement="left"
+                data-bs-title="Stampa report">
+                <i class="fa-solid fa-print" aria-hidden="true"></i>
+              </button>
+            </div>
             <div class="text-center">
               <div class="text-muted small">Giornata selezionata</div>
 

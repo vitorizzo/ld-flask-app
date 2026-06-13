@@ -3160,12 +3160,30 @@ document.addEventListener("DOMContentLoaded", async function () {
     console.error("initial vault status error:", err);
   });
 
+  if (typeof bootstrap !== "undefined" && bootstrap.Tooltip) {
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+      bootstrap.Tooltip.getOrCreateInstance(el);
+    });
+  }
+
   btnOpenPosModal?.addEventListener("click", async () => {
     await openPosModal();
   });
 
   document.getElementById("agendaDayHeader")?.addEventListener("click", async () => {
     await togglePrivateVault();
+  });
+
+  document.getElementById("btnDayReportView")?.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await openDayReport();
+  });
+
+  document.getElementById("btnDayReportPrint")?.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    await printCompleteDayReport();
   });
 
   btnOpenCashMoveModal?.addEventListener("click", async () => {

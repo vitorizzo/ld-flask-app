@@ -1296,3 +1296,12 @@ UX modale Spicci Agenda 2026-06-13:
 - premendo `Enter` nella modale viene eseguito `saveSpicciMove()` come click su `Salva`;
 - premendo `Esc` la modale viene chiusa senza salvare;
 - verifica `node --check static/js/agenda.js` ok.
+
+Barra giornata Agenda 2026-06-13:
+- aggiunti in alto a destra nella card `#agendaDayHeader` due pulsanti icon-only:
+  - `#btnDayReportView` con icona report e tooltip `Visualizza report`;
+  - `#btnDayReportPrint` con icona stampa e tooltip `Stampa report`;
+- i pulsanti richiamano rispettivamente `openDayReport()` e `printCompleteDayReport()`;
+- il click sui pulsanti non propaga alla card giornata, evitando il toggle del vault;
+- aggiunto CSS dedicato in `static/css/agenda.css`;
+- verifica `node --check static/js/agenda.js` ok.
