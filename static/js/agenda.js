@@ -519,6 +519,7 @@ function resetOwnerTakeForm() {
   }
 
   updateOwnerTakeTotal();
+  configureOwnerTakeTabOrder();
 }
 
 function startEditOwnerTake(row) {
@@ -565,6 +566,61 @@ function updateOwnerTakeTotal() {
   }
 }
 
+function ownerTakeOrderedFocusTargets() {
+  return [
+    ownerTakeCashAmountInput,
+    ownerTakeTypeSelect,
+    ...Array.from(ownerTakeChecksTableBody?.querySelectorAll(".owner-take-check-select") || []),
+  ].filter(Boolean);
+}
+
+function configureOwnerTakeTabOrder() {
+  [
+    ownerTakeNoteInput,
+    ownerTakeAddBtn,
+  ].filter(Boolean).forEach(el => {
+    el.tabIndex = -1;
+  });
+
+  ownerTakeOrderedFocusTargets().forEach((el, index) => {
+    el.tabIndex = index + 1;
+  });
+}
+
+function focusOwnerTakeCashAmount() {
+  configureOwnerTakeTabOrder();
+  if (!ownerTakeCashAmountInput) return;
+
+  const focusAmount = () => {
+    ownerTakeCashAmountInput.focus();
+    ownerTakeCashAmountInput.select?.();
+    if (typeof ownerTakeCashAmountInput.setSelectionRange === "function") {
+      ownerTakeCashAmountInput.setSelectionRange(
+        0,
+        String(ownerTakeCashAmountInput.value || "").length
+      );
+    }
+  };
+
+  requestAnimationFrame(focusAmount);
+  window.setTimeout(focusAmount, 120);
+}
+
+function handleOwnerTakeModalKeydown(event) {
+  if (!ownerTakeModalEl || !ownerTakeModalEl.classList.contains("show")) return;
+
+  if (event.key !== "Enter") return;
+
+  const target = event.target;
+  const tagName = String(target?.tagName || "").toLowerCase();
+  if (tagName === "textarea" || target?.isContentEditable) return;
+
+  event.preventDefault();
+  if (!ownerTakeAddBtn?.disabled) {
+    saveOwnerTake();
+  }
+}
+
 async function loadOwnerTakeAvailableChecks(dayStr) {
   if (!ownerTakeChecksTableBody) return;
 
@@ -591,6 +647,7 @@ async function loadOwnerTakeAvailableChecks(dayStr) {
         </tr>
       `;
       updateOwnerTakeTotal();
+      configureOwnerTakeTabOrder();
       return;
     }
 
@@ -603,6 +660,7 @@ async function loadOwnerTakeAvailableChecks(dayStr) {
         </tr>
       `;
       updateOwnerTakeTotal();
+      configureOwnerTakeTabOrder();
       return;
     }
 
@@ -625,6 +683,7 @@ async function loadOwnerTakeAvailableChecks(dayStr) {
     `).join("");
 
     updateOwnerTakeTotal();
+    configureOwnerTakeTabOrder();
 
   } catch (err) {
     console.error("loadOwnerTakeAvailableChecks error:", err);
@@ -634,6 +693,7 @@ async function loadOwnerTakeAvailableChecks(dayStr) {
       </tr>
     `;
     updateOwnerTakeTotal();
+    configureOwnerTakeTabOrder();
   }
 }
 
@@ -3133,6 +3193,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   if (ownerTakeModalEl) {
     ownerTakeModal = new bootstrap.Modal(ownerTakeModalEl);
+    ownerTakeModalEl.addEventListener("shown.bs.modal", focusOwnerTakeCashAmount);
+    ownerTakeModalEl.addEventListener("keydown", handleOwnerTakeModalKeydown);
+    ownerTakeModalEl.addEventListener("hidden.bs.modal", () => {
+      ownerTakeAddBtn?.removeAttribute("disabled");
+    });
   }
   if (checksManagementModalEl) {
     checksManagementModal = new bootstrap.Modal(checksManagementModalEl);
