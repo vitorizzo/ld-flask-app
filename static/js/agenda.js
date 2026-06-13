@@ -3261,6 +3261,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   if (depositModalEl) {
     depositModal = new bootstrap.Modal(depositModalEl);
+    depositModalEl.addEventListener("shown.bs.modal", focusDepositAmountInput);
+    depositModalEl.addEventListener("keydown", handleDepositModalKeydown);
+    depositModalEl.addEventListener("hidden.bs.modal", () => {
+      depositAddBtn?.removeAttribute("disabled");
+    });
   }
 
   if (movementSearchCustomerModalEl) {
@@ -5212,6 +5217,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           </tr>
         `;
         updateDepositCashUi();
+        configureDepositTabOrder();
         return;
       }
 
@@ -5230,6 +5236,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       `).join("");
 
       updateDepositCashUi();
+      configureDepositTabOrder();
     } catch (err) {
       console.error("loadAvailableDepositChecks error:", err);
       depositChecksTableBody.innerHTML = `
@@ -5238,6 +5245,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         </tr>
       `;
       updateDepositCashUi();
+      configureDepositTabOrder();
     }
   }
 
@@ -5336,6 +5344,61 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
 
     depositModal.show();
+  }
+
+  function depositOrderedFocusTargets() {
+    return [
+      depositCashAmountInput,
+      ...Array.from(depositChecksTableBody?.querySelectorAll(".deposit-check-select") || []),
+      depositBankSelect,
+      depositDateInput,
+    ].filter(Boolean);
+  }
+
+  function configureDepositTabOrder() {
+    const excluded = [
+      depositTypeSelect,
+      depositTotalAmountInput,
+      depositNoteInput,
+    ].filter(Boolean);
+
+    excluded.forEach(el => {
+      el.tabIndex = -1;
+    });
+
+    depositOrderedFocusTargets().forEach((el, index) => {
+      el.tabIndex = index + 1;
+    });
+  }
+
+  function focusDepositAmountInput() {
+    configureDepositTabOrder();
+    if (!depositCashAmountInput) return;
+
+    const selectInput = () => {
+      depositCashAmountInput.focus();
+      depositCashAmountInput.select();
+      if (typeof depositCashAmountInput.setSelectionRange === "function") {
+        depositCashAmountInput.setSelectionRange(0, String(depositCashAmountInput.value || "").length);
+      }
+    };
+
+    requestAnimationFrame(selectInput);
+    setTimeout(selectInput, 120);
+  }
+
+  function handleDepositModalKeydown(event) {
+    if (!depositModalEl || !depositModalEl.classList.contains("show")) return;
+
+    if (event.key === "Enter") {
+      const target = event.target;
+      const tagName = String(target?.tagName || "").toLowerCase();
+      if (tagName === "textarea" || target?.isContentEditable) return;
+      event.preventDefault();
+      if (!depositAddBtn?.disabled) {
+        saveDeposit();
+      }
+    }
   }
 
   async function saveDeposit() {

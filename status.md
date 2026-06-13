@@ -1251,3 +1251,16 @@ UX modale e-commerce Agenda 2026-06-13:
 - premendo `Enter` nella modale viene eseguito `saveEcommerce()` come click su `Aggiungi` / `Salva modifica`;
 - `#ecoAddBtn` viene disabilitato durante il salvataggio e riabilitato in uscita;
 - verifica `node --check static/js/agenda.js` ok.
+
+UX modale versamenti Agenda 2026-06-13:
+- aggiornata `static/js/agenda.js` per la modale `#depositModal`;
+- all'apertura, focus automatico su `#depositCashAmount` con valore selezionato;
+- ordine Tab esplicito:
+  - importo contanti;
+  - checkbox assegni disponibili, nell'ordine della tabella;
+  - banca `#depositBank`;
+  - data `#depositDate`;
+- `Tipo versamento`, `Totale versamento` e `Nota` vengono esclusi dalla tabulazione standard ma restano selezionabili col mouse;
+- l'ordine Tab viene ricalcolato dopo ogni reload degli assegni disponibili;
+- premendo `Enter` nella modale viene eseguito `saveDeposit()` come click su `Salva versamento`;
+- verifica `node --check static/js/agenda.js` ok.
