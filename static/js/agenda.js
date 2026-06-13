@@ -3132,6 +3132,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   if (posModalEl) {
     posModal = new bootstrap.Modal(posModalEl);
+    posModalEl.addEventListener("shown.bs.modal", focusPosAmountInput);
+    posModalEl.addEventListener("keydown", handlePosModalKeydown);
+    posModalEl.addEventListener("hidden.bs.modal", () => {
+      posMoveSaveBtn?.removeAttribute("disabled");
+    });
   }
 
   if (cashMoveModalEl) {
@@ -3620,6 +3625,42 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
     } catch (err) {
       console.error("loadPosDevices error:", err);
+    }
+  }
+
+  function focusPosAmountInput() {
+    if (!posMoveAmountInput) return;
+    setTimeout(() => {
+      posMoveAmountInput.focus();
+      posMoveAmountInput.select();
+    }, 0);
+  }
+
+  function handlePosModalKeydown(event) {
+    if (!posModalEl || !posModalEl.classList.contains("show")) return;
+
+    if (event.key === "Tab" && !event.shiftKey && event.target === posMoveAmountInput && posMoveCircuitSelect) {
+      event.preventDefault();
+      posMoveCircuitSelect.focus();
+      return;
+    }
+
+    if (event.key === "Enter") {
+      const target = event.target;
+      const tagName = String(target?.tagName || "").toLowerCase();
+      if (tagName === "textarea" || target?.isContentEditable) return;
+      event.preventDefault();
+      if (!posMoveSaveBtn?.disabled) {
+        savePosMove();
+      }
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      if (posModal) {
+        posModal.hide();
+      }
     }
   }
 

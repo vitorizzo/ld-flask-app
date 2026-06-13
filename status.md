@@ -1180,3 +1180,34 @@ Follow-up scroll associazione clienti-giri 2026-06-11:
 - il panel `Anagrafiche associate` occupa lo spazio disponibile con `min-height: 0`;
 - la `.table-responsive` interna ha `overflow: auto`, quindi la lista clienti del giro scorre dentro il box;
 - verifica `node --check` sullo script estratto da `templates/registry/customer_routes.html` ok.
+
+Diagnosi versabile 2026-06-12:
+- ricostruita sequenza saldo versabile giorno per giorno dal DB;
+- sul 2026-06-12 il calcolo restituisce:
+  - saldo precedente `29794.22`;
+  - versabile giornata `-218.81`;
+  - assegni postdatati `678.85`;
+  - totale versato oggi `2080.00`;
+  - debito contanti incasso `0.00`;
+  - saldo versabile risultante `28174.26`;
+- non risulta un versamento contanti oltre il massimo consentito: il debito incasso resta zero;
+- dati reali del 2026-06-12:
+  - `CashDeposit id=35`, tipo `versamento_incasso`, contanti `2080.00`, banca `MPS`;
+  - `total_corrispettivi=0`;
+  - incassi cash `625.90`;
+  - incassi POS da pagamenti `405.92`;
+  - POS da `PosMove` `1250.63`;
+- causa probabile del disallineamento visibile: giornata 2026-06-12 con corrispettivi non ancora registrati, mentre i POS sono gia' sottratti dal versabile fisico;
+- simulazione 2026-06-12:
+  - con corrispettivi `0`: versabile giornata `-218.81`, saldo `28174.26`;
+  - con corrispettivi `1250.63`: versabile giornata `1031.82`, saldo `29424.89`;
+  - con corrispettivi `1710.73`: versabile giornata `1491.92`, saldo `29884.99`;
+- da verificare funzionalmente: se il deposito MPS `2080.00` del 2026-06-12 e' corretto come versamento incasso di saldo pregresso oppure se appartiene a un'altra giornata/tipologia.
+
+UX modale POS Agenda 2026-06-13:
+- aggiornata `static/js/agenda.js` per la modale `#posModal`;
+- all'apertura, focus automatico su `#posMoveAmount` con valore selezionato;
+- premendo `Tab` dall'importo il focus passa direttamente alla tendina `#posMoveCircuit`;
+- premendo `Enter` nella modale viene eseguito `savePosMove()`;
+- premendo `Esc` la modale viene chiusa senza salvare;
+- verifica `node --check static/js/agenda.js` ok.
