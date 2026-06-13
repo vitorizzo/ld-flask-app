@@ -1264,3 +1264,11 @@ UX modale versamenti Agenda 2026-06-13:
 - l'ordine Tab viene ricalcolato dopo ogni reload degli assegni disponibili;
 - premendo `Enter` nella modale viene eseguito `saveDeposit()` come click su `Salva versamento`;
 - verifica `node --check static/js/agenda.js` ok.
+
+UX modale corrispettivi Agenda 2026-06-13:
+- aggiornati `templates/agenda.html` e `static/js/agenda.js` per la modale `#receiptModal`;
+- all'apertura, focus automatico su `#rc_amount` con valore selezionato;
+- premendo `Tab` dall'importo il focus passa direttamente alla tendina `#rc_type`;
+- premendo `Enter` nella modale viene eseguito `saveReceiptClosure()` come click su `Aggiungi` / `Salva`;
+- rimosso dal footer della modale il pulsante `Stampa report completo`;
+- verifica `node --check static/js/agenda.js` ok.

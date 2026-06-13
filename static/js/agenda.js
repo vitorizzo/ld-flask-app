@@ -5486,10 +5486,49 @@ document.addEventListener("DOMContentLoaded", async function () {
   function getReceiptModal() {
     const el = document.getElementById("receiptModal");
     if (!el) return null;
+    if (!el.dataset.receiptModalBehaviorReady) {
+      el.addEventListener("shown.bs.modal", focusReceiptAmountInput);
+      el.addEventListener("keydown", handleReceiptModalKeydown);
+      el.dataset.receiptModalBehaviorReady = "1";
+    }
     if (!receiptModalInstance) {
       receiptModalInstance = new bootstrap.Modal(el);
     }
     return receiptModalInstance;
+  }
+
+  function focusReceiptAmountInput() {
+    const amountInput = document.getElementById("rc_amount");
+    if (!amountInput) return;
+
+    const focusAmount = () => {
+      amountInput.focus();
+      amountInput.select?.();
+    };
+
+    requestAnimationFrame(focusAmount);
+    window.setTimeout(focusAmount, 120);
+  }
+
+  async function handleReceiptModalKeydown(event) {
+    const modalEl = document.getElementById("receiptModal");
+    if (!modalEl?.classList.contains("show")) return;
+
+    if (event.key === "Tab" && !event.shiftKey && event.target?.id === "rc_amount") {
+      const typeSelect = document.getElementById("rc_type");
+      if (typeSelect) {
+        event.preventDefault();
+        typeSelect.focus();
+      }
+      return;
+    }
+
+    if (event.key !== "Enter") return;
+
+    event.preventDefault();
+    const addBtn = document.getElementById("btnAddReceipt");
+    if (addBtn?.disabled) return;
+    await saveReceiptClosure();
   }
 
   function resetReceiptForm() {
@@ -7209,10 +7248,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   document.getElementById("btnAddReceipt")?.addEventListener("click", async () => {
     await saveReceiptClosure();
-  });
-
-  document.getElementById("dayReportPrintBtn")?.addEventListener("click", async () => {
-    await printCompleteDayReport();
   });
 
   document.getElementById("rc_table")?.addEventListener("click", async (e) => {
