@@ -450,7 +450,11 @@
 {% if product.can_manage_images %}
   <div class="product-image-context-menu" id="productImageContextMenu" aria-hidden="true">
     {% for platform in product.platforms %}
-      <button type="button" data-platform="{{ platform.key }}" {% if not platform.active %}disabled{% else %}disabled{% endif %}>
+      <button type="button"
+              data-platform="{{ platform.key }}"
+              data-platform-supported="{{ '1' if platform.supported else '0' }}"
+              title="{% if not platform.active %}Articolo non presente su {{ platform.label }}{% elif not platform.supported %}Invio non ancora disponibile{% else %}Invia immagine a {{ platform.label }}{% endif %}"
+              {% if not platform.active or not platform.supported %}disabled{% endif %}>
         {% if platform.key == "prestashop" %}
           <i class="fa-solid fa-store"></i>
         {% elif platform.key == "poleepo" %}

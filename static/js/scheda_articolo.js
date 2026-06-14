@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var contextMenu = document.getElementById("productImageContextMenu");
     var closeButton = document.getElementById("productSheetCloseBtn");
     var draggedImage = null;
+    var contextImage = null;
 
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (element) {
         if (window.bootstrap && bootstrap.Tooltip) {
@@ -14,6 +15,14 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function imagePlatform(image) {
         return image ? (image.dataset.sourcePlatform || "") : "";
+    }
+
+    function currentImageAssetId(image) {
+        return image ? (image.dataset.assetId || "") : "";
+    }
+
+    function currentImageLabel(image) {
+        return image ? ((image.alt || image.dataset.sourcePlatform || "immagine").trim()) : "immagine";
     }
 
     function hideContextMenu() {
@@ -33,6 +42,65 @@ document.addEventListener("DOMContentLoaded", function () {
         contextMenu.style.top = Math.min(event.clientY, window.innerHeight - 190) + "px";
         contextMenu.classList.add("show");
         contextMenu.setAttribute("aria-hidden", "false");
+    }
+
+    function publishImage(image, platforms) {
+        if (!image) {
+            alert("Seleziona un'immagine da pubblicare.");
+            return;
+        }
+
+        var assetId = currentImageAssetId(image);
+        if (!assetId) {
+            alert("L'immagine selezionata non ha un riferimento pubblicabile.");
+            return;
+        }
+
+        return fetch(window.location.pathname + "/images/publish", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({
+                asset_id: assetId,
+                platforms: platforms || []
+            })
+        }).then(function (response) {
+            return response.json().then(function (data) {
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || "Pubblicazione non riuscita");
+                }
+                return data;
+            });
+        });
+    }
+
+    function reportPublishResult(image, result) {
+        if (!result) {
+            return;
+        }
+
+        var successTargets = [];
+        var errors = [];
+        Object.keys(result.results || {}).forEach(function (key) {
+            var entry = result.results[key];
+            if (entry && entry.ok) {
+                successTargets.push(key);
+            } else if (entry && entry.error) {
+                errors.push(key + ": " + entry.error);
+            }
+        });
+
+        var parts = [];
+        if (successTargets.length) {
+            parts.push("Pubblicata su: " + successTargets.join(", "));
+        }
+        if (errors.length) {
+            parts.push("Errori: " + errors.join(" | "));
+        }
+        alert(parts.join("\n") || ("Pubblicazione completata per " + currentImageLabel(image)));
     }
 
     function selectFirstImageForPlatform(platform) {
@@ -88,10 +156,16 @@ document.addEventListener("DOMContentLoaded", function () {
 
     document.querySelectorAll(".product-image-slot").forEach(function (slot) {
         slot.addEventListener("click", function () {
+            if (slot.dataset.platformEnabled !== "1") {
+                return;
+            }
             selectFirstImageForPlatform(slot.dataset.platform);
         });
 
         slot.addEventListener("dragover", function (event) {
+            if (slot.dataset.platformEnabled !== "1") {
+                return;
+            }
             event.preventDefault();
             slot.classList.add("product-image-slot--drop-ready");
         });
@@ -103,10 +177,15 @@ document.addEventListener("DOMContentLoaded", function () {
         slot.addEventListener("drop", function (event) {
             event.preventDefault();
             slot.classList.remove("product-image-slot--drop-ready");
-            if (!draggedImage) {
+            if (slot.dataset.platformEnabled !== "1" || !draggedImage) {
                 return;
             }
-            alert("Invio immagini verso " + (slot.textContent || "piattaforma").trim() + " non ancora implementato.");
+            publishImage(draggedImage, [slot.dataset.platform]).then(function (data) {
+                reportPublishResult(draggedImage, data);
+                window.location.reload();
+            }).catch(function (error) {
+                alert(error.message || "Pubblicazione non riuscita");
+            });
         });
     });
 
@@ -148,7 +227,13 @@ document.addEventListener("DOMContentLoaded", function () {
     var fullscreenCarouselElement = document.getElementById("fullscreen-carousel");
 
     document.querySelectorAll(".product-img").forEach(function (image) {
-        image.addEventListener("contextmenu", showContextMenu);
+        image.addEventListener("contextmenu", function (event) {
+            contextImage = image;
+            if (contextMenu) {
+                contextMenu.dataset.assetId = currentImageAssetId(image);
+            }
+            showContextMenu(event);
+        });
         image.addEventListener("dragstart", function () {
             draggedImage = image;
         });
@@ -190,4 +275,24 @@ document.addEventListener("DOMContentLoaded", function () {
             }
         });
     });
+
+    if (contextMenu) {
+        contextMenu.querySelectorAll("button[data-platform]").forEach(function (button) {
+            button.addEventListener("click", function (event) {
+                event.stopPropagation();
+                event.preventDefault();
+                hideContextMenu();
+                if (button.disabled || button.dataset.platformSupported !== "1") {
+                    return;
+                }
+                var image = contextImage || draggedImage || document.querySelector("#productCarousel .carousel-item.active .product-img");
+                publishImage(image, [button.dataset.platform]).then(function (data) {
+                    reportPublishResult(image, data);
+                    window.location.reload();
+                }).catch(function (error) {
+                    alert(error.message || "Pubblicazione non riuscita");
+                });
+            });
+        });
+    }
 });

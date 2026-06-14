@@ -1375,3 +1375,9 @@ Performance apertura giornata Agenda 2026-06-13:
 - crash agenda risolto: `templates/agenda.html` era stato salvato con encoding non UTF-8 e Jinja falliva con `UnicodeDecodeError`; il file e' stato riscritto in UTF-8.
 - pulizia encoding Agenda completata: simboli `€`, trattini e accenti italiani nel template sono stati normalizzati.
 - ancora da fare: eventuale UI per mostrare/revertire gli eventi di audit.
+
+- scheda prodotto articoli:
+  - attivata la pubblicazione immagini dalla scheda verso le piattaforme presenti sull'articolo;
+  - la pubblicazione e' effettiva su Prestashop tramite upload webservice;
+  - il menu contestuale mostra solo i target attivi e supportati, con disabilitazione esplicita per quelli non ancora implementati;
+  - le immagini caricate dall'app possono ora essere inviate anche alla piattaforma scelta o trascinate sul relativo slot.

@@ -3,6 +3,7 @@ import mimetypes
 import os
 from datetime import datetime
 
+from sqlalchemy.exc import SQLAlchemyError
 from flask import Blueprint, current_app, render_template, jsonify, request, abort, url_for
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
@@ -21,6 +22,7 @@ from models import (
     InventarioExport,
 )
 from routes.tools import clean_text
+from tools.ps_util import upload_product_image as prestashop_upload_product_image
 from tools.log_utils import log_task, get_logger
 from sqlalchemy import or_
 
@@ -30,7 +32,7 @@ logger = get_logger('search')
 search_bp = Blueprint('search', __name__, template_folder='../templates')
 
 PRODUCT_IMAGE_PLATFORMS = {
-    "prestashop": {"label": "Prestashop", "enabled": False, "icon": "fa-solid fa-store"},
+    "prestashop": {"label": "Prestashop", "enabled": True, "icon": "fa-solid fa-store"},
     "poleepo": {"label": "Poleepo", "enabled": False, "icon": "fa-solid fa-cloud-arrow-up"},
     "ebay": {"label": "Ebay", "enabled": False, "icon": "fa-brands fa-ebay"},
     "amazon": {"label": "Amazon", "enabled": False, "icon": "fa-brands fa-amazon"},
@@ -91,6 +93,91 @@ def _safe_product_image_filename(cod_art, filename):
     return f"{safe_code}_{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}{ext}"
 
 
+def _product_image_local_path(asset):
+    if not asset or not asset.local_path:
+        return None
+    if os.path.isabs(asset.local_path):
+        return asset.local_path
+    return os.path.join(current_app.static_folder, asset.local_path)
+
+
+def _sync_product_asset_for_platform(articolo, source_asset, platform_key, remote_url, source_external_id):
+    asset = ProductAsset.query.filter_by(
+        cod_art=articolo.cod_art,
+        asset_type="image",
+        source_platform=platform_key,
+        local_path=source_asset.local_path,
+    ).first()
+    if not asset:
+        asset = ProductAsset(
+            cod_art=articolo.cod_art,
+            id_art=articolo.id_art,
+            asset_type="image",
+            source_platform=platform_key,
+            local_path=source_asset.local_path,
+            remote_url=remote_url,
+            source_external_id=source_external_id,
+            original_filename=source_asset.original_filename,
+            content_hash=source_asset.content_hash,
+            mime_type=source_asset.mime_type,
+            is_primary=source_asset.is_primary,
+            sort_order=source_asset.sort_order,
+            metadata_json={
+                "published_from_asset_id": source_asset.id,
+                "published_at": datetime.utcnow().isoformat(),
+            },
+        )
+        db.session.add(asset)
+    else:
+        asset.id_art = articolo.id_art
+        asset.remote_url = remote_url
+        asset.source_external_id = source_external_id
+        asset.original_filename = source_asset.original_filename
+        asset.content_hash = source_asset.content_hash
+        asset.mime_type = source_asset.mime_type
+        asset.is_primary = source_asset.is_primary
+        asset.sort_order = source_asset.sort_order
+        metadata = dict(asset.metadata_json or {})
+        metadata.update(
+            {
+                "published_from_asset_id": source_asset.id,
+                "published_at": datetime.utcnow().isoformat(),
+            }
+        )
+        asset.metadata_json = metadata
+    return asset
+
+
+def _publish_product_image_to_platform(articolo, source_asset, platform_key, platform_link):
+    if platform_key == "prestashop":
+        local_path = _product_image_local_path(source_asset)
+        if not local_path:
+            raise ValueError("L'immagine selezionata non ha un file locale pubblicabile.")
+        result = prestashop_upload_product_image(
+            platform_link.external_id,
+            local_path,
+            filename=source_asset.original_filename or os.path.basename(local_path),
+            mime_type=source_asset.mime_type,
+        )
+        published_asset = _sync_product_asset_for_platform(
+            articolo,
+            source_asset,
+            platform_key,
+            result["remote_url"],
+            result["image_id"],
+        )
+        platform_link.last_sync_at = datetime.utcnow()
+        platform_link.last_error = None
+        return {
+            "asset": _serialize_product_asset(published_asset),
+            "remote_url": result["remote_url"],
+            "image_id": result["image_id"],
+            "raw_payload": result["raw_payload"],
+        }
+
+    raise NotImplementedError(f"Pubblicazione immagini su {platform_key} non ancora disponibile")
+
+
 @log_task(logger)
 def get_product_by_code(cod_art):
     prod = Articoli.query.filter_by(cod_art=cod_art).first()
@@ -129,6 +216,7 @@ def get_product_by_code(cod_art):
                 "key": key,
                 "label": config["label"],
                 "active": key in platform_links and platform_links[key].status not in ("absent", "error"),
+                "supported": config["enabled"],
                 "status": platform_links[key].status if key in platform_links else "absent",
                 "external_id": platform_links[key].external_id if key in platform_links else None,
             }
@@ -226,6 +314,78 @@ def upload_product_image(cod_art):
 
     db.session.commit()
     return jsonify({"ok": True, "asset": _serialize_product_asset(asset)})
+
+
+@search_bp.post('/scheda_articolo/<cod_art>/images/publish')
+@login_required
+def publish_product_image(cod_art):
+    if not _can_manage_product_images():
+        return jsonify({"ok": False, "error": "Accesso negato"}), 403
+
+    articolo = Articoli.query.filter_by(cod_art=cod_art).first()
+    if not articolo:
+        return jsonify({"ok": False, "error": "Articolo non trovato."}), 404
+
+    payload = request.get_json(silent=True) or {}
+    asset_id = payload.get("asset_id") or request.form.get("asset_id")
+    requested_platforms = payload.get("platforms") or request.form.getlist("platforms")
+    if isinstance(requested_platforms, str):
+        requested_platforms = [requested_platforms]
+    requested_platforms = [str(platform).strip().lower() for platform in requested_platforms if str(platform).strip()]
+    requested_platforms = list(dict.fromkeys(requested_platforms))
+
+    if not asset_id:
+        return jsonify({"ok": False, "error": "Immagine non selezionata."}), 400
+    if not requested_platforms:
+        return jsonify({"ok": False, "error": "Nessuna piattaforma selezionata."}), 400
+
+    try:
+        asset_id = int(asset_id)
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Riferimento immagine non valido."}), 400
+
+    source_asset = ProductAsset.query.filter_by(id=asset_id, cod_art=cod_art, asset_type="image").first()
+    if not source_asset:
+        return jsonify({"ok": False, "error": "Immagine non trovata."}), 404
+
+    link_map = {link.platform: link for link in ProductPlatformLink.query.filter_by(cod_art=cod_art).all()}
+    results = {}
+    any_success = False
+
+    try:
+        for platform_key in requested_platforms:
+            config = PRODUCT_IMAGE_PLATFORMS.get(platform_key)
+            if not config:
+                results[platform_key] = {"ok": False, "error": "Piattaforma sconosciuta"}
+                continue
+            if platform_key == "ldapp":
+                results[platform_key] = {"ok": False, "error": "LDApp è solo sorgente locale"}
+                continue
+            if not config["enabled"]:
+                results[platform_key] = {"ok": False, "error": "Pubblicazione non ancora disponibile"}
+                continue
+            platform_link = link_map.get(platform_key)
+            if not platform_link or platform_link.status in ("absent", "error") or not platform_link.external_id:
+                results[platform_key] = {"ok": False, "error": "Articolo non presente su questa piattaforma"}
+                continue
+            try:
+                publish_result = _publish_product_image_to_platform(articolo, source_asset, platform_key, platform_link)
+                results[platform_key] = {"ok": True, **publish_result}
+                any_success = True
+            except NotImplementedError as exc:
+                results[platform_key] = {"ok": False, "error": str(exc)}
+            except Exception as exc:
+                logger.exception("Errore pubblicazione immagine su %s per %s", platform_key, cod_art)
+                platform_link.last_error = str(exc)
+                results[platform_key] = {"ok": False, "error": str(exc)}
+        db.session.commit()
+    except SQLAlchemyError as exc:
+        db.session.rollback()
+        logger.exception("Errore DB nella pubblicazione immagini per %s", cod_art)
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+    status_code = 200 if any_success else 400
+    return jsonify({"ok": any_success, "results": results}), status_code
 
 
 @search_bp.route('/ricerca_x_barcode', methods=['GET', 'POST'])

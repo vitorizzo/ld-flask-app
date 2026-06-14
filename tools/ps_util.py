@@ -1,4 +1,5 @@
 import os
+import mimetypes
 from pprint import pprint
 import requests
 from requests.auth import HTTPBasicAuth
@@ -233,3 +234,43 @@ def get_product_images(product_id, cod_art):
         logger.error(f"Errore recupero immagini prodotto {product_id}: {images_response.status_code}")
 
     return images
+
+
+def upload_product_image(product_id, image_path, *, filename=None, mime_type=None):
+    if not PS_URL or not PS_KEY:
+        raise RuntimeError("Prestashop non configurato")
+    if not image_path or not os.path.exists(image_path):
+        raise FileNotFoundError(f"Immagine non trovata: {image_path}")
+
+    safe_filename = filename or os.path.basename(image_path)
+    guessed_mime = mime_type or mimetypes.guess_type(safe_filename)[0] or "application/octet-stream"
+    url = f"{PS_URL}/images/products/{product_id}"
+
+    with open(image_path, "rb") as image_file:
+        response = requests.post(
+            url,
+            auth=HTTPBasicAuth(PS_KEY, ""),
+            params={"ws_key": PS_KEY},
+            files={"image": (safe_filename, image_file, guessed_mime)},
+            timeout=60,
+        )
+
+    if response.status_code not in (200, 201):
+        raise RuntimeError(f"Prestashop HTTP {response.status_code}: {response.text[:500]}")
+
+    try:
+        payload = xmltodict.parse(response.content)
+    except Exception:
+        payload = {"raw": response.text[:1000]}
+
+    image_node = (payload.get("prestashop") or {}).get("image") if isinstance(payload, dict) else None
+    image_id = None
+    if isinstance(image_node, dict):
+        image_id = image_node.get("id") or image_node.get("@id")
+
+    return {
+        "image_id": str(image_id) if image_id is not None else None,
+        "remote_url": f"{PS_URL}/images/products/{product_id}/{image_id}" if image_id is not None else url,
+        "raw_payload": payload,
+        "status_code": response.status_code,
+    }

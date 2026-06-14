@@ -797,6 +797,11 @@ Stato implementazione 2026-06-14:
 - resta da implementare:
   - UI per mostrare/revertire gli eventi di audit.
 
+- scheda prodotto articoli:
+  - la scheda espone la pubblicazione immagini dalle immagini LDApp verso le piattaforme attive dell'articolo;
+  - Prestashop ha un upload reale via webservice, mentre gli altri target restano disabilitati fino a implementazione del connettore;
+  - il menu contestuale e i drop slot rispettano lo stato `active/supported` per ogni piattaforma.
+
 ---
 
 # Versione
