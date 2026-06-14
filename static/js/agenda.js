@@ -8524,6 +8524,15 @@ async function collectCompleteDayReportPayload() {
   await refreshPrivateVaultStatus();
 
   const view = priVaultUnlocked ? "complete" : "fiscal";
+  const snapshotPayload = await fetchReportJson(
+    `/cassa/api/day/${currentDay}/closure-snapshot?view=${view}`,
+    null
+  );
+
+  if (snapshotPayload && snapshotPayload.ok && snapshotPayload.snapshot) {
+    return snapshotPayload.snapshot;
+  }
+
   const [
     preview,
     sales,
@@ -8939,10 +8948,35 @@ async function openDayReport() {
   bootstrap.Modal.getOrCreateInstance(modalEl).show();
 }
 
+async function closeDayReportSnapshot(payload) {
+  const res = await fetch(`/cassa/api/day/${currentDay}/close`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      view: priVaultUnlocked ? "complete" : "fiscal",
+      report: payload,
+    })
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) {
+    throw new Error(data.error || "Errore durante la chiusura della giornata");
+  }
+
+  return data;
+}
+
 async function printCompleteDayReport() {
   if (!currentDay) return;
 
   const payload = await collectCompleteDayReportPayload();
+  try {
+    await closeDayReportSnapshot(payload);
+  } catch (err) {
+    alert(err?.message || "Errore durante la chiusura della giornata");
+    return;
+  }
+
   const html = buildCompleteDayReportHtml(payload);
   const win = window.open("", "_blank");
   if (!win) {

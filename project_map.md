@@ -768,17 +768,25 @@ Regola architetturale:
 - modifiche su giornate chiuse: solo eventi/audit non distruttivi, con `before/after`, utente, data/ora, motivo e impatto sui progressivi;
 - se una giornata chiusa viene modificata, gli snapshot dal giorno modificato in avanti vanno marcati/ricalcolati.
 
-Stato implementazione 2026-06-13:
+Stato implementazione 2026-06-14:
 
 - `CashClosure` contiene i campi per snapshot fiscale/AZ e saldo versabile progressivo finale;
 - migrazione `1a2b3c4d5e6f_add_cash_closure_fiscal_snapshot.py` applicata al DB;
 - `routes/cassa.py` usa un calcolo progressivo aggregato per la preview al posto della ricorsione storica;
 - la preview usa un calcolo giornaliero aggregato e non carica piu' tutte le righe incasso/spesa in eager loading;
 - `static/js/agenda.js` carica preview e liste in parallelo nella normale apertura giornata;
-- resta da implementare la chiusura/snapshot persistito:
-  - salvataggio snapshot fiscale in DB;
-  - salvataggio snapshot PRI nel vault cifrato annuale;
-  - audit non distruttivo e ricalcolo a cascata per modifiche su giorni chiusi.
+- `POST /cassa/api/day/<day_date>/close` salva la chiusura:
+  - snapshot fiscale nel DB su `CashClosure`;
+  - snapshot PRI/complete nel vault annuale sotto la giornata;
+  - `printCompleteDayReport()` lo chiama prima di aprire la stampa;
+  - `GET /cassa/api/day/<day_date>/closure-snapshot` riusa lo snapshot quando il report viene riaperto;
+  - la preview delle giornate chiuse riusa il payload snapshot quando disponibile.
+- audit non distruttivo in corso:
+  - tabella `cash_day_audit_events` per create/update/delete sulle entita' cassa;
+  - listener SQLAlchemy che registra audit quando la giornata e' chiusa;
+  - `_bump_agenda_day_version()` marca stale gli snapshot chiusi dalla data interessata in avanti.
+- resta da implementare:
+  - UI per mostrare/revertire gli eventi di audit.
 
 ---
 

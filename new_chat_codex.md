@@ -238,3 +238,9 @@ Versione
 Versione: 1.1
 Stato: manifesto operativo Codex locale con aggiornamento puntuale dei file di coordinamento
 Aggiornare solo previo accordo esplicito
+
+Nota operativa 2026-06-14:
+- per Agenda/Cassa la chiusura giornata passa da `POST /cassa/api/day/<day_date>/close`;
+- snapshot fiscale resta nel DB, snapshot PRI/complete nel vault annuale;
+- prima di ogni nuova modifica aggiornare anche `status.md` e `project_map.md`.
+- audit chiusure: tabella `cash_day_audit_events` + listener SQLAlchemy; gli snapshot chiusi dal giorno toccato in avanti vengono marcati stale automaticamente.

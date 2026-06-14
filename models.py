@@ -2224,6 +2224,30 @@ class CashClosurePos(db.Model):
         return f"<CashClosurePos closure={self.cash_closure_id} device={self.pos_device_id} circuit={self.pos_circuit_id}>"
 
 
+class CashDayAuditEvent(db.Model):
+    __tablename__ = "cash_day_audit_events"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    cash_day_id = db.Column(db.Integer, db.ForeignKey("cash_days.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    entity_type = db.Column(db.String(64), nullable=False, index=True)
+    entity_id = db.Column(db.String(64), nullable=True, index=True)
+    action = db.Column(db.String(24), nullable=False, index=True)
+
+    before = db.Column(JSONB, nullable=True)
+    after = db.Column(JSONB, nullable=True)
+    reason = db.Column(db.Text, nullable=True)
+
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), index=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+
+    cash_day = db.relationship("CashDay", backref=db.backref("audit_events", lazy="dynamic", cascade="all, delete-orphan"))
+    created_by = db.relationship("User")
+
+    def __repr__(self):
+        return f"<CashDayAuditEvent day_id={self.cash_day_id} {self.entity_type}:{self.entity_id} {self.action}>"
+
+
 # --- Vendite / Spese + pagamenti multipli -------------------------------------
 
 class CashSale(db.Model):

@@ -1356,4 +1356,15 @@ Performance apertura giornata Agenda 2026-06-13:
   - `2026-06-13` vuoto: `3.627s`;
 - primo giro freddo del processo ancora piu' lento (`2026-06-12` pieno `5.356s`) per costo iniziale DB/cache;
 - verifiche ok: `python -m py_compile routes/cassa.py models.py`, `node --check static/js/agenda.js`.
-- ancora da fare: endpoint/azione di chiusura che persiste effettivamente lo snapshot fiscale e snapshot PRI nel vault, piu' audit non distruttivo delle modifiche su giornate chiuse.
+- chiusura giornata in corso di implementazione:
+  - aggiunto endpoint `POST /cassa/api/day/<day_date>/close` per salvare snapshot di chiusura;
+  - il snapshot fiscale viene salvato nel DB su `CashClosure`;
+  - il snapshot PRI/complete viene salvato nel vault annuale sotto la giornata;
+  - `GET /cassa/api/day/<day_date>/closure-snapshot` riusa lo snapshot quando il report viene riaperto;
+  - la preview delle giornate chiuse riusa lo snapshot DB quando disponibile e non stantio;
+  - `printCompleteDayReport()` ora chiama la chiusura prima della stampa.
+- audit non distruttivo in corso:
+  - aggiunta tabella `cash_day_audit_events`;
+  - listener SQLAlchemy per tracciare create/update/delete sulle entita' cassa quando la giornata e' chiusa;
+  - le chiusure successive alla modifica marcano `fiscal_snapshot_stale` sulle giornate chiuse dalla data toccata in avanti.
+- ancora da fare: eventuale UI per mostrare/revertire gli eventi di audit.

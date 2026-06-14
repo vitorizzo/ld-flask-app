@@ -10,9 +10,9 @@ from flask_login import login_required, current_user
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
 from decimal import Decimal, InvalidOperation
-from datetime import date, datetime, timedelta
-from sqlalchemy import case, exists, or_, and_, func, text
-from sqlalchemy.orm import noload, selectinload
+from datetime import date, datetime, timedelta, timezone
+from sqlalchemy import case, exists, or_, and_, func, text, event, inspect
+from sqlalchemy.orm import Session, noload, selectinload
 
 from tools.redis_utils import get_redis
 from tools.log_utils import get_logger
@@ -23,7 +23,7 @@ from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck,
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
     CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashOwnerTake, CashOwnerTakeCheck, \
     CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck, CashIssuedCheck, CashDepositCheck, BusinessRegistry, \
-    BusinessRegistryContact, CashClosure, CashDeposit
+    BusinessRegistryContact, CashClosure, CashDeposit, CashDayAuditEvent
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
@@ -105,6 +105,12 @@ def _bump_agenda_day_version(day_date) -> None:
     except Exception:
         logger.exception("Errore incremento agenda day version")
 
+    try:
+        if day_date:
+            _mark_cash_closure_snapshots_stale_from(day_date)
+    except Exception:
+        logger.exception("Errore marcatura snapshot stale per %s", day_date)
+
 
 def _get_agenda_day_version(day_date) -> int:
     try:
@@ -112,6 +118,170 @@ def _get_agenda_day_version(day_date) -> int:
         return int(r.get(_agenda_day_version_key(day_date)) or 0)
     except Exception:
         return 0
+
+
+def _json_safe(value):
+    if isinstance(value, Decimal):
+        return float(value)
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    return value
+
+
+def _safe_current_user_id():
+    try:
+        return getattr(current_user, "id", None)
+    except Exception:
+        return None
+
+
+def _cash_day_for_object(obj):
+    if isinstance(obj, CashDay):
+        return obj
+
+    cash_day_id = getattr(obj, "cash_day_id", None)
+    if cash_day_id:
+        return CashDay.query.filter_by(id=cash_day_id).first()
+
+    if isinstance(obj, CashClosure):
+        return CashDay.query.filter_by(id=obj.cash_day_id).first()
+
+    return None
+
+
+def _snapshot_model_object(obj):
+    state = inspect(obj)
+    data = {"__model__": obj.__class__.__name__}
+    for attr in state.mapper.column_attrs:
+        data[attr.key] = _json_safe(getattr(obj, attr.key))
+    return data
+
+
+def _mark_cash_closure_snapshots_stale_from(day_date) -> int:
+    if isinstance(day_date, str):
+        try:
+            day_date = datetime.strptime(day_date, "%Y-%m-%d").date()
+        except ValueError:
+            return 0
+
+    if not isinstance(day_date, date):
+        return 0
+
+    sql = text("""
+        UPDATE cash_closures cc
+           SET fiscal_snapshot_stale = TRUE
+          FROM cash_days cd
+         WHERE cc.cash_day_id = cd.id
+           AND cd.status = 'closed'
+           AND cd.day_date >= :day_date
+           AND COALESCE(cc.fiscal_snapshot_stale, FALSE) = FALSE
+    """)
+
+    try:
+        with db.engine.begin() as conn:
+            result = conn.execute(sql, {"day_date": day_date})
+            return int(result.rowcount or 0)
+    except Exception:
+        logger.exception("Errore update snapshot stale da %s", day_date)
+        return 0
+
+
+def _record_cash_day_audit_event(
+    *,
+    cash_day: CashDay,
+    entity_type: str,
+    entity_id,
+    action: str,
+    before=None,
+    after=None,
+    reason: str | None = None,
+) -> None:
+    if not cash_day:
+        return
+
+    db.session.add(CashDayAuditEvent(
+        cash_day_id=cash_day.id,
+        entity_type=entity_type,
+        entity_id=str(entity_id) if entity_id is not None else None,
+        action=action,
+        before=_json_safe(before),
+        after=_json_safe(after),
+        reason=reason,
+        created_by_user_id=_safe_current_user_id(),
+    ))
+
+
+@event.listens_for(Session, "before_flush")
+def _capture_closed_day_audit(session, flush_context, instances):
+    if session.info.get("cash_day_audit_silent"):
+        return
+    watched_models = (
+        CashDay,
+        CashClosure,
+        CashSale,
+        CashExpense,
+        CashMove,
+        PosMove,
+        CashDeposit,
+        CashEcommerce,
+        CashOwnerTake,
+        CashReceiptClosure,
+        CashDrawerCount,
+    )
+
+    for obj in list(session.new) + list(session.dirty) + list(session.deleted):
+        if isinstance(obj, CashDayAuditEvent) or not isinstance(obj, watched_models):
+            continue
+
+        cash_day = _cash_day_for_object(obj)
+        if not cash_day or cash_day.status != "closed":
+            continue
+
+        state = inspect(obj)
+        action = "update"
+        before = None
+        after = None
+
+        if obj in session.new:
+            action = "create"
+            after = _snapshot_model_object(obj)
+        elif obj in session.deleted:
+            action = "delete"
+            before = _snapshot_model_object(obj)
+        else:
+            changed = {}
+            changed_after = {}
+            for attr in state.mapper.column_attrs:
+                hist = state.attrs[attr.key].history
+                if not hist.has_changes():
+                    continue
+                if hist.deleted:
+                    before_val = hist.deleted[0]
+                elif hist.unchanged:
+                    before_val = hist.unchanged[0]
+                else:
+                    before_val = getattr(obj, attr.key)
+                after_val = hist.added[0] if hist.added else getattr(obj, attr.key)
+                changed[attr.key] = _json_safe(before_val)
+                changed_after[attr.key] = _json_safe(after_val)
+
+            if not changed:
+                continue
+            before = changed
+            after = changed_after
+
+        _record_cash_day_audit_event(
+            cash_day=cash_day,
+            entity_type=obj.__class__.__name__,
+            entity_id=getattr(obj, "id", None),
+            action=action,
+            before=before,
+            after=after,
+        )
 
 
 def _serialize_drawer_count(drawer_count: CashDrawerCount | None):
@@ -2066,6 +2236,214 @@ def _calculate_closure_fast_from_db(
     }
 
 
+def _build_cash_day_preview_payload(
+    cash_day: CashDay,
+    view: str = "fiscal",
+    saldo_prev_override: Decimal | None = None,
+    fondo_finale_override: Decimal | None = None,
+) -> dict:
+    d = cash_day.day_date
+    cutoff = next_banking_day(d)
+
+    checks_debug_row = (
+        db.session.query(
+            func.coalesce(func.sum(case(
+                (CashCheck.due_date <= cutoff, CashCheck.amount),
+                else_=0,
+            )), 0).label("versabili"),
+            func.coalesce(func.sum(case(
+                (CashCheck.due_date > cutoff, CashCheck.amount),
+                else_=0,
+            )), 0).label("postdatati"),
+        )
+        .filter(CashCheck.status.in_(CHECK_IN_PANCIA_STATUSES))
+        .first()
+    )
+    assegni_versabili = getattr(checks_debug_row, "versabili", 0) or 0
+    assegni_postdatati = getattr(checks_debug_row, "postdatati", 0) or 0
+
+    saldo_prev_meta = {"source": "querystring", "snapshot_day": None}
+    if saldo_prev_override is not None:
+        saldo_versabile_precedente = _to_dec(saldo_prev_override)
+    else:
+        saldo_versabile_precedente, saldo_prev_meta = _calculate_progressive_saldo_versabile_fast(d)
+
+    if fondo_finale_override is not None:
+        fondo_finale = _to_dec(fondo_finale_override)
+    else:
+        fondo_finale = _get_drawer_count_total_for_day(cash_day)
+
+    totale_corrispettivi = _get_total_corrispettivi_for_day(cash_day.id)
+
+    owner_take_row = (
+        db.session.query(
+            func.coalesce(func.sum(CashOwnerTake.cash_amount), 0).label("cash_amount"),
+            func.coalesce(func.sum(CashOwnerTake.check_amount), 0).label("check_amount"),
+            func.count(CashOwnerTake.id).label("row_count"),
+        )
+        .filter(CashOwnerTake.cash_day_id == cash_day.id)
+        .first()
+    )
+    totale_owner_take_cash = Decimal(str(getattr(owner_take_row, "cash_amount", 0) or 0))
+    totale_owner_take_checks = Decimal(str(getattr(owner_take_row, "check_amount", 0) or 0))
+    has_owner_take_rows = bool(getattr(owner_take_row, "row_count", 0) or 0)
+
+    pri_sales_cash = Decimal("0")
+    pri_sales_fuori_cassa = Decimal("0")
+    pri_expenses_cash = Decimal("0")
+    pri_expenses_fuori_cassa = Decimal("0")
+    pri_cash_moves_in = Decimal("0")
+    pri_cash_moves_out = Decimal("0")
+
+    vault_unlocked = _vault_get_unlocked_state()
+    include_pri = vault_unlocked and view == "complete"
+
+    if include_pri:
+        try:
+            pri_data = _pri_load_year(d.year)
+            day_node = next((x for x in pri_data.get("days", []) if x.get("date") == d.isoformat()), None)
+
+            if day_node:
+                for row in day_node.get("sales", []):
+                    if row.get("method") == "cash":
+                        amount = Decimal(str(row.get("amount") or 0))
+                        if row.get("off_cash"):
+                            pri_sales_fuori_cassa += amount
+                        else:
+                            pri_sales_cash += amount
+
+                for row in day_node.get("expenses", []):
+                    if row.get("method") == "cash":
+                        amount = Decimal(str(row.get("amount") or 0))
+                        if row.get("off_cash"):
+                            pri_expenses_fuori_cassa += amount
+                        else:
+                            pri_expenses_cash += amount
+
+                for row in day_node.get("cash_moves", []):
+                    amount = Decimal(str(row.get("amount") or 0))
+                    if row.get("direction") == "in":
+                        pri_cash_moves_in += amount
+                    else:
+                        pri_cash_moves_out += amount
+
+        except Exception as e:
+            logger.exception("Errore calcolo preview PRI: %s", e)
+
+    pri_cash_net = (
+        pri_sales_cash
+        - pri_expenses_cash
+        + pri_cash_moves_in
+        - pri_cash_moves_out
+    )
+
+    totale_incasso_consegnato = (
+        totale_owner_take_cash
+        + totale_owner_take_checks
+    )
+
+    result = _calculate_closure_fast_from_db(
+        cash_day_id=cash_day.id,
+        opening_float=cash_day.opening_float,
+        total_corrispettivi=totale_corrispettivi,
+        fondo_finale=fondo_finale,
+        saldo_versabile_precedente=saldo_versabile_precedente,
+        incasso_consegnato=totale_incasso_consegnato,
+    )
+
+    result["incasso_consegnato"] = float(totale_incasso_consegnato)
+    result["owner_take_cash_amount"] = float(totale_owner_take_cash)
+    result["owner_take_check_amount"] = float(totale_owner_take_checks)
+    result["cash_moves_in_amount"] = float(Decimal(str(result.get("cash_moves_in_amount") or 0)))
+    result["cash_moves_out_amount"] = float(Decimal(str(result.get("cash_moves_out_amount") or 0)))
+    result["cash_moves_net_amount"] = float(Decimal(str(result.get("saldo_movimenti_cassa") or 0)))
+    result["total_corrispettivi"] = float(totale_corrispettivi)
+    result["pri_sales_cash"] = float(pri_sales_cash)
+    result["pri_sales_fuori_cassa"] = float(pri_sales_fuori_cassa)
+    result["pri_expenses_cash"] = float(pri_expenses_cash)
+    result["pri_expenses_fuori_cassa"] = float(pri_expenses_fuori_cassa)
+    result["pri_cash_moves_in"] = float(pri_cash_moves_in)
+    result["pri_cash_moves_out"] = float(pri_cash_moves_out)
+    result["pri_cash_net"] = float(pri_cash_net)
+    result["view_mode"] = "full" if include_pri else "fiscal"
+
+    valore_atteso_fiscal = Decimal(str(result.get("valore_atteso_cassetto", 0)))
+    incasso_calcolato_fiscal = Decimal(str(result.get("incasso_calcolato", 0)))
+    delta_quadratura_fiscal = Decimal(str(result.get("delta_quadratura", 0)))
+
+    if vault_unlocked:
+        valore_atteso_display = valore_atteso_fiscal + pri_cash_net
+        incasso_calcolato_display = incasso_calcolato_fiscal + pri_cash_net
+        delta_quadratura_display = totale_incasso_consegnato - valore_atteso_display
+    else:
+        valore_atteso_display = valore_atteso_fiscal
+        incasso_calcolato_display = incasso_calcolato_fiscal
+        delta_quadratura_display = delta_quadratura_fiscal
+
+    result["valore_atteso_cassetto_fiscal"] = float(valore_atteso_fiscal)
+    result["incasso_calcolato_fiscal"] = float(incasso_calcolato_fiscal)
+    result["delta_quadratura_fiscal"] = float(delta_quadratura_fiscal)
+
+    result["valore_atteso_cassetto"] = float(valore_atteso_display)
+    result["incasso_calcolato"] = float(incasso_calcolato_display)
+    result["delta_quadratura"] = float(delta_quadratura_display)
+
+    has_cash_move_rows = int(result.get("cash_moves_count") or 0) > 0
+
+    quadratura_available = bool(
+        (has_owner_take_rows or has_cash_move_rows)
+        and result.get("has_corrispettivi")
+        and result.get("has_fondo_iniziale")
+        and result.get("has_fondo_finale")
+    )
+
+    if quadratura_available:
+        dq = Decimal(str(result.get("delta_quadratura", 0)))
+
+        if dq < Decimal("-5.00"):
+            quadratura_led = "red_low"
+        elif dq < Decimal("-2.00"):
+            quadratura_led = "yellow_low"
+        elif dq <= Decimal("2.00"):
+            quadratura_led = "green"
+        elif dq <= Decimal("5.00"):
+            quadratura_led = "yellow_high"
+        else:
+            quadratura_led = "red_high"
+    else:
+        quadratura_led = "off"
+
+    result["quadratura_available"] = quadratura_available
+    result["quadratura_led"] = quadratura_led
+
+    totale_ecommerce = (
+        db.session.query(func.coalesce(func.sum(CashEcommerce.amount), 0))
+        .filter(CashEcommerce.cash_day_id == cash_day.id)
+        .scalar()
+    )
+
+    result["totale_ecommerce"] = float(totale_ecommerce or 0)
+    result["saldo_versabile_precedente"] = float(saldo_versabile_precedente or 0)
+    result["saldo_versabile_init"] = float(saldo_versabile_precedente or 0)
+    result["fondo_finale"] = float(fondo_finale or 0)
+
+    return {
+        "ok": True,
+        "day": {
+            "id": cash_day.id,
+            "day_date": cash_day.day_date.isoformat(),
+        },
+        "totals": result,
+        "checks_debug": {
+            "cutoff_bancabile": cutoff.isoformat(),
+            "in_pancia_status": sorted(list(CHECK_IN_PANCIA_STATUSES)),
+            "versabili": float(assegni_versabili or 0),
+            "postdatati": float(assegni_postdatati or 0),
+            "saldo_prev_source": saldo_prev_meta,
+        }
+    }
+
+
 def _calculate_progressive_saldo_versabile(cash_day: CashDay) -> Decimal:
     """
     Ricostruisce il saldo versabile progressivo della giornata,
@@ -2131,6 +2509,12 @@ def api_cash_day_preview(day_date):
 
     if not cash_day:
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    closure = getattr(cash_day, "closure", None)
+    if cash_day.status == "closed" and closure and closure.fiscal_snapshot and not closure.fiscal_snapshot_stale:
+        snapshot_payload = closure.fiscal_snapshot.get("payload") if isinstance(closure.fiscal_snapshot, dict) else None
+        if isinstance(snapshot_payload, dict):
+            return jsonify(snapshot_payload)
 
     cutoff = next_banking_day(d)
 
@@ -2339,6 +2723,207 @@ def api_cash_day_preview(day_date):
             "saldo_prev_source": saldo_prev_meta,
         }
     })
+
+def _upsert_private_vault_day_closure_snapshot(year: int, day_date: date, snapshot: dict) -> bool:
+    pri_data = _pri_load_year(year)
+    day_iso = day_date.isoformat()
+
+    day_node = next((d for d in pri_data.get("days", []) if d.get("date") == day_iso), None)
+    if not day_node:
+        day_node = {
+            "date": day_iso,
+            "sales": [],
+            "expenses": [],
+            "cash_moves": [],
+            "pos_moves": [],
+            "deposits": [],
+        }
+        pri_data.setdefault("days", []).append(day_node)
+
+    day_node["closure_snapshot"] = snapshot
+    day_node["updated_at"] = snapshot.get("created_at") or datetime.now(timezone.utc).isoformat()
+
+    saved = _pri_save_year(year, pri_data)
+    return bool(saved)
+
+
+def _load_private_vault_day_closure_snapshot(year: int, day_date: date) -> dict | None:
+    pri_data = _pri_load_year(year)
+    day_iso = day_date.isoformat()
+    day_node = next((d for d in pri_data.get("days", []) if d.get("date") == day_iso), None)
+    if not day_node:
+        return None
+    closure_snapshot = day_node.get("closure_snapshot") or {}
+    report_payload = closure_snapshot.get("report_payload") if isinstance(closure_snapshot, dict) else None
+    return report_payload if isinstance(report_payload, dict) else None
+
+
+@cassa_bp.post("/api/day/<day_date>/close")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_close_cash_day(day_date):
+    data = request.get_json(silent=True) or {}
+    report_mode = (data.get("view") or data.get("report_mode") or "fiscal").strip().lower()
+    if report_mode not in {"fiscal", "complete"}:
+        report_mode = "fiscal"
+
+    report_payload = data.get("report")
+    if not isinstance(report_payload, dict):
+        report_payload = {}
+
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    cash_day = (
+        CashDay.query
+        .options(
+            noload(CashDay.sales),
+            noload(CashDay.expenses),
+            noload(CashDay.cash_moves),
+            noload(CashDay.pos_moves),
+            noload(CashDay.deposits),
+            noload(CashDay.closure),
+        )
+        .filter(CashDay.day_date == d)
+        .first()
+    )
+
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    preview_payload = _build_cash_day_preview_payload(cash_day, view="fiscal")
+    totals = preview_payload.get("totals") or {}
+    now = datetime.now(timezone.utc)
+
+    try:
+        closure = getattr(cash_day, "closure", None)
+        if not closure:
+            closure = CashClosure(cash_day_id=cash_day.id)
+            db.session.add(closure)
+
+        next_snapshot_version = int(closure.fiscal_snapshot_version or 0) + 1 if closure.fiscal_snapshot else 1
+
+        closure.created_at = closure.created_at or now
+        closure.closed_by_user_id = getattr(current_user, "id", None)
+        closure.fiscal_snapshot_version = next_snapshot_version
+        closure.fiscal_snapshot = {
+            "version": next_snapshot_version,
+            "created_at": now.isoformat(),
+            "closed_at": now.isoformat(),
+            "report_mode": report_mode,
+            "payload": preview_payload,
+        }
+        closure.fiscal_snapshot_created_at = now
+        closure.fiscal_snapshot_stale = False
+        closure.saldo_versabile_precedente = _to_dec(totals.get("saldo_versabile_precedente", 0))
+        closure.versabile_giornata = _to_dec(totals.get("versabile_giornata", 0))
+        closure.saldo_versabile_finale = _to_dec(totals.get("saldo_versabile", 0))
+        closure.closing_cash_drawer = _to_dec(totals.get("fondo_finale", 0))
+        closure.anomaly_flag = bool(totals.get("anomalia"))
+        closure.anomaly_note = str(totals.get("note") or "").strip() or None
+        closure.notes = (str(data.get("notes") or "").strip() or closure.notes)
+
+        cash_day.status = "closed"
+        cash_day.closed_at = now
+
+        db.session.commit()
+
+        vault_saved = False
+        if session.get("pri_vault_unlocked"):
+            vault_snapshot = {
+                "version": 1,
+                "created_at": now.isoformat(),
+                "closed_at": now.isoformat(),
+                "closed_by_user_id": getattr(current_user, "id", None),
+                "closed_by_name": getattr(current_user, "name", None)
+                    or getattr(current_user, "username", None)
+                    or "user",
+                "report_mode": report_mode,
+                "report_payload": report_payload,
+            }
+
+            try:
+                vault_saved = _upsert_private_vault_day_closure_snapshot(d.year, d, vault_snapshot)
+            except Exception:
+                logger.exception("Errore salvataggio snapshot chiusura nel vault per %s", d)
+                vault_saved = False
+
+        _bump_agenda_day_version(d.isoformat())
+
+        return jsonify({
+            "ok": True,
+            "day": {
+                "id": cash_day.id,
+                "day_date": cash_day.day_date.isoformat(),
+                "status": cash_day.status,
+                "closed_at": cash_day.closed_at.isoformat() if cash_day.closed_at else None,
+            },
+            "closure": {
+                "id": closure.id,
+                "fiscal_snapshot_version": closure.fiscal_snapshot_version,
+                "fiscal_snapshot_created_at": closure.fiscal_snapshot_created_at.isoformat() if closure.fiscal_snapshot_created_at else None,
+                "vault_saved": vault_saved,
+            }
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_close_cash_day error: %s", e)
+        return jsonify({"ok": False, "error": "Errore interno durante la chiusura della giornata"}), 500
+
+
+@cassa_bp.get("/api/day/<day_date>/closure-snapshot")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_day_closure_snapshot(day_date):
+    view = (request.args.get("view") or "fiscal").strip().lower()
+    if view not in {"fiscal", "complete"}:
+        view = "fiscal"
+
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    cash_day = (
+        CashDay.query
+        .options(noload(CashDay.closure))
+        .filter(CashDay.day_date == d)
+        .first()
+    )
+    if not cash_day or cash_day.status != "closed":
+        return jsonify({"ok": False, "error": "Snapshot not available"}), 404
+
+    closure = getattr(cash_day, "closure", None)
+    fiscal_payload = None
+    if closure and closure.fiscal_snapshot and isinstance(closure.fiscal_snapshot, dict):
+        fiscal_payload = closure.fiscal_snapshot.get("payload")
+
+    vault_payload = None
+    if session.get("pri_vault_unlocked"):
+        try:
+            vault_payload = _load_private_vault_day_closure_snapshot(d.year, d)
+        except Exception:
+            logger.exception("Errore lettura snapshot chiusura dal vault per %s", d)
+
+    if view == "complete":
+        if isinstance(vault_payload, dict):
+            return jsonify({"ok": True, "snapshot": vault_payload, "source": "vault"})
+        return jsonify({"ok": False, "error": "Snapshot completo non disponibile"}), 404
+
+    if isinstance(vault_payload, dict):
+        combined = dict(vault_payload)
+        if isinstance(fiscal_payload, dict):
+            combined["preview"] = fiscal_payload
+        return jsonify({"ok": True, "snapshot": combined, "source": "vault+db"})
+
+    if isinstance(fiscal_payload, dict):
+        return jsonify({"ok": False, "error": "Snapshot fiscale completo non disponibile"}), 404
+
+    return jsonify({"ok": False, "error": "Snapshot non disponibile"}), 404
+
 
 @cassa_bp.get("/api/days/active")
 @login_required
