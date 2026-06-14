@@ -8,6 +8,7 @@ from flask_migrate import Migrate
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import asc
+from sqlalchemy.exc import OperationalError
 
 from extensions import db, mail
 from routes.automations_v2 import automations_v2_bp
@@ -277,12 +278,19 @@ def create_app():
         user_role_weight = current_user.max_role_weight if current_user.is_authenticated else 0
 
         # Carichiamo TUTTI i menu ordinati in modo deterministico
-        all_menus = (
-            Menu.query
-            .filter(Menu.is_visible.is_(True), Menu.weight <= user_role_weight)
-            .order_by(asc(Menu.parent_id), asc(Menu.sort_order), asc(Menu.id))
-            .all()
-        )
+        try:
+            all_menus = (
+                Menu.query
+                .filter(Menu.is_visible.is_(True), Menu.weight <= user_role_weight)
+                .order_by(asc(Menu.parent_id), asc(Menu.sort_order), asc(Menu.id))
+                .all()
+            )
+        except OperationalError:
+            logger.exception("inject_menus: menu query unavailable, returning empty menu tree")
+            return {"menu_tree": []}
+        except Exception:
+            logger.exception("inject_menus: unexpected error while loading menus")
+            return {"menu_tree": []}
 
         # Radici = parent_id NULL (manteniamo l'ordine del queryset)
         roots = [m for m in all_menus if m.parent_id is None]

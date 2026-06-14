@@ -789,6 +789,8 @@ Stato implementazione 2026-06-14:
   - badge in alto a destra cliccabile per passare `open/closed`;
   - inserimenti su giornata chiusa chiedono conferma e offrono riapertura o passaggio a oggi;
   - i mutatori principali della cassa sono bloccati anche lato backend sulle giornate chiuse.
+- bootstrap home:
+  - `inject_menus` in `tools/app_factory.py` degrada a `menu_tree: []` se il DB non e' raggiungibile, cosi' la home non va subito in 500.
 - resta da implementare:
   - UI per mostrare/revertire gli eventi di audit.
 
