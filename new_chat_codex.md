@@ -246,3 +246,4 @@ Nota operativa 2026-06-14:
 - audit chiusure: tabella `cash_day_audit_events` + listener SQLAlchemy; gli snapshot chiusi dal giorno toccato in avanti vengono marcati stale automaticamente.
 - stato giornata: badge cliccabile in alto a destra per `open/closed`; su giornata chiusa la UI chiede se riaprire o passare a oggi prima di inserire movimenti; backend blocca i mutatori principali anche nei rami PRI.
 - bootstrap home: `inject_menus` non deve rompere la pagina iniziale se il DB non e' raggiungibile; ora ritorna un menu vuoto come fallback.
+- agenda crash fix: `templates/agenda.html` era stato salvato con encoding non UTF-8; Jinja generava `UnicodeDecodeError`, ora il file e' in UTF-8.

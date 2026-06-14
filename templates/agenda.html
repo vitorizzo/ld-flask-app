@@ -1,4 +1,4 @@
-{# templates/agenda.html #}
+﻿{# templates/agenda.html #}
 {% extends "base.html" %}
 
 {% block title %}Agenda / Cassa{% endblock %}
@@ -16,10 +16,10 @@
     <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
       <div>
         <h3 class="mb-0">Agenda / Cassa</h3>
-        <small class="text-muted" id="agendaLastUpdated">Ultimo aggiornamento: —</small>
+        <small class="text-muted" id="agendaLastUpdated">Ultimo aggiornamento: â€”</small>
       </div>
       <div class="d-flex flex-wrap align-items-center gap-2">
-          <button type="button" class="badge text-bg-secondary border-0 day-status-badge" id="dayStatusBadge" title="Giornata">�</button>
+          <button type="button" class="badge text-bg-secondary border-0 day-status-badge" id="dayStatusBadge" title="Giornata">—</button>
           <button
             type="button"
             class="btn btn-link p-0 d-inline-flex align-items-center gap-2 text-decoration-none"
@@ -27,7 +27,7 @@
             title="Gestisci movimenti spicci"
           >
             <i class="fa-solid fa-coins spicci-icon" title="Fondo Spicci"></i>
-            <span class="fw-semibold" id="coinsVaultBalance">—</span>
+            <span class="fw-semibold" id="coinsVaultBalance">â€”</span>
           </button>
         </div>
       </div>
@@ -107,11 +107,11 @@
             <div class="text-center">
               <div class="text-muted small">Giornata selezionata</div>
 
-              <div class="fs-4 fw-semibold" id="dayDateTitle">—</div>
+              <div class="fs-4 fw-semibold" id="dayDateTitle">â€”</div>
 
               <div class="small mt-1 opacity-75">
                 ID giornata:
-                <span class="fw-semibold" id="dayId">—</span>
+                <span class="fw-semibold" id="dayId">â€”</span>
               </div>
             </div>
           </div>
@@ -132,16 +132,16 @@
                     <div class="kpi-metric">
                       <div class="kpi-label">iniziale</div>
                       <div class="kpi-num kpi-currency-row">
-                        <span class="kpi-currency-symbol">€</span>
-                        <span id="kpiSaldoVersabileInit">—</span>
+                        <span class="kpi-currency-symbol">â‚¬</span>
+                        <span id="kpiSaldoVersabileInit">â€”</span>
                       </div>
                     </div>
                     <div class="kpi-divider-mini"></div>
                     <div class="kpi-metric">
                       <div class="kpi-label">attuale</div>
                       <div class="kpi-num kpi-currency-row">
-                        <span class="kpi-currency-symbol">€</span>
-                        <span id="kpiSaldoVersabileNew">—</span>
+                        <span class="kpi-currency-symbol">â‚¬</span>
+                        <span id="kpiSaldoVersabileNew">â€”</span>
                       </div>
                     </div>
                   </div>
@@ -152,8 +152,8 @@
                     <div class="kpi-metric">
                       <div class="kpi-label">odierno</div>
                       <div class="kpi-num kpi-num-big kpi-currency-row">
-                        <span class="kpi-currency-symbol">€</span>
-                        <span id="kpiVersabileGiornata">—</span>
+                        <span class="kpi-currency-symbol">â‚¬</span>
+                        <span id="kpiVersabileGiornata">â€”</span>
                       </div>
                     </div>
                   </div>
@@ -174,16 +174,16 @@
                     <div class="kpi-metric">
                       <div class="kpi-label">iniziale</div>
                       <div class="kpi-num kpi-currency-row">
-                        <span class="kpi-currency-symbol">€</span>
-                        <span id="kpiFondoIniziale">—</span>
+                        <span class="kpi-currency-symbol">â‚¬</span>
+                        <span id="kpiFondoIniziale">â€”</span>
                       </div>
                     </div>
                     <div class="kpi-divider-mini"></div>
                     <div class="kpi-metric" id="kpiFondoCard" title="Clicca per inserire fondo cassa">
                       <div class="kpi-label">finale</div>
                       <div class="kpi-num kpi-currency-row">
-                        <span class="kpi-currency-symbol">€</span>
-                        <span id="kpiFondoFinale">—</span>
+                        <span class="kpi-currency-symbol">â‚¬</span>
+                        <span id="kpiFondoFinale">â€”</span>
                       </div>
                     </div>
                   </div>
@@ -192,10 +192,10 @@
 
                   <div class="kpi-side kpi-side-right">
                     <div class="kpi-metric">
-                      <div class="kpi-label">Δ Fondo</div>
+                      <div class="kpi-label">Î” Fondo</div>
                       <div class="kpi-num kpi-num-big kpi-currency-row">
-                        <span class="kpi-currency-symbol">€</span>
-                        <span id="kpiDeltaFondo">—</span>
+                        <span class="kpi-currency-symbol">â‚¬</span>
+                        <span id="kpiDeltaFondo">â€”</span>
                       </div>
                     </div>
                   </div>
@@ -219,8 +219,8 @@
                         <i class="fa-solid fa-cart-shopping kpi-ecommerce-box-icon"></i>
                       </div>
                       <div class="kpi-num kpi-currency-row">
-                        <span class="kpi-currency-symbol">€</span>
-                        <span id="kpiTotEcommerce">—</span>
+                        <span class="kpi-currency-symbol">â‚¬</span>
+                        <span id="kpiTotEcommerce">â€”</span>
                       </div>
                     </div>
                     <div class="kpi-divider-mini"></div>
@@ -230,8 +230,8 @@
                         <i class="fa-solid fa-building-columns kpi-versamenti-box-icon"></i>
                       </div>
                       <div class="kpi-num kpi-currency-row">
-                        <span class="kpi-currency-symbol">€</span>
-                        <span id="kpiTotVersamenti">—</span>
+                        <span class="kpi-currency-symbol">â‚¬</span>
+                        <span id="kpiTotVersamenti">â€”</span>
                       </div>
                     </div>
                   </div>
@@ -242,8 +242,8 @@
                     <div class="kpi-metric">
                       <div class="kpi-label">Totale di Giornata</div>
                       <div class="kpi-num kpi-num-big kpi-currency-row">
-                        <span class="kpi-currency-symbol">€</span>
-                        <span id="kpiIC">—</span>
+                        <span class="kpi-currency-symbol">â‚¬</span>
+                        <span id="kpiIC">â€”</span>
                       </div>
                       <div class="d-flex justify-content-center gap-2 mb-2 flex-wrap">
                         <span class="badge rounded-pill" id="badgeCorrispettiviState">
@@ -275,8 +275,8 @@
                         <i class="fa-solid fa-cash-register kpi-versamenti-box-icon"></i>
                       </div>
                       <div class="kpi-num kpi-currency-row">
-                        <span class="kpi-currency-symbol">€</span>
-                        <span id="kpiCorrispettivi">—</span>
+                        <span class="kpi-currency-symbol">â‚¬</span>
+                        <span id="kpiCorrispettivi">â€”</span>
                       </div>
                     </div>
                     <div class="kpi-divider-mini"></div>
@@ -286,8 +286,8 @@
                         <i class="fa-solid fa-hand-holding-dollar kpi-cassetto-box-icon"></i>
                       </div>
                       <div class="kpi-num kpi-currency-row">
-                        <span class="kpi-currency-symbol">€</span>
-                        <span id="kpiIncassoConsegnato">—</span>
+                        <span class="kpi-currency-symbol">â‚¬</span>
+                        <span id="kpiIncassoConsegnato">â€”</span>
                       </div>
                     </div>
                   </div>
@@ -295,12 +295,12 @@
                   <div class="kpi-side kpi-side-right">
                     <div class="kpi-metric" id="kpiDeltaQuadraturaBox">
                       <div class="kpi-label d-flex justify-content-between align-items-center">
-                        <span>Δ Quadratura</span>
+                        <span>Î” Quadratura</span>
                         <i class="fa-solid fa-scale-balanced kpi-delta-quadratura-box-icon"></i>
                       </div>
                       <div class="kpi-num kpi-num-big kpi-currency-row">
-                        <span class="kpi-currency-symbol">€</span>
-                        <span id="kpiDeltaQuadratura">—</span>
+                        <span class="kpi-currency-symbol">â‚¬</span>
+                        <span id="kpiDeltaQuadratura">â€”</span>
                       </div>
                       <div class="quadratura-leds mt-2" id="quadraturaLeds">
                         <span class="quadratura-led is-red" id="ledQuadraturaRedLeft"></span>
@@ -454,7 +454,7 @@
             </button>
 
             <div class="small text-muted mt-2">
-              In V1 i bottoni sono disabilitati finché non colleghiamo CRUD e chiusura.
+              In V1 i bottoni sono disabilitati finchÃ© non colleghiamo CRUD e chiusura.
             </div>
           </div>
         </div>
@@ -484,7 +484,7 @@
                 type="text"
                 class="form-control"
                 id="opFlag"
-                placeholder="Seleziona o digita…"
+                placeholder="Seleziona o digitaâ€¦"
                 autocomplete="off"
                 spellcheck="false"
               >
@@ -503,7 +503,7 @@
           <div class="col-12 col-md-10">
             <label class="form-label" for="opAmount">Importo</label>
             <div class="input-group">
-              <span class="input-group-text">€</span>
+              <span class="input-group-text">â‚¬</span>
               <input
                 type="text"
                 class="form-control text-end"
@@ -567,13 +567,13 @@
         <div class="fw-semibold mb-2">Pagamento</div>
 
         <!-- =========================
-             MODALITÀ PAGAMENTO
+             MODALITÃ€ PAGAMENTO
         ========================= -->
         <div class="card mb-3">
           <div class="card-body py-3">
             <div class="row g-2">
               <div class="col-12">
-                <label class="form-label d-block mb-2">Modalità</label>
+                <label class="form-label d-block mb-2">ModalitÃ </label>
 
                 <div class="d-flex flex-wrap gap-3" id="paymentModeGroup">
                   <div class="form-check">
@@ -607,7 +607,7 @@
         </div>
 
         <!-- =========================
-             MODALITÀ SINGOLA - CONTANTI
+             MODALITÃ€ SINGOLA - CONTANTI
         ========================= -->
         <div class="card mb-2" id="paymentSingleCashPanel">
           <div class="card-body py-2">
@@ -618,7 +618,7 @@
 
               <div class="col-12 col-md-6">
                 <div class="input-group">
-                  <span class="input-group-text">€</span>
+                  <span class="input-group-text">â‚¬</span>
                   <input
                     type="text"
                     class="form-control text-end"
@@ -632,7 +632,7 @@
         </div>
 
         <!-- =========================
-             MODALITÀ SINGOLA - POS
+             MODALITÃ€ SINGOLA - POS
         ========================= -->
         <div class="card mb-2 d-none" id="paymentSinglePosSalePanel">
           <div class="card-body py-2">
@@ -655,7 +655,7 @@
               <div class="col-12 col-md-4">
                 <label class="form-label mb-0">Importo POS</label>
                 <div class="input-group">
-                  <span class="input-group-text">€</span>
+                  <span class="input-group-text">â‚¬</span>
                   <input
                     type="text"
                     class="form-control text-end"
@@ -686,7 +686,7 @@
               <div class="col-12 col-md-6">
                 <label class="form-label mb-0">Importo POS</label>
                 <div class="input-group">
-                  <span class="input-group-text">€</span>
+                  <span class="input-group-text">â‚¬</span>
                   <input
                     type="text"
                     class="form-control text-end"
@@ -701,7 +701,7 @@
         </div>
 
         <!-- =========================
-             MODALITÀ SINGOLA - BANCA
+             MODALITÃ€ SINGOLA - BANCA
         ========================= -->
         <div class="card mb-2 d-none" id="paymentSingleBankPanel">
           <div class="card-body py-2">
@@ -717,7 +717,7 @@
               <div class="col-12 col-md-8">
                 <label class="form-label mb-0">Importo banca</label>
                 <div class="input-group">
-                  <span class="input-group-text">€</span>
+                  <span class="input-group-text">â‚¬</span>
                   <input
                     type="text"
                     class="form-control text-end"
@@ -732,7 +732,7 @@
         </div>
 
         <!-- =========================
-             MODALITÀ SINGOLA - ASSEGNO INCASSO
+             MODALITÃ€ SINGOLA - ASSEGNO INCASSO
         ========================= -->
         <div class="card mb-2 d-none" id="paymentSingleCheckSalePanel">
           <div class="card-body py-2">
@@ -785,7 +785,7 @@
               <div class="col-12 col-md-4">
                 <label class="form-label mb-0">Importo</label>
                 <div class="input-group">
-                  <span class="input-group-text">€</span>
+                  <span class="input-group-text">â‚¬</span>
                   <input
                     type="text"
                     class="form-control text-end"
@@ -800,7 +800,7 @@
         </div>
 
         <!-- =========================
-             MODALITÀ SINGOLA - ASSEGNO SPESA
+             MODALITÃ€ SINGOLA - ASSEGNO SPESA
         ========================= -->
         <div class="card mb-2 d-none" id="paymentSingleCheckExpensePanel">
           <div class="card-body py-2">
@@ -833,7 +833,7 @@
               <div class="col-12 col-md-4">
                 <label class="form-label mb-0">Importo assegno</label>
                 <div class="input-group">
-                  <span class="input-group-text">€</span>
+                  <span class="input-group-text">â‚¬</span>
                   <input
                     type="text"
                     class="form-control text-end"
@@ -848,7 +848,7 @@
         </div>
 
         <!-- =========================
-             MODALITÀ MULTIPLI
+             MODALITÃ€ MULTIPLI
         ========================= -->
         <div class="card mb-2 d-none" id="paymentMultiPanel">
           <div class="card-body py-2">
@@ -865,8 +865,8 @@
             </div>
 
             <div class="small text-muted mt-2">
-              In questa modalità puoi inserire più righe anche dello stesso tipo
-              (es. più assegni, più POS, combinazioni miste).
+              In questa modalitÃ  puoi inserire piÃ¹ righe anche dello stesso tipo
+              (es. piÃ¹ assegni, piÃ¹ POS, combinazioni miste).
             </div>
           </div>
         </div>
@@ -897,7 +897,7 @@
                 <div class="col-12 col-md-3">
                   <label class="form-label mb-0">Importo</label>
                   <div class="input-group">
-                    <span class="input-group-text">€</span>
+                    <span class="input-group-text">â‚¬</span>
                     <input
                       type="text"
                       class="form-control text-end multi-amount"
@@ -1136,7 +1136,7 @@
 
         <div class="d-flex justify-content-end align-items-center gap-2">
           <span class="fw-semibold">Totale fondo cassa:</span>
-          <span class="fs-5 fw-bold" id="drawerGrandTotal">€ 0,00</span>
+          <span class="fs-5 fw-bold" id="drawerGrandTotal">â‚¬ 0,00</span>
         </div>
 
       </div>
@@ -1251,7 +1251,7 @@
           <div class="col-12 col-md-3">
             <label class="form-label">Contanti</label>
             <div class="input-group">
-              <span class="input-group-text">€</span>
+              <span class="input-group-text">â‚¬</span>
               <input
                 type="text"
                 class="form-control text-end"
@@ -1264,7 +1264,7 @@
           <div class="col-12 col-md-3">
             <label class="form-label">Totale versamento</label>
             <div class="input-group">
-              <span class="input-group-text">€</span>
+              <span class="input-group-text">â‚¬</span>
               <input
                 type="text"
                 class="form-control text-end"
@@ -1285,7 +1285,7 @@
         <div class="mb-3">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <div class="fw-semibold">Assegni da includere</div>
-            <div class="small text-muted" id="depositChecksHint">—</div>
+            <div class="small text-muted" id="depositChecksHint">â€”</div>
           </div>
 
           <div class="table-responsive">
@@ -1372,7 +1372,7 @@
 
           <div class="col-md-3">
             <div class="input-group">
-              <span class="input-group-text">€</span>
+              <span class="input-group-text">â‚¬</span>
               <input
                 type="text"
                 class="form-control"
@@ -1451,7 +1451,7 @@
           <div class="col-12 col-md-3">
             <label class="form-label">Contanti</label>
             <div class="input-group">
-              <span class="input-group-text">€</span>
+              <span class="input-group-text">â‚¬</span>
               <input
                 type="text"
                 class="form-control text-end"
@@ -1478,7 +1478,7 @@
         <div class="mb-3">
           <div class="d-flex justify-content-between align-items-center mb-2">
             <div class="fw-semibold">Assegni da includere nel prelievo</div>
-            <div class="small text-muted" id="ownerTakeChecksHint">—</div>
+            <div class="small text-muted" id="ownerTakeChecksHint">â€”</div>
           </div>
 
           <div class="table-responsive">
@@ -1508,7 +1508,7 @@
         <div class="d-flex justify-content-end align-items-center gap-3">
           <div class="fw-semibold">
             Totale prelievo:
-            <span id="ownerTakeTotalAmount">€ 0,00</span>
+            <span id="ownerTakeTotalAmount">â‚¬ 0,00</span>
           </div>
 
           <button class="btn btn-primary" id="ownerTakeAddBtn">Salva prelievo</button>
@@ -1586,7 +1586,7 @@
           <div class="col-12 col-md-4">
             <label class="form-label" for="posMoveAmount">Importo</label>
             <div class="input-group">
-              <span class="input-group-text">€</span>
+              <span class="input-group-text">â‚¬</span>
               <input
                 type="text"
                 class="form-control text-end"
@@ -1679,7 +1679,7 @@
           <div class="col-12 col-md-4">
             <label class="form-label" for="cashMoveAmount">Importo</label>
             <div class="input-group">
-              <span class="input-group-text">€</span>
+              <span class="input-group-text">â‚¬</span>
               <input
                 type="text"
                 class="form-control text-end"
@@ -1690,7 +1690,7 @@
               >
             </div>
             <div class="form-text">
-              Inserisci un importo positivo. Il tipo selezionato determina se il movimento è un prelievo o un versamento.
+              Inserisci un importo positivo. Il tipo selezionato determina se il movimento Ã¨ un prelievo o un versamento.
             </div>
           </div>
 
@@ -1751,7 +1751,7 @@
           <div class="col-12 col-md-3">
             <label class="form-label" for="spicciMoveAmount">Importo</label>
             <div class="input-group">
-              <span class="input-group-text">€</span>
+              <span class="input-group-text">â‚¬</span>
               <input
                 type="text"
                 class="form-control text-end"
@@ -1833,7 +1833,7 @@
       <div class="modal-header">
         <h5 class="modal-title">
           Report giornata
-          <span class="text-muted fs-6 ms-2" id="dayReportDate">—</span>
+          <span class="text-muted fs-6 ms-2" id="dayReportDate">â€”</span>
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
@@ -1958,7 +1958,7 @@
             <div class="card shadow-sm">
               <div class="card-header fw-semibold">Note calcolo</div>
               <div class="card-body">
-                <div id="dayReportNote" class="small text-muted">—</div>
+                <div id="dayReportNote" class="small text-muted">â€”</div>
               </div>
             </div>
           </div>
@@ -2195,9 +2195,9 @@
       </div>
       <div class="modal-footer justify-content-between">
         <div class="d-flex flex-wrap gap-2 small" id="checksStatusBar">
-          <span class="badge text-bg-light border">In pancia: € 0,00</span>
-          <span class="badge text-bg-light border">Versati: € 0,00</span>
-          <span class="badge text-bg-light border">Insoluti/protestati: € 0,00</span>
+          <span class="badge text-bg-light border">In pancia: â‚¬ 0,00</span>
+          <span class="badge text-bg-light border">Versati: â‚¬ 0,00</span>
+          <span class="badge text-bg-light border">Insoluti/protestati: â‚¬ 0,00</span>
         </div>
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
       </div>
