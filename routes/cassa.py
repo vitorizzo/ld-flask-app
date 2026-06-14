@@ -1056,7 +1056,7 @@ def _ensure_unique_cash_check(bank_name, check_number, exclude_check_id=None):
         query = query.filter(CashCheck.id != exclude_check_id)
 
     if query.first():
-        raise ValueError("Esiste giÃ  un assegno con questa banca e questo numero")
+        raise ValueError("Esiste già un assegno con questa banca e questo numero")
 
 
 def _linked_day_dates_for_check(check: CashCheck):
