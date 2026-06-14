@@ -793,6 +793,7 @@ Stato implementazione 2026-06-14:
   - `inject_menus` in `tools/app_factory.py` degrada a `menu_tree: []` se il DB non e' raggiungibile, cosi' la home non va subito in 500.
 - agenda template:
   - `templates/agenda.html` e' stato riscritto in UTF-8 dopo un salvataggio con byte non validi che rompevano il render Jinja.
+  - i simboli euro e gli accenti rimasti corrotti sono stati normalizzati.
 - resta da implementare:
   - UI per mostrare/revertire gli eventi di audit.
 

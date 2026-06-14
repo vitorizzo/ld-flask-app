@@ -1373,4 +1373,5 @@ Performance apertura giornata Agenda 2026-06-13:
   - backend bloccato su create/update/delete per le principali entita' cassa anche nei rami PRI e AZ.
 - bootstrap home reso tollerante se il DB non e' raggiungibile: `inject_menus` ora degrada a menu vuoto invece di mandare in 500 la pagina iniziale.
 - crash agenda risolto: `templates/agenda.html` era stato salvato con encoding non UTF-8 e Jinja falliva con `UnicodeDecodeError`; il file e' stato riscritto in UTF-8.
+- pulizia encoding Agenda completata: simboli `€`, trattini e accenti italiani nel template sono stati normalizzati.
 - ancora da fare: eventuale UI per mostrare/revertire gli eventi di audit.
