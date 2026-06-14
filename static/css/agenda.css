@@ -237,6 +237,10 @@
   font-size: 0.75rem;
 }
 
+.day-status-badge {
+  cursor: pointer;
+}
+
 .badge-icon {
   display: inline-flex;
   align-items: center;

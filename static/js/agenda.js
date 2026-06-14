@@ -1,4 +1,5 @@
 let currentDay = null;
+let currentDayStatus = null;
 let calendarInstance = null;
 let lastPaymentMode = "cash";
 let currentPreviewTotals = {};
@@ -1036,7 +1037,17 @@ async function loadDay(dateStr) {
       setText("dayDateTitle", formatDateIT(currentDay));
       setText("dayId", data.day.id);
       setText("dayOpeningFloat", Number(data.day.opening_float || 0).toFixed(2));
-      setText("dayStatusBadge", String(data.day.status || "â€”").toUpperCase());
+      currentDayStatus = String(data.day.status || "open").toLowerCase();
+      const statusBadge = document.getElementById("dayStatusBadge");
+      if (statusBadge) {
+        statusBadge.classList.toggle("text-bg-success", currentDayStatus === "open");
+        statusBadge.classList.toggle("text-bg-danger", currentDayStatus === "closed");
+        statusBadge.classList.toggle("text-bg-secondary", currentDayStatus !== "open" && currentDayStatus !== "closed");
+        statusBadge.title = currentDayStatus === "closed"
+          ? "Giornata chiusa: clicca per riaprire"
+          : "Giornata aperta: clicca per chiudere";
+      }
+      setText("dayStatusBadge", currentDayStatus === "closed" ? "CLOSED" : "OPEN");
       setText("agendaLastUpdated", "Ultimo aggiornamento: " + new Date().toLocaleTimeString());
 
       await refreshAgendaData();
@@ -1058,6 +1069,58 @@ function startPolling() {
   if (!agendaPollInterval) {
     agendaPollInterval = setInterval(pollAgendaVersion, 3000);
   }
+}
+
+function isCurrentDayClosed() {
+  return String(currentDayStatus || "").toLowerCase() === "closed";
+}
+
+async function setCurrentDayStatus(nextStatus) {
+  if (!currentDay) return false;
+
+  const res = await fetch(`/cassa/api/day/${currentDay}/status`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Accept": "application/json"
+    },
+    credentials: "same-origin",
+    body: JSON.stringify({ status: nextStatus })
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || !data.ok) {
+    alert(data.error || "Errore aggiornamento stato giornata");
+    return false;
+  }
+
+  currentDayStatus = String(data.day?.status || nextStatus || "open").toLowerCase();
+  setText("dayStatusBadge", currentDayStatus === "closed" ? "CLOSED" : "OPEN");
+  await loadDay(currentDay);
+  return true;
+}
+
+async function handleClosedDayMutation(actionLabel, proceed) {
+  if (!isCurrentDayClosed()) {
+    return proceed();
+  }
+
+  const reopen = window.confirm(
+    `La giornata ${formatDateIT(currentDay)} è chiusa.\n\nOK = riapri la giornata e continua qui con ${actionLabel}.\nAnnulla = passa a oggi e continua lì.`
+  );
+
+  if (reopen) {
+    const ok = await setCurrentDayStatus("open");
+    if (!ok) return false;
+    return proceed();
+  }
+
+  const todayYmd = toLocalYMD(new Date());
+  if (todayYmd !== currentDay) {
+    await loadDay(todayYmd);
+  }
+
+  return proceed();
 }
 
 async function loadPreview(dateStr) {
@@ -3162,8 +3225,16 @@ document.addEventListener("DOMContentLoaded", async function () {
     });
   }
 
+  document.getElementById("dayStatusBadge")?.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!currentDay) return;
+    const nextStatus = isCurrentDayClosed() ? "open" : "closed";
+    await setCurrentDayStatus(nextStatus);
+  });
+
   btnOpenPosModal?.addEventListener("click", async () => {
-    await openPosModal();
+    await handleClosedDayMutation("inserire un movimento POS", () => openPosModal());
   });
 
   document.getElementById("agendaDayHeader")?.addEventListener("click", async () => {
@@ -3183,11 +3254,11 @@ document.addEventListener("DOMContentLoaded", async function () {
   });
 
   btnOpenCashMoveModal?.addEventListener("click", async () => {
-    await openCashMoveModal();
+    await handleClosedDayMutation("inserire un movimento di cassa", () => openCashMoveModal());
   });
 
   btnOpenSpicciModal?.addEventListener("click", async () => {
-    await openSpicciModal();
+    await handleClosedDayMutation("inserire un movimento spicci", () => openSpicciModal());
   });
 
   posMoveDeviceSelect?.addEventListener("change", async (e) => {
@@ -3197,7 +3268,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   const kpiEcommerceBox = document.getElementById("kpiEcommerceBox");
   if (kpiEcommerceBox) {
     kpiEcommerceBox.addEventListener("click", () => {
-      openEcommerceModal();
+      handleClosedDayMutation("inserire un movimento e-commerce", () => openEcommerceModal());
     });
   }
 
@@ -3231,7 +3302,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   document.getElementById("kpiCassettoBox")?.addEventListener("click", async () => {
     await refreshPrivateVaultStatus();
     if (!priVaultUnlocked) return;
-    await openOwnerTakeModal();
+    await handleClosedDayMutation("inserire un prelievo cassetto", () => openOwnerTakeModal());
   });
 
   ownerTakeCashAmountInput?.addEventListener("input", () => {
@@ -7359,7 +7430,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   const corrispettiviBox = document.getElementById("kpiCorrispettiviBox");
   if (corrispettiviBox) {
-    corrispettiviBox.addEventListener("click", openReceiptModal);
+    corrispettiviBox.addEventListener("click", () => handleClosedDayMutation("inserire un corrispettivo", () => openReceiptModal()));
   }
 
   const rcAmountInput = document.getElementById("rc_amount");
@@ -7370,7 +7441,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   });
 
   document.getElementById("kpiFondoCard")?.addEventListener("click", async () => {
-    await openDrawerCountModal();
+    await handleClosedDayMutation("inserire un conteggio fondocassa", () => openDrawerCountModal());
   });
 
   drawerRowsEl?.addEventListener("input", updateDrawerTotals);
@@ -7384,7 +7455,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   });
 
   document.getElementById("kpiVersamentiBox")?.addEventListener("click", async () => {
-    await openDepositModal();
+    await handleClosedDayMutation("inserire un versamento", () => openDepositModal());
   });
 
   depositTypeSelect?.addEventListener("change", async () => {
@@ -7621,10 +7692,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     addMultiPaymentRow();
   });
 
-  document.getElementById("btnNewIncasso")?.addEventListener("click", () => openOpModal("sale"));
-  document.getElementById("btnNewSpesa")?.addEventListener("click", () => openOpModal("expense"));
+  document.getElementById("btnNewIncasso")?.addEventListener("click", () => handleClosedDayMutation("inserire un incasso", () => openOpModal("sale")));
+  document.getElementById("btnNewSpesa")?.addEventListener("click", () => handleClosedDayMutation("inserire una spesa", () => openOpModal("expense")));
   document.getElementById("btnNewMovimento")?.addEventListener("click", async () => {
-    await openCashMoveModal();
+    await handleClosedDayMutation("inserire un movimento di cassa", () => openCashMoveModal());
   });
 
   document.getElementById("opOffCash")?.addEventListener("change", (e) => {
@@ -9124,3 +9195,4 @@ function closeContextMenu() {
   menu.style.visibility = "";
   currentContext = null;
 }
+

@@ -94,6 +94,30 @@ def _get_cash_day_by_date_or_404(day_date: str):
     return cash_day, None
 
 
+def _day_closed_response(cash_day: CashDay | None):
+    day_date = cash_day.day_date.isoformat() if cash_day else None
+    return jsonify({
+        "ok": False,
+        "error": "La giornata e' chiusa",
+        "code": "day_closed",
+        "day_date": day_date,
+        "day_status": getattr(cash_day, "status", None),
+    }), 409
+
+
+def _reject_if_day_closed(cash_day: CashDay | None):
+    if cash_day and cash_day.status == "closed":
+        return _day_closed_response(cash_day)
+    return None
+
+
+def _reject_if_day_closed_for_date(day_date):
+    if not day_date:
+        return None
+    cash_day = CashDay.query.filter(CashDay.day_date == day_date).first()
+    return _reject_if_day_closed(cash_day)
+
+
 def _agenda_day_version_key(day_date) -> str:
     return f"agenda:day:{day_date}:version"
 
@@ -1179,6 +1203,9 @@ def api_delete_deposit(deposit_id):
 
     if not deposit:
         return jsonify({"ok": False, "error": "Versamento non trovato"}), 404
+    closed_response = _reject_if_day_closed(CashDay.query.filter_by(id=deposit.cash_day_id).first())
+    if closed_response:
+        return closed_response
 
     try:
         linked_checks = [link.check for link in (deposit.checks or []) if link.check]
@@ -1342,6 +1369,51 @@ def api_get_or_create_day():
             "opening_float": float(day.opening_float or 0),
         }
     })
+
+
+@cassa_bp.post("/api/day/<day_date>/status")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_update_cash_day_status(day_date):
+    data = request.get_json(silent=True) or {}
+    target_status = (data.get("status") or "").strip().lower()
+
+    if target_status not in {"open", "closed"}:
+        return jsonify({"ok": False, "error": "Stato non valido"}), 400
+
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+
+    cash_day = CashDay.query.filter(CashDay.day_date == d).first()
+    if not cash_day:
+        return jsonify({"ok": False, "error": "CashDay not found"}), 404
+
+    if target_status == "closed":
+        return api_close_cash_day(day_date)
+
+    try:
+        cash_day.status = "open"
+        cash_day.closed_at = None
+        if cash_day.closure:
+            cash_day.closure.fiscal_snapshot_stale = True
+        db.session.commit()
+        _bump_agenda_day_version(d.isoformat())
+
+        return jsonify({
+            "ok": True,
+            "day": {
+                "id": cash_day.id,
+                "day_date": cash_day.day_date.isoformat(),
+                "status": cash_day.status,
+                "closed_at": None,
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        logger.exception("api_update_cash_day_status error: %s", e)
+        return jsonify({"ok": False, "error": "Errore interno durante l'aggiornamento dello stato giornata"}), 500
 
 
 # =========================
@@ -4210,6 +4282,9 @@ def api_create_sale(day_date):
     cash_day = CashDay.query.filter(CashDay.day_date == d).first()
     if not cash_day:
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
+    closed_response = _reject_if_day_closed(cash_day)
+    if closed_response:
+        return closed_response
 
     data = request.get_json(silent=True) or {}
 
@@ -4594,6 +4669,12 @@ def api_delete_sale(sale_id):
 
         if not pri_data:
             return jsonify({"ok": False, "error": "Incasso PRI non trovato"}), 404
+        if day_node:
+            closed_response = _reject_if_day_closed_for_date(
+                datetime.strptime(day_node["date"], "%Y-%m-%d").date()
+            )
+            if closed_response:
+                return closed_response
 
         del day_node["sales"][idx]
 
@@ -4629,6 +4710,9 @@ def api_delete_sale(sale_id):
 
     if not sale:
         return jsonify({"ok": False, "error": "Incasso non trovato"}), 404
+    closed_response = _reject_if_day_closed(CashDay.query.filter_by(id=sale.cash_day_id).first())
+    if closed_response:
+        return closed_response
 
     try:
         CashRowCheck.query.filter_by(
@@ -4722,6 +4806,11 @@ def api_update_sale(sale_id):
 
             if not pri_data:
                 return jsonify({"ok": False, "error": "Incasso PRI non trovato"}), 404
+            closed_response = _reject_if_day_closed_for_date(
+                datetime.strptime(day_node["date"], "%Y-%m-%d").date()
+            )
+            if closed_response:
+                return closed_response
 
             try:
                 d_pri = datetime.strptime(day_node["date"], "%Y-%m-%d").date()
@@ -4737,6 +4826,9 @@ def api_update_sale(sale_id):
                 )
                 db.session.add(cash_day)
                 db.session.flush()
+            closed_response = _reject_if_day_closed(cash_day)
+            if closed_response:
+                return closed_response
 
             sale = CashSale(
                 cash_day_id=cash_day.id,
@@ -4915,6 +5007,12 @@ def api_update_sale(sale_id):
 
         pri_data, day_node, _, _ = _pri_find_sale(year, sale_id)
         if day_node:
+            closed_response = _reject_if_day_closed_for_date(
+                datetime.strptime(day_node["date"], "%Y-%m-%d").date()
+            )
+            if closed_response:
+                return closed_response
+        if day_node:
             _bump_agenda_day_version(day_node["date"])
 
         return jsonify({
@@ -4942,6 +5040,9 @@ def api_update_sale(sale_id):
 
     if not sale:
         return jsonify({"ok": False, "error": "Incasso non trovato"}), 404
+    closed_response = _reject_if_day_closed(CashDay.query.filter_by(id=sale.cash_day_id).first())
+    if closed_response:
+        return closed_response
 
     # =========================
     # MIGRAZIONE AZ -> PRI
@@ -5238,6 +5339,9 @@ def api_delete_pos_move(pos_move_id):
 
     if not pos_move:
         return jsonify({"ok": False, "error": "Movimento POS non trovato"}), 404
+    closed_response = _reject_if_day_closed(CashDay.query.filter_by(id=pos_move.cash_day_id).first())
+    if closed_response:
+        return closed_response
 
     try:
         # se esistono row-check collegati, li elimino
@@ -5279,6 +5383,9 @@ def api_create_expense(day_date):
     cash_day = CashDay.query.filter(CashDay.day_date == d).first()
     if not cash_day:
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
+    closed_response = _reject_if_day_closed(cash_day)
+    if closed_response:
+        return closed_response
 
     data = request.get_json(silent=True) or {}
 
@@ -5585,6 +5692,12 @@ def api_delete_expense(expense_id):
 
         if not pri_data:
             return jsonify({"ok": False, "error": "Spesa PRI non trovata"}), 404
+        if day_node:
+            closed_response = _reject_if_day_closed_for_date(
+                datetime.strptime(day_node["date"], "%Y-%m-%d").date()
+            )
+            if closed_response:
+                return closed_response
 
         del day_node["expenses"][idx]
 
@@ -5617,6 +5730,9 @@ def api_delete_expense(expense_id):
 
     if not expense:
         return jsonify({"ok": False, "error": "Spesa non trovata"}), 404
+    closed_response = _reject_if_day_closed(CashDay.query.filter_by(id=expense.cash_day_id).first())
+    if closed_response:
+        return closed_response
 
     try:
         CashRowCheck.query.filter_by(
@@ -5722,6 +5838,9 @@ def api_update_expense(expense_id):
                 d_pri = datetime.strptime(day_node["date"], "%Y-%m-%d").date()
             except Exception:
                 return jsonify({"ok": False, "error": "Data movimento PRI non valida"}), 400
+            closed_response = _reject_if_day_closed_for_date(d_pri)
+            if closed_response:
+                return closed_response
 
             cash_day = CashDay.query.filter(CashDay.day_date == d_pri).first()
             if not cash_day:
@@ -5732,6 +5851,9 @@ def api_update_expense(expense_id):
                 )
                 db.session.add(cash_day)
                 db.session.flush()
+            closed_response = _reject_if_day_closed(cash_day)
+            if closed_response:
+                return closed_response
 
             exp = CashExpense(
                 cash_day_id=cash_day.id,
@@ -5860,6 +5982,12 @@ def api_update_expense(expense_id):
 
         pri_data, day_node, _, _ = _pri_find_expense(year, expense_id)
         if day_node:
+            closed_response = _reject_if_day_closed_for_date(
+                datetime.strptime(day_node["date"], "%Y-%m-%d").date()
+            )
+            if closed_response:
+                return closed_response
+        if day_node:
             _bump_agenda_day_version(day_node["date"])
 
         return jsonify({
@@ -5885,6 +6013,9 @@ def api_update_expense(expense_id):
 
     if not expense:
         return jsonify({"ok": False, "error": "Spesa non trovata"}), 404
+    closed_response = _reject_if_day_closed(CashDay.query.filter_by(id=expense.cash_day_id).first())
+    if closed_response:
+        return closed_response
 
     # =========================
     # MIGRAZIONE AZ -> PRI
@@ -6114,6 +6245,9 @@ def api_create_pos_move(day_date):
     cash_day = CashDay.query.filter(CashDay.day_date == d).first()
     if not cash_day:
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
+    closed_response = _reject_if_day_closed(cash_day)
+    if closed_response:
+        return closed_response
 
     data = request.get_json(silent=True) or {}
 
@@ -6189,6 +6323,9 @@ def api_update_pos_move(pos_move_id):
     pos_move = PosMove.query.filter_by(id=pos_move_id).first()
     if not pos_move:
         return jsonify({"ok": False, "error": "Movimento POS non trovato"}), 404
+    closed_response = _reject_if_day_closed(CashDay.query.filter_by(id=pos_move.cash_day_id).first())
+    if closed_response:
+        return closed_response
 
     data = request.get_json(silent=True) or {}
 
@@ -6269,6 +6406,9 @@ def api_list_pos_moves(day_date):
     cash_day = CashDay.query.filter(CashDay.day_date == d).first()
     if not cash_day:
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
+    closed_response = _reject_if_day_closed(cash_day)
+    if closed_response:
+        return closed_response
 
     moves = (
         PosMove.query
@@ -6356,6 +6496,9 @@ def api_create_cash_move(day_date):
     cash_day = CashDay.query.filter(CashDay.day_date == d).first()
     if not cash_day:
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
+    closed_response = _reject_if_day_closed(cash_day)
+    if closed_response:
+        return closed_response
 
     data = request.get_json(silent=True) or {}
 
@@ -6592,6 +6735,11 @@ def api_update_cash_move(cash_move_id):
         year, _pri_data, day_node, _idx, _row = _pri_find_cash_move_any_year(cash_move_id)
         if not year:
             return jsonify({"ok": False, "error": "Movimento PRI non trovato"}), 404
+        closed_response = _reject_if_day_closed_for_date(
+            datetime.strptime(day_node["date"], "%Y-%m-%d").date()
+        )
+        if closed_response:
+            return closed_response
 
         updated_row = _pri_update_cash_move(year, cash_move_id, {
             "direction": direction,
@@ -6630,6 +6778,9 @@ def api_update_cash_move(cash_move_id):
     cash_move = CashMove.query.filter_by(id=move_id_int).first()
     if not cash_move:
         return jsonify({"ok": False, "error": "Movimento di cassa non trovato"}), 404
+    closed_response = _reject_if_day_closed(CashDay.query.filter_by(id=cash_move.cash_day_id).first())
+    if closed_response:
+        return closed_response
 
     try:
         cash_move.direction = direction
@@ -6675,6 +6826,11 @@ def api_delete_cash_move(cash_move_id):
 
         if not pri_data:
             return jsonify({"ok": False, "error": "Movimento PRI non trovato"}), 404
+        closed_response = _reject_if_day_closed_for_date(
+            datetime.strptime(day_node["date"], "%Y-%m-%d").date()
+        )
+        if closed_response:
+            return closed_response
 
         del day_node["cash_moves"][idx]
 
@@ -6702,6 +6858,9 @@ def api_delete_cash_move(cash_move_id):
 
     if not cash_move:
         return jsonify({"ok": False, "error": "Movimento di cassa non trovato"}), 404
+    closed_response = _reject_if_day_closed(CashDay.query.filter_by(id=cash_move.cash_day_id).first())
+    if closed_response:
+        return closed_response
 
     try:
         CashRowCheck.query.filter_by(
@@ -6865,6 +7024,9 @@ def api_save_drawer_count(day_date):
     cash_day, error_response = _get_cash_day_by_date_or_404(day_date)
     if error_response:
         return error_response
+    closed_response = _reject_if_day_closed(cash_day)
+    if closed_response:
+        return closed_response
 
     data = request.get_json(silent=True) or {}
     raw_lines = data.get("lines")
@@ -6972,6 +7134,9 @@ def api_delete_drawer_count(day_date):
     cash_day, error_response = _get_cash_day_by_date_or_404(day_date)
     if error_response:
         return error_response
+    closed_response = _reject_if_day_closed(cash_day)
+    if closed_response:
+        return closed_response
 
     drawer_count = CashDrawerCount.query.filter_by(cash_day_id=cash_day.id).first()
     if not drawer_count:
@@ -7041,6 +7206,9 @@ def api_create_ecommerce(day_date):
     cash_day = CashDay.query.filter(CashDay.day_date == d).first()
     if not cash_day:
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
+    closed_response = _reject_if_day_closed(cash_day)
+    if closed_response:
+        return closed_response
 
     data = request.get_json(silent=True) or {}
 
@@ -7083,6 +7251,9 @@ def api_delete_ecommerce(ecommerce_id):
     row = CashEcommerce.query.filter_by(id=ecommerce_id).first()
     if not row:
         return jsonify({"ok": False, "error": "Ecommerce row not found"}), 404
+    closed_response = _reject_if_day_closed(CashDay.query.filter_by(id=row.cash_day_id).first())
+    if closed_response:
+        return closed_response
 
     try:
         cash_day = CashDay.query.filter_by(id=row.cash_day_id).first()
@@ -7109,6 +7280,9 @@ def api_update_ecommerce(ecommerce_id):
     row = CashEcommerce.query.filter_by(id=ecommerce_id).first()
     if not row:
         return jsonify({"ok": False, "error": "Ecommerce row not found"}), 404
+    closed_response = _reject_if_day_closed(CashDay.query.filter_by(id=row.cash_day_id).first())
+    if closed_response:
+        return closed_response
 
     data = request.get_json(silent=True) or {}
 
@@ -7270,6 +7444,9 @@ def api_create_deposit(day_date):
     day = CashDay.query.filter_by(day_date=d).first()
     if not day:
         return jsonify({"ok": False, "error": "Giornata non trovata"}), 404
+    closed_response = _reject_if_day_closed(day)
+    if closed_response:
+        return closed_response
 
     # --- recupero assegni ---
     checks = []
@@ -7429,6 +7606,9 @@ def api_update_deposit(deposit_id):
 
     if not deposit:
         return jsonify({"ok": False, "error": "Versamento non trovato"}), 404
+    closed_response = _reject_if_day_closed(CashDay.query.filter_by(id=deposit.cash_day_id).first())
+    if closed_response:
+        return closed_response
 
     data = request.get_json(silent=True) or {}
 
@@ -7599,6 +7779,9 @@ def create_receipt_closure(day_date):
     data = request.get_json()
 
     day = CashDay.query.filter_by(day_date=day_date).first_or_404()
+    closed_response = _reject_if_day_closed(day)
+    if closed_response:
+        return closed_response
 
     amount = data.get("amount")
     closure_type = data.get("closure_type", "fine_giornata")
@@ -7631,6 +7814,9 @@ def api_delete_receipt_closure(receipt_closure_id):
 
     if not row:
         return jsonify({"ok": False, "error": "Corrispettivo non trovato"}), 404
+    closed_response = _reject_if_day_closed(CashDay.query.filter_by(id=row.cash_day_id).first())
+    if closed_response:
+        return closed_response
 
     try:
         cash_day = CashDay.query.filter_by(id=row.cash_day_id).first()
@@ -7661,6 +7847,9 @@ def api_update_receipt_closure(receipt_closure_id):
     row = CashReceiptClosure.query.filter_by(id=receipt_closure_id).first()
     if not row:
         return jsonify({"ok": False, "error": "Corrispettivo non trovato"}), 404
+    closed_response = _reject_if_day_closed(CashDay.query.filter_by(id=row.cash_day_id).first())
+    if closed_response:
+        return closed_response
 
     amount_raw = data.get("amount")
     closure_type = (data.get("closure_type") or "").strip()
@@ -7715,6 +7904,9 @@ def api_owner_take_available_checks(day_date):
     cash_day = CashDay.query.filter(CashDay.day_date == d).first()
     if not cash_day:
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
+    closed_response = _reject_if_day_closed(cash_day)
+    if closed_response:
+        return closed_response
 
     already_taken_subq = (
         db.session.query(CashOwnerTakeCheck.check_id)
@@ -7847,6 +8039,9 @@ def api_create_owner_take(day_date):
     cash_day = CashDay.query.filter(CashDay.day_date == d).first()
     if not cash_day:
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
+    closed_response = _reject_if_day_closed(cash_day)
+    if closed_response:
+        return closed_response
 
     data = request.get_json(silent=True) or {}
 
@@ -7965,6 +8160,9 @@ def api_delete_owner_take(owner_take_id):
 
     if not row:
         return jsonify({"ok": False, "error": "Prelievo non trovato"}), 404
+    closed_response = _reject_if_day_closed(CashDay.query.filter_by(id=row.cash_day_id).first())
+    if closed_response:
+        return closed_response
 
     try:
         day_date = None
@@ -8006,6 +8204,9 @@ def api_update_owner_take(owner_take_id):
 
     if not row:
         return jsonify({"ok": False, "error": "Prelievo non trovato"}), 404
+    closed_response = _reject_if_day_closed(CashDay.query.filter_by(id=row.cash_day_id).first())
+    if closed_response:
+        return closed_response
 
     data = request.get_json(silent=True) or {}
 

@@ -785,6 +785,10 @@ Stato implementazione 2026-06-14:
   - tabella `cash_day_audit_events` per create/update/delete sulle entita' cassa;
   - listener SQLAlchemy che registra audit quando la giornata e' chiusa;
   - `_bump_agenda_day_version()` marca stale gli snapshot chiusi dalla data interessata in avanti.
+- controllo stato giornata:
+  - badge in alto a destra cliccabile per passare `open/closed`;
+  - inserimenti su giornata chiusa chiedono conferma e offrono riapertura o passaggio a oggi;
+  - i mutatori principali della cassa sono bloccati anche lato backend sulle giornate chiuse.
 - resta da implementare:
   - UI per mostrare/revertire gli eventi di audit.
 

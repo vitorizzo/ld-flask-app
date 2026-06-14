@@ -1367,4 +1367,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - aggiunta tabella `cash_day_audit_events`;
   - listener SQLAlchemy per tracciare create/update/delete sulle entita' cassa quando la giornata e' chiusa;
   - le chiusure successive alla modifica marcano `fiscal_snapshot_stale` sulle giornate chiuse dalla data toccata in avanti.
+- stato giornata operabile dalla badge in alto a destra:
+  - toggle `open/closed` sulla giornata corrente;
+  - se si prova a inserire o modificare un movimento su giornata chiusa, la UI chiede se riaprire la giornata oppure passare a oggi;
+  - backend bloccato su create/update/delete per le principali entita' cassa anche nei rami PRI e AZ.
 - ancora da fare: eventuale UI per mostrare/revertire gli eventi di audit.

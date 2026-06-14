@@ -244,3 +244,4 @@ Nota operativa 2026-06-14:
 - snapshot fiscale resta nel DB, snapshot PRI/complete nel vault annuale;
 - prima di ogni nuova modifica aggiornare anche `status.md` e `project_map.md`.
 - audit chiusure: tabella `cash_day_audit_events` + listener SQLAlchemy; gli snapshot chiusi dal giorno toccato in avanti vengono marcati stale automaticamente.
+- stato giornata: badge cliccabile in alto a destra per `open/closed`; su giornata chiusa la UI chiede se riaprire o passare a oggi prima di inserire movimenti; backend blocca i mutatori principali anche nei rami PRI.
