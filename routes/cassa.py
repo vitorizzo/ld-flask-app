@@ -2865,11 +2865,12 @@ def api_close_cash_day(day_date):
     if not cash_day:
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
 
-    preview_payload = _build_cash_day_preview_payload(cash_day, view="fiscal")
-    totals = preview_payload.get("totals") or {}
     now = datetime.now(timezone.utc)
 
     try:
+        preview_payload = _json_safe(_build_cash_day_preview_payload(cash_day, view="fiscal"))
+        totals = preview_payload.get("totals") or {}
+
         closure = getattr(cash_day, "closure", None)
         if not closure:
             closure = CashClosure(cash_day_id=cash_day.id)
@@ -2913,7 +2914,7 @@ def api_close_cash_day(day_date):
                     or getattr(current_user, "username", None)
                     or "user",
                 "report_mode": report_mode,
-                "report_payload": report_payload,
+                "report_payload": _json_safe(report_payload),
             }
 
             try:
