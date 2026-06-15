@@ -807,6 +807,7 @@ Stato implementazione 2026-06-14:
   - la relazione `CashDay.closure` viene caricata normalmente per evitare falsi negativi sul record gia' salvato;
   - il recupero snapshot usa la stessa relazione caricata, non un `noload`.
   - lo snapshot viene passato attraverso `_json_safe` prima del commit, per evitare errori di serializzazione nel JSONB.
+  - il bottone di stampa su giornata chiusa usa lo snapshot gia' salvato e salta la chiamata di chiusura.
 
 ---
 

@@ -9041,11 +9041,16 @@ async function printCompleteDayReport() {
   if (!currentDay) return;
 
   const payload = await collectCompleteDayReportPayload();
-  try {
-    await closeDayReportSnapshot(payload);
-  } catch (err) {
-    alert(err?.message || "Errore durante la chiusura della giornata");
-    return;
+  const shouldClose = !isCurrentDayClosed();
+
+  if (shouldClose) {
+    try {
+      await closeDayReportSnapshot(payload);
+      currentDayStatus = "closed";
+    } catch (err) {
+      alert(err?.message || "Errore durante la chiusura della giornata");
+      return;
+    }
   }
 
   const html = buildCompleteDayReportHtml(payload);
@@ -9061,7 +9066,6 @@ async function printCompleteDayReport() {
   win.focus();
   setTimeout(() => win.print(), 300);
 }
-
 function eur(v) {
   if (v === null || v === undefined) return "—";
   return Number(v).toLocaleString("it-IT", {

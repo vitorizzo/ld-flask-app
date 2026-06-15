@@ -1385,3 +1385,4 @@ Performance apertura giornata Agenda 2026-06-13:
   - resa idempotente la route di chiusura; se la giornata ha gia' una `CashClosure` esistente, ora la aggiorna invece di provare a ricrearla;
   - rimosso il `noload` sulla relazione `CashDay.closure` nella chiusura e nel recupero snapshot, che impediva di vedere la chiusura gia' salvata.
   - snapshot e report payload vengono normalizzati con `_json_safe` prima del commit e del salvataggio nel vault, per evitare 500 causati da oggetti non serializzabili.
+  - stampa report su giornata gia' chiusa: il bottone usa lo snapshot salvato e non richiama piu' la chiusura.

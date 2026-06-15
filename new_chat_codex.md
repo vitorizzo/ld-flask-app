@@ -250,3 +250,4 @@ Nota operativa 2026-06-14:
 - scheda prodotto articoli: pubblicazione immagini attiva dalla LDApp verso le piattaforme presenti; Prestashop e' collegato a un upload reale, il menu disabilita i target non supportati e il drag/drop sullo slot usa lo stesso endpoint.
 - chiusura report giornaliero: resa idempotente, rimosso `noload` sulla relazione `CashDay.closure` per evitare che una giornata gia' chiusa venisse trattata come priva di chiusura durante la stampa del report.
 - chiusura report giornaliero: snapshot e report payload normalizzati con `_json_safe` prima del commit/salvataggio vault, per prevenire errori di serializzazione JSONB.
+- stampa report giornaliero: se la giornata e' gia' chiusa il bottone usa lo snapshot salvato e non richiama piu' la chiusura.
