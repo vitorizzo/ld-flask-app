@@ -1381,3 +1381,6 @@ Performance apertura giornata Agenda 2026-06-13:
   - la pubblicazione e' effettiva su Prestashop tramite upload webservice;
   - il menu contestuale mostra solo i target attivi e supportati, con disabilitazione esplicita per quelli non ancora implementati;
   - le immagini caricate dall'app possono ora essere inviate anche alla piattaforma scelta o trascinate sul relativo slot.
+- chiusura report giornaliero:
+  - resa idempotente la route di chiusura; se la giornata ha gia' una `CashClosure` esistente, ora la aggiorna invece di provare a ricrearla;
+  - rimosso il `noload` sulla relazione `CashDay.closure` nella chiusura e nel recupero snapshot, che impediva di vedere la chiusura gia' salvata.

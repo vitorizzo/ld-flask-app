@@ -247,3 +247,5 @@ Nota operativa 2026-06-14:
 - stato giornata: badge cliccabile in alto a destra per `open/closed`; su giornata chiusa la UI chiede se riaprire o passare a oggi prima di inserire movimenti; backend blocca i mutatori principali anche nei rami PRI.
 - bootstrap home: `inject_menus` non deve rompere la pagina iniziale se il DB non e' raggiungibile; ora ritorna un menu vuoto come fallback.
 - agenda crash fix: `templates/agenda.html` era stato salvato con encoding non UTF-8; Jinja generava `UnicodeDecodeError`, ora il file e' in UTF-8.
+- scheda prodotto articoli: pubblicazione immagini attiva dalla LDApp verso le piattaforme presenti; Prestashop e' collegato a un upload reale, il menu disabilita i target non supportati e il drag/drop sullo slot usa lo stesso endpoint.
+- chiusura report giornaliero: resa idempotente, rimosso `noload` sulla relazione `CashDay.closure` per evitare che una giornata gia' chiusa venisse trattata come priva di chiusura durante la stampa del report.

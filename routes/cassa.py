@@ -2573,7 +2573,7 @@ def api_cash_day_preview(day_date):
             noload(CashDay.cash_moves),
             noload(CashDay.pos_moves),
             noload(CashDay.deposits),
-            noload(CashDay.closure),
+            selectinload(CashDay.closure),
         )
         .filter(CashDay.day_date == d)
         .first()
@@ -2961,7 +2961,7 @@ def api_day_closure_snapshot(day_date):
 
     cash_day = (
         CashDay.query
-        .options(noload(CashDay.closure))
+        .options(selectinload(CashDay.closure))
         .filter(CashDay.day_date == d)
         .first()
     )

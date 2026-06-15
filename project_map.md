@@ -802,6 +802,11 @@ Stato implementazione 2026-06-14:
   - Prestashop ha un upload reale via webservice, mentre gli altri target restano disabilitati fino a implementazione del connettore;
   - il menu contestuale e i drop slot rispettano lo stato `active/supported` per ogni piattaforma.
 
+- chiusura report giornaliero:
+  - la route `POST /cassa/api/day/<day_date>/close` aggiorna una `CashClosure` esistente invece di reinserirla;
+  - la relazione `CashDay.closure` viene caricata normalmente per evitare falsi negativi sul record gia' salvato;
+  - il recupero snapshot usa la stessa relazione caricata, non un `noload`.
+
 ---
 
 # Versione
