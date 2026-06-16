@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
+import os
 
 import requests
 from flask import current_app
@@ -232,6 +233,11 @@ class PoleepoConnector:
         configured = self.integration.settings.get("image_delete_path") if self.integration and self.integration.settings else None
         return configured or current_app.config.get("POLEEPO_IMAGE_DELETE_PATH") or ""
 
+    @property
+    def image_upload_path(self):
+        configured = self.integration.settings.get("image_upload_path") if self.integration and self.integration.settings else None
+        return configured or current_app.config.get("POLEEPO_IMAGE_UPLOAD_PATH") or ""
+
     def _request_absolute(self, method: str, url: str, *, token: str | None = None, **kwargs):
         if not self.is_configured:
             raise ShippingConnectorNotConfigured("Credenziali Poleepo mancanti")
@@ -333,6 +339,92 @@ class PoleepoConnector:
                 continue
 
         raise ShippingConnectorError(last_error or "Delete immagini Poleepo non disponibile")
+
+    def upload_image(self, *, product_id=None, image_path=None, filename=None, mime_type=None):
+        token = self.access_token()
+        if not product_id:
+            raise ShippingConnectorError("ID prodotto Poleepo mancante")
+        if not image_path or not os.path.exists(image_path):
+            raise ShippingConnectorError(f"Immagine non trovata: {image_path}")
+
+        safe_filename = filename or os.path.basename(image_path)
+        content_type = mime_type or "application/octet-stream"
+        upload_fields = ["image", "file", "media", "upload"]
+        candidates = []
+
+        configured = (self.image_upload_path or "").strip()
+        if configured:
+            if configured.startswith("http://") or configured.startswith("https://"):
+                candidates.append(configured.format(product_id=product_id, filename=safe_filename))
+            else:
+                candidates.append(f"{self.base_url}{configured.format(product_id=product_id, filename=safe_filename)}")
+
+        candidates.extend([
+            f"{self.base_url}/products/{product_id}/images",
+            f"{self.base_url}/products/{product_id}/image",
+            f"{self.base_url}/images/products/{product_id}",
+            f"{self.base_url}/images/{product_id}",
+        ])
+
+        last_error = None
+        tried = set()
+        for candidate in candidates:
+            if not candidate or candidate in tried:
+                continue
+            tried.add(candidate)
+            for upload_field in upload_fields:
+                try:
+                    with open(image_path, "rb") as image_file:
+                        response = requests.post(
+                            candidate,
+                            headers={
+                                "Accept": "application/json",
+                                "Authorization": f"Bearer {token}",
+                            },
+                            files={upload_field: (safe_filename, image_file, content_type)},
+                            timeout=60,
+                        )
+                    if response.status_code not in (200, 201, 202, 204):
+                        raise ShippingConnectorError(f"Poleepo HTTP {response.status_code}: {response.text[:500]}")
+                    try:
+                        payload = response.json()
+                    except ValueError:
+                        payload = {"success": True, "raw": response.text[:1000]}
+                    image_id = None
+                    remote_url = None
+                    if isinstance(payload, dict):
+                        data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+                        image_id = (
+                            data.get("id")
+                            or data.get("image_id")
+                            or data.get("media_id")
+                            or data.get("external_id")
+                        )
+                        remote_url = (
+                            data.get("url")
+                            or data.get("remote_url")
+                            or data.get("link")
+                            or data.get("href")
+                        )
+                    if not remote_url:
+                        remote_url = candidate
+                    return {
+                        "status_code": response.status_code,
+                        "image_id": str(image_id) if image_id is not None else None,
+                        "remote_url": remote_url,
+                        "raw_payload": payload,
+                    }
+                except ShippingConnectorError as exc:
+                    message = str(exc)
+                    last_error = message
+                    if any(token in message.lower() for token in ("404", "not found", "405", "method not allowed", "415")):
+                        continue
+                    continue
+                except requests.RequestException as exc:
+                    last_error = str(exc)
+                    continue
+
+        raise ShippingConnectorError(last_error or "Upload immagini Poleepo non disponibile")
 
 
 def _join_name(*parts):

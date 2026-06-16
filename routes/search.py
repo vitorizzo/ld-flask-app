@@ -40,7 +40,7 @@ search_bp = Blueprint('search', __name__, template_folder='../templates')
 
 PRODUCT_IMAGE_PLATFORMS = {
     "prestashop": {"label": "Prestashop", "enabled": True, "icon": "fa-solid fa-store"},
-    "poleepo": {"label": "Poleepo", "enabled": False, "icon": "fa-solid fa-cloud-arrow-up"},
+    "poleepo": {"label": "Poleepo", "enabled": True, "icon": "fa-solid fa-cloud-arrow-up"},
     "ebay": {"label": "Ebay", "enabled": False, "icon": "fa-brands fa-ebay"},
     "amazon": {"label": "Amazon", "enabled": False, "icon": "fa-brands fa-amazon"},
     "ldapp": {"label": "LDApp", "enabled": True, "icon": "fa-solid fa-folder-open"},
@@ -264,6 +264,34 @@ def _publish_product_image_to_platform(articolo, source_asset, platform_key, pla
         result = prestashop_upload_product_image(
             platform_link.external_id,
             local_path,
+            filename=source_asset.original_filename or os.path.basename(local_path),
+            mime_type=source_asset.mime_type,
+        )
+        published_asset = _sync_product_asset_for_platform(
+            articolo,
+            source_asset,
+            platform_key,
+            result["remote_url"],
+            result["image_id"],
+        )
+        platform_link.last_sync_at = datetime.utcnow()
+        platform_link.last_error = None
+        return {
+            "asset": _serialize_product_asset(published_asset),
+            "remote_url": result["remote_url"],
+            "image_id": result["image_id"],
+            "raw_payload": result["raw_payload"],
+        }
+
+    if platform_key == "poleepo":
+        local_path = _product_image_local_path(source_asset)
+        if not local_path:
+            raise ValueError("L'immagine selezionata non ha un file locale pubblicabile.")
+        poleepo_integration = CourierIntegration.query.filter_by(code="poleepo").first()
+        connector = PoleepoConnector(integration=poleepo_integration)
+        result = connector.upload_image(
+            product_id=platform_link.external_id,
+            image_path=local_path,
             filename=source_asset.original_filename or os.path.basename(local_path),
             mime_type=source_asset.mime_type,
         )

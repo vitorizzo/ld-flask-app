@@ -1389,6 +1389,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - introdotto raggruppamento immagini per famiglia con badge `prestashop | poleepo | ldapp` quando la stessa immagine e' presente su piu' target;
   - introdotto default immagine per famiglia con azione esplicita `Imposta come default` e badge visivo `Default` sulla primaria;
   - introdotta rimozione immagini con perimetro esplicito: da piattaforma o da LDApp si selezionano le copie da eliminare, mantenendo la distinzione tra archivio locale e copie pubblicate; su Prestashop la rimozione esegue anche la cancellazione remota della copia fisica.
+  - attivata anche la pubblicazione immagini verso Poleepo con `PoleepoConnector.upload_image()`, usando un path upload configurabile e gli stessi asset LDApp come sorgente;
   - aggiunta cancellazione remota anche per Poleepo tramite `PoleepoConnector.delete_image()`, con fallback configurabile sul path di delete e uso dei dati gia' persistiti sull'asset (`source_external_id`, `remote_url`);
   - le immagini provenienti da Prestashop/non-LDApp ora passano da un proxy server-side di LDApp, cosi' il browser non chiede piu' credenziali HTTP basic per `www.ldenoteca.it`.
   - corretto il delete frontend della scheda prodotto: gli endpoint usano il prefisso corrente del blueprint, quindi non tornano piu' HTML 404 quando si prova a eliminare una copia remota;

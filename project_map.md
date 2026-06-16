@@ -281,6 +281,7 @@ La scheda prodotto e' stata estesa con:
 - menu contestuale sulle immagini con voci `Aggiungi a Prestashop/Poleepo/Ebay/Amazon` presenti ma disabilitate;
 - drag/drop sugli slot predisposto lato UI, con invio a piattaforme esterne non ancora implementato.
 - pubblicazione immagini attiva su Prestashop con `POST /search/scheda_articolo/<cod_art>/images/publish`;
+- pubblicazione immagini attiva anche su Poleepo tramite `PoleepoConnector.upload_image()` con endpoint upload configurabile;
 - azione `Imposta come default` sulla famiglia immagine con `POST /search/scheda_articolo/<cod_art>/images/<asset_id>/primary`;
 - rimozione immagini con perimetro esplicito tramite `POST /search/scheda_articolo/<cod_art>/images/delete`;
 - delete remoto implementato su Prestashop e Poleepo; Poleepo usa `PoleepoConnector.delete_image()` con fallback configurabile sul path remoto;
