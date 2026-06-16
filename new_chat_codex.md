@@ -179,6 +179,13 @@ Dopo ogni intervento tecnico concluso o ogni cambio di contesto operativo rileva
 - project_map.md se sono cambiati architettura, moduli, route, modelli o file chiave;
 - new_chat_codex.md solo se cambia il metodo operativo o se l'utente lo richiede esplicitamente.
 
+Nota operativa modali:
+
+- quando si implementa una nuova modale o si modifica una modale esistente, il pulsante di conferma non va affidato al solo stato iniziale del DOM;
+- lo stato del pulsante di conferma, il testo e l'handler devono essere impostati all'apertura della modale (`shown.bs.modal`) e ripuliti alla chiusura (`hidden.bs.modal`);
+- il default non deve ereditare uno stato disabilitato lasciato da aperture precedenti o da riuso del nodo;
+- se la modale esegue un'azione critica, la conferma va resa esplicita e riassegnata ad ogni apertura.
+
 8. Performance e gestione chat lunghe
 
 Preferire sempre lettura diretta dei file repository

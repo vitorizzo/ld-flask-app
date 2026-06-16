@@ -486,8 +486,15 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     if (deleteModalElement) {
+        if (deleteModalElement.parentElement !== document.body) {
+            document.body.appendChild(deleteModalElement);
+        }
         deleteModal = bootstrap.Modal.getOrCreateInstance(deleteModalElement);
+        deleteModalElement.addEventListener("show.bs.modal", function () {
+            document.body.classList.add("product-image-delete-modal-open");
+        });
         deleteModalElement.addEventListener("hidden.bs.modal", function () {
+            document.body.classList.remove("product-image-delete-modal-open");
             deleteSelection = [];
             if (deleteTargets) {
                 deleteTargets.innerHTML = "";

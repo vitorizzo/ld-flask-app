@@ -2,6 +2,11 @@ TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
 Data aggiornamento: 2026-06-02
 
+## Regola prioritaria modali
+
+Quando si implementa o si modifica una modale, il bottone di conferma va inizializzato su `shown.bs.modal` e ripulito su `hidden.bs.modal`.
+Non va mai lasciato affidato al solo stato iniziale del DOM perché nel progetto tende a restare disabilitato o con handler residui al primo utilizzo.
+
 ---
 
 ## 🔄 Stato generale modulo Agenda / Cassa
@@ -1385,6 +1390,12 @@ Performance apertura giornata Agenda 2026-06-13:
   - introdotto default immagine per famiglia con azione esplicita `Imposta come default` e badge visivo `Default` sulla primaria;
   - introdotta rimozione immagini con perimetro esplicito: da piattaforma o da LDApp si selezionano le copie da eliminare, mantenendo la distinzione tra archivio locale e copie pubblicate; su Prestashop la rimozione esegue anche la cancellazione remota della copia fisica.
   - le immagini provenienti da Prestashop/non-LDApp ora passano da un proxy server-side di LDApp, cosi' il browser non chiede piu' credenziali HTTP basic per `www.ldenoteca.it`.
+
+- regola trasversale modali:
+  - quando si implementa una nuova modale, il pulsante di conferma non va lasciato nel solo stato iniziale del DOM;
+  - l'abilitazione/disabilitazione, il testo e l'azione del bottone di conferma vanno impostati all'apertura `shown.bs.modal` e ripristinati su `hidden.bs.modal`;
+  - se la modale contiene una conferma critica, il default deve essere esplicito e non ereditato da uno stato precedente di riuso del nodo;
+  - questa regola serve a evitare il problema ricorrente del bottone conferma disabilitato al primo utilizzo o dopo aperture successive.
 - chiusura report giornaliero:
   - resa idempotente la route di chiusura; se la giornata ha gia' una `CashClosure` esistente, ora la aggiorna invece di provare a ricrearla;
   - rimosso il `noload` sulla relazione `CashDay.closure` nella chiusura e nel recupero snapshot, che impediva di vedere la chiusura gia' salvata.

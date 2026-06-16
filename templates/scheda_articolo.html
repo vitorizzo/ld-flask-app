@@ -199,6 +199,16 @@
     object-fit: contain;
     background: #111827;
   }
+  .product-image-delete-modal.modal,
+  .product-image-delete-modal.modal.show {
+    z-index: 5200 !important;
+  }
+  .product-image-delete-modal .modal-dialog {
+    z-index: 5201 !important;
+  }
+  body.product-image-delete-modal-open .modal-backdrop.show {
+    z-index: 5190 !important;
+  }
   .product-image-context-menu {
     position: fixed;
     display: none;
@@ -489,7 +499,7 @@
     {% endfor %}
   </div>
 
-  <div class="modal fade" id="productImageDeleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal fade product-image-delete-modal" id="productImageDeleteModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">

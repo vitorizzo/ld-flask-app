@@ -1,5 +1,10 @@
 # PROJECT_MAP.md — v2.4
 
+## Regola prioritaria modali
+
+Le modali nuove o modificate devono inizializzare esplicitamente il bottone di conferma su `shown.bs.modal` e ripulire lo stato su `hidden.bs.modal`.
+Nel codice esistente il solo stato iniziale del DOM non è affidabile perché spesso lascia il bottone disabilitato al primo uso.
+
 ## Repository source of truth
 
 Repo:
