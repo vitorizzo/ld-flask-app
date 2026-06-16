@@ -22,7 +22,10 @@ from models import (
     InventarioExport,
 )
 from routes.tools import clean_text
-from tools.ps_util import upload_product_image as prestashop_upload_product_image
+from tools.ps_util import (
+    delete_product_image as prestashop_delete_product_image,
+    upload_product_image as prestashop_upload_product_image,
+)
 from tools.log_utils import log_task, get_logger
 from sqlalchemy import or_
 
@@ -47,7 +50,51 @@ def _can_manage_product_images():
 
 
 def _asset_public_url(asset):
-    return url_for("static", filename=asset.local_path) if asset.local_path else asset.remote_url
+    if asset.source_platform != "ldapp" and asset.remote_url:
+        return asset.remote_url
+    if asset.local_path:
+        return url_for("static", filename=asset.local_path)
+    return asset.remote_url
+
+
+def _product_asset_family_key(asset):
+    metadata = asset.metadata_json if isinstance(asset.metadata_json, dict) else {}
+    family_key = metadata.get("family_key")
+    if family_key:
+        return str(family_key)
+    if metadata.get("published_from_asset_id") is not None:
+        return f"asset:{metadata.get('published_from_asset_id')}"
+    if asset.content_hash:
+        return f"hash:{asset.content_hash}"
+    if asset.source_platform == "ldapp" and asset.local_path:
+        return f"ldapp:{asset.local_path}"
+    if asset.remote_url:
+        return f"remote:{asset.remote_url}"
+    if asset.local_path:
+        return f"local:{asset.local_path}"
+    return f"asset:{asset.id}"
+
+
+def _product_asset_platform_label(platform_key):
+    return PRODUCT_IMAGE_PLATFORMS.get(platform_key or "", {}).get("label", platform_key or "ldapp")
+
+
+def _product_asset_group_summary(assets):
+    platforms = []
+    seen = set()
+    ordered_platforms = list(PRODUCT_IMAGE_PLATFORMS.keys())
+    for platform_key in ordered_platforms:
+        if any(asset.source_platform == platform_key for asset in assets):
+            label = _product_asset_platform_label(platform_key)
+            if label not in seen:
+                platforms.append(label)
+                seen.add(label)
+    for asset in assets:
+        label = _product_asset_platform_label(asset.source_platform)
+        if label not in seen:
+            platforms.append(label)
+            seen.add(label)
+    return " | ".join(platforms)
 
 
 def _serialize_product_asset(asset):
@@ -56,10 +103,19 @@ def _serialize_product_asset(asset):
         "url": _asset_public_url(asset),
         "file_img": asset.original_filename,
         "source_platform": asset.source_platform,
+        "source_platform_label": _product_asset_platform_label(asset.source_platform),
         "source_external_id": asset.source_external_id,
         "is_primary": bool(asset.is_primary),
         "sort_order": asset.sort_order,
+        "family_key": _product_asset_family_key(asset),
+        "family_summary": None,
     }
+
+
+def _sync_product_asset_family_key(asset, family_key):
+    metadata = dict(asset.metadata_json or {})
+    metadata["family_key"] = family_key
+    asset.metadata_json = metadata
 
 
 def _platform_image_slots(images):
@@ -77,7 +133,10 @@ def _platform_image_slots(images):
             "enabled": config["enabled"],
             "icon": config["icon"],
             "images": grouped.get(key, []),
-            "primary_image": (grouped.get(key) or [None])[0],
+            "primary_image": next(
+                (image for image in grouped.get(key, []) if image.get("is_primary")),
+                (grouped.get(key) or [None])[0],
+            ),
         }
         for key, config in PRODUCT_IMAGE_PLATFORMS.items()
     ]
@@ -102,6 +161,7 @@ def _product_image_local_path(asset):
 
 
 def _sync_product_asset_for_platform(articolo, source_asset, platform_key, remote_url, source_external_id):
+    source_family_key = _product_asset_family_key(source_asset)
     asset = ProductAsset.query.filter_by(
         cod_art=articolo.cod_art,
         asset_type="image",
@@ -123,6 +183,7 @@ def _sync_product_asset_for_platform(articolo, source_asset, platform_key, remot
             is_primary=source_asset.is_primary,
             sort_order=source_asset.sort_order,
             metadata_json={
+                "family_key": source_family_key,
                 "published_from_asset_id": source_asset.id,
                 "published_at": datetime.utcnow().isoformat(),
             },
@@ -140,6 +201,7 @@ def _sync_product_asset_for_platform(articolo, source_asset, platform_key, remot
         metadata = dict(asset.metadata_json or {})
         metadata.update(
             {
+                "family_key": source_family_key,
                 "published_from_asset_id": source_asset.id,
                 "published_at": datetime.utcnow().isoformat(),
             }
@@ -178,6 +240,16 @@ def _publish_product_image_to_platform(articolo, source_asset, platform_key, pla
     raise NotImplementedError(f"Pubblicazione immagini su {platform_key} non ancora disponibile")
 
 
+def _product_asset_group_assets(cod_art, asset):
+    family_key = _product_asset_family_key(asset)
+    candidates = (
+        ProductAsset.query
+        .filter_by(cod_art=cod_art, asset_type="image")
+        .all()
+    )
+    return [row for row in candidates if _product_asset_family_key(row) == family_key]
+
+
 @log_task(logger)
 def get_product_by_code(cod_art):
     prod = Articoli.query.filter_by(cod_art=cod_art).first()
@@ -187,7 +259,30 @@ def get_product_by_code(cod_art):
         .order_by(ProductAsset.is_primary.desc(), ProductAsset.sort_order.asc(), ProductAsset.id.asc())
         .all()
     )
-    immagini = [_serialize_product_asset(asset) for asset in asset_rows if asset.local_path or asset.remote_url]
+    family_groups = {}
+    for asset in asset_rows:
+        family_groups.setdefault(_product_asset_family_key(asset), []).append(asset)
+
+    immagini = []
+    for asset in asset_rows:
+        if not asset.local_path and not asset.remote_url:
+            continue
+        serialized = _serialize_product_asset(asset)
+        group_assets = family_groups.get(serialized["family_key"], [asset])
+        serialized["family_summary"] = _product_asset_group_summary(group_assets)
+        serialized["group_asset_ids"] = [row.id for row in group_assets]
+        serialized["group_platforms"] = []
+        seen_platforms = set()
+        for platform_key in PRODUCT_IMAGE_PLATFORMS.keys():
+            if any(row.source_platform == platform_key for row in group_assets):
+                serialized["group_platforms"].append(platform_key)
+                seen_platforms.add(platform_key)
+        for row in group_assets:
+            if row.source_platform and row.source_platform not in seen_platforms:
+                serialized["group_platforms"].append(row.source_platform)
+                seen_platforms.add(row.source_platform)
+        immagini.append(serialized)
+
     if not immagini:
         immagini = [
             {
@@ -195,9 +290,14 @@ def get_product_by_code(cod_art):
                 "url": url_for("static", filename=f"images/products/{img.file_img}"),
                 "file_img": img.file_img,
                 "source_platform": "legacy",
+                "source_platform_label": "Legacy",
                 "source_external_id": None,
                 "is_primary": False,
                 "sort_order": 0,
+                "family_key": f"legacy:{img.file_img}",
+                "family_summary": "Legacy",
+                "group_asset_ids": [],
+                "group_platforms": ["legacy"],
             }
             for img in Immagini.query.filter_by(cod_art=cod_art).all()
         ]
@@ -305,12 +405,16 @@ def upload_product_image(cod_art):
             sort_order=max_sort + 1,
         )
         db.session.add(asset)
+        db.session.flush()
+        _sync_product_asset_family_key(asset, f"asset:{asset.id}")
     else:
         if os.path.exists(target_path) and asset.local_path != relative_path:
             os.remove(target_path)
         asset.local_path = asset.local_path or relative_path
         asset.original_filename = asset.original_filename or uploaded.filename
         asset.mime_type = asset.mime_type or uploaded.mimetype or mimetypes.guess_type(filename)[0]
+        if not (asset.metadata_json or {}).get("family_key"):
+            _sync_product_asset_family_key(asset, f"asset:{asset.id}")
 
     db.session.commit()
     return jsonify({"ok": True, "asset": _serialize_product_asset(asset)})
@@ -347,6 +451,10 @@ def publish_product_image(cod_art):
     source_asset = ProductAsset.query.filter_by(id=asset_id, cod_art=cod_art, asset_type="image").first()
     if not source_asset:
         return jsonify({"ok": False, "error": "Immagine non trovata."}), 404
+
+    if not (source_asset.metadata_json or {}).get("family_key"):
+        _sync_product_asset_family_key(source_asset, f"asset:{source_asset.id}")
+        db.session.flush()
 
     link_map = {link.platform: link for link in ProductPlatformLink.query.filter_by(cod_art=cod_art).all()}
     results = {}
@@ -386,6 +494,130 @@ def publish_product_image(cod_art):
 
     status_code = 200 if any_success else 400
     return jsonify({"ok": any_success, "results": results}), status_code
+
+
+@search_bp.post('/scheda_articolo/<cod_art>/images/<int:asset_id>/primary')
+@login_required
+def set_product_image_primary(cod_art, asset_id):
+    if not _can_manage_product_images():
+        return jsonify({"ok": False, "error": "Accesso negato"}), 403
+
+    asset = ProductAsset.query.filter_by(id=asset_id, cod_art=cod_art, asset_type="image").first()
+    if not asset:
+        return jsonify({"ok": False, "error": "Immagine non trovata."}), 404
+
+    family_assets = _product_asset_group_assets(cod_art, asset)
+    if not family_assets:
+        family_assets = [asset]
+
+    try:
+        family_key = _product_asset_family_key(asset)
+        for row in ProductAsset.query.filter_by(cod_art=cod_art, asset_type="image").all():
+            row.is_primary = _product_asset_family_key(row) == family_key
+        db.session.commit()
+        return jsonify({"ok": True, "asset_id": asset.id, "family_key": family_key})
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception("Errore impostazione primary immagine per %s", cod_art)
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@search_bp.post('/scheda_articolo/<cod_art>/images/delete')
+@login_required
+def delete_product_images(cod_art):
+    if not _can_manage_product_images():
+        return jsonify({"ok": False, "error": "Accesso negato"}), 403
+
+    articolo = Articoli.query.filter_by(cod_art=cod_art).first()
+    if not articolo:
+        return jsonify({"ok": False, "error": "Articolo non trovato."}), 404
+
+    payload = request.get_json(silent=True) or {}
+    raw_asset_ids = payload.get("asset_ids") or []
+    if isinstance(raw_asset_ids, (int, str)):
+        raw_asset_ids = [raw_asset_ids]
+
+    asset_ids = []
+    for raw_id in raw_asset_ids:
+        try:
+            asset_ids.append(int(raw_id))
+        except (TypeError, ValueError):
+            continue
+    asset_ids = list(dict.fromkeys(asset_ids))
+
+    if not asset_ids:
+        return jsonify({"ok": False, "error": "Nessuna immagine selezionata."}), 400
+
+    assets = (
+        ProductAsset.query
+        .filter(ProductAsset.cod_art == cod_art, ProductAsset.asset_type == "image", ProductAsset.id.in_(asset_ids))
+        .all()
+    )
+    if not assets:
+        return jsonify({"ok": False, "error": "Immagini non trovate."}), 404
+
+    platform_links = {
+        row.platform: row
+        for row in ProductPlatformLink.query.filter_by(cod_art=cod_art).all()
+    }
+    results = {}
+    deleted_asset_ids = set()
+    local_paths_to_consider = set()
+
+    try:
+        for asset in assets:
+            platform_key = asset.source_platform or "ldapp"
+            if platform_key == "ldapp":
+                local_path = _product_image_local_path(asset)
+                if local_path:
+                    local_paths_to_consider.add(local_path)
+                db.session.delete(asset)
+                results[str(asset.id)] = {"ok": True, "deleted": "ldapp"}
+                deleted_asset_ids.add(asset.id)
+                continue
+
+            if platform_key == "prestashop" and asset.source_external_id:
+                platform_link = platform_links.get("prestashop")
+                if not platform_link or not platform_link.external_id:
+                    results[str(asset.id)] = {"ok": False, "error": "Prodotto Prestashop non presente"}
+                    continue
+                try:
+                    prestashop_delete_product_image(platform_link.external_id, asset.source_external_id)
+                except Exception as exc:
+                    results[str(asset.id)] = {"ok": False, "error": str(exc)}
+                    continue
+
+            db.session.delete(asset)
+            results[str(asset.id)] = {"ok": True, "deleted": platform_key}
+            deleted_asset_ids.add(asset.id)
+
+        if local_paths_to_consider:
+            remaining_local_refs = {
+                row.local_path
+                for row in ProductAsset.query.filter(
+                    ProductAsset.cod_art == cod_art,
+                    ProductAsset.asset_type == "image",
+                    ProductAsset.id.notin_(deleted_asset_ids),
+                    ProductAsset.local_path.in_(list(local_paths_to_consider)),
+                ).all()
+                if row.local_path
+            }
+            for local_path in list(local_paths_to_consider):
+                if local_path in remaining_local_refs:
+                    continue
+                abs_path = os.path.join(current_app.static_folder, local_path)
+                if os.path.exists(abs_path):
+                    try:
+                        os.remove(abs_path)
+                    except Exception as exc:
+                        results[local_path] = {"ok": False, "error": str(exc)}
+
+        db.session.commit()
+        return jsonify({"ok": True, "results": results})
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception("Errore eliminazione immagini per %s", cod_art)
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 @search_bp.route('/ricerca_x_barcode', methods=['GET', 'POST'])

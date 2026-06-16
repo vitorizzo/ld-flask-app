@@ -259,6 +259,7 @@ Il sistema immagini moderno usa `ProductAsset` con:
 
 Le immagini importate da Prestashop e Poleepo vengono tracciate con la piattaforma sorgente.
 La scheda prodotto mostra badge di provenienza sulle immagini e badge presenza piattaforma.
+Le immagini sono raggruppate per `family_key` cosi' le copie dello stesso asset restano correlate tra LDApp e piattaforme pubblicate.
 
 ## Intervento corrente 2026-06-11
 
@@ -273,6 +274,11 @@ La scheda prodotto e' stata estesa con:
 - pulsante creazione nuova immagine presente ma disabilitato;
 - menu contestuale sulle immagini con voci `Aggiungi a Prestashop/Poleepo/Ebay/Amazon` presenti ma disabilitate;
 - drag/drop sugli slot predisposto lato UI, con invio a piattaforme esterne non ancora implementato.
+- pubblicazione immagini attiva su Prestashop con `POST /search/scheda_articolo/<cod_art>/images/publish`;
+- azione `Imposta come default` sulla famiglia immagine con `POST /search/scheda_articolo/<cod_art>/images/<asset_id>/primary`;
+- rimozione immagini con perimetro esplicito tramite `POST /search/scheda_articolo/<cod_art>/images/delete`;
+- menu contestuale esteso con `Imposta come default` e `Rimuovi immagine`;
+- badge visivo `Default` sulla primaria e preview slot piattaforma che privilegia la copia primaria della piattaforma.
 
 Le integrazioni di upload verso Prestashop, Poleepo, Ebay e Amazon non sono ancora operative.
 Il prossimo step tecnico sara' implementare endpoint/adapter specifici per pubblicare una immagine esistente verso una piattaforma abilitata.

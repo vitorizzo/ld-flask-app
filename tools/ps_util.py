@@ -274,3 +274,27 @@ def upload_product_image(product_id, image_path, *, filename=None, mime_type=Non
         "raw_payload": payload,
         "status_code": response.status_code,
     }
+
+
+def delete_product_image(product_id, image_id):
+    if not PS_URL or not PS_KEY:
+        raise RuntimeError("Prestashop non configurato")
+    if not product_id or not image_id:
+        raise ValueError("Prestashop image identifiers missing")
+
+    url = f"{PS_URL}/images/products/{product_id}/{image_id}"
+    response = requests.delete(
+        url,
+        auth=HTTPBasicAuth(PS_KEY, ""),
+        params={"ws_key": PS_KEY},
+        timeout=60,
+    )
+
+    if response.status_code not in (200, 202, 204):
+        raise RuntimeError(f"Prestashop HTTP {response.status_code}: {response.text[:500]}")
+
+    return {
+        "status_code": response.status_code,
+        "remote_url": url,
+        "raw_payload": response.text[:1000],
+    }

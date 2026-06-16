@@ -3,9 +3,16 @@ document.addEventListener("DOMContentLoaded", function () {
     var carouselElement = document.getElementById("productCarousel");
     var uploadForm = document.getElementById("productImageUploadForm");
     var contextMenu = document.getElementById("productImageContextMenu");
+    var deleteModalElement = document.getElementById("productImageDeleteModal");
+    var deleteSummary = document.getElementById("productImageDeleteSummary");
+    var deleteTargets = document.getElementById("productImageDeleteTargets");
+    var deleteConfirmButton = document.getElementById("productImageDeleteConfirm");
     var closeButton = document.getElementById("productSheetCloseBtn");
+    var productCode = document.querySelector(".product-sheet-page") ? document.querySelector(".product-sheet-page").dataset.productCode : "";
     var draggedImage = null;
     var contextImage = null;
+    var deleteModal = null;
+    var deleteSelection = [];
 
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (element) {
         if (window.bootstrap && bootstrap.Tooltip) {
@@ -23,6 +30,44 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function currentImageLabel(image) {
         return image ? ((image.alt || image.dataset.sourcePlatform || "immagine").trim()) : "immagine";
+    }
+
+    function platformLabel(platformKey) {
+        var labels = {
+            ldapp: "LDApp",
+            prestashop: "Prestashop",
+            poleepo: "Poleepo",
+            ebay: "Ebay",
+            amazon: "Amazon",
+            legacy: "Legacy",
+            manual: "Manuale"
+        };
+        return labels[platformKey] || platformKey || "Sorgente";
+    }
+
+    function sameImageFamily(imageA, imageB) {
+        if (!imageA || !imageB) {
+            return false;
+        }
+        var familyA = imageA.dataset.familyKey || imageA.dataset.assetId || imageA.src;
+        var familyB = imageB.dataset.familyKey || imageB.dataset.assetId || imageB.src;
+        return familyA === familyB;
+    }
+
+    function getFamilyImages(image) {
+        if (!image) {
+            return [];
+        }
+        var familyKey = image.dataset.familyKey || "";
+        var images = Array.from(document.querySelectorAll("#productCarousel .carousel-item img"));
+        if (familyKey) {
+            return images.filter(function (candidate) {
+                return (candidate.dataset.familyKey || "") === familyKey;
+            });
+        }
+        return images.filter(function (candidate) {
+            return candidate.dataset.assetId && candidate.dataset.assetId === image.dataset.assetId;
+        });
     }
 
     function hideContextMenu() {
@@ -75,6 +120,130 @@ document.addEventListener("DOMContentLoaded", function () {
                 return data;
             });
         });
+    }
+
+    function setPrimaryImage(image) {
+        if (!image) {
+            alert("Seleziona un'immagine da impostare come predefinita.");
+            return Promise.resolve();
+        }
+        var assetId = currentImageAssetId(image);
+        if (!assetId) {
+            alert("L'immagine selezionata non ha un riferimento valido.");
+            return Promise.resolve();
+        }
+        return fetch("/scheda_articolo/" + encodeURIComponent(productCode) + "/images/" + encodeURIComponent(assetId) + "/primary", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            credentials: "same-origin"
+        }).then(function (response) {
+            return response.json().then(function (data) {
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || "Impostazione default non riuscita");
+                }
+                return data;
+            });
+        });
+    }
+
+    function openDeleteModal(image) {
+        if (!deleteModalElement || !deleteTargets || !deleteSummary || !deleteConfirmButton) {
+            return;
+        }
+        var familyImages = getFamilyImages(image);
+        if (!familyImages.length) {
+            familyImages = image ? [image] : [];
+        }
+        var currentAssetId = currentImageAssetId(image);
+        deleteSelection = currentAssetId ? [currentAssetId] : (familyImages[0] && familyImages[0].dataset.assetId ? [familyImages[0].dataset.assetId] : []);
+
+        deleteSummary.textContent = familyImages.length > 1
+            ? "L'immagine è condivisa tra più copie. Seleziona una o più copie da rimuovere."
+            : "Seleziona la copia da rimuovere. Puoi includere anche gli altri collegamenti della stessa immagine.";
+
+        deleteTargets.innerHTML = "";
+        familyImages.forEach(function (img) {
+            var assetId = img.dataset.assetId || "";
+            var row = document.createElement("label");
+            row.className = "form-check d-flex align-items-start gap-2 py-1";
+
+            var checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.className = "form-check-input mt-1";
+            checkbox.value = assetId;
+            checkbox.checked = deleteSelection.indexOf(assetId) !== -1;
+            checkbox.addEventListener("change", function () {
+                if (checkbox.checked) {
+                    if (deleteSelection.indexOf(assetId) === -1) {
+                        deleteSelection.push(assetId);
+                    }
+                } else {
+                    deleteSelection = deleteSelection.filter(function (value) {
+                        return value !== assetId;
+                    });
+                }
+                deleteConfirmButton.disabled = !deleteSelection.length;
+            });
+
+            var body = document.createElement("div");
+            body.className = "flex-grow-1";
+
+            var title = document.createElement("div");
+            title.className = "fw-semibold";
+            title.textContent = platformLabel(img.dataset.sourcePlatform) + (img.dataset.familySummary ? " - " + img.dataset.familySummary : "");
+
+            var meta = document.createElement("div");
+            meta.className = "text-muted small";
+            meta.textContent = img.dataset.sourceLabel || img.dataset.sourcePlatform || "immagine";
+
+            body.appendChild(title);
+            body.appendChild(meta);
+            row.appendChild(checkbox);
+            row.appendChild(body);
+            deleteTargets.appendChild(row);
+        });
+
+        deleteConfirmButton.disabled = !deleteSelection.length;
+        deleteConfirmButton.onclick = function () {
+            var selectedIds = deleteSelection.slice();
+            if (!selectedIds.length) {
+                alert("Seleziona almeno un'immagine da eliminare.");
+                return;
+            }
+
+            deleteConfirmButton.disabled = true;
+            deleteConfirmButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Elimino';
+
+            fetch("/scheda_articolo/" + encodeURIComponent(productCode) + "/images/delete", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Requested-With": "XMLHttpRequest"
+                },
+                credentials: "same-origin",
+                body: JSON.stringify({ asset_ids: selectedIds })
+            }).then(function (response) {
+                return response.json().then(function (data) {
+                    if (!response.ok || !data.ok) {
+                        throw new Error(data.error || "Eliminazione non riuscita");
+                    }
+                    return data;
+                });
+            }).then(function () {
+                deleteModal.hide();
+                window.location.reload();
+            }).catch(function (error) {
+                alert(error.message || "Eliminazione non riuscita");
+            }).finally(function () {
+                deleteConfirmButton.disabled = false;
+                deleteConfirmButton.innerHTML = '<i class="fa-solid fa-trash"></i> Elimina selezionate';
+            });
+        };
+
+        deleteModal.show();
     }
 
     function reportPublishResult(image, result) {
@@ -277,6 +446,26 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     if (contextMenu) {
+        contextMenu.querySelectorAll("button[data-action]").forEach(function (button) {
+            button.addEventListener("click", function (event) {
+                event.stopPropagation();
+                event.preventDefault();
+                hideContextMenu();
+                var image = contextImage || draggedImage || document.querySelector("#productCarousel .carousel-item.active .product-img");
+                if (button.dataset.action === "primary") {
+                    setPrimaryImage(image).then(function () {
+                        window.location.reload();
+                    }).catch(function (error) {
+                        alert(error.message || "Impostazione default non riuscita");
+                    });
+                    return;
+                }
+                if (button.dataset.action === "delete") {
+                    openDeleteModal(image);
+                }
+            });
+        });
+
         contextMenu.querySelectorAll("button[data-platform]").forEach(function (button) {
             button.addEventListener("click", function (event) {
                 event.stopPropagation();
@@ -293,6 +482,19 @@ document.addEventListener("DOMContentLoaded", function () {
                     alert(error.message || "Pubblicazione non riuscita");
                 });
             });
+        });
+    }
+
+    if (deleteModalElement) {
+        deleteModal = bootstrap.Modal.getOrCreateInstance(deleteModalElement);
+        deleteModalElement.addEventListener("hidden.bs.modal", function () {
+            deleteSelection = [];
+            if (deleteTargets) {
+                deleteTargets.innerHTML = "";
+            }
+            if (deleteSummary) {
+                deleteSummary.textContent = "";
+            }
         });
     }
 });

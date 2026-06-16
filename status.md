@@ -1380,7 +1380,10 @@ Performance apertura giornata Agenda 2026-06-13:
   - attivata la pubblicazione immagini dalla scheda verso le piattaforme presenti sull'articolo;
   - la pubblicazione e' effettiva su Prestashop tramite upload webservice;
   - il menu contestuale mostra solo i target attivi e supportati, con disabilitazione esplicita per quelli non ancora implementati;
-  - le immagini caricate dall'app possono ora essere inviate anche alla piattaforma scelta o trascinate sul relativo slot.
+  - le immagini caricate dall'app possono ora essere inviate anche alla piattaforma scelta o trascinate sul relativo slot;
+  - introdotto raggruppamento immagini per famiglia con badge `prestashop | poleepo | ldapp` quando la stessa immagine e' presente su piu' target;
+  - introdotto default immagine per famiglia con azione esplicita `Imposta come default` e badge visivo `Default` sulla primaria;
+  - introdotta rimozione immagini con perimetro esplicito: da piattaforma o da LDApp si selezionano le copie da eliminare, mantenendo la distinzione tra archivio locale e copie pubblicate; su Prestashop la rimozione esegue anche la cancellazione remota della copia fisica.
 - chiusura report giornaliero:
   - resa idempotente la route di chiusura; se la giornata ha gia' una `CashClosure` esistente, ora la aggiorna invece di provare a ricrearla;
   - rimosso il `noload` sulla relazione `CashDay.closure` nella chiusura e nel recupero snapshot, che impediva di vedere la chiusura gia' salvata.

@@ -328,11 +328,21 @@
                   <div class="carousel-item {% if loop.first %}active{% endif %}">
                     <div class="product-image-frame">
                       {% if product.can_manage_images %}
-                        <span class="product-image-source">{{ immagine.source_platform }}</span>
+                        <span class="product-image-source">{{ immagine.family_summary or immagine.source_platform_label }}</span>
+                        {% if immagine.is_primary %}
+                          <span class="badge text-bg-warning position-absolute top-0 end-0 m-2">
+                            <i class="fa-solid fa-star"></i>
+                            Default
+                          </span>
+                        {% endif %}
                       {% endif %}
                       <img src="{{ immagine.url }}"
                            data-asset-id="{{ immagine.id or '' }}"
                            data-source-platform="{{ immagine.source_platform }}"
+                           data-source-label="{{ immagine.source_platform_label }}"
+                           data-family-key="{{ immagine.family_key or '' }}"
+                           data-family-summary="{{ immagine.family_summary or '' }}"
+                           data-group-platforms="{{ (immagine.group_platforms or []) | join(',') }}"
                            {% if product.can_manage_images %}draggable="true"{% endif %}
                            class="d-block w-100 product-img" alt="Immagine {{ loop.index }}">
                     </div>
@@ -449,6 +459,14 @@
 
 {% if product.can_manage_images %}
   <div class="product-image-context-menu" id="productImageContextMenu" aria-hidden="true">
+    <button type="button" data-action="primary">
+      <i class="fa-solid fa-star"></i>
+      Imposta come default
+    </button>
+    <button type="button" data-action="delete">
+      <i class="fa-solid fa-trash"></i>
+      Rimuovi immagine
+    </button>
     {% for platform in product.platforms %}
       <button type="button"
               data-platform="{{ platform.key }}"
@@ -469,6 +487,28 @@
         Aggiungi a {{ platform.label }}
       </button>
     {% endfor %}
+  </div>
+
+  <div class="modal fade" id="productImageDeleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Rimuovi immagine</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+        <div class="modal-body">
+          <p class="small text-muted mb-3" id="productImageDeleteSummary"></p>
+          <div class="vstack gap-2" id="productImageDeleteTargets"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="button" class="btn btn-danger" id="productImageDeleteConfirm">
+            <i class="fa-solid fa-trash"></i>
+            Elimina selezionate
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 {% endif %}
 {% endblock %}
