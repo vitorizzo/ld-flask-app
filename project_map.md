@@ -260,6 +260,7 @@ Il sistema immagini moderno usa `ProductAsset` con:
 Le immagini importate da Prestashop e Poleepo vengono tracciate con la piattaforma sorgente.
 La scheda prodotto mostra badge di provenienza sulle immagini e badge presenza piattaforma.
 Le immagini sono raggruppate per `family_key` cosi' le copie dello stesso asset restano correlate tra LDApp e piattaforme pubblicate.
+Le preview delle immagini non-LDApp passano da un endpoint proxy di LDApp invece di puntare direttamente a `www.ldenoteca.it`, cosi' il browser non apre il prompt HTTP basic.
 
 ## Intervento corrente 2026-06-11
 
@@ -277,6 +278,7 @@ La scheda prodotto e' stata estesa con:
 - pubblicazione immagini attiva su Prestashop con `POST /search/scheda_articolo/<cod_art>/images/publish`;
 - azione `Imposta come default` sulla famiglia immagine con `POST /search/scheda_articolo/<cod_art>/images/<asset_id>/primary`;
 - rimozione immagini con perimetro esplicito tramite `POST /search/scheda_articolo/<cod_art>/images/delete`;
+- preview immagini remota con `GET /search/scheda_articolo/<cod_art>/images/<asset_id>/preview` e proxy server-side per asset non-LDApp;
 - menu contestuale esteso con `Imposta come default` e `Rimuovi immagine`;
 - badge visivo `Default` sulla primaria e preview slot piattaforma che privilegia la copia primaria della piattaforma.
 

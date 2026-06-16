@@ -4,9 +4,11 @@ import os
 from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
-from flask import Blueprint, current_app, render_template, jsonify, request, abort, url_for
+from flask import Blueprint, current_app, render_template, jsonify, request, abort, url_for, Response
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
+import requests
+from requests.auth import HTTPBasicAuth
 
 from extensions import db
 from models import (
@@ -51,7 +53,7 @@ def _can_manage_product_images():
 
 def _asset_public_url(asset):
     if asset.source_platform != "ldapp" and asset.remote_url:
-        return asset.remote_url
+        return url_for("search.product_image_preview", cod_art=asset.cod_art, asset_id=asset.id)
     if asset.local_path:
         return url_for("static", filename=asset.local_path)
     return asset.remote_url
@@ -158,6 +160,48 @@ def _product_image_local_path(asset):
     if os.path.isabs(asset.local_path):
         return asset.local_path
     return os.path.join(current_app.static_folder, asset.local_path)
+
+
+def _product_asset_response_headers(asset):
+    headers = {
+        "Cache-Control": "private, max-age=60",
+    }
+    if asset and asset.original_filename:
+        headers["Content-Disposition"] = f'inline; filename="{asset.original_filename}"'
+    return headers
+
+
+def _proxy_remote_product_asset(asset):
+    if not asset or not asset.remote_url:
+        return None
+
+    request_kwargs = {
+        "stream": True,
+        "timeout": 30,
+    }
+    if os.getenv("PRESTASHOP_KEY") and asset.source_platform == "prestashop":
+        request_kwargs["auth"] = HTTPBasicAuth(os.getenv("PRESTASHOP_KEY"), "")
+
+    upstream = requests.get(asset.remote_url, **request_kwargs)
+    if upstream.status_code != 200:
+        return None
+
+    content_type = upstream.headers.get("Content-Type") or asset.mime_type or "application/octet-stream"
+    content_length = upstream.headers.get("Content-Length")
+
+    def generate():
+        try:
+            for chunk in upstream.iter_content(chunk_size=8192):
+                if chunk:
+                    yield chunk
+        finally:
+            upstream.close()
+
+    response = Response(generate(), mimetype=content_type, direct_passthrough=True)
+    if content_length:
+        response.headers["Content-Length"] = content_length
+    response.headers.update(_product_asset_response_headers(asset))
+    return response
 
 
 def _sync_product_asset_for_platform(articolo, source_asset, platform_key, remote_url, source_external_id):
@@ -418,6 +462,25 @@ def upload_product_image(cod_art):
 
     db.session.commit()
     return jsonify({"ok": True, "asset": _serialize_product_asset(asset)})
+
+
+@search_bp.route('/scheda_articolo/<cod_art>/images/<int:asset_id>/preview')
+@login_required
+def product_image_preview(cod_art, asset_id):
+    asset = ProductAsset.query.filter_by(id=asset_id, cod_art=cod_art, asset_type="image").first()
+    if not asset:
+        abort(404)
+
+    if asset.source_platform != "ldapp" and asset.remote_url:
+        proxied = _proxy_remote_product_asset(asset)
+        if proxied:
+            return proxied
+
+    local_path = _product_image_local_path(asset)
+    if local_path and os.path.exists(local_path):
+        return current_app.send_static_file(asset.local_path)
+
+    abort(404)
 
 
 @search_bp.post('/scheda_articolo/<cod_art>/images/publish')
