@@ -1390,6 +1390,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - introdotto default immagine per famiglia con azione esplicita `Imposta come default` e badge visivo `Default` sulla primaria;
   - introdotta rimozione immagini con perimetro esplicito: da piattaforma o da LDApp si selezionano le copie da eliminare, mantenendo la distinzione tra archivio locale e copie pubblicate; su Prestashop la rimozione esegue anche la cancellazione remota della copia fisica.
   - le immagini provenienti da Prestashop/non-LDApp ora passano da un proxy server-side di LDApp, cosi' il browser non chiede piu' credenziali HTTP basic per `www.ldenoteca.it`.
+  - corretto il delete frontend della scheda prodotto: gli endpoint usano il prefisso corrente del blueprint, quindi non tornano piu' HTML 404 quando si prova a eliminare una copia remota;
+  - il parsing delle risposte delete/default e' stato reso robusto per non esplodere su pagine HTML di errore;
+  - la modale di rimozione immagini e' stata resa piu' uniforme con il resto dell'app usando un dialog Bootstrap standard centrato e scrollabile.
 
 - regola trasversale modali:
   - quando si implementa una nuova modale, il pulsante di conferma non va lasciato nel solo stato iniziale del DOM;

@@ -32,6 +32,23 @@ document.addEventListener("DOMContentLoaded", function () {
         return image ? ((image.alt || image.dataset.sourcePlatform || "immagine").trim()) : "immagine";
     }
 
+    function getProductSheetBaseUrl() {
+        return window.location.pathname.replace(/\/$/, "");
+    }
+
+    function parseJsonResponse(response) {
+        return response.text().then(function (text) {
+            if (!text) {
+                return {};
+            }
+            try {
+                return JSON.parse(text);
+            } catch (error) {
+                throw new Error(text.slice(0, 200) || "Risposta non valida dal server");
+            }
+        });
+    }
+
     function platformLabel(platformKey) {
         var labels = {
             ldapp: "LDApp",
@@ -132,7 +149,7 @@ document.addEventListener("DOMContentLoaded", function () {
             alert("L'immagine selezionata non ha un riferimento valido.");
             return Promise.resolve();
         }
-        return fetch("/scheda_articolo/" + encodeURIComponent(productCode) + "/images/" + encodeURIComponent(assetId) + "/primary", {
+        return fetch(getProductSheetBaseUrl() + "/images/" + encodeURIComponent(assetId) + "/primary", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -140,7 +157,7 @@ document.addEventListener("DOMContentLoaded", function () {
             },
             credentials: "same-origin"
         }).then(function (response) {
-            return response.json().then(function (data) {
+            return parseJsonResponse(response).then(function (data) {
                 if (!response.ok || !data.ok) {
                     throw new Error(data.error || "Impostazione default non riuscita");
                 }
@@ -217,7 +234,7 @@ document.addEventListener("DOMContentLoaded", function () {
             deleteConfirmButton.disabled = true;
             deleteConfirmButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Elimino';
 
-            fetch("/scheda_articolo/" + encodeURIComponent(productCode) + "/images/delete", {
+            fetch(getProductSheetBaseUrl() + "/images/delete", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -226,7 +243,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 credentials: "same-origin",
                 body: JSON.stringify({ asset_ids: selectedIds })
             }).then(function (response) {
-                return response.json().then(function (data) {
+                return parseJsonResponse(response).then(function (data) {
                     if (!response.ok || !data.ok) {
                         throw new Error(data.error || "Eliminazione non riuscita");
                     }
