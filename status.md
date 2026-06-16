@@ -1391,6 +1391,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - introdotta rimozione immagini con perimetro esplicito: da piattaforma o da LDApp si selezionano le copie da eliminare, mantenendo la distinzione tra archivio locale e copie pubblicate; su Prestashop la rimozione esegue anche la cancellazione remota della copia fisica.
   - attivata anche la pubblicazione immagini verso Poleepo con `PoleepoConnector.upload_image()`, usando un path upload configurabile e gli stessi asset LDApp come sorgente;
   - aggiunta cancellazione remota anche per Poleepo tramite `PoleepoConnector.delete_image()`, con fallback configurabile sul path di delete e uso dei dati gia' persistiti sull'asset (`source_external_id`, `remote_url`);
+  - migliorato il feedback frontend della pubblicazione immagini: ora il popup mostra l'errore per piattaforma quando Poleepo non risponde con il path giusto o con un payload valido;
   - le immagini provenienti da Prestashop/non-LDApp ora passano da un proxy server-side di LDApp, cosi' il browser non chiede piu' credenziali HTTP basic per `www.ldenoteca.it`.
   - corretto il delete frontend della scheda prodotto: gli endpoint usano il prefisso corrente del blueprint, quindi non tornano piu' HTML 404 quando si prova a eliminare una copia remota;
   - il parsing delle risposte delete/default e' stato reso robusto per non esplodere su pagine HTML di errore;

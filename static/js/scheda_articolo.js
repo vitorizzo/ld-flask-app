@@ -130,9 +130,21 @@ document.addEventListener("DOMContentLoaded", function () {
                 platforms: platforms || []
             })
         }).then(function (response) {
-            return response.json().then(function (data) {
+            return parseJsonResponse(response).then(function (data) {
                 if (!response.ok || !data.ok) {
-                    throw new Error(data.error || "Pubblicazione non riuscita");
+                    var errorParts = [];
+                    if (data && data.error) {
+                        errorParts.push(data.error);
+                    }
+                    if (data && data.results) {
+                        Object.keys(data.results).forEach(function (key) {
+                            var entry = data.results[key];
+                            if (entry && entry.error) {
+                                errorParts.push(platformLabel(key) + ": " + entry.error);
+                            }
+                        });
+                    }
+                    throw new Error(errorParts.join(" | ") || "Pubblicazione non riuscita");
                 }
                 return data;
             });
@@ -275,7 +287,7 @@ document.addEventListener("DOMContentLoaded", function () {
             if (entry && entry.ok) {
                 successTargets.push(key);
             } else if (entry && entry.error) {
-                errors.push(key + ": " + entry.error);
+                errors.push(platformLabel(key) + ": " + entry.error);
             }
         });
 
