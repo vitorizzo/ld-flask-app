@@ -283,6 +283,7 @@ La scheda prodotto e' stata estesa con:
 - pubblicazione immagini attiva su Prestashop con `POST /search/scheda_articolo/<cod_art>/images/publish`;
 - azione `Imposta come default` sulla famiglia immagine con `POST /search/scheda_articolo/<cod_art>/images/<asset_id>/primary`;
 - rimozione immagini con perimetro esplicito tramite `POST /search/scheda_articolo/<cod_art>/images/delete`;
+- delete remoto implementato su Prestashop e Poleepo; Poleepo usa `PoleepoConnector.delete_image()` con fallback configurabile sul path remoto;
 - preview immagini remota con `GET /search/scheda_articolo/<cod_art>/images/<asset_id>/preview` e proxy server-side per asset non-LDApp;
 - menu contestuale esteso con `Imposta come default` e `Rimuovi immagine`;
 - badge visivo `Default` sulla primaria e preview slot piattaforma che privilegia la copia primaria della piattaforma.

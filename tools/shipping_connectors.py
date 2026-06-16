@@ -227,6 +227,40 @@ class PoleepoConnector:
         configured = self.integration.settings.get("products_path") if self.integration and self.integration.settings else None
         return configured or current_app.config.get("POLEEPO_PRODUCTS_PATH") or "/products"
 
+    @property
+    def image_delete_path(self):
+        configured = self.integration.settings.get("image_delete_path") if self.integration and self.integration.settings else None
+        return configured or current_app.config.get("POLEEPO_IMAGE_DELETE_PATH") or ""
+
+    def _request_absolute(self, method: str, url: str, *, token: str | None = None, **kwargs):
+        if not self.is_configured:
+            raise ShippingConnectorNotConfigured("Credenziali Poleepo mancanti")
+        headers = kwargs.pop("headers", {}) or {}
+        headers.setdefault("Accept", "application/json")
+        if token:
+            headers["Authorization"] = f"Bearer {token}"
+        response = requests.request(
+            method,
+            url,
+            headers=headers,
+            timeout=20,
+            **kwargs,
+        )
+        if response.status_code in (200, 202, 204):
+            try:
+                payload = response.json()
+            except ValueError:
+                payload = {"success": True, "raw": response.text[:1000]}
+            return payload
+        try:
+            payload = response.json()
+        except ValueError:
+            payload = {"success": False, "message": response.text[:500]}
+        if response.status_code >= 400 or payload.get("success") is False:
+            message = payload.get("message") or f"Poleepo HTTP {response.status_code}"
+            raise ShippingConnectorError(message)
+        return payload
+
     def import_products(self, *, page_size: int = 100, max_pages: int = 50) -> list[dict]:
         token = self.access_token()
         products = []
@@ -251,6 +285,54 @@ class PoleepoConnector:
         token = self.access_token()
         payload = self._request("GET", f"/shippings/{shipping_id}", token=token)
         return payload.get("data") or {}
+
+    def delete_image(self, *, product_id=None, image_id=None, image_url=None):
+        token = self.access_token()
+        candidates = []
+
+        configured = (self.image_delete_path or "").strip()
+        if configured:
+            if configured.startswith("http://") or configured.startswith("https://"):
+                candidates.append(configured.format(
+                    product_id=product_id or "",
+                    image_id=image_id or "",
+                    image_url=image_url or "",
+                ))
+            else:
+                candidates.append(f"{self.base_url}{configured.format(product_id=product_id or '', image_id=image_id or '', image_url=image_url or '')}")
+
+        if image_url:
+            candidates.append(str(image_url).strip())
+
+        if product_id and image_id:
+            candidates.extend([
+                f"{self.base_url}/products/{product_id}/images/{image_id}",
+                f"{self.base_url}/images/products/{product_id}/{image_id}",
+                f"{self.base_url}/images/{product_id}/{image_id}",
+                f"{self.base_url}/images/{image_id}",
+            ])
+
+        last_error = None
+        tried = set()
+        for candidate in candidates:
+            if not candidate or candidate in tried:
+                continue
+            tried.add(candidate)
+            try:
+                payload = self._request_absolute("DELETE", candidate, token=token)
+                return {
+                    "status_code": 200,
+                    "remote_url": candidate,
+                    "raw_payload": payload,
+                }
+            except ShippingConnectorError as exc:
+                message = str(exc)
+                last_error = message
+                if any(token in message.lower() for token in ("404", "not found", "405", "method not allowed")):
+                    continue
+                continue
+
+        raise ShippingConnectorError(last_error or "Delete immagini Poleepo non disponibile")
 
 
 def _join_name(*parts):

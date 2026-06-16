@@ -17,6 +17,7 @@ from models import (
     Giacenza,
     Immagini,
     ProductAsset,
+    CourierIntegration,
     ProductPlatformLink,
     SchedeProdotti,
     Inventario,
@@ -28,6 +29,7 @@ from tools.ps_util import (
     delete_product_image as prestashop_delete_product_image,
     upload_product_image as prestashop_upload_product_image,
 )
+from tools.shipping_connectors import PoleepoConnector, ShippingConnectorError, ShippingConnectorNotConfigured
 from tools.log_utils import log_task, get_logger
 from sqlalchemy import or_
 
@@ -282,6 +284,30 @@ def _publish_product_image_to_platform(articolo, source_asset, platform_key, pla
         }
 
     raise NotImplementedError(f"Pubblicazione immagini su {platform_key} non ancora disponibile")
+
+
+def _delete_product_image_from_platform(articolo, asset, platform_key, platform_link):
+    if platform_key == "prestashop":
+        if not asset.source_external_id:
+            raise ValueError("L'immagine Prestashop non ha un identificativo remoto valido.")
+        if not platform_link or not platform_link.external_id:
+            raise ValueError("Prodotto Prestashop non presente")
+        return prestashop_delete_product_image(platform_link.external_id, asset.source_external_id)
+
+    if platform_key == "poleepo":
+        if not asset.source_external_id:
+            raise ValueError("L'immagine Poleepo non ha un identificativo remoto valido.")
+        if not platform_link or not platform_link.external_id:
+            raise ValueError("Prodotto Poleepo non presente")
+        poleepo_integration = CourierIntegration.query.filter_by(code="poleepo").first()
+        connector = PoleepoConnector(integration=poleepo_integration)
+        return connector.delete_image(
+            product_id=platform_link.external_id,
+            image_id=asset.source_external_id,
+            image_url=asset.remote_url,
+        )
+
+    raise NotImplementedError(f"Cancellazione immagini su {platform_key} non ancora disponibile")
 
 
 def _product_asset_group_assets(cod_art, asset):
@@ -639,14 +665,18 @@ def delete_product_images(cod_art):
                 deleted_asset_ids.add(asset.id)
                 continue
 
-            if platform_key == "prestashop" and asset.source_external_id:
-                platform_link = platform_links.get("prestashop")
+            if platform_key in {"prestashop", "poleepo"} and asset.source_external_id:
+                platform_link = platform_links.get(platform_key)
                 if not platform_link or not platform_link.external_id:
-                    results[str(asset.id)] = {"ok": False, "error": "Prodotto Prestashop non presente"}
+                    results[str(asset.id)] = {"ok": False, "error": f"Prodotto {platform_key.capitalize()} non presente"}
                     continue
                 try:
-                    prestashop_delete_product_image(platform_link.external_id, asset.source_external_id)
+                    _delete_product_image_from_platform(articolo, asset, platform_key, platform_link)
+                except (ShippingConnectorNotConfigured, ShippingConnectorError, NotImplementedError, ValueError) as exc:
+                    results[str(asset.id)] = {"ok": False, "error": str(exc)}
+                    continue
                 except Exception as exc:
+                    logger.exception("Errore cancellazione immagine su %s per %s", platform_key, cod_art)
                     results[str(asset.id)] = {"ok": False, "error": str(exc)}
                     continue
 
