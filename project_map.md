@@ -819,7 +819,9 @@ Stato implementazione 2026-06-14:
 
 - impostazioni applicative:
   - nuova pagina hub `/settings`;
+  - dashboard iniziale a tile di categoria, con `Utenti` come accesso principale;
   - nuova pagina `/settings/preferences` per configurazioni divise per categoria;
+  - nuova pagina `/settings/users` in sola lettura per elenco utenti, ruoli attivi e dati principali;
   - tabella `app_preferences` per persistenza runtime dei parametri;
   - reload runtime delle preferenze ad ogni richiesta dinamica con fallback sui valori base di avvio;
   - editing ruoli nella stessa area impostazioni;

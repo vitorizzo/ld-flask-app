@@ -16,11 +16,13 @@
       {% for entry in entries %}
         <div class="col-12 col-md-6 col-xl-3">
           <a class="text-decoration-none" href="{{ entry.route }}">
-            <div class="card h-100 border-0 shadow-sm">
-              <div class="card-body">
-                <div class="d-flex align-items-center gap-2 mb-2">
-                  <i class="{{ entry.icon }} fa-lg text-primary"></i>
-                  <strong class="text-dark">{{ entry.title }}</strong>
+            <div class="card h-100 border-0 shadow-sm settings-tile">
+              <div class="card-body p-4">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                  <div class="settings-tile-icon {{ entry.icon_class or 'text-bg-primary' }}">
+                    <i class="{{ entry.icon }}"></i>
+                  </div>
+                  <strong class="text-dark fs-5">{{ entry.title }}</strong>
                 </div>
                 <p class="text-muted mb-0">{{ entry.description }}</p>
               </div>

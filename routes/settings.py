@@ -3,9 +3,10 @@ from flask_login import login_required
 from flask_socketio import SocketIO
 from sqlalchemy import asc
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import selectinload
 
 from extensions import db
-from models import Menu, Role, ImportConflict, Articoli
+from models import Menu, Role, ImportConflict, Articoli, User, UserRole
 from tools.role_required import role_required
 from tools.preferences import build_preferences_sections, load_preferences_into_app_config, save_preferences_from_form
 from config.tasks import (
@@ -34,25 +35,56 @@ socketio = SocketIO()
 def settings_index():
     entries = [
         {
-            "title": "Preferenze",
-            "description": "Chiavi API, ruoli, soglie e configurazioni operative.",
+            "title": "Utenti",
+            "description": "Anagrafiche, ruoli e stato degli account.",
+            "route": url_for("settings.users_index"),
+            "icon": "fa-solid fa-users",
+            "icon_class": "text-bg-primary",
+        },
+        {
+            "title": "Configurazione",
+            "description": "Chiavi API, soglie, integrazioni e parametri runtime.",
             "route": url_for("settings.preferences"),
             "icon": "fa-solid fa-sliders",
+            "icon_class": "text-bg-success",
         },
         {
             "title": "Gestione menù",
             "description": "Struttura della navbar e visibilità delle voci.",
             "route": url_for("settings.manage_menus"),
             "icon": "fa-solid fa-bars",
+            "icon_class": "text-bg-dark",
         },
         {
             "title": "Conflitti import",
             "description": "Risoluzione guidata dei conflitti tra sorgenti.",
             "route": url_for("settings.import_conflicts_page"),
             "icon": "fa-solid fa-triangle-exclamation",
+            "icon_class": "text-bg-warning",
         },
     ]
     return render_template("settings/index.html", entries=entries)
+
+
+@settings_bp.route("/users", methods=["GET"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def users_index():
+    try:
+        users = (
+            User.query.options(
+                selectinload(User.roles).selectinload(UserRole.role)
+            )
+            .order_by(User.surname.asc(), User.name.asc(), User.id.asc())
+            .all()
+        )
+    except Exception as exc:
+        logger.exception("Errore nel caricamento utenti")
+        users = []
+        flash(f"Impossibile caricare gli utenti: {exc}", "warning")
+
+    return render_template("settings/users.html", users=users)
 
 
 def _save_role_preferences_from_form(form):

@@ -1412,7 +1412,9 @@ Performance apertura giornata Agenda 2026-06-13:
 
 - pannello impostazioni/preferenze:
   - aggiunta pagina `/settings` come hub di configurazione;
+  - dashboard trasformata in tile di categoria, con voce `Utenti` in apertura;
   - aggiunta pagina `/settings/preferences` con configurazioni divise per categoria;
+  - aggiunta pagina `/settings/users` read-only per vedere utenti, ruoli attivi e dati anagrafici principali;
   - introdotta tabella `app_preferences` per le preferenze runtime persistenti;
   - il runtime ricarica le preferenze dal DB mantenendo fallback sui valori base di avvio;
   - aggiunta modifica ruoli nella stessa area impostazioni;
