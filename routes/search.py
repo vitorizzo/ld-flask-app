@@ -54,7 +54,7 @@ def _can_manage_product_images():
 
 
 def _asset_public_url(asset):
-    if asset.source_platform != "ldapp" and asset.remote_url:
+    if asset.source_platform != "ldapp" and asset.remote_url and asset.id:
         return url_for("search.product_image_preview", cod_art=asset.cod_art, asset_id=asset.id)
     if asset.local_path:
         return url_for("static", filename=asset.local_path)
