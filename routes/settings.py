@@ -83,8 +83,8 @@ def _save_role_preferences_from_form(form):
 @role_required(900)
 @log_task(logger)
 def preferences():
-    if request.method == "POST":
-        try:
+    try:
+        if request.method == "POST":
             form_type = (request.form.get("form_type") or "preferences").strip().lower()
 
             if form_type == "roles":
@@ -98,29 +98,26 @@ def preferences():
             flash("Preferenze salvate con successo.", "success")
             logger.info("Aggiornate preferenze: %s", ", ".join(changed_keys) if changed_keys else "nessuna modifica")
             return redirect(url_for("settings.preferences"))
-        except Exception as exc:
-            db.session.rollback()
-            logger.warning("Preferenze non disponibili ancora nel DB: %s", exc)
-            flash("Preferenze non ancora disponibili nel database. Completa prima la migrazione.", "warning")
-            return redirect(url_for("settings.preferences"))
-        except Exception as exc:
-            db.session.rollback()
-            logger.exception("Errore salvataggio preferenze/ruoli")
-            flash(f"Errore nel salvataggio: {exc}", "danger")
-            return redirect(url_for("settings.preferences"))
 
-    try:
         sections = build_preferences_sections(current_app._get_current_object())
+        try:
+            roles = Role.query.order_by(Role.weight.asc(), Role.name.asc()).all()
+        except Exception as exc:
+            logger.warning("Ruoli non disponibili durante il caricamento preferenze: %s", exc)
+            roles = []
+        return render_template("settings/preferences.html", sections=sections, roles=roles)
     except Exception as exc:
-        logger.warning("Preferenze non disponibili ancora nel DB: %s", exc)
-        sections = []
-        flash("Preferenze non ancora disponibili nel database. Completa prima la migrazione.", "warning")
-    try:
-        roles = Role.query.order_by(Role.weight.asc(), Role.name.asc()).all()
-    except Exception as exc:
-        logger.warning("Ruoli non disponibili durante il caricamento preferenze: %s", exc)
-        roles = []
-    return render_template("settings/preferences.html", sections=sections, roles=roles)
+        db.session.rollback()
+        logger.exception("Errore nella pagina preferenze")
+        return (
+            "<!doctype html><html lang='it'><head><meta charset='utf-8'><title>Preferenze</title></head>"
+            "<body style='font-family:sans-serif;padding:24px'>"
+            "<h1>Preferenze</h1>"
+            "<p>La pagina non e' ancora disponibile per un errore interno.</p>"
+            f"<pre>{exc}</pre>"
+            "</body></html>",
+            200,
+        )
 
 
 @settings_bp.route('/update_menu', methods=['POST'])
