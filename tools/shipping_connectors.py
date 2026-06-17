@@ -340,7 +340,7 @@ class PoleepoConnector:
 
         raise ShippingConnectorError(last_error or "Delete immagini Poleepo non disponibile")
 
-    def upload_image(self, *, product_id=None, image_path=None, filename=None, mime_type=None):
+    def upload_image(self, *, product_id=None, image_path=None, filename=None, mime_type=None, source_url=None):
         token = self.access_token()
         if not product_id:
             raise ShippingConnectorError("ID prodotto Poleepo mancante")
@@ -350,6 +350,7 @@ class PoleepoConnector:
         safe_filename = filename or os.path.basename(image_path)
         content_type = mime_type or "application/octet-stream"
         upload_fields = ["image", "file", "media", "upload"]
+        json_fields = ["url", "image_url", "source_url", "remote_url"]
         candidates = []
 
         configured = (self.image_upload_path or "").strip()
@@ -375,7 +376,7 @@ class PoleepoConnector:
             tried.add(candidate)
             for upload_field in upload_fields:
                 try:
-                    attempted.append({"url": candidate, "field": upload_field})
+                    attempted.append({"url": candidate, "field": upload_field, "mode": "multipart"})
                     with open(image_path, "rb") as image_file:
                         response = requests.post(
                             candidate,
@@ -426,8 +427,116 @@ class PoleepoConnector:
                     last_error = str(exc)
                     continue
 
+            if source_url:
+                for json_field in json_fields:
+                    try:
+                        attempted.append({"url": candidate, "field": json_field, "mode": "json"})
+                        response = requests.post(
+                            candidate,
+                            headers={
+                                "Accept": "application/json",
+                                "Authorization": f"Bearer {token}",
+                                "Content-Type": "application/json",
+                            },
+                            json={json_field: source_url, "filename": safe_filename, "product_id": product_id},
+                            timeout=60,
+                        )
+                        if response.status_code not in (200, 201, 202, 204):
+                            raise ShippingConnectorError(f"Poleepo HTTP {response.status_code}: {response.text[:500]}")
+                        try:
+                            payload = response.json()
+                        except ValueError:
+                            payload = {"success": True, "raw": response.text[:1000]}
+                        image_id = None
+                        remote_url = None
+                        if isinstance(payload, dict):
+                            data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+                            image_id = (
+                                data.get("id")
+                                or data.get("image_id")
+                                or data.get("media_id")
+                                or data.get("external_id")
+                            )
+                            remote_url = (
+                                data.get("url")
+                                or data.get("remote_url")
+                                or data.get("link")
+                                or data.get("href")
+                            )
+                        if not remote_url:
+                            remote_url = candidate
+                        return {
+                            "status_code": response.status_code,
+                            "image_id": str(image_id) if image_id is not None else None,
+                            "remote_url": remote_url,
+                            "raw_payload": payload,
+                        }
+                    except ShippingConnectorError as exc:
+                        message = str(exc)
+                        last_error = message
+                        if any(token in message.lower() for token in ("404", "not found", "405", "method not allowed", "415", "500", "502", "503", "504")):
+                            continue
+                        continue
+                    except requests.RequestException as exc:
+                        last_error = str(exc)
+                        continue
+
+            try:
+                attempted.append({"url": candidate, "field": "binary", "mode": "raw"})
+                with open(image_path, "rb") as image_file:
+                    response = requests.put(
+                        candidate,
+                        headers={
+                            "Accept": "application/json",
+                            "Authorization": f"Bearer {token}",
+                            "Content-Type": content_type,
+                            "X-Filename": safe_filename,
+                        },
+                        data=image_file.read(),
+                        timeout=60,
+                    )
+                if response.status_code not in (200, 201, 202, 204):
+                    raise ShippingConnectorError(f"Poleepo HTTP {response.status_code}: {response.text[:500]}")
+                try:
+                    payload = response.json()
+                except ValueError:
+                    payload = {"success": True, "raw": response.text[:1000]}
+                image_id = None
+                remote_url = None
+                if isinstance(payload, dict):
+                    data = payload.get("data") if isinstance(payload.get("data"), dict) else payload
+                    image_id = (
+                        data.get("id")
+                        or data.get("image_id")
+                        or data.get("media_id")
+                        or data.get("external_id")
+                    )
+                    remote_url = (
+                        data.get("url")
+                        or data.get("remote_url")
+                        or data.get("link")
+                        or data.get("href")
+                    )
+                if not remote_url:
+                    remote_url = candidate
+                return {
+                    "status_code": response.status_code,
+                    "image_id": str(image_id) if image_id is not None else None,
+                    "remote_url": remote_url,
+                    "raw_payload": payload,
+                }
+            except ShippingConnectorError as exc:
+                message = str(exc)
+                last_error = message
+                if any(token in message.lower() for token in ("404", "not found", "405", "method not allowed", "415", "500", "502", "503", "504")):
+                    continue
+                continue
+            except requests.RequestException as exc:
+                last_error = str(exc)
+                continue
+
         attempted_text = ", ".join(
-            f"{item['field']}@{item['url']}" for item in attempted
+            f"{item.get('mode', 'multipart')}:{item['field']}@{item['url']}" for item in attempted
         )
         suffix = f" | tentativi: {attempted_text}" if attempted_text else ""
         raise ShippingConnectorError((last_error or "Upload immagini Poleepo non disponibile") + suffix)

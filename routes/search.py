@@ -294,6 +294,7 @@ def _publish_product_image_to_platform(articolo, source_asset, platform_key, pla
             image_path=local_path,
             filename=source_asset.original_filename or os.path.basename(local_path),
             mime_type=source_asset.mime_type,
+            source_url=url_for("static", filename=source_asset.local_path, _external=True),
         )
         published_asset = _sync_product_asset_for_platform(
             articolo,
