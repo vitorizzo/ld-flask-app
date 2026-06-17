@@ -1419,3 +1419,4 @@ Performance apertura giornata Agenda 2026-06-13:
   - aggiunto link "Impostazioni" nel menu profilo per gli utenti con peso >= 900;
   - i principali parametri di integrazione (`PS_*`, `POLEEPO_*`, `TRELLO_*`, `SLACK_*`, `VAPID_*`) e la soglia `OFFICE_ROLE_WEIGHT` possono essere governati dal pannello senza intervenire sui file `.env` per i valori salvati.
   - la migration `2b3c4d5e6f70_add_cash_day_audit_events.py` e' stata resa tollerante ai DB che hanno gia' la tabella `cash_day_audit_events`, cosi' `flask db upgrade` non si ferma piu' su `DuplicateTable`.
+  - la pagina preferenze e i loader runtime ora degradano con warning invece di andare in 500 se la tabella `app_preferences` non e' ancora disponibile o il DB non e' allineato.

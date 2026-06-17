@@ -23,60 +23,67 @@
       <div class="card-body">
         <form method="post">
           <input type="hidden" name="form_type" value="preferences">
-          {% for section in sections %}
-            <div class="mb-4">
-              <div class="d-flex align-items-center justify-content-between mb-2">
-                <h5 class="mb-0">{{ section.category }}</h5>
-              </div>
-              <div class="row g-3">
-                {% for item in section.items %}
-                  {% set field_id = item.key.replace('.', '_') %}
-                  <div class="col-12 col-lg-6">
-                    <label class="form-label fw-semibold" for="{{ field_id }}">
-                      {{ item.label }}
-                      <span class="badge text-bg-light ms-2">{{ item.source }}</span>
-                    </label>
-                    {% if item.is_secret %}
-                      <input
-                        class="form-control"
-                        type="password"
-                        id="{{ field_id }}"
-                        name="{{ item.key }}"
-                        value=""
-                        placeholder="{{ item.placeholder }}"
-                        autocomplete="new-password"
-                      >
-                    {% elif item.value_type == 'bool' %}
-                      <div class="form-check">
-                        <input type="hidden" name="{{ item.key }}" value="0">
+          {% if sections %}
+            {% for section in sections %}
+              <div class="mb-4">
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                  <h5 class="mb-0">{{ section.category }}</h5>
+                </div>
+                <div class="row g-3">
+                  {% for item in section.items %}
+                    {% set field_id = item.key.replace('.', '_') %}
+                    <div class="col-12 col-lg-6">
+                      <label class="form-label fw-semibold" for="{{ field_id }}">
+                        {{ item.label }}
+                        <span class="badge text-bg-light ms-2">{{ item.source }}</span>
+                      </label>
+                      {% if item.is_secret %}
                         <input
-                          class="form-check-input"
-                          type="checkbox"
+                          class="form-control"
+                          type="password"
                           id="{{ field_id }}"
                           name="{{ item.key }}"
-                          value="1"
-                          {% if item.form_value in [true, '1', 1, 'true', 'True'] %}checked{% endif %}
+                          value=""
+                          placeholder="{{ item.placeholder }}"
+                          autocomplete="new-password"
                         >
-                        <label class="form-check-label" for="{{ field_id }}">Abilitato</label>
-                      </div>
-                    {% else %}
-                      <input
-                        class="form-control"
-                        type="{{ item.input_type }}"
-                        id="{{ field_id }}"
-                        name="{{ item.key }}"
-                        value="{{ item.form_value }}"
-                        {% if item.step %}step="{{ item.step }}"{% endif %}
-                      >
-                    {% endif %}
-                    {% if item.description %}
-                      <div class="form-text">{{ item.description }}</div>
-                    {% endif %}
-                  </div>
-                {% endfor %}
+                      {% elif item.value_type == 'bool' %}
+                        <div class="form-check">
+                          <input type="hidden" name="{{ item.key }}" value="0">
+                          <input
+                            class="form-check-input"
+                            type="checkbox"
+                            id="{{ field_id }}"
+                            name="{{ item.key }}"
+                            value="1"
+                            {% if item.form_value in [true, '1', 1, 'true', 'True'] %}checked{% endif %}
+                          >
+                          <label class="form-check-label" for="{{ field_id }}">Abilitato</label>
+                        </div>
+                      {% else %}
+                        <input
+                          class="form-control"
+                          type="{{ item.input_type }}"
+                          id="{{ field_id }}"
+                          name="{{ item.key }}"
+                          value="{{ item.form_value }}"
+                          {% if item.step %}step="{{ item.step }}"{% endif %}
+                        >
+                      {% endif %}
+                      {% if item.description %}
+                        <div class="form-text">{{ item.description }}</div>
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                </div>
               </div>
+            {% endfor %}
+          {% else %}
+            <div class="alert alert-warning mb-0">
+              La tabella preferenze non e' ancora disponibile o non contiene righe iniziali.
+              Completa la migrazione e ricarica la pagina.
             </div>
-          {% endfor %}
+          {% endif %}
 
           <div class="d-flex justify-content-end">
             <button type="submit" class="btn btn-primary">

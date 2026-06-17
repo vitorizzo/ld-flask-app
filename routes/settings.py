@@ -2,6 +2,7 @@ from flask import request, flash, render_template, Blueprint, jsonify, redirect,
 from flask_login import login_required
 from flask_socketio import SocketIO
 from sqlalchemy import asc
+from sqlalchemy.exc import SQLAlchemyError
 
 from extensions import db
 from models import Menu, Role, ImportConflict, Articoli
@@ -97,13 +98,23 @@ def preferences():
             flash("Preferenze salvate con successo.", "success")
             logger.info("Aggiornate preferenze: %s", ", ".join(changed_keys) if changed_keys else "nessuna modifica")
             return redirect(url_for("settings.preferences"))
+        except SQLAlchemyError as exc:
+            db.session.rollback()
+            logger.warning("Preferenze non disponibili ancora nel DB: %s", exc)
+            flash("Preferenze non ancora disponibili nel database. Completa prima la migrazione.", "warning")
+            return redirect(url_for("settings.preferences"))
         except Exception as exc:
             db.session.rollback()
             logger.exception("Errore salvataggio preferenze/ruoli")
             flash(f"Errore nel salvataggio: {exc}", "danger")
             return redirect(url_for("settings.preferences"))
 
-    sections = build_preferences_sections(current_app._get_current_object())
+    try:
+        sections = build_preferences_sections(current_app._get_current_object())
+    except SQLAlchemyError as exc:
+        logger.warning("Preferenze non disponibili ancora nel DB: %s", exc)
+        sections = []
+        flash("Preferenze non ancora disponibili nel database. Completa prima la migrazione.", "warning")
     roles = Role.query.order_by(Role.weight.asc(), Role.name.asc()).all()
     return render_template("settings/preferences.html", sections=sections, roles=roles)
 

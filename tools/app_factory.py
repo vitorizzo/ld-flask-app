@@ -8,7 +8,7 @@ from flask_migrate import Migrate
 from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import asc
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
 from extensions import db, mail
 from routes.automations_v2 import automations_v2_bp
@@ -204,6 +204,8 @@ def create_app():
             load_preferences_into_app_config(app)
     except OperationalError:
         logger.debug("Startup preferences load skipped: database not ready or table missing")
+    except SQLAlchemyError:
+        logger.debug("Startup preferences load skipped: SQLAlchemy error while reading preferences")
     except Exception:
         logger.exception("Unexpected error while loading startup preferences")
 
@@ -213,7 +215,7 @@ def create_app():
             return
         try:
             load_preferences_into_app_config(app)
-        except OperationalError:
+        except (OperationalError, SQLAlchemyError):
             logger.debug("refresh_runtime_preferences: database not available, keep current config")
         except Exception:
             logger.exception("refresh_runtime_preferences: unexpected error while loading runtime preferences")
