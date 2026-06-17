@@ -368,12 +368,14 @@ class PoleepoConnector:
 
         last_error = None
         tried = set()
+        attempted = []
         for candidate in candidates:
             if not candidate or candidate in tried:
                 continue
             tried.add(candidate)
             for upload_field in upload_fields:
                 try:
+                    attempted.append({"url": candidate, "field": upload_field})
                     with open(image_path, "rb") as image_file:
                         response = requests.post(
                             candidate,
@@ -417,14 +419,18 @@ class PoleepoConnector:
                 except ShippingConnectorError as exc:
                     message = str(exc)
                     last_error = message
-                    if any(token in message.lower() for token in ("404", "not found", "405", "method not allowed", "415")):
+                    if any(token in message.lower() for token in ("404", "not found", "405", "method not allowed", "415", "500", "502", "503", "504")):
                         continue
                     continue
                 except requests.RequestException as exc:
                     last_error = str(exc)
                     continue
 
-        raise ShippingConnectorError(last_error or "Upload immagini Poleepo non disponibile")
+        attempted_text = ", ".join(
+            f"{item['field']}@{item['url']}" for item in attempted
+        )
+        suffix = f" | tentativi: {attempted_text}" if attempted_text else ""
+        raise ShippingConnectorError((last_error or "Upload immagini Poleepo non disponibile") + suffix)
 
 
 def _join_name(*parts):
