@@ -292,6 +292,30 @@ class PoleepoConnector:
         payload = self._request("GET", f"/shippings/{shipping_id}", token=token)
         return payload.get("data") or {}
 
+    def update_product(self, *, product_id=None, payload=None):
+        token = self.access_token()
+        if not product_id:
+            raise ShippingConnectorError("ID prodotto Poleepo mancante")
+        body = payload if isinstance(payload, dict) else {}
+        response = requests.put(
+            f"{self.base_url}/products/{product_id}",
+            headers={
+                "Accept": "application/json",
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            json=body,
+            timeout=60,
+        )
+        try:
+            data = response.json()
+        except ValueError:
+            data = {"success": False, "message": response.text[:500]}
+        if response.status_code not in (200, 201, 202, 204) or data.get("success") is False:
+            message = data.get("message") or f"Poleepo HTTP {response.status_code}"
+            raise ShippingConnectorError(message)
+        return data
+
     def delete_image(self, *, product_id=None, image_id=None, image_url=None):
         token = self.access_token()
         candidates = []
@@ -539,6 +563,37 @@ class PoleepoConnector:
             f"{item.get('mode', 'multipart')}:{item['field']}@{item['url']}" for item in attempted
         )
         suffix = f" | tentativi: {attempted_text}" if attempted_text else ""
+        if source_url:
+            try:
+                attempted.append({"url": f"{self.base_url}/products/{product_id}", "field": "images", "mode": "put-product"})
+                payload = self.update_product(
+                    product_id=product_id,
+                    payload={
+                        "images": [
+                            {
+                                "principal": True,
+                                "url": source_url,
+                            }
+                        ]
+                    },
+                )
+                product = payload.get("data") if isinstance(payload, dict) else {}
+                images = product.get("images") if isinstance(product, dict) else None
+                image_id = None
+                remote_url = source_url
+                if isinstance(images, list) and images:
+                    first_image = images[0] if isinstance(images[0], dict) else {}
+                    image_id = first_image.get("id")
+                    remote_url = first_image.get("url") or source_url
+                return {
+                    "status_code": 200,
+                    "image_id": str(image_id) if image_id is not None else None,
+                    "remote_url": remote_url,
+                    "raw_payload": payload,
+                }
+            except ShippingConnectorError as exc:
+                last_error = str(exc)
+
         raise ShippingConnectorError((last_error or "Upload immagini Poleepo non disponibile") + suffix)
 
 
