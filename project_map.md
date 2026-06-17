@@ -826,6 +826,7 @@ Stato implementazione 2026-06-14:
   - entry "Impostazioni" nel menu profilo per gli utenti con peso >= 900.
   - migration audit resa idempotente sui DB dove `cash_day_audit_events` esiste gia', cosi' `db upgrade` non fallisce su `DuplicateTable`.
   - la pagina preferenze ora mostra un warning e non va in 500 se `app_preferences` non e' ancora disponibile nel DB.
+  - fix template preferenze: accesso esplicito a `section["items"]` per evitare il conflitto con il metodo `dict.items` in Jinja.
 
 - chiusura report giornaliero:
   - la route `POST /cassa/api/day/<day_date>/close` aggiorna una `CashClosure` esistente invece di reinserirla;

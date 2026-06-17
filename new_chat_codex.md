@@ -260,3 +260,4 @@ Nota operativa 2026-06-14:
 - stampa report giornaliero: se la giornata e' gia' chiusa il bottone usa lo snapshot salvato e non richiama piu' la chiusura.
 - impostazioni applicative: le chiavi API, le soglie e i parametri operativi vanno gestiti dal pannello `/settings/preferences`; il runtime ricarica le preferenze dal DB e mantiene un fallback sui valori base di avvio.
 - impostazioni applicative: la pagina `/settings/preferences` deve degradare con warning, non con 500, se `app_preferences` non e' ancora disponibile o il DB non e' allineato.
+- impostazioni applicative: il template preferenze deve usare accesso esplicito ai campi dei dizionari (`section["items"]`) per evitare che Jinja risolva `dict.items` come metodo iterabile.

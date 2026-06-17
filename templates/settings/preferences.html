@@ -30,7 +30,7 @@
                   <h5 class="mb-0">{{ section.category }}</h5>
                 </div>
                 <div class="row g-3">
-                  {% for item in section.items %}
+                  {% for item in section["items"] %}
                     {% set field_id = item.key.replace('.', '_') %}
                     <div class="col-12 col-lg-6">
                       <label class="form-label fw-semibold" for="{{ field_id }}">
