@@ -98,7 +98,7 @@ def preferences():
             flash("Preferenze salvate con successo.", "success")
             logger.info("Aggiornate preferenze: %s", ", ".join(changed_keys) if changed_keys else "nessuna modifica")
             return redirect(url_for("settings.preferences"))
-        except SQLAlchemyError as exc:
+        except Exception as exc:
             db.session.rollback()
             logger.warning("Preferenze non disponibili ancora nel DB: %s", exc)
             flash("Preferenze non ancora disponibili nel database. Completa prima la migrazione.", "warning")
@@ -111,11 +111,15 @@ def preferences():
 
     try:
         sections = build_preferences_sections(current_app._get_current_object())
-    except SQLAlchemyError as exc:
+    except Exception as exc:
         logger.warning("Preferenze non disponibili ancora nel DB: %s", exc)
         sections = []
         flash("Preferenze non ancora disponibili nel database. Completa prima la migrazione.", "warning")
-    roles = Role.query.order_by(Role.weight.asc(), Role.name.asc()).all()
+    try:
+        roles = Role.query.order_by(Role.weight.asc(), Role.name.asc()).all()
+    except Exception as exc:
+        logger.warning("Ruoli non disponibili durante il caricamento preferenze: %s", exc)
+        roles = []
     return render_template("settings/preferences.html", sections=sections, roles=roles)
 
 

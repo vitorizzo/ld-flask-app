@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from flask import current_app, has_app_context
+from sqlalchemy.exc import SQLAlchemyError
 
 from extensions import db
 from models import AppPreference
@@ -286,14 +287,17 @@ def _coerce_definition_value(definition: PreferenceDefinition, row: AppPreferenc
 def build_preferences_sections(app=None) -> list[dict[str, Any]]:
     app = app or current_app._get_current_object()
     base_config = get_preference_base_config(app)
-    rows = {
-        row.key: row
-        for row in AppPreference.query.order_by(
-            AppPreference.category.asc(),
-            AppPreference.sort_order.asc(),
-            AppPreference.key.asc(),
-        ).all()
-    }
+    try:
+        rows = {
+            row.key: row
+            for row in AppPreference.query.order_by(
+                AppPreference.category.asc(),
+                AppPreference.sort_order.asc(),
+                AppPreference.key.asc(),
+            ).all()
+        }
+    except Exception:
+        return []
 
     sections: list[dict[str, Any]] = []
     current_category = None
@@ -362,62 +366,70 @@ def save_preferences_from_form(form) -> list[str]:
     definition_map = get_definition_map()
     changed_keys: list[str] = []
 
-    for key, definition in definition_map.items():
-        if definition.value_type == "bool":
-            raw_values = form.getlist(key)
-            raw_value = raw_values[-1] if raw_values else "0"
-            normalized = str(raw_value).strip().lower() in {"1", "true", "yes", "on"}
-            row = _ensure_preference_row(definition)
-            row.value_text = "1" if normalized else "0"
-            row.value_json = None
-            row.secret_value = None
-            changed_keys.append(key)
-            continue
-
-        raw_value = form.get(key)
-        raw_value = raw_value.strip() if isinstance(raw_value, str) else raw_value
-
-        if definition.is_secret:
-            if not raw_value:
-                continue
-            row = _ensure_preference_row(definition)
-            row.secret_value = str(raw_value)
-            row.value_text = None
-            row.value_json = None
-            changed_keys.append(key)
-            continue
-
-        if raw_value in (None, ""):
-            row = AppPreference.query.filter_by(key=definition.key).first()
-            if row is not None:
-                db.session.delete(row)
+    try:
+        for key, definition in definition_map.items():
+            if definition.value_type == "bool":
+                raw_values = form.getlist(key)
+                raw_value = raw_values[-1] if raw_values else "0"
+                normalized = str(raw_value).strip().lower() in {"1", "true", "yes", "on"}
+                row = _ensure_preference_row(definition)
+                row.value_text = "1" if normalized else "0"
+                row.value_json = None
+                row.secret_value = None
                 changed_keys.append(key)
-            continue
+                continue
 
-        row = _ensure_preference_row(definition)
-        if definition.value_type == "int":
-            row.value_text = str(int(raw_value))
-            row.value_json = None
-            row.secret_value = None
-        elif definition.value_type == "float":
-            row.value_text = str(float(raw_value))
-            row.value_json = None
-            row.secret_value = None
-        else:
-            row.value_text = str(raw_value)
-            row.value_json = None
-            row.secret_value = None
-        changed_keys.append(key)
+            raw_value = form.get(key)
+            raw_value = raw_value.strip() if isinstance(raw_value, str) else raw_value
 
-    db.session.commit()
-    return changed_keys
+            if definition.is_secret:
+                if not raw_value:
+                    continue
+                row = _ensure_preference_row(definition)
+                row.secret_value = str(raw_value)
+                row.value_text = None
+                row.value_json = None
+                changed_keys.append(key)
+                continue
+
+            if raw_value in (None, ""):
+                row = AppPreference.query.filter_by(key=definition.key).first()
+                if row is not None:
+                    db.session.delete(row)
+                    changed_keys.append(key)
+                continue
+
+            row = _ensure_preference_row(definition)
+            if definition.value_type == "int":
+                row.value_text = str(int(raw_value))
+                row.value_json = None
+                row.secret_value = None
+            elif definition.value_type == "float":
+                row.value_text = str(float(raw_value))
+                row.value_json = None
+                row.secret_value = None
+            else:
+                row.value_text = str(raw_value)
+                row.value_json = None
+                row.secret_value = None
+            changed_keys.append(key)
+
+        db.session.commit()
+        return changed_keys
+    except Exception:
+        db.session.rollback()
+        return []
 
 
 def load_preferences_into_app_config(app=None) -> list[str]:
     app = app or current_app._get_current_object()
     base_config = get_preference_base_config(app)
-    rows = {row.key: row for row in AppPreference.query.all()}
     changed_config_keys: list[str] = []
+
+    try:
+        rows = {row.key: row for row in AppPreference.query.all()}
+    except Exception:
+        return []
 
     for definition in PREFERENCE_DEFINITIONS:
         if not definition.config_key:
