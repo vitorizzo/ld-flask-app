@@ -6,7 +6,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
 from extensions import db
-from models import Menu, Role, ImportConflict, Articoli, User, UserRole
+from models import Menu, Role, ImportConflict, Articoli, User, UserRole, CashBank, PosCircuit, PosDevice
 from tools.role_required import role_required
 from tools.preferences import build_preferences_sections, load_preferences_into_app_config, save_preferences_from_form
 from config.tasks import (
@@ -40,6 +40,27 @@ def settings_index():
             "route": url_for("settings.users_index"),
             "icon": "fa-solid fa-users",
             "icon_class": "text-bg-primary",
+        },
+        {
+            "title": "Banche",
+            "description": "Conti e istituti usati nei versamenti e negli incassi.",
+            "route": url_for("settings.banks_index"),
+            "icon": "fa-solid fa-building-columns",
+            "icon_class": "text-bg-danger",
+        },
+        {
+            "title": "Circuiti Carte",
+            "description": "Circuiti di pagamento associati ai movimenti POS.",
+            "route": url_for("settings.pos_circuits_index"),
+            "icon": "fa-solid fa-credit-card",
+            "icon_class": "text-bg-info",
+        },
+        {
+            "title": "Dispositivi POS",
+            "description": "Terminali e dispositivi usati per gli incassi elettronici.",
+            "route": url_for("settings.pos_devices_index"),
+            "icon": "fa-solid fa-cash-register",
+            "icon_class": "text-bg-warning",
         },
         {
             "title": "Configurazione",
@@ -85,6 +106,52 @@ def users_index():
         flash(f"Impossibile caricare gli utenti: {exc}", "warning")
 
     return render_template("settings/users.html", users=users)
+
+
+@settings_bp.route("/banks", methods=["GET"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def banks_index():
+    try:
+        banks = (
+            CashBank.query
+            .order_by(CashBank.is_default.desc(), CashBank.sort_order.asc(), CashBank.name.asc())
+            .all()
+        )
+    except Exception as exc:
+        logger.exception("Errore nel caricamento banche")
+        banks = []
+        flash(f"Impossibile caricare le banche: {exc}", "warning")
+    return render_template("settings/banks.html", banks=banks)
+
+
+@settings_bp.route("/pos-circuits", methods=["GET"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def pos_circuits_index():
+    try:
+        circuits = PosCircuit.query.order_by(PosCircuit.is_active.desc(), PosCircuit.name.asc()).all()
+    except Exception as exc:
+        logger.exception("Errore nel caricamento circuiti POS")
+        circuits = []
+        flash(f"Impossibile caricare i circuiti carte: {exc}", "warning")
+    return render_template("settings/pos_circuits.html", circuits=circuits)
+
+
+@settings_bp.route("/pos-devices", methods=["GET"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def pos_devices_index():
+    try:
+        devices = PosDevice.query.order_by(PosDevice.is_default.desc(), PosDevice.is_active.desc(), PosDevice.name.asc()).all()
+    except Exception as exc:
+        logger.exception("Errore nel caricamento dispositivi POS")
+        devices = []
+        flash(f"Impossibile caricare i dispositivi POS: {exc}", "warning")
+    return render_template("settings/pos_devices.html", devices=devices)
 
 
 def _save_role_preferences_from_form(form):
