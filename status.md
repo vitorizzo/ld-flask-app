@@ -1409,3 +1409,13 @@ Performance apertura giornata Agenda 2026-06-13:
   - rimosso il `noload` sulla relazione `CashDay.closure` nella chiusura e nel recupero snapshot, che impediva di vedere la chiusura gia' salvata.
   - snapshot e report payload vengono normalizzati con `_json_safe` prima del commit e del salvataggio nel vault, per evitare 500 causati da oggetti non serializzabili.
   - stampa report su giornata gia' chiusa: il bottone usa lo snapshot salvato e non richiama piu' la chiusura.
+
+- pannello impostazioni/preferenze:
+  - aggiunta pagina `/settings` come hub di configurazione;
+  - aggiunta pagina `/settings/preferences` con configurazioni divise per categoria;
+  - introdotta tabella `app_preferences` per le preferenze runtime persistenti;
+  - il runtime ricarica le preferenze dal DB mantenendo fallback sui valori base di avvio;
+  - aggiunta modifica ruoli nella stessa area impostazioni;
+  - aggiunto link "Impostazioni" nel menu profilo per gli utenti con peso >= 900;
+  - i principali parametri di integrazione (`PS_*`, `POLEEPO_*`, `TRELLO_*`, `SLACK_*`, `VAPID_*`) e la soglia `OFFICE_ROLE_WEIGHT` possono essere governati dal pannello senza intervenire sui file `.env` per i valori salvati.
+  - la migration `2b3c4d5e6f70_add_cash_day_audit_events.py` e' stata resa tollerante ai DB che hanno gia' la tabella `cash_day_audit_events`, cosi' `flask db upgrade` non si ferma piu' su `DuplicateTable`.

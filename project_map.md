@@ -817,6 +817,15 @@ Stato implementazione 2026-06-14:
   - Prestashop ha un upload reale via webservice, mentre gli altri target restano disabilitati fino a implementazione del connettore;
   - il menu contestuale e i drop slot rispettano lo stato `active/supported` per ogni piattaforma.
 
+- impostazioni applicative:
+  - nuova pagina hub `/settings`;
+  - nuova pagina `/settings/preferences` per configurazioni divise per categoria;
+  - tabella `app_preferences` per persistenza runtime dei parametri;
+  - reload runtime delle preferenze ad ogni richiesta dinamica con fallback sui valori base di avvio;
+  - editing ruoli nella stessa area impostazioni;
+  - entry "Impostazioni" nel menu profilo per gli utenti con peso >= 900.
+  - migration audit resa idempotente sui DB dove `cash_day_audit_events` esiste gia', cosi' `db upgrade` non fallisce su `DuplicateTable`.
+
 - chiusura report giornaliero:
   - la route `POST /cassa/api/day/<day_date>/close` aggiorna una `CashClosure` esistente invece di reinserirla;
   - la relazione `CashDay.closure` viene caricata normalmente per evitare falsi negativi sul record gia' salvato;

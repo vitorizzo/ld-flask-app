@@ -5,6 +5,7 @@ import os
 import logging
 import requests
 from typing import Any, Dict, Optional, List
+from flask import current_app, has_app_context
 
 from tools.log_utils import get_logger
 
@@ -27,10 +28,25 @@ class TrelloAPI:
         """
         Inizializza la classe prendendo api_key e token da parametri o da variabili d'ambiente.
         """
-        self.api_key = api_key or os.getenv("TRELLO_KEY")
-        self.token = token or os.getenv("TRELLO_TOKEN")
+        if api_key is not None:
+            self.api_key = api_key
+        else:
+            self.api_key = self._runtime_value("TRELLO_KEY", "TRELLO_KEY")
+
+        if token is not None:
+            self.token = token
+        else:
+            self.token = self._runtime_value("TRELLO_TOKEN", "TRELLO_TOKEN")
         if not (self.api_key and self.token):
             raise ValueError("Servono API_KEY e TOKEN per usare TrelloAPI")
+
+    @staticmethod
+    def _runtime_value(config_key: str, env_key: str, default: str = "") -> str:
+        if has_app_context():
+            value = current_app.config.get(config_key)
+            if value not in (None, ""):
+                return value
+        return os.getenv(env_key, default)
 
     def _request(self,
                  method: str,

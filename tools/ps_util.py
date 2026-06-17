@@ -3,6 +3,7 @@ import mimetypes
 from pprint import pprint
 import requests
 from requests.auth import HTTPBasicAuth
+from flask import current_app, has_app_context
 from extensions import db
 from models import Immagini, Sincro, SchedeProdotti, ProductAsset, ProductPlatformField
 from dotenv import load_dotenv
@@ -18,17 +19,36 @@ load_dotenv(basedir / '.env', override=False)
 load_dotenv(basedir / '.env.local', override=True)
 load_dotenv(basedir / '.env.defaults', override=False)
 
-PS_URL = os.getenv("PRESTASHOP_URL")
-PS_KEY = os.getenv("PRESTASHOP_KEY")
-
 IMAGES_FOLDER = basedir / 'static' / 'images' / 'products'
 IMAGES_FOLDER.mkdir(parents=True, exist_ok=True)
+
+
+def _runtime_value(config_key, env_key, default=None):
+    if has_app_context():
+        value = current_app.config.get(config_key)
+        if value not in (None, ""):
+            return value
+
+    value = os.getenv(env_key)
+    if value not in (None, ""):
+        return value
+    return default
+
+
+def _prestashop_url():
+    return (_runtime_value("PS_URL", "PRESTASHOP_URL", "") or "").rstrip("/")
+
+
+def _prestashop_key():
+    return _runtime_value("PS_KEY", "PRESTASHOP_KEY", "")
 
 
 def get_product_by_code(cod_art):
     logger.info(f"get_product_by_code(): Cerco il prodotto con codice {cod_art}")
     try:
-        response = requests.get(f"{PS_URL}/products/?ws_key={PS_KEY}&filter[reference]={cod_art}")
+        ps_url = _prestashop_url()
+        ps_key = _prestashop_key()
+        response = requests.get(f"{ps_url}/products/?ws_key={ps_key}&filter[reference]={cod_art}")
         if response.status_code == 200:
             root = ET.fromstring(response.text)
             product = root.find(".//product")
@@ -42,7 +62,9 @@ def get_product_by_code(cod_art):
     return None
 
 def get_product_details(product_id):
-    url = f"{PS_URL}/products/{product_id}?ws_key={PS_KEY}"
+    ps_url = _prestashop_url()
+    ps_key = _prestashop_key()
+    url = f"{ps_url}/products/{product_id}?ws_key={ps_key}"
     try:
         response = requests.get(url)
         if response.status_code == 200:
@@ -68,7 +90,9 @@ def get_product_details(product_id):
 
 def get_product_ids():
     logger.info("get_product_ids(): Recupero lista ID prodotti da Prestashop")
-    response = requests.get(f"{PS_URL}/products", params={'ws_key': PS_KEY})
+    ps_url = _prestashop_url()
+    ps_key = _prestashop_key()
+    response = requests.get(f"{ps_url}/products", params={'ws_key': ps_key})
     response.raise_for_status()
     products_data = xmltodict.parse(response.content)
     products = products_data['prestashop']['products']['product']
@@ -78,7 +102,9 @@ def get_product_ids():
 
 
 def get_product_payload(product_id):
-    prod_response = requests.get(f"{PS_URL}/products/{product_id}", params={'ws_key': PS_KEY})
+    ps_url = _prestashop_url()
+    ps_key = _prestashop_key()
+    prod_response = requests.get(f"{ps_url}/products/{product_id}", params={'ws_key': ps_key})
     prod_response.raise_for_status()
     prod_info = xmltodict.parse(prod_response.content)
     prod_data = prod_info['prestashop']['product']
@@ -160,7 +186,9 @@ def _upsert_product_asset(cod_art, source_platform, local_path=None, remote_url=
 
 def get_product_descriptions(product_id):
     logger.info(f"get_product_descriptions(): Recupero descrizione per prodotto {product_id}")
-    response = requests.get(f"{PS_URL}/products/{product_id}", params={'ws_key': PS_KEY})
+    ps_url = _prestashop_url()
+    ps_key = _prestashop_key()
+    response = requests.get(f"{ps_url}/products/{product_id}", params={'ws_key': ps_key})
     response.raise_for_status()
     prod_info = xmltodict.parse(response.content)
     prod_data = prod_info['prestashop']['product']
@@ -193,7 +221,9 @@ def get_product_images(product_id, cod_art):
     logger.info(f"get_product_images(): Recupero immagini per prodotto {product_id}")
     images = []
 
-    images_response = requests.get(f"{PS_URL}/images/products/{product_id}", auth=HTTPBasicAuth(PS_KEY, ''), params={'ws_key': PS_KEY})
+    ps_url = _prestashop_url()
+    ps_key = _prestashop_key()
+    images_response = requests.get(f"{ps_url}/images/products/{product_id}", auth=HTTPBasicAuth(ps_key, ''), params={'ws_key': ps_key})
     if images_response.status_code == 200:
         images_info = xmltodict.parse(images_response.content)
         declinations = images_info.get('prestashop', {}).get('image', {}).get('declination', [])
@@ -201,8 +231,8 @@ def get_product_images(product_id, cod_art):
             declinations = [declinations]
         for img in declinations:
             image_id = img['@id']
-            image_url = f"{PS_URL}/images/products/{product_id}/{image_id}"
-            image_response = requests.get(image_url, auth=HTTPBasicAuth(PS_KEY, ''), params={'ws_key': PS_KEY})
+            image_url = f"{ps_url}/images/products/{product_id}/{image_id}"
+            image_response = requests.get(image_url, auth=HTTPBasicAuth(ps_key, ''), params={'ws_key': ps_key})
             if image_response.status_code == 200:
                 file_name = f"{product_id}_{image_id}.jpg"
                 file_path = IMAGES_FOLDER / file_name
@@ -237,20 +267,22 @@ def get_product_images(product_id, cod_art):
 
 
 def upload_product_image(product_id, image_path, *, filename=None, mime_type=None):
-    if not PS_URL or not PS_KEY:
+    ps_url = _prestashop_url()
+    ps_key = _prestashop_key()
+    if not ps_url or not ps_key:
         raise RuntimeError("Prestashop non configurato")
     if not image_path or not os.path.exists(image_path):
         raise FileNotFoundError(f"Immagine non trovata: {image_path}")
 
     safe_filename = filename or os.path.basename(image_path)
     guessed_mime = mime_type or mimetypes.guess_type(safe_filename)[0] or "application/octet-stream"
-    url = f"{PS_URL}/images/products/{product_id}"
+    url = f"{ps_url}/images/products/{product_id}"
 
     with open(image_path, "rb") as image_file:
         response = requests.post(
             url,
-            auth=HTTPBasicAuth(PS_KEY, ""),
-            params={"ws_key": PS_KEY},
+            auth=HTTPBasicAuth(ps_key, ""),
+            params={"ws_key": ps_key},
             files={"image": (safe_filename, image_file, guessed_mime)},
             timeout=60,
         )
@@ -270,23 +302,25 @@ def upload_product_image(product_id, image_path, *, filename=None, mime_type=Non
 
     return {
         "image_id": str(image_id) if image_id is not None else None,
-        "remote_url": f"{PS_URL}/images/products/{product_id}/{image_id}" if image_id is not None else url,
+        "remote_url": f"{ps_url}/images/products/{product_id}/{image_id}" if image_id is not None else url,
         "raw_payload": payload,
         "status_code": response.status_code,
     }
 
 
 def delete_product_image(product_id, image_id):
-    if not PS_URL or not PS_KEY:
+    ps_url = _prestashop_url()
+    ps_key = _prestashop_key()
+    if not ps_url or not ps_key:
         raise RuntimeError("Prestashop non configurato")
     if not product_id or not image_id:
         raise ValueError("Prestashop image identifiers missing")
 
-    url = f"{PS_URL}/images/products/{product_id}/{image_id}"
+    url = f"{ps_url}/images/products/{product_id}/{image_id}"
     response = requests.delete(
         url,
-        auth=HTTPBasicAuth(PS_KEY, ""),
-        params={"ws_key": PS_KEY},
+        auth=HTTPBasicAuth(ps_key, ""),
+        params={"ws_key": ps_key},
         timeout=60,
     )
 

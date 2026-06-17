@@ -66,7 +66,7 @@ def delete_webhook(webhook_id: str) -> None:
         api_key, token = conn.api_key, conn.token
     else:
         # Se non la trovo in DB, prendo da config (fallback)
-        api_key = current_app.config.get('TRELLO_API_KEY')
+        api_key = current_app.config.get('TRELLO_API_KEY') or current_app.config.get('TRELLO_KEY')
         token = current_app.config.get('TRELLO_TOKEN')
         if not api_key or not token:
             raise TrelloClientError("Impossibile trovare credenziali per cancellare il webhook")

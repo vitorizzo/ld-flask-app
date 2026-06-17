@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}LD Enoteca - Impostazioni{% endblock %}
+
+{% block content %}
+<section class="welcome-section page-shell">
+  <div class="container-fluid">
+    <div class="d-flex align-items-start justify-content-between mb-4">
+      <div>
+        <h1 class="mb-1">Impostazioni</h1>
+        <div class="text-muted">Accesso rapido alle aree di configurazione dell'app.</div>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      {% for entry in entries %}
+        <div class="col-12 col-md-6 col-xl-3">
+          <a class="text-decoration-none" href="{{ entry.route }}">
+            <div class="card h-100 border-0 shadow-sm">
+              <div class="card-body">
+                <div class="d-flex align-items-center gap-2 mb-2">
+                  <i class="{{ entry.icon }} fa-lg text-primary"></i>
+                  <strong class="text-dark">{{ entry.title }}</strong>
+                </div>
+                <p class="text-muted mb-0">{{ entry.description }}</p>
+              </div>
+            </div>
+          </a>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

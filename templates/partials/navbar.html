@@ -71,6 +71,9 @@
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="profileDropdown">
                         <li><a class="dropdown-item" href="{{ url_for('auth.edit_profile') }}">Modifica Informazioni</a></li>
                         <li><a class="dropdown-item" href="{{ url_for('auth.upload_photo') }}">Gestisci Foto Profilo</a></li>
+                        {% if current_user.max_role_weight >= 900 %}
+                            <li><a class="dropdown-item" href="{{ url_for('settings.settings_index') }}">Impostazioni</a></li>
+                        {% endif %}
                         <li><button class="dropdown-item" type="button" data-pwa-push-enable>Abilita notifiche</button></li>
                         {% if current_user.max_role_weight >= 30 %}
                             <li><button class="dropdown-item" type="button" data-pwa-push-test-order>Test notifica ordine</button></li>

@@ -3,6 +3,8 @@
   const LAST_FIXED_KEY = "ldapp.page_tabs.last_fixed.v1";
   const FIXED_PATHS = new Set(["/cassa/agenda", "/route-orders/board", "/kiosk"]);
   const PAGE_LABELS = [
+    { test: path => path === "/settings", label: "Impostazioni" },
+    { test: path => path === "/settings/preferences", label: "Preferenze" },
     { test: path => path === "/settings/menus", label: "Gestione menù" },
     { test: path => path === "/registry/customer-routes", label: "Associazione clienti-giri" },
     { test: path => path === "/registry/customers", label: "Rubrica clienti" },

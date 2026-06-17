@@ -1,4 +1,4 @@
-from flask import request, flash, render_template, Blueprint, jsonify, redirect
+from flask import request, flash, render_template, Blueprint, jsonify, redirect, current_app, url_for
 from flask_login import login_required
 from flask_socketio import SocketIO
 from sqlalchemy import asc
@@ -6,6 +6,7 @@ from sqlalchemy import asc
 from extensions import db
 from models import Menu, Role, ImportConflict, Articoli
 from tools.role_required import role_required
+from tools.preferences import build_preferences_sections, load_preferences_into_app_config, save_preferences_from_form
 from config.tasks import (
     import_anagrafiche_task,
     import_articoli_task,
@@ -23,6 +24,88 @@ logger = get_logger('settings')
 
 settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 socketio = SocketIO()
+
+
+@settings_bp.route("/", methods=["GET"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def settings_index():
+    entries = [
+        {
+            "title": "Preferenze",
+            "description": "Chiavi API, ruoli, soglie e configurazioni operative.",
+            "route": url_for("settings.preferences"),
+            "icon": "fa-solid fa-sliders",
+        },
+        {
+            "title": "Gestione menù",
+            "description": "Struttura della navbar e visibilità delle voci.",
+            "route": url_for("settings.manage_menus"),
+            "icon": "fa-solid fa-bars",
+        },
+        {
+            "title": "Conflitti import",
+            "description": "Risoluzione guidata dei conflitti tra sorgenti.",
+            "route": url_for("settings.import_conflicts_page"),
+            "icon": "fa-solid fa-triangle-exclamation",
+        },
+    ]
+    return render_template("settings/index.html", entries=entries)
+
+
+def _save_role_preferences_from_form(form):
+    changed = 0
+    for role in Role.query.order_by(Role.weight.asc(), Role.name.asc()).all():
+        weight_raw = (form.get(f"role_weight_{role.id}") or "").strip()
+        description_raw = (form.get(f"role_description_{role.id}") or "").strip()
+
+        if weight_raw == "":
+            continue
+
+        new_weight = int(weight_raw)
+        if role.weight != new_weight:
+            role.weight = new_weight
+            changed += 1
+
+        new_description = description_raw or None
+        if role.description != new_description:
+            role.description = new_description
+            changed += 1
+
+    db.session.commit()
+    return changed
+
+
+@settings_bp.route("/preferences", methods=["GET", "POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def preferences():
+    if request.method == "POST":
+        try:
+            form_type = (request.form.get("form_type") or "preferences").strip().lower()
+
+            if form_type == "roles":
+                changed = _save_role_preferences_from_form(request.form)
+                flash("Ruoli aggiornati con successo.", "success")
+                logger.info("Aggiornati %s campi ruoli.", changed)
+                return redirect(url_for("settings.preferences"))
+
+            changed_keys = save_preferences_from_form(request.form)
+            load_preferences_into_app_config(current_app._get_current_object())
+            flash("Preferenze salvate con successo.", "success")
+            logger.info("Aggiornate preferenze: %s", ", ".join(changed_keys) if changed_keys else "nessuna modifica")
+            return redirect(url_for("settings.preferences"))
+        except Exception as exc:
+            db.session.rollback()
+            logger.exception("Errore salvataggio preferenze/ruoli")
+            flash(f"Errore nel salvataggio: {exc}", "danger")
+            return redirect(url_for("settings.preferences"))
+
+    sections = build_preferences_sections(current_app._get_current_object())
+    roles = Role.query.order_by(Role.weight.asc(), Role.name.asc()).all()
+    return render_template("settings/preferences.html", sections=sections, roles=roles)
 
 
 @settings_bp.route('/update_menu', methods=['POST'])

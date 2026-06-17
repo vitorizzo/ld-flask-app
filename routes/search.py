@@ -181,8 +181,9 @@ def _proxy_remote_product_asset(asset):
         "stream": True,
         "timeout": 30,
     }
-    if os.getenv("PRESTASHOP_KEY") and asset.source_platform == "prestashop":
-        request_kwargs["auth"] = HTTPBasicAuth(os.getenv("PRESTASHOP_KEY"), "")
+    prestashop_key = current_app.config.get("PS_KEY") or os.getenv("PRESTASHOP_KEY")
+    if prestashop_key and asset.source_platform == "prestashop":
+        request_kwargs["auth"] = HTTPBasicAuth(prestashop_key, "")
 
     upstream = requests.get(asset.remote_url, **request_kwargs)
     if upstream.status_code != 200:

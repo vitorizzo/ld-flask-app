@@ -2,7 +2,7 @@ import logging
 import os
 import click
 
-from flask import Flask, render_template, send_from_directory, make_response, session, jsonify
+from flask import Flask, render_template, send_from_directory, make_response, session, jsonify, request
 from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from dotenv import load_dotenv
@@ -16,6 +16,7 @@ from routes.kiosk import kiosk_bp
 from tools.log_utils import get_logger
 from models import User, Menu, PasswordResetToken
 from routes.tools import get_user_menu
+from tools.preferences import PREFERENCE_DEFINITIONS, load_preferences_into_app_config
 
 load_dotenv()
 # Determina la root del progetto (supponendo che questo file sia in tools/)
@@ -157,6 +158,7 @@ def create_app():
         PS_PSWD=os.getenv("PRESTASHOP_PASSWORD"),
         FERNET_KEY=os.getenv('FERNET_KEY'),
         TRELLO_KEY=os.getenv("TRELLO_KEY"),
+        TRELLO_API_KEY=os.getenv("TRELLO_KEY"),
         TRELLO_SECRET=os.getenv("TRELLO_SECRET"),
         TRELLO_TOKEN=os.getenv("TRELLO_TOKEN"),
         SLACK_SIGNING_SECRET=os.getenv("SLACK_SIGNING_SECRET"),
@@ -170,6 +172,13 @@ def create_app():
         POLEEPO_PPKEY=os.getenv("POLEEPO_PPKEY"),
         APP_VERSION=_compute_app_version(base)
     )
+
+    app.extensions.setdefault("ldapp_runtime_preferences", {})
+    app.extensions["ldapp_runtime_preferences"]["base_config"] = {
+        definition.config_key: app.config.get(definition.config_key, definition.default)
+        for definition in PREFERENCE_DEFINITIONS
+        if definition.config_key
+    }
 
     if not app.config.get("SECRET_KEY"):
         logger.critical("SECRET_KEY non impostata! Verifica .env / environment systemd.")
@@ -189,6 +198,25 @@ def create_app():
     # Inizializza database, migrate, ecc.
     db.init_app(app)
     migrate = Migrate(app, db)
+
+    try:
+        with app.app_context():
+            load_preferences_into_app_config(app)
+    except OperationalError:
+        logger.debug("Startup preferences load skipped: database not ready or table missing")
+    except Exception:
+        logger.exception("Unexpected error while loading startup preferences")
+
+    @app.before_request
+    def refresh_runtime_preferences():
+        if request.endpoint == "static":
+            return
+        try:
+            load_preferences_into_app_config(app)
+        except OperationalError:
+            logger.debug("refresh_runtime_preferences: database not available, keep current config")
+        except Exception:
+            logger.exception("refresh_runtime_preferences: unexpected error while loading runtime preferences")
 
     # **NUOVA CONFIGURAZIONE DI LOGGING**
     # Rimuovi gli handler di default del logger di Flask

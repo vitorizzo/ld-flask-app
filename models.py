@@ -46,6 +46,67 @@ class Menu(db.Model):
         return f"<Menu {self.name}>"
 
 
+class AppPreference(db.Model):
+    __tablename__ = "app_preferences"
+    __table_args__ = (
+        db.UniqueConstraint("key", name="uq_app_preferences_key"),
+        db.Index("ix_app_preferences_category_sort", "category", "sort_order"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    key = db.Column(db.String(120), nullable=False)
+    category = db.Column(db.String(80), nullable=False, default="Generale")
+    label = db.Column(db.String(160), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    value_type = db.Column(db.String(20), nullable=False, default="text")
+    value_text = db.Column(db.Text, nullable=True)
+    value_json = db.Column(JSONB, nullable=True)
+    secret_value = db.Column(EncryptedString(4096), nullable=True)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    def __repr__(self):
+        return f"<AppPreference {self.key}>"
+
+    @property
+    def is_secret(self):
+        return (self.value_type or "text") == "secret"
+
+    def python_value(self):
+        value_type = (self.value_type or "text").lower()
+        if value_type == "secret":
+            return self.secret_value
+        if value_type == "bool":
+            return str(self.value_text or "").strip().lower() in {"1", "true", "yes", "on"}
+        if value_type == "int":
+            if self.value_text in (None, ""):
+                return None
+            return int(self.value_text)
+        if value_type == "float":
+            if self.value_text in (None, ""):
+                return None
+            return float(self.value_text)
+        if value_type == "json":
+            return self.value_json
+        return self.value_text
+
+    def form_value(self):
+        if self.is_secret:
+            return ""
+        value = self.python_value()
+        if value is None:
+            return ""
+        if isinstance(value, bool):
+            return "1" if value else "0"
+        return value
+
+
 class Articoli(db.Model):
     id_art = db.Column(
         db.BigInteger,
