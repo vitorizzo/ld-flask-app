@@ -9,6 +9,7 @@
     position: fixed !important;
     inset: 0;
     z-index: 20000 !important;
+    background: rgba(17, 24, 39, .65);
   }
   .settings-icon-picker-modal .modal-dialog {
     position: relative;
@@ -18,27 +19,7 @@
   .settings-icon-picker-modal .modal-content {
     opacity: 1 !important;
     pointer-events: auto !important;
-  }
-  .settings-icon-picker-modal {
-    position: fixed;
-    inset: 0;
-    z-index: 20000;
-    display: none;
-  }
-  .settings-icon-picker-modal.show {
-    display: block;
-  }
-  .settings-icon-picker-modal .settings-icon-picker-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(17, 24, 39, .65);
-    z-index: 19990;
-  }
-  .settings-icon-picker-modal .settings-icon-picker-dialog {
-    position: relative;
-    z-index: 20001;
-    max-width: 1120px;
-    margin: 3rem auto;
+    background: #fff !important;
   }
   body.settings-icon-picker-modal-open .modal-backdrop.show {
     z-index: 19990 !important;
@@ -213,13 +194,12 @@
   </div>
 </section>
 
-<div class="settings-icon-picker-modal" id="circuitIconPickerModal" aria-hidden="true">
-  <div class="settings-icon-picker-backdrop" data-close-icon-picker></div>
-  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable settings-icon-picker-dialog">
+<div class="modal fade settings-icon-picker-modal" id="circuitIconPickerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">Scegli icona circuito</h5>
-        <button type="button" class="btn-close" data-close-icon-picker aria-label="Chiudi"></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
       <div class="modal-body">
         <div class="row g-2">
@@ -242,35 +222,30 @@
 <script>
 (function () {
   const modalEl = document.getElementById("circuitIconPickerModal");
-  if (!modalEl) return;
+  if (!modalEl || !window.bootstrap) return;
   let activeTarget = null;
   let activePreview = null;
-  const showModal = () => {
+  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+  if (modalEl.parentElement !== document.body) {
+    document.body.appendChild(modalEl);
+  }
+
+  modalEl.addEventListener("show.bs.modal", () => {
     document.body.classList.add("settings-icon-picker-modal-open");
-    modalEl.classList.add("show");
-    modalEl.style.display = "block";
-    modalEl.setAttribute("aria-modal", "true");
-    modalEl.removeAttribute("aria-hidden");
-  };
-  const hideModal = () => {
+  });
+
+  modalEl.addEventListener("hidden.bs.modal", () => {
     document.body.classList.remove("settings-icon-picker-modal-open");
-    modalEl.classList.remove("show");
-    modalEl.style.display = "none";
-    modalEl.setAttribute("aria-hidden", "true");
-    modalEl.removeAttribute("aria-modal");
-  };
+  });
 
   document.querySelectorAll(".circuit-icon-picker-btn").forEach((btn) => {
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       activeTarget = document.getElementById(btn.dataset.iconTarget);
       activePreview = document.getElementById(btn.dataset.iconPreview);
-      showModal();
+      modal.show();
     });
-  });
-
-  modalEl.querySelectorAll("[data-close-icon-picker]").forEach((el) => {
-    el.addEventListener("click", hideModal);
   });
 
   modalEl.querySelectorAll(".icon-choice-btn").forEach((btn) => {
@@ -281,7 +256,7 @@
       if (activePreview) {
         activePreview.innerHTML = value ? `<i class="${value} me-1"></i>${value}` : "Nessuna icona";
       }
-      hideModal();
+      modal.hide();
     });
   });
 

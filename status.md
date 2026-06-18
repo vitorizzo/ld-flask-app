@@ -1441,3 +1441,7 @@ Performance apertura giornata Agenda 2026-06-13:
 - 2026-06-18 fix POS: i logo dei circuiti ora vengono salvati in `static/images/pos` e serviti da `images/pos/...`, in modo coerente con gli altri asset dell'app.
 - 2026-06-18 fix POS: la modale icon picker dei circuiti e' stata resa custom e auto-gestita, senza dipendere dal layering Bootstrap che la teneva invisibile.
 - 2026-06-18 fix POS: i simboli valuta corrotti nella UI Agenda sono stati ripuliti nel file `static/js/agenda.js`.
+- 2026-06-18 fix finale POS: la modale icone dei circuiti torna ad essere una vera Bootstrap modal con backdrop e dialog attivo; il picker ora si apre correttamente in primo piano.
+- 2026-06-18 fix finale POS: i logo dei circuiti vengono salvati in `static/images/pos` e serviti da `images/pos/...`, cosi' il browser li carica davvero.
+- 2026-06-18 fix finale POS: la ricerca dei circuiti del device usa una query esplicita sulla tabella di associazione, evitando dipendenze da `dynamic` relationship.
+- 2026-06-18 fix finale Agenda: ripulite le sequenze valuta corrotte residue in `static/js/agenda.js`.

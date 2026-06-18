@@ -7033,7 +7033,12 @@ def api_pos_device_circuits(device_id):
     if not device:
         return jsonify({"ok": False, "error": "device_not_found"}), 404
 
-    circuits_q = device.circuits.options(load_only(PosCircuit.id, PosCircuit.name, PosCircuit.icon, PosCircuit.logo_path, PosCircuit.is_active))
+    circuits_q = (
+        PosCircuit.query
+        .join(pos_device_circuits, pos_device_circuits.c.pos_circuit_id == PosCircuit.id)
+        .filter(pos_device_circuits.c.pos_device_id == device.id)
+        .options(load_only(PosCircuit.id, PosCircuit.name, PosCircuit.icon, PosCircuit.logo_path, PosCircuit.is_active))
+    )
     if validity_enabled:
         circuits_q = circuits_q.options(load_only(PosCircuit.valid_from, PosCircuit.valid_to))
     circuits = [c for c in circuits_q.all() if c.is_active and (not validity_enabled or _is_effective_on_date(c, ref_date))]

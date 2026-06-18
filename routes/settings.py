@@ -131,7 +131,8 @@ def _save_uploaded_logo(file_storage, prefix="logo"):
         return None
     ext = os.path.splitext(filename)[1].lower() or ".png"
     target_name = f"{prefix}_{uuid.uuid4().hex}{ext}"
-    folder = _settings_upload_folder("images", "pos")
+    folder = os.path.join(current_app.root_path, "static", "images", "pos")
+    os.makedirs(folder, exist_ok=True)
     target_path = os.path.join(folder, target_name)
     file_storage.save(target_path)
     return f"images/pos/{target_name}"
@@ -380,6 +381,11 @@ def pos_circuits_index():
         "fa-brands fa-google-pay",
         "fa-brands fa-apple-pay",
         "fa-brands fa-amazon-pay",
+        "fa-brands fa-cc-stripe",
+        "fa-brands fa-cc-discover",
+        "fa-brands fa-cc-diners-club",
+        "fa-brands fa-cc-jcb",
+        "fa-solid fa-credit-card-front",
         "fa-solid fa-money-check-dollar",
         "fa-solid fa-money-bill-wave",
         "fa-solid fa-wallet",
@@ -405,6 +411,15 @@ def pos_circuits_index():
         "fa-solid fa-shield-halved",
         "fa-solid fa-square-check",
         "fa-solid fa-circle-check",
+        "fa-solid fa-circle-notch",
+        "fa-solid fa-bolt",
+        "fa-solid fa-battery-full",
+        "fa-solid fa-bolt-lightning",
+        "fa-solid fa-receipt",
+        "fa-solid fa-building",
+        "fa-solid fa-shop",
+        "fa-solid fa-store",
+        "fa-solid fa-cash-register",
     ]
     return render_template(
         "settings/pos_circuits.html",
