@@ -1433,3 +1433,4 @@ Performance apertura giornata Agenda 2026-06-13:
   - fix pagina preferenze: nel template `section["items"]` sostituisce `section.items`, evitando il crash Jinja `builtin_function_or_method object is not iterable`.
 - 2026-06-18: aggiunti `valid_from`/`valid_to` a `PosCircuit` e `PosDevice`; la dashboard POS ora filtra i lookup per data e la lista movimenti POS non blocca piu' la lettura sulle giornate chiuse.
 - 2026-06-18: la modale icone dei circuiti e' stata portata direttamente nel `body` e aperta via JS per evitare lo stacking issue ricorrente.
+- 2026-06-18 fix emergenza: le pagine POS e l'agenda non vanno piu' in errore se `valid_from`/`valid_to` non sono ancora presenti nel DB; le query ora leggono solo le colonne realmente disponibili e degradano in modo compatibile.

@@ -271,3 +271,4 @@ Nota operativa 2026-06-14:
 - impostazioni applicative: per i record nuovi il nome va validato prima di creare l'oggetto ORM, cosi' non restano insert vuoti pendenti in sessione.
 - impostazioni applicative: le aree configurazione devono esporre anche azioni esplicite di disattivazione e cancellazione, ma il delete va bloccato se il record ha riferimenti storici o associazioni.
 - 2026-06-18: regola operativa aggiornata: per i circuiti/dispositivi POS usare validita' temporale (`valid_from`/`valid_to`) e non bloccare la lettura dei movimenti sulle giornate chiuse; la modale icone va aperta manualmente dopo averla portata nel `body`.
+- 2026-06-18 fix operativo: prima di usare `valid_from`/`valid_to` su circuiti/dispositivi POS bisogna passare da query compatibili con DB non ancora migrato; se la migrazione non e' applicata, l'app deve continuare a funzionare con i campi storici gia' presenti.

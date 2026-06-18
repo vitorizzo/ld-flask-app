@@ -3,7 +3,8 @@ from flask_login import login_required
 from flask_socketio import SocketIO
 from sqlalchemy import asc
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, load_only
+from sqlalchemy import inspect
 from werkzeug.utils import secure_filename
 import os
 import uuid
@@ -72,6 +73,14 @@ def _parse_date(value, fallback=None):
         return datetime.strptime(raw, "%Y-%m-%d").date()
     except (TypeError, ValueError):
         return fallback
+
+
+def _table_has_column(table_name, column_name):
+    try:
+        inspector = inspect(db.engine)
+        return any(col["name"] == column_name for col in inspector.get_columns(table_name))
+    except Exception:
+        return False
 
 
 def _selected_ids_from_form(form, key):
@@ -297,6 +306,7 @@ def bank_delete(bank_id):
 @log_task(logger)
 def pos_circuits_index():
     try:
+        validity_enabled = _table_has_column("pos_circuits", "valid_from") and _table_has_column("pos_circuits", "valid_to")
         if request.method == "POST":
             circuit_id = _parse_int(request.form.get("circuit_id"))
             name = (request.form.get("name") or "").strip()
@@ -321,11 +331,18 @@ def pos_circuits_index():
             flash("Circuito salvato con successo.", "success")
             return redirect(url_for("settings.pos_circuits_index"))
 
-        circuits = PosCircuit.query.order_by(
-            PosCircuit.is_active.desc(),
-            PosCircuit.valid_from.desc().nullslast(),
-            PosCircuit.name.asc(),
-        ).all()
+        circuits_q = PosCircuit.query.options(
+            load_only(PosCircuit.id, PosCircuit.name, PosCircuit.icon, PosCircuit.logo_path, PosCircuit.is_active)
+        )
+        if validity_enabled:
+            circuits_q = circuits_q.options(load_only(PosCircuit.valid_from, PosCircuit.valid_to)).order_by(
+                PosCircuit.is_active.desc(),
+                PosCircuit.valid_from.desc().nullslast(),
+                PosCircuit.name.asc(),
+            )
+        else:
+            circuits_q = circuits_q.order_by(PosCircuit.is_active.desc(), PosCircuit.name.asc())
+        circuits = circuits_q.all()
     except Exception as exc:
         logger.exception("Errore nel caricamento circuiti POS")
         circuits = []
@@ -365,7 +382,13 @@ def pos_circuits_index():
         "fa-solid fa-square-check",
         "fa-solid fa-circle-check",
     ]
-    return render_template("settings/pos_circuits.html", circuits=circuits, icon_choices=icon_choices, today=date.today())
+    return render_template(
+        "settings/pos_circuits.html",
+        circuits=circuits,
+        icon_choices=icon_choices,
+        today=date.today(),
+        pos_validity_enabled=validity_enabled if "validity_enabled" in locals() else False,
+    )
 
 
 @settings_bp.route("/pos-circuits/<int:circuit_id>/toggle", methods=["POST"])
@@ -408,6 +431,7 @@ def pos_circuit_delete(circuit_id):
 @log_task(logger)
 def pos_devices_index():
     try:
+        validity_enabled = _table_has_column("pos_devices", "valid_from") and _table_has_column("pos_devices", "valid_to")
         if request.method == "POST":
             device_id = _parse_int(request.form.get("device_id"))
             name = (request.form.get("name") or "").strip()
@@ -441,23 +465,40 @@ def pos_devices_index():
             flash("Dispositivo POS salvato con successo.", "success")
             return redirect(url_for("settings.pos_devices_index"))
 
-        circuits_all = PosCircuit.query.order_by(
-            PosCircuit.is_active.desc(),
-            PosCircuit.valid_from.desc().nullslast(),
-            PosCircuit.name.asc(),
-        ).all()
-        devices = PosDevice.query.order_by(
-            PosDevice.is_default.desc(),
-            PosDevice.is_active.desc(),
-            PosDevice.valid_from.desc().nullslast(),
-            PosDevice.name.asc(),
-        ).all()
+        circuits_q = PosCircuit.query.options(load_only(PosCircuit.id, PosCircuit.name, PosCircuit.is_active))
+        if _table_has_column("pos_circuits", "valid_from") and _table_has_column("pos_circuits", "valid_to"):
+            circuits_q = circuits_q.options(load_only(PosCircuit.valid_from, PosCircuit.valid_to)).order_by(
+                PosCircuit.is_active.desc(),
+                PosCircuit.valid_from.desc().nullslast(),
+                PosCircuit.name.asc(),
+            )
+        else:
+            circuits_q = circuits_q.order_by(PosCircuit.is_active.desc(), PosCircuit.name.asc())
+        circuits_all = circuits_q.all()
+
+        devices_q = PosDevice.query.options(load_only(PosDevice.id, PosDevice.name, PosDevice.type, PosDevice.is_active, PosDevice.is_default))
+        if validity_enabled:
+            devices_q = devices_q.options(load_only(PosDevice.valid_from, PosDevice.valid_to)).order_by(
+                PosDevice.is_default.desc(),
+                PosDevice.is_active.desc(),
+                PosDevice.valid_from.desc().nullslast(),
+                PosDevice.name.asc(),
+            )
+        else:
+            devices_q = devices_q.order_by(PosDevice.is_default.desc(), PosDevice.is_active.desc(), PosDevice.name.asc())
+        devices = devices_q.all()
     except Exception as exc:
         logger.exception("Errore nel caricamento dispositivi POS")
         circuits_all = []
         devices = []
         flash(f"Impossibile caricare i dispositivi POS: {exc}", "warning")
-    return render_template("settings/pos_devices.html", devices=devices, circuits_all=circuits_all, today=date.today())
+    return render_template(
+        "settings/pos_devices.html",
+        devices=devices,
+        circuits_all=circuits_all,
+        today=date.today(),
+        pos_validity_enabled=validity_enabled if "validity_enabled" in locals() else False,
+    )
 
 
 @settings_bp.route("/pos-devices/<int:device_id>/toggle", methods=["POST"])

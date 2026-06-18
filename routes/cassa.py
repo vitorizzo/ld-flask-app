@@ -12,7 +12,8 @@ from cryptography.exceptions import InvalidTag
 from decimal import Decimal, InvalidOperation
 from datetime import date, datetime, timedelta, timezone
 from sqlalchemy import case, exists, or_, and_, func, text, event, inspect
-from sqlalchemy.orm import Session, noload, selectinload
+from sqlalchemy.orm import Session, noload, selectinload, load_only
+from sqlalchemy import inspect
 
 from tools.redis_utils import get_redis
 from tools.log_utils import get_logger
@@ -138,6 +139,14 @@ def _is_effective_on_date(record, ref_date):
     if end and ref_date and ref_date > end:
         return False
     return True
+
+
+def _table_has_column(table_name, column_name):
+    try:
+        inspector = inspect(db.engine)
+        return any(col["name"] == column_name for col in inspector.get_columns(table_name))
+    except Exception:
+        return False
 
 
 def _agenda_day_version_key(day_date) -> str:
@@ -6966,13 +6975,13 @@ def api_coins_vault_balance():
 @cassa_bp.route("/api/pos/devices", methods=["GET"])
 def api_pos_devices():
     ref_date = _parse_ref_date(request.args.get("date")) or date.today()
-    devices = (
-        PosDevice.query
-        .filter_by(is_active=True)
-        .order_by(PosDevice.name)
-        .all()
-    )
-    devices = [d for d in devices if _is_effective_on_date(d, ref_date)]
+    validity_enabled = _table_has_column("pos_devices", "valid_from") and _table_has_column("pos_devices", "valid_to")
+    devices_q = PosDevice.query.options(load_only(PosDevice.id, PosDevice.name, PosDevice.is_default, PosDevice.is_active))
+    if validity_enabled:
+        devices_q = devices_q.options(load_only(PosDevice.valid_from, PosDevice.valid_to))
+    devices = devices_q.filter_by(is_active=True).order_by(PosDevice.name).all()
+    if validity_enabled:
+        devices = [d for d in devices if _is_effective_on_date(d, ref_date)]
 
     return jsonify({
         "ok": True,
@@ -6991,6 +7000,7 @@ def api_pos_devices():
 @cassa_bp.route("/api/pos/devices/<int:device_id>/circuits", methods=["GET"])
 def api_pos_device_circuits(device_id):
     ref_date = _parse_ref_date(request.args.get("date")) or date.today()
+    validity_enabled = _table_has_column("pos_circuits", "valid_from") and _table_has_column("pos_circuits", "valid_to")
 
     device = PosDevice.query.filter_by(
         id=device_id,
@@ -7000,10 +7010,10 @@ def api_pos_device_circuits(device_id):
     if not device:
         return jsonify({"ok": False, "error": "device_not_found"}), 404
 
-    circuits = [
-        c for c in device.circuits
-        if c.is_active and _is_effective_on_date(c, ref_date)
-    ]
+    circuits_q = device.circuits.options(load_only(PosCircuit.id, PosCircuit.name, PosCircuit.icon, PosCircuit.logo_path, PosCircuit.is_active))
+    if validity_enabled:
+        circuits_q = circuits_q.options(load_only(PosCircuit.valid_from, PosCircuit.valid_to))
+    circuits = [c for c in circuits_q.all() if c.is_active and (not validity_enabled or _is_effective_on_date(c, ref_date))]
 
     return jsonify({
         "ok": True,
