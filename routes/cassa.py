@@ -149,6 +149,27 @@ def _table_has_column(table_name, column_name):
         return False
 
 
+_POS_SCHEMA_READY = None
+
+
+def _ensure_pos_validity_schema():
+    global _POS_SCHEMA_READY
+    if _POS_SCHEMA_READY is not None:
+        return _POS_SCHEMA_READY
+    try:
+        db.session.execute(text("ALTER TABLE pos_circuits ADD COLUMN IF NOT EXISTS valid_from DATE"))
+        db.session.execute(text("ALTER TABLE pos_circuits ADD COLUMN IF NOT EXISTS valid_to DATE"))
+        db.session.execute(text("ALTER TABLE pos_devices ADD COLUMN IF NOT EXISTS valid_from DATE"))
+        db.session.execute(text("ALTER TABLE pos_devices ADD COLUMN IF NOT EXISTS valid_to DATE"))
+        db.session.commit()
+        _POS_SCHEMA_READY = True
+    except Exception as exc:
+        db.session.rollback()
+        logger.warning("Schema POS validity non disponibile: %s", exc)
+        _POS_SCHEMA_READY = False
+    return _POS_SCHEMA_READY
+
+
 def _agenda_day_version_key(day_date) -> str:
     return f"agenda:day:{day_date}:version"
 
@@ -6975,7 +6996,7 @@ def api_coins_vault_balance():
 @cassa_bp.route("/api/pos/devices", methods=["GET"])
 def api_pos_devices():
     ref_date = _parse_ref_date(request.args.get("date")) or date.today()
-    validity_enabled = _table_has_column("pos_devices", "valid_from") and _table_has_column("pos_devices", "valid_to")
+    validity_enabled = _ensure_pos_validity_schema()
     devices_q = PosDevice.query.options(load_only(PosDevice.id, PosDevice.name, PosDevice.is_default, PosDevice.is_active))
     if validity_enabled:
         devices_q = devices_q.options(load_only(PosDevice.valid_from, PosDevice.valid_to))
@@ -7000,7 +7021,7 @@ def api_pos_devices():
 @cassa_bp.route("/api/pos/devices/<int:device_id>/circuits", methods=["GET"])
 def api_pos_device_circuits(device_id):
     ref_date = _parse_ref_date(request.args.get("date")) or date.today()
-    validity_enabled = _table_has_column("pos_circuits", "valid_from") and _table_has_column("pos_circuits", "valid_to")
+    validity_enabled = _ensure_pos_validity_schema()
 
     device = PosDevice.query.filter_by(
         id=device_id,

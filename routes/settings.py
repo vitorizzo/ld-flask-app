@@ -1,7 +1,7 @@
 from flask import request, flash, render_template, Blueprint, jsonify, redirect, current_app, url_for
 from flask_login import login_required
 from flask_socketio import SocketIO
-from sqlalchemy import asc
+from sqlalchemy import asc, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload, load_only
 from sqlalchemy import inspect
@@ -81,6 +81,27 @@ def _table_has_column(table_name, column_name):
         return any(col["name"] == column_name for col in inspector.get_columns(table_name))
     except Exception:
         return False
+
+
+_POS_SCHEMA_READY = None
+
+
+def _ensure_pos_validity_schema():
+    global _POS_SCHEMA_READY
+    if _POS_SCHEMA_READY is not None:
+        return _POS_SCHEMA_READY
+    try:
+        db.session.execute(text("ALTER TABLE pos_circuits ADD COLUMN IF NOT EXISTS valid_from DATE"))
+        db.session.execute(text("ALTER TABLE pos_circuits ADD COLUMN IF NOT EXISTS valid_to DATE"))
+        db.session.execute(text("ALTER TABLE pos_devices ADD COLUMN IF NOT EXISTS valid_from DATE"))
+        db.session.execute(text("ALTER TABLE pos_devices ADD COLUMN IF NOT EXISTS valid_to DATE"))
+        db.session.commit()
+        _POS_SCHEMA_READY = True
+    except Exception as exc:
+        db.session.rollback()
+        logger.warning("Schema POS validity non disponibile: %s", exc)
+        _POS_SCHEMA_READY = False
+    return _POS_SCHEMA_READY
 
 
 def _selected_ids_from_form(form, key):
@@ -306,7 +327,7 @@ def bank_delete(bank_id):
 @log_task(logger)
 def pos_circuits_index():
     try:
-        validity_enabled = _table_has_column("pos_circuits", "valid_from") and _table_has_column("pos_circuits", "valid_to")
+        validity_enabled = _ensure_pos_validity_schema()
         if request.method == "POST":
             circuit_id = _parse_int(request.form.get("circuit_id"))
             name = (request.form.get("name") or "").strip()
@@ -431,7 +452,7 @@ def pos_circuit_delete(circuit_id):
 @log_task(logger)
 def pos_devices_index():
     try:
-        validity_enabled = _table_has_column("pos_devices", "valid_from") and _table_has_column("pos_devices", "valid_to")
+        validity_enabled = _ensure_pos_validity_schema()
         if request.method == "POST":
             device_id = _parse_int(request.form.get("device_id"))
             name = (request.form.get("name") or "").strip()
@@ -466,7 +487,7 @@ def pos_devices_index():
             return redirect(url_for("settings.pos_devices_index"))
 
         circuits_q = PosCircuit.query.options(load_only(PosCircuit.id, PosCircuit.name, PosCircuit.is_active))
-        if _table_has_column("pos_circuits", "valid_from") and _table_has_column("pos_circuits", "valid_to"):
+        if validity_enabled:
             circuits_q = circuits_q.options(load_only(PosCircuit.valid_from, PosCircuit.valid_to)).order_by(
                 PosCircuit.is_active.desc(),
                 PosCircuit.valid_from.desc().nullslast(),
@@ -476,7 +497,10 @@ def pos_devices_index():
             circuits_q = circuits_q.order_by(PosCircuit.is_active.desc(), PosCircuit.name.asc())
         circuits_all = circuits_q.all()
 
-        devices_q = PosDevice.query.options(load_only(PosDevice.id, PosDevice.name, PosDevice.type, PosDevice.is_active, PosDevice.is_default))
+        devices_q = PosDevice.query.options(
+            load_only(PosDevice.id, PosDevice.name, PosDevice.type, PosDevice.is_active, PosDevice.is_default),
+            selectinload(PosDevice.circuits).load_only(PosCircuit.id, PosCircuit.name, PosCircuit.icon, PosCircuit.logo_path, PosCircuit.is_active),
+        )
         if validity_enabled:
             devices_q = devices_q.options(load_only(PosDevice.valid_from, PosDevice.valid_to)).order_by(
                 PosDevice.is_default.desc(),

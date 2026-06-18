@@ -853,3 +853,4 @@ Versione: 2.4
 Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed eliminazione versamenti attivi, logica assegni/eventi introdotta, prossimo focus sul KPI Quadratura
 - 2026-06-18: POS configurazione ora gestisce validita' temporale dei circuiti/dispositivi e la lettura storica dei movimenti su giornate chiuse.
 - 2026-06-18 compatibilita' retroattiva: `pos_circuits` e `pos_devices` vengono letti senza richiedere subito le nuove colonne di validita' quando il DB non e' ancora migrato.
+- 2026-06-18 schema POS: i campi di validita' vengono aggiunti automaticamente a `pos_circuits` e `pos_devices` se mancanti, cosi' le pagine di configurazione non bloccano il lavoro quando il deploy precede la migrazione.

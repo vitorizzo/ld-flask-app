@@ -1434,3 +1434,6 @@ Performance apertura giornata Agenda 2026-06-13:
 - 2026-06-18: aggiunti `valid_from`/`valid_to` a `PosCircuit` e `PosDevice`; la dashboard POS ora filtra i lookup per data e la lista movimenti POS non blocca piu' la lettura sulle giornate chiuse.
 - 2026-06-18: la modale icone dei circuiti e' stata portata direttamente nel `body` e aperta via JS per evitare lo stacking issue ricorrente.
 - 2026-06-18 fix emergenza: le pagine POS e l'agenda non vanno piu' in errore se `valid_from`/`valid_to` non sono ancora presenti nel DB; le query ora leggono solo le colonne realmente disponibili e degradano in modo compatibile.
+- 2026-06-18 fix emergenza 2: il runtime prova a creare automaticamente `valid_from`/`valid_to` su `pos_circuits` e `pos_devices` se il DB non e' ancora migrato, per evitare blocchi sulla pagina dispositivi/circuiti e sull'agenda.
+- 2026-06-18 fix emergenza 3: la select dei circuiti associati ai dispositivi POS ora viene eager-loaded, evitando query lazy che potevano rompere la pagina su DB non allineato.
+- 2026-06-18 fix emergenza 4: la modale icon picker dei circuiti usa un layer Bootstrap piu' robusto con `modal-content` attivo e z-index molto alto.
