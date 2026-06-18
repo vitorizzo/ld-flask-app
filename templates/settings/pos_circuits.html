@@ -2,7 +2,7 @@
 
 {% block title %}LD Enoteca - Circuiti Carte{% endblock %}
 
-{% block content %}
+{% block extra_css %}
 <style>
   .settings-icon-picker-modal.modal,
   .settings-icon-picker-modal.modal.show {
@@ -28,6 +28,9 @@
     z-index: 19990 !important;
   }
 </style>
+{% endblock %}
+
+{% block content %}
 <section class="welcome-section page-shell">
   <div class="container-fluid">
     <div class="d-flex align-items-start justify-content-between mb-4">
@@ -126,7 +129,7 @@
                   <input class="form-control" id="circuit-logo-{{ circuit.id }}" type="file" name="logo_file" accept="image/*">
                   {% if circuit.logo_path %}
                     <div class="mt-2 d-flex align-items-center gap-2">
-                      <img src="{{ url_for('static', filename=circuit.logo_path) }}" alt="Logo {{ circuit.name }}" style="width: 56px; height: 56px; object-fit: contain; background: #fff;" class="border rounded p-1">
+                      <img src="{{ url_for('settings.pos_circuit_logo', logo_path=circuit.logo_path) }}" alt="Logo {{ circuit.name }}" style="width: 56px; height: 56px; object-fit: contain; background: #fff;" class="border rounded p-1">
                       <span class="text-muted small">{{ circuit.logo_path }}</span>
                     </div>
                   {% endif %}
@@ -219,6 +222,9 @@
   </div>
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
 <script>
 (function () {
   const modalEl = document.getElementById("circuitIconPickerModal");

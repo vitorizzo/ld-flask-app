@@ -1,10 +1,9 @@
-from flask import request, flash, render_template, Blueprint, jsonify, redirect, current_app, url_for
+from flask import request, flash, render_template, Blueprint, jsonify, redirect, current_app, url_for, send_from_directory
 from flask_login import login_required
 from flask_socketio import SocketIO
 from sqlalchemy import asc, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload, load_only
-from sqlalchemy import inspect
 from werkzeug.utils import secure_filename
 import os
 import uuid
@@ -136,6 +135,21 @@ def _save_uploaded_logo(file_storage, prefix="logo"):
     target_path = os.path.join(folder, target_name)
     file_storage.save(target_path)
     return f"images/pos/{target_name}"
+
+
+@settings_bp.get("/circuit-logos/<path:logo_path>")
+@login_required
+@role_required(900)
+def pos_circuit_logo(logo_path):
+    relative = (logo_path or "").lstrip("/").replace("\\", "/")
+    if relative.startswith("static/"):
+        relative = relative[len("static/"):]
+    directory = os.path.join(current_app.root_path, "static")
+    response = send_from_directory(directory, relative, conditional=True, max_age=0)
+    response.cache_control.no_cache = True
+    response.cache_control.no_store = True
+    response.cache_control.must_revalidate = True
+    return response
 
 
 def _promote_default_bank():

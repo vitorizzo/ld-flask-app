@@ -856,3 +856,4 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - 2026-06-18 schema POS: i campi di validita' vengono aggiunti automaticamente a `pos_circuits` e `pos_devices` se mancanti, cosi' le pagine di configurazione non bloccano il lavoro quando il deploy precede la migrazione.
 - 2026-06-18 POS circuiti/dispositivi: logo in `static/images/pos`, picker icone custom, relazione `PosDevice.circuits` lasciata dinamica senza eager loading.
 - 2026-06-18 POS final: logo in `static/images/pos`, icon picker Bootstrap standard, query esplicita dei circuiti per dispositivo.
+- 2026-06-18 POS fix UI: il picker icone dei circuiti viene inizializzato in `extra_js` dopo il bundle Bootstrap, e i preview logo passano dalla route `settings.pos_circuit_logo`.
