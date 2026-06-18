@@ -30,7 +30,7 @@
             <label class="form-label" for="circuit-icon-new">Icona</label>
             <div class="input-group">
               <input class="form-control circuit-icon-input" id="circuit-icon-new" name="icon" type="text" placeholder="Scegli un'icona" readonly>
-              <button class="btn btn-outline-secondary circuit-icon-picker-btn" type="button"
+              <button class="btn btn-outline-secondary circuit-icon-picker-btn" type="button" data-bs-toggle="modal" data-bs-target="#circuitIconPickerModal"
                       data-icon-target="circuit-icon-new" data-icon-preview="circuit-icon-preview-new">
                 <i class="fa-solid fa-icons me-1"></i>Scegli
               </button>
@@ -69,7 +69,7 @@
                   <label class="form-label" for="circuit-icon-{{ circuit.id }}">Icona</label>
                   <div class="input-group">
                     <input class="form-control circuit-icon-input" id="circuit-icon-{{ circuit.id }}" type="text" name="icon" value="{{ circuit.icon or '' }}" readonly>
-                    <button class="btn btn-outline-secondary circuit-icon-picker-btn" type="button"
+                    <button class="btn btn-outline-secondary circuit-icon-picker-btn" type="button" data-bs-toggle="modal" data-bs-target="#circuitIconPickerModal"
                             data-icon-target="circuit-icon-{{ circuit.id }}" data-icon-preview="circuit-icon-preview-{{ circuit.id }}">
                       <i class="fa-solid fa-icons me-1"></i>Scegli
                     </button>
@@ -164,7 +164,6 @@
 (function () {
   const modalEl = document.getElementById("circuitIconPickerModal");
   if (!modalEl || !window.bootstrap) return;
-  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
   let activeTarget = null;
   let activePreview = null;
 
@@ -172,7 +171,6 @@
     btn.addEventListener("click", () => {
       activeTarget = document.getElementById(btn.dataset.iconTarget);
       activePreview = document.getElementById(btn.dataset.iconPreview);
-      modal.show();
     });
   });
 
@@ -184,7 +182,7 @@
       if (activePreview) {
         activePreview.innerHTML = value ? `<i class="${value} me-1"></i>${value}` : "Nessuna icona";
       }
-      modal.hide();
+      bootstrap.Modal.getOrCreateInstance(modalEl).hide();
     });
   });
 })();
