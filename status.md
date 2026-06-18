@@ -1415,6 +1415,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - dashboard trasformata in tile di categoria, con voce `Utenti` in apertura;
   - aggiunti i tile `Banche`, `Circuiti Carte` e `Dispositivi POS`, collegati a pagine read-only di riepilogo;
   - rese modificabili le aree `Banche`, `Circuiti Carte` e `Dispositivi POS` con salvataggio inline e associazione circuiti per il POS;
+  - i circuiti carte mostrano ora icona e logo in forma grafica, con picker icone tramite modale e upload logo da file;
+  - il logo del circuito resta invariato finché non viene caricato un nuovo file;
+  - i dispositivi POS usano checkbox leggibili per i circuiti associati invece del multiselect;
   - la validazione dei record nuovi avviene prima della creazione per evitare inserimenti vuoti lasciati in sessione;
   - aggiunte azioni esplicite di disattivazione e cancellazione, con blocco quando esistono riferimenti storici o associazioni;
   - aggiunta pagina `/settings/preferences` con configurazioni divise per categoria;

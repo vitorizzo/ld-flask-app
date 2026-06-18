@@ -822,6 +822,9 @@ Stato implementazione 2026-06-14:
   - dashboard iniziale a tile di categoria, con `Utenti` come accesso principale;
   - aggiunti i tile `Banche`, `Circuiti Carte` e `Dispositivi POS` con pagine read-only di riepilogo;
   - le aree `Banche`, `Circuiti Carte` e `Dispositivi POS` sono ora editabili con form inline; i POS permettono anche l'associazione dei circuiti;
+  - i circuiti carte hanno picker icone in modale e upload logo con preview grafica;
+  - il logo del circuito non viene azzerato al salvataggio: resta quello esistente finché non si carica un nuovo file;
+  - i dispositivi POS presentano i circuiti associati come checkbox invece del multiselect;
   - i record nuovi validano il nome prima dell'insert, per evitare oggetti vuoti lasciati pendenti in sessione;
   - le stesse aree espongono anche azioni esplicite di disattivazione e cancellazione, con blocco se esistono riferimenti storici o associazioni;
   - nuova pagina `/settings/preferences` per configurazioni divise per categoria;

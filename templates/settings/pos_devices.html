@@ -37,12 +37,15 @@
             </select>
           </div>
           <div class="col-12 col-lg-5">
-            <label class="form-label" for="device-circuits-new">Circuiti associati</label>
-            <select class="form-select" id="device-circuits-new" name="circuit_ids" multiple size="4">
+            <label class="form-label">Circuiti associati</label>
+            <div class="border rounded p-3 bg-light" style="max-height: 220px; overflow: auto;">
               {% for circuit in circuits_all %}
-                <option value="{{ circuit.id }}">{{ circuit.name }}</option>
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" name="circuit_ids" value="{{ circuit.id }}" id="device-new-circuit-{{ circuit.id }}">
+                  <label class="form-check-label" for="device-new-circuit-{{ circuit.id }}">{{ circuit.name }}</label>
+                </div>
               {% endfor %}
-            </select>
+            </div>
           </div>
           <div class="col-6 col-lg-2 form-check mt-4 pt-2">
             <input class="form-check-input" type="checkbox" id="device-active-new" name="is_active" checked>
@@ -79,13 +82,16 @@
                   </select>
                 </div>
                 <div class="col-12 col-lg-5">
-                  <label class="form-label" for="device-circuits-{{ device.id }}">Circuiti associati</label>
-                  <select class="form-select" id="device-circuits-{{ device.id }}" name="circuit_ids" multiple size="4">
-                    {% set selected_ids = device.circuits.all() | map(attribute='id') | list %}
+                  <label class="form-label">Circuiti associati</label>
+                  {% set selected_ids = device.circuits.all() | map(attribute='id') | list %}
+                  <div class="border rounded p-3 bg-light" style="max-height: 220px; overflow: auto;">
                     {% for circuit in circuits_all %}
-                      <option value="{{ circuit.id }}" {% if circuit.id in selected_ids %}selected{% endif %}>{{ circuit.name }}</option>
+                      <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="circuit_ids" value="{{ circuit.id }}" id="device-{{ device.id }}-circuit-{{ circuit.id }}" {% if circuit.id in selected_ids %}checked{% endif %}>
+                        <label class="form-check-label" for="device-{{ device.id }}-circuit-{{ circuit.id }}">{{ circuit.name }}</label>
+                      </div>
                     {% endfor %}
-                  </select>
+                  </div>
                 </div>
                 <div class="col-6 col-lg-2 form-check mt-4 pt-2">
                   <input class="form-check-input" type="checkbox" id="device-active-{{ device.id }}" name="is_active" value="1" {% if device.is_active %}checked{% endif %}>

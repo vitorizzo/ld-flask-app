@@ -4,6 +4,9 @@ from flask_socketio import SocketIO
 from sqlalchemy import asc
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
+from werkzeug.utils import secure_filename
+import os
+import uuid
 
 from extensions import db
 from models import (
@@ -69,6 +72,29 @@ def _selected_ids_from_form(form, key):
         if parsed is not None:
             ids.append(parsed)
     return ids
+
+
+def _settings_upload_folder(*parts):
+    base = current_app.config.get("UPLOAD_FOLDER")
+    if not base:
+        base = os.path.join(current_app.root_path, "static", "uploads")
+    folder = os.path.join(base, *parts)
+    os.makedirs(folder, exist_ok=True)
+    return folder
+
+
+def _save_uploaded_logo(file_storage, prefix="logo"):
+    if not file_storage or not getattr(file_storage, "filename", ""):
+        return None
+    filename = secure_filename(file_storage.filename)
+    if not filename:
+        return None
+    ext = os.path.splitext(filename)[1].lower() or ".png"
+    target_name = f"{prefix}_{uuid.uuid4().hex}{ext}"
+    folder = _settings_upload_folder("settings", "pos_circuits")
+    target_path = os.path.join(folder, target_name)
+    file_storage.save(target_path)
+    return f"uploads/settings/pos_circuits/{target_name}"
 
 
 def _promote_default_bank():
@@ -275,7 +301,9 @@ def pos_circuits_index():
 
             circuit.name = name
             circuit.icon = (request.form.get("icon") or "").strip() or None
-            circuit.logo_path = (request.form.get("logo_path") or "").strip() or None
+            uploaded_logo = request.files.get("logo_file")
+            if uploaded_logo and uploaded_logo.filename:
+                circuit.logo_path = _save_uploaded_logo(uploaded_logo, prefix=f"circuit_{circuit.id or 'new'}")
             circuit.is_active = _form_bool(request.form, "is_active", True)
             db.session.commit()
             flash("Circuito salvato con successo.", "success")
@@ -286,7 +314,21 @@ def pos_circuits_index():
         logger.exception("Errore nel caricamento circuiti POS")
         circuits = []
         flash(f"Impossibile caricare i circuiti carte: {exc}", "warning")
-    return render_template("settings/pos_circuits.html", circuits=circuits)
+    icon_choices = [
+        "fa-solid fa-credit-card",
+        "fa-solid fa-cc-visa",
+        "fa-solid fa-cc-mastercard",
+        "fa-solid fa-cc-amex",
+        "fa-solid fa-money-check-dollar",
+        "fa-solid fa-wallet",
+        "fa-solid fa-circle-nodes",
+        "fa-solid fa-building-columns",
+        "fa-solid fa-hand-holding-dollar",
+        "fa-solid fa-receipt",
+        "fa-solid fa-landmark",
+        "fa-solid fa-cart-shopping",
+    ]
+    return render_template("settings/pos_circuits.html", circuits=circuits, icon_choices=icon_choices)
 
 
 @settings_bp.route("/pos-circuits/<int:circuit_id>/toggle", methods=["POST"])
