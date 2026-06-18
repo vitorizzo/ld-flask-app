@@ -265,6 +265,7 @@ Nota operativa 2026-06-14:
 - impostazioni applicative: la dashboard deve includere anche i tile `Banche`, `Circuiti Carte` e `Dispositivi POS`, ognuno con pagina di riepilogo read-only come base per la futura gestione.
 - impostazioni applicative: `Banche`, `Circuiti Carte` e `Dispositivi POS` sono gestite con form inline; il POS consente anche di associare piu' circuiti al dispositivo.
 - impostazioni applicative: i circuiti carte devono mostrare icona e logo come elementi grafici, con picker icone in modale e upload logo da file con preview.
+- impostazioni applicative: il picker icone dei circuiti usa Font Awesome gia' caricato nel layout; la modale deve essere portata nel `body` per non finire sotto gli stacking context della pagina.
 - impostazioni applicative: il logo del circuito va preservato al salvataggio finché non viene caricato un nuovo file.
 - impostazioni applicative: i dispositivi POS devono mostrare i circuiti associati come checkbox leggibili, non come multiselect con shift/click.
 - impostazioni applicative: per i record nuovi il nome va validato prima di creare l'oggetto ORM, cosi' non restano insert vuoti pendenti in sessione.

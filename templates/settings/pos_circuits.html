@@ -3,6 +3,18 @@
 {% block title %}LD Enoteca - Circuiti Carte{% endblock %}
 
 {% block content %}
+<style>
+  .settings-icon-picker-modal.modal,
+  .settings-icon-picker-modal.modal.show {
+    z-index: 5300 !important;
+  }
+  .settings-icon-picker-modal .modal-dialog {
+    z-index: 5301 !important;
+  }
+  body.settings-icon-picker-modal-open .modal-backdrop.show {
+    z-index: 5290 !important;
+  }
+</style>
 <section class="welcome-section page-shell">
   <div class="container-fluid">
     <div class="d-flex align-items-start justify-content-between mb-4">
@@ -135,7 +147,7 @@
   </div>
 </section>
 
-<div class="modal fade" id="circuitIconPickerModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade settings-icon-picker-modal" id="circuitIconPickerModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
@@ -166,6 +178,21 @@
   if (!modalEl || !window.bootstrap) return;
   let activeTarget = null;
   let activePreview = null;
+  let initialParent = modalEl.parentNode;
+
+  modalEl.addEventListener("show.bs.modal", () => {
+    document.body.classList.add("settings-icon-picker-modal-open");
+    if (modalEl.parentNode !== document.body) {
+      document.body.appendChild(modalEl);
+    }
+  });
+
+  modalEl.addEventListener("hidden.bs.modal", () => {
+    document.body.classList.remove("settings-icon-picker-modal-open");
+    if (initialParent && modalEl.parentNode === document.body) {
+      initialParent.appendChild(modalEl);
+    }
+  });
 
   document.querySelectorAll(".circuit-icon-picker-btn").forEach((btn) => {
     btn.addEventListener("click", () => {

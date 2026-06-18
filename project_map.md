@@ -823,6 +823,7 @@ Stato implementazione 2026-06-14:
   - aggiunti i tile `Banche`, `Circuiti Carte` e `Dispositivi POS` con pagine read-only di riepilogo;
   - le aree `Banche`, `Circuiti Carte` e `Dispositivi POS` sono ora editabili con form inline; i POS permettono anche l'associazione dei circuiti;
   - i circuiti carte hanno picker icone in modale e upload logo con preview grafica;
+  - il picker icone usa Font Awesome gia' presente nel layout e la modale viene riattaccata al `body` per evitare stacking issues;
   - il logo del circuito non viene azzerato al salvataggio: resta quello esistente finché non si carica un nuovo file;
   - i dispositivi POS presentano i circuiti associati come checkbox invece del multiselect;
   - i record nuovi validano il nome prima dell'insert, per evitare oggetti vuoti lasciati pendenti in sessione;
