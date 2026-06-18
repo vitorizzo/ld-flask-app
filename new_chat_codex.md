@@ -263,3 +263,6 @@ Nota operativa 2026-06-14:
 - impostazioni applicative: il template preferenze deve usare accesso esplicito ai campi dei dizionari (`section["items"]`) per evitare che Jinja risolva `dict.items` come metodo iterabile.
 - impostazioni applicative: `/settings` e' la dashboard principale a tile di categoria; la prima categoria da esporre e' `Utenti`, con una pagina read-only che mostra utenti, ruoli attivi e dati anagrafici principali.
 - impostazioni applicative: la dashboard deve includere anche i tile `Banche`, `Circuiti Carte` e `Dispositivi POS`, ognuno con pagina di riepilogo read-only come base per la futura gestione.
+- impostazioni applicative: `Banche`, `Circuiti Carte` e `Dispositivi POS` sono gestite con form inline; il POS consente anche di associare piu' circuiti al dispositivo.
+- impostazioni applicative: per i record nuovi il nome va validato prima di creare l'oggetto ORM, cosi' non restano insert vuoti pendenti in sessione.
+- impostazioni applicative: le aree configurazione devono esporre anche azioni esplicite di disattivazione e cancellazione, ma il delete va bloccato se il record ha riferimenti storici o associazioni.

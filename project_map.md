@@ -821,6 +821,9 @@ Stato implementazione 2026-06-14:
   - nuova pagina hub `/settings`;
   - dashboard iniziale a tile di categoria, con `Utenti` come accesso principale;
   - aggiunti i tile `Banche`, `Circuiti Carte` e `Dispositivi POS` con pagine read-only di riepilogo;
+  - le aree `Banche`, `Circuiti Carte` e `Dispositivi POS` sono ora editabili con form inline; i POS permettono anche l'associazione dei circuiti;
+  - i record nuovi validano il nome prima dell'insert, per evitare oggetti vuoti lasciati pendenti in sessione;
+  - le stesse aree espongono anche azioni esplicite di disattivazione e cancellazione, con blocco se esistono riferimenti storici o associazioni;
   - nuova pagina `/settings/preferences` per configurazioni divise per categoria;
   - nuova pagina `/settings/users` in sola lettura per elenco utenti, ruoli attivi e dati principali;
   - tabella `app_preferences` per persistenza runtime dei parametri;

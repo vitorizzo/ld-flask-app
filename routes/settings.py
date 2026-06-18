@@ -6,7 +6,24 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
 from extensions import db
-from models import Menu, Role, ImportConflict, Articoli, User, UserRole, CashBank, PosCircuit, PosDevice
+from models import (
+    Menu,
+    Role,
+    ImportConflict,
+    Articoli,
+    User,
+    UserRole,
+    CashBank,
+    PosCircuit,
+    PosDevice,
+    CashDeposit,
+    CashIssuedCheck,
+    CashSalePayment,
+    PosMove,
+    CashClosurePos,
+    pos_device_circuits,
+    CashSalePaymentPosMove,
+)
 from tools.role_required import role_required
 from tools.preferences import build_preferences_sections, load_preferences_into_app_config, save_preferences_from_form
 from config.tasks import (
@@ -26,6 +43,54 @@ logger = get_logger('settings')
 
 settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 socketio = SocketIO()
+
+
+def _form_bool(form, key, default=False):
+    if key in form:
+        value = str(form.get(key)).strip().lower()
+        return value in {"1", "true", "on", "yes"}
+    return bool(default)
+
+
+def _parse_int(value, fallback=None):
+    try:
+        if value is None or str(value).strip() == "":
+            return fallback
+        return int(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _selected_ids_from_form(form, key):
+    raw_values = form.getlist(key) if hasattr(form, "getlist") else []
+    ids = []
+    for raw in raw_values:
+        parsed = _parse_int(raw)
+        if parsed is not None:
+            ids.append(parsed)
+    return ids
+
+
+def _promote_default_bank():
+    bank = (
+        CashBank.query
+        .filter(CashBank.is_active.is_(True))
+        .order_by(CashBank.sort_order.asc(), CashBank.name.asc())
+        .first()
+    )
+    if bank:
+        bank.is_default = True
+
+
+def _promote_default_device():
+    device = (
+        PosDevice.query
+        .filter(PosDevice.is_active.is_(True))
+        .order_by(PosDevice.name.asc())
+        .first()
+    )
+    if device:
+        device.is_default = True
 
 
 @settings_bp.route("/", methods=["GET"])
@@ -108,12 +173,36 @@ def users_index():
     return render_template("settings/users.html", users=users)
 
 
-@settings_bp.route("/banks", methods=["GET"])
+@settings_bp.route("/banks", methods=["GET", "POST"])
 @login_required
 @role_required(900)
 @log_task(logger)
 def banks_index():
     try:
+        if request.method == "POST":
+            bank_id = _parse_int(request.form.get("bank_id"))
+            name = (request.form.get("name") or "").strip()
+            if not name:
+                flash("Il nome della banca è obbligatorio.", "warning")
+                return redirect(url_for("settings.banks_index"))
+
+            bank = CashBank.query.get(bank_id) if bank_id else None
+            if bank is None:
+                bank = CashBank()
+                db.session.add(bank)
+
+            bank.name = name
+            bank.is_active = _form_bool(request.form, "is_active", True)
+            bank.is_default = _form_bool(request.form, "is_default", False)
+            bank.sort_order = _parse_int(request.form.get("sort_order"), 0) or 0
+
+            if bank.is_default:
+                CashBank.query.filter(CashBank.id != bank.id).update({"is_default": False})
+
+            db.session.commit()
+            flash("Banca salvata con successo.", "success")
+            return redirect(url_for("settings.banks_index"))
+
         banks = (
             CashBank.query
             .order_by(CashBank.is_default.desc(), CashBank.sort_order.asc(), CashBank.name.asc())
@@ -126,12 +215,72 @@ def banks_index():
     return render_template("settings/banks.html", banks=banks)
 
 
-@settings_bp.route("/pos-circuits", methods=["GET"])
+@settings_bp.route("/banks/<int:bank_id>/toggle", methods=["POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def bank_toggle_active(bank_id):
+    bank = CashBank.query.get_or_404(bank_id)
+    bank.is_active = not bool(bank.is_active)
+    if not bank.is_active and bank.is_default:
+        bank.is_default = False
+        _promote_default_bank()
+    db.session.commit()
+    flash("Stato banca aggiornato.", "success")
+    return redirect(url_for("settings.banks_index"))
+
+
+@settings_bp.route("/banks/<int:bank_id>/delete", methods=["POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def bank_delete(bank_id):
+    bank = CashBank.query.get_or_404(bank_id)
+    usage_count = (
+        CashDeposit.query.filter_by(bank_id=bank.id).count()
+        + CashIssuedCheck.query.filter_by(bank_id=bank.id).count()
+        + CashSalePayment.query.filter_by(bank_id=bank.id).count()
+    )
+    if usage_count:
+        flash("La banca è usata da movimenti storici: disattivala invece di eliminarla.", "warning")
+        return redirect(url_for("settings.banks_index"))
+
+    was_default = bool(bank.is_default)
+    db.session.delete(bank)
+    db.session.commit()
+    if was_default:
+        _promote_default_bank()
+        db.session.commit()
+    flash("Banca eliminata.", "success")
+    return redirect(url_for("settings.banks_index"))
+
+
+@settings_bp.route("/pos-circuits", methods=["GET", "POST"])
 @login_required
 @role_required(900)
 @log_task(logger)
 def pos_circuits_index():
     try:
+        if request.method == "POST":
+            circuit_id = _parse_int(request.form.get("circuit_id"))
+            name = (request.form.get("name") or "").strip()
+            if not name:
+                flash("Il nome del circuito è obbligatorio.", "warning")
+                return redirect(url_for("settings.pos_circuits_index"))
+
+            circuit = PosCircuit.query.get(circuit_id) if circuit_id else None
+            if circuit is None:
+                circuit = PosCircuit()
+                db.session.add(circuit)
+
+            circuit.name = name
+            circuit.icon = (request.form.get("icon") or "").strip() or None
+            circuit.logo_path = (request.form.get("logo_path") or "").strip() or None
+            circuit.is_active = _form_bool(request.form, "is_active", True)
+            db.session.commit()
+            flash("Circuito salvato con successo.", "success")
+            return redirect(url_for("settings.pos_circuits_index"))
+
         circuits = PosCircuit.query.order_by(PosCircuit.is_active.desc(), PosCircuit.name.asc()).all()
     except Exception as exc:
         logger.exception("Errore nel caricamento circuiti POS")
@@ -140,18 +289,126 @@ def pos_circuits_index():
     return render_template("settings/pos_circuits.html", circuits=circuits)
 
 
-@settings_bp.route("/pos-devices", methods=["GET"])
+@settings_bp.route("/pos-circuits/<int:circuit_id>/toggle", methods=["POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def pos_circuit_toggle_active(circuit_id):
+    circuit = PosCircuit.query.get_or_404(circuit_id)
+    circuit.is_active = not bool(circuit.is_active)
+    db.session.commit()
+    flash("Stato circuito aggiornato.", "success")
+    return redirect(url_for("settings.pos_circuits_index"))
+
+
+@settings_bp.route("/pos-circuits/<int:circuit_id>/delete", methods=["POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def pos_circuit_delete(circuit_id):
+    circuit = PosCircuit.query.get_or_404(circuit_id)
+    usage_count = (
+        db.session.query(pos_device_circuits).filter(pos_device_circuits.c.pos_circuit_id == circuit.id).count()
+        + PosMove.query.filter_by(pos_circuit_id=circuit.id).count()
+        + CashClosurePos.query.filter_by(pos_circuit_id=circuit.id).count()
+        + CashSalePaymentPosMove.query.join(PosMove).filter(PosMove.pos_circuit_id == circuit.id).count()
+    )
+    if usage_count:
+        flash("Il circuito è usato da dispositivi o movimenti storici: disattivalo invece di eliminarlo.", "warning")
+        return redirect(url_for("settings.pos_circuits_index"))
+
+    db.session.delete(circuit)
+    db.session.commit()
+    flash("Circuito eliminato.", "success")
+    return redirect(url_for("settings.pos_circuits_index"))
+
+
+@settings_bp.route("/pos-devices", methods=["GET", "POST"])
 @login_required
 @role_required(900)
 @log_task(logger)
 def pos_devices_index():
     try:
+        if request.method == "POST":
+            device_id = _parse_int(request.form.get("device_id"))
+            name = (request.form.get("name") or "").strip()
+            if not name:
+                flash("Il nome del dispositivo POS è obbligatorio.", "warning")
+                return redirect(url_for("settings.pos_devices_index"))
+
+            device = PosDevice.query.get(device_id) if device_id else None
+            if device is None:
+                device = PosDevice()
+                db.session.add(device)
+
+            device.name = name
+            device.type = (request.form.get("type") or "physical").strip() or "physical"
+            device.is_active = _form_bool(request.form, "is_active", True)
+            device.is_default = _form_bool(request.form, "is_default", False)
+
+            selected_circuits = _selected_ids_from_form(request.form, "circuit_ids")
+            for circuit in list(device.circuits.all()):
+                device.circuits.remove(circuit)
+            if selected_circuits:
+                for circuit in PosCircuit.query.filter(PosCircuit.id.in_(selected_circuits)).all():
+                    device.circuits.append(circuit)
+
+            if device.is_default:
+                PosDevice.query.filter(PosDevice.id != device.id).update({"is_default": False})
+
+            db.session.commit()
+            flash("Dispositivo POS salvato con successo.", "success")
+            return redirect(url_for("settings.pos_devices_index"))
+
+        circuits_all = PosCircuit.query.order_by(PosCircuit.is_active.desc(), PosCircuit.name.asc()).all()
         devices = PosDevice.query.order_by(PosDevice.is_default.desc(), PosDevice.is_active.desc(), PosDevice.name.asc()).all()
     except Exception as exc:
         logger.exception("Errore nel caricamento dispositivi POS")
+        circuits_all = []
         devices = []
         flash(f"Impossibile caricare i dispositivi POS: {exc}", "warning")
-    return render_template("settings/pos_devices.html", devices=devices)
+    return render_template("settings/pos_devices.html", devices=devices, circuits_all=circuits_all)
+
+
+@settings_bp.route("/pos-devices/<int:device_id>/toggle", methods=["POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def pos_device_toggle_active(device_id):
+    device = PosDevice.query.get_or_404(device_id)
+    device.is_active = not bool(device.is_active)
+    if not device.is_active and device.is_default:
+        device.is_default = False
+        _promote_default_device()
+    db.session.commit()
+    flash("Stato dispositivo aggiornato.", "success")
+    return redirect(url_for("settings.pos_devices_index"))
+
+
+@settings_bp.route("/pos-devices/<int:device_id>/delete", methods=["POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def pos_device_delete(device_id):
+    device = PosDevice.query.get_or_404(device_id)
+    usage_count = (
+        db.session.query(pos_device_circuits).filter(pos_device_circuits.c.pos_device_id == device.id).count()
+        + PosMove.query.filter_by(pos_device_id=device.id).count()
+        + CashClosurePos.query.filter_by(pos_device_id=device.id).count()
+        + CashSalePaymentPosMove.query.join(PosMove).filter(PosMove.pos_device_id == device.id).count()
+    )
+    if usage_count:
+        flash("Il dispositivo POS è usato da movimenti storici o associazioni: disattivalo invece di eliminarlo.", "warning")
+        return redirect(url_for("settings.pos_devices_index"))
+
+    was_default = bool(device.is_default)
+    db.session.delete(device)
+    db.session.commit()
+    if was_default:
+        _promote_default_device()
+        db.session.commit()
+    flash("Dispositivo POS eliminato.", "success")
+    return redirect(url_for("settings.pos_devices_index"))
 
 
 def _save_role_preferences_from_form(form):
