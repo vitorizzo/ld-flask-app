@@ -47,6 +47,14 @@
               {% endfor %}
             </div>
           </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="device-valid-from-new">Valido dal</label>
+            <input class="form-control" id="device-valid-from-new" name="valid_from" type="date" value="{{ today.isoformat() }}">
+          </div>
+          <div class="col-6 col-lg-2">
+            <label class="form-label" for="device-valid-to-new">Valido al</label>
+            <input class="form-control" id="device-valid-to-new" name="valid_to" type="date">
+          </div>
           <div class="col-6 col-lg-2 form-check mt-4 pt-2">
             <input class="form-check-input" type="checkbox" id="device-active-new" name="is_active" checked>
             <label class="form-check-label" for="device-active-new">Attivo</label>
@@ -81,6 +89,14 @@
                     {% endfor %}
                   </select>
                 </div>
+                <div class="col-6 col-lg-2">
+                  <label class="form-label" for="device-valid-from-{{ device.id }}">Valido dal</label>
+                  <input class="form-control" id="device-valid-from-{{ device.id }}" type="date" name="valid_from" value="{{ device.valid_from.isoformat() if device.valid_from else '' }}">
+                </div>
+                <div class="col-6 col-lg-2">
+                  <label class="form-label" for="device-valid-to-{{ device.id }}">Valido al</label>
+                  <input class="form-control" id="device-valid-to-{{ device.id }}" type="date" name="valid_to" value="{{ device.valid_to.isoformat() if device.valid_to else '' }}">
+                </div>
                 <div class="col-12 col-lg-5">
                   <label class="form-label">Circuiti associati</label>
                   {% set selected_ids = device.circuits.all() | map(attribute='id') | list %}
@@ -109,6 +125,7 @@
             <div class="card-footer d-flex align-items-center justify-content-between gap-2">
               <div class="text-muted small">
                 ID {{ device.id }} - {% if device.circuits.count() %}{{ device.circuits.count() }} circuiti associati{% else %}Nessun circuito associato{% endif %}
+                <span class="ms-2">Dal {{ device.valid_from.isoformat() if device.valid_from else "sempre" }}{% if device.valid_to %} fino al {{ device.valid_to.isoformat() }}{% endif %}</span>
               </div>
               <div class="d-flex gap-2">
                 <form method="post" action="{{ url_for('settings.pos_device_toggle_active', device_id=device.id) }}">

@@ -118,6 +118,28 @@ def _reject_if_day_closed_for_date(day_date):
     return _reject_if_day_closed(cash_day)
 
 
+def _parse_ref_date(raw_value):
+    raw_value = (raw_value or "").strip()
+    if not raw_value:
+        return None
+    try:
+        return datetime.strptime(raw_value, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _is_effective_on_date(record, ref_date):
+    if not record:
+        return False
+    start = getattr(record, "valid_from", None)
+    end = getattr(record, "valid_to", None)
+    if start and ref_date and ref_date < start:
+        return False
+    if end and ref_date and ref_date > end:
+        return False
+    return True
+
+
 def _agenda_day_version_key(day_date) -> str:
     return f"agenda:day:{day_date}:version"
 
@@ -6407,9 +6429,6 @@ def api_list_pos_moves(day_date):
     cash_day = CashDay.query.filter(CashDay.day_date == d).first()
     if not cash_day:
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
-    closed_response = _reject_if_day_closed(cash_day)
-    if closed_response:
-        return closed_response
 
     moves = (
         PosMove.query
@@ -6946,12 +6965,14 @@ def api_coins_vault_balance():
 
 @cassa_bp.route("/api/pos/devices", methods=["GET"])
 def api_pos_devices():
+    ref_date = _parse_ref_date(request.args.get("date")) or date.today()
     devices = (
         PosDevice.query
         .filter_by(is_active=True)
         .order_by(PosDevice.name)
         .all()
     )
+    devices = [d for d in devices if _is_effective_on_date(d, ref_date)]
 
     return jsonify({
         "ok": True,
@@ -6962,12 +6983,14 @@ def api_pos_devices():
                 "is_default": bool(d.is_default)
             }
             for d in devices
-        ]
+        ],
+        "ref_date": ref_date.isoformat(),
     })
 
 
 @cassa_bp.route("/api/pos/devices/<int:device_id>/circuits", methods=["GET"])
 def api_pos_device_circuits(device_id):
+    ref_date = _parse_ref_date(request.args.get("date")) or date.today()
 
     device = PosDevice.query.filter_by(
         id=device_id,
@@ -6979,7 +7002,7 @@ def api_pos_device_circuits(device_id):
 
     circuits = [
         c for c in device.circuits
-        if c.is_active
+        if c.is_active and _is_effective_on_date(c, ref_date)
     ]
 
     return jsonify({
@@ -6992,7 +7015,8 @@ def api_pos_device_circuits(device_id):
                 "logo_path": c.logo_path
             }
             for c in circuits
-        ]
+        ],
+        "ref_date": ref_date.isoformat(),
     })
 
 

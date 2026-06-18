@@ -40,7 +40,7 @@ from config.tasks import (
 from tools.ps_util import get_product_by_code
 from tools.log_utils import log_task, get_logger
 import hashlib
-from datetime import datetime
+from datetime import datetime, date
 
 logger = get_logger('settings')
 
@@ -60,6 +60,16 @@ def _parse_int(value, fallback=None):
         if value is None or str(value).strip() == "":
             return fallback
         return int(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _parse_date(value, fallback=None):
+    raw = (value or "").strip()
+    if not raw:
+        return fallback
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").date()
     except (TypeError, ValueError):
         return fallback
 
@@ -301,6 +311,8 @@ def pos_circuits_index():
 
             circuit.name = name
             circuit.icon = (request.form.get("icon") or "").strip() or None
+            circuit.valid_from = _parse_date(request.form.get("valid_from"))
+            circuit.valid_to = _parse_date(request.form.get("valid_to"))
             uploaded_logo = request.files.get("logo_file")
             if uploaded_logo and uploaded_logo.filename:
                 circuit.logo_path = _save_uploaded_logo(uploaded_logo, prefix=f"circuit_{circuit.id or 'new'}")
@@ -309,7 +321,11 @@ def pos_circuits_index():
             flash("Circuito salvato con successo.", "success")
             return redirect(url_for("settings.pos_circuits_index"))
 
-        circuits = PosCircuit.query.order_by(PosCircuit.is_active.desc(), PosCircuit.name.asc()).all()
+        circuits = PosCircuit.query.order_by(
+            PosCircuit.is_active.desc(),
+            PosCircuit.valid_from.desc().nullslast(),
+            PosCircuit.name.asc(),
+        ).all()
     except Exception as exc:
         logger.exception("Errore nel caricamento circuiti POS")
         circuits = []
@@ -349,7 +365,7 @@ def pos_circuits_index():
         "fa-solid fa-square-check",
         "fa-solid fa-circle-check",
     ]
-    return render_template("settings/pos_circuits.html", circuits=circuits, icon_choices=icon_choices)
+    return render_template("settings/pos_circuits.html", circuits=circuits, icon_choices=icon_choices, today=date.today())
 
 
 @settings_bp.route("/pos-circuits/<int:circuit_id>/toggle", methods=["POST"])
@@ -406,6 +422,8 @@ def pos_devices_index():
 
             device.name = name
             device.type = (request.form.get("type") or "physical").strip() or "physical"
+            device.valid_from = _parse_date(request.form.get("valid_from"))
+            device.valid_to = _parse_date(request.form.get("valid_to"))
             device.is_active = _form_bool(request.form, "is_active", True)
             device.is_default = _form_bool(request.form, "is_default", False)
 
@@ -423,14 +441,23 @@ def pos_devices_index():
             flash("Dispositivo POS salvato con successo.", "success")
             return redirect(url_for("settings.pos_devices_index"))
 
-        circuits_all = PosCircuit.query.order_by(PosCircuit.is_active.desc(), PosCircuit.name.asc()).all()
-        devices = PosDevice.query.order_by(PosDevice.is_default.desc(), PosDevice.is_active.desc(), PosDevice.name.asc()).all()
+        circuits_all = PosCircuit.query.order_by(
+            PosCircuit.is_active.desc(),
+            PosCircuit.valid_from.desc().nullslast(),
+            PosCircuit.name.asc(),
+        ).all()
+        devices = PosDevice.query.order_by(
+            PosDevice.is_default.desc(),
+            PosDevice.is_active.desc(),
+            PosDevice.valid_from.desc().nullslast(),
+            PosDevice.name.asc(),
+        ).all()
     except Exception as exc:
         logger.exception("Errore nel caricamento dispositivi POS")
         circuits_all = []
         devices = []
         flash(f"Impossibile caricare i dispositivi POS: {exc}", "warning")
-    return render_template("settings/pos_devices.html", devices=devices, circuits_all=circuits_all)
+    return render_template("settings/pos_devices.html", devices=devices, circuits_all=circuits_all, today=date.today())
 
 
 @settings_bp.route("/pos-devices/<int:device_id>/toggle", methods=["POST"])

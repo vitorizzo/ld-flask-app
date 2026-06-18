@@ -1449,6 +1449,8 @@ class PosDevice(db.Model):
     type = db.Column(db.String(30), nullable=False, default="physical")  # physical|mobile|paybylink|tap_to_pay|other
     is_active = db.Column(db.Boolean, nullable=False, default=True)
     is_default = db.Column(db.Boolean, nullable=False, default=False)
+    valid_from = db.Column(db.Date, nullable=True, index=True)
+    valid_to = db.Column(db.Date, nullable=True, index=True)
 
     circuits = db.relationship(
         "PosCircuit",
@@ -1469,6 +1471,8 @@ class PosCircuit(db.Model):
     icon = db.Column(db.String(64), nullable=True)  # es. "fa-solid fa-credit-card" oppure "bi-credit-card"
     logo_path = db.Column(db.String(255), nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True)
+    valid_from = db.Column(db.Date, nullable=True, index=True)
+    valid_to = db.Column(db.Date, nullable=True, index=True)
 
     def __repr__(self):
         return f""

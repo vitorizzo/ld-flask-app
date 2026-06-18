@@ -1431,3 +1431,5 @@ Performance apertura giornata Agenda 2026-06-13:
   - la migration `2b3c4d5e6f70_add_cash_day_audit_events.py` e' stata resa tollerante ai DB che hanno gia' la tabella `cash_day_audit_events`, cosi' `flask db upgrade` non si ferma piu' su `DuplicateTable`.
   - la pagina preferenze e i loader runtime ora degradano con warning invece di andare in 500 se la tabella `app_preferences` non e' ancora disponibile o il DB non e' allineato.
   - fix pagina preferenze: nel template `section["items"]` sostituisce `section.items`, evitando il crash Jinja `builtin_function_or_method object is not iterable`.
+- 2026-06-18: aggiunti `valid_from`/`valid_to` a `PosCircuit` e `PosDevice`; la dashboard POS ora filtra i lookup per data e la lista movimenti POS non blocca piu' la lettura sulle giornate chiuse.
+- 2026-06-18: la modale icone dei circuiti e' stata portata direttamente nel `body` e aperta via JS per evitare lo stacking issue ricorrente.
