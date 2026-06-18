@@ -6996,7 +6996,8 @@ def api_coins_vault_balance():
 @cassa_bp.route("/api/pos/devices", methods=["GET"])
 def api_pos_devices():
     ref_date = _parse_ref_date(request.args.get("date")) or date.today()
-    validity_enabled = _ensure_pos_validity_schema()
+    _ensure_pos_validity_schema()
+    validity_enabled = _table_has_column("pos_devices", "valid_from") and _table_has_column("pos_devices", "valid_to")
     devices_q = PosDevice.query.options(load_only(PosDevice.id, PosDevice.name, PosDevice.is_default, PosDevice.is_active))
     if validity_enabled:
         devices_q = devices_q.options(load_only(PosDevice.valid_from, PosDevice.valid_to))
@@ -7021,7 +7022,8 @@ def api_pos_devices():
 @cassa_bp.route("/api/pos/devices/<int:device_id>/circuits", methods=["GET"])
 def api_pos_device_circuits(device_id):
     ref_date = _parse_ref_date(request.args.get("date")) or date.today()
-    validity_enabled = _ensure_pos_validity_schema()
+    _ensure_pos_validity_schema()
+    validity_enabled = _table_has_column("pos_circuits", "valid_from") and _table_has_column("pos_circuits", "valid_to")
 
     device = PosDevice.query.filter_by(
         id=device_id,

@@ -47,16 +47,20 @@
               {% endfor %}
             </div>
           </div>
-          {% if pos_validity_enabled %}
-            <div class="col-6 col-lg-2">
-              <label class="form-label" for="device-valid-from-new">Valido dal</label>
-              <input class="form-control" id="device-valid-from-new" name="valid_from" type="date" value="{{ today.isoformat() }}">
+          <div class="col-12 col-lg-2">
+            <div class="form-check mt-4 pt-2">
+              <input class="form-check-input js-valid-from-toggle" type="checkbox" id="device-valid-from-enabled-new" name="has_valid_from" value="1">
+              <label class="form-check-label" for="device-valid-from-enabled-new">Valido dal</label>
             </div>
-            <div class="col-6 col-lg-2">
-              <label class="form-label" for="device-valid-to-new">Valido al</label>
-              <input class="form-control" id="device-valid-to-new" name="valid_to" type="date">
+            <input class="form-control mt-2 js-valid-from-input d-none" id="device-valid-from-new" name="valid_from" type="date" value="{{ today.isoformat() }}">
+          </div>
+          <div class="col-12 col-lg-2">
+            <div class="form-check mt-4 pt-2">
+              <input class="form-check-input js-valid-to-toggle" type="checkbox" id="device-valid-to-enabled-new" name="has_valid_to" value="1">
+              <label class="form-check-label" for="device-valid-to-enabled-new">Valido al</label>
             </div>
-          {% endif %}
+            <input class="form-control mt-2 js-valid-to-input d-none" id="device-valid-to-new" name="valid_to" type="date">
+          </div>
           <div class="col-6 col-lg-2 form-check mt-4 pt-2">
             <input class="form-check-input" type="checkbox" id="device-active-new" name="is_active" checked>
             <label class="form-check-label" for="device-active-new">Attivo</label>
@@ -91,16 +95,20 @@
                     {% endfor %}
                   </select>
                 </div>
-                {% if pos_validity_enabled %}
-                  <div class="col-6 col-lg-2">
-                    <label class="form-label" for="device-valid-from-{{ device.id }}">Valido dal</label>
-                    <input class="form-control" id="device-valid-from-{{ device.id }}" type="date" name="valid_from" value="{{ device.valid_from.isoformat() if device.valid_from else '' }}">
+                <div class="col-12 col-lg-2">
+                  <div class="form-check mt-4 pt-2">
+                    <input class="form-check-input js-valid-from-toggle" type="checkbox" id="device-valid-from-enabled-{{ device.id }}" name="has_valid_from" value="1" {% if device.valid_from %}checked{% endif %}>
+                    <label class="form-check-label" for="device-valid-from-enabled-{{ device.id }}">Valido dal</label>
                   </div>
-                  <div class="col-6 col-lg-2">
-                    <label class="form-label" for="device-valid-to-{{ device.id }}">Valido al</label>
-                    <input class="form-control" id="device-valid-to-{{ device.id }}" type="date" name="valid_to" value="{{ device.valid_to.isoformat() if device.valid_to else '' }}">
+                  <input class="form-control mt-2 js-valid-from-input {% if not device.valid_from %}d-none{% endif %}" id="device-valid-from-{{ device.id }}" type="date" name="valid_from" value="{{ device.valid_from.isoformat() if device.valid_from else '' }}">
+                </div>
+                <div class="col-12 col-lg-2">
+                  <div class="form-check mt-4 pt-2">
+                    <input class="form-check-input js-valid-to-toggle" type="checkbox" id="device-valid-to-enabled-{{ device.id }}" name="has_valid_to" value="1" {% if device.valid_to %}checked{% endif %}>
+                    <label class="form-check-label" for="device-valid-to-enabled-{{ device.id }}">Valido al</label>
                   </div>
-                {% endif %}
+                  <input class="form-control mt-2 js-valid-to-input {% if not device.valid_to %}d-none{% endif %}" id="device-valid-to-{{ device.id }}" type="date" name="valid_to" value="{{ device.valid_to.isoformat() if device.valid_to else '' }}">
+                </div>
                 <div class="col-12 col-lg-5">
                   <label class="form-label">Circuiti associati</label>
                   {% set selected_ids = device.circuits.all() | map(attribute='id') | list %}
@@ -129,7 +137,7 @@
             <div class="card-footer d-flex align-items-center justify-content-between gap-2">
               <div class="text-muted small">
                 ID {{ device.id }} - {% if device.circuits.count() %}{{ device.circuits.count() }} circuiti associati{% else %}Nessun circuito associato{% endif %}
-                {% if pos_validity_enabled %}
+                {% if device.valid_from or device.valid_to %}
                   <span class="ms-2">Dal {{ device.valid_from.isoformat() if device.valid_from else "sempre" }}{% if device.valid_to %} fino al {{ device.valid_to.isoformat() }}{% endif %}</span>
                 {% endif %}
               </div>
@@ -152,4 +160,33 @@
     {% endif %}
   </div>
 </section>
+<script>
+(function () {
+  function syncValidityVisibility(root) {
+    root.querySelectorAll(".js-valid-from-toggle").forEach((cb) => {
+      const input = root.querySelector(cb.id.replace("-enabled", "").replace("device-", "#device-").replace("circuit-", "#circuit-"));
+    });
+  }
+  document.querySelectorAll(".js-valid-from-toggle").forEach((cb) => {
+    const input = document.getElementById(cb.id.replace("-enabled", ""));
+    const sync = () => {
+      if (!input) return;
+      input.classList.toggle("d-none", !cb.checked);
+      if (!cb.checked) input.value = "";
+    };
+    cb.addEventListener("change", sync);
+    sync();
+  });
+  document.querySelectorAll(".js-valid-to-toggle").forEach((cb) => {
+    const input = document.getElementById(cb.id.replace("-enabled", ""));
+    const sync = () => {
+      if (!input) return;
+      input.classList.toggle("d-none", !cb.checked);
+      if (!cb.checked) input.value = "";
+    };
+    cb.addEventListener("change", sync);
+    sync();
+  });
+})();
+</script>
 {% endblock %}

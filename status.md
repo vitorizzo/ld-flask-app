@@ -1437,3 +1437,7 @@ Performance apertura giornata Agenda 2026-06-13:
 - 2026-06-18 fix emergenza 2: il runtime prova a creare automaticamente `valid_from`/`valid_to` su `pos_circuits` e `pos_devices` se il DB non e' ancora migrato, per evitare blocchi sulla pagina dispositivi/circuiti e sull'agenda.
 - 2026-06-18 fix emergenza 3: la select dei circuiti associati ai dispositivi POS ora viene eager-loaded, evitando query lazy che potevano rompere la pagina su DB non allineato.
 - 2026-06-18 fix emergenza 4: la modale icon picker dei circuiti usa un layer Bootstrap piu' robusto con `modal-content` attivo e z-index molto alto.
+- 2026-06-18 fix POS: rimossa l'eager loading sulla relazione dinamica `PosDevice.circuits`, che generava `object population` e rompeva la pagina dispositivi.
+- 2026-06-18 fix POS: i logo dei circuiti ora vengono salvati in `static/images/pos` e serviti da `images/pos/...`, in modo coerente con gli altri asset dell'app.
+- 2026-06-18 fix POS: la modale icon picker dei circuiti e' stata resa custom e auto-gestita, senza dipendere dal layering Bootstrap che la teneva invisibile.
+- 2026-06-18 fix POS: i simboli valuta corrotti nella UI Agenda sono stati ripuliti nel file `static/js/agenda.js`.

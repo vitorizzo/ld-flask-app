@@ -131,10 +131,10 @@ def _save_uploaded_logo(file_storage, prefix="logo"):
         return None
     ext = os.path.splitext(filename)[1].lower() or ".png"
     target_name = f"{prefix}_{uuid.uuid4().hex}{ext}"
-    folder = _settings_upload_folder("settings", "pos_circuits")
+    folder = _settings_upload_folder("images", "pos")
     target_path = os.path.join(folder, target_name)
     file_storage.save(target_path)
-    return f"uploads/settings/pos_circuits/{target_name}"
+    return f"images/pos/{target_name}"
 
 
 def _promote_default_bank():
@@ -327,7 +327,8 @@ def bank_delete(bank_id):
 @log_task(logger)
 def pos_circuits_index():
     try:
-        validity_enabled = _ensure_pos_validity_schema()
+        _ensure_pos_validity_schema()
+        validity_enabled = _table_has_column("pos_circuits", "valid_from") and _table_has_column("pos_circuits", "valid_to")
         if request.method == "POST":
             circuit_id = _parse_int(request.form.get("circuit_id"))
             name = (request.form.get("name") or "").strip()
@@ -342,8 +343,10 @@ def pos_circuits_index():
 
             circuit.name = name
             circuit.icon = (request.form.get("icon") or "").strip() or None
-            circuit.valid_from = _parse_date(request.form.get("valid_from"))
-            circuit.valid_to = _parse_date(request.form.get("valid_to"))
+            has_valid_from = _form_bool(request.form, "has_valid_from", False)
+            has_valid_to = _form_bool(request.form, "has_valid_to", False)
+            circuit.valid_from = _parse_date(request.form.get("valid_from")) if has_valid_from else None
+            circuit.valid_to = _parse_date(request.form.get("valid_to")) if has_valid_to else None
             uploaded_logo = request.files.get("logo_file")
             if uploaded_logo and uploaded_logo.filename:
                 circuit.logo_path = _save_uploaded_logo(uploaded_logo, prefix=f"circuit_{circuit.id or 'new'}")
@@ -452,7 +455,8 @@ def pos_circuit_delete(circuit_id):
 @log_task(logger)
 def pos_devices_index():
     try:
-        validity_enabled = _ensure_pos_validity_schema()
+        _ensure_pos_validity_schema()
+        validity_enabled = _table_has_column("pos_devices", "valid_from") and _table_has_column("pos_devices", "valid_to")
         if request.method == "POST":
             device_id = _parse_int(request.form.get("device_id"))
             name = (request.form.get("name") or "").strip()
@@ -467,8 +471,10 @@ def pos_devices_index():
 
             device.name = name
             device.type = (request.form.get("type") or "physical").strip() or "physical"
-            device.valid_from = _parse_date(request.form.get("valid_from"))
-            device.valid_to = _parse_date(request.form.get("valid_to"))
+            has_valid_from = _form_bool(request.form, "has_valid_from", False)
+            has_valid_to = _form_bool(request.form, "has_valid_to", False)
+            device.valid_from = _parse_date(request.form.get("valid_from")) if has_valid_from else None
+            device.valid_to = _parse_date(request.form.get("valid_to")) if has_valid_to else None
             device.is_active = _form_bool(request.form, "is_active", True)
             device.is_default = _form_bool(request.form, "is_default", False)
 
@@ -499,7 +505,6 @@ def pos_devices_index():
 
         devices_q = PosDevice.query.options(
             load_only(PosDevice.id, PosDevice.name, PosDevice.type, PosDevice.is_active, PosDevice.is_default),
-            selectinload(PosDevice.circuits).load_only(PosCircuit.id, PosCircuit.name, PosCircuit.icon, PosCircuit.logo_path, PosCircuit.is_active),
         )
         if validity_enabled:
             devices_q = devices_q.options(load_only(PosDevice.valid_from, PosDevice.valid_to)).order_by(

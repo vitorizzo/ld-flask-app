@@ -19,6 +19,27 @@
     opacity: 1 !important;
     pointer-events: auto !important;
   }
+  .settings-icon-picker-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 20000;
+    display: none;
+  }
+  .settings-icon-picker-modal.show {
+    display: block;
+  }
+  .settings-icon-picker-modal .settings-icon-picker-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 24, 39, .65);
+    z-index: 19990;
+  }
+  .settings-icon-picker-modal .settings-icon-picker-dialog {
+    position: relative;
+    z-index: 20001;
+    max-width: 1120px;
+    margin: 3rem auto;
+  }
   body.settings-icon-picker-modal-open .modal-backdrop.show {
     z-index: 19990 !important;
   }
@@ -52,7 +73,7 @@
               <div class="col-12 col-lg-4">
                 <label class="form-label" for="circuit-icon-new">Icona</label>
                 <div class="input-group">
-                  <input class="form-control circuit-icon-input" id="circuit-icon-new" name="icon" type="text" placeholder="Scegli un'icona" readonly>
+                  <input class="form-control circuit-icon-input" id="circuit-icon-new" name="icon" type="text" placeholder="Scegli un'icona">
                   <button class="btn btn-outline-secondary circuit-icon-picker-btn" type="button"
                           data-icon-target="circuit-icon-new" data-icon-preview="circuit-icon-preview-new">
                     <i class="fa-solid fa-icons me-1"></i>Scegli
@@ -66,16 +87,20 @@
                 <label class="form-label" for="circuit-logo-new">Logo</label>
                 <input class="form-control" id="circuit-logo-new" name="logo_file" type="file" accept="image/*">
               </div>
-              {% if pos_validity_enabled %}
-                <div class="col-6 col-lg-2">
-                  <label class="form-label" for="circuit-valid-from-new">Valido dal</label>
-                  <input class="form-control" id="circuit-valid-from-new" name="valid_from" type="date" value="{{ today.isoformat() }}">
+              <div class="col-12 col-lg-2">
+                <div class="form-check mt-4 pt-2">
+                  <input class="form-check-input js-valid-from-toggle" type="checkbox" id="circuit-valid-from-enabled-new" name="has_valid_from" value="1">
+                  <label class="form-check-label" for="circuit-valid-from-enabled-new">Valido dal</label>
                 </div>
-                <div class="col-6 col-lg-2">
-                  <label class="form-label" for="circuit-valid-to-new">Valido al</label>
-                  <input class="form-control" id="circuit-valid-to-new" name="valid_to" type="date">
+                <input class="form-control mt-2 js-valid-from-input d-none" id="circuit-valid-from-new" name="valid_from" type="date">
+              </div>
+              <div class="col-12 col-lg-2">
+                <div class="form-check mt-4 pt-2">
+                  <input class="form-check-input js-valid-to-toggle" type="checkbox" id="circuit-valid-to-enabled-new" name="has_valid_to" value="1">
+                  <label class="form-check-label" for="circuit-valid-to-enabled-new">Valido al</label>
                 </div>
-              {% endif %}
+                <input class="form-control mt-2 js-valid-to-input d-none" id="circuit-valid-to-new" name="valid_to" type="date">
+              </div>
               <div class="col-6 col-lg-2 form-check mt-4 pt-2">
                 <input class="form-check-input" type="checkbox" id="circuit-active-new" name="is_active" checked>
                 <label class="form-check-label" for="circuit-active-new">Attivo</label>
@@ -101,7 +126,7 @@
                 <div class="col-12 col-lg-4">
                   <label class="form-label" for="circuit-icon-{{ circuit.id }}">Icona</label>
                   <div class="input-group">
-                    <input class="form-control circuit-icon-input" id="circuit-icon-{{ circuit.id }}" type="text" name="icon" value="{{ circuit.icon or '' }}" readonly>
+                    <input class="form-control circuit-icon-input" id="circuit-icon-{{ circuit.id }}" type="text" name="icon" value="{{ circuit.icon or '' }}">
                     <button class="btn btn-outline-secondary circuit-icon-picker-btn" type="button"
                             data-icon-target="circuit-icon-{{ circuit.id }}" data-icon-preview="circuit-icon-preview-{{ circuit.id }}">
                       <i class="fa-solid fa-icons me-1"></i>Scegli
@@ -125,16 +150,20 @@
                     </div>
                   {% endif %}
                 </div>
-                {% if pos_validity_enabled %}
-                  <div class="col-6 col-lg-2">
-                    <label class="form-label" for="circuit-valid-from-{{ circuit.id }}">Valido dal</label>
-                    <input class="form-control" id="circuit-valid-from-{{ circuit.id }}" type="date" name="valid_from" value="{{ circuit.valid_from.isoformat() if circuit.valid_from else '' }}">
+                <div class="col-12 col-lg-2">
+                  <div class="form-check mt-4 pt-2">
+                    <input class="form-check-input js-valid-from-toggle" type="checkbox" id="circuit-valid-from-enabled-{{ circuit.id }}" name="has_valid_from" value="1" {% if circuit.valid_from %}checked{% endif %}>
+                    <label class="form-check-label" for="circuit-valid-from-enabled-{{ circuit.id }}">Valido dal</label>
                   </div>
-                  <div class="col-6 col-lg-2">
-                    <label class="form-label" for="circuit-valid-to-{{ circuit.id }}">Valido al</label>
-                    <input class="form-control" id="circuit-valid-to-{{ circuit.id }}" type="date" name="valid_to" value="{{ circuit.valid_to.isoformat() if circuit.valid_to else '' }}">
+                  <input class="form-control mt-2 js-valid-from-input {% if not circuit.valid_from %}d-none{% endif %}" id="circuit-valid-from-{{ circuit.id }}" type="date" name="valid_from" value="{{ circuit.valid_from.isoformat() if circuit.valid_from else '' }}">
+                </div>
+                <div class="col-12 col-lg-2">
+                  <div class="form-check mt-4 pt-2">
+                    <input class="form-check-input js-valid-to-toggle" type="checkbox" id="circuit-valid-to-enabled-{{ circuit.id }}" name="has_valid_to" value="1" {% if circuit.valid_to %}checked{% endif %}>
+                    <label class="form-check-label" for="circuit-valid-to-enabled-{{ circuit.id }}">Valido al</label>
                   </div>
-                {% endif %}
+                  <input class="form-control mt-2 js-valid-to-input {% if not circuit.valid_to %}d-none{% endif %}" id="circuit-valid-to-{{ circuit.id }}" type="date" name="valid_to" value="{{ circuit.valid_to.isoformat() if circuit.valid_to else '' }}">
+                </div>
                 <div class="col-6 col-lg-2 form-check mt-4 pt-2">
                   <input class="form-check-input" type="checkbox" id="circuit-active-{{ circuit.id }}" name="is_active" value="1" {% if circuit.is_active %}checked{% endif %}>
                   <label class="form-check-label" for="circuit-active-{{ circuit.id }}">Attivo</label>
@@ -157,7 +186,7 @@
                 <span>
                   {% if circuit.logo_path %}Logo presente{% else %}Nessun logo{% endif %}
                 </span>
-                {% if pos_validity_enabled %}
+                {% if circuit.valid_from or circuit.valid_to %}
                   <span>
                     Dal {{ circuit.valid_from.isoformat() if circuit.valid_from else "sempre" }}
                     {% if circuit.valid_to %} fino al {{ circuit.valid_to.isoformat() }}{% endif %}
@@ -184,12 +213,13 @@
   </div>
 </section>
 
-<div class="modal fade settings-icon-picker-modal" id="circuitIconPickerModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+<div class="settings-icon-picker-modal" id="circuitIconPickerModal" aria-hidden="true">
+  <div class="settings-icon-picker-backdrop" data-close-icon-picker></div>
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable settings-icon-picker-dialog">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title">Scegli icona circuito</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        <button type="button" class="btn-close" data-close-icon-picker aria-label="Chiudi"></button>
       </div>
       <div class="modal-body">
         <div class="row g-2">
@@ -212,30 +242,35 @@
 <script>
 (function () {
   const modalEl = document.getElementById("circuitIconPickerModal");
-  if (!modalEl || !window.bootstrap) return;
+  if (!modalEl) return;
   let activeTarget = null;
   let activePreview = null;
-  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-
-  if (modalEl.parentElement !== document.body) {
-    document.body.appendChild(modalEl);
-  }
-
-  modalEl.addEventListener("show.bs.modal", () => {
+  const showModal = () => {
     document.body.classList.add("settings-icon-picker-modal-open");
-  });
-
-  modalEl.addEventListener("hidden.bs.modal", () => {
+    modalEl.classList.add("show");
+    modalEl.style.display = "block";
+    modalEl.setAttribute("aria-modal", "true");
+    modalEl.removeAttribute("aria-hidden");
+  };
+  const hideModal = () => {
     document.body.classList.remove("settings-icon-picker-modal-open");
-  });
+    modalEl.classList.remove("show");
+    modalEl.style.display = "none";
+    modalEl.setAttribute("aria-hidden", "true");
+    modalEl.removeAttribute("aria-modal");
+  };
 
   document.querySelectorAll(".circuit-icon-picker-btn").forEach((btn) => {
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       activeTarget = document.getElementById(btn.dataset.iconTarget);
       activePreview = document.getElementById(btn.dataset.iconPreview);
-      modal.show();
+      showModal();
     });
+  });
+
+  modalEl.querySelectorAll("[data-close-icon-picker]").forEach((el) => {
+    el.addEventListener("click", hideModal);
   });
 
   modalEl.querySelectorAll(".icon-choice-btn").forEach((btn) => {
@@ -246,8 +281,30 @@
       if (activePreview) {
         activePreview.innerHTML = value ? `<i class="${value} me-1"></i>${value}` : "Nessuna icona";
       }
-      modal.hide();
+      hideModal();
     });
+  });
+
+  document.querySelectorAll(".js-valid-from-toggle").forEach((cb) => {
+    const input = document.getElementById(cb.id.replace("-enabled", ""));
+    const sync = () => {
+      if (!input) return;
+      input.classList.toggle("d-none", !cb.checked);
+      if (!cb.checked) input.value = "";
+    };
+    cb.addEventListener("change", sync);
+    sync();
+  });
+
+  document.querySelectorAll(".js-valid-to-toggle").forEach((cb) => {
+    const input = document.getElementById(cb.id.replace("-enabled", ""));
+    const sync = () => {
+      if (!input) return;
+      input.classList.toggle("d-none", !cb.checked);
+      if (!cb.checked) input.value = "";
+    };
+    cb.addEventListener("change", sync);
+    sync();
   });
 })();
 </script>
