@@ -1459,3 +1459,13 @@ Performance apertura giornata Agenda 2026-06-13:
   - la route ora carica `CashDay.closure` con `selectinload` e ha fallback esplicito su `CashClosure.query.filter_by(cash_day_id=...)`;
   - risolto il caso giornata gia' chiusa, poi riaperta e modificata: alla ristampa aggiorna la `CashClosure` esistente invece di tentare un secondo insert bloccato da `uq_cash_closure_day`;
   - verifica read-only su DB: `2026-06-19 open` vede correttamente `closure.id=7`.
+- 2026-06-19 fix snapshot report giornata:
+  - la chiusura ora salva nel DB anche `fiscal_snapshot["report_payload"]`, cioe' il payload fiscale completo del report con liste movimenti, POS, versamenti, ecommerce, corrispettivi e banche;
+  - la chiusura manuale e la stampa report usano lo stesso snapshot backend, quindi una giornata chiusa puo' ristampare valori e movimenti dallo snapshot salvato;
+  - se la giornata e' aperta, `Stampa report` chiude la giornata, riceve lo snapshot appena salvato e stampa quello;
+  - il badge stato agenda viene aggiornato subito a `CLOSED` dopo chiusura da stampa;
+  - gli snapshot fiscali delle giornate chiuse successive vengono marcati stale e rigenerati in cascata dopo la chiusura di una giornata modificata;
+  - se una giornata chiusa ha snapshot stale, `/cassa/api/day/<day_date>/closure-snapshot` lo rigenera prima di restituirlo;
+  - in modalita' fiscale la costruzione dello snapshot forza il vault PRI come non sbloccato, evitando righe private nel DB fiscale;
+  - in modalita' completa il vault continua a salvare il payload completo ricevuto dal client quando disponibile;
+  - verifiche: `python -m py_compile routes/cassa.py` ok, `node --check static/js/agenda.js` ok.

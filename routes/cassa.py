@@ -2882,6 +2882,100 @@ def _load_private_vault_day_closure_snapshot(year: int, day_date: date) -> dict 
     return report_payload if isinstance(report_payload, dict) else None
 
 
+def _json_from_internal_response(response, fallback):
+    if isinstance(response, tuple):
+        response = response[0]
+    if hasattr(response, "get_json"):
+        data = response.get_json(silent=True)
+        return data if data is not None else fallback
+    return response if isinstance(response, (dict, list)) else fallback
+
+
+def _build_cash_day_report_snapshot_payload(day_date: date, view: str, preview_payload: dict, client_payload: dict | None = None) -> dict:
+    day_iso = day_date.isoformat()
+    client_payload = client_payload if isinstance(client_payload, dict) else {}
+
+    original_vault_state = session.get("pri_vault_unlocked")
+    if view == "fiscal":
+        session["pri_vault_unlocked"] = False
+
+    try:
+        payload = {
+            "preview": preview_payload,
+            "sales": _json_from_internal_response(api_list_sales(day_iso), {"ok": False, "sales": []}),
+            "expenses": _json_from_internal_response(api_list_expenses(day_iso), {"ok": False, "expenses": []}),
+            "pos": _json_from_internal_response(api_list_pos_moves(day_iso), {"ok": False, "pos_moves": []}),
+            "cashMoves": _json_from_internal_response(api_list_cash_moves(day_iso), {"ok": False, "cash_moves": []}),
+            "deposits": _json_from_internal_response(api_list_deposits(day_iso), {"ok": False, "deposits": [], "totals": {}}),
+            "ownerTakes": _json_from_internal_response(api_list_owner_takes(day_iso), {"ok": False, "owner_takes": []}),
+            "ecommerce": _json_from_internal_response(api_list_ecommerce(day_iso), {"ok": False, "ecommerce": []}),
+            "receipts": _json_from_internal_response(get_receipt_closures(day_iso), []),
+            "banks": _json_from_internal_response(api_list_cash_banks(), {"ok": False, "banks": []}),
+        }
+    finally:
+        if original_vault_state is None:
+            session.pop("pri_vault_unlocked", None)
+        else:
+            session["pri_vault_unlocked"] = original_vault_state
+
+    if view == "complete" and client_payload:
+        for key in ("sales", "expenses", "cashMoves"):
+            if isinstance(client_payload.get(key), dict):
+                payload[key] = client_payload[key]
+    return _json_safe(payload)
+
+
+def _save_fiscal_closure_snapshot(cash_day: CashDay, closure: CashClosure, now: datetime, *, user_id=None, notes=None) -> dict:
+    preview_payload = _json_safe(_build_cash_day_preview_payload(cash_day, view="fiscal"))
+    report_snapshot_payload = _build_cash_day_report_snapshot_payload(cash_day.day_date, "fiscal", preview_payload, None)
+    totals = preview_payload.get("totals") or {}
+    next_snapshot_version = int(closure.fiscal_snapshot_version or 0) + 1 if closure.fiscal_snapshot else 1
+
+    closure.created_at = closure.created_at or now
+    closure.closed_by_user_id = user_id
+    closure.fiscal_snapshot_version = next_snapshot_version
+    closure.fiscal_snapshot = {
+        "version": next_snapshot_version,
+        "created_at": now.isoformat(),
+        "closed_at": now.isoformat(),
+        "report_mode": "fiscal",
+        "payload": preview_payload,
+        "report_payload": report_snapshot_payload,
+    }
+    closure.fiscal_snapshot_created_at = now
+    closure.fiscal_snapshot_stale = False
+    closure.saldo_versabile_precedente = _to_dec(totals.get("saldo_versabile_precedente", 0))
+    closure.versabile_giornata = _to_dec(totals.get("versabile_giornata", 0))
+    closure.saldo_versabile_finale = _to_dec(totals.get("saldo_versabile", 0))
+    closure.closing_cash_drawer = _to_dec(totals.get("fondo_finale", 0))
+    closure.anomaly_flag = bool(totals.get("anomalia"))
+    closure.anomaly_note = str(totals.get("note") or "").strip() or None
+    if notes is not None:
+        closure.notes = str(notes).strip() or closure.notes
+    return report_snapshot_payload
+
+
+def _rebuild_closed_fiscal_snapshots_after(day_date: date) -> int:
+    rows = (
+        CashDay.query
+        .options(selectinload(CashDay.closure))
+        .filter(CashDay.status == "closed", CashDay.day_date > day_date)
+        .order_by(CashDay.day_date.asc())
+        .all()
+    )
+    rebuilt = 0
+    for day in rows:
+        closure = getattr(day, "closure", None)
+        if not closure:
+            closure = CashClosure(cash_day_id=day.id)
+            db.session.add(closure)
+        now = datetime.now(timezone.utc)
+        _save_fiscal_closure_snapshot(day, closure, now, user_id=getattr(current_user, "id", None))
+        db.session.commit()
+        rebuilt += 1
+    return rebuilt
+
+
 @cassa_bp.post("/api/day/<day_date>/close")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
@@ -2920,9 +3014,6 @@ def api_close_cash_day(day_date):
     now = datetime.now(timezone.utc)
 
     try:
-        preview_payload = _json_safe(_build_cash_day_preview_payload(cash_day, view="fiscal"))
-        totals = preview_payload.get("totals") or {}
-
         closure = getattr(cash_day, "closure", None)
         if not closure:
             closure = CashClosure.query.filter_by(cash_day_id=cash_day.id).first()
@@ -2930,27 +3021,13 @@ def api_close_cash_day(day_date):
             closure = CashClosure(cash_day_id=cash_day.id)
             db.session.add(closure)
 
-        next_snapshot_version = int(closure.fiscal_snapshot_version or 0) + 1 if closure.fiscal_snapshot else 1
-
-        closure.created_at = closure.created_at or now
-        closure.closed_by_user_id = getattr(current_user, "id", None)
-        closure.fiscal_snapshot_version = next_snapshot_version
-        closure.fiscal_snapshot = {
-            "version": next_snapshot_version,
-            "created_at": now.isoformat(),
-            "closed_at": now.isoformat(),
-            "report_mode": report_mode,
-            "payload": preview_payload,
-        }
-        closure.fiscal_snapshot_created_at = now
-        closure.fiscal_snapshot_stale = False
-        closure.saldo_versabile_precedente = _to_dec(totals.get("saldo_versabile_precedente", 0))
-        closure.versabile_giornata = _to_dec(totals.get("versabile_giornata", 0))
-        closure.saldo_versabile_finale = _to_dec(totals.get("saldo_versabile", 0))
-        closure.closing_cash_drawer = _to_dec(totals.get("fondo_finale", 0))
-        closure.anomaly_flag = bool(totals.get("anomalia"))
-        closure.anomaly_note = str(totals.get("note") or "").strip() or None
-        closure.notes = (str(data.get("notes") or "").strip() or closure.notes)
+        report_snapshot_payload = _save_fiscal_closure_snapshot(
+            cash_day,
+            closure,
+            now,
+            user_id=getattr(current_user, "id", None),
+            notes=data.get("notes"),
+        )
 
         cash_day.status = "closed"
         cash_day.closed_at = now
@@ -2959,6 +3036,11 @@ def api_close_cash_day(day_date):
 
         vault_saved = False
         if session.get("pri_vault_unlocked"):
+            vault_report_payload = (
+                _json_safe(report_payload)
+                if report_mode == "complete" and isinstance(report_payload, dict) and report_payload
+                else _json_safe(report_snapshot_payload)
+            )
             vault_snapshot = {
                 "version": 1,
                 "created_at": now.isoformat(),
@@ -2968,7 +3050,7 @@ def api_close_cash_day(day_date):
                     or getattr(current_user, "username", None)
                     or "user",
                 "report_mode": report_mode,
-                "report_payload": _json_safe(report_payload),
+                "report_payload": vault_report_payload,
             }
 
             try:
@@ -2978,6 +3060,8 @@ def api_close_cash_day(day_date):
                 vault_saved = False
 
         _bump_agenda_day_version(d.isoformat())
+        _mark_cash_closure_snapshots_stale_from((d + timedelta(days=1)).isoformat())
+        rebuilt_following_closures = _rebuild_closed_fiscal_snapshots_after(d)
 
         return jsonify({
             "ok": True,
@@ -2992,7 +3076,9 @@ def api_close_cash_day(day_date):
                 "fiscal_snapshot_version": closure.fiscal_snapshot_version,
                 "fiscal_snapshot_created_at": closure.fiscal_snapshot_created_at.isoformat() if closure.fiscal_snapshot_created_at else None,
                 "vault_saved": vault_saved,
-            }
+                "rebuilt_following_closures": rebuilt_following_closures,
+            },
+            "snapshot": report_snapshot_payload,
         })
 
     except Exception as e:
@@ -3024,9 +3110,25 @@ def api_day_closure_snapshot(day_date):
         return jsonify({"ok": False, "error": "Snapshot not available"}), 404
 
     closure = getattr(cash_day, "closure", None)
+    if closure and closure.fiscal_snapshot_stale:
+        try:
+            _save_fiscal_closure_snapshot(
+                cash_day,
+                closure,
+                datetime.now(timezone.utc),
+                user_id=getattr(current_user, "id", None),
+            )
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            logger.exception("Errore rigenerazione snapshot stale per %s", d)
+            return jsonify({"ok": False, "error": "Impossibile rigenerare lo snapshot della giornata"}), 500
+
     fiscal_payload = None
+    fiscal_report_payload = None
     if closure and closure.fiscal_snapshot and isinstance(closure.fiscal_snapshot, dict):
         fiscal_payload = closure.fiscal_snapshot.get("payload")
+        fiscal_report_payload = closure.fiscal_snapshot.get("report_payload")
 
     vault_payload = None
     if session.get("pri_vault_unlocked"):
@@ -3046,8 +3148,12 @@ def api_day_closure_snapshot(day_date):
             combined["preview"] = fiscal_payload
         return jsonify({"ok": True, "snapshot": combined, "source": "vault+db"})
 
+    if isinstance(fiscal_report_payload, dict):
+        return jsonify({"ok": True, "snapshot": fiscal_report_payload, "source": "db"})
+
     if isinstance(fiscal_payload, dict):
-        return jsonify({"ok": False, "error": "Snapshot fiscale completo non disponibile"}), 404
+        rebuilt = _build_cash_day_report_snapshot_payload(d, "fiscal", fiscal_payload, None)
+        return jsonify({"ok": True, "snapshot": rebuilt, "source": "db-rebuilt"})
 
     return jsonify({"ok": False, "error": "Snapshot non disponibile"}), 404
 

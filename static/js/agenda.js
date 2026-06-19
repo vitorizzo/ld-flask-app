@@ -1038,16 +1038,7 @@ async function loadDay(dateStr) {
       setText("dayId", data.day.id);
       setText("dayOpeningFloat", Number(data.day.opening_float || 0).toFixed(2));
       currentDayStatus = String(data.day.status || "open").toLowerCase();
-      const statusBadge = document.getElementById("dayStatusBadge");
-      if (statusBadge) {
-        statusBadge.classList.toggle("text-bg-success", currentDayStatus === "open");
-        statusBadge.classList.toggle("text-bg-danger", currentDayStatus === "closed");
-        statusBadge.classList.toggle("text-bg-secondary", currentDayStatus !== "open" && currentDayStatus !== "closed");
-        statusBadge.title = currentDayStatus === "closed"
-          ? "Giornata chiusa: clicca per riaprire"
-          : "Giornata aperta: clicca per chiudere";
-      }
-      setText("dayStatusBadge", currentDayStatus === "closed" ? "CLOSED" : "OPEN");
+      updateDayStatusBadge();
       setText("agendaLastUpdated", "Ultimo aggiornamento: " + new Date().toLocaleTimeString());
 
       await refreshAgendaData();
@@ -1059,6 +1050,20 @@ async function loadDay(dateStr) {
       document.getElementById("btnNewPos")?.removeAttribute("disabled");
       startPolling();
     });
+}
+
+function updateDayStatusBadge() {
+  const status = String(currentDayStatus || "").toLowerCase();
+  const statusBadge = document.getElementById("dayStatusBadge");
+  if (statusBadge) {
+    statusBadge.classList.toggle("text-bg-success", status === "open");
+    statusBadge.classList.toggle("text-bg-danger", status === "closed");
+    statusBadge.classList.toggle("text-bg-secondary", status !== "open" && status !== "closed");
+    statusBadge.title = status === "closed"
+      ? "Giornata chiusa: clicca per riaprire"
+      : "Giornata aperta: clicca per chiudere";
+  }
+  setText("dayStatusBadge", status === "closed" ? "CLOSED" : "OPEN");
 }
 
 function startPolling() {
@@ -1095,7 +1100,7 @@ async function setCurrentDayStatus(nextStatus) {
   }
 
   currentDayStatus = String(data.day?.status || nextStatus || "open").toLowerCase();
-  setText("dayStatusBadge", currentDayStatus === "closed" ? "CLOSED" : "OPEN");
+  updateDayStatusBadge();
   await loadDay(currentDay);
   return true;
 }
@@ -9042,13 +9047,17 @@ async function closeDayReportSnapshot(payload) {
 async function printCompleteDayReport() {
   if (!currentDay) return;
 
-  const payload = await collectCompleteDayReportPayload();
+  let payload = await collectCompleteDayReportPayload();
   const shouldClose = !isCurrentDayClosed();
 
   if (shouldClose) {
     try {
-      await closeDayReportSnapshot(payload);
+      const closeResult = await closeDayReportSnapshot(payload);
+      if (closeResult?.snapshot) {
+        payload = closeResult.snapshot;
+      }
       currentDayStatus = "closed";
+      updateDayStatusBadge();
     } catch (err) {
       alert(err?.message || "Errore durante la chiusura della giornata");
       return;
