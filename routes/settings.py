@@ -122,7 +122,7 @@ def _settings_upload_folder(*parts):
     return folder
 
 
-def _save_uploaded_logo(file_storage, prefix="logo"):
+def _save_uploaded_logo(file_storage, prefix="logo", folder_name="pos"):
     if not file_storage or not getattr(file_storage, "filename", ""):
         return None
     filename = secure_filename(file_storage.filename)
@@ -130,17 +130,32 @@ def _save_uploaded_logo(file_storage, prefix="logo"):
         return None
     ext = os.path.splitext(filename)[1].lower() or ".png"
     target_name = f"{prefix}_{uuid.uuid4().hex}{ext}"
-    folder = os.path.join(current_app.static_folder, "images", "pos")
+    folder = os.path.join(current_app.static_folder, "images", folder_name)
     os.makedirs(folder, exist_ok=True)
     target_path = os.path.join(folder, target_name)
     file_storage.save(target_path)
-    return f"images/pos/{target_name}"
+    return f"images/{folder_name}/{target_name}"
 
 
 @settings_bp.get("/circuit-logos/<path:logo_path>")
 @login_required
 @role_required(900)
 def pos_circuit_logo(logo_path):
+    relative = (logo_path or "").lstrip("/").replace("\\", "/")
+    if relative.startswith("static/"):
+        relative = relative[len("static/"):]
+    directory = current_app.static_folder
+    response = send_from_directory(directory, relative, conditional=True, max_age=0)
+    response.cache_control.no_cache = True
+    response.cache_control.no_store = True
+    response.cache_control.must_revalidate = True
+    return response
+
+
+@settings_bp.get("/bank-logos/<path:logo_path>")
+@login_required
+@role_required(900)
+def bank_logo(logo_path):
     relative = (logo_path or "").lstrip("/").replace("\\", "/")
     if relative.startswith("static/"):
         relative = relative[len("static/"):]
@@ -276,6 +291,9 @@ def banks_index():
             bank.is_active = _form_bool(request.form, "is_active", True)
             bank.is_default = _form_bool(request.form, "is_default", False)
             bank.sort_order = _parse_int(request.form.get("sort_order"), 0) or 0
+            uploaded_logo = request.files.get("logo_file")
+            if uploaded_logo and uploaded_logo.filename:
+                bank.logo_path = _save_uploaded_logo(uploaded_logo, prefix=f"bank_{bank.id or 'new'}", folder_name="banks")
 
             if bank.is_default:
                 CashBank.query.filter(CashBank.id != bank.id).update({"is_default": False})

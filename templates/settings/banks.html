@@ -21,10 +21,14 @@
         <span class="text-muted small">Crea un nuovo conto bancario</span>
       </div>
       <div class="card-body">
-        <form method="post" class="row g-3 align-items-end">
-          <div class="col-12 col-lg-5">
+        <form method="post" enctype="multipart/form-data" class="row g-3 align-items-end">
+          <div class="col-12 col-lg-4">
             <label class="form-label" for="bank-name-new">Nome</label>
             <input class="form-control" id="bank-name-new" name="name" type="text" placeholder="Nome banca">
+          </div>
+          <div class="col-12 col-lg-3">
+            <label class="form-label" for="bank-logo-new">Logo</label>
+            <input class="form-control" id="bank-logo-new" name="logo_file" type="file" accept="image/*">
           </div>
           <div class="col-6 col-lg-2">
             <label class="form-label" for="bank-sort-new">Ordine</label>
@@ -50,11 +54,21 @@
         {% for bank in banks %}
           <div class="card shadow-sm">
             <div class="card-body">
-              <form method="post" class="row g-3 align-items-end">
+              <form method="post" enctype="multipart/form-data" class="row g-3 align-items-end">
                 <input type="hidden" name="bank_id" value="{{ bank.id }}">
-                <div class="col-12 col-lg-5">
+                <div class="col-12 col-lg-4">
                   <label class="form-label" for="bank-name-{{ bank.id }}">Nome</label>
                   <input class="form-control" id="bank-name-{{ bank.id }}" type="text" name="name" value="{{ bank.name }}">
+                </div>
+                <div class="col-12 col-lg-3">
+                  <label class="form-label" for="bank-logo-{{ bank.id }}">Logo</label>
+                  <input class="form-control" id="bank-logo-{{ bank.id }}" type="file" name="logo_file" accept="image/*">
+                  {% if bank.logo_path %}
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                      <img src="{{ url_for('settings.bank_logo', logo_path=bank.logo_path) }}" alt="Logo {{ bank.name }}" style="width: 56px; height: 56px; object-fit: contain; background: #fff;" class="border rounded p-1">
+                      <span class="text-muted small">{{ bank.logo_path }}</span>
+                    </div>
+                  {% endif %}
                 </div>
                 <div class="col-6 col-lg-2">
                   <label class="form-label" for="bank-sort-{{ bank.id }}">Ordine</label>
@@ -75,7 +89,7 @@
             </div>
             <div class="card-footer d-flex align-items-center justify-content-between gap-2">
               <div class="text-muted small">
-                ID {{ bank.id }} - {% if bank.updated_at %}Aggiornata {{ bank.updated_at.strftime('%d/%m/%Y %H:%M') }}{% else %}-{% endif %}
+                ID {{ bank.id }} - {% if bank.logo_path %}Logo presente{% else %}Nessun logo{% endif %} - {% if bank.updated_at %}Aggiornata {{ bank.updated_at.strftime('%d/%m/%Y %H:%M') }}{% else %}-{% endif %}
               </div>
               <div class="d-flex gap-2">
                 <form method="post" action="{{ url_for('settings.bank_toggle_active', bank_id=bank.id) }}">

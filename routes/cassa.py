@@ -2908,7 +2908,7 @@ def api_close_cash_day(day_date):
             noload(CashDay.cash_moves),
             noload(CashDay.pos_moves),
             noload(CashDay.deposits),
-            noload(CashDay.closure),
+            selectinload(CashDay.closure),
         )
         .filter(CashDay.day_date == d)
         .first()
@@ -2924,6 +2924,8 @@ def api_close_cash_day(day_date):
         totals = preview_payload.get("totals") or {}
 
         closure = getattr(cash_day, "closure", None)
+        if not closure:
+            closure = CashClosure.query.filter_by(cash_day_id=cash_day.id).first()
         if not closure:
             closure = CashClosure(cash_day_id=cash_day.id)
             db.session.add(closure)
@@ -6511,6 +6513,7 @@ def api_list_cash_banks():
                 "id": b.id,
                 "name": b.name,
                 "is_default": bool(b.is_default),
+                "logo_path": b.logo_path,
             }
             for b in banks
         ]

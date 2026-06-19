@@ -1447,3 +1447,15 @@ Performance apertura giornata Agenda 2026-06-13:
 - 2026-06-18 fix finale Agenda: ripulite le sequenze valuta corrotte residue in `static/js/agenda.js`.
 - 2026-06-18 fix UI POS: il picker icone dei circuiti gira ora in `{% block extra_js %}` dopo Bootstrap, e il logo del circuito viene servito dalla route `settings.pos_circuit_logo` per evitare cache/percorso static errati.
 - 2026-06-19 fix POS loghi circuiti: `_save_uploaded_logo()` e `settings.pos_circuit_logo` usano ora `current_app.static_folder`; i nuovi upload vanno realmente in `static/images/pos` invece che nel percorso errato derivato da `current_app.root_path`.
+- 2026-06-19 loghi banche:
+  - aggiunto `CashBank.logo_path`;
+  - aggiunta migration `5e6f708192a3_add_cash_bank_logo_path.py`, applicata localmente fino a head `5e6f708192a3`;
+  - la pagina `/settings/banks` consente upload e preview del logo banca;
+  - i loghi banca vengono salvati in `static/images/banks`;
+  - aggiunta route `settings.bank_logo` per servire i loghi con cache disabilitata;
+  - `/cassa/api/banks` espone anche `logo_path`.
+- 2026-06-19 fix ristampa report giornata riaperta:
+  - corretto `api_close_cash_day()` in `routes/cassa.py`;
+  - la route ora carica `CashDay.closure` con `selectinload` e ha fallback esplicito su `CashClosure.query.filter_by(cash_day_id=...)`;
+  - risolto il caso giornata gia' chiusa, poi riaperta e modificata: alla ristampa aggiorna la `CashClosure` esistente invece di tentare un secondo insert bloccato da `uq_cash_closure_day`;
+  - verifica read-only su DB: `2026-06-19 open` vede correttamente `closure.id=7`.

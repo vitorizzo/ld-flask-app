@@ -837,6 +837,10 @@ Stato implementazione 2026-06-14:
   - migration audit resa idempotente sui DB dove `cash_day_audit_events` esiste gia', cosi' `db upgrade` non fallisce su `DuplicateTable`.
   - la pagina preferenze ora mostra un warning e non va in 500 se `app_preferences` non e' ancora disponibile nel DB.
   - fix template preferenze: accesso esplicito a `section["items"]` per evitare il conflitto con il metodo `dict.items` in Jinja.
+  - le banche (`CashBank`) supportano `logo_path`;
+  - la pagina `/settings/banks` permette upload e preview del logo banca;
+  - i loghi banca sono salvati in `static/images/banks` e serviti dalla route `settings.bank_logo`;
+  - `/cassa/api/banks` restituisce anche `logo_path`.
 
 - chiusura report giornaliero:
   - la route `POST /cassa/api/day/<day_date>/close` aggiorna una `CashClosure` esistente invece di reinserirla;
@@ -858,3 +862,5 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - 2026-06-18 POS final: logo in `static/images/pos`, icon picker Bootstrap standard, query esplicita dei circuiti per dispositivo.
 - 2026-06-18 POS fix UI: il picker icone dei circuiti viene inizializzato in `extra_js` dopo il bundle Bootstrap, e i preview logo passano dalla route `settings.pos_circuit_logo`.
 - 2026-06-19 POS fix loghi circuiti: upload e route dedicata usano `current_app.static_folder`, quindi i loghi caricati dalla gestione circuiti finiscono nel path static reale `static/images/pos`.
+- 2026-06-19 banche: aggiunto `CashBank.logo_path` con migration `5e6f708192a3`; gestione upload/preview logo in `/settings/banks`, storage in `static/images/banks`.
+- 2026-06-19 chiusura report: `api_close_cash_day()` carica/recupera sempre la `CashClosure` esistente prima di creare una nuova riga, rendendo idempotente la ristampa dopo riapertura e modifica giornata.
