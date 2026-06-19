@@ -1446,3 +1446,4 @@ Performance apertura giornata Agenda 2026-06-13:
 - 2026-06-18 fix finale POS: la ricerca dei circuiti del device usa una query esplicita sulla tabella di associazione, evitando dipendenze da `dynamic` relationship.
 - 2026-06-18 fix finale Agenda: ripulite le sequenze valuta corrotte residue in `static/js/agenda.js`.
 - 2026-06-18 fix UI POS: il picker icone dei circuiti gira ora in `{% block extra_js %}` dopo Bootstrap, e il logo del circuito viene servito dalla route `settings.pos_circuit_logo` per evitare cache/percorso static errati.
+- 2026-06-19 fix POS loghi circuiti: `_save_uploaded_logo()` e `settings.pos_circuit_logo` usano ora `current_app.static_folder`; i nuovi upload vanno realmente in `static/images/pos` invece che nel percorso errato derivato da `current_app.root_path`.

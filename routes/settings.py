@@ -130,7 +130,7 @@ def _save_uploaded_logo(file_storage, prefix="logo"):
         return None
     ext = os.path.splitext(filename)[1].lower() or ".png"
     target_name = f"{prefix}_{uuid.uuid4().hex}{ext}"
-    folder = os.path.join(current_app.root_path, "static", "images", "pos")
+    folder = os.path.join(current_app.static_folder, "images", "pos")
     os.makedirs(folder, exist_ok=True)
     target_path = os.path.join(folder, target_name)
     file_storage.save(target_path)
@@ -144,7 +144,7 @@ def pos_circuit_logo(logo_path):
     relative = (logo_path or "").lstrip("/").replace("\\", "/")
     if relative.startswith("static/"):
         relative = relative[len("static/"):]
-    directory = os.path.join(current_app.root_path, "static")
+    directory = current_app.static_folder
     response = send_from_directory(directory, relative, conditional=True, max_age=0)
     response.cache_control.no_cache = True
     response.cache_control.no_store = True

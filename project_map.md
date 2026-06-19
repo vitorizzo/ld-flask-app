@@ -857,3 +857,4 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - 2026-06-18 POS circuiti/dispositivi: logo in `static/images/pos`, picker icone custom, relazione `PosDevice.circuits` lasciata dinamica senza eager loading.
 - 2026-06-18 POS final: logo in `static/images/pos`, icon picker Bootstrap standard, query esplicita dei circuiti per dispositivo.
 - 2026-06-18 POS fix UI: il picker icone dei circuiti viene inizializzato in `extra_js` dopo il bundle Bootstrap, e i preview logo passano dalla route `settings.pos_circuit_logo`.
+- 2026-06-19 POS fix loghi circuiti: upload e route dedicata usano `current_app.static_folder`, quindi i loghi caricati dalla gestione circuiti finiscono nel path static reale `static/images/pos`.
