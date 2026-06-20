@@ -721,6 +721,7 @@ def pos_devices_index():
                 return redirect(url_for("settings.pos_devices_index"))
 
             device = PosDevice.query.get(device_id) if device_id else None
+            is_new_device = device is None
             if device is None:
                 device = PosDevice()
                 db.session.add(device)
@@ -735,8 +736,11 @@ def pos_devices_index():
             device.is_default = _form_bool(request.form, "is_default", False)
 
             selected_circuits = _selected_ids_from_form(request.form, "circuit_ids")
-            for circuit in list(device.circuits.all()):
-                device.circuits.remove(circuit)
+            if is_new_device:
+                db.session.flush()
+            else:
+                for circuit in list(device.circuits.all()):
+                    device.circuits.remove(circuit)
             if selected_circuits:
                 for circuit in PosCircuit.query.filter(PosCircuit.id.in_(selected_circuits)).all():
                     device.circuits.append(circuit)
@@ -773,6 +777,7 @@ def pos_devices_index():
             devices_q = devices_q.order_by(PosDevice.is_default.desc(), PosDevice.is_active.desc(), PosDevice.name.asc())
         devices = devices_q.all()
     except Exception as exc:
+        db.session.rollback()
         logger.exception("Errore nel caricamento dispositivi POS")
         circuits_all = []
         devices = []

@@ -1505,3 +1505,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - tutte le modali vengono spostate in `document.body` su `DOMContentLoaded` e i pulsanti submit vengono ripristinati su `shown.bs.modal`/`hidden.bs.modal`;
   - per i circuiti carte e' stato mantenuto il picker icone in modale con layer dedicato;
   - verifica render template con dati reali ok per `settings/banks.html`, `settings/pos_circuits.html`, `settings/pos_devices.html`.
+- 2026-06-20 fix creazione dispositivo POS:
+  - corretto `routes/settings.py` in `/settings/pos-devices`: sui nuovi `PosDevice` viene eseguito `db.session.flush()` prima di associare i circuiti many-to-many;
+  - la relazione dinamica `device.circuits` viene svuotata solo sui dispositivi esistenti, evitando errori su oggetti non ancora persistiti;
+  - aggiunto `db.session.rollback()` nel blocco `except` della route per non lasciare la sessione SQLAlchemy in stato fallito;
+  - verifiche: `python -m py_compile routes/settings.py` ok; POST reale di test crea un POS temporaneo con circuito associato, ritorna 302 e cleanup ok.
