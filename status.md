@@ -1535,3 +1535,10 @@ Performance apertura giornata Agenda 2026-06-13:
   - ridotta l'indentazione delle gerarchie per evitare overflow laterale;
   - le righe menu ora possono andare a capo e i pulsanti rapidi si dispongono su piu' righe dentro il box quando lo spazio non basta;
   - verifiche: `node --check static/js/menu_management.js` ok, `git diff --check` ok.
+- 2026-06-20 UI conflitti import:
+  - restyling di `templates/settings/import_conflicts.html` come pagina operativa coerente con le altre impostazioni;
+  - aggiunta toolbar con titolo, descrizione e ritorno alla dashboard;
+  - aggiunta card stato/coda, card dato certo e confronto CSV/DB in due pannelli scrollabili;
+  - barra azioni sticky con pulsanti Usa CSV, Usa DB e Salta;
+  - `static/js/import_conflicts.js` ora renderizza righe campo con classi dedicate e mantiene la pill del tipo conflitto;
+  - verifiche: `node --check static/js/import_conflicts.js` ok, render template `settings/import_conflicts.html` ok, `git diff --check` ok.

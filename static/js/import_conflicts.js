@@ -1,5 +1,3 @@
-console.log("import_conflicts.js caricato");
-
 let currentConflict = null;
 
 // Puoi impostare un default oppure leggere da querystring (?type=...)
@@ -32,6 +30,13 @@ function setStatus(msg) {
   elStatus.textContent = msg || "";
 }
 
+function setTypeLabel(text, icon = "fa-solid fa-triangle-exclamation") {
+  elType.innerHTML = `
+    <i class="${icon}"></i>
+    <span>${escapeHtml(text)}</span>
+  `;
+}
+
 function setDebug(obj) {
   // Lasciato pronto: se vuoi sempre vedere il json, togli d-none.
   elDebug.textContent = JSON.stringify(obj, null, 2);
@@ -58,11 +63,9 @@ function escapeHtml(s) {
 
 function renderFieldRow(label, value) {
   return `
-    <div class="d-flex justify-content-between gap-3 py-2 border-bottom">
-      <div class="text-muted">${escapeHtml(label)}</div>
-      <div class="text-end fw-semibold" style="max-width:65%; word-break:break-word;">
-        ${escapeHtml(value)}
-      </div>
+    <div class="conflict-field-row">
+      <div class="conflict-field-label">${escapeHtml(label)}</div>
+      <div class="conflict-field-value">${escapeHtml(value)}</div>
     </div>`;
 }
 
@@ -74,7 +77,7 @@ function renderBoxes(conflict) {
   const db = payload.db || {};
 
   // Tipo conflitto
-  elType.textContent = `Tipo: ${conflict.type || "-"}`;
+  setTypeLabel(`Tipo: ${conflict.type || "-"}`);
 
   // Dato certo (per ora cod_art, ma puoi estenderlo per altri tipi)
   const codArt = payload.cod_art || null;
@@ -91,8 +94,8 @@ function renderBoxes(conflict) {
     .sort((a, b) => a.localeCompare(b));
 
   if (keys.length === 0) {
-    elCsvFields.innerHTML = `<div class="text-muted">Nessun campo disponibile.</div>`;
-    elDbFields.innerHTML = `<div class="text-muted">Nessun campo disponibile.</div>`;
+    elCsvFields.innerHTML = `<div class="p-3 text-muted">Nessun campo disponibile.</div>`;
+    elDbFields.innerHTML = `<div class="p-3 text-muted">Nessun campo disponibile.</div>`;
   } else {
     elCsvFields.innerHTML = keys.map(k => renderFieldRow(k, csv[k])).join("");
     elDbFields.innerHTML = keys.map(k => renderFieldRow(k, db[k])).join("");
@@ -129,14 +132,14 @@ async function loadNext() {
 
     if (!data.ok) {
       setStatus("Errore: risposta ok=false");
-      elType.textContent = "Errore";
+      setTypeLabel("Errore", "fa-solid fa-circle-exclamation");
       setDebug(data);
       elDebug.classList.remove("d-none");
       return;
     }
 
     if (!data.conflict) {
-      elType.textContent = `Tipo: ${TYPE}`;
+      setTypeLabel(`Tipo: ${TYPE}`, "fa-solid fa-check");
       setStatus("Nessun conflitto rimanente.");
       // facoltativo: mostrare confetti / messaggio
       return;
@@ -151,7 +154,7 @@ async function loadNext() {
     renderBoxes(currentConflict);
     setStatus(`Conflitto #${currentConflict.id} pronto.`);
   } catch (err) {
-    elType.textContent = "Errore";
+    setTypeLabel("Errore", "fa-solid fa-circle-exclamation");
     setStatus(String(err));
     elDebug.classList.remove("d-none");
     setDebug({ error: String(err) });
