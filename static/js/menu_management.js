@@ -172,7 +172,7 @@ if (window.__menuMgmtInitDone) {
                data-bs-toggle="dropdown"
                aria-expanded="false">⋮</a>
 
-            <ul class="dropdown-menu">
+            <ul class="dropdown-menu dropdown-menu-end">
               <li><a class="dropdown-item" href="#" data-action="add-child" data-id="${n.id}">Aggiungi sotto-menu</a></li>
               <li><a class="dropdown-item" href="#" data-action="add-separator-child" data-id="${n.id}">Aggiungi separatore</a></li>
               <li><a class="dropdown-item" href="#" data-action="edit" data-id="${n.id}">Modifica</a></li>
@@ -282,6 +282,14 @@ if (window.__menuMgmtInitDone) {
   ========================= */
 
   function bindActions(host) {
+    host.addEventListener("show.bs.dropdown", (e) => {
+      e.target.closest(".menu-node")?.classList.add("menu-node-actions-open");
+    });
+
+    host.addEventListener("hidden.bs.dropdown", (e) => {
+      e.target.closest(".menu-node")?.classList.remove("menu-node-actions-open");
+    });
+
     host.addEventListener("click", async (e) => {
       const a = e.target.closest("a[data-action]");
       if (!a) return;

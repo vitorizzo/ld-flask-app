@@ -1518,3 +1518,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - modale menu uniformata al tema impostazioni con header marrone, body scrollabile e controlli coerenti;
   - mantenuto invariato il funzionamento JS/endpoint esistente;
   - verifiche: render template `settings/menus.html` ok, `node --check static/js/menu_management.js` ok, `git diff --check` ok.
+- 2026-06-20 fix menu azioni Gestione menu:
+  - il dropdown di riga ora usa `dropdown-menu-end`, quindi apre verso l'interno invece di uscire dal bordo destro;
+  - rimossi gli overflow clipping da `.menus-page`, `.container-fluid`, `.menu-card` e `.menu-card-body`;
+  - il nodo con dropdown aperto riceve classe `menu-node-actions-open` e z-index elevato per non finire sotto gli item successivi;
+  - rimossa la traslazione hover sulle righe, che creava stacking context sfavorevoli;
+  - verifiche: `node --check static/js/menu_management.js` ok, `git diff --check` ok.
