@@ -1484,3 +1484,10 @@ Performance apertura giornata Agenda 2026-06-13:
   - reset password admin genera token valido 24 ore, invalida reset precedenti aperti e invia il link via email all'utente;
   - le modali utenti ripristinano il pulsante conferma su `shown.bs.modal` e `hidden.bs.modal`;
   - verifiche: `python -m py_compile models.py routes/settings.py`, `flask db current`, render template `settings/users.html` con dati reali.
+- 2026-06-20 regola modali stacking/focus:
+  - le modali create dentro template complessi, card, shell, pagine impostazioni, agenda o contenitori con overflow/transform/z-index devono essere spostate in `document.body` prima dell'apertura;
+  - se restano dentro il contenitore originale, in questo progetto tendono ad aprirsi con backdrop attivo ma dialog non in focus/non cliccabile;
+  - pattern richiesto: su `DOMContentLoaded`, per ogni modale della pagina, eseguire `document.body.appendChild(modal)` se il parent non e' gia' `document.body`;
+  - dopo lo spostamento, inizializzare/ripristinare pulsanti e handler su `shown.bs.modal` e `hidden.bs.modal`;
+  - questa regola va applicata preventivamente a ogni nuova modale, non come fix successivo.
+  - applicato subito a `templates/settings/users.html`.

@@ -345,6 +345,12 @@
 {% block extra_js %}
 <script>
 document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".modal").forEach((modal) => {
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+  });
+
   function syncAuthType(select) {
     const userId = select.dataset.userId;
     const roleBox = document.querySelector(`.js-auth-role[data-user-id="${userId}"]`);
