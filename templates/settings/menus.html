@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}LD Enoteca - Gestione menù{% endblock %}
+{% block title %}LD Enoteca - Gestione menu{% endblock %}
 
 {% block extra_css %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/menus.css') }}">
@@ -15,32 +15,42 @@
 {% block content %}
 <section class="welcome-section page-shell menus-page">
   <div class="container-fluid h-100 d-flex flex-column">
+    <div class="menus-toolbar">
+      <div>
+        <h1 class="mb-1">Gestione menu</h1>
+        <div class="text-muted">Struttura di navigazione, gerarchie e permessi di accesso.</div>
+      </div>
+      <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">
+        <i class="fa-solid fa-arrow-left me-1"></i>Dashboard
+      </a>
+    </div>
+
     <div class="card menu-card">
       <div class="card-header d-flex align-items-center justify-content-between">
-        <strong>Struttura menu (drag&drop)</strong>
-        <div class="d-flex align-items-center gap-2">
-          <button type="button" class="btn btn-sm btn-outline-primary" id="btnApplyMenuChanges" disabled>
-            Applica
+        <div>
+          <strong>Struttura menu</strong>
+          <div class="menu-card-subtitle">Trascina le voci per cambiare ordine e gerarchia.</div>
+        </div>
+        <div class="menu-actions">
+          <button type="button" class="btn btn-sm btn-outline-primary menu-apply-btn" id="btnApplyMenuChanges" disabled>
+            <i class="fa-solid fa-check me-1"></i>Applica
           </button>
           <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAddSeparator">
-            + Separatore
+            <i class="fa-solid fa-grip-lines me-1"></i>Separatore
           </button>
-          <button type="button" class="btn-enabled-custom btn-sm" id="btnAddRootMenu">
-            + Nuovo menu (root)
+          <button type="button" class="btn btn-sm btn-primary" id="btnAddRootMenu">
+            <i class="fa-solid fa-plus me-1"></i>Nuovo menu
           </button>
         </div>
       </div>
 
       <div class="card-body menu-card-body">
         <div id="menuTree"></div>
-        <small class="text-muted">
-          Trascina le voci per cambiare ordine e gerarchia. Usa "⋮" per creare sotto-menu o modificare.
-        </small>
       </div>
     </div>
   </div>
 
-  <div class="modal fade" id="menuModal" tabindex="-1" aria-hidden="true">
+  <div class="modal fade settings-config-modal" id="menuModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <div class="modal-header">
@@ -72,34 +82,32 @@
             </div>
 
             <div class="mb-3">
-              <label class="form-label" for="mm_role_weight">Ruolo (peso)</label>
+              <label class="form-label" for="mm_role_weight">Ruolo</label>
               <select class="form-select" id="mm_role_weight">
-                <option value="">— Seleziona ruolo —</option>
+                <option value="">Seleziona ruolo</option>
                 {% for role in roles %}
                   <option value="{{ role.weight }}">{{ role.name }} ({{ role.weight }})</option>
                 {% endfor %}
-                <option value="__custom__">Personalizzato…</option>
+                <option value="__custom__">Personalizzato</option>
               </select>
 
               <div class="mt-2" id="mm_weight_custom_wrap" style="display:none;">
                 <label class="form-label" for="mm_weight">Peso personalizzato</label>
                 <input class="form-control" type="number" id="mm_weight" value="0">
-                <div class="form-text">Inserisci un numero. Maggiore = menu visibile a ruoli più alti.</div>
-              </div>
-
-              <div class="form-text mt-2">
-                Suggerimento: scegli un ruolo per impostare automaticamente il weight.
+                <div class="form-text">Inserisci un numero. Maggiore = menu visibile a ruoli piu' alti.</div>
               </div>
             </div>
 
-            <div class="form-check d-flex align-items-center gap-2 mt-2">
-              <input class="form-check-input m-0" type="checkbox" id="mm_is_active">
-              <label class="form-check-label m-0" for="mm_is_active">Attivo</label>
-            </div>
+            <div class="menu-switch-row">
+              <div class="form-check d-flex align-items-center gap-2">
+                <input class="form-check-input m-0" type="checkbox" id="mm_is_active">
+                <label class="form-check-label m-0" for="mm_is_active">Attivo</label>
+              </div>
 
-            <div class="form-check d-flex align-items-center gap-2 mt-2">
-              <input class="form-check-input m-0" type="checkbox" id="mm_is_visible">
-              <label class="form-check-label m-0" for="mm_is_visible">Visibile</label>
+              <div class="form-check d-flex align-items-center gap-2">
+                <input class="form-check-input m-0" type="checkbox" id="mm_is_visible">
+                <label class="form-check-label m-0" for="mm_is_visible">Visibile</label>
+              </div>
             </div>
           </div>
 

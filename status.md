@@ -1510,3 +1510,11 @@ Performance apertura giornata Agenda 2026-06-13:
   - la relazione dinamica `device.circuits` viene svuotata solo sui dispositivi esistenti, evitando errori su oggetti non ancora persistiti;
   - aggiunto `db.session.rollback()` nel blocco `except` della route per non lasciare la sessione SQLAlchemy in stato fallito;
   - verifiche: `python -m py_compile routes/settings.py` ok; POST reale di test crea un POS temporaneo con circuito associato, ritorna 302 e cleanup ok.
+- 2026-06-20 UI gestione menu:
+  - restyling di `templates/settings/menus.html` e `static/css/menus.css`;
+  - aggiunta testata pagina con titolo, descrizione e rientro alla dashboard impostazioni;
+  - card struttura menu resa coerente con il resto delle impostazioni: bordo leggero, shadow, toolbar ordinata e pulsanti con icone;
+  - albero menu reso piu' leggibile con righe arrotondate, indentazione gerarchica, connettori verticali, stati inattivo/nascosto/separatore differenziati e menu azioni piu' pulito;
+  - modale menu uniformata al tema impostazioni con header marrone, body scrollabile e controlli coerenti;
+  - mantenuto invariato il funzionamento JS/endpoint esistente;
+  - verifiche: render template `settings/menus.html` ok, `node --check static/js/menu_management.js` ok, `git diff --check` ok.
