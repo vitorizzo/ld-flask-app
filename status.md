@@ -1530,3 +1530,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - `static/css/menus.css` definisce dimensioni stabili per i pulsanti rapidi e layout responsive;
   - eliminata alla radice la criticita' hover/orientamento/z-index del menu "...";
   - verifiche: `node --check static/js/menu_management.js` ok, render template `settings/menus.html` ok, `git diff --check` ok.
+- 2026-06-20 fix contenimento Gestione menu:
+  - ripristinato clipping/scroll interno del box menu dopo la rimozione del dropdown;
+  - ridotta l'indentazione delle gerarchie per evitare overflow laterale;
+  - le righe menu ora possono andare a capo e i pulsanti rapidi si dispongono su piu' righe dentro il box quando lo spazio non basta;
+  - verifiche: `node --check static/js/menu_management.js` ok, `git diff --check` ok.
