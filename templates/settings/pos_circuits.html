@@ -4,31 +4,124 @@
 
 {% block extra_css %}
 <style>
+  #flash-message {
+    position: fixed;
+    top: calc(var(--app-header-height, 72px) + 12px);
+    right: 24px;
+    z-index: 2300;
+    width: min(520px, calc(100vw - 48px));
+    pointer-events: none;
+  }
+
+  #flash-message .alert {
+    pointer-events: auto;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+    border-radius: 10px;
+  }
+
+  .settings-config-modal {
+    z-index: 2100;
+  }
+
+  .settings-config-modal .modal-dialog {
+    margin-top: calc(var(--app-header-height, 72px) + 14px);
+    margin-bottom: calc(var(--app-footer-height, 42px) + 14px);
+  }
+
+  .settings-config-modal .modal-content,
+  .settings-icon-picker-modal .modal-content {
+    background: #fff;
+    color: #212529;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 14px;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+  }
+
+  .settings-config-modal .modal-header,
+  .settings-icon-picker-modal .modal-header {
+    background: #6b3f36;
+    color: #fff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    min-height: 58px;
+  }
+
+  .settings-config-modal .modal-title,
+  .settings-icon-picker-modal .modal-title {
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .settings-config-modal .btn-close,
+  .settings-icon-picker-modal .btn-close {
+    filter: invert(1);
+    opacity: 0.9;
+  }
+
+  .settings-config-modal .modal-body {
+    max-height: calc(100vh - var(--app-header-height, 72px) - var(--app-footer-height, 42px) - 150px);
+    overflow-y: auto;
+  }
+
+  .settings-config-modal .modal-footer {
+    background: #fff;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  .settings-config-modal .form-label {
+    color: #4a2c2a;
+    font-weight: 600;
+  }
+
+  .settings-config-modal .form-control:focus,
+  .settings-config-modal .form-select:focus {
+    border-color: rgba(107, 63, 54, 0.45);
+    box-shadow: 0 0 0 0.25rem rgba(107, 63, 54, 0.16);
+  }
+
   .settings-icon-picker-modal.modal,
   .settings-icon-picker-modal.modal.show {
     position: fixed !important;
     inset: 0;
-    z-index: 20000 !important;
+    z-index: 2200 !important;
     background: rgba(17, 24, 39, .65);
   }
+
   .settings-icon-picker-modal .modal-dialog {
     position: relative;
-    z-index: 20001 !important;
+    z-index: 2201 !important;
     transform: none !important;
+    margin-top: calc(var(--app-header-height, 72px) + 14px);
+    margin-bottom: calc(var(--app-footer-height, 42px) + 14px);
   }
+
   .settings-icon-picker-modal .modal-content {
     opacity: 1 !important;
     pointer-events: auto !important;
-    background: #fff !important;
   }
-  body.settings-icon-picker-modal-open .modal-backdrop.show {
-    z-index: 19990 !important;
-  }
+
+  body.settings-icon-picker-modal-open .modal-backdrop.show,
   body.settings-icon-picker-modal-open .modal-backdrop {
-    z-index: 19990 !important;
+    z-index: 2190 !important;
   }
 </style>
 {% endblock %}
+
+{% macro validity_text(item) -%}
+  {% if item.valid_from or item.valid_to %}
+    Dal {{ item.valid_from.isoformat() if item.valid_from else "sempre" }}{% if item.valid_to %} fino al {{ item.valid_to.isoformat() }}{% endif %}
+  {% else %}
+    Sempre valido
+  {% endif %}
+{%- endmacro %}
+
+{% macro icon_preview(icon) -%}
+  {% if icon %}
+    <span class="badge text-bg-light"><i class="{{ icon }} me-1"></i>{{ icon }}</span>
+  {% else %}
+    <span class="badge text-bg-secondary">Nessuna icona</span>
+  {% endif %}
+{%- endmacro %}
 
 {% block content %}
 <section class="welcome-section page-shell">
@@ -38,164 +131,252 @@
         <h1 class="mb-1">Circuiti Carte</h1>
         <div class="text-muted">Circuiti associati ai dispositivi POS.</div>
       </div>
-      <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">
-        <i class="fa-solid fa-arrow-left me-1"></i>Dashboard
-      </a>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#circuitCreateModal">
+          <i class="fa-solid fa-plus me-1"></i>Nuovo circuito
+        </button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">
+          <i class="fa-solid fa-arrow-left me-1"></i>Dashboard
+        </a>
+      </div>
     </div>
 
-    <div class="card shadow-sm mb-3">
+    <div class="card shadow-sm">
       <div class="card-header d-flex align-items-center justify-content-between">
-        <strong>Nuovo circuito</strong>
-        <span class="text-muted small">Crea un circuito di pagamento</span>
+        <strong>Circuiti carte</strong>
+        <span class="text-muted small">{{ circuits|length }} record</span>
       </div>
-      <div class="card-body">
-        <form method="post" enctype="multipart/form-data" class="row g-3 align-items-end">
-          <div class="col-12 col-lg-4">
-            <label class="form-label" for="circuit-name-new">Nome</label>
-            <input class="form-control" id="circuit-name-new" name="name" type="text" placeholder="Nome circuito">
+      <div class="card-body p-0">
+        {% if circuits %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="min-width: 260px;">Circuito</th>
+                  <th style="min-width: 210px;">Icona</th>
+                  <th style="width: 130px;">Stato</th>
+                  <th style="min-width: 210px;">Validita'</th>
+                  <th style="min-width: 160px;">Logo</th>
+                  <th style="width: 150px;" class="text-end">Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for circuit in circuits %}
+                  <tr role="button" data-bs-toggle="modal" data-bs-target="#circuitDetailModal-{{ circuit.id }}">
+                    <td>
+                      <div class="d-flex align-items-center gap-3">
+                        {% if circuit.logo_path %}
+                          <img src="{{ url_for('settings.pos_circuit_logo', logo_path=circuit.logo_path) }}" alt="Logo {{ circuit.name }}" class="border rounded p-1 bg-white" style="width: 44px; height: 44px; object-fit: contain;">
+                        {% else %}
+                          <span class="d-inline-flex align-items-center justify-content-center border rounded bg-light text-muted" style="width: 44px; height: 44px;">
+                            <i class="{{ circuit.icon or 'fa-solid fa-credit-card' }}"></i>
+                          </span>
+                        {% endif %}
+                        <div>
+                          <div class="fw-semibold">{{ circuit.name }}</div>
+                          <div class="text-muted small">ID {{ circuit.id }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>{{ icon_preview(circuit.icon) }}</td>
+                    <td>
+                      {% if circuit.is_active %}
+                        <span class="badge text-bg-success">Attivo</span>
+                      {% else %}
+                        <span class="badge text-bg-secondary">Disattivo</span>
+                      {% endif %}
+                    </td>
+                    <td><span class="text-muted small">{{ validity_text(circuit) }}</span></td>
+                    <td>
+                      {% if circuit.logo_path %}
+                        <span class="badge text-bg-primary">Logo presente</span>
+                      {% else %}
+                        <span class="text-muted small">Nessun logo</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-end" onclick="event.stopPropagation();">
+                      <div class="btn-group btn-group-sm" role="group" aria-label="Azioni circuito carte">
+                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#circuitDetailModal-{{ circuit.id }}" title="Modifica">
+                          <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <form method="post" action="{{ url_for('settings.pos_circuit_toggle_active', circuit_id=circuit.id) }}">
+                          <button type="submit" class="btn btn-outline-secondary" title="{% if circuit.is_active %}Disattiva{% else %}Riattiva{% endif %}">
+                            <i class="fa-solid fa-power-off"></i>
+                          </button>
+                        </form>
+                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#circuitDeleteModal-{{ circuit.id }}" title="Elimina">
+                          <i class="fa-solid fa-trash"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
           </div>
-              <div class="col-12 col-lg-4">
-                <label class="form-label" for="circuit-icon-new">Icona</label>
+        {% else %}
+          <div class="p-4">
+            <div class="alert alert-warning mb-0">Nessun circuito disponibile.</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="modal fade settings-config-modal" id="circuitCreateModal" tabindex="-1" aria-labelledby="circuitCreateTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <form method="post" enctype="multipart/form-data">
+        <div class="modal-header">
+          <h5 class="modal-title" id="circuitCreateTitle">Nuovo circuito</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="circuit-name-new">Nome</label>
+              <input class="form-control" id="circuit-name-new" name="name" type="text" placeholder="Nome circuito" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="circuit-logo-new">Logo</label>
+              <input class="form-control" id="circuit-logo-new" name="logo_file" type="file" accept="image/*">
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="circuit-icon-new">Icona</label>
+              <div class="input-group">
+                <input class="form-control circuit-icon-input" id="circuit-icon-new" name="icon" type="text" placeholder="Scegli un'icona">
+                <button class="btn btn-outline-secondary circuit-icon-picker-btn" type="button" data-icon-target="circuit-icon-new" data-icon-preview="circuit-icon-preview-new">
+                  <i class="fa-solid fa-icons me-1"></i>Scegli
+                </button>
+              </div>
+              <div class="mt-2">
+                <span id="circuit-icon-preview-new" class="badge text-bg-light">Nessuna icona</span>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="form-check">
+                <input class="form-check-input js-valid-from-toggle" type="checkbox" id="circuit-valid-from-enabled-new" name="has_valid_from" value="1">
+                <label class="form-check-label" for="circuit-valid-from-enabled-new">Valido dal</label>
+              </div>
+              <input class="form-control mt-2 js-valid-from-input d-none" id="circuit-valid-from-new" name="valid_from" type="date">
+            </div>
+            <div class="col-md-4">
+              <div class="form-check">
+                <input class="form-check-input js-valid-to-toggle" type="checkbox" id="circuit-valid-to-enabled-new" name="has_valid_to" value="1">
+                <label class="form-check-label" for="circuit-valid-to-enabled-new">Valido al</label>
+              </div>
+              <input class="form-control mt-2 js-valid-to-input d-none" id="circuit-valid-to-new" name="valid_to" type="date">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="circuit-active-new" name="is_active" checked>
+                <label class="form-check-label" for="circuit-active-new">Attivo</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+          <button type="submit" class="btn btn-primary">Salva circuito</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% for circuit in circuits %}
+  <div class="modal fade settings-config-modal" id="circuitDetailModal-{{ circuit.id }}" tabindex="-1" aria-labelledby="circuitDetailTitle-{{ circuit.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <form method="post" enctype="multipart/form-data">
+          <input type="hidden" name="circuit_id" value="{{ circuit.id }}">
+          <div class="modal-header">
+            <h5 class="modal-title" id="circuitDetailTitle-{{ circuit.id }}">Circuito {{ circuit.name }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="circuit-name-{{ circuit.id }}">Nome</label>
+                <input class="form-control" id="circuit-name-{{ circuit.id }}" type="text" name="name" value="{{ circuit.name }}" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="circuit-logo-{{ circuit.id }}">Logo</label>
+                <input class="form-control" id="circuit-logo-{{ circuit.id }}" type="file" name="logo_file" accept="image/*">
+                {% if circuit.logo_path %}
+                  <div class="mt-2 d-flex align-items-center gap-2">
+                    <img src="{{ url_for('settings.pos_circuit_logo', logo_path=circuit.logo_path) }}" alt="Logo {{ circuit.name }}" class="border rounded p-1 bg-white" style="width: 56px; height: 56px; object-fit: contain;">
+                    <span class="text-muted small">{{ circuit.logo_path }}</span>
+                  </div>
+                {% endif %}
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="circuit-icon-{{ circuit.id }}">Icona</label>
                 <div class="input-group">
-                  <input class="form-control circuit-icon-input" id="circuit-icon-new" name="icon" type="text" placeholder="Scegli un'icona">
-                  <button class="btn btn-outline-secondary circuit-icon-picker-btn" type="button"
-                          data-icon-target="circuit-icon-new" data-icon-preview="circuit-icon-preview-new">
+                  <input class="form-control circuit-icon-input" id="circuit-icon-{{ circuit.id }}" type="text" name="icon" value="{{ circuit.icon or '' }}">
+                  <button class="btn btn-outline-secondary circuit-icon-picker-btn" type="button" data-icon-target="circuit-icon-{{ circuit.id }}" data-icon-preview="circuit-icon-preview-{{ circuit.id }}">
                     <i class="fa-solid fa-icons me-1"></i>Scegli
                   </button>
                 </div>
                 <div class="mt-2">
-                  <span id="circuit-icon-preview-new" class="badge text-bg-light">Nessuna icona</span>
+                  <span id="circuit-icon-preview-{{ circuit.id }}" class="badge text-bg-light">
+                    {% if circuit.icon %}<i class="{{ circuit.icon }} me-1"></i>{{ circuit.icon }}{% else %}Nessuna icona{% endif %}
+                  </span>
                 </div>
               </div>
-              <div class="col-12 col-lg-4">
-                <label class="form-label" for="circuit-logo-new">Logo</label>
-                <input class="form-control" id="circuit-logo-new" name="logo_file" type="file" accept="image/*">
-              </div>
-              <div class="col-12 col-lg-2">
-                <div class="form-check mt-4 pt-2">
-                  <input class="form-check-input js-valid-from-toggle" type="checkbox" id="circuit-valid-from-enabled-new" name="has_valid_from" value="1">
-                  <label class="form-check-label" for="circuit-valid-from-enabled-new">Valido dal</label>
+              <div class="col-md-4">
+                <div class="form-check">
+                  <input class="form-check-input js-valid-from-toggle" type="checkbox" id="circuit-valid-from-enabled-{{ circuit.id }}" name="has_valid_from" value="1" {% if circuit.valid_from %}checked{% endif %}>
+                  <label class="form-check-label" for="circuit-valid-from-enabled-{{ circuit.id }}">Valido dal</label>
                 </div>
-                <input class="form-control mt-2 js-valid-from-input d-none" id="circuit-valid-from-new" name="valid_from" type="date">
+                <input class="form-control mt-2 js-valid-from-input {% if not circuit.valid_from %}d-none{% endif %}" id="circuit-valid-from-{{ circuit.id }}" type="date" name="valid_from" value="{{ circuit.valid_from.isoformat() if circuit.valid_from else '' }}">
               </div>
-              <div class="col-12 col-lg-2">
-                <div class="form-check mt-4 pt-2">
-                  <input class="form-check-input js-valid-to-toggle" type="checkbox" id="circuit-valid-to-enabled-new" name="has_valid_to" value="1">
-                  <label class="form-check-label" for="circuit-valid-to-enabled-new">Valido al</label>
+              <div class="col-md-4">
+                <div class="form-check">
+                  <input class="form-check-input js-valid-to-toggle" type="checkbox" id="circuit-valid-to-enabled-{{ circuit.id }}" name="has_valid_to" value="1" {% if circuit.valid_to %}checked{% endif %}>
+                  <label class="form-check-label" for="circuit-valid-to-enabled-{{ circuit.id }}">Valido al</label>
                 </div>
-                <input class="form-control mt-2 js-valid-to-input d-none" id="circuit-valid-to-new" name="valid_to" type="date">
+                <input class="form-control mt-2 js-valid-to-input {% if not circuit.valid_to %}d-none{% endif %}" id="circuit-valid-to-{{ circuit.id }}" type="date" name="valid_to" value="{{ circuit.valid_to.isoformat() if circuit.valid_to else '' }}">
               </div>
-              <div class="col-6 col-lg-2 form-check mt-4 pt-2">
-                <input class="form-check-input" type="checkbox" id="circuit-active-new" name="is_active" checked>
-                <label class="form-check-label" for="circuit-active-new">Attivo</label>
+              <div class="col-md-4 d-flex align-items-end">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="circuit-active-{{ circuit.id }}" name="is_active" value="1" {% if circuit.is_active %}checked{% endif %}>
+                  <label class="form-check-label" for="circuit-active-{{ circuit.id }}">Attivo</label>
+                </div>
               </div>
-          <div class="col-12 col-lg-2 d-grid ms-auto">
-            <button type="submit" class="btn btn-primary">Salva</button>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-danger me-auto" data-bs-toggle="modal" data-bs-target="#circuitDeleteModal-{{ circuit.id }}">Elimina</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+            <button type="submit" class="btn btn-primary">Salva modifiche</button>
           </div>
         </form>
       </div>
     </div>
-
-    {% if circuits %}
-      <div class="vstack gap-3">
-        {% for circuit in circuits %}
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <form method="post" enctype="multipart/form-data" class="row g-3 align-items-end">
-                <input type="hidden" name="circuit_id" value="{{ circuit.id }}">
-                <div class="col-12 col-lg-4">
-                  <label class="form-label" for="circuit-name-{{ circuit.id }}">Nome</label>
-                  <input class="form-control" id="circuit-name-{{ circuit.id }}" type="text" name="name" value="{{ circuit.name }}">
-                </div>
-                <div class="col-12 col-lg-4">
-                  <label class="form-label" for="circuit-icon-{{ circuit.id }}">Icona</label>
-                  <div class="input-group">
-                    <input class="form-control circuit-icon-input" id="circuit-icon-{{ circuit.id }}" type="text" name="icon" value="{{ circuit.icon or '' }}">
-                    <button class="btn btn-outline-secondary circuit-icon-picker-btn" type="button"
-                            data-icon-target="circuit-icon-{{ circuit.id }}" data-icon-preview="circuit-icon-preview-{{ circuit.id }}">
-                      <i class="fa-solid fa-icons me-1"></i>Scegli
-                    </button>
-                  </div>
-                  <div class="mt-2">
-                    {% if circuit.icon %}
-                      <span id="circuit-icon-preview-{{ circuit.id }}" class="badge text-bg-light"><i class="{{ circuit.icon }} me-1"></i>{{ circuit.icon }}</span>
-                    {% else %}
-                      <span id="circuit-icon-preview-{{ circuit.id }}" class="badge text-bg-light">Nessuna icona</span>
-                    {% endif %}
-                  </div>
-                </div>
-                <div class="col-12 col-lg-4">
-                  <label class="form-label" for="circuit-logo-{{ circuit.id }}">Logo</label>
-                  <input class="form-control" id="circuit-logo-{{ circuit.id }}" type="file" name="logo_file" accept="image/*">
-                  {% if circuit.logo_path %}
-                    <div class="mt-2 d-flex align-items-center gap-2">
-                      <img src="{{ url_for('settings.pos_circuit_logo', logo_path=circuit.logo_path) }}" alt="Logo {{ circuit.name }}" style="width: 56px; height: 56px; object-fit: contain; background: #fff;" class="border rounded p-1">
-                      <span class="text-muted small">{{ circuit.logo_path }}</span>
-                    </div>
-                  {% endif %}
-                </div>
-                <div class="col-12 col-lg-2">
-                  <div class="form-check mt-4 pt-2">
-                    <input class="form-check-input js-valid-from-toggle" type="checkbox" id="circuit-valid-from-enabled-{{ circuit.id }}" name="has_valid_from" value="1" {% if circuit.valid_from %}checked{% endif %}>
-                    <label class="form-check-label" for="circuit-valid-from-enabled-{{ circuit.id }}">Valido dal</label>
-                  </div>
-                  <input class="form-control mt-2 js-valid-from-input {% if not circuit.valid_from %}d-none{% endif %}" id="circuit-valid-from-{{ circuit.id }}" type="date" name="valid_from" value="{{ circuit.valid_from.isoformat() if circuit.valid_from else '' }}">
-                </div>
-                <div class="col-12 col-lg-2">
-                  <div class="form-check mt-4 pt-2">
-                    <input class="form-check-input js-valid-to-toggle" type="checkbox" id="circuit-valid-to-enabled-{{ circuit.id }}" name="has_valid_to" value="1" {% if circuit.valid_to %}checked{% endif %}>
-                    <label class="form-check-label" for="circuit-valid-to-enabled-{{ circuit.id }}">Valido al</label>
-                  </div>
-                  <input class="form-control mt-2 js-valid-to-input {% if not circuit.valid_to %}d-none{% endif %}" id="circuit-valid-to-{{ circuit.id }}" type="date" name="valid_to" value="{{ circuit.valid_to.isoformat() if circuit.valid_to else '' }}">
-                </div>
-                <div class="col-6 col-lg-2 form-check mt-4 pt-2">
-                  <input class="form-check-input" type="checkbox" id="circuit-active-{{ circuit.id }}" name="is_active" value="1" {% if circuit.is_active %}checked{% endif %}>
-                  <label class="form-check-label" for="circuit-active-{{ circuit.id }}">Attivo</label>
-                </div>
-                <div class="col-12 col-lg-2 d-grid ms-auto">
-                  <button type="submit" class="btn btn-outline-primary">Salva</button>
-                </div>
-              </form>
-            </div>
-            <div class="card-footer d-flex align-items-center justify-content-between gap-2">
-              <div class="text-muted small d-flex align-items-center gap-2">
-                ID {{ circuit.id }}
-                <span>
-                  {% if circuit.icon %}
-                    <i class="{{ circuit.icon }}"></i> {{ circuit.icon }}
-                  {% else %}
-                    Nessuna icona
-                  {% endif %}
-                </span>
-                <span>
-                  {% if circuit.logo_path %}Logo presente{% else %}Nessun logo{% endif %}
-                </span>
-                {% if circuit.valid_from or circuit.valid_to %}
-                  <span>
-                    Dal {{ circuit.valid_from.isoformat() if circuit.valid_from else "sempre" }}
-                    {% if circuit.valid_to %} fino al {{ circuit.valid_to.isoformat() }}{% endif %}
-                  </span>
-                {% endif %}
-              </div>
-              <div class="d-flex gap-2">
-                <form method="post" action="{{ url_for('settings.pos_circuit_toggle_active', circuit_id=circuit.id) }}">
-                  <button type="submit" class="btn btn-sm btn-outline-secondary">
-                    {% if circuit.is_active %}Disattiva{% else %}Riattiva{% endif %}
-                  </button>
-                </form>
-                <form method="post" action="{{ url_for('settings.pos_circuit_delete', circuit_id=circuit.id) }}" onsubmit="return confirm('Eliminare il circuito {{ circuit.name }}? Se è usato verrà bloccato.');">
-                  <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
-                </form>
-              </div>
-            </div>
-          </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="alert alert-warning mb-0">Nessun circuito disponibile.</div>
-    {% endif %}
   </div>
-</section>
+
+  <div class="modal fade settings-config-modal" id="circuitDeleteModal-{{ circuit.id }}" tabindex="-1" aria-labelledby="circuitDeleteTitle-{{ circuit.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form method="post" action="{{ url_for('settings.pos_circuit_delete', circuit_id=circuit.id) }}">
+          <div class="modal-header">
+            <h5 class="modal-title" id="circuitDeleteTitle-{{ circuit.id }}">Elimina circuito</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0">Eliminare definitivamente <strong>{{ circuit.name }}</strong>? Se e' usato da dispositivi o movimenti storici l'operazione verra' bloccata.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+            <button type="submit" class="btn btn-danger">Elimina</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endfor %}
 
 <div class="modal fade settings-icon-picker-modal" id="circuitIconPickerModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
@@ -221,40 +402,44 @@
     </div>
   </div>
 </div>
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
-(function () {
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".modal").forEach((modal) => {
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+  });
+
   const modalEl = document.getElementById("circuitIconPickerModal");
-  if (!modalEl || !window.bootstrap) return;
   let activeTarget = null;
   let activePreview = null;
-  const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+  let pickerModal = null;
 
-  if (modalEl.parentElement !== document.body) {
-    document.body.appendChild(modalEl);
+  if (modalEl && window.bootstrap) {
+    pickerModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+
+    modalEl.addEventListener("show.bs.modal", () => {
+      document.body.classList.add("settings-icon-picker-modal-open");
+    });
+
+    modalEl.addEventListener("hidden.bs.modal", () => {
+      document.body.classList.remove("settings-icon-picker-modal-open");
+    });
   }
-
-  modalEl.addEventListener("show.bs.modal", () => {
-    document.body.classList.add("settings-icon-picker-modal-open");
-  });
-
-  modalEl.addEventListener("hidden.bs.modal", () => {
-    document.body.classList.remove("settings-icon-picker-modal-open");
-  });
 
   document.querySelectorAll(".circuit-icon-picker-btn").forEach((btn) => {
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       activeTarget = document.getElementById(btn.dataset.iconTarget);
       activePreview = document.getElementById(btn.dataset.iconPreview);
-      modal.show();
+      pickerModal?.show();
     });
   });
 
-  modalEl.querySelectorAll(".icon-choice-btn").forEach((btn) => {
+  modalEl?.querySelectorAll(".icon-choice-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
       if (!activeTarget) return;
       const value = btn.dataset.iconValue || "";
@@ -262,7 +447,7 @@
       if (activePreview) {
         activePreview.innerHTML = value ? `<i class="${value} me-1"></i>${value}` : "Nessuna icona";
       }
-      modal.hide();
+      pickerModal?.hide();
     });
   });
 
@@ -287,6 +472,27 @@
     cb.addEventListener("change", sync);
     sync();
   });
-})();
+
+  document.querySelectorAll(".modal").forEach((modal) => {
+    modal.addEventListener("shown.bs.modal", () => {
+      const submitBtn = modal.querySelector('button[type="submit"]');
+      if (!submitBtn) return;
+      submitBtn.disabled = false;
+      if (!submitBtn.dataset.defaultText) {
+        submitBtn.dataset.defaultText = submitBtn.textContent.trim();
+      }
+      submitBtn.textContent = submitBtn.dataset.defaultText;
+    });
+
+    modal.addEventListener("hidden.bs.modal", () => {
+      const submitBtn = modal.querySelector('button[type="submit"]');
+      if (!submitBtn) return;
+      submitBtn.disabled = false;
+      if (submitBtn.dataset.defaultText) {
+        submitBtn.textContent = submitBtn.dataset.defaultText;
+      }
+    });
+  });
+});
 </script>
 {% endblock %}

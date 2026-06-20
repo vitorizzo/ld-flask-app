@@ -820,8 +820,10 @@ Stato implementazione 2026-06-14:
 - impostazioni applicative:
   - nuova pagina hub `/settings`;
   - dashboard iniziale a tile di categoria, con `Utenti` come accesso principale;
-  - aggiunti i tile `Banche`, `Circuiti Carte` e `Dispositivi POS` con pagine read-only di riepilogo;
-  - le aree `Banche`, `Circuiti Carte` e `Dispositivi POS` sono ora editabili con form inline; i POS permettono anche l'associazione dei circuiti;
+  - aggiunti i tile `Banche`, `Circuiti Carte` e `Dispositivi POS` con pagine di gestione dedicate;
+  - le aree `Banche`, `Circuiti Carte` e `Dispositivi POS` usano lo stesso pattern del widget utenti: tabella compatta, click riga per modale dettaglio/modifica, form di creazione in modale e azioni rapide di riga;
+  - le modali delle aree impostazioni vengono spostate in `document.body` e inizializzate su `shown.bs.modal`/`hidden.bs.modal` per evitare il bug ricorrente di focus/stacking;
+  - i POS permettono anche l'associazione dei circuiti;
   - i circuiti carte hanno picker icone in modale e upload logo con preview grafica;
   - il picker icone usa Font Awesome gia' presente nel layout e la modale viene riattaccata al `body` per evitare stacking issues;
   - il logo del circuito non viene azzerato al salvataggio: resta quello esistente finché non si carica un nuovo file;
@@ -873,3 +875,4 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - 2026-06-19 snapshot report: `CashClosure.fiscal_snapshot` contiene anche `report_payload` fiscale completo; la stampa di una giornata aperta chiude e stampa lo snapshot appena salvato, mentre una giornata chiusa stampa dallo snapshot salvato o lo rigenera se stale. Le chiusure successive vengono marcate stale e ricalcolate in cascata.
 - 2026-06-20 nota report/quadratura: correzione snapshot/report sospesa in attesa di dati corretti per validazione.
 - 2026-06-20 utenti impostazioni: aggiunti `SpecialPermission`/`UserSpecialPermission` con migration `6f708192a3b4`; `/settings/users` ora supporta modali di modifica, cambio ruolo, autorizzazioni temporanee/speciali, eliminazione e reset password 24 ore.
+- 2026-06-20 UI impostazioni: `/settings/banks`, `/settings/pos-circuits` e `/settings/pos-devices` sono state uniformate allo stile `/settings/users` con tabelle, modali detail/edit, azioni rapide e fix preventivo focus/stacking modali.

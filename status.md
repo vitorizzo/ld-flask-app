@@ -1496,3 +1496,12 @@ Performance apertura giornata Agenda 2026-06-13:
   - le modali utenti usano classe `settings-user-modal` con header marrone coerente con le modali Agenda, bordo, shadow, footer separato e body scrollabile;
   - evitato l'effetto "total white" e il taglio della barra titolo nelle modali utenti;
   - verifica render template `settings/users.html` ok.
+- 2026-06-20 UI impostazioni banche/circuiti/POS:
+  - `templates/settings/banks.html`, `templates/settings/pos_circuits.html` e `templates/settings/pos_devices.html` sono stati uniformati allo stile del widget utenti;
+  - le liste ora usano tabella compatta con click riga per aprire la modale dettaglio/modifica;
+  - le azioni rapide di riga espongono modifica, toggle attivo/disattivo ed eliminazione;
+  - i form di creazione sono stati spostati in modale dedicata;
+  - flash e modali usano lo stesso styling corretto: header marrone, body scrollabile, footer separato e flash fixed sotto navbar;
+  - tutte le modali vengono spostate in `document.body` su `DOMContentLoaded` e i pulsanti submit vengono ripristinati su `shown.bs.modal`/`hidden.bs.modal`;
+  - per i circuiti carte e' stato mantenuto il picker icone in modale con layer dedicato;
+  - verifica render template con dati reali ok per `settings/banks.html`, `settings/pos_circuits.html`, `settings/pos_devices.html`.

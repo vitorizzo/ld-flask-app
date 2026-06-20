@@ -2,6 +2,89 @@
 
 {% block title %}LD Enoteca - Dispositivi POS{% endblock %}
 
+{% block extra_css %}
+<style>
+  #flash-message {
+    position: fixed;
+    top: calc(var(--app-header-height, 72px) + 12px);
+    right: 24px;
+    z-index: 2300;
+    width: min(520px, calc(100vw - 48px));
+    pointer-events: none;
+  }
+
+  #flash-message .alert {
+    pointer-events: auto;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+    border-radius: 10px;
+  }
+
+  .settings-config-modal {
+    z-index: 2100;
+  }
+
+  .settings-config-modal .modal-dialog {
+    margin-top: calc(var(--app-header-height, 72px) + 14px);
+    margin-bottom: calc(var(--app-footer-height, 42px) + 14px);
+  }
+
+  .settings-config-modal .modal-content {
+    background: #fff;
+    color: #212529;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 14px;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+  }
+
+  .settings-config-modal .modal-header {
+    background: #6b3f36;
+    color: #fff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    min-height: 58px;
+  }
+
+  .settings-config-modal .modal-title {
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .settings-config-modal .btn-close {
+    filter: invert(1);
+    opacity: 0.9;
+  }
+
+  .settings-config-modal .modal-body {
+    max-height: calc(100vh - var(--app-header-height, 72px) - var(--app-footer-height, 42px) - 150px);
+    overflow-y: auto;
+  }
+
+  .settings-config-modal .modal-footer {
+    background: #fff;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  .settings-config-modal .form-label {
+    color: #4a2c2a;
+    font-weight: 600;
+  }
+
+  .settings-config-modal .form-control:focus,
+  .settings-config-modal .form-select:focus {
+    border-color: rgba(107, 63, 54, 0.45);
+    box-shadow: 0 0 0 0.25rem rgba(107, 63, 54, 0.16);
+  }
+</style>
+{% endblock %}
+
+{% macro validity_text(item) -%}
+  {% if item.valid_from or item.valid_to %}
+    Dal {{ item.valid_from.isoformat() if item.valid_from else "sempre" }}{% if item.valid_to %} fino al {{ item.valid_to.isoformat() }}{% endif %}
+  {% else %}
+    Sempre valido
+  {% endif %}
+{%- endmacro %}
+
 {% block content %}
 <section class="welcome-section page-shell">
   <div class="container-fluid">
@@ -10,163 +93,280 @@
         <h1 class="mb-1">Dispositivi POS</h1>
         <div class="text-muted">Terminali e canali di incasso elettronico.</div>
       </div>
-      <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">
-        <i class="fa-solid fa-arrow-left me-1"></i>Dashboard
-      </a>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#deviceCreateModal">
+          <i class="fa-solid fa-plus me-1"></i>Nuovo dispositivo
+        </button>
+        <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">
+          <i class="fa-solid fa-arrow-left me-1"></i>Dashboard
+        </a>
+      </div>
     </div>
 
-    <div class="card shadow-sm mb-3">
+    <div class="card shadow-sm">
       <div class="card-header d-flex align-items-center justify-content-between">
-        <strong>Nuovo dispositivo</strong>
-        <span class="text-muted small">Crea un nuovo terminale POS</span>
+        <strong>Dispositivi POS</strong>
+        <span class="text-muted small">{{ devices|length }} record</span>
       </div>
-      <div class="card-body">
-        <form method="post" class="row g-3 align-items-end">
-          <div class="col-12 col-lg-4">
-            <label class="form-label" for="device-name-new">Nome</label>
-            <input class="form-control" id="device-name-new" name="name" type="text" placeholder="Nome dispositivo">
+      <div class="card-body p-0">
+        {% if devices %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="min-width: 260px;">Dispositivo</th>
+                  <th style="min-width: 150px;">Tipo</th>
+                  <th style="min-width: 220px;">Circuiti</th>
+                  <th style="width: 130px;">Stato</th>
+                  <th style="width: 130px;">Default</th>
+                  <th style="min-width: 210px;">Validita'</th>
+                  <th style="width: 150px;" class="text-end">Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for device in devices %}
+                  {% set device_circuits = device.circuits.all() %}
+                  <tr role="button" data-bs-toggle="modal" data-bs-target="#deviceDetailModal-{{ device.id }}">
+                    <td>
+                      <div class="fw-semibold">{{ device.name }}</div>
+                      <div class="text-muted small">ID {{ device.id }}</div>
+                    </td>
+                    <td><span class="badge text-bg-light">{{ device.type }}</span></td>
+                    <td>
+                      {% if device_circuits %}
+                        <div class="d-flex flex-wrap gap-1">
+                          {% for circuit in device_circuits %}
+                            <span class="badge text-bg-secondary">{{ circuit.name }}</span>
+                          {% endfor %}
+                        </div>
+                      {% else %}
+                        <span class="text-muted small">Nessun circuito associato</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if device.is_active %}
+                        <span class="badge text-bg-success">Attivo</span>
+                      {% else %}
+                        <span class="badge text-bg-secondary">Disattivo</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if device.is_default %}
+                        <span class="badge text-bg-primary">Default</span>
+                      {% else %}
+                        <span class="text-muted small">-</span>
+                      {% endif %}
+                    </td>
+                    <td><span class="text-muted small">{{ validity_text(device) }}</span></td>
+                    <td class="text-end" onclick="event.stopPropagation();">
+                      <div class="btn-group btn-group-sm" role="group" aria-label="Azioni dispositivo POS">
+                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#deviceDetailModal-{{ device.id }}" title="Modifica">
+                          <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <form method="post" action="{{ url_for('settings.pos_device_toggle_active', device_id=device.id) }}">
+                          <button type="submit" class="btn btn-outline-secondary" title="{% if device.is_active %}Disattiva{% else %}Riattiva{% endif %}">
+                            <i class="fa-solid fa-power-off"></i>
+                          </button>
+                        </form>
+                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deviceDeleteModal-{{ device.id }}" title="Elimina">
+                          <i class="fa-solid fa-trash"></i>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
           </div>
-          <div class="col-12 col-lg-3">
-            <label class="form-label" for="device-type-new">Tipo</label>
-            <select class="form-select" id="device-type-new" name="type">
-              <option value="physical">physical</option>
-              <option value="mobile">mobile</option>
-              <option value="paybylink">paybylink</option>
-              <option value="tap_to_pay">tap_to_pay</option>
-              <option value="other">other</option>
-            </select>
+        {% else %}
+          <div class="p-4">
+            <div class="alert alert-warning mb-0">Nessun dispositivo POS disponibile.</div>
           </div>
-          <div class="col-12 col-lg-5">
-            <label class="form-label">Circuiti associati</label>
-            <div class="border rounded p-3 bg-light" style="max-height: 220px; overflow: auto;">
-              {% for circuit in circuits_all %}
-                <div class="form-check">
-                  <input class="form-check-input" type="checkbox" name="circuit_ids" value="{{ circuit.id }}" id="device-new-circuit-{{ circuit.id }}">
-                  <label class="form-check-label" for="device-new-circuit-{{ circuit.id }}">{{ circuit.name }}</label>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="modal fade settings-config-modal" id="deviceCreateModal" tabindex="-1" aria-labelledby="deviceCreateTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <form method="post">
+        <div class="modal-header">
+          <h5 class="modal-title" id="deviceCreateTitle">Nuovo dispositivo POS</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="device-name-new">Nome</label>
+              <input class="form-control" id="device-name-new" name="name" type="text" placeholder="Nome dispositivo" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="device-type-new">Tipo</label>
+              <select class="form-select" id="device-type-new" name="type">
+                {% for value in ["physical", "mobile", "paybylink", "tap_to_pay", "other"] %}
+                  <option value="{{ value }}">{{ value }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Circuiti associati</label>
+              <div class="border rounded p-3 bg-light" style="max-height: 220px; overflow: auto;">
+                {% for circuit in circuits_all %}
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="circuit_ids" value="{{ circuit.id }}" id="device-new-circuit-{{ circuit.id }}">
+                    <label class="form-check-label" for="device-new-circuit-{{ circuit.id }}">{{ circuit.name }}</label>
+                  </div>
+                {% else %}
+                  <div class="text-muted small">Nessun circuito configurato.</div>
+                {% endfor %}
+              </div>
+            </div>
+            <div class="col-md-3">
+              <div class="form-check">
+                <input class="form-check-input js-valid-from-toggle" type="checkbox" id="device-valid-from-enabled-new" name="has_valid_from" value="1">
+                <label class="form-check-label" for="device-valid-from-enabled-new">Valido dal</label>
+              </div>
+              <input class="form-control mt-2 js-valid-from-input d-none" id="device-valid-from-new" name="valid_from" type="date" value="{{ today.isoformat() }}">
+            </div>
+            <div class="col-md-3">
+              <div class="form-check">
+                <input class="form-check-input js-valid-to-toggle" type="checkbox" id="device-valid-to-enabled-new" name="has_valid_to" value="1">
+                <label class="form-check-label" for="device-valid-to-enabled-new">Valido al</label>
+              </div>
+              <input class="form-control mt-2 js-valid-to-input d-none" id="device-valid-to-new" name="valid_to" type="date">
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="device-active-new" name="is_active" checked>
+                <label class="form-check-label" for="device-active-new">Attivo</label>
+              </div>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="device-default-new" name="is_default">
+                <label class="form-check-label" for="device-default-new">Default</label>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+          <button type="submit" class="btn btn-primary">Salva dispositivo</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% for device in devices %}
+  {% set selected_ids = device.circuits.all() | map(attribute='id') | list %}
+  <div class="modal fade settings-config-modal" id="deviceDetailModal-{{ device.id }}" tabindex="-1" aria-labelledby="deviceDetailTitle-{{ device.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <form method="post">
+          <input type="hidden" name="device_id" value="{{ device.id }}">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deviceDetailTitle-{{ device.id }}">Dispositivo POS {{ device.name }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="device-name-{{ device.id }}">Nome</label>
+                <input class="form-control" id="device-name-{{ device.id }}" type="text" name="name" value="{{ device.name }}" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="device-type-{{ device.id }}">Tipo</label>
+                <select class="form-select" id="device-type-{{ device.id }}" name="type">
+                  {% for value in ["physical", "mobile", "paybylink", "tap_to_pay", "other"] %}
+                    <option value="{{ value }}" {% if device.type == value %}selected{% endif %}>{{ value }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12">
+                <label class="form-label">Circuiti associati</label>
+                <div class="border rounded p-3 bg-light" style="max-height: 220px; overflow: auto;">
+                  {% for circuit in circuits_all %}
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" name="circuit_ids" value="{{ circuit.id }}" id="device-{{ device.id }}-circuit-{{ circuit.id }}" {% if circuit.id in selected_ids %}checked{% endif %}>
+                      <label class="form-check-label" for="device-{{ device.id }}-circuit-{{ circuit.id }}">{{ circuit.name }}</label>
+                    </div>
+                  {% else %}
+                    <div class="text-muted small">Nessun circuito configurato.</div>
+                  {% endfor %}
                 </div>
-              {% endfor %}
+              </div>
+              <div class="col-md-3">
+                <div class="form-check">
+                  <input class="form-check-input js-valid-from-toggle" type="checkbox" id="device-valid-from-enabled-{{ device.id }}" name="has_valid_from" value="1" {% if device.valid_from %}checked{% endif %}>
+                  <label class="form-check-label" for="device-valid-from-enabled-{{ device.id }}">Valido dal</label>
+                </div>
+                <input class="form-control mt-2 js-valid-from-input {% if not device.valid_from %}d-none{% endif %}" id="device-valid-from-{{ device.id }}" type="date" name="valid_from" value="{{ device.valid_from.isoformat() if device.valid_from else '' }}">
+              </div>
+              <div class="col-md-3">
+                <div class="form-check">
+                  <input class="form-check-input js-valid-to-toggle" type="checkbox" id="device-valid-to-enabled-{{ device.id }}" name="has_valid_to" value="1" {% if device.valid_to %}checked{% endif %}>
+                  <label class="form-check-label" for="device-valid-to-enabled-{{ device.id }}">Valido al</label>
+                </div>
+                <input class="form-control mt-2 js-valid-to-input {% if not device.valid_to %}d-none{% endif %}" id="device-valid-to-{{ device.id }}" type="date" name="valid_to" value="{{ device.valid_to.isoformat() if device.valid_to else '' }}">
+              </div>
+              <div class="col-md-3 d-flex align-items-end">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="device-active-{{ device.id }}" name="is_active" value="1" {% if device.is_active %}checked{% endif %}>
+                  <label class="form-check-label" for="device-active-{{ device.id }}">Attivo</label>
+                </div>
+              </div>
+              <div class="col-md-3 d-flex align-items-end">
+                <div class="form-check">
+                  <input class="form-check-input" type="checkbox" id="device-default-{{ device.id }}" name="is_default" value="1" {% if device.is_default %}checked{% endif %}>
+                  <label class="form-check-label" for="device-default-{{ device.id }}">Default</label>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="col-12 col-lg-2">
-            <div class="form-check mt-4 pt-2">
-              <input class="form-check-input js-valid-from-toggle" type="checkbox" id="device-valid-from-enabled-new" name="has_valid_from" value="1">
-              <label class="form-check-label" for="device-valid-from-enabled-new">Valido dal</label>
-            </div>
-            <input class="form-control mt-2 js-valid-from-input d-none" id="device-valid-from-new" name="valid_from" type="date" value="{{ today.isoformat() }}">
-          </div>
-          <div class="col-12 col-lg-2">
-            <div class="form-check mt-4 pt-2">
-              <input class="form-check-input js-valid-to-toggle" type="checkbox" id="device-valid-to-enabled-new" name="has_valid_to" value="1">
-              <label class="form-check-label" for="device-valid-to-enabled-new">Valido al</label>
-            </div>
-            <input class="form-control mt-2 js-valid-to-input d-none" id="device-valid-to-new" name="valid_to" type="date">
-          </div>
-          <div class="col-6 col-lg-2 form-check mt-4 pt-2">
-            <input class="form-check-input" type="checkbox" id="device-active-new" name="is_active" checked>
-            <label class="form-check-label" for="device-active-new">Attivo</label>
-          </div>
-          <div class="col-6 col-lg-2 form-check mt-4 pt-2">
-            <input class="form-check-input" type="checkbox" id="device-default-new" name="is_default">
-            <label class="form-check-label" for="device-default-new">Default</label>
-          </div>
-          <div class="col-12 col-lg-2 d-grid ms-auto">
-            <button type="submit" class="btn btn-primary">Salva</button>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-danger me-auto" data-bs-toggle="modal" data-bs-target="#deviceDeleteModal-{{ device.id }}">Elimina</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+            <button type="submit" class="btn btn-primary">Salva modifiche</button>
           </div>
         </form>
       </div>
     </div>
-
-    {% if devices %}
-      <div class="vstack gap-3">
-        {% for device in devices %}
-          <div class="card shadow-sm">
-            <div class="card-body">
-              <form method="post" class="row g-3 align-items-end">
-                <input type="hidden" name="device_id" value="{{ device.id }}">
-                <div class="col-12 col-lg-4">
-                  <label class="form-label" for="device-name-{{ device.id }}">Nome</label>
-                  <input class="form-control" id="device-name-{{ device.id }}" type="text" name="name" value="{{ device.name }}">
-                </div>
-                <div class="col-12 col-lg-3">
-                  <label class="form-label" for="device-type-{{ device.id }}">Tipo</label>
-                  <select class="form-select" id="device-type-{{ device.id }}" name="type">
-                    {% for value in ["physical", "mobile", "paybylink", "tap_to_pay", "other"] %}
-                      <option value="{{ value }}" {% if device.type == value %}selected{% endif %}>{{ value }}</option>
-                    {% endfor %}
-                  </select>
-                </div>
-                <div class="col-12 col-lg-2">
-                  <div class="form-check mt-4 pt-2">
-                    <input class="form-check-input js-valid-from-toggle" type="checkbox" id="device-valid-from-enabled-{{ device.id }}" name="has_valid_from" value="1" {% if device.valid_from %}checked{% endif %}>
-                    <label class="form-check-label" for="device-valid-from-enabled-{{ device.id }}">Valido dal</label>
-                  </div>
-                  <input class="form-control mt-2 js-valid-from-input {% if not device.valid_from %}d-none{% endif %}" id="device-valid-from-{{ device.id }}" type="date" name="valid_from" value="{{ device.valid_from.isoformat() if device.valid_from else '' }}">
-                </div>
-                <div class="col-12 col-lg-2">
-                  <div class="form-check mt-4 pt-2">
-                    <input class="form-check-input js-valid-to-toggle" type="checkbox" id="device-valid-to-enabled-{{ device.id }}" name="has_valid_to" value="1" {% if device.valid_to %}checked{% endif %}>
-                    <label class="form-check-label" for="device-valid-to-enabled-{{ device.id }}">Valido al</label>
-                  </div>
-                  <input class="form-control mt-2 js-valid-to-input {% if not device.valid_to %}d-none{% endif %}" id="device-valid-to-{{ device.id }}" type="date" name="valid_to" value="{{ device.valid_to.isoformat() if device.valid_to else '' }}">
-                </div>
-                <div class="col-12 col-lg-5">
-                  <label class="form-label">Circuiti associati</label>
-                  {% set selected_ids = device.circuits.all() | map(attribute='id') | list %}
-                  <div class="border rounded p-3 bg-light" style="max-height: 220px; overflow: auto;">
-                    {% for circuit in circuits_all %}
-                      <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="circuit_ids" value="{{ circuit.id }}" id="device-{{ device.id }}-circuit-{{ circuit.id }}" {% if circuit.id in selected_ids %}checked{% endif %}>
-                        <label class="form-check-label" for="device-{{ device.id }}-circuit-{{ circuit.id }}">{{ circuit.name }}</label>
-                      </div>
-                    {% endfor %}
-                  </div>
-                </div>
-                <div class="col-6 col-lg-2 form-check mt-4 pt-2">
-                  <input class="form-check-input" type="checkbox" id="device-active-{{ device.id }}" name="is_active" value="1" {% if device.is_active %}checked{% endif %}>
-                  <label class="form-check-label" for="device-active-{{ device.id }}">Attivo</label>
-                </div>
-                <div class="col-6 col-lg-2 form-check mt-4 pt-2">
-                  <input class="form-check-input" type="checkbox" id="device-default-{{ device.id }}" name="is_default" value="1" {% if device.is_default %}checked{% endif %}>
-                  <label class="form-check-label" for="device-default-{{ device.id }}">Default</label>
-                </div>
-                <div class="col-12 col-lg-2 d-grid ms-auto">
-                  <button type="submit" class="btn btn-outline-primary">Salva</button>
-                </div>
-              </form>
-            </div>
-            <div class="card-footer d-flex align-items-center justify-content-between gap-2">
-              <div class="text-muted small">
-                ID {{ device.id }} - {% if device.circuits.count() %}{{ device.circuits.count() }} circuiti associati{% else %}Nessun circuito associato{% endif %}
-                {% if device.valid_from or device.valid_to %}
-                  <span class="ms-2">Dal {{ device.valid_from.isoformat() if device.valid_from else "sempre" }}{% if device.valid_to %} fino al {{ device.valid_to.isoformat() }}{% endif %}</span>
-                {% endif %}
-              </div>
-              <div class="d-flex gap-2">
-                <form method="post" action="{{ url_for('settings.pos_device_toggle_active', device_id=device.id) }}">
-                  <button type="submit" class="btn btn-sm btn-outline-secondary">
-                    {% if device.is_active %}Disattiva{% else %}Riattiva{% endif %}
-                  </button>
-                </form>
-                <form method="post" action="{{ url_for('settings.pos_device_delete', device_id=device.id) }}" onsubmit="return confirm('Eliminare il dispositivo POS {{ device.name }}? Se è usato verrà bloccato.');">
-                  <button type="submit" class="btn btn-sm btn-outline-danger">Elimina</button>
-                </form>
-              </div>
-            </div>
-          </div>
-        {% endfor %}
-      </div>
-    {% else %}
-      <div class="alert alert-warning mb-0">Nessun dispositivo POS disponibile.</div>
-    {% endif %}
   </div>
-</section>
+
+  <div class="modal fade settings-config-modal" id="deviceDeleteModal-{{ device.id }}" tabindex="-1" aria-labelledby="deviceDeleteTitle-{{ device.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form method="post" action="{{ url_for('settings.pos_device_delete', device_id=device.id) }}">
+          <div class="modal-header">
+            <h5 class="modal-title" id="deviceDeleteTitle-{{ device.id }}">Elimina dispositivo POS</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0">Eliminare definitivamente <strong>{{ device.name }}</strong>? Se e' usato da movimenti storici l'operazione verra' bloccata.</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+            <button type="submit" class="btn btn-danger">Elimina</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
 <script>
-(function () {
-  function syncValidityVisibility(root) {
-    root.querySelectorAll(".js-valid-from-toggle").forEach((cb) => {
-      const input = root.querySelector(cb.id.replace("-enabled", "").replace("device-", "#device-").replace("circuit-", "#circuit-"));
-    });
-  }
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".modal").forEach((modal) => {
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+  });
+
   document.querySelectorAll(".js-valid-from-toggle").forEach((cb) => {
     const input = document.getElementById(cb.id.replace("-enabled", ""));
     const sync = () => {
@@ -177,6 +377,7 @@
     cb.addEventListener("change", sync);
     sync();
   });
+
   document.querySelectorAll(".js-valid-to-toggle").forEach((cb) => {
     const input = document.getElementById(cb.id.replace("-enabled", ""));
     const sync = () => {
@@ -187,6 +388,27 @@
     cb.addEventListener("change", sync);
     sync();
   });
-})();
+
+  document.querySelectorAll(".modal").forEach((modal) => {
+    modal.addEventListener("shown.bs.modal", () => {
+      const submitBtn = modal.querySelector('button[type="submit"]');
+      if (!submitBtn) return;
+      submitBtn.disabled = false;
+      if (!submitBtn.dataset.defaultText) {
+        submitBtn.dataset.defaultText = submitBtn.textContent.trim();
+      }
+      submitBtn.textContent = submitBtn.dataset.defaultText;
+    });
+
+    modal.addEventListener("hidden.bs.modal", () => {
+      const submitBtn = modal.querySelector('button[type="submit"]');
+      if (!submitBtn) return;
+      submitBtn.disabled = false;
+      if (submitBtn.dataset.defaultText) {
+        submitBtn.textContent = submitBtn.dataset.defaultText;
+      }
+    });
+  });
+});
 </script>
 {% endblock %}
