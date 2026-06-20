@@ -1469,3 +1469,18 @@ Performance apertura giornata Agenda 2026-06-13:
   - in modalita' fiscale la costruzione dello snapshot forza il vault PRI come non sbloccato, evitando righe private nel DB fiscale;
   - in modalita' completa il vault continua a salvare il payload completo ricevuto dal client quando disponibile;
   - verifiche: `python -m py_compile routes/cassa.py` ok, `node --check static/js/agenda.js` ok.
+- 2026-06-20 nota operativa report/quadratura:
+  - la correzione snapshot/report del 2026-06-19 resta sospesa in attesa di dati corretti per validare la quadratura;
+  - non proseguire ulteriormente su questa correzione finche' non vengono forniti casi reali verificabili.
+- 2026-06-20 widget utenti impostazioni:
+  - aggiunti modelli `SpecialPermission` e `UserSpecialPermission`;
+  - aggiunta migration `6f708192a3b4_add_user_special_permissions.py`, applicata localmente fino a head `6f708192a3b4`;
+  - corretta la validita' dei ruoli attivi: `User.active_roles` considera anche `valid_from`;
+  - `/settings/users` ora mostra azioni rapide per cambio ruolo, autorizzazioni speciali, reset password ed eliminazione;
+  - click sulla riga utente apre una modale dettaglio con modifica dati, eliminazione o chiusura;
+  - cambio ruolo sostituisce i ruoli attivi correnti con un nuovo ruolo lifetime;
+  - autorizzazioni speciali consente aggiunta di ruolo temporaneo o autorizzazione speciale con `valid_from`/`valid_to`;
+  - il pulsante creazione autorizzazione speciale e' presente ma disabilitato, da definire in seguito;
+  - reset password admin genera token valido 24 ore, invalida reset precedenti aperti e invia il link via email all'utente;
+  - le modali utenti ripristinano il pulsante conferma su `shown.bs.modal` e `hidden.bs.modal`;
+  - verifiche: `python -m py_compile models.py routes/settings.py`, `flask db current`, render template `settings/users.html` con dati reali.

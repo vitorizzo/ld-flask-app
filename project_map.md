@@ -830,6 +830,12 @@ Stato implementazione 2026-06-14:
   - le stesse aree espongono anche azioni esplicite di disattivazione e cancellazione, con blocco se esistono riferimenti storici o associazioni;
   - nuova pagina `/settings/preferences` per configurazioni divise per categoria;
   - nuova pagina `/settings/users` in sola lettura per elenco utenti, ruoli attivi e dati principali;
+  - `/settings/users` e' stata resa operativa:
+    - click riga utente apre modale dettaglio/modifica;
+    - azioni rapide: cambio ruolo, autorizzazioni speciali, reset password, eliminazione;
+    - reset password admin usa `PasswordResetToken` con scadenza 24 ore e invio email;
+    - autorizzazioni speciali usano `SpecialPermission` e `UserSpecialPermission`;
+    - ruoli temporanei riusano `UserRole.valid_from` / `valid_until`.
   - tabella `app_preferences` per persistenza runtime dei parametri;
   - reload runtime delle preferenze ad ogni richiesta dinamica con fallback sui valori base di avvio;
   - editing ruoli nella stessa area impostazioni;
@@ -865,3 +871,5 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - 2026-06-19 banche: aggiunto `CashBank.logo_path` con migration `5e6f708192a3`; gestione upload/preview logo in `/settings/banks`, storage in `static/images/banks`.
 - 2026-06-19 chiusura report: `api_close_cash_day()` carica/recupera sempre la `CashClosure` esistente prima di creare una nuova riga, rendendo idempotente la ristampa dopo riapertura e modifica giornata.
 - 2026-06-19 snapshot report: `CashClosure.fiscal_snapshot` contiene anche `report_payload` fiscale completo; la stampa di una giornata aperta chiude e stampa lo snapshot appena salvato, mentre una giornata chiusa stampa dallo snapshot salvato o lo rigenera se stale. Le chiusure successive vengono marcate stale e ricalcolate in cascata.
+- 2026-06-20 nota report/quadratura: correzione snapshot/report sospesa in attesa di dati corretti per validazione.
+- 2026-06-20 utenti impostazioni: aggiunti `SpecialPermission`/`UserSpecialPermission` con migration `6f708192a3b4`; `/settings/users` ora supporta modali di modifica, cambio ruolo, autorizzazioni temporanee/speciali, eliminazione e reset password 24 ore.

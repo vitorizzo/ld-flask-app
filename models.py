@@ -618,7 +618,8 @@ class User(db.Model, UserMixin):
             ur.role
             for ur in self.roles
             if ur.role is not None and (
-                    ur.valid_until is None or ur.valid_until >= now
+                    (ur.valid_from is None or ur.valid_from <= now)
+                    and (ur.valid_until is None or ur.valid_until >= now)
             )
         ]
 
@@ -652,7 +653,7 @@ class UserRole(db.Model):
 
     @property
     def is_active(self):
-        now = datetime.datetime.now(datetime.UTC)
+        now = datetime.now()
 
         if self.type == "lifetime":
             return True
@@ -666,6 +667,44 @@ class UserRole(db.Model):
             return start_ok and end_ok
 
         return False
+
+
+class SpecialPermission(db.Model):
+    __tablename__ = "special_permissions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(80), nullable=False, unique=True, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    description = db.Column(db.String(255), nullable=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.now, onupdate=datetime.now)
+
+    assignments = db.relationship("UserSpecialPermission", backref="permission", lazy=True)
+
+
+class UserSpecialPermission(db.Model):
+    __tablename__ = "user_special_permissions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    permission_id = db.Column(db.Integer, db.ForeignKey("special_permissions.id"), nullable=False, index=True)
+    valid_from = db.Column(db.DateTime, nullable=False, default=datetime.now)
+    valid_until = db.Column(db.DateTime, nullable=True)
+    notes = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+    user = db.relationship("User", backref=db.backref("special_permissions", lazy=True, cascade="all, delete-orphan"))
+
+    @property
+    def is_active(self):
+        now = datetime.now()
+        return (
+            self.permission is not None
+            and bool(self.permission.is_active)
+            and (self.valid_from is None or self.valid_from <= now)
+            and (self.valid_until is None or self.valid_until >= now)
+        )
 
 
 class PushSubscription(db.Model):

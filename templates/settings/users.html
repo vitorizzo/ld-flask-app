@@ -2,6 +2,18 @@
 
 {% block title %}LD Enoteca - Utenti{% endblock %}
 
+{% macro role_badges(user) -%}
+  <div class="d-flex flex-wrap gap-1">
+    {% if user.active_roles %}
+      {% for role in user.active_roles %}
+        <span class="badge text-bg-primary">{{ role.name }}</span>
+      {% endfor %}
+    {% else %}
+      <span class="badge text-bg-secondary">Nessun ruolo attivo</span>
+    {% endif %}
+  </div>
+{%- endmacro %}
+
 {% block content %}
 <section class="welcome-section page-shell">
   <div class="container-fluid">
@@ -32,11 +44,12 @@
                   <th style="width: 120px;">Peso max</th>
                   <th style="min-width: 160px;">Area</th>
                   <th style="min-width: 170px;">Creato</th>
+                  <th style="width: 190px;" class="text-end">Azioni</th>
                 </tr>
               </thead>
               <tbody>
                 {% for user in users %}
-                  <tr>
+                  <tr role="button" data-bs-toggle="modal" data-bs-target="#userDetailModal-{{ user.id }}">
                     <td>
                       <div class="fw-semibold">{{ user.name }} {{ user.surname }}</div>
                       <div class="text-muted small">ID {{ user.id }}</div>
@@ -47,20 +60,8 @@
                         {% if user.phone %}{{ user.phone }}{% else %}Telefono non presente{% endif %}
                       </div>
                     </td>
-                    <td>
-                      <div class="d-flex flex-wrap gap-1">
-                        {% if user.active_roles %}
-                          {% for role in user.active_roles %}
-                            <span class="badge text-bg-primary">{{ role.name }}</span>
-                          {% endfor %}
-                        {% else %}
-                          <span class="badge text-bg-secondary">Nessun ruolo attivo</span>
-                        {% endif %}
-                      </div>
-                    </td>
-                    <td>
-                      <span class="badge text-bg-dark">{{ user.max_role_weight or 0 }}</span>
-                    </td>
+                    <td>{{ role_badges(user) }}</td>
+                    <td><span class="badge text-bg-dark">{{ user.max_role_weight or 0 }}</span></td>
                     <td>
                       <div class="text-muted small">
                         {% if user.city %}{{ user.city }}{% endif %}
@@ -72,10 +73,26 @@
                         {% if user.created_at %}{{ user.created_at.strftime('%d/%m/%Y %H:%M') }}{% else %}-{% endif %}
                       </div>
                     </td>
+                    <td class="text-end" onclick="event.stopPropagation();">
+                      <div class="btn-group btn-group-sm" role="group" aria-label="Azioni utente">
+                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#userRoleModal-{{ user.id }}" title="Cambio ruolo">
+                          <i class="fa-solid fa-user-tag"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#userAuthModal-{{ user.id }}" title="Autorizzazioni speciali">
+                          <i class="fa-solid fa-key"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#userResetPasswordModal-{{ user.id }}" title="Reset password">
+                          <i class="fa-solid fa-unlock-keyhole"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#userDeleteModal-{{ user.id }}" title="Elimina">
+                          <i class="fa-solid fa-trash"></i>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                   {% if user.notes %}
                     <tr class="table-light">
-                      <td colspan="6" class="small text-muted">
+                      <td colspan="7" class="small text-muted">
                         <strong>Note:</strong> {{ user.notes }}
                       </td>
                     </tr>
@@ -95,4 +112,273 @@
     </div>
   </div>
 </section>
+
+{% for user in users %}
+  <div class="modal fade" id="userDetailModal-{{ user.id }}" tabindex="-1" aria-labelledby="userDetailTitle-{{ user.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <form method="post" action="{{ url_for('settings.user_update', user_id=user.id) }}">
+          <div class="modal-header">
+            <h5 class="modal-title" id="userDetailTitle-{{ user.id }}">Utente {{ user.name }} {{ user.surname }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          </div>
+          <div class="modal-body">
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label" for="user-name-{{ user.id }}">Nome</label>
+                <input class="form-control" id="user-name-{{ user.id }}" name="name" value="{{ user.name }}" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="user-surname-{{ user.id }}">Cognome</label>
+                <input class="form-control" id="user-surname-{{ user.id }}" name="surname" value="{{ user.surname }}" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="user-email-{{ user.id }}">Email</label>
+                <input class="form-control" id="user-email-{{ user.id }}" type="email" name="email" value="{{ user.email }}" required>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="user-phone-{{ user.id }}">Telefono</label>
+                <input class="form-control" id="user-phone-{{ user.id }}" name="phone" value="{{ user.phone or '' }}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="user-city-{{ user.id }}">Citta'</label>
+                <input class="form-control" id="user-city-{{ user.id }}" name="city" value="{{ user.city or '' }}">
+              </div>
+              <div class="col-md-6">
+                <label class="form-label" for="user-province-{{ user.id }}">Provincia</label>
+                <input class="form-control" id="user-province-{{ user.id }}" name="province" value="{{ user.province or '' }}">
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="user-notes-{{ user.id }}">Note</label>
+                <textarea class="form-control" id="user-notes-{{ user.id }}" name="notes" rows="3">{{ user.notes or '' }}</textarea>
+              </div>
+              <div class="col-12">
+                <div class="text-muted small mb-1">Ruoli attivi</div>
+                {{ role_badges(user) }}
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-danger me-auto" data-bs-toggle="modal" data-bs-target="#userDeleteModal-{{ user.id }}">Elimina</button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+            <button type="submit" class="btn btn-primary">Salva modifiche</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="userRoleModal-{{ user.id }}" tabindex="-1" aria-labelledby="userRoleTitle-{{ user.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form method="post" action="{{ url_for('settings.user_change_role', user_id=user.id) }}">
+          <div class="modal-header">
+            <h5 class="modal-title" id="userRoleTitle-{{ user.id }}">Cambio ruolo</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <div class="text-muted small mb-1">Ruolo attuale</div>
+              {{ role_badges(user) }}
+            </div>
+            <label class="form-label" for="new-role-{{ user.id }}">Nuovo ruolo</label>
+            <select class="form-select" id="new-role-{{ user.id }}" name="role_id" required>
+              {% for role in roles %}
+                <option value="{{ role.id }}">{{ role.name }}{% if role.weight is not none %} - peso {{ role.weight }}{% endif %}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+            <button type="submit" class="btn btn-primary">Applica nuovo ruolo</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="userAuthModal-{{ user.id }}" tabindex="-1" aria-labelledby="userAuthTitle-{{ user.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <form method="post" action="{{ url_for('settings.user_add_special_authorization', user_id=user.id) }}">
+          <div class="modal-header">
+            <h5 class="modal-title" id="userAuthTitle-{{ user.id }}">Autorizzazioni speciali</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-4">
+              <div class="fw-semibold mb-2">Ruoli assegnati</div>
+              {% if user.roles %}
+                <div class="vstack gap-2">
+                  {% for link in user.roles %}
+                    <div class="border rounded p-2 small">
+                      <strong>{{ link.role.name if link.role else 'Ruolo mancante' }}</strong>
+                      <span class="text-muted">
+                        dal {{ link.valid_from.strftime('%d/%m/%Y') if link.valid_from else 'sempre' }}
+                        {% if link.valid_until %}al {{ link.valid_until.strftime('%d/%m/%Y') }}{% else %}senza scadenza{% endif %}
+                      </span>
+                      {% if link.notes %}<div class="text-muted">{{ link.notes }}</div>{% endif %}
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="text-muted small">Nessun ruolo assegnato.</div>
+              {% endif %}
+            </div>
+
+            <div class="mb-4">
+              <div class="fw-semibold mb-2">Autorizzazioni speciali assegnate</div>
+              {% if user.special_permissions %}
+                <div class="vstack gap-2">
+                  {% for link in user.special_permissions %}
+                    <div class="border rounded p-2 small">
+                      <strong>{{ link.permission.name if link.permission else 'Autorizzazione mancante' }}</strong>
+                      <span class="text-muted">
+                        dal {{ link.valid_from.strftime('%d/%m/%Y') if link.valid_from else 'sempre' }}
+                        {% if link.valid_until %}al {{ link.valid_until.strftime('%d/%m/%Y') }}{% else %}senza scadenza{% endif %}
+                      </span>
+                      {% if link.notes %}<div class="text-muted">{{ link.notes }}</div>{% endif %}
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="text-muted small">Nessuna autorizzazione speciale assegnata.</div>
+              {% endif %}
+            </div>
+
+            <div class="row g-3">
+              <div class="col-md-4">
+                <label class="form-label" for="auth-type-{{ user.id }}">Tipo</label>
+                <select class="form-select js-auth-type" id="auth-type-{{ user.id }}" name="authorization_type" data-user-id="{{ user.id }}">
+                  <option value="role">Ruolo temporaneo</option>
+                  <option value="permission">Autorizzazione speciale</option>
+                </select>
+              </div>
+              <div class="col-md-8 js-auth-role" data-user-id="{{ user.id }}">
+                <label class="form-label" for="auth-role-{{ user.id }}">Ruolo</label>
+                <select class="form-select" id="auth-role-{{ user.id }}" name="role_id">
+                  {% for role in roles %}
+                    <option value="{{ role.id }}">{{ role.name }}{% if role.weight is not none %} - peso {{ role.weight }}{% endif %}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-md-8 d-none js-auth-permission" data-user-id="{{ user.id }}">
+                <div class="d-flex align-items-end gap-2">
+                  <div class="flex-grow-1">
+                    <label class="form-label" for="auth-permission-{{ user.id }}">Autorizzazione</label>
+                    <select class="form-select" id="auth-permission-{{ user.id }}" name="permission_id">
+                      {% for permission in special_permissions %}
+                        <option value="{{ permission.id }}">{{ permission.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <button type="button" class="btn btn-outline-secondary" disabled title="Da definire in seguito">
+                    <i class="fa-solid fa-plus"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="auth-from-{{ user.id }}">Validita' da</label>
+                <input class="form-control" id="auth-from-{{ user.id }}" type="date" name="valid_from">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="auth-to-{{ user.id }}">Validita' a</label>
+                <input class="form-control" id="auth-to-{{ user.id }}" type="date" name="valid_to">
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="auth-notes-{{ user.id }}">Note</label>
+                <input class="form-control" id="auth-notes-{{ user.id }}" name="notes">
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+            <button type="submit" class="btn btn-primary">Aggiungi autorizzazione</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="userResetPasswordModal-{{ user.id }}" tabindex="-1" aria-labelledby="userResetPasswordTitle-{{ user.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form method="post" action="{{ url_for('settings.user_reset_password', user_id=user.id) }}">
+          <div class="modal-header">
+            <h5 class="modal-title" id="userResetPasswordTitle-{{ user.id }}">Reset password</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0">Inviare un link valido 24 ore a <strong>{{ user.email }}</strong>?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+            <button type="submit" class="btn btn-warning">Invia link reset</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="userDeleteModal-{{ user.id }}" tabindex="-1" aria-labelledby="userDeleteTitle-{{ user.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form method="post" action="{{ url_for('settings.user_delete', user_id=user.id) }}">
+          <div class="modal-header">
+            <h5 class="modal-title" id="userDeleteTitle-{{ user.id }}">Elimina utente</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          </div>
+          <div class="modal-body">
+            <p class="mb-0">Eliminare definitivamente <strong>{{ user.name }} {{ user.surname }}</strong>?</p>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+            <button type="submit" class="btn btn-danger">Elimina</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  function syncAuthType(select) {
+    const userId = select.dataset.userId;
+    const roleBox = document.querySelector(`.js-auth-role[data-user-id="${userId}"]`);
+    const permissionBox = document.querySelector(`.js-auth-permission[data-user-id="${userId}"]`);
+    const usePermission = select.value === "permission";
+    roleBox?.classList.toggle("d-none", usePermission);
+    permissionBox?.classList.toggle("d-none", !usePermission);
+  }
+
+  document.querySelectorAll(".js-auth-type").forEach((select) => {
+    syncAuthType(select);
+    select.addEventListener("change", () => syncAuthType(select));
+  });
+
+  document.querySelectorAll(".modal").forEach((modal) => {
+    modal.addEventListener("shown.bs.modal", () => {
+      const submitBtn = modal.querySelector('button[type="submit"]');
+      if (!submitBtn) return;
+      submitBtn.disabled = false;
+      if (!submitBtn.dataset.defaultText) {
+        submitBtn.dataset.defaultText = submitBtn.textContent.trim();
+      }
+      submitBtn.textContent = submitBtn.dataset.defaultText;
+    });
+
+    modal.addEventListener("hidden.bs.modal", () => {
+      const submitBtn = modal.querySelector('button[type="submit"]');
+      if (!submitBtn) return;
+      submitBtn.disabled = false;
+      if (submitBtn.dataset.defaultText) {
+        submitBtn.textContent = submitBtn.dataset.defaultText;
+      }
+    });
+  });
+});
+</script>
 {% endblock %}

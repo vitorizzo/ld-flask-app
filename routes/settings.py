@@ -1,14 +1,16 @@
 from flask import request, flash, render_template, Blueprint, jsonify, redirect, current_app, url_for, send_from_directory
-from flask_login import login_required
+from flask_login import current_user, login_required
+from flask_mail import Message
 from flask_socketio import SocketIO
 from sqlalchemy import asc, inspect, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload, load_only
 from werkzeug.utils import secure_filename
 import os
+import secrets
 import uuid
 
-from extensions import db
+from extensions import db, mail
 from models import (
     Menu,
     Role,
@@ -16,6 +18,9 @@ from models import (
     Articoli,
     User,
     UserRole,
+    SpecialPermission,
+    UserSpecialPermission,
+    PasswordResetToken,
     CashBank,
     PosCircuit,
     PosDevice,
@@ -40,7 +45,7 @@ from config.tasks import (
 from tools.ps_util import get_product_by_code
 from tools.log_utils import log_task, get_logger
 import hashlib
-from datetime import datetime, date
+from datetime import datetime, date, time, timedelta, timezone
 
 logger = get_logger('settings')
 
@@ -72,6 +77,13 @@ def _parse_date(value, fallback=None):
         return datetime.strptime(raw, "%Y-%m-%d").date()
     except (TypeError, ValueError):
         return fallback
+
+
+def _parse_datetime_date(value, *, end_of_day=False):
+    parsed = _parse_date(value)
+    if not parsed:
+        return None
+    return datetime.combine(parsed, time.max if end_of_day else time.min)
 
 
 def _table_has_column(table_name, column_name):
@@ -254,19 +266,216 @@ def settings_index():
 @log_task(logger)
 def users_index():
     try:
+        roles = Role.query.order_by(Role.weight.asc(), Role.name.asc()).all()
+        special_permissions = (
+            SpecialPermission.query
+            .filter(SpecialPermission.is_active.is_(True))
+            .order_by(SpecialPermission.name.asc())
+            .all()
+        )
         users = (
             User.query.options(
-                selectinload(User.roles).selectinload(UserRole.role)
+                selectinload(User.roles).selectinload(UserRole.role),
+                selectinload(User.special_permissions).selectinload(UserSpecialPermission.permission),
             )
             .order_by(User.surname.asc(), User.name.asc(), User.id.asc())
             .all()
         )
     except Exception as exc:
         logger.exception("Errore nel caricamento utenti")
+        roles = []
+        special_permissions = []
         users = []
         flash(f"Impossibile caricare gli utenti: {exc}", "warning")
 
-    return render_template("settings/users.html", users=users)
+    return render_template(
+        "settings/users.html",
+        users=users,
+        roles=roles,
+        special_permissions=special_permissions,
+    )
+
+
+@settings_bp.post("/users/<int:user_id>/update")
+@login_required
+@role_required(900)
+@log_task(logger)
+def user_update(user_id):
+    user = User.query.get_or_404(user_id)
+    email = (request.form.get("email") or "").strip().lower()
+    name = (request.form.get("name") or "").strip()
+    surname = (request.form.get("surname") or "").strip()
+
+    if not email or not name or not surname:
+        flash("Nome, cognome ed email sono obbligatori.", "warning")
+        return redirect(url_for("settings.users_index"))
+
+    duplicate = User.query.filter(User.email == email, User.id != user.id).first()
+    if duplicate:
+        flash("Email gia' assegnata a un altro utente.", "warning")
+        return redirect(url_for("settings.users_index"))
+
+    user.name = name
+    user.surname = surname
+    user.email = email
+    user.phone = (request.form.get("phone") or "").strip() or None
+    user.city = (request.form.get("city") or "").strip() or None
+    user.province = (request.form.get("province") or "").strip() or None
+    user.notes = (request.form.get("notes") or "").strip() or None
+    db.session.commit()
+    flash("Utente aggiornato.", "success")
+    return redirect(url_for("settings.users_index"))
+
+
+@settings_bp.post("/users/<int:user_id>/delete")
+@login_required
+@role_required(900)
+@log_task(logger)
+def user_delete(user_id):
+    user = User.query.get_or_404(user_id)
+    if current_user.is_authenticated and user.id == current_user.id:
+        flash("Non puoi eliminare l'utente con cui sei autenticato.", "warning")
+        return redirect(url_for("settings.users_index"))
+    try:
+        UserRole.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+        UserSpecialPermission.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+        PasswordResetToken.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+        db.session.delete(user)
+        db.session.commit()
+        flash("Utente eliminato.", "success")
+    except SQLAlchemyError:
+        db.session.rollback()
+        logger.exception("Impossibile eliminare utente %s", user_id)
+        flash("Impossibile eliminare l'utente: esistono riferimenti storici collegati.", "warning")
+    return redirect(url_for("settings.users_index"))
+
+
+@settings_bp.post("/users/<int:user_id>/role")
+@login_required
+@role_required(900)
+@log_task(logger)
+def user_change_role(user_id):
+    user = User.query.get_or_404(user_id)
+    role_id = _parse_int(request.form.get("role_id"))
+    role = Role.query.get(role_id) if role_id else None
+    if not role:
+        flash("Ruolo non valido.", "warning")
+        return redirect(url_for("settings.users_index"))
+
+    now = datetime.now()
+    for user_role in user.roles or []:
+        if user_role.valid_until is None or user_role.valid_until >= now:
+            user_role.valid_until = now
+            if user_role.type == "lifetime":
+                user_role.type = "until"
+
+    db.session.add(UserRole(
+        user_id=user.id,
+        role_id=role.id,
+        type="lifetime",
+        valid_from=now,
+        valid_until=None,
+        notes="Cambio ruolo da impostazioni utenti",
+    ))
+    db.session.commit()
+    flash("Ruolo utente aggiornato.", "success")
+    return redirect(url_for("settings.users_index"))
+
+
+@settings_bp.post("/users/<int:user_id>/special-authorizations")
+@login_required
+@role_required(900)
+@log_task(logger)
+def user_add_special_authorization(user_id):
+    user = User.query.get_or_404(user_id)
+    authorization_type = (request.form.get("authorization_type") or "").strip()
+    valid_from = _parse_datetime_date(request.form.get("valid_from")) or datetime.now()
+    valid_until = _parse_datetime_date(request.form.get("valid_to"), end_of_day=True)
+    notes = (request.form.get("notes") or "").strip() or None
+
+    if valid_until and valid_until < valid_from:
+        flash("La data fine validita' non puo' precedere la data inizio.", "warning")
+        return redirect(url_for("settings.users_index"))
+
+    if authorization_type == "role":
+        role_id = _parse_int(request.form.get("role_id"))
+        role = Role.query.get(role_id) if role_id else None
+        if not role:
+            flash("Ruolo non valido.", "warning")
+            return redirect(url_for("settings.users_index"))
+        db.session.add(UserRole(
+            user_id=user.id,
+            role_id=role.id,
+            type="period" if valid_until else "until",
+            valid_from=valid_from,
+            valid_until=valid_until,
+            notes=notes or "Autorizzazione temporanea da impostazioni utenti",
+        ))
+    elif authorization_type == "permission":
+        permission_id = _parse_int(request.form.get("permission_id"))
+        permission = SpecialPermission.query.get(permission_id) if permission_id else None
+        if not permission:
+            flash("Autorizzazione speciale non valida.", "warning")
+            return redirect(url_for("settings.users_index"))
+        db.session.add(UserSpecialPermission(
+            user_id=user.id,
+            permission_id=permission.id,
+            valid_from=valid_from,
+            valid_until=valid_until,
+            notes=notes,
+        ))
+    else:
+        flash("Tipo autorizzazione non valido.", "warning")
+        return redirect(url_for("settings.users_index"))
+
+    db.session.commit()
+    flash("Autorizzazione aggiunta.", "success")
+    return redirect(url_for("settings.users_index"))
+
+
+@settings_bp.post("/users/<int:user_id>/reset-password")
+@login_required
+@role_required(900)
+@log_task(logger)
+def user_reset_password(user_id):
+    user = User.query.get_or_404(user_id)
+    now = datetime.now(timezone.utc)
+    PasswordResetToken.query.filter(
+        PasswordResetToken.user_id == user.id,
+        PasswordResetToken.used_at.is_(None),
+        PasswordResetToken.expires_at > now,
+    ).update({"expires_at": now}, synchronize_session=False)
+
+    raw_token = secrets.token_urlsafe(32)
+    reset_token = PasswordResetToken(
+        user_id=user.id,
+        token_hash=PasswordResetToken.hash_token(raw_token),
+        expires_at=now + timedelta(hours=24),
+        requested_ip=request.remote_addr,
+        user_agent=request.headers.get("User-Agent"),
+    )
+    db.session.add(reset_token)
+    db.session.flush()
+
+    reset_link = url_for("auth.reset_password", token=raw_token, _external=True)
+    msg = Message(
+        subject="Reimposta la tua password",
+        recipients=[user.email],
+        body=(
+            "E' stato richiesto un reset password dall'amministratore LD Enoteca.\n\n"
+            f"Apri questo link entro 24 ore per impostare una nuova password:\n{reset_link}\n\n"
+            "Scadute le 24 ore il link non sara' piu' valido."
+        ),
+    )
+    try:
+        mail.send(msg)
+        db.session.commit()
+        flash("Link reset password inviato all'utente.", "success")
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception("Errore invio reset password admin")
+        flash(f"Impossibile inviare il reset password: {exc}", "danger")
+    return redirect(url_for("settings.users_index"))
 
 
 @settings_bp.route("/banks", methods=["GET", "POST"])
