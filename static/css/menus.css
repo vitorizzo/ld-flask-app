@@ -211,7 +211,11 @@
   transform: scale(0.96);
 }
 
-#menuTree .btn-menu-actions {
+#menuTree .menu-row-actions {
+  flex: 0 0 auto;
+}
+
+#menuTree .menu-row-actions .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -219,51 +223,11 @@
   height: 34px;
   padding: 0 !important;
   border-radius: 8px !important;
-  border: 1px solid rgba(74, 44, 42, 0.18) !important;
-  color: #6b3f36 !important;
-  background: #fff !important;
-  font-size: 0;
+  font-size: 0.82rem;
 }
 
-#menuTree .btn-menu-actions::after {
-  display: none;
-}
-
-#menuTree .btn-menu-actions::before {
-  content: "...";
-  font-size: 16px;
-  line-height: 1;
-  font-weight: 800;
-}
-
-#menuTree .btn-menu-actions:hover,
-#menuTree .btn-menu-actions:focus {
-  color: #fff !important;
-  background: #6b3f36 !important;
-  border-color: #6b3f36 !important;
-  box-shadow: 0 0 0 0.25rem rgba(107, 63, 54, 0.14) !important;
-}
-
-#menuTree .dropdown-menu {
-  z-index: 2400;
-  min-width: 220px;
-  padding: 8px;
-  border: 1px solid rgba(74, 44, 42, 0.12);
-  border-radius: 10px;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.18);
-  color: #212529;
-}
-
-#menuTree .dropdown-item {
-  border-radius: 7px;
-  padding: 7px 9px;
-  font-size: 0.9rem;
-}
-
-#menuTree .dropdown-item:hover,
-#menuTree .dropdown-item:focus {
-  background: rgba(107, 63, 54, 0.10);
-  color: #2f1f1d;
+#menuTree .menu-row-actions .btn:disabled {
+  opacity: 0.46;
 }
 
 #menuTree .menu-row-inactive {
@@ -308,8 +272,7 @@
   background: rgba(107, 63, 54, 0.25);
 }
 
-#menuTree .menu-row-inactive .dropdown,
-#menuTree .menu-row-inactive .btn-menu-actions,
+#menuTree .menu-row-inactive .menu-row-actions,
 #menuTree .menu-row-inactive .menu-handle {
   pointer-events: auto !important;
 }
@@ -421,10 +384,16 @@
 
   #menuTree .menu-row {
     align-items: flex-start !important;
+    flex-wrap: wrap;
   }
 
   #menuTree .menu-route {
     max-width: 220px;
+  }
+
+  #menuTree .menu-row-actions {
+    width: 100%;
+    margin-left: 42px !important;
   }
 
   .menu-switch-row {

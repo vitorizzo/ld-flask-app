@@ -1524,3 +1524,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - il nodo con dropdown aperto riceve classe `menu-node-actions-open` e z-index elevato per non finire sotto gli item successivi;
   - rimossa la traslazione hover sulle righe, che creava stacking context sfavorevoli;
   - verifiche: `node --check static/js/menu_management.js` ok, `git diff --check` ok.
+- 2026-06-20 semplificazione azioni Gestione menu:
+  - rimosso il dropdown di riga dal widget `/settings/menus`;
+  - `static/js/menu_management.js` ora genera pulsanti rapidi inline per sotto-menu, separatore, modifica, attiva/disattiva, mostra/nascondi ed elimina;
+  - `static/css/menus.css` definisce dimensioni stabili per i pulsanti rapidi e layout responsive;
+  - eliminata alla radice la criticita' hover/orientamento/z-index del menu "...";
+  - verifiche: `node --check static/js/menu_management.js` ok, render template `settings/menus.html` ok, `git diff --check` ok.

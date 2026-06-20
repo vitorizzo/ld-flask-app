@@ -1,17 +1,13 @@
 /* global Sortable, bootstrap */
 
 if (window.__menuMgmtInitDone) {
-  console.warn("menu_management.js già inizializzato: skip.");
+  console.warn("menu_management.js gia' inizializzato: skip.");
 } else {
   window.__menuMgmtInitDone = true;
 
   let modalSubmitting = false;
   let sortables = [];
   let hasPendingApply = false;
-
-  /* =========================
-     API
-  ========================= */
 
   async function fetchMenuStructure() {
     const res = await fetch("/settings/get_menu_structure", { credentials: "same-origin" });
@@ -32,7 +28,6 @@ if (window.__menuMgmtInitDone) {
       credentials: "same-origin",
       body: JSON.stringify({ cascade })
     });
-
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
       const err = new Error(data.error || "delete failed");
@@ -88,7 +83,6 @@ if (window.__menuMgmtInitDone) {
       credentials: "same-origin",
       body: JSON.stringify({ items })
     });
-
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) throw new Error(data.error || "reorder failed");
   }
@@ -97,15 +91,10 @@ if (window.__menuMgmtInitDone) {
     hasPendingApply = !!value;
     const btn = document.getElementById("btnApplyMenuChanges");
     if (!btn) return;
-
     btn.disabled = !hasPendingApply;
     btn.classList.toggle("btn-primary", hasPendingApply);
     btn.classList.toggle("btn-outline-primary", !hasPendingApply);
   }
-
-  /* =========================
-     TREE
-  ========================= */
 
   function buildTree(items) {
     const map = new Map();
@@ -125,7 +114,6 @@ if (window.__menuMgmtInitDone) {
       nodes.forEach(n => sortRec(n.children));
     };
     sortRec(roots);
-
     return roots;
   }
 
@@ -149,6 +137,8 @@ if (window.__menuMgmtInitDone) {
       const isVisible = (n.is_visible ?? true) === true;
       const isSeparator = (n.item_type || "link") === "separator";
       const title = isSeparator ? "Separatore" : escapeHtml(n.name ?? "");
+      const route = !isSeparator && n.route ? escapeHtml(n.route) : "";
+      const childCount = Array.isArray(n.children) ? n.children.length : 0;
       const statusBadges = [
         isSeparator ? `<span class="badge text-bg-secondary">separatore</span>` : "",
         isVisible ? "" : `<span class="badge text-bg-warning">nascosto</span>`,
@@ -157,55 +147,53 @@ if (window.__menuMgmtInitDone) {
 
       li.innerHTML = `
         <div class="menu-row d-flex align-items-center gap-2 ${isActive ? "" : "menu-row-inactive"} ${isVisible ? "" : "menu-row-hidden"} ${isSeparator ? "menu-row-separator" : ""}">
-          <span class="menu-handle" title="Trascina per riordinare" style="cursor: grab;">
-            ⠿
+          <span class="menu-handle" title="Trascina per riordinare">
+            <i class="fa-solid fa-grip-vertical"></i>
           </span>
 
           <span class="menu-node-title menu-title">
-            ${title} <small class="text-muted">w:${n.weight ?? 0}</small> ${statusBadges}
+            <span class="menu-title-main">
+              <i class="${isSeparator ? "fa-solid fa-grip-lines" : "fa-solid fa-link"}"></i>
+              <span class="menu-title-text">${title}</span>
+            </span>
+            <span class="menu-meta">
+              <span class="badge text-bg-light">peso ${n.weight ?? 0}</span>
+              ${childCount ? `<span class="badge text-bg-light">${childCount} sotto-menu</span>` : ""}
+              ${route ? `<span class="menu-route">${route}</span>` : ""}
+              ${statusBadges}
+            </span>
           </span>
 
-          <div class="dropdown ms-auto">
-            <a class="btn btn-sm btn-outline-secondary dropdown-toggle btn-menu-actions"
-               href="#"
-               role="button"
-               data-bs-toggle="dropdown"
-               aria-expanded="false">⋮</a>
-
-            <ul class="dropdown-menu dropdown-menu-end">
-              <li><a class="dropdown-item" href="#" data-action="add-child" data-id="${n.id}">Aggiungi sotto-menu</a></li>
-              <li><a class="dropdown-item" href="#" data-action="add-separator-child" data-id="${n.id}">Aggiungi separatore</a></li>
-              <li><a class="dropdown-item" href="#" data-action="edit" data-id="${n.id}">Modifica</a></li>
-              <li><a class="dropdown-item" href="#" data-action="toggle-active" data-id="${n.id}">
-                ${((n.is_active ?? n.active ?? true) ? "Disattiva" : "Attiva")}
-              </a></li>
-              <li>
-                ${isActive
-                  ? `<span class="dropdown-item disabled">Visibile fisso</span>`
-                  : `<a class="dropdown-item" href="#" data-action="toggle-visible" data-id="${n.id}">
-                      ${isVisible ? "Nascondi" : "Mostra"}
-                    </a>`
-                }
-              </li>
-              <li><hr class="dropdown-divider"></li>
-              <li><a class="dropdown-item text-danger" href="#" data-action="delete" data-id="${n.id}">Elimina</a></li>
-            </ul>
+          <div class="menu-row-actions btn-group btn-group-sm ms-auto" role="group" aria-label="Azioni menu">
+            <button type="button" class="btn btn-outline-secondary" data-action="add-child" data-id="${n.id}" title="Aggiungi sotto-menu">
+              <i class="fa-solid fa-plus"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" data-action="add-separator-child" data-id="${n.id}" title="Aggiungi separatore">
+              <i class="fa-solid fa-grip-lines"></i>
+            </button>
+            <button type="button" class="btn btn-outline-primary" data-action="edit" data-id="${n.id}" title="Modifica">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" data-action="toggle-active" data-id="${n.id}" title="${isActive ? "Disattiva" : "Attiva"}">
+              <i class="fa-solid fa-power-off"></i>
+            </button>
+            ${isActive
+              ? `<button type="button" class="btn btn-outline-secondary" disabled title="Visibile fisso"><i class="fa-solid fa-eye"></i></button>`
+              : `<button type="button" class="btn btn-outline-secondary" data-action="toggle-visible" data-id="${n.id}" title="${isVisible ? "Nascondi" : "Mostra"}"><i class="fa-solid ${isVisible ? "fa-eye-slash" : "fa-eye"}"></i></button>`
+            }
+            <button type="button" class="btn btn-outline-danger" data-action="delete" data-id="${n.id}" title="Elimina">
+              <i class="fa-solid fa-trash"></i>
+            </button>
           </div>
         </div>
       `;
 
-
       li.appendChild(renderTree(n.children || []));
-
       ul.appendChild(li);
     });
 
     return ul;
   }
-
-  /* =========================
-     SORTABLE
-  ========================= */
 
   function destroySortables() {
     sortables.forEach(s => s.destroy());
@@ -214,7 +202,6 @@ if (window.__menuMgmtInitDone) {
 
   function initSortable(root) {
     destroySortables();
-
     root.querySelectorAll(".menu-tree").forEach(ul => {
       const s = new Sortable(ul, {
         group: "menus",
@@ -246,13 +233,7 @@ if (window.__menuMgmtInitDone) {
       getDirectMenuNodes(ul).forEach((li, index) => {
         const id = Number(li.dataset.id);
         if (!Number.isFinite(id)) return;
-
-        items.push({
-          id,
-          parent_id: parentId,
-          sort_order: index + 1
-        });
-
+        items.push({ id, parent_id: parentId, sort_order: index + 1 });
         const childUl = li.querySelector(":scope > .menu-tree");
         if (childUl) walk(childUl, id);
       });
@@ -265,7 +246,6 @@ if (window.__menuMgmtInitDone) {
   async function persistTreeOrder(root) {
     const items = collectTreeOrder(root);
     if (!items.length) return;
-
     try {
       await apiReorderMenus(items);
       setPendingApply(true);
@@ -277,27 +257,14 @@ if (window.__menuMgmtInitDone) {
     }
   }
 
-  /* =========================
-     ACTIONS (delegation)
-  ========================= */
-
   function bindActions(host) {
-    host.addEventListener("show.bs.dropdown", (e) => {
-      e.target.closest(".menu-node")?.classList.add("menu-node-actions-open");
-    });
-
-    host.addEventListener("hidden.bs.dropdown", (e) => {
-      e.target.closest(".menu-node")?.classList.remove("menu-node-actions-open");
-    });
-
     host.addEventListener("click", async (e) => {
-      const a = e.target.closest("a[data-action]");
-      if (!a) return;
-
+      const actionEl = e.target.closest("[data-action]");
+      if (!actionEl) return;
       e.preventDefault();
 
-      const id = Number(a.dataset.id);
-      const action = a.dataset.action;
+      const id = Number(actionEl.dataset.id);
+      const action = actionEl.dataset.action;
 
       if (action === "add-child") {
         openModal({ mode: "add-child", parentId: id });
@@ -330,7 +297,6 @@ if (window.__menuMgmtInitDone) {
       if (action === "delete") {
         if (!confirm("Eliminare questo menu?")) return;
         let deleted = false;
-
         try {
           await apiDeleteMenu(id, false);
           deleted = true;
@@ -350,37 +316,24 @@ if (window.__menuMgmtInitDone) {
       if (action === "edit") {
         const data = await loadMenuData(id);
         openModal({ mode: "edit", menu: data });
-        return;
       }
     });
   }
 
-  /* =========================
-     RENDER
-  ========================= */
-
   async function renderAll() {
     const host = document.getElementById("menuTree");
     if (!host) return;
-
     const data = await fetchMenuStructure();
     const tree = buildTree(data);
-
     host.innerHTML = "";
     host.appendChild(renderTree(tree));
-
     initSortable(host);
   }
-
-  /* =========================
-     MODALE
-  ========================= */
 
   function openModal({ mode, menu, parentId }) {
     document.getElementById("mm_menu_id").value = menu?.id ?? "";
     const pid = (parentId ?? menu?.parent_id ?? null);
     document.getElementById("mm_parent_id").value = (pid === null) ? "" : String(pid);
-
     document.getElementById("mm_item_type").value = menu?.item_type ?? "link";
     document.getElementById("mm_name").value = menu?.name ?? "";
     document.getElementById("mm_route").value = menu?.route ?? "";
@@ -400,21 +353,13 @@ if (window.__menuMgmtInitDone) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById("menuModal")).show();
   }
 
-  function closeMenuModal() {
-    const modalEl = document.getElementById("menuModal");
-    const inst = bootstrap.Modal.getInstance(modalEl);
-    if (inst) inst.hide();
-  }
-
   function syncRoleSelectFromWeight(weight) {
     const roleSelect = document.getElementById("mm_role_weight");
     const customWrap = document.getElementById("mm_weight_custom_wrap");
     const weightInput = document.getElementById("mm_weight");
     if (!roleSelect || !customWrap || !weightInput) return;
-
     const value = String(Number(weight || 0));
     const hasOption = Array.from(roleSelect.options).some(opt => opt.value === value);
-
     roleSelect.value = hasOption ? value : "__custom__";
     customWrap.style.display = hasOption ? "none" : "";
     weightInput.value = value;
@@ -425,14 +370,12 @@ if (window.__menuMgmtInitDone) {
     const customWrap = document.getElementById("mm_weight_custom_wrap");
     const weightInput = document.getElementById("mm_weight");
     if (!roleSelect || !customWrap || !weightInput) return;
-
     roleSelect.addEventListener("change", () => {
       if (roleSelect.value === "__custom__") {
         customWrap.style.display = "";
         weightInput.focus();
         return;
       }
-
       customWrap.style.display = "none";
       weightInput.value = roleSelect.value || "0";
     });
@@ -443,7 +386,6 @@ if (window.__menuMgmtInitDone) {
     const routeInput = document.getElementById("mm_route");
     const nameInput = document.getElementById("mm_name");
     if (!typeSelect || !routeInput || !nameInput) return;
-
     const isSeparator = typeSelect.value === "separator";
     routeInput.disabled = isSeparator;
     routeInput.value = isSeparator ? "" : routeInput.value;
@@ -459,13 +401,11 @@ if (window.__menuMgmtInitDone) {
     const activeInput = document.getElementById("mm_is_active");
     const visibleInput = document.getElementById("mm_is_visible");
     if (!activeInput || !visibleInput) return;
-
     if (activeInput.checked) {
       visibleInput.checked = true;
       visibleInput.disabled = true;
       return;
     }
-
     visibleInput.disabled = false;
   }
 
@@ -473,63 +413,43 @@ if (window.__menuMgmtInitDone) {
     document.getElementById("mm_is_active")?.addEventListener("change", updateVisibilityFields);
   }
 
-  /* =========================
-     MODAL SUBMIT
-  ========================= */
-
   function bindModalSubmit(refreshFn) {
     const form = document.getElementById("menuModalForm");
     if (!form) return;
-
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       e.stopPropagation();
-
       if (modalSubmitting) return;
       modalSubmitting = true;
 
       const id = (document.getElementById("mm_menu_id").value || "").trim();
       const parentIdRaw = (document.getElementById("mm_parent_id").value || "").trim();
       const itemType = document.getElementById("mm_item_type").value || "link";
-
       const payload = {
         name: (document.getElementById("mm_name").value || "").trim(),
         route: itemType === "separator" ? null : ((document.getElementById("mm_route").value || "").trim() || null),
         weight: Number(document.getElementById("mm_weight").value || 0),
         is_active: document.getElementById("mm_is_active").checked,
         is_visible: document.getElementById("mm_is_active").checked || document.getElementById("mm_is_visible").checked,
-        item_type: itemType
+        item_type: itemType,
+        parent_id: parentIdRaw === "" ? null : Number(parentIdRaw)
       };
-
-      // root => parent_id null (campo vuoto)
-      payload.parent_id = parentIdRaw === "" ? null : Number(parentIdRaw);
 
       try {
         if (!payload.name && payload.item_type !== "separator") throw new Error("Nome obbligatorio");
-
-        if (id) {
-          await updateMenuJson({ id: Number(id), ...payload });
-        } else {
-          await createMenu(payload);
-        }
-
+        if (id) await updateMenuJson({ id: Number(id), ...payload });
+        else await createMenu(payload);
         bootstrap.Modal.getOrCreateInstance(document.getElementById("menuModal")).hide();
         setPendingApply(true);
         await refreshFn();
       } catch (err) {
         console.error("MODAL SUBMIT:", err);
-        // in futuro: toast/alert in modale
         alert(err.message || "Errore salvataggio menu");
-       } finally {
-         modalSubmitting = false;
+      } finally {
+        modalSubmitting = false;
       }
-     });
+    });
   }
-
-
-  /* =========================
-     INIT
-  ========================= */
 
   document.addEventListener("DOMContentLoaded", async () => {
     const host = document.getElementById("menuTree");
