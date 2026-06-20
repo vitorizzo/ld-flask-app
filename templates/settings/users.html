@@ -2,6 +2,81 @@
 
 {% block title %}LD Enoteca - Utenti{% endblock %}
 
+{% block extra_css %}
+<style>
+  #flash-message {
+    position: fixed;
+    top: calc(var(--app-header-height, 72px) + 12px);
+    right: 24px;
+    z-index: 2300;
+    width: min(520px, calc(100vw - 48px));
+    pointer-events: none;
+  }
+
+  #flash-message .alert {
+    pointer-events: auto;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+    border-radius: 10px;
+  }
+
+  .settings-user-modal {
+    z-index: 2100;
+  }
+
+  .settings-user-modal .modal-dialog {
+    margin-top: calc(var(--app-header-height, 72px) + 14px);
+    margin-bottom: calc(var(--app-footer-height, 42px) + 14px);
+  }
+
+  .settings-user-modal .modal-content {
+    background: #fff;
+    color: #212529;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 14px;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+  }
+
+  .settings-user-modal .modal-header {
+    background: #6b3f36;
+    color: #fff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    min-height: 58px;
+  }
+
+  .settings-user-modal .modal-title {
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .settings-user-modal .btn-close {
+    filter: invert(1);
+    opacity: 0.9;
+  }
+
+  .settings-user-modal .modal-body {
+    max-height: calc(100vh - var(--app-header-height, 72px) - var(--app-footer-height, 42px) - 150px);
+    overflow-y: auto;
+  }
+
+  .settings-user-modal .modal-footer {
+    background: #fff;
+    border-top: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  .settings-user-modal .form-label {
+    color: #4a2c2a;
+    font-weight: 600;
+  }
+
+  .settings-user-modal .form-control:focus,
+  .settings-user-modal .form-select:focus {
+    border-color: rgba(107, 63, 54, 0.45);
+    box-shadow: 0 0 0 0.25rem rgba(107, 63, 54, 0.16);
+  }
+</style>
+{% endblock %}
+
 {% macro role_badges(user) -%}
   <div class="d-flex flex-wrap gap-1">
     {% if user.active_roles %}
@@ -114,7 +189,7 @@
 </section>
 
 {% for user in users %}
-  <div class="modal fade" id="userDetailModal-{{ user.id }}" tabindex="-1" aria-labelledby="userDetailTitle-{{ user.id }}" aria-hidden="true">
+  <div class="modal fade settings-user-modal" id="userDetailModal-{{ user.id }}" tabindex="-1" aria-labelledby="userDetailTitle-{{ user.id }}" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content">
         <form method="post" action="{{ url_for('settings.user_update', user_id=user.id) }}">
@@ -168,7 +243,7 @@
     </div>
   </div>
 
-  <div class="modal fade" id="userRoleModal-{{ user.id }}" tabindex="-1" aria-labelledby="userRoleTitle-{{ user.id }}" aria-hidden="true">
+  <div class="modal fade settings-user-modal" id="userRoleModal-{{ user.id }}" tabindex="-1" aria-labelledby="userRoleTitle-{{ user.id }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post" action="{{ url_for('settings.user_change_role', user_id=user.id) }}">
@@ -197,7 +272,7 @@
     </div>
   </div>
 
-  <div class="modal fade" id="userAuthModal-{{ user.id }}" tabindex="-1" aria-labelledby="userAuthTitle-{{ user.id }}" aria-hidden="true">
+  <div class="modal fade settings-user-modal" id="userAuthModal-{{ user.id }}" tabindex="-1" aria-labelledby="userAuthTitle-{{ user.id }}" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content">
         <form method="post" action="{{ url_for('settings.user_add_special_authorization', user_id=user.id) }}">
@@ -300,7 +375,7 @@
     </div>
   </div>
 
-  <div class="modal fade" id="userResetPasswordModal-{{ user.id }}" tabindex="-1" aria-labelledby="userResetPasswordTitle-{{ user.id }}" aria-hidden="true">
+  <div class="modal fade settings-user-modal" id="userResetPasswordModal-{{ user.id }}" tabindex="-1" aria-labelledby="userResetPasswordTitle-{{ user.id }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post" action="{{ url_for('settings.user_reset_password', user_id=user.id) }}">
@@ -320,7 +395,7 @@
     </div>
   </div>
 
-  <div class="modal fade" id="userDeleteModal-{{ user.id }}" tabindex="-1" aria-labelledby="userDeleteTitle-{{ user.id }}" aria-hidden="true">
+  <div class="modal fade settings-user-modal" id="userDeleteModal-{{ user.id }}" tabindex="-1" aria-labelledby="userDeleteTitle-{{ user.id }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post" action="{{ url_for('settings.user_delete', user_id=user.id) }}">

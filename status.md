@@ -1491,3 +1491,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - dopo lo spostamento, inizializzare/ripristinare pulsanti e handler su `shown.bs.modal` e `hidden.bs.modal`;
   - questa regola va applicata preventivamente a ogni nuova modale, non come fix successivo.
   - applicato subito a `templates/settings/users.html`.
+- 2026-06-20 UI widget utenti:
+  - i flash nella pagina `/settings/users` sono stati riposizionati fixed sotto la navbar, con z-index alto e larghezza controllata;
+  - le modali utenti usano classe `settings-user-modal` con header marrone coerente con le modali Agenda, bordo, shadow, footer separato e body scrollabile;
+  - evitato l'effetto "total white" e il taglio della barra titolo nelle modali utenti;
+  - verifica render template `settings/users.html` ok.
