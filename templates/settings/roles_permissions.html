@@ -66,13 +66,16 @@
     border-bottom: 1px solid rgba(74, 44, 42, 0.10);
   }
 
-  .settings-config-card .settings-scroll-box {
-    height: clamp(540px, calc(100vh - var(--app-header-height, 72px) - 170px), 680px);
-    max-height: 680px;
-    overflow-x: auto;
+  .settings-config-card .settings-table-scroll {
+    max-height: 360px;
     overflow-y: scroll;
-    padding-bottom: 10px;
+    overflow-x: hidden;
     scrollbar-gutter: stable;
+  }
+
+  .settings-config-card .settings-table-scroll .table-responsive {
+    overflow-x: auto;
+    overflow-y: visible;
   }
 
   .settings-config-card .table thead th {
@@ -148,49 +151,51 @@
       </div>
       <div class="card-body p-0">
         {% if roles %}
-          <div class="table-responsive settings-scroll-box">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th style="min-width: 210px;">Ruolo</th>
-                  <th style="width: 110px;">Peso</th>
-                  <th>Descrizione</th>
-                  <th style="width: 170px;">Utilizzo</th>
-                  <th style="width: 120px;" class="text-end">Azioni</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for role in roles %}
-                  <tr role="button" data-bs-toggle="modal" data-bs-target="#roleModal-{{ role.id }}">
-                    <td>
-                      <div class="fw-semibold">{{ role.name }}</div>
-                      <div class="text-muted small">ID {{ role.id }}</div>
-                    </td>
-                    <td><span class="badge text-bg-dark">{{ role.weight or 0 }}</span></td>
-                    <td class="text-muted">{{ role.description or '-' }}</td>
-                    <td>
-                      <span class="settings-usage-pill">
-                        <span class="badge text-bg-light">{{ role_usage.get(role.id, 0) }}</span>
-                        <span class="text-muted small">utenti</span>
-                      </span>
-                      <div class="text-muted small">{{ role_function_usage.get(role.id, 0) }} voci menu con stessa soglia</div>
-                    </td>
-                    <td class="text-end" onclick="event.stopPropagation();">
-                      <span class="settings-actions">
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#roleModal-{{ role.id }}" title="Modifica">
-                          <i class="fa-solid fa-pen"></i>
-                          <span class="visually-hidden">Modifica</span>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#roleDeleteModal-{{ role.id }}" title="Elimina">
-                          <i class="fa-solid fa-trash"></i>
-                          <span class="visually-hidden">Elimina</span>
-                        </button>
-                      </span>
-                    </td>
+          <div class="settings-table-scroll">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th style="min-width: 210px;">Ruolo</th>
+                    <th style="width: 110px;">Peso</th>
+                    <th>Descrizione</th>
+                    <th style="width: 170px;">Utilizzo</th>
+                    <th style="width: 120px;" class="text-end">Azioni</th>
                   </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {% for role in roles %}
+                    <tr role="button" data-bs-toggle="modal" data-bs-target="#roleModal-{{ role.id }}">
+                      <td>
+                        <div class="fw-semibold">{{ role.name }}</div>
+                        <div class="text-muted small">ID {{ role.id }}</div>
+                      </td>
+                      <td><span class="badge text-bg-dark">{{ role.weight or 0 }}</span></td>
+                      <td class="text-muted">{{ role.description or '-' }}</td>
+                      <td>
+                        <span class="settings-usage-pill">
+                          <span class="badge text-bg-light">{{ role_usage.get(role.id, 0) }}</span>
+                          <span class="text-muted small">utenti</span>
+                        </span>
+                        <div class="text-muted small">{{ role_function_usage.get(role.id, 0) }} voci menu con stessa soglia</div>
+                      </td>
+                      <td class="text-end" onclick="event.stopPropagation();">
+                        <span class="settings-actions">
+                          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#roleModal-{{ role.id }}" title="Modifica">
+                            <i class="fa-solid fa-pen"></i>
+                            <span class="visually-hidden">Modifica</span>
+                          </button>
+                          <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#roleDeleteModal-{{ role.id }}" title="Elimina">
+                            <i class="fa-solid fa-trash"></i>
+                            <span class="visually-hidden">Elimina</span>
+                          </button>
+                        </span>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
           </div>
         {% else %}
           <div class="p-4">
@@ -210,49 +215,51 @@
       </div>
       <div class="card-body p-0">
         {% if special_permissions %}
-          <div class="table-responsive settings-scroll-box">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th style="min-width: 210px;">Autorizzazione</th>
-                  <th style="min-width: 180px;">Identificatore</th>
-                  <th>Descrizione</th>
-                  <th style="width: 150px;">Utilizzo</th>
-                  <th style="width: 120px;" class="text-end">Azioni</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for permission in special_permissions %}
-                  <tr role="button" data-bs-toggle="modal" data-bs-target="#permissionModal-{{ permission.id }}">
-                    <td>
-                      <div class="fw-semibold">{{ permission.name }}</div>
-                      <div class="text-muted small">{{ 'Attiva' if permission.is_active else 'Disattiva' }}</div>
-                    </td>
-                    <td><span class="settings-code">{{ permission.code }}</span></td>
-                    <td class="text-muted">{{ permission.description or '-' }}</td>
-                    <td>
-                      <span class="settings-usage-pill">
-                        <span class="badge text-bg-light">{{ permission_usage.get(permission.id, 0) }}</span>
-                        <span class="text-muted small">utenti</span>
-                      </span>
-                      <div class="text-muted small">{{ permission_function_usage.get(permission.id, 0) }} funzioni collegate</div>
-                    </td>
-                    <td class="text-end" onclick="event.stopPropagation();">
-                      <span class="settings-actions">
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#permissionModal-{{ permission.id }}" title="Modifica">
-                          <i class="fa-solid fa-pen"></i>
-                          <span class="visually-hidden">Modifica</span>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#permissionDeleteModal-{{ permission.id }}" title="Elimina">
-                          <i class="fa-solid fa-trash"></i>
-                          <span class="visually-hidden">Elimina</span>
-                        </button>
-                      </span>
-                    </td>
+          <div class="settings-table-scroll">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th style="min-width: 210px;">Autorizzazione</th>
+                    <th style="min-width: 180px;">Identificatore</th>
+                    <th>Descrizione</th>
+                    <th style="width: 150px;">Utilizzo</th>
+                    <th style="width: 120px;" class="text-end">Azioni</th>
                   </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {% for permission in special_permissions %}
+                    <tr role="button" data-bs-toggle="modal" data-bs-target="#permissionModal-{{ permission.id }}">
+                      <td>
+                        <div class="fw-semibold">{{ permission.name }}</div>
+                        <div class="text-muted small">{{ 'Attiva' if permission.is_active else 'Disattiva' }}</div>
+                      </td>
+                      <td><span class="settings-code">{{ permission.code }}</span></td>
+                      <td class="text-muted">{{ permission.description or '-' }}</td>
+                      <td>
+                        <span class="settings-usage-pill">
+                          <span class="badge text-bg-light">{{ permission_usage.get(permission.id, 0) }}</span>
+                          <span class="text-muted small">utenti</span>
+                        </span>
+                        <div class="text-muted small">{{ permission_function_usage.get(permission.id, 0) }} funzioni collegate</div>
+                      </td>
+                      <td class="text-end" onclick="event.stopPropagation();">
+                        <span class="settings-actions">
+                          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#permissionModal-{{ permission.id }}" title="Modifica">
+                            <i class="fa-solid fa-pen"></i>
+                            <span class="visually-hidden">Modifica</span>
+                          </button>
+                          <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#permissionDeleteModal-{{ permission.id }}" title="Elimina">
+                            <i class="fa-solid fa-trash"></i>
+                            <span class="visually-hidden">Elimina</span>
+                          </button>
+                        </span>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
           </div>
         {% else %}
           <div class="p-4">
