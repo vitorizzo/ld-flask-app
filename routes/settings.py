@@ -7,6 +7,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload, load_only
 from werkzeug.utils import secure_filename
 import os
+import re
 import secrets
 import uuid
 
@@ -874,6 +875,27 @@ API_KEY_PREFERENCE_CATEGORIES = {"Prestashop", "Poleepo", "Trello", "Slack", "No
 ROLE_PERMISSION_PREFERENCE_CATEGORIES = {"Permessi e ruoli"}
 
 
+def _normalize_permission_code(value):
+    code = re.sub(r"[^a-z0-9_.-]+", "_", (value or "").strip().lower())
+    return code.strip("_.-")
+
+
+def _sync_postgres_pk_sequence(model, column_name="id"):
+    bind = db.session.get_bind()
+    if not bind or bind.dialect.name != "postgresql":
+        return
+    table_name = model.__tablename__
+    max_id = db.session.query(db.func.max(getattr(model, column_name))).scalar() or 0
+    db.session.execute(
+        text("SELECT setval(pg_get_serial_sequence(:table_name, :column_name), :next_id, false)"),
+        {
+            "table_name": table_name,
+            "column_name": column_name,
+            "next_id": int(max_id) + 1,
+        },
+    )
+
+
 def _filter_preference_sections(sections, include_categories=None, exclude_categories=None):
     include_categories = set(include_categories or [])
     exclude_categories = set(exclude_categories or [])
@@ -913,13 +935,107 @@ def api_keys():
 def roles_permissions():
     if request.method == "POST":
         form_type = (request.form.get("form_type") or "roles").strip().lower()
-        if form_type == "role_permissions":
-            changed_keys = save_preferences_from_form(request.form)
-            load_preferences_into_app_config(current_app._get_current_object())
-            flash(f"Autorizzazioni aggiornate ({len(changed_keys)} valori).", "success")
-        else:
-            changed = _save_role_preferences_from_form(request.form)
-            flash(f"Ruoli aggiornati ({changed} modifiche).", "success")
+        try:
+            if form_type == "create_role":
+                name = (request.form.get("role_name") or "").strip()
+                weight = _parse_int(request.form.get("role_weight"), 0)
+                description = (request.form.get("role_description") or "").strip() or None
+                if not name:
+                    flash("Il nome ruolo e' obbligatorio.", "warning")
+                    return redirect(url_for("settings.roles_permissions"))
+                if Role.query.filter(Role.name == name).first():
+                    flash("Esiste gia' un ruolo con questo nome.", "warning")
+                    return redirect(url_for("settings.roles_permissions"))
+                _sync_postgres_pk_sequence(Role)
+                db.session.add(Role(name=name, weight=weight, description=description))
+                db.session.commit()
+                flash("Ruolo creato.", "success")
+
+            elif form_type == "delete_role":
+                role_id = _parse_int(request.form.get("role_id"))
+                replacement_role_id = _parse_int(request.form.get("replacement_role_id"))
+                role = Role.query.get_or_404(role_id)
+                usage_count = UserRole.query.filter_by(role_id=role.id).count()
+                if usage_count:
+                    replacement = Role.query.get(replacement_role_id) if replacement_role_id else None
+                    if not replacement or replacement.id == role.id:
+                        flash("Se il ruolo e' usato da utenti devi indicare un ruolo di destinazione valido.", "warning")
+                        return redirect(url_for("settings.roles_permissions"))
+                    UserRole.query.filter_by(role_id=role.id).update(
+                        {"role_id": replacement.id},
+                        synchronize_session=False,
+                    )
+                db.session.delete(role)
+                db.session.commit()
+                flash("Ruolo eliminato e utenti ricanalizzati.", "success")
+
+            elif form_type == "create_permission":
+                code = _normalize_permission_code(request.form.get("permission_code"))
+                name = (request.form.get("permission_name") or "").strip()
+                description = (request.form.get("permission_description") or "").strip() or None
+                if not code or not name:
+                    flash("Identificatore e nome autorizzazione sono obbligatori.", "warning")
+                    return redirect(url_for("settings.roles_permissions"))
+                if SpecialPermission.query.filter(SpecialPermission.code == code).first():
+                    flash("Esiste gia' un'autorizzazione con questo identificatore.", "warning")
+                    return redirect(url_for("settings.roles_permissions"))
+                _sync_postgres_pk_sequence(SpecialPermission)
+                db.session.add(SpecialPermission(code=code, name=name, description=description, is_active=True))
+                db.session.commit()
+                flash("Autorizzazione creata.", "success")
+
+            elif form_type == "update_permission":
+                permission_id = _parse_int(request.form.get("permission_id"))
+                permission = SpecialPermission.query.get_or_404(permission_id)
+                code = _normalize_permission_code(request.form.get("permission_code"))
+                name = (request.form.get("permission_name") or "").strip()
+                if not code or not name:
+                    flash("Identificatore e nome autorizzazione sono obbligatori.", "warning")
+                    return redirect(url_for("settings.roles_permissions"))
+                duplicate = SpecialPermission.query.filter(
+                    SpecialPermission.code == code,
+                    SpecialPermission.id != permission.id,
+                ).first()
+                if duplicate:
+                    flash("Identificatore autorizzazione gia' in uso.", "warning")
+                    return redirect(url_for("settings.roles_permissions"))
+                permission.code = code
+                permission.name = name
+                permission.description = (request.form.get("permission_description") or "").strip() or None
+                permission.is_active = _form_bool(request.form, "permission_is_active", default=permission.is_active)
+                db.session.commit()
+                flash("Autorizzazione aggiornata.", "success")
+
+            elif form_type == "delete_permission":
+                permission_id = _parse_int(request.form.get("permission_id"))
+                replacement_permission_id = _parse_int(request.form.get("replacement_permission_id"))
+                permission = SpecialPermission.query.get_or_404(permission_id)
+                usage_count = UserSpecialPermission.query.filter_by(permission_id=permission.id).count()
+                if usage_count:
+                    replacement = SpecialPermission.query.get(replacement_permission_id) if replacement_permission_id else None
+                    if not replacement or replacement.id == permission.id:
+                        flash("Se l'autorizzazione e' assegnata a utenti devi indicare una destinazione valida.", "warning")
+                        return redirect(url_for("settings.roles_permissions"))
+                    UserSpecialPermission.query.filter_by(permission_id=permission.id).update(
+                        {"permission_id": replacement.id},
+                        synchronize_session=False,
+                    )
+                db.session.delete(permission)
+                db.session.commit()
+                flash("Autorizzazione eliminata e assegnazioni ricanalizzate.", "success")
+
+            elif form_type == "role_permissions":
+                changed_keys = save_preferences_from_form(request.form)
+                load_preferences_into_app_config(current_app._get_current_object())
+                flash(f"Soglie legacy aggiornate ({len(changed_keys)} valori).", "success")
+
+            else:
+                changed = _save_role_preferences_from_form(request.form)
+                flash(f"Ruoli aggiornati ({changed} modifiche).", "success")
+        except SQLAlchemyError as exc:
+            db.session.rollback()
+            logger.exception("Errore aggiornando ruoli/autorizzazioni")
+            flash(f"Impossibile completare l'operazione: {exc}", "danger")
         return redirect(url_for("settings.roles_permissions"))
 
     sections = _filter_preference_sections(
@@ -928,10 +1044,38 @@ def roles_permissions():
     )
     try:
         roles = Role.query.order_by(Role.weight.asc(), Role.name.asc()).all()
+        special_permissions = SpecialPermission.query.order_by(SpecialPermission.name.asc()).all()
+        role_usage = {
+            role.id: UserRole.query.filter_by(role_id=role.id).count()
+            for role in roles
+        }
+        role_function_usage = {
+            role.id: Menu.query.filter(Menu.weight == (role.weight or 0)).count()
+            for role in roles
+        }
+        permission_usage = {
+            permission.id: UserSpecialPermission.query.filter_by(permission_id=permission.id).count()
+            for permission in special_permissions
+        }
+        permission_function_usage = {permission.id: 0 for permission in special_permissions}
     except SQLAlchemyError as exc:
         logger.warning("Ruoli non disponibili durante il caricamento ruoli/autorizzazioni: %s", exc)
         roles = []
-    return render_template("settings/roles_permissions.html", sections=sections, roles=roles)
+        special_permissions = []
+        role_usage = {}
+        role_function_usage = {}
+        permission_usage = {}
+        permission_function_usage = {}
+    return render_template(
+        "settings/roles_permissions.html",
+        sections=sections,
+        roles=roles,
+        special_permissions=special_permissions,
+        role_usage=role_usage,
+        role_function_usage=role_function_usage,
+        permission_usage=permission_usage,
+        permission_function_usage=permission_function_usage,
+    )
 
 
 @settings_bp.route("/preferences", methods=["GET", "POST"])

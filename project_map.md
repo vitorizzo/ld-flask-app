@@ -845,7 +845,11 @@ Stato implementazione 2026-06-14:
   - `/settings/import_conflicts` offre risoluzione guidata dei conflitti import con confronto CSV/DB, card dato certo, contatori coda/posizione/duplicati e azioni Usa CSV/Usa DB/Sempre CSV/Sempre DB/Salta;
   - l'import articoli consulta le regole `ImportConflictResolution` e non reinserisce conflitti pending identici gia' in coda;
   - `/settings/api-keys` separa dal vecchio widget configurazione le chiavi e i parametri delle integrazioni esterne;
-  - `/settings/roles-permissions` separa dal vecchio widget configurazione la gestione ruoli e le soglie autorizzative;
+  - `/settings/roles-permissions` separa dal vecchio widget configurazione la gestione ruoli e autorizzazioni:
+    - ruoli: creazione, modifica peso/descrizione, eliminazione con ricanalizzazione degli utenti assegnati;
+    - autorizzazioni speciali: CRUD su `SpecialPermission.code`/nome/descrizione/stato attivo;
+    - cancellazione autorizzazioni: controllo assegnazioni `UserSpecialPermission` e ricanalizzazione verso altro permesso;
+    - la pagina mostra anche i riferimenti operativi disponibili: utenti collegati e voci menu con stessa soglia numerica del ruolo.
   - `/settings/preferences` resta come widget residuale per parametri non ancora estratti;
   - entry "Impostazioni" nel menu profilo per gli utenti con peso >= 900.
   - migration audit resa idempotente sui DB dove `cash_day_audit_events` esiste gia', cosi' `db upgrade` non fallisce su `DuplicateTable`.

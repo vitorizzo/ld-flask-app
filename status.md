@@ -1560,3 +1560,13 @@ Performance apertura giornata Agenda 2026-06-13:
   - `tools/preferences.save_preferences_from_form()` ora salva solo le chiavi presenti nel form, evitando cancellazioni quando una sezione viene spostata fuori dal vecchio widget;
   - aggiunti breadcrumb client-side in `static/js/base.js`;
   - verifiche: `python -m py_compile routes/settings.py tools/preferences.py`, `node --check static/js/base.js`, render template nuovi con DB reale, POST innocue su `/settings/api-keys` e `/settings/roles-permissions` con redirect 302.
+- 2026-06-21 ruoli/autorizzazioni impostazioni:
+  - `/settings/roles-permissions` ora gestisce creazione, modifica ed eliminazione dei ruoli;
+  - l'eliminazione di un ruolo controlla gli utenti collegati e richiede un ruolo di destinazione quando esistono assegnazioni da ricanalizzare;
+  - le autorizzazioni speciali sono gestite come record `SpecialPermission` con identificatore `code`, non come soglie/pesi ruolo;
+  - aggiunte creazione, modifica, attivazione/disattivazione ed eliminazione delle autorizzazioni speciali;
+  - l'eliminazione di un'autorizzazione controlla `UserSpecialPermission` e richiede una destinazione quando esistono assegnazioni utente;
+  - la pagina mostra conteggi utenti e conteggi funzione: i menu/funzioni attuali usano ancora soglie numeriche di peso, non FK a ruolo o permesso speciale;
+  - prima delle create viene riallineata la sequence PostgreSQL del PK se risulta arretrata rispetto ai record presenti;
+  - tutte le modali seguono il pattern preventivo `document.body.appendChild(modal)` e reset submit su `shown.bs.modal`/`hidden.bs.modal`;
+  - verifiche: `python -m py_compile routes/settings.py`; GET reale `/settings/roles-permissions` 200; ciclo reale crea/elimina ruolo e crea/elimina autorizzazione con record temporanei e cleanup ok.
