@@ -1043,7 +1043,7 @@ def roles_permissions():
         include_categories=ROLE_PERMISSION_PREFERENCE_CATEGORIES,
     )
     try:
-        roles = Role.query.order_by(Role.weight.asc(), Role.name.asc()).all()
+        roles = Role.query.order_by(Role.weight.desc(), Role.name.asc()).all()
         special_permissions = SpecialPermission.query.order_by(SpecialPermission.name.asc()).all()
         role_usage = {
             role.id: UserRole.query.filter_by(role_id=role.id).count()

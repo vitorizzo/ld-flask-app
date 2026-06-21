@@ -1579,3 +1579,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - corretti i controlli su `role_id`, `replacement_role_id` e `permission_id` in `routes/settings.py` usando `is not None` invece di truthy check;
   - ora il ruolo `dev` puo' essere selezionato in cambio ruolo, autorizzazioni temporanee e ricanalizzazione cancellazione ruolo;
   - verifiche: `python -m py_compile routes/settings.py`; lettura DB `Role.query.get(0)` restituisce `dev 999`.
+- 2026-06-21 visibilita' ruolo dev:
+  - in `/settings/roles-permissions` la tabella ruoli e' ordinata per peso decrescente, cosi' `dev` e `admin` restano in alto;
+  - aumentata l'altezza utile del box scrollabile ruoli/autorizzazioni con `clamp(...)`;
+  - verifica render reale: prima riga tabella ruoli `dev ID 0` peso `999`.

@@ -67,7 +67,7 @@
   }
 
   .settings-config-card .settings-scroll-box {
-    max-height: min(420px, calc(100vh - var(--app-header-height, 72px) - 260px));
+    max-height: clamp(420px, calc(100vh - var(--app-header-height, 72px) - 220px), 640px);
     overflow: auto;
   }
 
