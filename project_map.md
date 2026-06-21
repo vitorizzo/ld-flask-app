@@ -844,7 +844,10 @@ Stato implementazione 2026-06-14:
   - `/settings/menus` gestisce la struttura menu con drag&drop, creazione/modifica via modale, azioni rapide inline per ogni riga e restyling dedicato in `static/css/menus.css`;
   - `/settings/import_conflicts` offre risoluzione guidata dei conflitti import con confronto CSV/DB, card dato certo, contatori coda/posizione/duplicati e azioni Usa CSV/Usa DB/Sempre CSV/Sempre DB/Salta;
   - l'import articoli consulta le regole `ImportConflictResolution` e non reinserisce conflitti pending identici gia' in coda;
-  - `/settings/api-keys` separa dal vecchio widget configurazione le chiavi e i parametri delle integrazioni esterne;
+  - `/settings/api-keys` separa dal vecchio widget configurazione le chiavi e i parametri delle integrazioni esterne:
+    - UI tabellare con righe Prestashop, Poleepo, Trello, Slack e VAPID;
+    - azioni per integrazione: modifica in modale, disattiva via override DB vuoto, elimina override DB;
+    - creazione/modifica/eliminazione di chiavi custom in `.env.local`, mostrate solo se marcate con commento `LDAPP_DESC`.
   - `/settings/roles-permissions` separa dal vecchio widget configurazione la gestione ruoli e autorizzazioni:
     - ruoli: creazione, modifica peso/descrizione, eliminazione con ricanalizzazione degli utenti assegnati;
     - autorizzazioni speciali: CRUD su `SpecialPermission.code`/nome/descrizione/stato attivo;

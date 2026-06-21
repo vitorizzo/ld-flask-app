@@ -10,10 +10,12 @@ import os
 import re
 import secrets
 import uuid
+from dotenv import set_key, unset_key
 
 from extensions import db, mail
 from models import (
     Menu,
+    AppPreference,
     Role,
     ImportConflict,
     ImportConflictResolution,
@@ -35,7 +37,12 @@ from models import (
     CashSalePaymentPosMove,
 )
 from tools.role_required import role_required
-from tools.preferences import build_preferences_sections, load_preferences_into_app_config, save_preferences_from_form
+from tools.preferences import (
+    build_preferences_sections,
+    get_definition_map,
+    load_preferences_into_app_config,
+    save_preferences_from_form,
+)
 from config.tasks import (
     import_anagrafiche_task,
     import_articoli_task,
@@ -873,6 +880,13 @@ def _save_role_preferences_from_form(form):
 
 API_KEY_PREFERENCE_CATEGORIES = {"Prestashop", "Poleepo", "Trello", "Slack", "Notifiche push"}
 ROLE_PERMISSION_PREFERENCE_CATEGORIES = {"Permessi e ruoli"}
+API_KEY_CATEGORY_LABELS = {
+    "Prestashop": "Prestashop",
+    "Poleepo": "Poleepo",
+    "Trello": "Trello",
+    "Slack": "Slack",
+    "Notifiche push": "VAPID",
+}
 
 
 def _normalize_permission_code(value):
@@ -910,22 +924,248 @@ def _filter_preference_sections(sections, include_categories=None, exclude_categ
     return filtered
 
 
+def _env_local_path():
+    project_root = os.path.dirname(current_app.static_folder or os.getcwd())
+    return os.path.join(project_root, ".env.local")
+
+
+def _parse_env_local_custom_keys():
+    path = _env_local_path()
+    known_config_keys = {
+        item.get("config_key")
+        for section in build_preferences_sections(current_app._get_current_object())
+        for item in section.get("items", [])
+        if item.get("config_key")
+    }
+    custom_rows = []
+    if not os.path.exists(path):
+        return custom_rows
+
+    descriptions = {}
+    try:
+        with open(path, "r", encoding="utf-8-sig") as handle:
+            lines = handle.readlines()
+
+        for line in lines:
+            raw = line.strip()
+            if raw.startswith("# LDAPP_DESC "):
+                _, _, rest = raw.partition("# LDAPP_DESC ")
+                key, _, desc = rest.partition(":")
+                descriptions[key.strip()] = desc.strip()
+
+        for line in lines:
+            raw = line.strip()
+            if not raw or raw.startswith("#") or "=" not in raw:
+                continue
+            key, value = raw.split("=", 1)
+            key = key.strip()
+            if not key or key in known_config_keys or key not in descriptions:
+                continue
+            custom_rows.append({
+                "name": key,
+                "value": value.strip().strip('"').strip("'"),
+                "description": descriptions.get(key, ""),
+            })
+    except OSError:
+        logger.exception("Impossibile leggere .env.local per chiavi custom")
+    return custom_rows
+
+
+def _write_env_description(key, description):
+    path = _env_local_path()
+    try:
+        lines = []
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as handle:
+                lines = handle.readlines()
+        marker_prefix = f"# LDAPP_DESC {key}:"
+        marker = f"{marker_prefix} {description.strip()}\n"
+        for idx, line in enumerate(lines):
+            if line.startswith(marker_prefix):
+                lines[idx] = marker
+                break
+        else:
+            lines.append(marker)
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.writelines(lines)
+    except OSError:
+        logger.exception("Impossibile scrivere descrizione .env.local per %s", key)
+
+
+def _remove_env_description(key):
+    path = _env_local_path()
+    if not os.path.exists(path):
+        return
+    marker_prefix = f"# LDAPP_DESC {key}:"
+    try:
+        with open(path, "r", encoding="utf-8") as handle:
+            lines = [line for line in handle.readlines() if not line.startswith(marker_prefix)]
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.writelines(lines)
+    except OSError:
+        logger.exception("Impossibile eliminare descrizione .env.local per %s", key)
+
+
+def _coerce_preference_form_value(definition, raw_value):
+    if definition.value_type == "bool":
+        return "1" if str(raw_value or "").strip().lower() in {"1", "true", "yes", "on"} else "0"
+    if definition.value_type == "int":
+        return str(int(raw_value or 0))
+    if definition.value_type == "float":
+        return str(float(raw_value or 0))
+    return str(raw_value or "")
+
+
+def _upsert_api_preference(definition, raw_value, *, keep_empty_secret=True):
+    row = AppPreference.query.filter_by(key=definition.key).first()
+    if row is None:
+        row = AppPreference(
+            key=definition.key,
+            category=definition.category,
+            label=definition.label,
+            description=definition.description,
+            value_type=definition.value_type,
+            sort_order=definition.sort_order,
+        )
+        db.session.add(row)
+    else:
+        row.category = definition.category
+        row.label = definition.label
+        row.description = definition.description
+        row.value_type = definition.value_type
+        row.sort_order = definition.sort_order
+
+    if definition.is_secret:
+        if raw_value in (None, "") and keep_empty_secret:
+            return False
+        row.secret_value = str(raw_value or "")
+        row.value_text = None
+        row.value_json = None
+        return True
+
+    row.value_text = _coerce_preference_form_value(definition, raw_value)
+    row.value_json = None
+    row.secret_value = None
+    return True
+
+
+def _build_api_key_rows(sections):
+    rows = []
+    for section in sections:
+        items = section.get("items", [])
+        stored_count = sum(1 for item in items if item.get("stored"))
+        secret_count = sum(1 for item in items if item.get("is_secret"))
+        configured_count = sum(
+            1
+            for item in items
+            if item.get("stored") or str(item.get("current_value") or "").strip()
+        )
+        disabled = bool(items) and configured_count == 0
+        rows.append({
+            "category": section.get("category"),
+            "label": API_KEY_CATEGORY_LABELS.get(section.get("category"), section.get("category")),
+            "items": items,
+            "stored_count": stored_count,
+            "secret_count": secret_count,
+            "configured_count": configured_count,
+            "disabled": disabled,
+        })
+    return rows
+
+
 @settings_bp.route("/api-keys", methods=["GET", "POST"])
 @login_required
 @role_required(900)
 @log_task(logger)
 def api_keys():
     if request.method == "POST":
-        changed_keys = save_preferences_from_form(request.form)
-        load_preferences_into_app_config(current_app._get_current_object())
-        flash(f"Chiavi API aggiornate ({len(changed_keys)} valori).", "success")
+        form_type = (request.form.get("form_type") or "update_api_group").strip().lower()
+        definition_map = get_definition_map()
+        try:
+            if form_type == "update_api_group":
+                category = (request.form.get("category") or "").strip()
+                changed = 0
+                for definition in definition_map.values():
+                    if definition.category != category:
+                        continue
+                    if definition.key not in request.form:
+                        continue
+                    if _upsert_api_preference(definition, request.form.get(definition.key), keep_empty_secret=True):
+                        changed += 1
+                db.session.commit()
+                load_preferences_into_app_config(current_app._get_current_object())
+                flash(f"{API_KEY_CATEGORY_LABELS.get(category, category)} aggiornata ({changed} valori).", "success")
+
+            elif form_type == "deactivate_api_group":
+                category = (request.form.get("category") or "").strip()
+                changed = 0
+                for definition in definition_map.values():
+                    if definition.category != category:
+                        continue
+                    if _upsert_api_preference(definition, "", keep_empty_secret=False):
+                        changed += 1
+                db.session.commit()
+                load_preferences_into_app_config(current_app._get_current_object())
+                flash(f"{API_KEY_CATEGORY_LABELS.get(category, category)} disattivata ({changed} valori svuotati).", "success")
+
+            elif form_type == "delete_api_group":
+                category = (request.form.get("category") or "").strip()
+                deleted = 0
+                for definition in definition_map.values():
+                    if definition.category != category:
+                        continue
+                    row = AppPreference.query.filter_by(key=definition.key).first()
+                    if row:
+                        db.session.delete(row)
+                        deleted += 1
+                db.session.commit()
+                load_preferences_into_app_config(current_app._get_current_object())
+                flash(f"Override {API_KEY_CATEGORY_LABELS.get(category, category)} eliminati ({deleted} valori).", "success")
+
+            elif form_type == "create_env_key":
+                field_name = (request.form.get("field_name") or "").strip().upper()
+                field_value = request.form.get("field_value") or ""
+                description = (request.form.get("field_description") or "").strip()
+                if not re.match(r"^[A-Z][A-Z0-9_]*$", field_name):
+                    flash("Nome campo non valido. Usa lettere maiuscole, numeri e underscore, iniziando con una lettera.", "warning")
+                    return redirect(url_for("settings.api_keys"))
+                set_key(_env_local_path(), field_name, field_value)
+                _write_env_description(field_name, description)
+                os.environ[field_name] = field_value
+                current_app.config[field_name] = field_value
+                flash(f"Chiave {field_name} creata in .env.local.", "success")
+
+            elif form_type == "delete_env_key":
+                field_name = (request.form.get("field_name") or "").strip().upper()
+                if field_name:
+                    unset_key(_env_local_path(), field_name)
+                    _remove_env_description(field_name)
+                    os.environ.pop(field_name, None)
+                    current_app.config.pop(field_name, None)
+                    flash(f"Chiave {field_name} eliminata da .env.local.", "success")
+                else:
+                    flash("Chiave custom non valida.", "warning")
+
+            else:
+                changed_keys = save_preferences_from_form(request.form)
+                load_preferences_into_app_config(current_app._get_current_object())
+                flash(f"Chiavi API aggiornate ({len(changed_keys)} valori).", "success")
+        except Exception as exc:
+            db.session.rollback()
+            logger.exception("Errore aggiornando Chiavi API")
+            flash(f"Impossibile aggiornare Chiavi API: {exc}", "danger")
         return redirect(url_for("settings.api_keys"))
 
     sections = _filter_preference_sections(
         build_preferences_sections(current_app._get_current_object()),
         include_categories=API_KEY_PREFERENCE_CATEGORIES,
     )
-    return render_template("settings/api_keys.html", sections=sections)
+    return render_template(
+        "settings/api_keys.html",
+        sections=sections,
+        api_rows=_build_api_key_rows(sections),
+        custom_env_keys=_parse_env_local_custom_keys(),
+    )
 
 
 @settings_bp.route("/roles-permissions", methods=["GET", "POST"])

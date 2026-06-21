@@ -260,6 +260,14 @@ def get_definition_map() -> dict[str, PreferenceDefinition]:
     return {item.key: item for item in PREFERENCE_DEFINITIONS}
 
 
+def get_definition_by_config_key() -> dict[str, PreferenceDefinition]:
+    return {
+        item.config_key: item
+        for item in PREFERENCE_DEFINITIONS
+        if item.config_key
+    }
+
+
 def get_preference_base_config(app=None) -> dict[str, Any]:
     app = app or current_app._get_current_object()
     runtime = app.extensions.setdefault("ldapp_runtime_preferences", {})

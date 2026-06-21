@@ -1480,6 +1480,15 @@ Performance apertura giornata Agenda 2026-06-13:
   - verifica diagnostica DB: snapshot fiscali 2026-06-19/20 contenevano delta fiscali `39.30` e `652.93`, coerenti col bug;
   - verifica controllata: giornata temporanea `2099-01-01` chiusa con payload completo sentinella restituisce subito `delta_quadratura=-123.45` e riga incasso sentinella; cleanup eseguito;
   - verifiche: `python -m py_compile routes/cassa.py`, `git diff --check`.
+- 2026-06-21 UI Chiavi API tabellare:
+  - `templates/settings/api_keys.html` trasformato da form lungo a widget tabellare coerente con gli altri widget impostazioni;
+  - righe integrazione per Prestashop, Poleepo, Trello, Slack e VAPID, con azioni modifica, disattiva ed elimina override;
+  - modifica apre modale con i campi dell'integrazione; i segreti restano vuoti con placeholder "Lascia vuoto per mantenere";
+  - disattiva crea override DB vuoti per svuotare la config runtime senza cancellare `.env.local`;
+  - elimina rimuove gli override DB e ripristina eventuali valori `.env.local`/default;
+  - aggiunta creazione/modifica/eliminazione di chiavi ambiente custom in `.env.local` con marker descrittivo `# LDAPP_DESC KEY: ...`;
+  - le chiavi custom mostrate sono solo quelle create/marcate dal widget, evitando di esporre tutte le variabili ambiente esistenti;
+  - verifiche: `python -m py_compile routes/settings.py tools/preferences.py`, `git diff --check`, GET reale `/settings/api-keys` 200, ciclo controllato crea/elimina `CODEX_TEMP_API_KEY` con ripristino di `.env.local`.
 - 2026-06-20 widget utenti impostazioni:
   - aggiunti modelli `SpecialPermission` e `UserSpecialPermission`;
   - aggiunta migration `6f708192a3b4_add_user_special_permissions.py`, applicata localmente fino a head `6f708192a3b4`;
