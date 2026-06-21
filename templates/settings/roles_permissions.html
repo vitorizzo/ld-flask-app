@@ -19,6 +19,18 @@
     border-radius: 10px;
   }
 
+  .roles-permissions-page.welcome-section {
+    display: block;
+    height: auto;
+    min-height: calc(100vh - var(--app-header-height, 72px) - var(--app-footer-height, 42px) - 24px);
+    overflow: visible;
+  }
+
+  .roles-permissions-page.welcome-section > .container-fluid {
+    display: block;
+    overflow: visible;
+  }
+
   .settings-config-modal {
     z-index: 2100;
   }
@@ -66,27 +78,7 @@
     border-bottom: 1px solid rgba(74, 44, 42, 0.10);
   }
 
-  .settings-config-card .settings-table-scroll {
-    max-height: 430px;
-    overflow-y: scroll;
-    overflow-x: hidden;
-    scrollbar-gutter: stable;
-  }
-
-  .settings-config-card .settings-table-fit {
-    max-height: none;
-    overflow-y: visible;
-  }
-
-  .settings-config-card .settings-table-scroll .table-responsive {
-    overflow-x: auto;
-    overflow-y: visible;
-  }
-
   .settings-config-card .table thead th {
-    position: sticky;
-    top: 0;
-    z-index: 2;
     background: #f8f9fa;
     box-shadow: 0 1px 0 rgba(74, 44, 42, 0.10);
   }
@@ -126,7 +118,7 @@
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section page-shell">
+<section class="welcome-section page-shell roles-permissions-page">
   <div class="container-fluid">
     <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
       <div>
@@ -156,8 +148,7 @@
       </div>
       <div class="card-body p-0">
         {% if roles %}
-          <div class="settings-table-scroll {% if roles|length <= 8 %}settings-table-fit{% endif %}">
-            <div class="table-responsive">
+          <div class="table-responsive">
               <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                   <tr>
@@ -200,7 +191,6 @@
                   {% endfor %}
                 </tbody>
               </table>
-            </div>
           </div>
         {% else %}
           <div class="p-4">
@@ -220,8 +210,7 @@
       </div>
       <div class="card-body p-0">
         {% if special_permissions %}
-          <div class="settings-table-scroll {% if special_permissions|length <= 8 %}settings-table-fit{% endif %}">
-            <div class="table-responsive">
+          <div class="table-responsive">
               <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                   <tr>
@@ -264,7 +253,6 @@
                   {% endfor %}
                 </tbody>
               </table>
-            </div>
           </div>
         {% else %}
           <div class="p-4">
