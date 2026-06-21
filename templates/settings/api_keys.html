@@ -17,6 +17,21 @@
     border-bottom: 1px solid rgba(74, 44, 42, 0.10);
   }
 
+  .settings-config-page .settings-card form {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .settings-config-page .settings-scroll-box {
+    max-height: min(640px, calc(100vh - var(--app-header-height, 72px) - 250px));
+    overflow: auto;
+  }
+
+  .settings-config-page .settings-save-bar {
+    background: #fff;
+    box-shadow: 0 -1px 0 rgba(74, 44, 42, 0.10);
+  }
+
   .settings-config-page .form-label {
     color: #4a2c2a;
     font-weight: 700;
@@ -83,46 +98,48 @@
       <div class="card-body p-0">
         <form method="post">
           {% if sections %}
-            {% for section in sections %}
-              <div class="api-section">
-                <div class="api-section-title">
-                  <span class="icon"><i class="fa-solid fa-plug"></i></span>
-                  <span>{{ section.category }}</span>
+            <div class="settings-scroll-box">
+              {% for section in sections %}
+                <div class="api-section">
+                  <div class="api-section-title">
+                    <span class="icon"><i class="fa-solid fa-plug"></i></span>
+                    <span>{{ section.category }}</span>
+                  </div>
+                  <div class="row g-3">
+                    {% for item in section["items"] %}
+                      {% set field_id = item.key.replace('.', '_') %}
+                      <div class="col-12 col-lg-6">
+                        <label class="form-label" for="{{ field_id }}">
+                          {{ item.label }}
+                          <span class="badge text-bg-light ms-2">{{ item.source }}</span>
+                        </label>
+                        {% if item.is_secret %}
+                          <input class="form-control" type="password" id="{{ field_id }}" name="{{ item.key }}" value="" placeholder="{{ item.placeholder }}" autocomplete="new-password">
+                        {% elif item.value_type == 'bool' %}
+                          <div class="form-check">
+                            <input type="hidden" name="{{ item.key }}" value="0">
+                            <input class="form-check-input" type="checkbox" id="{{ field_id }}" name="{{ item.key }}" value="1" {% if item.form_value in [true, '1', 1, 'true', 'True'] %}checked{% endif %}>
+                            <label class="form-check-label" for="{{ field_id }}">Abilitato</label>
+                          </div>
+                        {% else %}
+                          <input class="form-control" type="{{ item.input_type }}" id="{{ field_id }}" name="{{ item.key }}" value="{{ item.form_value }}" {% if item.step %}step="{{ item.step }}"{% endif %}>
+                        {% endif %}
+                        {% if item.description %}
+                          <div class="form-text">{{ item.description }}</div>
+                        {% endif %}
+                      </div>
+                    {% endfor %}
+                  </div>
                 </div>
-                <div class="row g-3">
-                  {% for item in section["items"] %}
-                    {% set field_id = item.key.replace('.', '_') %}
-                    <div class="col-12 col-lg-6">
-                      <label class="form-label" for="{{ field_id }}">
-                        {{ item.label }}
-                        <span class="badge text-bg-light ms-2">{{ item.source }}</span>
-                      </label>
-                      {% if item.is_secret %}
-                        <input class="form-control" type="password" id="{{ field_id }}" name="{{ item.key }}" value="" placeholder="{{ item.placeholder }}" autocomplete="new-password">
-                      {% elif item.value_type == 'bool' %}
-                        <div class="form-check">
-                          <input type="hidden" name="{{ item.key }}" value="0">
-                          <input class="form-check-input" type="checkbox" id="{{ field_id }}" name="{{ item.key }}" value="1" {% if item.form_value in [true, '1', 1, 'true', 'True'] %}checked{% endif %}>
-                          <label class="form-check-label" for="{{ field_id }}">Abilitato</label>
-                        </div>
-                      {% else %}
-                        <input class="form-control" type="{{ item.input_type }}" id="{{ field_id }}" name="{{ item.key }}" value="{{ item.form_value }}" {% if item.step %}step="{{ item.step }}"{% endif %}>
-                      {% endif %}
-                      {% if item.description %}
-                        <div class="form-text">{{ item.description }}</div>
-                      {% endif %}
-                    </div>
-                  {% endfor %}
-                </div>
-              </div>
-            {% endfor %}
+              {% endfor %}
+            </div>
           {% else %}
             <div class="p-4">
               <div class="alert alert-warning mb-0">Nessuna chiave API disponibile.</div>
             </div>
           {% endif %}
 
-          <div class="d-flex justify-content-end p-3 border-top">
+          <div class="settings-save-bar d-flex justify-content-end p-3">
             <button type="submit" class="btn btn-primary">
               <i class="fa-solid fa-floppy-disk me-1"></i>Salva chiavi API
             </button>

@@ -1570,3 +1570,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - prima delle create viene riallineata la sequence PostgreSQL del PK se risulta arretrata rispetto ai record presenti;
   - tutte le modali seguono il pattern preventivo `document.body.appendChild(modal)` e reset submit su `shown.bs.modal`/`hidden.bs.modal`;
   - verifiche: `python -m py_compile routes/settings.py`; GET reale `/settings/roles-permissions` 200; ciclo reale crea/elimina ruolo e crea/elimina autorizzazione con record temporanei e cleanup ok.
+- 2026-06-21 scroll widget impostazioni:
+  - aggiunto scroll interno ai box Ruoli e Autorizzazioni in `/settings/roles-permissions`, con intestazioni tabella sticky;
+  - aggiunto scroll interno al corpo del form `/settings/api-keys`, lasciando visibile la barra di salvataggio;
+  - verifiche: `git diff --check`; GET reali `/settings/roles-permissions` e `/settings/api-keys` entrambi 200.
