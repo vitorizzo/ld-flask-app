@@ -1584,8 +1584,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - aumentata l'altezza utile del box scrollabile ruoli/autorizzazioni con `clamp(...)`;
   - verifica render reale: prima riga tabella ruoli `dev ID 0` peso `999`.
 - 2026-06-21 fix scrollbar widget impostazioni:
-  - `/settings/roles-permissions` usa classe pagina dedicata `roles-permissions-page` per neutralizzare `page-shell` flex/overflow hidden;
-  - la sezione e il container della pagina hanno `height:auto`, `display:block` e `overflow:visible`, cosi' le tabelle non vengono piu' tagliate dal contenitore shell;
+  - `/settings/roles-permissions` usa classe pagina dedicata `roles-permissions-page`;
+  - la `welcome-section` resta contenitiva (`height:100%`, `overflow:hidden`) per non far uscire i box dal pannello;
+  - lo scroll verticale e' sul `.container-fluid` interno (`overflow-y:auto`, `padding-bottom`), cosi' le tabelle non vengono tagliate e restano dentro la welcome-section;
   - rimosso lo scroll interno dalle tabelle ruoli/autorizzazioni: resta solo `.table-responsive` per eventuale overflow orizzontale;
   - il corpo di `/settings/api-keys` mantiene invece `height: clamp(...)` e `overflow-y: scroll`, con barra salvataggio esterna;
-  - verifiche: `git diff --check`; GET reale `/settings/roles-permissions` 200 senza wrapper `settings-table-scroll`.
+  - verifiche: `git diff --check`; GET reale `/settings/roles-permissions` 200.

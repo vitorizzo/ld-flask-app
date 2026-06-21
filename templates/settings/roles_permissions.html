@@ -20,15 +20,18 @@
   }
 
   .roles-permissions-page.welcome-section {
-    display: block;
-    height: auto;
+    display: flex;
+    height: 100%;
     min-height: calc(100vh - var(--app-header-height, 72px) - var(--app-footer-height, 42px) - 24px);
-    overflow: visible;
+    overflow: hidden;
   }
 
   .roles-permissions-page.welcome-section > .container-fluid {
     display: block;
-    overflow: visible;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding-bottom: 18px;
   }
 
   .settings-config-modal {
