@@ -866,6 +866,8 @@ Stato implementazione 2026-06-14:
   - il recupero snapshot usa la stessa relazione caricata, non un `noload`.
   - lo snapshot viene passato attraverso `_json_safe` prima del commit, per evitare errori di serializzazione nel JSONB.
   - il bottone di stampa su giornata chiusa usa lo snapshot gia' salvato e salta la chiamata di chiusura.
+  - se la stampa chiude una giornata in modalita' `complete` con vault PRI sbloccato, `/close` restituisce al client il payload completo appena inviato, evitando che la prima stampa usi lo snapshot fiscale privo dei movimenti PRI.
+  - su giornate chiuse, `/preview?view=complete` prova a usare la preview salvata nel report completo del vault; se non disponibile, ricalcola live invece di riusare automaticamente lo snapshot fiscale DB.
 
 ---
 

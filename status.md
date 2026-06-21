@@ -1472,6 +1472,14 @@ Performance apertura giornata Agenda 2026-06-13:
 - 2026-06-20 nota operativa report/quadratura:
   - la correzione snapshot/report del 2026-06-19 resta sospesa in attesa di dati corretti per validare la quadratura;
   - non proseguire ulteriormente su questa correzione finche' non vengono forniti casi reali verificabili.
+- 2026-06-21 fix prima stampa report completa:
+  - caso reale validato: con vault PRI/completo la prima `Stampa report` dopo chiusura usava lo snapshot fiscale restituito da `/cassa/api/day/<day_date>/close`, mentre la seconda stampa poteva usare il payload completo client/vault;
+  - sintomo: nella prima stampa mancavano movimenti nei box incassi e la quadratura era fiscale/sballata; alla seconda stampa comparivano i movimenti e la quadratura completa corretta;
+  - `api_close_cash_day()` ora restituisce in `snapshot` il payload completo ricevuto dal client quando `view=complete` e il vault e' sbloccato, invece di sovrascriverlo con il report fiscale backend;
+  - `/cassa/api/day/<day_date>/preview?view=complete` su giornata chiusa prova prima a leggere la preview del report completo dal vault; se non la trova non rientra nello snapshot fiscale e prosegue col ricalcolo live completo;
+  - verifica diagnostica DB: snapshot fiscali 2026-06-19/20 contenevano delta fiscali `39.30` e `652.93`, coerenti col bug;
+  - verifica controllata: giornata temporanea `2099-01-01` chiusa con payload completo sentinella restituisce subito `delta_quadratura=-123.45` e riga incasso sentinella; cleanup eseguito;
+  - verifiche: `python -m py_compile routes/cassa.py`, `git diff --check`.
 - 2026-06-20 widget utenti impostazioni:
   - aggiunti modelli `SpecialPermission` e `UserSpecialPermission`;
   - aggiunta migration `6f708192a3b4_add_user_special_permissions.py`, applicata localmente fino a head `6f708192a3b4`;

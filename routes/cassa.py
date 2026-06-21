@@ -2636,9 +2636,23 @@ def api_cash_day_preview(day_date):
 
     closure = getattr(cash_day, "closure", None)
     if cash_day.status == "closed" and closure and closure.fiscal_snapshot and not closure.fiscal_snapshot_stale:
-        snapshot_payload = closure.fiscal_snapshot.get("payload") if isinstance(closure.fiscal_snapshot, dict) else None
-        if isinstance(snapshot_payload, dict):
-            return jsonify(snapshot_payload)
+        if view == "complete" and session.get("pri_vault_unlocked"):
+            try:
+                vault_report_payload = _load_private_vault_day_closure_snapshot(d.year, d)
+            except Exception:
+                logger.exception("Errore lettura snapshot completo per preview giornata chiusa %s", d)
+                vault_report_payload = None
+            vault_preview_payload = (
+                vault_report_payload.get("preview")
+                if isinstance(vault_report_payload, dict)
+                else None
+            )
+            if isinstance(vault_preview_payload, dict):
+                return jsonify(vault_preview_payload)
+        else:
+            snapshot_payload = closure.fiscal_snapshot.get("payload") if isinstance(closure.fiscal_snapshot, dict) else None
+            if isinstance(snapshot_payload, dict):
+                return jsonify(snapshot_payload)
 
     cutoff = next_banking_day(d)
 
@@ -3035,6 +3049,7 @@ def api_close_cash_day(day_date):
         db.session.commit()
 
         vault_saved = False
+        response_snapshot_payload = report_snapshot_payload
         if session.get("pri_vault_unlocked"):
             vault_report_payload = (
                 _json_safe(report_payload)
@@ -3059,6 +3074,9 @@ def api_close_cash_day(day_date):
                 logger.exception("Errore salvataggio snapshot chiusura nel vault per %s", d)
                 vault_saved = False
 
+            if report_mode == "complete" and isinstance(vault_report_payload, dict) and vault_report_payload:
+                response_snapshot_payload = vault_report_payload
+
         _bump_agenda_day_version(d.isoformat())
         _mark_cash_closure_snapshots_stale_from((d + timedelta(days=1)).isoformat())
         rebuilt_following_closures = _rebuild_closed_fiscal_snapshots_after(d)
@@ -3078,7 +3096,7 @@ def api_close_cash_day(day_date):
                 "vault_saved": vault_saved,
                 "rebuilt_following_closures": rebuilt_following_closures,
             },
-            "snapshot": report_snapshot_payload,
+            "snapshot": response_snapshot_payload,
         })
 
     except Exception as e:
