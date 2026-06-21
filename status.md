@@ -1542,3 +1542,13 @@ Performance apertura giornata Agenda 2026-06-13:
   - barra azioni sticky con pulsanti Usa CSV, Usa DB e Salta;
   - `static/js/import_conflicts.js` ora renderizza righe campo con classi dedicate e mantiene la pill del tipo conflitto;
   - verifiche: `node --check static/js/import_conflicts.js` ok, render template `settings/import_conflicts.html` ok, `git diff --check` ok.
+- 2026-06-21 logica conflitti import:
+  - `/settings/next_conflict` restituisce `pending_count`, `current_position` e `duplicate_count` per mostrare avanzamento e duplicati identici;
+  - `/settings/resolve_conflict` risolve automaticamente tutti i conflitti pending identici allo stesso payload del conflitto corrente;
+  - `SKIP` non lascia piu' il conflitto in coda pending: lo marca `skipped` con `resolved_at`/`resolved_by`;
+  - aggiunti in UI i pulsanti `Sempre CSV` e `Sempre DB`, che salvano regole di risoluzione `ALWAYS`;
+  - l'import articoli consulta `ImportConflictResolution` prima di creare un nuovo conflitto `CODICE_RIASSEGNATO_O_DESC_DISCORDANTE`;
+  - l'import articoli non reinserisce duplicati pending identici: se il payload e' gia' in coda, salta la creazione;
+  - verifica su DB reale: primo conflitto reale espone `pending_count=2487`, `current_position=1`, `duplicate_count=156`;
+  - verifica controllata: due conflitti temporanei identici risolti insieme con `duplicates_resolved=2`, regole temporanee ripulite;
+  - verifiche: `python -m py_compile routes/settings.py tools/importazioni.py`, `node --check static/js/import_conflicts.js`, `git diff --check`.

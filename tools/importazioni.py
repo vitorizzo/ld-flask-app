@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import re
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -25,6 +26,112 @@ from flask import jsonify
 from tools.log_utils import log_task, get_logger
 
 logger = get_logger('importazioni')
+
+
+def _sha256_text(value) -> str | None:
+    if value is None:
+        return None
+    raw = str(value).strip()
+    if raw == "":
+        return None
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _find_conflict_rule(conflict_type, entity_key, field, csv_value, db_value):
+    from models import ImportConflictResolution
+
+    db_hash = _sha256_text(db_value)
+    csv_hash = _sha256_text(csv_value)
+
+    always_rule = (
+        ImportConflictResolution.query
+        .filter_by(
+            type=conflict_type,
+            entity_key=str(entity_key),
+            field=str(field),
+            mode="ALWAYS",
+        )
+        .order_by(ImportConflictResolution.created_at.desc(), ImportConflictResolution.id.desc())
+        .first()
+    )
+    if always_rule:
+        return always_rule
+
+    return (
+        ImportConflictResolution.query
+        .filter_by(
+            type=conflict_type,
+            entity_key=str(entity_key),
+            field=str(field),
+            mode="CONDITIONAL",
+            db_value_hash=db_hash,
+            csv_value_hash=csv_hash,
+        )
+        .order_by(ImportConflictResolution.created_at.desc(), ImportConflictResolution.id.desc())
+        .first()
+    )
+
+
+def _apply_import_conflict_resolution_if_available(conflict_type, entity_key, csv_obj, db_obj, articolo, counters):
+    fields = sorted(set(list((csv_obj or {}).keys()) + list((db_obj or {}).keys())))
+    if not fields:
+        return False
+
+    rules = [
+        _find_conflict_rule(conflict_type, entity_key, field, csv_obj.get(field), db_obj.get(field))
+        for field in fields
+    ]
+    if any(rule is None for rule in rules):
+        return False
+
+    actions = {rule.action for rule in rules}
+    if len(actions) != 1:
+        return False
+
+    action = actions.pop()
+    if action == "KEEP_DB":
+        counters["unchanged"] += 1
+        return True
+
+    if action == "KEEP_CSV":
+        if "descrizione" in csv_obj:
+            articolo.descrizione = csv_obj.get("descrizione")
+        if "descrizione_aggiuntiva" in csv_obj:
+            articolo.descrizione_aggiuntiva = csv_obj.get("descrizione_aggiuntiva")
+        if "prezzo" in csv_obj:
+            articolo.prezzo = csv_obj.get("prezzo")
+        counters["updated"] += 1
+        return True
+
+    return False
+
+
+def _add_import_conflict_once(run, conflict_type, payload, counters):
+    from models import ImportConflict
+
+    existing = (
+        ImportConflict.query
+        .filter(
+            ImportConflict.status == "pending",
+            ImportConflict.type == conflict_type,
+            ImportConflict.payload == payload,
+        )
+        .first()
+    )
+    if existing:
+        counters["skipped"] += 1
+        return existing, False
+
+    conflict = ImportConflict(
+        run_id=run.id,
+        type=conflict_type,
+        payload=payload,
+        status="pending",
+        created_at=datetime.utcnow(),
+    )
+    db.session.add(conflict)
+    counters["conflicts"] += 1
+    return conflict, True
 
 
 def _first_value(payload, *keys):
@@ -826,10 +933,10 @@ def import_articoli(task_id=None):
                             counters["created"] += 1
                         else:
                             # 1a) cod_art nuovo ma descr+agg esistono -> conflitto
-                            conflitto = ImportConflict(
-                                run_id=run.id,
-                                type="DESCRIZIONE_DIVERGENTE",
-                                payload={
+                            _add_import_conflict_once(
+                                run,
+                                "DESCRIZIONE_DIVERGENTE",
+                                {
                                     "cod_art_csv": cod_art,
                                     "descrizione_csv": descrizione,
                                     "descrizione_aggiuntiva_csv": descrizione_aggiuntiva,
@@ -841,11 +948,8 @@ def import_articoli(task_id=None):
                                         "prezzo": float(articolo_by_desc.prezzo) if articolo_by_desc.prezzo is not None else None,
                                     }
                                 },
-                                status="pending",
-                                created_at=datetime.utcnow(),
+                                counters,
                             )
-                            db.session.add(conflitto)
-                            counters["conflicts"] += 1
 
                     else:
                         # cod_art esiste: controlla che identità descrittiva combaci
@@ -853,28 +957,34 @@ def import_articoli(task_id=None):
                         same_desc_add = (articolo_by_code.descrizione_aggiuntiva == descrizione_aggiuntiva)
 
                         if not (same_desc and same_desc_add):
-                            # codice esistente ma descrizione discordante -> conflitto, NON aggiornare
-                            conflitto = ImportConflict(
-                                run_id=run.id,
-                                type="CODICE_RIASSEGNATO_O_DESC_DISCORDANTE",
-                                payload={
-                                    "cod_art": cod_art,
-                                    "csv": {
-                                        "descrizione": descrizione,
-                                        "descrizione_aggiuntiva": descrizione_aggiuntiva,
-                                        "prezzo": prezzo,
-                                    },
-                                    "db": {
-                                        "descrizione": articolo_by_code.descrizione,
-                                        "descrizione_aggiuntiva": articolo_by_code.descrizione_aggiuntiva,
-                                        "prezzo": float(articolo_by_code.prezzo) if articolo_by_code.prezzo is not None else None,
-                                    }
+                            # codice esistente ma descrizione discordante -> risoluzione automatica o conflitto
+                            conflict_payload = {
+                                "cod_art": cod_art,
+                                "csv": {
+                                    "descrizione": descrizione,
+                                    "descrizione_aggiuntiva": descrizione_aggiuntiva,
+                                    "prezzo": prezzo,
                                 },
-                                status="pending",
-                                created_at=datetime.utcnow(),
-                            )
-                            db.session.add(conflitto)
-                            counters["conflicts"] += 1
+                                "db": {
+                                    "descrizione": articolo_by_code.descrizione,
+                                    "descrizione_aggiuntiva": articolo_by_code.descrizione_aggiuntiva,
+                                    "prezzo": float(articolo_by_code.prezzo) if articolo_by_code.prezzo is not None else None,
+                                }
+                            }
+                            if not _apply_import_conflict_resolution_if_available(
+                                "CODICE_RIASSEGNATO_O_DESC_DISCORDANTE",
+                                cod_art,
+                                conflict_payload["csv"],
+                                conflict_payload["db"],
+                                articolo_by_code,
+                                counters,
+                            ):
+                                _add_import_conflict_once(
+                                    run,
+                                    "CODICE_RIASSEGNATO_O_DESC_DISCORDANTE",
+                                    conflict_payload,
+                                    counters,
+                                )
                         else:
                             # identità combacia -> update prezzo se diverso
                             prezzo_db = float(articolo_by_code.prezzo) if articolo_by_code.prezzo is not None else 0.0

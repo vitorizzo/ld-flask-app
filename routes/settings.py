@@ -1,8 +1,8 @@
-from flask import request, flash, render_template, Blueprint, jsonify, redirect, current_app, url_for, send_from_directory
+﻿from flask import request, flash, render_template, Blueprint, jsonify, redirect, current_app, url_for, send_from_directory
 from flask_login import current_user, login_required
 from flask_mail import Message
 from flask_socketio import SocketIO
-from sqlalchemy import asc, inspect, text
+from sqlalchemy import and_, asc, inspect, or_, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload, load_only
 from werkzeug.utils import secure_filename
@@ -15,6 +15,7 @@ from models import (
     Menu,
     Role,
     ImportConflict,
+    ImportConflictResolution,
     Articoli,
     User,
     UserRole,
@@ -243,8 +244,8 @@ def settings_index():
             "icon_class": "text-bg-success",
         },
         {
-            "title": "Gestione menù",
-            "description": "Struttura della navbar e visibilità delle voci.",
+            "title": "Gestione menÃ¹",
+            "description": "Struttura della navbar e visibilitÃ  delle voci.",
             "route": url_for("settings.manage_menus"),
             "icon": "fa-solid fa-bars",
             "icon_class": "text-bg-dark",
@@ -488,7 +489,7 @@ def banks_index():
             bank_id = _parse_int(request.form.get("bank_id"))
             name = (request.form.get("name") or "").strip()
             if not name:
-                flash("Il nome della banca è obbligatorio.", "warning")
+                flash("Il nome della banca Ã¨ obbligatorio.", "warning")
                 return redirect(url_for("settings.banks_index"))
 
             bank = CashBank.query.get(bank_id) if bank_id else None
@@ -550,7 +551,7 @@ def bank_delete(bank_id):
         + CashSalePayment.query.filter_by(bank_id=bank.id).count()
     )
     if usage_count:
-        flash("La banca è usata da movimenti storici: disattivala invece di eliminarla.", "warning")
+        flash("La banca Ã¨ usata da movimenti storici: disattivala invece di eliminarla.", "warning")
         return redirect(url_for("settings.banks_index"))
 
     was_default = bool(bank.is_default)
@@ -575,7 +576,7 @@ def pos_circuits_index():
             circuit_id = _parse_int(request.form.get("circuit_id"))
             name = (request.form.get("name") or "").strip()
             if not name:
-                flash("Il nome del circuito è obbligatorio.", "warning")
+                flash("Il nome del circuito Ã¨ obbligatorio.", "warning")
                 return redirect(url_for("settings.pos_circuits_index"))
 
             circuit = PosCircuit.query.get(circuit_id) if circuit_id else None
@@ -696,7 +697,7 @@ def pos_circuit_delete(circuit_id):
         + CashSalePaymentPosMove.query.join(PosMove).filter(PosMove.pos_circuit_id == circuit.id).count()
     )
     if usage_count:
-        flash("Il circuito è usato da dispositivi o movimenti storici: disattivalo invece di eliminarlo.", "warning")
+        flash("Il circuito Ã¨ usato da dispositivi o movimenti storici: disattivalo invece di eliminarlo.", "warning")
         return redirect(url_for("settings.pos_circuits_index"))
 
     db.session.delete(circuit)
@@ -717,7 +718,7 @@ def pos_devices_index():
             device_id = _parse_int(request.form.get("device_id"))
             name = (request.form.get("name") or "").strip()
             if not name:
-                flash("Il nome del dispositivo POS è obbligatorio.", "warning")
+                flash("Il nome del dispositivo POS Ã¨ obbligatorio.", "warning")
                 return redirect(url_for("settings.pos_devices_index"))
 
             device = PosDevice.query.get(device_id) if device_id else None
@@ -819,7 +820,7 @@ def pos_device_delete(device_id):
         + CashSalePaymentPosMove.query.join(PosMove).filter(PosMove.pos_device_id == device.id).count()
     )
     if usage_count:
-        flash("Il dispositivo POS è usato da movimenti storici o associazioni: disattivalo invece di eliminarlo.", "warning")
+        flash("Il dispositivo POS Ã¨ usato da movimenti storici o associazioni: disattivalo invece di eliminarlo.", "warning")
         return redirect(url_for("settings.pos_devices_index"))
 
     was_default = bool(device.is_default)
@@ -1127,23 +1128,45 @@ def import_conflicts_page():
 
 @settings_bp.route("/next_conflict", methods=["GET"])
 def api_import_conflicts_next():
-    ctype = request.args.get("type")  # es. "barcode" (o None per tutti)
+    ctype = request.args.get("type")
 
-    q = (ImportConflict.query
-         .filter(ImportConflict.status == "pending"))
-
+    q = ImportConflict.query.filter(ImportConflict.status == "pending")
     if ctype:
         q = q.filter(ImportConflict.type == ctype)
 
-    # prende il più vecchio pending
-    conflict = (q.order_by(ImportConflict.created_at.asc())
-                .first())
+    pending_count = q.count()
+    conflict = q.order_by(ImportConflict.created_at.asc(), ImportConflict.id.asc()).first()
 
     if not conflict:
-        return jsonify({"ok": True, "conflict": None})
+        return jsonify({"ok": True, "conflict": None, "pending_count": pending_count})
+
+    duplicate_count = (
+        ImportConflict.query
+        .filter(
+            ImportConflict.status == "pending",
+            ImportConflict.type == conflict.type,
+            ImportConflict.payload == conflict.payload,
+        )
+        .count()
+    )
+    current_position = (
+        q.filter(
+            or_(
+                ImportConflict.created_at < conflict.created_at,
+                and_(
+                    ImportConflict.created_at == conflict.created_at,
+                    ImportConflict.id <= conflict.id,
+                ),
+            )
+        )
+        .count()
+    )
 
     return jsonify({
         "ok": True,
+        "pending_count": pending_count,
+        "current_position": current_position,
+        "duplicate_count": duplicate_count,
         "conflict": {
             "id": conflict.id,
             "type": conflict.type,
@@ -1177,7 +1200,8 @@ def resolve_conflict():
     data = request.get_json(silent=True) or {}
     conflict_id = data.get("id")
     action = (data.get("action") or "").strip().upper()
-    mode = (data.get("mode") or "CONDITIONAL").strip().upper()  # opzionale dal frontend
+    mode = (data.get("mode") or "CONDITIONAL").strip().upper()
+    resolve_identical = bool(data.get("resolve_identical", True))
 
     if not conflict_id or action not in {"KEEP_CSV", "KEEP_DB", "SKIP"}:
         return jsonify(ok=False, error="Payload non valido: servono id e action (KEEP_CSV|KEEP_DB|SKIP)."), 400
@@ -1186,55 +1210,62 @@ def resolve_conflict():
     if not c:
         return jsonify(ok=False, error="Conflitto non trovato."), 404
 
-    # SKIP: non applica nulla e NON salva una regola; semplicemente lascia il record e passa oltre
-    if action == "SKIP":
-        return jsonify(ok=True, skipped=True, id=c.id)
+    duplicate_q = ImportConflict.query.filter(
+        ImportConflict.status == "pending",
+        ImportConflict.type == c.type,
+        ImportConflict.payload == c.payload,
+    )
+    duplicate_conflicts = duplicate_q.all() if resolve_identical else [c]
 
-    # payload: atteso {cod_art, csv:{...}, db:{...}} come nel tuo esempio
+    if action == "SKIP":
+        for conflict in duplicate_conflicts:
+            conflict.status = "skipped"
+            conflict.resolved_at = datetime.utcnow()
+            conflict.resolved_by = current_user.id if current_user.is_authenticated else None
+        db.session.commit()
+        return jsonify(ok=True, skipped=True, id=c.id, duplicates_resolved=len(duplicate_conflicts))
+
     payload = c.payload or {}
-    cod_art = payload.get("cod_art") or payload.get("entity_key")  # fallback
+    cod_art = payload.get("cod_art") or payload.get("entity_key")
     csv_obj = payload.get("csv") or {}
     db_obj = payload.get("db") or {}
 
     if not cod_art:
         return jsonify(ok=False, error="Payload conflitto senza cod_art/entity_key."), 400
 
-    # Per ora: memorizziamo una regola per OGNI campo presente nei dict csv/db.
-    # (Se vuoi “un solo campo alla volta” lo rendiamo più selettivo nello step successivo.)
     all_fields = sorted(set(list(csv_obj.keys()) + list(db_obj.keys())))
     if not all_fields:
         return jsonify(ok=False, error="Payload conflitto senza campi csv/db."), 400
 
+    rule_mode = mode if mode in {"CONDITIONAL", "ALWAYS"} else "CONDITIONAL"
     created = 0
-    for field in all_fields:
-        csv_val = csv_obj.get(field)
-        db_val = db_obj.get(field)
+    for conflict in duplicate_conflicts:
+        duplicate_payload = conflict.payload or {}
+        duplicate_cod_art = duplicate_payload.get("cod_art") or duplicate_payload.get("entity_key") or cod_art
+        duplicate_csv = duplicate_payload.get("csv") or csv_obj
+        duplicate_db = duplicate_payload.get("db") or db_obj
+        duplicate_fields = sorted(set(list(duplicate_csv.keys()) + list(duplicate_db.keys())))
 
-        r = ImportConflictResolution(
-            type=c.type,
-            entity_key=str(cod_art),
-            field=str(field),
+        for field in duplicate_fields:
+            csv_val = duplicate_csv.get(field)
+            db_val = duplicate_db.get(field)
+            db.session.add(ImportConflictResolution(
+                type=conflict.type,
+                entity_key=str(duplicate_cod_art),
+                field=str(field),
+                db_value=None if db_val is None else str(db_val),
+                csv_value=None if csv_val is None else str(csv_val),
+                db_value_hash=_sha256_text(db_val),
+                csv_value_hash=_sha256_text(csv_val),
+                action=action,
+                mode=rule_mode,
+            ))
+            created += 1
 
-            db_value=None if db_val is None else str(db_val),
-            csv_value=None if csv_val is None else str(csv_val),
-
-            db_value_hash=_sha256_text(db_val),
-            csv_value_hash=_sha256_text(csv_val),
-
-            action=action,
-            mode=mode if mode in {"CONDITIONAL", "ALWAYS"} else "CONDITIONAL",
-        )
-        db.session.add(r)
-        created += 1
-
-    # Applica la risoluzione “adesso” sul DB (se KEEP_CSV)
-    # oppure non fa nulla (KEEP_DB), ma in entrambi i casi il conflitto viene rimosso.
     if action == "KEEP_CSV":
         art = Articoli.query.filter_by(cod_art=cod_art).first()
         if not art:
             return jsonify(ok=False, error=f"Articolo not found for cod_art={cod_art}"), 404
-
-        # Applica CSV -> DB (adatta i nomi campi se diverso)
         if "descrizione" in csv_obj:
             art.descrizione = csv_obj.get("descrizione")
         if "descrizione_aggiuntiva" in csv_obj:
@@ -1242,11 +1273,18 @@ def resolve_conflict():
         if "prezzo" in csv_obj:
             art.prezzo = csv_obj.get("prezzo")
 
-    # Rimuovi il conflitto perché è stato deciso
-    db.session.delete(c)
+    for conflict in duplicate_conflicts:
+        db.session.delete(conflict)
     db.session.commit()
 
-    return jsonify(ok=True, resolved=True, action=action, rules_created=created)
+    return jsonify(
+        ok=True,
+        resolved=True,
+        action=action,
+        mode=rule_mode,
+        rules_created=created,
+        duplicates_resolved=len(duplicate_conflicts),
+    )
 
 
 @settings_bp.route("/get_menu_structure", methods=["GET"])
@@ -1346,7 +1384,7 @@ def update_menu_json():
         parent_id = int(parent_id) if parent_id is not None else None
 
         if parent_id == m.id:
-            return jsonify(ok=False, error="Un menu non può essere padre di sé stesso"), 400
+            return jsonify(ok=False, error="Un menu non puÃ² essere padre di sÃ© stesso"), 400
 
         current = parent_id
         while current is not None:
@@ -1387,7 +1425,7 @@ def delete_menu(menu_id):
 
     try:
         if cascade:
-            # elimina figli (e nipoti) in profondità
+            # elimina figli (e nipoti) in profonditÃ 
             def delete_rec(m):
                 for c in Menu.query.filter(Menu.parent_id == m.id).all():
                     delete_rec(c)
@@ -1426,7 +1464,7 @@ def toggle_menu_active(menu_id):
 def toggle_menu_visible(menu_id):
     m = Menu.query.get_or_404(menu_id)
     if m.is_active:
-        return jsonify(ok=False, error="Un menu attivo è sempre visibile"), 400
+        return jsonify(ok=False, error="Un menu attivo Ã¨ sempre visibile"), 400
     m.is_visible = not bool(m.is_visible)
     db.session.commit()
     return jsonify(ok=True, id=m.id, is_visible=bool(m.is_visible))

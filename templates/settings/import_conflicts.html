@@ -54,6 +54,37 @@
     font-weight: 700;
   }
 
+  .conflict-metrics {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .conflict-metric {
+    min-width: 96px;
+    padding: 8px 10px;
+    border: 1px solid rgba(74, 44, 42, 0.10);
+    border-radius: 10px;
+    background: #fbfaf8;
+    text-align: right;
+  }
+
+  .conflict-metric-value {
+    color: #2f1f1d;
+    font-size: 1.05rem;
+    font-weight: 800;
+    line-height: 1.1;
+  }
+
+  .conflict-metric-label {
+    color: #6c757d;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
   .conflict-workspace {
     min-height: 0;
     overflow: auto;
@@ -203,7 +234,20 @@
             <span>Caricamento...</span>
           </div>
         </div>
-        <div id="status-line"></div>
+        <div class="conflict-metrics" aria-label="Statistiche conflitti">
+          <div class="conflict-metric">
+            <div class="conflict-metric-value" id="conflict-position">-</div>
+            <div class="conflict-metric-label">Posizione</div>
+          </div>
+          <div class="conflict-metric">
+            <div class="conflict-metric-value" id="conflict-total">-</div>
+            <div class="conflict-metric-label">Da gestire</div>
+          </div>
+          <div class="conflict-metric">
+            <div class="conflict-metric-value" id="conflict-duplicates">-</div>
+            <div class="conflict-metric-label">Identici</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -246,10 +290,18 @@
         <button class="btn btn-secondary" id="btn-keep-db">
           <i class="fa-solid fa-database me-1"></i>Usa DB
         </button>
+        <button class="btn btn-outline-success" id="btn-always-csv">
+          <i class="fa-solid fa-check-double me-1"></i>Sempre CSV
+        </button>
+        <button class="btn btn-outline-dark" id="btn-always-db">
+          <i class="fa-solid fa-shield-halved me-1"></i>Sempre DB
+        </button>
         <button class="btn btn-outline-secondary ms-md-auto" id="btn-skip">
           <i class="fa-solid fa-forward me-1"></i>Salta
         </button>
       </div>
+
+      <div class="mt-3" id="status-line"></div>
 
       <pre class="mt-3 p-3 rounded border bg-light d-none" id="debug-out"></pre>
     </div>

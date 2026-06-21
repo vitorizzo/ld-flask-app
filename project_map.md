@@ -842,7 +842,8 @@ Stato implementazione 2026-06-14:
   - reload runtime delle preferenze ad ogni richiesta dinamica con fallback sui valori base di avvio;
   - editing ruoli nella stessa area impostazioni;
   - `/settings/menus` gestisce la struttura menu con drag&drop, creazione/modifica via modale, azioni rapide inline per ogni riga e restyling dedicato in `static/css/menus.css`;
-  - `/settings/import_conflicts` offre risoluzione guidata dei conflitti import con confronto CSV/DB, card dato certo e azioni Usa CSV/Usa DB/Salta;
+  - `/settings/import_conflicts` offre risoluzione guidata dei conflitti import con confronto CSV/DB, card dato certo, contatori coda/posizione/duplicati e azioni Usa CSV/Usa DB/Sempre CSV/Sempre DB/Salta;
+  - l'import articoli consulta le regole `ImportConflictResolution` e non reinserisce conflitti pending identici gia' in coda;
   - entry "Impostazioni" nel menu profilo per gli utenti con peso >= 900.
   - migration audit resa idempotente sui DB dove `cash_day_audit_events` esiste gia', cosi' `db upgrade` non fallisce su `DuplicateTable`.
   - la pagina preferenze ora mostra un warning e non va in 500 se `app_preferences` non e' ancora disponibile nel DB.

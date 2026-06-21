@@ -20,10 +20,15 @@ const elDbFields = document.getElementById("db-fields");
 const elActions = document.getElementById("actions");
 const elStatus = document.getElementById("status-line");
 const elDebug = document.getElementById("debug-out");
+const elPosition = document.getElementById("conflict-position");
+const elTotal = document.getElementById("conflict-total");
+const elDuplicates = document.getElementById("conflict-duplicates");
 
 // Bottoni
 const btnKeepCsv = document.getElementById("btn-keep-csv");
 const btnKeepDb = document.getElementById("btn-keep-db");
+const btnAlwaysCsv = document.getElementById("btn-always-csv");
+const btnAlwaysDb = document.getElementById("btn-always-db");
 const btnSkip = document.getElementById("btn-skip");
 
 function setStatus(msg) {
@@ -40,6 +45,12 @@ function setTypeLabel(text, icon = "fa-solid fa-triangle-exclamation") {
 function setDebug(obj) {
   // Lasciato pronto: se vuoi sempre vedere il json, togli d-none.
   elDebug.textContent = JSON.stringify(obj, null, 2);
+}
+
+function setMetrics({ pendingCount = "-", currentPosition = "-", duplicateCount = "-" } = {}) {
+  elTotal.textContent = pendingCount ?? "-";
+  elPosition.textContent = currentPosition && pendingCount ? `${currentPosition}/${pendingCount}` : "-";
+  elDuplicates.textContent = duplicateCount ?? "-";
 }
 
 function clearUI() {
@@ -129,6 +140,11 @@ async function loadNext() {
 
   try {
     const data = await fetchJson(`/settings/next_conflict?type=${encodeURIComponent(TYPE)}`);
+    setMetrics({
+      pendingCount: data.pending_count,
+      currentPosition: data.current_position,
+      duplicateCount: data.duplicate_count,
+    });
 
     if (!data.ok) {
       setStatus("Errore: risposta ok=false");
@@ -152,7 +168,7 @@ async function loadNext() {
     // setDebug(currentConflict);
 
     renderBoxes(currentConflict);
-    setStatus(`Conflitto #${currentConflict.id} pronto.`);
+    setStatus(`Conflitto #${currentConflict.id} pronto. I duplicati identici verranno risolti insieme.`);
   } catch (err) {
     setTypeLabel("Errore", "fa-solid fa-circle-exclamation");
     setStatus(String(err));
@@ -161,13 +177,13 @@ async function loadNext() {
   }
 }
 
-async function resolve(action) {
+async function resolve(action, mode = "CONDITIONAL") {
   if (!currentConflict) return;
 
-  setStatus(`Invio risoluzione: ${action}...`);
+  setStatus(`Invio risoluzione: ${action}${mode === "ALWAYS" ? " (sempre)" : ""}...`);
 
   try {
-    const payload = { id: currentConflict.id, action };
+    const payload = { id: currentConflict.id, action, mode, resolve_identical: true };
     const res = await fetchJson("/settings/resolve_conflict", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -185,7 +201,8 @@ async function resolve(action) {
       return;
     }
 
-    setStatus("Risoluzione applicata. Carico il prossimo...");
+    const duplicateInfo = res.duplicates_resolved ? ` (${res.duplicates_resolved} conflitti identici ripuliti)` : "";
+    setStatus(`Risoluzione applicata${duplicateInfo}. Carico il prossimo...`);
     await loadNext();
   } catch (err) {
     setStatus(String(err));
@@ -196,6 +213,8 @@ async function resolve(action) {
 
 btnKeepCsv.addEventListener("click", () => resolve("KEEP_CSV"));
 btnKeepDb.addEventListener("click", () => resolve("KEEP_DB"));
+btnAlwaysCsv.addEventListener("click", () => resolve("KEEP_CSV", "ALWAYS"));
+btnAlwaysDb.addEventListener("click", () => resolve("KEEP_DB", "ALWAYS"));
 btnSkip.addEventListener("click", () => resolve("SKIP"));
 
 document.addEventListener("DOMContentLoaded", loadNext);
