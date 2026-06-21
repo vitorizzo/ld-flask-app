@@ -238,10 +238,24 @@ def settings_index():
         },
         {
             "title": "Configurazione",
-            "description": "Chiavi API, soglie, integrazioni e parametri runtime.",
+            "description": "Parametri runtime non ancora separati in widget dedicati.",
             "route": url_for("settings.preferences"),
             "icon": "fa-solid fa-sliders",
             "icon_class": "text-bg-success",
+        },
+        {
+            "title": "Chiavi API",
+            "description": "Credenziali e parametri delle integrazioni esterne.",
+            "route": url_for("settings.api_keys"),
+            "icon": "fa-solid fa-key",
+            "icon_class": "text-bg-secondary",
+        },
+        {
+            "title": "Ruoli e Autorizzazioni",
+            "description": "Pesi ruolo, descrizioni e soglie permessi.",
+            "route": url_for("settings.roles_permissions"),
+            "icon": "fa-solid fa-shield-halved",
+            "icon_class": "text-bg-primary",
         },
         {
             "title": "Gestione menÃ¹",
@@ -856,6 +870,70 @@ def _save_role_preferences_from_form(form):
     return changed
 
 
+API_KEY_PREFERENCE_CATEGORIES = {"Prestashop", "Poleepo", "Trello", "Slack", "Notifiche push"}
+ROLE_PERMISSION_PREFERENCE_CATEGORIES = {"Permessi e ruoli"}
+
+
+def _filter_preference_sections(sections, include_categories=None, exclude_categories=None):
+    include_categories = set(include_categories or [])
+    exclude_categories = set(exclude_categories or [])
+    filtered = []
+    for section in sections or []:
+        category = section.get("category")
+        if include_categories and category not in include_categories:
+            continue
+        if exclude_categories and category in exclude_categories:
+            continue
+        filtered.append(section)
+    return filtered
+
+
+@settings_bp.route("/api-keys", methods=["GET", "POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def api_keys():
+    if request.method == "POST":
+        changed_keys = save_preferences_from_form(request.form)
+        load_preferences_into_app_config(current_app._get_current_object())
+        flash(f"Chiavi API aggiornate ({len(changed_keys)} valori).", "success")
+        return redirect(url_for("settings.api_keys"))
+
+    sections = _filter_preference_sections(
+        build_preferences_sections(current_app._get_current_object()),
+        include_categories=API_KEY_PREFERENCE_CATEGORIES,
+    )
+    return render_template("settings/api_keys.html", sections=sections)
+
+
+@settings_bp.route("/roles-permissions", methods=["GET", "POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def roles_permissions():
+    if request.method == "POST":
+        form_type = (request.form.get("form_type") or "roles").strip().lower()
+        if form_type == "role_permissions":
+            changed_keys = save_preferences_from_form(request.form)
+            load_preferences_into_app_config(current_app._get_current_object())
+            flash(f"Autorizzazioni aggiornate ({len(changed_keys)} valori).", "success")
+        else:
+            changed = _save_role_preferences_from_form(request.form)
+            flash(f"Ruoli aggiornati ({changed} modifiche).", "success")
+        return redirect(url_for("settings.roles_permissions"))
+
+    sections = _filter_preference_sections(
+        build_preferences_sections(current_app._get_current_object()),
+        include_categories=ROLE_PERMISSION_PREFERENCE_CATEGORIES,
+    )
+    try:
+        roles = Role.query.order_by(Role.weight.asc(), Role.name.asc()).all()
+    except SQLAlchemyError as exc:
+        logger.warning("Ruoli non disponibili durante il caricamento ruoli/autorizzazioni: %s", exc)
+        roles = []
+    return render_template("settings/roles_permissions.html", sections=sections, roles=roles)
+
+
 @settings_bp.route("/preferences", methods=["GET", "POST"])
 @login_required
 @role_required(900)
@@ -877,7 +955,10 @@ def preferences():
             logger.info("Aggiornate preferenze: %s", ", ".join(changed_keys) if changed_keys else "nessuna modifica")
             return redirect(url_for("settings.preferences"))
 
-        sections = build_preferences_sections(current_app._get_current_object())
+        sections = _filter_preference_sections(
+            build_preferences_sections(current_app._get_current_object()),
+            exclude_categories=API_KEY_PREFERENCE_CATEGORIES | ROLE_PERMISSION_PREFERENCE_CATEGORIES,
+        )
         try:
             roles = Role.query.order_by(Role.weight.asc(), Role.name.asc()).all()
         except Exception as exc:

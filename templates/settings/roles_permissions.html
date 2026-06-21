@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}LD Enoteca - Ruoli e Autorizzazioni{% endblock %}
+
+{% block extra_css %}
+<style>
+  #flash-message {
+    position: fixed;
+    top: calc(var(--app-header-height, 72px) + 12px);
+    right: 24px;
+    z-index: 2300;
+    width: min(520px, calc(100vw - 48px));
+    pointer-events: none;
+  }
+
+  #flash-message .alert {
+    pointer-events: auto;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
+    border-radius: 10px;
+  }
+
+  .settings-config-modal {
+    z-index: 2100;
+  }
+
+  .settings-config-modal .modal-dialog {
+    margin-top: calc(var(--app-header-height, 72px) + 14px);
+    margin-bottom: calc(var(--app-footer-height, 42px) + 14px);
+  }
+
+  .settings-config-modal .modal-content {
+    background: #fff;
+    color: #212529;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    border-radius: 14px;
+    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+  }
+
+  .settings-config-modal .modal-header {
+    background: #6b3f36;
+    color: #fff;
+    min-height: 58px;
+  }
+
+  .settings-config-modal .modal-title {
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .settings-config-modal .btn-close {
+    filter: invert(1);
+    opacity: 0.9;
+  }
+
+  .settings-config-card {
+    border: 1px solid rgba(74, 44, 42, 0.12);
+    border-radius: 12px;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.11);
+    overflow: hidden;
+  }
+
+  .settings-config-card .card-header {
+    min-height: 62px;
+    background: #fff;
+    border-bottom: 1px solid rgba(74, 44, 42, 0.10);
+  }
+
+  .permission-section {
+    padding: 18px;
+    border-top: 1px solid rgba(74, 44, 42, 0.08);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="welcome-section page-shell">
+  <div class="container-fluid">
+    <div class="d-flex align-items-start justify-content-between mb-4">
+      <div>
+        <h1 class="mb-1">Ruoli e Autorizzazioni</h1>
+        <div class="text-muted">Pesi ruolo, descrizioni e soglie di accesso alle funzioni applicative.</div>
+      </div>
+      <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">
+        <i class="fa-solid fa-arrow-left me-1"></i>Dashboard
+      </a>
+    </div>
+
+    <div class="card settings-config-card mb-4">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <div>
+          <strong>Ruoli applicativi</strong>
+          <div class="text-muted small">Click sulla riga per modificare peso e descrizione.</div>
+        </div>
+        <span class="badge text-bg-light">{{ roles|length }} record</span>
+      </div>
+      <div class="card-body p-0">
+        {% if roles %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="min-width: 220px;">Ruolo</th>
+                  <th style="width: 130px;">Peso</th>
+                  <th>Descrizione</th>
+                  <th style="width: 110px;" class="text-end">Azioni</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for role in roles %}
+                  <tr role="button" data-bs-toggle="modal" data-bs-target="#roleModal-{{ role.id }}">
+                    <td>
+                      <div class="fw-semibold">{{ role.name }}</div>
+                      <div class="text-muted small">ID {{ role.id }}</div>
+                    </td>
+                    <td><span class="badge text-bg-dark">{{ role.weight or 0 }}</span></td>
+                    <td class="text-muted">{{ role.description or '-' }}</td>
+                    <td class="text-end" onclick="event.stopPropagation();">
+                      <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#roleModal-{{ role.id }}" title="Modifica">
+                        <i class="fa-solid fa-pen"></i>
+                      </button>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="p-4">
+            <div class="alert alert-warning mb-0">Nessun ruolo disponibile.</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card settings-config-card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <div>
+          <strong>Autorizzazioni applicative</strong>
+          <div class="text-muted small">Soglie e parametri collegati ai permessi.</div>
+        </div>
+      </div>
+      <div class="card-body p-0">
+        <form method="post">
+          <input type="hidden" name="form_type" value="role_permissions">
+          {% if sections %}
+            {% for section in sections %}
+              <div class="permission-section">
+                <div class="row g-3">
+                  {% for item in section["items"] %}
+                    {% set field_id = item.key.replace('.', '_') %}
+                    <div class="col-12 col-lg-6">
+                      <label class="form-label fw-semibold" for="{{ field_id }}">
+                        {{ item.label }}
+                        <span class="badge text-bg-light ms-2">{{ item.source }}</span>
+                      </label>
+                      {% if item.value_type == 'bool' %}
+                        <div class="form-check">
+                          <input type="hidden" name="{{ item.key }}" value="0">
+                          <input class="form-check-input" type="checkbox" id="{{ field_id }}" name="{{ item.key }}" value="1" {% if item.form_value in [true, '1', 1, 'true', 'True'] %}checked{% endif %}>
+                          <label class="form-check-label" for="{{ field_id }}">Abilitato</label>
+                        </div>
+                      {% else %}
+                        <input class="form-control" type="{{ item.input_type }}" id="{{ field_id }}" name="{{ item.key }}" value="{{ item.form_value }}" {% if item.step %}step="{{ item.step }}"{% endif %}>
+                      {% endif %}
+                      {% if item.description %}
+                        <div class="form-text">{{ item.description }}</div>
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="p-4">
+              <div class="alert alert-warning mb-0">Nessuna autorizzazione applicativa disponibile.</div>
+            </div>
+          {% endif %}
+          <div class="d-flex justify-content-end p-3 border-top">
+            <button type="submit" class="btn btn-primary">
+              <i class="fa-solid fa-floppy-disk me-1"></i>Salva autorizzazioni
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+
+{% for role in roles %}
+  <div class="modal fade settings-config-modal" id="roleModal-{{ role.id }}" tabindex="-1" aria-labelledby="roleModalTitle-{{ role.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <form method="post">
+          <input type="hidden" name="form_type" value="roles">
+          <div class="modal-header">
+            <h5 class="modal-title" id="roleModalTitle-{{ role.id }}">Ruolo {{ role.name }}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label" for="role-weight-{{ role.id }}">Peso</label>
+              <input type="number" class="form-control" id="role-weight-{{ role.id }}" name="role_weight_{{ role.id }}" value="{{ role.weight or 0 }}">
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="role-description-{{ role.id }}">Descrizione</label>
+              <input type="text" class="form-control" id="role-description-{{ role.id }}" name="role_description_{{ role.id }}" value="{{ role.description or '' }}">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+            <button type="submit" class="btn btn-primary">Salva ruolo</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll(".modal").forEach((modal) => {
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+  });
+
+  document.querySelectorAll(".modal").forEach((modal) => {
+    modal.addEventListener("shown.bs.modal", () => {
+      const submitBtn = modal.querySelector('button[type="submit"]');
+      if (!submitBtn) return;
+      submitBtn.disabled = false;
+      if (!submitBtn.dataset.defaultText) {
+        submitBtn.dataset.defaultText = submitBtn.textContent.trim();
+      }
+      submitBtn.textContent = submitBtn.dataset.defaultText;
+    });
+  });
+});
+</script>
+{% endblock %}

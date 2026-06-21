@@ -1552,3 +1552,11 @@ Performance apertura giornata Agenda 2026-06-13:
   - verifica su DB reale: primo conflitto reale espone `pending_count=2487`, `current_position=1`, `duplicate_count=156`;
   - verifica controllata: due conflitti temporanei identici risolti insieme con `duplicates_resolved=2`, regole temporanee ripulite;
   - verifiche: `python -m py_compile routes/settings.py tools/importazioni.py`, `node --check static/js/import_conflicts.js`, `git diff --check`.
+- 2026-06-21 separazione widget Configurazione:
+  - aggiunto widget `/settings/api-keys` per chiavi e parametri integrazioni esterne: Prestashop, Poleepo, Trello, Slack e notifiche push;
+  - aggiunto widget `/settings/roles-permissions` per ruoli applicativi e soglie autorizzative;
+  - dashboard impostazioni aggiornata con tile `Chiavi API` e `Ruoli e Autorizzazioni`;
+  - `/settings/preferences` resta come configurazione residuale e rimanda ai widget estratti;
+  - `tools/preferences.save_preferences_from_form()` ora salva solo le chiavi presenti nel form, evitando cancellazioni quando una sezione viene spostata fuori dal vecchio widget;
+  - aggiunti breadcrumb client-side in `static/js/base.js`;
+  - verifiche: `python -m py_compile routes/settings.py tools/preferences.py`, `node --check static/js/base.js`, render template nuovi con DB reale, POST innocue su `/settings/api-keys` e `/settings/roles-permissions` con redirect 302.

@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}LD Enoteca - Chiavi API{% endblock %}
+
+{% block extra_css %}
+<style>
+  .settings-config-page .settings-card {
+    border: 1px solid rgba(74, 44, 42, 0.12);
+    border-radius: 12px;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.11);
+    overflow: hidden;
+  }
+
+  .settings-config-page .settings-card .card-header {
+    min-height: 62px;
+    background: #fff;
+    border-bottom: 1px solid rgba(74, 44, 42, 0.10);
+  }
+
+  .settings-config-page .form-label {
+    color: #4a2c2a;
+    font-weight: 700;
+  }
+
+  .settings-config-page .form-control:focus,
+  .settings-config-page .form-select:focus {
+    border-color: rgba(107, 63, 54, 0.45);
+    box-shadow: 0 0 0 0.25rem rgba(107, 63, 54, 0.16);
+  }
+
+  .api-section {
+    padding: 18px;
+    border-bottom: 1px solid rgba(74, 44, 42, 0.08);
+  }
+
+  .api-section:last-child {
+    border-bottom: 0;
+  }
+
+  .api-section-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    color: #2f1f1d;
+    font-weight: 800;
+  }
+
+  .api-section-title .icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 9px;
+    background: rgba(107, 63, 54, 0.10);
+    color: #6b3f36;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="welcome-section page-shell settings-config-page">
+  <div class="container-fluid">
+    <div class="d-flex align-items-start justify-content-between mb-4">
+      <div>
+        <h1 class="mb-1">Chiavi API</h1>
+        <div class="text-muted">Credenziali e parametri delle integrazioni esterne. I valori segreti restano mascherati.</div>
+      </div>
+      <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">
+        <i class="fa-solid fa-arrow-left me-1"></i>Dashboard
+      </a>
+    </div>
+
+    <div class="card settings-card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <div>
+          <strong>Integrazioni esterne</strong>
+          <div class="text-muted small">Prestashop, Poleepo, Trello, Slack e notifiche push</div>
+        </div>
+        <span class="badge text-bg-light">{{ sections|length }} sezioni</span>
+      </div>
+      <div class="card-body p-0">
+        <form method="post">
+          {% if sections %}
+            {% for section in sections %}
+              <div class="api-section">
+                <div class="api-section-title">
+                  <span class="icon"><i class="fa-solid fa-plug"></i></span>
+                  <span>{{ section.category }}</span>
+                </div>
+                <div class="row g-3">
+                  {% for item in section["items"] %}
+                    {% set field_id = item.key.replace('.', '_') %}
+                    <div class="col-12 col-lg-6">
+                      <label class="form-label" for="{{ field_id }}">
+                        {{ item.label }}
+                        <span class="badge text-bg-light ms-2">{{ item.source }}</span>
+                      </label>
+                      {% if item.is_secret %}
+                        <input class="form-control" type="password" id="{{ field_id }}" name="{{ item.key }}" value="" placeholder="{{ item.placeholder }}" autocomplete="new-password">
+                      {% elif item.value_type == 'bool' %}
+                        <div class="form-check">
+                          <input type="hidden" name="{{ item.key }}" value="0">
+                          <input class="form-check-input" type="checkbox" id="{{ field_id }}" name="{{ item.key }}" value="1" {% if item.form_value in [true, '1', 1, 'true', 'True'] %}checked{% endif %}>
+                          <label class="form-check-label" for="{{ field_id }}">Abilitato</label>
+                        </div>
+                      {% else %}
+                        <input class="form-control" type="{{ item.input_type }}" id="{{ field_id }}" name="{{ item.key }}" value="{{ item.form_value }}" {% if item.step %}step="{{ item.step }}"{% endif %}>
+                      {% endif %}
+                      {% if item.description %}
+                        <div class="form-text">{{ item.description }}</div>
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="p-4">
+              <div class="alert alert-warning mb-0">Nessuna chiave API disponibile.</div>
+            </div>
+          {% endif %}
+
+          <div class="d-flex justify-content-end p-3 border-top">
+            <button type="submit" class="btn btn-primary">
+              <i class="fa-solid fa-floppy-disk me-1"></i>Salva chiavi API
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}

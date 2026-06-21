@@ -368,6 +368,9 @@ def save_preferences_from_form(form) -> list[str]:
 
     try:
         for key, definition in definition_map.items():
+            if key not in form:
+                continue
+
             if definition.value_type == "bool":
                 raw_values = form.getlist(key)
                 raw_value = raw_values[-1] if raw_values else "0"
