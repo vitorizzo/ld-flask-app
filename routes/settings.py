@@ -373,7 +373,7 @@ def user_delete(user_id):
 def user_change_role(user_id):
     user = User.query.get_or_404(user_id)
     role_id = _parse_int(request.form.get("role_id"))
-    role = Role.query.get(role_id) if role_id else None
+    role = Role.query.get(role_id) if role_id is not None else None
     if not role:
         flash("Ruolo non valido.", "warning")
         return redirect(url_for("settings.users_index"))
@@ -415,7 +415,7 @@ def user_add_special_authorization(user_id):
 
     if authorization_type == "role":
         role_id = _parse_int(request.form.get("role_id"))
-        role = Role.query.get(role_id) if role_id else None
+        role = Role.query.get(role_id) if role_id is not None else None
         if not role:
             flash("Ruolo non valido.", "warning")
             return redirect(url_for("settings.users_index"))
@@ -429,7 +429,7 @@ def user_add_special_authorization(user_id):
         ))
     elif authorization_type == "permission":
         permission_id = _parse_int(request.form.get("permission_id"))
-        permission = SpecialPermission.query.get(permission_id) if permission_id else None
+        permission = SpecialPermission.query.get(permission_id) if permission_id is not None else None
         if not permission:
             flash("Autorizzazione speciale non valida.", "warning")
             return redirect(url_for("settings.users_index"))
@@ -957,7 +957,7 @@ def roles_permissions():
                 role = Role.query.get_or_404(role_id)
                 usage_count = UserRole.query.filter_by(role_id=role.id).count()
                 if usage_count:
-                    replacement = Role.query.get(replacement_role_id) if replacement_role_id else None
+                    replacement = Role.query.get(replacement_role_id) if replacement_role_id is not None else None
                     if not replacement or replacement.id == role.id:
                         flash("Se il ruolo e' usato da utenti devi indicare un ruolo di destinazione valido.", "warning")
                         return redirect(url_for("settings.roles_permissions"))
