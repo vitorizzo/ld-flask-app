@@ -23,8 +23,9 @@
   }
 
   .settings-config-page .settings-scroll-box {
-    max-height: min(640px, calc(100vh - var(--app-header-height, 72px) - 250px));
-    overflow: auto;
+    height: clamp(360px, calc(100vh - var(--app-header-height, 72px) - 250px), 640px);
+    overflow-y: scroll;
+    overflow-x: hidden;
   }
 
   .settings-config-page .settings-save-bar {

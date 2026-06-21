@@ -1583,3 +1583,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - in `/settings/roles-permissions` la tabella ruoli e' ordinata per peso decrescente, cosi' `dev` e `admin` restano in alto;
   - aumentata l'altezza utile del box scrollabile ruoli/autorizzazioni con `clamp(...)`;
   - verifica render reale: prima riga tabella ruoli `dev ID 0` peso `999`.
+- 2026-06-21 fix scrollbar widget impostazioni:
+  - i box scrollabili di `/settings/roles-permissions` e `/settings/api-keys` usano ora `height: clamp(...)` e `overflow-y: scroll`;
+  - lo scroll resta visibile anche quando il contenuto non supera temporaneamente il box, evitando l'effetto "scroll scomparso";
+  - verifica: `git diff --check`.
