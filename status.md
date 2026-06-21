@@ -1620,3 +1620,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - il salvataggio e l'eliminazione aggiornano `.env.local`; l'app segnala che serve riavvio per applicare la connessione al motore SQLAlchemy gia' avviato;
   - le modali seguono il pattern `document.body.appendChild(modal)` e reset submit su apertura/chiusura;
   - verifiche: `python -m py_compile routes/settings.py tools/preferences.py`, `node --check static/js/base.js`, `git diff --check`, GET reale `/settings/` 200 con tile Database, GET reale `/settings/database` 200, test builder URI con password contenente `@`.
+- 2026-06-21 widget Email:
+  - aggiunto tile `Email` nella dashboard impostazioni e nuova route `/settings/email`;
+  - il widget legge e modifica da `.env.local` le chiavi `MAIL_SERVER`, `MAIL_PORT`, `MAIL_USE_TLS`, `MAIL_USE_SSL`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_DEFAULT_SENDER`;
+  - UI tabellare coerente con gli altri widget: valori, origine `.env.local`/runtime, azioni modifica/elimina;
+  - `MAIL_PASSWORD` viene mostrata solo mascherata e non viene precompilata nel DOM della modale; se il campo resta vuoto durante il salvataggio, viene mantenuto il valore esistente;
+  - verifiche: `python -m py_compile routes/settings.py tools/preferences.py`, `node --check static/js/base.js`, `git diff --check`, GET reale `/settings/email` 200 con password reale assente dal markup e password mascherata presente.

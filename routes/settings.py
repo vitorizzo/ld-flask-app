@@ -260,6 +260,13 @@ def settings_index():
             "icon_class": "text-bg-success",
         },
         {
+            "title": "Email",
+            "description": "Server SMTP, credenziali e mittente predefinito.",
+            "route": url_for("settings.email_config"),
+            "icon": "fa-solid fa-envelope",
+            "icon_class": "text-bg-info",
+        },
+        {
             "title": "Ruoli e Autorizzazioni",
             "description": "Pesi ruolo, descrizioni e soglie permessi.",
             "route": url_for("settings.roles_permissions"),
@@ -1095,6 +1102,170 @@ def database_config():
         "settings/database.html",
         db_config=config,
         db_type_options=DATABASE_TYPE_OPTIONS,
+    )
+
+
+MAIL_CONFIG_FIELDS = [
+    {
+        "key": "MAIL_SERVER",
+        "label": "Server SMTP",
+        "type": "text",
+        "placeholder": "smtp.example.com",
+        "secret": False,
+        "runtime_default": None,
+    },
+    {
+        "key": "MAIL_PORT",
+        "label": "Porta",
+        "type": "number",
+        "placeholder": "465",
+        "secret": False,
+        "runtime_default": "25",
+    },
+    {
+        "key": "MAIL_USE_TLS",
+        "label": "Usa TLS",
+        "type": "bool",
+        "placeholder": "",
+        "secret": False,
+        "runtime_default": "false",
+    },
+    {
+        "key": "MAIL_USE_SSL",
+        "label": "Usa SSL",
+        "type": "bool",
+        "placeholder": "",
+        "secret": False,
+        "runtime_default": "false",
+    },
+    {
+        "key": "MAIL_USERNAME",
+        "label": "Nome utente",
+        "type": "text",
+        "placeholder": "utente@example.com",
+        "secret": False,
+        "runtime_default": None,
+    },
+    {
+        "key": "MAIL_PASSWORD",
+        "label": "Password",
+        "type": "password",
+        "placeholder": "",
+        "secret": True,
+        "runtime_default": None,
+    },
+    {
+        "key": "MAIL_DEFAULT_SENDER",
+        "label": "Mittente predefinito",
+        "type": "email",
+        "placeholder": "noreply@example.com",
+        "secret": False,
+        "runtime_default": None,
+    },
+]
+
+
+def _mail_runtime_value(key, fallback=None):
+    value = current_app.config.get(key)
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if value is None:
+        value = os.getenv(key, fallback)
+    if value is None:
+        return ""
+    return str(value)
+
+
+def _build_mail_config_rows():
+    rows = []
+    configured_count = 0
+    for field in MAIL_CONFIG_FIELDS:
+        env_value = _read_env_file_value(field["key"])
+        runtime_value = _mail_runtime_value(field["key"], field.get("runtime_default"))
+        value = env_value if env_value is not None else runtime_value
+        if str(value or "").strip():
+            configured_count += 1
+        if field["secret"]:
+            display_value = _mask_secret(value)
+        elif field["type"] == "bool":
+            display_value = "Si" if str(value).lower() in {"1", "true", "yes", "on"} else "No"
+        else:
+            display_value = value or "-"
+        rows.append({
+            **field,
+            "value": value or "",
+            "display_value": display_value or "-",
+            "source": ".env.local" if env_value is not None else ("runtime" if runtime_value else "mancante"),
+            "configured": bool(str(value or "").strip()),
+        })
+    return rows, configured_count
+
+
+def _coerce_mail_form_value(field, form):
+    if field["type"] == "bool":
+        return "true" if form.get(field["key"]) in {"1", "true", "yes", "on"} else "false"
+    value = str(form.get(field["key"]) or "").strip()
+    if field["secret"] and not value:
+        return _read_env_file_value(field["key"]) or _mail_runtime_value(field["key"], field.get("runtime_default"))
+    if field["key"] == "MAIL_PORT" and value:
+        int(value)
+    return value
+
+
+def _apply_mail_runtime_config(rows):
+    for row in rows:
+        key = row["key"]
+        value = row["value"]
+        if row["type"] == "bool":
+            current_app.config[key] = str(value).lower() in {"1", "true", "yes", "on"}
+        elif key == "MAIL_PORT":
+            current_app.config[key] = int(value or 25)
+        else:
+            current_app.config[key] = value or None
+        if value:
+            os.environ[key] = value
+        else:
+            os.environ.pop(key, None)
+
+
+@settings_bp.route("/email", methods=["GET", "POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def email_config():
+    if request.method == "POST":
+        form_type = (request.form.get("form_type") or "update_email").strip().lower()
+        try:
+            if form_type == "delete_email":
+                path = _ensure_env_local_file()
+                for field in MAIL_CONFIG_FIELDS:
+                    unset_key(path, field["key"])
+                    os.environ.pop(field["key"], None)
+                    current_app.config[field["key"]] = None
+                current_app.config["MAIL_PORT"] = 25
+                current_app.config["MAIL_USE_TLS"] = False
+                current_app.config["MAIL_USE_SSL"] = False
+                flash("Configurazione email eliminata da .env.local.", "warning")
+                return redirect(url_for("settings.email_config"))
+
+            path = _ensure_env_local_file()
+            updated_rows = []
+            for field in MAIL_CONFIG_FIELDS:
+                value = _coerce_mail_form_value(field, request.form)
+                set_key(path, field["key"], value)
+                updated_rows.append({**field, "value": value})
+            _apply_mail_runtime_config(updated_rows)
+            flash("Configurazione email salvata.", "success")
+            return redirect(url_for("settings.email_config"))
+        except Exception as exc:
+            logger.exception("Errore aggiornando configurazione email")
+            flash(f"Impossibile aggiornare la configurazione email: {exc}", "danger")
+
+    rows, configured_count = _build_mail_config_rows()
+    return render_template(
+        "settings/email.html",
+        mail_rows=rows,
+        configured_count=configured_count,
     )
 
 

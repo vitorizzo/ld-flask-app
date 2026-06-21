@@ -854,6 +854,10 @@ Stato implementazione 2026-06-14:
     - campi separati per tipo DB, indirizzo, porta, nome DB, nome utente e password;
     - stringa di collegamento calcolata da form e salvata in `.env.local`;
     - azioni modifica/elimina; le modifiche richiedono riavvio app per applicarsi al motore SQLAlchemy gia' avviato.
+  - `/settings/email` gestisce le variabili SMTP `MAIL_*` da `.env.local`:
+    - server, porta, TLS, SSL, username, password e mittente predefinito;
+    - UI tabellare con valori e origine, azioni modifica/elimina;
+    - password mostrata solo mascherata in tabella e non precompilata nel DOM della modale; campo vuoto mantiene il valore esistente.
   - `/settings/roles-permissions` separa dal vecchio widget configurazione la gestione ruoli e autorizzazioni:
     - ruoli: creazione, modifica peso/descrizione, eliminazione con ricanalizzazione degli utenti assegnati;
     - autorizzazioni speciali: CRUD su `SpecialPermission.code`/nome/descrizione/stato attivo;
