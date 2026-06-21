@@ -1613,3 +1613,10 @@ Performance apertura giornata Agenda 2026-06-13:
   - rimossa la label breadcrumb client-side `Preferenze`;
   - in `/settings/api-keys` aggiunto scroll verticale interno alle tabelle integrazioni e chiavi custom (`settings-table-scroll`);
   - verifiche: `python -m py_compile routes/settings.py tools/preferences.py`, `node --check static/js/base.js`, `git diff --check`, GET reale `/settings/` 200 senza `Configurazione`, GET reale `/settings/preferences` 302 verso `/settings/`, GET reale `/settings/api-keys` 200.
+- 2026-06-21 widget Database:
+  - aggiunto tile `Database` nella dashboard impostazioni e nuova route `/settings/database`;
+  - il widget legge `DATABASE_URL` da `.env.local` con fallback alla config runtime, mostra tipo/host/porta/nome DB/utente/password mascherata e stringa di collegamento mascherata;
+  - la modale di modifica permette di salvare tipo DB, indirizzo, porta, nome DB, nome utente e password; la stringa viene calcolata lato client per anteprima e lato server per il salvataggio;
+  - il salvataggio e l'eliminazione aggiornano `.env.local`; l'app segnala che serve riavvio per applicare la connessione al motore SQLAlchemy gia' avviato;
+  - le modali seguono il pattern `document.body.appendChild(modal)` e reset submit su apertura/chiusura;
+  - verifiche: `python -m py_compile routes/settings.py tools/preferences.py`, `node --check static/js/base.js`, `git diff --check`, GET reale `/settings/` 200 con tile Database, GET reale `/settings/database` 200, test builder URI con password contenente `@`.

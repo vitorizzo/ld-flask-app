@@ -849,6 +849,11 @@ Stato implementazione 2026-06-14:
     - le tabelle hanno scroll verticale interno per non uscire dal box del widget;
     - azioni per integrazione: modifica in modale, disattiva via override DB vuoto, elimina override DB;
     - creazione/modifica/eliminazione di chiavi custom in `.env.local`, mostrate solo se marcate con commento `LDAPP_DESC`.
+  - `/settings/database` gestisce la configurazione `DATABASE_URL`:
+    - UI tabellare coerente con gli altri widget impostazioni;
+    - campi separati per tipo DB, indirizzo, porta, nome DB, nome utente e password;
+    - stringa di collegamento calcolata da form e salvata in `.env.local`;
+    - azioni modifica/elimina; le modifiche richiedono riavvio app per applicarsi al motore SQLAlchemy gia' avviato.
   - `/settings/roles-permissions` separa dal vecchio widget configurazione la gestione ruoli e autorizzazioni:
     - ruoli: creazione, modifica peso/descrizione, eliminazione con ricanalizzazione degli utenti assegnati;
     - autorizzazioni speciali: CRUD su `SpecialPermission.code`/nome/descrizione/stato attivo;

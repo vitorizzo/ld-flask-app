@@ -10,7 +10,8 @@ import os
 import re
 import secrets
 import uuid
-from dotenv import set_key, unset_key
+from urllib.parse import quote, unquote, urlparse
+from dotenv import dotenv_values, set_key, unset_key
 
 from extensions import db, mail
 from models import (
@@ -250,6 +251,13 @@ def settings_index():
             "route": url_for("settings.api_keys"),
             "icon": "fa-solid fa-key",
             "icon_class": "text-bg-secondary",
+        },
+        {
+            "title": "Database",
+            "description": "Connessione applicativa, credenziali e stringa DATABASE_URL.",
+            "route": url_for("settings.database_config"),
+            "icon": "fa-solid fa-database",
+            "icon_class": "text-bg-success",
         },
         {
             "title": "Ruoli e Autorizzazioni",
@@ -920,6 +928,174 @@ def _filter_preference_sections(sections, include_categories=None, exclude_categ
 def _env_local_path():
     project_root = os.path.dirname(current_app.static_folder or os.getcwd())
     return os.path.join(project_root, ".env.local")
+
+
+DATABASE_TYPE_OPTIONS = [
+    {"value": "postgresql", "label": "PostgreSQL", "default_port": 5432},
+    {"value": "mysql", "label": "MySQL", "default_port": 3306},
+    {"value": "mariadb", "label": "MariaDB", "default_port": 3306},
+    {"value": "sqlite", "label": "SQLite", "default_port": None},
+    {"value": "mssql", "label": "Microsoft SQL Server", "default_port": 1433},
+    {"value": "oracle", "label": "Oracle", "default_port": 1521},
+]
+
+
+def _read_env_file_value(key):
+    path = _env_local_path()
+    if not os.path.exists(path):
+        return None
+    try:
+        return dotenv_values(path).get(key)
+    except Exception:
+        logger.exception("Impossibile leggere %s da .env.local", key)
+        return None
+
+
+def _ensure_env_local_file():
+    path = _env_local_path()
+    if not os.path.exists(path):
+        with open(path, "w", encoding="utf-8") as handle:
+            handle.write("")
+    return path
+
+
+def _mask_secret(value, visible=3):
+    raw = str(value or "")
+    if not raw:
+        return ""
+    if len(raw) <= visible:
+        return "*" * len(raw)
+    return f"{raw[:visible]}{'*' * max(len(raw) - visible, 6)}"
+
+
+def _mask_database_uri(uri):
+    parsed = urlparse(uri or "")
+    if not parsed.password:
+        return uri or ""
+    masked_netloc = parsed.netloc.replace(f":{parsed.password}@", ":********@")
+    return parsed._replace(netloc=masked_netloc).geturl()
+
+
+def _parse_database_uri(uri):
+    parsed = urlparse(uri or "")
+    scheme = parsed.scheme or "postgresql"
+    if scheme.startswith("postgres"):
+        db_type = "postgresql"
+    else:
+        db_type = scheme
+
+    if db_type == "sqlite":
+        database_name = unquote((parsed.path or "").lstrip("/"))
+        if parsed.netloc:
+            database_name = f"{parsed.netloc}/{database_name}".strip("/")
+        return {
+            "type": db_type,
+            "host": "",
+            "port": "",
+            "database": database_name,
+            "username": "",
+            "password": "",
+        }
+
+    try:
+        parsed_port = parsed.port
+    except ValueError:
+        parsed_port = None
+
+    return {
+        "type": db_type,
+        "host": parsed.hostname or "",
+        "port": str(parsed_port or ""),
+        "database": unquote((parsed.path or "").lstrip("/")),
+        "username": unquote(parsed.username or ""),
+        "password": unquote(parsed.password or ""),
+    }
+
+
+def _build_database_uri(db_type, host, port, database, username, password):
+    db_type = (db_type or "postgresql").strip().lower()
+    host = (host or "").strip()
+    port = (port or "").strip()
+    database = (database or "").strip()
+    username = (username or "").strip()
+    password = password or ""
+
+    if db_type == "sqlite":
+        if not database:
+            raise ValueError("Per SQLite serve il percorso del database.")
+        return f"sqlite:///{database}"
+
+    if not host:
+        raise ValueError("Indirizzo database obbligatorio.")
+    if not database:
+        raise ValueError("Nome database obbligatorio.")
+
+    auth = ""
+    if username:
+        auth = quote(username, safe="")
+        if password:
+            auth = f"{auth}:{quote(password, safe='')}@"
+        else:
+            auth = f"{auth}@"
+    netloc = host
+    if port:
+        netloc = f"{netloc}:{port}"
+    return f"{db_type}://{auth}{netloc}/{quote(database, safe='')}"
+
+
+def _build_database_config():
+    env_uri = _read_env_file_value("DATABASE_URL")
+    runtime_uri = current_app.config.get("SQLALCHEMY_DATABASE_URI") or os.getenv("DATABASE_URL") or ""
+    uri = env_uri or runtime_uri or ""
+    parsed = _parse_database_uri(uri)
+    return {
+        "exists": bool(uri),
+        "source": ".env.local" if env_uri is not None else ("runtime" if runtime_uri else "mancante"),
+        "uri": uri,
+        "masked_uri": _mask_database_uri(uri),
+        "masked_password": _mask_secret(parsed.get("password")),
+        **parsed,
+    }
+
+
+@settings_bp.route("/database", methods=["GET", "POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def database_config():
+    if request.method == "POST":
+        form_type = (request.form.get("form_type") or "update_database").strip().lower()
+        try:
+            if form_type == "delete_database":
+                unset_key(_ensure_env_local_file(), "DATABASE_URL")
+                os.environ.pop("DATABASE_URL", None)
+                current_app.config["SQLALCHEMY_DATABASE_URI"] = None
+                flash("Configurazione database eliminata da .env.local. Riavvia l'app prima di continuare a usare una nuova connessione.", "warning")
+                return redirect(url_for("settings.database_config"))
+
+            db_uri = _build_database_uri(
+                request.form.get("db_type"),
+                request.form.get("host"),
+                request.form.get("port"),
+                request.form.get("database"),
+                request.form.get("username"),
+                request.form.get("password"),
+            )
+            set_key(_ensure_env_local_file(), "DATABASE_URL", db_uri)
+            os.environ["DATABASE_URL"] = db_uri
+            current_app.config["SQLALCHEMY_DATABASE_URI"] = db_uri
+            flash("Configurazione database salvata. Riavvia l'app per applicare la connessione al motore SQLAlchemy.", "success")
+            return redirect(url_for("settings.database_config"))
+        except Exception as exc:
+            logger.exception("Errore aggiornando configurazione database")
+            flash(f"Impossibile aggiornare la configurazione database: {exc}", "danger")
+
+    config = _build_database_config()
+    return render_template(
+        "settings/database.html",
+        db_config=config,
+        db_type_options=DATABASE_TYPE_OPTIONS,
+    )
 
 
 def _parse_env_local_custom_keys():

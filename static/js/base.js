@@ -5,6 +5,7 @@
   const PAGE_LABELS = [
     { test: path => path === "/settings", label: "Impostazioni" },
     { test: path => path === "/settings/api-keys", label: "Chiavi API" },
+    { test: path => path === "/settings/database", label: "Database" },
     { test: path => path === "/settings/roles-permissions", label: "Ruoli e Autorizzazioni" },
     { test: path => path === "/settings/menus", label: "Gestione menù" },
     { test: path => path === "/registry/customer-routes", label: "Associazione clienti-giri" },
