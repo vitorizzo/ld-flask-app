@@ -1629,3 +1629,6 @@ Performance apertura giornata Agenda 2026-06-13:
 - 2026-06-21 fix scroll widget Email:
   - aggiunto wrapper `settings-table-scroll` alla tabella `/settings/email`, con altezza massima e scrollbar verticale interna;
   - verifiche: `python -m py_compile routes/settings.py tools/preferences.py`, `git diff --check`, GET reale `/settings/email` 200 con wrapper scroll presente e password reale assente dal markup.
+- 2026-06-21 fix encoding tile impostazioni:
+  - corretti i caratteri accentati mojibake nei tile impostazioni (`Gestione menù`, `visibilità`) e in alcune flash/error message di `routes/settings.py`;
+  - verifiche: `python -m py_compile routes/settings.py`, `git diff --check`, GET reale `/settings/` 200 con `Gestione menù`/`visibilità` corretti e nessun carattere `Ã` nel markup dashboard.

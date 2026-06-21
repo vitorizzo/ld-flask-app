@@ -274,8 +274,8 @@ def settings_index():
             "icon_class": "text-bg-primary",
         },
         {
-            "title": "Gestione menÃ¹",
-            "description": "Struttura della navbar e visibilitÃ  delle voci.",
+            "title": "Gestione menù",
+            "description": "Struttura della navbar e visibilità delle voci.",
             "route": url_for("settings.manage_menus"),
             "icon": "fa-solid fa-bars",
             "icon_class": "text-bg-dark",
@@ -519,7 +519,7 @@ def banks_index():
             bank_id = _parse_int(request.form.get("bank_id"))
             name = (request.form.get("name") or "").strip()
             if not name:
-                flash("Il nome della banca Ã¨ obbligatorio.", "warning")
+                flash("Il nome della banca è obbligatorio.", "warning")
                 return redirect(url_for("settings.banks_index"))
 
             bank = CashBank.query.get(bank_id) if bank_id else None
@@ -581,7 +581,7 @@ def bank_delete(bank_id):
         + CashSalePayment.query.filter_by(bank_id=bank.id).count()
     )
     if usage_count:
-        flash("La banca Ã¨ usata da movimenti storici: disattivala invece di eliminarla.", "warning")
+        flash("La banca è usata da movimenti storici: disattivala invece di eliminarla.", "warning")
         return redirect(url_for("settings.banks_index"))
 
     was_default = bool(bank.is_default)
@@ -606,7 +606,7 @@ def pos_circuits_index():
             circuit_id = _parse_int(request.form.get("circuit_id"))
             name = (request.form.get("name") or "").strip()
             if not name:
-                flash("Il nome del circuito Ã¨ obbligatorio.", "warning")
+                flash("Il nome del circuito è obbligatorio.", "warning")
                 return redirect(url_for("settings.pos_circuits_index"))
 
             circuit = PosCircuit.query.get(circuit_id) if circuit_id else None
@@ -727,7 +727,7 @@ def pos_circuit_delete(circuit_id):
         + CashSalePaymentPosMove.query.join(PosMove).filter(PosMove.pos_circuit_id == circuit.id).count()
     )
     if usage_count:
-        flash("Il circuito Ã¨ usato da dispositivi o movimenti storici: disattivalo invece di eliminarlo.", "warning")
+        flash("Il circuito è usato da dispositivi o movimenti storici: disattivalo invece di eliminarlo.", "warning")
         return redirect(url_for("settings.pos_circuits_index"))
 
     db.session.delete(circuit)
@@ -748,7 +748,7 @@ def pos_devices_index():
             device_id = _parse_int(request.form.get("device_id"))
             name = (request.form.get("name") or "").strip()
             if not name:
-                flash("Il nome del dispositivo POS Ã¨ obbligatorio.", "warning")
+                flash("Il nome del dispositivo POS è obbligatorio.", "warning")
                 return redirect(url_for("settings.pos_devices_index"))
 
             device = PosDevice.query.get(device_id) if device_id else None
@@ -850,7 +850,7 @@ def pos_device_delete(device_id):
         + CashSalePaymentPosMove.query.join(PosMove).filter(PosMove.pos_device_id == device.id).count()
     )
     if usage_count:
-        flash("Il dispositivo POS Ã¨ usato da movimenti storici o associazioni: disattivalo invece di eliminarlo.", "warning")
+        flash("Il dispositivo POS è usato da movimenti storici o associazioni: disattivalo invece di eliminarlo.", "warning")
         return redirect(url_for("settings.pos_devices_index"))
 
     was_default = bool(device.is_default)
@@ -2153,7 +2153,7 @@ def update_menu_json():
         parent_id = int(parent_id) if parent_id is not None else None
 
         if parent_id == m.id:
-            return jsonify(ok=False, error="Un menu non puÃ² essere padre di sÃ© stesso"), 400
+            return jsonify(ok=False, error="Un menu non può essere padre di sé stesso"), 400
 
         current = parent_id
         while current is not None:
@@ -2194,7 +2194,7 @@ def delete_menu(menu_id):
 
     try:
         if cascade:
-            # elimina figli (e nipoti) in profonditÃ 
+            # elimina figli (e nipoti) in profondità
             def delete_rec(m):
                 for c in Menu.query.filter(Menu.parent_id == m.id).all():
                     delete_rec(c)
@@ -2233,7 +2233,7 @@ def toggle_menu_active(menu_id):
 def toggle_menu_visible(menu_id):
     m = Menu.query.get_or_404(menu_id)
     if m.is_active:
-        return jsonify(ok=False, error="Un menu attivo Ã¨ sempre visibile"), 400
+        return jsonify(ok=False, error="Un menu attivo è sempre visibile"), 400
     m.is_visible = not bool(m.is_visible)
     db.session.commit()
     return jsonify(ok=True, id=m.id, is_visible=bool(m.is_visible))
