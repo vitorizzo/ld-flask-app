@@ -1585,7 +1585,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - verifica render reale: prima riga tabella ruoli `dev ID 0` peso `999`.
 - 2026-06-21 fix scrollbar widget impostazioni:
   - i box tabellari di `/settings/roles-permissions` usano wrapper verticale dedicato `.settings-table-scroll` esterno alla `.table-responsive`;
-  - `.settings-table-scroll` gestisce `max-height: 360px` e `overflow-y: scroll`, mentre `.table-responsive` resta solo per lo scroll orizzontale;
+  - `.settings-table-scroll` gestisce `max-height: 430px` e `overflow-y: scroll`, mentre `.table-responsive` resta solo per lo scroll orizzontale;
   - questa separazione evita il taglio delle righe finali causato dal mix overflow verticale/orizzontale sullo stesso elemento Bootstrap;
   - il corpo di `/settings/api-keys` mantiene invece `height: clamp(...)` e `overflow-y: scroll`, con barra salvataggio esterna;
   - verifiche: `git diff --check`; GET reale `/settings/roles-permissions` 200.
