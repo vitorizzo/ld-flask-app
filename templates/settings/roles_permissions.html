@@ -67,9 +67,11 @@
   }
 
   .settings-config-card .settings-scroll-box {
-    height: clamp(300px, calc(100vh - var(--app-header-height, 72px) - 300px), 460px);
+    max-height: clamp(420px, calc(100vh - var(--app-header-height, 72px) - 220px), 640px);
     overflow-x: auto;
-    overflow-y: scroll;
+    overflow-y: auto;
+    padding-bottom: 10px;
+    scrollbar-gutter: stable;
   }
 
   .settings-config-card .table thead th {

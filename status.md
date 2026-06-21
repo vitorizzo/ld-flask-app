@@ -1584,6 +1584,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - aumentata l'altezza utile del box scrollabile ruoli/autorizzazioni con `clamp(...)`;
   - verifica render reale: prima riga tabella ruoli `dev ID 0` peso `999`.
 - 2026-06-21 fix scrollbar widget impostazioni:
-  - i box scrollabili di `/settings/roles-permissions` e `/settings/api-keys` usano ora `height: clamp(...)` e `overflow-y: scroll`;
-  - lo scroll resta visibile anche quando il contenuto non supera temporaneamente il box, evitando l'effetto "scroll scomparso";
+  - i box tabellari di `/settings/roles-permissions` usano `max-height: clamp(...)`, `overflow-y: auto`, `padding-bottom` e `scrollbar-gutter`;
+  - non viene piu' forzata un'altezza fissa sulle tabelle corte, evitando righe finali tagliate o non raggiungibili;
+  - il corpo di `/settings/api-keys` mantiene invece `height: clamp(...)` e `overflow-y: scroll`, con barra salvataggio esterna;
   - verifica: `git diff --check`.
