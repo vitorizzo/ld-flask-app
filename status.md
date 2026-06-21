@@ -1607,3 +1607,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - rimosso lo scroll interno dalle tabelle ruoli/autorizzazioni: resta solo `.table-responsive` per eventuale overflow orizzontale;
   - il corpo di `/settings/api-keys` mantiene invece `height: clamp(...)` e `overflow-y: scroll`, con barra salvataggio esterna;
   - verifiche: `git diff --check`; GET reale `/settings/roles-permissions` 200.
+- 2026-06-21 rimozione widget Configurazione:
+  - rimosso il tile `Configurazione` dalla dashboard impostazioni perche' le funzioni sono state estratte nei widget dedicati;
+  - `/settings/preferences` resta come redirect informativo verso `/settings/`, senza piu' renderizzare il vecchio widget vuoto;
+  - rimossa la label breadcrumb client-side `Preferenze`;
+  - in `/settings/api-keys` aggiunto scroll verticale interno alle tabelle integrazioni e chiavi custom (`settings-table-scroll`);
+  - verifiche: `python -m py_compile routes/settings.py tools/preferences.py`, `node --check static/js/base.js`, `git diff --check`, GET reale `/settings/` 200 senza `Configurazione`, GET reale `/settings/preferences` 302 verso `/settings/`, GET reale `/settings/api-keys` 200.

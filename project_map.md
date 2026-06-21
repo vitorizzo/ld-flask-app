@@ -846,6 +846,7 @@ Stato implementazione 2026-06-14:
   - l'import articoli consulta le regole `ImportConflictResolution` e non reinserisce conflitti pending identici gia' in coda;
   - `/settings/api-keys` separa dal vecchio widget configurazione le chiavi e i parametri delle integrazioni esterne:
     - UI tabellare con righe Prestashop, Poleepo, Trello, Slack e VAPID;
+    - le tabelle hanno scroll verticale interno per non uscire dal box del widget;
     - azioni per integrazione: modifica in modale, disattiva via override DB vuoto, elimina override DB;
     - creazione/modifica/eliminazione di chiavi custom in `.env.local`, mostrate solo se marcate con commento `LDAPP_DESC`.
   - `/settings/roles-permissions` separa dal vecchio widget configurazione la gestione ruoli e autorizzazioni:
@@ -853,7 +854,7 @@ Stato implementazione 2026-06-14:
     - autorizzazioni speciali: CRUD su `SpecialPermission.code`/nome/descrizione/stato attivo;
     - cancellazione autorizzazioni: controllo assegnazioni `UserSpecialPermission` e ricanalizzazione verso altro permesso;
     - la pagina mostra anche i riferimenti operativi disponibili: utenti collegati e voci menu con stessa soglia numerica del ruolo.
-  - `/settings/preferences` resta come widget residuale per parametri non ancora estratti;
+  - il vecchio widget Configurazione e' stato rimosso dalla dashboard; `/settings/preferences` resta solo come redirect informativo verso `/settings`.
   - entry "Impostazioni" nel menu profilo per gli utenti con peso >= 900.
   - migration audit resa idempotente sui DB dove `cash_day_audit_events` esiste gia', cosi' `db upgrade` non fallisce su `DuplicateTable`.
   - la pagina preferenze ora mostra un warning e non va in 500 se `app_preferences` non e' ancora disponibile nel DB.

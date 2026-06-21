@@ -245,13 +245,6 @@ def settings_index():
             "icon_class": "text-bg-warning",
         },
         {
-            "title": "Configurazione",
-            "description": "Parametri runtime non ancora separati in widget dedicati.",
-            "route": url_for("settings.preferences"),
-            "icon": "fa-solid fa-sliders",
-            "icon_class": "text-bg-success",
-        },
-        {
             "title": "Chiavi API",
             "description": "Credenziali e parametri delle integrazioni esterne.",
             "route": url_for("settings.api_keys"),
@@ -1323,44 +1316,8 @@ def roles_permissions():
 @role_required(900)
 @log_task(logger)
 def preferences():
-    try:
-        if request.method == "POST":
-            form_type = (request.form.get("form_type") or "preferences").strip().lower()
-
-            if form_type == "roles":
-                changed = _save_role_preferences_from_form(request.form)
-                flash("Ruoli aggiornati con successo.", "success")
-                logger.info("Aggiornati %s campi ruoli.", changed)
-                return redirect(url_for("settings.preferences"))
-
-            changed_keys = save_preferences_from_form(request.form)
-            load_preferences_into_app_config(current_app._get_current_object())
-            flash("Preferenze salvate con successo.", "success")
-            logger.info("Aggiornate preferenze: %s", ", ".join(changed_keys) if changed_keys else "nessuna modifica")
-            return redirect(url_for("settings.preferences"))
-
-        sections = _filter_preference_sections(
-            build_preferences_sections(current_app._get_current_object()),
-            exclude_categories=API_KEY_PREFERENCE_CATEGORIES | ROLE_PERMISSION_PREFERENCE_CATEGORIES,
-        )
-        try:
-            roles = Role.query.order_by(Role.weight.asc(), Role.name.asc()).all()
-        except Exception as exc:
-            logger.warning("Ruoli non disponibili durante il caricamento preferenze: %s", exc)
-            roles = []
-        return render_template("settings/preferences.html", sections=sections, roles=roles)
-    except Exception as exc:
-        db.session.rollback()
-        logger.exception("Errore nella pagina preferenze")
-        return (
-            "<!doctype html><html lang='it'><head><meta charset='utf-8'><title>Preferenze</title></head>"
-            "<body style='font-family:sans-serif;padding:24px'>"
-            "<h1>Preferenze</h1>"
-            "<p>La pagina non e' ancora disponibile per un errore interno.</p>"
-            f"<pre>{exc}</pre>"
-            "</body></html>",
-            200,
-        )
+    flash("Configurazione e' stata sostituita dai widget dedicati.", "info")
+    return redirect(url_for("settings.settings_index"))
 
 
 @settings_bp.route('/update_menu', methods=['POST'])

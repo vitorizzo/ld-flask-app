@@ -44,6 +44,18 @@
     border-bottom: 1px solid rgba(74, 44, 42, 0.10);
   }
 
+  .settings-card .settings-table-scroll {
+    max-height: 260px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+  }
+
+  .settings-card .settings-table-scroll .table-responsive {
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
   .settings-actions {
     display: inline-flex;
     gap: 6px;
@@ -143,60 +155,62 @@
       </div>
       <div class="card-body p-0">
         {% if api_rows %}
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th style="min-width: 210px;">Integrazione</th>
-                  <th style="width: 160px;">Campi</th>
-                  <th style="width: 170px;">Configurazione</th>
-                  <th>Dettaglio</th>
-                  <th style="width: 150px;" class="text-end">Azioni</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for row in api_rows %}
-                  <tr role="button" data-bs-toggle="modal" data-bs-target="#apiEditModal-{{ loop.index }}">
-                    <td>
-                      <div class="fw-semibold">{{ row.label }}</div>
-                      <div class="text-muted small">{{ row.category }}</div>
-                    </td>
-                    <td>
-                      <span class="badge text-bg-light">{{ row["items"]|length }}</span>
-                      <span class="text-muted small">campi</span>
-                    </td>
-                    <td>
-                      {% if row.disabled %}
-                        <span class="badge text-bg-secondary">Disattiva</span>
-                      {% elif row.stored_count %}
-                        <span class="badge text-bg-success">DB override</span>
-                      {% else %}
-                        <span class="badge text-bg-info">env/default</span>
-                      {% endif %}
-                    </td>
-                    <td class="text-muted">
-                      {{ row.configured_count }} valorizzati, {{ row.secret_count }} segreti
-                    </td>
-                    <td class="text-end" onclick="event.stopPropagation();">
-                      <span class="settings-actions">
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#apiEditModal-{{ loop.index }}" title="Modifica">
-                          <i class="fa-solid fa-pen"></i>
-                          <span class="visually-hidden">Modifica</span>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#apiDisableModal-{{ loop.index }}" title="Disattiva">
-                          <i class="fa-solid fa-ban"></i>
-                          <span class="visually-hidden">Disattiva</span>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#apiDeleteModal-{{ loop.index }}" title="Elimina">
-                          <i class="fa-solid fa-trash"></i>
-                          <span class="visually-hidden">Elimina</span>
-                        </button>
-                      </span>
-                    </td>
+          <div class="settings-table-scroll">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th style="min-width: 210px;">Integrazione</th>
+                    <th style="width: 160px;">Campi</th>
+                    <th style="width: 170px;">Configurazione</th>
+                    <th>Dettaglio</th>
+                    <th style="width: 150px;" class="text-end">Azioni</th>
                   </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {% for row in api_rows %}
+                    <tr role="button" data-bs-toggle="modal" data-bs-target="#apiEditModal-{{ loop.index }}">
+                      <td>
+                        <div class="fw-semibold">{{ row.label }}</div>
+                        <div class="text-muted small">{{ row.category }}</div>
+                      </td>
+                      <td>
+                        <span class="badge text-bg-light">{{ row["items"]|length }}</span>
+                        <span class="text-muted small">campi</span>
+                      </td>
+                      <td>
+                        {% if row.disabled %}
+                          <span class="badge text-bg-secondary">Disattiva</span>
+                        {% elif row.stored_count %}
+                          <span class="badge text-bg-success">DB override</span>
+                        {% else %}
+                          <span class="badge text-bg-info">env/default</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-muted">
+                        {{ row.configured_count }} valorizzati, {{ row.secret_count }} segreti
+                      </td>
+                      <td class="text-end" onclick="event.stopPropagation();">
+                        <span class="settings-actions">
+                          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#apiEditModal-{{ loop.index }}" title="Modifica">
+                            <i class="fa-solid fa-pen"></i>
+                            <span class="visually-hidden">Modifica</span>
+                          </button>
+                          <button type="button" class="btn btn-sm btn-outline-warning" data-bs-toggle="modal" data-bs-target="#apiDisableModal-{{ loop.index }}" title="Disattiva">
+                            <i class="fa-solid fa-ban"></i>
+                            <span class="visually-hidden">Disattiva</span>
+                          </button>
+                          <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#apiDeleteModal-{{ loop.index }}" title="Elimina">
+                            <i class="fa-solid fa-trash"></i>
+                            <span class="visually-hidden">Elimina</span>
+                          </button>
+                        </span>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
           </div>
         {% else %}
           <div class="p-4">
@@ -216,34 +230,36 @@
       </div>
       <div class="card-body p-0">
         {% if custom_env_keys %}
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th style="min-width: 220px;">Nome campo</th>
-                  <th>Descrizione</th>
-                  <th style="width: 150px;" class="text-end">Azioni</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for key in custom_env_keys %}
-                  <tr role="button" data-bs-toggle="modal" data-bs-target="#envKeyEditModal-{{ loop.index }}">
-                    <td><span class="settings-code">{{ key.name }}</span></td>
-                    <td class="text-muted">{{ key.description or '-' }}</td>
-                    <td class="text-end" onclick="event.stopPropagation();">
-                      <span class="settings-actions">
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#envKeyEditModal-{{ loop.index }}" title="Modifica">
-                          <i class="fa-solid fa-pen"></i>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#envKeyDeleteModal-{{ loop.index }}" title="Elimina">
-                          <i class="fa-solid fa-trash"></i>
-                        </button>
-                      </span>
-                    </td>
+          <div class="settings-table-scroll">
+            <div class="table-responsive">
+              <table class="table table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th style="min-width: 220px;">Nome campo</th>
+                    <th>Descrizione</th>
+                    <th style="width: 150px;" class="text-end">Azioni</th>
                   </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {% for key in custom_env_keys %}
+                    <tr role="button" data-bs-toggle="modal" data-bs-target="#envKeyEditModal-{{ loop.index }}">
+                      <td><span class="settings-code">{{ key.name }}</span></td>
+                      <td class="text-muted">{{ key.description or '-' }}</td>
+                      <td class="text-end" onclick="event.stopPropagation();">
+                        <span class="settings-actions">
+                          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#envKeyEditModal-{{ loop.index }}" title="Modifica">
+                            <i class="fa-solid fa-pen"></i>
+                          </button>
+                          <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#envKeyDeleteModal-{{ loop.index }}" title="Elimina">
+                            <i class="fa-solid fa-trash"></i>
+                          </button>
+                        </span>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
           </div>
         {% else %}
           <div class="p-4">
