@@ -857,6 +857,7 @@ Stato implementazione 2026-06-14:
   - `/settings/email` gestisce le variabili SMTP `MAIL_*` da `.env.local`:
     - server, porta, TLS, SSL, username, password e mittente predefinito;
     - UI tabellare con valori e origine, azioni modifica/elimina;
+    - tabella contenuta in box con scroll verticale interno;
     - password mostrata solo mascherata in tabella e non precompilata nel DOM della modale; campo vuoto mantiene il valore esistente.
   - `/settings/roles-permissions` separa dal vecchio widget configurazione la gestione ruoli e autorizzazioni:
     - ruoli: creazione, modifica peso/descrizione, eliminazione con ricanalizzazione degli utenti assegnati;

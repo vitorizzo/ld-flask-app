@@ -44,6 +44,18 @@
     border-bottom: 1px solid rgba(74, 44, 42, 0.10);
   }
 
+  .settings-card .settings-table-scroll {
+    max-height: 320px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+  }
+
+  .settings-card .settings-table-scroll .table-responsive {
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
   .settings-actions {
     display: inline-flex;
     gap: 6px;
@@ -142,43 +154,45 @@
         <span class="badge text-bg-light">{{ configured_count }}/{{ mail_rows|length }} valori</span>
       </div>
       <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-hover align-middle mb-0">
-            <thead class="table-light">
-              <tr>
-                <th style="min-width: 230px;">Campo</th>
-                <th>Valore</th>
-                <th style="width: 140px;">Origine</th>
-                <th style="width: 120px;" class="text-end">Azioni</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for row in mail_rows %}
-                <tr role="button" data-bs-toggle="modal" data-bs-target="#emailEditModal">
-                  <td>
-                    <div class="fw-semibold">{{ row.label }}</div>
-                    <div class="settings-code mt-1">{{ row.key }}</div>
-                  </td>
-                  <td>{{ row.display_value }}</td>
-                  <td><span class="badge text-bg-light">{{ row.source }}</span></td>
-                  {% if loop.first %}
-                    <td class="text-end" rowspan="{{ mail_rows|length }}" onclick="event.stopPropagation();">
-                      <span class="settings-actions">
-                        <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#emailEditModal" title="Modifica">
-                          <i class="fa-solid fa-pen"></i>
-                          <span class="visually-hidden">Modifica</span>
-                        </button>
-                        <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#emailDeleteModal" title="Elimina">
-                          <i class="fa-solid fa-trash"></i>
-                          <span class="visually-hidden">Elimina</span>
-                        </button>
-                      </span>
-                    </td>
-                  {% endif %}
+        <div class="settings-table-scroll">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="min-width: 230px;">Campo</th>
+                  <th>Valore</th>
+                  <th style="width: 140px;">Origine</th>
+                  <th style="width: 120px;" class="text-end">Azioni</th>
                 </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {% for row in mail_rows %}
+                  <tr role="button" data-bs-toggle="modal" data-bs-target="#emailEditModal">
+                    <td>
+                      <div class="fw-semibold">{{ row.label }}</div>
+                      <div class="settings-code mt-1">{{ row.key }}</div>
+                    </td>
+                    <td>{{ row.display_value }}</td>
+                    <td><span class="badge text-bg-light">{{ row.source }}</span></td>
+                    {% if loop.first %}
+                      <td class="text-end" rowspan="{{ mail_rows|length }}" onclick="event.stopPropagation();">
+                        <span class="settings-actions">
+                          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#emailEditModal" title="Modifica">
+                            <i class="fa-solid fa-pen"></i>
+                            <span class="visually-hidden">Modifica</span>
+                          </button>
+                          <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#emailDeleteModal" title="Elimina">
+                            <i class="fa-solid fa-trash"></i>
+                            <span class="visually-hidden">Elimina</span>
+                          </button>
+                        </span>
+                      </td>
+                    {% endif %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>

@@ -1626,3 +1626,6 @@ Performance apertura giornata Agenda 2026-06-13:
   - UI tabellare coerente con gli altri widget: valori, origine `.env.local`/runtime, azioni modifica/elimina;
   - `MAIL_PASSWORD` viene mostrata solo mascherata e non viene precompilata nel DOM della modale; se il campo resta vuoto durante il salvataggio, viene mantenuto il valore esistente;
   - verifiche: `python -m py_compile routes/settings.py tools/preferences.py`, `node --check static/js/base.js`, `git diff --check`, GET reale `/settings/email` 200 con password reale assente dal markup e password mascherata presente.
+- 2026-06-21 fix scroll widget Email:
+  - aggiunto wrapper `settings-table-scroll` alla tabella `/settings/email`, con altezza massima e scrollbar verticale interna;
+  - verifiche: `python -m py_compile routes/settings.py tools/preferences.py`, `git diff --check`, GET reale `/settings/email` 200 con wrapper scroll presente e password reale assente dal markup.
