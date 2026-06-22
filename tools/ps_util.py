@@ -1,5 +1,8 @@
 import os
 import mimetypes
+import re
+import time
+import unicodedata
 from pprint import pprint
 import requests
 from requests.auth import HTTPBasicAuth
@@ -21,6 +24,8 @@ load_dotenv(basedir / '.env.defaults', override=False)
 
 IMAGES_FOLDER = basedir / 'static' / 'images' / 'products'
 IMAGES_FOLDER.mkdir(parents=True, exist_ok=True)
+_OPTIONS_CACHE_TTL_SECONDS = 1800
+_OPTIONS_CACHE = {}
 
 
 def _runtime_value(config_key, env_key, default=None):
@@ -41,6 +46,191 @@ def _prestashop_url():
 
 def _prestashop_key():
     return _runtime_value("PS_KEY", "PRESTASHOP_KEY", "")
+
+
+def _bool_text(value, default=False):
+    if value in (None, ""):
+        return "1" if default else "0"
+    return "1" if str(value).strip().lower() in {"1", "true", "yes", "on", "si", "sì"} else "0"
+
+
+def _slugify_prestashop(value):
+    raw = unicodedata.normalize("NFKD", str(value or ""))
+    ascii_text = raw.encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^a-zA-Z0-9]+", "-", ascii_text).strip("-").lower()
+    return slug or "prodotto"
+
+
+def _set_text(parent, tag, value):
+    child = ET.SubElement(parent, tag)
+    child.text = "" if value is None else str(value)
+    return child
+
+
+def _set_language_text(parent, tag, value, language_id="1"):
+    node = ET.SubElement(parent, tag)
+    language = ET.SubElement(node, "language")
+    language.set("id", str(language_id or "1"))
+    language.text = "" if value is None else str(value)
+    return node
+
+
+def _prestashop_external_url(product_id):
+    ps_url = _prestashop_url()
+    return f"{ps_url}/products/{product_id}" if ps_url and product_id else None
+
+
+def _cached_options(cache_key, loader):
+    now = time.time()
+    cached = _OPTIONS_CACHE.get(cache_key)
+    if cached and now - cached["ts"] < _OPTIONS_CACHE_TTL_SECONDS:
+        return cached["value"]
+    value = loader()
+    _OPTIONS_CACHE[cache_key] = {"ts": now, "value": value}
+    return value
+
+
+def _get_prestashop_resource(resource, *, display="full", limit=None):
+    ps_url = _prestashop_url()
+    ps_key = _prestashop_key()
+    if not ps_url or not ps_key:
+        raise RuntimeError("Prestashop non configurato")
+    params = {"ws_key": ps_key, "display": display}
+    if limit:
+        params["limit"] = limit
+    response = requests.get(
+        f"{ps_url}/{resource}",
+        auth=HTTPBasicAuth(ps_key, ""),
+        params=params,
+        timeout=60,
+    )
+    response.raise_for_status()
+    return xmltodict.parse(response.content)
+
+
+def _ensure_list(value):
+    if value is None:
+        return []
+    return value if isinstance(value, list) else [value]
+
+
+def _language_text(value):
+    if isinstance(value, dict):
+        language = value.get("language")
+        if isinstance(language, list):
+            return next((item.get("#text", "") for item in language if item.get("#text")), "")
+        if isinstance(language, dict):
+            return language.get("#text", "") or ""
+        return value.get("#text", "") or ""
+    return str(value or "")
+
+
+def get_category_options():
+    def load():
+        payload = _get_prestashop_resource("categories")
+        categories = _ensure_list((payload.get("prestashop") or {}).get("categories", {}).get("category"))
+        options = []
+        for category in categories:
+            if not isinstance(category, dict):
+                continue
+            category_id = category.get("id") or category.get("@id")
+            name = _language_text(category.get("name")) or f"Categoria {category_id}"
+            if category_id:
+                options.append({"value": str(category_id), "label": f"{category_id} - {name}"})
+        return sorted(options, key=lambda item: item["label"].lower())
+
+    return _cached_options("categories", load)
+
+
+def get_tax_rule_group_options():
+    def load():
+        payload = _get_prestashop_resource("tax_rule_groups")
+        groups = _ensure_list((payload.get("prestashop") or {}).get("tax_rule_groups", {}).get("tax_rule_group"))
+        options = []
+        for group in groups:
+            if not isinstance(group, dict):
+                continue
+            group_id = group.get("id") or group.get("@id")
+            name = group.get("name") or f"Regola IVA {group_id}"
+            active = group.get("active")
+            if group_id and str(active).strip() not in {"0", "False", "false"}:
+                options.append({"value": str(group_id), "label": f"{group_id} - {name}"})
+        return sorted(options, key=lambda item: item["label"].lower())
+
+    return _cached_options("tax_rule_groups", load)
+
+
+def create_product(payload):
+    ps_url = _prestashop_url()
+    ps_key = _prestashop_key()
+    if not ps_url or not ps_key:
+        raise RuntimeError("Prestashop non configurato")
+
+    data = payload if isinstance(payload, dict) else {}
+    required = ["reference", "name", "price", "id_category_default"]
+    missing = [field for field in required if not str(data.get(field) or "").strip()]
+    if missing:
+        raise ValueError("Campi Prestashop obbligatori mancanti: " + ", ".join(missing))
+
+    prestashop = ET.Element("prestashop")
+    product = ET.SubElement(prestashop, "product")
+    _set_text(product, "reference", data.get("reference"))
+    _set_language_text(product, "name", data.get("name"))
+    _set_language_text(product, "link_rewrite", data.get("link_rewrite") or _slugify_prestashop(data.get("name")))
+    _set_language_text(product, "description_short", data.get("description_short") or "")
+    _set_language_text(product, "description", data.get("description") or "")
+    _set_text(product, "price", data.get("price"))
+    _set_text(product, "active", _bool_text(data.get("active"), default=False))
+    _set_text(product, "available_for_order", _bool_text(data.get("available_for_order"), default=True))
+    _set_text(product, "show_price", _bool_text(data.get("show_price"), default=True))
+    _set_text(product, "id_category_default", data.get("id_category_default"))
+    if str(data.get("id_tax_rules_group") or "").strip():
+        _set_text(product, "id_tax_rules_group", data.get("id_tax_rules_group"))
+
+    associations = ET.SubElement(product, "associations")
+    categories = ET.SubElement(associations, "categories")
+    category = ET.SubElement(categories, "category")
+    _set_text(category, "id", data.get("id_category_default"))
+
+    body = ET.tostring(prestashop, encoding="utf-8", xml_declaration=True)
+    response = requests.post(
+        f"{ps_url}/products",
+        auth=HTTPBasicAuth(ps_key, ""),
+        params={"ws_key": ps_key},
+        data=body,
+        headers={"Content-Type": "application/xml"},
+        timeout=60,
+    )
+    if response.status_code not in (200, 201):
+        raise RuntimeError(f"Prestashop HTTP {response.status_code}: {response.text[:1000]}")
+
+    try:
+        parsed = xmltodict.parse(response.content)
+    except Exception:
+        parsed = {"raw": response.text[:1000]}
+
+    product_node = (parsed.get("prestashop") or {}).get("product") if isinstance(parsed, dict) else {}
+    product_id = None
+    if isinstance(product_node, dict):
+        product_id = product_node.get("id") or product_node.get("@id")
+    if isinstance(product_id, dict):
+        product_id = product_id.get("#text")
+    if not product_id:
+        try:
+            root = ET.fromstring(response.content)
+            id_node = root.find(".//product/id")
+            product_id = id_node.text if id_node is not None else None
+        except Exception:
+            product_id = None
+    if not product_id:
+        raise RuntimeError("Prestashop non ha restituito l'ID del prodotto creato")
+
+    return {
+        "product_id": str(product_id),
+        "external_url": _prestashop_external_url(product_id),
+        "raw_payload": parsed,
+        "status_code": response.status_code,
+    }
 
 
 def get_product_by_code(cod_art):

@@ -18,6 +18,7 @@ from models import (
     Immagini,
     ProductAsset,
     CourierIntegration,
+    ProductPlatformField,
     ProductPlatformLink,
     SchedeProdotti,
     Inventario,
@@ -26,7 +27,10 @@ from models import (
 )
 from routes.tools import clean_text
 from tools.ps_util import (
+    create_product as prestashop_create_product,
     delete_product_image as prestashop_delete_product_image,
+    get_category_options as prestashop_get_category_options,
+    get_tax_rule_group_options as prestashop_get_tax_rule_group_options,
     upload_product_image as prestashop_upload_product_image,
 )
 from tools.shipping_connectors import PoleepoConnector, ShippingConnectorError, ShippingConnectorNotConfigured
@@ -47,10 +51,227 @@ PRODUCT_IMAGE_PLATFORMS = {
 }
 ALLOWED_PRODUCT_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 OFFICE_ROLE_WEIGHT = 40
+PRODUCT_PUBLICATION_SCHEMAS = {
+    "prestashop": {
+        "label": "Prestashop",
+        "fields": [
+            {"name": "reference", "label": "Riferimento / SKU", "type": "text", "required": True, "source": "cod_art"},
+            {"name": "name", "label": "Nome prodotto", "type": "text", "required": True, "source": "descrizione"},
+            {"name": "description_short", "label": "Descrizione breve", "type": "textarea", "required": False, "source": "scheda_short"},
+            {"name": "description", "label": "Descrizione lunga", "type": "textarea", "required": False, "source": "scheda_tecnica"},
+            {"name": "price", "label": "Prezzo", "type": "decimal", "required": True, "source": "prezzo"},
+            {"name": "active", "label": "Attivo", "type": "bool", "required": False, "source": "default_false"},
+            {"name": "available_for_order", "label": "Disponibile ordine", "type": "bool", "required": False, "source": "default_true"},
+            {"name": "show_price", "label": "Mostra prezzo", "type": "bool", "required": False, "source": "default_true"},
+            {
+                "name": "id_category_default",
+                "label": "Categoria default Prestashop",
+                "type": "select",
+                "required": True,
+                "source": "manual",
+                "options_source": "prestashop_categories",
+                "help": "Categoria principale in cui verra' creato il prodotto su Prestashop.",
+            },
+            {
+                "name": "id_tax_rules_group",
+                "label": "Regola IVA Prestashop",
+                "type": "select",
+                "required": False,
+                "source": "manual",
+                "options_source": "prestashop_tax_rule_groups",
+                "help": "Regola IVA Prestashop. Se lasciata vuota, Prestashop applichera' il proprio default.",
+            },
+        ],
+    },
+    "poleepo": {
+        "label": "Poleepo",
+        "fields": [
+            {"name": "sku", "label": "SKU", "type": "text", "required": True, "source": "cod_art"},
+            {"name": "name", "label": "Nome prodotto", "type": "text", "required": True, "source": "descrizione"},
+            {"name": "description", "label": "Descrizione", "type": "textarea", "required": False, "source": "scheda_tecnica"},
+            {"name": "price", "label": "Prezzo", "type": "decimal", "required": True, "source": "prezzo"},
+            {"name": "barcode", "label": "Barcode principale", "type": "text", "required": False, "source": "barcode_primary"},
+            {"name": "quantity", "label": "Quantita' online", "type": "integer", "required": False, "source": "giac_www"},
+            {"name": "active", "label": "Attivo", "type": "bool", "required": False, "source": "default_true"},
+        ],
+    },
+}
 
 
 def _can_manage_product_images():
     return bool(current_user.is_authenticated and (current_user.max_role_weight or 0) >= OFFICE_ROLE_WEIGHT)
+
+
+def _can_publish_product_to_platform(platform_key, platform_links):
+    config = PRODUCT_IMAGE_PLATFORMS.get(platform_key)
+    if not config or not config.get("enabled") or platform_key == "ldapp":
+        return False
+    link = platform_links.get(platform_key)
+    return not link or link.status in ("absent", "error") or not link.external_id
+
+
+def _product_publication_source_value(source, articolo, scheda, barcodes, giacenze):
+    if source == "cod_art":
+        return articolo.cod_art or ""
+    if source == "descrizione":
+        return articolo.descrizione or ""
+    if source == "descrizione_aggiuntiva":
+        return articolo.descrizione_aggiuntiva or ""
+    if source == "scheda_short":
+        return (scheda.short if scheda else None) or articolo.descrizione_aggiuntiva or ""
+    if source == "scheda_tecnica":
+        return (scheda.descrizione if scheda else None) or articolo.descrizione_aggiuntiva or articolo.descrizione or ""
+    if source == "prezzo":
+        return "" if articolo.prezzo is None else str(articolo.prezzo)
+    if source == "barcode_primary":
+        return barcodes[0].cod_bar if barcodes else ""
+    if source == "giac_www":
+        return str(giacenze.giac_www if giacenze else 0)
+    if source == "default_true":
+        return "1"
+    if source == "default_false":
+        return "0"
+    return ""
+
+
+def _product_publication_schema(platform_key):
+    schema = PRODUCT_PUBLICATION_SCHEMAS.get(platform_key)
+    if not schema:
+        raise ValueError("Piattaforma non supportata per la pubblicazione prodotto")
+    return schema
+
+
+def _product_publication_field_options(platform_key, spec):
+    source = spec.get("options_source")
+    if platform_key != "prestashop" or not source:
+        return [], None
+    try:
+        if source == "prestashop_categories":
+            return prestashop_get_category_options(), None
+        if source == "prestashop_tax_rule_groups":
+            return prestashop_get_tax_rule_group_options(), None
+    except Exception as exc:
+        logger.warning("Opzioni %s non disponibili: %s", source, exc)
+        return [], str(exc)
+    return [], None
+
+
+def _build_product_publication_draft(articolo, platform_key, *, include_options=True):
+    schema = _product_publication_schema(platform_key)
+    scheda = SchedeProdotti.query.filter_by(cod_art=articolo.cod_art).first()
+    barcodes = Barcode.query.filter_by(cod_art=articolo.cod_art).order_by(Barcode.cod_bar.asc()).all()
+    giacenze = Giacenza.query.filter_by(cod_art=articolo.cod_art).first()
+    saved_rows = {
+        (row.field_name, row.language or ""): row
+        for row in ProductPlatformField.query.filter_by(cod_art=articolo.cod_art, platform=platform_key).all()
+    }
+    fields = []
+    for spec in schema["fields"]:
+        language = spec.get("language", "")
+        saved = saved_rows.get((spec["name"], language))
+        mapped_value = _product_publication_source_value(spec.get("source"), articolo, scheda, barcodes, giacenze)
+        value = saved.value_text if saved and saved.value_text is not None else mapped_value
+        options, options_error = _product_publication_field_options(platform_key, spec) if include_options else ([], None)
+        fields.append({
+            "name": spec["name"],
+            "label": spec["label"],
+            "type": spec.get("type", "text"),
+            "required": bool(spec.get("required")),
+            "source": spec.get("source") or "manual",
+            "language": language,
+            "value": value or "",
+            "mapped_value": mapped_value or "",
+            "saved": bool(saved),
+            "missing": bool(spec.get("required")) and not str(value or "").strip(),
+            "options": options,
+            "options_error": options_error,
+            "help": spec.get("help") or "",
+        })
+    return {
+        "platform": platform_key,
+        "label": schema["label"],
+        "cod_art": articolo.cod_art,
+        "fields": fields,
+        "missing_required": [field["name"] for field in fields if field["missing"]],
+    }
+
+
+def _save_product_publication_draft(articolo, platform_key, fields):
+    schema = _product_publication_schema(platform_key)
+    allowed = {
+        (field["name"], field.get("language", "")): field
+        for field in schema["fields"]
+    }
+    saved = []
+    for field in fields or []:
+        name = str(field.get("name") or "").strip()
+        language = str(field.get("language") or "").strip()
+        if (name, language) not in allowed:
+            continue
+        value = field.get("value")
+        row = ProductPlatformField.query.filter_by(
+            cod_art=articolo.cod_art,
+            platform=platform_key,
+            field_name=name,
+            language=language,
+        ).first()
+        if not row:
+            row = ProductPlatformField(
+                cod_art=articolo.cod_art,
+                id_art=articolo.id_art,
+                platform=platform_key,
+                field_name=name,
+                language=language,
+            )
+            db.session.add(row)
+        row.id_art = articolo.id_art
+        row.value_text = "" if value is None else str(value)
+        row.value_json = {
+            "schema_source": allowed[(name, language)].get("source") or "manual",
+            "saved_from": "publication_draft",
+        }
+        row.last_sync_at = datetime.utcnow()
+        saved.append(row)
+    return saved
+
+
+def _publication_fields_to_payload(draft):
+    return {
+        field["name"]: field["value"]
+        for field in draft.get("fields", [])
+    }
+
+
+def _publish_product_to_platform(articolo, platform_key, draft):
+    if draft.get("missing_required"):
+        raise ValueError("Campi obbligatori mancanti: " + ", ".join(draft["missing_required"]))
+
+    payload = _publication_fields_to_payload(draft)
+    if platform_key == "prestashop":
+        result = prestashop_create_product(payload)
+        link = ProductPlatformLink.query.filter_by(cod_art=articolo.cod_art, platform=platform_key).first()
+        if not link:
+            link = ProductPlatformLink(
+                cod_art=articolo.cod_art,
+                id_art=articolo.id_art,
+                platform=platform_key,
+            )
+            db.session.add(link)
+        link.id_art = articolo.id_art
+        link.external_id = result["product_id"]
+        link.external_url = result.get("external_url")
+        link.status = "present"
+        link.last_sync_at = datetime.utcnow()
+        link.last_error = None
+        link.raw_payload = result.get("raw_payload")
+        return {
+            "platform": platform_key,
+            "external_id": link.external_id,
+            "external_url": link.external_url,
+            "raw_payload": result.get("raw_payload"),
+        }
+
+    raise NotImplementedError(f"Pubblicazione prodotto su {platform_key} non ancora disponibile")
 
 
 def _asset_public_url(asset):
@@ -419,6 +640,7 @@ def get_product_by_code(cod_art):
                 "supported": config["enabled"],
                 "status": platform_links[key].status if key in platform_links else "absent",
                 "external_id": platform_links[key].external_id if key in platform_links else None,
+                "can_publish_product": _can_publish_product_to_platform(key, platform_links),
             }
             for key, config in PRODUCT_IMAGE_PLATFORMS.items()
             if key != "ldapp"
@@ -427,6 +649,7 @@ def get_product_by_code(cod_art):
             "cod_art": cod_art,
             "barcodes": [row.cod_bar for row in barcode_rows],
             "platforms": platforms,
+            "publishable_platforms": [platform for platform in platforms if platform["can_publish_product"]],
             "image_slots": _platform_image_slots(immagini),
             "can_manage_images": _can_manage_product_images(),
             "can_publish_products": _can_manage_product_images(),
@@ -451,6 +674,94 @@ def scheda_articolo(cod_art):
         logger.warning(f"Articolo {cod_art} non trovato - abort 404")
         abort(404)
     return render_template('scheda_articolo.html', product=product)
+
+
+@search_bp.get('/scheda_articolo/<cod_art>/publish/<platform_key>/draft')
+@login_required
+def product_publication_draft(cod_art, platform_key):
+    if not _can_manage_product_images():
+        return jsonify({"ok": False, "error": "Accesso negato"}), 403
+
+    articolo = Articoli.query.filter_by(cod_art=cod_art).first()
+    if not articolo:
+        return jsonify({"ok": False, "error": "Articolo non trovato."}), 404
+
+    platform_key = (platform_key or "").strip().lower()
+    platform_links = {link.platform: link for link in ProductPlatformLink.query.filter_by(cod_art=cod_art).all()}
+    if not _can_publish_product_to_platform(platform_key, platform_links):
+        return jsonify({"ok": False, "error": "Articolo gia' presente o piattaforma non pubblicabile."}), 400
+
+    try:
+        draft = _build_product_publication_draft(articolo, platform_key, include_options=True)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    return jsonify({"ok": True, "draft": draft})
+
+
+@search_bp.post('/scheda_articolo/<cod_art>/publish/<platform_key>/draft')
+@login_required
+def save_product_publication_draft(cod_art, platform_key):
+    if not _can_manage_product_images():
+        return jsonify({"ok": False, "error": "Accesso negato"}), 403
+
+    articolo = Articoli.query.filter_by(cod_art=cod_art).first()
+    if not articolo:
+        return jsonify({"ok": False, "error": "Articolo non trovato."}), 404
+
+    platform_key = (platform_key or "").strip().lower()
+    platform_links = {link.platform: link for link in ProductPlatformLink.query.filter_by(cod_art=cod_art).all()}
+    if not _can_publish_product_to_platform(platform_key, platform_links):
+        return jsonify({"ok": False, "error": "Articolo gia' presente o piattaforma non pubblicabile."}), 400
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        saved_rows = _save_product_publication_draft(articolo, platform_key, payload.get("fields") or [])
+        db.session.commit()
+        draft = _build_product_publication_draft(articolo, platform_key, include_options=False)
+        return jsonify({"ok": True, "saved": len(saved_rows), "draft": draft})
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception("Errore salvataggio bozza pubblicazione %s per %s", platform_key, cod_art)
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@search_bp.post('/scheda_articolo/<cod_art>/publish/<platform_key>')
+@login_required
+def publish_product_to_platform(cod_art, platform_key):
+    if not _can_manage_product_images():
+        return jsonify({"ok": False, "error": "Accesso negato"}), 403
+
+    articolo = Articoli.query.filter_by(cod_art=cod_art).first()
+    if not articolo:
+        return jsonify({"ok": False, "error": "Articolo non trovato."}), 404
+
+    platform_key = (platform_key or "").strip().lower()
+    platform_links = {link.platform: link for link in ProductPlatformLink.query.filter_by(cod_art=cod_art).all()}
+    if not _can_publish_product_to_platform(platform_key, platform_links):
+        return jsonify({"ok": False, "error": "Articolo gia' presente o piattaforma non pubblicabile."}), 400
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        if payload.get("fields"):
+            _save_product_publication_draft(articolo, platform_key, payload.get("fields") or [])
+            db.session.flush()
+        draft = _build_product_publication_draft(articolo, platform_key, include_options=False)
+        result = _publish_product_to_platform(articolo, platform_key, draft)
+        db.session.commit()
+        return jsonify({"ok": True, "result": result})
+    except NotImplementedError as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception("Errore pubblicazione prodotto su %s per %s", platform_key, cod_art)
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 @search_bp.post('/scheda_articolo/<cod_art>/images')

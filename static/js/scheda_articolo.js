@@ -7,12 +7,20 @@ document.addEventListener("DOMContentLoaded", function () {
     var deleteSummary = document.getElementById("productImageDeleteSummary");
     var deleteTargets = document.getElementById("productImageDeleteTargets");
     var deleteConfirmButton = document.getElementById("productImageDeleteConfirm");
+    var publicationModalElement = document.getElementById("productPublicationModal");
+    var publicationTitle = document.getElementById("productPublicationTitle");
+    var publicationSubtitle = document.getElementById("productPublicationSubtitle");
+    var publicationFields = document.getElementById("productPublicationFields");
+    var publicationSaveButton = document.getElementById("productPublicationSave");
+    var publicationPublishButton = document.getElementById("productPublicationPublish");
     var closeButton = document.getElementById("productSheetCloseBtn");
     var productCode = document.querySelector(".product-sheet-page") ? document.querySelector(".product-sheet-page").dataset.productCode : "";
     var draggedImage = null;
     var contextImage = null;
     var deleteModal = null;
     var deleteSelection = [];
+    var publicationModal = null;
+    var publicationPlatform = "";
 
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (element) {
         if (window.bootstrap && bootstrap.Tooltip) {
@@ -301,6 +309,257 @@ document.addEventListener("DOMContentLoaded", function () {
         alert(parts.join("\n") || ("Pubblicazione completata per " + currentImageLabel(image)));
     }
 
+    function publicationDraftUrl(platform) {
+        return getProductSheetBaseUrl() + "/publish/" + encodeURIComponent(platform) + "/draft";
+    }
+
+    function publicationPublishUrl(platform) {
+        return getProductSheetBaseUrl() + "/publish/" + encodeURIComponent(platform);
+    }
+
+    function renderPublicationField(field) {
+        var wrapper = document.createElement("div");
+        wrapper.className = "product-publication-field" + (field.missing ? " is-missing" : "");
+        wrapper.dataset.fieldName = field.name;
+        wrapper.dataset.language = field.language || "";
+
+        var label = document.createElement("label");
+        label.className = "form-label d-flex justify-content-between gap-2";
+        label.htmlFor = "publish-field-" + field.name;
+        label.innerHTML = "<span>" + field.label + (field.required ? " *" : "") + "</span><span class=\"text-muted small\">" + field.source + "</span>";
+
+        var input;
+        var filterInput = null;
+        if (field.options && field.options.length) {
+            if (field.options.length > 20) {
+                filterInput = document.createElement("input");
+                filterInput.type = "search";
+                filterInput.className = "form-control form-control-sm mb-2";
+                filterInput.placeholder = "Filtra elenco...";
+            }
+            input = document.createElement("select");
+            if (!field.required) {
+                var emptyOption = document.createElement("option");
+                emptyOption.value = "";
+                emptyOption.textContent = "Nessuna selezione";
+                input.appendChild(emptyOption);
+            } else {
+                var placeholderOption = document.createElement("option");
+                placeholderOption.value = "";
+                placeholderOption.textContent = "Seleziona...";
+                input.appendChild(placeholderOption);
+            }
+            field.options.forEach(function (optionData) {
+                var option = document.createElement("option");
+                option.value = optionData.value;
+                option.textContent = optionData.label;
+                input.appendChild(option);
+            });
+            if (filterInput) {
+                filterInput.addEventListener("input", function () {
+                    var query = filterInput.value.trim().toLowerCase();
+                    Array.from(input.options).forEach(function (option, index) {
+                        if (index === 0) {
+                            option.hidden = false;
+                            return;
+                        }
+                        option.hidden = query && option.textContent.toLowerCase().indexOf(query) === -1;
+                    });
+                });
+            }
+        } else if (field.type === "textarea") {
+            input = document.createElement("textarea");
+            input.rows = 4;
+        } else if (field.type === "bool") {
+            input = document.createElement("select");
+            [
+                { value: "1", label: "Si" },
+                { value: "0", label: "No" }
+            ].forEach(function (optionData) {
+                var option = document.createElement("option");
+                option.value = optionData.value;
+                option.textContent = optionData.label;
+                input.appendChild(option);
+            });
+        } else {
+            input = document.createElement("input");
+            input.type = field.type === "decimal" || field.type === "integer" ? "number" : "text";
+            if (field.type === "decimal") {
+                input.step = "0.01";
+            }
+            if (field.type === "integer") {
+                input.step = "1";
+            }
+        }
+        input.id = "publish-field-" + field.name;
+        input.className = "form-control";
+        input.value = field.value || "";
+        input.dataset.fieldName = field.name;
+        input.dataset.language = field.language || "";
+        if (field.required) {
+            input.required = true;
+        }
+
+        var help = document.createElement("div");
+        help.className = "form-text";
+        if (field.options_error) {
+            help.textContent = "Lista valori non disponibile: " + field.options_error;
+        } else if (field.help) {
+            help.textContent = field.help;
+        } else {
+            help.textContent = field.saved
+                ? "Valore salvato nella bozza piattaforma."
+                : "Valore proposto dal mapping LDApp.";
+        }
+
+        wrapper.appendChild(label);
+        if (filterInput) {
+            wrapper.appendChild(filterInput);
+        }
+        wrapper.appendChild(input);
+        wrapper.appendChild(help);
+        return wrapper;
+    }
+
+    function renderPublicationDraft(draft) {
+        if (!publicationFields) {
+            return;
+        }
+        publicationFields.innerHTML = "";
+        if (publicationTitle) {
+            publicationTitle.textContent = "Pubblica su " + draft.label;
+        }
+        if (publicationSubtitle) {
+            publicationSubtitle.textContent = "Articolo " + draft.cod_art + " - " + draft.fields.length + " campi";
+        }
+        if (draft.missing_required && draft.missing_required.length) {
+            var alertBox = document.createElement("div");
+            alertBox.className = "alert alert-warning small mb-0";
+            alertBox.textContent = "Completa i campi obbligatori mancanti prima della pubblicazione reale.";
+            publicationFields.appendChild(alertBox);
+        }
+        if (publicationPublishButton) {
+            publicationPublishButton.disabled = Boolean(draft.missing_required && draft.missing_required.length) || draft.platform !== "prestashop";
+            publicationPublishButton.innerHTML = draft.platform === "prestashop"
+                ? '<i class="fa-solid fa-cloud-arrow-up"></i> Pubblica su Prestashop'
+                : '<i class="fa-solid fa-cloud-arrow-up"></i> Pubblicazione non disponibile';
+        }
+        draft.fields.forEach(function (field) {
+            publicationFields.appendChild(renderPublicationField(field));
+        });
+    }
+
+    function collectPublicationFields() {
+        return Array.from(publicationFields.querySelectorAll("[data-field-name] .form-control")).map(function (input) {
+            return {
+                name: input.dataset.fieldName,
+                language: input.dataset.language || "",
+                value: input.value
+            };
+        });
+    }
+
+    function openPublicationModal(platform) {
+        if (!publicationModal || !publicationFields) {
+            return;
+        }
+        publicationPlatform = platform;
+        publicationFields.innerHTML = "<div class=\"text-muted\">Caricamento campi...</div>";
+        if (publicationSaveButton) {
+            publicationSaveButton.disabled = true;
+        }
+        if (publicationPublishButton) {
+            publicationPublishButton.disabled = true;
+        }
+        publicationModal.show();
+        fetch(publicationDraftUrl(platform), {
+            method: "GET",
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+            credentials: "same-origin"
+        }).then(function (response) {
+            return parseJsonResponse(response).then(function (data) {
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || "Bozza pubblicazione non disponibile");
+                }
+                return data.draft;
+            });
+        }).then(function (draft) {
+            renderPublicationDraft(draft);
+            if (publicationSaveButton) {
+                publicationSaveButton.disabled = false;
+            }
+        }).catch(function (error) {
+            publicationFields.innerHTML = "<div class=\"alert alert-danger mb-0\">" + (error.message || "Errore caricamento bozza") + "</div>";
+        });
+    }
+
+    function savePublicationDraft() {
+        if (!publicationPlatform || !publicationSaveButton) {
+            return;
+        }
+        publicationSaveButton.disabled = true;
+        publicationSaveButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Salvo';
+        fetch(publicationDraftUrl(publicationPlatform), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({ fields: collectPublicationFields() })
+        }).then(function (response) {
+            return parseJsonResponse(response).then(function (data) {
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || "Salvataggio bozza non riuscito");
+                }
+                return data.draft;
+            });
+        }).then(function (draft) {
+            renderPublicationDraft(draft);
+            alert("Bozza salvata in LDApp. Nessun prodotto remoto e' stato creato.");
+        }).catch(function (error) {
+            alert(error.message || "Salvataggio bozza non riuscito");
+        }).finally(function () {
+            publicationSaveButton.disabled = false;
+            publicationSaveButton.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salva bozza';
+        });
+    }
+
+    function publishProductDraft() {
+        if (!publicationPlatform || !publicationPublishButton) {
+            return;
+        }
+        if (!window.confirm("Pubblicare ora il prodotto sulla piattaforma selezionata?")) {
+            return;
+        }
+        publicationPublishButton.disabled = true;
+        publicationPublishButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Pubblico';
+        fetch(publicationPublishUrl(publicationPlatform), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({ fields: collectPublicationFields() })
+        }).then(function (response) {
+            return parseJsonResponse(response).then(function (data) {
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || "Pubblicazione prodotto non riuscita");
+                }
+                return data;
+            });
+        }).then(function (data) {
+            var result = data.result || {};
+            alert("Prodotto pubblicato. ID esterno: " + (result.external_id || "-"));
+            window.location.reload();
+        }).catch(function (error) {
+            alert(error.message || "Pubblicazione prodotto non riuscita");
+            publicationPublishButton.disabled = false;
+            publicationPublishButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Pubblica';
+        });
+    }
+
     function selectFirstImageForPlatform(platform) {
         if (!carouselElement || !platform) {
             return;
@@ -403,6 +662,31 @@ document.addEventListener("DOMContentLoaded", function () {
                 window.location.href = fallbackUrl;
             }
         });
+    }
+
+    if (publicationModalElement) {
+        if (publicationModalElement.parentElement !== document.body) {
+            document.body.appendChild(publicationModalElement);
+        }
+        publicationModal = bootstrap.Modal.getOrCreateInstance(publicationModalElement);
+        publicationModalElement.addEventListener("show.bs.modal", function () {
+            document.body.classList.add("product-publication-modal-open");
+        });
+        publicationModalElement.addEventListener("hidden.bs.modal", function () {
+            document.body.classList.remove("product-publication-modal-open");
+            publicationPlatform = "";
+        });
+        document.querySelectorAll(".product-publish-btn").forEach(function (button) {
+            button.addEventListener("click", function () {
+                openPublicationModal(button.dataset.platform);
+            });
+        });
+        if (publicationSaveButton) {
+            publicationSaveButton.addEventListener("click", savePublicationDraft);
+        }
+        if (publicationPublishButton) {
+            publicationPublishButton.addEventListener("click", publishProductDraft);
+        }
     }
 
     if (!modalElement) {

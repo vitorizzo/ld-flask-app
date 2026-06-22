@@ -282,6 +282,16 @@ La scheda prodotto e' stata estesa con:
 - drag/drop sugli slot predisposto lato UI, con invio a piattaforme esterne non ancora implementato.
 - pubblicazione immagini attiva su Prestashop con `POST /search/scheda_articolo/<cod_art>/images/publish`;
 - pubblicazione immagini attiva anche su Poleepo tramite `PoleepoConnector.upload_image()` con endpoint upload configurabile; il connettore prova piu' candidati di path, nome campo file, upload da URL pubblica, PUT binario e infine `PUT /products/{id}` con `images`, ma l'upload resta da verificare sul server Poleepo reale;
+- avviata pubblicazione prodotto verso piattaforme:
+  - schema iniziale campi per Prestashop e Poleepo in `routes/search.py`;
+  - endpoint bozza `GET/POST /search/scheda_articolo/<cod_art>/publish/<platform>/draft`;
+  - endpoint publish reale `POST /search/scheda_articolo/<cod_art>/publish/prestashop`;
+  - mappatura proposta dai dati LDApp (`Articoli`, `SchedeProdotti`, barcode, giacenza web);
+  - salvataggio bozza in `ProductPlatformField` prima dell'invio remoto;
+  - UI scheda prodotto con pulsanti `Pubblica su ...` per piattaforme assenti e modale di revisione campi;
+  - creazione prodotto Prestashop tramite webservice XML e creazione `ProductPlatformLink` dopo risposta remota;
+  - campi lista Prestashop `id_category_default` e `id_tax_rules_group` caricati dal webservice e mostrati come select filtrabili nella modale;
+  - liste Prestashop cache in memoria per 30 minuti; `Salva bozza` non ricarica opzioni remote e non crea prodotto remoto.
 - azione `Imposta come default` sulla famiglia immagine con `POST /search/scheda_articolo/<cod_art>/images/<asset_id>/primary`;
 - rimozione immagini con perimetro esplicito tramite `POST /search/scheda_articolo/<cod_art>/images/delete`;
 - delete remoto implementato su Prestashop e Poleepo; Poleepo usa `PoleepoConnector.delete_image()` con fallback configurabile sul path remoto;
@@ -289,8 +299,9 @@ La scheda prodotto e' stata estesa con:
 - menu contestuale esteso con `Imposta come default` e `Rimuovi immagine`;
 - badge visivo `Default` sulla primaria e preview slot piattaforma che privilegia la copia primaria della piattaforma.
 
-Le integrazioni di upload verso Prestashop, Poleepo, Ebay e Amazon non sono ancora operative.
-Il prossimo step tecnico sara' implementare endpoint/adapter specifici per pubblicare una immagine esistente verso una piattaforma abilitata.
+La pubblicazione prodotto remota e' attiva per Prestashop solo quando la bozza ha tutti i campi obbligatori. Poleepo resta nello stato bozza finche' non viene validato il payload API prodotto.
+Primo publish reale validato: `BB03308` creato su Prestashop come prodotto `32361`, non attivo (`active=0`), con link locale `ProductPlatformLink` in stato `present`.
+Prossimo passo: leggere documentazione Prestashop/Poleepo per completare lo schema campi, gestire creazione di categorie/caratteristiche mancanti, attivazione/disattivazione/eliminazione prodotto remoto e publish prodotto Poleepo.
 
 ## Permessi scheda prodotto
 
@@ -899,6 +910,6 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - 2026-06-19 banche: aggiunto `CashBank.logo_path` con migration `5e6f708192a3`; gestione upload/preview logo in `/settings/banks`, storage in `static/images/banks`.
 - 2026-06-19 chiusura report: `api_close_cash_day()` carica/recupera sempre la `CashClosure` esistente prima di creare una nuova riga, rendendo idempotente la ristampa dopo riapertura e modifica giornata.
 - 2026-06-19 snapshot report: `CashClosure.fiscal_snapshot` contiene anche `report_payload` fiscale completo; la stampa di una giornata aperta chiude e stampa lo snapshot appena salvato, mentre una giornata chiusa stampa dallo snapshot salvato o lo rigenera se stale. Le chiusure successive vengono marcate stale e ricalcolate in cascata.
-- 2026-06-20 nota report/quadratura: correzione snapshot/report sospesa in attesa di dati corretti per validazione.
+- 2026-06-20/22 report/quadratura: correzione snapshot/report validata dall'utente su due giornate reali e sospensione rimossa.
 - 2026-06-20 utenti impostazioni: aggiunti `SpecialPermission`/`UserSpecialPermission` con migration `6f708192a3b4`; `/settings/users` ora supporta modali di modifica, cambio ruolo, autorizzazioni temporanee/speciali, eliminazione e reset password 24 ore.
 - 2026-06-20 UI impostazioni: `/settings/banks`, `/settings/pos-circuits` e `/settings/pos-devices` sono state uniformate allo stile `/settings/users` con tabelle, modali detail/edit, azioni rapide e fix preventivo focus/stacking modali.

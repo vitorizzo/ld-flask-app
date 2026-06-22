@@ -209,6 +209,31 @@
   body.product-image-delete-modal-open .modal-backdrop.show {
     z-index: 5190 !important;
   }
+  .product-publication-modal.modal,
+  .product-publication-modal.modal.show {
+    z-index: 5300 !important;
+  }
+  .product-publication-modal .modal-dialog {
+    z-index: 5301 !important;
+  }
+  body.product-publication-modal-open .modal-backdrop.show {
+    z-index: 5290 !important;
+  }
+  .product-publication-fields {
+    max-height: 56vh;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .product-publication-field {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 10px;
+    background: #fff;
+  }
+  .product-publication-field.is-missing {
+    border-color: #dc3545;
+    background: #fff5f5;
+  }
   .product-image-context-menu {
     position: fixed;
     display: none;
@@ -417,6 +442,18 @@
                   </span>
                 {% endfor %}
               </div>
+              {% if product.publishable_platforms %}
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                  {% for platform in product.publishable_platforms %}
+                    <button type="button"
+                            class="btn btn-sm btn-outline-primary product-publish-btn"
+                            data-platform="{{ platform.key }}">
+                      <i class="fa-solid fa-upload"></i>
+                      Pubblica su {{ platform.label }}
+                    </button>
+                  {% endfor %}
+                </div>
+              {% endif %}
             </div>
           {% endif %}
 
@@ -515,6 +552,39 @@
           <button type="button" class="btn btn-danger" id="productImageDeleteConfirm">
             <i class="fa-solid fa-trash"></i>
             Elimina selezionate
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade product-publication-modal" id="productPublicationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title" id="productPublicationTitle">Pubblica prodotto</h5>
+            <div class="text-muted small" id="productPublicationSubtitle"></div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-info small">
+            Salva bozza registra solo i valori in LDApp. Pubblica crea davvero il prodotto sulla piattaforma selezionata.
+          </div>
+          <div class="product-publication-fields vstack gap-2" id="productPublicationFields">
+            <div class="text-muted">Caricamento campi...</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+          <button type="button" class="btn btn-primary" id="productPublicationSave">
+            <i class="fa-solid fa-floppy-disk"></i>
+            Salva bozza
+          </button>
+          <button type="button" class="btn btn-success" id="productPublicationPublish">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            Pubblica
           </button>
         </div>
       </div>

@@ -1470,8 +1470,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - in modalita' completa il vault continua a salvare il payload completo ricevuto dal client quando disponibile;
   - verifiche: `python -m py_compile routes/cassa.py` ok, `node --check static/js/agenda.js` ok.
 - 2026-06-20 nota operativa report/quadratura:
-  - la correzione snapshot/report del 2026-06-19 resta sospesa in attesa di dati corretti per validare la quadratura;
-  - non proseguire ulteriormente su questa correzione finche' non vengono forniti casi reali verificabili.
+  - validazione utente completata su due giornate reali: report/quadratura risultano coerenti;
+  - la sospensione operativa viene rimossa e la correzione snapshot/report viene considerata chiusa, salvo nuovi casi reali da analizzare.
 - 2026-06-21 fix prima stampa report completa:
   - caso reale validato: con vault PRI/completo la prima `Stampa report` dopo chiusura usava lo snapshot fiscale restituito da `/cassa/api/day/<day_date>/close`, mentre la seconda stampa poteva usare il payload completo client/vault;
   - sintomo: nella prima stampa mancavano movimenti nei box incassi e la quadratura era fiscale/sballata; alla seconda stampa comparivano i movimenti e la quadratura completa corretta;
@@ -1632,3 +1632,34 @@ Performance apertura giornata Agenda 2026-06-13:
 - 2026-06-21 fix encoding tile impostazioni:
   - corretti i caratteri accentati mojibake nei tile impostazioni (`Gestione menù`, `visibilità`) e in alcune flash/error message di `routes/settings.py`;
   - verifiche: `python -m py_compile routes/settings.py`, `git diff --check`, GET reale `/settings/` 200 con `Gestione menù`/`visibilità` corretti e nessun carattere `Ã` nel markup dashboard.
+- 2026-06-22 scheda prodotto - bozza pubblicazione piattaforme:
+  - aggiunti schema iniziale campi e mapping LDApp per pubblicazione prodotto su Prestashop e Poleepo in `routes/search.py`;
+  - aggiunti endpoint `GET/POST /search/scheda_articolo/<cod_art>/publish/<platform>/draft` per generare e salvare la bozza campi piattaforma;
+  - la bozza usa `ProductPlatformField` per conservare i valori articolo/piattaforma prima dell'invio remoto;
+  - la scheda prodotto mostra pulsanti `Pubblica su Prestashop/Poleepo` solo se l'articolo risulta assente dalla piattaforma;
+  - aggiunta modale di revisione campi con evidenza dei campi obbligatori mancanti; l'invio remoto resta volutamente non attivo finche' non validiamo mapping e payload;
+  - verifiche: `python -m py_compile routes/search.py`, `node --check static/js/scheda_articolo.js`, `git diff --check`, GET reale bozza `PD02217/prestashop` 200 con 10 campi e `id_category_default` mancante, POST bozza controllato 200 con ripristino dati, render reale scheda `PD02217` 200 con pulsanti publish.
+- 2026-06-22 scheda prodotto - publish Prestashop:
+  - aggiunto `tools.ps_util.create_product()` per creare prodotti Prestashop via webservice XML;
+  - aggiunto endpoint `POST /search/scheda_articolo/<cod_art>/publish/prestashop`;
+  - il publish salva i campi correnti in bozza, valida obbligatori, invia a Prestashop e crea/aggiorna `ProductPlatformLink` con `external_id`, `external_url`, stato `present` e payload remoto;
+  - la modale scheda prodotto ora include il pulsante `Pubblica su Prestashop`; Poleepo resta disabilitato per publish reale finche' non validiamo payload/API prodotto;
+  - verifica non distruttiva: POST publish su `PD02217/prestashop` senza `id_category_default` torna 400 `Campi obbligatori mancanti` prima di chiamare Prestashop; render scheda 200 con bottone publish.
+- 2026-06-22 scheda prodotto - select Prestashop:
+  - aggiunti helper `get_category_options()` e `get_tax_rule_group_options()` in `tools/ps_util.py`;
+  - nella bozza Prestashop `id_category_default` e `id_tax_rules_group` sono `select` con opzioni lette dal webservice;
+  - la modale pubblicazione mostra un filtro testuale sulle select lunghe;
+  - verifica reale: bozza `BB03308/prestashop` restituisce 588 categorie e 6 tax rule group; `python -m py_compile routes/search.py tools/ps_util.py`, `node --check static/js/scheda_articolo.js`, `git diff --check`.
+- 2026-06-22 scheda prodotto - performance/UX bozza Prestashop:
+  - aggiunta cache in memoria 30 minuti per liste Prestashop categorie/tax rule group;
+  - il salvataggio bozza non ricarica piu' le opzioni remote, quindi resta locale/DB;
+  - la modale chiarisce la differenza tra `Salva bozza` locale e `Pubblica` reale, e i campi lista hanno help specifico;
+  - verifica reale `BB03308/prestashop`: primo GET con fetch remoto 21.82s, secondo GET da cache 0.37s, POST bozza 1.46s senza opzioni remote.
+- 2026-06-22 primo publish prodotto Prestashop:
+  - pubblicato articolo `BB03308` su Prestashop con bozza campi: categoria `195`, tax rule group `1`, `active=0`;
+  - Prestashop ha restituito prodotto `32361`, salvato in `ProductPlatformLink(platform='prestashop', external_id='32361', status='present')`;
+  - verifica render scheda `BB03308` 200: il pulsante `Pubblica su Prestashop` non viene piu' mostrato e il badge piattaforma risulta attivo.
+- 2026-06-22 punto deploy / ripartenza:
+  - stato pronto per deploy della prima versione di pubblicazione prodotto Prestashop da scheda articolo;
+  - limiti consapevoli: lo schema campi Prestashop e' ancora minimale, le liste remote usano cache in memoria e il primo caricamento dopo restart puo' essere lento, Poleepo resta in sola bozza;
+  - domani ripartire dalla documentazione Prestashop/Poleepo per completare mapping campi, creazione di categorie/caratteristiche mancanti, gestione attiva/disattiva/elimina prodotto remoto e payload prodotto Poleepo.
