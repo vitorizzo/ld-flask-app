@@ -132,6 +132,21 @@ def _format_poleepo_datetime(value: datetime | None):
     return value.replace(microsecond=0).isoformat() + "Z"
 
 
+def _decimal_number(value, *, default=0):
+    if value in (None, ""):
+        return default
+    try:
+        return float(Decimal(str(value).replace(",", ".")))
+    except (InvalidOperation, TypeError, ValueError):
+        return default
+
+
+def _bool_value(value, *, default=False):
+    if value in (None, ""):
+        return default
+    return str(value).strip().lower() in {"1", "true", "yes", "on", "si"}
+
+
 class PoleepoConnector:
     code = "poleepo"
     name = "Poleepo"
@@ -291,6 +306,66 @@ class PoleepoConnector:
         token = self.access_token()
         payload = self._request("GET", f"/shippings/{shipping_id}", token=token)
         return payload.get("data") or {}
+
+    def create_product(self, *, payload=None):
+        data = payload if isinstance(payload, dict) else {}
+        required = ["sku", "title", "price", "vat_rate", "main_category_id"]
+        missing = [field for field in required if str(data.get(field) or "").strip() == ""]
+        if missing:
+            raise ShippingConnectorError("Campi Poleepo obbligatori mancanti: " + ", ".join(missing))
+
+        main_category_id = int(_decimal_number(data.get("main_category_id"), default=0))
+        if main_category_id <= 0:
+            raise ShippingConnectorError("Categoria Poleepo non valida")
+
+        body = {
+            "sku": str(data.get("sku") or "").strip(),
+            "title": str(data.get("title") or "").strip(),
+            "price": _decimal_number(data.get("price"), default=0),
+            "vat_rate": _decimal_number(data.get("vat_rate"), default=22),
+            "quantity": int(_decimal_number(data.get("quantity"), default=0)),
+            "active": _bool_value(data.get("active"), default=True),
+            "main_category_id": main_category_id,
+        }
+
+        for optional_field in ("weight", "width", "height", "depth"):
+            if str(data.get(optional_field) or "").strip() != "":
+                body[optional_field] = _decimal_number(data.get(optional_field), default=0)
+
+        token = self.access_token()
+        response = requests.post(
+            f"{self.base_url}/products",
+            headers={
+                "Accept": "application/json",
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            json=body,
+            timeout=60,
+        )
+        try:
+            result = response.json()
+        except ValueError:
+            result = {"success": False, "message": response.text[:500]}
+        if response.status_code not in (200, 201, 202) or result.get("success") is False:
+            message = result.get("message") or f"Poleepo HTTP {response.status_code}"
+            raise ShippingConnectorError(message)
+
+        product = result.get("data") if isinstance(result.get("data"), dict) else result
+        product_id = None
+        external_url = None
+        if isinstance(product, dict):
+            product_id = product.get("id") or product.get("product_id") or product.get("external_id")
+            external_url = product.get("url") or product.get("permalink") or product.get("link")
+        if not product_id:
+            raise ShippingConnectorError("Poleepo non ha restituito l'ID del prodotto creato")
+
+        return {
+            "product_id": str(product_id),
+            "external_url": external_url,
+            "raw_payload": result,
+            "status_code": response.status_code,
+        }
 
     def update_product(self, *, product_id=None, payload=None):
         token = self.access_token()

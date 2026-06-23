@@ -439,9 +439,11 @@ document.addEventListener("DOMContentLoaded", function () {
             publicationFields.appendChild(alertBox);
         }
         if (publicationPublishButton) {
-            publicationPublishButton.disabled = Boolean(draft.missing_required && draft.missing_required.length) || draft.platform !== "prestashop";
-            publicationPublishButton.innerHTML = draft.platform === "prestashop"
-                ? '<i class="fa-solid fa-cloud-arrow-up"></i> Pubblica su Prestashop'
+            var supportedPublishPlatforms = ["prestashop", "poleepo"];
+            var canPublishPlatform = supportedPublishPlatforms.indexOf(draft.platform) !== -1;
+            publicationPublishButton.disabled = Boolean(draft.missing_required && draft.missing_required.length) || !canPublishPlatform;
+            publicationPublishButton.innerHTML = canPublishPlatform
+                ? '<i class="fa-solid fa-cloud-arrow-up"></i> Pubblica su ' + draft.label
                 : '<i class="fa-solid fa-cloud-arrow-up"></i> Pubblicazione non disponibile';
         }
         draft.fields.forEach(function (field) {

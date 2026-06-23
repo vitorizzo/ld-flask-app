@@ -87,12 +87,21 @@ PRODUCT_PUBLICATION_SCHEMAS = {
         "label": "Poleepo",
         "fields": [
             {"name": "sku", "label": "SKU", "type": "text", "required": True, "source": "cod_art"},
-            {"name": "name", "label": "Nome prodotto", "type": "text", "required": True, "source": "descrizione"},
+            {"name": "title", "label": "Nome prodotto", "type": "text", "required": True, "source": "descrizione"},
             {"name": "description", "label": "Descrizione", "type": "textarea", "required": False, "source": "scheda_tecnica"},
             {"name": "price", "label": "Prezzo", "type": "decimal", "required": True, "source": "prezzo"},
+            {"name": "vat_rate", "label": "IVA", "type": "decimal", "required": True, "source": "default_vat_22"},
             {"name": "barcode", "label": "Barcode principale", "type": "text", "required": False, "source": "barcode_primary"},
             {"name": "quantity", "label": "Quantita' online", "type": "integer", "required": False, "source": "giac_www"},
             {"name": "active", "label": "Attivo", "type": "bool", "required": False, "source": "default_true"},
+            {
+                "name": "main_category_id",
+                "label": "Categoria Poleepo",
+                "type": "integer",
+                "required": True,
+                "source": "poleepo_default_category",
+                "help": "ID categoria principale Poleepo. Default verificato sull'account: 8360 / NON CATEGORIZZATO.",
+            },
         ],
     },
 }
@@ -127,6 +136,10 @@ def _product_publication_source_value(source, articolo, scheda, barcodes, giacen
         return barcodes[0].cod_bar if barcodes else ""
     if source == "giac_www":
         return str(giacenze.giac_www if giacenze else 0)
+    if source == "default_vat_22":
+        return "22"
+    if source == "poleepo_default_category":
+        return str(current_app.config.get("POLEEPO_DEFAULT_CATEGORY_ID") or "8360")
     if source == "default_true":
         return "1"
     if source == "default_false":
@@ -249,6 +262,31 @@ def _publish_product_to_platform(articolo, platform_key, draft):
     payload = _publication_fields_to_payload(draft)
     if platform_key == "prestashop":
         result = prestashop_create_product(payload)
+        link = ProductPlatformLink.query.filter_by(cod_art=articolo.cod_art, platform=platform_key).first()
+        if not link:
+            link = ProductPlatformLink(
+                cod_art=articolo.cod_art,
+                id_art=articolo.id_art,
+                platform=platform_key,
+            )
+            db.session.add(link)
+        link.id_art = articolo.id_art
+        link.external_id = result["product_id"]
+        link.external_url = result.get("external_url")
+        link.status = "present"
+        link.last_sync_at = datetime.utcnow()
+        link.last_error = None
+        link.raw_payload = result.get("raw_payload")
+        return {
+            "platform": platform_key,
+            "external_id": link.external_id,
+            "external_url": link.external_url,
+            "raw_payload": result.get("raw_payload"),
+        }
+    if platform_key == "poleepo":
+        integration = CourierIntegration.query.filter_by(code="poleepo").first()
+        connector = PoleepoConnector(integration=integration)
+        result = connector.create_product(payload=payload)
         link = ProductPlatformLink.query.filter_by(cod_art=articolo.cod_art, platform=platform_key).first()
         if not link:
             link = ProductPlatformLink(

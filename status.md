@@ -1663,3 +1663,11 @@ Performance apertura giornata Agenda 2026-06-13:
   - stato pronto per deploy della prima versione di pubblicazione prodotto Prestashop da scheda articolo;
   - limiti consapevoli: lo schema campi Prestashop e' ancora minimale, le liste remote usano cache in memoria e il primo caricamento dopo restart puo' essere lento, Poleepo resta in sola bozza;
   - domani ripartire dalla documentazione Prestashop/Poleepo per completare mapping campi, creazione di categorie/caratteristiche mancanti, gestione attiva/disattiva/elimina prodotto remoto e payload prodotto Poleepo.
+- 2026-06-23 scheda prodotto - primo backend publish Poleepo:
+  - verificato payload reale `GET /products` Poleepo: campi presenti `id`, `active`, `type`, `sku`, `title`, `price`, `vat_rate`, `price_with_tax`, `quantity`, `main_category_id`, `images`, `provisions`, `tags`;
+  - verificato `OPTIONS /products`: metodi disponibili `GET,HEAD,POST,OPTIONS`;
+  - aggiunto `PoleepoConnector.create_product()` con `POST /products` e payload minimo verificato: `sku`, `title`, `price`, `vat_rate`, `quantity`, `active`, `main_category_id`;
+  - la bozza Poleepo in scheda articolo usa ora `title`, `vat_rate` e `main_category_id`; il default categoria e' `8360` (`NON CATEGORIZZATO`) o `POLEEPO_DEFAULT_CATEGORY_ID` se configurato;
+  - la modale pubblicazione abilita il bottone anche per Poleepo, non solo Prestashop;
+  - verifiche: `python -m py_compile routes/search.py tools/shipping_connectors.py`, `node --check static/js/scheda_articolo.js`, validazione locale campi mancanti senza chiamata remota, bozza reale `PD02217/poleepo` generata senza obbligatori mancanti;
+  - non e' ancora stato creato un prodotto remoto Poleepo di test: prossimo step operativo e' pubblicare un articolo controllato, verificare risposta/propagazione store e poi aggiungere attiva/disattiva/elimina.

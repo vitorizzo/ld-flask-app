@@ -299,9 +299,18 @@ La scheda prodotto e' stata estesa con:
 - menu contestuale esteso con `Imposta come default` e `Rimuovi immagine`;
 - badge visivo `Default` sulla primaria e preview slot piattaforma che privilegia la copia primaria della piattaforma.
 
-La pubblicazione prodotto remota e' attiva per Prestashop solo quando la bozza ha tutti i campi obbligatori. Poleepo resta nello stato bozza finche' non viene validato il payload API prodotto.
+La pubblicazione prodotto remota e' attiva per Prestashop solo quando la bozza ha tutti i campi obbligatori. Poleepo ha un primo backend di creazione prodotto, ma resta da validare con un publish remoto reale controllato.
 Primo publish reale validato: `BB03308` creato su Prestashop come prodotto `32361`, non attivo (`active=0`), con link locale `ProductPlatformLink` in stato `present`.
 Prossimo passo: leggere documentazione Prestashop/Poleepo per completare lo schema campi, gestire creazione di categorie/caratteristiche mancanti, attivazione/disattivazione/eliminazione prodotto remoto e publish prodotto Poleepo.
+
+Aggiornamento 2026-06-23:
+- Poleepo e' trattato nel breve periodo come aggregatore verso gli store collegati; nel medio/lungo termine l'obiettivo e' sostituirlo con publish diretto LDApp verso i singoli store.
+- Verificato payload reale `GET /products` Poleepo e `OPTIONS /products` con `POST` disponibile.
+- Aggiunto primo backend di creazione prodotto Poleepo con `PoleepoConnector.create_product()` su `POST /products`.
+- Payload minimo verificato: `sku`, `title`, `price`, `vat_rate`, `quantity`, `active`, `main_category_id`.
+- La bozza Poleepo della scheda prodotto ora espone `title`, `vat_rate` e `main_category_id`; la categoria default e' `POLEEPO_DEFAULT_CATEGORY_ID` o fallback `8360` (`NON CATEGORIZZATO`).
+- Il bottone `Pubblica` nella modale e' abilitato anche per Poleepo.
+- Non ancora eseguito un publish remoto Poleepo reale di test; prima di considerarlo stabile va provato su articolo controllato e va verificata la propagazione agli store gestiti da Poleepo.
 
 ## Permessi scheda prodotto
 
