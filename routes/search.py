@@ -119,6 +119,16 @@ def _can_publish_product_to_platform(platform_key, platform_links):
     return not link or link.status in ("absent", "error") or not link.external_id
 
 
+def _can_update_product_on_platform(platform_key, platform_links):
+    config = PRODUCT_IMAGE_PLATFORMS.get(platform_key)
+    if not config or not config.get("enabled") or platform_key == "ldapp":
+        return False
+    if platform_key != "poleepo":
+        return False
+    link = platform_links.get(platform_key)
+    return bool(link and link.status not in ("absent", "error") and link.external_id)
+
+
 def _product_publication_source_value(source, articolo, scheda, barcodes, giacenze):
     if source == "cod_art":
         return articolo.cod_art or ""
@@ -310,6 +320,34 @@ def _publish_product_to_platform(articolo, platform_key, draft):
         }
 
     raise NotImplementedError(f"Pubblicazione prodotto su {platform_key} non ancora disponibile")
+
+
+def _update_product_on_platform(articolo, platform_key, draft, platform_link):
+    if draft.get("missing_required"):
+        raise ValueError("Campi obbligatori mancanti: " + ", ".join(draft["missing_required"]))
+    if not platform_link or not platform_link.external_id:
+        raise ValueError("Prodotto remoto non collegato alla piattaforma selezionata")
+
+    payload = _publication_fields_to_payload(draft)
+    if platform_key == "poleepo":
+        integration = CourierIntegration.query.filter_by(code="poleepo").first()
+        connector = PoleepoConnector(integration=integration)
+        result = connector.update_product(product_id=platform_link.external_id, payload=payload)
+        platform_link.id_art = articolo.id_art
+        platform_link.status = "present"
+        platform_link.last_sync_at = datetime.utcnow()
+        platform_link.last_error = None
+        platform_link.raw_payload = result.get("raw_payload")
+        if result.get("external_url"):
+            platform_link.external_url = result.get("external_url")
+        return {
+            "platform": platform_key,
+            "external_id": platform_link.external_id,
+            "external_url": platform_link.external_url,
+            "raw_payload": result.get("raw_payload"),
+        }
+
+    raise NotImplementedError(f"Modifica prodotto su {platform_key} non ancora disponibile")
 
 
 def _asset_public_url(asset):
@@ -679,6 +717,7 @@ def get_product_by_code(cod_art):
                 "status": platform_links[key].status if key in platform_links else "absent",
                 "external_id": platform_links[key].external_id if key in platform_links else None,
                 "can_publish_product": _can_publish_product_to_platform(key, platform_links),
+                "can_update_product": _can_update_product_on_platform(key, platform_links),
             }
             for key, config in PRODUCT_IMAGE_PLATFORMS.items()
             if key != "ldapp"
@@ -688,6 +727,7 @@ def get_product_by_code(cod_art):
             "barcodes": [row.cod_bar for row in barcode_rows],
             "platforms": platforms,
             "publishable_platforms": [platform for platform in platforms if platform["can_publish_product"]],
+            "editable_platforms": [platform for platform in platforms if platform["can_update_product"]],
             "image_slots": _platform_image_slots(immagini),
             "can_manage_images": _can_manage_product_images(),
             "can_publish_products": _can_manage_product_images(),
@@ -726,8 +766,11 @@ def product_publication_draft(cod_art, platform_key):
 
     platform_key = (platform_key or "").strip().lower()
     platform_links = {link.platform: link for link in ProductPlatformLink.query.filter_by(cod_art=cod_art).all()}
-    if not _can_publish_product_to_platform(platform_key, platform_links):
-        return jsonify({"ok": False, "error": "Articolo gia' presente o piattaforma non pubblicabile."}), 400
+    if not (
+        _can_publish_product_to_platform(platform_key, platform_links)
+        or _can_update_product_on_platform(platform_key, platform_links)
+    ):
+        return jsonify({"ok": False, "error": "Piattaforma non pubblicabile o modificabile."}), 400
 
     try:
         draft = _build_product_publication_draft(articolo, platform_key, include_options=True)
@@ -748,8 +791,11 @@ def save_product_publication_draft(cod_art, platform_key):
 
     platform_key = (platform_key or "").strip().lower()
     platform_links = {link.platform: link for link in ProductPlatformLink.query.filter_by(cod_art=cod_art).all()}
-    if not _can_publish_product_to_platform(platform_key, platform_links):
-        return jsonify({"ok": False, "error": "Articolo gia' presente o piattaforma non pubblicabile."}), 400
+    if not (
+        _can_publish_product_to_platform(platform_key, platform_links)
+        or _can_update_product_on_platform(platform_key, platform_links)
+    ):
+        return jsonify({"ok": False, "error": "Piattaforma non pubblicabile o modificabile."}), 400
 
     payload = request.get_json(silent=True) or {}
     try:
@@ -799,6 +845,42 @@ def publish_product_to_platform(cod_art, platform_key):
     except Exception as exc:
         db.session.rollback()
         logger.exception("Errore pubblicazione prodotto su %s per %s", platform_key, cod_art)
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@search_bp.post('/scheda_articolo/<cod_art>/publish/<platform_key>/update')
+@login_required
+def update_product_on_platform(cod_art, platform_key):
+    if not _can_manage_product_images():
+        return jsonify({"ok": False, "error": "Accesso negato"}), 403
+
+    articolo = Articoli.query.filter_by(cod_art=cod_art).first()
+    if not articolo:
+        return jsonify({"ok": False, "error": "Articolo non trovato."}), 404
+
+    platform_key = (platform_key or "").strip().lower()
+    platform_links = {link.platform: link for link in ProductPlatformLink.query.filter_by(cod_art=cod_art).all()}
+    if not _can_update_product_on_platform(platform_key, platform_links):
+        return jsonify({"ok": False, "error": "Prodotto non presente o piattaforma non modificabile."}), 400
+
+    payload = request.get_json(silent=True) or {}
+    try:
+        if payload.get("fields"):
+            _save_product_publication_draft(articolo, platform_key, payload.get("fields") or [])
+            db.session.flush()
+        draft = _build_product_publication_draft(articolo, platform_key, include_options=False)
+        result = _update_product_on_platform(articolo, platform_key, draft, platform_links.get(platform_key))
+        db.session.commit()
+        return jsonify({"ok": True, "result": result})
+    except NotImplementedError as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception("Errore modifica prodotto su %s per %s", platform_key, cod_art)
         return jsonify({"ok": False, "error": str(exc)}), 500
 
 

@@ -454,6 +454,18 @@
                   {% endfor %}
                 </div>
               {% endif %}
+              {% if product.editable_platforms %}
+                <div class="d-flex flex-wrap gap-2 mt-2">
+                  {% for platform in product.editable_platforms %}
+                    <button type="button"
+                            class="btn btn-sm btn-outline-secondary product-edit-platform-btn"
+                            data-platform="{{ platform.key }}">
+                      <i class="fa-solid fa-pen-to-square"></i>
+                      Modifica su {{ platform.label }}
+                    </button>
+                  {% endfor %}
+                </div>
+              {% endif %}
             </div>
           {% endif %}
 

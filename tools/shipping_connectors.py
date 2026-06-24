@@ -147,6 +147,33 @@ def _bool_value(value, *, default=False):
     return str(value).strip().lower() in {"1", "true", "yes", "on", "si"}
 
 
+def _poleepo_product_payload(data):
+    data = data if isinstance(data, dict) else {}
+    required = ["sku", "title", "price", "vat_rate", "main_category_id"]
+    missing = [field for field in required if str(data.get(field) or "").strip() == ""]
+    if missing:
+        raise ShippingConnectorError("Campi Poleepo obbligatori mancanti: " + ", ".join(missing))
+
+    main_category_id = int(_decimal_number(data.get("main_category_id"), default=0))
+    if main_category_id <= 0:
+        raise ShippingConnectorError("Categoria Poleepo non valida")
+
+    body = {
+        "sku": str(data.get("sku") or "").strip(),
+        "title": str(data.get("title") or "").strip(),
+        "price": _decimal_number(data.get("price"), default=0),
+        "vat_rate": _decimal_number(data.get("vat_rate"), default=22),
+        "quantity": int(_decimal_number(data.get("quantity"), default=0)),
+        "active": _bool_value(data.get("active"), default=True),
+        "main_category_id": main_category_id,
+    }
+
+    for optional_field in ("weight", "width", "height", "depth"):
+        if str(data.get(optional_field) or "").strip() != "":
+            body[optional_field] = _decimal_number(data.get(optional_field), default=0)
+    return body
+
+
 class PoleepoConnector:
     code = "poleepo"
     name = "Poleepo"
@@ -308,30 +335,7 @@ class PoleepoConnector:
         return payload.get("data") or {}
 
     def create_product(self, *, payload=None):
-        data = payload if isinstance(payload, dict) else {}
-        required = ["sku", "title", "price", "vat_rate", "main_category_id"]
-        missing = [field for field in required if str(data.get(field) or "").strip() == ""]
-        if missing:
-            raise ShippingConnectorError("Campi Poleepo obbligatori mancanti: " + ", ".join(missing))
-
-        main_category_id = int(_decimal_number(data.get("main_category_id"), default=0))
-        if main_category_id <= 0:
-            raise ShippingConnectorError("Categoria Poleepo non valida")
-
-        body = {
-            "sku": str(data.get("sku") or "").strip(),
-            "title": str(data.get("title") or "").strip(),
-            "price": _decimal_number(data.get("price"), default=0),
-            "vat_rate": _decimal_number(data.get("vat_rate"), default=22),
-            "quantity": int(_decimal_number(data.get("quantity"), default=0)),
-            "active": _bool_value(data.get("active"), default=True),
-            "main_category_id": main_category_id,
-        }
-
-        for optional_field in ("weight", "width", "height", "depth"):
-            if str(data.get(optional_field) or "").strip() != "":
-                body[optional_field] = _decimal_number(data.get(optional_field), default=0)
-
+        body = _poleepo_product_payload(payload)
         token = self.access_token()
         response = requests.post(
             f"{self.base_url}/products",
@@ -368,10 +372,10 @@ class PoleepoConnector:
         }
 
     def update_product(self, *, product_id=None, payload=None):
-        token = self.access_token()
         if not product_id:
             raise ShippingConnectorError("ID prodotto Poleepo mancante")
-        body = payload if isinstance(payload, dict) else {}
+        body = _poleepo_product_payload(payload)
+        token = self.access_token()
         response = requests.put(
             f"{self.base_url}/products/{product_id}",
             headers={
@@ -382,14 +386,26 @@ class PoleepoConnector:
             json=body,
             timeout=60,
         )
-        try:
-            data = response.json()
-        except ValueError:
-            data = {"success": False, "message": response.text[:500]}
+        if response.status_code == 204:
+            data = {"success": True}
+        else:
+            try:
+                data = response.json()
+            except ValueError:
+                data = {"success": response.status_code in (200, 201, 202), "message": response.text[:500]}
         if response.status_code not in (200, 201, 202, 204) or data.get("success") is False:
             message = data.get("message") or f"Poleepo HTTP {response.status_code}"
             raise ShippingConnectorError(message)
-        return data
+        product = data.get("data") if isinstance(data.get("data"), dict) else data
+        external_url = None
+        if isinstance(product, dict):
+            external_url = product.get("url") or product.get("permalink") or product.get("link")
+        return {
+            "product_id": str(product_id),
+            "external_url": external_url,
+            "raw_payload": data,
+            "status_code": response.status_code,
+        }
 
     def delete_image(self, *, product_id=None, image_id=None, image_url=None):
         token = self.access_token()

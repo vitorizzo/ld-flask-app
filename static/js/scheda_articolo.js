@@ -21,6 +21,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var deleteSelection = [];
     var publicationModal = null;
     var publicationPlatform = "";
+    var publicationMode = "publish";
 
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (element) {
         if (window.bootstrap && bootstrap.Tooltip) {
@@ -317,6 +318,10 @@ document.addEventListener("DOMContentLoaded", function () {
         return getProductSheetBaseUrl() + "/publish/" + encodeURIComponent(platform);
     }
 
+    function publicationUpdateUrl(platform) {
+        return getProductSheetBaseUrl() + "/publish/" + encodeURIComponent(platform) + "/update";
+    }
+
     function renderPublicationField(field) {
         var wrapper = document.createElement("div");
         wrapper.className = "product-publication-field" + (field.missing ? " is-missing" : "");
@@ -427,7 +432,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         publicationFields.innerHTML = "";
         if (publicationTitle) {
-            publicationTitle.textContent = "Pubblica su " + draft.label;
+            publicationTitle.textContent = (publicationMode === "update" ? "Modifica su " : "Pubblica su ") + draft.label;
         }
         if (publicationSubtitle) {
             publicationSubtitle.textContent = "Articolo " + draft.cod_art + " - " + draft.fields.length + " campi";
@@ -443,7 +448,7 @@ document.addEventListener("DOMContentLoaded", function () {
             var canPublishPlatform = supportedPublishPlatforms.indexOf(draft.platform) !== -1;
             publicationPublishButton.disabled = Boolean(draft.missing_required && draft.missing_required.length) || !canPublishPlatform;
             publicationPublishButton.innerHTML = canPublishPlatform
-                ? '<i class="fa-solid fa-cloud-arrow-up"></i> Pubblica su ' + draft.label
+                ? '<i class="fa-solid fa-cloud-arrow-up"></i> ' + (publicationMode === "update" ? "Aggiorna su " : "Pubblica su ") + draft.label
                 : '<i class="fa-solid fa-cloud-arrow-up"></i> Pubblicazione non disponibile';
         }
         draft.fields.forEach(function (field) {
@@ -461,11 +466,12 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    function openPublicationModal(platform) {
+    function openPublicationModal(platform, mode) {
         if (!publicationModal || !publicationFields) {
             return;
         }
         publicationPlatform = platform;
+        publicationMode = mode || "publish";
         publicationFields.innerHTML = "<div class=\"text-muted\">Caricamento campi...</div>";
         if (publicationSaveButton) {
             publicationSaveButton.disabled = true;
@@ -531,12 +537,16 @@ document.addEventListener("DOMContentLoaded", function () {
         if (!publicationPlatform || !publicationPublishButton) {
             return;
         }
-        if (!window.confirm("Pubblicare ora il prodotto sulla piattaforma selezionata?")) {
+        var isUpdate = publicationMode === "update";
+        var confirmText = isUpdate
+            ? "Aggiornare ora il prodotto sulla piattaforma selezionata?"
+            : "Pubblicare ora il prodotto sulla piattaforma selezionata?";
+        if (!window.confirm(confirmText)) {
             return;
         }
         publicationPublishButton.disabled = true;
-        publicationPublishButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Pubblico';
-        fetch(publicationPublishUrl(publicationPlatform), {
+        publicationPublishButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> ' + (isUpdate ? "Aggiorno" : "Pubblico");
+        fetch(isUpdate ? publicationUpdateUrl(publicationPlatform) : publicationPublishUrl(publicationPlatform), {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
@@ -553,12 +563,12 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         }).then(function (data) {
             var result = data.result || {};
-            alert("Prodotto pubblicato. ID esterno: " + (result.external_id || "-"));
+            alert((isUpdate ? "Prodotto aggiornato. ID esterno: " : "Prodotto pubblicato. ID esterno: ") + (result.external_id || "-"));
             window.location.reload();
         }).catch(function (error) {
-            alert(error.message || "Pubblicazione prodotto non riuscita");
+            alert(error.message || (isUpdate ? "Modifica prodotto non riuscita" : "Pubblicazione prodotto non riuscita"));
             publicationPublishButton.disabled = false;
-            publicationPublishButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> Pubblica';
+            publicationPublishButton.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i> ' + (isUpdate ? "Aggiorna" : "Pubblica");
         });
     }
 
@@ -677,10 +687,16 @@ document.addEventListener("DOMContentLoaded", function () {
         publicationModalElement.addEventListener("hidden.bs.modal", function () {
             document.body.classList.remove("product-publication-modal-open");
             publicationPlatform = "";
+            publicationMode = "publish";
         });
         document.querySelectorAll(".product-publish-btn").forEach(function (button) {
             button.addEventListener("click", function () {
-                openPublicationModal(button.dataset.platform);
+                openPublicationModal(button.dataset.platform, "publish");
+            });
+        });
+        document.querySelectorAll(".product-edit-platform-btn").forEach(function (button) {
+            button.addEventListener("click", function () {
+                openPublicationModal(button.dataset.platform, "update");
             });
         });
         if (publicationSaveButton) {

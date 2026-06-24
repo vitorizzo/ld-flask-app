@@ -312,6 +312,14 @@ Aggiornamento 2026-06-23:
 - Il bottone `Pubblica` nella modale e' abilitato anche per Poleepo.
 - Non ancora eseguito un publish remoto Poleepo reale di test; prima di considerarlo stabile va provato su articolo controllato e va verificata la propagazione agli store gestiti da Poleepo.
 
+Aggiornamento 2026-06-24:
+- Publish Poleepo testato dall'utente con creazione remota riuscita, ma con dati ancora minimali.
+- Aggiunta azione `Modifica su Poleepo` per prodotti gia' collegati con `ProductPlatformLink.external_id`.
+- Nuova route `POST /search/scheda_articolo/<cod_art>/publish/<platform>/update` per aggiornare il prodotto remoto senza ricrearlo.
+- Update remoto attivo solo per Poleepo; Prestashop resta da implementare con update XML dedicato.
+- Create/update Poleepo usano lo stesso filtro payload minimo verificato, evitando di inviare campi non confermati come `description` e `barcode`.
+- Prossimo step: test reale di modifica su prodotto controllato, poi gestione esplicita attiva/disattiva/elimina remoto e completamento mapping dati.
+
 ## Permessi scheda prodotto
 
 Soglia ruolo:

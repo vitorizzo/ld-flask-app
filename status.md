@@ -1671,3 +1671,12 @@ Performance apertura giornata Agenda 2026-06-13:
   - la modale pubblicazione abilita il bottone anche per Poleepo, non solo Prestashop;
   - verifiche: `python -m py_compile routes/search.py tools/shipping_connectors.py`, `node --check static/js/scheda_articolo.js`, validazione locale campi mancanti senza chiamata remota, bozza reale `PD02217/poleepo` generata senza obbligatori mancanti;
   - non e' ancora stato creato un prodotto remoto Poleepo di test: prossimo step operativo e' pubblicare un articolo controllato, verificare risposta/propagazione store e poi aggiungere attiva/disattiva/elimina.
+- 2026-06-24 scheda prodotto - modifica prodotto Poleepo:
+  - dopo test utente il publish Poleepo ha creato correttamente un prodotto remoto, ma la scheda non esponeva piu' azioni per modificarlo dall'app;
+  - aggiunta azione `Modifica su Poleepo` per piattaforme gia' presenti e aggiornabili (`ProductPlatformLink.status != absent/error` con `external_id`);
+  - aggiunto endpoint `POST /search/scheda_articolo/<cod_art>/publish/<platform>/update`, separato dal publish per evitare ricreazioni accidentali;
+  - l'update remoto e' abilitato solo per Poleepo; Prestashop resta escluso finche' non viene implementato update XML completo;
+  - `PoleepoConnector.update_product()` ora restituisce un formato normalizzato e gestisce anche risposte `204`;
+  - create/update Poleepo filtrano entrambi il payload ai soli campi verificati: `sku`, `title`, `price`, `vat_rate`, `quantity`, `active`, `main_category_id`, piu' dimensioni/peso se presenti;
+  - verifiche: `python -m py_compile routes/search.py tools/shipping_connectors.py`, `node --check static/js/scheda_articolo.js`, payload filtrato senza `description`/`barcode`, articolo reale `VB075515-23` riconosciuto come modificabile e bozza Poleepo senza obbligatori mancanti;
+  - non e' ancora stato premuto `Modifica su Poleepo`: il prossimo test reale deve cambiare un dato innocuo e verificare aggiornamento remoto/propagazione.
