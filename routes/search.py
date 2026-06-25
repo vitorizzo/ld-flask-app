@@ -51,6 +51,7 @@ PRODUCT_IMAGE_PLATFORMS = {
 }
 ALLOWED_PRODUCT_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 OFFICE_ROLE_WEIGHT = 40
+POLEEPO_CATEGORY_OPTIONS_CACHE = {"loaded_at": None, "options": []}
 PRODUCT_PUBLICATION_SCHEMAS = {
     "prestashop": {
         "label": "Prestashop",
@@ -97,10 +98,11 @@ PRODUCT_PUBLICATION_SCHEMAS = {
             {
                 "name": "main_category_id",
                 "label": "Categoria Poleepo",
-                "type": "integer",
+                "type": "select",
                 "required": True,
                 "source": "poleepo_default_category",
-                "help": "ID categoria principale Poleepo. Default verificato sull'account: 8360 / NON CATEGORIZZATO.",
+                "options_source": "poleepo_categories",
+                "help": "Categoria principale Poleepo. La lista mostra ID e descrizione quando ricavabili dai prodotti gia' presenti.",
             },
         ],
     },
@@ -207,17 +209,102 @@ def _product_publication_schema(platform_key):
 
 def _product_publication_field_options(platform_key, spec):
     source = spec.get("options_source")
-    if platform_key != "prestashop" or not source:
+    if not source:
         return [], None
     try:
-        if source == "prestashop_categories":
+        if platform_key == "prestashop" and source == "prestashop_categories":
             return prestashop_get_category_options(), None
-        if source == "prestashop_tax_rule_groups":
+        if platform_key == "prestashop" and source == "prestashop_tax_rule_groups":
             return prestashop_get_tax_rule_group_options(), None
+        if platform_key == "poleepo" and source == "poleepo_categories":
+            return _poleepo_category_options(), None
     except Exception as exc:
         logger.warning("Opzioni %s non disponibili: %s", source, exc)
+        if platform_key == "poleepo" and source == "poleepo_categories":
+            default_option = _poleepo_default_category_option()
+            return ([default_option] if default_option else []), str(exc)
         return [], str(exc)
     return [], None
+
+
+def _poleepo_category_label_from_product(product):
+    if not isinstance(product, dict):
+        return None
+    path = product.get("main_category_path")
+    if isinstance(path, list):
+        path = " / ".join(str(piece) for piece in path if str(piece or "").strip())
+    if isinstance(path, dict):
+        path = path.get("name") or path.get("path") or path.get("title")
+    if path and str(path).strip():
+        return str(path).strip()
+    category = product.get("main_category") or product.get("category")
+    if isinstance(category, dict):
+        return category.get("name") or category.get("path") or category.get("title")
+    if isinstance(category, str) and category.strip():
+        return category.strip()
+    return None
+
+
+def _poleepo_category_option(value, label=None):
+    value = str(value or "").strip()
+    if not value:
+        return None
+    label = str(label or "").strip()
+    if label:
+        return {"value": value, "label": f"{value} - {label}"}
+    return {"value": value, "label": f"{value} - descrizione non disponibile"}
+
+
+def _poleepo_default_category_option():
+    default_id = str(current_app.config.get("POLEEPO_DEFAULT_CATEGORY_ID") or "8360").strip()
+    default_label = str(current_app.config.get("POLEEPO_DEFAULT_CATEGORY_LABEL") or "").strip()
+    if not default_label and default_id == "8360":
+        default_label = "NON CATEGORIZZATO"
+    return _poleepo_category_option(default_id, default_label)
+
+
+def _poleepo_category_options():
+    loaded_at = POLEEPO_CATEGORY_OPTIONS_CACHE.get("loaded_at")
+    if loaded_at and (datetime.utcnow() - loaded_at).total_seconds() < 1800:
+        return list(POLEEPO_CATEGORY_OPTIONS_CACHE.get("options") or [])
+
+    integration = CourierIntegration.query.filter_by(code="poleepo").first()
+    connector = PoleepoConnector(integration=integration)
+    products = connector.import_products(page_size=100, max_pages=10)
+    categories = {}
+    for product in products:
+        category_id = product.get("main_category_id")
+        if category_id in (None, ""):
+            continue
+        value = str(category_id).strip()
+        label = _poleepo_category_label_from_product(product)
+        if value not in categories or label:
+            categories[value] = label or categories.get(value)
+
+    default_option = _poleepo_default_category_option()
+    if default_option:
+        categories.setdefault(default_option["value"], default_option["label"].split(" - ", 1)[1])
+
+    options = [
+        _poleepo_category_option(value, label)
+        for value, label in sorted(categories.items(), key=lambda item: (item[1] or "", item[0]))
+    ]
+    options = [option for option in options if option]
+    POLEEPO_CATEGORY_OPTIONS_CACHE["loaded_at"] = datetime.utcnow()
+    POLEEPO_CATEGORY_OPTIONS_CACHE["options"] = options
+    return list(options)
+
+
+def _ensure_field_value_option(options, value, label=None):
+    value = str(value or "").strip()
+    if not value:
+        return options
+    if any(str(option.get("value")) == value for option in options):
+        return options
+    option = _poleepo_category_option(value, label)
+    if option:
+        return [option] + list(options or [])
+    return options
 
 
 def _build_product_publication_draft(
@@ -261,10 +348,26 @@ def _build_product_publication_draft(
             value = mapped_value
         options, options_error = _product_publication_field_options(platform_key, spec) if include_options else ([], None)
         help_text = spec.get("help") or ""
+        if platform_key == "poleepo" and spec["name"] == "main_category_id":
+            category_label = None
+            if isinstance(remote_product, dict):
+                category_label = _poleepo_category_label_from_product(remote_product)
+            if options:
+                options = _ensure_field_value_option(options, value, category_label)
+            if category_label:
+                help_text = f"Categoria remota: {category_label}"
+            elif str(value or "").strip():
+                help_text = "Categoria Poleepo: descrizione non disponibile per questo ID. Verificare prima di pubblicare."
         if remote_value is not None:
             help_text = "Valore letto dal prodotto remoto Poleepo."
             if str(mapped_value or "").strip() and str(mapped_value or "").strip() != str(value or "").strip():
                 help_text += f" Valore LDApp attuale: {mapped_value}"
+            if platform_key == "poleepo" and spec["name"] == "main_category_id":
+                category_label = _poleepo_category_label_from_product(remote_product)
+                if category_label:
+                    help_text += f" Categoria: {category_label}"
+                else:
+                    help_text += " Categoria: descrizione non disponibile."
         fields.append({
             "name": spec["name"],
             "label": spec["label"],
@@ -782,6 +885,59 @@ def _copy_product_sheet_to_article(target_articolo, source_articolo, overwrite=F
     return target_sheet, "copied"
 
 
+def _copy_product_barcodes_to_article(target_articolo, source_articolo, overwrite=False):
+    source_barcodes = Barcode.query.filter_by(cod_art=source_articolo.cod_art).order_by(Barcode.cod_bar.asc()).all()
+    if not source_barcodes:
+        return [], "missing_source"
+
+    target_barcodes = Barcode.query.filter_by(cod_art=target_articolo.cod_art).order_by(Barcode.cod_bar.asc()).all()
+    if target_barcodes and not overwrite:
+        return target_barcodes, "skipped_existing"
+
+    if overwrite:
+        for barcode in target_barcodes:
+            db.session.delete(barcode)
+        db.session.flush()
+
+    copied = []
+    existing_values = {
+        row.cod_bar
+        for row in Barcode.query.filter(Barcode.cod_bar.in_([row.cod_bar for row in source_barcodes])).all()
+        if row.cod_art == target_articolo.cod_art
+    }
+    for source_barcode in source_barcodes:
+        if source_barcode.cod_bar in existing_values:
+            continue
+        barcode = Barcode(
+            cod_bar=source_barcode.cod_bar,
+            cod_art=target_articolo.cod_art,
+            id_art=target_articolo.id_art,
+        )
+        db.session.add(barcode)
+        copied.append(barcode)
+    return copied, "copied" if copied else "skipped_existing"
+
+
+def _product_local_copy_preview(articolo, image_limit=8):
+    barcodes = Barcode.query.filter_by(cod_art=articolo.cod_art).order_by(Barcode.cod_bar.asc()).all()
+    assets = (
+        ProductAsset.query
+        .filter_by(cod_art=articolo.cod_art, asset_type="image")
+        .order_by(ProductAsset.is_primary.desc(), ProductAsset.sort_order.asc(), ProductAsset.id.asc())
+        .limit(image_limit)
+        .all()
+    )
+    images = [
+        _serialize_product_asset(asset)
+        for asset in assets
+        if asset.local_path or asset.remote_url
+    ]
+    return {
+        "barcodes": [row.cod_bar for row in barcodes],
+        "images": images,
+    }
+
+
 def _publish_product_image_to_platform(articolo, source_asset, platform_key, platform_link):
     if platform_key == "prestashop":
         local_path = _product_image_local_path(source_asset)
@@ -1119,6 +1275,7 @@ def product_publication_copy_candidates(cod_art, platform_key):
             "descrizione": articolo.descrizione or "",
             "descrizione_aggiuntiva": articolo.descrizione_aggiuntiva or "",
             "external_id": link.external_id if link else None,
+            "local_copy": _product_local_copy_preview(articolo),
         })
     return jsonify({"ok": True, "items": items})
 
@@ -1177,6 +1334,7 @@ def product_publication_copy_values(cod_art, platform_key):
         "fields": editable_fields,
         "local_copy": {
             "can_copy_sheet": bool(SchedeProdotti.query.filter_by(cod_art=source_cod_art).first()),
+            **_product_local_copy_preview(source_articolo, image_limit=20),
         },
     })
 
@@ -1201,6 +1359,37 @@ def copy_product_local_data(cod_art):
 
     results = {}
     try:
+        copied_assets = []
+        raw_asset_ids = payload.get("asset_ids") or []
+        if isinstance(raw_asset_ids, (int, str)):
+            raw_asset_ids = [raw_asset_ids]
+        asset_ids = []
+        for raw_asset_id in raw_asset_ids:
+            try:
+                asset_id = int(raw_asset_id)
+            except (TypeError, ValueError):
+                continue
+            if asset_id not in asset_ids:
+                asset_ids.append(asset_id)
+        if asset_ids:
+            source_assets = (
+                ProductAsset.query
+                .filter(ProductAsset.id.in_(asset_ids), ProductAsset.asset_type == "image")
+                .all()
+            )
+            assets_by_id = {asset.id: asset for asset in source_assets}
+            for asset_id in asset_ids:
+                source_asset = assets_by_id.get(asset_id)
+                if not source_asset:
+                    continue
+                if source_asset.cod_art != source_articolo.cod_art:
+                    raise ValueError("Una immagine selezionata non appartiene all'articolo origine")
+                copied_assets.append(_copy_product_asset_to_article(target_articolo, source_asset))
+            results["images"] = {
+                "status": "copied" if copied_assets else "missing_source",
+                "copied": len(copied_assets),
+                "assets": [_serialize_product_asset(asset) for asset in copied_assets],
+            }
         if payload.get("copy_sheet", True):
             sheet, status = _copy_product_sheet_to_article(
                 target_articolo,
@@ -1211,6 +1400,17 @@ def copy_product_local_data(cod_art):
                 "status": status,
                 "copied": status == "copied",
                 "has_sheet": bool(sheet),
+            }
+        if payload.get("copy_barcodes", True):
+            barcodes, status = _copy_product_barcodes_to_article(
+                target_articolo,
+                source_articolo,
+                overwrite=bool(payload.get("overwrite_barcodes")),
+            )
+            results["barcodes"] = {
+                "status": status,
+                "copied": len(barcodes) if status == "copied" else 0,
+                "values": [row.cod_bar for row in barcodes],
             }
         db.session.commit()
         return jsonify({"ok": True, "results": results})

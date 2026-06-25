@@ -216,6 +216,21 @@
   .product-publication-modal .modal-dialog {
     z-index: 5301 !important;
   }
+  .product-publication-modal .modal-content,
+  .product-publication-modal .modal-header,
+  .product-publication-modal .modal-body,
+  .product-publication-modal .modal-footer {
+    background: #fff;
+    color: #212529;
+  }
+  .product-publication-modal .modal-title,
+  .product-publication-modal .form-label,
+  .product-publication-modal .fw-semibold {
+    color: #212529;
+  }
+  .product-publication-modal .text-muted {
+    color: #6c757d !important;
+  }
   body.product-publication-modal-open .modal-backdrop.show {
     z-index: 5290 !important;
   }
@@ -278,11 +293,40 @@
   }
   .product-publication-source-value {
     border-left: 3px solid #0d6efd;
-    background: #f8fbff;
-    padding: 6px 8px;
-    margin-bottom: 8px;
+    background: #eef6ff;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin: 8px 0;
     color: #495057;
     font-size: .82rem;
+  }
+  .product-publication-source-value .btn {
+    white-space: nowrap;
+  }
+  .product-publication-source-value.is-different {
+    border-left-color: #fd7e14;
+    background: #fff7ed;
+  }
+  .product-publication-source-value.is-same {
+    border-left-color: #198754;
+    background: #f0fff4;
+  }
+  .product-publication-comparison-summary {
+    border: 1px solid #b6d4fe;
+    border-radius: 8px;
+    background: #f8fbff;
+    color: #212529;
+    padding: 10px;
+  }
+  .product-publication-comparison-row {
+    border-top: 1px solid #dee2e6;
+    padding-top: 8px;
+    margin-top: 8px;
+  }
+  .product-publication-comparison-row:first-of-type {
+    border-top: 0;
+    padding-top: 0;
+    margin-top: 0;
   }
   .product-publication-copy-panel {
     border: 1px solid #cfe2ff;

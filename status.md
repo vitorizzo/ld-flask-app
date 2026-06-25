@@ -1727,3 +1727,33 @@ Performance apertura giornata Agenda 2026-06-13:
   - nel flusso `Modifica su Poleepo` / `Copia valori da altro prodotto`, oltre a precompilare i campi remoti, LDApp copia la scheda tecnica locale (`SchedeProdotti.descrizione` e `short`) dall'articolo origine se il target non ne ha gia' una;
   - la copia scheda tecnica e' conservativa: non sovrascrive una scheda target gia' compilata senza override esplicito backend;
   - verifiche: `python -m py_compile routes/search.py`, `node --check static/js/scheda_articolo.js`, route Flask registrate per copy immagini/copy valori/copy-local-data.
+- 2026-06-25 implementazione locale - label campi Poleepo:
+  - `main_category_id` Poleepo non viene piu' esposto solo come input numerico quando sono disponibili descrizioni;
+  - la bozza prodotto prova a costruire opzioni `ID - descrizione` dai prodotti Poleepo gia' presenti, usando `main_category_path`;
+  - se la descrizione non e' disponibile, il valore resta visibile ma viene marcato come `descrizione non disponibile`, cosi' l'utente sa che non puo' validarlo con certezza;
+  - aggiunto supporto a `POLEEPO_DEFAULT_CATEGORY_LABEL` per dare un nome leggibile a default numerici configurati come `59271`;
+  - verifiche: `python -m py_compile routes/search.py`, `git diff --check`.
+- 2026-06-25 implementazione locale - copia valori con immagini/barcode:
+  - nel pannello `Copia valori da altro prodotto` i risultati origine mostrano ora anche barcode e immagini locali copiabili;
+  - le immagini sono mostrate con checkbox e comandi `Seleziona tutte` / `Deseleziona tutte`, poi vengono passate a `copy-local-data` come `asset_ids`;
+  - `copy-local-data` copia anche i barcode dell'origine solo se il target non ha gia' barcode, senza sovrascrivere identificativi esistenti;
+  - prima iterazione: il bottone frontend era stato rinominato in `Copia valori e dati`; subito dopo e' stato separato in `Confronta valori` e `Copia dati locali` per evitare copie alla cieca;
+  - verifiche: `python -m py_compile routes/search.py`, `node --check static/js/scheda_articolo.js`, `git diff --check`.
+- 2026-06-25 correzione UX - confronto valori padre/figlio:
+  - il flusso non copia piu' i valori piattaforma alla cieca;
+  - il bottone e' diventato `Confronta valori` e mostra, accanto a ogni campo editabile del target, il valore origine e il valore corrente;
+  - per ogni campo sono disponibili le azioni `Usa origine` e `Mantieni corrente`;
+  - `Copia dati locali` resta un comando separato per scheda tecnica, immagini selezionate e barcode, evitando che il confronto campi faccia anche trasferimenti locali impliciti;
+  - verifiche: `node --check static/js/scheda_articolo.js`, `python -m py_compile routes/search.py`, `git diff --check`.
+- 2026-06-25 fix visibilita' confronto valori:
+  - la modale pubblicazione ora forza sfondo bianco e testo scuro su contenuto, label e testi informativi, evitando titoli bianchi su bianco ereditati dalla pagina;
+  - i box confronto padre/figlio hanno colori espliciti: arancio per valori diversi, verde per valori uguali;
+  - `Confronta valori` ora conta davvero i campi confrontati: se non inserisce nessun box mostra warning invece di dire che i valori sono stati scritti;
+  - dopo il confronto la UI scrolla al primo box inserito;
+  - verifiche: `node --check static/js/scheda_articolo.js`, `python -m py_compile routes/search.py`, `git diff --check`.
+- 2026-06-25 fix confronto non visibile:
+  - oltre ai box accanto ai campi, `Confronta valori` renderizza ora anche un riepilogo confronto direttamente sotto il prodotto sorgente cliccato;
+  - il riepilogo mostra per ogni campo il valore origine, il valore corrente e i pulsanti `Usa origine` / `Mantieni corrente`;
+  - l'inserimento del box campo avviene subito sotto la label del campo, non piu' in posizione dipendente da input/help;
+  - lo scroll viene applicato al contenitore interno `productPublicationFields`, cosi' il primo campo confrontato entra davvero nella vista;
+  - verifiche: `node --check static/js/scheda_articolo.js`, `python -m py_compile routes/search.py`, `git diff --check`.

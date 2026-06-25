@@ -540,7 +540,7 @@ document.addEventListener("DOMContentLoaded", function () {
         return getProductSheetBaseUrl() + "/publish/" + encodeURIComponent(platform) + "/copy-values?source_cod_art=" + encodeURIComponent(sourceCodArt || "");
     }
 
-    function copyLocalDataFromSource(sourceCodArt) {
+    function copyLocalDataFromSource(sourceCodArt, assetIds) {
         return fetch(localDataCopyUrl(), {
             method: "POST",
             headers: {
@@ -551,7 +551,10 @@ document.addEventListener("DOMContentLoaded", function () {
             body: JSON.stringify({
                 source_cod_art: sourceCodArt,
                 copy_sheet: true,
-                overwrite_sheet: false
+                overwrite_sheet: false,
+                copy_barcodes: true,
+                overwrite_barcodes: false,
+                asset_ids: assetIds || []
             })
         }).then(function (response) {
             return parseJsonResponse(response).then(function (data) {
@@ -563,6 +566,16 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    function selectedPublicationCopyImageIds(button) {
+        var row = button.closest(".product-publication-copy-result");
+        if (!row) {
+            return [];
+        }
+        return Array.from(row.querySelectorAll(".product-publication-copy-image-check:checked")).map(function (checkbox) {
+            return checkbox.value;
+        });
+    }
+
     function publicationFieldInput(name, language) {
         return publicationFields.querySelector(
             "[data-field-name='" + CSS.escape(name) + "'] .form-control[data-language='" + CSS.escape(language || "") + "']"
@@ -571,11 +584,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function setPublicationSourceValue(input, sourceLabel, sourceValue) {
         if (!input) {
-            return;
+            return false;
         }
         var wrapper = input.closest("[data-field-name]");
         if (!wrapper) {
-            return;
+            return false;
         }
         var existing = wrapper.querySelector(".product-publication-source-value");
         if (existing) {
@@ -583,18 +596,121 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         var sourceBox = document.createElement("div");
         sourceBox.className = "product-publication-source-value";
-        sourceBox.textContent = sourceLabel + ": " + (sourceValue || "");
-        var directInput = Array.from(wrapper.children).find(function (child) {
-            return child === input;
+        var currentValue = input.value || "";
+        var sourceText = String(sourceValue || "").trim();
+        var currentText = String(currentValue || "").trim();
+        sourceBox.classList.add(sourceText === currentText ? "is-same" : "is-different");
+
+        var title = document.createElement("div");
+        title.className = "fw-semibold mb-1";
+        title.textContent = sourceLabel;
+
+        var sourceLine = document.createElement("div");
+        sourceLine.className = "mb-1";
+        sourceLine.innerHTML = '<span class="text-muted">Valore origine:</span> <span class="fw-semibold"></span>';
+        sourceLine.querySelector("span.fw-semibold").textContent = sourceValue || "";
+
+        var currentLine = document.createElement("div");
+        currentLine.className = "mb-2";
+        currentLine.innerHTML = '<span class="text-muted">Valore corrente:</span> <span></span>';
+        currentLine.querySelector("span:last-child").textContent = currentValue || "";
+
+        var actions = document.createElement("div");
+        actions.className = "d-flex flex-wrap gap-2";
+
+        var useSource = document.createElement("button");
+        useSource.type = "button";
+        useSource.className = "btn btn-sm btn-outline-primary";
+        useSource.textContent = "Usa origine";
+        useSource.addEventListener("click", function () {
+            input.value = sourceValue || "";
+            currentLine.querySelector("span:last-child").textContent = input.value || "";
         });
-        var help = wrapper.querySelector(".form-text");
-        if (directInput) {
-            wrapper.insertBefore(sourceBox, directInput);
-        } else if (help && help.parentElement === wrapper) {
-            wrapper.insertBefore(sourceBox, help);
+
+        var keepCurrent = document.createElement("button");
+        keepCurrent.type = "button";
+        keepCurrent.className = "btn btn-sm btn-outline-secondary";
+        keepCurrent.textContent = "Mantieni corrente";
+        keepCurrent.addEventListener("click", function () {
+            input.value = currentValue || "";
+            currentLine.querySelector("span:last-child").textContent = input.value || "";
+        });
+
+        actions.appendChild(useSource);
+        actions.appendChild(keepCurrent);
+        sourceBox.appendChild(title);
+        sourceBox.appendChild(sourceLine);
+        sourceBox.appendChild(currentLine);
+        sourceBox.appendChild(actions);
+        var label = wrapper.querySelector(".form-label");
+        if (label && label.parentElement === wrapper) {
+            wrapper.insertBefore(sourceBox, label.nextSibling);
         } else {
-            wrapper.appendChild(sourceBox);
+            wrapper.insertBefore(sourceBox, wrapper.firstChild);
         }
+        return sourceBox;
+    }
+
+    function renderComparisonSummary(container, sourceLabel, comparisons) {
+        var existing = container.querySelector(".product-publication-comparison-summary");
+        if (existing) {
+            existing.remove();
+        }
+        var summary = document.createElement("div");
+        summary.className = "product-publication-comparison-summary mt-2";
+
+        var title = document.createElement("div");
+        title.className = "fw-semibold mb-2";
+        title.textContent = sourceLabel + " - confronto valori";
+        summary.appendChild(title);
+
+        comparisons.forEach(function (entry) {
+            var row = document.createElement("div");
+            row.className = "product-publication-comparison-row";
+
+            var name = document.createElement("div");
+            name.className = "fw-semibold";
+            name.textContent = entry.label || entry.name;
+
+            var origin = document.createElement("div");
+            origin.className = "small";
+            origin.innerHTML = '<span class="text-muted">Origine:</span> <span class="fw-semibold"></span>';
+            origin.querySelector("span.fw-semibold").textContent = entry.sourceValue || "";
+
+            var current = document.createElement("div");
+            current.className = "small mb-2";
+            current.innerHTML = '<span class="text-muted">Corrente:</span> <span></span>';
+            current.querySelector("span:last-child").textContent = entry.currentValue || "";
+
+            var actions = document.createElement("div");
+            actions.className = "d-flex flex-wrap gap-2";
+            var useSource = document.createElement("button");
+            useSource.type = "button";
+            useSource.className = "btn btn-sm btn-outline-primary";
+            useSource.textContent = "Usa origine";
+            useSource.addEventListener("click", function () {
+                entry.input.value = entry.sourceValue || "";
+                current.querySelector("span:last-child").textContent = entry.input.value || "";
+            });
+            var keepCurrent = document.createElement("button");
+            keepCurrent.type = "button";
+            keepCurrent.className = "btn btn-sm btn-outline-secondary";
+            keepCurrent.textContent = "Mantieni corrente";
+            keepCurrent.addEventListener("click", function () {
+                entry.input.value = entry.currentValue || "";
+                current.querySelector("span:last-child").textContent = entry.input.value || "";
+            });
+            actions.appendChild(useSource);
+            actions.appendChild(keepCurrent);
+
+            row.appendChild(name);
+            row.appendChild(origin);
+            row.appendChild(current);
+            row.appendChild(actions);
+            summary.appendChild(row);
+        });
+
+        container.appendChild(summary);
     }
 
     function resetPublicationCopyPanel() {
@@ -636,17 +752,142 @@ document.addEventListener("DOMContentLoaded", function () {
             meta.textContent = "Poleepo " + (item.external_id || "-");
             body.appendChild(meta);
 
+            var localCopy = item.local_copy || {};
+            var barcodes = localCopy.barcodes || [];
+            if (barcodes.length) {
+                var barcodeMeta = document.createElement("div");
+                barcodeMeta.className = "text-muted small";
+                barcodeMeta.textContent = "Barcode: " + barcodes.join(", ");
+                body.appendChild(barcodeMeta);
+            } else {
+                var noBarcodeMeta = document.createElement("div");
+                noBarcodeMeta.className = "text-muted small";
+                noBarcodeMeta.textContent = "Barcode: assente";
+                body.appendChild(noBarcodeMeta);
+            }
+
+            var images = localCopy.images || [];
+            if (images.length) {
+                var imagesTitle = document.createElement("div");
+                imagesTitle.className = "small fw-semibold mt-2 mb-1";
+                imagesTitle.textContent = "Immagini da copiare";
+                body.appendChild(imagesTitle);
+
+                var imageToolbar = document.createElement("div");
+                imageToolbar.className = "d-flex flex-wrap gap-2 mb-2";
+                var selectImages = document.createElement("button");
+                selectImages.type = "button";
+                selectImages.className = "btn btn-sm btn-outline-secondary";
+                selectImages.textContent = "Seleziona tutte";
+                var clearImages = document.createElement("button");
+                clearImages.type = "button";
+                clearImages.className = "btn btn-sm btn-outline-secondary";
+                clearImages.textContent = "Deseleziona tutte";
+                imageToolbar.appendChild(selectImages);
+                imageToolbar.appendChild(clearImages);
+                body.appendChild(imageToolbar);
+
+                var imageGrid = document.createElement("div");
+                imageGrid.className = "product-image-copy-grid";
+                images.forEach(function (image) {
+                    if (!image.id) {
+                        return;
+                    }
+                    var label = document.createElement("label");
+                    label.className = "product-image-copy-thumb";
+                    var img = document.createElement("img");
+                    img.src = image.url;
+                    img.alt = item.cod_art;
+                    label.appendChild(img);
+
+                    var checkRow = document.createElement("span");
+                    checkRow.className = "d-flex align-items-start gap-2";
+                    var checkbox = document.createElement("input");
+                    checkbox.type = "checkbox";
+                    checkbox.className = "form-check-input mt-1 product-publication-copy-image-check";
+                    checkbox.value = image.id;
+                    checkbox.checked = true;
+                    var source = document.createElement("span");
+                    source.className = "small text-muted";
+                    source.textContent = platformLabel(image.source_platform);
+                    checkRow.appendChild(checkbox);
+                    checkRow.appendChild(source);
+                    label.appendChild(checkRow);
+                    imageGrid.appendChild(label);
+                });
+                selectImages.addEventListener("click", function () {
+                    imageGrid.querySelectorAll(".product-publication-copy-image-check").forEach(function (checkbox) {
+                        checkbox.checked = true;
+                    });
+                });
+                clearImages.addEventListener("click", function () {
+                    imageGrid.querySelectorAll(".product-publication-copy-image-check").forEach(function (checkbox) {
+                        checkbox.checked = false;
+                    });
+                });
+                body.appendChild(imageGrid);
+            } else {
+                var noImages = document.createElement("div");
+                noImages.className = "text-muted small mt-2";
+                noImages.textContent = "Nessuna immagine moderna copiabile.";
+                body.appendChild(noImages);
+            }
+
             var button = document.createElement("button");
             button.type = "button";
             button.className = "btn btn-sm btn-outline-primary";
-            button.innerHTML = '<i class="fa-solid fa-copy"></i> Copia valori';
+            button.innerHTML = '<i class="fa-solid fa-code-compare"></i> Confronta valori';
             button.addEventListener("click", function () {
                 applyPublicationCopyValues(button, item.cod_art);
             });
 
+            var localButton = document.createElement("button");
+            localButton.type = "button";
+            localButton.className = "btn btn-sm btn-outline-secondary";
+            localButton.innerHTML = '<i class="fa-solid fa-copy"></i> Copia dati locali';
+            localButton.addEventListener("click", function () {
+                copySelectedLocalData(localButton, item.cod_art);
+            });
+
             row.appendChild(body);
-            row.appendChild(button);
+            var actions = document.createElement("div");
+            actions.className = "d-grid gap-2";
+            actions.appendChild(button);
+            actions.appendChild(localButton);
+            row.appendChild(actions);
             publicationCopyResults.appendChild(row);
+        });
+    }
+
+    function copySelectedLocalData(button, sourceCodArt) {
+        var originalHtml = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Copio';
+        copyLocalDataFromSource(sourceCodArt, selectedPublicationCopyImageIds(button)).then(function (localData) {
+            var sheet = localData.results && localData.results.sheet;
+            var images = localData.results && localData.results.images;
+            var barcodes = localData.results && localData.results.barcodes;
+            var messages = [];
+            if (sheet && sheet.status === "copied") {
+                messages.push("scheda tecnica");
+            }
+            if (images && images.copied) {
+                messages.push(images.copied + " immagini");
+            }
+            if (barcodes && barcodes.copied) {
+                messages.push(barcodes.copied + " barcode");
+            }
+            var notice = document.createElement("div");
+            notice.className = messages.length ? "alert alert-success py-2 mt-2 mb-0" : "alert alert-info py-2 mt-2 mb-0";
+            notice.textContent = messages.length
+                ? "Copiati da " + sourceCodArt + ": " + messages.join(", ") + "."
+                : "Nessun dato locale copiato: il target ha gia' dati o l'origine non contiene elementi copiabili.";
+            publicationCopyResults.prepend(notice);
+        }).catch(function (error) {
+            alert(error.message || "Copia dati locali non riuscita");
+        }).finally(function () {
+            button.disabled = false;
+            button.innerHTML = originalHtml;
         });
     }
 
@@ -693,28 +934,47 @@ document.addEventListener("DOMContentLoaded", function () {
             });
         }).then(function (data) {
             var sourceLabel = "Origine " + ((data.source && data.source.cod_art) || sourceCodArt);
+            var inserted = 0;
+            var firstBox = null;
+            var firstWrapper = null;
+            var comparisons = [];
             (data.fields || []).forEach(function (field) {
                 var input = publicationFieldInput(field.name, field.language || "");
                 if (!input || input.dataset.readonly === "1") {
                     return;
                 }
-                input.value = field.value || "";
-                setPublicationSourceValue(input, sourceLabel, field.value || "");
-            });
-            return copyLocalDataFromSource(sourceCodArt).then(function (localData) {
-                var sheet = localData.results && localData.results.sheet;
-                if (sheet && sheet.status === "copied") {
-                    var notice = document.createElement("div");
-                    notice.className = "alert alert-success py-2 mt-2 mb-0";
-                    notice.textContent = "Scheda tecnica locale copiata dall'articolo " + sourceCodArt + ".";
-                    publicationCopyResults.prepend(notice);
+                var box = setPublicationSourceValue(input, sourceLabel, field.value || "");
+                if (box) {
+                    inserted += 1;
+                    if (!firstBox) {
+                        firstBox = box;
+                        firstWrapper = input.closest("[data-field-name]");
+                    }
+                    comparisons.push({
+                        name: field.name,
+                        label: field.label,
+                        input: input,
+                        sourceValue: field.value || "",
+                        currentValue: input.value || ""
+                    });
                 }
-            }).catch(function (localError) {
-                var warning = document.createElement("div");
-                warning.className = "alert alert-warning py-2 mt-2 mb-0";
-                warning.textContent = "Valori copiati nella modale, ma la scheda tecnica locale non e' stata copiata: " + (localError.message || "errore non specificato");
-                publicationCopyResults.prepend(warning);
             });
+            var resultRow = button.closest(".product-publication-copy-result");
+            if (resultRow && comparisons.length) {
+                renderComparisonSummary(resultRow.querySelector(".min-w-0") || resultRow, sourceLabel, comparisons);
+            }
+            var notice = document.createElement("div");
+            notice.className = inserted ? "alert alert-info py-2 mt-2 mb-0" : "alert alert-warning py-2 mt-2 mb-0";
+            notice.textContent = inserted
+                ? "Confronto caricato su " + inserted + " campi. Scegli campo per campo cosa mantenere."
+                : "Nessun campo confrontabile trovato nella modale corrente.";
+            publicationCopyResults.prepend(notice);
+            if (firstBox && firstWrapper && publicationFields) {
+                publicationFields.scrollTo({
+                    top: Math.max(firstWrapper.offsetTop - publicationFields.offsetTop - 8, 0),
+                    behavior: "smooth"
+                });
+            }
         }).catch(function (error) {
             alert(error.message || "Copia valori non riuscita");
         }).finally(function () {

@@ -318,6 +318,8 @@ Aggiornamento 2026-06-24:
 - Nuova route `POST /search/scheda_articolo/<cod_art>/publish/<platform>/update` per aggiornare il prodotto remoto senza ricrearlo.
 - Update remoto attivo solo per Poleepo; Prestashop resta da implementare con update XML dedicato.
 - Create/update Poleepo usano lo stesso filtro payload minimo verificato, evitando di inviare campi non confermati come `description` e `barcode`.
+- La categoria Poleepo (`main_category_id`) non deve essere mostrata come numero muto: la bozza prova a costruire una select `ID - descrizione` dai prodotti Poleepo gia' presenti usando `main_category_path`; se l'ID non e' risolvibile viene evidenziato come `descrizione non disponibile`.
+- Il default categoria Poleepo supporta anche `POLEEPO_DEFAULT_CATEGORY_LABEL` per rendere leggibili default numerici configurati, ad esempio `59271`, quando non sono ancora ricavabili dalle API.
 - Prossimo step: test reale di modifica su prodotto controllato, poi gestione esplicita attiva/disattiva/elimina remoto e completamento mapping dati.
 - La modale di modifica Poleepo deve partire dai valori remoti letti con `GET /products/<id>`, non dai mapping LDApp; i mapping LDApp possono comparire solo come suggerimento quando divergono.
 - Per i prodotti nuovi, il titolo Poleepo proposto usa `Articoli.descrizione + Articoli.descrizione_aggiuntiva`, cosi' informazioni identitarie come produttore/tenuta non vengono perse.
@@ -334,7 +336,8 @@ Aggiornamento 2026-06-24:
   - implementato: la modale consente selezione multipla delle immagini sorgente, con checkbox su ogni immagine e comandi `Seleziona tutte` / `Deseleziona tutte`, cosi' per nuove annate si possono copiare tutte le immagini della vecchia annata oppure solo quelle ancora valide;
   - endpoint `POST /search/scheda_articolo/<cod_art>/images/copy` accetta sia il vecchio `asset_id` singolo sia il nuovo array `asset_ids`.
 - Da progettare come step successivo: `Crea prodotto da altro prodotto` per nuove annate, probabilmente nella scheda articolo/prodotto e non nella scheda cliente, con copia controllata di dati, bozze piattaforma, immagini e campi descrittivi/tecnici interni.
-  - Prima copertura implementata nel flusso esistente `Copia valori da altro prodotto`: quando si copiano valori da un articolo sorgente, LDApp copia anche la scheda tecnica locale (`SchedeProdotti`) se il target non ne ha gia' una; il clone completo resta da progettare come funzione dedicata.
+  - Prima copertura implementata nel flusso esistente `Copia valori da altro prodotto`: quando si copiano valori da un articolo sorgente, LDApp copia anche dati locali collegati.
+  - Il flusso e' separato in due azioni: `Confronta valori` mostra i valori origine accanto ai campi del target senza sovrascriverli, con scelta esplicita campo-per-campo; `Copia dati locali` trasferisce scheda tecnica (`SchedeProdotti`) se il target non ne ha gia' una, immagini `ProductAsset` selezionate tramite checkbox e barcode `Barcode` solo se il target non ha gia' barcode.
 - Nella modale `Modifica su Poleepo` e' presente anche `Copia valori da altro prodotto`:
   - `GET /search/scheda_articolo/<cod_art>/publish/poleepo/copy-candidates`;
   - `GET /search/scheda_articolo/<cod_art>/publish/poleepo/copy-values`;
