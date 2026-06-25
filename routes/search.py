@@ -87,7 +87,7 @@ PRODUCT_PUBLICATION_SCHEMAS = {
         "label": "Poleepo",
         "fields": [
             {"name": "sku", "label": "SKU", "type": "text", "required": True, "source": "cod_art"},
-            {"name": "title", "label": "Nome prodotto", "type": "text", "required": True, "source": "descrizione"},
+            {"name": "title", "label": "Nome prodotto", "type": "text", "required": True, "source": "descrizione_full"},
             {"name": "description", "label": "Descrizione", "type": "textarea", "required": False, "source": "scheda_tecnica"},
             {"name": "price", "label": "Prezzo", "type": "decimal", "required": True, "source": "prezzo"},
             {"name": "vat_rate", "label": "IVA", "type": "decimal", "required": True, "source": "default_vat_22"},
@@ -136,6 +136,12 @@ def _product_publication_source_value(source, articolo, scheda, barcodes, giacen
         return articolo.descrizione or ""
     if source == "descrizione_aggiuntiva":
         return articolo.descrizione_aggiuntiva or ""
+    if source == "descrizione_full":
+        return " - ".join(
+            piece.strip()
+            for piece in [articolo.descrizione or "", articolo.descrizione_aggiuntiva or ""]
+            if piece and piece.strip()
+        )
     if source == "scheda_short":
         return (scheda.short if scheda else None) or articolo.descrizione_aggiuntiva or ""
     if source == "scheda_tecnica":
@@ -155,6 +161,41 @@ def _product_publication_source_value(source, articolo, scheda, barcodes, giacen
     if source == "default_false":
         return "0"
     return ""
+
+
+def _poleepo_remote_field_value(remote_product, field_name):
+    if not isinstance(remote_product, dict) or field_name not in remote_product:
+        return None
+    value = remote_product.get(field_name)
+    if isinstance(value, dict):
+        if field_name == "type":
+            return value.get("name") or value.get("id") or ""
+        return value.get("name") or value.get("value") or value.get("id") or ""
+    if isinstance(value, list):
+        return ", ".join(
+            str(item.get("name") or item.get("title") or item.get("id") or item)
+            for item in value
+        )
+    if isinstance(value, bool):
+        return "1" if value else "0"
+    return value
+
+
+def _product_identity_value(articolo):
+    return " | ".join(
+        str(piece or "").strip().lower()
+        for piece in [articolo.descrizione, articolo.descrizione_aggiuntiva]
+        if str(piece or "").strip()
+    )
+
+
+def _validate_distinct_source_product(target_articolo, source_articolo):
+    if not source_articolo:
+        raise ValueError("Articolo origine non trovato")
+    if source_articolo.cod_art == target_articolo.cod_art:
+        raise ValueError("L'articolo origine deve avere un codice diverso")
+    if _product_identity_value(source_articolo) == _product_identity_value(target_articolo):
+        raise ValueError("Descrizione e descrizione aggiuntiva devono identificare prodotti diversi")
 
 
 def _product_publication_schema(platform_key):
@@ -179,11 +220,27 @@ def _product_publication_field_options(platform_key, spec):
     return [], None
 
 
-def _build_product_publication_draft(articolo, platform_key, *, include_options=True):
+def _build_product_publication_draft(
+    articolo,
+    platform_key,
+    *,
+    include_options=True,
+    platform_link=None,
+    prefer_saved=False,
+):
     schema = _product_publication_schema(platform_key)
     scheda = SchedeProdotti.query.filter_by(cod_art=articolo.cod_art).first()
     barcodes = Barcode.query.filter_by(cod_art=articolo.cod_art).order_by(Barcode.cod_bar.asc()).all()
     giacenze = Giacenza.query.filter_by(cod_art=articolo.cod_art).first()
+    remote_product = None
+    if platform_key == "poleepo" and platform_link and platform_link.external_id:
+        try:
+            integration = CourierIntegration.query.filter_by(code="poleepo").first()
+            remote_product = PoleepoConnector(integration=integration).product_detail(platform_link.external_id)
+        except Exception as exc:
+            logger.warning("Dettaglio prodotto Poleepo non disponibile per %s: %s", articolo.cod_art, exc)
+            payload = platform_link.raw_payload if isinstance(platform_link.raw_payload, dict) else {}
+            remote_product = payload.get("data") if isinstance(payload.get("data"), dict) else None
     saved_rows = {
         (row.field_name, row.language or ""): row
         for row in ProductPlatformField.query.filter_by(cod_art=articolo.cod_art, platform=platform_key).all()
@@ -193,8 +250,21 @@ def _build_product_publication_draft(articolo, platform_key, *, include_options=
         language = spec.get("language", "")
         saved = saved_rows.get((spec["name"], language))
         mapped_value = _product_publication_source_value(spec.get("source"), articolo, scheda, barcodes, giacenze)
-        value = saved.value_text if saved and saved.value_text is not None else mapped_value
+        remote_value = _poleepo_remote_field_value(remote_product, spec["name"]) if platform_key == "poleepo" else None
+        if prefer_saved and saved and saved.value_text is not None:
+            value = saved.value_text
+        elif remote_value is not None:
+            value = remote_value
+        elif saved and saved.value_text is not None:
+            value = saved.value_text
+        else:
+            value = mapped_value
         options, options_error = _product_publication_field_options(platform_key, spec) if include_options else ([], None)
+        help_text = spec.get("help") or ""
+        if remote_value is not None:
+            help_text = "Valore letto dal prodotto remoto Poleepo."
+            if str(mapped_value or "").strip() and str(mapped_value or "").strip() != str(value or "").strip():
+                help_text += f" Valore LDApp attuale: {mapped_value}"
         fields.append({
             "name": spec["name"],
             "label": spec["label"],
@@ -202,14 +272,48 @@ def _build_product_publication_draft(articolo, platform_key, *, include_options=
             "required": bool(spec.get("required")),
             "source": spec.get("source") or "manual",
             "language": language,
-            "value": value or "",
-            "mapped_value": mapped_value or "",
+            "value": "" if value is None else str(value),
+            "mapped_value": "" if mapped_value is None else str(mapped_value),
             "saved": bool(saved),
             "missing": bool(spec.get("required")) and not str(value or "").strip(),
             "options": options,
             "options_error": options_error,
-            "help": spec.get("help") or "",
+            "help": help_text,
         })
+    if platform_key == "poleepo" and isinstance(remote_product, dict):
+        existing_names = {field["name"] for field in fields}
+        readonly_fields = [
+            ("id", "ID Poleepo"),
+            ("type", "Tipo"),
+            ("price_with_tax", "Prezzo IVA inclusa"),
+            ("sales", "Vendite"),
+            ("main_category_path", "Percorso categoria"),
+            ("creation_date", "Data creazione"),
+            ("update_date", "Data aggiornamento"),
+            ("images", "Immagini remote"),
+            ("provisions", "Disponibilita' remote"),
+            ("tags", "Tag"),
+        ]
+        for name, label in readonly_fields:
+            if name in existing_names or name not in remote_product:
+                continue
+            remote_value = _poleepo_remote_field_value(remote_product, name)
+            fields.append({
+                "name": name,
+                "label": label,
+                "type": "readonly",
+                "required": False,
+                "source": "poleepo_remote",
+                "language": "",
+                "value": "" if remote_value is None else str(remote_value),
+                "mapped_value": "",
+                "saved": True,
+                "missing": False,
+                "options": [],
+                "options_error": None,
+                "help": "Campo letto dal prodotto remoto Poleepo. Non viene modificato da questa operazione.",
+                "readonly": True,
+            })
     return {
         "platform": platform_key,
         "label": schema["label"],
@@ -504,6 +608,44 @@ def _proxy_remote_product_asset(asset):
     return response
 
 
+def _download_remote_product_asset_to_ldapp(asset, target_cod_art):
+    if not asset or not asset.remote_url:
+        return None
+
+    request_kwargs = {"timeout": 30}
+    prestashop_key = current_app.config.get("PS_KEY") or os.getenv("PRESTASHOP_KEY")
+    if prestashop_key and asset.source_platform == "prestashop":
+        request_kwargs["auth"] = HTTPBasicAuth(prestashop_key, "")
+
+    upstream = requests.get(asset.remote_url, **request_kwargs)
+    if upstream.status_code != 200:
+        raise ValueError(f"Download immagine remota non riuscito: HTTP {upstream.status_code}")
+
+    content_type = upstream.headers.get("Content-Type") or asset.mime_type or "image/jpeg"
+    extension = mimetypes.guess_extension(content_type.split(";", 1)[0].strip()) or ""
+    if extension == ".jpe":
+        extension = ".jpg"
+    if extension not in ALLOWED_PRODUCT_IMAGE_EXTENSIONS:
+        original_ext = os.path.splitext(asset.original_filename or "")[1].lower()
+        extension = original_ext if original_ext in ALLOWED_PRODUCT_IMAGE_EXTENSIONS else ".jpg"
+
+    safe_code = secure_filename(target_cod_art) or "product"
+    filename = f"{safe_code}_copied_{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}{extension}"
+    relative_path = f"images/products/ldapp/{filename}"
+    target_dir = os.path.join(current_app.static_folder, "images", "products", "ldapp")
+    os.makedirs(target_dir, exist_ok=True)
+    target_path = os.path.join(target_dir, filename)
+    with open(target_path, "wb") as image_file:
+        image_file.write(upstream.content)
+
+    return {
+        "relative_path": relative_path,
+        "filename": filename,
+        "content_hash": hashlib.sha256(upstream.content).hexdigest(),
+        "mime_type": content_type.split(";", 1)[0].strip(),
+    }
+
+
 def _sync_product_asset_for_platform(articolo, source_asset, platform_key, remote_url, source_external_id):
     source_family_key = _product_asset_family_key(source_asset)
     asset = ProductAsset.query.filter_by(
@@ -554,9 +696,103 @@ def _sync_product_asset_for_platform(articolo, source_asset, platform_key, remot
     return asset
 
 
+def _copy_product_asset_to_article(target_articolo, source_asset):
+    if not source_asset or source_asset.asset_type != "image":
+        raise ValueError("Immagine sorgente non valida")
+    if source_asset.cod_art == target_articolo.cod_art:
+        raise ValueError("L'immagine appartiene gia' a questo articolo")
+    if not source_asset.local_path and not source_asset.remote_url:
+        raise ValueError("L'immagine sorgente non ha un percorso copiabile")
+
+    local_path = source_asset.local_path
+    original_filename = source_asset.original_filename
+    content_hash = source_asset.content_hash
+    mime_type = source_asset.mime_type
+    if not local_path and source_asset.remote_url:
+        downloaded = _download_remote_product_asset_to_ldapp(source_asset, target_articolo.cod_art)
+        local_path = downloaded["relative_path"]
+        original_filename = original_filename or downloaded["filename"]
+        content_hash = downloaded["content_hash"]
+        mime_type = downloaded["mime_type"]
+
+    metadata = dict(source_asset.metadata_json or {})
+    metadata.update({
+        "copied_from_asset_id": source_asset.id,
+        "copied_from_cod_art": source_asset.cod_art,
+        "copied_at": datetime.utcnow().isoformat(),
+    })
+
+    asset = ProductAsset.query.filter_by(
+        cod_art=target_articolo.cod_art,
+        asset_type="image",
+        source_platform="ldapp",
+        local_path=local_path,
+    ).first()
+    if not asset:
+        asset = ProductAsset(
+            cod_art=target_articolo.cod_art,
+            id_art=target_articolo.id_art,
+            asset_type="image",
+            source_platform="ldapp",
+            source_external_id=None,
+            local_path=local_path,
+            remote_url=source_asset.remote_url if not local_path else None,
+            original_filename=original_filename,
+            content_hash=content_hash,
+            mime_type=mime_type,
+            is_primary=False,
+            sort_order=source_asset.sort_order,
+            metadata_json=metadata,
+        )
+        db.session.add(asset)
+    else:
+        asset.id_art = target_articolo.id_art
+        asset.original_filename = original_filename or asset.original_filename
+        asset.content_hash = content_hash or asset.content_hash
+        asset.mime_type = mime_type or asset.mime_type
+        asset.metadata_json = metadata
+    return asset
+
+
+def _copy_product_sheet_to_article(target_articolo, source_articolo, overwrite=False):
+    if not target_articolo or not source_articolo:
+        raise ValueError("Articolo origine o destinazione non valido")
+    if target_articolo.cod_art == source_articolo.cod_art:
+        raise ValueError("L'articolo origine deve avere un codice diverso")
+
+    source_sheet = SchedeProdotti.query.filter_by(cod_art=source_articolo.cod_art).first()
+    if not source_sheet or not ((source_sheet.descrizione or "").strip() or (source_sheet.short or "").strip()):
+        return None, "missing_source"
+
+    target_sheet = SchedeProdotti.query.filter_by(cod_art=target_articolo.cod_art).first()
+    if target_sheet and not overwrite and ((target_sheet.descrizione or "").strip() or (target_sheet.short or "").strip()):
+        return target_sheet, "skipped_existing"
+
+    if not target_sheet:
+        target_sheet = SchedeProdotti(
+            cod_art=target_articolo.cod_art,
+            id_art=target_articolo.id_art,
+        )
+        db.session.add(target_sheet)
+    else:
+        target_sheet.id_art = target_articolo.id_art
+
+    target_sheet.descrizione = source_sheet.descrizione
+    target_sheet.short = source_sheet.short
+    return target_sheet, "copied"
+
+
 def _publish_product_image_to_platform(articolo, source_asset, platform_key, platform_link):
     if platform_key == "prestashop":
         local_path = _product_image_local_path(source_asset)
+        if not local_path and source_asset.remote_url:
+            downloaded = _download_remote_product_asset_to_ldapp(source_asset, articolo.cod_art)
+            source_asset.local_path = downloaded["relative_path"]
+            source_asset.original_filename = source_asset.original_filename or downloaded["filename"]
+            source_asset.content_hash = downloaded["content_hash"]
+            source_asset.mime_type = downloaded["mime_type"]
+            db.session.flush()
+            local_path = _product_image_local_path(source_asset)
         if not local_path:
             raise ValueError("L'immagine selezionata non ha un file locale pubblicabile.")
         result = prestashop_upload_product_image(
@@ -583,6 +819,14 @@ def _publish_product_image_to_platform(articolo, source_asset, platform_key, pla
 
     if platform_key == "poleepo":
         local_path = _product_image_local_path(source_asset)
+        if not local_path and source_asset.remote_url:
+            downloaded = _download_remote_product_asset_to_ldapp(source_asset, articolo.cod_art)
+            source_asset.local_path = downloaded["relative_path"]
+            source_asset.original_filename = source_asset.original_filename or downloaded["filename"]
+            source_asset.content_hash = downloaded["content_hash"]
+            source_asset.mime_type = downloaded["mime_type"]
+            db.session.flush()
+            local_path = _product_image_local_path(source_asset)
         if not local_path:
             raise ValueError("L'immagine selezionata non ha un file locale pubblicabile.")
         poleepo_integration = CourierIntegration.query.filter_by(code="poleepo").first()
@@ -773,7 +1017,12 @@ def product_publication_draft(cod_art, platform_key):
         return jsonify({"ok": False, "error": "Piattaforma non pubblicabile o modificabile."}), 400
 
     try:
-        draft = _build_product_publication_draft(articolo, platform_key, include_options=True)
+        draft = _build_product_publication_draft(
+            articolo,
+            platform_key,
+            include_options=True,
+            platform_link=platform_links.get(platform_key),
+        )
     except ValueError as exc:
         return jsonify({"ok": False, "error": str(exc)}), 400
     return jsonify({"ok": True, "draft": draft})
@@ -801,7 +1050,13 @@ def save_product_publication_draft(cod_art, platform_key):
     try:
         saved_rows = _save_product_publication_draft(articolo, platform_key, payload.get("fields") or [])
         db.session.commit()
-        draft = _build_product_publication_draft(articolo, platform_key, include_options=False)
+        draft = _build_product_publication_draft(
+            articolo,
+            platform_key,
+            include_options=False,
+            platform_link=platform_links.get(platform_key),
+            prefer_saved=True,
+        )
         return jsonify({"ok": True, "saved": len(saved_rows), "draft": draft})
     except ValueError as exc:
         db.session.rollback()
@@ -809,6 +1064,162 @@ def save_product_publication_draft(cod_art, platform_key):
     except Exception as exc:
         db.session.rollback()
         logger.exception("Errore salvataggio bozza pubblicazione %s per %s", platform_key, cod_art)
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@search_bp.get('/scheda_articolo/<cod_art>/publish/<platform_key>/copy-candidates')
+@login_required
+def product_publication_copy_candidates(cod_art, platform_key):
+    if not _can_manage_product_images():
+        return jsonify({"ok": False, "error": "Accesso negato"}), 403
+
+    target_articolo = Articoli.query.filter_by(cod_art=cod_art).first()
+    if not target_articolo:
+        return jsonify({"ok": False, "error": "Articolo non trovato."}), 404
+
+    platform_key = (platform_key or "").strip().lower()
+    if platform_key != "poleepo":
+        return jsonify({"ok": False, "error": "Copia valori disponibile solo per Poleepo."}), 400
+
+    target_links = {link.platform: link for link in ProductPlatformLink.query.filter_by(cod_art=cod_art).all()}
+    if not _can_update_product_on_platform(platform_key, target_links):
+        return jsonify({"ok": False, "error": "Prodotto corrente non modificabile su Poleepo."}), 400
+
+    query = (request.args.get("q") or "").strip()
+    if len(query) < 2:
+        return jsonify({"ok": True, "items": []})
+
+    articles = (
+        Articoli.query
+        .join(ProductPlatformLink, ProductPlatformLink.cod_art == Articoli.cod_art)
+        .filter(
+            ProductPlatformLink.platform == platform_key,
+            ProductPlatformLink.status.notin_(["absent", "error"]),
+            ProductPlatformLink.external_id.isnot(None),
+            Articoli.cod_art != cod_art,
+            or_(
+                Articoli.cod_art.ilike(f"%{query}%"),
+                Articoli.descrizione.ilike(f"%{query}%"),
+                Articoli.descrizione_aggiuntiva.ilike(f"%{query}%"),
+            ),
+        )
+        .order_by(Articoli.cod_art.asc())
+        .limit(20)
+        .all()
+    )
+
+    target_identity = _product_identity_value(target_articolo)
+    items = []
+    for articolo in articles:
+        if _product_identity_value(articolo) == target_identity:
+            continue
+        link = ProductPlatformLink.query.filter_by(cod_art=articolo.cod_art, platform=platform_key).first()
+        items.append({
+            "cod_art": articolo.cod_art,
+            "descrizione": articolo.descrizione or "",
+            "descrizione_aggiuntiva": articolo.descrizione_aggiuntiva or "",
+            "external_id": link.external_id if link else None,
+        })
+    return jsonify({"ok": True, "items": items})
+
+
+@search_bp.get('/scheda_articolo/<cod_art>/publish/<platform_key>/copy-values')
+@login_required
+def product_publication_copy_values(cod_art, platform_key):
+    if not _can_manage_product_images():
+        return jsonify({"ok": False, "error": "Accesso negato"}), 403
+
+    target_articolo = Articoli.query.filter_by(cod_art=cod_art).first()
+    if not target_articolo:
+        return jsonify({"ok": False, "error": "Articolo non trovato."}), 404
+
+    platform_key = (platform_key or "").strip().lower()
+    if platform_key != "poleepo":
+        return jsonify({"ok": False, "error": "Copia valori disponibile solo per Poleepo."}), 400
+
+    target_links = {link.platform: link for link in ProductPlatformLink.query.filter_by(cod_art=cod_art).all()}
+    if not _can_update_product_on_platform(platform_key, target_links):
+        return jsonify({"ok": False, "error": "Prodotto corrente non modificabile su Poleepo."}), 400
+
+    source_cod_art = (request.args.get("source_cod_art") or "").strip()
+    source_articolo = Articoli.query.filter_by(cod_art=source_cod_art).first()
+    try:
+        _validate_distinct_source_product(target_articolo, source_articolo)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    source_link = ProductPlatformLink.query.filter_by(cod_art=source_cod_art, platform=platform_key).first()
+    if not _can_update_product_on_platform(platform_key, {platform_key: source_link}):
+        return jsonify({"ok": False, "error": "Articolo origine non collegato a Poleepo."}), 400
+
+    try:
+        draft = _build_product_publication_draft(
+            source_articolo,
+            platform_key,
+            include_options=False,
+            platform_link=source_link,
+        )
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    editable_fields = [
+        field for field in draft.get("fields", [])
+        if not field.get("readonly")
+    ]
+    return jsonify({
+        "ok": True,
+        "source": {
+            "cod_art": source_articolo.cod_art,
+            "descrizione": source_articolo.descrizione or "",
+            "descrizione_aggiuntiva": source_articolo.descrizione_aggiuntiva or "",
+            "external_id": source_link.external_id,
+        },
+        "fields": editable_fields,
+        "local_copy": {
+            "can_copy_sheet": bool(SchedeProdotti.query.filter_by(cod_art=source_cod_art).first()),
+        },
+    })
+
+
+@search_bp.post('/scheda_articolo/<cod_art>/copy-local-data')
+@login_required
+def copy_product_local_data(cod_art):
+    if not _can_manage_product_images():
+        return jsonify({"ok": False, "error": "Accesso negato"}), 403
+
+    target_articolo = Articoli.query.filter_by(cod_art=cod_art).first()
+    if not target_articolo:
+        return jsonify({"ok": False, "error": "Articolo non trovato."}), 404
+
+    payload = request.get_json(silent=True) or {}
+    source_cod_art = (payload.get("source_cod_art") or "").strip()
+    source_articolo = Articoli.query.filter_by(cod_art=source_cod_art).first()
+    try:
+        _validate_distinct_source_product(target_articolo, source_articolo)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    results = {}
+    try:
+        if payload.get("copy_sheet", True):
+            sheet, status = _copy_product_sheet_to_article(
+                target_articolo,
+                source_articolo,
+                overwrite=bool(payload.get("overwrite_sheet")),
+            )
+            results["sheet"] = {
+                "status": status,
+                "copied": status == "copied",
+                "has_sheet": bool(sheet),
+            }
+        db.session.commit()
+        return jsonify({"ok": True, "results": results})
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception("Errore copia dati locali da %s a %s", source_cod_art, cod_art)
         return jsonify({"ok": False, "error": str(exc)}), 500
 
 
@@ -832,7 +1243,13 @@ def publish_product_to_platform(cod_art, platform_key):
         if payload.get("fields"):
             _save_product_publication_draft(articolo, platform_key, payload.get("fields") or [])
             db.session.flush()
-        draft = _build_product_publication_draft(articolo, platform_key, include_options=False)
+        draft = _build_product_publication_draft(
+            articolo,
+            platform_key,
+            include_options=False,
+            platform_link=platform_links.get(platform_key),
+            prefer_saved=True,
+        )
         result = _publish_product_to_platform(articolo, platform_key, draft)
         db.session.commit()
         return jsonify({"ok": True, "result": result})
@@ -868,7 +1285,13 @@ def update_product_on_platform(cod_art, platform_key):
         if payload.get("fields"):
             _save_product_publication_draft(articolo, platform_key, payload.get("fields") or [])
             db.session.flush()
-        draft = _build_product_publication_draft(articolo, platform_key, include_options=False)
+        draft = _build_product_publication_draft(
+            articolo,
+            platform_key,
+            include_options=False,
+            platform_link=platform_links.get(platform_key),
+            prefer_saved=True,
+        )
         result = _update_product_on_platform(articolo, platform_key, draft, platform_links.get(platform_key))
         db.session.commit()
         return jsonify({"ok": True, "result": result})
@@ -949,6 +1372,118 @@ def upload_product_image(cod_art):
 
     db.session.commit()
     return jsonify({"ok": True, "asset": _serialize_product_asset(asset)})
+
+
+@search_bp.get('/scheda_articolo/<cod_art>/images/copy-candidates')
+@login_required
+def product_image_copy_candidates(cod_art):
+    if not _can_manage_product_images():
+        return jsonify({"ok": False, "error": "Accesso negato"}), 403
+
+    query = (request.args.get("q") or "").strip()
+    if len(query) < 2:
+        return jsonify({"ok": True, "items": []})
+
+    articles = (
+        Articoli.query
+        .filter(
+            Articoli.cod_art != cod_art,
+            or_(
+                Articoli.cod_art.ilike(f"%{query}%"),
+                Articoli.descrizione.ilike(f"%{query}%"),
+                Articoli.descrizione_aggiuntiva.ilike(f"%{query}%"),
+            )
+        )
+        .order_by(Articoli.cod_art.asc())
+        .limit(20)
+        .all()
+    )
+
+    items = []
+    for articolo in articles:
+        assets = (
+            ProductAsset.query
+            .filter_by(cod_art=articolo.cod_art, asset_type="image")
+            .order_by(ProductAsset.is_primary.desc(), ProductAsset.sort_order.asc(), ProductAsset.id.asc())
+            .limit(12)
+            .all()
+        )
+        images = [
+            _serialize_product_asset(asset)
+            for asset in assets
+            if asset.local_path or asset.remote_url
+        ]
+        if not images:
+            continue
+        items.append({
+            "cod_art": articolo.cod_art,
+            "descrizione": articolo.descrizione or "",
+            "descrizione_aggiuntiva": articolo.descrizione_aggiuntiva or "",
+            "images": images,
+        })
+
+    return jsonify({"ok": True, "items": items})
+
+
+@search_bp.post('/scheda_articolo/<cod_art>/images/copy')
+@login_required
+def copy_product_image(cod_art):
+    if not _can_manage_product_images():
+        return jsonify({"ok": False, "error": "Accesso negato"}), 403
+
+    target_articolo = Articoli.query.filter_by(cod_art=cod_art).first()
+    if not target_articolo:
+        return jsonify({"ok": False, "error": "Articolo non trovato."}), 404
+
+    payload = request.get_json(silent=True) or {}
+    raw_asset_ids = payload.get("asset_ids")
+    if raw_asset_ids is None:
+        raw_asset_ids = [payload.get("asset_id")]
+    if not isinstance(raw_asset_ids, list):
+        return jsonify({"ok": False, "error": "Selezione immagini non valida."}), 400
+
+    source_asset_ids = []
+    for raw_asset_id in raw_asset_ids:
+        try:
+            source_asset_id = int(raw_asset_id)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Immagine sorgente non valida."}), 400
+        if source_asset_id not in source_asset_ids:
+            source_asset_ids.append(source_asset_id)
+
+    if not source_asset_ids:
+        return jsonify({"ok": False, "error": "Seleziona almeno una immagine."}), 400
+
+    source_assets = (
+        ProductAsset.query
+        .filter(ProductAsset.id.in_(source_asset_ids), ProductAsset.asset_type == "image")
+        .all()
+    )
+    assets_by_id = {asset.id: asset for asset in source_assets}
+    missing_ids = [asset_id for asset_id in source_asset_ids if asset_id not in assets_by_id]
+    if missing_ids:
+        return jsonify({"ok": False, "error": "Una o piu' immagini sorgente non sono state trovate."}), 404
+
+    try:
+        copied_assets = [
+            _copy_product_asset_to_article(target_articolo, assets_by_id[source_asset_id])
+            for source_asset_id in source_asset_ids
+        ]
+        db.session.commit()
+        serialized_assets = [_serialize_product_asset(asset) for asset in copied_assets]
+        return jsonify({
+            "ok": True,
+            "asset": serialized_assets[0] if serialized_assets else None,
+            "assets": serialized_assets,
+            "copied": len(serialized_assets),
+        })
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception("Errore copia immagini verso %s", cod_art)
+        return jsonify({"ok": False, "error": str(exc)}), 500
 
 
 @search_bp.route('/scheda_articolo/<cod_art>/images/<int:asset_id>/preview')

@@ -219,6 +219,48 @@
   body.product-publication-modal-open .modal-backdrop.show {
     z-index: 5290 !important;
   }
+  .product-image-copy-modal.modal,
+  .product-image-copy-modal.modal.show {
+    z-index: 5400 !important;
+  }
+  .product-image-copy-modal .modal-dialog {
+    z-index: 5401 !important;
+  }
+  body.product-image-copy-modal-open .modal-backdrop.show {
+    z-index: 5390 !important;
+  }
+  .product-image-copy-results {
+    max-height: 52vh;
+    overflow-y: auto;
+  }
+  .product-image-copy-result {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 10px;
+    background: #fff;
+  }
+  .product-image-copy-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+    gap: 8px;
+  }
+  .product-image-copy-thumb {
+    display: grid;
+    gap: 5px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 6px;
+    background: #f8f9fa;
+    text-align: left;
+    cursor: pointer;
+  }
+  .product-image-copy-thumb img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 6px;
+    background: #e9ecef;
+  }
   .product-publication-fields {
     max-height: 56vh;
     overflow-y: auto;
@@ -233,6 +275,34 @@
   .product-publication-field.is-missing {
     border-color: #dc3545;
     background: #fff5f5;
+  }
+  .product-publication-source-value {
+    border-left: 3px solid #0d6efd;
+    background: #f8fbff;
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    color: #495057;
+    font-size: .82rem;
+  }
+  .product-publication-copy-panel {
+    border: 1px solid #cfe2ff;
+    border-radius: 8px;
+    background: #f8fbff;
+    padding: 10px;
+  }
+  .product-publication-copy-results {
+    max-height: 180px;
+    overflow-y: auto;
+  }
+  .product-publication-copy-result {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #fff;
+    padding: 8px;
   }
   .product-image-context-menu {
     position: fixed;
@@ -343,6 +413,10 @@
                 <button class="btn btn-sm btn-outline-secondary" type="button" disabled
                         data-bs-toggle="tooltip" data-bs-title="Creazione immagine non ancora disponibile">
                   <i class="fa-solid fa-wand-magic-sparkles"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-primary" type="button" id="productImageCopyOpen"
+                        data-bs-toggle="tooltip" data-bs-title="Copia immagine da un altro prodotto">
+                  <i class="fa-solid fa-copy"></i>
                 </button>
               </form>
             </div>
@@ -584,6 +658,23 @@
           <div class="alert alert-info small">
             Salva bozza registra solo i valori in LDApp. Pubblica crea davvero il prodotto sulla piattaforma selezionata.
           </div>
+          <div class="product-publication-copy-panel mb-3 d-none" id="productPublicationCopyPanel">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+              <div>
+                <div class="fw-semibold">Copia valori da altro prodotto</div>
+                <div class="text-muted small">Origine e destinazione devono avere codice e identita' descrittiva diversi.</div>
+              </div>
+            </div>
+            <div class="input-group input-group-sm mb-2">
+              <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+              <input type="search" class="form-control" id="productPublicationCopySearch"
+                     placeholder="Cerca prodotto origine gia' presente su Poleepo">
+              <button type="button" class="btn btn-outline-primary" id="productPublicationCopySearchBtn">Cerca</button>
+            </div>
+            <div class="product-publication-copy-results vstack gap-2" id="productPublicationCopyResults">
+              <div class="text-muted small">Cerca un prodotto origine.</div>
+            </div>
+          </div>
           <div class="product-publication-fields vstack gap-2" id="productPublicationFields">
             <div class="text-muted">Caricamento campi...</div>
           </div>
@@ -597,6 +688,37 @@
           <button type="button" class="btn btn-success" id="productPublicationPublish">
             <i class="fa-solid fa-cloud-arrow-up"></i>
             Pubblica
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade product-image-copy-modal" id="productImageCopyModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title">Copia immagine da prodotto</h5>
+            <div class="text-muted small">Seleziona un prodotto sorgente e scegli una o piu' immagini da copiare.</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+        <div class="modal-body">
+          <div class="input-group mb-3">
+            <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
+            <input type="search" class="form-control" id="productImageCopySearch"
+                   placeholder="Cerca per codice, descrizione o produttore">
+            <button type="button" class="btn btn-outline-primary" id="productImageCopySearchBtn">Cerca</button>
+          </div>
+          <div class="product-image-copy-results vstack gap-2" id="productImageCopyResults">
+            <div class="text-muted">Cerca un prodotto sorgente.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+          <button type="button" class="btn btn-primary" id="productImageCopyConfirm" disabled>
+            <i class="fa-solid fa-copy"></i> Copia selezionate
           </button>
         </div>
       </div>

@@ -334,6 +334,13 @@ class PoleepoConnector:
         payload = self._request("GET", f"/shippings/{shipping_id}", token=token)
         return payload.get("data") or {}
 
+    def product_detail(self, product_id) -> dict:
+        token = self.access_token()
+        if not product_id:
+            raise ShippingConnectorError("ID prodotto Poleepo mancante")
+        payload = self._request("GET", f"/products/{product_id}", token=token)
+        return payload.get("data") or {}
+
     def create_product(self, *, payload=None):
         body = _poleepo_product_payload(payload)
         token = self.access_token()
@@ -375,6 +382,12 @@ class PoleepoConnector:
         if not product_id:
             raise ShippingConnectorError("ID prodotto Poleepo mancante")
         body = _poleepo_product_payload(payload)
+        return self._put_product_payload(product_id=product_id, payload=body)
+
+    def _put_product_payload(self, *, product_id=None, payload=None):
+        if not product_id:
+            raise ShippingConnectorError("ID prodotto Poleepo mancante")
+        body = payload if isinstance(payload, dict) else {}
         token = self.access_token()
         response = requests.put(
             f"{self.base_url}/products/{product_id}",
@@ -657,7 +670,7 @@ class PoleepoConnector:
         if source_url:
             try:
                 attempted.append({"url": f"{self.base_url}/products/{product_id}", "field": "images", "mode": "put-product"})
-                payload = self.update_product(
+                payload = self._put_product_payload(
                     product_id=product_id,
                     payload={
                         "images": [
@@ -668,7 +681,8 @@ class PoleepoConnector:
                         ]
                     },
                 )
-                product = payload.get("data") if isinstance(payload, dict) else {}
+                raw_payload = payload.get("raw_payload") if isinstance(payload, dict) else {}
+                product = raw_payload.get("data") if isinstance(raw_payload.get("data"), dict) else raw_payload
                 images = product.get("images") if isinstance(product, dict) else None
                 image_id = None
                 remote_url = source_url

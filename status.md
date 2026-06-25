@@ -1680,3 +1680,50 @@ Performance apertura giornata Agenda 2026-06-13:
   - create/update Poleepo filtrano entrambi il payload ai soli campi verificati: `sku`, `title`, `price`, `vat_rate`, `quantity`, `active`, `main_category_id`, piu' dimensioni/peso se presenti;
   - verifiche: `python -m py_compile routes/search.py tools/shipping_connectors.py`, `node --check static/js/scheda_articolo.js`, payload filtrato senza `description`/`barcode`, articolo reale `VB075515-23` riconosciuto come modificabile e bozza Poleepo senza obbligatori mancanti;
   - non e' ancora stato premuto `Modifica su Poleepo`: il prossimo test reale deve cambiare un dato innocuo e verificare aggiornamento remoto/propagazione.
+- 2026-06-24 correzione bozza modifica Poleepo:
+  - la modale `Modifica su Poleepo` ora parte dai valori realmente presenti sul prodotto remoto, letti con `GET /products/<id>`, non dai valori proposti da LDApp;
+  - i valori LDApp restano visibili come suggerimento quando divergono dal remoto, ad esempio `title` mostra il valore remoto e indica il titolo LDApp completo con `descrizione_aggiuntiva`;
+  - per le nuove pubblicazioni Poleepo il titolo proposto usa `descrizione + descrizione_aggiuntiva`, cosi' non si perde l'identita' del vino/prodotto;
+  - la bozza mostra anche campi Poleepo in sola lettura non modificati dall'update: `id`, `type`, `price_with_tax`, `sales`, `main_category_path`, `creation_date`, `update_date`, `images`, `provisions`, `tags`;
+  - il POST update usa i valori salvati dalla modale, non una rilettura remota successiva, per evitare di sovrascrivere le modifiche appena inserite;
+  - verifiche su `VB075515-23`: `title` remoto letto come `VINO TREBBIANO 2023 75cl`, suggerimento LDApp `VINO TREBBIANO 2023 75cl - LE MASSERIE - TENUTA MAGNA`, priorita' dei valori salvati confermata senza chiamare il PUT remoto.
+- 2026-06-24 scheda prodotto - copia immagine da altro prodotto:
+  - aggiunta azione nella toolbar immagini della scheda articolo per copiare un'immagine da un altro prodotto;
+  - nuova modale `Copia immagine da prodotto` con ricerca per codice, descrizione e descrizione aggiuntiva;
+  - nuovo endpoint `GET /search/scheda_articolo/<cod_art>/images/copy-candidates` per cercare articoli sorgente con asset immagine moderni;
+  - nuovo endpoint `POST /search/scheda_articolo/<cod_art>/images/copy` per copiare l'asset selezionato sull'articolo corrente come asset `ldapp`;
+  - la copia conserva `local_path`, `remote_url`, hash, filename, mime type e metadata di provenienza (`copied_from_asset_id`, `copied_from_cod_art`, `copied_at`);
+  - prima versione limitata agli asset moderni `ProductAsset`, non alle immagini legacy pure;
+  - verifiche: `python -m py_compile routes/search.py tools/shipping_connectors.py`, `node --check static/js/scheda_articolo.js`, presenza DB di asset moderni copiabili con `local_path`;
+  - prossimo step separato: definire `Crea prodotto da altro prodotto` per nuova annata, copiando dati/bozze/immagini in modo controllato senza creare subito remoto.
+- 2026-06-24 fix copia immagine remota:
+  - caso reale: immagine Poleepo copiata dal Trebbiano 2024 al 2023 ha creato asset `ldapp` con `remote_url` ma senza `local_path`, quindi la pubblicazione su Poleepo falliva con `L'immagine selezionata non ha un file locale pubblicabile`;
+  - `_copy_product_asset_to_article()` ora, se la sorgente ha solo `remote_url`, scarica l'immagine in `static/images/products/ldapp` e salva `local_path`, hash, filename e mime type;
+  - `_publish_product_image_to_platform()` ora ripara anche asset gia' copiati solo-remoti: prima di fallire tenta il download remoto e materializza il file locale;
+  - verificato asset reale `4039` su `VB075515-23`: prima era `local_path=False`, `remote_url=https://app.poleepo.cloud/image/show/24374099.jpeg`; URL remoto scaricabile con `HTTP 200 image/jpeg`.
+- 2026-06-24 fix fallback upload immagini Poleepo:
+  - errore reale: dopo i tentativi multipart/json/raw, il fallback `PUT /products/<id>` con `images` passava da `update_product()`, che ora valida i campi prodotto obbligatori e bloccava con `Campi Poleepo obbligatori mancanti`;
+  - separato il PUT prodotto validato dal PUT grezzo interno: `update_product()` resta vincolato ai campi prodotto, mentre il fallback immagini usa `_put_product_payload()` senza richiedere `sku/title/price/vat_rate/main_category_id`;
+  - verifica: `python -m py_compile tools/shipping_connectors.py`; `update_product()` continua a bloccare payload incompleti.
+- 2026-06-24 modifica Poleepo - copia valori da altro prodotto:
+  - aggiunto pannello `Copia valori da altro prodotto` dentro la modale `Modifica su Poleepo`;
+  - nuova API `GET /search/scheda_articolo/<cod_art>/publish/poleepo/copy-candidates` per cercare prodotti origine gia' collegati a Poleepo;
+  - nuova API `GET /search/scheda_articolo/<cod_art>/publish/poleepo/copy-values` per leggere i valori remoti Poleepo dell'articolo origine;
+  - i candidati origine sono ammessi solo se hanno codice articolo diverso dal target e identita' descrittiva diversa (`descrizione + descrizione_aggiuntiva`);
+  - quando si copiano i valori, ogni campo editabile parte dal valore origine e mostra vicino al campo il valore letto dall'origine;
+  - i valori possono essere variati prima di salvare/aggiornare;
+  - corretto bug bozza su valori falsy: `quantity=0` e `active=false` non vengono piu' trasformati in stringa vuota;
+  - corretto errore frontend `insertBefore`: il box del valore origine ora viene inserito solo rispetto a nodi figli diretti del wrapper campo, evitando crash su layout input/select annidati;
+  - verifica reale non distruttiva tra `VB075515-24` e `VB075515-23`: origine valida, link Poleepo `11926582`, valori remoti letti e quantità/attivo preservati.
+- 2026-06-25 requisito registrato - copia/clone articolo:
+  - la copia immagini da altro articolo oggi permette una sola immagine; va estesa a selezione multipla con checkbox su ogni immagine sorgente e comandi `Seleziona tutte` / `Deseleziona tutte`;
+  - il caso d'uso principale e' la nuova annata di un vino gia' presente: copiare tutte le immagini della vecchia annata oppure solo quelle non obsolete;
+  - il clone/copia dati da altro articolo deve trasferire anche i campi interni non modificati esplicitamente, incluse immagini secondo la selezione multipla e contenuti come la scheda tecnica (`SchedeProdotti`);
+  - caso reale da cui nasce il requisito: copiando dati dal Trebbiano 2024 Le Masserie al Trebbiano 2023 Le Masserie, la scheda tecnica non viene trasferita.
+- 2026-06-25 implementazione locale - copia immagini/dati articolo:
+  - `POST /search/scheda_articolo/<cod_art>/images/copy` ora accetta `asset_ids` multipli mantenendo compatibilita' con `asset_id` singolo;
+  - la modale `Copia immagine da prodotto` mostra checkbox su ogni immagine sorgente, comandi `Seleziona tutte` / `Deseleziona tutte` per prodotto e pulsante finale `Copia selezionate`;
+  - aggiunto endpoint locale `POST /search/scheda_articolo/<cod_art>/copy-local-data`;
+  - nel flusso `Modifica su Poleepo` / `Copia valori da altro prodotto`, oltre a precompilare i campi remoti, LDApp copia la scheda tecnica locale (`SchedeProdotti.descrizione` e `short`) dall'articolo origine se il target non ne ha gia' una;
+  - la copia scheda tecnica e' conservativa: non sovrascrive una scheda target gia' compilata senza override esplicito backend;
+  - verifiche: `python -m py_compile routes/search.py`, `node --check static/js/scheda_articolo.js`, route Flask registrate per copy immagini/copy valori/copy-local-data.

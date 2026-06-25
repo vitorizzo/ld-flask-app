@@ -13,6 +13,16 @@ document.addEventListener("DOMContentLoaded", function () {
     var publicationFields = document.getElementById("productPublicationFields");
     var publicationSaveButton = document.getElementById("productPublicationSave");
     var publicationPublishButton = document.getElementById("productPublicationPublish");
+    var publicationCopyPanel = document.getElementById("productPublicationCopyPanel");
+    var publicationCopySearch = document.getElementById("productPublicationCopySearch");
+    var publicationCopySearchButton = document.getElementById("productPublicationCopySearchBtn");
+    var publicationCopyResults = document.getElementById("productPublicationCopyResults");
+    var imageCopyOpenButton = document.getElementById("productImageCopyOpen");
+    var imageCopyModalElement = document.getElementById("productImageCopyModal");
+    var imageCopySearch = document.getElementById("productImageCopySearch");
+    var imageCopySearchButton = document.getElementById("productImageCopySearchBtn");
+    var imageCopyResults = document.getElementById("productImageCopyResults");
+    var imageCopyConfirmButton = document.getElementById("productImageCopyConfirm");
     var closeButton = document.getElementById("productSheetCloseBtn");
     var productCode = document.querySelector(".product-sheet-page") ? document.querySelector(".product-sheet-page").dataset.productCode : "";
     var draggedImage = null;
@@ -20,8 +30,10 @@ document.addEventListener("DOMContentLoaded", function () {
     var deleteModal = null;
     var deleteSelection = [];
     var publicationModal = null;
+    var imageCopyModal = null;
     var publicationPlatform = "";
     var publicationMode = "publish";
+    var imageCopySelection = [];
 
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (element) {
         if (window.bootstrap && bootstrap.Tooltip) {
@@ -310,6 +322,204 @@ document.addEventListener("DOMContentLoaded", function () {
         alert(parts.join("\n") || ("Pubblicazione completata per " + currentImageLabel(image)));
     }
 
+    function imageCopyCandidatesUrl(query) {
+        return getProductSheetBaseUrl() + "/images/copy-candidates?q=" + encodeURIComponent(query || "");
+    }
+
+    function imageCopyUrl() {
+        return getProductSheetBaseUrl() + "/images/copy";
+    }
+
+    function localDataCopyUrl() {
+        return getProductSheetBaseUrl() + "/copy-local-data";
+    }
+
+    function setImageCopySelected(assetId, selected) {
+        assetId = String(assetId || "");
+        if (!assetId) {
+            return;
+        }
+        if (selected) {
+            if (imageCopySelection.indexOf(assetId) === -1) {
+                imageCopySelection.push(assetId);
+            }
+        } else {
+            imageCopySelection = imageCopySelection.filter(function (value) {
+                return value !== assetId;
+            });
+        }
+        updateImageCopyConfirmState();
+    }
+
+    function updateImageCopyConfirmState() {
+        if (!imageCopyConfirmButton) {
+            return;
+        }
+        imageCopyConfirmButton.disabled = !imageCopySelection.length;
+        imageCopyConfirmButton.innerHTML = imageCopySelection.length
+            ? '<i class="fa-solid fa-copy"></i> Copia selezionate (' + imageCopySelection.length + ')'
+            : '<i class="fa-solid fa-copy"></i> Copia selezionate';
+    }
+
+    function resetImageCopyState() {
+        imageCopySelection = [];
+        updateImageCopyConfirmState();
+    }
+
+    function renderImageCopyResults(items) {
+        if (!imageCopyResults) {
+            return;
+        }
+        resetImageCopyState();
+        imageCopyResults.innerHTML = "";
+        if (!items || !items.length) {
+            imageCopyResults.innerHTML = '<div class="text-muted">Nessuna immagine trovata.</div>';
+            return;
+        }
+        items.forEach(function (item) {
+            var wrapper = document.createElement("div");
+            wrapper.className = "product-image-copy-result";
+
+            var title = document.createElement("div");
+            title.className = "fw-semibold mb-1";
+            title.textContent = item.cod_art + " - " + (item.descrizione || "");
+            wrapper.appendChild(title);
+
+            if (item.descrizione_aggiuntiva) {
+                var subtitle = document.createElement("div");
+                subtitle.className = "text-muted small mb-2";
+                subtitle.textContent = item.descrizione_aggiuntiva;
+                wrapper.appendChild(subtitle);
+            }
+
+            var toolbar = document.createElement("div");
+            toolbar.className = "d-flex flex-wrap gap-2 mb-2";
+
+            var selectAll = document.createElement("button");
+            selectAll.type = "button";
+            selectAll.className = "btn btn-sm btn-outline-secondary";
+            selectAll.textContent = "Seleziona tutte";
+
+            var clearAll = document.createElement("button");
+            clearAll.type = "button";
+            clearAll.className = "btn btn-sm btn-outline-secondary";
+            clearAll.textContent = "Deseleziona tutte";
+
+            var grid = document.createElement("div");
+            grid.className = "product-image-copy-grid";
+            var itemCheckboxes = [];
+            (item.images || []).forEach(function (image) {
+                if (!image.id) {
+                    return;
+                }
+                var label = document.createElement("label");
+                label.className = "product-image-copy-thumb";
+                label.dataset.assetId = image.id;
+
+                var img = document.createElement("img");
+                img.src = image.url;
+                img.alt = item.cod_art;
+                label.appendChild(img);
+
+                var row = document.createElement("span");
+                row.className = "d-flex align-items-start gap-2";
+
+                var checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.className = "form-check-input mt-1";
+                checkbox.value = image.id;
+                checkbox.addEventListener("change", function () {
+                    setImageCopySelected(image.id, checkbox.checked);
+                });
+                itemCheckboxes.push(checkbox);
+
+                var meta = document.createElement("span");
+                meta.className = "small text-muted";
+                meta.textContent = platformLabel(image.source_platform);
+
+                row.appendChild(checkbox);
+                row.appendChild(meta);
+                label.appendChild(row);
+                grid.appendChild(label);
+            });
+            selectAll.addEventListener("click", function () {
+                itemCheckboxes.forEach(function (checkbox) {
+                    checkbox.checked = true;
+                    setImageCopySelected(checkbox.value, true);
+                });
+            });
+            clearAll.addEventListener("click", function () {
+                itemCheckboxes.forEach(function (checkbox) {
+                    checkbox.checked = false;
+                    setImageCopySelected(checkbox.value, false);
+                });
+            });
+            toolbar.appendChild(selectAll);
+            toolbar.appendChild(clearAll);
+            wrapper.appendChild(toolbar);
+            wrapper.appendChild(grid);
+            imageCopyResults.appendChild(wrapper);
+        });
+    }
+
+    function searchImagesToCopy() {
+        if (!imageCopySearch || !imageCopyResults) {
+            return;
+        }
+        var query = imageCopySearch.value.trim();
+        if (query.length < 2) {
+            imageCopyResults.innerHTML = '<div class="text-muted">Inserisci almeno 2 caratteri.</div>';
+            return;
+        }
+        imageCopyResults.innerHTML = '<div class="text-muted">Cerco immagini...</div>';
+        fetch(imageCopyCandidatesUrl(query), {
+            method: "GET",
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+            credentials: "same-origin"
+        }).then(function (response) {
+            return parseJsonResponse(response).then(function (data) {
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || "Ricerca immagini non riuscita");
+                }
+                return data.items || [];
+            });
+        }).then(renderImageCopyResults).catch(function (error) {
+            imageCopyResults.innerHTML = '<div class="alert alert-danger mb-0">' + (error.message || "Ricerca immagini non riuscita") + '</div>';
+        });
+    }
+
+    function copySelectedImages() {
+        if (!imageCopySelection.length || !imageCopyConfirmButton) {
+            alert("Seleziona almeno una immagine da copiare.");
+            return;
+        }
+        var originalHtml = imageCopyConfirmButton.innerHTML;
+        imageCopyConfirmButton.disabled = true;
+        imageCopyConfirmButton.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Copio';
+        fetch(imageCopyUrl(), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({ asset_ids: imageCopySelection.slice() })
+        }).then(function (response) {
+            return parseJsonResponse(response).then(function (data) {
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || "Copia immagine non riuscita");
+                }
+                return data;
+            });
+        }).then(function () {
+            window.location.reload();
+        }).catch(function (error) {
+            alert(error.message || "Copia immagine non riuscita");
+            imageCopyConfirmButton.disabled = false;
+            imageCopyConfirmButton.innerHTML = originalHtml;
+        });
+    }
+
     function publicationDraftUrl(platform) {
         return getProductSheetBaseUrl() + "/publish/" + encodeURIComponent(platform) + "/draft";
     }
@@ -320,6 +530,197 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function publicationUpdateUrl(platform) {
         return getProductSheetBaseUrl() + "/publish/" + encodeURIComponent(platform) + "/update";
+    }
+
+    function publicationCopyCandidatesUrl(platform, query) {
+        return getProductSheetBaseUrl() + "/publish/" + encodeURIComponent(platform) + "/copy-candidates?q=" + encodeURIComponent(query || "");
+    }
+
+    function publicationCopyValuesUrl(platform, sourceCodArt) {
+        return getProductSheetBaseUrl() + "/publish/" + encodeURIComponent(platform) + "/copy-values?source_cod_art=" + encodeURIComponent(sourceCodArt || "");
+    }
+
+    function copyLocalDataFromSource(sourceCodArt) {
+        return fetch(localDataCopyUrl(), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Requested-With": "XMLHttpRequest"
+            },
+            credentials: "same-origin",
+            body: JSON.stringify({
+                source_cod_art: sourceCodArt,
+                copy_sheet: true,
+                overwrite_sheet: false
+            })
+        }).then(function (response) {
+            return parseJsonResponse(response).then(function (data) {
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || "Copia dati locali non riuscita");
+                }
+                return data;
+            });
+        });
+    }
+
+    function publicationFieldInput(name, language) {
+        return publicationFields.querySelector(
+            "[data-field-name='" + CSS.escape(name) + "'] .form-control[data-language='" + CSS.escape(language || "") + "']"
+        );
+    }
+
+    function setPublicationSourceValue(input, sourceLabel, sourceValue) {
+        if (!input) {
+            return;
+        }
+        var wrapper = input.closest("[data-field-name]");
+        if (!wrapper) {
+            return;
+        }
+        var existing = wrapper.querySelector(".product-publication-source-value");
+        if (existing) {
+            existing.remove();
+        }
+        var sourceBox = document.createElement("div");
+        sourceBox.className = "product-publication-source-value";
+        sourceBox.textContent = sourceLabel + ": " + (sourceValue || "");
+        var directInput = Array.from(wrapper.children).find(function (child) {
+            return child === input;
+        });
+        var help = wrapper.querySelector(".form-text");
+        if (directInput) {
+            wrapper.insertBefore(sourceBox, directInput);
+        } else if (help && help.parentElement === wrapper) {
+            wrapper.insertBefore(sourceBox, help);
+        } else {
+            wrapper.appendChild(sourceBox);
+        }
+    }
+
+    function resetPublicationCopyPanel() {
+        if (publicationCopySearch) {
+            publicationCopySearch.value = "";
+        }
+        if (publicationCopyResults) {
+            publicationCopyResults.innerHTML = '<div class="text-muted small">Cerca un prodotto origine.</div>';
+        }
+    }
+
+    function renderPublicationCopyResults(items) {
+        if (!publicationCopyResults) {
+            return;
+        }
+        publicationCopyResults.innerHTML = "";
+        if (!items || !items.length) {
+            publicationCopyResults.innerHTML = '<div class="text-muted small">Nessun prodotto origine valido trovato.</div>';
+            return;
+        }
+        items.forEach(function (item) {
+            var row = document.createElement("div");
+            row.className = "product-publication-copy-result";
+
+            var body = document.createElement("div");
+            body.className = "min-w-0";
+            var title = document.createElement("div");
+            title.className = "fw-semibold";
+            title.textContent = item.cod_art + " - " + (item.descrizione || "");
+            body.appendChild(title);
+            if (item.descrizione_aggiuntiva) {
+                var subtitle = document.createElement("div");
+                subtitle.className = "text-muted small";
+                subtitle.textContent = item.descrizione_aggiuntiva;
+                body.appendChild(subtitle);
+            }
+            var meta = document.createElement("div");
+            meta.className = "text-muted small";
+            meta.textContent = "Poleepo " + (item.external_id || "-");
+            body.appendChild(meta);
+
+            var button = document.createElement("button");
+            button.type = "button";
+            button.className = "btn btn-sm btn-outline-primary";
+            button.innerHTML = '<i class="fa-solid fa-copy"></i> Copia valori';
+            button.addEventListener("click", function () {
+                applyPublicationCopyValues(button, item.cod_art);
+            });
+
+            row.appendChild(body);
+            row.appendChild(button);
+            publicationCopyResults.appendChild(row);
+        });
+    }
+
+    function searchPublicationCopyValues() {
+        if (!publicationCopySearch || !publicationCopyResults || publicationPlatform !== "poleepo") {
+            return;
+        }
+        var query = publicationCopySearch.value.trim();
+        if (query.length < 2) {
+            publicationCopyResults.innerHTML = '<div class="text-muted small">Inserisci almeno 2 caratteri.</div>';
+            return;
+        }
+        publicationCopyResults.innerHTML = '<div class="text-muted small">Cerco prodotti origine...</div>';
+        fetch(publicationCopyCandidatesUrl(publicationPlatform, query), {
+            method: "GET",
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+            credentials: "same-origin"
+        }).then(function (response) {
+            return parseJsonResponse(response).then(function (data) {
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || "Ricerca prodotto origine non riuscita");
+                }
+                return data.items || [];
+            });
+        }).then(renderPublicationCopyResults).catch(function (error) {
+            publicationCopyResults.innerHTML = '<div class="alert alert-danger mb-0">' + (error.message || "Ricerca prodotto origine non riuscita") + '</div>';
+        });
+    }
+
+    function applyPublicationCopyValues(button, sourceCodArt) {
+        var originalHtml = button.innerHTML;
+        button.disabled = true;
+        button.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> Copio';
+        fetch(publicationCopyValuesUrl(publicationPlatform, sourceCodArt), {
+            method: "GET",
+            headers: { "X-Requested-With": "XMLHttpRequest" },
+            credentials: "same-origin"
+        }).then(function (response) {
+            return parseJsonResponse(response).then(function (data) {
+                if (!response.ok || !data.ok) {
+                    throw new Error(data.error || "Copia valori non riuscita");
+                }
+                return data;
+            });
+        }).then(function (data) {
+            var sourceLabel = "Origine " + ((data.source && data.source.cod_art) || sourceCodArt);
+            (data.fields || []).forEach(function (field) {
+                var input = publicationFieldInput(field.name, field.language || "");
+                if (!input || input.dataset.readonly === "1") {
+                    return;
+                }
+                input.value = field.value || "";
+                setPublicationSourceValue(input, sourceLabel, field.value || "");
+            });
+            return copyLocalDataFromSource(sourceCodArt).then(function (localData) {
+                var sheet = localData.results && localData.results.sheet;
+                if (sheet && sheet.status === "copied") {
+                    var notice = document.createElement("div");
+                    notice.className = "alert alert-success py-2 mt-2 mb-0";
+                    notice.textContent = "Scheda tecnica locale copiata dall'articolo " + sourceCodArt + ".";
+                    publicationCopyResults.prepend(notice);
+                }
+            }).catch(function (localError) {
+                var warning = document.createElement("div");
+                warning.className = "alert alert-warning py-2 mt-2 mb-0";
+                warning.textContent = "Valori copiati nella modale, ma la scheda tecnica locale non e' stata copiata: " + (localError.message || "errore non specificato");
+                publicationCopyResults.prepend(warning);
+            });
+        }).catch(function (error) {
+            alert(error.message || "Copia valori non riuscita");
+        }).finally(function () {
+            button.disabled = false;
+            button.innerHTML = originalHtml;
+        });
     }
 
     function renderPublicationField(field) {
@@ -335,7 +736,11 @@ document.addEventListener("DOMContentLoaded", function () {
 
         var input;
         var filterInput = null;
-        if (field.options && field.options.length) {
+        if (field.type === "readonly" || field.readonly) {
+            input = document.createElement("textarea");
+            input.rows = 2;
+            input.readOnly = true;
+        } else if (field.options && field.options.length) {
             if (field.options.length > 20) {
                 filterInput = document.createElement("input");
                 filterInput.type = "search";
@@ -401,6 +806,10 @@ document.addEventListener("DOMContentLoaded", function () {
         input.value = field.value || "";
         input.dataset.fieldName = field.name;
         input.dataset.language = field.language || "";
+        if (field.readonly) {
+            input.dataset.readonly = "1";
+            input.classList.add("bg-light");
+        }
         if (field.required) {
             input.required = true;
         }
@@ -451,6 +860,14 @@ document.addEventListener("DOMContentLoaded", function () {
                 ? '<i class="fa-solid fa-cloud-arrow-up"></i> ' + (publicationMode === "update" ? "Aggiorna su " : "Pubblica su ") + draft.label
                 : '<i class="fa-solid fa-cloud-arrow-up"></i> Pubblicazione non disponibile';
         }
+        if (publicationCopyPanel) {
+            if (publicationMode === "update" && draft.platform === "poleepo") {
+                publicationCopyPanel.classList.remove("d-none");
+            } else {
+                publicationCopyPanel.classList.add("d-none");
+                resetPublicationCopyPanel();
+            }
+        }
         draft.fields.forEach(function (field) {
             publicationFields.appendChild(renderPublicationField(field));
         });
@@ -458,12 +875,15 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function collectPublicationFields() {
         return Array.from(publicationFields.querySelectorAll("[data-field-name] .form-control")).map(function (input) {
+            if (input.dataset.readonly === "1") {
+                return null;
+            }
             return {
                 name: input.dataset.fieldName,
                 language: input.dataset.language || "",
                 value: input.value
             };
-        });
+        }).filter(Boolean);
     }
 
     function openPublicationModal(platform, mode) {
@@ -688,6 +1108,7 @@ document.addEventListener("DOMContentLoaded", function () {
             document.body.classList.remove("product-publication-modal-open");
             publicationPlatform = "";
             publicationMode = "publish";
+            resetPublicationCopyPanel();
         });
         document.querySelectorAll(".product-publish-btn").forEach(function (button) {
             button.addEventListener("click", function () {
@@ -704,6 +1125,63 @@ document.addEventListener("DOMContentLoaded", function () {
         }
         if (publicationPublishButton) {
             publicationPublishButton.addEventListener("click", publishProductDraft);
+        }
+        if (publicationCopySearchButton) {
+            publicationCopySearchButton.addEventListener("click", searchPublicationCopyValues);
+        }
+        if (publicationCopySearch) {
+            publicationCopySearch.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    searchPublicationCopyValues();
+                }
+            });
+        }
+    }
+
+    if (imageCopyModalElement) {
+        if (imageCopyModalElement.parentElement !== document.body) {
+            document.body.appendChild(imageCopyModalElement);
+        }
+        imageCopyModal = bootstrap.Modal.getOrCreateInstance(imageCopyModalElement);
+        imageCopyModalElement.addEventListener("show.bs.modal", function () {
+            document.body.classList.add("product-image-copy-modal-open");
+        });
+        imageCopyModalElement.addEventListener("shown.bs.modal", function () {
+            resetImageCopyState();
+            if (imageCopySearch) {
+                imageCopySearch.focus();
+            }
+        });
+        imageCopyModalElement.addEventListener("hidden.bs.modal", function () {
+            document.body.classList.remove("product-image-copy-modal-open");
+            resetImageCopyState();
+            if (imageCopySearch) {
+                imageCopySearch.value = "";
+            }
+            if (imageCopyResults) {
+                imageCopyResults.innerHTML = '<div class="text-muted">Cerca un prodotto sorgente.</div>';
+            }
+        });
+        if (imageCopyOpenButton) {
+            imageCopyOpenButton.addEventListener("click", function () {
+                imageCopyModal.show();
+            });
+        }
+        if (imageCopySearchButton) {
+            imageCopySearchButton.addEventListener("click", searchImagesToCopy);
+        }
+        if (imageCopySearch) {
+            imageCopySearch.addEventListener("keydown", function (event) {
+                if (event.key === "Enter") {
+                    event.preventDefault();
+                    searchImagesToCopy();
+                }
+            });
+        }
+        if (imageCopyConfirmButton) {
+            imageCopyConfirmButton.addEventListener("click", copySelectedImages);
+            resetImageCopyState();
         }
     }
 
