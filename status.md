@@ -1861,3 +1861,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - layout a griglia due colonne su desktop e singola colonna su mobile/touch, con profilo S25 scalato per campi, select, bottone e link;
   - aggiunti autocomplete semanticamente corretti e link di ritorno al login;
   - verifica render `/auth/register` 200 con `register-card` e `btn-info`, `git diff --check`.
+- 2026-06-28 restyling password dimenticata:
+  - `templates/forgot_password.html` usa card coerente con login/registrazione: marrone semitrasparente, testo bianco, input chiaro, bottone `btn-info`;
+  - aggiunti breakpoint mobile/touch e profilo touch largo S25 per titolo, testo, input, bottone e link;
+  - verifica render `/auth/forgot-password` 200 con `forgot-card` e `btn-info`, `git diff --check`.
