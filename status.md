@@ -1786,3 +1786,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - service worker portato a `ldapp-cache-v13` e precache CSS aggiornato;
   - breakpoint mobile home allargato da `768px` a `820px` per coprire viewport CSS mobili piu' larghe;
   - verifiche: render GET `/` 200 con `style.css?v=...` e `service-worker.js?v=...`, `git diff --check`.
+- 2026-06-28 fix mobile trigger Samsung:
+  - se Galaxy/PWA continua a vedere desktop, il solo `max-width` puo' non bastare o il browser puo' servire asset con URL invariato;
+  - media query home mobile estesa a `(hover: none) and (pointer: coarse)`, oltre a `max-width: 820px`;
+  - asset CSS e service worker versionati con suffisso esplicito `mobile2`;
+  - service worker portato a `ldapp-cache-v14`;
+  - verifiche: render GET `/` 200 con `style.css?v=...-mobile2` e `service-worker.js?v=...-mobile2`, `git diff --check`.
