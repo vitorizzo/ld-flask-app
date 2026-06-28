@@ -1849,3 +1849,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - sostituiti i blu hardcoded `#0d6efd` con `#0dcaf0` dove usati come accento grafico;
   - lasciati invariati i riferimenti logici `primary` legati a dati/funzioni (`is_primary`, immagine default, variabili interne);
   - verifiche: `node --check` su tutti i JS modificati, `python -m py_compile routes/settings.py`, `git diff --check`.
+- 2026-06-28 restyling login:
+  - `templates/login.html` usa una card dedicata con sfondo chiaro, labels scure, input leggibili, bottone `btn-info` e link ordinati;
+  - aggiunti breakpoint mobile/touch e profilo touch largo S25 per scalare titolo, campi, checkbox, bottone e link;
+  - verifica render `/auth/login` 200 con `login-card` e `btn-info`, `git diff --check`.
