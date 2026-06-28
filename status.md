@@ -1769,3 +1769,14 @@ Performance apertura giornata Agenda 2026-06-13:
   - sotto ogni riga campo e' presente `Valore scelto e modificabile`, input/textarea editabile alimentato dal radio selezionato;
   - la modale pubblicazione e' larga `80vw`, alta `86vh`, con contenuto ridimensionabile e area principale scrollabile;
   - verifiche: `python -m py_compile routes/search.py`, `node --check static/js/scheda_articolo.js`, `git diff --check`.
+- 2026-06-28 UI mobile home:
+  - avviato filone smartphone friendly partendo dalla home;
+  - `templates/home.html` usa classe dedicata `home-page` senza cambiare la resa desktop;
+  - aggiunti override mobile `max-width: 768px` in `static/css/style.css`: navbar piu' bassa, contenuto senza tabs laterali, footer compatto, home full-width e quick action in lista touch-friendly;
+  - desktop lasciato invariato salvo la classe aggiunta alla section;
+  - verifiche: render GET `/` 200, presenza `home-page` nel markup, `git diff --check`.
+- 2026-06-28 fix navbar mobile home:
+  - da screenshot in `docs/transport` il pattern bianco della navbar mobile tagliava visivamente logo e hamburger;
+  - su mobile la navbar ora usa fondo pieno senza pattern, logo ridotto/centrato e toggler 44x44 centrato;
+  - i tab laterali `context-tabs` vengono nascosti su mobile per non sovrapporsi alla home;
+  - verifiche: render GET `/` 200, `git diff --check`.
