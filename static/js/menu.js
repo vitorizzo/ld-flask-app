@@ -103,7 +103,25 @@ document.addEventListener("DOMContentLoaded", function () {
     var dropdownInstance = bootstrap.Dropdown.getOrCreateInstance(profileDropdown);
     dropdownInstance._menu = profileMenu; // FORZA l'associazione del menu
 
+    function isMobileMenuProfile() {
+        return window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)").matches;
+    }
+
+    function toggleMobileProfileMenu(event) {
+        if (!isMobileMenuProfile()) return false;
+        event.preventDefault();
+        event.stopPropagation();
+        var isOpen = profileMenu.classList.contains("show");
+        profileMenu.classList.toggle("show", !isOpen);
+        profileMenu.style.display = isOpen ? "none" : "block";
+        profileMenu.style.opacity = isOpen ? "" : "1";
+        profileMenu.style.visibility = isOpen ? "" : "visible";
+        profileDropdown.setAttribute("aria-expanded", isOpen ? "false" : "true");
+        return true;
+    }
+
     profileDropdown.addEventListener("click", function (event) {
+        if (toggleMobileProfileMenu(event)) return;
         event.preventDefault();
         console.log("✅ Click su profileDropdown, avvio toggle...");
 
@@ -120,7 +138,11 @@ document.addEventListener("DOMContentLoaded", function () {
             if (event.target.closest(".dropdown-menu")) return;
             if (event.target.closest("#profileDropdown")) return;
             event.preventDefault();
-            profileDropdown.click();
+            if (isMobileMenuProfile()) {
+                toggleMobileProfileMenu(event);
+            } else {
+                profileDropdown.click();
+            }
         });
     }
 });
@@ -133,6 +155,9 @@ document.addEventListener("DOMContentLoaded", function () {
         var touchStartX = 0;
         var touchStartY = 0;
         var touchStartTime = 0;
+        var pointerStartX = 0;
+        var pointerStartY = 0;
+        var pointerStartTime = 0;
 
         function isMobileDrawerEnabled() {
             return window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)").matches;
@@ -145,6 +170,21 @@ document.addEventListener("DOMContentLoaded", function () {
         function hideDrawer() {
             var instance = bootstrap.Collapse.getInstance(navbarCollapse) || bootstrap.Collapse.getOrCreateInstance(navbarCollapse);
             instance.hide();
+        }
+
+        function handleDrawerSwipe(startX, startY, endX, endY, elapsed) {
+            var deltaX = endX - startX;
+            var deltaY = endY - startY;
+            var horizontalSwipe = Math.abs(deltaX) >= 70 && Math.abs(deltaY) <= 90 && elapsed <= 900;
+            if (!horizontalSwipe) return;
+
+            var isOpen = navbarCollapse.classList.contains("show");
+            var startsInOpenZone = startX <= Math.max(120, window.innerWidth * 0.12);
+            if (!isOpen && startsInOpenZone && deltaX > 0) {
+                showDrawer();
+            } else if (isOpen && deltaX < 0) {
+                hideDrawer();
+            }
         }
 
         navbarCollapse.addEventListener("show.bs.collapse", function () {
@@ -180,19 +220,21 @@ document.addEventListener("DOMContentLoaded", function () {
         document.addEventListener("touchend", function (event) {
             if (!isMobileDrawerEnabled() || !touchStartTime || event.changedTouches.length !== 1) return;
             var touch = event.changedTouches[0];
-            var deltaX = touch.clientX - touchStartX;
-            var deltaY = touch.clientY - touchStartY;
-            var elapsed = Date.now() - touchStartTime;
-            var horizontalSwipe = Math.abs(deltaX) >= 80 && Math.abs(deltaY) <= 70 && elapsed <= 700;
-            if (!horizontalSwipe) return;
+            handleDrawerSwipe(touchStartX, touchStartY, touch.clientX, touch.clientY, Date.now() - touchStartTime);
+            touchStartTime = 0;
+        }, { passive: true });
 
-            var isOpen = navbarCollapse.classList.contains("show");
-            var startsNearLeftEdge = touchStartX <= 36;
-            if (!isOpen && startsNearLeftEdge && deltaX > 0) {
-                showDrawer();
-            } else if (isOpen && deltaX < 0) {
-                hideDrawer();
-            }
+        document.addEventListener("pointerdown", function (event) {
+            if (!isMobileDrawerEnabled() || event.pointerType !== "touch") return;
+            pointerStartX = event.clientX;
+            pointerStartY = event.clientY;
+            pointerStartTime = Date.now();
+        }, { passive: true });
+
+        document.addEventListener("pointerup", function (event) {
+            if (!isMobileDrawerEnabled() || event.pointerType !== "touch" || !pointerStartTime) return;
+            handleDrawerSwipe(pointerStartX, pointerStartY, event.clientX, event.clientY, Date.now() - pointerStartTime);
+            pointerStartTime = 0;
         }, { passive: true });
     }
 });

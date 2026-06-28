@@ -1822,3 +1822,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - la riga profilo nel footer drawer e' cliccabile e apre il menu utente come l'icona profilo;
   - aggiunte gesture touch: swipe da bordo sinistro verso destra apre il drawer, swipe verso sinistra lo chiude quando e' aperto;
   - suffisso asset `mobile9`, service worker `ldapp-cache-v21`.
+- 2026-06-28 fix menu utente e gesture drawer:
+  - su mobile il menu utente nel footer drawer viene gestito manualmente per evitare doppio toggle con la delega dropdown;
+  - il dropdown utente si apre verso l'alto dentro il drawer, con posizione assoluta sopra la riga profilo;
+  - gesture drawer rese piu' permissive: zona di apertura fino a 120px/12% viewport e supporto sia touch events sia pointer events;
+  - suffisso asset `mobile10`, service worker `ldapp-cache-v22`.
