@@ -1780,3 +1780,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - su mobile la navbar ora usa fondo pieno senza pattern, logo ridotto/centrato e toggler 44x44 centrato;
   - i tab laterali `context-tabs` vengono nascosti su mobile per non sovrapporsi alla home;
   - verifiche: render GET `/` 200, `git diff --check`.
+- 2026-06-28 fix cache mobile/PWA:
+  - se un telefono vede ancora la home desktop dopo deploy, la causa piu' probabile e' cache/service worker: `style.css` era linkato senza query versionata e precacheato in `ldapp-cache-v12`;
+  - `templates/base.html` ora versiona `style.css`, `context_tabs.css`, `task_status.css` e la registrazione `service-worker.js` con `app_version`;
+  - service worker portato a `ldapp-cache-v13` e precache CSS aggiornato;
+  - breakpoint mobile home allargato da `768px` a `820px` per coprire viewport CSS mobili piu' larghe;
+  - verifiche: render GET `/` 200 con `style.css?v=...` e `service-worker.js?v=...`, `git diff --check`.

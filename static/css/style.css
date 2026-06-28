@@ -814,7 +814,7 @@ h1,h2,h3,h4{
     color: #fff;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 820px) {
     body.app-shell {
         --app-header-height: 86px;
         --app-footer-height: 48px;
