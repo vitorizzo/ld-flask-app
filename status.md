@@ -1804,3 +1804,8 @@ Performance apertura giornata Agenda 2026-06-13:
 - 2026-06-28 ritocco scala visuale S25:
   - aumentata ulteriormente la scala del profilo touch largo: header 168px, logo 88px, hamburger 76px, titoli/testi e quick action piu' grandi;
   - asset CSS e service worker versionati con suffisso `mobile5`, service worker portato a `ldapp-cache-v17`.
+- 2026-06-28 ritocco mobile menu S25:
+  - aumentata di circa 40% la scala del profilo touch largo rispetto al ritocco precedente: header 235px, logo 123px, hamburger 106px e quick action 157px;
+  - su mobile/touch l'hamburger viene ordinato prima del logo;
+  - il menu mobile non appare piu' come overlay centrale: diventa un drawer laterale sinistro e, quando aperto, sposta a destra contenuto, footer e barra task tramite classe `mobile-menu-open`;
+  - `menu.js` e' versionato come gli asset CSS; suffisso asset `mobile6`, service worker `ldapp-cache-v18`.

@@ -71,6 +71,11 @@
         left: 0;
         right: 0;
         font-size: 0.72rem;
+        transition: transform .22s ease;
+    }
+
+    body.mobile-menu-open #task-status-wrapper {
+        transform: translateX(var(--mobile-menu-shift, min(76vw, 360px)));
     }
 
     #task-status-bar {
@@ -107,27 +112,27 @@
 
 @media (hover: none) and (pointer: coarse) and (min-width: 821px) {
     #task-status-wrapper {
-        font-size: 1.05rem;
+        font-size: 1.47rem;
     }
 
     #task-status-bar {
-        height: 38px;
-        min-height: 38px;
-        padding: 0 0.9rem;
-        gap: 0.9rem;
+        height: 53px;
+        min-height: 53px;
+        padding: 0 1.25rem;
+        gap: 1.25rem;
     }
 
     #task-status-progress-container {
-        width: min(28vw, 220px);
-        min-width: 110px;
-        height: 7px;
+        width: min(28vw, 308px);
+        min-width: 154px;
+        height: 10px;
     }
 
     #task-status-progress {
-        height: 7px;
+        height: 10px;
     }
 
     #task-status-expand {
-        font-size: 1.1rem;
+        font-size: 1.54rem;
     }
 }

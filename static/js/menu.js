@@ -119,6 +119,18 @@ document.addEventListener("DOMContentLoaded", function () {
     var navbarCollapse = document.querySelector(".navbar-collapse");
 
     if (navbarToggler && navbarCollapse) {
+        navbarCollapse.addEventListener("show.bs.collapse", function () {
+            document.body.classList.add("mobile-menu-open");
+        });
+
+        navbarCollapse.addEventListener("hide.bs.collapse", function () {
+            document.body.classList.remove("mobile-menu-open");
+        });
+
+        navbarCollapse.addEventListener("hidden.bs.collapse", function () {
+            document.body.classList.remove("mobile-menu-open");
+        });
+
         navbarToggler.addEventListener("click", function () {
             if (navbarCollapse.classList.contains("show")) {
                 // Se il menu è aperto, chiudilo
