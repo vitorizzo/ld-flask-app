@@ -1832,3 +1832,6 @@ Performance apertura giornata Agenda 2026-06-13:
   - `search_by_description.js` aggiunge classi semantiche ai risultati senza cambiare il comportamento di selezione/apertura scheda;
   - scheda articolo ottimizzata su mobile/touch: titolo, chiudi, slot immagini, upload, carousel, metadati, piattaforme, barcode, scheda tecnica e modali principali scalati;
   - verifica: `node --check static/js/search_by_description.js`, `git diff --check`; render `/search/ricerca_x_descrizione` restituisce 302 per sessione richiesta.
+- 2026-06-28 UX ricerca prodotto:
+  - rimosso il pulsante `Scheda` dai risultati della ricerca per descrizione;
+  - click/tap sull'intera riga/card prodotto apre direttamente la scheda quando la pagina passa `onRowClick`, mantenendo il fallback `onSelect` per altri usi del componente.

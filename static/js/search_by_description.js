@@ -39,17 +39,10 @@ window.initSearchByDescription = function (config) {
 
             const cod_art = `<span class="badge bg-primary search-product-result__code">${prodotto.cod_art}</span>`;
 
-            const bottoneScheda = config.showButton ? `
-              <button class="btn btn-sm btn-outline-secondary ms-3 apri-scheda search-product-result__button" data-cod_art="${prodotto.cod_art}">
-                Scheda
-              </button>
-            ` : "";
-
             li.innerHTML = `<div class="d-flex justify-content-between w-100 align-items-center search-product-result__row">
                               ${descr}
                               <div class="d-flex align-items-center search-product-result__actions">
                                 ${cod_art}
-                                ${bottoneScheda}
                               </div>
                             </div>`;
 
@@ -114,6 +107,11 @@ window.initSearchByDescription = function (config) {
         cpp: parseInt(item.dataset.cpp || 1),
         ppc: parseInt(item.dataset.ppc || 1)
       };
+
+      if (typeof config.onRowClick === "function") {
+        config.onRowClick(articolo);
+        return;
+      }
 
       // Evidenzia selezione
       list.querySelectorAll(".prodotto-item").forEach(el => el.classList.remove("active"));
