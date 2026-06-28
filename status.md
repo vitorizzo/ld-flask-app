@@ -1801,3 +1801,6 @@ Performance apertura giornata Agenda 2026-06-13:
   - lo screenshot S25 mostra layout mobile attivo ma dimensioni visive troppo piccole, compatibili con viewport touch larga;
   - aggiunto profilo CSS dedicato `(hover: none) and (pointer: coarse) and (min-width: 821px)` che aumenta header, logo, hamburger, titoli, quick action, footer e barra task senza alterare il desktop;
   - asset CSS e service worker versionati con suffisso `mobile4`, service worker portato a `ldapp-cache-v16`.
+- 2026-06-28 ritocco scala visuale S25:
+  - aumentata ulteriormente la scala del profilo touch largo: header 168px, logo 88px, hamburger 76px, titoli/testi e quick action piu' grandi;
+  - asset CSS e service worker versionati con suffisso `mobile5`, service worker portato a `ldapp-cache-v17`.
