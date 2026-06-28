@@ -1809,3 +1809,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - su mobile/touch l'hamburger viene ordinato prima del logo;
   - il menu mobile non appare piu' come overlay centrale: diventa un drawer laterale sinistro e, quando aperto, sposta a destra contenuto, footer e barra task tramite classe `mobile-menu-open`;
   - `menu.js` e' versionato come gli asset CSS; suffisso asset `mobile6`, service worker `ldapp-cache-v18`.
+- 2026-06-28 ritocco font menu S25:
+  - il drawer mobile ora sovrascrive font e padding ereditati dalla vecchia navbar mobile: voci menu con target touch piu' alto e font piu' leggibile;
+  - nel profilo touch largo S25 le voci menu usano font 2.25rem, altezza minima 96px e padding 24x28px;
+  - suffisso asset `mobile7`, service worker `ldapp-cache-v19`.
