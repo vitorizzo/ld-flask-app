@@ -1797,3 +1797,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - `context_tabs.css` ora nasconde le tab su mobile/touch con override dedicato e `style.css` usa `!important` sullo stesso fallback;
   - la barra task attivi e' stata compattata su mobile/touch per non schiacciare home e footer quando sono presenti processi in corso;
   - asset CSS e service worker versionati con suffisso `mobile3`, service worker portato a `ldapp-cache-v15`.
+- 2026-06-28 fix scala visuale S25:
+  - lo screenshot S25 mostra layout mobile attivo ma dimensioni visive troppo piccole, compatibili con viewport touch larga;
+  - aggiunto profilo CSS dedicato `(hover: none) and (pointer: coarse) and (min-width: 821px)` che aumenta header, logo, hamburger, titoli, quick action, footer e barra task senza alterare il desktop;
+  - asset CSS e service worker versionati con suffisso `mobile4`, service worker portato a `ldapp-cache-v16`.

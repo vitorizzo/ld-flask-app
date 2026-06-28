@@ -949,6 +949,92 @@ h1,h2,h3,h4{
     }
 }
 
+@media (hover: none) and (pointer: coarse) and (min-width: 821px) {
+    body.app-shell {
+        --app-header-height: 150px;
+        --app-footer-height: 68px;
+        --app-content-gap: 18px;
+    }
+
+    .navbar {
+        height: 150px;
+    }
+
+    .navbar .container-fluid {
+        min-height: 150px;
+        padding: 0 26px;
+    }
+
+    .navbar-brand img {
+        height: 78px;
+    }
+
+    .navbar-toggler {
+        width: 66px;
+        height: 66px;
+        min-width: 66px;
+        min-height: 66px;
+        border-radius: 10px;
+    }
+
+    .navbar-toggler-icon {
+        width: 2rem;
+        height: 2rem;
+    }
+
+    .navbar-collapse {
+        top: 150px;
+        left: 18px;
+        right: 18px;
+        max-height: calc(100vh - 236px);
+        padding: 16px;
+    }
+
+    main.app-content {
+        padding: var(--app-content-gap);
+    }
+
+    .welcome-section.home-page {
+        padding: 30px 26px;
+        border-radius: 10px;
+    }
+
+    .welcome-section.home-page h1 {
+        font-size: 3.2rem;
+        line-height: 1;
+        margin-bottom: 8px;
+    }
+
+    .welcome-section.home-page p {
+        font-size: 1.32rem;
+        line-height: 1.35;
+    }
+
+    .home-page .quick-actions {
+        margin-top: 28px;
+        gap: 18px;
+    }
+
+    .home-page .quick-action {
+        min-height: 96px;
+        padding: 22px 24px;
+        border-radius: 10px;
+        font-size: 1.35rem;
+        gap: 18px;
+    }
+
+    .home-page .quick-action i {
+        width: 44px;
+        min-width: 44px;
+        font-size: 1.55rem;
+    }
+
+    .footer {
+        height: 68px;
+        font-size: 1rem;
+    }
+}
+
 .settings-tile {
     border-radius: 8px;
     transition: transform 0.15s ease, box-shadow 0.15s ease;
