@@ -1827,3 +1827,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - il dropdown utente si apre verso l'alto dentro il drawer, con posizione assoluta sopra la riga profilo;
   - gesture drawer rese piu' permissive: zona di apertura fino a 120px/12% viewport e supporto sia touch events sia pointer events;
   - suffisso asset `mobile10`, service worker `ldapp-cache-v22`.
+- 2026-06-28 bozza mobile informazioni prodotti:
+  - ricerca prodotto per descrizione trasformata su mobile/touch in lista card touch-friendly con input, scanner, risultati e paginazione scalati anche per viewport S25 larga;
+  - `search_by_description.js` aggiunge classi semantiche ai risultati senza cambiare il comportamento di selezione/apertura scheda;
+  - scheda articolo ottimizzata su mobile/touch: titolo, chiudi, slot immagini, upload, carousel, metadati, piattaforme, barcode, scheda tecnica e modali principali scalati;
+  - verifica: `node --check static/js/search_by_description.js`, `git diff --check`; render `/search/ricerca_x_descrizione` restituisce 302 per sessione richiesta.

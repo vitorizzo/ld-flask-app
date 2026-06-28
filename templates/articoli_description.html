@@ -22,6 +22,179 @@
   .search-topbar {
     flex-shrink: 0;
   }
+  @media (max-width: 820px), (hover: none) and (pointer: coarse) {
+    .search-page {
+      width: 100%;
+      max-width: none;
+      min-height: 100%;
+      margin: 0;
+      padding: 16px 12px;
+      border-radius: 8px;
+      text-align: left;
+    }
+    .search-page > .container-fluid {
+      padding: 0;
+    }
+    .search-topbar {
+      align-items: stretch !important;
+      margin-bottom: 14px !important;
+    }
+    .search-topbar h1 {
+      font-size: 2rem;
+      line-height: 1.05;
+      margin: 0 0 4px;
+    }
+    .search-topbar .text-muted {
+      color: rgba(255, 255, 255, .82) !important;
+      font-size: .95rem;
+      line-height: 1.35;
+    }
+    .search-topbar .btn,
+    .search-shell .btn,
+    .search-shell .form-control,
+    .search-shell .input-group-text {
+      min-height: 48px;
+      font-size: 1rem;
+    }
+    .search-shell .input-group {
+      margin-bottom: 12px !important;
+    }
+    .search-shell .form-check {
+      color: #fff;
+      font-size: 1rem;
+    }
+    .search-results-wrap {
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      box-shadow: none !important;
+    }
+    .search-product-result {
+      margin-bottom: 10px;
+      border: 1px solid rgba(255, 255, 255, .28) !important;
+      border-radius: 8px !important;
+      background: rgba(255, 255, 255, .94);
+      padding: 12px;
+    }
+    .search-product-result__row {
+      align-items: stretch !important;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .search-product-result__title {
+      font-size: 1.06rem;
+      line-height: 1.22;
+    }
+    .search-product-result__subtitle {
+      display: block;
+      margin-top: 3px;
+      font-size: .9rem;
+      line-height: 1.25;
+    }
+    .search-product-result__actions {
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .search-product-result__code {
+      align-self: center;
+      font-size: .85rem;
+      padding: .45em .65em;
+    }
+    .search-product-result__button {
+      min-height: 44px;
+      min-width: 112px;
+      margin-left: 0 !important;
+    }
+    #search-pagination-controls {
+      gap: 8px;
+      align-items: center;
+      color: #fff;
+    }
+    #search-pagination-controls .btn {
+      margin: 0 !important;
+      min-width: 0;
+      flex: 1 1 0;
+    }
+    #search-pagina-info {
+      flex: 0 0 auto;
+      font-size: .9rem;
+    }
+    #product-modal .modal-dialog {
+      margin: 0;
+      max-width: none;
+      width: 100%;
+      height: 100%;
+    }
+    #product-modal .modal-content {
+      min-height: 100%;
+      border-radius: 0;
+    }
+    #product-modal-iframe {
+      height: calc(100vh - 58px) !important;
+    }
+  }
+  @media (hover: none) and (pointer: coarse) and (min-width: 821px) {
+    .search-page {
+      padding: 50px 42px;
+      border-radius: 14px;
+    }
+    .search-topbar {
+      margin-bottom: 34px !important;
+    }
+    .search-topbar h1 {
+      font-size: 5.2rem;
+    }
+    .search-topbar .text-muted {
+      font-size: 2.1rem;
+    }
+    .search-topbar .btn,
+    .search-shell .btn,
+    .search-shell .form-control,
+    .search-shell .input-group-text {
+      min-height: 96px;
+      font-size: 2.15rem;
+      border-radius: 14px;
+    }
+    .search-shell .form-check {
+      font-size: 2rem;
+      margin-bottom: 28px !important;
+    }
+    .search-shell .form-check-input {
+      width: 2.1rem;
+      height: 2.1rem;
+      margin-top: .25rem;
+      margin-right: .8rem;
+    }
+    .search-product-result {
+      margin-bottom: 22px;
+      border-radius: 14px !important;
+      padding: 28px;
+    }
+    .search-product-result__row {
+      gap: 24px;
+    }
+    .search-product-result__title {
+      font-size: 2.25rem;
+      line-height: 1.18;
+    }
+    .search-product-result__subtitle {
+      font-size: 1.65rem;
+    }
+    .search-product-result__actions {
+      gap: 18px;
+    }
+    .search-product-result__code {
+      font-size: 1.45rem;
+    }
+    .search-product-result__button {
+      min-height: 86px;
+      min-width: 190px;
+      font-size: 1.9rem;
+    }
+    #search-pagina-info {
+      font-size: 1.7rem;
+    }
+  }
 </style>
 {% endblock %}
 
@@ -83,7 +256,7 @@
 <script src="https://unpkg.com/@zxing/library@latest"></script>
 <script src="{{ url_for('static', filename='js/scanner.js') }}"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script src="{{ url_for('static', filename='js/search_by_description.js') }}"></script>
+<script src="{{ url_for('static', filename='js/search_by_description.js', v=app_version ~ '-mobile-products1') }}"></script>
 <script>
   document.addEventListener("DOMContentLoaded", function () {
     const scanButton = document.getElementById("search-scan-button");

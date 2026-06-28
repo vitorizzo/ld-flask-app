@@ -27,27 +27,27 @@ window.initSearchByDescription = function (config) {
         } else {
           trovati.forEach(prodotto => {
             const li = document.createElement("li");
-            li.className = "list-group-item d-flex justify-content-between align-items-center prodotto-item";
+            li.className = "list-group-item d-flex justify-content-between align-items-center prodotto-item search-product-result";
             li.dataset.cod_art = prodotto.cod_art;
 
             const descr = `
-              <div>
-                <div class="fw-bold">${prodotto.descrizione}</div>
-                <small class="text-muted">${prodotto.descrizione_aggiuntiva}</small>
+              <div class="search-product-result__text">
+                <div class="fw-bold search-product-result__title">${prodotto.descrizione}</div>
+                <small class="text-muted search-product-result__subtitle">${prodotto.descrizione_aggiuntiva || ""}</small>
               </div>
             `;
 
-            const cod_art = `<span class="badge bg-primary">${prodotto.cod_art}</span>`;
+            const cod_art = `<span class="badge bg-primary search-product-result__code">${prodotto.cod_art}</span>`;
 
             const bottoneScheda = config.showButton ? `
-              <button class="btn btn-sm btn-outline-secondary ms-3 apri-scheda" data-cod_art="${prodotto.cod_art}">
+              <button class="btn btn-sm btn-outline-secondary ms-3 apri-scheda search-product-result__button" data-cod_art="${prodotto.cod_art}">
                 Scheda
               </button>
             ` : "";
 
-            li.innerHTML = `<div class="d-flex justify-content-between w-100 align-items-center">
+            li.innerHTML = `<div class="d-flex justify-content-between w-100 align-items-center search-product-result__row">
                               ${descr}
-                              <div class="d-flex align-items-center">
+                              <div class="d-flex align-items-center search-product-result__actions">
                                 ${cod_art}
                                 ${bottoneScheda}
                               </div>
