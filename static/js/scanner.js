@@ -2,16 +2,18 @@
 
 let codeReader;
 let selectedDeviceId = null;
+let activeScannerCallback = null;
 
 function initScanner(buttonId, inputId, onScan = null) {
     const scanButton = document.getElementById(buttonId);
     const inputField = document.getElementById(inputId);
+    activeScannerCallback = onScan;
 
     // Crea dinamicamente il modal solo se non esiste già
     if (!document.getElementById('scanner-modal')) {
         const modal = document.createElement('div');
         modal.id = 'scanner-modal';
-        modal.style = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1000;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center';
+        modal.style = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:7000;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center';
 
         modal.innerHTML = `
           <div style="position:relative;width:90%;max-width:600px;background:#fff;padding:10px;display:flex;flex-direction:column;align-items:center;gap:10px;">
@@ -40,11 +42,12 @@ function initScanner(buttonId, inputId, onScan = null) {
             const nextIndex = (currentIndex + 1) % devices.length;
             selectedDeviceId = devices[nextIndex].deviceId;
             stopScanner();
-            startScanner(inputField, selectedDeviceId);
+            startScanner(inputField, selectedDeviceId, activeScannerCallback);
         });
     }
 
     scanButton.addEventListener("click", () => {
+        activeScannerCallback = onScan;
         startScanner(inputField, null, onScan);  // <-- aggiunto onScan
             document.getElementById("scanner-modal").style.display = "flex";
         });

@@ -1835,3 +1835,8 @@ Performance apertura giornata Agenda 2026-06-13:
 - 2026-06-28 UX ricerca prodotto:
   - rimosso il pulsante `Scheda` dai risultati della ricerca per descrizione;
   - click/tap sull'intera riga/card prodotto apre direttamente la scheda quando la pagina passa `onRowClick`, mantenendo il fallback `onSelect` per altri usi del componente.
+- 2026-06-28 fix paginazione/scanner ricerca prodotti:
+  - `GET /search/lista_articoli` accetta `stock_only` e filtra gli articoli con giacenza prima della paginazione SQL, evitando pagine vuote o irregolari;
+  - con ricerca vuota vengono mostrati gli articoli con giacenza, mentre il checkbox `Tutti i prodotti` passa `stock_only=0` e mostra tutto l'archivio;
+  - la ricerca include anche `cod_art` e ordina in modo stabile per descrizione/codice;
+  - `scanner.js` conserva il callback `onScan` anche dopo cambio camera, cosi' la scansione barcode continua ad aprire la scheda/ricerca prevista.

@@ -14,13 +14,14 @@ window.initSearchByDescription = function (config) {
   const perPage = 10;
 
   function caricaProdotti(query = "", page = 1) {
-    const showAll = checkbox.checked;
+    const showAll = checkbox ? checkbox.checked : false;
+    const stockOnly = showAll ? "0" : "1";
 
-    fetch(`/search/lista_articoli?filter=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}`)
+    fetch(`/search/lista_articoli?filter=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}&stock_only=${stockOnly}`)
       .then(res => res.json())
       .then(data => {
         list.innerHTML = "";
-        const trovati = data.prodotti.filter(p => showAll || (p.giacenza.instore + p.giacenza.online) > 0);
+        const trovati = data.prodotti || [];
 
         if (trovati.length === 0) {
           list.innerHTML = `<li class="list-group-item text-muted text-center">Nessun prodotto trovato</li>`;
@@ -71,10 +72,12 @@ window.initSearchByDescription = function (config) {
     caricaProdotti(input.value, currentPage);
   });
 
-  checkbox.addEventListener("change", () => {
-    currentPage = 1;
-    caricaProdotti(input.value, currentPage);
-  });
+  if (checkbox) {
+    checkbox.addEventListener("change", () => {
+      currentPage = 1;
+      caricaProdotti(input.value, currentPage);
+    });
+  }
 
   prevBtn.addEventListener("click", () => {
     if (currentPage > 1) {

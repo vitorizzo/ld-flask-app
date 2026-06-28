@@ -2078,16 +2078,25 @@ def lista_articoli():
     filtro = request.args.get('filter', '').strip()
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 10, type=int)
+    stock_only = request.args.get('stock_only', '1') not in ('0', 'false', 'False')
+    per_page = max(1, min(per_page, 100))
 
-    logger.info(f">>> Chiamata a /lista_articoli | filtro='{filtro}', page={page}, per_page={per_page}")
+    logger.info(f">>> Chiamata a /lista_articoli | filtro='{filtro}', page={page}, per_page={per_page}, stock_only={stock_only}")
 
     query = Articoli.query
     if filtro:
         query = query.filter(
             (Articoli.descrizione.ilike(f"%{filtro}%")) |
-            (Articoli.descrizione_aggiuntiva.ilike(f"%{filtro}%"))
+            (Articoli.descrizione_aggiuntiva.ilike(f"%{filtro}%")) |
+            (Articoli.cod_art.ilike(f"%{filtro}%"))
         )
 
+    if stock_only:
+        query = query.join(Giacenza, Giacenza.cod_art == Articoli.cod_art).filter(
+            (Giacenza.giac_neg > 0) | (Giacenza.giac_www > 0)
+        )
+
+    query = query.order_by(Articoli.descrizione.asc(), Articoli.cod_art.asc())
     paginated = query.paginate(page=page, per_page=per_page, error_out=False)
     prodotti_json = []
 
