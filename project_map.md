@@ -337,7 +337,9 @@ Aggiornamento 2026-06-24:
   - endpoint `POST /search/scheda_articolo/<cod_art>/images/copy` accetta sia il vecchio `asset_id` singolo sia il nuovo array `asset_ids`.
 - Da progettare come step successivo: `Crea prodotto da altro prodotto` per nuove annate, probabilmente nella scheda articolo/prodotto e non nella scheda cliente, con copia controllata di dati, bozze piattaforma, immagini e campi descrittivi/tecnici interni.
   - Prima copertura implementata nel flusso esistente `Copia valori da altro prodotto`: quando si copiano valori da un articolo sorgente, LDApp copia anche dati locali collegati.
-  - Il flusso e' separato in due azioni: `Confronta valori` mostra i valori origine accanto ai campi del target senza sovrascriverli, con scelta esplicita campo-per-campo; `Copia dati locali` trasferisce scheda tecnica (`SchedeProdotti`) se il target non ne ha gia' una, immagini `ProductAsset` selezionate tramite checkbox e barcode `Barcode` solo se il target non ha gia' barcode.
+  - La modale `Modifica su Poleepo` usa una matrice comparativa: immagini in alto, ricerca prodotto padre tra immagini e tabella, tabella campi con colonne `Poleepo`, `LDApp` e `Prodotto padre`; i valori applicabili si scelgono con radio button.
+  - La colonna padre viene popolata dopo la ricerca prodotto sorgente; le immagini padre sono selezionabili con checkbox e vengono usate da `Copia dati locali`.
+  - `Copia dati locali` trasferisce scheda tecnica (`SchedeProdotti`) se il target non ne ha gia' una, immagini `ProductAsset` selezionate e barcode `Barcode` solo se il target non ha gia' barcode.
 - Nella modale `Modifica su Poleepo` e' presente anche `Copia valori da altro prodotto`:
   - `GET /search/scheda_articolo/<cod_art>/publish/poleepo/copy-candidates`;
   - `GET /search/scheda_articolo/<cod_art>/publish/poleepo/copy-values`;

@@ -215,6 +215,10 @@
   }
   .product-publication-modal .modal-dialog {
     z-index: 5301 !important;
+    width: 80vw;
+    max-width: 80vw;
+    height: 86vh;
+    max-height: 86vh;
   }
   .product-publication-modal .modal-content,
   .product-publication-modal .modal-header,
@@ -222,6 +226,19 @@
   .product-publication-modal .modal-footer {
     background: #fff;
     color: #212529;
+  }
+  .product-publication-modal .modal-content {
+    height: 100%;
+    resize: both;
+    overflow: hidden;
+    min-width: min(980px, 96vw);
+    min-height: 620px;
+  }
+  .product-publication-modal .modal-body {
+    min-height: 0;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
   .product-publication-modal .modal-title,
   .product-publication-modal .form-label,
@@ -277,9 +294,76 @@
     background: #e9ecef;
   }
   .product-publication-fields {
-    max-height: 56vh;
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: none;
     overflow-y: auto;
     padding-right: 4px;
+  }
+  .product-publication-image-compare {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .product-publication-image-column {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #fff;
+    padding: 10px;
+    min-width: 0;
+  }
+  .product-publication-image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+    gap: 8px;
+  }
+  .product-publication-image-card {
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: #f8f9fa;
+    padding: 5px;
+    min-width: 0;
+  }
+  .product-publication-image-card img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    border-radius: 4px;
+    background: #e9ecef;
+  }
+  .product-publication-comparison-wrapper {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    background: #fff;
+  }
+  .product-publication-comparison-table {
+    margin-bottom: 0;
+    color: #212529;
+  }
+  .product-publication-comparison-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #f8f9fa;
+    color: #212529;
+  }
+  .product-publication-comparison-cell {
+    min-width: 180px;
+    border-left: 1px solid #eef0f2;
+  }
+  .product-publication-comparison-cell.is-selected {
+    background: #eef6ff;
+    box-shadow: inset 3px 0 0 #0d6efd;
+  }
+  .product-publication-comparison-value {
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+  .product-publication-comparison-editor-row td {
+    background: #fbfcfd;
+    border-top: 0;
+    padding-top: 0;
   }
   .product-publication-field {
     border: 1px solid #dee2e6;

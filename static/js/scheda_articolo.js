@@ -568,11 +568,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
     function selectedPublicationCopyImageIds(button) {
         var row = button.closest(".product-publication-copy-result");
-        if (!row) {
-            return [];
+        var checkboxes = [];
+        if (row) {
+            checkboxes = checkboxes.concat(Array.from(row.querySelectorAll(".product-publication-copy-image-check:checked")));
         }
-        return Array.from(row.querySelectorAll(".product-publication-copy-image-check:checked")).map(function (checkbox) {
+        if (publicationFields) {
+            checkboxes = checkboxes.concat(Array.from(publicationFields.querySelectorAll(".product-publication-source-image-check:checked")));
+        }
+        var values = checkboxes.map(function (checkbox) {
             return checkbox.value;
+        });
+        return values.filter(function (value, index) {
+            return value && values.indexOf(value) === index;
         });
     }
 
@@ -933,6 +940,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 return data;
             });
         }).then(function (data) {
+            if (updatePoleepoSourceComparison(data, sourceCodArt)) {
+                var matrixNotice = document.createElement("div");
+                matrixNotice.className = "alert alert-info py-2 mt-2 mb-0";
+                matrixNotice.textContent = "Prodotto padre caricato nella terza colonna. Scegli i valori con i radio button.";
+                publicationCopyResults.prepend(matrixNotice);
+                return;
+            }
             var sourceLabel = "Origine " + ((data.source && data.source.cod_art) || sourceCodArt);
             var inserted = 0;
             var firstBox = null;
@@ -1095,6 +1109,265 @@ document.addEventListener("DOMContentLoaded", function () {
         return wrapper;
     }
 
+    function formatPublicationValue(field, value) {
+        if (value === null || value === undefined || value === "") {
+            return "-";
+        }
+        var raw = String(value);
+        var normalized = raw.replace(",", ".");
+        var number = Number(normalized);
+        var fieldName = String((field && field.name) || "").toLowerCase();
+        if (!Number.isNaN(number)) {
+            if (fieldName.indexOf("price") !== -1 || fieldName.indexOf("cost") !== -1 || fieldName.indexOf("prezzo") !== -1) {
+                return number.toLocaleString("it-IT", { style: "currency", currency: "EUR" });
+            }
+            if (fieldName.indexOf("vat") !== -1 || fieldName.indexOf("iva") !== -1 || fieldName.indexOf("percent") !== -1 || fieldName.indexOf("rate") !== -1) {
+                return number.toLocaleString("it-IT", { maximumFractionDigits: 2 }) + "%";
+            }
+            if (field.type === "integer" || Number.isInteger(number)) {
+                return number.toLocaleString("it-IT", { maximumFractionDigits: 0 });
+            }
+        }
+        return raw;
+    }
+
+    function renderPublicationImagesColumn(title, images, extraClass, selectable) {
+        var column = document.createElement("div");
+        column.className = "product-publication-image-column " + (extraClass || "");
+        var heading = document.createElement("div");
+        heading.className = "fw-semibold mb-2";
+        heading.textContent = title;
+        column.appendChild(heading);
+
+        if (!images || !images.length) {
+            var empty = document.createElement("div");
+            empty.className = "text-muted small";
+            empty.textContent = "Nessuna immagine";
+            column.appendChild(empty);
+            return column;
+        }
+
+        var grid = document.createElement("div");
+        grid.className = "product-publication-image-grid";
+        images.forEach(function (image) {
+            var card = document.createElement("div");
+            card.className = "product-publication-image-card";
+            var img = document.createElement("img");
+            img.src = image.url;
+            img.alt = image.label || title;
+            card.appendChild(img);
+            var label = document.createElement("div");
+            label.className = "small text-muted";
+            label.textContent = image.label || platformLabel(image.source_platform);
+            card.appendChild(label);
+            if (selectable && image.id) {
+                var checkLabel = document.createElement("label");
+                checkLabel.className = "form-check small mt-1 mb-0";
+                var checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.className = "form-check-input product-publication-copy-image-check product-publication-source-image-check";
+                checkbox.value = image.id;
+                checkbox.checked = true;
+                var text = document.createElement("span");
+                text.className = "form-check-label";
+                text.textContent = "Copia";
+                checkLabel.appendChild(checkbox);
+                checkLabel.appendChild(text);
+                card.appendChild(checkLabel);
+            }
+            grid.appendChild(card);
+        });
+        column.appendChild(grid);
+        return column;
+    }
+
+    function choosePublicationComparisonValue(row, sourceKey) {
+        var editorRow = row.nextElementSibling && row.nextElementSibling.classList.contains("product-publication-comparison-editor-row")
+            ? row.nextElementSibling
+            : null;
+        var hidden = editorRow ? editorRow.querySelector(".product-publication-comparison-input") : row.querySelector(".product-publication-comparison-input");
+        var valueNode = row.querySelector("[data-comparison-value='" + sourceKey + "']");
+        if (!hidden || !valueNode) {
+            return;
+        }
+        hidden.value = valueNode.dataset.rawValue || "";
+        row.querySelectorAll(".product-publication-comparison-cell").forEach(function (cell) {
+            cell.classList.toggle("is-selected", cell.dataset.sourceKey === sourceKey);
+        });
+    }
+
+    function renderComparisonChoice(row, field, sourceKey, title, value, enabled) {
+        var cell = document.createElement("td");
+        cell.className = "product-publication-comparison-cell";
+        cell.dataset.sourceKey = sourceKey;
+
+        var radio = document.createElement("input");
+        radio.type = "radio";
+        radio.className = "form-check-input";
+        radio.name = "publication-choice-" + field.name;
+        radio.disabled = !enabled;
+        radio.addEventListener("change", function () {
+            if (radio.checked) {
+                choosePublicationComparisonValue(row, sourceKey);
+            }
+        });
+
+        var label = document.createElement("div");
+        label.className = "small text-muted mb-1";
+        label.textContent = title;
+
+        var valueBox = document.createElement("div");
+        valueBox.className = "product-publication-comparison-value";
+        valueBox.dataset.comparisonValue = sourceKey;
+        valueBox.dataset.rawValue = value === null || value === undefined ? "" : String(value);
+        valueBox.textContent = formatPublicationValue(field, value);
+
+        cell.appendChild(radio);
+        cell.appendChild(label);
+        cell.appendChild(valueBox);
+        return cell;
+    }
+
+    function renderPoleepoComparisonDraft(draft) {
+        publicationFields.innerHTML = "";
+
+        var imageBlock = document.createElement("div");
+        imageBlock.className = "product-publication-image-compare";
+        imageBlock.appendChild(renderPublicationImagesColumn("Immagini Poleepo", (draft.images && draft.images.poleepo) || []));
+        imageBlock.appendChild(renderPublicationImagesColumn("Immagini LDApp", (draft.images && draft.images.ldapp) || []));
+        var sourceImagesColumn = renderPublicationImagesColumn("Immagini prodotto padre", []);
+        sourceImagesColumn.dataset.sourceImagesColumn = "1";
+        imageBlock.appendChild(sourceImagesColumn);
+        publicationFields.appendChild(imageBlock);
+
+        if (publicationCopyPanel) {
+            publicationCopyPanel.classList.remove("d-none");
+            publicationFields.appendChild(publicationCopyPanel);
+        }
+
+        var tableWrapper = document.createElement("div");
+        tableWrapper.className = "table-responsive product-publication-comparison-wrapper";
+        var table = document.createElement("table");
+        table.className = "table table-sm align-middle product-publication-comparison-table";
+        table.innerHTML = "<thead><tr><th>Campo</th><th>Poleepo</th><th>LDApp</th><th>Prodotto padre</th></tr></thead>";
+        var body = document.createElement("tbody");
+
+        draft.fields.forEach(function (field) {
+            var row = document.createElement("tr");
+            row.dataset.fieldName = field.name;
+            row.dataset.language = field.language || "";
+            row.dataset.editable = field.readonly ? "0" : "1";
+
+            var nameCell = document.createElement("th");
+            nameCell.scope = "row";
+            var label = document.createElement("div");
+            label.className = "fw-semibold";
+            label.textContent = field.label || field.name;
+            var meta = document.createElement("div");
+            meta.className = "text-muted small";
+            meta.textContent = field.name + (field.readonly ? " - sola lettura" : "");
+            nameCell.appendChild(label);
+            nameCell.appendChild(meta);
+            row.appendChild(nameCell);
+
+            row.appendChild(renderComparisonChoice(row, field, "poleepo", "Poleepo", field.value, !field.readonly));
+            row.appendChild(renderComparisonChoice(row, field, "ldapp", "LDApp", field.mapped_value, !field.readonly));
+
+            var sourceCell = renderComparisonChoice(row, field, "source", "Padre", "", false);
+            sourceCell.classList.add("product-publication-source-cell");
+            row.appendChild(sourceCell);
+
+            body.appendChild(row);
+
+            var editorRow = document.createElement("tr");
+            editorRow.className = "product-publication-comparison-editor-row";
+            var editorCell = document.createElement("td");
+            editorCell.colSpan = 4;
+
+            var editorLabel = document.createElement("label");
+            editorLabel.className = "form-label small mb-1";
+            editorLabel.textContent = "Valore scelto e modificabile";
+
+            var editor;
+            if (field.type === "textarea" || String(field.value || "").length > 120) {
+                editor = document.createElement("textarea");
+                editor.rows = 2;
+            } else {
+                editor = document.createElement("input");
+                editor.type = field.type === "decimal" || field.type === "integer" ? "number" : "text";
+                if (field.type === "decimal") {
+                    editor.step = "0.01";
+                }
+                if (field.type === "integer") {
+                    editor.step = "1";
+                }
+            }
+            editor.className = "form-control product-publication-comparison-input";
+            editor.dataset.fieldName = field.name;
+            editor.dataset.language = field.language || "";
+            if (field.readonly) {
+                editor.dataset.readonly = "1";
+                editor.readOnly = true;
+                editor.classList.add("bg-light");
+            }
+            editor.value = field.value || "";
+
+            editorCell.appendChild(editorLabel);
+            editorCell.appendChild(editor);
+            editorRow.appendChild(editorCell);
+            body.appendChild(editorRow);
+
+            var defaultRadio = row.querySelector("[data-source-key='poleepo'] input[type='radio']");
+            if (defaultRadio && !field.readonly) {
+                defaultRadio.checked = true;
+                choosePublicationComparisonValue(row, "poleepo");
+            }
+        });
+
+        table.appendChild(body);
+        tableWrapper.appendChild(table);
+        publicationFields.appendChild(tableWrapper);
+    }
+
+    function updatePoleepoSourceComparison(data, sourceCodArt) {
+        var table = publicationFields.querySelector(".product-publication-comparison-table");
+        if (!table) {
+            return false;
+        }
+        var sourceLabel = "Padre " + ((data.source && data.source.cod_art) || sourceCodArt);
+        var updated = 0;
+        (data.fields || []).forEach(function (field) {
+            var row = table.querySelector("tr[data-field-name='" + CSS.escape(field.name) + "'][data-language='" + CSS.escape(field.language || "") + "']");
+            if (!row) {
+                return;
+            }
+            var sourceCell = row.querySelector(".product-publication-source-cell");
+            var valueBox = sourceCell ? sourceCell.querySelector("[data-comparison-value='source']") : null;
+            var radio = sourceCell ? sourceCell.querySelector("input[type='radio']") : null;
+            var sourceLabelNode = sourceCell ? sourceCell.querySelector(".text-muted") : null;
+            if (!sourceCell || !valueBox || !radio) {
+                return;
+            }
+            valueBox.dataset.rawValue = field.value || "";
+            valueBox.textContent = formatPublicationValue(field, field.value || "");
+            if (sourceLabelNode) {
+                sourceLabelNode.textContent = sourceLabel;
+            }
+            if (row.dataset.editable === "1") {
+                radio.disabled = false;
+            }
+            updated += 1;
+        });
+
+        var imageColumn = publicationFields.querySelector("[data-source-images-column='1']");
+        if (imageColumn) {
+            var replacement = renderPublicationImagesColumn("Immagini prodotto padre", (data.local_copy && data.local_copy.images) || [], "", true);
+            replacement.dataset.sourceImagesColumn = "1";
+            imageColumn.replaceWith(replacement);
+        }
+        return updated > 0;
+    }
+
     function renderPublicationDraft(draft) {
         if (!publicationFields) {
             return;
@@ -1127,6 +1400,10 @@ document.addEventListener("DOMContentLoaded", function () {
                 publicationCopyPanel.classList.add("d-none");
                 resetPublicationCopyPanel();
             }
+        }
+        if (publicationMode === "update" && draft.platform === "poleepo") {
+            renderPoleepoComparisonDraft(draft);
+            return;
         }
         draft.fields.forEach(function (field) {
             publicationFields.appendChild(renderPublicationField(field));

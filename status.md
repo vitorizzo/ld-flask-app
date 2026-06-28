@@ -1757,3 +1757,15 @@ Performance apertura giornata Agenda 2026-06-13:
   - l'inserimento del box campo avviene subito sotto la label del campo, non piu' in posizione dipendente da input/help;
   - lo scroll viene applicato al contenitore interno `productPublicationFields`, cosi' il primo campo confrontato entra davvero nella vista;
   - verifiche: `node --check static/js/scheda_articolo.js`, `python -m py_compile routes/search.py`, `git diff --check`.
+- 2026-06-26 refactor modale Poleepo comparativa:
+  - `Modifica su Poleepo` ora usa una matrice dedicata: immagini in alto, ricerca prodotto padre subito sotto, tabella campi con colonne `Poleepo`, `LDApp` e `Prodotto padre`;
+  - per ogni campo editabile la scelta del valore da usare passa da radio button; il valore scelto alimenta gli input hidden raccolti dal submit esistente;
+  - il draft Poleepo include anche immagini remote Poleepo e immagini LDApp del prodotto corrente;
+  - quando si carica un prodotto padre, la terza colonna della tabella viene popolata con i valori origine e la colonna immagini padre mostra le immagini selezionabili per la copia locale;
+  - i valori vengono formattati in UI come valuta per prezzi/costi, percentuali per IVA/rate e interi per campi numerici interi;
+  - verifiche: `python -m py_compile routes/search.py`, `node --check static/js/scheda_articolo.js`, `git diff --check`.
+- 2026-06-26 fix modale Poleepo comparativa:
+  - corretto errore su `Confronta valori` dopo ricerca prodotto padre: la riga di confronto e la riga editor sono ora gestite separatamente;
+  - sotto ogni riga campo e' presente `Valore scelto e modificabile`, input/textarea editabile alimentato dal radio selezionato;
+  - la modale pubblicazione e' larga `80vw`, alta `86vh`, con contenuto ridimensionabile e area principale scrollabile;
+  - verifiche: `python -m py_compile routes/search.py`, `node --check static/js/scheda_articolo.js`, `git diff --check`.

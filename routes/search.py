@@ -183,6 +183,52 @@ def _poleepo_remote_field_value(remote_product, field_name):
     return value
 
 
+def _humanize_field_name(name):
+    return str(name or "").replace("_", " ").strip().title()
+
+
+def _remote_image_url(image):
+    if isinstance(image, str):
+        return image
+    if not isinstance(image, dict):
+        return None
+    for key in ("url", "remote_url", "src", "href", "link", "image", "preview_url"):
+        value = image.get(key)
+        if value:
+            return str(value)
+    image_id = image.get("id")
+    if image_id:
+        return f"https://app.poleepo.cloud/image/show/{image_id}.jpeg"
+    return None
+
+
+def _serialize_remote_images(remote_product):
+    if not isinstance(remote_product, dict):
+        return []
+    images = remote_product.get("images") or []
+    if isinstance(images, dict):
+        images = images.get("data") or images.get("items") or images.get("images") or []
+    if not isinstance(images, list):
+        return []
+    serialized = []
+    for index, image in enumerate(images):
+        url = _remote_image_url(image)
+        if not url:
+            continue
+        label = None
+        image_id = None
+        if isinstance(image, dict):
+            label = image.get("title") or image.get("name") or image.get("filename")
+            image_id = image.get("id")
+        serialized.append({
+            "id": image_id or index,
+            "url": url,
+            "label": label or f"Immagine {index + 1}",
+            "source_platform": "poleepo",
+        })
+    return serialized
+
+
 def _product_identity_value(articolo):
     return " | ".join(
         str(piece or "").strip().lower()
@@ -417,12 +463,37 @@ def _build_product_publication_draft(
                 "help": "Campo letto dal prodotto remoto Poleepo. Non viene modificato da questa operazione.",
                 "readonly": True,
             })
+        existing_names = {field["name"] for field in fields}
+        for name in sorted(remote_product.keys()):
+            if name in existing_names or name == "images":
+                continue
+            remote_value = _poleepo_remote_field_value(remote_product, name)
+            fields.append({
+                "name": name,
+                "label": _humanize_field_name(name),
+                "type": "readonly",
+                "required": False,
+                "source": "poleepo_remote",
+                "language": "",
+                "value": "" if remote_value is None else str(remote_value),
+                "mapped_value": "",
+                "saved": True,
+                "missing": False,
+                "options": [],
+                "options_error": None,
+                "help": "Campo presente su Poleepo. Non e' ancora mappato per l'update.",
+                "readonly": True,
+            })
     return {
         "platform": platform_key,
         "label": schema["label"],
         "cod_art": articolo.cod_art,
         "fields": fields,
         "missing_required": [field["name"] for field in fields if field["missing"]],
+        "images": {
+            "poleepo": _serialize_remote_images(remote_product),
+            "ldapp": _product_ldapp_image_preview(articolo),
+        } if platform_key == "poleepo" else {},
     }
 
 
@@ -936,6 +1007,10 @@ def _product_local_copy_preview(articolo, image_limit=8):
         "barcodes": [row.cod_bar for row in barcodes],
         "images": images,
     }
+
+
+def _product_ldapp_image_preview(articolo, image_limit=20):
+    return _product_local_copy_preview(articolo, image_limit=image_limit).get("images") or []
 
 
 def _publish_product_image_to_platform(articolo, source_asset, platform_key, platform_link):
