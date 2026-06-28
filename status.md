@@ -1813,3 +1813,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - il drawer mobile ora sovrascrive font e padding ereditati dalla vecchia navbar mobile: voci menu con target touch piu' alto e font piu' leggibile;
   - nel profilo touch largo S25 le voci menu usano font 2.25rem, altezza minima 96px e padding 24x28px;
   - suffisso asset `mobile7`, service worker `ldapp-cache-v19`.
+- 2026-06-28 ritocco profilo drawer mobile:
+  - nel drawer mobile il blocco utente/profilo viene trattato come footer: spinto in fondo, separato da bordo superiore e centrato;
+  - nel profilo touch largo S25 `Ciao ...` usa font 2.25rem e foto 96x96px, proporzionati alle voci menu;
+  - suffisso asset `mobile8`, service worker `ldapp-cache-v20`.

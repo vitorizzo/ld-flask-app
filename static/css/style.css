@@ -887,7 +887,8 @@ h1,h2,h3,h4{
         border-radius: 0 8px 8px 0;
         background: rgba(74, 44, 42, 0.98);
         box-shadow: 0 16px 36px rgba(0, 0, 0, .32);
-        display: block !important;
+        display: flex !important;
+        flex-direction: column;
         transform: translateX(-100%);
         visibility: hidden;
         transition: transform .22s ease, visibility .22s ease;
@@ -903,8 +904,45 @@ h1,h2,h3,h4{
         gap: 8px;
     }
 
+    .navbar-collapse > .navbar-nav:first-child {
+        flex: 1 1 auto;
+        align-content: flex-start;
+    }
+
+    .navbar-collapse > .navbar-nav:last-child {
+        width: 100%;
+        margin-top: auto !important;
+        padding-top: 14px !important;
+        border-top: 1px solid rgba(255, 255, 255, .22);
+        align-items: stretch !important;
+    }
+
     .navbar-collapse .nav-item {
         width: 100%;
+    }
+
+    .navbar-collapse > .navbar-nav:last-child .nav-item > .d-flex {
+        width: 100%;
+        justify-content: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, .08);
+    }
+
+    .navbar-collapse > .navbar-nav:last-child .nav-item span {
+        margin-right: 0 !important;
+        color: #fff !important;
+        font-family: "Oswald", Helvetica, sans-serif;
+        font-size: 1.15rem !important;
+        line-height: 1.15;
+        text-align: center;
+    }
+
+    .navbar-collapse > .navbar-nav:last-child .nav-item img.rounded-circle {
+        width: 52px !important;
+        height: 52px !important;
+        flex: 0 0 auto;
     }
 
     .navbar-collapse .nav-link-enabled,
@@ -937,6 +975,11 @@ h1,h2,h3,h4{
         padding: 0 !important;
         border: 0;
         background: transparent;
+    }
+
+    .navbar-collapse > .navbar-nav:last-child .dropdown-menu {
+        margin: 12px 0 0 !important;
+        width: 100%;
     }
 
     main.app-content {
@@ -1067,6 +1110,25 @@ h1,h2,h3,h4{
 
     .navbar-collapse .navbar-nav {
         gap: 16px;
+    }
+
+    .navbar-collapse > .navbar-nav:last-child {
+        padding-top: 25px !important;
+    }
+
+    .navbar-collapse > .navbar-nav:last-child .nav-item > .d-flex {
+        gap: 24px;
+        padding: 24px 28px;
+        border-radius: 14px;
+    }
+
+    .navbar-collapse > .navbar-nav:last-child .nav-item span {
+        font-size: 2.25rem !important;
+    }
+
+    .navbar-collapse > .navbar-nav:last-child .nav-item img.rounded-circle {
+        width: 96px !important;
+        height: 96px !important;
     }
 
     .navbar-collapse .nav-link-enabled,
