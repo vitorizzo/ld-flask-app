@@ -2,56 +2,240 @@
 
 {% block title %}LD Enoteca - Registrazione{% endblock %}
 
+{% block extra_css %}
+<style>
+  .register-page {
+    width: min(860px, 100%);
+    max-width: 860px;
+    max-height: none;
+    margin: auto;
+    padding: 0;
+    overflow: visible;
+    text-align: left;
+  }
+
+  .register-card {
+    background: rgba(74, 44, 42, .86);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, .28);
+    border-radius: 8px;
+    padding: 28px;
+    box-shadow: 0 18px 42px rgba(0, 0, 0, .22);
+  }
+
+  .register-card__header {
+    margin-bottom: 22px;
+  }
+
+  .register-card h1 {
+    color: #fff;
+    text-align: left;
+    margin: 0 0 6px;
+    line-height: 1.05;
+  }
+
+  .register-card__subtitle {
+    margin: 0;
+    color: rgba(255, 255, 255, .78);
+  }
+
+  .register-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 16px;
+  }
+
+  .register-field--full {
+    grid-column: 1 / -1;
+  }
+
+  .register-card .form-label {
+    color: #fff;
+    font-weight: 700;
+  }
+
+  .register-card .form-control,
+  .register-card .form-select {
+    min-height: 48px;
+    border-color: rgba(255, 255, 255, .35);
+    background-color: rgba(255, 255, 255, .94);
+  }
+
+  .register-card__actions {
+    display: grid;
+    gap: 10px;
+    margin-top: 22px;
+  }
+
+  .register-card__links {
+    text-align: center;
+  }
+
+  .register-card__links a {
+    color: #fff;
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  .register-card__links a:hover,
+  .register-card__links a:focus {
+    color: #0dcaf0;
+  }
+
+  @media (max-width: 820px), (hover: none) and (pointer: coarse) {
+    .register-page {
+      width: 100%;
+      max-width: none;
+      margin: 0;
+      padding: 16px 12px;
+      border-radius: 8px;
+      background: transparent;
+      box-shadow: none;
+    }
+
+    .register-card {
+      padding: 22px;
+    }
+
+    .register-grid {
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+
+    .register-card h1 {
+      font-size: 2.2rem;
+    }
+
+    .register-card__subtitle,
+    .register-card .form-label,
+    .register-card__links {
+      font-size: 1rem;
+    }
+
+    .register-card .form-control,
+    .register-card .form-select,
+    .register-card .btn {
+      min-height: 52px;
+      font-size: 1.05rem;
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (min-width: 821px) {
+    .register-page {
+      padding: 50px 42px;
+    }
+
+    .register-card {
+      padding: 46px;
+      border-radius: 14px;
+    }
+
+    .register-card__header {
+      margin-bottom: 34px;
+    }
+
+    .register-card h1 {
+      font-size: 5rem;
+    }
+
+    .register-card__subtitle,
+    .register-card .form-label,
+    .register-card__links {
+      font-size: 2rem;
+    }
+
+    .register-grid {
+      grid-template-columns: 1fr;
+      gap: 24px;
+    }
+
+    .register-card .form-control,
+    .register-card .form-select,
+    .register-card .btn {
+      min-height: 92px;
+      font-size: 2rem;
+      border-radius: 14px;
+    }
+
+    .register-card__actions {
+      gap: 22px;
+      margin-top: 34px;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<section class="welcome-section">
-    <h1>Registrati</h1>
-    <form method="POST" action="{{ url_for('auth.register') }}" class="mx-auto" style="max-width: 400px;">
-        {{ form.hidden_tag() }}
+<section class="welcome-section register-page">
+  <div class="register-card">
+    <div class="register-card__header">
+      <h1>Registrati</h1>
+      <p class="register-card__subtitle">Crea il tuo account LDApp.</p>
+    </div>
 
-        <div class="mb-3">
-            {{ form.name.label(class="form-label") }}
-            {{ form.name(class="form-control", placeholder="Inserisci il tuo nome") }}
-        </div>
-        <div class="mb-3">
-            {{ form.surname.label(class="form-label") }}
-            {{ form.surname(class="form-control", placeholder="Inserisci il tuo cognome") }}
-        </div>
-        <div class="mb-3">
-            {{ form.email.label(class="form-label") }}
-            {{ form.email(class="form-control", placeholder="Inserisci la tua email") }}
-        </div>
-        <div class="mb-3">
-            {{ form.phone.label(class="form-label") }}
-            {{ form.phone(class="form-control", placeholder="Inserisci il tuo telefono") }}
-        </div>
-        <div class="mb-3">
-            {{ form.birth_date.label(class="form-label") }}
-            {{ form.birth_date(class="form-control") }}
-        </div>
-        <div class="mb-3">
-            {{ form.city.label(class="form-label") }}
-            {{ form.city(class="form-control", placeholder="Inserisci la tua città") }}
-        </div>
-        <div class="mb-3">
-            {{ form.province.label(class="form-label") }}
-            {{ form.province(class="form-control", placeholder="Inserisci la tua provincia") }}
-        </div>
-        <div class="mb-3">
-            {{ form.sex.label(class="form-label") }}
-            {{ form.sex(class="form-select") }}
-        </div>
-        <div class="mb-3">
-            {{ form.password.label(class="form-label") }}
-            {{ form.password(class="form-control", placeholder="Inserisci la tua password") }}
-        </div>
-        <div class="mb-3">
-            {{ form.confirm_password.label(class="form-label") }}
-            {{ form.confirm_password(class="form-control", placeholder="Conferma la tua password") }}
+    <form method="POST" action="{{ url_for('auth.register') }}" novalidate>
+      {{ form.hidden_tag() }}
+
+      <div class="register-grid">
+        <div>
+          {{ form.name.label(class="form-label") }}
+          {{ form.name(class="form-control", placeholder="Nome", autocomplete="given-name") }}
         </div>
 
-        <div class="d-grid">
-            {{ form.submit(class="btn-enabled-custom") }}
+        <div>
+          {{ form.surname.label(class="form-label") }}
+          {{ form.surname(class="form-control", placeholder="Cognome", autocomplete="family-name") }}
         </div>
+
+        <div class="register-field--full">
+          {{ form.email.label(class="form-label") }}
+          {{ form.email(class="form-control", placeholder="nome@azienda.it", autocomplete="email") }}
+        </div>
+
+        <div>
+          {{ form.phone.label(class="form-label") }}
+          {{ form.phone(class="form-control", placeholder="Telefono", autocomplete="tel") }}
+        </div>
+
+        <div>
+          {{ form.birth_date.label(class="form-label") }}
+          {{ form.birth_date(class="form-control", autocomplete="bday") }}
+        </div>
+
+        <div>
+          {{ form.city.label(class="form-label") }}
+          {{ form.city(class="form-control", placeholder="Citta", autocomplete="address-level2") }}
+        </div>
+
+        <div>
+          {{ form.province.label(class="form-label") }}
+          {{ form.province(class="form-control", placeholder="Provincia", autocomplete="address-level1") }}
+        </div>
+
+        <div class="register-field--full">
+          {{ form.sex.label(class="form-label") }}
+          {{ form.sex(class="form-select") }}
+        </div>
+
+        <div>
+          {{ form.password.label(class="form-label") }}
+          {{ form.password(class="form-control", placeholder="Password", autocomplete="new-password") }}
+        </div>
+
+        <div>
+          {{ form.confirm_password.label(class="form-label") }}
+          {{ form.confirm_password(class="form-control", placeholder="Conferma password", autocomplete="new-password") }}
+        </div>
+      </div>
+
+      <div class="register-card__actions">
+        {{ form.submit(class="btn btn-info fw-semibold") }}
+        <div class="register-card__links">
+          <a href="{{ url_for('auth.login') }}">Hai gia' un account? Accedi</a>
+        </div>
+      </div>
     </form>
+  </div>
 </section>
 {% endblock %}

@@ -1856,3 +1856,8 @@ Performance apertura giornata Agenda 2026-06-13:
 - 2026-06-28 ritocco login/drawer anonimo:
   - la riga `Accedi` nel drawer mobile anonimo ora e' centrata e scalata come il footer profilo autenticato;
   - login card riportata sul look LDApp marrone/bianco con link chiari e hover `info`, mantenendo input leggibili e bottone `btn-info`.
+- 2026-06-28 restyling registrazione:
+  - `templates/register.html` usa una card coerente con login: marrone semitrasparente, testo bianco, input chiari, bottone `btn-info`;
+  - layout a griglia due colonne su desktop e singola colonna su mobile/touch, con profilo S25 scalato per campi, select, bottone e link;
+  - aggiunti autocomplete semanticamente corretti e link di ritorno al login;
+  - verifica render `/auth/register` 200 con `register-card` e `btn-info`, `git diff --check`.
