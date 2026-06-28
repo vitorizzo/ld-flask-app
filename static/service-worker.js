@@ -1,4 +1,4 @@
-const CACHE_NAME = "ldapp-cache-v20"; // bump per forzare update
+const CACHE_NAME = "ldapp-cache-v21"; // bump per forzare update
 const MAX_PUSH_AGE_MS = 10 * 60 * 1000;
 
 function supportedNotificationActions(actions) {
@@ -47,10 +47,10 @@ self.addEventListener("install", (event) => {
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll([
         "/",
-        "/static/css/style.css?v=20260628-mobile-home-8",
-        "/static/css/context_tabs.css?v=20260628-mobile-home-8",
-        "/static/css/task_status.css?v=20260628-mobile-home-8",
-        "/static/js/menu.js?v=20260628-mobile-home-8",
+        "/static/css/style.css?v=20260628-mobile-home-9",
+        "/static/css/context_tabs.css?v=20260628-mobile-home-9",
+        "/static/css/task_status.css?v=20260628-mobile-home-9",
+        "/static/js/menu.js?v=20260628-mobile-home-9",
         "/static/icons/icon-192.png",
         "/static/icons/icon-512.png",
       ]);

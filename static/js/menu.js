@@ -112,6 +112,17 @@ document.addEventListener("DOMContentLoaded", function () {
         instance._menu = profileMenu;
         instance.toggle();
     });
+
+    var profileRow = profileDropdown.closest(".nav-item")?.querySelector(".d-flex");
+    if (profileRow) {
+        profileRow.style.cursor = "pointer";
+        profileRow.addEventListener("click", function (event) {
+            if (event.target.closest(".dropdown-menu")) return;
+            if (event.target.closest("#profileDropdown")) return;
+            event.preventDefault();
+            profileDropdown.click();
+        });
+    }
 });
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -119,6 +130,23 @@ document.addEventListener("DOMContentLoaded", function () {
     var navbarCollapse = document.querySelector(".navbar-collapse");
 
     if (navbarToggler && navbarCollapse) {
+        var touchStartX = 0;
+        var touchStartY = 0;
+        var touchStartTime = 0;
+
+        function isMobileDrawerEnabled() {
+            return window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)").matches;
+        }
+
+        function showDrawer() {
+            bootstrap.Collapse.getOrCreateInstance(navbarCollapse).show();
+        }
+
+        function hideDrawer() {
+            var instance = bootstrap.Collapse.getInstance(navbarCollapse) || bootstrap.Collapse.getOrCreateInstance(navbarCollapse);
+            instance.hide();
+        }
+
         navbarCollapse.addEventListener("show.bs.collapse", function () {
             document.body.classList.add("mobile-menu-open");
         });
@@ -140,6 +168,32 @@ document.addEventListener("DOMContentLoaded", function () {
                 bootstrap.Collapse.getOrCreateInstance(navbarCollapse).show();
             }
         });
+
+        document.addEventListener("touchstart", function (event) {
+            if (!isMobileDrawerEnabled() || event.touches.length !== 1) return;
+            var touch = event.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+            touchStartTime = Date.now();
+        }, { passive: true });
+
+        document.addEventListener("touchend", function (event) {
+            if (!isMobileDrawerEnabled() || !touchStartTime || event.changedTouches.length !== 1) return;
+            var touch = event.changedTouches[0];
+            var deltaX = touch.clientX - touchStartX;
+            var deltaY = touch.clientY - touchStartY;
+            var elapsed = Date.now() - touchStartTime;
+            var horizontalSwipe = Math.abs(deltaX) >= 80 && Math.abs(deltaY) <= 70 && elapsed <= 700;
+            if (!horizontalSwipe) return;
+
+            var isOpen = navbarCollapse.classList.contains("show");
+            var startsNearLeftEdge = touchStartX <= 36;
+            if (!isOpen && startsNearLeftEdge && deltaX > 0) {
+                showDrawer();
+            } else if (isOpen && deltaX < 0) {
+                hideDrawer();
+            }
+        }, { passive: true });
     }
 });
 

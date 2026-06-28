@@ -1817,3 +1817,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - nel drawer mobile il blocco utente/profilo viene trattato come footer: spinto in fondo, separato da bordo superiore e centrato;
   - nel profilo touch largo S25 `Ciao ...` usa font 2.25rem e foto 96x96px, proporzionati alle voci menu;
   - suffisso asset `mobile8`, service worker `ldapp-cache-v20`.
+- 2026-06-28 fix interazioni drawer mobile:
+  - corretto allineamento voci drawer: il primo menu sovrascrive `mx-auto`/`justify-content-center` e torna in alto a sinistra;
+  - la riga profilo nel footer drawer e' cliccabile e apre il menu utente come l'icona profilo;
+  - aggiunte gesture touch: swipe da bordo sinistro verso destra apre il drawer, swipe verso sinistra lo chiude quando e' aperto;
+  - suffisso asset `mobile9`, service worker `ldapp-cache-v21`.
