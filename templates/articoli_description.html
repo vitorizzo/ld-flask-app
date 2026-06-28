@@ -130,6 +130,12 @@
     #product-modal-iframe {
       height: calc(100vh - 58px) !important;
     }
+    #barcode-choices-modal .modal-dialog {
+      margin: 10px;
+    }
+    #barcode-choices-modal .list-group-item {
+      padding: 14px;
+    }
   }
   @media (hover: none) and (pointer: coarse) and (min-width: 821px) {
     .search-page {
@@ -187,6 +193,22 @@
     #search-pagina-info {
       font-size: 1.7rem;
     }
+    #barcode-choices-modal .modal-title {
+      font-size: 2.2rem;
+    }
+    #barcode-choices-modal .modal-body {
+      font-size: 1.55rem;
+    }
+    #barcode-choices-modal .list-group-item {
+      padding: 24px;
+      font-size: 1.8rem;
+    }
+    #barcode-choices-modal .list-group-item .small {
+      font-size: 1.45rem;
+    }
+    #barcode-choices-modal .badge {
+      font-size: 1.35rem;
+    }
   }
 </style>
 {% endblock %}
@@ -243,6 +265,21 @@
     </div>
   </div>
 </div>
+
+<div class="modal fade" id="barcode-choices-modal" tabindex="-1" aria-labelledby="barcodeChoicesModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="barcodeChoicesModalLabel">Seleziona prodotto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div class="text-muted small mb-2">Il barcode corrisponde a piu' versioni dello stesso prodotto.</div>
+        <ul class="list-group" id="barcode-choices-list"></ul>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -254,6 +291,35 @@
   document.addEventListener("DOMContentLoaded", function () {
     const scanButton = document.getElementById("search-scan-button");
     const searchInput = document.getElementById("search-description-input");
+    const barcodeChoicesModalEl = document.getElementById("barcode-choices-modal");
+    const barcodeChoicesList = document.getElementById("barcode-choices-list");
+
+    function openProductSheet(codArt) {
+      if (!codArt) return;
+      window.location.href = '/search/scheda_articolo/' + encodeURIComponent(codArt);
+    }
+
+    function showBarcodeChoices(items) {
+      if (!barcodeChoicesModalEl || !barcodeChoicesList) return;
+      barcodeChoicesList.innerHTML = "";
+      items.forEach(item => {
+        const li = document.createElement("button");
+        li.type = "button";
+        li.className = "list-group-item list-group-item-action";
+        li.innerHTML = `
+          <div class="fw-semibold">${item.descrizione || ""}</div>
+          <div class="text-muted small">${item.descrizione_aggiuntiva || ""}</div>
+          <span class="badge bg-primary mt-2">${item.cod_art}</span>
+        `;
+        li.addEventListener("click", () => {
+          const modal = bootstrap.Modal.getInstance(barcodeChoicesModalEl);
+          if (modal) modal.hide();
+          openProductSheet(item.cod_art);
+        });
+        barcodeChoicesList.appendChild(li);
+      });
+      bootstrap.Modal.getOrCreateInstance(barcodeChoicesModalEl).show();
+    }
 
     function openBarcodeResult(barcode) {
       fetch('/search/articoli_by_barcode_multipli?barcode=' + encodeURIComponent(barcode), { credentials: "same-origin" })
@@ -265,13 +331,12 @@
           }
 
           if (data.singolo && data.articolo?.cod_art) {
-            window.location.href = '/search/scheda_articolo/' + data.articolo.cod_art;
+            openProductSheet(data.articolo.cod_art);
             return;
           }
 
-          const articolo = data.articoli?.[0];
-          if (articolo?.cod_art) {
-            window.location.href = '/search/scheda_articolo/' + articolo.cod_art;
+          if (Array.isArray(data.articoli) && data.articoli.length > 0) {
+            showBarcodeChoices(data.articoli);
             return;
           }
 
@@ -299,7 +364,7 @@
         modalTriggerId: 'product-modal',
         showButton: true,
         onRowClick: (prodotto) => {
-          window.location.href = '/search/scheda_articolo/' + prodotto.cod_art;
+          openProductSheet(prodotto.cod_art);
         }
       });
     }

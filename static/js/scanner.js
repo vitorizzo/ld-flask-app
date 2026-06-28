@@ -72,12 +72,14 @@ function startScanner(inputField, deviceIdOverride = null, onScan = null) {
 
         select.onchange = () => {
             stopScanner();
-            startScanner(inputField, select.value);
+            startScanner(inputField, select.value, activeScannerCallback);
         };
 
         return codeReader.decodeFromVideoDevice(selectedDeviceId, 'barcode-video', (result, err) => {
             if (result) {
                 inputField.value = result.text;
+                inputField.dispatchEvent(new Event("input", { bubbles: true }));
+                inputField.dispatchEvent(new Event("change", { bubbles: true }));
 
                 // 🔁 Simula pressione del tasto Enter sull’input
                 const enterEvent = new KeyboardEvent("keydown", {
@@ -90,8 +92,9 @@ function startScanner(inputField, deviceIdOverride = null, onScan = null) {
                 inputField.dispatchEvent(enterEvent);
 
                 // ⚙️ Chiama eventualmente il callback onScan
-                if (typeof onScan === 'function') {
-                    onScan(result.text);
+                const callback = typeof onScan === 'function' ? onScan : activeScannerCallback;
+                if (typeof callback === 'function') {
+                    callback(result.text);
                 }
 
                 stopScanner();

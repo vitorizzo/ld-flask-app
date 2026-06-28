@@ -1840,3 +1840,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - con ricerca vuota vengono mostrati gli articoli con giacenza, mentre il checkbox `Tutti i prodotti` passa `stock_only=0` e mostra tutto l'archivio;
   - la ricerca include anche `cod_art` e ordina in modo stabile per descrizione/codice;
   - `scanner.js` conserva il callback `onScan` anche dopo cambio camera, cosi' la scansione barcode continua ad aprire la scheda/ricerca prevista.
+- 2026-06-28 fix barcode informazioni prodotti:
+  - nella pagina informazioni articoli la scansione barcode apre direttamente la scheda se l'articolo e' univoco;
+  - se il barcode corrisponde a piu' varianti/annate, viene mostrata una modale di scelta prima di aprire la scheda;
+  - `scanner.js` ora emette anche eventi `input`/`change` dopo la lettura e usa il callback attivo come fallback, evitando che il valore venga solo scritto nel campo senza attivare la ricerca.
