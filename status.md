@@ -1792,3 +1792,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - asset CSS e service worker versionati con suffisso esplicito `mobile2`;
   - service worker portato a `ldapp-cache-v14`;
   - verifiche: render GET `/` 200 con `style.css?v=...-mobile2` e `service-worker.js?v=...-mobile2`, `git diff --check`.
+- 2026-06-28 fix screenshot S25 home:
+  - dagli screenshot in `docs/transport` il layout mobile era attivo, ma le tab contestuali laterali restavano visibili perche' `context_tabs.css` veniva caricato dopo `style.css`;
+  - `context_tabs.css` ora nasconde le tab su mobile/touch con override dedicato e `style.css` usa `!important` sullo stesso fallback;
+  - la barra task attivi e' stata compattata su mobile/touch per non schiacciare home e footer quando sono presenti processi in corso;
+  - asset CSS e service worker versionati con suffisso `mobile3`, service worker portato a `ldapp-cache-v15`.

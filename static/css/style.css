@@ -880,7 +880,7 @@ h1,h2,h3,h4{
     }
 
     .context-tabs {
-        display: none;
+        display: none !important;
     }
 
     .footer {
