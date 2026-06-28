@@ -145,7 +145,7 @@
     white-space: nowrap;
   }
   .product-image-slot--drop-ready {
-    border-color: #0d6efd;
+    border-color: #0dcaf0;
     box-shadow: 0 0 0 2px rgba(13, 110, 253, .18);
   }
   .product-image-upload {
@@ -354,7 +354,7 @@
   }
   .product-publication-comparison-cell.is-selected {
     background: #eef6ff;
-    box-shadow: inset 3px 0 0 #0d6efd;
+    box-shadow: inset 3px 0 0 #0dcaf0;
   }
   .product-publication-comparison-value {
     overflow-wrap: anywhere;
@@ -376,7 +376,7 @@
     background: #fff5f5;
   }
   .product-publication-source-value {
-    border-left: 3px solid #0d6efd;
+    border-left: 3px solid #0dcaf0;
     background: #eef6ff;
     border-radius: 6px;
     padding: 8px 10px;
@@ -753,7 +753,7 @@
                     action="{{ url_for('search.upload_product_image', cod_art=product.cod_art) }}"
                     method="post" enctype="multipart/form-data">
                 <input class="form-control form-control-sm" type="file" name="image" accept="image/png,image/jpeg,image/webp">
-                <button class="btn btn-sm btn-primary" type="submit">
+                <button class="btn btn-sm btn-info" type="submit">
                   <i class="fa-solid fa-upload"></i>
                   Carica
                 </button>
@@ -761,7 +761,7 @@
                         data-bs-toggle="tooltip" data-bs-title="Creazione immagine non ancora disponibile">
                   <i class="fa-solid fa-wand-magic-sparkles"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-primary" type="button" id="productImageCopyOpen"
+                <button class="btn btn-sm btn-outline-info" type="button" id="productImageCopyOpen"
                         data-bs-toggle="tooltip" data-bs-title="Copia immagine da un altro prodotto">
                   <i class="fa-solid fa-copy"></i>
                 </button>
@@ -867,7 +867,7 @@
                 <div class="d-flex flex-wrap gap-2 mt-2">
                   {% for platform in product.publishable_platforms %}
                     <button type="button"
-                            class="btn btn-sm btn-outline-primary product-publish-btn"
+                            class="btn btn-sm btn-outline-info product-publish-btn"
                             data-platform="{{ platform.key }}">
                       <i class="fa-solid fa-upload"></i>
                       Pubblica su {{ platform.label }}
@@ -1016,7 +1016,7 @@
               <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
               <input type="search" class="form-control" id="productPublicationCopySearch"
                      placeholder="Cerca prodotto origine gia' presente su Poleepo">
-              <button type="button" class="btn btn-outline-primary" id="productPublicationCopySearchBtn">Cerca</button>
+              <button type="button" class="btn btn-outline-info" id="productPublicationCopySearchBtn">Cerca</button>
             </div>
             <div class="product-publication-copy-results vstack gap-2" id="productPublicationCopyResults">
               <div class="text-muted small">Cerca un prodotto origine.</div>
@@ -1028,7 +1028,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-          <button type="button" class="btn btn-primary" id="productPublicationSave">
+          <button type="button" class="btn btn-info" id="productPublicationSave">
             <i class="fa-solid fa-floppy-disk"></i>
             Salva bozza
           </button>
@@ -1056,7 +1056,7 @@
             <span class="input-group-text"><i class="fa-solid fa-magnifying-glass"></i></span>
             <input type="search" class="form-control" id="productImageCopySearch"
                    placeholder="Cerca per codice, descrizione o produttore">
-            <button type="button" class="btn btn-outline-primary" id="productImageCopySearchBtn">Cerca</button>
+            <button type="button" class="btn btn-outline-info" id="productImageCopySearchBtn">Cerca</button>
           </div>
           <div class="product-image-copy-results vstack gap-2" id="productImageCopyResults">
             <div class="text-muted">Cerca un prodotto sorgente.</div>
@@ -1064,7 +1064,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-          <button type="button" class="btn btn-primary" id="productImageCopyConfirm" disabled>
+          <button type="button" class="btn btn-info" id="productImageCopyConfirm" disabled>
             <i class="fa-solid fa-copy"></i> Copia selezionate
           </button>
         </div>

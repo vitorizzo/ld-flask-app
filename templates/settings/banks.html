@@ -86,7 +86,7 @@
         <div class="text-muted">Conti e istituti usati nei movimenti di cassa.</div>
       </div>
       <div class="d-flex gap-2">
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bankCreateModal">
+        <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#bankCreateModal">
           <i class="fa-solid fa-plus me-1"></i>Nuova banca
         </button>
         <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">
@@ -141,7 +141,7 @@
                     </td>
                     <td>
                       {% if bank.is_default %}
-                        <span class="badge text-bg-primary">Default</span>
+                        <span class="badge text-bg-info">Default</span>
                       {% else %}
                         <span class="text-muted small">-</span>
                       {% endif %}
@@ -150,7 +150,7 @@
                     <td><span class="text-muted small">{% if bank.updated_at %}{{ bank.updated_at.strftime('%d/%m/%Y %H:%M') }}{% else %}-{% endif %}</span></td>
                     <td class="text-end" onclick="event.stopPropagation();">
                       <div class="btn-group btn-group-sm" role="group" aria-label="Azioni banca">
-                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#bankDetailModal-{{ bank.id }}" title="Modifica">
+                        <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#bankDetailModal-{{ bank.id }}" title="Modifica">
                           <i class="fa-solid fa-pen"></i>
                         </button>
                         <form method="post" action="{{ url_for('settings.bank_toggle_active', bank_id=bank.id) }}">
@@ -216,7 +216,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-          <button type="submit" class="btn btn-primary">Salva banca</button>
+          <button type="submit" class="btn btn-info">Salva banca</button>
         </div>
       </form>
     </div>
@@ -270,7 +270,7 @@
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-danger me-auto" data-bs-toggle="modal" data-bs-target="#bankDeleteModal-{{ bank.id }}">Elimina</button>
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-            <button type="submit" class="btn btn-primary">Salva modifiche</button>
+            <button type="submit" class="btn btn-info">Salva modifiche</button>
           </div>
         </form>
       </div>

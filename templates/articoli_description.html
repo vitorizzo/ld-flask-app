@@ -244,9 +244,9 @@
       </div>
 
       <div id="search-pagination-controls" class="d-flex justify-content-center mt-auto pt-2" style="display: none;">
-        <button id="search-prev-page" class="btn btn-outline-primary me-2" disabled>◀ Precedente</button>
+        <button id="search-prev-page" class="btn btn-outline-info me-2" disabled>◀ Precedente</button>
         <span id="search-pagina-info" class="align-self-center"></span>
-        <button id="search-next-page" class="btn btn-outline-primary ms-2">Successiva ▶</button>
+        <button id="search-next-page" class="btn btn-outline-info ms-2">Successiva ▶</button>
       </div>
     </div>
   </div>
@@ -309,7 +309,7 @@
         li.innerHTML = `
           <div class="fw-semibold">${item.descrizione || ""}</div>
           <div class="text-muted small">${item.descrizione_aggiuntiva || ""}</div>
-          <span class="badge bg-primary mt-2">${item.cod_art}</span>
+          <span class="badge bg-info mt-2">${item.cod_art}</span>
         `;
         li.addEventListener("click", () => {
           const modal = bootstrap.Modal.getInstance(barcodeChoicesModalEl);

@@ -77,7 +77,7 @@
           <a class="btn btn-outline-secondary" href="{{ url_for('wine_cards.customer_view', token=card.customer_view_token, back=url_for('wine_cards.detail', card_id=card.id)) }}">Preview cliente</a>
         {% endif %}
         <form method="post" action="{{ url_for('wine_cards.duplicate', card_id=card.id) }}">
-          <button class="btn btn-outline-primary" type="submit">Duplica</button>
+          <button class="btn btn-outline-info" type="submit">Duplica</button>
         </form>
         <a class="btn btn-outline-secondary" href="{{ url_for('wine_cards.index') }}">Elenco</a>
       </div>
@@ -277,7 +277,7 @@
               </div>
             </div>
           </div>
-          <button class="btn btn-primary w-100 mt-3" type="submit">Salva impostazioni</button>
+          <button class="btn btn-info w-100 mt-3" type="submit">Salva impostazioni</button>
         </form>
       </div>
 
@@ -290,7 +290,7 @@
               <input class="form-control" id="sectionTitle" name="title" autocomplete="off" placeholder="Birre, Distillati, Vini al calice...">
             </div>
             <div class="col-12 col-md-3 text-end">
-              <button class="btn btn-outline-primary" type="submit">Aggiungi sezione</button>
+              <button class="btn btn-outline-info" type="submit">Aggiungi sezione</button>
             </div>
           </form>
           <div class="wine-card-sections">
@@ -310,7 +310,7 @@
                   </div>
                 </div>
                 <div class="col-12 col-md-3 text-end">
-                  <button class="btn btn-sm btn-outline-primary" type="submit">Salva</button>
+                  <button class="btn btn-sm btn-outline-info" type="submit">Salva</button>
                 </div>
               </form>
             {% else %}
@@ -357,7 +357,7 @@
               <input class="form-control" id="display_description" name="display_description">
             </div>
             <div class="col-12 text-end">
-              <button class="btn btn-primary" type="submit">Aggiungi</button>
+              <button class="btn btn-info" type="submit">Aggiungi</button>
             </div>
           </form>
         </div>
@@ -403,7 +403,7 @@
                   </div>
                   <div class="col-12 d-flex justify-content-between align-items-center">
                     <div class="text-muted small">{{ item.cod_art or "senza codice" }}</div>
-                    <button class="btn btn-sm btn-outline-primary" type="submit">Salva</button>
+                    <button class="btn btn-sm btn-outline-info" type="submit">Salva</button>
                   </div>
                 </div>
               </form>

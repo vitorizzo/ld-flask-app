@@ -91,7 +91,7 @@
           <h3>${escapeHtml(shipment.tracking_number)}</h3>
           <div class="text-muted">${escapeHtml(shipment.courier_name || shipment.courier_code)}</div>
         </div>
-        <button class="btn btn-sm btn-outline-primary" type="button" data-refresh-shipment="${shipment.id}">Aggiorna tracking</button>
+        <button class="btn btn-sm btn-outline-info" type="button" data-refresh-shipment="${shipment.id}">Aggiorna tracking</button>
       </div>
       <div class="shipping-detail__grid">
         <div class="shipping-detail__field"><div class="shipping-detail__label">Stato</div><div>${escapeHtml(statusLabel(shipment))}</div></div>

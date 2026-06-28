@@ -92,8 +92,8 @@ if (window.__menuMgmtInitDone) {
     const btn = document.getElementById("btnApplyMenuChanges");
     if (!btn) return;
     btn.disabled = !hasPendingApply;
-    btn.classList.toggle("btn-primary", hasPendingApply);
-    btn.classList.toggle("btn-outline-primary", !hasPendingApply);
+    btn.classList.toggle("btn-info", hasPendingApply);
+    btn.classList.toggle("btn-outline-info", !hasPendingApply);
   }
 
   function buildTree(items) {
@@ -171,7 +171,7 @@ if (window.__menuMgmtInitDone) {
             <button type="button" class="btn btn-outline-secondary" data-action="add-separator-child" data-id="${n.id}" title="Aggiungi separatore">
               <i class="fa-solid fa-grip-lines"></i>
             </button>
-            <button type="button" class="btn btn-outline-primary" data-action="edit" data-id="${n.id}" title="Modifica">
+            <button type="button" class="btn btn-outline-info" data-action="edit" data-id="${n.id}" title="Modifica">
               <i class="fa-solid fa-pen"></i>
             </button>
             <button type="button" class="btn btn-outline-secondary" data-action="toggle-active" data-id="${n.id}" title="${isActive ? "Disattiva" : "Attiva"}">

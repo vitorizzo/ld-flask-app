@@ -81,7 +81,7 @@
   <div class="d-flex flex-wrap gap-1">
     {% if user.active_roles %}
       {% for role in user.active_roles %}
-        <span class="badge text-bg-primary">{{ role.name }}</span>
+        <span class="badge text-bg-info">{{ role.name }}</span>
       {% endfor %}
     {% else %}
       <span class="badge text-bg-secondary">Nessun ruolo attivo</span>
@@ -150,7 +150,7 @@
                     </td>
                     <td class="text-end" onclick="event.stopPropagation();">
                       <div class="btn-group btn-group-sm" role="group" aria-label="Azioni utente">
-                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#userRoleModal-{{ user.id }}" title="Cambio ruolo">
+                        <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#userRoleModal-{{ user.id }}" title="Cambio ruolo">
                           <i class="fa-solid fa-user-tag"></i>
                         </button>
                         <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#userAuthModal-{{ user.id }}" title="Autorizzazioni speciali">
@@ -236,7 +236,7 @@
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-danger me-auto" data-bs-toggle="modal" data-bs-target="#userDeleteModal-{{ user.id }}">Elimina</button>
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-            <button type="submit" class="btn btn-primary">Salva modifiche</button>
+            <button type="submit" class="btn btn-info">Salva modifiche</button>
           </div>
         </form>
       </div>
@@ -265,7 +265,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-            <button type="submit" class="btn btn-primary">Applica nuovo ruolo</button>
+            <button type="submit" class="btn btn-info">Applica nuovo ruolo</button>
           </div>
         </form>
       </div>
@@ -368,7 +368,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-            <button type="submit" class="btn btn-primary">Aggiungi autorizzazione</button>
+            <button type="submit" class="btn btn-info">Aggiungi autorizzazione</button>
           </div>
         </form>
       </div>

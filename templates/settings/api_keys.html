@@ -136,7 +136,7 @@
         <div class="text-muted">Integrazioni esterne e chiavi ambiente personalizzate.</div>
       </div>
       <div class="d-flex flex-wrap gap-2">
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#envKeyCreateModal">
+        <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#envKeyCreateModal">
           <i class="fa-solid fa-plus me-1"></i>Nuova chiave
         </button>
         <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">
@@ -192,7 +192,7 @@
                       </td>
                       <td class="text-end" onclick="event.stopPropagation();">
                         <span class="settings-actions">
-                          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#apiEditModal-{{ loop.index }}" title="Modifica">
+                          <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#apiEditModal-{{ loop.index }}" title="Modifica">
                             <i class="fa-solid fa-pen"></i>
                             <span class="visually-hidden">Modifica</span>
                           </button>
@@ -247,7 +247,7 @@
                       <td class="text-muted">{{ key.description or '-' }}</td>
                       <td class="text-end" onclick="event.stopPropagation();">
                         <span class="settings-actions">
-                          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#envKeyEditModal-{{ loop.index }}" title="Modifica">
+                          <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#envKeyEditModal-{{ loop.index }}" title="Modifica">
                             <i class="fa-solid fa-pen"></i>
                           </button>
                           <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#envKeyDeleteModal-{{ loop.index }}" title="Elimina">
@@ -296,7 +296,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-          <button type="submit" class="btn btn-primary">Crea chiave</button>
+          <button type="submit" class="btn btn-info">Crea chiave</button>
         </div>
       </form>
     </div>
@@ -342,7 +342,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-            <button type="submit" class="btn btn-primary">Salva modifiche</button>
+            <button type="submit" class="btn btn-info">Salva modifiche</button>
           </div>
         </form>
       </div>
@@ -420,7 +420,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-            <button type="submit" class="btn btn-primary">Salva chiave</button>
+            <button type="submit" class="btn btn-info">Salva chiave</button>
           </div>
         </form>
       </div>

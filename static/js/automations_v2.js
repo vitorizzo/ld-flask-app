@@ -184,7 +184,7 @@
       right.className = "d-flex gap-2";
       const btnEdit = document.createElement("button");
       btnEdit.type = "button";
-      btnEdit.className = "btn btn-sm btn-outline-primary";
+      btnEdit.className = "btn btn-sm btn-outline-info";
       btnEdit.textContent = "Modifica";
       btnEdit.addEventListener("click", () => loadAutomation(a.id));
       right.appendChild(btnEdit);
@@ -469,7 +469,7 @@
 
     const btnPickChannels = document.createElement("button");
     btnPickChannels.type = "button";
-    btnPickChannels.className = "btn btn-primary";
+    btnPickChannels.className = "btn btn-info";
     btnPickChannels.textContent = "Seleziona canali";
 
     const btnRefreshChannels = document.createElement("button");
@@ -513,7 +513,7 @@
         </div>
         <div class="d-flex gap-2 justify-content-end mt-3" style="border-top:1px solid var(--bs-border-color, #ddd); padding-top:12px;">
           <button type="button" data-cancel class="btn btn-outline-secondary">Annulla</button>
-          <button type="button" data-apply class="btn btn-primary">Applica</button>
+          <button type="button" data-apply class="btn btn-info">Applica</button>
         </div>
       </div>
     `;
@@ -675,7 +675,7 @@
 
     const btnKwAdd = document.createElement("button");
     btnKwAdd.type = "button";
-    btnKwAdd.className = "btn btn-primary";
+    btnKwAdd.className = "btn btn-info";
     btnKwAdd.textContent = "Aggiungi";
 
     rowKw.appendChild(kwWrap);
@@ -755,7 +755,7 @@
 
       const btnEdit = document.createElement("button");
       btnEdit.type = "button";
-      btnEdit.className = "btn btn-sm btn-outline-primary";
+      btnEdit.className = "btn btn-sm btn-outline-info";
       btnEdit.textContent = "Modifica";
       btnEdit.addEventListener("click", () => openActionEditor(idx));
 

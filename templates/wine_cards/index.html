@@ -19,7 +19,7 @@
           <input class="form-control" name="q" value="{{ q }}" autocomplete="off" placeholder="Cerca carta o cliente">
           <button class="btn btn-outline-secondary" type="submit">Cerca</button>
         </form>
-        <a class="btn btn-primary" href="{{ url_for('wine_cards.create') }}">Nuova carta</a>
+        <a class="btn btn-info" href="{{ url_for('wine_cards.create') }}">Nuova carta</a>
       </div>
     </div>
 
@@ -47,7 +47,7 @@
               <td>{{ card.items|length }}</td>
               <td>{{ "abilitata" if card.customer_view_enabled else "disabilitata" }}</td>
               <td class="text-end">
-                <a class="btn btn-sm btn-outline-primary" href="{{ url_for('wine_cards.detail', card_id=card.id) }}">Apri</a>
+                <a class="btn btn-sm btn-outline-info" href="{{ url_for('wine_cards.detail', card_id=card.id) }}">Apri</a>
               </td>
             </tr>
           {% else %}

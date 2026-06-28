@@ -222,7 +222,7 @@ def settings_index():
             "description": "Anagrafiche, ruoli e stato degli account.",
             "route": url_for("settings.users_index"),
             "icon": "fa-solid fa-users",
-            "icon_class": "text-bg-primary",
+            "icon_class": "text-bg-info",
         },
         {
             "title": "Banche",
@@ -271,7 +271,7 @@ def settings_index():
             "description": "Pesi ruolo, descrizioni e soglie permessi.",
             "route": url_for("settings.roles_permissions"),
             "icon": "fa-solid fa-shield-halved",
-            "icon_class": "text-bg-primary",
+            "icon_class": "text-bg-info",
         },
         {
             "title": "Gestione menù",

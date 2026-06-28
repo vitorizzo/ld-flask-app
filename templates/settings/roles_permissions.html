@@ -129,10 +129,10 @@
         <div class="text-muted">Ruoli a peso e autorizzazioni speciali per identificatore.</div>
       </div>
       <div class="d-flex flex-wrap gap-2">
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#roleCreateModal">
+        <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#roleCreateModal">
           <i class="fa-solid fa-plus me-1"></i>Nuovo ruolo
         </button>
-        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#permissionCreateModal">
+        <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#permissionCreateModal">
           <i class="fa-solid fa-key me-1"></i>Nuova autorizzazione
         </button>
         <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">
@@ -180,7 +180,7 @@
                       </td>
                       <td class="text-end" onclick="event.stopPropagation();">
                         <span class="settings-actions">
-                          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#roleModal-{{ role.id }}" title="Modifica">
+                          <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#roleModal-{{ role.id }}" title="Modifica">
                             <i class="fa-solid fa-pen"></i>
                             <span class="visually-hidden">Modifica</span>
                           </button>
@@ -242,7 +242,7 @@
                       </td>
                       <td class="text-end" onclick="event.stopPropagation();">
                         <span class="settings-actions">
-                          <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#permissionModal-{{ permission.id }}" title="Modifica">
+                          <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#permissionModal-{{ permission.id }}" title="Modifica">
                             <i class="fa-solid fa-pen"></i>
                             <span class="visually-hidden">Modifica</span>
                           </button>
@@ -292,7 +292,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-          <button type="submit" class="btn btn-primary">Crea ruolo</button>
+          <button type="submit" class="btn btn-info">Crea ruolo</button>
         </div>
       </form>
     </div>
@@ -324,7 +324,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-          <button type="submit" class="btn btn-primary">Crea autorizzazione</button>
+          <button type="submit" class="btn btn-info">Crea autorizzazione</button>
         </div>
       </form>
     </div>
@@ -354,7 +354,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-            <button type="submit" class="btn btn-primary">Salva ruolo</button>
+            <button type="submit" class="btn btn-info">Salva ruolo</button>
           </div>
         </form>
       </div>
@@ -430,7 +430,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-            <button type="submit" class="btn btn-primary">Salva autorizzazione</button>
+            <button type="submit" class="btn btn-info">Salva autorizzazione</button>
           </div>
         </form>
       </div>

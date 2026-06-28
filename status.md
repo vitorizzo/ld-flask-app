@@ -1844,3 +1844,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - nella pagina informazioni articoli la scansione barcode apre direttamente la scheda se l'articolo e' univoco;
   - se il barcode corrisponde a piu' varianti/annate, viene mostrata una modale di scelta prima di aprire la scheda;
   - `scanner.js` ora emette anche eventi `input`/`change` dopo la lettura e usa il callback attivo come fallback, evitando che il valore venga solo scritto nel campo senza attivare la ricerca.
+- 2026-06-28 sostituzione colore primary/info:
+  - sostituite le classi Bootstrap visuali `primary` con `info` in template e JS/CSS generato dinamicamente: bottoni, outline, badge, card border/header e testi;
+  - sostituiti i blu hardcoded `#0d6efd` con `#0dcaf0` dove usati come accento grafico;
+  - lasciati invariati i riferimenti logici `primary` legati a dati/funzioni (`is_primary`, immagine default, variabili interne);
+  - verifiche: `node --check` su tutti i JS modificati, `python -m py_compile routes/settings.py`, `git diff --check`.

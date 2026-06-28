@@ -750,7 +750,7 @@ window.kioskState = {
             <div class="fw-bold">Ordine #${seq}/${seqTotal} ${delivery ? `· ${escapeHtml(delivery)}` : ``}</div>
             ${prev ? `<div class="text-muted">Preview: ${escapeHtml(prev)}</div>` : ``}
             <div class="small">Note: ${notes} · Issues: ${issues} · ID: ${o.id}</div>
-            <button class="btn btn-sm btn-primary mt-1" data-open-order="${o.id}">Apri</button>
+            <button class="btn btn-sm btn-info mt-1" data-open-order="${o.id}">Apri</button>
           </div>
         `;
       })
@@ -1174,7 +1174,7 @@ window.kioskState = {
                   }</td>
                   <td><code>${escapeHtml(r.slack_channel_id || "")}</code></td>
                   <td class="text-end">
-                    <button class="btn btn-sm btn-outline-primary" type="button" data-edit-route="${r.id}">Modifica</button>
+                    <button class="btn btn-sm btn-outline-info" type="button" data-edit-route="${r.id}">Modifica</button>
                     <button class="btn btn-sm btn-outline-danger" type="button" data-delete-route="${r.id}">Elimina</button>
                   </td>
                 </tr>

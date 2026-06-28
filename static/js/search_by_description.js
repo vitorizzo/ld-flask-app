@@ -38,7 +38,7 @@ window.initSearchByDescription = function (config) {
               </div>
             `;
 
-            const cod_art = `<span class="badge bg-primary search-product-result__code">${prodotto.cod_art}</span>`;
+            const cod_art = `<span class="badge bg-info search-product-result__code">${prodotto.cod_art}</span>`;
 
             li.innerHTML = `<div class="d-flex justify-content-between w-100 align-items-center search-product-result__row">
                               ${descr}

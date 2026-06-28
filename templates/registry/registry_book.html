@@ -82,7 +82,7 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Annulla</button>
-        <button class="btn btn-primary" type="button" id="contactSaveBtn">Salva</button>
+        <button class="btn btn-info" type="button" id="contactSaveBtn">Salva</button>
       </div>
     </div>
   </div>
@@ -193,7 +193,7 @@
                       ${esc([reg.source_code, reg.vat_number, [reg.city, reg.province].filter(Boolean).join(" ")].filter(Boolean).join(" · "))}
                     </div>
                   </div>
-                  <button class="btn btn-sm btn-primary" type="button" data-contact-add="${reg.id}">Aggiungi contatto</button>
+                  <button class="btn btn-sm btn-info" type="button" data-contact-add="${reg.id}">Aggiungi contatto</button>
                 </div>
                 <div class="registry-card__body">
                   <div class="registry-card__section">

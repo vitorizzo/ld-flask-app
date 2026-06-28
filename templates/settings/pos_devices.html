@@ -94,7 +94,7 @@
         <div class="text-muted">Terminali e canali di incasso elettronico.</div>
       </div>
       <div class="d-flex gap-2">
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#deviceCreateModal">
+        <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#deviceCreateModal">
           <i class="fa-solid fa-plus me-1"></i>Nuovo dispositivo
         </button>
         <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">
@@ -152,7 +152,7 @@
                     </td>
                     <td>
                       {% if device.is_default %}
-                        <span class="badge text-bg-primary">Default</span>
+                        <span class="badge text-bg-info">Default</span>
                       {% else %}
                         <span class="text-muted small">-</span>
                       {% endif %}
@@ -160,7 +160,7 @@
                     <td><span class="text-muted small">{{ validity_text(device) }}</span></td>
                     <td class="text-end" onclick="event.stopPropagation();">
                       <div class="btn-group btn-group-sm" role="group" aria-label="Azioni dispositivo POS">
-                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#deviceDetailModal-{{ device.id }}" title="Modifica">
+                        <button type="button" class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#deviceDetailModal-{{ device.id }}" title="Modifica">
                           <i class="fa-solid fa-pen"></i>
                         </button>
                         <form method="post" action="{{ url_for('settings.pos_device_toggle_active', device_id=device.id) }}">
@@ -253,7 +253,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-          <button type="submit" class="btn btn-primary">Salva dispositivo</button>
+          <button type="submit" class="btn btn-info">Salva dispositivo</button>
         </div>
       </form>
     </div>
@@ -329,7 +329,7 @@
           <div class="modal-footer">
             <button type="button" class="btn btn-outline-danger me-auto" data-bs-toggle="modal" data-bs-target="#deviceDeleteModal-{{ device.id }}">Elimina</button>
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-            <button type="submit" class="btn btn-primary">Salva modifiche</button>
+            <button type="submit" class="btn btn-info">Salva modifiche</button>
           </div>
         </form>
       </div>

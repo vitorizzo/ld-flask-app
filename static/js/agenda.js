@@ -1,4 +1,4 @@
-ï»¿let currentDay = null;
+let currentDay = null;
 let currentDayStatus = null;
 let calendarInstance = null;
 let lastPaymentMode = "cash";
@@ -211,7 +211,7 @@ async function pollAgendaVersion() {
     }
 
     if (version !== lastKnownAgendaVersion) {
-      console.log("Agenda changed Ã¢â€ â€™ refresh", lastKnownAgendaVersion, "Ã¢â€ â€™", version);
+      console.log("Agenda changed â†’ refresh", lastKnownAgendaVersion, "â†’", version);
 
       lastKnownAgendaVersion = version;
       await refreshAgendaData();
@@ -327,7 +327,7 @@ async function unlockPrivateVault() {
 
   const isUnlocked = priVaultUnlocked === true;
 
-  // Se non c'ÃƒÂ¨ stato cambio reale di stato, niente refresh quadranti
+  // Se non c'Ã¨ stato cambio reale di stato, niente refresh quadranti
   if (wasUnlocked === isUnlocked) {
     return data;
   }
@@ -558,12 +558,12 @@ function updateOwnerTakeTotal() {
   const total = cash + checksTotal;
 
   if (ownerTakeTotalAmountEl) {
-    ownerTakeTotalAmountEl.textContent = `â‚¬ ${formatEuro2(total)}`;
+    ownerTakeTotalAmountEl.textContent = `€ ${formatEuro2(total)}`;
   }
 
   if (ownerTakeChecksHint) {
     ownerTakeChecksHint.textContent =
-      `Assegni selezionati: ${formatEuro2(checksTotal)} â€¢ Totale prelievo: ${formatEuro2(total)}`;
+      `Assegni selezionati: ${formatEuro2(checksTotal)} • Totale prelievo: ${formatEuro2(total)}`;
   }
 }
 
@@ -1111,7 +1111,7 @@ async function handleClosedDayMutation(actionLabel, proceed) {
   }
 
   const reopen = window.confirm(
-    `La giornata ${formatDateIT(currentDay)} Ã¨ chiusa.\n\nOK = riapri la giornata e continua qui con ${actionLabel}.\nAnnulla = passa a oggi e continua lÃ¬.`
+    `La giornata ${formatDateIT(currentDay)} è chiusa.\n\nOK = riapri la giornata e continua qui con ${actionLabel}.\nAnnulla = passa a oggi e continua lì.`
   );
 
   if (reopen) {
@@ -1368,7 +1368,7 @@ function renderSalePosOptions() {
     <div class="col-12 col-md-4">
       <label class="form-label mb-0">Importo POS</label>
       <div class="input-group">
-        <span class="input-group-text">â‚¬</span>
+        <span class="input-group-text">€</span>
         <input
           type="text"
           class="form-control text-end"
@@ -1389,7 +1389,7 @@ function renderDrawerRows(lines) {
     const tr = document.createElement("tr");
 
     tr.innerHTML = `
-      <td>â‚¬ ${escapeHtml(String(line.denomination))}</td>
+      <td>€ ${escapeHtml(String(line.denomination))}</td>
       <td>
         <input
           type="text"
@@ -1744,7 +1744,7 @@ async function loadCoinsBalance(dayStr) {
   const el = document.getElementById("coinsVaultBalance");
   if (!el) return;
 
-  el.textContent = "â‚¬";
+  el.textContent = "€";
 
   try {
     const r = await fetch(`/cassa/api/coins/balance?date=${encodeURIComponent(dayStr)}`, {
@@ -1752,13 +1752,13 @@ async function loadCoinsBalance(dayStr) {
     });
     const data = await r.json();
     if (!data.ok) {
-      el.textContent = "â‚¬";
+      el.textContent = "€";
       return;
     }
     el.textContent = _fmt2(data.coins_vault_balance).replace(".", ",");
   } catch (e) {
     console.error("loadCoinsBalance error:", e);
-    el.textContent = "â‚¬";
+    el.textContent = "€";
   }
 }
 
@@ -1813,9 +1813,9 @@ async function loadCashMoves(dayStr) {
 
       const tipoLabel = cashMoveDirectionLabel(m.direction);
       const kindLabel = cashMoveKindLabel(m.kind);
-      const desc = [who, notes].filter(Boolean).join(" â€¢ ") || "Movimento";
-      const amt = `${isOut ? "-" : ""}${Math.abs(amount).toFixed(2)}â‚¬`;
-      const colorClass = isOut ? "text-danger" : "text-primary";
+      const desc = [who, notes].filter(Boolean).join(" • ") || "Movimento";
+      const amt = `${isOut ? "-" : ""}${Math.abs(amount).toFixed(2)}€`;
+      const colorClass = isOut ? "text-danger" : "text-info";
 
       const badges = [
         `<span class="badge badge-soft">${tipoLabel}</span>`,
@@ -2050,7 +2050,7 @@ async function loadIncassi(dayStr) {
 
     listEl.innerHTML = rows.map(x => {
       const sign = x.direction === "out" ? "-" : "";
-      const amt = `${sign}${x.amount.toFixed(2)}â‚¬`;
+      const amt = `${sign}${x.amount.toFixed(2)}€`;
 
       const badges = [];
       if (x.method === "pos") badges.push(`<span class="badge badge-soft badge-pos">POS</span>`);
@@ -2172,7 +2172,7 @@ async function loadSpese(dayStr) {
     }
 
     listEl.innerHTML = rows.map(x => {
-      const amt = `${x.amount.toFixed(2)}â‚¬`;
+      const amt = `${x.amount.toFixed(2)}€`;
 
       const badges = [];
       if (x.method === "pos") badges.push(`<span class="badge badge-soft badge-pos">POS</span>`);
@@ -2320,7 +2320,7 @@ async function loadPosMoves(dayStr) {
 
     listEl.innerHTML = visibleMoves.map(m => {
       const sign = m.direction === "out" ? "-" : "";
-      const amt = `${sign}${Number(m.amount || 0).toFixed(2)}â‚¬`;
+      const amt = `${sign}${Number(m.amount || 0).toFixed(2)}€`;
       const devName = m.pos_device_name || `POS ${m.pos_device_id}`;
 
       const circuitLabel = m.pos_circuit_name || "Circuito";
@@ -2728,9 +2728,9 @@ function updateDepositCashUi() {
     }
 
     let hint = "Assegni ricevuti oggi";
-    hint += ` â€¢ Residuo versabile: ${formatEuro2(versabileResiduo)}`;
-    hint += ` â€¢ Assegni odierni in pancia: ${formatEuro2(visibleChecksTotal)}`;
-    hint += ` â€¢ Contanti consigliati max: ${formatEuro2(maxContantiIntermedio)}`;
+    hint += ` • Residuo versabile: ${formatEuro2(versabileResiduo)}`;
+    hint += ` • Assegni odierni in pancia: ${formatEuro2(visibleChecksTotal)}`;
+    hint += ` • Contanti consigliati max: ${formatEuro2(maxContantiIntermedio)}`;
 
     depositChecksHint.textContent = hint;
 
@@ -2746,11 +2746,11 @@ function updateDepositCashUi() {
   let hint = "Assegni ricevuti nei giorni precedenti o spostati";
 
   if (Number.isFinite(maxIncassoStorico)) {
-    hint += ` â€¢ Contanti consigliati max: ${formatEuro2(maxIncassoStorico)}`;
+    hint += ` • Contanti consigliati max: ${formatEuro2(maxIncassoStorico)}`;
   }
 
   if (debitoContanti > 0) {
-    hint += ` â€¢ Eccedenza da recuperare: ${formatEuro2(debitoContanti)}`;
+    hint += ` • Eccedenza da recuperare: ${formatEuro2(debitoContanti)}`;
   }
 
   depositChecksHint.textContent = hint;
@@ -4517,8 +4517,8 @@ document.addEventListener("DOMContentLoaded", async function () {
             <td>${row.direction === "out" ? "Prelievo" : "Versamento"}</td>
             <td>${escapeHtml(row.performed_by || "")}</td>
             <td>${escapeHtml(row.notes || "")}</td>
-            <td class="text-end ${row.direction === "out" ? "text-danger" : "text-primary"}">
-              ${formatEuro2(signedAmount)} â‚¬
+            <td class="text-end ${row.direction === "out" ? "text-danger" : "text-info"}">
+              ${formatEuro2(signedAmount)} €
             </td>
             <td class="text-end">
               <button
@@ -5526,7 +5526,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           <td class="text-end">
             <button
               type="button"
-              class="btn btn-outline-primary me-1 btn-sm btn-edit-deposit"
+              class="btn btn-outline-info me-1 btn-sm btn-edit-deposit"
               data-id="${row.id}">
               Modifica
             </button>
@@ -5807,7 +5807,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         <tr data-id="${row.id}">
           <td>${formatDateTimeIT(row.created_at)}</td>
           <td>${row.closure_type === "fine_giornata" ? "Fine giornata" : "Intermedia"}</td>
-          <td>${Number(row.amount).toFixed(2)} â‚¬</td>
+          <td>${Number(row.amount).toFixed(2)} €</td>
           <td class="text-end">
             <button
               type="button"
@@ -6058,7 +6058,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
 
       if (!bank_name || !check_number || !due_date) {
-        return { ok: false, error: "Compila tutti i dati obbligatori dellâ‚¬assegno." };
+        return { ok: false, error: "Compila tutti i dati obbligatori dell€assegno." };
       }
 
       if (Math.abs(checkAmount - amount) > 0.009) {
@@ -6091,7 +6091,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       };
     }
 
-    return { ok: false, error: "ModalitÃƒÂ  pagamento non valida." };
+    return { ok: false, error: "ModalitÃ  pagamento non valida." };
   }
 
   function buildMultiPaymentPayload(base) {
@@ -6250,7 +6250,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     const totalPayments = payments.reduce((sum, p) => sum + Number(p.amount || 0), 0);
     if (Math.abs(totalPayments - effectiveAmount) > 0.009) {
-      return { ok: false, error: "La somma dei pagamenti non coincide con il totale dellâ‚¬operazione." };
+      return { ok: false, error: "La somma dei pagamenti non coincide con il totale dell€operazione." };
     }
 
     return {
@@ -6607,7 +6607,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           <td>${escapeHtml(row.method || "")}</td>
           <td class="text-end">${amount}</td>
           <td class="text-end">
-            <button type="button" class="btn btn-sm btn-outline-primary movement-search-edit" ${canEdit ? "" : "disabled"}>Apri</button>
+            <button type="button" class="btn btn-sm btn-outline-info movement-search-edit" ${canEdit ? "" : "disabled"}>Apri</button>
             <button type="button" class="btn btn-sm btn-outline-danger movement-search-delete" ${canDelete ? "" : "disabled"}>Elimina</button>
           </td>
         </tr>
@@ -8040,7 +8040,7 @@ function buildContextMenuHtml(context) {
       <div class="${classes}">
         <button type="button" class="context-menu-item has-submenu ${enabled ? "" : "disabled"}">
           <span>${label}</span>
-          <span class="context-menu-submenu-arrow">â€º</span>
+          <span class="context-menu-submenu-arrow">›</span>
         </button>
         <div class="context-menu-submenu">
           ${itemsHtml}
@@ -8377,7 +8377,7 @@ function buildCompleteDayReportHtml(payload) {
     ["Versabile residuo", totals.versabile_residuo],
     ["Versabile attuale", totals.saldo_versabile],
     ["Totale versamenti", totals.totale_versato_oggi],
-  ].map(([label, value]) => [reportText(label), `â‚¬ ${reportMoney(value)}`]);
+  ].map(([label, value]) => [reportText(label), `€ ${reportMoney(value)}`]);
 
   const salesRows = [];
   for (const sale of sales) {
@@ -8389,7 +8389,7 @@ function buildCompleteDayReportHtml(payload) {
         reportText(payment.flag || ""),
         reportText(movementMethodLabel(payment.method)),
         payment.off_cash ? "Fuori cassa" : "Cassa",
-        `â‚¬ ${reportMoney(payment.amount)}`,
+        `€ ${reportMoney(payment.amount)}`,
         reportText(sale.storage === "pri" ? "PRI" : "AZ"),
       ]);
     }
@@ -8405,7 +8405,7 @@ function buildCompleteDayReportHtml(payload) {
         reportText(payment.flag || ""),
         reportText(movementMethodLabel(payment.method)),
         payment.off_cash ? "Fuori cassa" : "Cassa",
-        `â‚¬ ${reportMoney(payment.amount)}`,
+        `€ ${reportMoney(payment.amount)}`,
         reportText(expense.storage === "pri" ? "PRI" : "AZ"),
       ]);
     }
@@ -8418,7 +8418,7 @@ function buildCompleteDayReportHtml(payload) {
     reportText(row.pos_circuit_name || ""),
     reportText(row.doc_ref || ""),
     reportText(row.notes || ""),
-    `â‚¬ ${reportMoney(row.amount)}`,
+    `€ ${reportMoney(row.amount)}`,
   ]);
 
   const cashMoveRows = cashMoves.map(row => [
@@ -8427,7 +8427,7 @@ function buildCompleteDayReportHtml(payload) {
     reportText(cashMoveDirectionLabel(row.direction)),
     reportText(row.performed_by || ""),
     reportText(row.notes || ""),
-    `â‚¬ ${reportMoney(row.amount)}`,
+    `€ ${reportMoney(row.amount)}`,
     reportText(row.storage === "pri" ? "PRI" : "AZ"),
   ]);
 
@@ -8435,45 +8435,45 @@ function buildCompleteDayReportHtml(payload) {
     reportDateTime(row.created_at),
     reportText(row.closure_type || ""),
     reportText(row.description || ""),
-    `â‚¬ ${reportMoney(row.amount)}`,
+    `€ ${reportMoney(row.amount)}`,
   ]);
 
   const ecommerceRows = ecommerce.map(row => [
     reportDateTime(row.created_at),
     reportText(row.description || ""),
-    `â‚¬ ${reportMoney(row.amount)}`,
+    `€ ${reportMoney(row.amount)}`,
   ]);
 
   const depositRows = deposits.map(row => {
     const checksTotal = (row.checks || []).reduce((sum, check) => sum + Number(check.amount || check.check_amount || 0), 0);
     const total = Number(row.cash_amount || 0) + checksTotal;
     const checksText = (row.checks || [])
-      .map(check => `${check.check_number || check.id || ""} â‚¬ ${reportMoney(check.amount || check.check_amount || 0)}`)
+      .map(check => `${check.check_number || check.id || ""} € ${reportMoney(check.amount || check.check_amount || 0)}`)
       .join(", ");
 
     return [
       reportDateTime(row.created_at),
       reportText(row.deposit_type || ""),
       reportText(row.bank_name || row.bank?.name || ""),
-      `â‚¬ ${reportMoney(row.cash_amount)}`,
+      `€ ${reportMoney(row.cash_amount)}`,
       reportText(checksText),
-      `â‚¬ ${reportMoney(total)}`,
+      `€ ${reportMoney(total)}`,
       reportText(row.note || ""),
     ];
   });
 
   const ownerTakeRows = ownerTakes.map(row => {
     const checksText = (row.checks || [])
-      .map(check => `${check.check_number || check.id || ""} â‚¬ ${reportMoney(check.amount || 0)}`)
+      .map(check => `${check.check_number || check.id || ""} € ${reportMoney(check.amount || 0)}`)
       .join(", ");
 
     return [
       reportDateTime(row.created_at),
       reportText(row.take_type || ""),
-      `â‚¬ ${reportMoney(row.cash_amount)}`,
-      `â‚¬ ${reportMoney(row.check_amount)}`,
+      `€ ${reportMoney(row.cash_amount)}`,
+      `€ ${reportMoney(row.check_amount)}`,
       reportText(checksText),
-      `â‚¬ ${reportMoney(row.total_amount)}`,
+      `€ ${reportMoney(row.total_amount)}`,
       reportText(row.notes || ""),
     ];
   });
@@ -8646,7 +8646,7 @@ function reportDayLabel() {
 }
 
 function signedReportMoney(value) {
-  return `â‚¬ ${reportMoney(value)}`;
+  return `€ ${reportMoney(value)}`;
 }
 
 function reportTitleText() {
@@ -9078,7 +9078,7 @@ async function printCompleteDayReport() {
   setTimeout(() => win.print(), 300);
 }
 function eur(v) {
-  if (v === null || v === undefined) return "â‚¬";
+  if (v === null || v === undefined) return "€";
   return Number(v).toLocaleString("it-IT", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
@@ -9089,7 +9089,7 @@ function row(label, value) {
   return `
     <tr>
       <td>${label}</td>
-      <td class="text-end fw-semibold">â‚¬ ${eur(value)}</td>
+      <td class="text-end fw-semibold">€ ${eur(value)}</td>
     </tr>
   `;
 }
@@ -9097,7 +9097,7 @@ function row(label, value) {
 function renderDayReport(d) {
   const data = d?.totals || d || {};
 
-  document.getElementById("dayReportDate").textContent = currentDay || "â‚¬";
+  document.getElementById("dayReportDate").textContent = currentDay || "€";
 
   // =========================
   // SEZIONE 1 - FONDO CASSA
@@ -9107,7 +9107,7 @@ function renderDayReport(d) {
     ${row("Fondo finale", data.fondo_finale)}
     <tr class="table-light">
       <td class="fw-bold">Delta fondo</td>
-      <td class="text-end fw-bold">â‚¬ ${eur(data.delta_fondo)}</td>
+      <td class="text-end fw-bold">€ ${eur(data.delta_fondo)}</td>
     </tr>
   `;
 
@@ -9119,7 +9119,7 @@ function renderDayReport(d) {
     ${row("Versamenti di spicci", data.spicci_versamenti)}
     <tr class="table-light">
       <td class="fw-bold">Delta spicci</td>
-      <td class="text-end fw-bold">â‚¬ ${eur(data.saldo_spicci)}</td>
+      <td class="text-end fw-bold">€ ${eur(data.saldo_spicci)}</td>
     </tr>
   `;
 
@@ -9135,15 +9135,15 @@ function renderDayReport(d) {
     ${row("Corrispettivi", data.total_corrispettivi)}
     <tr class="table-light">
       <td class="fw-bold">Totale incassi fisici</td>
-      <td class="text-end fw-bold">â‚¬ ${eur(data.totale_incassi_fisici)}</td>
+      <td class="text-end fw-bold">€ ${eur(data.totale_incassi_fisici)}</td>
     </tr>
     <tr class="table-light">
       <td class="fw-bold">Totale incassi elettronici</td>
-      <td class="text-end fw-bold">â‚¬ ${eur(data.totale_incassi_elettronici)}</td>
+      <td class="text-end fw-bold">€ ${eur(data.totale_incassi_elettronici)}</td>
     </tr>
     <tr class="table-light">
       <td class="fw-bold">Totale incassi fuori cassa</td>
-      <td class="text-end fw-bold">â‚¬ ${eur(data.totale_incassi_fuori_cassa)}</td>
+      <td class="text-end fw-bold">€ ${eur(data.totale_incassi_fuori_cassa)}</td>
     </tr>
   `;
 
@@ -9157,15 +9157,15 @@ function renderDayReport(d) {
     ${row("Spese bank", data.spese_bank)}
     <tr class="table-light">
       <td class="fw-bold">Totale spese fisiche</td>
-      <td class="text-end fw-bold">â‚¬ ${eur(data.totale_spese_fisiche)}</td>
+      <td class="text-end fw-bold">€ ${eur(data.totale_spese_fisiche)}</td>
     </tr>
     <tr class="table-light">
       <td class="fw-bold">Totale spese elettroniche</td>
-      <td class="text-end fw-bold">â‚¬ ${eur(data.totale_spese_elettroniche)}</td>
+      <td class="text-end fw-bold">€ ${eur(data.totale_spese_elettroniche)}</td>
     </tr>
     <tr class="table-light">
       <td class="fw-bold">Totale spese fuori cassa</td>
-      <td class="text-end fw-bold">â‚¬ ${eur(data.totale_spese_fuori_cassa)}</td>
+      <td class="text-end fw-bold">€ ${eur(data.totale_spese_fuori_cassa)}</td>
     </tr>
   `;
 
@@ -9181,7 +9181,7 @@ function renderDayReport(d) {
     ${row("Totale spicci", data.saldo_spicci)}
     <tr class="table-light">
       <td class="fw-bold">Atteso cassetto operativo</td>
-      <td class="text-end fw-bold">â‚¬ ${eur(data.valore_atteso_cassetto)}</td>
+      <td class="text-end fw-bold">€ ${eur(data.valore_atteso_cassetto)}</td>
     </tr>
   `;
 
@@ -9194,11 +9194,11 @@ function renderDayReport(d) {
     ${row("Incasso consegnato", data.incasso_consegnato)}
     <tr class="table-light">
       <td class="fw-bold">Delta quadratura</td>
-      <td class="text-end fw-bold">â‚¬ ${eur(data.delta_quadratura)}</td>
+      <td class="text-end fw-bold">€ ${eur(data.delta_quadratura)}</td>
     </tr>
   `;
 
-  document.getElementById("dayReportNote").textContent = data.note || "â‚¬";
+  document.getElementById("dayReportNote").textContent = data.note || "€";
 }
 
 function closeContextMenu() {

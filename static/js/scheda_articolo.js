@@ -627,7 +627,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
         var useSource = document.createElement("button");
         useSource.type = "button";
-        useSource.className = "btn btn-sm btn-outline-primary";
+        useSource.className = "btn btn-sm btn-outline-info";
         useSource.textContent = "Usa origine";
         useSource.addEventListener("click", function () {
             input.value = sourceValue || "";
@@ -693,7 +693,7 @@ document.addEventListener("DOMContentLoaded", function () {
             actions.className = "d-flex flex-wrap gap-2";
             var useSource = document.createElement("button");
             useSource.type = "button";
-            useSource.className = "btn btn-sm btn-outline-primary";
+            useSource.className = "btn btn-sm btn-outline-info";
             useSource.textContent = "Usa origine";
             useSource.addEventListener("click", function () {
                 entry.input.value = entry.sourceValue || "";
@@ -842,7 +842,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
             var button = document.createElement("button");
             button.type = "button";
-            button.className = "btn btn-sm btn-outline-primary";
+            button.className = "btn btn-sm btn-outline-info";
             button.innerHTML = '<i class="fa-solid fa-code-compare"></i> Confronta valori';
             button.addEventListener("click", function () {
                 applyPublicationCopyValues(button, item.cod_art);

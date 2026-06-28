@@ -886,7 +886,7 @@ function aggiornaTabellaMovimenti(inventarioId) {
 
                     const storicoBtnHtml = `
                         <button
-                            class="btn btn-sm btn-outline-primary btn-storico"
+                            class="btn btn-sm btn-outline-info btn-storico"
                             data-id="${r.id}"
                             ${r.has_versions ? "" : "disabled"}
                         >

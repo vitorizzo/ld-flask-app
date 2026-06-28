@@ -29,7 +29,7 @@
         <input type="date" id="data-nuovo-inventario" class="form-control" value="{{ today }}">
         <label for="dep-nuovo-inventario">Nuovo inventario per il deposito:</label>
         <input type="text" id="dep-nuovo-inventario" class="form-control" value="000">
-        <button id="crea-inventario-btn" class="btn btn-primary mt-2">Crea inventario</button>
+        <button id="crea-inventario-btn" class="btn btn-info mt-2">Crea inventario</button>
     </div>
 
     <div class="form-group mt-3" id="inventario-data-group" style="display: none;">
@@ -164,7 +164,7 @@
 
 
         <div class="mt-3 d-flex justify-content-center gap-3">
-            <button type="submit" class="btn btn-primary">{{ form.submit.label.text }}</button>
+            <button type="submit" class="btn btn-info">{{ form.submit.label.text }}</button>
             <button type="button" class="btn btn-secondary" id="pulisci-form">Pulisci Form</button>
         </div>
         </fieldset>
@@ -172,8 +172,8 @@
 
     <!-- 🕒 Ultimi articoli inseriti -->
     <div class="mt-4" id="ultimi-inseriti-wrapper" style="display: none;">
-        <div class="card border-primary">
-            <div class="card-header bg-primary text-white fw-bold">
+        <div class="card border-info">
+            <div class="card-header bg-info text-white fw-bold">
                 Ultimi articoli inseriti
             </div>
             <div class="card-body p-2">
@@ -233,7 +233,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-        <button type="button" class="btn btn-primary" id="btnConfermaDataRettifica">Conferma</button>
+        <button type="button" class="btn btn-info" id="btnConfermaDataRettifica">Conferma</button>
       </div>
     </div>
   </div>
@@ -288,7 +288,7 @@
      aria-labelledby="modaleDettaglioLabel" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header bg-primary text-white fw-bold">
+      <div class="modal-header bg-info text-white fw-bold">
         <h5 class="modal-title" id="modaleTitoloInventario">Dettaglio Inventario</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
@@ -352,7 +352,7 @@
 <div class="modal fade" id="modaleModificaData" tabindex="-1" aria-labelledby="modaleModificaDataLabel" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <div class="modal-header bg-primary text-white fw-bold">
+      <div class="modal-header bg-info text-white fw-bold">
         <h5 class="modal-title" id="modaleModificaDataLabel">Modifica data inventario</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
@@ -362,7 +362,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-        <button type="button" class="btn btn-primary" id="salvaDataInventario">Salva</button>
+        <button type="button" class="btn btn-info" id="salvaDataInventario">Salva</button>
       </div>
     </div>
   </div>
@@ -373,7 +373,7 @@
 <div class="modal fade" id="modaleMovimentiArticolo" tabindex="-1" aria-labelledby="modaleMovimentiArticoloLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header bg-primary text-white fw-bold">
+      <div class="modal-header bg-info text-white fw-bold">
         <h5 class="modal-title" id="modaleMovimentiArticoloLabel">Movimenti Articolo</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
@@ -401,7 +401,7 @@
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
 
-      <div class="modal-header bg-primary text-white fw-bold">
+      <div class="modal-header bg-info text-white fw-bold">
         <h5 class="modal-title" id="modaleStoricoModificheLabel">Storico Variazioni</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
@@ -439,7 +439,7 @@
 <div class="modal fade" id="modaleModificaMovimentoArticolo" tabindex="-1" aria-labelledby="modaleModificaMovimentoArticoloLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header bg-primary text-white fw-bold">
+      <div class="modal-header bg-info text-white fw-bold">
         <h5 class="modal-title" id="modaleModificaMovimentoArticoloLabel">
             Modifica Movimento Articolo
         </h5>
@@ -451,7 +451,7 @@
           <div class="mb-3">
             <label id="modQuantitaInseritaLabel" for="modQuantitaInserita" class="form-label text-black">Quantità Inserita</label>
             <input type="number" class="form-control" id="modQuantitaInserita" required>
-            <button type="button" class="btn btn-primary mt-2" id="modCalcolaFormula">Modifica</button>
+            <button type="button" class="btn btn-info mt-2" id="modCalcolaFormula">Modifica</button>
             <div id="formCalcoloQuantita" class="mt-3 d-none">
             <div class="col-md-8">
                 <div class="form-group mt-3">
@@ -479,7 +479,7 @@
                     <input type="hidden" id="fcqDataInventario" name="fcqDataInventario">
                 </div>
             </div>
-            <button type="button" class="btn btn-primary mt-2" id="fcqCalcolaQuantita">Applica Quantità</button>
+            <button type="button" class="btn btn-info mt-2" id="fcqCalcolaQuantita">Applica Quantità</button>
             </div>
 
           </div>
@@ -491,7 +491,7 @@
             <label for="modDescrizioneArticolo" class="form-label text-black">Articolo</label>
             <input type="text" class="form-control" id="modDescrizioneArticolo" readonly>
           </div>
-          <button type="submit" class="btn btn-primary">Salva Modifiche</button>
+          <button type="submit" class="btn btn-info">Salva Modifiche</button>
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
         </form>
       </div>
@@ -523,7 +523,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button>
-        <button type="button" class="btn btn-primary" id="btnConfermaFile" disabled>Importa</button>
+        <button type="button" class="btn btn-info" id="btnConfermaFile" disabled>Importa</button>
       </div>
     </div>
   </div>

@@ -61,7 +61,7 @@
   .route-board-customer { font-weight: 700; color: #212529; }
   .route-board-phone-row { display: grid; grid-template-columns: minmax(82px, auto) minmax(118px, 1fr) auto; gap: .35rem; align-items: center; margin-bottom: .25rem; }
   .route-board-phone-label { color: #495057; font-size: .78rem; }
-  .route-board-phone-row a { color: #0d6efd; white-space: nowrap; }
+  .route-board-phone-row a { color: #0dcaf0; white-space: nowrap; }
   .route-board-orders { display: grid; gap: .45rem; min-width: 320px; }
   .route-board-order { border: 1px solid #dee2e6; border-radius: 8px; padding: .55rem; background: #f8f9fa; }
   .route-board-order.is-evaded { opacity: .58; }
@@ -129,7 +129,7 @@
       </div>
       <div>
         <label class="form-label d-block" for="deliveryDateBtn">Prossima consegna</label>
-        <button class="btn btn-outline-primary" id="deliveryDateBtn" type="button">-</button>
+        <button class="btn btn-outline-info" id="deliveryDateBtn" type="button">-</button>
       </div>
       <div class="form-check mb-2">
         <input class="form-check-input" type="checkbox" id="onlyWithOrders">
@@ -178,7 +178,7 @@
         <div class="route-board-bulk">
           <button class="btn btn-outline-secondary btn-sm" type="button" id="selectAllDirectOrders">Seleziona ordini</button>
           <button class="btn btn-success btn-sm" type="button" id="bulkEvadeDirectBtn">Segna evasi</button>
-          <button class="btn btn-primary" id="newDirectOrderBtn" type="button"><i class="fa-solid fa-plus"></i> Inserisci ordine</button>
+          <button class="btn btn-info" id="newDirectOrderBtn" type="button"><i class="fa-solid fa-plus"></i> Inserisci ordine</button>
         </div>
       </div>
     <div class="route-board-panel p-3">
@@ -216,7 +216,7 @@
       <input class="form-control" type="file" id="orderFiles" multiple>
       <div class="form-text">Gli allegati vengono inviati insieme all'ordine quando lo pubblichi su Slack.</div>
     </div>
-    <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button><button class="btn btn-primary" type="button" id="noteSaveBtn">Salva</button></div>
+    <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button><button class="btn btn-info" type="button" id="noteSaveBtn">Salva</button></div>
   </div></div>
 </div>
 
@@ -234,7 +234,7 @@
       <label class="form-label mt-3" for="directFiles">Allegati</label>
       <input class="form-control" type="file" id="directFiles" multiple>
     </div>
-    <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button><button class="btn btn-primary" type="button" id="directSendBtn">Invia a LDApp</button></div>
+    <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button><button class="btn btn-info" type="button" id="directSendBtn">Invia a LDApp</button></div>
   </div></div>
 </div>
 
@@ -249,7 +249,7 @@
       <select class="form-select mt-2" id="associateCustomerSelect" size="6"></select>
       <div class="form-text">L'ordine verra' agganciato all'anagrafica scelta usando codice cliente o ID interno.</div>
     </div>
-    <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button><button class="btn btn-primary" type="button" id="associateOrderSaveBtn">Associa</button></div>
+    <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button><button class="btn btn-info" type="button" id="associateOrderSaveBtn">Associa</button></div>
   </div></div>
 </div>
 
@@ -263,7 +263,7 @@
       <label class="form-label mt-3" for="deliveryCustomDate">Data personalizzata</label>
       <input class="form-control" type="date" id="deliveryCustomDate">
     </div>
-    <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button><button class="btn btn-primary" type="button" id="deliverySaveBtn">Applica</button></div>
+    <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button><button class="btn btn-info" type="button" id="deliverySaveBtn">Applica</button></div>
   </div></div>
 </div>
 
@@ -278,7 +278,7 @@
         <div class="col"><label class="form-label" for="alertStart">Dal</label><input class="form-control" type="date" id="alertStart"></div>
         <div class="col"><label class="form-label" for="alertEnd">Al</label><input class="form-control" type="date" id="alertEnd"></div>
       </div>
-      <button class="btn btn-primary w-100 mb-3" id="alertCreateBtn" type="button">Aggiungi avviso</button>
+      <button class="btn btn-info w-100 mb-3" id="alertCreateBtn" type="button">Aggiungi avviso</button>
       <div class="list-group" id="alertsList"></div>
     </div>
   </div></div>
@@ -295,7 +295,7 @@
         <div class="col-12 col-md-8"><label class="form-label" for="contactValue">Numero</label><input class="form-control" id="contactValue" autocomplete="off"></div>
       </div>
       <label class="form-label mt-2" for="contactLabel">Etichetta</label><input class="form-control" id="contactLabel" autocomplete="off">
-      <button class="btn btn-primary w-100 mt-3" type="button" id="contactSaveBtn">Salva contatto</button>
+      <button class="btn btn-info w-100 mt-3" type="button" id="contactSaveBtn">Salva contatto</button>
     </div>
   </div></div>
 </div>
@@ -401,7 +401,7 @@
         <div class="route-board-order__note">${esc(order.raw_text)}</div>
         <div class="route-board-order__meta">#${order.id} ${esc(fmtDate(order.planned_delivery_at || order.order_date))}</div>
         <div class="route-board-actions mt-2">
-          <button class="btn btn-outline-primary btn-sm" type="button" data-action="order-associate" data-order-id="${order.id}" title="Associa cliente"><i class="fa-solid fa-link"></i></button>
+          <button class="btn btn-outline-info btn-sm" type="button" data-action="order-associate" data-order-id="${order.id}" title="Associa cliente"><i class="fa-solid fa-link"></i></button>
           <button class="btn btn-outline-secondary btn-sm" type="button" data-action="order-attach" data-order-id="${order.id}" title="Allega file"><i class="fa-solid fa-paperclip"></i></button>
           <button class="btn btn-outline-danger btn-sm" type="button" data-action="order-delete" data-order-id="${order.id}" title="Elimina"><i class="fa-solid fa-trash"></i></button>
         </div>
@@ -430,7 +430,7 @@
           <div class="route-board-order__meta">#${order.id} ${esc(fmtDate(order.planned_delivery_at || order.order_date))} - chiave Slack: ${esc(order.customer_key || "")}</div>
         </div>
         <div class="route-board-unmatched__actions">
-          <button class="btn btn-primary btn-sm" type="button" data-action="unmatched-associate" data-order-id="${order.id}"><i class="fa-solid fa-link"></i> Associa</button>
+          <button class="btn btn-info btn-sm" type="button" data-action="unmatched-associate" data-order-id="${order.id}"><i class="fa-solid fa-link"></i> Associa</button>
         </div>
       </div>`).join("");
   }
@@ -465,13 +465,13 @@
       return `
         <tr data-customer-id="${customer.id}">
           <td><span class="route-board-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span>${documentBadge}<div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div></td>
-          <td>${phones}<button class="btn btn-outline-primary btn-sm mt-1" type="button" data-action="contact-add"><i class="fa-solid fa-plus"></i> Contatto</button></td>
+          <td>${phones}<button class="btn btn-outline-info btn-sm mt-1" type="button" data-action="contact-add"><i class="fa-solid fa-plus"></i> Contatto</button></td>
           <td><select class="form-select form-select-sm" data-action="status">${statusOptions}</select></td>
           <td class="text-center"><input class="form-check-input" type="checkbox" data-action="listDone" ${entry.list_done ? "checked" : ""}></td>
           <td>${renderOrders(customer.orders || [])}</td>
           <td><div class="route-board-actions">
             <button class="btn btn-outline-secondary btn-sm" type="button" data-action="note" title="Ordine"><i class="fa-regular fa-note-sticky"></i></button>
-            <button class="btn btn-outline-primary btn-sm" type="button" data-action="date" title="Consegna"><i class="fa-regular fa-calendar"></i></button>
+            <button class="btn btn-outline-info btn-sm" type="button" data-action="date" title="Consegna"><i class="fa-regular fa-calendar"></i></button>
             <button class="btn btn-outline-warning btn-sm" type="button" data-action="alerts" title="Avvisi"><i class="fa-solid fa-triangle-exclamation"></i></button>
             <button class="btn btn-success btn-sm" type="button" data-action="slack" title="Invia su Slack"><i class="fa-brands fa-slack"></i></button>
             <button class="btn btn-danger btn-sm" type="button" data-action="cancel" title="Annulla"><i class="fa-solid fa-ban"></i></button>
@@ -549,13 +549,13 @@
       return `
         <tr data-direct-customer-id="${esc(customer.id || "")}">
           <td><span class="route-board-direct-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span>${orders.length ? documentBadge : ""}<div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div></td>
-          <td>${phones}<button class="btn btn-outline-primary btn-sm mt-1" type="button" data-action="direct-contact-add" ${customer.id ? "" : "disabled title='Cliente non collegato a una anagrafica'"}><i class="fa-solid fa-plus"></i> Contatto</button></td>
+          <td>${phones}<button class="btn btn-outline-info btn-sm mt-1" type="button" data-action="direct-contact-add" ${customer.id ? "" : "disabled title='Cliente non collegato a una anagrafica'"}><i class="fa-solid fa-plus"></i> Contatto</button></td>
           <td>${latest.id ? `<select class="form-select form-select-sm" data-action="direct-latest-status" data-order-id="${latest.id}">${statusOptions}</select>` : '<span class="text-muted small">-</span>'}</td>
           <td class="text-center"><input class="form-check-input" type="checkbox" data-direct-list-done ${latest.status === "listato" ? "checked" : ""} ${latest.id ? "" : "disabled"}></td>
           <td>${renderOrders(orders, "direct")}</td>
           <td><div class="route-board-actions">
             <button class="btn btn-outline-secondary btn-sm" type="button" data-action="direct-note" title="Ordine"><i class="fa-regular fa-note-sticky"></i></button>
-            <button class="btn btn-outline-primary btn-sm" type="button" data-action="direct-date" data-order-id="${latest.id || ""}" title="Consegna"><i class="fa-regular fa-calendar"></i></button>
+            <button class="btn btn-outline-info btn-sm" type="button" data-action="direct-date" data-order-id="${latest.id || ""}" title="Consegna"><i class="fa-regular fa-calendar"></i></button>
             <button class="btn btn-outline-warning btn-sm" type="button" data-action="direct-alerts" title="Avvisi"><i class="fa-solid fa-triangle-exclamation"></i></button>
             <button class="btn btn-success btn-sm" type="button" data-action="direct-slack" title="Invia su Slack"><i class="fa-brands fa-slack"></i></button>
             <button class="btn btn-danger btn-sm" type="button" data-action="direct-cancel" data-order-id="${latest.id || ""}" title="Annulla"><i class="fa-solid fa-ban"></i></button>
