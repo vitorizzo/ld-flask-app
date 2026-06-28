@@ -15,9 +15,9 @@
   }
 
   .login-card {
-    background: rgba(255, 255, 255, .96);
-    color: #212529;
-    border: 1px solid rgba(255, 255, 255, .45);
+    background: rgba(74, 44, 42, .86);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, .28);
     border-radius: 8px;
     padding: 28px;
     box-shadow: 0 18px 42px rgba(0, 0, 0, .22);
@@ -28,7 +28,7 @@
   }
 
   .login-card h1 {
-    color: #4A2C2A;
+    color: #fff;
     text-align: left;
     margin: 0 0 6px;
     line-height: 1.05;
@@ -36,20 +36,22 @@
 
   .login-card__subtitle {
     margin: 0;
-    color: #6c757d;
+    color: rgba(255, 255, 255, .78);
   }
 
   .login-card .form-label {
-    color: #4A2C2A;
+    color: #fff;
     font-weight: 700;
   }
 
   .login-card .form-control {
     min-height: 48px;
+    border-color: rgba(255, 255, 255, .35);
+    background: rgba(255, 255, 255, .94);
   }
 
   .login-card .form-check-label {
-    color: #495057;
+    color: rgba(255, 255, 255, .86);
   }
 
   .login-card__links {
@@ -60,8 +62,15 @@
   }
 
   .login-card__links a {
-    color: #0aa2c0;
+    color: #fff;
     font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+  }
+
+  .login-card__links a:hover,
+  .login-card__links a:focus {
+    color: #0dcaf0;
   }
 
   @media (max-width: 820px), (hover: none) and (pointer: coarse) {

@@ -1853,3 +1853,6 @@ Performance apertura giornata Agenda 2026-06-13:
   - `templates/login.html` usa una card dedicata con sfondo chiaro, labels scure, input leggibili, bottone `btn-info` e link ordinati;
   - aggiunti breakpoint mobile/touch e profilo touch largo S25 per scalare titolo, campi, checkbox, bottone e link;
   - verifica render `/auth/login` 200 con `login-card` e `btn-info`, `git diff --check`.
+- 2026-06-28 ritocco login/drawer anonimo:
+  - la riga `Accedi` nel drawer mobile anonimo ora e' centrata e scalata come il footer profilo autenticato;
+  - login card riportata sul look LDApp marrone/bianco con link chiari e hover `info`, mantenendo input leggibili e bottone `btn-info`.
