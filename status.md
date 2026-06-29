@@ -1865,3 +1865,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - `templates/forgot_password.html` usa card coerente con login/registrazione: marrone semitrasparente, testo bianco, input chiaro, bottone `btn-info`;
   - aggiunti breakpoint mobile/touch e profilo touch largo S25 per titolo, testo, input, bottone e link;
   - verifica render `/auth/forgot-password` 200 con `forgot-card` e `btn-info`, `git diff --check`.
+- 2026-06-29 restyling scheda articolo:
+  - `templates/scheda_articolo.html` allinea la scheda articolo al look LDApp: contenitore marrone semitrasparente, card interne scure, testi bianchi e accenti `info`;
+  - metadati, barcode, badge piattaforme, slot immagini, upload e scheda tecnica hanno ora superfici coerenti e leggibili;
+  - rimossa una doppia graffa CSS residua a fine blocco responsive;
+  - verifica render `/search/scheda_articolo/<codice>` 200 e `git diff --check`.
