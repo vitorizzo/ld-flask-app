@@ -1870,3 +1870,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - metadati, barcode, badge piattaforme, slot immagini, upload e scheda tecnica hanno ora superfici coerenti e leggibili;
   - rimossa una doppia graffa CSS residua a fine blocco responsive;
   - verifica render `/search/scheda_articolo/<codice>` 200 e `git diff --check`.
+- 2026-06-29 fix scelta varianti da scanner:
+  - nella pagina informazioni articolo la modale `barcode-choices-modal` viene forzata sopra scanner/backdrop con z-index dedicato;
+  - `scanner.js` spegne e nasconde l'overlay camera prima di eseguire la callback di scansione, evitando che la scelta varianti resti in secondo piano;
+  - `scanner.js` e' versionato nella pagina con suffisso `barcode-choice1`;
+  - verifiche: `node --check static/js/scanner.js`, render `/search/ricerca_x_descrizione` 200 e `git diff --check`.

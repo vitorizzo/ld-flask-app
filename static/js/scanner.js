@@ -90,6 +90,8 @@ function startScanner(inputField, deviceIdOverride = null, onScan = null) {
                     keyCode: 13
                 });
                 inputField.dispatchEvent(enterEvent);
+                stopScanner();
+                document.getElementById("scanner-modal").style.display = "none";
 
                 // ⚙️ Chiama eventualmente il callback onScan
                 const callback = typeof onScan === 'function' ? onScan : activeScannerCallback;
@@ -97,8 +99,6 @@ function startScanner(inputField, deviceIdOverride = null, onScan = null) {
                     callback(result.text);
                 }
 
-                stopScanner();
-                document.getElementById("scanner-modal").style.display = "none";
             }
             if (err && !(err instanceof ZXing.NotFoundException)) {
                 console.error(err);

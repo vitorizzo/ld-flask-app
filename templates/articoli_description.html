@@ -22,6 +22,16 @@
   .search-topbar {
     flex-shrink: 0;
   }
+  #barcode-choices-modal.modal,
+  #barcode-choices-modal.modal.show {
+    z-index: 7200 !important;
+  }
+  #barcode-choices-modal .modal-dialog {
+    z-index: 7201 !important;
+  }
+  body.barcode-choices-modal-open .modal-backdrop.show {
+    z-index: 7190 !important;
+  }
   @media (max-width: 820px), (hover: none) and (pointer: coarse) {
     .search-page {
       width: 100%;
@@ -284,7 +294,7 @@
 
 {% block extra_js %}
 <script src="https://unpkg.com/@zxing/library@latest"></script>
-<script src="{{ url_for('static', filename='js/scanner.js') }}"></script>
+<script src="{{ url_for('static', filename='js/scanner.js', v=app_version ~ '-barcode-choice1') }}"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="{{ url_for('static', filename='js/search_by_description.js', v=app_version ~ '-mobile-products1') }}"></script>
 <script>
@@ -293,6 +303,15 @@
     const searchInput = document.getElementById("search-description-input");
     const barcodeChoicesModalEl = document.getElementById("barcode-choices-modal");
     const barcodeChoicesList = document.getElementById("barcode-choices-list");
+
+    if (barcodeChoicesModalEl) {
+      barcodeChoicesModalEl.addEventListener("shown.bs.modal", () => {
+        document.body.classList.add("barcode-choices-modal-open");
+      });
+      barcodeChoicesModalEl.addEventListener("hidden.bs.modal", () => {
+        document.body.classList.remove("barcode-choices-modal-open");
+      });
+    }
 
     function openProductSheet(codArt) {
       if (!codArt) return;
@@ -318,6 +337,8 @@
         });
         barcodeChoicesList.appendChild(li);
       });
+      const scannerModal = document.getElementById("scanner-modal");
+      if (scannerModal) scannerModal.style.display = "none";
       bootstrap.Modal.getOrCreateInstance(barcodeChoicesModalEl).show();
     }
 
