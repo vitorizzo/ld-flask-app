@@ -294,7 +294,7 @@
 
 {% block extra_js %}
 <script src="https://unpkg.com/@zxing/library@latest"></script>
-<script src="{{ url_for('static', filename='js/scanner.js', v=app_version ~ '-barcode-choice1') }}"></script>
+<script src="{{ url_for('static', filename='js/scanner.js', v=app_version ~ '-barcode-choice2') }}"></script>
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script src="{{ url_for('static', filename='js/search_by_description.js', v=app_version ~ '-mobile-products1') }}"></script>
 <script>
@@ -305,6 +305,9 @@
     const barcodeChoicesList = document.getElementById("barcode-choices-list");
 
     if (barcodeChoicesModalEl) {
+      if (barcodeChoicesModalEl.parentElement !== document.body) {
+        document.body.appendChild(barcodeChoicesModalEl);
+      }
       barcodeChoicesModalEl.addEventListener("shown.bs.modal", () => {
         document.body.classList.add("barcode-choices-modal-open");
       });

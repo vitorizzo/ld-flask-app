@@ -1875,3 +1875,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - `scanner.js` spegne e nasconde l'overlay camera prima di eseguire la callback di scansione, evitando che la scelta varianti resti in secondo piano;
   - `scanner.js` e' versionato nella pagina con suffisso `barcode-choice1`;
   - verifiche: `node --check static/js/scanner.js`, render `/search/ricerca_x_descrizione` 200 e `git diff --check`.
+- 2026-06-29 fix definitivo scelta varianti scanner:
+  - applicato il pattern ricorrente documentato per le modali: `barcode-choices-modal` viene spostata in `document.body` su `DOMContentLoaded`;
+  - suffisso cache scanner aggiornato a `barcode-choice2`;
+  - verifica render `/search/ricerca_x_descrizione` 200 con `barcode-choice2` e `appendChild(barcodeChoicesModalEl)`.
