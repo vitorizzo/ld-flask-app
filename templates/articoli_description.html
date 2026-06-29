@@ -29,6 +29,37 @@
   #barcode-choices-modal .modal-dialog {
     z-index: 7201 !important;
   }
+  #barcode-choices-modal .modal-content {
+    background: rgba(74, 44, 42, .96);
+    color: #fff;
+  }
+  #barcode-choices-modal .modal-header {
+    border-bottom-color: rgba(255, 255, 255, .18);
+  }
+  #barcode-choices-modal .modal-title {
+    color: #fff;
+  }
+  #barcode-choices-modal .btn-close {
+    filter: invert(1) grayscale(1) brightness(2);
+    opacity: .9;
+  }
+  #barcode-choices-modal .modal-body {
+    overflow: auto;
+  }
+  #barcode-choices-modal .barcode-choices-inner {
+    width: min(100%, 860px);
+    margin: 0 auto;
+  }
+  #barcode-choices-modal .text-muted {
+    color: rgba(255, 255, 255, .75) !important;
+  }
+  #barcode-choices-modal .list-group {
+    gap: 10px;
+  }
+  #barcode-choices-modal .list-group-item {
+    border: 1px solid rgba(255, 255, 255, .24);
+    border-radius: 8px;
+  }
   body.barcode-choices-modal-open .modal-backdrop.show {
     z-index: 7190 !important;
   }
@@ -139,9 +170,6 @@
     }
     #product-modal-iframe {
       height: calc(100vh - 58px) !important;
-    }
-    #barcode-choices-modal .modal-dialog {
-      margin: 10px;
     }
     #barcode-choices-modal .list-group-item {
       padding: 14px;
@@ -277,15 +305,17 @@
 </div>
 
 <div class="modal fade" id="barcode-choices-modal" tabindex="-1" aria-labelledby="barcodeChoicesModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+  <div class="modal-dialog modal-fullscreen">
     <div class="modal-content">
       <div class="modal-header">
         <h5 class="modal-title" id="barcodeChoicesModalLabel">Seleziona prodotto</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
       <div class="modal-body">
-        <div class="text-muted small mb-2">Il barcode corrisponde a piu' versioni dello stesso prodotto.</div>
-        <ul class="list-group" id="barcode-choices-list"></ul>
+        <div class="barcode-choices-inner">
+          <div class="text-muted small mb-2">Il barcode corrisponde a piu' versioni dello stesso prodotto.</div>
+          <ul class="list-group" id="barcode-choices-list"></ul>
+        </div>
       </div>
     </div>
   </div>

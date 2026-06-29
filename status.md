@@ -1879,3 +1879,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - applicato il pattern ricorrente documentato per le modali: `barcode-choices-modal` viene spostata in `document.body` su `DOMContentLoaded`;
   - suffisso cache scanner aggiornato a `barcode-choice2`;
   - verifica render `/search/ricerca_x_descrizione` 200 con `barcode-choice2` e `appendChild(barcodeChoicesModalEl)`.
+- 2026-06-29 modale scelta varianti full screen:
+  - `barcode-choices-modal` usa `modal-fullscreen` invece di dialog centrato, evitando decentramenti laterali su smartphone;
+  - body scrollabile, contenuto centrato con `barcode-choices-inner` e look marrone/bianco coerente con LDApp;
+  - verifica render `/search/ricerca_x_descrizione` 200 con `modal-fullscreen` e `barcode-choices-inner`.
