@@ -6,6 +6,7 @@ window.kioskState = {
   statusList: [],
   statusRank: {},
   currentRouteFilter: "__all__",
+  currentMobileStatusFilter: "__all__",
   lastCards: [],
 };
 
@@ -90,6 +91,81 @@ window.kioskState = {
     });
 
     enableDnDForColumns();
+    ensureMobileStatusTabs();
+    applyMobileStatusFilter();
+  }
+
+  function ensureMobileStatusTabs() {
+    const board = document.querySelector(".kiosk-board");
+    if (!board) return null;
+
+    let host = document.querySelector(".kiosk-status-tabs");
+    if (!host) {
+      host = document.createElement("div");
+      host.className = "kiosk-status-tabs";
+      host.setAttribute("role", "tablist");
+      host.setAttribute("aria-label", "Filtro stato ordini");
+      board.parentElement.insertBefore(host, board);
+
+      host.addEventListener("click", (ev) => {
+        const btn = ev.target.closest("[data-mobile-status-filter]");
+        if (!btn) return;
+        kioskState.currentMobileStatusFilter = btn.getAttribute("data-mobile-status-filter") || "__all__";
+        syncMobileStatusTabs();
+        applyMobileStatusFilter();
+      });
+    }
+
+    const statuses = Array.isArray(kioskState.statusMeta) ? kioskState.statusMeta : [];
+    const buttons = [
+      `<button class="kiosk-status-tab" type="button" data-mobile-status-filter="__all__">Tutti <span data-mobile-status-count="__all__">0</span></button>`,
+      ...statuses.map((st) => {
+        const code = escapeHtml(st.code || "");
+        const label = escapeHtml(st.label || st.code || "");
+        return `<button class="kiosk-status-tab" type="button" data-mobile-status-filter="${code}">${label} <span data-mobile-status-count="${code}">0</span></button>`;
+      }),
+    ];
+    host.innerHTML = buttons.join("");
+    return host;
+  }
+
+  function syncMobileStatusTabs() {
+    const host = ensureMobileStatusTabs();
+    if (!host) return;
+
+    let total = 0;
+    document.querySelectorAll(".kiosk-col").forEach((col) => {
+      const status = col.dataset.status || "";
+      const count = Number(col.querySelector("[data-count]")?.textContent || 0);
+      total += count;
+      const badge = Array.from(host.querySelectorAll("[data-mobile-status-count]")).find(
+        (el) => el.getAttribute("data-mobile-status-count") === status
+      );
+      if (badge) badge.textContent = String(count);
+    });
+
+    const totalBadge = host.querySelector('[data-mobile-status-count="__all__"]');
+    if (totalBadge) totalBadge.textContent = String(total);
+
+    host.querySelectorAll("[data-mobile-status-filter]").forEach((btn) => {
+      const isActive = btn.getAttribute("data-mobile-status-filter") === kioskState.currentMobileStatusFilter;
+      btn.classList.toggle("active", isActive);
+      btn.setAttribute("aria-selected", isActive ? "true" : "false");
+    });
+  }
+
+  function applyMobileStatusFilter() {
+    const active = kioskState.currentMobileStatusFilter || "__all__";
+    const cols = document.querySelectorAll(".kiosk-col");
+    const hasActive = active === "__all__" || Array.from(cols).some((col) => col.dataset.status === active);
+    const effective = hasActive ? active : "__all__";
+    if (effective !== active) kioskState.currentMobileStatusFilter = effective;
+
+    cols.forEach((col) => {
+      const hidden = effective !== "__all__" && col.dataset.status !== effective;
+      col.classList.toggle("is-mobile-status-hidden", hidden);
+    });
+    syncMobileStatusTabs();
   }
 
   async function loadStatuses() {
@@ -387,13 +463,64 @@ window.kioskState = {
       if (isGroup) openGroupModal(vm);
       else openOrderModal(primary.id);
     };
+    let suppressCardClick = false;
+    let longPressTimer = null;
+
+    function isCardMenuExcludedTarget(target) {
+      return Boolean(
+        target.closest(".order-actions") ||
+          target.closest(".kiosk-edge") ||
+          target.closest(".order-delivery-badge") ||
+          target.closest("a, button, input, select, textarea")
+      );
+    }
+
+    function openCardContextMenu(ev) {
+      if (!ddToggle || !window.bootstrap) return;
+      if (ev && isCardMenuExcludedTarget(ev.target)) return;
+      if (ev) {
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
+      const dropdown = window.bootstrap.Dropdown.getOrCreateInstance(ddToggle, {
+        autoClose: true,
+        boundary: document.body,
+      });
+      dropdown.show();
+      div.classList.add("menu-open");
+    }
 
     div.addEventListener("click", (ev) => {
       if (dragCtx.isDragging) return;
+      if (suppressCardClick) {
+        suppressCardClick = false;
+        return;
+      }
       if (ev.target.closest(".order-actions")) return;
       if (ev.target.closest(".kiosk-edge")) return; // edge gestisce click
       if (ev.target.closest(".order-delivery-badge")) return;
       openFn();
+    });
+
+    div.addEventListener("contextmenu", (ev) => {
+      openCardContextMenu(ev);
+    });
+
+    div.addEventListener("pointerdown", (ev) => {
+      if (ev.pointerType !== "touch" && ev.pointerType !== "pen") return;
+      if (isCardMenuExcludedTarget(ev.target)) return;
+      window.clearTimeout(longPressTimer);
+      longPressTimer = window.setTimeout(() => {
+        suppressCardClick = true;
+        openCardContextMenu(ev);
+      }, 620);
+    });
+
+    ["pointerup", "pointercancel", "pointerleave", "pointermove"].forEach((eventName) => {
+      div.addEventListener(eventName, (ev) => {
+        if (eventName === "pointermove" && ev.pointerType !== "touch" && ev.pointerType !== "pen") return;
+        window.clearTimeout(longPressTimer);
+      });
     });
 
     div.querySelectorAll("[data-edit-delivery]").forEach((btn) => {
@@ -815,6 +942,8 @@ window.kioskState = {
 
     const pillTotal = document.getElementById("pill-total");
     if (pillTotal) pillTotal.textContent = String(filtered.length);
+    syncMobileStatusTabs();
+    applyMobileStatusFilter();
   }
 
   function hookFilters() {

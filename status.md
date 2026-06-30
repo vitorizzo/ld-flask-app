@@ -1883,3 +1883,17 @@ Performance apertura giornata Agenda 2026-06-13:
   - `barcode-choices-modal` usa `modal-fullscreen` invece di dialog centrato, evitando decentramenti laterali su smartphone;
   - body scrollabile, contenuto centrato con `barcode-choices-inner` e look marrone/bianco coerente con LDApp;
   - verifica render `/search/ricerca_x_descrizione` 200 con `modal-fullscreen` e `barcode-choices-inner`.
+- 2026-06-29 bozza UI mobile bacheca ordini:
+  - `kiosk_overview.css` aggiunge una prima bozza coerente con LDApp: shell marrone, colonne traslucide, card ordine piu' leggibili, filtri giro orizzontali e scaling mobile/touch largo;
+  - `templates/kiosk_overview.html` versiona CSS/JS con suffisso `mobile-board1`, rinomina il titolo in `Bacheca ordini` e corregge il blocco script duplicato;
+  - `templates/kiosk_ordini_embed.html` rende il wrapper iframe coerente con la shell mobile;
+  - verifiche: render `/kiosk` e `/kiosk/board/all` 200, `kiosk_overview.js` emesso una sola volta, graffe CSS bilanciate e `git diff --check`.
+- 2026-06-29 seconda bozza mobile bacheca ordini:
+  - su mobile/touch la board passa da colonne orizzontali a tab per stato (`Tutti`, stati dinamici) con liste verticali; desktop resta Kanban;
+  - `kiosk_overview.js` aggiunge `currentMobileStatusFilter`, generazione tab stato, contatori e filtro mobile-only tramite classe `is-mobile-status-hidden`;
+  - `kiosk_overview.css` aggiunge stile tab stato e override mobile per mostrare le colonne come sezioni verticali;
+  - asset board versionati a `mobile-board2`; verifiche statiche: `node --check static/js/kiosk_overview.js`, graffe CSS bilanciate, `git diff --check`. Render `/kiosk` in test client andato in timeout durante questa verifica.
+- 2026-06-30 trigger contestuale menu card bacheca:
+  - rimosso l'ingombro visibile del toggle menu card, che si sovrapponeva al badge consegna;
+  - il menu azioni della card si apre con click destro su desktop e long press su touch/pen, riusando il dropdown Bootstrap esistente;
+  - asset board versionati a `mobile-board3`; verifiche: `node --check static/js/kiosk_overview.js`, graffe CSS bilanciate e `git diff --check`.
