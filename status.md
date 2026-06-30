@@ -1897,3 +1897,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - rimosso l'ingombro visibile del toggle menu card, che si sovrapponeva al badge consegna;
   - il menu azioni della card si apre con click destro su desktop e long press su touch/pen, riusando il dropdown Bootstrap esistente;
   - asset board versionati a `mobile-board3`; verifiche: `node --check static/js/kiosk_overview.js`, graffe CSS bilanciate e `git diff --check`.
+- 2026-06-30 scala dettaglio ordine/menu bacheca:
+  - aumentati font e target touch del dettaglio ordine aperto dalla card su mobile/touch;
+  - corretto stile del testo ordine applicando le regole anche a `.kiosk-pre`, usata dal markup JS;
+  - aumentati font, padding e larghezza del menu contestuale aperto con long press/click destro;
+  - asset board versionati a `mobile-board4`; verifiche: `node --check static/js/kiosk_overview.js`, graffe CSS bilanciate e `git diff --check`.
