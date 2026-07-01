@@ -1902,3 +1902,21 @@ Performance apertura giornata Agenda 2026-06-13:
   - corretto stile del testo ordine applicando le regole anche a `.kiosk-pre`, usata dal markup JS;
   - aumentati font, padding e larghezza del menu contestuale aperto con long press/click destro;
   - asset board versionati a `mobile-board4`; verifiche: `node --check static/js/kiosk_overview.js`, graffe CSS bilanciate e `git diff --check`.
+- 2026-07-01 bozza mobile plancia ordini:
+  - `templates/route_orders/board.html` aggiunge una prima ottimizzazione mobile/touch coerente con LDApp: shell marrone, controlli piu' grandi, segmenti `info` e pannelli leggibili;
+  - su smartphone le tabelle della plancia diventano righe-card verticali con etichette campo, azioni touch-friendly e sezioni cliente/lista/ordini piu' scandibili;
+  - modali registro/clienti rese full-screen e scalate su mobile, con profilo touch largo per viewport tipo S25;
+  - verifiche: graffe CSS bilanciate, `git diff --check`; render diretto `/route-orders/board` non confermato per redirect 302 dovuto a sessione/ruolo richiesti.
+- 2026-07-01 fix overflow/scroll plancia mobile:
+  - le card cliente della plancia mobile sono vincolate al 100% della larghezza del pannello, con `box-sizing` coerente e wrapping dei testi lunghi;
+  - lo scroll viene ripristinato sull'area card/table responsive con overflow verticale touch e overflow orizzontale nascosto.
+- 2026-07-01 plancia ordini mobile compatta:
+  - su mobile le righe della plancia mostrano solo cliente e stato, con colore pieno per stato operativo e apertura dettaglio full-screen al tap;
+  - il dettaglio full-screen clona le sezioni complete della riga e inoltra cambi/click ai controlli originali, mantenendo le API e i gestori esistenti;
+  - su desktop resta la tabella completa, ma con bordo sinistro colorato per stato in modo piu' leggero rispetto al riempimento pieno;
+  - verifiche: graffe CSS bilanciate, `node --check` dello script estratto, render template Flask con `routeBoardDetailModal`, `git diff --check`.
+- 2026-07-01 ritocco plancia/bacheca ordini:
+  - la card mobile della plancia usa una sola barra per cliente, con fascia laterale intensa per stato e badge stato interno;
+  - il riepilogo mobile e' stato spostato dentro la prima cella della tabella per evitare markup tabellare fragile e doppie righe;
+  - il menu contestuale della bacheca ordini viene spostato temporaneamente nel `body` come floating menu a posizione fissa, cosi' non viene tagliato dai box stato;
+  - asset bacheca versionati a `mobile-board5`; verifiche: graffe CSS bilanciate, `node --check` su plancia estratta e `kiosk_overview.js`, `git diff --check`.

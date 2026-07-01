@@ -856,6 +856,14 @@
   box-shadow: 0 16px 34px rgba(0, 0, 0, .22);
 }
 
+.order-actions .dropdown-menu.kiosk-floating-menu {
+  position: fixed !important;
+  z-index: 2147483000 !important;
+  max-width: min(300px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+}
+
 .order-actions .dropdown-header {
   font-weight: 800;
 }

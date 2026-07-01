@@ -465,6 +465,7 @@ window.kioskState = {
     };
     let suppressCardClick = false;
     let longPressTimer = null;
+    let contextMenuPoint = null;
 
     function isCardMenuExcludedTarget(target) {
       return Boolean(
@@ -481,6 +482,7 @@ window.kioskState = {
       if (ev) {
         ev.preventDefault();
         ev.stopPropagation();
+        contextMenuPoint = { x: ev.clientX, y: ev.clientY };
       }
       const dropdown = window.bootstrap.Dropdown.getOrCreateInstance(ddToggle, {
         autoClose: true,
@@ -611,11 +613,43 @@ window.kioskState = {
     // Dropdown stacking helper
     const ddToggle = div.querySelector('[data-bs-toggle="dropdown"]');
     if (ddToggle) {
+      const ddMenu = div.querySelector(".order-actions .dropdown-menu");
+      const ddParent = ddMenu ? ddMenu.parentElement : null;
+      const restoreFloatingMenu = () => {
+        if (!ddMenu || !ddParent) return;
+        ddMenu.classList.remove("kiosk-floating-menu");
+        ddMenu.style.left = "";
+        ddMenu.style.top = "";
+        ddMenu.style.right = "";
+        ddMenu.style.bottom = "";
+        ddMenu.style.position = "";
+        ddParent.appendChild(ddMenu);
+        contextMenuPoint = null;
+      };
+      const positionFloatingMenu = () => {
+        if (!ddMenu) return;
+        document.body.appendChild(ddMenu);
+        ddMenu.classList.add("kiosk-floating-menu");
+        const anchor = contextMenuPoint || (() => {
+          const rect = div.getBoundingClientRect();
+          return { x: rect.right - 8, y: rect.top + 28 };
+        })();
+        const margin = 8;
+        const menuRect = ddMenu.getBoundingClientRect();
+        const left = Math.min(Math.max(anchor.x, margin), window.innerWidth - menuRect.width - margin);
+        const top = Math.min(Math.max(anchor.y, margin), window.innerHeight - menuRect.height - margin);
+        ddMenu.style.left = `${left}px`;
+        ddMenu.style.top = `${top}px`;
+        ddMenu.style.right = "auto";
+        ddMenu.style.bottom = "auto";
+      };
       ddToggle.addEventListener("shown.bs.dropdown", () => {
         div.classList.add("menu-open");
+        positionFloatingMenu();
       });
       ddToggle.addEventListener("hidden.bs.dropdown", () => {
         div.classList.remove("menu-open");
+        restoreFloatingMenu();
       });
     }
 

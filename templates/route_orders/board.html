@@ -58,6 +58,13 @@
   .route-board-section .route-board-panel .route-board-empty,
   .route-board-section .route-board-order__meta { color: #6c757d !important; }
   .route-board-panel .table { width: 100%; margin: 0; color: #212529; }
+  .route-board-panel tr[data-board-tone] { border-left: 5px solid #dee2e6; }
+  .route-board-panel tr[data-board-tone="neutral"] { border-left-color: #adb5bd; }
+  .route-board-panel tr[data-board-tone="success"] { border-left-color: #198754; }
+  .route-board-panel tr[data-board-tone="danger"] { border-left-color: #dc3545; }
+  .route-board-panel tr[data-board-tone="warning"] { border-left-color: #ffc107; }
+  .route-board-panel tr[data-board-tone="info"] { border-left-color: #0dcaf0; }
+  .route-board-mobile-summary { display: none; }
   .route-board-customer { font-weight: 700; color: #212529; }
   .route-board-phone-row { display: grid; grid-template-columns: minmax(82px, auto) minmax(118px, 1fr) auto; gap: .35rem; align-items: center; margin-bottom: .25rem; }
   .route-board-phone-label { color: #495057; font-size: .78rem; }
@@ -104,6 +111,439 @@
   .direct-board.active { flex-direction: column; gap: 12px; }
   @media (max-width: 1100px) {
     .route-board-top { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 820px), (hover: none) and (pointer: coarse) {
+    .route-board-section.page-shell {
+      width: 100%;
+      max-width: none;
+      min-height: 100%;
+      margin: 0;
+      padding: 16px 12px;
+      border-radius: 8px;
+      background: rgba(74, 44, 42, .88);
+      border: 1px solid rgba(255, 255, 255, .26);
+      box-shadow: 0 18px 42px rgba(0, 0, 0, .22);
+      overflow: hidden;
+    }
+    .route-board-section.page-shell > .route-board.active,
+    .route-board-section.page-shell > .direct-board.active,
+    .route-board-section.page-shell .route-board-panel,
+    .route-board-panel .table,
+    .route-board-panel tbody,
+    .route-board-panel tr,
+    .route-board-panel td {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
+    }
+    .route-board-section > .d-flex:first-child {
+      align-items: stretch !important;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 10px !important;
+    }
+    .route-board-section h1 {
+      color: #fff;
+      font-size: 2rem;
+      line-height: 1.05;
+      margin: 0 0 4px;
+    }
+    .route-board-section > .d-flex .text-muted {
+      font-size: .96rem;
+      line-height: 1.35;
+    }
+    .route-board-mode {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      width: 100%;
+      background: rgba(255, 255, 255, .12);
+      border: 1px solid rgba(255, 255, 255, .22);
+      border-radius: 8px;
+      padding: 4px;
+    }
+    .route-board-mode button {
+      min-height: 46px;
+      color: rgba(255, 255, 255, .86);
+      font-size: 1rem;
+      font-weight: 800;
+    }
+    .route-board-mode button.active {
+      background: #0dcaf0;
+      color: #212529;
+    }
+    .route-board-top {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-bottom: 10px !important;
+    }
+    .route-board-top .form-label,
+    .route-board-top .form-check-label {
+      color: rgba(255, 255, 255, .9);
+      font-size: 1rem;
+    }
+    .route-board-section .form-control,
+    .route-board-section .form-select,
+    .route-board-section .btn {
+      min-height: 46px;
+      font-size: 1rem;
+      border-radius: 8px;
+    }
+    .route-board-bulk {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      width: 100%;
+    }
+    .route-board-bulk .btn {
+      width: 100%;
+    }
+    .direct-board > .d-flex:first-child {
+      align-items: stretch !important;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 10px !important;
+    }
+    .direct-board > .d-flex:first-child > .text-muted {
+      color: rgba(255, 255, 255, .8) !important;
+      font-size: .96rem;
+    }
+    .direct-board .route-board-bulk {
+      grid-template-columns: 1fr;
+    }
+    .route-board-panel {
+      background: rgba(255, 255, 255, .10);
+      border: 1px solid rgba(255, 255, 255, .22);
+      color: #fff;
+      padding: 12px !important;
+      overflow: hidden;
+    }
+    .route-board-panel h2 {
+      color: #fff;
+      font-size: 1.1rem;
+    }
+    .route-board-section.page-shell .route-board-panel .table-responsive {
+      width: 100%;
+      max-width: 100%;
+      min-height: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+    .route-board-panel .table {
+      display: block;
+      color: #212529;
+    }
+    .route-board-panel thead {
+      display: none;
+    }
+    .route-board-panel tbody {
+      display: grid;
+      gap: 12px;
+      padding-right: 2px;
+    }
+    .route-board-panel tr {
+      display: block;
+      border: 1px solid rgba(255, 255, 255, .26);
+      border-left-width: 0;
+      border-radius: 8px;
+      background: #fff;
+      padding: 0;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, .16);
+      cursor: pointer;
+      min-height: 58px;
+      position: relative;
+      touch-action: manipulation;
+    }
+    .route-board-panel tr::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 12px;
+      border-radius: 8px 0 0 8px;
+      background: #adb5bd;
+      pointer-events: none;
+    }
+    .route-board-panel tr[data-board-tone="neutral"]::before { background: #adb5bd; }
+    .route-board-panel tr[data-board-tone="success"]::before { background: #198754; }
+    .route-board-panel tr[data-board-tone="danger"]::before { background: #dc3545; }
+    .route-board-panel tr[data-board-tone="warning"]::before { background: #ffc107; }
+    .route-board-panel tr[data-board-tone="info"]::before { background: #0dcaf0; }
+    .route-board-mobile-summary {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 58px;
+      padding: 12px 12px 12px 26px;
+    }
+    .route-board-mobile-summary__name {
+      color: #212529;
+      font-size: 1.12rem;
+      font-weight: 900;
+      line-height: 1.15;
+      overflow-wrap: anywhere;
+    }
+    .route-board-mobile-summary__status {
+      flex: 0 0 auto;
+      border: 1px solid rgba(0, 0, 0, .12);
+      border-radius: 999px;
+      background: rgba(0, 0, 0, .06);
+      color: #212529;
+      font-size: .78rem;
+      font-weight: 900;
+      line-height: 1.1;
+      max-width: 40vw;
+      padding: 7px 10px;
+      text-align: center;
+      text-transform: uppercase;
+    }
+    .route-board-panel tr > td {
+      display: none;
+    }
+    .route-board-panel tr > td:first-of-type {
+      display: block;
+      padding: 0;
+    }
+    .route-board-panel tr > td:first-of-type::before,
+    .route-board-panel tr > td:first-of-type > :not(.route-board-mobile-summary) {
+      display: none;
+    }
+    .route-board-panel td {
+      display: block;
+      border: 0;
+      padding: 8px 0;
+      overflow-wrap: anywhere;
+    }
+    .route-board-panel td::before {
+      display: block;
+      margin-bottom: 4px;
+      color: #6c757d;
+      font-size: .78rem;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .route-board-panel td:nth-child(1)::before { content: "Cliente"; }
+    .route-board-panel td:nth-child(2)::before { content: "Contatti"; }
+    .route-board-panel td:nth-child(3)::before { content: "Stato"; }
+    .route-board-panel td:nth-child(4)::before { content: "Lista"; }
+    .route-board-panel td:nth-child(5)::before { content: "Ordini"; }
+    .route-board-panel td:nth-child(6)::before { content: "Azioni"; }
+    .route-board-detail-grid {
+      display: grid;
+      gap: 14px;
+    }
+    .route-board-detail-section {
+      border: 1px solid rgba(255, 255, 255, .22);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, .96);
+      color: #212529;
+      padding: 12px;
+    }
+    .route-board-detail-section__label {
+      color: #6c757d;
+      font-size: .78rem;
+      font-weight: 900;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+    }
+    .route-board-detail-section .route-board-mobile-summary,
+    .route-board-detail-section td::before {
+      display: none;
+    }
+    .route-board-detail-section td {
+      display: block;
+      padding: 0;
+    }
+    .route-board-panel td.text-center {
+      text-align: left !important;
+    }
+    .route-board-panel td.text-end {
+      text-align: left !important;
+    }
+    .route-board-customer,
+    .route-board-direct-customer {
+      display: block;
+      font-size: 1.12rem;
+      line-height: 1.18;
+    }
+    .route-board-phone-row {
+      grid-template-columns: minmax(78px, auto) minmax(0, 1fr) auto;
+      gap: 6px;
+      padding: 6px 0;
+    }
+    .route-board-phone-label {
+      font-size: .86rem;
+    }
+    .route-board-phone-row a {
+      font-size: 1.05rem;
+      overflow-wrap: anywhere;
+    }
+    .route-board-orders {
+      min-width: 0;
+      gap: 10px;
+    }
+    .route-board-order {
+      padding: 12px;
+      border-radius: 8px;
+      background: #fff;
+    }
+    .route-board-order__head {
+      align-items: stretch;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .route-board-order__head .form-select {
+      width: 100% !important;
+    }
+    .route-board-order__note {
+      font-size: 1.05rem;
+      line-height: 1.4;
+    }
+    .route-board-order__meta {
+      font-size: .92rem;
+    }
+    .route-board-actions {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      justify-content: stretch;
+    }
+    .route-board-actions .btn {
+      min-width: 0;
+      width: 100%;
+      min-height: 44px;
+    }
+    .route-board-unmatched__item {
+      padding: 12px;
+      border-radius: 8px;
+    }
+    .route-board-unmatched__title {
+      font-size: 1.08rem;
+    }
+    .registry-tools-modal .modal-dialog {
+      margin: 0;
+      max-width: none;
+      width: 100vw;
+      height: 100vh;
+    }
+    .registry-tools-modal .modal-content {
+      min-height: 100vh;
+      border-radius: 0;
+    }
+    .registry-tools-modal .modal-title {
+      font-size: 1.45rem;
+    }
+    .registry-tools-modal .modal-body {
+      font-size: 1.08rem;
+      line-height: 1.45;
+    }
+  }
+  @media (hover: none) and (pointer: coarse) and (min-width: 821px) {
+    .route-board-section.page-shell {
+      padding: 42px;
+      border-radius: 14px;
+    }
+    .route-board-section h1 {
+      font-size: 4.6rem;
+    }
+    .route-board-section > .d-flex .text-muted,
+    .direct-board > .d-flex:first-child > .text-muted {
+      font-size: 1.9rem;
+    }
+    .route-board-mode button,
+    .route-board-section .form-control,
+    .route-board-section .form-select,
+    .route-board-section .btn {
+      min-height: 78px;
+      font-size: 1.65rem;
+      border-radius: 14px;
+    }
+    .route-board-top .form-label,
+    .route-board-top .form-check-label {
+      font-size: 1.55rem;
+    }
+    .route-board-panel {
+      padding: 24px !important;
+      border-radius: 14px;
+    }
+    .route-board-panel h2 {
+      font-size: 2rem;
+    }
+    .route-board-panel tbody {
+      gap: 22px;
+    }
+    .route-board-panel tr {
+      padding: 0;
+      border-radius: 14px;
+      min-height: 112px;
+    }
+    .route-board-panel tr::before {
+      width: 22px;
+      border-radius: 14px 0 0 14px;
+    }
+    .route-board-mobile-summary {
+      min-height: 112px;
+      padding: 24px 24px 24px 46px;
+    }
+    .route-board-mobile-summary__name {
+      font-size: 2.25rem;
+    }
+    .route-board-mobile-summary__status {
+      font-size: 1.2rem;
+      padding: 12px 16px;
+    }
+    .route-board-panel td {
+      padding: 14px 0;
+      font-size: 1.65rem;
+    }
+    .route-board-panel td::before {
+      font-size: 1.2rem;
+    }
+    .route-board-customer,
+    .route-board-direct-customer {
+      font-size: 2.25rem;
+    }
+    .route-board-phone-label {
+      font-size: 1.35rem;
+    }
+    .route-board-phone-row a {
+      font-size: 1.7rem;
+    }
+    .route-board-order {
+      padding: 22px;
+      border-radius: 14px;
+    }
+    .route-board-order__note {
+      font-size: 1.75rem;
+    }
+    .route-board-order__meta {
+      font-size: 1.35rem;
+    }
+    .route-board-actions {
+      gap: 14px;
+    }
+    .route-board-actions .btn {
+      min-height: 76px;
+    }
+    .route-board-detail-grid {
+      gap: 22px;
+    }
+    .route-board-detail-section {
+      padding: 22px;
+      border-radius: 14px;
+    }
+    .route-board-detail-section__label {
+      font-size: 1.2rem;
+    }
+    .registry-tools-modal .modal-title {
+      font-size: 2.35rem;
+    }
+    .registry-tools-modal .modal-body {
+      padding: 30px;
+      font-size: 1.8rem;
+    }
   }
 </style>
 {% endblock %}
@@ -299,6 +739,21 @@
     </div>
   </div></div>
 </div>
+
+<div class="modal fade registry-tools-modal" id="routeBoardDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-fullscreen"><div class="modal-content">
+    <div class="modal-header">
+      <div>
+        <h5 class="modal-title" id="routeBoardDetailTitle">Dettaglio cliente</h5>
+        <div class="text-muted small" id="routeBoardDetailStatus"></div>
+      </div>
+      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+    </div>
+    <div class="modal-body">
+      <div class="route-board-detail-grid" id="routeBoardDetailBody"></div>
+    </div>
+  </div></div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -333,6 +788,7 @@
   const deliveryModal = new bootstrap.Modal(document.getElementById("deliveryDateModal"));
   const alertsModal = new bootstrap.Modal(document.getElementById("alertsModal"));
   const contactsModal = new bootstrap.Modal(document.getElementById("contactsModal"));
+  const routeBoardDetailModal = new bootstrap.Modal(document.getElementById("routeBoardDetailModal"));
   let state = { routes: [], route: null, customers: [], unmatched_orders: [], next_delivery_at: null, upcoming_delivery_dates: [], statuses: [] };
   let directOrders = [];
   let directCustomers = [];
@@ -347,6 +803,28 @@
     { code: "ordine_fatto", label: "Ordine fatto" },
     { code: "annullato", label: "Ordine annullato" },
   ];
+  const boardStatusLabels = () => new Map([...(state.statuses || []), ...directStatuses].map(status => [status.code, status.label]));
+  const mobileBoardQuery = window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)");
+
+  function statusTone(statusCode, orders = []) {
+    const code = (statusCode || "").trim();
+    if (code === "annullato" || code === "salta_giro" || code === "cancellato") return "danger";
+    if (code === "richiamare" || code === "non_risponde" || code === "chiama_lui") return "warning";
+    if (code === "evaso" || orders.some(order => order.status === "evaso")) return "info";
+    if (code === "ordine_fatto" || code === "listato" || code === "acquisito" || orders.some(order => !["annullato", "cancellato"].includes(order.status || ""))) return "success";
+    return "neutral";
+  }
+
+  function statusLabel(statusCode, fallback = "") {
+    return boardStatusLabels().get(statusCode) || fallback || statusCode || "Da chiamare";
+  }
+
+  function mobileSummary(name, statusText) {
+    return `<div class="route-board-mobile-summary" aria-hidden="true">
+      <div class="route-board-mobile-summary__name">${esc(name)}</div>
+      <div class="route-board-mobile-summary__status">${esc(statusText)}</div>
+    </div>`;
+  }
 
   async function api(url, options = {}) {
     const res = await fetch(url, { credentials: "same-origin", headers: { "Content-Type": "application/json", ...(options.headers || {}) }, ...options });
@@ -414,6 +892,69 @@
     return [...(state.unmatched_orders || []), ...fromRows, ...fromDirect].find(order => String(order.id) === String(orderId));
   }
 
+  function interactiveTarget(target) {
+    return Boolean(target.closest("button, a, input, select, textarea, label, [data-action]"));
+  }
+
+  function originalRowForDetail() {
+    const source = document.getElementById("routeBoardDetailBody").dataset.source;
+    const id = document.getElementById("routeBoardDetailBody").dataset.rowId;
+    if (source === "direct") return document.querySelector(`#directOrders tr[data-direct-customer-id="${CSS.escape(id)}"]`);
+    return document.querySelector(`#boardRows tr[data-customer-id="${CSS.escape(id)}"]`);
+  }
+
+  function cloneDetailSection(label, cell) {
+    const section = document.createElement("section");
+    section.className = "route-board-detail-section";
+    section.innerHTML = `<div class="route-board-detail-section__label">${esc(label)}</div>`;
+    const content = document.createElement("div");
+    content.appendChild(cell.cloneNode(true));
+    section.appendChild(content);
+    return section;
+  }
+
+  function openRouteBoardDetail(row, source = "route") {
+    if (!mobileBoardQuery.matches) return;
+    const title = row.querySelector(".route-board-customer, .route-board-direct-customer, .route-board-mobile-summary__name")?.textContent.trim() || "Dettaglio cliente";
+    const status = row.dataset.boardStatusLabel || "";
+    const body = document.getElementById("routeBoardDetailBody");
+    const labels = source === "direct"
+      ? ["Cliente", "Contatti", "Stato ordine", "Lista", "Ordini", "Azioni"]
+      : ["Cliente", "Contatti", "Stato giro", "Lista", "Ordini", "Azioni"];
+    body.innerHTML = "";
+    body.dataset.source = source;
+    body.dataset.rowId = source === "direct" ? (row.dataset.directCustomerId || "") : (row.dataset.customerId || "");
+    row.querySelectorAll(":scope > td").forEach((cell, index) => body.appendChild(cloneDetailSection(labels[index] || "Dettaglio", cell)));
+    document.getElementById("routeBoardDetailTitle").textContent = title;
+    document.getElementById("routeBoardDetailStatus").textContent = status;
+    routeBoardDetailModal.show();
+  }
+
+  function proxyDetailControl(control) {
+    const row = originalRowForDetail();
+    if (!row) return;
+    let selector = "";
+    if (control.dataset.action) selector = `[data-action="${CSS.escape(control.dataset.action)}"]`;
+    if (control.dataset.orderId) selector += `[data-order-id="${CSS.escape(control.dataset.orderId)}"]`;
+    if (control.dataset.contactId) selector += `[data-contact-id="${CSS.escape(control.dataset.contactId)}"]`;
+    if (control.dataset.directListDone !== undefined) selector = "[data-direct-list-done]";
+    if (!selector) return;
+    const original = row.querySelector(selector);
+    if (!original) return;
+    if (control.matches("select")) {
+      original.value = control.value;
+      original.dispatchEvent(new Event("change", { bubbles: true }));
+      return;
+    }
+    if (control.matches("input[type='checkbox']")) {
+      original.checked = control.checked;
+      original.dispatchEvent(new Event("change", { bubbles: true }));
+      return;
+    }
+    routeBoardDetailModal.hide();
+    original.click();
+  }
+
   function renderUnmatchedOrders() {
     const orders = state.unmatched_orders || [];
     unmatchedOrdersCount.textContent = String(orders.length);
@@ -456,6 +997,9 @@
           </span>
         </div>`).join("") : `<span class="text-muted small">Nessun numero</span>`;
       const statusOptions = state.statuses.map(status => `<option value="${esc(status.code)}" ${entry.status === status.code ? "selected" : ""}>${esc(status.label)}</option>`).join("");
+      const rowStatus = entry.status || "da_chiamare";
+      const rowStatusLabel = statusLabel(rowStatus);
+      const rowTone = statusTone(rowStatus, customer.orders || []);
       const alertBadge = customer.alerts && customer.alerts.length ? `<span title="${esc(alertsTitle(customer.alerts))}" class="ms-1">⚠</span>` : "";
       const hasOrders = (customer.orders || []).length > 0;
       const allDocumentsIssued = hasOrders && (customer.orders || []).every(order => order.document_issued);
@@ -463,8 +1007,8 @@
         ? `<div class="mt-1"><span class="badge ${allDocumentsIssued ? "text-bg-success" : "text-bg-warning"}">${allDocumentsIssued ? "documenti emessi" : "doc da emettere"}</span></div>`
         : "";
       return `
-        <tr data-customer-id="${customer.id}">
-          <td><span class="route-board-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span>${documentBadge}<div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div></td>
+        <tr data-customer-id="${customer.id}" data-board-tone="${esc(rowTone)}" data-board-status-label="${esc(rowStatusLabel)}">
+          <td>${mobileSummary(customer.display, rowStatusLabel)}<span class="route-board-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span>${documentBadge}<div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div></td>
           <td>${phones}<button class="btn btn-outline-info btn-sm mt-1" type="button" data-action="contact-add"><i class="fa-solid fa-plus"></i> Contatto</button></td>
           <td><select class="form-select form-select-sm" data-action="status">${statusOptions}</select></td>
           <td class="text-center"><input class="form-check-input" type="checkbox" data-action="listDone" ${entry.list_done ? "checked" : ""}></td>
@@ -544,11 +1088,14 @@
           </span>
         </div>`).join("") : `<span class="text-muted small">Nessun numero</span>`;
       const latest = orders[0] || {};
+      const rowStatus = latest.board_status || latest.status || (orders.length ? "ordine_fatto" : "da_chiamare");
+      const rowStatusLabel = statusLabel(rowStatus, latest.status_label || "");
+      const rowTone = statusTone(rowStatus, orders);
       const statusOptions = statusSelectOptions(latest, directStatuses);
       const alertBadge = customer.alerts && customer.alerts.length ? `<span title="${esc(alertsTitle(customer.alerts))}" class="ms-1">⚠</span>` : "";
       return `
-        <tr data-direct-customer-id="${esc(customer.id || "")}">
-          <td><span class="route-board-direct-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span>${orders.length ? documentBadge : ""}<div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div></td>
+        <tr data-direct-customer-id="${esc(customer.id || "")}" data-board-tone="${esc(rowTone)}" data-board-status-label="${esc(rowStatusLabel)}">
+          <td>${mobileSummary(customer.display, rowStatusLabel)}<span class="route-board-direct-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span>${orders.length ? documentBadge : ""}<div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div></td>
           <td>${phones}<button class="btn btn-outline-info btn-sm mt-1" type="button" data-action="direct-contact-add" ${customer.id ? "" : "disabled title='Cliente non collegato a una anagrafica'"}><i class="fa-solid fa-plus"></i> Contatto</button></td>
           <td>${latest.id ? `<select class="form-select form-select-sm" data-action="direct-latest-status" data-order-id="${latest.id}">${statusOptions}</select>` : '<span class="text-muted small">-</span>'}</td>
           <td class="text-center"><input class="form-check-input" type="checkbox" data-direct-list-done ${latest.status === "listato" ? "checked" : ""} ${latest.id ? "" : "disabled"}></td>
@@ -607,7 +1154,11 @@
 
   rowsEl.addEventListener("click", async event => {
     const button = event.target.closest("button[data-action]");
-    if (!button) return;
+    if (!button) {
+      const detailRow = event.target.closest("tr[data-customer-id]");
+      if (detailRow && mobileBoardQuery.matches && !interactiveTarget(event.target)) openRouteBoardDetail(detailRow, "route");
+      return;
+    }
     const row = button.closest("tr[data-customer-id]");
     const customerId = row ? row.dataset.customerId : null;
     const customer = customerId ? customerById(customerId) : null;
@@ -659,6 +1210,11 @@
   document.getElementById("directOrders").addEventListener("click", async event => {
     const button = event.target.closest("button[data-action]");
     if (!button) {
+      const detailRow = event.target.closest("tr[data-direct-customer-id]");
+      if (detailRow && mobileBoardQuery.matches && !interactiveTarget(event.target)) {
+        openRouteBoardDetail(detailRow, "direct");
+        return;
+      }
       if (event.target.closest("[data-direct-add]")) {
         document.getElementById("newDirectOrderBtn").click();
       }
@@ -726,6 +1282,15 @@
         await loadDirectOrders();
       }
     } catch (err) { alert(err.message); }
+  });
+
+  document.getElementById("routeBoardDetailBody").addEventListener("change", event => {
+    const control = event.target.closest("select, input[type='checkbox']");
+    if (control) proxyDetailControl(control);
+  });
+  document.getElementById("routeBoardDetailBody").addEventListener("click", event => {
+    const control = event.target.closest("button[data-action]");
+    if (control) proxyDetailControl(control);
   });
 
   document.getElementById("noteSaveBtn").addEventListener("click", async () => {
