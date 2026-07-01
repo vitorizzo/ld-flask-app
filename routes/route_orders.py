@@ -934,10 +934,25 @@ def api_order_customer(order_id):
     order.customer_display = _label_registry(registry)
     order.customer_key = registry.source_code or str(registry.id)
     requested_route_id = data.get("route_id")
-    if requested_route_id and not order.route_id:
+    if requested_route_id:
         route = DeliveryRoute.query.filter_by(id=requested_route_id, is_active=True).first()
         if route:
             order.route_id = route.id
+            link = DeliveryRouteCustomer.query.filter_by(route_id=route.id, registry_id=registry.id).first()
+            if link:
+                link.is_active = True
+            else:
+                max_sort = (
+                    db.session.query(db.func.coalesce(db.func.max(DeliveryRouteCustomer.sort_order), -1))
+                    .filter_by(route_id=route.id, is_active=True)
+                    .scalar()
+                )
+                db.session.add(DeliveryRouteCustomer(
+                    route_id=route.id,
+                    registry_id=registry.id,
+                    sort_order=int(max_sort or -1) + 1,
+                    is_active=True,
+                ))
     db.session.add(SlackOrderEvent(
         order_id=order.id,
         type="customer_link",

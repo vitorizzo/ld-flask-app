@@ -202,13 +202,14 @@ window.kioskState = {
   }
 
   function closeActiveCardDropdown(exceptToggle = null) {
-    if (!activeCardDropdown || activeCardDropdown.toggle === exceptToggle) return;
+    if (!activeCardDropdown || activeCardDropdown.toggle === exceptToggle) return false;
     const dropdown = window.bootstrap
       ? window.bootstrap.Dropdown.getInstance(activeCardDropdown.toggle)
       : null;
     if (dropdown) dropdown.hide();
     if (activeCardDropdown.restore) activeCardDropdown.restore();
     activeCardDropdown = null;
+    return true;
   }
 
   async function setOrderStatus(orderId, targetCode) {
@@ -495,13 +496,17 @@ window.kioskState = {
         ev.stopPropagation();
         contextMenuPoint = { x: ev.clientX, y: ev.clientY };
       }
-      closeActiveCardDropdown(ddToggle);
+      const closedPrevious = closeActiveCardDropdown(ddToggle);
       const dropdown = window.bootstrap.Dropdown.getOrCreateInstance(ddToggle, {
         autoClose: true,
         boundary: document.body,
       });
-      dropdown.show();
-      div.classList.add("menu-open");
+      const showDropdown = () => {
+        dropdown.show();
+        div.classList.add("menu-open");
+      };
+      if (closedPrevious) window.setTimeout(showDropdown, 0);
+      else showDropdown();
     }
 
     div.addEventListener("click", (ev) => {
@@ -642,6 +647,13 @@ window.kioskState = {
         if (!ddMenu) return;
         document.body.appendChild(ddMenu);
         ddMenu.classList.add("kiosk-floating-menu");
+        if (window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)").matches) {
+          ddMenu.style.left = "";
+          ddMenu.style.top = "";
+          ddMenu.style.right = "";
+          ddMenu.style.bottom = "";
+          return;
+        }
         const anchor = contextMenuPoint || (() => {
           const rect = div.getBoundingClientRect();
           return { x: rect.right - 8, y: rect.top + 28 };

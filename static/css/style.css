@@ -1007,10 +1007,20 @@ h1,h2,h3,h4{
     }
 
     .navbar-collapse .dropdown-menu {
+        position: static !important;
+        inset: auto !important;
+        transform: none !important;
+        display: none;
+        width: 100%;
         margin: 8px 0 8px 14px !important;
         padding: 0 !important;
         border: 0;
         background: transparent;
+    }
+
+    .navbar-collapse .dropdown-menu.show {
+        display: grid !important;
+        gap: 8px;
     }
 
     .navbar-collapse > .navbar-nav:last-child .dropdown-menu {

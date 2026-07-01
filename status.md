@@ -1925,3 +1925,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - il menu contestuale della bacheca chiude il dropdown gia' aperto prima di mostrare quello nuovo;
   - su mobile/touch il menu contestuale della bacheca diventa un pannello fixed in basso, con font e righe piu' grandi;
   - asset bacheca versionati a `mobile-board6`; verifiche: graffe CSS bilanciate, `node --check` su plancia estratta e `kiosk_overview.js`, `git diff --check`.
+- 2026-07-01 fix iterazione scroll/menu:
+  - associazione ordini da plancia: se viene scelto un cliente fuori dal giro, il cliente viene agganciato al giro e l'ordine prende sempre la route selezionata, cosi' esce dai non associati;
+  - layout plancia: rimossa la compressione flex che riduceva i clienti del giro a una riga quando il pannello non associati era lungo;
+  - bacheca: apertura di un nuovo menu contestuale chiude il precedente e apre subito il nuovo; CSS floating applicato anche dopo lo spostamento nel `body`;
+  - drawer mobile: i submenu principali tornano nel flusso del menu con `position: static`, evitando sovrapposizioni con le voci sotto; asset globali `mobile11`, bacheca `mobile-board7`.
