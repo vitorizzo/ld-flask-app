@@ -1920,3 +1920,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - il riepilogo mobile e' stato spostato dentro la prima cella della tabella per evitare markup tabellare fragile e doppie righe;
   - il menu contestuale della bacheca ordini viene spostato temporaneamente nel `body` come floating menu a posizione fissa, cosi' non viene tagliato dai box stato;
   - asset bacheca versionati a `mobile-board5`; verifiche: graffe CSS bilanciate, `node --check` su plancia estratta e `kiosk_overview.js`, `git diff --check`.
+- 2026-07-01 fix scroll/menu plancia-bacheca:
+  - la plancia ordini ora mantiene scroll verticale sull'area attiva e sul pannello ordini da associare, evitando che testi lunghi blocchino accesso ad associazione/clienti giro;
+  - il menu contestuale della bacheca chiude il dropdown gia' aperto prima di mostrare quello nuovo;
+  - su mobile/touch il menu contestuale della bacheca diventa un pannello fixed in basso, con font e righe piu' grandi;
+  - asset bacheca versionati a `mobile-board6`; verifiche: graffe CSS bilanciate, `node --check` su plancia estratta e `kiosk_overview.js`, `git diff --check`.

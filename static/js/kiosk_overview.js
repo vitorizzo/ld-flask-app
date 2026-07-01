@@ -22,6 +22,7 @@ window.kioskState = {
 
   let refreshTimer = null;
   let deliveryScheduleState = { routes: [], rules: [], weekdays: [], frequencies: [] };
+  let activeCardDropdown = null;
 
   // Drag context (single dragged card at a time)
   let dragCtx = {
@@ -198,6 +199,16 @@ window.kioskState = {
     const meta = kioskState.statusMeta;
     if (!Array.isArray(meta) || !meta.length) return [];
     return meta.filter((s) => s.code !== currentCode);
+  }
+
+  function closeActiveCardDropdown(exceptToggle = null) {
+    if (!activeCardDropdown || activeCardDropdown.toggle === exceptToggle) return;
+    const dropdown = window.bootstrap
+      ? window.bootstrap.Dropdown.getInstance(activeCardDropdown.toggle)
+      : null;
+    if (dropdown) dropdown.hide();
+    if (activeCardDropdown.restore) activeCardDropdown.restore();
+    activeCardDropdown = null;
   }
 
   async function setOrderStatus(orderId, targetCode) {
@@ -484,6 +495,7 @@ window.kioskState = {
         ev.stopPropagation();
         contextMenuPoint = { x: ev.clientX, y: ev.clientY };
       }
+      closeActiveCardDropdown(ddToggle);
       const dropdown = window.bootstrap.Dropdown.getOrCreateInstance(ddToggle, {
         autoClose: true,
         boundary: document.body,
@@ -646,10 +658,12 @@ window.kioskState = {
       ddToggle.addEventListener("shown.bs.dropdown", () => {
         div.classList.add("menu-open");
         positionFloatingMenu();
+        activeCardDropdown = { toggle: ddToggle, restore: restoreFloatingMenu };
       });
       ddToggle.addEventListener("hidden.bs.dropdown", () => {
         div.classList.remove("menu-open");
         restoreFloatingMenu();
+        if (activeCardDropdown && activeCardDropdown.toggle === ddToggle) activeCardDropdown = null;
       });
     }
 

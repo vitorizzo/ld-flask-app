@@ -14,6 +14,9 @@
   }
   .route-board-section.page-shell {
     padding: 18px;
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
   }
   .route-board-top { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto auto; gap: .75rem; align-items: end; }
   .route-board-mode { display: inline-flex; gap: .25rem; padding: .25rem; background: #f1f3f5; border-radius: 8px; }
@@ -27,6 +30,9 @@
     display: flex !important;
     flex-direction: column;
     gap: 12px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
   .route-board-section.page-shell .route-board-panel {
     flex: 1 1 auto;
@@ -97,10 +103,10 @@
   .route-board-actions .btn { min-width: 2.1rem; }
   .route-board-empty { color: #6c757d; padding: .75rem; }
   .route-board-bulk { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
-  #unmatchedOrdersPanel { flex: 0 0 auto; width: 100%; max-width: 100%; overflow: hidden; }
-  .route-board-unmatched { display: grid; gap: .5rem; width: 100%; max-width: 100%; min-width: 0; overflow: hidden; }
+  #unmatchedOrdersPanel { flex: 0 0 auto; width: 100%; max-width: 100%; max-height: min(42vh, 420px); overflow: auto; }
+  .route-board-unmatched { display: grid; gap: .5rem; width: 100%; max-width: 100%; min-width: 0; overflow: visible; }
   .route-board-unmatched__item { border: 1px solid #f0c36d; border-radius: 8px; background: #fff8e5; padding: .65rem; display: flex; flex-direction: column; gap: .65rem; align-items: stretch; width: 100%; max-width: 100%; min-width: 0; overflow: hidden; box-sizing: border-box; }
-  .route-board-unmatched__body { width: 100%; max-width: 100%; min-width: 0; overflow: hidden; }
+  .route-board-unmatched__body { width: 100%; max-width: 100%; min-width: 0; overflow: visible; }
   .route-board-unmatched__title { font-weight: 700; color: #5c3d00; }
   .route-board-unmatched .route-board-order__note,
   .route-board-unmatched .route-board-order__meta { max-width: 100%; overflow: hidden; overflow-wrap: anywhere; word-break: break-all; white-space: pre-wrap; }
@@ -124,6 +130,10 @@
       border: 1px solid rgba(255, 255, 255, .26);
       box-shadow: 0 18px 42px rgba(0, 0, 0, .22);
       overflow: hidden;
+    }
+    #unmatchedOrdersPanel {
+      max-height: 36vh;
+      -webkit-overflow-scrolling: touch;
     }
     .route-board-section.page-shell > .route-board.active,
     .route-board-section.page-shell > .direct-board.active,
