@@ -1930,3 +1930,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - layout plancia: rimossa la compressione flex che riduceva i clienti del giro a una riga quando il pannello non associati era lungo;
   - bacheca: apertura di un nuovo menu contestuale chiude il precedente e apre subito il nuovo; CSS floating applicato anche dopo lo spostamento nel `body`;
   - drawer mobile: i submenu principali tornano nel flusso del menu con `position: static`, evitando sovrapposizioni con le voci sotto; asset globali `mobile11`, bacheca `mobile-board7`.
+- 2026-07-02 ritocco menu contestuale bacheca mobile:
+  - rimosso il comportamento bottom-sheet del menu contestuale su touch: il menu resta in overlay vicino alla card madre;
+  - aggiunti stile LDApp, bordo `info`, freccia di aggancio alla card, ombra piu' marcata e dimensioni touch piu' grandi per S25;
+  - asset bacheca versionati a `mobile-board8`; verifiche: `node --check static/js/kiosk_overview.js`, render template bacheca, `git diff --check`.

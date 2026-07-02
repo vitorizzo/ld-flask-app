@@ -640,6 +640,7 @@ window.kioskState = {
         ddMenu.style.right = "";
         ddMenu.style.bottom = "";
         ddMenu.style.position = "";
+        ddMenu.classList.remove("is-touch-menu");
         ddParent.appendChild(ddMenu);
         contextMenuPoint = null;
       };
@@ -647,21 +648,19 @@ window.kioskState = {
         if (!ddMenu) return;
         document.body.appendChild(ddMenu);
         ddMenu.classList.add("kiosk-floating-menu");
-        if (window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)").matches) {
-          ddMenu.style.left = "";
-          ddMenu.style.top = "";
-          ddMenu.style.right = "";
-          ddMenu.style.bottom = "";
-          return;
-        }
+        const isTouchMenu = window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)").matches;
+        ddMenu.classList.toggle("is-touch-menu", isTouchMenu);
         const anchor = contextMenuPoint || (() => {
           const rect = div.getBoundingClientRect();
-          return { x: rect.right - 8, y: rect.top + 28 };
+          return { x: rect.left + Math.min(rect.width * 0.58, rect.width - 16), y: rect.top + Math.min(56, rect.height * 0.5) };
         })();
-        const margin = 8;
+        const margin = isTouchMenu ? 14 : 8;
         const menuRect = ddMenu.getBoundingClientRect();
-        const left = Math.min(Math.max(anchor.x, margin), window.innerWidth - menuRect.width - margin);
-        const top = Math.min(Math.max(anchor.y, margin), window.innerHeight - menuRect.height - margin);
+        const cardRect = div.getBoundingClientRect();
+        const preferredLeft = isTouchMenu ? cardRect.left + 18 : anchor.x;
+        const preferredTop = isTouchMenu ? cardRect.top + 28 : anchor.y;
+        const left = Math.min(Math.max(preferredLeft, margin), window.innerWidth - menuRect.width - margin);
+        const top = Math.min(Math.max(preferredTop, margin), window.innerHeight - menuRect.height - margin);
         ddMenu.style.left = `${left}px`;
         ddMenu.style.top = `${top}px`;
         ddMenu.style.right = "auto";
