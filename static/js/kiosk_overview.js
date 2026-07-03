@@ -212,6 +212,18 @@ window.kioskState = {
     return true;
   }
 
+  document.addEventListener("pointerdown", (ev) => {
+    if (!activeCardDropdown) return;
+    const menu = activeCardDropdown.menu;
+    const card = activeCardDropdown.card;
+    if ((menu && menu.contains(ev.target)) || (card && card.contains(ev.target))) return;
+    closeActiveCardDropdown();
+  }, true);
+
+  document.addEventListener("keydown", (ev) => {
+    if (ev.key === "Escape") closeActiveCardDropdown();
+  });
+
   async function setOrderStatus(orderId, targetCode) {
     const res = await fetch(`/kiosk/api/order/${orderId}/set-status`, {
       method: "POST",
@@ -496,17 +508,13 @@ window.kioskState = {
         ev.stopPropagation();
         contextMenuPoint = { x: ev.clientX, y: ev.clientY };
       }
-      const closedPrevious = closeActiveCardDropdown(ddToggle);
+      closeActiveCardDropdown(ddToggle);
       const dropdown = window.bootstrap.Dropdown.getOrCreateInstance(ddToggle, {
         autoClose: true,
         boundary: document.body,
       });
-      const showDropdown = () => {
-        dropdown.show();
-        div.classList.add("menu-open");
-      };
-      if (closedPrevious) window.setTimeout(showDropdown, 0);
-      else showDropdown();
+      dropdown.show();
+      div.classList.add("menu-open");
     }
 
     div.addEventListener("click", (ev) => {
@@ -640,7 +648,10 @@ window.kioskState = {
         ddMenu.style.right = "";
         ddMenu.style.bottom = "";
         ddMenu.style.position = "";
+        ddMenu.style.transform = "";
+        ddMenu.style.inset = "";
         ddMenu.classList.remove("is-touch-menu");
+        ddMenu.removeAttribute("data-bs-popper");
         ddParent.appendChild(ddMenu);
         contextMenuPoint = null;
       };
@@ -665,11 +676,13 @@ window.kioskState = {
         ddMenu.style.top = `${top}px`;
         ddMenu.style.right = "auto";
         ddMenu.style.bottom = "auto";
+        ddMenu.style.transform = "none";
+        ddMenu.style.inset = "auto";
       };
       ddToggle.addEventListener("shown.bs.dropdown", () => {
         div.classList.add("menu-open");
         positionFloatingMenu();
-        activeCardDropdown = { toggle: ddToggle, restore: restoreFloatingMenu };
+        activeCardDropdown = { toggle: ddToggle, menu: ddMenu, card: div, restore: restoreFloatingMenu };
       });
       ddToggle.addEventListener("hidden.bs.dropdown", () => {
         div.classList.remove("menu-open");

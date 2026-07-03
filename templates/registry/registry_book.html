@@ -3,21 +3,20 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css', v=app_version ~ '-book1') }}">
 {% endblock %}
 
 {% block content %}
 <section class="welcome-section page-shell registry-tools-section registry-book-page" data-kind="{{ kind }}">
   <div class="container-fluid h-100 d-flex flex-column">
-    <div class="registry-book-header d-flex flex-wrap justify-content-between align-items-end gap-3 mb-3">
+    <div class="registry-book-header">
       <div>
         <h1 class="h4 mb-1">{{ title }}</h1>
-        <div class="text-muted small">Rubrica contatti ordinata alfabeticamente, con associazioni multiple e ricerca rapida.</div>
       </div>
-      <div class="registry-book-tools d-flex flex-wrap gap-2 align-items-center">
+      <div class="registry-book-tools">
         <div class="input-group registry-book-search">
           <input class="form-control" id="registrySearch" autocomplete="off" placeholder="Nome, P.IVA, codice, contatto">
-          <button class="btn btn-outline-secondary" id="registrySearchBtn" type="button">Cerca</button>
+          <button class="btn btn-info" id="registrySearchBtn" type="button">Cerca</button>
         </div>
         <button class="btn btn-outline-secondary" type="button" id="registryResetBtn">Tutti</button>
       </div>
@@ -30,10 +29,10 @@
         </div>
       </div>
 
-      <aside class="registry-book-index" aria-label="Indice alfabetico">
-        <a href="#letter-#" class="registry-book-index__item">#</a>
+      <aside class="registry-book-index" id="registryBookIndex" aria-label="Indice alfabetico">
+        <button type="button" class="registry-book-index__item" data-letter="#">#</button>
         {% for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ" %}
-          <a href="#letter-{{ letter }}" class="registry-book-index__item">{{ letter }}</a>
+          <button type="button" class="registry-book-index__item" data-letter="{{ letter }}">{{ letter }}</button>
         {% endfor %}
       </aside>
     </div>
@@ -94,13 +93,29 @@
 (() => {
   const kind = document.querySelector(".registry-book-page")?.dataset.kind || "customer";
   const listEl = document.getElementById("registryBookList");
+  const indexEl = document.getElementById("registryBookIndex");
   const searchInput = document.getElementById("registrySearch");
   const searchBtn = document.getElementById("registrySearchBtn");
   const resetBtn = document.getElementById("registryResetBtn");
   const modalEl = document.getElementById("contactLinkModal");
-  const modal = modalEl ? new bootstrap.Modal(modalEl) : null;
+  let modal = null;
   const saveBtn = document.getElementById("contactSaveBtn");
   let registries = [];
+
+  if (modalEl) {
+    if (modalEl.parentElement !== document.body) {
+      document.body.appendChild(modalEl);
+    }
+    modalEl.addEventListener("show.bs.modal", () => {
+      document.body.classList.add("registry-tools-modal-open");
+    });
+    modalEl.addEventListener("hidden.bs.modal", () => {
+      if (!document.querySelector(".registry-tools-modal.show")) {
+        document.body.classList.remove("registry-tools-modal-open");
+      }
+    });
+    modal = new bootstrap.Modal(modalEl);
+  }
 
   const esc = value => String(value || "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
 
@@ -109,8 +124,8 @@
   }
 
   function groupKey(label) {
-    const letter = (label || "").trim().charAt(0).toUpperCase();
-    return /[A-ZÀ-Ü]/.test(letter) ? letter : "#";
+    const letter = (label || "").trim().charAt(0).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+    return /^[A-Z]$/.test(letter) ? letter : "#";
   }
 
   function contactPoints(contact) {
@@ -178,7 +193,7 @@
     });
 
     listEl.innerHTML = letters.map(letter => `
-      <section class="registry-letter-group" id="letter-${letter}">
+      <section class="registry-letter-group" id="letter-${letter}" data-letter-group="${letter}">
         <div class="registry-letter-group__head">${letter}</div>
         <div class="registry-letter-group__body">
           ${groups.get(letter).map(reg => {
@@ -186,16 +201,28 @@
             const legacy = reg.legacy_contacts || [];
             return `
               <article class="registry-card" data-registry-id="${reg.id}">
-                <div class="registry-card__head">
+                <button class="registry-card__head" type="button" data-registry-toggle="${reg.id}" aria-expanded="false">
                   <div>
                     <div class="registry-card__title">${esc(displayLabel(reg))}</div>
                     <div class="registry-card__meta">
                       ${esc([reg.source_code, reg.vat_number, [reg.city, reg.province].filter(Boolean).join(" ")].filter(Boolean).join(" · "))}
                     </div>
                   </div>
-                  <button class="btn btn-sm btn-info" type="button" data-contact-add="${reg.id}">Aggiungi contatto</button>
-                </div>
-                <div class="registry-card__body">
+                  <span class="registry-card__chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
+                </button>
+                <div class="registry-card__body" hidden>
+                  <div class="registry-card__actions">
+                    <button class="btn btn-sm btn-info" type="button" data-contact-add="${reg.id}"><i class="fa-solid fa-plus"></i> Contatto</button>
+                  </div>
+                  <div class="registry-card__section registry-card__section--data">
+                    <div class="registry-card__section-title">Dati anagrafici</div>
+                    <div class="registry-data-grid">
+                      ${reg.legal_name ? `<div><span>Ragione sociale</span><strong>${esc(reg.legal_name)}</strong></div>` : ""}
+                      ${reg.address || reg.city ? `<div><span>Indirizzo</span><strong>${esc([reg.address, reg.zip_code, reg.city, reg.province].filter(Boolean).join(" "))}</strong></div>` : ""}
+                      ${reg.vat_number ? `<div><span>P.IVA</span><strong>${esc(reg.vat_number)}</strong></div>` : ""}
+                      ${reg.tax_code ? `<div><span>Codice fiscale</span><strong>${esc(reg.tax_code)}</strong></div>` : ""}
+                    </div>
+                  </div>
                   <div class="registry-card__section">
                     <div class="registry-card__section-title">Contatti associati</div>
                     ${contacts.length ? contacts.map(link => registryContactHtml(link, reg.id)).join("") : `<div class="text-muted small">Nessun contatto associato.</div>`}
@@ -304,6 +331,19 @@
   }
 
   listEl.addEventListener("click", async ev => {
+    const toggle = ev.target.closest("[data-registry-toggle]");
+    if (toggle) {
+      const card = toggle.closest(".registry-card");
+      const body = card?.querySelector(".registry-card__body");
+      const isOpen = !card.classList.contains("is-open");
+      card.classList.toggle("is-open", isOpen);
+      if (body) body.hidden = !isOpen;
+      toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
+      if (isOpen && window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)").matches) {
+        window.setTimeout(() => card.scrollIntoView({ block: "start", behavior: "smooth" }), 60);
+      }
+      return;
+    }
     const addBtn = ev.target.closest("[data-contact-add]");
     if (addBtn) {
       openContactModal(addBtn.dataset.contactAdd);
@@ -326,6 +366,15 @@
         alert(err.message || "Errore dissociazione");
       }
     }
+  });
+
+  indexEl.addEventListener("click", ev => {
+    const item = ev.target.closest("[data-letter]");
+    if (!item) return;
+    const target = document.getElementById(`letter-${item.dataset.letter}`);
+    if (!target) return;
+    target.scrollIntoView({ block: "start", behavior: "smooth" });
+    indexEl.querySelectorAll(".registry-book-index__item").forEach(el => el.classList.toggle("active", el === item));
   });
 
   searchBtn.addEventListener("click", () => loadData().catch(err => {

@@ -65,7 +65,7 @@ def _registry_to_dict(registry, include_contacts=False, include_routes=False):
     return data
 
 
-def _search_registries(kind, q="", limit=80):
+def _search_registries(kind, q="", limit=None):
     query = BusinessRegistry.query.filter(
         BusinessRegistry.kind == kind,
         BusinessRegistry.is_active.is_(True),
@@ -84,6 +84,8 @@ def _search_registries(kind, q="", limit=80):
             BusinessRegistry.source_code.ilike(like),
             BusinessRegistryContact.value.ilike(like),
         ))
+    if limit is None:
+        limit = 120 if q else 2000
     return (
         query
         .order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc())

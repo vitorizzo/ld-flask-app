@@ -1934,3 +1934,15 @@ Performance apertura giornata Agenda 2026-06-13:
   - rimosso il comportamento bottom-sheet del menu contestuale su touch: il menu resta in overlay vicino alla card madre;
   - aggiunti stile LDApp, bordo `info`, freccia di aggancio alla card, ombra piu' marcata e dimensioni touch piu' grandi per S25;
   - asset bacheca versionati a `mobile-board8`; verifiche: `node --check static/js/kiosk_overview.js`, render template bacheca, `git diff --check`.
+- 2026-07-02 fix comportamento menu contestuale bacheca:
+  - rimosso il ritardo apertura dopo chiusura del menu precedente: un nuovo long press/click destro apre subito il menu della nuova card;
+  - aggiunta chiusura esplicita con click/tap fuori dal menu e con tasto Esc;
+  - forzato reset di `transform/inset` Popper quando il menu viene spostato nel `body`, e aumentata ulteriormente la scala touch S25; asset `mobile-board9`.
+- 2026-07-03 prima bozza restyling rubrica:
+  - `registry_book.html` mostra le anagrafiche come righe compatte: nome/metadati visibili, dettaglio espandibile al click con dati anagrafici e contatti;
+  - indice alfabetico trasformato in pulsanti che scrollano il contenitore interno della rubrica, non la pagina;
+  - `registry_tools.css` allinea la rubrica al look LDApp, rende l'indice a tutta altezza visibile e scala font/target touch per mobile e S25;
+  - API rubrica: senza ricerca il limite sale a 2000 record, con ricerca a 120; verifica JS inline, `py_compile routes/registry.py`, render template.
+- 2026-07-03 fix rubrica modale/indice:
+  - la modale associa contatti viene spostata in `document.body` prima di creare l'istanza Bootstrap, evitando problemi di focus/backdrop;
+  - l'indice alfabetico usa `scrollIntoView` sulla sezione lettera, rendendo lo scroll piu' affidabile nel contenitore interno; verifiche: JS inline, render template, `git diff --check`.
