@@ -1946,3 +1946,6 @@ Performance apertura giornata Agenda 2026-06-13:
 - 2026-07-03 fix rubrica modale/indice:
   - la modale associa contatti viene spostata in `document.body` prima di creare l'istanza Bootstrap, evitando problemi di focus/backdrop;
   - l'indice alfabetico usa `scrollIntoView` sulla sezione lettera, rendendo lo scroll piu' affidabile nel contenitore interno; verifiche: JS inline, render template, `git diff --check`.
+- 2026-07-03 fix query rubrica:
+  - l'endpoint `/registry/api/registries` non forza piu' `limit=120` quando la ricerca e' vuota: usa il limite esteso della query iniziale, cosi' l'indice alfabetico puo' coprire tutte le lettere;
+  - la risposta include `count` e `limited` per distinguere lista completa e risultati filtrati; verifica: `py_compile routes/registry.py`, `git diff --check`.

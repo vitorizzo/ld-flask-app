@@ -326,10 +326,12 @@ def api_registries_index():
     if kind not in {"customer", "supplier"}:
         return jsonify({"ok": False, "error": "Tipo anagrafica non valido"}), 400
     q = (request.args.get("q") or "").strip()
-    registries = _search_registries(kind, q=q, limit=120)
+    registries = _search_registries(kind, q=q, limit=120 if q else None)
     return jsonify({
         "ok": True,
         "kind": kind,
+        "count": len(registries),
+        "limited": bool(q),
         "registries": [
             _registry_to_dict(registry, include_contacts=True)
             for registry in registries
