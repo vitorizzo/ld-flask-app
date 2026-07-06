@@ -1984,3 +1984,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - corretto 500 quando `Data consegna` resta su `Nessuna preferenza`: `delivery_option_id=""` viene normalizzato a `None` prima della query su colonna integer;
   - applicata la stessa normalizzazione alle revisioni ordine;
   - verifica reale con POST solo testo: risposta 302, ordine creato e poi rimosso dal DB test; `py_compile`, `git diff --check`.
+- 2026-07-06 fix 413 foto ordine Horeca:
+  - la compressione foto lato browser viene ora attesa al submit: il form mostra `Preparo allegati` e invia solo dopo il ridimensionamento;
+  - abbassato il profilo foto a max 1200px e JPEG qualita' 0.55 per ridurre il rischio di blocco proxy/app;
+  - gli ordini ricevuti sono consultabili dallo staff in home con `Ordini Horeca` o direttamente da `/customer-orders/manage`; verifica `git diff --check`.
