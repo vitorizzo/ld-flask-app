@@ -635,6 +635,41 @@ class User(db.Model, UserMixin):
         return str(self.id)
 
 
+class Event(db.Model):
+    __tablename__ = "events"
+    __table_args__ = (
+        db.Index("ix_events_published_starts_at", "is_published", "starts_at"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(180), nullable=False)
+    starts_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    ends_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    location = db.Column(db.String(180), nullable=True)
+    summary = db.Column(db.Text, nullable=True)
+    details = db.Column(db.Text, nullable=True)
+    contact_info = db.Column(db.String(180), nullable=True)
+    is_published = db.Column(db.Boolean, nullable=False, default=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    created_by = db.relationship("User", backref="created_events")
+
+    @property
+    def display_date(self):
+        return self.starts_at.strftime("%d/%m/%Y")
+
+    @property
+    def display_time(self):
+        return self.starts_at.strftime("%H:%M")
+
+
 class UserRole(db.Model):
     __tablename__ = 'user_roles'
 

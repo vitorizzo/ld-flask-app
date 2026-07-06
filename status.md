@@ -1957,3 +1957,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - sostituito iframe PDF con viewer interno PDF.js: canvas a pagina intera, navigazione pagina precedente/successiva, input pagina e zoom +/-;
   - il pulsante `Apri PDF` resta visibile solo da staff in su per apertura esterna nell'app associata;
   - corretti i nomi file PDF secondo case reale (`LD_Selection_Pro.pdf`, `LD_Selection_Top.pdf`); verifiche customer/staff/admin con test client.
+- 2026-07-06 bozza modulo eventi:
+  - aggiunto modello `Event`, migrazione `7a8b9c0d1e2f_add_events.py`, blueprint `/events` e pulsante `Eventi` in homepage visibile a tutti;
+  - `/events/` mostra i prossimi eventi pubblicati; da `office` in su compare gestione con inserimento, modifica, pubblicazione/nascondimento ed eliminazione;
+  - UI coerente con LDApp e scalata per mobile/S25 tramite `static/css/style.css`;
+  - migrazione applicata in locale; verifiche: `py_compile`, render home, render eventi anonimo senza form, render eventi office+ con form, `git diff --check`.

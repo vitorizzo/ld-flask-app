@@ -47,6 +47,38 @@ Nel flusso Codex locale la lettura avviene direttamente dai file del repository,
 
 ---
 
+# MODULO EVENTI
+
+## Stato Architetturale
+
+Modulo DB-driven per pubblicare degustazioni, partecipazioni ad eventi e attivita' varie.
+
+Route:
+- `/events/` - consultazione pubblica dei prossimi eventi;
+- `POST /events/` - creazione evento, solo `office` in su;
+- `POST /events/<id>/update` - modifica evento, solo `office` in su;
+- `POST /events/<id>/delete` - eliminazione evento, solo `office` in su.
+
+Blueprint:
+- `routes/events.py`, registrato in `tools/app_factory.py` con prefisso `/events`.
+
+Frontend:
+- `templates/events/index.html`
+- stili in `static/css/style.css`
+- pulsante home in `templates/home.html`, visibile a tutti.
+
+Modello:
+- `Event` in `models.py`
+
+Migrazione:
+- `migrations/versions/7a8b9c0d1e2f_add_events.py`
+
+Regola permessi:
+- tutti possono visualizzare gli eventi pubblicati futuri;
+- da `office` in su (`weight >= 40`) possono inserire, modificare, pubblicare/nascondere ed eliminare eventi.
+
+---
+
 # MODULO SPEDIZIONI / CORRIERI / POLEEPO
 
 ## Stato Architetturale

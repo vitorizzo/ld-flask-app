@@ -21,6 +21,7 @@
             <a class="quick-action" href="/wine-cards"><i class="fa-solid fa-wine-bottle"></i><span>Carte vini</span></a>
         {% endif %}
         <a class="quick-action" href="/search/ricerca_x_descrizione"><i class="fa-solid fa-magnifying-glass"></i><span>Informazioni articoli</span></a>
+        <a class="quick-action" href="{{ url_for('events.index') }}"><i class="fa-regular fa-calendar-check"></i><span>Eventi</span></a>
         {% if current_user.is_authenticated and current_user.max_role_weight >= 20 %}
             <a class="quick-action" href="{{ url_for('documents.ld_selection') }}"><i class="fa-regular fa-file-pdf"></i><span>LD Selection</span></a>
         {% else %}

@@ -1,0 +1,168 @@
+{% extends 'base.html' %}
+
+{% block title %}Eventi - LD Enoteca{% endblock %}
+
+{% block content %}
+<section class="events-page">
+    <header class="events-hero">
+        <div>
+            <h1>Eventi</h1>
+            <p>Degustazioni, partecipazioni e attivita' in programma.</p>
+        </div>
+        {% if can_manage_events %}
+            <span class="events-manage-badge">Gestione office</span>
+        {% endif %}
+    </header>
+
+    {% if can_manage_events %}
+        <section class="events-editor" aria-labelledby="events-editor-title">
+            <h2 id="events-editor-title">Nuovo evento</h2>
+            <form method="post" action="{{ url_for('events.create') }}" class="events-form">
+                <div class="events-form-grid">
+                    <label>
+                        <span>Titolo</span>
+                        <input class="form-control" type="text" name="title" required maxlength="180">
+                    </label>
+                    <label>
+                        <span>Inizio</span>
+                        <input class="form-control" type="datetime-local" name="starts_at" required>
+                    </label>
+                    <label>
+                        <span>Fine</span>
+                        <input class="form-control" type="datetime-local" name="ends_at">
+                    </label>
+                    <label>
+                        <span>Luogo</span>
+                        <input class="form-control" type="text" name="location" maxlength="180">
+                    </label>
+                    <label class="events-form-wide">
+                        <span>Descrizione breve</span>
+                        <input class="form-control" type="text" name="summary">
+                    </label>
+                    <label class="events-form-wide">
+                        <span>Dettagli</span>
+                        <textarea class="form-control" name="details" rows="3"></textarea>
+                    </label>
+                    <label>
+                        <span>Info / prenotazioni</span>
+                        <input class="form-control" type="text" name="contact_info" maxlength="180">
+                    </label>
+                    <label class="events-check">
+                        <input class="form-check-input" type="checkbox" name="is_published" value="1" checked>
+                        <span>Pubblicato</span>
+                    </label>
+                </div>
+                <div class="events-actions">
+                    <button class="btn btn-info" type="submit">
+                        <i class="fa-solid fa-plus"></i>
+                        Inserisci evento
+                    </button>
+                </div>
+            </form>
+        </section>
+    {% endif %}
+
+    <section class="events-list" aria-labelledby="events-list-title">
+        <h2 id="events-list-title">Prossimi eventi</h2>
+        {% if upcoming_events %}
+            <div class="event-cards">
+                {% for event in upcoming_events %}
+                    <article class="event-card">
+                        <div class="event-date">
+                            <span>{{ event.starts_at.strftime('%d') }}</span>
+                            <strong>{{ event.starts_at.strftime('%m/%Y') }}</strong>
+                        </div>
+                        <div class="event-main">
+                            <h3>{{ event.title }}</h3>
+                            <div class="event-meta">
+                                <span><i class="fa-regular fa-clock"></i>{{ event.starts_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                                {% if event.location %}
+                                    <span><i class="fa-solid fa-location-dot"></i>{{ event.location }}</span>
+                                {% endif %}
+                            </div>
+                            {% if event.summary %}
+                                <p>{{ event.summary }}</p>
+                            {% endif %}
+                            {% if event.details %}
+                                <div class="event-details">{{ event.details }}</div>
+                            {% endif %}
+                            {% if event.contact_info %}
+                                <div class="event-contact">
+                                    <i class="fa-regular fa-circle-question"></i>
+                                    {{ event.contact_info }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="events-empty">
+                <i class="fa-regular fa-calendar"></i>
+                <p>Non ci sono eventi in programma.</p>
+            </div>
+        {% endif %}
+    </section>
+
+    {% if can_manage_events %}
+        <section class="events-admin-list" aria-labelledby="events-admin-title">
+            <h2 id="events-admin-title">Eventi salvati</h2>
+            {% if managed_events %}
+                <div class="events-admin-items">
+                    {% for event in managed_events %}
+                        <details class="events-admin-item">
+                            <summary>
+                                <span>{{ event.title }}</span>
+                                <small>{{ event.starts_at.strftime('%d/%m/%Y %H:%M') }}{% if not event.is_published %} - bozza{% endif %}</small>
+                            </summary>
+                            <form method="post" action="{{ url_for('events.update', event_id=event.id) }}" class="events-form events-form-compact">
+                                <div class="events-form-grid">
+                                    <label>
+                                        <span>Titolo</span>
+                                        <input class="form-control" type="text" name="title" value="{{ event.title }}" required maxlength="180">
+                                    </label>
+                                    <label>
+                                        <span>Inizio</span>
+                                        <input class="form-control" type="datetime-local" name="starts_at" value="{{ event.starts_at.strftime('%Y-%m-%dT%H:%M') }}" required>
+                                    </label>
+                                    <label>
+                                        <span>Fine</span>
+                                        <input class="form-control" type="datetime-local" name="ends_at" value="{{ event.ends_at.strftime('%Y-%m-%dT%H:%M') if event.ends_at else '' }}">
+                                    </label>
+                                    <label>
+                                        <span>Luogo</span>
+                                        <input class="form-control" type="text" name="location" value="{{ event.location or '' }}" maxlength="180">
+                                    </label>
+                                    <label class="events-form-wide">
+                                        <span>Descrizione breve</span>
+                                        <input class="form-control" type="text" name="summary" value="{{ event.summary or '' }}">
+                                    </label>
+                                    <label class="events-form-wide">
+                                        <span>Dettagli</span>
+                                        <textarea class="form-control" name="details" rows="3">{{ event.details or '' }}</textarea>
+                                    </label>
+                                    <label>
+                                        <span>Info / prenotazioni</span>
+                                        <input class="form-control" type="text" name="contact_info" value="{{ event.contact_info or '' }}" maxlength="180">
+                                    </label>
+                                    <label class="events-check">
+                                        <input class="form-check-input" type="checkbox" name="is_published" value="1" {% if event.is_published %}checked{% endif %}>
+                                        <span>Pubblicato</span>
+                                    </label>
+                                </div>
+                                <div class="events-actions">
+                                    <button class="btn btn-info" type="submit">Salva</button>
+                                    <button class="btn btn-outline-danger" type="submit" form="delete-event-{{ event.id }}">Elimina</button>
+                                </div>
+                            </form>
+                            <form id="delete-event-{{ event.id }}" method="post" action="{{ url_for('events.delete', event_id=event.id) }}"></form>
+                        </details>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="events-muted">Nessun evento inserito.</p>
+            {% endif %}
+        </section>
+    {% endif %}
+</section>
+{% endblock %}
