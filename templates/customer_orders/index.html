@@ -189,6 +189,7 @@
   const fileInputs = Array.from(document.querySelectorAll("[data-file-input]"));
   const forms = Array.from(document.querySelectorAll(".customer-order-form, .customer-order-revision-form"));
   const compressionByForm = new WeakMap();
+  const stopAudioByForm = new WeakMap();
 
   function formatBytes(bytes) {
     if (!bytes) return "0 KB";
@@ -296,9 +297,13 @@
         submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Preparo allegati';
       }
       try {
+        const stopAudio = stopAudioByForm.get(orderForm);
+        if (stopAudio) {
+          await stopAudio();
+        }
         await (compressionByForm.get(orderForm) || Promise.resolve());
         orderForm.dataset.compressionReady = "1";
-        orderForm.requestSubmit();
+        orderForm.submit();
       } catch (err) {
         console.error("Preparazione allegati non riuscita", err);
         if (submitButton) {
@@ -316,7 +321,18 @@
     const audioStatus = form ? form.querySelector("[data-audio-status]") : null;
     let recorder = null;
     let chunks = [];
+    let pendingStopResolve = null;
     if (recordButton && audioInput && navigator.mediaDevices && window.MediaRecorder) {
+    stopAudioByForm.set(form, () => {
+      if (!recorder || recorder.state !== "recording") {
+        return Promise.resolve();
+      }
+      if (audioStatus) audioStatus.textContent = "Chiudo il vocale prima dell'invio.";
+      return new Promise(resolve => {
+        pendingStopResolve = resolve;
+        recorder.stop();
+      });
+    });
     recordButton.addEventListener("click", async () => {
       if (recorder && recorder.state === "recording") {
         recorder.stop();
@@ -348,6 +364,10 @@
         if (audioStatus) audioStatus.textContent = "Vocale registrato.";
         recordButton.classList.remove("is-recording");
         updateAttachmentPreview(form);
+        if (pendingStopResolve) {
+          pendingStopResolve();
+          pendingStopResolve = null;
+        }
       };
       recorder.start();
       recordButton.classList.add("is-recording");

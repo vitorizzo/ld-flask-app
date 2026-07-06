@@ -1992,3 +1992,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - anche le revisioni di un ordine gia' inviato ora hanno foto, file e vocale, con lo stesso riepilogo allegati del primo invio;
   - la compressione foto viene applicata a tutti gli input `photos`, incluse le modifiche ordine, e il submit attende la compressione della form corrente;
   - verifica script inline con `node --check`, `git diff --check`.
+- 2026-07-06 fix submit vocale ordini Horeca:
+  - corretto blocco su `Preparo allegati`: il submit non usa piu' `requestSubmit()` ricorsivo, ma attende preparazione allegati e poi invia direttamente la form;
+  - se il vocale e' ancora in registrazione al submit, viene fermato e finalizzato prima dell'invio;
+  - verifica script inline con `node --check`, `git diff --check`.
