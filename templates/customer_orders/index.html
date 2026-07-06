@@ -49,20 +49,24 @@
           <label class="customer-order-tool">
             <i class="fa-solid fa-camera"></i>
             <span>Scatta foto</span>
-            <input type="file" name="photos" accept="image/*" capture="environment" multiple>
+            <input type="file" name="photos" accept="image/*" capture="environment" multiple data-file-input data-file-kind="Foto">
           </label>
           <label class="customer-order-tool">
             <i class="fa-solid fa-paperclip"></i>
             <span>Allega file</span>
-            <input type="file" name="files" multiple>
+            <input type="file" name="files" multiple data-file-input data-file-kind="File">
           </label>
           <button class="customer-order-tool" type="button" data-record-audio>
             <i class="fa-solid fa-microphone"></i>
             <span>Registra vocale</span>
           </button>
-          <input type="file" name="audio" data-audio-file hidden>
+          <input type="file" name="audio" data-audio-file data-file-kind="Vocale" hidden>
         </div>
         <div class="customer-order-audio" data-audio-status>Vocale non registrato.</div>
+        <div class="customer-order-attachment-preview" data-attachment-preview>
+          <strong>Allegati selezionati</strong>
+          <div class="customer-order-muted">Nessun allegato selezionato.</div>
+        </div>
 
         <div class="customer-order-actions">
           <button class="btn btn-info" type="submit">
@@ -93,7 +97,13 @@
                 {% if order.attachments %}
                   <div class="customer-order-attachments">
                     {% for attachment in order.attachments %}
-                      <a href="{{ attachment.url }}" target="_blank" rel="noopener">{{ attachment.title or attachment.name }}</a>
+                      <a href="{{ attachment.url }}" target="_blank" rel="noopener">
+                        {% if attachment.is_audio %}<i class="fa-solid fa-microphone"></i>
+                        {% elif attachment.is_image %}<i class="fa-solid fa-image"></i>
+                        {% else %}<i class="fa-solid fa-paperclip"></i>{% endif %}
+                        {{ attachment.title or attachment.name }}
+                        {% if attachment.size_label %}<small>{{ attachment.size_label }}</small>{% endif %}
+                      </a>
                     {% endfor %}
                   </div>
                 {% endif %}
@@ -161,8 +171,48 @@
   const recordButton = document.querySelector("[data-record-audio]");
   const audioInput = document.querySelector("[data-audio-file]");
   const audioStatus = document.querySelector("[data-audio-status]");
+  const attachmentPreview = document.querySelector("[data-attachment-preview]");
+  const fileInputs = Array.from(document.querySelectorAll("[data-file-input]"));
   let recorder = null;
   let chunks = [];
+
+  function formatBytes(bytes) {
+    if (!bytes) return "0 KB";
+    const units = ["B", "KB", "MB", "GB"];
+    let value = bytes;
+    let unit = 0;
+    while (value >= 1024 && unit < units.length - 1) {
+      value = value / 1024;
+      unit += 1;
+    }
+    return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
+  }
+
+  function updateAttachmentPreview() {
+    if (!attachmentPreview) return;
+    const rows = [];
+    let total = 0;
+    const inputs = audioInput ? fileInputs.concat(audioInput) : fileInputs;
+    inputs.forEach(input => {
+      const kind = input.dataset.fileKind || "File";
+      Array.from(input.files || []).forEach(file => {
+        total += file.size || 0;
+        rows.push({ kind, name: file.name || "allegato", size: file.size || 0 });
+      });
+    });
+    if (!rows.length) {
+      attachmentPreview.innerHTML = `<strong>Allegati selezionati</strong><div class="customer-order-muted">Nessun allegato selezionato.</div>`;
+      return;
+    }
+    attachmentPreview.innerHTML = `
+      <strong>Allegati selezionati (${rows.length}) - ${formatBytes(total)}</strong>
+      <ul>
+        ${rows.map(row => `<li><span>${row.kind}</span><strong>${row.name}</strong><em>${formatBytes(row.size)}</em></li>`).join("")}
+      </ul>
+    `;
+  }
+
+  fileInputs.forEach(input => input.addEventListener("change", updateAttachmentPreview));
 
   if (recordButton && audioInput && navigator.mediaDevices && window.MediaRecorder) {
     recordButton.addEventListener("click", async () => {
@@ -185,6 +235,7 @@
         audioInput.files = transfer.files;
         if (audioStatus) audioStatus.textContent = "Vocale registrato.";
         recordButton.classList.remove("is-recording");
+        updateAttachmentPreview();
       };
       recorder.start();
       recordButton.classList.add("is-recording");

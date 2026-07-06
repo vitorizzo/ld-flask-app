@@ -1971,3 +1971,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - migrazione `8b9c0d1e2f3a_add_customer_orders.py` applicata in locale con opzioni iniziali (`prossimo giro`, `prima possibile`, `urgente`, `data consegna`, `entro giorno`);
   - limite consapevole della bozza: gli ordini sono salvati e consultabili, ma non vengono ancora pubblicati automaticamente su Slack/plancia;
   - verifiche: `py_compile`, `flask db upgrade`, render staff di `/customer-orders/manage` e `/settings/customer-order-options`, render home staff, `git diff --check`.
+- 2026-07-06 fix upload ordini Horeca:
+  - aggiunto limite upload applicativo configurabile con `MAX_UPLOAD_MB` (default 64 MB) e pagina 413 dedicata per `/customer-orders`;
+  - la form ordine ora mostra riepilogo allegati prima dell'invio: tipo, nome file e dimensione totale, includendo il vocale registrato;
+  - i metadati allegati salvati distinguono `image`, `file` e `audio`, con `size_label` visibile nello storico cliente e nella vista staff;
+  - verifica salvataggio in request context: foto, PDF e audio vengono riconosciuti e salvati come tre allegati distinti; `py_compile`, `git diff --check`.

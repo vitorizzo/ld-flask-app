@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta, timezone
 from sqlalchemy import asc
 from sqlalchemy.exc import OperationalError, SQLAlchemyError
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from extensions import db, mail
 from routes.automations_v2 import automations_v2_bp
@@ -119,6 +120,7 @@ def create_app():
     export_folder_url = os.getenv("EXPORT_FOLDER_URL")
     upload_folder = os.path.normpath(os.path.join(os.getcwd(), "ld-flask-app", "static", "uploads"))
     sqlalchemy_database_uri = os.getenv("DATABASE_URL")
+    max_upload_mb = int(os.getenv("MAX_UPLOAD_MB", "64"))
 
     # ... creazione app, config, ecc.
     app = Flask(
@@ -170,8 +172,21 @@ def create_app():
         POLEEPO_URL=os.getenv("POLEEPO_URL"),
         POLEEPO_PKEY=os.getenv("POLEEPO_PKEY"),
         POLEEPO_PPKEY=os.getenv("POLEEPO_PPKEY"),
+        MAX_CONTENT_LENGTH=max_upload_mb * 1024 * 1024,
+        MAX_UPLOAD_MB=max_upload_mb,
         APP_VERSION=_compute_app_version(base)
     )
+
+    @app.errorhandler(RequestEntityTooLarge)
+    def request_entity_too_large(error):
+        limit_mb = app.config.get("MAX_UPLOAD_MB", 64)
+        if request.path.startswith("/customer-orders"):
+            return render_template(
+                "errors/413.html",
+                limit_mb=limit_mb,
+                back_url=request.referrer or "/customer-orders/",
+            ), 413
+        return jsonify({"ok": False, "error": f"File troppo grande. Limite: {limit_mb} MB."}), 413
 
     app.extensions.setdefault("ldapp_runtime_preferences", {})
     app.extensions["ldapp_runtime_preferences"]["base_config"] = {

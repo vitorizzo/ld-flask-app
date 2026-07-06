@@ -54,30 +54,48 @@ def _static_rel_path(abs_path):
 def _save_files():
     saved = []
     files = []
-    for _, values in request.files.lists():
-        files.extend(values)
-    for file in files:
+    for field_name, values in request.files.lists():
+        for value in values:
+            files.append((field_name, value))
+    for field_name, file in files:
         if not file or not getattr(file, "filename", ""):
             continue
         filename = secure_filename(file.filename) or f"allegato-{len(saved) + 1}{mimetypes.guess_extension(file.mimetype or '') or ''}"
         target = os.path.join(_upload_folder(), f"{datetime.utcnow().strftime('%H%M%S%f')}_{filename}")
         file.save(target)
+        size = os.path.getsize(target)
+        content_type = file.mimetype or mimetypes.guess_type(filename)[0] or ""
+        attachment_type = "audio" if content_type.startswith("audio/") or field_name == "audio" else "image" if content_type.startswith("image/") else "file"
         saved.append({
             "id": f"customer-order-{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}-{len(saved) + 1}",
             "source": "customer_order",
+            "field": field_name,
+            "attachment_type": attachment_type,
             "name": filename,
             "title": filename,
             "filename": filename,
-            "mimetype": file.mimetype,
-            "content_type": file.mimetype,
+            "mimetype": content_type,
+            "content_type": content_type,
             "filetype": os.path.splitext(filename)[1].lstrip(".").lower(),
-            "size": os.path.getsize(target),
-            "is_image": (file.mimetype or "").startswith("image/"),
-            "is_audio": (file.mimetype or "").startswith("audio/"),
+            "size": size,
+            "size_label": _format_bytes(size),
+            "is_image": content_type.startswith("image/"),
+            "is_audio": content_type.startswith("audio/"),
             "url": _public_upload_path(target),
             "static_path": _static_rel_path(target),
         })
     return saved
+
+
+def _format_bytes(size):
+    value = float(size or 0)
+    units = ["B", "KB", "MB", "GB"]
+    index = 0
+    while value >= 1024 and index < len(units) - 1:
+        value /= 1024
+        index += 1
+    decimals = 0 if index == 0 else 1
+    return f"{value:.{decimals}f} {units[index]}"
 
 
 def _customer_registry():

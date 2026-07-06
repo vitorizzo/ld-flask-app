@@ -30,7 +30,13 @@
             {% if order.attachments %}
               <div class="customer-order-attachments">
                 {% for attachment in order.attachments %}
-                  <a href="{{ attachment.url }}" target="_blank" rel="noopener">{{ attachment.title or attachment.name }}</a>
+                  <a href="{{ attachment.url }}" target="_blank" rel="noopener">
+                    {% if attachment.is_audio %}<i class="fa-solid fa-microphone"></i>
+                    {% elif attachment.is_image %}<i class="fa-solid fa-image"></i>
+                    {% else %}<i class="fa-solid fa-paperclip"></i>{% endif %}
+                    {{ attachment.title or attachment.name }}
+                    {% if attachment.size_label %}<small>{{ attachment.size_label }}</small>{% endif %}
+                  </a>
                 {% endfor %}
               </div>
             {% endif %}
