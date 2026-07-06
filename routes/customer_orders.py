@@ -98,6 +98,22 @@ def _format_bytes(size):
     return f"{value:.{decimals}f} {units[index]}"
 
 
+def _parse_int(value):
+    try:
+        if value is None or str(value).strip() == "":
+            return None
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _selected_delivery_option():
+    option_id = _parse_int(request.form.get("delivery_option_id"))
+    if not option_id:
+        return None
+    return CustomerOrderDeliveryOption.query.filter_by(id=option_id, is_active=True).first()
+
+
 def _customer_registry():
     registry = getattr(current_user, "customer_registry", None)
     if registry and registry.kind == "customer" and registry.is_active:
@@ -166,7 +182,7 @@ def create():
         flash("Il tuo account non e' ancora associato a un'anagrafica cliente.", "warning")
         return redirect(url_for("customer_orders.index"))
     route = _customer_route(registry)
-    delivery_option = CustomerOrderDeliveryOption.query.filter_by(id=request.form.get("delivery_option_id"), is_active=True).first()
+    delivery_option = _selected_delivery_option()
     order_text = (request.form.get("order_text") or "").strip()
     attachments = _save_files()
     if not order_text and not attachments:
@@ -209,7 +225,7 @@ def revise(order_id):
     change_type = (request.form.get("change_type") or "addition").strip()
     if change_type not in {"addition", "replacement"}:
         change_type = "addition"
-    delivery_option = CustomerOrderDeliveryOption.query.filter_by(id=request.form.get("delivery_option_id"), is_active=True).first()
+    delivery_option = _selected_delivery_option()
     order_text = (request.form.get("order_text") or "").strip()
     attachments = _save_files()
     if not order_text and not attachments:
