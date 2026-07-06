@@ -1047,6 +1047,201 @@ h1,h2,h3,h4{
     padding: 0 14px 14px;
 }
 
+.customer-order-page {
+    width: min(1120px, 100%);
+    margin: 0 auto;
+    color: #fff;
+}
+
+.customer-order-hero,
+.customer-order-panel {
+    border: 1px solid rgba(255, 255, 255, .22);
+    border-radius: 8px;
+    background: rgba(74, 44, 42, .88);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, .22);
+}
+
+.customer-order-hero {
+    padding: 24px;
+    margin-bottom: 18px;
+}
+
+.customer-order-hero h1,
+.customer-order-panel h2,
+.customer-order-staff-item h2 {
+    margin: 0;
+    font-family: "Oswald", Helvetica, sans-serif;
+    letter-spacing: 0;
+}
+
+.customer-order-hero p {
+    margin: 6px 0 0;
+    color: rgba(255, 255, 255, .82);
+}
+
+.customer-order-panel {
+    padding: 20px;
+    margin-bottom: 18px;
+}
+
+.customer-order-form,
+.customer-order-revision-form {
+    display: grid;
+    gap: 16px;
+}
+
+.customer-order-form label,
+.customer-order-revision-form label {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    color: rgba(255, 255, 255, .88);
+    font-weight: 600;
+}
+
+.customer-order-form .form-control,
+.customer-order-form .form-select,
+.customer-order-revision-form .form-control,
+.customer-order-revision-form .form-select {
+    min-height: 44px;
+    border-color: rgba(255, 255, 255, .25);
+    background: rgba(255, 255, 255, .94);
+    color: #1f2933;
+}
+
+.customer-order-delivery {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.customer-order-tools {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.customer-order-tool {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 10px !important;
+    min-height: 72px;
+    padding: 12px;
+    border: 1px solid rgba(13, 202, 240, .65);
+    border-radius: 8px;
+    color: #fff;
+    background: rgba(255, 255, 255, .08);
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.customer-order-tool input {
+    display: none;
+}
+
+.customer-order-tool.is-recording {
+    color: #fff;
+    background: #B91C1C;
+    border-color: #B91C1C;
+}
+
+.customer-order-audio,
+.customer-order-muted,
+.customer-order-meta {
+    color: rgba(255, 255, 255, .75);
+}
+
+.customer-order-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.customer-order-actions .btn {
+    min-height: 44px;
+}
+
+.customer-order-list {
+    display: grid;
+    gap: 14px;
+    margin-top: 16px;
+}
+
+.customer-order-item,
+.customer-order-staff-item {
+    border: 1px solid rgba(255, 255, 255, .18);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .09);
+}
+
+.customer-order-item summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    min-height: 60px;
+    padding: 14px;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.customer-order-item summary small {
+    color: rgba(255, 255, 255, .68);
+    font-weight: 500;
+}
+
+.customer-order-item-body,
+.customer-order-staff-item {
+    padding: 14px;
+}
+
+.customer-order-item pre,
+.customer-order-staff-item pre {
+    margin: 12px 0 0;
+    padding: 12px;
+    border-radius: 8px;
+    color: #fff;
+    background: rgba(0, 0, 0, .18);
+    white-space: pre-wrap;
+    font-family: inherit;
+}
+
+.customer-order-attachments {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.customer-order-attachments a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 36px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    color: #062b33;
+    background: #0dcaf0;
+    font-weight: 700;
+}
+
+.customer-order-revision-form {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, .16);
+}
+
+.customer-order-revisions {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, .16);
+}
+
+.customer-order-revisions p {
+    margin: 4px 0 0;
+}
+
 @media (max-width: 820px), (hover: none) and (pointer: coarse) {
     body.app-shell {
         --app-header-height: 86px;
@@ -1409,6 +1604,37 @@ h1,h2,h3,h4{
         align-items: flex-start;
         flex-direction: column;
     }
+
+    .customer-order-page {
+        width: 100%;
+    }
+
+    .customer-order-hero,
+    .customer-order-panel {
+        padding: 16px;
+    }
+
+    .customer-order-delivery,
+    .customer-order-tools {
+        grid-template-columns: 1fr;
+    }
+
+    .customer-order-tool {
+        justify-content: flex-start;
+    }
+
+    .customer-order-actions {
+        justify-content: stretch;
+    }
+
+    .customer-order-actions .btn {
+        width: 100%;
+    }
+
+    .customer-order-item summary {
+        align-items: flex-start;
+        flex-direction: column;
+    }
 }
 
 @media (hover: none) and (pointer: coarse) and (min-width: 821px) {
@@ -1631,6 +1857,75 @@ h1,h2,h3,h4{
     .events-admin-item,
     .events-admin-item summary {
         border-radius: 14px;
+    }
+
+    .customer-order-hero,
+    .customer-order-panel {
+        padding: 42px;
+        border-radius: 14px;
+    }
+
+    .customer-order-hero h1 {
+        font-size: 4.2rem;
+    }
+
+    .customer-order-hero p,
+    .customer-order-form label,
+    .customer-order-revision-form label,
+    .customer-order-audio,
+    .customer-order-meta,
+    .customer-order-muted,
+    .customer-order-item summary,
+    .customer-order-item pre,
+    .customer-order-staff-item pre {
+        font-size: 2rem;
+    }
+
+    .customer-order-panel h2,
+    .customer-order-staff-item h2 {
+        font-size: 3rem;
+    }
+
+    .customer-order-delivery,
+    .customer-order-tools {
+        grid-template-columns: 1fr;
+        gap: 28px;
+    }
+
+    .customer-order-form .form-control,
+    .customer-order-form .form-select,
+    .customer-order-revision-form .form-control,
+    .customer-order-revision-form .form-select {
+        min-height: 86px;
+        font-size: 2rem;
+        border-radius: 14px;
+    }
+
+    .customer-order-tool {
+        min-height: 112px;
+        padding: 28px;
+        border-radius: 14px;
+        font-size: 2rem;
+    }
+
+    .customer-order-actions .btn {
+        min-height: 92px;
+        font-size: 2rem;
+        border-radius: 14px;
+    }
+
+    .customer-order-item,
+    .customer-order-staff-item,
+    .customer-order-item pre,
+    .customer-order-staff-item pre,
+    .customer-order-attachments a {
+        border-radius: 14px;
+    }
+
+    .customer-order-item summary,
+    .customer-order-item-body,
+    .customer-order-staff-item {
+        padding: 28px;
     }
 
     .footer {

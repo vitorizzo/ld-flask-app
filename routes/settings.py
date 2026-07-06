@@ -26,6 +26,8 @@ from models import (
     SpecialPermission,
     UserSpecialPermission,
     PasswordResetToken,
+    BusinessRegistry,
+    CustomerOrderDeliveryOption,
     CashBank,
     PosCircuit,
     PosDevice,
@@ -287,8 +289,67 @@ def settings_index():
             "icon": "fa-solid fa-triangle-exclamation",
             "icon_class": "text-bg-warning",
         },
+        {
+            "title": "Ordini clienti Horeca",
+            "description": "Opzioni consegna e associazione account-anagrafica.",
+            "route": url_for("settings.customer_order_options"),
+            "icon": "fa-solid fa-basket-shopping",
+            "icon_class": "text-bg-info",
+        },
     ]
     return render_template("settings/index.html", entries=entries)
+
+
+@settings_bp.route("/customer-order-options", methods=["GET", "POST"])
+@login_required
+@role_required(40)
+def customer_order_options():
+    if request.method == "POST":
+        action = (request.form.get("action") or "").strip()
+        if action == "create_option":
+            option = CustomerOrderDeliveryOption(
+                code=(request.form.get("code") or "").strip(),
+                label=(request.form.get("label") or "").strip(),
+                requires_value=_form_bool(request.form, "requires_value"),
+                value_label=(request.form.get("value_label") or "").strip() or None,
+                sort_order=_parse_int(request.form.get("sort_order"), 0) or 0,
+                is_active=_form_bool(request.form, "is_active", True),
+            )
+            if not option.code or not option.label:
+                flash("Codice e label sono obbligatori.", "warning")
+            else:
+                db.session.add(option)
+                db.session.commit()
+                flash("Opzione consegna inserita.", "success")
+        elif action == "update_option":
+            option = CustomerOrderDeliveryOption.query.get_or_404(_parse_int(request.form.get("option_id")))
+            option.code = (request.form.get("code") or "").strip()
+            option.label = (request.form.get("label") or "").strip()
+            option.requires_value = _form_bool(request.form, "requires_value")
+            option.value_label = (request.form.get("value_label") or "").strip() or None
+            option.sort_order = _parse_int(request.form.get("sort_order"), 0) or 0
+            option.is_active = _form_bool(request.form, "is_active")
+            db.session.commit()
+            flash("Opzione consegna aggiornata.", "success")
+        elif action == "link_user":
+            user = User.query.get_or_404(_parse_int(request.form.get("user_id")))
+            registry_id = _parse_int(request.form.get("registry_id"))
+            registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first() if registry_id else None
+            user.customer_registry_id = registry.id if registry else None
+            db.session.commit()
+            flash("Associazione account-anagrafica aggiornata.", "success")
+        return redirect(url_for("settings.customer_order_options"))
+
+    options = CustomerOrderDeliveryOption.query.order_by(CustomerOrderDeliveryOption.sort_order.asc(), CustomerOrderDeliveryOption.id.asc()).all()
+    users = User.query.order_by(User.surname.asc(), User.name.asc()).all()
+    registries = (
+        BusinessRegistry.query
+        .filter_by(kind="customer", is_active=True)
+        .order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc())
+        .limit(2000)
+        .all()
+    )
+    return render_template("settings/customer_order_options.html", options=options, users=users, registries=registries)
 
 
 @settings_bp.route("/users", methods=["GET"])

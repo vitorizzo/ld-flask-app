@@ -19,6 +19,10 @@
             <a class="quick-action" href="/registry/customers"><i class="fa-regular fa-address-book"></i><span>Rubrica clienti</span></a>
             <a class="quick-action" href="/kiosk"><i class="fa-solid fa-table-columns"></i><span>Bacheca ordini</span></a>
             <a class="quick-action" href="/wine-cards"><i class="fa-solid fa-wine-bottle"></i><span>Carte vini</span></a>
+            <a class="quick-action" href="{{ url_for('customer_orders.manage') }}"><i class="fa-solid fa-inbox"></i><span>Ordini Horeca</span></a>
+        {% endif %}
+        {% if current_user.is_authenticated and ('customer_horeca' in current_user.active_roles|map(attribute='name')|list or current_user.max_role_weight >= 30) %}
+            <a class="quick-action" href="{{ url_for('customer_orders.index') }}"><i class="fa-solid fa-basket-shopping"></i><span>Fai un ordine</span></a>
         {% endif %}
         <a class="quick-action" href="/search/ricerca_x_descrizione"><i class="fa-solid fa-magnifying-glass"></i><span>Informazioni articoli</span></a>
         <a class="quick-action" href="{{ url_for('events.index') }}"><i class="fa-regular fa-calendar-check"></i><span>Eventi</span></a>

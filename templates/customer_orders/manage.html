@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+
+{% block title %}Ordini clienti Horeca - LD Enoteca{% endblock %}
+
+{% block content %}
+<section class="customer-order-page">
+  <header class="customer-order-hero">
+    <div>
+      <h1>Ordini clienti Horeca</h1>
+      <p>Bozza di ricezione ordini inviati dalla home.</p>
+    </div>
+  </header>
+
+  <section class="customer-order-panel">
+    {% if orders %}
+      <div class="customer-order-list">
+        {% for order in orders %}
+          <article class="customer-order-staff-item">
+            <div>
+              <h2>#{{ order.id }} - {{ customer_label(order.registry) }}</h2>
+              <div class="customer-order-meta">
+                {{ order.created_at.strftime('%d/%m/%Y %H:%M') }}
+                {% if order.route %} - giro {{ order.route.name }}{% endif %}
+                {% if order.delivery_option %} - consegna {{ order.delivery_option.label }}{% if order.delivery_option_value %}: {{ order.delivery_option_value }}{% endif %}{% endif %}
+              </div>
+            </div>
+            {% if order.order_text %}
+              <pre>{{ order.order_text }}</pre>
+            {% endif %}
+            {% if order.attachments %}
+              <div class="customer-order-attachments">
+                {% for attachment in order.attachments %}
+                  <a href="{{ attachment.url }}" target="_blank" rel="noopener">{{ attachment.title or attachment.name }}</a>
+                {% endfor %}
+              </div>
+            {% endif %}
+            {% if order.revisions %}
+              <div class="customer-order-revisions">
+                {% for revision in order.revisions %}
+                  <div>
+                    <strong>{{ revision.change_type }}</strong>
+                    <span>{{ revision.created_at.strftime('%d/%m/%Y %H:%M') }}</span>
+                    {% if revision.order_text %}<p>{{ revision.order_text }}</p>{% endif %}
+                  </div>
+                {% endfor %}
+              </div>
+            {% endif %}
+          </article>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p class="customer-order-muted">Nessun ordine ricevuto.</p>
+    {% endif %}
+  </section>
+</section>
+{% endblock %}

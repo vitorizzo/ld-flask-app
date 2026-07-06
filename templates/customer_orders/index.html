@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+
+{% block title %}Fai un ordine - LD Enoteca{% endblock %}
+
+{% block content %}
+<section class="customer-order-page">
+  <header class="customer-order-hero">
+    <div>
+      <h1>Fai un ordine</h1>
+      {% if registry %}
+        <p>{{ registry.display_name or registry.legal_name }}{% if route %} - giro {{ route.name }}{% endif %}</p>
+      {% else %}
+        <p>Account non ancora collegato a un'anagrafica cliente.</p>
+      {% endif %}
+    </div>
+  </header>
+
+  {% if not registry %}
+    <div class="customer-order-panel">
+      <div class="alert alert-warning mb-0">
+        Per usare questa funzione serve associare il tuo account Horeca a un'anagrafica cliente.
+      </div>
+    </div>
+  {% else %}
+    <div class="customer-order-panel">
+      <form method="post" action="{{ url_for('customer_orders.create') }}" enctype="multipart/form-data" class="customer-order-form">
+        <label>
+          <span>Ordine</span>
+          <textarea class="form-control" name="order_text" rows="7" placeholder="Scrivi qui il tuo ordine"></textarea>
+        </label>
+
+        <div class="customer-order-delivery">
+          <label>
+            <span>Data consegna</span>
+            <select class="form-select" name="delivery_option_id" data-delivery-select>
+              <option value="">Nessuna preferenza</option>
+              {% for option in delivery_options %}
+                <option value="{{ option.id }}" data-requires-value="{{ 1 if option.requires_value else 0 }}" data-value-label="{{ option.value_label or 'Specifica' }}">{{ option.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label data-delivery-value-wrap hidden>
+            <span data-delivery-value-label>Specifica</span>
+            <input class="form-control" type="text" name="delivery_option_value" placeholder="es. sabato">
+          </label>
+        </div>
+
+        <div class="customer-order-tools">
+          <label class="customer-order-tool">
+            <i class="fa-solid fa-camera"></i>
+            <span>Scatta foto</span>
+            <input type="file" name="photos" accept="image/*" capture="environment" multiple>
+          </label>
+          <label class="customer-order-tool">
+            <i class="fa-solid fa-paperclip"></i>
+            <span>Allega file</span>
+            <input type="file" name="files" multiple>
+          </label>
+          <button class="customer-order-tool" type="button" data-record-audio>
+            <i class="fa-solid fa-microphone"></i>
+            <span>Registra vocale</span>
+          </button>
+          <input type="file" name="audio" data-audio-file hidden>
+        </div>
+        <div class="customer-order-audio" data-audio-status>Vocale non registrato.</div>
+
+        <div class="customer-order-actions">
+          <button class="btn btn-info" type="submit">
+            <i class="fa-solid fa-paper-plane"></i>
+            Invia ordine
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <section class="customer-order-panel">
+      <h2>I tuoi ordini recenti</h2>
+      {% if orders %}
+        <div class="customer-order-list">
+          {% for order in orders %}
+            <details class="customer-order-item">
+              <summary>
+                <span>Ordine #{{ order.id }}</span>
+                <small>{{ order.created_at.strftime('%d/%m/%Y %H:%M') }} - {{ order.status }}</small>
+              </summary>
+              <div class="customer-order-item-body">
+                {% if order.delivery_option %}
+                  <div class="customer-order-meta">Consegna: {{ order.delivery_option.label }}{% if order.delivery_option_value %} - {{ order.delivery_option_value }}{% endif %}</div>
+                {% endif %}
+                {% if order.order_text %}
+                  <pre>{{ order.order_text }}</pre>
+                {% endif %}
+                {% if order.attachments %}
+                  <div class="customer-order-attachments">
+                    {% for attachment in order.attachments %}
+                      <a href="{{ attachment.url }}" target="_blank" rel="noopener">{{ attachment.title or attachment.name }}</a>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+                <form method="post" action="{{ url_for('customer_orders.revise', order_id=order.id) }}" enctype="multipart/form-data" class="customer-order-revision-form">
+                  <div class="customer-order-delivery">
+                    <label>
+                      <span>Tipo modifica</span>
+                      <select class="form-select" name="change_type">
+                        <option value="addition">Aggiunta</option>
+                        <option value="replacement">Sostituzione</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>Consegna</span>
+                      <select class="form-select" name="delivery_option_id">
+                        <option value="">Lascia invariata</option>
+                        {% for option in delivery_options %}
+                          <option value="{{ option.id }}">{{ option.label }}</option>
+                        {% endfor %}
+                      </select>
+                    </label>
+                  </div>
+                  <label>
+                    <span>Nota modifica</span>
+                    <textarea class="form-control" name="order_text" rows="3"></textarea>
+                  </label>
+                  <label class="customer-order-fileline">
+                    <span>Allegati modifica</span>
+                    <input class="form-control" type="file" name="files" multiple>
+                  </label>
+                  <div class="customer-order-actions">
+                    <button class="btn btn-outline-info" type="submit">Registra modifica</button>
+                  </div>
+                </form>
+              </div>
+            </details>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="customer-order-muted">Non hai ancora inviato ordini.</p>
+      {% endif %}
+    </section>
+  {% endif %}
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const select = document.querySelector("[data-delivery-select]");
+  const wrap = document.querySelector("[data-delivery-value-wrap]");
+  const label = document.querySelector("[data-delivery-value-label]");
+  function updateDeliveryValue() {
+    if (!select || !wrap) return;
+    const option = select.selectedOptions && select.selectedOptions[0];
+    const required = option && option.dataset.requiresValue === "1";
+    wrap.hidden = !required;
+    if (label && option) label.textContent = option.dataset.valueLabel || "Specifica";
+  }
+  if (select) {
+    select.addEventListener("change", updateDeliveryValue);
+    updateDeliveryValue();
+  }
+
+  const recordButton = document.querySelector("[data-record-audio]");
+  const audioInput = document.querySelector("[data-audio-file]");
+  const audioStatus = document.querySelector("[data-audio-status]");
+  let recorder = null;
+  let chunks = [];
+
+  if (recordButton && audioInput && navigator.mediaDevices && window.MediaRecorder) {
+    recordButton.addEventListener("click", async () => {
+      if (recorder && recorder.state === "recording") {
+        recorder.stop();
+        return;
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunks = [];
+      recorder = new MediaRecorder(stream);
+      recorder.ondataavailable = event => {
+        if (event.data && event.data.size) chunks.push(event.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach(track => track.stop());
+        const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+        const file = new File([blob], "ordine-vocale.webm", { type: blob.type });
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        audioInput.files = transfer.files;
+        if (audioStatus) audioStatus.textContent = "Vocale registrato.";
+        recordButton.classList.remove("is-recording");
+      };
+      recorder.start();
+      recordButton.classList.add("is-recording");
+      if (audioStatus) audioStatus.textContent = "Registrazione in corso. Tocca di nuovo per fermare.";
+    });
+  } else if (recordButton) {
+    recordButton.disabled = true;
+    if (audioStatus) audioStatus.textContent = "Registrazione vocale non supportata da questo browser.";
+  }
+})();
+</script>
+{% endblock %}

@@ -1962,3 +1962,12 @@ Performance apertura giornata Agenda 2026-06-13:
   - `/events/` mostra i prossimi eventi pubblicati; da `office` in su compare gestione con inserimento, modifica, pubblicazione/nascondimento ed eliminazione;
   - UI coerente con LDApp e scalata per mobile/S25 tramite `static/css/style.css`;
   - migrazione applicata in locale; verifiche: `py_compile`, render home, render eventi anonimo senza form, render eventi office+ con form, `git diff --check`.
+- 2026-07-06 bozza ordini clienti Horeca:
+  - aggiunto modulo `/customer-orders`: i clienti `customer_horeca` e staff+ vedono `Fai un ordine` in home; staff+ vede anche `Ordini Horeca`;
+  - ordine cliente supporta testo, foto da camera, allegati, registrazione vocale browser e scelta consegna da opzioni configurabili;
+  - aggiunti `CustomerOrderDeliveryOption`, `CustomerOrder`, `CustomerOrderRevision` e collegamento `User.customer_registry_id` verso anagrafica cliente;
+  - aggiunta pagina impostazioni `/settings/customer-order-options` per opzioni consegna e associazione account-anagrafica;
+  - le modifiche ordine vengono registrate come `addition` o `replacement`; lo staff vede gli ordini ricevuti in `/customer-orders/manage`;
+  - migrazione `8b9c0d1e2f3a_add_customer_orders.py` applicata in locale con opzioni iniziali (`prossimo giro`, `prima possibile`, `urgente`, `data consegna`, `entro giorno`);
+  - limite consapevole della bozza: gli ordini sono salvati e consultabili, ma non vengono ancora pubblicati automaticamente su Slack/plancia;
+  - verifiche: `py_compile`, `flask db upgrade`, render staff di `/customer-orders/manage` e `/settings/customer-order-options`, render home staff, `git diff --check`.

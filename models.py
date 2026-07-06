@@ -597,6 +597,7 @@ class User(db.Model, UserMixin):
     sex = db.Column(db.Integer, default=0)
     foto_profilo = db.Column(db.String(255), nullable=True)
     notes = db.Column(db.Text)
+    customer_registry_id = db.Column(db.Integer, db.ForeignKey("business_registries.id"), nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.now())
     updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now())
 
@@ -605,6 +606,7 @@ class User(db.Model, UserMixin):
     # role = ...
 
     roles = db.relationship('UserRole', backref='user', lazy=True)
+    customer_registry = db.relationship("BusinessRegistry", foreign_keys=[customer_registry_id])
 
     @property
     def active_roles(self):
@@ -1938,6 +1940,110 @@ class RouteOrderBoardEntry(db.Model):
             "slack_message_ts": self.slack_message_ts,
             "sent_at": self.sent_at.isoformat() if self.sent_at else None,
         }
+
+
+class CustomerOrderDeliveryOption(db.Model):
+    __tablename__ = "customer_order_delivery_options"
+    __table_args__ = (
+        db.UniqueConstraint("code", name="uq_customer_order_delivery_options_code"),
+        db.Index("ix_customer_order_delivery_options_active_sort", "is_active", "sort_order"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), nullable=False)
+    label = db.Column(db.String(120), nullable=False)
+    requires_value = db.Column(db.Boolean, nullable=False, default=False)
+    value_label = db.Column(db.String(80), nullable=True)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+        nullable=False,
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "code": self.code,
+            "label": self.label,
+            "requires_value": self.requires_value,
+            "value_label": self.value_label,
+            "sort_order": self.sort_order,
+            "is_active": self.is_active,
+        }
+
+
+class CustomerOrder(db.Model):
+    __tablename__ = "customer_orders"
+    __table_args__ = (
+        db.Index("ix_customer_orders_registry_status", "registry_id", "status"),
+        db.Index("ix_customer_orders_created", "created_at"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True)
+    registry_id = db.Column(db.Integer, db.ForeignKey("business_registries.id", ondelete="RESTRICT"), nullable=False, index=True)
+    route_id = db.Column(db.Integer, db.ForeignKey("delivery_routes.id", ondelete="SET NULL"), nullable=True, index=True)
+    delivery_option_id = db.Column(db.Integer, db.ForeignKey("customer_order_delivery_options.id", ondelete="SET NULL"), nullable=True)
+    delivery_option_value = db.Column(db.String(160), nullable=True)
+    order_text = db.Column(db.Text, nullable=True)
+    attachments = db.Column(db.JSON, nullable=True)
+    status = db.Column(db.String(30), nullable=False, default="received", index=True)
+    route_board_entry_id = db.Column(db.Integer, db.ForeignKey("route_order_board_entries.id", ondelete="SET NULL"), nullable=True)
+    slack_order_id = db.Column(db.Integer, db.ForeignKey("slack_orders.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+        nullable=False,
+    )
+
+    user = db.relationship("User", foreign_keys=[user_id], backref=db.backref("customer_orders", lazy="dynamic"))
+    registry = db.relationship("BusinessRegistry", backref=db.backref("customer_orders", lazy="selectin"))
+    route = db.relationship("DeliveryRoute", backref=db.backref("customer_orders", lazy="selectin"))
+    delivery_option = db.relationship("CustomerOrderDeliveryOption")
+    route_board_entry = db.relationship("RouteOrderBoardEntry")
+    slack_order = db.relationship("SlackOrder")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "registry_id": self.registry_id,
+            "route_id": self.route_id,
+            "delivery_option": self.delivery_option.to_dict() if self.delivery_option else None,
+            "delivery_option_value": self.delivery_option_value,
+            "order_text": self.order_text or "",
+            "attachments": self.attachments or [],
+            "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class CustomerOrderRevision(db.Model):
+    __tablename__ = "customer_order_revisions"
+    __table_args__ = (
+        db.Index("ix_customer_order_revisions_order_created", "order_id", "created_at"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    order_id = db.Column(db.Integer, db.ForeignKey("customer_orders.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    change_type = db.Column(db.String(30), nullable=False, default="addition")
+    order_text = db.Column(db.Text, nullable=True)
+    attachments = db.Column(db.JSON, nullable=True)
+    delivery_option_id = db.Column(db.Integer, db.ForeignKey("customer_order_delivery_options.id", ondelete="SET NULL"), nullable=True)
+    delivery_option_value = db.Column(db.String(160), nullable=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+
+    order = db.relationship("CustomerOrder", backref=db.backref("revisions", cascade="all, delete-orphan", lazy="selectin"))
+    user = db.relationship("User", foreign_keys=[user_id])
+    delivery_option = db.relationship("CustomerOrderDeliveryOption")
 
 
 class BusinessRegistryAlert(db.Model):

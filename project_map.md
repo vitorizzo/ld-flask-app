@@ -79,6 +79,49 @@ Regola permessi:
 
 ---
 
+# MODULO ORDINI CLIENTI HORECA
+
+## Stato Architetturale
+
+Bozza DB-driven per consentire ai clienti Horeca di inviare ordini dalla home.
+
+Route:
+- `/customer-orders/` - pagina cliente per invio ordine, visibile a `customer_horeca` e staff+;
+- `POST /customer-orders/` - creazione ordine cliente;
+- `POST /customer-orders/<id>/revise` - aggiunta o sostituzione su ordine gia' inviato;
+- `/customer-orders/manage` - ricezione staff degli ordini cliente;
+- `/settings/customer-order-options` - configurazione opzioni consegna e associazione account-anagrafica.
+
+Blueprint:
+- `routes/customer_orders.py`, registrato in `tools/app_factory.py` con prefisso `/customer-orders`.
+
+Frontend:
+- `templates/customer_orders/index.html`
+- `templates/customer_orders/manage.html`
+- `templates/settings/customer_order_options.html`
+- stili in `static/css/style.css`
+- pulsanti home in `templates/home.html`: `Fai un ordine` per Horeca/staff+, `Ordini Horeca` per staff+.
+
+Modelli:
+- `CustomerOrderDeliveryOption`
+- `CustomerOrder`
+- `CustomerOrderRevision`
+- `User.customer_registry_id` come collegamento account-anagrafica cliente.
+
+Migrazione:
+- `migrations/versions/8b9c0d1e2f3a_add_customer_orders.py`
+
+Funzioni bozza:
+- ordine con testo, foto da camera, allegati file e registrazione vocale via `MediaRecorder`;
+- scelta consegna da menu configurabile, con valore aggiuntivo quando richiesto;
+- aggancio automatico al giro tramite `DeliveryRouteCustomer`;
+- modifiche ordine salvate come revisioni `addition` o `replacement`.
+
+Nota:
+- in questa bozza gli ordini vengono salvati e resi visibili allo staff, ma non vengono ancora pubblicati automaticamente su Slack/plancia operativa.
+
+---
+
 # MODULO SPEDIZIONI / CORRIERI / POLEEPO
 
 ## Stato Architetturale
