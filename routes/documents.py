@@ -9,7 +9,7 @@ LD_SELECTION_VERSIONS = {
     "top": {
         "key": "top",
         "label": "LD Selection Top",
-        "filename": "documents/LD_Selection_top.pdf",
+        "filename": "documents/LD_Selection_Top.pdf",
     },
     "standard": {
         "key": "standard",
@@ -19,7 +19,7 @@ LD_SELECTION_VERSIONS = {
     "horeca": {
         "key": "horeca",
         "label": "LD Selection Horeca",
-        "filename": "documents/LD_Selection_pro.pdf",
+        "filename": "documents/LD_Selection_Pro.pdf",
     },
 }
 
@@ -88,6 +88,7 @@ def ld_selection():
         pdf_url=pdf_url,
         pdf_filename=pdf_filename.rsplit("/", 1)[-1],
         pdf_title=_ld_selection_title(),
+        can_open_external=(current_user.max_role_weight or 0) >= 30,
         can_share=can_share,
         share_versions=share_versions,
     )

@@ -1953,3 +1953,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - home: pulsante LD Selection disabilitato per utenti non autenticati/guest, abilitato da `customer` in su;
   - `/ld-selection`: customer vede Standard senza share/copia, customer_horeca e staff+ vedono Horeca, staff+ puo' condividere/copiare Standard e Horeca, admin+ anche Top;
   - versione aperta scelta automaticamente senza conferme; asset globali versionati a `mobile12`; verifiche con utenti locali customer/staff/admin e home anonima, `py_compile routes/documents.py`, `git diff --check`.
+- 2026-07-06 viewer LD Selection:
+  - sostituito iframe PDF con viewer interno PDF.js: canvas a pagina intera, navigazione pagina precedente/successiva, input pagina e zoom +/-;
+  - il pulsante `Apri PDF` resta visibile solo da staff in su per apertura esterna nell'app associata;
+  - corretti i nomi file PDF secondo case reale (`LD_Selection_Pro.pdf`, `LD_Selection_Top.pdf`); verifiche customer/staff/admin con test client.

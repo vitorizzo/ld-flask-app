@@ -10,9 +10,11 @@
         <h1 class="mb-1">{{ pdf_title or "LD Selection" }}</h1>
         <div class="text-muted">Catalogo PDF integrato nella webapp.</div>
       </div>
+      {% if can_open_external %}
       <a class="btn btn-outline-light" href="{{ pdf_url }}" target="_blank" rel="noopener">
         Apri PDF
       </a>
+      {% endif %}
     </div>
     {% if can_share %}
     <div class="d-flex flex-wrap gap-2 mb-3">
@@ -24,12 +26,31 @@
       </button>
     </div>
     {% endif %}
-    <div class="flex-grow-1 min-h-0">
-      <iframe
-        src="{{ pdf_url }}"
-        title="LD Selection PDF"
-        style="width: 100%; height: 100%; min-height: 70vh; border: 0; background: #fff;">
-      </iframe>
+    <div class="ld-selection-viewer flex-grow-1 min-h-0">
+      <div class="ld-selection-toolbar" aria-label="Controlli catalogo">
+        <button class="btn btn-sm btn-outline-light" type="button" id="pdfPrevBtn" title="Pagina precedente">
+          <i class="fa-solid fa-chevron-left"></i>
+        </button>
+        <div class="ld-selection-page-status">
+          <input class="form-control form-control-sm" id="pdfPageInput" type="number" min="1" value="1" aria-label="Pagina">
+          <span>/ <span id="pdfPageCount">-</span></span>
+        </div>
+        <button class="btn btn-sm btn-outline-light" type="button" id="pdfNextBtn" title="Pagina successiva">
+          <i class="fa-solid fa-chevron-right"></i>
+        </button>
+        <span class="ld-selection-toolbar-separator"></span>
+        <button class="btn btn-sm btn-outline-light" type="button" id="pdfZoomOutBtn" title="Riduci zoom">
+          <i class="fa-solid fa-minus"></i>
+        </button>
+        <span class="ld-selection-zoom" id="pdfZoomLabel">100%</span>
+        <button class="btn btn-sm btn-outline-light" type="button" id="pdfZoomInBtn" title="Aumenta zoom">
+          <i class="fa-solid fa-plus"></i>
+        </button>
+      </div>
+      <div class="ld-selection-canvas-wrap" id="pdfCanvasWrap">
+        <canvas id="pdfCanvas"></canvas>
+        <div class="ld-selection-loading" id="pdfLoading">Caricamento catalogo...</div>
+      </div>
     </div>
   </div>
 </section>
@@ -70,6 +91,210 @@
 
 {% block scripts %}
   {{ super() }}
+  <style>
+    .ld-selection-viewer {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      border: 1px solid rgba(255, 255, 255, .22);
+      border-radius: 8px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, .08);
+    }
+
+    .ld-selection-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, .2);
+      background: rgba(74, 44, 42, .96);
+      color: #fff;
+      flex-wrap: wrap;
+    }
+
+    .ld-selection-page-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: #fff;
+      font-weight: 800;
+    }
+
+    .ld-selection-page-status .form-control {
+      width: 76px;
+      text-align: center;
+    }
+
+    .ld-selection-toolbar-separator {
+      width: 1px;
+      align-self: stretch;
+      background: rgba(255, 255, 255, .24);
+    }
+
+    .ld-selection-zoom {
+      min-width: 56px;
+      text-align: center;
+      font-weight: 800;
+    }
+
+    .ld-selection-canvas-wrap {
+      position: relative;
+      flex: 1 1 auto;
+      min-height: 70vh;
+      overflow: auto;
+      background: #60646c;
+      text-align: center;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #pdfCanvas {
+      display: block;
+      margin: 18px auto;
+      background: #fff;
+      box-shadow: 0 12px 34px rgba(0, 0, 0, .35);
+    }
+
+    .ld-selection-loading {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      color: #fff;
+      font-weight: 800;
+      background: rgba(0, 0, 0, .35);
+    }
+
+    .ld-selection-loading.is-hidden {
+      display: none;
+    }
+
+    @media (max-width: 820px), (hover: none) and (pointer: coarse) {
+      .ld-selection-toolbar {
+        gap: 10px;
+        padding: 12px;
+      }
+
+      .ld-selection-toolbar .btn {
+        min-width: 46px;
+        min-height: 46px;
+        font-size: 1rem;
+      }
+
+      .ld-selection-page-status .form-control {
+        min-height: 46px;
+        width: 72px;
+        font-size: 1rem;
+      }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <script>
+    (function () {
+      const pdfUrl = {{ pdf_url|tojson }};
+      const canvas = document.getElementById("pdfCanvas");
+      const wrap = document.getElementById("pdfCanvasWrap");
+      const loading = document.getElementById("pdfLoading");
+      const prevBtn = document.getElementById("pdfPrevBtn");
+      const nextBtn = document.getElementById("pdfNextBtn");
+      const pageInput = document.getElementById("pdfPageInput");
+      const pageCountEl = document.getElementById("pdfPageCount");
+      const zoomOutBtn = document.getElementById("pdfZoomOutBtn");
+      const zoomInBtn = document.getElementById("pdfZoomInBtn");
+      const zoomLabel = document.getElementById("pdfZoomLabel");
+      let pdfDoc = null;
+      let pageNum = 1;
+      let scale = 1;
+      let rendering = false;
+      let pendingPage = null;
+
+      if (window.pdfjsLib) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      }
+
+      function setLoading(isLoading) {
+        loading?.classList.toggle("is-hidden", !isLoading);
+      }
+
+      function updateControls() {
+        if (!pdfDoc) return;
+        pageInput.value = pageNum;
+        pageInput.max = pdfDoc.numPages;
+        pageCountEl.textContent = String(pdfDoc.numPages);
+        prevBtn.disabled = pageNum <= 1;
+        nextBtn.disabled = pageNum >= pdfDoc.numPages;
+        zoomLabel.textContent = `${Math.round(scale * 100)}%`;
+      }
+
+      async function renderPage(num) {
+        if (!pdfDoc || rendering) {
+          pendingPage = num;
+          return;
+        }
+        rendering = true;
+        setLoading(true);
+        try {
+          const page = await pdfDoc.getPage(num);
+          const viewport = page.getViewport({ scale });
+          const ctx = canvas.getContext("2d");
+          canvas.width = Math.floor(viewport.width);
+          canvas.height = Math.floor(viewport.height);
+          await page.render({ canvasContext: ctx, viewport }).promise;
+          pageNum = num;
+          updateControls();
+        } finally {
+          rendering = false;
+          setLoading(false);
+          if (pendingPage !== null && pendingPage !== pageNum) {
+            const next = pendingPage;
+            pendingPage = null;
+            renderPage(next);
+          } else {
+            pendingPage = null;
+          }
+        }
+      }
+
+      function queuePage(num) {
+        if (!pdfDoc) return;
+        const bounded = Math.min(Math.max(1, Number(num) || 1), pdfDoc.numPages);
+        renderPage(bounded);
+      }
+
+      prevBtn.addEventListener("click", () => queuePage(pageNum - 1));
+      nextBtn.addEventListener("click", () => queuePage(pageNum + 1));
+      pageInput.addEventListener("change", () => queuePage(pageInput.value));
+      zoomOutBtn.addEventListener("click", () => {
+        scale = Math.max(.6, Math.round((scale - .15) * 100) / 100);
+        renderPage(pageNum);
+      });
+      zoomInBtn.addEventListener("click", () => {
+        scale = Math.min(2.8, Math.round((scale + .15) * 100) / 100);
+        renderPage(pageNum);
+      });
+
+      async function initPdf() {
+        if (!window.pdfjsLib) {
+          setLoading(false);
+          wrap.innerHTML = `<div class="alert alert-warning m-3">Viewer PDF non disponibile. Riprova tra qualche istante.</div>`;
+          return;
+        }
+        setLoading(true);
+        pdfDoc = await pdfjsLib.getDocument(pdfUrl).promise;
+        const firstPage = await pdfDoc.getPage(1);
+        const baseViewport = firstPage.getViewport({ scale: 1 });
+        const availableWidth = Math.max(320, wrap.clientWidth - 36);
+        scale = Math.min(1.4, Math.max(.7, availableWidth / baseViewport.width));
+        await renderPage(1);
+      }
+
+      initPdf().catch(err => {
+        console.warn("LD Selection PDF render failed", err);
+        setLoading(false);
+        wrap.innerHTML = `<div class="alert alert-danger m-3">Impossibile caricare il catalogo nella pagina.</div>`;
+      });
+    })();
+  </script>
   {% if can_share %}
   <style>
     .ld-selection-modal {
