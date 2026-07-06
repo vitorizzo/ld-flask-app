@@ -1,41 +1,71 @@
-from flask import Blueprint, render_template, url_for
+from flask import Blueprint, abort, render_template, url_for
 from flask_login import login_required, current_user
 
 
 documents_bp = Blueprint("documents", __name__)
 
 
-def _ld_selection_pdf_filename() -> str:
-    active_roles = {getattr(role, "name", "").strip().lower() for role in current_user.active_roles or []}
+LD_SELECTION_VERSIONS = {
+    "top": {
+        "key": "top",
+        "label": "LD Selection Top",
+        "filename": "documents/LD_Selection_top.pdf",
+    },
+    "standard": {
+        "key": "standard",
+        "label": "LD Selection Standard",
+        "filename": "documents/LD_Selection.pdf",
+    },
+    "horeca": {
+        "key": "horeca",
+        "label": "LD Selection Horeca",
+        "filename": "documents/LD_Selection_pro.pdf",
+    },
+}
+
+
+def _active_role_names() -> set[str]:
+    return {getattr(role, "name", "").strip().lower() for role in current_user.active_roles or []}
+
+
+def _ld_selection_view_key() -> str | None:
+    active_roles = _active_role_names()
     max_weight = current_user.max_role_weight or 0
 
     if max_weight >= 30:
-        return "documents/LD_Selection_top.pdf"
+        return "horeca"
+    if "customer_horeca" in active_roles:
+        return "horeca"
     if "customer" in active_roles:
-        return "documents/LD_Selection.pdf"
-    if "horeca" in active_roles:
-        return "documents/LD_Selection_pro.pdf"
-    return "documents/LD_Selection_top.pdf"
+        return "standard"
+    return None
+
+
+def _ld_selection_share_keys() -> list[str]:
+    max_weight = current_user.max_role_weight or 0
+    if max_weight >= 100:
+        return ["standard", "horeca", "top"]
+    if max_weight >= 30:
+        return ["standard", "horeca"]
+    return []
+
+
+def _ld_selection_pdf_filename() -> str:
+    view_key = _ld_selection_view_key()
+    if not view_key:
+        abort(403)
+    return LD_SELECTION_VERSIONS[view_key]["filename"]
+
+
+def _ld_selection_title() -> str:
+    view_key = _ld_selection_view_key()
+    if not view_key:
+        abort(403)
+    return LD_SELECTION_VERSIONS[view_key]["label"]
 
 
 def _ld_selection_share_versions() -> list[dict[str, str]]:
-    return [
-        {
-            "key": "top",
-            "label": "LD Selection top",
-            "filename": "documents/LD_Selection_top.pdf",
-        },
-        {
-            "key": "standard",
-            "label": "LD Selection standard",
-            "filename": "documents/LD_Selection.pdf",
-        },
-        {
-            "key": "pro",
-            "label": "LD Selection horeca",
-            "filename": "documents/LD_Selection_pro.pdf",
-        },
-    ]
+    return [LD_SELECTION_VERSIONS[key] for key in _ld_selection_share_keys()]
 
 
 @documents_bp.route("/ld-selection", methods=["GET"])
@@ -43,7 +73,8 @@ def _ld_selection_share_versions() -> list[dict[str, str]]:
 def ld_selection():
     pdf_filename = _ld_selection_pdf_filename()
     pdf_url = url_for("static", filename=pdf_filename, _external=True)
-    can_share = (current_user.max_role_weight or 0) >= 30
+    share_source = _ld_selection_share_versions()
+    can_share = bool(share_source)
     share_versions = [
         {
             "key": version["key"],
@@ -56,6 +87,7 @@ def ld_selection():
         "documents/ld_selection.html",
         pdf_url=pdf_url,
         pdf_filename=pdf_filename.rsplit("/", 1)[-1],
+        pdf_title=_ld_selection_title(),
         can_share=can_share,
         share_versions=share_versions,
     )

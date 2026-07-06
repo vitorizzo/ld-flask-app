@@ -1949,3 +1949,7 @@ Performance apertura giornata Agenda 2026-06-13:
 - 2026-07-03 fix query rubrica:
   - l'endpoint `/registry/api/registries` non forza piu' `limit=120` quando la ricerca e' vuota: usa il limite esteso della query iniziale, cosi' l'indice alfabetico puo' coprire tutte le lettere;
   - la risposta include `count` e `limited` per distinguere lista completa e risultati filtrati; verifica: `py_compile routes/registry.py`, `git diff --check`.
+- 2026-07-06 policy LD Selection:
+  - home: pulsante LD Selection disabilitato per utenti non autenticati/guest, abilitato da `customer` in su;
+  - `/ld-selection`: customer vede Standard senza share/copia, customer_horeca e staff+ vedono Horeca, staff+ puo' condividere/copiare Standard e Horeca, admin+ anche Top;
+  - versione aperta scelta automaticamente senza conferme; asset globali versionati a `mobile12`; verifiche con utenti locali customer/staff/admin e home anonima, `py_compile routes/documents.py`, `git diff --check`.
