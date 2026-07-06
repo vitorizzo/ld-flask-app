@@ -173,6 +173,7 @@
   const audioStatus = document.querySelector("[data-audio-status]");
   const attachmentPreview = document.querySelector("[data-attachment-preview]");
   const fileInputs = Array.from(document.querySelectorAll("[data-file-input]"));
+  const photoInput = document.querySelector('input[name="photos"]');
   let recorder = null;
   let chunks = [];
 
@@ -214,6 +215,57 @@
 
   fileInputs.forEach(input => input.addEventListener("change", updateAttachmentPreview));
 
+  function canvasToBlob(canvas, type, quality) {
+    return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+  }
+
+  async function compressImageFile(file) {
+    if (!file || !file.type || !file.type.startsWith("image/")) return file;
+    const imageUrl = URL.createObjectURL(file);
+    try {
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = imageUrl;
+      });
+      const maxSide = 1600;
+      const scale = Math.min(1, maxSide / Math.max(img.width || maxSide, img.height || maxSide));
+      const width = Math.max(1, Math.round((img.width || maxSide) * scale));
+      const height = Math.max(1, Math.round((img.height || maxSide) * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d", { alpha: false });
+      ctx.drawImage(img, 0, 0, width, height);
+      const blob = await canvasToBlob(canvas, "image/jpeg", 0.72);
+      if (!blob || blob.size >= file.size) return file;
+      const baseName = (file.name || "foto").replace(/\.[^.]+$/, "");
+      return new File([blob], `${baseName}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
+    } catch (err) {
+      console.warn("Compressione foto non riuscita", err);
+      return file;
+    } finally {
+      URL.revokeObjectURL(imageUrl);
+    }
+  }
+
+  async function compressSelectedPhotos() {
+    if (!photoInput || !photoInput.files || !photoInput.files.length) return;
+    const transfer = new DataTransfer();
+    for (const file of Array.from(photoInput.files)) {
+      transfer.items.add(await compressImageFile(file));
+    }
+    photoInput.files = transfer.files;
+    updateAttachmentPreview();
+  }
+
+  if (photoInput) {
+    photoInput.addEventListener("change", () => {
+      compressSelectedPhotos();
+    });
+  }
+
   if (recordButton && audioInput && navigator.mediaDevices && window.MediaRecorder) {
     recordButton.addEventListener("click", async () => {
       if (recorder && recorder.state === "recording") {
@@ -222,14 +274,24 @@
       }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       chunks = [];
-      recorder = new MediaRecorder(stream);
+      const preferredTypes = [
+        "audio/webm;codecs=opus",
+        "audio/ogg;codecs=opus",
+        "audio/webm",
+      ];
+      const mimeType = preferredTypes.find(type => MediaRecorder.isTypeSupported(type)) || "";
+      recorder = new MediaRecorder(stream, {
+        mimeType: mimeType || undefined,
+        audioBitsPerSecond: 24000
+      });
       recorder.ondataavailable = event => {
         if (event.data && event.data.size) chunks.push(event.data);
       };
       recorder.onstop = () => {
         stream.getTracks().forEach(track => track.stop());
         const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
-        const file = new File([blob], "ordine-vocale.webm", { type: blob.type });
+        const extension = blob.type.includes("ogg") ? "ogg" : "webm";
+        const file = new File([blob], `ordine-vocale.${extension}`, { type: blob.type });
         const transfer = new DataTransfer();
         transfer.items.add(file);
         audioInput.files = transfer.files;

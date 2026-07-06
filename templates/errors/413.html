@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+
+{% block title %}File troppo grande - LD Enoteca{% endblock %}
+
+{% block content %}
+<section class="customer-order-page">
+  <div class="customer-order-panel">
+    <h1>File troppo grande</h1>
+    <p class="customer-order-muted">
+      L'ordine non e' stato inviato perche' allegati e audio superano il limite massimo di {{ limit_mb }} MB.
+    </p>
+    <p class="customer-order-muted">
+      Riduci la durata del vocale, allega meno file o invia l'ordine in piu' aggiunte.
+    </p>
+    <a class="btn btn-info" href="{{ back_url }}">Torna all'ordine</a>
+  </div>
+</section>
+{% endblock %}

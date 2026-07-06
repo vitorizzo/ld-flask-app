@@ -1976,3 +1976,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - la form ordine ora mostra riepilogo allegati prima dell'invio: tipo, nome file e dimensione totale, includendo il vocale registrato;
   - i metadati allegati salvati distinguono `image`, `file` e `audio`, con `size_label` visibile nello storico cliente e nella vista staff;
   - verifica salvataggio in request context: foto, PDF e audio vengono riconosciuti e salvati come tre allegati distinti; `py_compile`, `git diff --check`.
+- 2026-07-06 compressione allegati ordini Horeca:
+  - le foto scattate/caricate nella pagina ordine vengono compresse lato browser: ridimensionamento max 1600px e conversione JPEG qualita' 0.72 se il risultato e' piu' leggero dell'originale;
+  - i vocali usano `MediaRecorder` con codec Opus/WebM o OGG quando disponibile e bitrate audio 24 kbps;
+  - il riepilogo allegati viene aggiornato dopo la compressione, cosi' il cliente vede il peso effettivamente inviato; verifica `git diff --check`.
