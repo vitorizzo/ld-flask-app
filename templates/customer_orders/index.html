@@ -130,10 +130,28 @@
                     <span>Nota modifica</span>
                     <textarea class="form-control" name="order_text" rows="3"></textarea>
                   </label>
-                  <label class="customer-order-fileline">
-                    <span>Allegati modifica</span>
-                    <input class="form-control" type="file" name="files" multiple>
-                  </label>
+                  <div class="customer-order-tools">
+                    <label class="customer-order-tool">
+                      <i class="fa-solid fa-camera"></i>
+                      <span>Foto modifica</span>
+                      <input type="file" name="photos" accept="image/*" capture="environment" multiple data-file-input data-file-kind="Foto">
+                    </label>
+                    <label class="customer-order-tool">
+                      <i class="fa-solid fa-paperclip"></i>
+                      <span>File modifica</span>
+                      <input type="file" name="files" multiple data-file-input data-file-kind="File">
+                    </label>
+                    <button class="customer-order-tool" type="button" data-record-audio>
+                      <i class="fa-solid fa-microphone"></i>
+                      <span>Vocale modifica</span>
+                    </button>
+                    <input type="file" name="audio" data-audio-file data-file-kind="Vocale" hidden>
+                  </div>
+                  <div class="customer-order-audio" data-audio-status>Vocale non registrato.</div>
+                  <div class="customer-order-attachment-preview" data-attachment-preview>
+                    <strong>Allegati selezionati</strong>
+                    <div class="customer-order-muted">Nessun allegato selezionato.</div>
+                  </div>
                   <div class="customer-order-actions">
                     <button class="btn btn-outline-info" type="submit">Registra modifica</button>
                   </div>
@@ -168,15 +186,9 @@
     updateDeliveryValue();
   }
 
-  const recordButton = document.querySelector("[data-record-audio]");
-  const audioInput = document.querySelector("[data-audio-file]");
-  const audioStatus = document.querySelector("[data-audio-status]");
-  const attachmentPreview = document.querySelector("[data-attachment-preview]");
   const fileInputs = Array.from(document.querySelectorAll("[data-file-input]"));
-  const photoInput = document.querySelector('input[name="photos"]');
-  let recorder = null;
-  let chunks = [];
-  let photoCompressionPromise = Promise.resolve();
+  const forms = Array.from(document.querySelectorAll(".customer-order-form, .customer-order-revision-form"));
+  const compressionByForm = new WeakMap();
 
   function formatBytes(bytes) {
     if (!bytes) return "0 KB";
@@ -190,11 +202,12 @@
     return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
   }
 
-  function updateAttachmentPreview() {
+  function updateAttachmentPreview(form) {
+    const attachmentPreview = form.querySelector("[data-attachment-preview]");
     if (!attachmentPreview) return;
     const rows = [];
     let total = 0;
-    const inputs = audioInput ? fileInputs.concat(audioInput) : fileInputs;
+    const inputs = Array.from(form.querySelectorAll("[data-file-input], [data-audio-file]"));
     inputs.forEach(input => {
       const kind = input.dataset.fileKind || "File";
       Array.from(input.files || []).forEach(file => {
@@ -214,7 +227,7 @@
     `;
   }
 
-  fileInputs.forEach(input => input.addEventListener("change", updateAttachmentPreview));
+  fileInputs.forEach(input => input.addEventListener("change", () => updateAttachmentPreview(input.closest("form"))));
 
   function canvasToBlob(canvas, type, quality) {
     return new Promise(resolve => canvas.toBlob(resolve, type, quality));
@@ -251,24 +264,26 @@
     }
   }
 
-  async function compressSelectedPhotos() {
-    if (!photoInput || !photoInput.files || !photoInput.files.length) return;
+  async function compressSelectedPhotos(input) {
+    if (!input || !input.files || !input.files.length) return;
     const transfer = new DataTransfer();
-    for (const file of Array.from(photoInput.files)) {
+    for (const file of Array.from(input.files)) {
       transfer.items.add(await compressImageFile(file));
     }
-    photoInput.files = transfer.files;
-    updateAttachmentPreview();
+    input.files = transfer.files;
+    updateAttachmentPreview(input.closest("form"));
   }
 
-  if (photoInput) {
+  document.querySelectorAll('input[name="photos"]').forEach(photoInput => {
     photoInput.addEventListener("change", () => {
-      photoCompressionPromise = compressSelectedPhotos();
+      const form = photoInput.closest("form");
+      const promise = compressSelectedPhotos(photoInput);
+      compressionByForm.set(form, promise);
     });
-  }
+  });
 
-  const orderForm = document.querySelector(".customer-order-form");
-  if (orderForm) {
+  forms.forEach(orderForm => {
+    compressionByForm.set(orderForm, Promise.resolve());
     orderForm.addEventListener("submit", async event => {
       if (orderForm.dataset.compressionReady === "1") {
         return;
@@ -281,7 +296,7 @@
         submitButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Preparo allegati';
       }
       try {
-        await photoCompressionPromise;
+        await (compressionByForm.get(orderForm) || Promise.resolve());
         orderForm.dataset.compressionReady = "1";
         orderForm.requestSubmit();
       } catch (err) {
@@ -293,9 +308,15 @@
         orderForm.dataset.compressionReady = "0";
       }
     });
-  }
+  });
 
-  if (recordButton && audioInput && navigator.mediaDevices && window.MediaRecorder) {
+  document.querySelectorAll("[data-record-audio]").forEach(recordButton => {
+    const form = recordButton.closest("form");
+    const audioInput = form ? form.querySelector("[data-audio-file]") : null;
+    const audioStatus = form ? form.querySelector("[data-audio-status]") : null;
+    let recorder = null;
+    let chunks = [];
+    if (recordButton && audioInput && navigator.mediaDevices && window.MediaRecorder) {
     recordButton.addEventListener("click", async () => {
       if (recorder && recorder.state === "recording") {
         recorder.stop();
@@ -326,16 +347,17 @@
         audioInput.files = transfer.files;
         if (audioStatus) audioStatus.textContent = "Vocale registrato.";
         recordButton.classList.remove("is-recording");
-        updateAttachmentPreview();
+        updateAttachmentPreview(form);
       };
       recorder.start();
       recordButton.classList.add("is-recording");
       if (audioStatus) audioStatus.textContent = "Registrazione in corso. Tocca di nuovo per fermare.";
     });
-  } else if (recordButton) {
+    } else if (recordButton) {
     recordButton.disabled = true;
     if (audioStatus) audioStatus.textContent = "Registrazione vocale non supportata da questo browser.";
-  }
+    }
+  });
 })();
 </script>
 {% endblock %}

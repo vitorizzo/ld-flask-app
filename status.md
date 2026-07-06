@@ -1988,3 +1988,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - la compressione foto lato browser viene ora attesa al submit: il form mostra `Preparo allegati` e invia solo dopo il ridimensionamento;
   - abbassato il profilo foto a max 1200px e JPEG qualita' 0.55 per ridurre il rischio di blocco proxy/app;
   - gli ordini ricevuti sono consultabili dallo staff in home con `Ordini Horeca` o direttamente da `/customer-orders/manage`; verifica `git diff --check`.
+- 2026-07-06 allegati su modifica ordine Horeca:
+  - anche le revisioni di un ordine gia' inviato ora hanno foto, file e vocale, con lo stesso riepilogo allegati del primo invio;
+  - la compressione foto viene applicata a tutti gli input `photos`, incluse le modifiche ordine, e il submit attende la compressione della form corrente;
+  - verifica script inline con `node --check`, `git diff --check`.
