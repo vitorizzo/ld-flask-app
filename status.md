@@ -2017,3 +2017,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - i form evento supportano upload locandina JPG/PNG/WebP con salvataggio in `static/uploads/events`;
   - la locandina viene mostrata nelle card pubbliche evento e nella gestione office, dove puo' essere sostituita o rimossa;
   - migrazione applicata in locale; verifica upload test con evento creato e rimosso subito, `py_compile`, `git diff --check`.
+- 2026-07-07 locandina eventi PDF:
+  - le locandine evento accettano ora anche PDF (`accept="image/*,.pdf"` e validazione backend `.pdf`/`application/pdf`);
+  - i PDF vengono mostrati come riquadro/link `Apri locandina PDF`, mentre le immagini restano in anteprima;
+  - aggiunto controllo client-side a 20 MB per evitare upload PDF troppo pesanti che portano a 413;
+  - la pagina 413 dedicata viene usata anche per `/events`;
+  - verifica upload PDF test con evento creato e rimosso subito, `py_compile`, script inline `node --check`, `git diff --check`.

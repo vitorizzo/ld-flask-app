@@ -180,7 +180,7 @@ def create_app():
     @app.errorhandler(RequestEntityTooLarge)
     def request_entity_too_large(error):
         limit_mb = app.config.get("MAX_UPLOAD_MB", 64)
-        if request.path.startswith("/customer-orders"):
+        if request.path.startswith("/customer-orders") or request.path.startswith("/events"):
             return render_template(
                 "errors/413.html",
                 limit_mb=limit_mb,

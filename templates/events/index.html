@@ -49,7 +49,7 @@
                     </label>
                     <label>
                         <span>Locandina</span>
-                        <input class="form-control" type="file" name="poster" accept="image/*">
+                        <input class="form-control" type="file" name="poster" accept="image/*,.pdf" data-event-poster-input>
                     </label>
                     <label class="events-check">
                         <input class="form-check-input" type="checkbox" name="is_published" value="1" checked>
@@ -78,7 +78,14 @@
                         </div>
                         {% if event.poster_path %}
                             <a class="event-poster" href="{{ url_for('static', filename=event.poster_path) }}" target="_blank" rel="noopener">
-                                <img src="{{ url_for('static', filename=event.poster_path) }}" alt="Locandina {{ event.title }}" loading="lazy">
+                                {% if event.poster_path.lower().endswith('.pdf') %}
+                                    <span class="event-poster-pdf">
+                                        <i class="fa-regular fa-file-pdf"></i>
+                                        Apri locandina PDF
+                                    </span>
+                                {% else %}
+                                    <img src="{{ url_for('static', filename=event.poster_path) }}" alt="Locandina {{ event.title }}" loading="lazy">
+                                {% endif %}
                             </a>
                         {% endif %}
                         <div class="event-main">
@@ -156,12 +163,19 @@
                                     </label>
                                     <label>
                                         <span>Locandina</span>
-                                        <input class="form-control" type="file" name="poster" accept="image/*">
+                                        <input class="form-control" type="file" name="poster" accept="image/*,.pdf" data-event-poster-input>
                                     </label>
                                     {% if event.poster_path %}
                                         <div class="events-poster-admin">
                                             <a href="{{ url_for('static', filename=event.poster_path) }}" target="_blank" rel="noopener">
-                                                <img src="{{ url_for('static', filename=event.poster_path) }}" alt="Locandina {{ event.title }}" loading="lazy">
+                                                {% if event.poster_path.lower().endswith('.pdf') %}
+                                                    <span class="event-poster-pdf">
+                                                        <i class="fa-regular fa-file-pdf"></i>
+                                                        Apri PDF
+                                                    </span>
+                                                {% else %}
+                                                    <img src="{{ url_for('static', filename=event.poster_path) }}" alt="Locandina {{ event.title }}" loading="lazy">
+                                                {% endif %}
                                             </a>
                                             <label class="form-check">
                                                 <input class="form-check-input" type="checkbox" name="remove_poster" value="1">
@@ -189,4 +203,23 @@
         </section>
     {% endif %}
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const maxPosterMb = 20;
+  document.querySelectorAll("[data-event-poster-input]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const file = input.files && input.files[0];
+      if (!file) return;
+      const sizeMb = file.size / (1024 * 1024);
+      if (sizeMb > maxPosterMb) {
+        input.value = "";
+        alert(`La locandina pesa ${sizeMb.toFixed(1)} MB. Usa un file entro ${maxPosterMb} MB per evitare il blocco upload.`);
+      }
+    });
+  });
+});
+</script>
 {% endblock %}

@@ -11,7 +11,7 @@ from tools.role_required import role_required
 
 
 events_bp = Blueprint("events", __name__)
-ALLOWED_POSTER_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
+ALLOWED_POSTER_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".pdf"}
 
 
 def _can_manage_events():
@@ -43,10 +43,10 @@ def _save_poster_file(file_storage):
         raise ValueError("Nome file locandina non valido.")
     ext = os.path.splitext(filename)[1].lower()
     if ext not in ALLOWED_POSTER_EXTENSIONS:
-        raise ValueError("Formato locandina non valido. Usa JPG, PNG o WebP.")
+        raise ValueError("Formato locandina non valido. Usa JPG, PNG, WebP o PDF.")
     mimetype = (file_storage.mimetype or "").lower()
-    if mimetype and not mimetype.startswith("image/"):
-        raise ValueError("La locandina deve essere un'immagine.")
+    if mimetype and not (mimetype.startswith("image/") or mimetype == "application/pdf"):
+        raise ValueError("La locandina deve essere un'immagine o un PDF.")
     target_name = f"evento_{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{filename}"
     target_path = os.path.join(_poster_upload_folder(), target_name)
     file_storage.save(target_path)
