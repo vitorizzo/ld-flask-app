@@ -163,7 +163,7 @@ def _save_uploaded_logo(file_storage, prefix="logo", folder_name="pos"):
 
 @settings_bp.get("/circuit-logos/<path:logo_path>")
 @login_required
-@role_required(900)
+@role_required(40)
 def pos_circuit_logo(logo_path):
     relative = (logo_path or "").lstrip("/").replace("\\", "/")
     if relative.startswith("static/"):
@@ -178,7 +178,7 @@ def pos_circuit_logo(logo_path):
 
 @settings_bp.get("/bank-logos/<path:logo_path>")
 @login_required
-@role_required(900)
+@role_required(40)
 def bank_logo(logo_path):
     relative = (logo_path or "").lstrip("/").replace("\\", "/")
     if relative.startswith("static/"):
@@ -215,16 +215,17 @@ def _promote_default_device():
 
 @settings_bp.route("/", methods=["GET"])
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def settings_index():
-    entries = [
+    all_entries = [
         {
             "title": "Utenti",
             "description": "Anagrafiche, ruoli e stato degli account.",
             "route": url_for("settings.users_index"),
             "icon": "fa-solid fa-users",
             "icon_class": "text-bg-info",
+            "min_weight": 40,
         },
         {
             "title": "Banche",
@@ -232,6 +233,7 @@ def settings_index():
             "route": url_for("settings.banks_index"),
             "icon": "fa-solid fa-building-columns",
             "icon_class": "text-bg-danger",
+            "min_weight": 40,
         },
         {
             "title": "Circuiti Carte",
@@ -239,6 +241,7 @@ def settings_index():
             "route": url_for("settings.pos_circuits_index"),
             "icon": "fa-solid fa-credit-card",
             "icon_class": "text-bg-info",
+            "min_weight": 40,
         },
         {
             "title": "Dispositivi POS",
@@ -246,6 +249,7 @@ def settings_index():
             "route": url_for("settings.pos_devices_index"),
             "icon": "fa-solid fa-cash-register",
             "icon_class": "text-bg-warning",
+            "min_weight": 40,
         },
         {
             "title": "Chiavi API",
@@ -253,6 +257,7 @@ def settings_index():
             "route": url_for("settings.api_keys"),
             "icon": "fa-solid fa-key",
             "icon_class": "text-bg-secondary",
+            "min_weight": 900,
         },
         {
             "title": "Database",
@@ -260,6 +265,7 @@ def settings_index():
             "route": url_for("settings.database_config"),
             "icon": "fa-solid fa-database",
             "icon_class": "text-bg-success",
+            "min_weight": 900,
         },
         {
             "title": "Email",
@@ -267,6 +273,7 @@ def settings_index():
             "route": url_for("settings.email_config"),
             "icon": "fa-solid fa-envelope",
             "icon_class": "text-bg-info",
+            "min_weight": 40,
         },
         {
             "title": "Ruoli e Autorizzazioni",
@@ -274,6 +281,7 @@ def settings_index():
             "route": url_for("settings.roles_permissions"),
             "icon": "fa-solid fa-shield-halved",
             "icon_class": "text-bg-info",
+            "min_weight": 900,
         },
         {
             "title": "Gestione menù",
@@ -281,6 +289,7 @@ def settings_index():
             "route": url_for("settings.manage_menus"),
             "icon": "fa-solid fa-bars",
             "icon_class": "text-bg-dark",
+            "min_weight": 900,
         },
         {
             "title": "Conflitti import",
@@ -288,15 +297,27 @@ def settings_index():
             "route": url_for("settings.import_conflicts_page"),
             "icon": "fa-solid fa-triangle-exclamation",
             "icon_class": "text-bg-warning",
+            "min_weight": 40,
         },
         {
-            "title": "Ordini clienti Horeca",
-            "description": "Opzioni consegna e associazione account-anagrafica.",
+            "title": "Opzioni consegna Horeca",
+            "description": "Scelte disponibili per la consegna degli ordini Horeca.",
             "route": url_for("settings.customer_order_options"),
-            "icon": "fa-solid fa-basket-shopping",
+            "icon": "fa-solid fa-truck-fast",
             "icon_class": "text-bg-info",
+            "min_weight": 40,
+        },
+        {
+            "title": "Associazione Utente-Cliente",
+            "description": "Collega gli account Horeca alle anagrafiche cliente.",
+            "route": url_for("settings.customer_order_links"),
+            "icon": "fa-solid fa-user-link",
+            "icon_class": "text-bg-info",
+            "min_weight": 40,
         },
     ]
+    max_weight = current_user.max_role_weight or 0
+    entries = [entry for entry in all_entries if max_weight >= entry["min_weight"]]
     return render_template("settings/index.html", entries=entries)
 
 
@@ -331,16 +352,25 @@ def customer_order_options():
             option.is_active = _form_bool(request.form, "is_active")
             db.session.commit()
             flash("Opzione consegna aggiornata.", "success")
-        elif action == "link_user":
-            user = User.query.get_or_404(_parse_int(request.form.get("user_id")))
-            registry_id = _parse_int(request.form.get("registry_id"))
-            registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first() if registry_id else None
-            user.customer_registry_id = registry.id if registry else None
-            db.session.commit()
-            flash("Associazione account-anagrafica aggiornata.", "success")
         return redirect(url_for("settings.customer_order_options"))
 
     options = CustomerOrderDeliveryOption.query.order_by(CustomerOrderDeliveryOption.sort_order.asc(), CustomerOrderDeliveryOption.id.asc()).all()
+    return render_template("settings/customer_order_options.html", options=options)
+
+
+@settings_bp.route("/customer-order-links", methods=["GET", "POST"])
+@login_required
+@role_required(40)
+def customer_order_links():
+    if request.method == "POST":
+        user = User.query.get_or_404(_parse_int(request.form.get("user_id")))
+        registry_id = _parse_int(request.form.get("registry_id"))
+        registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first() if registry_id else None
+        user.customer_registry_id = registry.id if registry else None
+        db.session.commit()
+        flash("Associazione account-anagrafica aggiornata.", "success")
+        return redirect(url_for("settings.customer_order_links"))
+
     users = User.query.order_by(User.surname.asc(), User.name.asc()).all()
     registries = (
         BusinessRegistry.query
@@ -349,12 +379,12 @@ def customer_order_options():
         .limit(2000)
         .all()
     )
-    return render_template("settings/customer_order_options.html", options=options, users=users, registries=registries)
+    return render_template("settings/customer_order_links.html", users=users, registries=registries)
 
 
 @settings_bp.route("/users", methods=["GET"])
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def users_index():
     try:
@@ -390,7 +420,7 @@ def users_index():
 
 @settings_bp.post("/users/<int:user_id>/update")
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def user_update(user_id):
     user = User.query.get_or_404(user_id)
@@ -421,7 +451,7 @@ def user_update(user_id):
 
 @settings_bp.post("/users/<int:user_id>/delete")
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def user_delete(user_id):
     user = User.query.get_or_404(user_id)
@@ -444,7 +474,7 @@ def user_delete(user_id):
 
 @settings_bp.post("/users/<int:user_id>/role")
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def user_change_role(user_id):
     user = User.query.get_or_404(user_id)
@@ -476,7 +506,7 @@ def user_change_role(user_id):
 
 @settings_bp.post("/users/<int:user_id>/special-authorizations")
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def user_add_special_authorization(user_id):
     user = User.query.get_or_404(user_id)
@@ -527,7 +557,7 @@ def user_add_special_authorization(user_id):
 
 @settings_bp.post("/users/<int:user_id>/reset-password")
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def user_reset_password(user_id):
     user = User.query.get_or_404(user_id)
@@ -572,7 +602,7 @@ def user_reset_password(user_id):
 
 @settings_bp.route("/banks", methods=["GET", "POST"])
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def banks_index():
     try:
@@ -617,7 +647,7 @@ def banks_index():
 
 @settings_bp.route("/banks/<int:bank_id>/toggle", methods=["POST"])
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def bank_toggle_active(bank_id):
     bank = CashBank.query.get_or_404(bank_id)
@@ -632,7 +662,7 @@ def bank_toggle_active(bank_id):
 
 @settings_bp.route("/banks/<int:bank_id>/delete", methods=["POST"])
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def bank_delete(bank_id):
     bank = CashBank.query.get_or_404(bank_id)
@@ -657,7 +687,7 @@ def bank_delete(bank_id):
 
 @settings_bp.route("/pos-circuits", methods=["GET", "POST"])
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def pos_circuits_index():
     try:
@@ -765,7 +795,7 @@ def pos_circuits_index():
 
 @settings_bp.route("/pos-circuits/<int:circuit_id>/toggle", methods=["POST"])
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def pos_circuit_toggle_active(circuit_id):
     circuit = PosCircuit.query.get_or_404(circuit_id)
@@ -777,7 +807,7 @@ def pos_circuit_toggle_active(circuit_id):
 
 @settings_bp.route("/pos-circuits/<int:circuit_id>/delete", methods=["POST"])
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def pos_circuit_delete(circuit_id):
     circuit = PosCircuit.query.get_or_404(circuit_id)
@@ -799,7 +829,7 @@ def pos_circuit_delete(circuit_id):
 
 @settings_bp.route("/pos-devices", methods=["GET", "POST"])
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def pos_devices_index():
     try:
@@ -885,7 +915,7 @@ def pos_devices_index():
 
 @settings_bp.route("/pos-devices/<int:device_id>/toggle", methods=["POST"])
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def pos_device_toggle_active(device_id):
     device = PosDevice.query.get_or_404(device_id)
@@ -900,7 +930,7 @@ def pos_device_toggle_active(device_id):
 
 @settings_bp.route("/pos-devices/<int:device_id>/delete", methods=["POST"])
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def pos_device_delete(device_id):
     device = PosDevice.query.get_or_404(device_id)
@@ -1291,7 +1321,7 @@ def _apply_mail_runtime_config(rows):
 
 @settings_bp.route("/email", methods=["GET", "POST"])
 @login_required
-@role_required(900)
+@role_required(40)
 @log_task(logger)
 def email_config():
     if request.method == "POST":
@@ -1952,11 +1982,15 @@ def lancia_import_anagrafiche():
 
 
 @settings_bp.route("/import_conflicts", methods=["GET"])
+@login_required
+@role_required(40)
 def import_conflicts_page():
     return render_template("settings/import_conflicts.html")
 
 
 @settings_bp.route("/next_conflict", methods=["GET"])
+@login_required
+@role_required(40)
 def api_import_conflicts_next():
     ctype = request.args.get("type")
 
@@ -2026,6 +2060,7 @@ def _sha256_text(value) -> str | None:
 
 @settings_bp.route("/resolve_conflict", methods=["POST"])
 @login_required
+@role_required(40)
 def resolve_conflict():
     data = request.get_json(silent=True) or {}
     conflict_id = data.get("id")

@@ -69,9 +69,11 @@ Frontend:
 
 Modello:
 - `Event` in `models.py`
+- `poster_path` opzionale per locandina evento salvata in `static/uploads/events`.
 
 Migrazione:
 - `migrations/versions/7a8b9c0d1e2f_add_events.py`
+- `migrations/versions/9c0d1e2f3a4b_add_event_poster.py`
 
 Regola permessi:
 - tutti possono visualizzare gli eventi pubblicati futuri;
@@ -90,7 +92,8 @@ Route:
 - `POST /customer-orders/` - creazione ordine cliente;
 - `POST /customer-orders/<id>/revise` - aggiunta o sostituzione su ordine gia' inviato;
 - `/customer-orders/manage` - ricezione staff degli ordini cliente;
-- `/settings/customer-order-options` - configurazione opzioni consegna e associazione account-anagrafica.
+- `/settings/customer-order-options` - configurazione opzioni consegna ordini Horeca, da office in su;
+- `/settings/customer-order-links` - associazione account utente ad anagrafica cliente, da office in su.
 
 Blueprint:
 - `routes/customer_orders.py`, registrato in `tools/app_factory.py` con prefisso `/customer-orders`.
@@ -99,8 +102,9 @@ Frontend:
 - `templates/customer_orders/index.html`
 - `templates/customer_orders/manage.html`
 - `templates/settings/customer_order_options.html`
+- `templates/settings/customer_order_links.html`
 - stili in `static/css/style.css`
-- pulsanti home in `templates/home.html`: `Fai un ordine` per Horeca/staff+, `Ordini Horeca` per staff+.
+- pulsanti home in `templates/home.html`: `Fai un ordine` solo per clienti Horeca, `Ordini Horeca` per staff+.
 
 Modelli:
 - `CustomerOrderDeliveryOption`

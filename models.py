@@ -651,6 +651,7 @@ class Event(db.Model):
     summary = db.Column(db.Text, nullable=True)
     details = db.Column(db.Text, nullable=True)
     contact_info = db.Column(db.String(180), nullable=True)
+    poster_path = db.Column(db.String(255), nullable=True)
     is_published = db.Column(db.Boolean, nullable=False, default=True)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))

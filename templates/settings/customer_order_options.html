@@ -1,87 +1,104 @@
 {% extends "base.html" %}
 
-{% block title %}Ordini clienti Horeca - Impostazioni{% endblock %}
+{% block title %}Opzioni consegna Horeca - Impostazioni{% endblock %}
+
+{% block extra_css %}
+<style>
+  .horeca-settings-grid { display: grid; grid-template-columns: minmax(280px, 420px) minmax(0, 1fr); gap: 18px; }
+  .horeca-option-list { display: grid; gap: 12px; }
+  .horeca-option-card { border: 1px solid rgba(0,0,0,.08); border-radius: 8px; padding: 14px; background: #fff; }
+  @media (max-width: 820px), (hover: none) and (pointer: coarse) {
+    .horeca-settings-grid { grid-template-columns: 1fr; }
+    .horeca-option-card .row { row-gap: 12px; }
+    .horeca-option-card .btn, .horeca-settings-grid .btn { min-height: 48px; }
+  }
+  @media (hover: none) and (pointer: coarse) and (min-width: 821px) {
+    .horeca-settings-grid { grid-template-columns: 1fr; gap: 28px; }
+    .horeca-option-card, .horeca-settings-grid .card { border-radius: 14px; }
+    .horeca-option-card .form-control, .horeca-option-card .btn, .horeca-settings-grid .form-control, .horeca-settings-grid .btn { min-height: 86px; font-size: 2rem; border-radius: 14px; }
+    .horeca-settings-grid .form-label, .horeca-settings-grid .form-check-label, .horeca-option-card { font-size: 2rem; }
+  }
+</style>
+{% endblock %}
 
 {% block content %}
 <section class="welcome-section page-shell">
   <div class="container-fluid">
     <div class="d-flex align-items-start justify-content-between mb-4">
       <div>
-        <h1 class="mb-1">Ordini clienti Horeca</h1>
-        <div class="text-muted">Configura le scelte consegna e collega gli account alle anagrafiche cliente.</div>
+        <h1 class="mb-1">Opzioni consegna Horeca</h1>
+        <div class="text-muted">Configura le scelte disponibili nel menu consegna degli ordini Horeca.</div>
       </div>
       <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">Impostazioni</a>
     </div>
 
-    <div class="row g-4">
-      <div class="col-12 col-xl-5">
-        <div class="card border-0 shadow-sm">
-          <div class="card-body">
-            <h2 class="h5 text-dark">Nuova opzione consegna</h2>
-            <form method="post" class="row g-3">
-              <input type="hidden" name="action" value="create_option">
-              <div class="col-12 col-md-6">
-                <label class="form-label">Codice</label>
-                <input class="form-control" name="code" placeholder="entro_giorno_x" required>
-              </div>
-              <div class="col-12 col-md-6">
-                <label class="form-label">Label</label>
-                <input class="form-control" name="label" placeholder="Entro un giorno X" required>
-              </div>
-              <div class="col-12 col-md-6">
-                <label class="form-label">Label valore</label>
-                <input class="form-control" name="value_label" placeholder="Giorno richiesto">
-              </div>
-              <div class="col-12 col-md-3">
-                <label class="form-label">Ordine</label>
-                <input class="form-control" type="number" name="sort_order" value="0">
-              </div>
-              <div class="col-12 col-md-3 d-flex align-items-end">
-                <label class="form-check mb-2">
-                  <input class="form-check-input" type="checkbox" name="requires_value" value="1">
-                  <span class="form-check-label">Valore</span>
-                </label>
-              </div>
-              <div class="col-12">
-                <label class="form-check">
-                  <input class="form-check-input" type="checkbox" name="is_active" value="1" checked>
-                  <span class="form-check-label">Attiva</span>
-                </label>
-              </div>
-              <div class="col-12">
-                <button class="btn btn-info" type="submit">Inserisci</button>
-              </div>
-            </form>
-          </div>
+    <div class="horeca-settings-grid">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h2 class="h5 text-dark">Nuova opzione</h2>
+          <form method="post" class="row g-3">
+            <input type="hidden" name="action" value="create_option">
+            <div class="col-12">
+              <label class="form-label">Codice</label>
+              <input class="form-control" name="code" placeholder="entro_giorno_x" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Label</label>
+              <input class="form-control" name="label" placeholder="Entro un giorno X" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Label valore</label>
+              <input class="form-control" name="value_label" placeholder="Giorno richiesto">
+            </div>
+            <div class="col-6">
+              <label class="form-label">Ordine</label>
+              <input class="form-control" type="number" name="sort_order" value="0">
+            </div>
+            <div class="col-6 d-flex align-items-end">
+              <label class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="requires_value" value="1">
+                <span class="form-check-label">Richiede valore</span>
+              </label>
+            </div>
+            <div class="col-12">
+              <label class="form-check">
+                <input class="form-check-input" type="checkbox" name="is_active" value="1" checked>
+                <span class="form-check-label">Attiva</span>
+              </label>
+            </div>
+            <div class="col-12">
+              <button class="btn btn-info w-100" type="submit">Inserisci</button>
+            </div>
+          </form>
         </div>
       </div>
 
-      <div class="col-12 col-xl-7">
-        <div class="card border-0 shadow-sm">
-          <div class="card-body">
-            <h2 class="h5 text-dark">Opzioni esistenti</h2>
-            <div class="vstack gap-3">
-              {% for option in options %}
-                <form method="post" class="row g-2 align-items-end border rounded p-2">
-                  <input type="hidden" name="action" value="update_option">
-                  <input type="hidden" name="option_id" value="{{ option.id }}">
-                  <div class="col-12 col-lg-2">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <h2 class="h5 text-dark">Opzioni esistenti</h2>
+          <div class="horeca-option-list">
+            {% for option in options %}
+              <form method="post" class="horeca-option-card">
+                <input type="hidden" name="action" value="update_option">
+                <input type="hidden" name="option_id" value="{{ option.id }}">
+                <div class="row g-2 align-items-end">
+                  <div class="col-12 col-xl-2">
                     <label class="form-label">Codice</label>
                     <input class="form-control" name="code" value="{{ option.code }}" required>
                   </div>
-                  <div class="col-12 col-lg-3">
+                  <div class="col-12 col-xl-3">
                     <label class="form-label">Label</label>
                     <input class="form-control" name="label" value="{{ option.label }}" required>
                   </div>
-                  <div class="col-12 col-lg-3">
+                  <div class="col-12 col-xl-3">
                     <label class="form-label">Valore</label>
                     <input class="form-control" name="value_label" value="{{ option.value_label or '' }}">
                   </div>
-                  <div class="col-6 col-lg-1">
+                  <div class="col-6 col-xl-1">
                     <label class="form-label">Ord.</label>
                     <input class="form-control" type="number" name="sort_order" value="{{ option.sort_order }}">
                   </div>
-                  <div class="col-6 col-lg-1">
+                  <div class="col-6 col-xl-1">
                     <label class="form-check">
                       <input class="form-check-input" type="checkbox" name="requires_value" value="1" {% if option.requires_value %}checked{% endif %}>
                       <span class="form-check-label">Val.</span>
@@ -91,47 +108,14 @@
                       <span class="form-check-label">On</span>
                     </label>
                   </div>
-                  <div class="col-12 col-lg-2">
+                  <div class="col-12 col-xl-2">
                     <button class="btn btn-outline-info w-100" type="submit">Salva</button>
                   </div>
-                </form>
-              {% else %}
-                <div class="text-muted">Nessuna opzione definita.</div>
-              {% endfor %}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-12">
-        <div class="card border-0 shadow-sm">
-          <div class="card-body">
-            <h2 class="h5 text-dark">Associazione account cliente</h2>
-            <div class="vstack gap-2">
-              {% for user in users %}
-                <form method="post" class="row g-2 align-items-center border-bottom py-2">
-                  <input type="hidden" name="action" value="link_user">
-                  <input type="hidden" name="user_id" value="{{ user.id }}">
-                  <div class="col-12 col-lg-4 text-dark">
-                    <strong>{{ user.surname }} {{ user.name }}</strong>
-                    <div class="text-muted small">{{ user.email }}</div>
-                  </div>
-                  <div class="col-12 col-lg-6">
-                    <select class="form-select" name="registry_id">
-                      <option value="">Nessuna anagrafica collegata</option>
-                      {% for registry in registries %}
-                        <option value="{{ registry.id }}" {% if user.customer_registry_id == registry.id %}selected{% endif %}>
-                          {{ registry.display_name or registry.legal_name }}{% if registry.source_code %} - {{ registry.source_code }}{% endif %}
-                        </option>
-                      {% endfor %}
-                    </select>
-                  </div>
-                  <div class="col-12 col-lg-2">
-                    <button class="btn btn-outline-info w-100" type="submit">Collega</button>
-                  </div>
-                </form>
-              {% endfor %}
-            </div>
+                </div>
+              </form>
+            {% else %}
+              <div class="text-muted">Nessuna opzione definita.</div>
+            {% endfor %}
           </div>
         </div>
       </div>

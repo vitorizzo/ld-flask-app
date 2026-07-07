@@ -74,6 +74,70 @@
     border-color: rgba(107, 63, 54, 0.45);
     box-shadow: 0 0 0 0.25rem rgba(107, 63, 54, 0.16);
   }
+
+  .settings-user-actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 18px;
+    padding: 12px;
+    border: 1px solid rgba(107, 63, 54, 0.16);
+    border-radius: 12px;
+    background: rgba(107, 63, 54, 0.06);
+  }
+
+  .settings-user-actions .btn {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .settings-user-action-sheet .modal-dialog {
+    margin: auto 12px calc(var(--app-footer-height, 42px) + 12px);
+  }
+
+  .settings-user-action-sheet .modal-content {
+    border-radius: 14px 14px 8px 8px;
+  }
+
+  .settings-user-action-sheet .settings-user-actions {
+    grid-template-columns: 1fr;
+    margin: 0;
+    border: 0;
+    background: transparent;
+  }
+
+  @media (max-width: 820px), (hover: none) and (pointer: coarse) {
+    .settings-user-actions {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .settings-user-actions .btn {
+      min-height: 52px;
+      font-size: 1rem;
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) and (min-width: 821px) {
+    .settings-user-actions {
+      grid-template-columns: 1fr;
+      gap: 18px;
+      padding: 24px;
+      border-radius: 18px;
+    }
+
+    .settings-user-actions .btn {
+      min-height: 96px;
+      font-size: 2rem;
+      border-radius: 14px;
+    }
+
+    .settings-user-action-sheet .modal-dialog {
+      margin: auto 28px calc(var(--app-footer-height, 104px) + 28px);
+    }
+  }
 </style>
 {% endblock %}
 
@@ -124,7 +188,7 @@
               </thead>
               <tbody>
                 {% for user in users %}
-                  <tr role="button" data-bs-toggle="modal" data-bs-target="#userDetailModal-{{ user.id }}">
+                  <tr role="button" data-bs-toggle="modal" data-bs-target="#userDetailModal-{{ user.id }}" data-user-action-target="#userActionModal-{{ user.id }}">
                     <td>
                       <div class="fw-semibold">{{ user.name }} {{ user.surname }}</div>
                       <div class="text-muted small">ID {{ user.id }}</div>
@@ -198,6 +262,24 @@
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
           </div>
           <div class="modal-body">
+            <div class="settings-user-actions" aria-label="Azioni utente">
+              <button type="button" class="btn btn-outline-info" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#userRoleModal-{{ user.id }}">
+                <i class="fa-solid fa-user-tag"></i>
+                Ruolo
+              </button>
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#userAuthModal-{{ user.id }}">
+                <i class="fa-solid fa-key"></i>
+                Autorizzazioni
+              </button>
+              <button type="button" class="btn btn-outline-warning" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#userResetPasswordModal-{{ user.id }}">
+                <i class="fa-solid fa-unlock-keyhole"></i>
+                Reset password
+              </button>
+              <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#userDeleteModal-{{ user.id }}">
+                <i class="fa-solid fa-trash"></i>
+                Elimina
+              </button>
+            </div>
             <div class="row g-3">
               <div class="col-md-6">
                 <label class="form-label" for="user-name-{{ user.id }}">Nome</label>
@@ -239,6 +321,37 @@
             <button type="submit" class="btn btn-info">Salva modifiche</button>
           </div>
         </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade settings-user-modal settings-user-action-sheet" id="userActionModal-{{ user.id }}" tabindex="-1" aria-labelledby="userActionTitle-{{ user.id }}" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="userActionTitle-{{ user.id }}">{{ user.name }} {{ user.surname }}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+        </div>
+        <div class="modal-body">
+          <div class="settings-user-actions" aria-label="Azioni utente">
+            <button type="button" class="btn btn-outline-info" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#userRoleModal-{{ user.id }}">
+              <i class="fa-solid fa-user-tag"></i>
+              Ruolo
+            </button>
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#userAuthModal-{{ user.id }}">
+              <i class="fa-solid fa-key"></i>
+              Autorizzazioni
+            </button>
+            <button type="button" class="btn btn-outline-warning" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#userResetPasswordModal-{{ user.id }}">
+              <i class="fa-solid fa-unlock-keyhole"></i>
+              Reset password
+            </button>
+            <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#userDeleteModal-{{ user.id }}">
+              <i class="fa-solid fa-trash"></i>
+              Elimina
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -438,6 +551,58 @@ document.addEventListener("DOMContentLoaded", () => {
   document.querySelectorAll(".js-auth-type").forEach((select) => {
     syncAuthType(select);
     select.addEventListener("change", () => syncAuthType(select));
+  });
+
+  document.querySelectorAll("[data-user-action-target]").forEach((row) => {
+    let longPressTimer = null;
+    let longPressTriggered = false;
+
+    function openActionSheet(event) {
+      if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      longPressTriggered = true;
+      const target = row.dataset.userActionTarget;
+      const modalEl = target ? document.querySelector(target) : null;
+      if (modalEl && window.bootstrap) {
+        window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+      }
+    }
+
+    function clearLongPress() {
+      if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+      }
+    }
+
+    row.addEventListener("contextmenu", openActionSheet);
+
+    row.addEventListener("touchstart", () => {
+      longPressTriggered = false;
+      clearLongPress();
+      longPressTimer = setTimeout(() => openActionSheet(), 520);
+    }, { passive: true });
+
+    row.addEventListener("touchmove", clearLongPress, { passive: true });
+    row.addEventListener("touchend", (event) => {
+      clearLongPress();
+      if (longPressTriggered) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+      setTimeout(() => {
+        longPressTriggered = false;
+      }, 0);
+    });
+
+    row.addEventListener("click", (event) => {
+      if (longPressTriggered) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    }, true);
   });
 
   document.querySelectorAll(".modal").forEach((modal) => {

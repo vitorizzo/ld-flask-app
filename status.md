@@ -1996,3 +1996,24 @@ Performance apertura giornata Agenda 2026-06-13:
   - corretto blocco su `Preparo allegati`: il submit non usa piu' `requestSubmit()` ricorsivo, ma attende preparazione allegati e poi invia direttamente la form;
   - se il vocale e' ancora in registrazione al submit, viene fermato e finalizzato prima dell'invio;
   - verifica script inline con `node --check`, `git diff --check`.
+- 2026-07-07 home ordini Horeca:
+  - il pulsante `Fai un ordine` in home e' ora visibile solo agli utenti con ruolo `customer_horeca`;
+  - gli utenti aziendali mantengono `Inserisci ordine` e `Ordini Horeca`;
+  - verifica render home staff: `Fai un ordine` assente, `Ordini Horeca` e `Inserisci ordine` presenti.
+- 2026-07-07 utenti mobile azioni:
+  - nella modale dettaglio utente sono stati aggiunti i pulsanti azione: ruolo, autorizzazioni, reset password, elimina;
+  - sulla riga utente la pressione lunga touch e il click destro aprono una action sheet con le stesse azioni;
+  - il tap normale continua ad aprire il dettaglio utente;
+  - verifiche: script inline `node --check`, render `/settings/users` con admin/dev 200 e markup azioni presente, `git diff --check`.
+- 2026-07-07 impostazioni office e split Horeca:
+  - dashboard `/settings/` accessibile da `office` in su e filtra i tile per soglia: office vede Utenti, Banche, Circuiti Carte, Dispositivi POS, Email, Conflitti import, Opzioni consegna Horeca, Associazione Utente-Cliente;
+  - i tile sensibili Database, Chiavi API, Ruoli e Autorizzazioni, Gestione menu restano dev/admin tecnico secondo soglie esistenti;
+  - abbassate a `office+` le route operative richieste: utenti, banche, circuiti carte, dispositivi POS, email, conflitti import e ordini clienti Horeca;
+  - separata `/settings/customer-order-options` dalle associazioni: ora gestisce solo le opzioni consegna;
+  - aggiunta `/settings/customer-order-links` per collegare account utente ad anagrafica cliente, con layout a card responsive per smartphone;
+  - verifiche: `py_compile routes/settings.py`, render office+ di `/settings/`, `/settings/customer-order-options`, `/settings/customer-order-links`, `/settings/users`, `/settings/email`, `/settings/import_conflicts`; `git diff --check`.
+- 2026-07-07 locandina eventi:
+  - aggiunto `Event.poster_path` e migrazione `9c0d1e2f3a4b_add_event_poster.py`;
+  - i form evento supportano upload locandina JPG/PNG/WebP con salvataggio in `static/uploads/events`;
+  - la locandina viene mostrata nelle card pubbliche evento e nella gestione office, dove puo' essere sostituita o rimossa;
+  - migrazione applicata in locale; verifica upload test con evento creato e rimosso subito, `py_compile`, `git diff --check`.

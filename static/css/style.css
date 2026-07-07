@@ -948,6 +948,10 @@ h1,h2,h3,h4{
     background: rgba(255, 255, 255, .09);
 }
 
+.event-card--has-poster {
+    grid-template-columns: 82px minmax(180px, 260px) minmax(0, 1fr);
+}
+
 .event-date {
     display: grid;
     place-items: center;
@@ -957,6 +961,21 @@ h1,h2,h3,h4{
     color: #062b33;
     background: #0dcaf0;
     text-transform: uppercase;
+}
+
+.event-poster {
+    display: block;
+    align-self: start;
+    overflow: hidden;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, .18);
+}
+
+.event-poster img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
 }
 
 .event-date span {
@@ -1045,6 +1064,27 @@ h1,h2,h3,h4{
 
 .events-form-compact {
     padding: 0 14px 14px;
+}
+
+.events-poster-admin {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    color: #4a2c2a;
+}
+
+.events-poster-admin a {
+    display: block;
+    overflow: hidden;
+    border-radius: 8px;
+}
+
+.events-poster-admin img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
 }
 
 .customer-order-page {
@@ -1620,6 +1660,14 @@ h1,h2,h3,h4{
 
     .events-form-grid,
     .event-card {
+        grid-template-columns: 1fr;
+    }
+
+    .event-poster {
+        width: 100%;
+    }
+
+    .events-poster-admin {
         grid-template-columns: 1fr;
     }
 

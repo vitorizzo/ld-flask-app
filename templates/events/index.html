@@ -17,7 +17,7 @@
     {% if can_manage_events %}
         <section class="events-editor" aria-labelledby="events-editor-title">
             <h2 id="events-editor-title">Nuovo evento</h2>
-            <form method="post" action="{{ url_for('events.create') }}" class="events-form">
+            <form method="post" action="{{ url_for('events.create') }}" enctype="multipart/form-data" class="events-form">
                 <div class="events-form-grid">
                     <label>
                         <span>Titolo</span>
@@ -47,6 +47,10 @@
                         <span>Info / prenotazioni</span>
                         <input class="form-control" type="text" name="contact_info" maxlength="180">
                     </label>
+                    <label>
+                        <span>Locandina</span>
+                        <input class="form-control" type="file" name="poster" accept="image/*">
+                    </label>
                     <label class="events-check">
                         <input class="form-check-input" type="checkbox" name="is_published" value="1" checked>
                         <span>Pubblicato</span>
@@ -67,11 +71,16 @@
         {% if upcoming_events %}
             <div class="event-cards">
                 {% for event in upcoming_events %}
-                    <article class="event-card">
+                    <article class="event-card{% if event.poster_path %} event-card--has-poster{% endif %}">
                         <div class="event-date">
                             <span>{{ event.starts_at.strftime('%d') }}</span>
                             <strong>{{ event.starts_at.strftime('%m/%Y') }}</strong>
                         </div>
+                        {% if event.poster_path %}
+                            <a class="event-poster" href="{{ url_for('static', filename=event.poster_path) }}" target="_blank" rel="noopener">
+                                <img src="{{ url_for('static', filename=event.poster_path) }}" alt="Locandina {{ event.title }}" loading="lazy">
+                            </a>
+                        {% endif %}
                         <div class="event-main">
                             <h3>{{ event.title }}</h3>
                             <div class="event-meta">
@@ -115,7 +124,7 @@
                                 <span>{{ event.title }}</span>
                                 <small>{{ event.starts_at.strftime('%d/%m/%Y %H:%M') }}{% if not event.is_published %} - bozza{% endif %}</small>
                             </summary>
-                            <form method="post" action="{{ url_for('events.update', event_id=event.id) }}" class="events-form events-form-compact">
+                            <form method="post" action="{{ url_for('events.update', event_id=event.id) }}" enctype="multipart/form-data" class="events-form events-form-compact">
                                 <div class="events-form-grid">
                                     <label>
                                         <span>Titolo</span>
@@ -145,6 +154,21 @@
                                         <span>Info / prenotazioni</span>
                                         <input class="form-control" type="text" name="contact_info" value="{{ event.contact_info or '' }}" maxlength="180">
                                     </label>
+                                    <label>
+                                        <span>Locandina</span>
+                                        <input class="form-control" type="file" name="poster" accept="image/*">
+                                    </label>
+                                    {% if event.poster_path %}
+                                        <div class="events-poster-admin">
+                                            <a href="{{ url_for('static', filename=event.poster_path) }}" target="_blank" rel="noopener">
+                                                <img src="{{ url_for('static', filename=event.poster_path) }}" alt="Locandina {{ event.title }}" loading="lazy">
+                                            </a>
+                                            <label class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="remove_poster" value="1">
+                                                <span class="form-check-label">Rimuovi locandina</span>
+                                            </label>
+                                        </div>
+                                    {% endif %}
                                     <label class="events-check">
                                         <input class="form-check-input" type="checkbox" name="is_published" value="1" {% if event.is_published %}checked{% endif %}>
                                         <span>Pubblicato</span>

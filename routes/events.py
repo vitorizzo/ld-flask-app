@@ -1,7 +1,9 @@
+import os
 from datetime import datetime, timezone
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from werkzeug.utils import secure_filename
 
 from extensions import db
 from models import Event
@@ -9,6 +11,7 @@ from tools.role_required import role_required
 
 
 events_bp = Blueprint("events", __name__)
+ALLOWED_POSTER_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
 
 
 def _can_manage_events():
@@ -20,6 +23,34 @@ def _parse_event_datetime(value):
     if not value:
         return None
     return datetime.fromisoformat(value)
+
+
+def _poster_upload_folder():
+    folder = os.path.join(current_app.static_folder, "uploads", "events")
+    os.makedirs(folder, exist_ok=True)
+    return folder
+
+
+def _static_rel_path(abs_path):
+    return os.path.relpath(abs_path, current_app.static_folder).replace(os.sep, "/")
+
+
+def _save_poster_file(file_storage):
+    if not file_storage or not getattr(file_storage, "filename", ""):
+        return None
+    filename = secure_filename(file_storage.filename)
+    if not filename:
+        raise ValueError("Nome file locandina non valido.")
+    ext = os.path.splitext(filename)[1].lower()
+    if ext not in ALLOWED_POSTER_EXTENSIONS:
+        raise ValueError("Formato locandina non valido. Usa JPG, PNG o WebP.")
+    mimetype = (file_storage.mimetype or "").lower()
+    if mimetype and not mimetype.startswith("image/"):
+        raise ValueError("La locandina deve essere un'immagine.")
+    target_name = f"evento_{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{filename}"
+    target_path = os.path.join(_poster_upload_folder(), target_name)
+    file_storage.save(target_path)
+    return _static_rel_path(target_path)
 
 
 def _event_form_data():
@@ -73,6 +104,9 @@ def create():
         if not data["title"]:
             raise ValueError("Il titolo e' obbligatorio.")
         event = Event(**data, created_by_user_id=current_user.id)
+        poster_path = _save_poster_file(request.files.get("poster"))
+        if poster_path:
+            event.poster_path = poster_path
         db.session.add(event)
         db.session.commit()
         flash("Evento inserito.", "success")
@@ -93,6 +127,11 @@ def update(event_id):
             raise ValueError("Il titolo e' obbligatorio.")
         for key, value in data.items():
             setattr(event, key, value)
+        poster_path = _save_poster_file(request.files.get("poster"))
+        if poster_path:
+            event.poster_path = poster_path
+        if request.form.get("remove_poster") == "1":
+            event.poster_path = None
         db.session.commit()
         flash("Evento aggiornato.", "success")
     except ValueError as exc:
