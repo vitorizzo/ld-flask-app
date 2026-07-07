@@ -2020,6 +2020,7 @@ Performance apertura giornata Agenda 2026-06-13:
 - 2026-07-07 locandina eventi PDF:
   - le locandine evento accettano ora anche PDF (`accept="image/*,.pdf"` e validazione backend `.pdf`/`application/pdf`);
   - i PDF vengono mostrati come riquadro/link `Apri locandina PDF`, mentre le immagini restano in anteprima;
-  - aggiunto controllo client-side a 20 MB per evitare upload PDF troppo pesanti che portano a 413;
+  - i PDF selezionati nei form evento vengono convertiti lato browser nella prima pagina JPEG leggera prima dell'invio, con lato massimo 1600px e qualita' 0.72;
+  - portato il controllo client-side a 30 MB sul file finale per gestire locandine PDF intorno ai 20/25 MB senza 413 quando la conversione riesce;
   - la pagina 413 dedicata viene usata anche per `/events`;
   - verifica upload PDF test con evento creato e rimosso subito, `py_compile`, script inline `node --check`, `git diff --check`.

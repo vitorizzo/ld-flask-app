@@ -208,12 +208,81 @@
 {% block extra_js %}
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  const maxPosterMb = 20;
+  const maxPosterMb = 30;
+  const pdfJsUrl = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+  const pdfWorkerUrl = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+  function loadPdfJs() {
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+      return Promise.resolve(window.pdfjsLib);
+    }
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = pdfJsUrl;
+      script.onload = () => {
+        if (!window.pdfjsLib) {
+          reject(new Error("PDF.js non disponibile"));
+          return;
+        }
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+        resolve(window.pdfjsLib);
+      };
+      script.onerror = () => reject(new Error("Impossibile caricare PDF.js"));
+      document.head.appendChild(script);
+    });
+  }
+
+  function canvasToBlob(canvas, type, quality) {
+    return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+  }
+
+  async function convertPdfPosterToImage(file) {
+    const pdfjsLib = await loadPdfJs();
+    const bytes = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 1 });
+    const maxSide = 1600;
+    const scale = Math.min(2, maxSide / Math.max(viewport.width, viewport.height));
+    const renderViewport = page.getViewport({ scale });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(renderViewport.width);
+    canvas.height = Math.ceil(renderViewport.height);
+    const context = canvas.getContext("2d", { alpha: false });
+    await page.render({ canvasContext: context, viewport: renderViewport }).promise;
+    const blob = await canvasToBlob(canvas, "image/jpeg", 0.72);
+    if (!blob) throw new Error("Conversione PDF non riuscita");
+    const baseName = (file.name || "locandina").replace(/\.[^.]+$/, "");
+    return new File([blob], `${baseName}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
+  }
+
   document.querySelectorAll("[data-event-poster-input]").forEach((input) => {
-    input.addEventListener("change", () => {
+    input.addEventListener("change", async () => {
       const file = input.files && input.files[0];
       if (!file) return;
-      const sizeMb = file.size / (1024 * 1024);
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      if (isPdf) {
+        const info = document.createElement("div");
+        info.className = "form-text text-info";
+        info.textContent = "Converto il PDF in immagine leggera prima dell'invio...";
+        input.insertAdjacentElement("afterend", info);
+        input.disabled = true;
+        try {
+          const converted = await convertPdfPosterToImage(file);
+          const transfer = new DataTransfer();
+          transfer.items.add(converted);
+          input.files = transfer.files;
+          info.textContent = `PDF convertito in immagine (${(converted.size / (1024 * 1024)).toFixed(1)} MB).`;
+        } catch (err) {
+          console.error("Conversione locandina PDF non riuscita", err);
+          info.textContent = "Conversione PDF non riuscita. Carica una versione piu' leggera o un'immagine.";
+        } finally {
+          input.disabled = false;
+        }
+      }
+      const finalFile = input.files && input.files[0];
+      const sizeMb = finalFile ? finalFile.size / (1024 * 1024) : 0;
       if (sizeMb > maxPosterMb) {
         input.value = "";
         alert(`La locandina pesa ${sizeMb.toFixed(1)} MB. Usa un file entro ${maxPosterMb} MB per evitare il blocco upload.`);
