@@ -2051,3 +2051,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - i tile agenda mobile hanno ora larghezza contenuta nel viewport, padding coerente e colonna singola senza tagli laterali;
   - aggiunto layer touch/coarse per S25 con font e target piu' grandi;
   - cache-buster agenda aggiornato a `mobile5`.
+- 2026-07-08 home/agenda S25 tuning:
+  - reso esplicito lo scroll verticale di `main.app-content` su mobile/touch e rimossa l'altezza piena forzata dalla home;
+  - aumentati font, pulsanti e spaziature home nel layer S25;
+  - aumentato padding laterale agenda S25 a 42px per lasciare sfondo visibile e ingranditi ulteriormente tile, font e target touch;
+  - cache-buster agenda aggiornato a `mobile6`.
