@@ -2045,3 +2045,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - ripristinato `unlockPrivateVault()` senza prompt e con password hardcoded `TEST123`;
   - migliorato il drawer mobile: scroll sul menu principale e sottomenu annidati forzati nel flusso verticale;
   - cache-buster agenda aggiornato a `mobile4`.
+- 2026-07-08 affinamento agenda/drawer S25:
+  - il drawer mobile non applica piu' stili inline ai dropdown: i sottomenu annidati restano nel flusso verticale sotto il padre, leggermente indentati;
+  - aggiunte regole specifiche per `li.dropdown-item.dropdown` e dropdown annidati nel drawer;
+  - i tile agenda mobile hanno ora larghezza contenuta nel viewport, padding coerente e colonna singola senza tagli laterali;
+  - aggiunto layer touch/coarse per S25 con font e target piu' grandi;
+  - cache-buster agenda aggiornato a `mobile5`.

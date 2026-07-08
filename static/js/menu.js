@@ -71,13 +71,11 @@ document.addEventListener("DOMContentLoaded", function () {
         // Alterna la visibilità del menu
         if (isOpen) {
             menu.classList.remove("show");
-            menu.style.display = "none";
+            menu.removeAttribute("style");
             console.log("Chiuso:", menu);
         } else {
             menu.classList.add("show");
-            menu.style.display = "block";
-            menu.style.opacity = "1";
-            menu.style.visibility = "visible";
+            menu.removeAttribute("style");
             console.log("Aperto:", menu);
         }
         console.log("Stato aggiornato del menu:", menu.classList.contains("show"));
