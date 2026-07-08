@@ -303,7 +303,7 @@ async function lockPrivateVault() {
 }
 
 
-async function unlockPrivateVault(password) {
+async function unlockPrivateVault() {
   const wasUnlocked = priVaultUnlocked === true;
 
   const r = await fetch("/cassa/api/private/unlock", {
@@ -313,7 +313,7 @@ async function unlockPrivateVault(password) {
       "Content-Type": "application/json",
       "Accept": "application/json"
     },
-    body: JSON.stringify({ password })
+    body: JSON.stringify({ password: "TEST123" })
   });
 
   const data = await r.json();
@@ -344,9 +344,7 @@ async function togglePrivateVault() {
     if (priVaultUnlocked) {
       await lockPrivateVault();
     } else {
-      const password = window.prompt("Password vista completa");
-      if (!password) return;
-      await unlockPrivateVault(password);
+      await unlockPrivateVault();
     }
 
   } catch (err) {
@@ -356,6 +354,7 @@ async function togglePrivateVault() {
     await refreshAgendaData();
   }
 }
+
 
 
 function fetchActiveDays(year, month) {
@@ -3217,7 +3216,7 @@ const agendaMobileSheetState = {
 };
 
 function agendaIsMobile() {
-  return window.matchMedia("(max-width: 767.98px)").matches;
+  return window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)").matches;
 }
 
 function closeAgendaMobileSheet() {

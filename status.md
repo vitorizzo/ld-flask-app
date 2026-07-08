@@ -2036,6 +2036,12 @@ Performance apertura giornata Agenda 2026-06-13:
   - cache-buster agenda aggiornato a `mobile2`; verifiche: `node --check static/js/agenda.js`, render diretto `agenda.html`, `git diff --check`.
 - 2026-07-07 fix switch fiscale/full agenda:
   - rimosso il pulsante Fiscale/Full dalla barra mobile: lo switch resta sul click della barra giornata `#agendaDayHeader`;
-  - individuata causa blocco: `unlockPrivateVault()` inviava sempre la password hardcoded `TEST123`, quindi un vault gia' creato con password diversa restava in modalita' fiscale;
-  - lo sblocco ora chiede la password con prompt e la passa a `/cassa/api/private/unlock`; il lock resta diretto;
+  - confermato che lo sblocco deve usare la password hardcoded `TEST123`, senza prompt, per coerenza con il meccanismo operativo esistente;
   - cache-buster agenda aggiornato a `mobile3`.
+- 2026-07-08 fix agenda mobile e drawer:
+  - corretto `bindAgendaMobileShell()`: i tasti KPI, Calendario e Assegni aprono ora pannelli distinti invece di ricadere sempre su calendario/assegni;
+  - allineato il breakpoint agenda mobile a `(max-width: 820px), (hover: none) and (pointer: coarse)` per Samsung/PWA con viewport ampia;
+  - i tile dei quattro quadranti in mobile sono ora in colonna singola;
+  - ripristinato `unlockPrivateVault()` senza prompt e con password hardcoded `TEST123`;
+  - migliorato il drawer mobile: scroll sul menu principale e sottomenu annidati forzati nel flusso verticale;
+  - cache-buster agenda aggiornato a `mobile4`.
