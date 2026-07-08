@@ -538,7 +538,6 @@ Prima di intervenire:
   - reinserimento
   - automount
   - recovery da stato autofs/mount incoerente.
-- Rimuovere password vault hardcoded nel JS (`TEST123`) quando si passa a soluzione definitiva.
 
 ---
 
@@ -2024,3 +2023,19 @@ Performance apertura giornata Agenda 2026-06-13:
   - portato il controllo client-side a 30 MB sul file finale per gestire locandine PDF intorno ai 20/25 MB senza 413 quando la conversione riesce;
   - la pagina 413 dedicata viene usata anche per `/events`;
   - verifica upload PDF test con evento creato e rimosso subito, `py_compile`, script inline `node --check`, `git diff --check`.
+- 2026-07-07 agenda mobile prima bozza:
+  - aggiunta barra mobile sticky in `templates/agenda.html` per saltare a Giorno, Totali, Movimenti e Assegni;
+  - `static/css/agenda.css` ora contiene breakpoint smartphone dedicato: pagina scrollabile, colonne riordinate in flusso, KPI piu' leggibili, righe movimento con target touch piu' grandi, calendario adattato, modali agenda full-screen e menu contestuale ingrandito;
+  - aggiunto cache-buster `agenda.css?...-mobile1`;
+  - verifiche: render diretto `agenda.html` in Flask context, `git diff --check`.
+- 2026-07-07 agenda mobile dashboard:
+  - sostituita la bozza mobile a pagina lunga con dashboard compatta: barra azioni KPI/Calendario/Assegni/Fiscale-Full, testata giornata e 4 tile quadrante con soli totali;
+  - i tile Incassi, Spese, Movimenti di cassa e POS aprono il rispettivo quadrante in pannello full-screen scrollabile, riusando le liste e le azioni esistenti;
+  - KPI, calendario e assegni vengono spostati temporaneamente nello stesso pannello mobile e poi ripristinati alla chiusura;
+  - il pulsante Fiscale/Full in barra usa il toggle vault esistente e aggiorna la label in base a `priVaultUnlocked`;
+  - cache-buster agenda aggiornato a `mobile2`; verifiche: `node --check static/js/agenda.js`, render diretto `agenda.html`, `git diff --check`.
+- 2026-07-07 fix switch fiscale/full agenda:
+  - rimosso il pulsante Fiscale/Full dalla barra mobile: lo switch resta sul click della barra giornata `#agendaDayHeader`;
+  - individuata causa blocco: `unlockPrivateVault()` inviava sempre la password hardcoded `TEST123`, quindi un vault gia' creato con password diversa restava in modalita' fiscale;
+  - lo sblocco ora chiede la password con prompt e la passa a `/cassa/api/private/unlock`; il lock resta diretto;
+  - cache-buster agenda aggiornato a `mobile3`.

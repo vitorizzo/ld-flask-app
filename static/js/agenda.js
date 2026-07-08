@@ -227,10 +227,10 @@ async function pollAgendaVersion() {
 
 function applyVaultHeaderState() {
   const header = document.getElementById("agendaDayHeader");
-  if (!header) return;
-
-  header.classList.toggle("vault-unlocked", priVaultUnlocked === true);
-  header.classList.toggle("vault-locked", priVaultUnlocked !== true);
+  if (header) {
+    header.classList.toggle("vault-unlocked", priVaultUnlocked === true);
+    header.classList.toggle("vault-locked", priVaultUnlocked !== true);
+  }
 }
 
 async function pollPrivateVaultStatus() {
@@ -303,7 +303,7 @@ async function lockPrivateVault() {
 }
 
 
-async function unlockPrivateVault() {
+async function unlockPrivateVault(password) {
   const wasUnlocked = priVaultUnlocked === true;
 
   const r = await fetch("/cassa/api/private/unlock", {
@@ -313,7 +313,7 @@ async function unlockPrivateVault() {
       "Content-Type": "application/json",
       "Accept": "application/json"
     },
-    body: JSON.stringify({ password: "TEST123" })
+    body: JSON.stringify({ password })
   });
 
   const data = await r.json();
@@ -344,7 +344,9 @@ async function togglePrivateVault() {
     if (priVaultUnlocked) {
       await lockPrivateVault();
     } else {
-      await unlockPrivateVault();
+      const password = window.prompt("Password vista completa");
+      if (!password) return;
+      await unlockPrivateVault(password);
     }
 
   } catch (err) {
@@ -3202,11 +3204,106 @@ async function openIssuedChecksManagementModal() {
   }
 }
 
+
+/* =========================
+   MOBILE AGENDA SHEETS
+========================= */
+
+const agendaMobileSheetState = {
+  node: null,
+  parent: null,
+  next: null,
+  title: ""
+};
+
+function agendaIsMobile() {
+  return window.matchMedia("(max-width: 767.98px)").matches;
+}
+
+function closeAgendaMobileSheet() {
+  const sheet = document.getElementById("agendaMobileSheet");
+  const body = document.getElementById("agendaMobileSheetBody");
+  if (agendaMobileSheetState.node && agendaMobileSheetState.parent) {
+    agendaMobileSheetState.parent.insertBefore(agendaMobileSheetState.node, agendaMobileSheetState.next || null);
+  }
+  agendaMobileSheetState.node = null;
+  agendaMobileSheetState.parent = null;
+  agendaMobileSheetState.next = null;
+  if (body) body.innerHTML = "";
+  if (sheet) {
+    sheet.classList.remove("is-open");
+    sheet.setAttribute("aria-hidden", "true");
+    delete sheet.dataset.mode;
+  }
+  document.body.classList.remove("agenda-mobile-sheet-open");
+}
+
+function openAgendaMobileSheet(title, node, mode = "") {
+  if (!agendaIsMobile() || !node) return;
+  closeAgendaMobileSheet();
+
+  const sheet = document.getElementById("agendaMobileSheet");
+  const body = document.getElementById("agendaMobileSheetBody");
+  const titleEl = document.getElementById("agendaMobileSheetTitle");
+  if (!sheet || !body) return;
+
+  agendaMobileSheetState.node = node;
+  agendaMobileSheetState.parent = node.parentNode;
+  agendaMobileSheetState.next = node.nextSibling;
+  agendaMobileSheetState.title = title;
+
+  if (titleEl) titleEl.textContent = title;
+  body.appendChild(node);
+  sheet.dataset.mode = mode || "";
+  sheet.classList.add("is-open");
+  sheet.setAttribute("aria-hidden", "false");
+  document.body.classList.add("agenda-mobile-sheet-open");
+}
+
+function bindAgendaMobileShell() {
+  document.querySelectorAll("[data-agenda-mobile-action]").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      const action = btn.dataset.agendaMobileAction;
+      if (action === "kpi") {
+        openAgendaMobileSheet("KPI giornata", document.getElementById("agendaMobileKpi"), "kpi");
+      } else if (action === "calendar") {
+        openAgendaMobileSheet("Calendario", document.getElementById("agendaMobileChecks"), "calendar");
+      } else if (action === "checks") {
+      }
+        openAgendaMobileSheet("Assegni di oggi", document.getElementById("agendaMobileChecks"), "checks");
+    });
+  });
+
+  document.querySelectorAll("[data-agenda-mobile-panel]").forEach(tile => {
+    tile.addEventListener("click", (event) => {
+      if (!agendaIsMobile()) return;
+      if (tile.closest(".agenda-mobile-sheet__body")) return;
+      if (event.target.closest("button, a, input, select, textarea, label, .btn-row-menu")) return;
+      const title = tile.querySelector(".card-header .fw-semibold")?.textContent?.trim() || "Movimenti";
+      openAgendaMobileSheet(title, tile, "movements");
+    });
+  });
+
+  document.getElementById("agendaMobileSheetClose")?.addEventListener("click", closeAgendaMobileSheet);
+  document.getElementById("agendaMobileSheet")?.addEventListener("click", (event) => {
+    if (event.target.id === "agendaMobileSheet") closeAgendaMobileSheet();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeAgendaMobileSheet();
+  });
+
+  window.addEventListener("resize", () => {
+    if (!agendaIsMobile()) closeAgendaMobileSheet();
+  });
+}
+
 /* =========================
    INIT
 ========================= */
 
 document.addEventListener("DOMContentLoaded", async function () {
+  bindAgendaMobileShell();
   calendarInstance = flatpickr("#agendaCalendar", {
     inline: true,
     defaultDate: new Date(),
@@ -9210,6 +9307,4 @@ function closeContextMenu() {
   menu.style.visibility = "";
   currentContext = null;
 }
-
-
 

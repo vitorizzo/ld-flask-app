@@ -12,7 +12,7 @@
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda.css', v=app_version ~ '-mobile3') }}">
 
 {% endblock %}
 
@@ -66,13 +66,19 @@
 
 
 
+      <nav class="agenda-mobile-nav" aria-label="Azioni agenda">
+        <button type="button" data-agenda-mobile-action="kpi"><i class="fa-solid fa-chart-simple"></i><span>KPI</span></button>
+        <button type="button" data-agenda-mobile-action="calendar"><i class="fa-regular fa-calendar-days"></i><span>Calendario</span></button>
+        <button type="button" data-agenda-mobile-action="checks"><i class="fa-solid fa-money-check-dollar"></i><span>Assegni</span></button>
+      </nav>
+
       <div class="d-flex gap-3 flex-wrap flex-lg-nowrap align-items-start">
 
 
 
       <!-- LEFT -->
 
-      <div class="agenda-col-left flex-shrink-0">
+      <div class="agenda-col-left flex-shrink-0" id="agendaMobileChecks">
 
         <div class="card shadow-sm">
 
@@ -238,7 +244,7 @@
 
         <!-- KPI -->
 
-        <div class="row g-3 mb-3">
+        <div class="row g-3 mb-3" id="agendaMobileKpi">
 
 
 
@@ -640,11 +646,11 @@
 
         <!-- Quadranti -->
 
-        <div class="row g-3">
+        <div class="row g-3" id="agendaMobileMovements">
 
 
 
-          <div class="col-12 col-xl-6">
+          <div class="col-12 col-xl-6 agenda-mobile-quadrant" data-agenda-mobile-panel="incassi">
 
             <div class="card shadow-sm h-100">
 
@@ -698,7 +704,7 @@
 
 
 
-          <div class="col-12 col-xl-6">
+          <div class="col-12 col-xl-6 agenda-mobile-quadrant" data-agenda-mobile-panel="spese">
 
             <div class="card shadow-sm h-100">
 
@@ -752,7 +758,7 @@
 
 
 
-          <div class="col-12 col-xl-6">
+          <div class="col-12 col-xl-6 agenda-mobile-quadrant" data-agenda-mobile-panel="movimenti">
 
             <div class="card shadow-sm h-100">
 
@@ -806,7 +812,7 @@
 
 
 
-          <div class="col-12 col-xl-6">
+          <div class="col-12 col-xl-6 agenda-mobile-quadrant" data-agenda-mobile-panel="pos">
 
             <div class="card shadow-sm h-100">
 
@@ -927,6 +933,21 @@
   </div>
 
 </section>
+
+<div class="agenda-mobile-sheet" id="agendaMobileSheet" aria-hidden="true">
+  <div class="agenda-mobile-sheet__panel" role="dialog" aria-modal="true" aria-labelledby="agendaMobileSheetTitle">
+    <div class="agenda-mobile-sheet__header">
+      <div>
+        <div class="agenda-mobile-sheet__eyebrow">Agenda</div>
+        <h4 id="agendaMobileSheetTitle">Dettaglio</h4>
+      </div>
+      <button type="button" class="btn btn-light agenda-mobile-sheet__close" id="agendaMobileSheetClose" aria-label="Chiudi">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <div class="agenda-mobile-sheet__body" id="agendaMobileSheetBody"></div>
+  </div>
+</div>
 
 
 

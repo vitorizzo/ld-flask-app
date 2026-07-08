@@ -919,3 +919,528 @@ body.kiosk-body .modal-backdrop.show {
   font-size: 0.9rem;
   color: #6c757d;
 }
+
+/* =========================
+   MOBILE AGENDA
+========================= */
+
+.agenda-mobile-nav {
+  display: none;
+}
+
+@media (max-width: 767.98px) {
+  body.app-shell main.app-content {
+    padding: 10px 10px 18px 44px;
+  }
+
+  .welcome-section.agenda-page {
+    overflow: visible;
+  }
+
+  .welcome-section.agenda-page > .container-fluid {
+    padding: 0;
+  }
+
+  .agenda-page h3 {
+    font-size: 1.45rem;
+    line-height: 1.1;
+  }
+
+  #agendaLastUpdated {
+    font-size: 0.92rem;
+  }
+
+  .agenda-mobile-nav {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin: 0 0 12px;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.94);
+    border: 1px solid rgba(74, 44, 42, 0.12);
+    border-radius: 14px;
+    box-shadow: 0 10px 22px rgba(0, 0, 0, 0.14);
+    backdrop-filter: blur(8px);
+  }
+
+  .agenda-mobile-nav button {
+    border: 0;
+    min-width: 0;
+    min-height: 48px;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 6px 4px;
+    border-radius: 10px;
+    background: #f8f9fa;
+    color: #4a2c2a;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.05;
+    text-align: center;
+  }
+
+  .agenda-mobile-nav i {
+    font-size: 1rem;
+    color: #0aa2c0;
+  }
+
+  .agenda-col-center {
+    order: 1;
+    width: 100%;
+    flex: 0 0 100%;
+  }
+
+  .agenda-col-left,
+  #agendaMobileKpi {
+    display: none;
+  }
+
+  .agenda-col-right {
+    width: 100%;
+  }
+
+  .agenda-day-header {
+    border-radius: 16px;
+  }
+
+  .agenda-day-header .card-body {
+    min-height: 118px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px 58px 18px 18px;
+  }
+
+  .agenda-day-header .text-muted.small {
+    font-size: 0.98rem;
+  }
+
+  #dayDateTitle {
+    font-size: 1.55rem !important;
+  }
+
+  .agenda-day-actions {
+    top: 12px;
+    right: 12px;
+    flex-direction: column;
+  }
+
+  .agenda-day-action-btn {
+    width: 42px;
+    height: 42px;
+    font-size: 1.05rem;
+    border-radius: 12px;
+  }
+
+  .kpi-card {
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  .kpi-title {
+    min-height: 42px;
+    padding: 10px 12px;
+    font-size: 1rem;
+  }
+
+  .kpi-card .card-body {
+    padding: 12px;
+  }
+
+  .kpi-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+  }
+
+  .kpi-split-divider {
+    display: none;
+  }
+
+  .kpi-side-right {
+    flex: auto;
+  }
+
+  .kpi-label {
+    font-size: 0.94rem;
+  }
+
+  .kpi-num,
+  .kpi-num-big {
+    font-size: 1.2rem;
+  }
+
+  #agendaMobileMovements {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  #agendaMobileMovements > [class*="col-"] {
+    width: 100%;
+    padding: 0;
+    margin: 0;
+  }
+
+  .agenda-mobile-quadrant .card {
+    min-height: 118px;
+    border-radius: 16px;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .agenda-mobile-quadrant .card-header {
+    min-height: 118px;
+    align-items: stretch !important;
+    flex-direction: column;
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .agenda-mobile-quadrant .card-header > .d-flex {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .agenda-mobile-quadrant .card-header .fw-semibold {
+    font-size: 1.12rem;
+    line-height: 1.08;
+  }
+
+  .agenda-mobile-quadrant .card-header .text-muted {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    color: #212529 !important;
+    font-size: 0.86rem;
+  }
+
+  .agenda-mobile-quadrant .card-header .text-muted .fw-semibold {
+    font-size: 1.28rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .agenda-mobile-quadrant .card-body {
+    display: none;
+  }
+
+  .agenda-mobile-quadrant .btn,
+  #agendaMobileMovements .card-header .btn {
+    min-width: 42px;
+    min-height: 42px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.72);
+  }
+
+  #agendaMobileMovements .card,
+  .agenda-col-left .card {
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  #agendaMobileMovements .card-header,
+  .agenda-col-left .card-header {
+    min-height: 54px;
+    padding: 10px 12px;
+    gap: 8px;
+    font-size: 1rem;
+  }
+
+  #agendaMobileMovements .card-header .btn,
+  .agenda-col-left .card-header .btn {
+    min-width: 42px;
+    min-height: 42px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  #agendaMobileMovements .card-header .text-muted,
+  .agenda-col-left .card-header .text-muted {
+    color: #495057 !important;
+    font-size: 0.92rem;
+  }
+
+  .agenda-mobile-sheet {
+    position: fixed;
+    inset: 0;
+    z-index: 2050;
+    display: none;
+    background: rgba(0, 0, 0, 0.36);
+  }
+
+  .agenda-mobile-sheet.is-open {
+    display: block;
+  }
+
+  body.agenda-mobile-sheet-open {
+    overflow: hidden;
+  }
+
+  .agenda-mobile-sheet__panel {
+    position: absolute;
+    inset: var(--app-header-height, 0) 0 var(--app-footer-height, 0) var(--app-tabs-width, 0);
+    display: flex;
+    flex-direction: column;
+    background: #f4f6f8;
+    color: #212529;
+  }
+
+  .agenda-mobile-sheet__header {
+    flex: 0 0 auto;
+    min-height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    background: #4a2c2a;
+    color: #fff;
+  }
+
+  .agenda-mobile-sheet__eyebrow {
+    font-size: 0.78rem;
+    opacity: 0.78;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .agenda-mobile-sheet__header h4 {
+    margin: 0;
+    font-size: 1.28rem;
+    line-height: 1.1;
+  }
+
+  .agenda-mobile-sheet__close {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+  }
+
+  .agenda-mobile-sheet__body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 12px;
+  }
+
+  .agenda-mobile-sheet__body #agendaMobileKpi {
+    display: flex;
+  }
+
+  .agenda-mobile-sheet__body .agenda-col-left {
+    display: block;
+    width: 100%;
+  }
+
+  .agenda-mobile-sheet[data-mode="calendar"] .agenda-left-stack > .card,
+  .agenda-mobile-sheet[data-mode="checks"] #agendaCalendar {
+    display: none;
+  }
+
+  .agenda-mobile-sheet__body .agenda-mobile-quadrant {
+    width: 100%;
+    padding: 0;
+  }
+
+  .agenda-mobile-sheet__body .agenda-mobile-quadrant .card {
+    min-height: 0;
+    cursor: default;
+  }
+
+  .agenda-mobile-sheet__body .agenda-mobile-quadrant .card-header {
+    min-height: 56px;
+    flex-direction: row;
+    align-items: center !important;
+  }
+
+  .agenda-mobile-sheet__body .agenda-mobile-quadrant .card-body {
+    display: block;
+  }
+
+  .table-row {
+    min-height: 64px;
+    align-items: center;
+    gap: 10px;
+    padding: 12px !important;
+  }
+
+  .table-row .col-check,
+  .col-check {
+    flex: 0 0 34px;
+  }
+
+  .table-row .form-check-input {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .table-row .col-desc,
+  .col-desc {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .table-row .col-desc .desc,
+  .col-desc .desc {
+    width: 100%;
+    font-size: 1.04rem;
+    line-height: 1.15;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .table-row .col-badges,
+  .col-badges {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .badge-soft {
+    font-size: 0.78rem;
+  }
+
+  .table-row .col-amt,
+  .col-amt {
+    flex: 0 0 auto;
+    min-width: 86px;
+    font-size: 1.05rem;
+  }
+
+  .col-actions {
+    flex: 0 0 42px;
+  }
+
+  .btn-row-menu {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+  }
+
+  #agendaCalendar {
+    overflow: visible;
+  }
+
+  #agendaCalendar .flatpickr-calendar.inline {
+    width: 100% !important;
+    max-width: 360px !important;
+    transform: none;
+    box-shadow: none;
+  }
+
+  #agendaCalendar .flatpickr-rContainer,
+  #agendaCalendar .flatpickr-days,
+  #agendaCalendar .dayContainer {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 360px !important;
+  }
+
+  #agendaCalendar .flatpickr-day {
+    max-width: none;
+    height: 42px;
+    line-height: 42px;
+    font-size: 1rem;
+  }
+
+  #assegniScadenzaList .list-group-item,
+  #assegniRientrantiList .list-group-item {
+    min-height: 56px;
+    padding: 12px;
+    font-size: 1rem;
+  }
+
+  .agenda-modal .modal-dialog {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    margin: 0;
+  }
+
+  .agenda-modal .modal-content {
+    min-height: 100%;
+    border-radius: 0;
+    border: 0;
+  }
+
+  .agenda-modal .modal-header {
+    min-height: 62px;
+    padding: 12px 14px;
+  }
+
+  .agenda-modal .modal-title {
+    font-size: 1.24rem;
+  }
+
+  .agenda-modal .modal-body {
+    overflow-y: auto;
+    padding: 14px;
+    font-size: 1rem;
+  }
+
+  .agenda-modal .modal-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    padding: 10px 14px;
+  }
+
+  .agenda-modal .form-label {
+    font-size: 1rem;
+  }
+
+  .agenda-modal .form-control,
+  .agenda-modal .form-select,
+  .agenda-modal .input-group-text,
+  .agenda-modal .btn {
+    min-height: 46px;
+    font-size: 1rem;
+  }
+
+  .agenda-modal .table-responsive {
+    font-size: 0.96rem;
+  }
+
+  #contextMenu {
+    min-width: min(320px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    padding: 10px;
+    border-radius: 16px;
+    box-shadow: 0 18px 42px rgba(0, 0, 0, 0.26);
+  }
+
+  .context-menu-item {
+    min-height: 48px;
+    padding: 12px;
+    font-size: 1.05rem;
+  }
+
+  .context-menu-section-title {
+    font-size: 0.84rem;
+  }
+
+  .context-menu-submenu {
+    position: static;
+    display: none;
+    min-width: 0;
+    max-width: none;
+    margin: 4px 0 4px 10px;
+    max-height: 240px;
+  }
+
+  .context-menu-submenu-wrap:hover > .context-menu-submenu,
+  .context-menu-submenu-wrap:focus-within > .context-menu-submenu {
+    display: block;
+  }
+}
