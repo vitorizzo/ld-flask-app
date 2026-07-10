@@ -1,0 +1,1 @@
+{"v":1,"kdf":{"name":"pbkdf2-hmac-sha256","iters":200000,"salt":"JYjDLdcZvnl1bEbwz4y4-A=="},"aead":{"name":"aes-256-gcm","nonce":"8fo0xlCkfj0iMR12"},"ct":"EFdv60ep_nslzVniDa0OLOS9XUHZ7-CTTyIvinBQZ5K8M1nTJPqUvvjGd-Z53Tm9zKHq"}

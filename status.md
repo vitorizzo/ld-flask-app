@@ -2056,3 +2056,64 @@ Performance apertura giornata Agenda 2026-06-13:
   - aumentati font, pulsanti e spaziature home nel layer S25;
   - aumentato padding laterale agenda S25 a 42px per lasciare sfondo visibile e ingranditi ulteriormente tile, font e target touch;
   - cache-buster agenda aggiornato a `mobile6`.
+- 2026-07-09 agenda S25 refine:
+  - ingranditi titolo agenda, stato `OPEN/CLOSED`, pulsante spicci e relative icone;
+  - ingrandite le icone della barra KPI/Calendario/Assegni rispetto ai pulsanti;
+  - rimossa la banda bianca dei tile quadrante usando card trasparenti e header colorati pieni;
+  - padding laterale S25 agenda aumentato a 54px;
+  - cache-buster agenda aggiornato a `mobile7`.
+- 2026-07-09 fix agenda mobile actions:
+  - corretto definitivamente `bindAgendaMobileShell()`: rimossa chiamata assegni fuori ramo, ora i tre pulsanti usano una mappa esplicita azione -> pannello;
+  - reso piu' robusto il click su `#agendaDayHeader` per toggle fiscale/full, ignorando solo i bottoni report interni;
+  - confermato sblocco full senza prompt con password hardcoded `TEST123`.
+- 2026-07-09 fix cache/sblocco agenda:
+  - aggiunto cache-buster a `static/js/agenda.js` (`mobile-actions2`) per evitare codice JS stale in PWA;
+  - `unlockPrivateVault()` ora segnala errore se `/api/private/unlock` risponde senza `vault.unlocked === true` o se dopo il refresh lo stato full non risulta attivo.
+- 2026-07-09 fix vault locale:
+  - reso il controllo vault compatibile con ambiente locale/Windows o path configurati via `PRIVATE_VAULT_MOUNT_ROOT` / `PRIVATE_VAULT_DIR`: in questi casi non dipende piu' solo da `/dev/disk/by-uuid` e `os.path.ismount`;
+  - rimosso dal frontend il messaggio tecnico sul mancato mount: `unlockPrivateVault()` torna al comportamento silenzioso precedente, ma usa il backend corretto;
+  - cache-buster `agenda.js` aggiornato a `mobile-actions3`.
+- 2026-07-09 fix default vault Windows:
+  - su Windows senza env vault esplicite, `_vault_config()` usa ora `instance/private_vault` invece del default Linux `/mnt/archive/runtime`;
+  - in locale Windows `_vault_device_present()` e `_vault_mount_ready()` non bloccano piu' lo sblocco prima della creazione della directory vault;
+  - verifica locale helper: `device_present=True`, `mount_ready=True`, path `instance/private_vault`.
+- 2026-07-09 bozza Ordini fornitori:
+  - aggiunto modulo `/supplier-orders/` accessibile da office in su (`weight >= 40`) e registrato nel menu come `Ordini fornitori`;
+  - modelli `SupplierOrderGroup` e `SupplierOrderGroupItem` per creare gruppi fornitore e associare articoli, con relazione molti-a-molti tramite tabella item;
+  - UI iniziale per creare/modificare gruppi, cercare articoli, aggiungerli/rimuoverli e vedere la vista acquisto con giacenze;
+  - la vista acquisto espande le varianti per codice base solo su suffisso annata a 4 cifre (`19xx`/`20xx`) o codice base esplicito, evitando falsi positivi su codici tecnici con trattini;
+  - migrazione `a0b1c2d3e4f5_add_supplier_orders.py` applicata in locale; verifiche: `py_compile`, `node --check`, render `/supplier-orders/` 200, API ricerca articoli 200.
+- 2026-07-09 Ordini fornitori refine ricerca/groupage:
+  - ricerca articoli ora usa descrizione composta `descrizione - descrizione_aggiuntiva` e cerca anche in `descrizione_aggiuntiva`;
+  - vista acquisto aggregata per groupage/codice base: mostra descrizione senza annata e giacenza totale sommata sulle varianti;
+  - clic sul groupage apre il dettaglio varianti con codice, descrizione completa e giacenza singola;
+  - verifiche: `py_compile routes/supplier_orders.py`, `node --check static/js/supplier_orders.js`, render `/supplier-orders/` 200, API ricerca 200.
+- 2026-07-10 Ordini fornitori UI semplificata:
+  - pagina principale ridotta a pulsante `Definisci Gruppo` ed elenco gruppi esistenti;
+  - definizione/modifica gruppo e associazione articoli spostate in modale dedicata;
+  - click su un gruppo apre la modale giacenze aggregate, con dettaglio varianti espandibile;
+  - aggiunta ricerca silent sull'elenco gruppi: con il riquadro gruppi selezionato, digitando lettere viene evidenziato il primo match e Invio apre il gruppo;
+  - verifiche: `py_compile routes/supplier_orders.py`, `node --check static/js/supplier_orders.js`, render `/supplier-orders/` 200.
+- 2026-07-10 fix modali Ordini fornitori:
+  - applicato pattern ricorrente documentato: tutte le `.supplier-orders-modal` vengono spostate in `document.body` all'inizializzazione JS;
+  - aggiunta classe body `supplier-orders-modal-open` e z-index dedicato per dialog/backdrop, evitando modale visibile ma non interattiva in secondo piano;
+  - reset ricerca articoli e pulsanti submit su chiusura modale;
+  - cache-buster asset fornitori aggiornato a `draft4`; verifiche: `node --check static/js/supplier_orders.js`, render `/supplier-orders/` 200.
+- 2026-07-10 eventi multi-giorno/locandine/link pubblico:
+  - gli eventi pubblicati vengono ora renderizzati come occorrenze giornaliere: un evento dal 11 al 12 luglio appare sia nell'11 sia nel 12;
+  - aggiunto modello `EventPoster` e migration `b1c2d3e4f5a6_add_event_posters.py` con backfill da `events.poster_path`;
+  - i form evento accettano piu' locandine, immagini o PDF convertiti lato browser, e la pagina pubblica le mostra in carosello;
+  - aggiunto link pubblico `/events/public`, senza strumenti di gestione, per condivisione esterna/social;
+  - corretto filtro prossimi eventi: gli eventi senza data fine restano visibili nel giorno dell'evento ma non per sempre;
+  - verifiche: `py_compile`, `flask db upgrade`, render `/events/` 200, render `/events/public` 200, helper multi-giorno con 2 occorrenze.
+- 2026-07-10 eventi split consultazione/gestione:
+  - `/events/` mostra solo la pagina eventi pubblica; se l'utente ha ruolo office+ compare il pulsante `Gestisci eventi`;
+  - aggiunta pagina `/events/manage` per inserimento/modifica eventi e consultazione del link pubblico;
+  - aggiunto endpoint dedicato `POST /events/<id>/posters` e form `Scegli file` + `Carica` per aggiungere una o piu' locandine a un evento gia' salvato senza ripubblicare o risalvare i dati evento;
+  - lo script locandine/carousel e conversione PDF e' condiviso in `templates/events/poster_script.html`;
+  - verifiche: `py_compile`, render `/events/` 200, `/events/public` 200, `/events/manage` 200 con sessione test.
+- 2026-07-10 QR app in homepage:
+  - aggiunto tile `QR App` visibile a tutti in homepage;
+  - il tile apre una modale con QR code per `https://ldapp.ldenoteca.it`, link cliccabile e pulsante `Copia link`;
+  - la modale viene spostata in `document.body` all'avvio per evitare problemi di focus/z-index ricorrenti;
+  - verifica: render home 200 e presenza markup QR anche per utente anonimo.

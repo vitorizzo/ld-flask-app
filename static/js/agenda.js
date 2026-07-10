@@ -321,7 +321,6 @@ async function unlockPrivateVault() {
   if (!r.ok || !data.ok) {
     throw new Error(data.error || "Errore sblocco vault");
   }
-
   await refreshPrivateVaultStatus();
   lastKnownVaultStateVersion = Number(window.currentVaultStateVersion || 0);
 
@@ -3261,15 +3260,18 @@ function openAgendaMobileSheet(title, node, mode = "") {
 
 function bindAgendaMobileShell() {
   document.querySelectorAll("[data-agenda-mobile-action]").forEach(btn => {
-    btn.addEventListener("click", async () => {
+    btn.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       const action = btn.dataset.agendaMobileAction;
-      if (action === "kpi") {
-        openAgendaMobileSheet("KPI giornata", document.getElementById("agendaMobileKpi"), "kpi");
-      } else if (action === "calendar") {
-        openAgendaMobileSheet("Calendario", document.getElementById("agendaMobileChecks"), "calendar");
-      } else if (action === "checks") {
-      }
-        openAgendaMobileSheet("Assegni di oggi", document.getElementById("agendaMobileChecks"), "checks");
+      const panelMap = {
+        kpi: { title: "KPI giornata", nodeId: "agendaMobileKpi", mode: "kpi" },
+        calendar: { title: "Calendario", nodeId: "agendaMobileChecks", mode: "calendar" },
+        checks: { title: "Assegni di oggi", nodeId: "agendaMobileChecks", mode: "checks" }
+      };
+      const config = panelMap[action];
+      if (!config) return;
+      openAgendaMobileSheet(config.title, document.getElementById(config.nodeId), config.mode);
     });
   });
 
@@ -3296,6 +3298,8 @@ function bindAgendaMobileShell() {
     if (!agendaIsMobile()) closeAgendaMobileSheet();
   });
 }
+
+
 
 /* =========================
    INIT
@@ -3338,7 +3342,9 @@ document.addEventListener("DOMContentLoaded", async function () {
     await handleClosedDayMutation("inserire un movimento POS", () => openPosModal());
   });
 
-  document.getElementById("agendaDayHeader")?.addEventListener("click", async () => {
+  document.getElementById("agendaDayHeader")?.addEventListener("click", async (event) => {
+    if (event.target.closest("button")) return;
+    event.preventDefault();
     await togglePrivateVault();
   });
 

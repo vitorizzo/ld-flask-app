@@ -1,0 +1,184 @@
+{% extends 'base.html' %}
+
+{% block title %}Gestione eventi - LD Enoteca{% endblock %}
+
+{% block content %}
+<section class="events-page">
+    <header class="events-hero">
+        <div>
+            <h1>Gestione eventi</h1>
+            <p>Crea, modifica e pubblica gli eventi disponibili nella pagina pubblica.</p>
+        </div>
+        <div class="events-public-link">
+            <a class="btn btn-outline-light btn-sm" href="{{ url_for('events.index') }}">
+                <i class="fa-solid fa-list"></i>
+                Eventi
+            </a>
+            <a class="btn btn-outline-light btn-sm" href="{{ public_events_url }}" target="_blank" rel="noopener">
+                <i class="fa-solid fa-up-right-from-square"></i>
+                Link pubblico
+            </a>
+        </div>
+    </header>
+
+    <section class="events-editor" aria-labelledby="events-editor-title">
+        <h2 id="events-editor-title">Nuovo evento</h2>
+        <form method="post" action="{{ url_for('events.create') }}" enctype="multipart/form-data" class="events-form">
+            <div class="events-form-grid">
+                <label>
+                    <span>Titolo</span>
+                    <input class="form-control" type="text" name="title" required maxlength="180">
+                </label>
+                <label>
+                    <span>Inizio</span>
+                    <input class="form-control" type="datetime-local" name="starts_at" required>
+                </label>
+                <label>
+                    <span>Fine</span>
+                    <input class="form-control" type="datetime-local" name="ends_at">
+                </label>
+                <label>
+                    <span>Luogo</span>
+                    <input class="form-control" type="text" name="location" maxlength="180">
+                </label>
+                <label class="events-form-wide">
+                    <span>Descrizione breve</span>
+                    <input class="form-control" type="text" name="summary">
+                </label>
+                <label class="events-form-wide">
+                    <span>Dettagli</span>
+                    <textarea class="form-control" name="details" rows="3"></textarea>
+                </label>
+                <label>
+                    <span>Info / prenotazioni</span>
+                    <input class="form-control" type="text" name="contact_info" maxlength="180">
+                </label>
+                <label>
+                    <span>Locandine iniziali</span>
+                    <input class="form-control" type="file" name="posters" accept="image/*,.pdf" data-event-poster-input multiple>
+                </label>
+                <label class="events-check">
+                    <input class="form-check-input" type="checkbox" name="is_published" value="1" checked>
+                    <span>Pubblicato</span>
+                </label>
+            </div>
+            <div class="events-actions">
+                <button class="btn btn-info" type="submit">
+                    <i class="fa-solid fa-plus"></i>
+                    Inserisci evento
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <section class="events-admin-list" aria-labelledby="events-admin-title">
+        <h2 id="events-admin-title">Eventi salvati</h2>
+        {% if managed_events %}
+            <div class="events-admin-items">
+                {% for event in managed_events %}
+                    <details class="events-admin-item">
+                        <summary>
+                            <span>{{ event.title }}</span>
+                            <small>{{ event.starts_at.strftime('%d/%m/%Y %H:%M') }}{% if not event.is_published %} - bozza{% endif %}</small>
+                        </summary>
+                        <form method="post" action="{{ url_for('events.update', event_id=event.id) }}" class="events-form events-form-compact">
+                            <div class="events-form-grid">
+                                <label>
+                                    <span>Titolo</span>
+                                    <input class="form-control" type="text" name="title" value="{{ event.title }}" required maxlength="180">
+                                </label>
+                                <label>
+                                    <span>Inizio</span>
+                                    <input class="form-control" type="datetime-local" name="starts_at" value="{{ event.starts_at.strftime('%Y-%m-%dT%H:%M') }}" required>
+                                </label>
+                                <label>
+                                    <span>Fine</span>
+                                    <input class="form-control" type="datetime-local" name="ends_at" value="{{ event.ends_at.strftime('%Y-%m-%dT%H:%M') if event.ends_at else '' }}">
+                                </label>
+                                <label>
+                                    <span>Luogo</span>
+                                    <input class="form-control" type="text" name="location" value="{{ event.location or '' }}" maxlength="180">
+                                </label>
+                                <label class="events-form-wide">
+                                    <span>Descrizione breve</span>
+                                    <input class="form-control" type="text" name="summary" value="{{ event.summary or '' }}">
+                                </label>
+                                <label class="events-form-wide">
+                                    <span>Dettagli</span>
+                                    <textarea class="form-control" name="details" rows="3">{{ event.details or '' }}</textarea>
+                                </label>
+                                <label>
+                                    <span>Info / prenotazioni</span>
+                                    <input class="form-control" type="text" name="contact_info" value="{{ event.contact_info or '' }}" maxlength="180">
+                                </label>
+                                <label class="events-check">
+                                    <input class="form-check-input" type="checkbox" name="is_published" value="1" {% if event.is_published %}checked{% endif %}>
+                                    <span>Pubblicato</span>
+                                </label>
+                            </div>
+                            <div class="events-actions">
+                                <button class="btn btn-info" type="submit">Salva dati</button>
+                                <button class="btn btn-outline-danger" type="submit" form="delete-event-{{ event.id }}">Elimina</button>
+                            </div>
+                        </form>
+
+                        <form method="post" action="{{ url_for('events.upload_posters', event_id=event.id) }}" enctype="multipart/form-data" class="events-poster-upload">
+                            <label>
+                                <span>Aggiungi locandine</span>
+                                <input class="form-control" type="file" name="posters" accept="image/*,.pdf" data-event-poster-input multiple>
+                            </label>
+                            <button class="btn btn-info" type="submit">
+                                <i class="fa-solid fa-upload"></i>
+                                Carica
+                            </button>
+                        </form>
+
+                        {% if event.posters or event.poster_path %}
+                            <div class="events-poster-admin">
+                                {% set admin_posters = event.posters if event.posters else [] %}
+                                {% for poster in admin_posters %}
+                                    <div class="events-poster-admin-item">
+                                        <a href="{{ url_for('static', filename=poster.file_path) }}" target="_blank" rel="noopener">
+                                            {% if poster.media_type == 'pdf' or poster.file_path.lower().endswith('.pdf') %}
+                                                <span class="event-poster-pdf">
+                                                    <i class="fa-regular fa-file-pdf"></i>
+                                                    Apri PDF
+                                                </span>
+                                            {% else %}
+                                                <img src="{{ url_for('static', filename=poster.file_path) }}" alt="Locandina {{ event.title }}" loading="lazy">
+                                            {% endif %}
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-danger" type="submit" form="delete-event-poster-{{ poster.id }}">Rimuovi</button>
+                                    </div>
+                                {% else %}
+                                    <a href="{{ url_for('static', filename=event.poster_path) }}" target="_blank" rel="noopener">
+                                        {% if event.poster_path.lower().endswith('.pdf') %}
+                                            <span class="event-poster-pdf">
+                                                <i class="fa-regular fa-file-pdf"></i>
+                                                Apri PDF
+                                            </span>
+                                        {% else %}
+                                            <img src="{{ url_for('static', filename=event.poster_path) }}" alt="Locandina {{ event.title }}" loading="lazy">
+                                        {% endif %}
+                                    </a>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <form id="delete-event-{{ event.id }}" method="post" action="{{ url_for('events.delete', event_id=event.id) }}"></form>
+                        {% for poster in event.posters %}
+                            <form id="delete-event-poster-{{ poster.id }}" method="post" action="{{ url_for('events.delete_poster', event_id=event.id, poster_id=poster.id) }}"></form>
+                        {% endfor %}
+                    </details>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="events-muted">Nessun evento inserito.</p>
+        {% endif %}
+    </section>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+{% include 'events/poster_script.html' %}
+{% endblock %}

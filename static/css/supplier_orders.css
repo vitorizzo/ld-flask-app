@@ -1,0 +1,339 @@
+.supplier-orders-page {
+  color: #212529;
+}
+
+.supplier-orders-page h1,
+.supplier-orders-page h2 {
+  margin: 0;
+  color: #2f211f;
+}
+
+.supplier-orders-header,
+.supplier-section-title,
+.supplier-orders-group-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.supplier-orders-header {
+  margin-bottom: 14px;
+}
+
+.supplier-orders-header h1 {
+  font-size: 1.9rem;
+}
+
+.supplier-orders-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 14px;
+  min-height: 0;
+}
+
+.supplier-groups-board {
+  min-height: 0;
+}
+
+.supplier-groups-board:focus {
+  outline: 3px solid rgba(13, 202, 240, 0.35);
+  outline-offset: 2px;
+}
+
+.supplier-orders-panel {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(74, 44, 42, 0.14);
+  border-radius: 8px;
+  padding: 14px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.10);
+}
+
+.supplier-orders-sidebar {
+  align-self: start;
+}
+
+.supplier-orders-sidebar h2,
+.supplier-section-title h2,
+.supplier-orders-group-title h2 {
+  font-size: 1.25rem;
+}
+
+.supplier-orders-main {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.supplier-group-list,
+.supplier-selected-list,
+.supplier-operational-list {
+  display: grid;
+  gap: 8px;
+}
+
+.supplier-groups-board .supplier-group-list {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  margin-top: 12px;
+}
+
+.supplier-group-link,
+.supplier-selected-item,
+.supplier-operational-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid rgba(74, 44, 42, 0.12);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.supplier-group-link {
+  padding: 10px 12px;
+  color: #2f211f;
+  text-align: left;
+}
+
+.supplier-group-link:hover,
+.supplier-group-link:focus,
+.supplier-group-link.is-key-selected {
+  border-color: #0dcaf0;
+  background: rgba(13, 202, 240, 0.12);
+}
+
+.supplier-group-link small {
+  color: #6c757d;
+  white-space: nowrap;
+}
+
+.supplier-group-edit {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(220px, 1.3fr) auto;
+  gap: 8px;
+}
+
+.supplier-article-add {
+  margin-top: 14px;
+  position: relative;
+}
+
+.supplier-manage-list {
+  display: grid;
+  gap: 10px;
+}
+
+.supplier-manage-group summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.supplier-manage-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.supplier-manage-group[open] summary {
+  margin-bottom: 12px;
+}
+
+.supplier-orders-modal .modal-content {
+  color: #212529;
+  border: 0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.supplier-orders-modal.modal,
+.supplier-orders-modal.modal.show {
+  z-index: 2110;
+}
+
+body.supplier-orders-modal-open .modal-backdrop.show {
+  z-index: 2100;
+}
+
+.supplier-orders-modal .modal-header {
+  background: #4a2c2a;
+  color: #fff;
+}
+
+.supplier-orders-modal .modal-header .text-muted {
+  color: rgba(255, 255, 255, 0.72) !important;
+}
+
+.supplier-article-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.supplier-search-results {
+  display: none;
+  position: absolute;
+  z-index: 50;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  max-height: 300px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid rgba(74, 44, 42, 0.18);
+  border-radius: 8px;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.16);
+}
+
+.supplier-search-results.is-open {
+  display: grid;
+}
+
+.supplier-search-result {
+  border: 0;
+  border-bottom: 1px solid #edf0f2;
+  padding: 10px 12px;
+  background: #fff;
+  text-align: left;
+}
+
+.supplier-search-result:hover,
+.supplier-search-result:focus {
+  background: rgba(13, 202, 240, 0.10);
+}
+
+.supplier-search-result span,
+.supplier-selected-item span,
+.supplier-product-main span,
+.supplier-product-main em {
+  display: block;
+  color: #6c757d;
+  font-size: 0.86rem;
+}
+
+.supplier-selected-item {
+  padding: 10px 12px;
+}
+
+.supplier-operational-group {
+  border: 1px solid rgba(74, 44, 42, 0.12);
+  border-left: 5px solid #0dcaf0;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.supplier-operational-group.is-empty {
+  border-left-color: #dc3545;
+}
+
+.supplier-operational-row {
+  padding: 12px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.supplier-operational-row::-webkit-details-marker {
+  display: none;
+}
+
+.supplier-operational-row::after {
+  content: "\\f078";
+  color: #0aa2c0;
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  transition: transform .16s ease;
+}
+
+.supplier-operational-group[open] .supplier-operational-row::after {
+  transform: rotate(180deg);
+}
+
+.supplier-variant-list {
+  display: grid;
+  gap: 1px;
+  background: #edf0f2;
+  border-top: 1px solid #edf0f2;
+}
+
+.supplier-variant-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px 10px 24px;
+  background: #fff;
+}
+
+.supplier-variant-row.is-empty {
+  background: #fff8f8;
+}
+
+.supplier-product-main {
+  min-width: 0;
+}
+
+.supplier-product-main strong {
+  display: block;
+  color: #2f211f;
+}
+
+.supplier-stock {
+  min-width: 88px;
+  text-align: right;
+}
+
+.supplier-stock span {
+  display: block;
+  color: #2f211f;
+  font-size: 1.6rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.supplier-stock--small span {
+  font-size: 1.25rem;
+}
+
+.supplier-stock small {
+  color: #6c757d;
+}
+
+@media (max-width: 820px), (hover: none) and (pointer: coarse) {
+  .supplier-orders-page > .container-fluid {
+    padding: 0;
+  }
+
+  .supplier-orders-header,
+  .supplier-orders-group-title,
+  .supplier-section-title {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .supplier-orders-header h1 {
+    font-size: 2rem;
+  }
+
+  .supplier-orders-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .supplier-group-list {
+    grid-template-columns: 1fr;
+  }
+
+  .supplier-group-edit,
+  .supplier-article-search {
+    grid-template-columns: 1fr;
+  }
+
+  .supplier-operational-row {
+    align-items: flex-start;
+  }
+
+  .supplier-stock {
+    min-width: 76px;
+  }
+}

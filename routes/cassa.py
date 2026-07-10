@@ -739,7 +739,7 @@ def _pri_load_year(year: int) -> dict:
 
     mount_root, vault_dir, _cfg_year, year_file = _vault_config()
 
-    if not os.path.ismount(mount_root):
+    if not _vault_mount_ready(mount_root, vault_dir):
         session["pri_vault_unlocked"] = False
         _pri_clear_session_key()
         raise RuntimeError("Vault non montato")
@@ -781,7 +781,7 @@ def _pri_save_year(year: int, data: dict) -> bool|None:
 
     mount_root, vault_dir, _cfg_year, _year_file = _vault_config()
 
-    if not os.path.ismount(mount_root):
+    if not _vault_mount_ready(mount_root, vault_dir):
         session["pri_vault_unlocked"] = False
         _pri_clear_session_key()
         return False
@@ -825,7 +825,12 @@ def _vault_config() -> tuple[str, str, int, str]:
     mount_root: directory che risulta ismount() quando la chiavetta è inserita (es: /mnt/archive/runtime)
     vault_dir:  directory dati dentro mount_root (es: /mnt/archive/runtime/.rt)
     """
-    mount_root = os.environ.get("PRIVATE_VAULT_MOUNT_ROOT", "/mnt/archive/runtime").rstrip("/")
+    default_mount_root = (
+        os.path.join(current_app.instance_path, "private_vault")
+        if os.name == "nt"
+        else "/mnt/archive/runtime"
+    )
+    mount_root = os.environ.get("PRIVATE_VAULT_MOUNT_ROOT", default_mount_root).rstrip("/")
     default_vault_dir = os.path.join(mount_root, ".rt")
     vault_dir = os.environ.get("PRIVATE_VAULT_DIR", default_vault_dir).rstrip("/")
 
@@ -841,7 +846,27 @@ def _vault_device_path() -> str:
 
 def _vault_device_present() -> bool:
     try:
+        mount_root, vault_dir, _year, _year_file = _vault_config()
+        has_path_override = bool(os.environ.get("PRIVATE_VAULT_MOUNT_ROOT") or os.environ.get("PRIVATE_VAULT_DIR"))
+        if os.name == "nt":
+            return True
+        if has_path_override:
+            return os.path.exists(mount_root) or os.path.exists(vault_dir)
         return os.path.exists(_vault_device_path())
+    except Exception:
+        return False
+
+
+def _vault_mount_ready(mount_root: str, vault_dir: str | None = None) -> bool:
+    try:
+        if os.name == "nt":
+            return True
+        if os.path.ismount(mount_root):
+            return True
+        has_path_override = bool(os.environ.get("PRIVATE_VAULT_MOUNT_ROOT") or os.environ.get("PRIVATE_VAULT_DIR"))
+        if has_path_override:
+            return os.path.isdir(mount_root) or (bool(vault_dir) and os.path.isdir(vault_dir))
+        return False
     except Exception:
         return False
 
@@ -1558,7 +1583,7 @@ def api_private_status():
             }
         })
 
-    mounted = os.path.ismount(mount_root)
+    mounted = _vault_mount_ready(mount_root, vault_dir)
 
     vault_dir_exists = False
     vault_dir_writable = False
@@ -1605,7 +1630,7 @@ def api_private_status():
 def api_private_unlock():
     mount_root, vault_dir, year, year_file = _vault_config()
 
-    if not _vault_device_present() or not os.path.ismount(mount_root):
+    if not _vault_device_present() or not _vault_mount_ready(mount_root, vault_dir):
         _vault_force_lock()
 
         return jsonify({

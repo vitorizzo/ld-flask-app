@@ -26,6 +26,10 @@
         {% endif %}
         <a class="quick-action" href="/search/ricerca_x_descrizione"><i class="fa-solid fa-magnifying-glass"></i><span>Informazioni articoli</span></a>
         <a class="quick-action" href="{{ url_for('events.index') }}"><i class="fa-regular fa-calendar-check"></i><span>Eventi</span></a>
+        <button class="quick-action" type="button" data-bs-toggle="modal" data-bs-target="#appQrModal">
+            <i class="fa-solid fa-qrcode"></i>
+            <span>QR App</span>
+        </button>
         {% if current_user.is_authenticated and current_user.max_role_weight >= 20 %}
             <a class="quick-action" href="{{ url_for('documents.ld_selection') }}"><i class="fa-regular fa-file-pdf"></i><span>LD Selection</span></a>
         {% else %}
@@ -36,8 +40,58 @@
         {% endif %}
     </div>
 </section>
+
+<div class="modal fade app-qr-modal" id="appQrModal" tabindex="-1" aria-labelledby="appQrModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="appQrModalTitle">LDApp</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+            </div>
+            <div class="modal-body">
+                <div class="app-qr-card">
+                    <img
+                        src="https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=16&data=https%3A%2F%2Fldapp.ldenoteca.it"
+                        alt="QR code LDApp"
+                        width="320"
+                        height="320"
+                        loading="lazy">
+                    <a href="https://ldapp.ldenoteca.it" target="_blank" rel="noopener">https://ldapp.ldenoteca.it</a>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+                <button type="button" class="btn btn-info" data-copy-app-link>
+                    <i class="fa-regular fa-copy"></i>
+                    Copia link
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
     <script src="{{ url_for('static', filename='js/install_banner.js') }}"></script>
+    <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const modal = document.getElementById("appQrModal");
+      if (modal && modal.parentElement !== document.body) {
+        document.body.appendChild(modal);
+      }
+      document.querySelector("[data-copy-app-link]")?.addEventListener("click", async () => {
+        const url = "https://ldapp.ldenoteca.it";
+        try {
+          await navigator.clipboard.writeText(url);
+        } catch (err) {
+          const input = document.createElement("input");
+          input.value = url;
+          document.body.appendChild(input);
+          input.select();
+          document.execCommand("copy");
+          input.remove();
+        }
+      });
+    });
+    </script>
 {% endblock %}
