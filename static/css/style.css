@@ -807,6 +807,9 @@ h1,h2,h3,h4{
     border-radius: 8px;
     color: #fff;
     background: rgba(255,255,255,0.08);
+    font: inherit;
+    text-decoration: none;
+    cursor: pointer;
 }
 
 .quick-action:hover {

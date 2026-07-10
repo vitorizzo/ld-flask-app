@@ -2117,3 +2117,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - il tile apre una modale con QR code per `https://ldapp.ldenoteca.it`, link cliccabile e pulsante `Copia link`;
   - la modale viene spostata in `document.body` all'avvio per evitare problemi di focus/z-index ricorrenti;
   - verifica: render home 200 e presenza markup QR anche per utente anonimo.
+- 2026-07-10 fix QR app homepage:
+  - sostituito QR remoto `api.qrserver.com` con asset locale `static/img/ldapp_qr.png`, evitando blocchi rete/PWA o mancato caricamento esterno;
+  - aggiunto reset CSS su `.quick-action` per rendere coerente il tile `button` con i tile `a`;
+  - verifiche: home punta al QR locale, nessun riferimento remoto residuo, asset `/static/img/ldapp_qr.png` servito 200 come `image/png`.
