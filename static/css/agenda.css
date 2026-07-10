@@ -929,20 +929,55 @@ body.kiosk-body .modal-backdrop.show {
 }
 
 @media (max-width: 820px), (hover: none) and (pointer: coarse) {
+  .agenda-page {
+    --agenda-mobile-inline-pad: 12px;
+    --agenda-mobile-block-gap: 8px;
+    --agenda-mobile-tile-gap: 2px;
+  }
+
   body.app-shell main.app-content {
-    padding: 12px;
+    padding: 16px;
   }
 
   .welcome-section.agenda-page {
-    overflow: visible;
+    padding: 12px;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 
   .welcome-section.agenda-page > .container-fluid {
     padding: 0;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
+  }
+
+  .welcome-section.agenda-page > .container-fluid > .d-flex:first-of-type,
+  .agenda-mobile-nav,
+  .agenda-day-header,
+  #agendaMobileMovements {
+    width: auto;
+    max-width: 100%;
+    margin-left: var(--agenda-mobile-inline-pad);
+    margin-right: var(--agenda-mobile-inline-pad);
+    box-sizing: border-box;
+  }
+
+  .welcome-section.agenda-page > .container-fluid > .d-flex:first-of-type {
+    margin-bottom: var(--agenda-mobile-block-gap) !important;
+  }
+
+  .agenda-page .row {
+    --bs-gutter-x: 0;
+    --bs-gutter-y: 0;
+    margin-left: 0;
+    margin-right: 0;
   }
 
   .agenda-page h3 {
-    font-size: 1.45rem;
+    font-size: 1.7rem;
     line-height: 1.1;
   }
 
@@ -957,7 +992,8 @@ body.kiosk-body .modal-backdrop.show {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
-    margin: 0 0 12px;
+    margin-top: 0;
+    margin-bottom: var(--agenda-mobile-block-gap) !important;
     padding: 8px;
     background: rgba(255, 255, 255, 0.94);
     border: 1px solid rgba(74, 44, 42, 0.12);
@@ -969,7 +1005,7 @@ body.kiosk-body .modal-backdrop.show {
   .agenda-mobile-nav button {
     border: 0;
     min-width: 0;
-    min-height: 48px;
+    min-height: 56px;
     display: inline-flex;
     flex-direction: column;
     align-items: center;
@@ -979,15 +1015,36 @@ body.kiosk-body .modal-backdrop.show {
     border-radius: 10px;
     background: #f8f9fa;
     color: #4a2c2a;
-    font-size: 0.82rem;
+    font-size: 0.95rem;
     font-weight: 700;
     line-height: 1.05;
     text-align: center;
   }
 
   .agenda-mobile-nav i {
-    font-size: 1rem;
+    font-size: 1.35rem;
     color: #0aa2c0;
+  }
+
+  #dayStatusBadge {
+    min-height: 42px;
+    padding: 10px 14px;
+    border-radius: 999px;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+  }
+
+  #btnOpenSpicciModal {
+    min-height: 42px;
+    padding: 8px 12px !important;
+    border-radius: 999px;
+    background: rgba(13, 202, 240, 0.14);
+    color: #0b5c6b !important;
+    font-size: 1rem;
+  }
+
+  #btnOpenSpicciModal .spicci-icon {
+    font-size: 1.3rem;
   }
 
   .agenda-col-center {
@@ -1008,6 +1065,7 @@ body.kiosk-body .modal-backdrop.show {
 
   .agenda-day-header {
     border-radius: 16px;
+    margin-bottom: var(--agenda-mobile-block-gap) !important;
   }
 
   .agenda-day-header .card-body {
@@ -1078,29 +1136,45 @@ body.kiosk-body .modal-backdrop.show {
   }
 
   #agendaMobileMovements {
-    width: 100%;
+    width: auto;
     max-width: 100%;
     min-width: 0;
-    margin: 0;
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 12px;
+    padding: 0;
+    box-sizing: border-box;
+    display: flex !important;
+    flex-direction: column;
+    gap: 0 !important;
+    row-gap: 0 !important;
+    column-gap: 0 !important;
   }
 
   #agendaMobileMovements > [class*="col-"] {
     width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     padding: 0;
     margin: 0;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    flex: 0 0 auto !important;
+  }
+
+  #agendaMobileMovements .agenda-mobile-quadrant + .agenda-mobile-quadrant {
+    margin-top: var(--agenda-mobile-tile-gap) !important;
   }
 
   .agenda-mobile-quadrant .card {
-    width: 100%;
+    width: auto;
     max-width: 100%;
     box-sizing: border-box;
     min-height: 118px;
     border-radius: 16px;
     overflow: hidden;
     cursor: pointer;
+    border: 0;
+    background: transparent;
+    margin: 0 !important;
   }
 
   .agenda-mobile-quadrant .card-header {
@@ -1109,6 +1183,24 @@ body.kiosk-body .modal-backdrop.show {
     flex-direction: column;
     padding: 12px;
     gap: 12px;
+    border: 0;
+    border-radius: 16px;
+  }
+
+  .agenda-mobile-quadrant .header-incassi {
+    background: #dff4e8;
+  }
+
+  .agenda-mobile-quadrant .header-spese {
+    background: #fde3e5;
+  }
+
+  .agenda-mobile-quadrant .header-movimenti {
+    background: #fff1c7;
+  }
+
+  .agenda-mobile-quadrant .header-pos {
+    background: #d9f6fb;
   }
 
   .agenda-mobile-quadrant .card-header > .d-flex {
@@ -1454,16 +1546,22 @@ body.kiosk-body .modal-backdrop.show {
 }
 
 @media (hover: none) and (pointer: coarse) and (min-width: 821px) {
+  .agenda-page {
+    --agenda-mobile-inline-pad: 24px;
+    --agenda-mobile-block-gap: 12px;
+    --agenda-mobile-tile-gap: 4px;
+  }
+
   body.app-shell main.app-content {
-    padding: 42px;
+    padding: 54px;
   }
 
   .agenda-page h3 {
-    font-size: 3rem;
+    font-size: 4rem;
   }
 
   #agendaLastUpdated {
-    font-size: 1.7rem;
+    font-size: 2rem;
   }
 
   .agenda-mobile-nav {
@@ -1473,14 +1571,31 @@ body.kiosk-body .modal-backdrop.show {
   }
 
   .agenda-mobile-nav button {
-    min-height: 108px;
-    border-radius: 18px;
-    font-size: 1.85rem;
-    gap: 8px;
+    min-height: 126px;
+    border-radius: 22px;
+    font-size: 2.1rem;
+    gap: 10px;
   }
 
   .agenda-mobile-nav i {
-    font-size: 2.15rem;
+    font-size: 3.15rem;
+  }
+
+  #dayStatusBadge {
+    min-height: 82px;
+    padding: 18px 28px;
+    font-size: 2rem;
+  }
+
+  #btnOpenSpicciModal {
+    min-height: 82px;
+    padding: 16px 28px !important;
+    font-size: 2rem;
+    gap: 18px !important;
+  }
+
+  #btnOpenSpicciModal .spicci-icon {
+    font-size: 2.65rem;
   }
 
   .agenda-day-header .card-body {
@@ -1488,11 +1603,11 @@ body.kiosk-body .modal-backdrop.show {
   }
 
   .agenda-day-header .text-muted.small {
-    font-size: 1.85rem;
+    font-size: 2.1rem;
   }
 
   #dayDateTitle {
-    font-size: 3.15rem !important;
+    font-size: 3.7rem !important;
   }
 
   .agenda-day-action-btn {
@@ -1503,7 +1618,9 @@ body.kiosk-body .modal-backdrop.show {
   }
 
   #agendaMobileMovements {
-    gap: 18px;
+    gap: 0 !important;
+    row-gap: 0 !important;
+    column-gap: 0 !important;
   }
 
   .agenda-mobile-quadrant .card {

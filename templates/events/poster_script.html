@@ -1,0 +1,112 @@
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const maxPosterMb = 30;
+  const pdfJsUrl = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+  const pdfWorkerUrl = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+  function loadPdfJs() {
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+      return Promise.resolve(window.pdfjsLib);
+    }
+    return new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = pdfJsUrl;
+      script.onload = () => {
+        if (!window.pdfjsLib) {
+          reject(new Error("PDF.js non disponibile"));
+          return;
+        }
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+        resolve(window.pdfjsLib);
+      };
+      script.onerror = () => reject(new Error("Impossibile caricare PDF.js"));
+      document.head.appendChild(script);
+    });
+  }
+
+  function canvasToBlob(canvas, type, quality) {
+    return new Promise(resolve => canvas.toBlob(resolve, type, quality));
+  }
+
+  async function convertPdfPosterToImage(file) {
+    const pdfjsLib = await loadPdfJs();
+    const bytes = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+    const page = await pdf.getPage(1);
+    const viewport = page.getViewport({ scale: 1 });
+    const maxSide = 1600;
+    const scale = Math.min(2, maxSide / Math.max(viewport.width, viewport.height));
+    const renderViewport = page.getViewport({ scale });
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.ceil(renderViewport.width);
+    canvas.height = Math.ceil(renderViewport.height);
+    const context = canvas.getContext("2d", { alpha: false });
+    await page.render({ canvasContext: context, viewport: renderViewport }).promise;
+    const blob = await canvasToBlob(canvas, "image/jpeg", 0.72);
+    if (!blob) throw new Error("Conversione PDF non riuscita");
+    const baseName = (file.name || "locandina").replace(/\.[^.]+$/, "");
+    return new File([blob], `${baseName}.jpg`, { type: "image/jpeg", lastModified: Date.now() });
+  }
+
+  document.querySelectorAll(".event-poster-carousel").forEach((carousel) => {
+    const slides = Array.from(carousel.querySelectorAll(".event-poster-slide"));
+    if (slides.length < 2) return;
+    let activeIndex = 0;
+    function show(index) {
+      activeIndex = (index + slides.length) % slides.length;
+      slides.forEach((slide, idx) => slide.classList.toggle("is-active", idx === activeIndex));
+    }
+    carousel.querySelector("[data-event-poster-prev]")?.addEventListener("click", (event) => {
+      event.preventDefault();
+      show(activeIndex - 1);
+    });
+    carousel.querySelector("[data-event-poster-next]")?.addEventListener("click", (event) => {
+      event.preventDefault();
+      show(activeIndex + 1);
+    });
+  });
+
+  document.querySelectorAll("[data-event-poster-input]").forEach((input) => {
+    input.addEventListener("change", async () => {
+      const files = Array.from(input.files || []);
+      if (!files.length) return;
+      const transfer = new DataTransfer();
+      let info = input.nextElementSibling && input.nextElementSibling.classList.contains("event-poster-upload-info")
+        ? input.nextElementSibling
+        : null;
+      if (!info) {
+        info = document.createElement("div");
+        info.className = "form-text text-info event-poster-upload-info";
+        input.insertAdjacentElement("afterend", info);
+      }
+      input.disabled = true;
+      try {
+        for (const file of files) {
+          const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+          let finalFile = file;
+          if (isPdf) {
+            info.textContent = `Converto ${file.name} in immagine leggera prima dell'invio...`;
+            finalFile = await convertPdfPosterToImage(file);
+          }
+          const sizeMb = finalFile.size / (1024 * 1024);
+          if (sizeMb > maxPosterMb) {
+            throw new Error(`${finalFile.name} pesa ${sizeMb.toFixed(1)} MB. Usa file entro ${maxPosterMb} MB.`);
+          }
+          transfer.items.add(finalFile);
+        }
+        input.files = transfer.files;
+        info.textContent = files.length === 1
+          ? "Locandina pronta per l'invio."
+          : `${files.length} locandine pronte per l'invio.`;
+      } catch (err) {
+        console.error("Preparazione locandine non riuscita", err);
+        input.value = "";
+        info.textContent = err.message || "Preparazione locandine non riuscita.";
+      } finally {
+        input.disabled = false;
+      }
+    });
+  });
+});
+</script>

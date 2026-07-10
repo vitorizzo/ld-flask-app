@@ -663,6 +663,12 @@ class Event(db.Model):
     )
 
     created_by = db.relationship("User", backref="created_events")
+    posters = db.relationship(
+        "EventPoster",
+        back_populates="event",
+        cascade="all, delete-orphan",
+        order_by="EventPoster.sort_order.asc(), EventPoster.id.asc()",
+    )
 
     @property
     def display_date(self):
@@ -671,6 +677,75 @@ class Event(db.Model):
     @property
     def display_time(self):
         return self.starts_at.strftime("%H:%M")
+
+
+class EventPoster(db.Model):
+    __tablename__ = "event_posters"
+    __table_args__ = (
+        db.Index("ix_event_posters_event_sort", "event_id", "sort_order"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey("events.id", ondelete="CASCADE"), nullable=False, index=True)
+    file_path = db.Column(db.String(255), nullable=False)
+    media_type = db.Column(db.String(20), nullable=False, default="image")
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    event = db.relationship("Event", back_populates="posters")
+
+
+class SupplierOrderGroup(db.Model):
+    __tablename__ = "supplier_order_groups"
+    __table_args__ = (
+        db.UniqueConstraint("name", name="uq_supplier_order_groups_name"),
+        db.Index("ix_supplier_order_groups_active_name", "is_active", "name"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(160), nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    created_by = db.relationship("User", backref="supplier_order_groups")
+    items = db.relationship(
+        "SupplierOrderGroupItem",
+        back_populates="group",
+        cascade="all, delete-orphan",
+        order_by="SupplierOrderGroupItem.sort_order.asc(), SupplierOrderGroupItem.id.asc()",
+    )
+
+    def __repr__(self):
+        return f"<SupplierOrderGroup {self.name}>"
+
+
+class SupplierOrderGroupItem(db.Model):
+    __tablename__ = "supplier_order_group_items"
+    __table_args__ = (
+        db.UniqueConstraint("group_id", "cod_art", name="uq_supplier_order_group_items_group_cod_art"),
+        db.Index("ix_supplier_order_group_items_group_sort", "group_id", "sort_order"),
+        db.Index("ix_supplier_order_group_items_cod_art", "cod_art"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey("supplier_order_groups.id", ondelete="CASCADE"), nullable=False)
+    cod_art = db.Column(db.String(255), db.ForeignKey("articoli.cod_art", ondelete="CASCADE"), nullable=False)
+    sort_order = db.Column(db.Integer, nullable=False, default=0)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    group = db.relationship("SupplierOrderGroup", back_populates="items")
+    article = db.relationship("Articoli", foreign_keys=[cod_art])
+
+    def __repr__(self):
+        return f"<SupplierOrderGroupItem {self.group_id}:{self.cod_art}>"
 
 
 class UserRole(db.Model):
