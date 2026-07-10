@@ -1190,8 +1190,38 @@ h1,h2,h3,h4{
 .app-qr-modal .modal-content {
     border: 1px solid rgba(255, 255, 255, .22);
     border-radius: 8px;
-    background: #fff;
-    color: #1f2933;
+    background: rgba(74, 44, 42, .96);
+    color: #fff;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .32);
+}
+
+.app-qr-modal .modal-header,
+.app-qr-modal .modal-footer {
+    border-color: rgba(255, 255, 255, .16);
+}
+
+.app-qr-modal .modal-title {
+    font-family: "Oswald", Helvetica, sans-serif;
+    letter-spacing: 0;
+    font-size: 1.6rem;
+}
+
+.app-qr-modal .btn-close {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, .9);
+    opacity: 1;
+}
+
+.app-qr-modal .modal-footer .btn {
+    min-height: 52px;
+    padding: 12px 18px;
+    border-radius: 8px;
+    font-size: 1.05rem;
+    font-weight: 800;
 }
 
 .app-qr-card {
@@ -1199,6 +1229,13 @@ h1,h2,h3,h4{
     justify-items: center;
     gap: 14px;
     padding: 8px 0;
+}
+
+.app-qr-card p {
+    margin: 0;
+    color: rgba(255, 255, 255, .86);
+    font-weight: 700;
+    text-align: center;
 }
 
 .app-qr-card img {
@@ -1211,7 +1248,7 @@ h1,h2,h3,h4{
 }
 
 .app-qr-card a {
-    color: #087990;
+    color: #9eeaf9;
     font-weight: 800;
     overflow-wrap: anywhere;
     text-align: center;
@@ -2070,6 +2107,36 @@ h1,h2,h3,h4{
         border-radius: 18px;
     }
 
+    .app-qr-modal .modal-header,
+    .app-qr-modal .modal-footer {
+        padding: 28px;
+    }
+
+    .app-qr-modal .modal-title {
+        font-size: 3rem;
+    }
+
+    .app-qr-modal .btn-close {
+        width: 82px;
+        height: 82px;
+        min-width: 82px;
+        min-height: 82px;
+        border-radius: 16px;
+    }
+
+    .app-qr-modal .modal-footer {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .app-qr-modal .modal-footer .btn {
+        min-height: 96px;
+        padding: 24px 28px;
+        border-radius: 16px;
+        font-size: 2rem;
+    }
+
     .app-qr-card {
         gap: 28px;
         padding: 24px 0;
@@ -2082,6 +2149,10 @@ h1,h2,h3,h4{
     }
 
     .app-qr-card a {
+        font-size: 2rem;
+    }
+
+    .app-qr-card p {
         font-size: 2rem;
     }
 

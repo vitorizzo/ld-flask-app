@@ -2125,3 +2125,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - aumentata dimensione dichiarata del QR a 520px e larghezza CSS fino a 520px/92vw;
   - aggiunte regole touch/S25 per modale piu' ampia e QR fino a 760px compatibile con viewport;
   - verifica: render home con asset QR locale e nuova dimensione.
+- 2026-07-10 QR app modale tema/touch:
+  - modale QR uniformata al tema app con sfondo marrone scuro, testo chiaro e link azzurro info;
+  - aggiunta microcopy `Inquadra il codice per aprire LDApp`;
+  - ingranditi `btn-close`, pulsanti footer e font; nel layer touch/S25 i pulsanti diventano target da 96px con layout a due colonne;
+  - verifica render home con contenuto modale aggiornato.
