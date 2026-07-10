@@ -2121,3 +2121,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - sostituito QR remoto `api.qrserver.com` con asset locale `static/img/ldapp_qr.png`, evitando blocchi rete/PWA o mancato caricamento esterno;
   - aggiunto reset CSS su `.quick-action` per rendere coerente il tile `button` con i tile `a`;
   - verifiche: home punta al QR locale, nessun riferimento remoto residuo, asset `/static/img/ldapp_qr.png` servito 200 come `image/png`.
+- 2026-07-10 QR app homepage dimensioni:
+  - aumentata dimensione dichiarata del QR a 520px e larghezza CSS fino a 520px/92vw;
+  - aggiunte regole touch/S25 per modale piu' ampia e QR fino a 760px compatibile con viewport;
+  - verifica: render home con asset QR locale e nuova dimensione.

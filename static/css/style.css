@@ -1203,7 +1203,7 @@ h1,h2,h3,h4{
 
 .app-qr-card img {
     display: block;
-    width: min(320px, 100%);
+    width: min(520px, 92vw);
     height: auto;
     border: 10px solid #fff;
     border-radius: 8px;
@@ -1215,6 +1215,10 @@ h1,h2,h3,h4{
     font-weight: 800;
     overflow-wrap: anywhere;
     text-align: center;
+}
+
+.app-qr-modal .modal-dialog {
+    max-width: min(620px, calc(100vw - 24px));
 }
 
 .events-poster-admin .form-check {
@@ -2056,6 +2060,29 @@ h1,h2,h3,h4{
         width: 92px;
         min-width: 92px;
         font-size: 3.35rem;
+    }
+
+    .app-qr-modal .modal-dialog {
+        max-width: calc(100vw - 56px);
+    }
+
+    .app-qr-modal .modal-content {
+        border-radius: 18px;
+    }
+
+    .app-qr-card {
+        gap: 28px;
+        padding: 24px 0;
+    }
+
+    .app-qr-card img {
+        width: min(760px, calc(100vw - 112px));
+        border-width: 18px;
+        border-radius: 18px;
+    }
+
+    .app-qr-card a {
+        font-size: 2rem;
     }
 
     .events-hero,
