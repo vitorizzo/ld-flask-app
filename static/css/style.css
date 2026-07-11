@@ -1519,7 +1519,7 @@ h1,h2,h3,h4{
     display: grid;
     gap: 16px;
     padding: 18px;
-    background: linear-gradient(160deg, #4a2c2a 0%, #5b352f 58%, #087990 100%);
+    background: #4a2c2a;
     color: #fff;
 }
 
@@ -1591,7 +1591,7 @@ h1,h2,h3,h4{
     gap: 10px;
     min-height: 280px;
     padding: 28px;
-    background: linear-gradient(160deg, #4a2c2a, #087990);
+    background: #4a2c2a;
     color: #fff;
     text-align: center;
 }

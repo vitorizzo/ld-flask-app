@@ -2174,3 +2174,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - non viene ripetuto il logo dentro la grafica, resta solo nella testata;
   - footer/CTA LDApp condiviso con le altre anteprime;
   - verifiche: `py_compile`, payload settimana `week_card` con 4 eventi/4 miniature, render anteprima con bozza temporanea e rimozione immediata.
+- 2026-07-11 allineamento anteprime settimana:
+  - anteprima Facebook allineata a quella Instagram: entrambe usano la stessa `events-week-card-preview`;
+  - rimosso testo/caption ridondante sotto la grafica nelle anteprime;
+  - rimossa sfumatura dalle aree grafiche social, sostituita da marrone pieno app;
+  - date multi-giorno nei badge calendario mostrate come intervallo, es. `JUL` e `11 - 12`;
+  - verifiche: `py_compile`, test calendario multi-giorno, bozza settimana temporanea con due card preview e nessuna caption visibile, poi rimossa.

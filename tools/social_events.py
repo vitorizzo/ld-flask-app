@@ -60,6 +60,17 @@ def _format_event_date(event: Event) -> str:
     return starts.strftime("%d/%m/%Y")
 
 
+def _event_calendar_parts(event: Event):
+    starts = event.starts_at
+    ends = event.ends_at
+    month = starts.strftime("%b").upper()
+    if ends and ends.date() != starts.date():
+        same_month = starts.strftime("%b").upper() == ends.strftime("%b").upper()
+        day = f"{starts.strftime('%d')} - {ends.strftime('%d')}" if same_month else f"{starts.strftime('%d/%m')} - {ends.strftime('%d/%m')}"
+        return month, day
+    return month, starts.strftime("%d")
+
+
 def build_caption(plan: SocialPostPlan, events, public_url: str) -> str:
     lines = [plan.title, ""]
     if plan.kind == "week":
@@ -131,12 +142,13 @@ def build_media_payload(plan: SocialPostPlan, events):
     if plan.kind == "week":
         for event in events:
             poster_paths = _event_poster_paths(event)
+            month, day = _event_calendar_parts(event)
             media["week_items"].append({
                 "event_id": event.id,
                 "title": event.title,
                 "date": _format_event_date(event),
-                "day": event.starts_at.strftime("%d"),
-                "month": event.starts_at.strftime("%b").upper(),
+                "day": day,
+                "month": month,
                 "location": event.location,
                 "summary": event.summary,
                 "poster_path": poster_paths[0] if poster_paths else None,
@@ -145,13 +157,14 @@ def build_media_payload(plan: SocialPostPlan, events):
         return media
     for event in events:
         poster_paths = _event_poster_paths(event)
+        month, day = _event_calendar_parts(event)
         if not poster_paths:
             media["text_items"].append({
                 "event_id": event.id,
                 "title": event.title,
                 "date": _format_event_date(event),
-                "day": event.starts_at.strftime("%d"),
-                "month": event.starts_at.strftime("%b").upper(),
+                "day": day,
+                "month": month,
                 "location": event.location,
                 "summary": event.summary,
             })
@@ -160,8 +173,8 @@ def build_media_payload(plan: SocialPostPlan, events):
             "event_id": event.id,
             "title": event.title,
             "date": _format_event_date(event),
-            "day": event.starts_at.strftime("%d"),
-            "month": event.starts_at.strftime("%b").upper(),
+            "day": day,
+            "month": month,
             "poster_path": poster_paths[0],
             "image_url": _absolute_static_url(poster_paths[0]),
         })
