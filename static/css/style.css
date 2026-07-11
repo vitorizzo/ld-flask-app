@@ -1515,6 +1515,76 @@ h1,h2,h3,h4{
     position: static;
 }
 
+.events-week-card-preview {
+    display: grid;
+    gap: 16px;
+    padding: 18px;
+    background: linear-gradient(160deg, #4a2c2a 0%, #5b352f 58%, #087990 100%);
+    color: #fff;
+}
+
+.events-week-card-preview__title {
+    display: grid;
+    gap: 4px;
+    text-align: center;
+}
+
+.events-week-card-preview__title strong {
+    font-family: "Oswald", Helvetica, sans-serif;
+    font-size: 2.2rem;
+    line-height: 1.05;
+}
+
+.events-week-card-preview__title span {
+    color: rgba(255, 255, 255, .84);
+    font-weight: 800;
+}
+
+.events-week-card-preview__list {
+    display: grid;
+    gap: 10px;
+}
+
+.events-week-card-preview__item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) 76px;
+    align-items: center;
+    gap: 12px;
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, .22);
+}
+
+.events-week-card-preview__info {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+}
+
+.events-week-card-preview__info strong,
+.events-week-card-preview__info span {
+    display: block;
+}
+
+.events-week-card-preview__info strong {
+    font-size: 1rem;
+    overflow-wrap: anywhere;
+}
+
+.events-week-card-preview__info span {
+    color: rgba(255, 255, 255, .8);
+    font-size: .88rem;
+    font-weight: 700;
+}
+
+.events-week-card-preview__item > img {
+    width: 76px;
+    aspect-ratio: 4 / 5;
+    object-fit: cover;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .1);
+}
+
 .events-instagram-text-preview {
     display: grid;
     place-items: center;
@@ -2725,6 +2795,43 @@ h1,h2,h3,h4{
     .events-social-text-item {
         gap: 24px;
         padding: 24px;
+        border-radius: 14px;
+    }
+
+    .events-week-card-preview {
+        gap: 28px;
+        padding: 36px;
+    }
+
+    .events-week-card-preview__title strong {
+        font-size: 4.2rem;
+    }
+
+    .events-week-card-preview__title span {
+        font-size: 2rem;
+    }
+
+    .events-week-card-preview__list {
+        gap: 22px;
+    }
+
+    .events-week-card-preview__item {
+        grid-template-columns: auto minmax(0, 1fr) 160px;
+        gap: 24px;
+        padding: 24px;
+        border-radius: 14px;
+    }
+
+    .events-week-card-preview__info strong {
+        font-size: 2rem;
+    }
+
+    .events-week-card-preview__info span {
+        font-size: 1.55rem;
+    }
+
+    .events-week-card-preview__item > img {
+        width: 160px;
         border-radius: 14px;
     }
 

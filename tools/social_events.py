@@ -121,11 +121,27 @@ def build_media_payload(plan: SocialPostPlan, events):
             "text": "Tutti gli eventi e le info sulla nostra app nella sezione eventi",
             "button_label": "LDApp",
         },
-        "format": "text_list" if plan.kind == "week" else "carousel",
+        "format": "week_card" if plan.kind == "week" else "carousel",
+        "heading": plan.title,
+        "subheading": f"{plan.period_start.strftime('%d/%m/%Y')} - {plan.period_end.strftime('%d/%m/%Y')}",
         "carousel_items": [],
         "text_items": [],
+        "week_items": [],
     }
-    if plan.kind != "weekend":
+    if plan.kind == "week":
+        for event in events:
+            poster_paths = _event_poster_paths(event)
+            media["week_items"].append({
+                "event_id": event.id,
+                "title": event.title,
+                "date": _format_event_date(event),
+                "day": event.starts_at.strftime("%d"),
+                "month": event.starts_at.strftime("%b").upper(),
+                "location": event.location,
+                "summary": event.summary,
+                "poster_path": poster_paths[0] if poster_paths else None,
+                "image_url": _absolute_static_url(poster_paths[0]) if poster_paths else None,
+            })
         return media
     for event in events:
         poster_paths = _event_poster_paths(event)

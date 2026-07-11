@@ -2167,3 +2167,10 @@ Performance apertura giornata Agenda 2026-06-13:
   - aggiunta route `POST /events/social-posts/<id>/delete` protetta office+;
   - in `/events/manage` ogni bozza social ha pulsante `Elimina bozza` con conferma browser;
   - verifiche: `py_compile routes/events.py`, render `/events/manage` 200 con form delete presente.
+- 2026-07-11 grafica post eventi settimana:
+  - payload `Eventi della settimana` cambiato da `text_list` a `week_card`, mantenendo stessa anteprima per Facebook e Instagram;
+  - card settimana con header nero/logo, sfondo marrone app, titolo `Eventi della settimana`, sottotitolo date periodo e corpo con righe evento;
+  - ogni riga mostra data in stile calendario, titolo, data/luogo e miniatura locandina se presente;
+  - non viene ripetuto il logo dentro la grafica, resta solo nella testata;
+  - footer/CTA LDApp condiviso con le altre anteprime;
+  - verifiche: `py_compile`, payload settimana `week_card` con 4 eventi/4 miniature, render anteprima con bozza temporanea e rimozione immediata.
