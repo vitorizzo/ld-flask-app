@@ -42,6 +42,14 @@ beat_schedule = {
         'schedule': crontab(minute='*/30'),
         'args': ({'limit': 100},),
     },
+    'events-social-weekly': {
+        'task': 'config.tasks.create_weekly_events_social_post_task',
+        'schedule': crontab(hour='9', minute='0', day_of_week='monday'),
+    },
+    'events-social-weekend': {
+        'task': 'config.tasks.create_weekend_events_social_post_task',
+        'schedule': crontab(hour='9', minute='0', day_of_week='friday'),
+    },
 }
 
 timezone = 'Europe/Rome'

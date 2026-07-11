@@ -2130,3 +2130,29 @@ Performance apertura giornata Agenda 2026-06-13:
   - aggiunta microcopy `Inquadra il codice per aprire LDApp`;
   - ingranditi `btn-close`, pulsanti footer e font; nel layer touch/S25 i pulsanti diventano target da 96px con layout a due colonne;
   - verifica render home con contenuto modale aggiornato.
+- 2026-07-10 bozza social eventi:
+  - aggiunte categorie `Facebook` e `Instagram` nel tile `Chiavi API/Accounts`, con placeholder Meta App, Page ID, token, Instagram Business Account ID e flag auto-pubblicazione eventi;
+  - aggiunto modello `SocialEventPost` e migration `c2d3e4f5a6b7_add_social_event_posts.py` per salvare bozze/stati dei post social eventi;
+  - aggiunto servizio `tools/social_events.py` per generare periodi `Eventi della settimana` e `Questo weekend`, selezionare eventi pubblicati nel periodo e creare caption con link pubblico;
+  - in `/events/manage` aggiunta sezione `Post social eventi` con generazione bozza e copia testo;
+  - aggiunti task Celery `create_weekly_events_social_post_task` e `create_weekend_events_social_post_task`, schedulati lunedi' e venerdi' alle 09:00; per ora creano bozze/stato `config_missing/ready`, senza chiamate API Meta;
+  - verifiche: migration applicata, `py_compile`, render `/events/manage` 200, render `/settings/api-keys` con Facebook/Instagram, POST bozza social 302 con caption contenente `/events/public` e rimozione bozza test.
+- 2026-07-10 social eventi brand/media:
+  - caption social aggiornata con header `LD Enoteca` e footer `LDApp: http://ldapp.ldenoteca.it`;
+  - payload media aggiornato con logo aziendale `images/loghi_azienda/logo-ldenoteca-bianco.png` in posizione header;
+  - `Eventi della settimana` resta formato `text_list`, mentre `Questo weekend` prepara formato `carousel` con locandine immagine degli eventi del periodo, escludendo PDF;
+  - la gestione eventi mostra preview del logo, formato previsto e miniature delle locandine carousel quando la bozza contiene payload media;
+  - verifiche: `py_compile tools/social_events.py`, generazione payload weekend con header/footer, formato carousel e locandine candidate; render con bozza temporanea non ripetuto per timeout DB remoto.
+- 2026-07-11 anteprima social eventi:
+  - in `/events/manage` ogni bozza social mostra anteprima in due colonne: card stile Facebook e card stile Instagram;
+  - Facebook mostra avatar/logo LD Enoteca, caption completa e box link pubblico eventi;
+  - Instagram mostra carousel quadrato se il payload e' `carousel`, altrimenti card grafica testuale con logo e periodo;
+  - aggiunti stili responsive/touch per anteprime grandi e leggibili su smartphone;
+  - verifiche: render `/events/manage` 200 e presenza classi anteprima Facebook/Instagram.
+- 2026-07-11 anteprima social eventi refine:
+  - anteprime Facebook/Instagram aggiornate con barra header nera e logo LD Enoteca grande;
+  - sfondo preview portato al marrone app;
+  - link app `http://ldapp.ldenoteca.it` reso elemento cliccabile nell'anteprima;
+  - payload carousel weekend ora usa una sola locandina per evento anche se l'evento ne ha piu' di una;
+  - slide carousel arricchite con badge data in stile calendario (mese/giorno);
+  - verifiche: `py_compile tools/social_events.py`, payload weekend con una slide per evento e date calendario valorizzate.

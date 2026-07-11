@@ -7,7 +7,8 @@ from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 
 from extensions import db
-from models import Event, EventPoster
+from models import Event, EventPoster, SocialEventPost
+from tools.social_events import create_social_event_post
 from tools.role_required import role_required
 
 
@@ -190,11 +191,30 @@ def manage():
         .limit(120)
         .all()
     )
+    social_posts = (
+        SocialEventPost.query
+        .order_by(SocialEventPost.created_at.desc(), SocialEventPost.id.desc())
+        .limit(12)
+        .all()
+    )
     return render_template(
         "events/manage.html",
         managed_events=managed_events,
+        social_posts=social_posts,
         public_events_url=url_for("events.public_index", _external=True),
     )
+
+
+@events_bp.route("/social-posts", methods=["POST"])
+@login_required
+@role_required(40)
+def create_social_post():
+    kind = (request.form.get("kind") or "week").strip().lower()
+    if kind not in {"week", "weekend"}:
+        kind = "week"
+    post = create_social_event_post(kind, created_by_user_id=current_user.id, auto=False)
+    flash(f"Bozza social creata: {post.title}.", "success")
+    return redirect(url_for("events.manage"))
 
 
 @events_bp.route("/", methods=["POST"])

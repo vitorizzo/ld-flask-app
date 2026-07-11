@@ -71,6 +71,128 @@
         </form>
     </section>
 
+    <section class="events-admin-list" aria-labelledby="events-social-title">
+        <div class="events-social-header">
+            <div>
+                <h2 id="events-social-title">Post social eventi</h2>
+                <p>Genera bozze per Facebook e Instagram in attesa della pubblicazione automatica Meta.</p>
+            </div>
+            <div class="events-social-actions">
+                <form method="post" action="{{ url_for('events.create_social_post') }}">
+                    <input type="hidden" name="kind" value="week">
+                    <button class="btn btn-info" type="submit">Eventi della settimana</button>
+                </form>
+                <form method="post" action="{{ url_for('events.create_social_post') }}">
+                    <input type="hidden" name="kind" value="weekend">
+                    <button class="btn btn-outline-light" type="submit">Questo weekend</button>
+                </form>
+            </div>
+        </div>
+        {% if social_posts %}
+            <div class="events-social-posts">
+                {% for post in social_posts %}
+                    <article class="events-social-post">
+                        <div class="events-social-post__meta">
+                            <strong>{{ post.title }}</strong>
+                            <span>{{ post.period_start.strftime('%d/%m/%Y') }} - {{ post.period_end.strftime('%d/%m/%Y') }}</span>
+                            <span class="badge text-bg-light">{{ post.status }}</span>
+                        </div>
+                        {% if post.status_message %}
+                            <div class="events-social-post__status">{{ post.status_message }}</div>
+                        {% endif %}
+                        {% set media = (post.payload or {}).get('media') or {} %}
+                        {% if media %}
+                            <div class="events-social-media-plan">
+                                {% if media.get('brand') %}
+                                    <div class="events-social-brand">
+                                        <img src="{{ media.brand.logo_url }}" alt="Logo LD Enoteca" loading="lazy">
+                                        <span>Logo in testa al post</span>
+                                    </div>
+                                {% endif %}
+                                <div class="events-social-format">
+                                    Formato: {{ "carosello locandine" if media.get("format") == "carousel" else "elenco testuale puntato" }}
+                                </div>
+                                {% if media.get('carousel_items') %}
+                                    <div class="events-social-carousel-preview">
+                                        {% for item in media.carousel_items %}
+                                            <a href="{{ item.image_url }}" target="_blank" rel="noopener" title="{{ item.title }}">
+                                                <img src="{{ item.image_url }}" alt="Locandina {{ item.title }}" loading="lazy">
+                                            </a>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                        <div class="events-social-preview-grid">
+                            <section class="events-social-preview events-social-preview--facebook" aria-label="Anteprima Facebook">
+                                <div class="events-social-preview__brandbar">
+                                    {% if media.get('brand') %}
+                                        <img src="{{ media.brand.logo_url }}" alt="LD Enoteca">
+                                    {% else %}
+                                        <strong>LD Enoteca</strong>
+                                    {% endif %}
+                                </div>
+                                <div class="events-social-preview__network">Facebook · anteprima</div>
+                                <div class="events-social-preview__caption">{{ post.caption }}</div>
+                                <a class="events-social-preview__app-link" href="http://ldapp.ldenoteca.it" target="_blank" rel="noopener">
+                                    http://ldapp.ldenoteca.it
+                                </a>
+                                <div class="events-social-preview__link">
+                                    <span>{{ post.public_url }}</span>
+                                    <strong>Prossimi eventi LD Enoteca</strong>
+                                </div>
+                            </section>
+                            <section class="events-social-preview events-social-preview--instagram" aria-label="Anteprima Instagram">
+                                <div class="events-social-preview__brandbar">
+                                    {% if media.get('brand') %}
+                                        <img src="{{ media.brand.logo_url }}" alt="LD Enoteca">
+                                    {% else %}
+                                        <strong>LD Enoteca</strong>
+                                    {% endif %}
+                                </div>
+                                <div class="events-social-preview__network">Instagram · anteprima</div>
+                                {% if media.get('format') == 'carousel' and media.get('carousel_items') %}
+                                    <div class="events-instagram-carousel-preview">
+                                        {% for item in media.carousel_items %}
+                                            <div class="events-instagram-slide">
+                                                <img src="{{ item.image_url }}" alt="Locandina {{ item.title }}" loading="lazy">
+                                                <div class="events-social-calendar-date">
+                                                    <span>{{ item.month }}</span>
+                                                    <strong>{{ item.day }}</strong>
+                                                </div>
+                                                {% if loop.length > 1 %}
+                                                    <span>{{ loop.index }}/{{ loop.length }}</span>
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <div class="events-instagram-text-preview">
+                                        {% if media.get('brand') %}
+                                            <img src="{{ media.brand.logo_url }}" alt="LD Enoteca">
+                                        {% endif %}
+                                        <strong>{{ post.title }}</strong>
+                                        <span>{{ post.period_start.strftime('%d/%m') }} - {{ post.period_end.strftime('%d/%m/%Y') }}</span>
+                                    </div>
+                                {% endif %}
+                                <div class="events-social-preview__caption events-social-preview__caption--compact">{{ post.caption }}</div>
+                            </section>
+                        </div>
+                        <textarea class="form-control" rows="7" readonly data-social-caption>{{ post.caption }}</textarea>
+                        <div class="events-actions">
+                            <button class="btn btn-outline-light" type="button" data-copy-social-caption>
+                                <i class="fa-regular fa-copy"></i>
+                                Copia testo
+                            </button>
+                        </div>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="events-muted">Nessuna bozza social generata.</p>
+        {% endif %}
+    </section>
+
     <section class="events-admin-list" aria-labelledby="events-admin-title">
         <h2 id="events-admin-title">Eventi salvati</h2>
         {% if managed_events %}
@@ -181,4 +303,32 @@
 
 {% block extra_js %}
 {% include 'events/poster_script.html' %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("[data-copy-social-caption]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const card = button.closest(".events-social-post");
+      const textarea = card?.querySelector("[data-social-caption]");
+      const text = textarea?.value || "";
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (err) {
+        textarea.focus();
+        textarea.select();
+        document.execCommand("copy");
+      }
+      button.classList.remove("btn-outline-light");
+      button.classList.add("btn-info");
+      const previous = button.innerHTML;
+      button.innerHTML = '<i class="fa-solid fa-check"></i> Copiato';
+      window.setTimeout(() => {
+        button.innerHTML = previous;
+        button.classList.add("btn-outline-light");
+        button.classList.remove("btn-info");
+      }, 1600);
+    });
+  });
+});
+</script>
 {% endblock %}

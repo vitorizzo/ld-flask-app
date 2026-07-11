@@ -83,3 +83,17 @@ def refresh_open_shipments_task(self, options=None):
         from tools.redis_utils import status_string, update_task
         update_task(self.request.id, "Aggiornamento tracking spedizioni aperte", 0, status_string["error"], exc)
         raise
+
+
+@celery.task(bind=True)
+@log_task(logger)
+def create_weekly_events_social_post_task(self):
+    from tools.social_events import create_social_event_post
+    return {"post_id": create_social_event_post("week", auto=True).id}
+
+
+@celery.task(bind=True)
+@log_task(logger)
+def create_weekend_events_social_post_task(self):
+    from tools.social_events import create_social_event_post
+    return {"post_id": create_social_event_post("weekend", auto=True).id}

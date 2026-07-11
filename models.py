@@ -695,6 +695,38 @@ class EventPoster(db.Model):
     event = db.relationship("Event", back_populates="posters")
 
 
+class SocialEventPost(db.Model):
+    __tablename__ = "social_event_posts"
+    __table_args__ = (
+        db.Index("ix_social_event_posts_kind_period", "kind", "period_start", "period_end"),
+        db.Index("ix_social_event_posts_status", "status"),
+        db.Index("ix_social_event_posts_created_at", "created_at"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(40), nullable=False)
+    title = db.Column(db.String(180), nullable=False)
+    period_start = db.Column(db.Date, nullable=False)
+    period_end = db.Column(db.Date, nullable=False)
+    caption = db.Column(db.Text, nullable=False)
+    public_url = db.Column(db.String(500), nullable=False)
+    destinations = db.Column(JSONB, nullable=False, default=list)
+    status = db.Column(db.String(40), nullable=False, default="draft")
+    status_message = db.Column(db.Text, nullable=True)
+    payload = db.Column(JSONB, nullable=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+    published_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    created_by = db.relationship("User", backref="created_social_event_posts")
+
+
 class SupplierOrderGroup(db.Model):
     __tablename__ = "supplier_order_groups"
     __table_args__ = (
