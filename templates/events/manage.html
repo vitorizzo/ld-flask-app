@@ -133,13 +133,45 @@
                                     {% endif %}
                                 </div>
                                 <div class="events-social-preview__network">Facebook · anteprima</div>
+                                {% if media.get('format') == 'carousel' and media.get('carousel_items') %}
+                                    <div class="events-instagram-carousel-preview">
+                                        {% for item in media.carousel_items %}
+                                            {% set image_src = url_for('static', filename=item.poster_path) if item.poster_path else item.image_url %}
+                                            <div class="events-instagram-slide">
+                                                <img src="{{ image_src }}" alt="Locandina {{ item.title }}" loading="lazy">
+                                                <div class="events-social-calendar-date">
+                                                    <span>{{ item.month }}</span>
+                                                    <strong>{{ item.day }}</strong>
+                                                </div>
+                                                {% if loop.length > 1 %}
+                                                    <span>{{ loop.index }}/{{ loop.length }}</span>
+                                                {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% elif media.get('text_items') %}
+                                    <div class="events-social-text-items">
+                                        {% for item in media.text_items %}
+                                            <div class="events-social-text-item">
+                                                <div class="events-social-calendar-date events-social-calendar-date--static">
+                                                    <span>{{ item.month }}</span>
+                                                    <strong>{{ item.day }}</strong>
+                                                </div>
+                                                <div>
+                                                    <strong>{{ item.title }}</strong>
+                                                    <span>{{ item.date }}{% if item.location %} | {{ item.location }}{% endif %}</span>
+                                                    {% if item.summary %}<p>{{ item.summary }}</p>{% endif %}
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                                 <div class="events-social-preview__caption">{{ post.caption }}</div>
-                                <a class="events-social-preview__app-link" href="http://ldapp.ldenoteca.it" target="_blank" rel="noopener">
-                                    http://ldapp.ldenoteca.it
+                                <div class="events-social-preview__footer">
+                                    <span>{{ media.footer.text if media.get('footer') else "Tutti gli eventi e le info sulla nostra app nella sezione eventi" }}</span>
+                                <a class="events-social-preview__app-link" href="{{ media.footer.app_url if media.get('footer') else 'https://ldapp.ldenoteca.it' }}" target="_blank" rel="noopener">
+                                    {{ media.footer.button_label if media.get('footer') else 'LDApp' }}
                                 </a>
-                                <div class="events-social-preview__link">
-                                    <span>{{ post.public_url }}</span>
-                                    <strong>Prossimi eventi LD Enoteca</strong>
                                 </div>
                             </section>
                             <section class="events-social-preview events-social-preview--instagram" aria-label="Anteprima Instagram">
@@ -154,8 +186,9 @@
                                 {% if media.get('format') == 'carousel' and media.get('carousel_items') %}
                                     <div class="events-instagram-carousel-preview">
                                         {% for item in media.carousel_items %}
+                                            {% set image_src = url_for('static', filename=item.poster_path) if item.poster_path else item.image_url %}
                                             <div class="events-instagram-slide">
-                                                <img src="{{ item.image_url }}" alt="Locandina {{ item.title }}" loading="lazy">
+                                                <img src="{{ image_src }}" alt="Locandina {{ item.title }}" loading="lazy">
                                                 <div class="events-social-calendar-date">
                                                     <span>{{ item.month }}</span>
                                                     <strong>{{ item.day }}</strong>
@@ -163,6 +196,22 @@
                                                 {% if loop.length > 1 %}
                                                     <span>{{ loop.index }}/{{ loop.length }}</span>
                                                 {% endif %}
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% elif media.get('text_items') %}
+                                    <div class="events-social-text-items">
+                                        {% for item in media.text_items %}
+                                            <div class="events-social-text-item">
+                                                <div class="events-social-calendar-date events-social-calendar-date--static">
+                                                    <span>{{ item.month }}</span>
+                                                    <strong>{{ item.day }}</strong>
+                                                </div>
+                                                <div>
+                                                    <strong>{{ item.title }}</strong>
+                                                    <span>{{ item.date }}{% if item.location %} | {{ item.location }}{% endif %}</span>
+                                                    {% if item.summary %}<p>{{ item.summary }}</p>{% endif %}
+                                                </div>
                                             </div>
                                         {% endfor %}
                                     </div>
@@ -176,6 +225,12 @@
                                     </div>
                                 {% endif %}
                                 <div class="events-social-preview__caption events-social-preview__caption--compact">{{ post.caption }}</div>
+                                <div class="events-social-preview__footer">
+                                    <span>{{ media.footer.text if media.get('footer') else "Tutti gli eventi e le info sulla nostra app nella sezione eventi" }}</span>
+                                    <a class="events-social-preview__app-link" href="{{ media.footer.app_url if media.get('footer') else 'https://ldapp.ldenoteca.it' }}" target="_blank" rel="noopener">
+                                        {{ media.footer.button_label if media.get('footer') else 'LDApp' }}
+                                    </a>
+                                </div>
                             </section>
                         </div>
                         <textarea class="form-control" rows="7" readonly data-social-caption>{{ post.caption }}</textarea>

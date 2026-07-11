@@ -2156,3 +2156,10 @@ Performance apertura giornata Agenda 2026-06-13:
   - payload carousel weekend ora usa una sola locandina per evento anche se l'evento ne ha piu' di una;
   - slide carousel arricchite con badge data in stile calendario (mese/giorno);
   - verifiche: `py_compile tools/social_events.py`, payload weekend con una slide per evento e date calendario valorizzate.
+- 2026-07-11 correzione formato post weekend:
+  - caption `weekend` cambiata in `In programma questo weekend`, senza riga date e senza header testuale `LD Enoteca`;
+  - rimosse dalla caption le righe `Tutti gli eventi:` e `LDApp:`;
+  - footer anteprima/post impostato a `Tutti gli eventi e le info sulla nostra app nella sezione eventi` con CTA cliccabile `LDApp` verso `https://ldapp.ldenoteca.it`;
+  - anche l'anteprima Facebook usa il carousel locandine per il post weekend, con fallback testuale per eventi senza locandina;
+  - preview locandine ora preferisce `poster_path` locale rispetto a URL assoluti salvati nel payload, evitando immagini non caricate dopo deploy;
+  - verifiche: `py_compile`, caption weekend senza righe ridondanti, payload con una slide per evento, render `/events/manage` 200.

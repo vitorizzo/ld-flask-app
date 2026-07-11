@@ -1380,7 +1380,6 @@ h1,h2,h3,h4{
 
 .events-social-preview__app-link {
     display: block;
-    margin: 0 12px 12px;
     padding: 10px 12px;
     border-radius: 8px;
     background: #0dcaf0;
@@ -1389,6 +1388,18 @@ h1,h2,h3,h4{
     text-align: center;
     text-decoration: none;
     overflow-wrap: anywhere;
+}
+
+.events-social-preview__footer {
+    display: grid;
+    gap: 10px;
+    margin: 0 12px 12px;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, .18);
+    color: rgba(255, 255, 255, .86);
+    font-weight: 800;
+    text-align: center;
 }
 
 .events-social-preview__caption--compact {
@@ -1471,6 +1482,37 @@ h1,h2,h3,h4{
     font-family: "Oswald", Helvetica, sans-serif;
     font-size: 2rem;
     line-height: 1;
+}
+
+.events-social-text-items {
+    display: grid;
+    gap: 12px;
+    padding: 12px;
+}
+
+.events-social-text-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, .08);
+}
+
+.events-social-text-item strong,
+.events-social-text-item span,
+.events-social-text-item p {
+    display: block;
+}
+
+.events-social-text-item p {
+    margin: 6px 0 0;
+    color: rgba(255, 255, 255, .82);
+}
+
+.events-social-calendar-date--static {
+    position: static;
 }
 
 .events-instagram-text-preview {
@@ -2603,8 +2645,15 @@ h1,h2,h3,h4{
     }
 
     .events-social-preview__app-link {
-        margin: 0 24px 24px;
         padding: 24px 28px;
+        border-radius: 14px;
+        font-size: 2rem;
+    }
+
+    .events-social-preview__footer {
+        gap: 20px;
+        margin: 0 24px 24px;
+        padding: 24px;
         border-radius: 14px;
         font-size: 2rem;
     }
@@ -2666,6 +2715,17 @@ h1,h2,h3,h4{
     .events-social-calendar-date strong {
         padding: 14px 14px 18px;
         font-size: 4rem;
+    }
+
+    .events-social-text-items {
+        gap: 22px;
+        padding: 24px;
+    }
+
+    .events-social-text-item {
+        gap: 24px;
+        padding: 24px;
+        border-radius: 14px;
     }
 
     .events-poster-upload {

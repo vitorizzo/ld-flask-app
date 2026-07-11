@@ -8,7 +8,7 @@ from flask import current_app, url_for
 from extensions import db
 from models import Event, SocialEventPost
 
-APP_PUBLIC_URL = "http://ldapp.ldenoteca.it"
+APP_PUBLIC_URL = "https://ldapp.ldenoteca.it"
 BRAND_LOGO_PATH = "images/loghi_azienda/logo-ldenoteca-bianco.png"
 
 
@@ -27,7 +27,7 @@ def period_for_kind(kind: str, today: date | None = None) -> SocialPostPlan:
     if kind == "weekend":
         friday = monday + timedelta(days=4)
         sunday = monday + timedelta(days=6)
-        return SocialPostPlan("weekend", "Questo weekend", friday, sunday)
+        return SocialPostPlan("weekend", "In programma questo weekend", friday, sunday)
     return SocialPostPlan("week", "Eventi della settimana", monday, monday + timedelta(days=6))
 
 
@@ -61,21 +61,31 @@ def _format_event_date(event: Event) -> str:
 
 
 def build_caption(plan: SocialPostPlan, events, public_url: str) -> str:
-    lines = [
-        "LD Enoteca",
-        plan.title,
-        f"{plan.period_start.strftime('%d/%m/%Y')} - {plan.period_end.strftime('%d/%m/%Y')}",
-        "",
-    ]
+    lines = [plan.title, ""]
+    if plan.kind == "week":
+        lines.insert(1, f"{plan.period_start.strftime('%d/%m/%Y')} - {plan.period_end.strftime('%d/%m/%Y')}")
+        lines.insert(2, "")
     if events:
-        for event in events:
-            line = f"- {_format_event_date(event)}: {event.title}"
-            if event.location:
-                line += f" | {event.location}"
-            lines.append(line)
+        if plan.kind == "weekend":
+            with_posters = [event for event in events if _event_poster_paths(event)]
+            without_posters = [event for event in events if not _event_poster_paths(event)]
+            if with_posters:
+                lines.append("Scorri le locandine degli eventi in programma.")
+            for event in without_posters:
+                line = f"{event.title}\n{_format_event_date(event)}"
+                if event.location:
+                    line += f" | {event.location}"
+                if event.summary:
+                    line += f"\n{event.summary}"
+                lines.append(line)
+        else:
+            for event in events:
+                line = f"- {_format_event_date(event)}: {event.title}"
+                if event.location:
+                    line += f" | {event.location}"
+                lines.append(line)
     else:
         lines.append("Al momento non ci sono eventi in programma per questo periodo.")
-    lines.extend(["", f"Tutti gli eventi: {public_url}", f"LDApp: {APP_PUBLIC_URL}"])
     return "\n".join(lines)
 
 
@@ -108,15 +118,27 @@ def build_media_payload(plan: SocialPostPlan, events):
         },
         "footer": {
             "app_url": APP_PUBLIC_URL,
+            "text": "Tutti gli eventi e le info sulla nostra app nella sezione eventi",
+            "button_label": "LDApp",
         },
         "format": "text_list" if plan.kind == "week" else "carousel",
         "carousel_items": [],
+        "text_items": [],
     }
     if plan.kind != "weekend":
         return media
     for event in events:
         poster_paths = _event_poster_paths(event)
         if not poster_paths:
+            media["text_items"].append({
+                "event_id": event.id,
+                "title": event.title,
+                "date": _format_event_date(event),
+                "day": event.starts_at.strftime("%d"),
+                "month": event.starts_at.strftime("%b").upper(),
+                "location": event.location,
+                "summary": event.summary,
+            })
             continue
         media["carousel_items"].append({
             "event_id": event.id,
