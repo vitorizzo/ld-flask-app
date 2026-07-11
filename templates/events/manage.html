@@ -239,7 +239,12 @@
                                 <i class="fa-regular fa-copy"></i>
                                 Copia testo
                             </button>
+                            <button class="btn btn-outline-danger" type="submit" form="delete-social-post-{{ post.id }}">
+                                <i class="fa-solid fa-trash"></i>
+                                Elimina bozza
+                            </button>
                         </div>
+                        <form id="delete-social-post-{{ post.id }}" method="post" action="{{ url_for('events.delete_social_post', post_id=post.id) }}" onsubmit="return confirm('Eliminare questa bozza social?');"></form>
                     </article>
                 {% endfor %}
             </div>

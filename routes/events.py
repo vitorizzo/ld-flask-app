@@ -217,6 +217,17 @@ def create_social_post():
     return redirect(url_for("events.manage"))
 
 
+@events_bp.route("/social-posts/<int:post_id>/delete", methods=["POST"])
+@login_required
+@role_required(40)
+def delete_social_post(post_id):
+    post = SocialEventPost.query.get_or_404(post_id)
+    db.session.delete(post)
+    db.session.commit()
+    flash("Bozza social eliminata.", "success")
+    return redirect(url_for("events.manage"))
+
+
 @events_bp.route("/", methods=["POST"])
 @login_required
 @role_required(40)

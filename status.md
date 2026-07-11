@@ -2163,3 +2163,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - anche l'anteprima Facebook usa il carousel locandine per il post weekend, con fallback testuale per eventi senza locandina;
   - preview locandine ora preferisce `poster_path` locale rispetto a URL assoluti salvati nel payload, evitando immagini non caricate dopo deploy;
   - verifiche: `py_compile`, caption weekend senza righe ridondanti, payload con una slide per evento, render `/events/manage` 200.
+- 2026-07-11 eliminazione bozze social:
+  - aggiunta route `POST /events/social-posts/<id>/delete` protetta office+;
+  - in `/events/manage` ogni bozza social ha pulsante `Elimina bozza` con conferma browser;
+  - verifiche: `py_compile routes/events.py`, render `/events/manage` 200 con form delete presente.
