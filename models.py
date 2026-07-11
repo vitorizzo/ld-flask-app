@@ -647,6 +647,8 @@ class Event(db.Model):
     title = db.Column(db.String(180), nullable=False)
     starts_at = db.Column(db.DateTime(timezone=True), nullable=False)
     ends_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    starts_time_known = db.Column(db.Boolean, nullable=False, default=True)
+    ends_time_known = db.Column(db.Boolean, nullable=False, default=False)
     location = db.Column(db.String(180), nullable=True)
     summary = db.Column(db.Text, nullable=True)
     details = db.Column(db.Text, nullable=True)
@@ -676,7 +678,7 @@ class Event(db.Model):
 
     @property
     def display_time(self):
-        return self.starts_at.strftime("%H:%M")
+        return self.starts_at.strftime("%H:%M") if self.starts_time_known else ""
 
 
 class EventPoster(db.Model):
@@ -812,6 +814,26 @@ class UserRole(db.Model):
             return start_ok and end_ok
 
         return False
+
+
+class RoleActivationRequest(db.Model):
+    __tablename__ = "role_activation_requests"
+    __table_args__ = (
+        db.Index("ix_role_activation_requests_status_created", "status", "created_at"),
+        db.Index("ix_role_activation_requests_user_status", "user_id", "status"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    requested_role = db.Column(db.String(80), nullable=False)
+    status = db.Column(db.String(30), nullable=False, default="pending")
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    reviewed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    reviewed_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+
+    user = db.relationship("User", foreign_keys=[user_id], backref=db.backref("role_activation_requests", lazy=True, cascade="all, delete-orphan"))
+    reviewed_by = db.relationship("User", foreign_keys=[reviewed_by_user_id])
 
 
 class SpecialPermission(db.Model):

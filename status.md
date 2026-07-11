@@ -2180,3 +2180,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - rimossa sfumatura dalle aree grafiche social, sostituita da marrone pieno app;
   - date multi-giorno nei badge calendario mostrate come intervallo, es. `JUL` e `11 - 12`;
   - verifiche: `py_compile`, test calendario multi-giorno, bozza settimana temporanea con due card preview e nessuna caption visibile, poi rimossa.
+- 2026-07-11 eventi/admin split e registrazione esercente:
+  - gli eventi ora distinguono data obbligatoria e orario opzionale: aggiunti flag `starts_time_known` e `ends_time_known`, migration `d3e4f5a6b7c8_event_time_flags_and_role_requests.py`;
+  - nei form gestione eventi l'inizio/fine sono separati in data e ora opzionale; la pagina pubblica mostra l'orario solo se indicato;
+  - separata la sezione social in `/events/social-posts`, raggiungibile dal tasto `Post social` accanto a `Gestisci eventi`; `/events/manage` resta dedicata alla gestione eventi;
+  - aggiunto modello `RoleActivationRequest` e checkbox `Esercente` in registrazione, che crea una richiesta pendente per ruolo `customer_horeca`;
+  - verifiche: migration applicata fino a `d3e4f5a6b7c8`, `py_compile`, render `/events/`, `/auth/login`, `/auth/register`, `events/manage.html` e `events/social_posts.html`.

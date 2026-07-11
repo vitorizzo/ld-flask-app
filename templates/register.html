@@ -61,6 +61,11 @@
     background-color: rgba(255, 255, 255, .94);
   }
 
+  .register-card .form-check-label {
+    color: rgba(255, 255, 255, .9);
+    font-weight: 700;
+  }
+
   .register-card__actions {
     display: grid;
     gap: 10px;
@@ -109,6 +114,7 @@
 
     .register-card__subtitle,
     .register-card .form-label,
+    .register-card .form-check-label,
     .register-card__links {
       font-size: 1rem;
     }
@@ -141,6 +147,7 @@
 
     .register-card__subtitle,
     .register-card .form-label,
+    .register-card .form-check-label,
     .register-card__links {
       font-size: 2rem;
     }
@@ -226,6 +233,12 @@
         <div>
           {{ form.confirm_password.label(class="form-label") }}
           {{ form.confirm_password(class="form-control", placeholder="Conferma password", autocomplete="new-password") }}
+        </div>
+
+        <div class="register-field--full form-check">
+          {{ form.merchant_request(class="form-check-input") }}
+          {{ form.merchant_request.label(class="form-check-label") }}
+          <div class="small text-white-50 mt-1">Richiedi l'abilitazione come cliente Horeca.</div>
         </div>
       </div>
 

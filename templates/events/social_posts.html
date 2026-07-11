@@ -1,0 +1,196 @@
+{% extends 'base.html' %}
+
+{% block title %}Post social eventi - LD Enoteca{% endblock %}
+
+{% block content %}
+<section class="events-page">
+    <header class="events-hero">
+        <div>
+            <h1>Post social eventi</h1>
+            <p>Genera e controlla le bozze per Facebook e Instagram.</p>
+        </div>
+        <div class="events-public-link">
+            <a class="btn btn-outline-light btn-sm" href="{{ url_for('events.index') }}">
+                <i class="fa-solid fa-list"></i>
+                Eventi
+            </a>
+            <a class="btn btn-outline-light btn-sm" href="{{ url_for('events.manage') }}">
+                <i class="fa-solid fa-pen-to-square"></i>
+                Gestione eventi
+            </a>
+            <a class="btn btn-outline-light btn-sm" href="{{ public_events_url }}" target="_blank" rel="noopener">
+                <i class="fa-solid fa-up-right-from-square"></i>
+                Link pubblico
+            </a>
+        </div>
+    </header>
+
+    <section class="events-admin-list" aria-labelledby="events-social-title">
+        <div class="events-social-header">
+            <div>
+                <h2 id="events-social-title">Bozze social</h2>
+                <p>Facebook e Instagram usano la stessa grafica di anteprima.</p>
+            </div>
+            <div class="events-social-actions">
+                <form method="post" action="{{ url_for('events.create_social_post') }}">
+                    <input type="hidden" name="kind" value="week">
+                    <button class="btn btn-info" type="submit">Eventi della settimana</button>
+                </form>
+                <form method="post" action="{{ url_for('events.create_social_post') }}">
+                    <input type="hidden" name="kind" value="weekend">
+                    <button class="btn btn-outline-light" type="submit">Questo weekend</button>
+                </form>
+            </div>
+        </div>
+
+        {% if social_posts %}
+            <div class="events-social-posts">
+                {% for post in social_posts %}
+                    {% set media = (post.payload or {}).get('media') or {} %}
+                    <article class="events-social-post">
+                        <div class="events-social-post__meta">
+                            <strong>{{ post.title }}</strong>
+                            <span>{{ post.period_start.strftime('%d/%m/%Y') }} - {{ post.period_end.strftime('%d/%m/%Y') }}</span>
+                            <span class="badge text-bg-light">{{ post.status }}</span>
+                        </div>
+                        {% if post.status_message %}
+                            <div class="events-social-post__status">{{ post.status_message }}</div>
+                        {% endif %}
+
+                        <div class="events-social-preview-grid">
+                            {% for network in ["Facebook", "Instagram"] %}
+                                <section class="events-social-preview events-social-preview--{{ network|lower }}" aria-label="Anteprima {{ network }}">
+                                    <div class="events-social-preview__brandbar">
+                                        {% if media.get('brand') %}
+                                            <img src="{{ media.brand.logo_url }}" alt="LD Enoteca">
+                                        {% else %}
+                                            <strong>LD Enoteca</strong>
+                                        {% endif %}
+                                    </div>
+                                    <div class="events-social-preview__network">{{ network }} · anteprima</div>
+
+                                    {% if media.get('format') == 'week_card' %}
+                                        <div class="events-week-card-preview">
+                                            <div class="events-week-card-preview__title">
+                                                <strong>{{ media.heading or post.title }}</strong>
+                                                <span>{{ media.subheading or (post.period_start.strftime('%d/%m/%Y') ~ ' - ' ~ post.period_end.strftime('%d/%m/%Y')) }}</span>
+                                            </div>
+                                            <div class="events-week-card-preview__list">
+                                                {% for item in media.week_items %}
+                                                    {% set thumb_src = url_for('static', filename=item.poster_path) if item.poster_path else item.image_url %}
+                                                    <div class="events-week-card-preview__item">
+                                                        <div class="events-social-calendar-date events-social-calendar-date--static">
+                                                            <span>{{ item.month }}</span>
+                                                            <strong>{{ item.day }}</strong>
+                                                        </div>
+                                                        <div class="events-week-card-preview__info">
+                                                            <strong>{{ item.title }}</strong>
+                                                            <span>{{ item.date }}{% if item.location %} | {{ item.location }}{% endif %}</span>
+                                                        </div>
+                                                        {% if thumb_src %}
+                                                            <img src="{{ thumb_src }}" alt="Locandina {{ item.title }}" loading="lazy">
+                                                        {% endif %}
+                                                    </div>
+                                                {% else %}
+                                                    <p>Al momento non ci sono eventi in programma per questa settimana.</p>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                    {% elif media.get('carousel_items') %}
+                                        <div class="events-instagram-carousel-preview">
+                                            {% for item in media.carousel_items %}
+                                                {% set image_src = url_for('static', filename=item.poster_path) if item.poster_path else item.image_url %}
+                                                <div class="events-instagram-slide">
+                                                    <img src="{{ image_src }}" alt="Locandina {{ item.title }}" loading="lazy">
+                                                    <div class="events-social-calendar-date">
+                                                        <span>{{ item.month }}</span>
+                                                        <strong>{{ item.day }}</strong>
+                                                    </div>
+                                                    {% if loop.length > 1 %}
+                                                        <span>{{ loop.index }}/{{ loop.length }}</span>
+                                                    {% endif %}
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+
+                                    {% if media.get('text_items') %}
+                                        <div class="events-social-text-items">
+                                            {% for item in media.text_items %}
+                                                <div class="events-social-text-item">
+                                                    <div class="events-social-calendar-date events-social-calendar-date--static">
+                                                        <span>{{ item.month }}</span>
+                                                        <strong>{{ item.day }}</strong>
+                                                    </div>
+                                                    <div>
+                                                        <strong>{{ item.title }}</strong>
+                                                        <span>{{ item.date }}{% if item.location %} | {{ item.location }}{% endif %}</span>
+                                                        {% if item.summary %}<p>{{ item.summary }}</p>{% endif %}
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    {% endif %}
+
+                                    <div class="events-social-preview__footer">
+                                        <span>{{ media.footer.text if media.get('footer') else "Tutti gli eventi e le info sulla nostra app nella sezione eventi" }}</span>
+                                        <a class="events-social-preview__app-link" href="{{ media.footer.app_url if media.get('footer') else 'https://ldapp.ldenoteca.it' }}" target="_blank" rel="noopener">
+                                            {{ media.footer.button_label if media.get('footer') else 'LDApp' }}
+                                        </a>
+                                    </div>
+                                </section>
+                            {% endfor %}
+                        </div>
+
+                        <textarea class="form-control" rows="7" readonly data-social-caption>{{ post.caption }}</textarea>
+                        <div class="events-actions">
+                            <button class="btn btn-outline-light" type="button" data-copy-social-caption>
+                                <i class="fa-regular fa-copy"></i>
+                                Copia testo
+                            </button>
+                            <button class="btn btn-outline-danger" type="submit" form="delete-social-post-{{ post.id }}">
+                                <i class="fa-solid fa-trash"></i>
+                                Elimina bozza
+                            </button>
+                        </div>
+                        <form id="delete-social-post-{{ post.id }}" method="post" action="{{ url_for('events.delete_social_post', post_id=post.id) }}" onsubmit="return confirm('Eliminare questa bozza social?');"></form>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="events-muted">Nessuna bozza social generata.</p>
+        {% endif %}
+    </section>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("[data-copy-social-caption]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const card = button.closest(".events-social-post");
+      const textarea = card?.querySelector("[data-social-caption]");
+      const text = textarea?.value || "";
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (err) {
+        textarea.focus();
+        textarea.select();
+        document.execCommand("copy");
+      }
+      button.classList.remove("btn-outline-light");
+      button.classList.add("btn-info");
+      const previous = button.innerHTML;
+      button.innerHTML = '<i class="fa-solid fa-check"></i> Copiato';
+      window.setTimeout(() => {
+        button.innerHTML = previous;
+        button.classList.add("btn-outline-light");
+        button.classList.remove("btn-info");
+      }, 1600);
+    });
+  });
+});
+</script>
+{% endblock %}

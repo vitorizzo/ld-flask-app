@@ -45,6 +45,10 @@
                     <i class="fa-solid fa-pen-to-square"></i>
                     Gestisci eventi
                 </a>
+                <a class="btn btn-outline-light btn-sm" href="{{ url_for('events.social_posts') }}">
+                    <i class="fa-solid fa-share-nodes"></i>
+                    Post social
+                </a>
                 <a class="btn btn-outline-light btn-sm" href="{{ public_events_url }}" target="_blank" rel="noopener">
                     <i class="fa-solid fa-up-right-from-square"></i>
                     Link pubblico
@@ -72,7 +76,7 @@
                         <div class="event-main">
                             <h3>{{ event.title }}</h3>
                             <div class="event-meta">
-                                <span><i class="fa-regular fa-clock"></i>{{ occurrence.day.strftime('%d/%m/%Y') }}{% if occurrence.day_number == 1 %} {{ event.starts_at.strftime('%H:%M') }}{% endif %}</span>
+                                <span><i class="fa-regular fa-clock"></i>{{ occurrence.day.strftime('%d/%m/%Y') }}{% if occurrence.day_number == 1 and event.starts_time_known %} {{ event.starts_at.strftime('%H:%M') }}{% endif %}</span>
                                 {% if occurrence.is_multi_day %}
                                     <span><i class="fa-solid fa-calendar-days"></i>{{ event.starts_at.strftime('%d/%m') }} - {{ (event.ends_at or event.starts_at).strftime('%d/%m/%Y') }}</span>
                                 {% endif %}

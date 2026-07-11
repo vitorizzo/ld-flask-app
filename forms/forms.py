@@ -24,6 +24,7 @@ class RegistrationForm(FlaskForm):
     province = StringField('Provincia', validators=[DataRequired(), Length(max=50)])
     sex = SelectField('Sesso', choices=[('0', 'Neutro'), ('1', 'Maschio'), ('2', 'Femmina')],
                       validators=[DataRequired()])
+    merchant_request = BooleanField('Esercente')
     submit = SubmitField('Registrati')
 
 

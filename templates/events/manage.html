@@ -14,6 +14,10 @@
                 <i class="fa-solid fa-list"></i>
                 Eventi
             </a>
+            <a class="btn btn-info btn-sm" href="{{ url_for('events.social_posts') }}">
+                <i class="fa-solid fa-share-nodes"></i>
+                Post social
+            </a>
             <a class="btn btn-outline-light btn-sm" href="{{ public_events_url }}" target="_blank" rel="noopener">
                 <i class="fa-solid fa-up-right-from-square"></i>
                 Link pubblico
@@ -30,12 +34,20 @@
                     <input class="form-control" type="text" name="title" required maxlength="180">
                 </label>
                 <label>
-                    <span>Inizio</span>
-                    <input class="form-control" type="datetime-local" name="starts_at" required>
+                    <span>Data inizio</span>
+                    <input class="form-control" type="date" name="starts_date" required>
                 </label>
                 <label>
-                    <span>Fine</span>
-                    <input class="form-control" type="datetime-local" name="ends_at">
+                    <span>Ora inizio opzionale</span>
+                    <input class="form-control" type="time" name="starts_time">
+                </label>
+                <label>
+                    <span>Data fine</span>
+                    <input class="form-control" type="date" name="ends_date">
+                </label>
+                <label>
+                    <span>Ora fine opzionale</span>
+                    <input class="form-control" type="time" name="ends_time">
                 </label>
                 <label>
                     <span>Luogo</span>
@@ -71,6 +83,7 @@
         </form>
     </section>
 
+    {% if false %}
     <section class="events-admin-list" aria-labelledby="events-social-title">
         <div class="events-social-header">
             <div>
@@ -305,6 +318,7 @@
         {% endif %}
     </section>
 
+    {% endif %}
     <section class="events-admin-list" aria-labelledby="events-admin-title">
         <h2 id="events-admin-title">Eventi salvati</h2>
         {% if managed_events %}
@@ -313,7 +327,7 @@
                     <details class="events-admin-item">
                         <summary>
                             <span>{{ event.title }}</span>
-                            <small>{{ event.starts_at.strftime('%d/%m/%Y %H:%M') }}{% if not event.is_published %} - bozza{% endif %}</small>
+                            <small>{{ event.starts_at.strftime('%d/%m/%Y') }}{% if event.starts_time_known %} {{ event.starts_at.strftime('%H:%M') }}{% endif %}{% if not event.is_published %} - bozza{% endif %}</small>
                         </summary>
                         <form method="post" action="{{ url_for('events.update', event_id=event.id) }}" class="events-form events-form-compact">
                             <div class="events-form-grid">
@@ -322,12 +336,20 @@
                                     <input class="form-control" type="text" name="title" value="{{ event.title }}" required maxlength="180">
                                 </label>
                                 <label>
-                                    <span>Inizio</span>
-                                    <input class="form-control" type="datetime-local" name="starts_at" value="{{ event.starts_at.strftime('%Y-%m-%dT%H:%M') }}" required>
+                                    <span>Data inizio</span>
+                                    <input class="form-control" type="date" name="starts_date" value="{{ event.starts_at.strftime('%Y-%m-%d') }}" required>
                                 </label>
                                 <label>
-                                    <span>Fine</span>
-                                    <input class="form-control" type="datetime-local" name="ends_at" value="{{ event.ends_at.strftime('%Y-%m-%dT%H:%M') if event.ends_at else '' }}">
+                                    <span>Ora inizio opzionale</span>
+                                    <input class="form-control" type="time" name="starts_time" value="{{ event.starts_at.strftime('%H:%M') if event.starts_time_known else '' }}">
+                                </label>
+                                <label>
+                                    <span>Data fine</span>
+                                    <input class="form-control" type="date" name="ends_date" value="{{ event.ends_at.strftime('%Y-%m-%d') if event.ends_at else '' }}">
+                                </label>
+                                <label>
+                                    <span>Ora fine opzionale</span>
+                                    <input class="form-control" type="time" name="ends_time" value="{{ event.ends_at.strftime('%H:%M') if event.ends_at and event.ends_time_known else '' }}">
                                 </label>
                                 <label>
                                     <span>Luogo</span>

@@ -27,6 +27,32 @@ def _parse_event_datetime(value):
     return datetime.fromisoformat(value)
 
 
+def _parse_event_date(value):
+    value = (value or "").strip()
+    if not value:
+        return None
+    return datetime.strptime(value, "%Y-%m-%d").date()
+
+
+def _parse_event_time(value):
+    value = (value or "").strip()
+    if not value:
+        return None
+    return datetime.strptime(value, "%H:%M").time()
+
+
+def _parse_date_time_fields(date_name, time_name, legacy_name=None, *, default_time=time.min):
+    date_value = _parse_event_date(request.form.get(date_name))
+    time_value = _parse_event_time(request.form.get(time_name))
+    time_known = time_value is not None
+    if date_value:
+        return datetime.combine(date_value, time_value or default_time), time_known
+    legacy_dt = _parse_event_datetime(request.form.get(legacy_name)) if legacy_name else None
+    if legacy_dt:
+        return legacy_dt, True
+    return None, False
+
+
 def _poster_upload_folder():
     folder = os.path.join(current_app.static_folder, "uploads", "events")
     os.makedirs(folder, exist_ok=True)
@@ -125,13 +151,16 @@ def _event_occurrences(events, from_dt=None):
 
 
 def _event_form_data():
-    starts_at = _parse_event_datetime(request.form.get("starts_at"))
+    starts_at, starts_time_known = _parse_date_time_fields("starts_date", "starts_time", "starts_at")
     if starts_at is None:
         raise ValueError("La data di inizio e' obbligatoria.")
+    ends_at, ends_time_known = _parse_date_time_fields("ends_date", "ends_time", "ends_at", default_time=time.max)
     return {
         "title": (request.form.get("title") or "").strip(),
         "starts_at": starts_at,
-        "ends_at": _parse_event_datetime(request.form.get("ends_at")),
+        "ends_at": ends_at,
+        "starts_time_known": starts_time_known,
+        "ends_time_known": ends_time_known,
         "location": (request.form.get("location") or "").strip() or None,
         "summary": (request.form.get("summary") or "").strip() or None,
         "details": (request.form.get("details") or "").strip() or None,
@@ -191,16 +220,26 @@ def manage():
         .limit(120)
         .all()
     )
-    social_posts = (
-        SocialEventPost.query
-        .order_by(SocialEventPost.created_at.desc(), SocialEventPost.id.desc())
-        .limit(12)
-        .all()
-    )
     return render_template(
         "events/manage.html",
         managed_events=managed_events,
-        social_posts=social_posts,
+        public_events_url=url_for("events.public_index", _external=True),
+    )
+
+
+@events_bp.route("/social-posts", methods=["GET"])
+@login_required
+@role_required(40)
+def social_posts():
+    posts = (
+        SocialEventPost.query
+        .order_by(SocialEventPost.created_at.desc(), SocialEventPost.id.desc())
+        .limit(24)
+        .all()
+    )
+    return render_template(
+        "events/social_posts.html",
+        social_posts=posts,
         public_events_url=url_for("events.public_index", _external=True),
     )
 
@@ -214,7 +253,7 @@ def create_social_post():
         kind = "week"
     post = create_social_event_post(kind, created_by_user_id=current_user.id, auto=False)
     flash(f"Bozza social creata: {post.title}.", "success")
-    return redirect(url_for("events.manage"))
+    return redirect(url_for("events.social_posts"))
 
 
 @events_bp.route("/social-posts/<int:post_id>/delete", methods=["POST"])
@@ -225,7 +264,7 @@ def delete_social_post(post_id):
     db.session.delete(post)
     db.session.commit()
     flash("Bozza social eliminata.", "success")
-    return redirect(url_for("events.manage"))
+    return redirect(url_for("events.social_posts"))
 
 
 @events_bp.route("/", methods=["POST"])

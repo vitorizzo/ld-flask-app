@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from extensions import db, mail
 from forms.forms import LoginForm, RegistrationForm, EditProfileForm, ForgotPasswordForm, ResetPasswordForm
 from tools.auth_manager import get_current_user, get_current_user_id
-from models import User, PasswordResetToken
+from models import User, PasswordResetToken, RoleActivationRequest
 from tools.log_utils import log_task, get_logger
 
 import os
@@ -55,8 +55,18 @@ def register():
             sex=int(form.sex.data)
         )
         db.session.add(new_user)
+        if form.merchant_request.data:
+            db.session.flush()
+            db.session.add(RoleActivationRequest(
+                user_id=new_user.id,
+                requested_role="customer_horeca",
+                notes="Richiesta esercente inviata dal form di registrazione.",
+            ))
         db.session.commit()
-        flash('Registrazione completata! Ora puoi effettuare il login.', 'success')
+        if form.merchant_request.data:
+            flash("Registrazione completata. La richiesta esercente e' stata inviata e verra' valutata dallo staff.", 'success')
+        else:
+            flash('Registrazione completata! Ora puoi effettuare il login.', 'success')
         return redirect(url_for('auth.login'))
     return render_template('register.html', form=form)
 
