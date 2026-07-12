@@ -14,6 +14,7 @@ from urllib.parse import quote, unquote, urlparse
 from dotenv import dotenv_values, set_key, unset_key
 
 from extensions import db, mail
+from tools.mail_accounts import assistance_mail_sender, send_assistance_mail
 from models import (
     Menu,
     AppPreference,
@@ -439,7 +440,7 @@ def support_ticket_detail(ticket_id):
             attachments = _save_ticket_attachments(message, request.files.getlist("attachments"))
             msg = Message(
                 subject=f"Re: {ticket.subject} [Ticket #{ticket.id}]",
-                sender=ASSISTANCE_EMAIL,
+                sender=assistance_mail_sender(),
                 recipients=[ticket.reply_email],
                 reply_to=ASSISTANCE_EMAIL,
                 body=_ticket_email_body(ticket, body),
@@ -448,7 +449,7 @@ def support_ticket_detail(ticket_id):
                 abs_path = os.path.join(current_app.static_folder, attachment.file_path)
                 with open(abs_path, "rb") as fp:
                     msg.attach(attachment.original_filename, attachment.mime_type or "application/octet-stream", fp.read())
-            _send_mail(msg)
+            send_assistance_mail(msg)
             ticket.status = "waiting_user" if ticket.status == "open" else ticket.status
             db.session.commit()
             flash("Risposta inviata.", "success")
@@ -556,13 +557,13 @@ def activate_horeca(ticket_id):
     ))
     msg = Message(
         subject="Attivazione servizi Horeca completata",
-        sender=ASSISTANCE_EMAIL,
+        sender=assistance_mail_sender(),
         recipients=[ticket.reply_email],
         reply_to=ASSISTANCE_EMAIL,
         body=_ticket_email_body(ticket, body),
     )
     try:
-        _send_mail(msg)
+        send_assistance_mail(msg)
         db.session.commit()
         flash("Cliente Horeca attivato e email inviata.", "success")
     except Exception as exc:
@@ -1506,6 +1507,62 @@ MAIL_CONFIG_FIELDS = [
         "secret": False,
         "runtime_default": None,
     },
+    {
+        "key": "ASSISTANCE_MAIL_SERVER",
+        "label": "Assistenza - Server SMTP",
+        "type": "text",
+        "placeholder": "smtps.aruba.it",
+        "secret": False,
+        "runtime_default": None,
+    },
+    {
+        "key": "ASSISTANCE_MAIL_PORT",
+        "label": "Assistenza - Porta",
+        "type": "number",
+        "placeholder": "465",
+        "secret": False,
+        "runtime_default": "25",
+    },
+    {
+        "key": "ASSISTANCE_MAIL_USE_TLS",
+        "label": "Assistenza - Usa TLS",
+        "type": "bool",
+        "placeholder": "",
+        "secret": False,
+        "runtime_default": "false",
+    },
+    {
+        "key": "ASSISTANCE_MAIL_USE_SSL",
+        "label": "Assistenza - Usa SSL",
+        "type": "bool",
+        "placeholder": "",
+        "secret": False,
+        "runtime_default": "false",
+    },
+    {
+        "key": "ASSISTANCE_MAIL_USERNAME",
+        "label": "Assistenza - Nome utente",
+        "type": "text",
+        "placeholder": "assistenza.ldapp@ldenoteca.it",
+        "secret": False,
+        "runtime_default": None,
+    },
+    {
+        "key": "ASSISTANCE_MAIL_PASSWORD",
+        "label": "Assistenza - Password",
+        "type": "password",
+        "placeholder": "",
+        "secret": True,
+        "runtime_default": None,
+    },
+    {
+        "key": "ASSISTANCE_MAIL_DEFAULT_SENDER",
+        "label": "Assistenza - Mittente",
+        "type": "email",
+        "placeholder": "assistenza.ldapp@ldenoteca.it",
+        "secret": False,
+        "runtime_default": None,
+    },
 ]
 
 
@@ -1551,7 +1608,7 @@ def _coerce_mail_form_value(field, form):
     value = str(form.get(field["key"]) or "").strip()
     if field["secret"] and not value:
         return _read_env_file_value(field["key"]) or _mail_runtime_value(field["key"], field.get("runtime_default"))
-    if field["key"] == "MAIL_PORT" and value:
+    if field["key"] in {"MAIL_PORT", "ASSISTANCE_MAIL_PORT"} and value:
         int(value)
     return value
 
@@ -1562,7 +1619,7 @@ def _apply_mail_runtime_config(rows):
         value = row["value"]
         if row["type"] == "bool":
             current_app.config[key] = str(value).lower() in {"1", "true", "yes", "on"}
-        elif key == "MAIL_PORT":
+        elif key in {"MAIL_PORT", "ASSISTANCE_MAIL_PORT"}:
             current_app.config[key] = int(value or 25)
         else:
             current_app.config[key] = value or None
@@ -1589,6 +1646,9 @@ def email_config():
                 current_app.config["MAIL_PORT"] = 25
                 current_app.config["MAIL_USE_TLS"] = False
                 current_app.config["MAIL_USE_SSL"] = False
+                current_app.config["ASSISTANCE_MAIL_PORT"] = 25
+                current_app.config["ASSISTANCE_MAIL_USE_TLS"] = False
+                current_app.config["ASSISTANCE_MAIL_USE_SSL"] = False
                 flash("Configurazione email eliminata da .env.local.", "warning")
                 return redirect(url_for("settings.email_config"))
 

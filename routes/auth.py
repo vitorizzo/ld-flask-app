@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 from extensions import db, mail
 from forms.forms import LoginForm, RegistrationForm, EditProfileForm, ForgotPasswordForm, ResetPasswordForm
 from tools.auth_manager import get_current_user, get_current_user_id
+from tools.mail_accounts import assistance_mail_sender, send_assistance_mail
 from models import User, PasswordResetToken, RoleActivationRequest, SupportTicket, SupportTicketMessage, SupportTicketAttachment
 from tools.log_utils import log_task, get_logger
 
@@ -136,7 +137,7 @@ def register():
             ))
             activation_msg = Message(
                 subject="attivazione cliente horeca",
-                sender=ASSISTANCE_EMAIL,
+                sender=assistance_mail_sender(),
                 recipients=[ASSISTANCE_EMAIL],
                 reply_to=new_user.email,
                 body=(
@@ -154,7 +155,7 @@ def register():
                 ),
             )
             try:
-                _send_mail(activation_msg)
+                send_assistance_mail(activation_msg)
             except Exception as exc:
                 db.session.rollback()
                 logger.exception("Errore invio email attivazione cliente horeca")
@@ -254,7 +255,7 @@ def contact():
 
     msg = Message(
         subject=f"LDApp contattaci - {final_subject}",
-        sender=ASSISTANCE_EMAIL,
+        sender=assistance_mail_sender(),
         recipients=[ASSISTANCE_EMAIL],
         reply_to=reply_email,
         body=(
@@ -268,7 +269,7 @@ def contact():
         ),
     )
     try:
-        _send_mail(msg)
+        send_assistance_mail(msg)
         db.session.commit()
         flash("Richiesta inviata correttamente.", "success")
     except Exception as exc:

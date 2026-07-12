@@ -2220,3 +2220,12 @@ Performance apertura giornata Agenda 2026-06-13:
   - i flash globali `#flash-message` vengono centrati nella pagina con override `!important`, cosi' vincono anche sugli stili locali delle pagine impostazioni e non restano tagliati a sinistra;
   - `_send_mail()` reinizializza Flask-Mail con `current_app.config` prima di inviare, necessario per rispettare i parametri email aggiornati runtime da preferenze/impostazioni;
   - verifiche: `_send_mail()` con `MAIL_SUPPRESS_SEND=True` non apre connessioni SMTP; POST `/auth/contact` crea il ticket e mostra `Richiesta inviata correttamente`, poi cleanup ticket test; `py_compile routes/auth.py routes/settings.py`.
+- 2026-07-12 fix mittente mail assistenza:
+  - reset password usa il mittente SMTP predefinito, mentre contattaci/assistenza forzavano `assistenza.ldapp@ldenoteca.it` come `sender`;
+  - aggiunto `_mail_sender()` per spedire le mail assistenza con `MAIL_DEFAULT_SENDER`/`MAIL_USERNAME`, mantenendo `assistenza.ldapp@ldenoteca.it` come destinatario o `reply_to` dove necessario;
+  - verifiche: nessun `sender=ASSISTANCE_EMAIL` residuo, `py_compile`, POST `/auth/contact` con invio soppresso crea ticket e flash success.
+- 2026-07-12 account mail assistenza separato:
+  - introdotta configurazione SMTP dedicata `ASSISTANCE_MAIL_*` per usare `assistenza.ldapp@ldenoteca.it` come vero account mittente delle comunicazioni assistenza;
+  - `MAIL_*` resta riservato alle email applicative come reset password, mentre contattaci, risposte ticket e attivazioni Horeca usano `send_assistance_mail()`;
+  - pagina Email estesa con campi `ASSISTANCE_MAIL_SERVER/PORT/USE_TLS/USE_SSL/USERNAME/PASSWORD/DEFAULT_SENDER`;
+  - verifiche: `py_compile`, POST `/auth/contact` con invio soppresso e account assistenza configurato crea ticket e flash success.

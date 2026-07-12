@@ -133,7 +133,7 @@
     <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
       <div>
         <h1 class="mb-1">Email</h1>
-        <div class="text-muted">Configurazione SMTP usata per l'invio delle email applicative.</div>
+        <div class="text-muted">Configurazione SMTP separata per email applicative e assistenza clienti.</div>
       </div>
       <div class="d-flex flex-wrap gap-2">
         <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#emailEditModal">
@@ -149,7 +149,7 @@
       <div class="card-header d-flex align-items-center justify-content-between gap-3">
         <div>
           <strong>Configurazione email</strong>
-          <div class="text-muted small">Variabili ambiente <span class="settings-code">MAIL_*</span> in <span class="settings-code">.env.local</span></div>
+          <div class="text-muted small">Variabili ambiente <span class="settings-code">MAIL_*</span> e <span class="settings-code">ASSISTANCE_MAIL_*</span> in <span class="settings-code">.env.local</span></div>
         </div>
         <span class="badge text-bg-light">{{ configured_count }}/{{ mail_rows|length }} valori</span>
       </div>
@@ -222,7 +222,7 @@
               {% else %}
                 <div class="col-12 col-md-6">
                   <label class="form-label" for="mail-{{ row.key|lower }}">{{ row.label }}</label>
-                  <input class="form-control" id="mail-{{ row.key|lower }}" name="{{ row.key }}" type="{{ row.type }}" value="{% if not row.secret %}{{ row.value }}{% endif %}" placeholder="{% if row.secret and row.configured %}Lascia vuoto per mantenere il valore esistente{% else %}{{ row.placeholder }}{% endif %}" {% if row.key == 'MAIL_PORT' %}inputmode="numeric"{% endif %}>
+                  <input class="form-control" id="mail-{{ row.key|lower }}" name="{{ row.key }}" type="{{ row.type }}" value="{% if not row.secret %}{{ row.value }}{% endif %}" placeholder="{% if row.secret and row.configured %}Lascia vuoto per mantenere il valore esistente{% else %}{{ row.placeholder }}{% endif %}" {% if row.key in ['MAIL_PORT', 'ASSISTANCE_MAIL_PORT'] %}inputmode="numeric"{% endif %}>
                   <div class="form-text"><span class="settings-code">{{ row.key }}</span></div>
                 </div>
               {% endif %}
@@ -248,8 +248,8 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
         </div>
         <div class="modal-body">
-          <p class="mb-2">Verranno rimosse da <span class="settings-code">.env.local</span> tutte le chiavi <span class="settings-code">MAIL_*</span> usate dall'app.</p>
-          <div class="alert alert-warning mb-0">Senza configurazione email non sara' possibile inviare reset password o notifiche via mail.</div>
+          <p class="mb-2">Verranno rimosse da <span class="settings-code">.env.local</span> tutte le chiavi <span class="settings-code">MAIL_*</span> e <span class="settings-code">ASSISTANCE_MAIL_*</span> usate dall'app.</p>
+          <div class="alert alert-warning mb-0">Senza configurazione email non sara' possibile inviare reset password, ticket assistenza o notifiche via mail.</div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
