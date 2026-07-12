@@ -72,6 +72,11 @@ def _attachments_note(attachments):
     return f"\n\nAllegati salvati nel ticket: {', '.join(attachments)}" if attachments else ""
 
 
+def _send_mail(message):
+    with mail.connect() as conn:
+        conn.send(message)
+
+
 @auth_bp.route('/register', methods=['GET', 'POST'])
 @log_task(logger)
 def register():
@@ -149,7 +154,7 @@ def register():
                 ),
             )
             try:
-                mail.send(activation_msg)
+                _send_mail(activation_msg)
             except Exception as exc:
                 db.session.rollback()
                 logger.exception("Errore invio email attivazione cliente horeca")
@@ -263,7 +268,7 @@ def contact():
         ),
     )
     try:
-        mail.send(msg)
+        _send_mail(msg)
         db.session.commit()
         flash("Richiesta inviata correttamente.", "success")
     except Exception as exc:
@@ -443,7 +448,7 @@ def forgot_password():
                         "Se non hai richiesto tu questa operazione, puoi ignorare questa email."
                     ),
                 )
-                mail.send(msg)
+                _send_mail(msg)
 
         # risposta sempre neutra (anti user-enumeration)
         flash(

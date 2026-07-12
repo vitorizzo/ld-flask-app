@@ -136,6 +136,35 @@ section {
   background: transparent;
 }
 
+.navbar-brand {
+  position: relative;
+}
+
+.navbar-brand-home-hint {
+  position: absolute;
+  left: 50%;
+  bottom: -10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #4A2C2A;
+  background: #0dcaf0;
+  font-family: "Open Sans", sans-serif;
+  font-size: .72rem;
+  font-weight: 800;
+  line-height: 1.2;
+  opacity: .95;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.navbar-brand:hover .navbar-brand-home-hint,
+.navbar-brand:focus .navbar-brand-home-hint {
+  background: #fff;
+}
+
 @media (max-width: 992px){
     /* Cambia il colore dell'icona (hamburger) */
     .navbar-toggler-icon {

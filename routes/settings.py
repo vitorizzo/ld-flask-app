@@ -214,6 +214,11 @@ def _ticket_email_body(ticket, body):
     )
 
 
+def _send_mail(message):
+    with mail.connect() as conn:
+        conn.send(message)
+
+
 @settings_bp.get("/circuit-logos/<path:logo_path>")
 @login_required
 @role_required(40)
@@ -368,22 +373,6 @@ def settings_index():
             "icon_class": "text-bg-info",
             "min_weight": 40,
         },
-        {
-            "title": "Assistenza LDApp",
-            "description": "Ticket di supporto, risposte agli utenti e avanzamento richieste.",
-            "route": url_for("settings.support_tickets"),
-            "icon": "fa-solid fa-headset",
-            "icon_class": "text-bg-info",
-            "min_weight": 900,
-        },
-        {
-            "title": "Attivazioni Horeca",
-            "description": "Richieste esercente, associazione cliente e cambio ruolo.",
-            "route": url_for("settings.horeca_activations"),
-            "icon": "fa-solid fa-user-check",
-            "icon_class": "text-bg-success",
-            "min_weight": 40,
-        },
     ]
     max_weight = current_user.max_role_weight or 0
     entries = [entry for entry in all_entries if max_weight >= entry["min_weight"]]
@@ -459,7 +448,7 @@ def support_ticket_detail(ticket_id):
                 abs_path = os.path.join(current_app.static_folder, attachment.file_path)
                 with open(abs_path, "rb") as fp:
                     msg.attach(attachment.original_filename, attachment.mime_type or "application/octet-stream", fp.read())
-            mail.send(msg)
+            _send_mail(msg)
             ticket.status = "waiting_user" if ticket.status == "open" else ticket.status
             db.session.commit()
             flash("Risposta inviata.", "success")
@@ -573,7 +562,7 @@ def activate_horeca(ticket_id):
         body=_ticket_email_body(ticket, body),
     )
     try:
-        mail.send(msg)
+        _send_mail(msg)
         db.session.commit()
         flash("Cliente Horeca attivato e email inviata.", "success")
     except Exception as exc:
@@ -852,7 +841,7 @@ def user_reset_password(user_id):
         ),
     )
     try:
-        mail.send(msg)
+        _send_mail(msg)
         db.session.commit()
         flash("Link reset password inviato all'utente.", "success")
     except Exception as exc:

@@ -2208,3 +2208,11 @@ Performance apertura giornata Agenda 2026-06-13:
   - l'attivazione Horeca associa utente a `BusinessRegistry`, chiude ruolo `customer`, aggiunge `customer_horeca`, marca ticket/richiesta approvati e invia email al cliente;
   - aggiunto badge ruolo sotto il profilo: `visitatore` per anonimi, ruolo attivo massimo per utenti autenticati;
   - verifiche: `py_compile`, `flask db upgrade` a `e4f5a6b7c8d9`, render liste admin, POST `Contattaci` e registrazione esercente con `mail.send` simulato e cleanup dati test.
+- 2026-07-12 rifiniture notifiche/menu/assistenza:
+  - task-status in-app centrato nella pagina e non piu' ancorato a tutta la larghezza fuori schermo; durante drawer aperto segue lo shift senza uscire dal viewport;
+  - invii email assistenza/reset uniformati tramite connessione esplicita `mail.connect()`, evitando l'errore `please run connect() first`;
+  - nuova migration dati `f5a6b7c8d9e0_reorganize_customer_service_menus.py`: nasconde root `Impostazioni`, sposta i figli sotto `Strumenti`, crea root `Servizio clienti` con `Attivazioni Horeca` e `Assistenza LDApp`;
+  - rimossi i tile Assistenza/Attivazioni dalla dashboard Impostazioni: ora si raggiungono dal menu;
+  - logo navbar arricchito con hint visivo `Home` e title/aria-label `Torna alla home`;
+  - gestione menu: modale spostata/focalizzata correttamente in apertura e drag/drop limitato al primo livello root per ridurre l'ingombro visivo dello spostamento;
+  - verifiche: `py_compile`, `flask db upgrade` a `f5a6b7c8d9e0`, lettura menu DB, render navbar/menus/settings, POST Contattaci con `_send_mail` simulato e cleanup.

@@ -1,14 +1,18 @@
 #task-status-wrapper {
     position: fixed;
-    bottom: var(--app-footer-height, 0px);
-    left: var(--app-tabs-width, 0px);
-    right: 0;
-    width: auto;
+    bottom: calc(var(--app-footer-height, 0px) + 14px);
+    left: 50%;
+    right: auto;
+    width: min(720px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
     z-index: 2080;
     background-color: #343a40;
     color: white;
     font-size: 0.9rem;
     box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.22);
+    border-radius: 10px;
+    overflow: hidden;
+    transform: translateX(-50%);
 }
 
 #task-status-bar {
@@ -68,14 +72,15 @@
 
 @media (max-width: 820px), (hover: none) and (pointer: coarse) {
     #task-status-wrapper {
-        left: 0;
-        right: 0;
+        left: 50%;
+        right: auto;
+        width: min(94vw, 520px);
         font-size: 0.72rem;
         transition: transform .22s ease;
     }
 
     body.mobile-menu-open #task-status-wrapper {
-        transform: translateX(var(--mobile-menu-shift, min(76vw, 360px)));
+        transform: translateX(calc(-50% + (var(--mobile-menu-shift, min(76vw, 360px)) / 2)));
     }
 
     #task-status-bar {

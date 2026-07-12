@@ -202,9 +202,11 @@ if (window.__menuMgmtInitDone) {
 
   function initSortable(root) {
     destroySortables();
-    root.querySelectorAll(".menu-tree").forEach(ul => {
+    const rootUl = root.querySelector(":scope > .menu-tree");
+    if (!rootUl) return;
+    [rootUl].forEach(ul => {
       const s = new Sortable(ul, {
-        group: "menus",
+        group: { name: "menus-root", pull: true, put: true },
         animation: 150,
         handle: ".menu-handle",
         fallbackOnBody: true,
@@ -459,6 +461,10 @@ if (window.__menuMgmtInitDone) {
     if (modalEl && modalEl.parentElement !== document.body) {
       document.body.appendChild(modalEl);
     }
+    modalEl?.addEventListener("shown.bs.modal", () => {
+      const first = modalEl.querySelector("#mm_name:not(:disabled), #mm_item_type:not(:disabled), input:not([type='hidden']):not(:disabled), select:not(:disabled)");
+      first?.focus();
+    });
 
     bindActions(host);
     bindModalSubmit(renderAll);
