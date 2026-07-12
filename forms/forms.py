@@ -20,7 +20,7 @@ class RegistrationForm(FlaskForm):
                                      validators=[DataRequired(), EqualTo('password')])
     phone = StringField('Telefono', validators=[DataRequired(), Length(min=8, max=20)])
     birth_date = DateField('Data di Nascita', format='%Y-%m-%d')
-    city = StringField('Città', validators=[DataRequired(), Length(max=100)])
+    city = StringField('Citta di residenza', validators=[DataRequired(), Length(max=100)])
     province = StringField('Provincia', validators=[DataRequired(), Length(max=50)])
     sex = SelectField('Sesso', choices=[('0', 'Neutro'), ('1', 'Maschio'), ('2', 'Femmina')],
                       validators=[DataRequired()])

@@ -51,10 +51,12 @@
                 </li>
                 <!-- Se l'utente è loggato -->
                 {% if current_user.is_authenticated %}
+                {% set role_badge = (current_user.active_roles | sort(attribute='weight') | last).name if current_user.active_roles else 'visitatore' %}
                 <li class="nav-item dropdown">
-                    <div class="d-flex align-items-center">
-                        <span style="color: white; margin-right: 10px; font-size: 1.1rem;">
+                    <div class="d-flex align-items-center ld-profile-row">
+                        <span class="ld-profile-greeting" style="color: white; margin-right: 10px; font-size: 1.1rem;">
                             Ciao, {{ current_user.name }} {{ current_user.surname }}
+                            <small class="ld-role-badge">{{ role_badge }}</small>
                         </span>
                         <a href="#" class="nav-link dropdown-toggle p-0"
                            id="profileDropdown" role="button"
@@ -91,8 +93,8 @@
                 {% else %}
                 <!-- Se l'utente non è loggato -->
                 <li class="nav-item d-flex align-items-center">
-                    <a class="nav-link nav-link-enabled" href="{{ url_for('auth.login') }}"
-                       style="margin-right: 10px; font-size: 1.1rem;">Accedi</a>
+                    <a class="nav-link nav-link-enabled ld-profile-greeting" href="{{ url_for('auth.login') }}"
+                       style="margin-right: 10px; font-size: 1.1rem;">Accedi<small class="ld-role-badge">visitatore</small></a>
                     <a href="#">
                         <img src="{{ url_for('static', filename='icons/genderless_profile.png') }}"
                              alt="Profilo" class="rounded-circle" style="width: 50px; height: 50px; opacity: 0.8;">
@@ -107,7 +109,7 @@
 <div class="modal fade ld-contact-modal" id="ldContactModal" tabindex="-1" aria-labelledby="ldContactModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <form method="post" action="{{ url_for('auth.contact') }}" id="ldContactForm">
+            <form method="post" action="{{ url_for('auth.contact') }}" id="ldContactForm" enctype="multipart/form-data">
                 <div class="modal-header">
                     <div>
                         <h5 class="modal-title" id="ldContactModalLabel">Contattaci</h5>
@@ -135,6 +137,9 @@
 
                     <label class="form-label" for="contactMessage">Messaggio</label>
                     <textarea class="form-control" id="contactMessage" name="contact_message" rows="6" required placeholder="Scrivi qui la tua richiesta"></textarea>
+
+                    <label class="form-label" for="contactAttachments">Allegati</label>
+                    <input class="form-control" type="file" id="contactAttachments" name="contact_attachments" multiple>
                 </div>
                 <div class="modal-footer">
                     <button class="btn btn-outline-light" type="button" id="ldContactCancel" data-bs-dismiss="modal">Annulla</button>

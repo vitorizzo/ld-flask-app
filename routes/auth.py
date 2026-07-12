@@ -8,11 +8,12 @@ from datetime import datetime, timedelta, timezone
 from extensions import db, mail
 from forms.forms import LoginForm, RegistrationForm, EditProfileForm, ForgotPasswordForm, ResetPasswordForm
 from tools.auth_manager import get_current_user, get_current_user_id
-from models import User, PasswordResetToken, RoleActivationRequest
+from models import User, PasswordResetToken, RoleActivationRequest, SupportTicket, SupportTicketMessage, SupportTicketAttachment
 from tools.log_utils import log_task, get_logger
 
 import os
 import secrets
+import uuid
 from PIL import Image
 import shutil
 
@@ -21,6 +22,8 @@ logger = get_logger('auth')
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+ASSISTANCE_EMAIL = "assistenza.ldapp@ldenoteca.it"
+SUPPORT_ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".txt", ".doc", ".docx", ".xls", ".xlsx"}
 
 
 # @auth_bp.app_context_processor
@@ -31,6 +34,42 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def _support_upload_folder(ticket_id):
+    folder = os.path.join(current_app.static_folder, "uploads", "support_tickets", str(ticket_id))
+    os.makedirs(folder, exist_ok=True)
+    return folder
+
+
+def _save_support_attachments(message, files):
+    attachments = []
+    for file_storage in files:
+        if not file_storage or not getattr(file_storage, "filename", ""):
+            continue
+        original = secure_filename(file_storage.filename)
+        if not original:
+            continue
+        ext = os.path.splitext(original)[1].lower()
+        if ext not in SUPPORT_ALLOWED_EXTENSIONS:
+            raise ValueError(f"Formato allegato non valido: {original}")
+        target_name = f"{uuid.uuid4().hex}_{original}"
+        target_path = os.path.join(_support_upload_folder(message.ticket_id), target_name)
+        file_storage.save(target_path)
+        rel_path = os.path.relpath(target_path, current_app.static_folder).replace(os.sep, "/")
+        db.session.add(SupportTicketAttachment(
+            message=message,
+            file_path=rel_path,
+            original_filename=original,
+            mime_type=(file_storage.mimetype or None),
+            file_size=os.path.getsize(target_path) if os.path.exists(target_path) else None,
+        ))
+        attachments.append(original)
+    return attachments
+
+
+def _attachments_note(attachments):
+    return f"\n\nAllegati salvati nel ticket: {', '.join(attachments)}" if attachments else ""
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
@@ -57,11 +96,65 @@ def register():
         db.session.add(new_user)
         if form.merchant_request.data:
             db.session.flush()
-            db.session.add(RoleActivationRequest(
+            activation_request = RoleActivationRequest(
                 user_id=new_user.id,
                 requested_role="customer_horeca",
                 notes="Richiesta esercente inviata dal form di registrazione.",
+            )
+            db.session.add(activation_request)
+            db.session.flush()
+            ticket = SupportTicket(
+                ticket_type="horeca_activation",
+                status="open",
+                subject="attivazione cliente horeca",
+                reply_email=new_user.email,
+                user_id=new_user.id,
+                role_activation_request_id=activation_request.id,
+            )
+            db.session.add(ticket)
+            db.session.flush()
+            db.session.add(SupportTicketMessage(
+                ticket_id=ticket.id,
+                sender_type="user",
+                sender_user_id=new_user.id,
+                email_from=new_user.email,
+                email_to=ASSISTANCE_EMAIL,
+                body=(
+                    "Richiesta esercente inviata dal form di registrazione.\n\n"
+                    f"Nome: {new_user.name}\n"
+                    f"Cognome: {new_user.surname}\n"
+                    f"Email: {new_user.email}\n"
+                    f"Telefono: {new_user.phone or '-'}\n"
+                    f"Citta di residenza: {new_user.city or '-'}\n"
+                    f"Provincia: {new_user.province or '-'}"
+                ),
             ))
+            activation_msg = Message(
+                subject="attivazione cliente horeca",
+                sender=ASSISTANCE_EMAIL,
+                recipients=[ASSISTANCE_EMAIL],
+                reply_to=new_user.email,
+                body=(
+                    "Nuova richiesta di attivazione cliente Horeca.\n\n"
+                    f"ID utente: {new_user.id}\n"
+                    f"Nome: {new_user.name}\n"
+                    f"Cognome: {new_user.surname}\n"
+                    f"Email: {new_user.email}\n"
+                    f"Telefono: {new_user.phone or '-'}\n"
+                    f"Data di nascita: {new_user.birth_date or '-'}\n"
+                    f"Citta di residenza: {new_user.city or '-'}\n"
+                    f"Provincia: {new_user.province or '-'}\n"
+                    f"Ticket: #{ticket.id}\n\n"
+                    "Rispondere a questa email dopo aver assegnato il ruolo cliente horeca."
+                ),
+            )
+            try:
+                mail.send(activation_msg)
+            except Exception as exc:
+                db.session.rollback()
+                logger.exception("Errore invio email attivazione cliente horeca")
+                flash(f"Impossibile inviare la richiesta esercente: {exc}", "danger")
+                return redirect(url_for('auth.register'))
         db.session.commit()
         if form.merchant_request.data:
             flash("Registrazione completata. La richiesta esercente e' stata inviata e verra' valutata dallo staff.", 'success')
@@ -124,24 +217,57 @@ def contact():
 
     final_subject = f"altro - {other_subject}" if subject_choice == "altro" else subject_choice
     user_line = "Utente non autenticato"
+    user_id = None
     if current_user.is_authenticated:
+        user_id = current_user.id
         user_line = f"Utente: {current_user.name} {current_user.surname} ({current_user.email})"
+    try:
+        ticket = SupportTicket(
+            ticket_type="support",
+            status="open",
+            subject=final_subject,
+            reply_email=reply_email,
+            user_id=user_id,
+        )
+        db.session.add(ticket)
+        db.session.flush()
+        ticket_message = SupportTicketMessage(
+            ticket_id=ticket.id,
+            sender_type="user",
+            sender_user_id=user_id,
+            email_from=reply_email,
+            email_to=ASSISTANCE_EMAIL,
+            body=message_body,
+        )
+        db.session.add(ticket_message)
+        db.session.flush()
+        attachments = _save_support_attachments(ticket_message, request.files.getlist("contact_attachments"))
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "warning")
+        return redirect(request.referrer or url_for("home"))
+
     msg = Message(
         subject=f"LDApp contattaci - {final_subject}",
-        recipients=["assistenza.ldapp@ldenoteca.it"],
+        sender=ASSISTANCE_EMAIL,
+        recipients=[ASSISTANCE_EMAIL],
         reply_to=reply_email,
         body=(
+            f"Ticket: #{ticket.id}\n"
             f"Oggetto: {final_subject}\n"
             f"Email per risposta: {reply_email}\n"
             f"{user_line}\n"
             f"IP: {request.remote_addr or '-'}\n\n"
             f"Messaggio:\n{message_body}"
+            f"{_attachments_note(attachments)}"
         ),
     )
     try:
         mail.send(msg)
+        db.session.commit()
         flash("Richiesta inviata correttamente.", "success")
     except Exception as exc:
+        db.session.rollback()
         logger.exception("Errore invio richiesta contattaci")
         flash(f"Impossibile inviare la richiesta: {exc}", "danger")
     return redirect(request.referrer or url_for("home"))

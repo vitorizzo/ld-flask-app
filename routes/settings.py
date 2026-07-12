@@ -27,6 +27,10 @@ from models import (
     UserSpecialPermission,
     PasswordResetToken,
     BusinessRegistry,
+    RoleActivationRequest,
+    SupportTicket,
+    SupportTicketMessage,
+    SupportTicketAttachment,
     CustomerOrderDeliveryOption,
     CashBank,
     PosCircuit,
@@ -63,6 +67,8 @@ logger = get_logger('settings')
 
 settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 socketio = SocketIO()
+ASSISTANCE_EMAIL = "assistenza.ldapp@ldenoteca.it"
+SUPPORT_ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".txt", ".doc", ".docx", ".xls", ".xlsx"}
 
 
 def _form_bool(form, key, default=False):
@@ -159,6 +165,53 @@ def _save_uploaded_logo(file_storage, prefix="logo", folder_name="pos"):
     target_path = os.path.join(folder, target_name)
     file_storage.save(target_path)
     return f"images/{folder_name}/{target_name}"
+
+
+def _support_ticket_upload_folder(ticket_id):
+    folder = os.path.join(current_app.static_folder, "uploads", "support_tickets", str(ticket_id))
+    os.makedirs(folder, exist_ok=True)
+    return folder
+
+
+def _save_ticket_attachments(message, files):
+    attachments = []
+    for file_storage in files:
+        if not file_storage or not getattr(file_storage, "filename", ""):
+            continue
+        original = secure_filename(file_storage.filename)
+        if not original:
+            continue
+        ext = os.path.splitext(original)[1].lower()
+        if ext not in SUPPORT_ALLOWED_EXTENSIONS:
+            raise ValueError(f"Formato allegato non valido: {original}")
+        target_name = f"{uuid.uuid4().hex}_{original}"
+        target_path = os.path.join(_support_ticket_upload_folder(message.ticket_id), target_name)
+        file_storage.save(target_path)
+        rel_path = os.path.relpath(target_path, current_app.static_folder).replace(os.sep, "/")
+        attachment = SupportTicketAttachment(
+            message=message,
+            file_path=rel_path,
+            original_filename=original,
+            mime_type=file_storage.mimetype or None,
+            file_size=os.path.getsize(target_path) if os.path.exists(target_path) else None,
+        )
+        db.session.add(attachment)
+        attachments.append(attachment)
+    return attachments
+
+
+def _can_handle_ticket(ticket):
+    if (ticket.ticket_type or "support") == "support":
+        return (current_user.max_role_weight or 0) >= 900
+    return (current_user.max_role_weight or 0) >= 40
+
+
+def _ticket_email_body(ticket, body):
+    return (
+        f"Ticket #{ticket.id} - {ticket.subject}\n\n"
+        f"{body}\n\n"
+        "Assistenza LDApp"
+    )
 
 
 @settings_bp.get("/circuit-logos/<path:logo_path>")
@@ -315,10 +368,219 @@ def settings_index():
             "icon_class": "text-bg-info",
             "min_weight": 40,
         },
+        {
+            "title": "Assistenza LDApp",
+            "description": "Ticket di supporto, risposte agli utenti e avanzamento richieste.",
+            "route": url_for("settings.support_tickets"),
+            "icon": "fa-solid fa-headset",
+            "icon_class": "text-bg-info",
+            "min_weight": 900,
+        },
+        {
+            "title": "Attivazioni Horeca",
+            "description": "Richieste esercente, associazione cliente e cambio ruolo.",
+            "route": url_for("settings.horeca_activations"),
+            "icon": "fa-solid fa-user-check",
+            "icon_class": "text-bg-success",
+            "min_weight": 40,
+        },
     ]
     max_weight = current_user.max_role_weight or 0
     entries = [entry for entry in all_entries if max_weight >= entry["min_weight"]]
     return render_template("settings/index.html", entries=entries)
+
+
+@settings_bp.get("/support-tickets")
+@login_required
+@role_required(900)
+def support_tickets():
+    status = (request.args.get("status") or "").strip()
+    query = SupportTicket.query.filter(SupportTicket.ticket_type == "support")
+    if status:
+        query = query.filter(SupportTicket.status == status)
+    tickets = query.order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).limit(200).all()
+    return render_template("settings/support_tickets.html", tickets=tickets, status=status)
+
+
+@settings_bp.route("/support-tickets/<int:ticket_id>", methods=["GET", "POST"])
+@login_required
+@role_required(40)
+def support_ticket_detail(ticket_id):
+    ticket = (
+        SupportTicket.query
+        .options(
+            selectinload(SupportTicket.messages).selectinload(SupportTicketMessage.attachments),
+            selectinload(SupportTicket.user),
+            selectinload(SupportTicket.role_activation_request).selectinload(RoleActivationRequest.user),
+        )
+        .get_or_404(ticket_id)
+    )
+    if not _can_handle_ticket(ticket):
+        flash("Accesso negato.", "danger")
+        return redirect(url_for("settings.settings_index"))
+
+    if request.method == "POST":
+        action = (request.form.get("action") or "reply").strip()
+        if action == "status":
+            new_status = (request.form.get("status") or "open").strip()
+            if new_status not in {"open", "in_progress", "waiting_user", "closed", "activated"}:
+                flash("Stato ticket non valido.", "warning")
+                return redirect(url_for("settings.support_ticket_detail", ticket_id=ticket.id))
+            ticket.status = new_status
+            ticket.closed_at = datetime.now(timezone.utc) if new_status in {"closed", "activated"} else None
+            db.session.commit()
+            flash("Stato ticket aggiornato.", "success")
+            return redirect(url_for("settings.support_ticket_detail", ticket_id=ticket.id))
+
+        body = (request.form.get("body") or "").strip()
+        if not body:
+            flash("Scrivi un messaggio di risposta.", "warning")
+            return redirect(url_for("settings.support_ticket_detail", ticket_id=ticket.id))
+        message = SupportTicketMessage(
+            ticket_id=ticket.id,
+            sender_type="support",
+            sender_user_id=current_user.id,
+            body=body,
+            email_from=ASSISTANCE_EMAIL,
+            email_to=ticket.reply_email,
+        )
+        db.session.add(message)
+        db.session.flush()
+        try:
+            attachments = _save_ticket_attachments(message, request.files.getlist("attachments"))
+            msg = Message(
+                subject=f"Re: {ticket.subject} [Ticket #{ticket.id}]",
+                sender=ASSISTANCE_EMAIL,
+                recipients=[ticket.reply_email],
+                reply_to=ASSISTANCE_EMAIL,
+                body=_ticket_email_body(ticket, body),
+            )
+            for attachment in attachments:
+                abs_path = os.path.join(current_app.static_folder, attachment.file_path)
+                with open(abs_path, "rb") as fp:
+                    msg.attach(attachment.original_filename, attachment.mime_type or "application/octet-stream", fp.read())
+            mail.send(msg)
+            ticket.status = "waiting_user" if ticket.status == "open" else ticket.status
+            db.session.commit()
+            flash("Risposta inviata.", "success")
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "warning")
+        except Exception as exc:
+            db.session.rollback()
+            logger.exception("Errore invio risposta ticket")
+            flash(f"Impossibile inviare la risposta: {exc}", "danger")
+        return redirect(url_for("settings.support_ticket_detail", ticket_id=ticket.id))
+
+    registries = []
+    if ticket.ticket_type == "horeca_activation":
+        registries = (
+            BusinessRegistry.query
+            .filter(BusinessRegistry.kind == "customer", BusinessRegistry.is_active.is_(True))
+            .order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc())
+            .limit(500)
+            .all()
+        )
+    return render_template("settings/support_ticket_detail.html", ticket=ticket, registries=registries)
+
+
+@settings_bp.get("/horeca-activations")
+@login_required
+@role_required(40)
+def horeca_activations():
+    tickets = (
+        SupportTicket.query
+        .options(selectinload(SupportTicket.user), selectinload(SupportTicket.role_activation_request))
+        .filter(SupportTicket.ticket_type == "horeca_activation")
+        .order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc())
+        .limit(200)
+        .all()
+    )
+    registries = (
+        BusinessRegistry.query
+        .filter(BusinessRegistry.kind == "customer", BusinessRegistry.is_active.is_(True))
+        .order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc())
+        .limit(500)
+        .all()
+    )
+    return render_template("settings/horeca_activations.html", tickets=tickets, registries=registries)
+
+
+@settings_bp.post("/horeca-activations/<int:ticket_id>/activate")
+@login_required
+@role_required(40)
+def activate_horeca(ticket_id):
+    ticket = SupportTicket.query.get_or_404(ticket_id)
+    if ticket.ticket_type != "horeca_activation" or not ticket.user:
+        flash("Ticket attivazione non valido.", "warning")
+        return redirect(url_for("settings.horeca_activations"))
+    registry_id = _parse_int(request.form.get("registry_id"))
+    registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first() if registry_id else None
+    if not registry:
+        flash("Seleziona un cliente valido.", "warning")
+        return redirect(url_for("settings.support_ticket_detail", ticket_id=ticket.id))
+    role = Role.query.filter_by(name="customer_horeca").first()
+    if not role:
+        flash("Ruolo customer_horeca non configurato.", "danger")
+        return redirect(url_for("settings.support_ticket_detail", ticket_id=ticket.id))
+
+    now = datetime.now()
+    user = ticket.user
+    user.customer_registry_id = registry.id
+    for user_role in user.roles or []:
+        if user_role.role and user_role.role.name == "customer" and (user_role.valid_until is None or user_role.valid_until >= now):
+            user_role.valid_until = now
+            if user_role.type == "lifetime":
+                user_role.type = "until"
+    has_active_horeca = any(
+        user_role.role and user_role.role.name == "customer_horeca" and user_role.is_active
+        for user_role in user.roles or []
+    )
+    if not has_active_horeca:
+        db.session.add(UserRole(
+            user_id=user.id,
+            role_id=role.id,
+            type="lifetime",
+            valid_from=now,
+            valid_until=None,
+            notes=f"Attivazione Horeca da ticket #{ticket.id}",
+        ))
+
+    ticket.status = "activated"
+    ticket.closed_at = datetime.now(timezone.utc)
+    if ticket.role_activation_request:
+        ticket.role_activation_request.status = "approved"
+        ticket.role_activation_request.reviewed_at = datetime.now(timezone.utc)
+        ticket.role_activation_request.reviewed_by_user_id = current_user.id
+
+    body = (request.form.get("body") or "").strip() or (
+        "La tua richiesta di attivazione Horeca e' stata approvata.\n"
+        "Da questo momento puoi accedere ai servizi Horeca disponibili in LDApp."
+    )
+    db.session.add(SupportTicketMessage(
+        ticket_id=ticket.id,
+        sender_type="support",
+        sender_user_id=current_user.id,
+        body=body,
+        email_from=ASSISTANCE_EMAIL,
+        email_to=ticket.reply_email,
+    ))
+    msg = Message(
+        subject="Attivazione servizi Horeca completata",
+        sender=ASSISTANCE_EMAIL,
+        recipients=[ticket.reply_email],
+        reply_to=ASSISTANCE_EMAIL,
+        body=_ticket_email_body(ticket, body),
+    )
+    try:
+        mail.send(msg)
+        db.session.commit()
+        flash("Cliente Horeca attivato e email inviata.", "success")
+    except Exception as exc:
+        db.session.rollback()
+        logger.exception("Errore attivazione cliente horeca")
+        flash(f"Impossibile completare l'attivazione: {exc}", "danger")
+    return redirect(url_for("settings.support_ticket_detail", ticket_id=ticket.id))
 
 
 @settings_bp.route("/customer-order-options", methods=["GET", "POST"])

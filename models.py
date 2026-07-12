@@ -836,6 +836,85 @@ class RoleActivationRequest(db.Model):
     reviewed_by = db.relationship("User", foreign_keys=[reviewed_by_user_id])
 
 
+class SupportTicket(db.Model):
+    __tablename__ = "support_tickets"
+    __table_args__ = (
+        db.Index("ix_support_tickets_type_status_created", "ticket_type", "status", "created_at"),
+        db.Index("ix_support_tickets_user_status", "user_id", "status"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_type = db.Column(db.String(40), nullable=False, default="support")
+    status = db.Column(db.String(40), nullable=False, default="open")
+    subject = db.Column(db.String(220), nullable=False)
+    reply_email = db.Column(db.String(255), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True, index=True)
+    role_activation_request_id = db.Column(
+        db.Integer,
+        db.ForeignKey("role_activation_requests.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    assigned_to_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    closed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    user = db.relationship("User", foreign_keys=[user_id], backref=db.backref("support_tickets", lazy=True))
+    assigned_to = db.relationship("User", foreign_keys=[assigned_to_user_id])
+    role_activation_request = db.relationship("RoleActivationRequest", backref=db.backref("support_ticket", uselist=False))
+    messages = db.relationship(
+        "SupportTicketMessage",
+        back_populates="ticket",
+        cascade="all, delete-orphan",
+        order_by="SupportTicketMessage.created_at.asc(), SupportTicketMessage.id.asc()",
+    )
+
+
+class SupportTicketMessage(db.Model):
+    __tablename__ = "support_ticket_messages"
+    __table_args__ = (
+        db.Index("ix_support_ticket_messages_ticket_created", "ticket_id", "created_at"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    ticket_id = db.Column(db.Integer, db.ForeignKey("support_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
+    sender_type = db.Column(db.String(30), nullable=False, default="user")
+    sender_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    body = db.Column(db.Text, nullable=False)
+    email_from = db.Column(db.String(255), nullable=True)
+    email_to = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    ticket = db.relationship("SupportTicket", back_populates="messages")
+    sender_user = db.relationship("User", foreign_keys=[sender_user_id])
+    attachments = db.relationship(
+        "SupportTicketAttachment",
+        back_populates="message",
+        cascade="all, delete-orphan",
+        order_by="SupportTicketAttachment.id.asc()",
+    )
+
+
+class SupportTicketAttachment(db.Model):
+    __tablename__ = "support_ticket_attachments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    message_id = db.Column(db.Integer, db.ForeignKey("support_ticket_messages.id", ondelete="CASCADE"), nullable=False, index=True)
+    file_path = db.Column(db.String(500), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    mime_type = db.Column(db.String(120), nullable=True)
+    file_size = db.Column(db.Integer, nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    message = db.relationship("SupportTicketMessage", back_populates="attachments")
+
+
 class SpecialPermission(db.Model):
     __tablename__ = "special_permissions"
 

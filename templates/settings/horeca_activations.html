@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}Attivazioni Horeca{% endblock %}
+
+{% block content %}
+<section class="welcome-section page-shell support-admin-page">
+  <div class="container-fluid">
+    <div class="d-flex align-items-start justify-content-between gap-3 mb-4">
+      <div>
+        <h1 class="mb-1">Attivazioni Horeca</h1>
+        <div class="text-muted">Richieste esercente da associare a un cliente e promuovere a customer_horeca.</div>
+      </div>
+      <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">Impostazioni</a>
+    </div>
+
+    <div class="row g-3">
+      {% for ticket in tickets %}
+        <div class="col-12 col-xl-6">
+          <article class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+              <div class="d-flex justify-content-between gap-3 mb-2">
+                <div>
+                  <strong>#{{ ticket.id }} - {{ ticket.subject }}</strong>
+                  <div class="text-muted small">{{ ticket.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
+                </div>
+                <span class="badge text-bg-{{ 'success' if ticket.status == 'activated' else 'info' }}">{{ ticket.status }}</span>
+              </div>
+              {% if ticket.user %}
+                <div class="mb-3">
+                  <div>{{ ticket.user.name }} {{ ticket.user.surname }}</div>
+                  <div class="text-muted">{{ ticket.user.email }}{% if ticket.user.phone %} · {{ ticket.user.phone }}{% endif %}</div>
+                  {% if ticket.user.customer_registry %}
+                    <div class="small text-success">Cliente associato: {{ ticket.user.customer_registry.display_name or ticket.user.customer_registry.legal_name }}</div>
+                  {% endif %}
+                </div>
+              {% endif %}
+              <form method="post" action="{{ url_for('settings.activate_horeca', ticket_id=ticket.id) }}" class="d-grid gap-2">
+                <select class="form-select" name="registry_id" required {% if ticket.status == 'activated' %}disabled{% endif %}>
+                  <option value="">Seleziona cliente</option>
+                  {% for registry in registries %}
+                    <option value="{{ registry.id }}" {% if ticket.user and ticket.user.customer_registry_id == registry.id %}selected{% endif %}>
+                      {{ registry.display_name or registry.legal_name }}{% if registry.source_code %} - {{ registry.source_code }}{% endif %}
+                    </option>
+                  {% endfor %}
+                </select>
+                <textarea class="form-control" name="body" rows="3" {% if ticket.status == 'activated' %}disabled{% endif %}>La tua richiesta di attivazione Horeca e' stata approvata.
+Da questo momento puoi accedere ai servizi Horeca disponibili in LDApp.</textarea>
+                <div class="d-flex gap-2 justify-content-end">
+                  <a class="btn btn-outline-secondary" href="{{ url_for('settings.support_ticket_detail', ticket_id=ticket.id) }}">Dettaglio</a>
+                  <button class="btn btn-info" type="submit" {% if ticket.status == 'activated' %}disabled{% endif %}>Attiva Horeca</button>
+                </div>
+              </form>
+            </div>
+          </article>
+        </div>
+      {% else %}
+        <div class="col-12">
+          <div class="card border-0 shadow-sm"><div class="card-body text-center text-muted">Nessuna richiesta esercente.</div></div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

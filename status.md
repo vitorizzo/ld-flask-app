@@ -2195,3 +2195,16 @@ Performance apertura giornata Agenda 2026-06-13:
   - il click su `Contattaci` chiude preventivamente il drawer mobile e rimuove `mobile-menu-open`;
   - alzato lo z-index della modale `ld-contact-modal` e del backdrop sopra i vecchi layer del drawer;
   - verifica: render navbar con trigger `#ldContactModal`.
+- 2026-07-12 registrazione esercente mail:
+  - quando in registrazione viene spuntato `Esercente`, oltre alla richiesta `RoleActivationRequest` viene inviata una mail a `assistenza.ldapp@ldenoteca.it`;
+  - oggetto email `attivazione cliente horeca`, `reply_to` impostato sull'email dell'utente e corpo con dati anagrafici/contatto utili per rispondere ad attivazione completata;
+  - label e placeholder del campo città cambiati in `Citta di residenza`;
+  - verifiche: `py_compile`, render `/auth/register`, POST registrazione test con `mail.send` simulato, richiesta creata e record test ripuliti.
+- 2026-07-12 ticket assistenza/admin:
+  - aggiunti modelli `SupportTicket`, `SupportTicketMessage`, `SupportTicketAttachment` e migration `e4f5a6b7c8d9_add_support_tickets.py`;
+  - `Contattaci` ora crea un ticket `support`, salva primo messaggio e allegati, poi invia notifica da `assistenza.ldapp@ldenoteca.it`;
+  - la registrazione con `Esercente` crea anche ticket `horeca_activation` collegato a `RoleActivationRequest`;
+  - aggiunte pagine impostazioni `Assistenza LDApp` (developer, peso 900) e `Attivazioni Horeca` (office+, peso 40), con dettaglio ticket, risposta email, allegati e cambio stato;
+  - l'attivazione Horeca associa utente a `BusinessRegistry`, chiude ruolo `customer`, aggiunge `customer_horeca`, marca ticket/richiesta approvati e invia email al cliente;
+  - aggiunto badge ruolo sotto il profilo: `visitatore` per anonimi, ruolo attivo massimo per utenti autenticati;
+  - verifiche: `py_compile`, `flask db upgrade` a `e4f5a6b7c8d9`, render liste admin, POST `Contattaci` e registrazione esercente con `mail.send` simulato e cleanup dati test.

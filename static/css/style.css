@@ -493,6 +493,27 @@ section {
     min-height: 150px;
 }
 
+.ld-profile-greeting {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 3px;
+}
+
+.ld-role-badge {
+    display: inline-flex;
+    width: fit-content;
+    padding: 2px 8px;
+    border-radius: 999px;
+    color: #4A2C2A;
+    background: #0dcaf0;
+    font-family: "Open Sans", sans-serif;
+    font-size: .7rem;
+    font-weight: 800;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
 .modal.ld-contact-modal {
     z-index: 12050;
 }
@@ -2156,6 +2177,15 @@ h1,h2,h3,h4{
         text-align: center;
     }
 
+    .navbar-collapse .ld-profile-greeting {
+        align-items: center;
+    }
+
+    .navbar-collapse .ld-role-badge {
+        font-size: .8rem;
+        padding: 3px 10px;
+    }
+
     .navbar-collapse > .navbar-nav:last-child .nav-item img.rounded-circle {
         width: 52px !important;
         height: 52px !important;
@@ -2559,6 +2589,11 @@ h1,h2,h3,h4{
 
     .navbar-collapse > .navbar-nav:last-child .nav-item span {
         font-size: 2.25rem !important;
+    }
+
+    .navbar-collapse .ld-role-badge {
+        font-size: 1.35rem;
+        padding: 6px 16px;
     }
 
     .navbar-collapse > .navbar-nav:last-child .nav-item img.rounded-circle {
