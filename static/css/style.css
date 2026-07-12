@@ -57,15 +57,22 @@ main.app-content.py-4 {
 
 body.app-shell #flash-message {
     position: fixed;
-    top: calc(var(--app-header-height) + 8px);
-    left: calc(var(--app-tabs-width) + 12px);
-    right: 12px;
+    top: calc(var(--app-header-height) + 12px);
+    left: 50%;
+    right: auto;
+    width: min(640px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
     z-index: 1085;
+    text-align: center;
+    pointer-events: none;
+    transform: translateX(-50%);
 }
 
 body.kiosk-body #flash-message {
     top: 8px;
-    left: calc(var(--app-tabs-width) + 12px);
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
 }
 
 body.kiosk-body main.app-content {
@@ -918,6 +925,27 @@ h1,h2,h3,h4{
     from { opacity: 0; transform: translate(-50%, -20px); }
     to { opacity: 1; transform: translate(-50%, 0); }
   }
+
+body.app-shell #flash-message,
+body.kiosk-body #flash-message,
+#flash-message {
+    position: fixed !important;
+    top: calc(var(--app-header-height, 70px) + 12px) !important;
+    left: 50% !important;
+    right: auto !important;
+    width: min(640px, calc(100vw - 32px)) !important;
+    max-width: calc(100vw - 32px) !important;
+    text-align: center !important;
+    pointer-events: none !important;
+    transform: translateX(-50%) !important;
+    z-index: 5000 !important;
+}
+
+#flash-message .alert {
+    display: block !important;
+    width: 100% !important;
+    pointer-events: auto !important;
+}
 
 .quick-actions {
     display: grid;

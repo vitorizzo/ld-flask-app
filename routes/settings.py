@@ -215,8 +215,8 @@ def _ticket_email_body(ticket, body):
 
 
 def _send_mail(message):
-    with mail.connect() as conn:
-        conn.send(message)
+    mail.init_app(current_app)
+    mail.send(message)
 
 
 @settings_bp.get("/circuit-logos/<path:logo_path>")

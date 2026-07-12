@@ -2216,3 +2216,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - logo navbar arricchito con hint visivo `Home` e title/aria-label `Torna alla home`;
   - gestione menu: modale spostata/focalizzata correttamente in apertura e drag/drop limitato al primo livello root per ridurre l'ingombro visivo dello spostamento;
   - verifiche: `py_compile`, `flask db upgrade` a `f5a6b7c8d9e0`, lettura menu DB, render navbar/menus/settings, POST Contattaci con `_send_mail` simulato e cleanup.
+- 2026-07-12 fix flash e invio assistenza:
+  - i flash globali `#flash-message` vengono centrati nella pagina con override `!important`, cosi' vincono anche sugli stili locali delle pagine impostazioni e non restano tagliati a sinistra;
+  - `_send_mail()` reinizializza Flask-Mail con `current_app.config` prima di inviare, necessario per rispettare i parametri email aggiornati runtime da preferenze/impostazioni;
+  - verifiche: `_send_mail()` con `MAIL_SUPPRESS_SEND=True` non apre connessioni SMTP; POST `/auth/contact` crea il ticket e mostra `Richiesta inviata correttamente`, poi cleanup ticket test; `py_compile routes/auth.py routes/settings.py`.

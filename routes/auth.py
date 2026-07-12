@@ -73,8 +73,8 @@ def _attachments_note(attachments):
 
 
 def _send_mail(message):
-    with mail.connect() as conn:
-        conn.send(message)
+    mail.init_app(current_app)
+    mail.send(message)
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
