@@ -1,4 +1,44 @@
 document.addEventListener("DOMContentLoaded", function () {
+    var contactForm = document.getElementById("ldContactForm");
+    var contactSubject = document.getElementById("contactSubject");
+    var contactOtherWrap = document.getElementById("contactOtherWrap");
+    var contactOther = document.getElementById("contactSubjectOther");
+    var contactCancel = document.getElementById("ldContactCancel");
+    var contactModal = document.getElementById("ldContactModal");
+    var contactDefaultEmail = document.getElementById("contactReplyEmail")?.value || "";
+
+    function syncContactOther() {
+        if (!contactSubject || !contactOtherWrap || !contactOther) return;
+        var isOther = contactSubject.value === "altro";
+        contactOtherWrap.hidden = !isOther;
+        contactOther.required = isOther;
+        if (!isOther) {
+            contactOther.value = "";
+        }
+    }
+
+    if (contactSubject) {
+        contactSubject.addEventListener("change", syncContactOther);
+        syncContactOther();
+    }
+
+    if (contactCancel && contactForm) {
+        contactCancel.addEventListener("click", function () {
+            contactForm.reset();
+            var replyEmail = document.getElementById("contactReplyEmail");
+            if (replyEmail) {
+                replyEmail.value = contactDefaultEmail;
+            }
+            syncContactOther();
+        });
+    }
+
+    if (contactModal) {
+        contactModal.addEventListener("hidden.bs.modal", syncContactOther);
+    }
+});
+
+document.addEventListener("DOMContentLoaded", function () {
     console.log("JS caricato!");
 
     function isMobileView() {

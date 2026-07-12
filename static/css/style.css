@@ -421,6 +421,78 @@ section {
       color: #4A2C2A;
     }
 
+.ld-contact-nav-item {
+    display: flex;
+    align-items: center;
+}
+
+.ld-contact-trigger {
+    border: 0;
+    color: #fff;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 8px 12px;
+    background: rgba(255, 255, 255, .08);
+    border-radius: 8px;
+    font-family: "Oswald", Helvetica, sans-serif;
+    font-size: 1.05rem;
+}
+
+.ld-contact-trigger:hover,
+.ld-contact-trigger:focus {
+    color: #fff;
+    background: #0dcaf0;
+}
+
+.ld-contact-modal .modal-content {
+    color: #fff;
+    background: rgba(74, 44, 42, .98);
+    border: 1px solid rgba(255, 255, 255, .24);
+    border-radius: 8px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, .35);
+}
+
+.ld-contact-modal .modal-header,
+.ld-contact-modal .modal-footer {
+    border-color: rgba(255, 255, 255, .18);
+}
+
+.ld-contact-modal .modal-title {
+    color: #fff;
+    font-family: "Oswald", Helvetica, sans-serif;
+    font-size: 1.8rem;
+    line-height: 1;
+}
+
+.ld-contact-modal .modal-header p {
+    margin: 6px 0 0;
+    color: rgba(255, 255, 255, .78);
+}
+
+.ld-contact-modal .modal-body {
+    display: grid;
+    gap: 10px;
+}
+
+.ld-contact-modal .form-label {
+    margin-bottom: 0;
+    color: #fff;
+    font-weight: 700;
+}
+
+.ld-contact-modal .form-control,
+.ld-contact-modal .form-select {
+    min-height: 46px;
+    border-color: rgba(255, 255, 255, .35);
+    background-color: rgba(255, 255, 255, .96);
+}
+
+.ld-contact-modal textarea.form-control {
+    min-height: 150px;
+}
+
 .welcome-section {
     text-align: center;
     padding: 50px 30px;
@@ -2107,7 +2179,8 @@ h1,h2,h3,h4{
 
     .navbar-collapse .nav-link-enabled,
     .navbar-collapse .nav-link-disabled,
-    .navbar-collapse .dropdown-item {
+    .navbar-collapse .dropdown-item,
+    .navbar-collapse .ld-contact-trigger {
         display: flex;
         align-items: center;
         justify-content: flex-start;
@@ -2121,9 +2194,43 @@ h1,h2,h3,h4{
     }
 
     .navbar-collapse .nav-link-enabled,
-    .navbar-collapse .dropdown-item:not(.disabled) {
+    .navbar-collapse .dropdown-item:not(.disabled),
+    .navbar-collapse .ld-contact-trigger {
         color: #fff;
         background: rgba(255, 255, 255, .08);
+    }
+
+    .navbar-collapse .ld-contact-nav-item {
+        width: 100%;
+    }
+
+    .navbar-collapse .ld-contact-trigger {
+        width: 100%;
+        border: 0;
+    }
+
+    .ld-contact-modal .modal-dialog {
+        margin: 14px;
+    }
+
+    .ld-contact-modal .modal-title {
+        font-size: 2rem;
+    }
+
+    .ld-contact-modal .modal-body {
+        gap: 12px;
+    }
+
+    .ld-contact-modal .form-control,
+    .ld-contact-modal .form-select,
+    .ld-contact-modal .btn {
+        min-height: 52px;
+        font-size: 1.05rem;
+    }
+
+    .ld-contact-modal .modal-footer {
+        display: grid;
+        grid-template-columns: 1fr;
     }
 
     .navbar-collapse .nav-link-disabled,
@@ -2469,11 +2576,47 @@ h1,h2,h3,h4{
 
     .navbar-collapse .nav-link-enabled,
     .navbar-collapse .nav-link-disabled,
-    .navbar-collapse .dropdown-item {
+    .navbar-collapse .dropdown-item,
+    .navbar-collapse .ld-contact-trigger {
         min-height: 96px;
         padding: 24px 28px !important;
         font-size: 2.25rem;
         border-radius: 14px;
+    }
+
+    .ld-contact-modal .modal-dialog {
+        max-width: min(92vw, 780px);
+    }
+
+    .ld-contact-modal .modal-content {
+        border-radius: 14px;
+    }
+
+    .ld-contact-modal .modal-header,
+    .ld-contact-modal .modal-body,
+    .ld-contact-modal .modal-footer {
+        padding: 32px;
+    }
+
+    .ld-contact-modal .modal-title {
+        font-size: 4.4rem;
+    }
+
+    .ld-contact-modal .modal-header p,
+    .ld-contact-modal .form-label {
+        font-size: 2rem;
+    }
+
+    .ld-contact-modal .form-control,
+    .ld-contact-modal .form-select,
+    .ld-contact-modal .btn {
+        min-height: 92px;
+        font-size: 2rem;
+        border-radius: 14px;
+    }
+
+    .ld-contact-modal textarea.form-control {
+        min-height: 260px;
     }
 
     .navbar-collapse .dropdown-menu {

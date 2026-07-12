@@ -2186,3 +2186,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - separata la sezione social in `/events/social-posts`, raggiungibile dal tasto `Post social` accanto a `Gestisci eventi`; `/events/manage` resta dedicata alla gestione eventi;
   - aggiunto modello `RoleActivationRequest` e checkbox `Esercente` in registrazione, che crea una richiesta pendente per ruolo `customer_horeca`;
   - verifiche: migration applicata fino a `d3e4f5a6b7c8`, `py_compile`, render `/events/`, `/auth/login`, `/auth/register`, `events/manage.html` e `events/social_posts.html`.
+- 2026-07-12 contattaci:
+  - aggiunto pulsante `Contattaci` nel gruppo utente della navbar/drawer, posizionato prima del menu profilo/accesso;
+  - aggiunta modale globale con oggetto predefinito, email risposta modificabile/precompilata per utenti autenticati, campo `Altro` condizionale e messaggio obbligatorio;
+  - aggiunta route `POST /auth/contact` che invia email a `assistenza.ldapp@ldenoteca.it`, usando `reply_to` con l'email indicata dall'utente;
+  - verifiche: `py_compile routes/auth.py`, render navbar con modale, POST test con `mail.send` simulato e oggetto `altro - ...`.

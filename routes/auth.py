@@ -95,6 +95,58 @@ def login():
     return render_template('login.html', form=form)
 
 
+@auth_bp.route("/contact", methods=["POST"])
+@log_task(logger)
+def contact():
+    subject_choice = (request.form.get("contact_subject") or "").strip()
+    other_subject = (request.form.get("contact_subject_other") or "").strip()
+    reply_email = (request.form.get("contact_reply_email") or "").strip()
+    message_body = (request.form.get("contact_message") or "").strip()
+
+    valid_subjects = {
+        "assistenza alla registrazione",
+        "assistenza all'installazione",
+        "suggerimenti e feedback",
+        "altro",
+    }
+    if subject_choice not in valid_subjects:
+        flash("Seleziona un oggetto valido per la richiesta.", "warning")
+        return redirect(request.referrer or url_for("home"))
+    if not reply_email:
+        flash("Inserisci un indirizzo email per la risposta.", "warning")
+        return redirect(request.referrer or url_for("home"))
+    if subject_choice == "altro" and not other_subject:
+        flash("Descrivi l'oggetto della richiesta.", "warning")
+        return redirect(request.referrer or url_for("home"))
+    if not message_body:
+        flash("Inserisci il testo della richiesta.", "warning")
+        return redirect(request.referrer or url_for("home"))
+
+    final_subject = f"altro - {other_subject}" if subject_choice == "altro" else subject_choice
+    user_line = "Utente non autenticato"
+    if current_user.is_authenticated:
+        user_line = f"Utente: {current_user.name} {current_user.surname} ({current_user.email})"
+    msg = Message(
+        subject=f"LDApp contattaci - {final_subject}",
+        recipients=["assistenza.ldapp@ldenoteca.it"],
+        reply_to=reply_email,
+        body=(
+            f"Oggetto: {final_subject}\n"
+            f"Email per risposta: {reply_email}\n"
+            f"{user_line}\n"
+            f"IP: {request.remote_addr or '-'}\n\n"
+            f"Messaggio:\n{message_body}"
+        ),
+    )
+    try:
+        mail.send(msg)
+        flash("Richiesta inviata correttamente.", "success")
+    except Exception as exc:
+        logger.exception("Errore invio richiesta contattaci")
+        flash(f"Impossibile inviare la richiesta: {exc}", "danger")
+    return redirect(request.referrer or url_for("home"))
+
+
 # @auth_bp.route('/reset_password', methods=['GET'])
 # @log_task(logger)
 # def reset_password_page():

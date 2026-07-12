@@ -43,6 +43,12 @@
                 {% endfor %}
             </ul>
             <ul class="navbar-nav align-items-center">
+                <li class="nav-item ld-contact-nav-item">
+                    <button class="nav-link-enabled ld-contact-trigger" type="button" data-bs-toggle="modal" data-bs-target="#ldContactModal">
+                        <i class="fa-regular fa-envelope"></i>
+                        <span>Contattaci</span>
+                    </button>
+                </li>
                 <!-- Se l'utente è loggato -->
                 {% if current_user.is_authenticated %}
                 <li class="nav-item dropdown">
@@ -97,3 +103,47 @@
         </div>
     </div>
 </nav>
+
+<div class="modal fade ld-contact-modal" id="ldContactModal" tabindex="-1" aria-labelledby="ldContactModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('auth.contact') }}" id="ldContactForm">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title" id="ldContactModalLabel">Contattaci</h5>
+                        <p>Invia una richiesta all'assistenza LDApp.</p>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+                </div>
+                <div class="modal-body">
+                    <label class="form-label" for="contactSubject">Oggetto</label>
+                    <select class="form-select" id="contactSubject" name="contact_subject" required>
+                        <option value="">Seleziona un oggetto</option>
+                        <option value="assistenza alla registrazione">Assistenza alla registrazione</option>
+                        <option value="assistenza all'installazione">Assistenza all'installazione</option>
+                        <option value="suggerimenti e feedback">Suggerimenti e feedback</option>
+                        <option value="altro">Altro</option>
+                    </select>
+
+                    <div class="ld-contact-other" id="contactOtherWrap" hidden>
+                        <label class="form-label" for="contactSubjectOther">Descrizione oggetto</label>
+                        <input class="form-control" type="text" id="contactSubjectOther" name="contact_subject_other" maxlength="140" placeholder="Descrivi brevemente il problema">
+                    </div>
+
+                    <label class="form-label" for="contactReplyEmail">Email per risposta</label>
+                    <input class="form-control" type="email" id="contactReplyEmail" name="contact_reply_email" value="{{ current_user.email if current_user.is_authenticated else '' }}" required autocomplete="email">
+
+                    <label class="form-label" for="contactMessage">Messaggio</label>
+                    <textarea class="form-control" id="contactMessage" name="contact_message" rows="6" required placeholder="Scrivi qui la tua richiesta"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline-light" type="button" id="ldContactCancel" data-bs-dismiss="modal">Annulla</button>
+                    <button class="btn btn-info" type="submit">
+                        <i class="fa-regular fa-paper-plane"></i>
+                        Invia richiesta
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
