@@ -6,6 +6,7 @@ document.addEventListener("DOMContentLoaded", function () {
     var contactCancel = document.getElementById("ldContactCancel");
     var contactModal = document.getElementById("ldContactModal");
     var contactDefaultEmail = document.getElementById("contactReplyEmail")?.value || "";
+    var contactTriggers = document.querySelectorAll("[data-bs-target='#ldContactModal']");
 
     function syncContactOther() {
         if (!contactSubject || !contactOtherWrap || !contactOther) return;
@@ -21,6 +22,16 @@ document.addEventListener("DOMContentLoaded", function () {
         contactSubject.addEventListener("change", syncContactOther);
         syncContactOther();
     }
+
+    contactTriggers.forEach(function (trigger) {
+        trigger.addEventListener("click", function () {
+            var navbarCollapse = document.getElementById("navbarNav");
+            if (navbarCollapse && navbarCollapse.classList.contains("show") && window.bootstrap?.Collapse) {
+                bootstrap.Collapse.getOrCreateInstance(navbarCollapse).hide();
+            }
+            document.body.classList.remove("mobile-menu-open");
+        });
+    });
 
     if (contactCancel && contactForm) {
         contactCancel.addEventListener("click", function () {

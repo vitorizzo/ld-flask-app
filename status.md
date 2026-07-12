@@ -2191,3 +2191,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - aggiunta modale globale con oggetto predefinito, email risposta modificabile/precompilata per utenti autenticati, campo `Altro` condizionale e messaggio obbligatorio;
   - aggiunta route `POST /auth/contact` che invia email a `assistenza.ldapp@ldenoteca.it`, usando `reply_to` con l'email indicata dall'utente;
   - verifiche: `py_compile routes/auth.py`, render navbar con modale, POST test con `mail.send` simulato e oggetto `altro - ...`.
+- 2026-07-12 fix contattaci drawer:
+  - il click su `Contattaci` chiude preventivamente il drawer mobile e rimuove `mobile-menu-open`;
+  - alzato lo z-index della modale `ld-contact-modal` e del backdrop sopra i vecchi layer del drawer;
+  - verifica: render navbar con trigger `#ldContactModal`.

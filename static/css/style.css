@@ -493,6 +493,14 @@ section {
     min-height: 150px;
 }
 
+.modal.ld-contact-modal {
+    z-index: 12050;
+}
+
+.modal-backdrop.show {
+    z-index: 12040;
+}
+
 .welcome-section {
     text-align: center;
     padding: 50px 30px;
