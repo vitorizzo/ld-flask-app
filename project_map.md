@@ -121,8 +121,11 @@ Funzioni bozza:
 - aggancio automatico al giro tramite `DeliveryRouteCustomer`;
 - modifiche ordine salvate come revisioni `addition` o `replacement`.
 
-Nota:
-- in questa bozza gli ordini vengono salvati e resi visibili allo staff, ma non vengono ancora pubblicati automaticamente su Slack/plancia operativa.
+Pubblicazione operativa:
+- la creazione da `/customer-orders/` pubblica sul canale Slack configurato nel giro del cliente;
+- nello stesso flusso vengono creati/collegati `SlackOrder` e `RouteOrderBoardEntry`, rendendo l'ordine immediatamente disponibile nella bacheca;
+- i riferimenti `route_board_entry_id` e `slack_order_id` impediscono la doppia pubblicazione applicativa, mentre `client_msg_id` protegge anche il post Slack;
+- gli eventi Slack originati da bot/app non vengono inoltrati alle automazioni Slack, per evitare ricorsioni.
 
 ---
 

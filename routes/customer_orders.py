@@ -210,7 +210,15 @@ def create():
         delivery_option_id=order.delivery_option_id,
         delivery_option_value=order.delivery_option_value,
     ))
-    db.session.commit()
+    try:
+        from routes.route_orders import publish_customer_order
+        publish_customer_order(order)
+        db.session.commit()
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.exception("Pubblicazione ordine Horeca fallita")
+        flash(f"Ordine non inviato alla bacheca: {exc}", "danger")
+        return redirect(url_for("customer_orders.index"))
     flash("Ordine inviato.", "success")
     return redirect(url_for("customer_orders.index"))
 

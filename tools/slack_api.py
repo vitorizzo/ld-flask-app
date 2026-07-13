@@ -69,6 +69,7 @@ class SlackAPI:
         blocks: Optional[list] = None,
         unfurl_links: bool = False,
         unfurl_media: bool = False,
+        client_msg_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Invia un messaggio in un canale."""
         try:
@@ -79,6 +80,7 @@ class SlackAPI:
                 blocks=blocks,
                 unfurl_links=unfurl_links,
                 unfurl_media=unfurl_media,
+                client_msg_id=client_msg_id,
             )
             return resp.data if hasattr(resp, "data") else dict(resp)
         except SlackApiError as e:

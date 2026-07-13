@@ -1226,6 +1226,13 @@ class SlackProcessor:
             # non deve mai rompere Automations V2
             logger.exception("orders side-effect failed")
 
+        # I messaggi creati da bot/app non devono alimentare automazioni Slack:
+        # il loro eventuale reinvio sullo stesso canale innescherebbe una ricorsione.
+        normalized_data = normalized.get("data") or {}
+        if normalized_data.get("bot_id") or normalized_data.get("app_id"):
+            logger.info("[SLACK][BOT_EVENT] automazioni ignorate per evitare ricorsioni")
+            return normalized
+
         # ============================================================
         # V2 — Cross-app automations (parallelo al legacy)
         # ============================================================

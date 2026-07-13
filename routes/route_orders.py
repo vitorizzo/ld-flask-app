@@ -442,7 +442,11 @@ def _attachment_abs_path(file_info):
     rel = (file_info.get("static_path") or "").strip().replace("\\", "/")
     if not rel and (file_info.get("url") or "").startswith("/static/"):
         rel = file_info["url"][len("/static/"):]
-    if not rel.startswith("uploads/route_orders/") and not rel.startswith("uploads/shared_orders/"):
+    if (
+        not rel.startswith("uploads/route_orders/")
+        and not rel.startswith("uploads/shared_orders/")
+        and not rel.startswith("uploads/customer_orders/")
+    ):
         return None
     candidate = os.path.abspath(os.path.join(current_app.static_folder, rel))
     static_root = os.path.abspath(current_app.static_folder)
@@ -638,6 +642,115 @@ def _format_direct_message(registry, note, planned_delivery_at=None):
     if planned_delivery_at:
         lines.append(f"Consegna: {planned_delivery_at.strftime('%d/%m/%Y')}")
     return "\n".join(lines)
+
+
+def publish_customer_order(order):
+    """Pubblica una CustomerOrder una sola volta sulla bacheca e su Slack."""
+    if order.slack_order_id:
+        return order.slack_order
+
+    registry = order.registry
+    route = order.route
+    channel_id = (route.slack_channel_id or "").strip() if route else ""
+    if not registry or not route or not channel_id:
+        raise RuntimeError("Il cliente non e' associato a un giro con canale Slack configurato")
+
+    planned_delivery_at = None
+    option = order.delivery_option
+    option_value = (order.delivery_option_value or "").strip()
+    if option and option.code == "data_consegna" and option_value:
+        try:
+            planned_delivery_at = _parse_datetime(option_value, route.default_time or time(9, 0))
+        except (TypeError, ValueError):
+            planned_delivery_at = None
+    planned_delivery_at = planned_delivery_at or _next_delivery_dt(route)
+    if not planned_delivery_at:
+        raise RuntimeError("Data del prossimo giro non determinabile")
+
+    note_lines = [(order.order_text or "").strip()]
+    if option:
+        delivery_label = option.label
+        if option_value:
+            delivery_label = f"{delivery_label}: {option_value}"
+        note_lines.append(f"Richiesta consegna: {delivery_label}")
+    note = "\n".join(line for line in note_lines if line)
+    message_text = _format_direct_message(registry, note, planned_delivery_at)
+
+    bot_token = current_app.config.get("SLACK_BOT_TOKEN", "") or ""
+    if not bot_token:
+        raise RuntimeError("SLACK_BOT_TOKEN mancante")
+    api = SlackAPI(SlackAPIConfig(bot_token=bot_token))
+    response = api.post_message(
+        channel_id,
+        message_text,
+        client_msg_id=f"ldapp-customer-order-{order.id}",
+    )
+    ts = response.get("ts") or (response.get("message") or {}).get("ts")
+    if not ts:
+        raise RuntimeError("Slack non ha restituito il timestamp del messaggio")
+
+    attachments = order.attachments or []
+    _upload_attachments_to_slack(api, channel_id, ts, attachments)
+
+    slack_order = SlackOrder(
+        route_id=route.id,
+        slack_channel_id=channel_id,
+        customer_display=_label_registry(registry),
+        customer_key=registry.source_code or str(registry.id),
+        order_date=datetime.utcnow().date(),
+        planned_delivery_at=planned_delivery_at,
+        status="acquisito",
+        raw_text=message_text,
+        slack_message_ts=ts,
+        slack_thread_ts=ts,
+        has_issues=False,
+    )
+    db.session.add(slack_order)
+    db.session.flush()
+    _reset_documents_for_customer_orders(
+        channel_id,
+        slack_order.customer_key,
+        exclude_order_id=slack_order.id,
+        via="customer_horeca_app",
+        reason="new_customer_horeca_order",
+    )
+    db.session.add(SlackOrderEvent(
+        order_id=slack_order.id,
+        type="created",
+        payload={
+            "via": "customer_horeca_app",
+            "customer_order_id": order.id,
+            "attachments": attachments,
+        },
+    ))
+
+    board_date = planned_delivery_at.date()
+    entry = RouteOrderBoardEntry.query.filter_by(
+        route_id=route.id,
+        registry_id=registry.id,
+        board_date=board_date,
+    ).first()
+    if not entry:
+        entry = RouteOrderBoardEntry(
+            route_id=route.id,
+            registry_id=registry.id,
+            board_date=board_date,
+            planned_delivery_at=planned_delivery_at,
+        )
+        db.session.add(entry)
+    entry.status = "ordine_fatto"
+    entry.order_note = note or entry.order_note
+    entry.order_attachments = attachments
+    entry.slack_channel_id = channel_id
+    entry.slack_message_ts = ts
+    entry.slack_thread_ts = ts
+    entry.sent_at = datetime.utcnow()
+    db.session.flush()
+
+    order.route_board_entry_id = entry.id
+    order.slack_order_id = slack_order.id
+    order.status = "published"
+    return slack_order
 
 
 @route_orders_bp.get("/board")

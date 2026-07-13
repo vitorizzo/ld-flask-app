@@ -2279,3 +2279,10 @@ Performance apertura giornata Agenda 2026-06-13:
   - le modali di `/settings/users` hanno ora stacking dedicato sopra il backdrop globale dell'app;
   - i passaggi dalla scheda utente alle modali Ruolo, Autorizzazioni, Reset password ed Elimina attendono la chiusura completa della modale corrente prima di aprire la successiva;
   - append al `body`, gestione backdrop e lifecycle sono limitati alle sole modali utenti.
+- 2026-07-13 pubblicazione ordini clienti Horeca:
+  - `POST /customer-orders/` pubblica ora l'ordine sul canale Slack del giro associato e crea contestualmente `SlackOrder` e `RouteOrderBoardEntry`;
+  - `CustomerOrder.route_board_entry_id` e `CustomerOrder.slack_order_id` vengono valorizzati e usati come guardia idempotente contro doppie pubblicazioni;
+  - Slack riceve un `client_msg_id` stabile per ordine e gli allegati caricati dal cliente sono ammessi nel flusso di upload Slack;
+  - i messaggi generati da bot/app vengono esclusi dal dispatcher delle automazioni Slack dopo il side-effect ordini, evitando catene ricorsive;
+  - se Slack o la pubblicazione in bacheca falliscono, la transazione ordine viene annullata e il cliente riceve un errore esplicito;
+  - verifica con Slack simulato e DB in rollback: un post, collegamenti bacheca/Slack presenti, seconda pubblicazione idempotente, automazioni bot non eseguite.
