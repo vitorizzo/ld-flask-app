@@ -995,7 +995,12 @@ Stato implementazione 2026-06-14:
     - fallback compatibile su `MAIL_*` e `ASSISTANCE_MAIL_*` finche' il relativo account non viene salvato nel DB;
     - elenco compatto degli account e modale unica per creazione/modifica di nome, codice, server, porta, TLS/SSL, username, password, mittente e stato;
     - account aggiuntivi richiamabili dal backend tramite codice con `send_account_mail(code, message)`;
+    - configurazione posta in entrata per account: server/porta IMAP, TLS/SSL, username, password cifrata, cartella e flag abilitazione;
     - modali spostate nel `body` prima dell'inizializzazione Bootstrap, con layer dedicato e reset dei pulsanti su apertura/chiusura.
+  - ticket assistenza predisposti per risposte email e accesso cliente:
+    - `SupportTicket.public_token` e' un token non prevedibile, distinto dall'ID progressivo, utilizzabile per accessi anonimi controllati;
+    - `SupportTicketMessage.source`, `external_message_id` e `in_reply_to` preparano origine, deduplica e correlazione RFC dei messaggi acquisiti via email;
+    - il solo numero ticket non costituisce autorizzazione all'accesso web.
   - `/settings/roles-permissions` separa dal vecchio widget configurazione la gestione ruoli e autorizzazioni:
     - ruoli: creazione, modifica peso/descrizione, eliminazione con ricanalizzazione degli utenti assegnati;
     - autorizzazioni speciali: CRUD su `SpecialPermission.code`/nome/descrizione/stato attivo;

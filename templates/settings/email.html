@@ -76,6 +76,7 @@
                 <th>Server SMTP</th>
                 <th>Mittente</th>
                 <th>Stato</th>
+                <th>Posta in entrata</th>
                 <th>Origine</th>
                 <th class="text-end">Azioni</th>
               </tr>
@@ -94,6 +95,11 @@
                       {{ 'Attivo' if account.is_enabled else 'Disattivato' }}
                     </span>
                   </td>
+                  <td>
+                    <span class="badge {% if account.imap_enabled %}text-bg-info{% else %}text-bg-light{% endif %}">
+                      {{ 'IMAP attivo' if account.imap_enabled else 'Non configurata' }}
+                    </span>
+                  </td>
                   <td><span class="badge text-bg-light">{{ account.source }}</span></td>
                   <td class="text-end" onclick="event.stopPropagation();">
                     <span class="email-account-actions">
@@ -109,7 +115,7 @@
                   </td>
                 </tr>
               {% else %}
-                <tr><td colspan="6" class="text-center text-muted py-4">Nessun account email configurato.</td></tr>
+                <tr><td colspan="7" class="text-center text-muted py-4">Nessun account email configurato.</td></tr>
               {% endfor %}
             </tbody>
           </table>
@@ -173,6 +179,45 @@
               <div class="form-check">
                 <input class="form-check-input" id="emailIsEnabled" name="is_enabled" type="checkbox" value="1" checked>
                 <label class="form-check-label" for="emailIsEnabled">Account attivo</label>
+              </div>
+            </div>
+
+            <div class="col-12"><hr><h6 class="mb-0">Posta in entrata</h6><div class="form-text">Necessaria per accodare automaticamente le risposte email ai ticket.</div></div>
+            <div class="col-12">
+              <div class="form-check form-switch">
+                <input class="form-check-input" id="emailImapEnabled" name="imap_enabled" type="checkbox" value="1">
+                <label class="form-check-label fw-semibold" for="emailImapEnabled">Abilita lettura IMAP</label>
+              </div>
+            </div>
+            <div class="col-12 col-md-8">
+              <label class="form-label" for="emailImapServer">Server IMAP</label>
+              <input class="form-control" id="emailImapServer" name="imap_server" placeholder="imap.example.com">
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="emailImapPort">Porta IMAP</label>
+              <input class="form-control" id="emailImapPort" name="imap_port" type="number" min="1" max="65535" value="993" inputmode="numeric">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="emailImapUsername">Nome utente IMAP</label>
+              <input class="form-control" id="emailImapUsername" name="imap_username" autocomplete="username">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="emailImapPassword">Password IMAP</label>
+              <input class="form-control" id="emailImapPassword" name="imap_password" type="password" autocomplete="new-password">
+              <div class="form-text" id="emailImapPasswordHelp">Obbligatoria quando la lettura IMAP e' attiva.</div>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="emailImapFolder">Cartella IMAP</label>
+              <input class="form-control" id="emailImapFolder" name="imap_folder" value="INBOX" placeholder="INBOX">
+            </div>
+            <div class="col-12 col-md-6 d-flex align-items-end gap-4 pb-2">
+              <div class="form-check">
+                <input class="form-check-input" id="emailImapUseTls" name="imap_use_tls" type="checkbox" value="1">
+                <label class="form-check-label" for="emailImapUseTls">TLS/STARTTLS</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" id="emailImapUseSsl" name="imap_use_ssl" type="checkbox" value="1" checked>
+                <label class="form-check-label" for="emailImapUseSsl">SSL</label>
               </div>
             </div>
           </div>
@@ -252,8 +297,17 @@ document.addEventListener("DOMContentLoaded", () => {
     setCheckbox("emailUseTls", account?.use_tls);
     setCheckbox("emailUseSsl", account?.use_ssl);
     setCheckbox("emailIsEnabled", account ? account.is_enabled : true);
+    setCheckbox("emailImapEnabled", account?.imap_enabled);
+    document.getElementById("emailImapServer").value = account?.imap_server || "";
+    document.getElementById("emailImapPort").value = account?.imap_port || 993;
+    document.getElementById("emailImapUsername").value = account?.imap_username || account?.username || "";
+    document.getElementById("emailImapPassword").value = "";
+    document.getElementById("emailImapFolder").value = account?.imap_folder || "INBOX";
+    setCheckbox("emailImapUseTls", account?.imap_use_tls);
+    setCheckbox("emailImapUseSsl", account ? account.imap_use_ssl : true);
     document.getElementById("emailAccountModalTitle").textContent = account ? `Modifica ${account.name}` : "Nuovo account email";
     document.getElementById("emailPasswordHelp").textContent = account?.has_password ? "Lascia vuoto per mantenere la password esistente." : "Obbligatoria per un nuovo account.";
+    document.getElementById("emailImapPasswordHelp").textContent = account?.has_imap_password ? "Lascia vuoto per mantenere la password IMAP esistente." : "Obbligatoria quando la lettura IMAP e' attiva.";
     saveButton.dataset.defaultHtml = account ? "Salva modifiche" : "Crea account";
     saveButton.innerHTML = saveButton.dataset.defaultHtml;
     saveButton.disabled = false;
@@ -278,6 +332,12 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   document.getElementById("emailUseSsl").addEventListener("change", (event) => {
     if (event.target.checked) document.getElementById("emailUseTls").checked = false;
+  });
+  document.getElementById("emailImapUseTls").addEventListener("change", (event) => {
+    if (event.target.checked) document.getElementById("emailImapUseSsl").checked = false;
+  });
+  document.getElementById("emailImapUseSsl").addEventListener("change", (event) => {
+    if (event.target.checked) document.getElementById("emailImapUseTls").checked = false;
   });
 
   [form, document.getElementById("emailAccountDeleteForm")].forEach((targetForm) => targetForm.addEventListener("submit", () => {

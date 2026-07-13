@@ -1,4 +1,5 @@
 import hashlib
+import secrets
 
 from sqlalchemy.dialects.postgresql import JSONB
 from future.backports.datetime import datetime
@@ -124,6 +125,14 @@ class EmailAccount(db.Model):
     username = db.Column(db.String(255), nullable=False)
     password_encrypted = db.Column(EncryptedString(2048), nullable=True)
     default_sender = db.Column(db.String(255), nullable=False)
+    imap_server = db.Column(db.String(255), nullable=True)
+    imap_port = db.Column(db.Integer, nullable=False, default=993)
+    imap_use_tls = db.Column(db.Boolean, nullable=False, default=False)
+    imap_use_ssl = db.Column(db.Boolean, nullable=False, default=True)
+    imap_username = db.Column(db.String(255), nullable=True)
+    imap_password_encrypted = db.Column(EncryptedString(2048), nullable=True)
+    imap_folder = db.Column(db.String(120), nullable=False, default="INBOX")
+    imap_enabled = db.Column(db.Boolean, nullable=False, default=False)
     is_enabled = db.Column(db.Boolean, nullable=False, default=True)
     is_system = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
@@ -146,6 +155,14 @@ class EmailAccount(db.Model):
             "username": self.username,
             "default_sender": self.default_sender,
             "has_password": bool(self.password_encrypted),
+            "imap_server": self.imap_server,
+            "imap_port": self.imap_port,
+            "imap_use_tls": bool(self.imap_use_tls),
+            "imap_use_ssl": bool(self.imap_use_ssl),
+            "imap_username": self.imap_username,
+            "has_imap_password": bool(self.imap_password_encrypted),
+            "imap_folder": self.imap_folder,
+            "imap_enabled": bool(self.imap_enabled),
             "is_enabled": bool(self.is_enabled),
             "is_system": bool(self.is_system),
         }
@@ -900,6 +917,7 @@ class SupportTicket(db.Model):
         index=True,
     )
     assigned_to_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    public_token = db.Column(db.String(64), nullable=False, unique=True, index=True, default=lambda: secrets.token_urlsafe(32))
     closed_at = db.Column(db.DateTime(timezone=True), nullable=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
     updated_at = db.Column(
@@ -930,6 +948,9 @@ class SupportTicketMessage(db.Model):
     ticket_id = db.Column(db.Integer, db.ForeignKey("support_tickets.id", ondelete="CASCADE"), nullable=False, index=True)
     sender_type = db.Column(db.String(30), nullable=False, default="user")
     sender_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    source = db.Column(db.String(30), nullable=False, default="web")
+    external_message_id = db.Column(db.String(500), nullable=True, unique=True, index=True)
+    in_reply_to = db.Column(db.String(500), nullable=True, index=True)
     body = db.Column(db.Text, nullable=False)
     email_from = db.Column(db.String(255), nullable=True)
     email_to = db.Column(db.String(255), nullable=True)

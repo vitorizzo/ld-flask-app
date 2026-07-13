@@ -2240,3 +2240,12 @@ Performance apertura giornata Agenda 2026-06-13:
   - servizio `send_account_mail(code, message)` disponibile per collegare nuovi account a future funzioni applicative;
   - fix modale in secondo piano: append al `body` prima dell'istanza Bootstrap, z-index dedicato per dialog/backdrop e reset submit su apertura/chiusura;
   - verifiche: `py_compile`, `git diff --check`, migrazione DB fino a `0a1b2c3d4e5f`, GET `/settings/email` 200, creazione/cifratura/rimozione account temporaneo, render account legacy e `node --check` dello script renderizzato.
+- 2026-07-13 predisposizione risposte email ticket - step 1:
+  - esteso `EmailAccount` con configurazione IMAP completa: server, porta, TLS/SSL, username, password cifrata, cartella e abilitazione;
+  - aggiornata la modale `/settings/email` per creare/modificare nello stesso account sia SMTP sia posta in entrata;
+  - aggiunto `SupportTicket.public_token` non prevedibile per il futuro accesso sicuro ai ticket anonimi; i ticket esistenti sono stati backfillati;
+  - aggiunti a `SupportTicketMessage` i campi `source`, `external_message_id` univoco e `in_reply_to` per correlazione RFC e deduplica delle risposte ricevute;
+  - migration `1b2c3d4e5f60_add_inbound_mail_ticket_fields.py` applicata al DB;
+  - il numero ticket restera' una chiave di correlazione ma non sara' sufficiente come autorizzazione web: per le email verra' verificato anche il mittente, per il browser verra' usato il token pubblico;
+  - verifiche: `py_compile`, `git diff --check`, migrazione DB fino a `1b2c3d4e5f60`, account IMAP temporaneo creato con password cifrata e rimosso, token ticket esistenti completi/univoci, `node --check` dello script Email renderizzato;
+  - prossimo step: servizio IMAP periodico con parsing messaggi/allegati, correlazione ticket e deduplica.

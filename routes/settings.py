@@ -1479,6 +1479,7 @@ def _build_email_account_rows():
         legacy = get_email_account(code)
         if legacy:
             legacy.pop("password", None)
+            legacy.pop("imap_password", None)
             legacy["has_password"] = bool(get_email_account(code).get("password"))
             rows.append(legacy)
     return rows
@@ -1515,12 +1516,31 @@ def _save_email_account_from_form():
     if use_tls and use_ssl:
         raise ValueError("TLS e SSL non possono essere attivati contemporaneamente")
 
+    imap_enabled = request.form.get("imap_enabled") == "1"
+    imap_server = str(request.form.get("imap_server") or "").strip()
+    imap_port = request.form.get("imap_port", type=int) or 993
+    imap_use_tls = request.form.get("imap_use_tls") == "1"
+    imap_use_ssl = request.form.get("imap_use_ssl") == "1"
+    imap_username = str(request.form.get("imap_username") or "").strip()
+    imap_folder = str(request.form.get("imap_folder") or "INBOX").strip() or "INBOX"
+    if not 1 <= imap_port <= 65535:
+        raise ValueError("La porta IMAP deve essere compresa tra 1 e 65535")
+    if imap_use_tls and imap_use_ssl:
+        raise ValueError("IMAP TLS e SSL non possono essere attivati contemporaneamente")
+    if imap_enabled and not all([imap_server, imap_username, imap_folder]):
+        raise ValueError("Per abilitare la posta in entrata compilare server, utente e cartella IMAP")
+
     legacy = get_email_account(code) if not account else None
     password = str(request.form.get("password") or "")
     if not password:
         password = account.password_encrypted if account else (legacy or {}).get("password")
     if not password:
         raise ValueError("La password e' obbligatoria per un nuovo account")
+    imap_password = str(request.form.get("imap_password") or "")
+    if not imap_password:
+        imap_password = account.imap_password_encrypted if account else (legacy or {}).get("imap_password")
+    if imap_enabled and not imap_password:
+        raise ValueError("La password IMAP e' obbligatoria quando la posta in entrata e' abilitata")
 
     if not account:
         account = EmailAccount(code=code)
@@ -1534,6 +1554,14 @@ def _save_email_account_from_form():
     account.username = username
     account.password_encrypted = password
     account.default_sender = default_sender
+    account.imap_server = imap_server or None
+    account.imap_port = imap_port
+    account.imap_use_tls = imap_use_tls
+    account.imap_use_ssl = imap_use_ssl
+    account.imap_username = imap_username or None
+    account.imap_password_encrypted = imap_password or None
+    account.imap_folder = imap_folder
+    account.imap_enabled = imap_enabled
     account.is_enabled = request.form.get("is_enabled") == "1"
     account.is_system = code in SYSTEM_EMAIL_ACCOUNTS
     db.session.commit()

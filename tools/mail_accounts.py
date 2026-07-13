@@ -49,6 +49,15 @@ def _legacy_account(code):
         "username": _config_value(prefix, "USERNAME", fallback),
         "password": _config_value(prefix, "PASSWORD", fallback),
         "default_sender": _config_value(prefix, "DEFAULT_SENDER", fallback),
+        "imap_server": None,
+        "imap_port": 993,
+        "imap_use_tls": False,
+        "imap_use_ssl": True,
+        "imap_username": None,
+        "imap_password": None,
+        "imap_folder": "INBOX",
+        "imap_enabled": False,
+        "has_imap_password": False,
         "is_enabled": True,
         "is_system": True,
         "source": ".env.local/runtime",
@@ -67,6 +76,7 @@ def get_email_account(code, include_password=True, legacy_fallback=True):
         if account:
             data = account.to_dict()
             data["password"] = account.password_encrypted if include_password else None
+            data["imap_password"] = account.imap_password_encrypted if include_password else None
             data["source"] = "database"
             return data
 
