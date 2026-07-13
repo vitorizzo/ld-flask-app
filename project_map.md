@@ -989,11 +989,13 @@ Stato implementazione 2026-06-14:
     - campi separati per tipo DB, indirizzo, porta, nome DB, nome utente e password;
     - stringa di collegamento calcolata da form e salvata in `.env.local`;
     - azioni modifica/elimina; le modifiche richiedono riavvio app per applicarsi al motore SQLAlchemy gia' avviato.
-  - `/settings/email` gestisce le variabili SMTP `MAIL_*` da `.env.local`:
-    - server, porta, TLS, SSL, username, password e mittente predefinito;
-    - UI tabellare con valori e origine, azioni modifica/elimina;
-    - tabella contenuta in box con scroll verticale interno;
-    - password mostrata solo mascherata in tabella e non precompilata nel DOM della modale; campo vuoto mantiene il valore esistente.
+  - `/settings/email` gestisce account SMTP codificati e DB-driven:
+    - modello `EmailAccount`, con password cifrata tramite `EncryptedString`;
+    - account di sistema `general` per reset/notifiche applicative e `assistance` per ticket/attivazioni Horeca;
+    - fallback compatibile su `MAIL_*` e `ASSISTANCE_MAIL_*` finche' il relativo account non viene salvato nel DB;
+    - elenco compatto degli account e modale unica per creazione/modifica di nome, codice, server, porta, TLS/SSL, username, password, mittente e stato;
+    - account aggiuntivi richiamabili dal backend tramite codice con `send_account_mail(code, message)`;
+    - modali spostate nel `body` prima dell'inizializzazione Bootstrap, con layer dedicato e reset dei pulsanti su apertura/chiusura.
   - `/settings/roles-permissions` separa dal vecchio widget configurazione la gestione ruoli e autorizzazioni:
     - ruoli: creazione, modifica peso/descrizione, eliminazione con ricanalizzazione degli utenti assegnati;
     - autorizzazioni speciali: CRUD su `SpecialPermission.code`/nome/descrizione/stato attivo;

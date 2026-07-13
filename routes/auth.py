@@ -5,10 +5,10 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, timezone
 
-from extensions import db, mail
+from extensions import db
 from forms.forms import LoginForm, RegistrationForm, EditProfileForm, ForgotPasswordForm, ResetPasswordForm
 from tools.auth_manager import get_current_user, get_current_user_id
-from tools.mail_accounts import assistance_mail_sender, send_assistance_mail
+from tools.mail_accounts import assistance_mail_sender, send_account_mail, send_assistance_mail
 from models import User, PasswordResetToken, RoleActivationRequest, SupportTicket, SupportTicketMessage, SupportTicketAttachment
 from tools.log_utils import log_task, get_logger
 
@@ -74,8 +74,7 @@ def _attachments_note(attachments):
 
 
 def _send_mail(message):
-    mail.init_app(current_app)
-    mail.send(message)
+    send_account_mail("general", message)
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])

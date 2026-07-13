@@ -2229,3 +2229,14 @@ Performance apertura giornata Agenda 2026-06-13:
   - `MAIL_*` resta riservato alle email applicative come reset password, mentre contattaci, risposte ticket e attivazioni Horeca usano `send_assistance_mail()`;
   - pagina Email estesa con campi `ASSISTANCE_MAIL_SERVER/PORT/USE_TLS/USE_SSL/USERNAME/PASSWORD/DEFAULT_SENDER`;
   - verifiche: `py_compile`, POST `/auth/contact` con invio soppresso e account assistenza configurato crea ticket e flash success.
+- 2026-07-13 account email DB-driven:
+  - aggiunto modello `EmailAccount` e migration `0a1b2c3d4e5f_add_email_accounts.py`, applicata al DB;
+  - password SMTP salvate cifrate con `EncryptedString`;
+  - `/settings/email` mostra account codificati invece dei singoli parametri sparsi;
+  - codici di sistema: `general` per reset password/notifiche applicative e `assistance` per ticket/attivazioni Horeca;
+  - mantenuto fallback su `MAIL_*` e `ASSISTANCE_MAIL_*` finche' i due account non vengono salvati dal pannello;
+  - aggiunta modale unica per creazione/modifica con nome, codice, server, porta, TLS/SSL, username, password, mittente e stato attivo;
+  - account personalizzati eliminabili; account di sistema disattivabili ma non eliminabili;
+  - servizio `send_account_mail(code, message)` disponibile per collegare nuovi account a future funzioni applicative;
+  - fix modale in secondo piano: append al `body` prima dell'istanza Bootstrap, z-index dedicato per dialog/backdrop e reset submit su apertura/chiusura;
+  - verifiche: `py_compile`, `git diff --check`, migrazione DB fino a `0a1b2c3d4e5f`, GET `/settings/email` 200, creazione/cifratura/rimozione account temporaneo, render account legacy e `node --check` dello script renderizzato.

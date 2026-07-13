@@ -13,11 +13,18 @@ import uuid
 from urllib.parse import quote, unquote, urlparse
 from dotenv import dotenv_values, set_key, unset_key
 
-from extensions import db, mail
-from tools.mail_accounts import assistance_mail_sender, send_assistance_mail
+from extensions import db
+from tools.mail_accounts import (
+    SYSTEM_EMAIL_ACCOUNTS,
+    assistance_mail_sender,
+    get_email_account,
+    send_account_mail,
+    send_assistance_mail,
+)
 from models import (
     Menu,
     AppPreference,
+    EmailAccount,
     Role,
     ImportConflict,
     ImportConflictResolution,
@@ -216,8 +223,7 @@ def _ticket_email_body(ticket, body):
 
 
 def _send_mail(message):
-    mail.init_app(current_app)
-    mail.send(message)
+    send_account_mail("general", message)
 
 
 @settings_bp.get("/circuit-logos/<path:logo_path>")
@@ -1450,183 +1456,88 @@ def database_config():
     )
 
 
-MAIL_CONFIG_FIELDS = [
-    {
-        "key": "MAIL_SERVER",
-        "label": "Server SMTP",
-        "type": "text",
-        "placeholder": "smtp.example.com",
-        "secret": False,
-        "runtime_default": None,
-    },
-    {
-        "key": "MAIL_PORT",
-        "label": "Porta",
-        "type": "number",
-        "placeholder": "465",
-        "secret": False,
-        "runtime_default": "25",
-    },
-    {
-        "key": "MAIL_USE_TLS",
-        "label": "Usa TLS",
-        "type": "bool",
-        "placeholder": "",
-        "secret": False,
-        "runtime_default": "false",
-    },
-    {
-        "key": "MAIL_USE_SSL",
-        "label": "Usa SSL",
-        "type": "bool",
-        "placeholder": "",
-        "secret": False,
-        "runtime_default": "false",
-    },
-    {
-        "key": "MAIL_USERNAME",
-        "label": "Nome utente",
-        "type": "text",
-        "placeholder": "utente@example.com",
-        "secret": False,
-        "runtime_default": None,
-    },
-    {
-        "key": "MAIL_PASSWORD",
-        "label": "Password",
-        "type": "password",
-        "placeholder": "",
-        "secret": True,
-        "runtime_default": None,
-    },
-    {
-        "key": "MAIL_DEFAULT_SENDER",
-        "label": "Mittente predefinito",
-        "type": "email",
-        "placeholder": "noreply@example.com",
-        "secret": False,
-        "runtime_default": None,
-    },
-    {
-        "key": "ASSISTANCE_MAIL_SERVER",
-        "label": "Assistenza - Server SMTP",
-        "type": "text",
-        "placeholder": "smtps.aruba.it",
-        "secret": False,
-        "runtime_default": None,
-    },
-    {
-        "key": "ASSISTANCE_MAIL_PORT",
-        "label": "Assistenza - Porta",
-        "type": "number",
-        "placeholder": "465",
-        "secret": False,
-        "runtime_default": "25",
-    },
-    {
-        "key": "ASSISTANCE_MAIL_USE_TLS",
-        "label": "Assistenza - Usa TLS",
-        "type": "bool",
-        "placeholder": "",
-        "secret": False,
-        "runtime_default": "false",
-    },
-    {
-        "key": "ASSISTANCE_MAIL_USE_SSL",
-        "label": "Assistenza - Usa SSL",
-        "type": "bool",
-        "placeholder": "",
-        "secret": False,
-        "runtime_default": "false",
-    },
-    {
-        "key": "ASSISTANCE_MAIL_USERNAME",
-        "label": "Assistenza - Nome utente",
-        "type": "text",
-        "placeholder": "assistenza.ldapp@ldenoteca.it",
-        "secret": False,
-        "runtime_default": None,
-    },
-    {
-        "key": "ASSISTANCE_MAIL_PASSWORD",
-        "label": "Assistenza - Password",
-        "type": "password",
-        "placeholder": "",
-        "secret": True,
-        "runtime_default": None,
-    },
-    {
-        "key": "ASSISTANCE_MAIL_DEFAULT_SENDER",
-        "label": "Assistenza - Mittente",
-        "type": "email",
-        "placeholder": "assistenza.ldapp@ldenoteca.it",
-        "secret": False,
-        "runtime_default": None,
-    },
-]
+EMAIL_ACCOUNT_CODE_RE = re.compile(r"^[a-z0-9_]+$")
 
 
-def _mail_runtime_value(key, fallback=None):
-    value = current_app.config.get(key)
-    if isinstance(value, bool):
-        return "true" if value else "false"
-    if value is None:
-        value = os.getenv(key, fallback)
-    if value is None:
-        return ""
-    return str(value)
+def _email_accounts_table_ready():
+    return inspect(db.engine).has_table("email_accounts")
 
 
-def _build_mail_config_rows():
+def _build_email_account_rows():
     rows = []
-    configured_count = 0
-    for field in MAIL_CONFIG_FIELDS:
-        env_value = _read_env_file_value(field["key"])
-        runtime_value = _mail_runtime_value(field["key"], field.get("runtime_default"))
-        value = env_value if env_value is not None else runtime_value
-        if str(value or "").strip():
-            configured_count += 1
-        if field["secret"]:
-            display_value = _mask_secret(value)
-        elif field["type"] == "bool":
-            display_value = "Si" if str(value).lower() in {"1", "true", "yes", "on"} else "No"
-        else:
-            display_value = value or "-"
-        rows.append({
-            **field,
-            "value": value or "",
-            "display_value": display_value or "-",
-            "source": ".env.local" if env_value is not None else ("runtime" if runtime_value else "mancante"),
-            "configured": bool(str(value or "").strip()),
-        })
-    return rows, configured_count
+    present_codes = set()
+    if _email_accounts_table_ready():
+        for account in EmailAccount.query.order_by(EmailAccount.is_system.desc(), EmailAccount.name.asc()).all():
+            row = account.to_dict()
+            row["source"] = "database"
+            rows.append(row)
+            present_codes.add(account.code)
+
+    for code in SYSTEM_EMAIL_ACCOUNTS:
+        if code in present_codes:
+            continue
+        legacy = get_email_account(code)
+        if legacy:
+            legacy.pop("password", None)
+            legacy["has_password"] = bool(get_email_account(code).get("password"))
+            rows.append(legacy)
+    return rows
 
 
-def _coerce_mail_form_value(field, form):
-    if field["type"] == "bool":
-        return "true" if form.get(field["key"]) in {"1", "true", "yes", "on"} else "false"
-    value = str(form.get(field["key"]) or "").strip()
-    if field["secret"] and not value:
-        return _read_env_file_value(field["key"]) or _mail_runtime_value(field["key"], field.get("runtime_default"))
-    if field["key"] in {"MAIL_PORT", "ASSISTANCE_MAIL_PORT"} and value:
-        int(value)
-    return value
+def _save_email_account_from_form():
+    if not _email_accounts_table_ready():
+        raise RuntimeError("Tabella email_accounts non disponibile: applicare prima la migrazione database")
 
+    account_id = request.form.get("account_id", type=int)
+    account = db.session.get(EmailAccount, account_id) if account_id else None
+    code = str(request.form.get("code") or "").strip().lower()
+    if not code or not EMAIL_ACCOUNT_CODE_RE.fullmatch(code):
+        raise ValueError("Il codice account puo' contenere solo lettere minuscole, numeri e underscore")
+    if account and code != account.code:
+        raise ValueError("Il codice di un account esistente non puo' essere modificato")
+    duplicate = EmailAccount.query.filter(EmailAccount.code == code)
+    if account:
+        duplicate = duplicate.filter(EmailAccount.id != account.id)
+    if duplicate.first():
+        raise ValueError(f"Esiste gia' un account con codice '{code}'")
 
-def _apply_mail_runtime_config(rows):
-    for row in rows:
-        key = row["key"]
-        value = row["value"]
-        if row["type"] == "bool":
-            current_app.config[key] = str(value).lower() in {"1", "true", "yes", "on"}
-        elif key in {"MAIL_PORT", "ASSISTANCE_MAIL_PORT"}:
-            current_app.config[key] = int(value or 25)
-        else:
-            current_app.config[key] = value or None
-        if value:
-            os.environ[key] = value
-        else:
-            os.environ.pop(key, None)
+    name = str(request.form.get("name") or "").strip()
+    smtp_server = str(request.form.get("smtp_server") or "").strip()
+    username = str(request.form.get("username") or "").strip()
+    default_sender = str(request.form.get("default_sender") or "").strip()
+    smtp_port = request.form.get("smtp_port", type=int)
+    use_tls = request.form.get("use_tls") == "1"
+    use_ssl = request.form.get("use_ssl") == "1"
+    if not all([name, smtp_server, username, default_sender, smtp_port]):
+        raise ValueError("Compilare tutti i campi obbligatori dell'account email")
+    if not 1 <= smtp_port <= 65535:
+        raise ValueError("La porta SMTP deve essere compresa tra 1 e 65535")
+    if use_tls and use_ssl:
+        raise ValueError("TLS e SSL non possono essere attivati contemporaneamente")
+
+    legacy = get_email_account(code) if not account else None
+    password = str(request.form.get("password") or "")
+    if not password:
+        password = account.password_encrypted if account else (legacy or {}).get("password")
+    if not password:
+        raise ValueError("La password e' obbligatoria per un nuovo account")
+
+    if not account:
+        account = EmailAccount(code=code)
+        db.session.add(account)
+    account.code = code
+    account.name = name
+    account.smtp_server = smtp_server
+    account.smtp_port = smtp_port
+    account.use_tls = use_tls
+    account.use_ssl = use_ssl
+    account.username = username
+    account.password_encrypted = password
+    account.default_sender = default_sender
+    account.is_enabled = request.form.get("is_enabled") == "1"
+    account.is_system = code in SYSTEM_EMAIL_ACCOUNTS
+    db.session.commit()
+    return account
 
 
 @settings_bp.route("/email", methods=["GET", "POST"])
@@ -1635,41 +1546,31 @@ def _apply_mail_runtime_config(rows):
 @log_task(logger)
 def email_config():
     if request.method == "POST":
-        form_type = (request.form.get("form_type") or "update_email").strip().lower()
+        form_type = (request.form.get("form_type") or "save_account").strip().lower()
         try:
-            if form_type == "delete_email":
-                path = _ensure_env_local_file()
-                for field in MAIL_CONFIG_FIELDS:
-                    unset_key(path, field["key"])
-                    os.environ.pop(field["key"], None)
-                    current_app.config[field["key"]] = None
-                current_app.config["MAIL_PORT"] = 25
-                current_app.config["MAIL_USE_TLS"] = False
-                current_app.config["MAIL_USE_SSL"] = False
-                current_app.config["ASSISTANCE_MAIL_PORT"] = 25
-                current_app.config["ASSISTANCE_MAIL_USE_TLS"] = False
-                current_app.config["ASSISTANCE_MAIL_USE_SSL"] = False
-                flash("Configurazione email eliminata da .env.local.", "warning")
+            if form_type == "delete_account":
+                account = db.session.get(EmailAccount, request.form.get("account_id", type=int))
+                if not account:
+                    raise ValueError("Account email non trovato")
+                if account.is_system or account.code in SYSTEM_EMAIL_ACCOUNTS:
+                    raise ValueError("Gli account di sistema non possono essere eliminati; possono essere disattivati")
+                db.session.delete(account)
+                db.session.commit()
+                flash("Account email eliminato.", "warning")
                 return redirect(url_for("settings.email_config"))
-
-            path = _ensure_env_local_file()
-            updated_rows = []
-            for field in MAIL_CONFIG_FIELDS:
-                value = _coerce_mail_form_value(field, request.form)
-                set_key(path, field["key"], value)
-                updated_rows.append({**field, "value": value})
-            _apply_mail_runtime_config(updated_rows)
-            flash("Configurazione email salvata.", "success")
+            account = _save_email_account_from_form()
+            flash(f"Account email '{account.name}' salvato.", "success")
             return redirect(url_for("settings.email_config"))
         except Exception as exc:
+            db.session.rollback()
             logger.exception("Errore aggiornando configurazione email")
             flash(f"Impossibile aggiornare la configurazione email: {exc}", "danger")
 
-    rows, configured_count = _build_mail_config_rows()
+    rows = _build_email_account_rows()
     return render_template(
         "settings/email.html",
-        mail_rows=rows,
-        configured_count=configured_count,
+        email_accounts=rows,
+        email_accounts_table_ready=_email_accounts_table_ready(),
     )
 
 

@@ -107,6 +107,50 @@ class AppPreference(db.Model):
         return value
 
 
+class EmailAccount(db.Model):
+    __tablename__ = "email_accounts"
+    __table_args__ = (
+        db.UniqueConstraint("code", name="uq_email_accounts_code"),
+        db.Index("ix_email_accounts_enabled", "is_enabled"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(50), nullable=False)
+    name = db.Column(db.String(120), nullable=False)
+    smtp_server = db.Column(db.String(255), nullable=False)
+    smtp_port = db.Column(db.Integer, nullable=False, default=25)
+    use_tls = db.Column(db.Boolean, nullable=False, default=False)
+    use_ssl = db.Column(db.Boolean, nullable=False, default=False)
+    username = db.Column(db.String(255), nullable=False)
+    password_encrypted = db.Column(EncryptedString(2048), nullable=True)
+    default_sender = db.Column(db.String(255), nullable=False)
+    is_enabled = db.Column(db.Boolean, nullable=False, default=True)
+    is_system = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "code": self.code,
+            "name": self.name,
+            "smtp_server": self.smtp_server,
+            "smtp_port": self.smtp_port,
+            "use_tls": bool(self.use_tls),
+            "use_ssl": bool(self.use_ssl),
+            "username": self.username,
+            "default_sender": self.default_sender,
+            "has_password": bool(self.password_encrypted),
+            "is_enabled": bool(self.is_enabled),
+            "is_system": bool(self.is_system),
+        }
+
+
 class Articoli(db.Model):
     id_art = db.Column(
         db.BigInteger,

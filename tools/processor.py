@@ -514,7 +514,7 @@ def aggiorna_card(card_id, payload):
 
 
 def _send_email(cfg, payload):
-    from app import mail
+    from tools.mail_accounts import send_account_mail
     """
     Invia un'email usando un servizio esterno o SMTP.
     cfg: dict con chiavi 'to', 'subject', 'body'
@@ -535,7 +535,7 @@ def _send_email(cfg, payload):
     msg = Message(subject,
                   recipients=[to],
                   body=body)
-    mail.send(msg)
+    send_account_mail("general", msg)
     logger.debug(f"Invio email a {to}: {subject}\n{body}")
     # Esempio con un'API di mail service
     # requests.post(

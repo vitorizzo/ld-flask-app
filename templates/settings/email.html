@@ -1,143 +1,53 @@
 {% extends "base.html" %}
 
-{% block title %}LD Enoteca - Email{% endblock %}
+{% block title %}LD Enoteca - Account email{% endblock %}
 
 {% block extra_css %}
 <style>
-  #flash-message {
-    position: fixed;
-    top: calc(var(--app-header-height, 72px) + 12px);
-    right: 24px;
-    z-index: 2300;
-    width: min(520px, calc(100vw - 48px));
-    pointer-events: none;
-  }
+  .email-settings-page.welcome-section { height: 100%; overflow: hidden; }
+  .email-settings-page > .container-fluid { min-height: 0; overflow-y: auto; padding-bottom: 18px; }
+  .email-settings-card { border: 0; border-radius: 14px; box-shadow: 0 14px 34px rgba(0, 0, 0, .13); overflow: hidden; }
+  .email-settings-card .card-header { min-height: 66px; background: #fff; border-bottom: 1px solid rgba(74, 44, 42, .12); }
+  .email-settings-table { max-height: min(58vh, 560px); overflow: auto; scrollbar-gutter: stable; }
+  .email-settings-table thead { position: sticky; top: 0; z-index: 2; }
+  .email-account-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #6b3f36; }
+  .email-account-actions { display: inline-flex; gap: 6px; }
+  .email-account-actions .btn { width: 36px; height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
 
-  #flash-message .alert {
-    pointer-events: auto;
-    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.22);
-    border-radius: 10px;
-  }
+  .email-account-modal { z-index: 5200 !important; }
+  body.email-account-modal-open .modal-backdrop { z-index: 5190 !important; }
+  .email-account-modal .modal-dialog { margin-top: calc(var(--app-header-height, 72px) + 14px); margin-bottom: calc(var(--app-footer-height, 42px) + 14px); }
+  .email-account-modal .modal-content { background: #fff; color: #212529; border: 1px solid rgba(0, 0, 0, .08); border-radius: 14px; box-shadow: 0 22px 60px rgba(0, 0, 0, .42); overflow: hidden; }
+  .email-account-modal .modal-header { background: #6b3f36; color: #fff; }
+  .email-account-modal .modal-title { color: #fff; font-weight: 700; }
+  .email-account-modal .btn-close { filter: invert(1); }
+  .email-account-modal .modal-body { max-height: calc(100vh - 230px); overflow-y: auto; }
+  .email-account-modal .form-label { color: #4a2c2a; font-weight: 600; }
 
-  .settings-config-page.welcome-section {
-    height: 100%;
-    overflow: hidden;
-  }
-
-  .settings-config-page.welcome-section > .container-fluid {
-    min-height: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    padding-bottom: 18px;
-  }
-
-  .settings-card {
-    border: 1px solid rgba(74, 44, 42, 0.12);
-    border-radius: 12px;
-    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.11);
-    overflow: hidden;
-  }
-
-  .settings-card .card-header {
-    min-height: 66px;
-    background: #fff;
-    border-bottom: 1px solid rgba(74, 44, 42, 0.10);
-  }
-
-  .settings-card .settings-table-scroll {
-    max-height: 320px;
-    overflow-y: auto;
-    overflow-x: hidden;
-    scrollbar-gutter: stable;
-  }
-
-  .settings-card .settings-table-scroll .table-responsive {
-    overflow-x: auto;
-    overflow-y: visible;
-  }
-
-  .settings-actions {
-    display: inline-flex;
-    gap: 6px;
-    justify-content: flex-end;
-  }
-
-  .settings-actions .btn {
-    width: 34px;
-    height: 34px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-  }
-
-  .settings-code {
-    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-    font-size: 0.86rem;
-    color: #6b3f36;
-    background: rgba(107, 63, 54, 0.08);
-    border-radius: 6px;
-    padding: 3px 7px;
-    overflow-wrap: anywhere;
-  }
-
-  .settings-config-modal {
-    z-index: 2100;
-  }
-
-  .settings-config-modal .modal-dialog {
-    margin-top: calc(var(--app-header-height, 72px) + 14px);
-    margin-bottom: calc(var(--app-footer-height, 42px) + 14px);
-  }
-
-  .settings-config-modal .modal-content {
-    background: #fff;
-    color: #212529;
-    border: 1px solid rgba(0, 0, 0, 0.08);
-    border-radius: 14px;
-    box-shadow: 0 18px 45px rgba(0, 0, 0, 0.35);
-    overflow: hidden;
-  }
-
-  .settings-config-modal .modal-header {
-    background: #6b3f36;
-    color: #fff;
-    min-height: 58px;
-  }
-
-  .settings-config-modal .modal-title {
-    color: #fff;
-    font-weight: 700;
-  }
-
-  .settings-config-modal .btn-close {
-    filter: invert(1);
-    opacity: 0.9;
-  }
-
-  .settings-config-modal .modal-body {
-    max-height: calc(100vh - var(--app-header-height, 72px) - var(--app-footer-height, 42px) - 150px);
-    overflow-y: auto;
-  }
-
-  .settings-config-modal .form-label {
-    color: #4a2c2a;
-    font-weight: 600;
+  @media (max-width: 820px), (hover: none) and (pointer: coarse) {
+    .email-account-modal .modal-dialog { margin: 0; max-width: none; height: 100%; }
+    .email-account-modal .modal-content { min-height: 100%; border-radius: 0; }
+    .email-account-modal .modal-body { max-height: none; }
+    .email-settings-table table, .email-settings-table tbody, .email-settings-table tr, .email-settings-table td { display: block; width: 100%; }
+    .email-settings-table thead { display: none; }
+    .email-settings-table tr { padding: 14px; border-bottom: 1px solid #ddd; }
+    .email-settings-table td { border: 0; padding: 4px 0; }
+    .email-settings-table td:last-child { margin-top: 8px; }
   }
 </style>
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section page-shell settings-config-page">
+<section class="welcome-section page-shell email-settings-page">
   <div class="container-fluid">
     <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
       <div>
-        <h1 class="mb-1">Email</h1>
-        <div class="text-muted">Configurazione SMTP separata per email applicative e assistenza clienti.</div>
+        <h1 class="mb-1">Account email</h1>
+        <div class="text-muted">Account SMTP codificati utilizzabili dalle funzioni LDApp.</div>
       </div>
       <div class="d-flex flex-wrap gap-2">
-        <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#emailEditModal">
-          <i class="fa-solid fa-pen me-1"></i>Modifica
+        <button type="button" class="btn btn-info" id="newEmailAccountButton" {% if not email_accounts_table_ready %}disabled{% endif %}>
+          <i class="fa-solid fa-plus me-1"></i>Nuovo account
         </button>
         <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">
           <i class="fa-solid fa-arrow-left me-1"></i>Dashboard
@@ -145,115 +55,151 @@
       </div>
     </div>
 
-    <div class="card settings-card">
+    {% if not email_accounts_table_ready %}
+      <div class="alert alert-warning">La migrazione degli account email non e' ancora applicata. I valori legacy restano visibili ma non sono modificabili finche' il database non viene aggiornato.</div>
+    {% endif %}
+
+    <div class="card email-settings-card">
       <div class="card-header d-flex align-items-center justify-content-between gap-3">
         <div>
-          <strong>Configurazione email</strong>
-          <div class="text-muted small">Variabili ambiente <span class="settings-code">MAIL_*</span> e <span class="settings-code">ASSISTANCE_MAIL_*</span> in <span class="settings-code">.env.local</span></div>
+          <strong>Account configurati</strong>
+          <div class="text-muted small">I codici <span class="email-account-code">general</span> e <span class="email-account-code">assistance</span> sono usati dalle funzioni esistenti.</div>
         </div>
-        <span class="badge text-bg-light">{{ configured_count }}/{{ mail_rows|length }} valori</span>
+        <span class="badge text-bg-light">{{ email_accounts|length }} account</span>
       </div>
-      <div class="card-body p-0">
-        <div class="settings-table-scroll">
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th style="min-width: 230px;">Campo</th>
-                  <th>Valore</th>
-                  <th style="width: 140px;">Origine</th>
-                  <th style="width: 120px;" class="text-end">Azioni</th>
+      <div class="card-body p-0 email-settings-table">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Account</th>
+                <th>Server SMTP</th>
+                <th>Mittente</th>
+                <th>Stato</th>
+                <th>Origine</th>
+                <th class="text-end">Azioni</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for account in email_accounts %}
+                <tr class="email-account-row" data-account-code="{{ account.code }}" role="button">
+                  <td>
+                    <div class="fw-semibold">{{ account.name }}</div>
+                    <div class="email-account-code small">{{ account.code }}</div>
+                  </td>
+                  <td>{{ account.smtp_server or '-' }}:{{ account.smtp_port or '-' }}</td>
+                  <td>{{ account.default_sender or account.username or '-' }}</td>
+                  <td>
+                    <span class="badge {% if account.is_enabled %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                      {{ 'Attivo' if account.is_enabled else 'Disattivato' }}
+                    </span>
+                  </td>
+                  <td><span class="badge text-bg-light">{{ account.source }}</span></td>
+                  <td class="text-end" onclick="event.stopPropagation();">
+                    <span class="email-account-actions">
+                      <button type="button" class="btn btn-sm btn-outline-info edit-email-account" data-account-code="{{ account.code }}" title="Modifica" {% if not email_accounts_table_ready %}disabled{% endif %}>
+                        <i class="fa-solid fa-pen"></i><span class="visually-hidden">Modifica</span>
+                      </button>
+                      {% if account.id and not account.is_system %}
+                        <button type="button" class="btn btn-sm btn-outline-danger delete-email-account" data-account-id="{{ account.id }}" data-account-name="{{ account.name }}" title="Elimina">
+                          <i class="fa-solid fa-trash"></i><span class="visually-hidden">Elimina</span>
+                        </button>
+                      {% endif %}
+                    </span>
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {% for row in mail_rows %}
-                  <tr role="button" data-bs-toggle="modal" data-bs-target="#emailEditModal">
-                    <td>
-                      <div class="fw-semibold">{{ row.label }}</div>
-                      <div class="settings-code mt-1">{{ row.key }}</div>
-                    </td>
-                    <td>{{ row.display_value }}</td>
-                    <td><span class="badge text-bg-light">{{ row.source }}</span></td>
-                    {% if loop.first %}
-                      <td class="text-end" rowspan="{{ mail_rows|length }}" onclick="event.stopPropagation();">
-                        <span class="settings-actions">
-                          <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#emailEditModal" title="Modifica">
-                            <i class="fa-solid fa-pen"></i>
-                            <span class="visually-hidden">Modifica</span>
-                          </button>
-                          <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#emailDeleteModal" title="Elimina">
-                            <i class="fa-solid fa-trash"></i>
-                            <span class="visually-hidden">Elimina</span>
-                          </button>
-                        </span>
-                      </td>
-                    {% endif %}
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
+              {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">Nessun account email configurato.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   </div>
 </section>
 
-<div class="modal fade settings-config-modal" id="emailEditModal" tabindex="-1" aria-labelledby="emailEditTitle" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
+<div class="modal fade email-account-modal" id="emailAccountModal" tabindex="-1" aria-labelledby="emailAccountModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
-      <form method="post">
-        <input type="hidden" name="form_type" value="update_email">
+      <form method="post" id="emailAccountForm">
+        <input type="hidden" name="form_type" value="save_account">
+        <input type="hidden" name="account_id" id="emailAccountId">
         <div class="modal-header">
-          <h5 class="modal-title" id="emailEditTitle">Modifica configurazione email</h5>
+          <h5 class="modal-title" id="emailAccountModalTitle">Nuovo account email</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
         </div>
         <div class="modal-body">
           <div class="row g-3">
-            {% for row in mail_rows %}
-              {% if row.type == "bool" %}
-                <div class="col-12 col-md-6 d-flex align-items-end">
-                  <div class="form-check">
-                    <input type="hidden" name="{{ row.key }}" value="false">
-                    <input class="form-check-input" type="checkbox" id="mail-{{ row.key|lower }}" name="{{ row.key }}" value="true" {% if row.value|lower in ['1', 'true', 'yes', 'on'] %}checked{% endif %}>
-                    <label class="form-check-label" for="mail-{{ row.key|lower }}">{{ row.label }}</label>
-                  </div>
-                </div>
-              {% else %}
-                <div class="col-12 col-md-6">
-                  <label class="form-label" for="mail-{{ row.key|lower }}">{{ row.label }}</label>
-                  <input class="form-control" id="mail-{{ row.key|lower }}" name="{{ row.key }}" type="{{ row.type }}" value="{% if not row.secret %}{{ row.value }}{% endif %}" placeholder="{% if row.secret and row.configured %}Lascia vuoto per mantenere il valore esistente{% else %}{{ row.placeholder }}{% endif %}" {% if row.key in ['MAIL_PORT', 'ASSISTANCE_MAIL_PORT'] %}inputmode="numeric"{% endif %}>
-                  <div class="form-text"><span class="settings-code">{{ row.key }}</span></div>
-                </div>
-              {% endif %}
-            {% endfor %}
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="emailAccountName">Nome account</label>
+              <input class="form-control" id="emailAccountName" name="name" maxlength="120" placeholder="Email commerciale" required>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="emailAccountCode">Codice</label>
+              <input class="form-control email-account-code" id="emailAccountCode" name="code" maxlength="50" pattern="[a-z0-9_]+" placeholder="commerciale" required>
+              <div class="form-text">Lettere minuscole, numeri e underscore. Il codice non cambia dopo la creazione.</div>
+            </div>
+            <div class="col-12 col-md-8">
+              <label class="form-label" for="emailSmtpServer">Server SMTP</label>
+              <input class="form-control" id="emailSmtpServer" name="smtp_server" placeholder="smtp.example.com" required>
+            </div>
+            <div class="col-12 col-md-4">
+              <label class="form-label" for="emailSmtpPort">Porta</label>
+              <input class="form-control" id="emailSmtpPort" name="smtp_port" type="number" min="1" max="65535" value="465" inputmode="numeric" required>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="emailUsername">Nome utente</label>
+              <input class="form-control" id="emailUsername" name="username" autocomplete="username" required>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="emailPassword">Password</label>
+              <input class="form-control" id="emailPassword" name="password" type="password" autocomplete="new-password">
+              <div class="form-text" id="emailPasswordHelp">Obbligatoria per un nuovo account.</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="emailDefaultSender">Mittente predefinito</label>
+              <input class="form-control" id="emailDefaultSender" name="default_sender" type="email" placeholder="nome@example.com" required>
+            </div>
+            <div class="col-12 d-flex flex-wrap gap-4">
+              <div class="form-check">
+                <input class="form-check-input" id="emailUseTls" name="use_tls" type="checkbox" value="1">
+                <label class="form-check-label" for="emailUseTls">TLS/STARTTLS</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" id="emailUseSsl" name="use_ssl" type="checkbox" value="1">
+                <label class="form-check-label" for="emailUseSsl">SSL</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" id="emailIsEnabled" name="is_enabled" type="checkbox" value="1" checked>
+                <label class="form-check-label" for="emailIsEnabled">Account attivo</label>
+              </div>
+            </div>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-          <button type="submit" class="btn btn-info">Salva configurazione</button>
+          <button type="submit" class="btn btn-info" id="saveEmailAccountButton">Crea account</button>
         </div>
       </form>
     </div>
   </div>
 </div>
 
-<div class="modal fade settings-config-modal" id="emailDeleteModal" tabindex="-1" aria-labelledby="emailDeleteTitle" aria-hidden="true">
+<div class="modal fade email-account-modal" id="emailAccountDeleteModal" tabindex="-1" aria-labelledby="emailAccountDeleteTitle" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
-      <form method="post">
-        <input type="hidden" name="form_type" value="delete_email">
+      <form method="post" id="emailAccountDeleteForm">
+        <input type="hidden" name="form_type" value="delete_account">
+        <input type="hidden" name="account_id" id="deleteEmailAccountId">
         <div class="modal-header">
-          <h5 class="modal-title" id="emailDeleteTitle">Elimina configurazione email</h5>
+          <h5 class="modal-title" id="emailAccountDeleteTitle">Elimina account email</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
         </div>
-        <div class="modal-body">
-          <p class="mb-2">Verranno rimosse da <span class="settings-code">.env.local</span> tutte le chiavi <span class="settings-code">MAIL_*</span> e <span class="settings-code">ASSISTANCE_MAIL_*</span> usate dall'app.</p>
-          <div class="alert alert-warning mb-0">Senza configurazione email non sara' possibile inviare reset password, ticket assistenza o notifiche via mail.</div>
-        </div>
+        <div class="modal-body">Confermi l'eliminazione dell'account <strong id="deleteEmailAccountName"></strong>?</div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-          <button type="submit" class="btn btn-danger">Elimina</button>
+          <button type="submit" class="btn btn-danger" id="confirmDeleteEmailAccount">Elimina account</button>
         </div>
       </form>
     </div>
@@ -264,25 +210,82 @@
 {% block extra_js %}
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  document.querySelectorAll(".modal").forEach((modal) => {
-    if (modal.parentElement !== document.body) {
-      document.body.appendChild(modal);
-    }
+  const accounts = {{ email_accounts|tojson }};
+  const tableReady = {{ email_accounts_table_ready|tojson }};
+  const accountByCode = new Map(accounts.map((account) => [account.code, account]));
+  const editModalEl = document.getElementById("emailAccountModal");
+  const deleteModalEl = document.getElementById("emailAccountDeleteModal");
+  [editModalEl, deleteModalEl].forEach((modal) => {
+    if (modal.parentElement !== document.body) document.body.appendChild(modal);
+  });
+  const editModal = bootstrap.Modal.getOrCreateInstance(editModalEl);
+  const deleteModal = bootstrap.Modal.getOrCreateInstance(deleteModalEl);
+  const form = document.getElementById("emailAccountForm");
+  const saveButton = document.getElementById("saveEmailAccountButton");
+
+  [editModalEl, deleteModalEl].forEach((modal) => {
+    modal.addEventListener("show.bs.modal", () => document.body.classList.add("email-account-modal-open"));
+    modal.addEventListener("hidden.bs.modal", () => {
+      if (!document.querySelector(".email-account-modal.show")) document.body.classList.remove("email-account-modal-open");
+      const submit = modal.querySelector('button[type="submit"]');
+      if (submit) {
+        submit.disabled = false;
+        submit.innerHTML = submit.dataset.defaultHtml || submit.innerHTML;
+      }
+    });
   });
 
-  document.querySelectorAll(".modal").forEach((modal) => {
-    const resetSubmit = () => {
-      const submitBtn = modal.querySelector('button[type="submit"]');
-      if (!submitBtn) return;
-      submitBtn.disabled = false;
-      if (!submitBtn.dataset.defaultHtml) {
-        submitBtn.dataset.defaultHtml = submitBtn.innerHTML;
-      }
-      submitBtn.innerHTML = submitBtn.dataset.defaultHtml;
-    };
-    modal.addEventListener("shown.bs.modal", resetSubmit);
-    modal.addEventListener("hidden.bs.modal", resetSubmit);
+  const setCheckbox = (id, value) => { document.getElementById(id).checked = Boolean(value); };
+  const openAccount = (code = null) => {
+    if (!tableReady) return;
+    const account = code ? accountByCode.get(code) : null;
+    form.reset();
+    document.getElementById("emailAccountId").value = account?.id || "";
+    document.getElementById("emailAccountName").value = account?.name || "";
+    document.getElementById("emailAccountCode").value = account?.code || "";
+    document.getElementById("emailAccountCode").readOnly = Boolean(account);
+    document.getElementById("emailSmtpServer").value = account?.smtp_server || "";
+    document.getElementById("emailSmtpPort").value = account?.smtp_port || 465;
+    document.getElementById("emailUsername").value = account?.username || "";
+    document.getElementById("emailPassword").value = "";
+    document.getElementById("emailDefaultSender").value = account?.default_sender || account?.username || "";
+    setCheckbox("emailUseTls", account?.use_tls);
+    setCheckbox("emailUseSsl", account?.use_ssl);
+    setCheckbox("emailIsEnabled", account ? account.is_enabled : true);
+    document.getElementById("emailAccountModalTitle").textContent = account ? `Modifica ${account.name}` : "Nuovo account email";
+    document.getElementById("emailPasswordHelp").textContent = account?.has_password ? "Lascia vuoto per mantenere la password esistente." : "Obbligatoria per un nuovo account.";
+    saveButton.dataset.defaultHtml = account ? "Salva modifiche" : "Crea account";
+    saveButton.innerHTML = saveButton.dataset.defaultHtml;
+    saveButton.disabled = false;
+    editModal.show();
+  };
+
+  document.getElementById("newEmailAccountButton").addEventListener("click", () => openAccount());
+  document.querySelectorAll(".email-account-row").forEach((row) => row.addEventListener("click", () => openAccount(row.dataset.accountCode)));
+  document.querySelectorAll(".edit-email-account").forEach((button) => button.addEventListener("click", () => openAccount(button.dataset.accountCode)));
+  document.querySelectorAll(".delete-email-account").forEach((button) => button.addEventListener("click", () => {
+    document.getElementById("deleteEmailAccountId").value = button.dataset.accountId;
+    document.getElementById("deleteEmailAccountName").textContent = button.dataset.accountName;
+    const confirm = document.getElementById("confirmDeleteEmailAccount");
+    confirm.dataset.defaultHtml = "Elimina account";
+    confirm.innerHTML = confirm.dataset.defaultHtml;
+    confirm.disabled = false;
+    deleteModal.show();
+  }));
+
+  document.getElementById("emailUseTls").addEventListener("change", (event) => {
+    if (event.target.checked) document.getElementById("emailUseSsl").checked = false;
   });
+  document.getElementById("emailUseSsl").addEventListener("change", (event) => {
+    if (event.target.checked) document.getElementById("emailUseTls").checked = false;
+  });
+
+  [form, document.getElementById("emailAccountDeleteForm")].forEach((targetForm) => targetForm.addEventListener("submit", () => {
+    const submit = targetForm.querySelector('button[type="submit"]');
+    submit.dataset.defaultHtml = submit.dataset.defaultHtml || submit.innerHTML;
+    submit.disabled = true;
+    submit.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Salvataggio...';
+  }));
 });
 </script>
 {% endblock %}
