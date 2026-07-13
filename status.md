@@ -2262,3 +2262,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - una risposta cliente ricevuta riapre il ticket e viene salvata con `source='email'`;
   - verifiche: `py_compile`, `node --check static/js/menu.js`, `git diff --check`, render Help Desk anonimo, elenco autenticato 200, dettaglio token 200, risposta web 302, conferma con due messaggi e `Message-ID`, import IMAP simulato `imported=1` e seconda lettura `duplicates=1`, cleanup dati test;
   - test reale residuo: configurare e abilitare IMAP sull'account `assistance`, poi usare `Sincronizza assistenza` o attendere Celery Beat.
+- 2026-07-13 fix encoding email UTF-8:
+  - `send_account_mail()` passa ora a `smtplib.sendmail()` il MIME serializzato con `Message.as_bytes()` invece di `as_string()`;
+  - risolto l'errore `ascii codec can't encode character` con accenti nei messaggi Help Desk/assistenza e negli altri invii centralizzati;
+  - verifica con SMTP simulato: oggetto e corpo contenenti `è`, `à` e `ò` serializzati/inviati come bytes MIME UTF-8.

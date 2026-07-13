@@ -120,7 +120,10 @@ def send_account_mail(code, message):
         if account.get("use_tls") and not account.get("use_ssl"):
             smtp.starttls()
         smtp.login(username, password)
-        smtp.sendmail(message.sender, recipients, message.as_string())
+        # smtplib codifica automaticamente in ASCII quando riceve una stringa.
+        # Il MIME prodotto da Flask-Mail contiene gia' la codifica UTF-8 corretta:
+        # passarlo come bytes preserva accenti e altri caratteri non ASCII.
+        smtp.sendmail(message.sender, recipients, message.as_bytes())
 
 
 def send_assistance_mail(message):
