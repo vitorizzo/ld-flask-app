@@ -9,6 +9,47 @@ document.addEventListener("DOMContentLoaded", function () {
     var contactTriggers = document.querySelectorAll("[data-bs-target='#ldHelpDeskModal']");
     var ticketsLoaded = false;
 
+    function updateHelpDeskBadge(count) {
+        var badge = document.getElementById("helpDeskUnreadBadge");
+        if (!badge) return;
+        var value = Number(count || 0);
+        badge.textContent = value > 99 ? "99+" : String(value);
+        badge.hidden = value <= 0;
+        badge.setAttribute("aria-label", value + " nuovi messaggi");
+    }
+
+    async function loadHelpDeskUnreadCount() {
+        if (!contactModal?.dataset.unreadUrl) return;
+        try {
+            var response = await fetch(contactModal.dataset.unreadUrl, {headers: {"Accept": "application/json"}});
+            var payload = await response.json();
+            if (response.ok && payload.ok) updateHelpDeskBadge(payload.unread_count);
+        } catch (exc) {
+            console.debug("Conteggio Help Desk non disponibile", exc);
+        }
+    }
+
+    function updateSupportUnreadBadge(count) {
+        var value = Number(count || 0);
+        document.querySelectorAll("[data-support-unread-badge]").forEach(function (badge) {
+            badge.textContent = value > 99 ? "99+" : String(value);
+            badge.hidden = value <= 0;
+            badge.setAttribute("aria-label", value + " nuovi messaggi");
+        });
+    }
+
+    async function loadSupportUnreadCount() {
+        var navbar = document.querySelector("nav.navbar[data-support-unread-url]");
+        if (!navbar) return;
+        try {
+            var response = await fetch(navbar.dataset.supportUnreadUrl, {headers: {"Accept": "application/json"}});
+            var payload = await response.json();
+            if (response.ok && payload.ok) updateSupportUnreadBadge(payload.unread_count);
+        } catch (exc) {
+            console.debug("Conteggio assistenza non disponibile", exc);
+        }
+    }
+
     function formatTicketDate(value) {
         if (!value) return "-";
         var date = new Date(value);
@@ -46,6 +87,13 @@ document.addEventListener("DOMContentLoaded", function () {
                 appendTicketCell(row, "#" + ticket.id);
                 var subjectCell = appendTicketCell(row, ticket.subject);
                 subjectCell.classList.add("fw-semibold");
+                if (ticket.unread_count > 0) {
+                    var unread = document.createElement("span");
+                    unread.className = "help-desk-unread-badge ms-2";
+                    unread.textContent = ticket.unread_count > 99 ? "99+" : String(ticket.unread_count);
+                    unread.title = ticket.unread_count + " nuovi messaggi";
+                    subjectCell.appendChild(unread);
+                }
                 var statusCell = document.createElement("td");
                 var badge = document.createElement("span");
                 badge.className = "badge text-bg-info";
@@ -64,6 +112,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 body.appendChild(row);
             });
             ticketsLoaded = true;
+            updateHelpDeskBadge(payload.unread_count);
             empty.hidden = payload.tickets.length !== 0;
             wrap.hidden = payload.tickets.length === 0;
         } catch (exc) {
@@ -135,7 +184,11 @@ document.addEventListener("DOMContentLoaded", function () {
             var ticketsTab = document.getElementById("helpDeskTicketsTab");
             if (ticketsTab && window.bootstrap?.Tab) bootstrap.Tab.getOrCreateInstance(ticketsTab).show();
         }
+        loadHelpDeskUnreadCount();
+        window.setInterval(loadHelpDeskUnreadCount, 60000);
     }
+    loadSupportUnreadCount();
+    window.setInterval(loadSupportUnreadCount, 60000);
 });
 
 document.addEventListener("DOMContentLoaded", function () {

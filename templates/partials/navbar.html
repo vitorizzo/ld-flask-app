@@ -16,6 +16,11 @@
                 {% if not menu.is_active %}aria-disabled="true" tabindex="-1"{% endif %}
             >
                 {{ menu.name }}
+                {% if menu.route == '/settings/support-tickets' %}
+                    <span class="help-desk-unread-badge" data-support-unread-badge {% if not menu.badge_count %}hidden{% endif %} aria-label="{{ menu.badge_count }} nuovi messaggi">{{ menu.badge_count if menu.badge_count < 100 else '99+' }}</span>
+                {% elif menu.badge_count %}
+                    <span class="help-desk-unread-badge" aria-label="{{ menu.badge_count }} nuovi messaggi">{{ menu.badge_count if menu.badge_count < 100 else '99+' }}</span>
+                {% endif %}
             </a>
             {% if has_children %}
                 <ul class="dropdown-menu" aria-labelledby="menu-{{ menu.id }}">
@@ -28,7 +33,7 @@
     {% endif %}
 {% endmacro %}
 
-<nav class="navbar navbar-expand-lg">
+<nav class="navbar navbar-expand-lg" {% if current_user.is_authenticated and current_user.max_role_weight >= 900 %}data-support-unread-url="{{ url_for('settings.support_tickets_unread_count') }}"{% endif %}>
     <div class="container-fluid">
         <a class="navbar-brand" href="/" title="Torna alla home" aria-label="Torna alla home">
             <img src="{{ url_for('static', filename='images/loghi_azienda/logo-ldenoteca-bianco.png') }}" alt="LD Enoteca Logo">
@@ -48,6 +53,7 @@
                     <button class="nav-link-enabled ld-contact-trigger" type="button" data-bs-toggle="modal" data-bs-target="#ldHelpDeskModal">
                         <i class="fa-solid fa-headset"></i>
                         <span>Help Desk</span>
+                        {% if current_user.is_authenticated %}<span class="help-desk-unread-badge" id="helpDeskUnreadBadge" hidden>0</span>{% endif %}
                     </button>
                 </li>
                 <!-- Se l'utente è loggato -->
@@ -108,7 +114,7 @@
 </nav>
 
 <div class="modal fade ld-contact-modal ld-help-desk-modal" id="ldHelpDeskModal" tabindex="-1" aria-labelledby="ldHelpDeskModalLabel" aria-hidden="true"
-     {% if current_user.is_authenticated %}data-tickets-url="{{ url_for('auth.help_desk_tickets') }}"{% endif %}>
+     {% if current_user.is_authenticated %}data-tickets-url="{{ url_for('auth.help_desk_tickets') }}" data-unread-url="{{ url_for('auth.help_desk_unread_count') }}"{% endif %}>
     <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">

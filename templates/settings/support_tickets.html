@@ -36,7 +36,12 @@
           <tbody>
             {% for ticket in tickets %}
               <tr>
-                <td>#{{ ticket.id }}</td>
+                <td>
+                  #{{ ticket.id }}
+                  {% if unread_counts.get(ticket.id, 0) %}
+                    <span class="help-desk-unread-badge ms-1" title="Nuovi messaggi">{{ unread_counts[ticket.id] if unread_counts[ticket.id] < 100 else '99+' }}</span>
+                  {% endif %}
+                </td>
                 <td>
                   <strong>{{ ticket.subject }}</strong>
                   {% if ticket.user %}<div class="text-muted small">{{ ticket.user.name }} {{ ticket.user.surname }}</div>{% endif %}

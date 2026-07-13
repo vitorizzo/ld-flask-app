@@ -4,6 +4,7 @@ import imaplib
 import os
 import re
 import uuid
+from datetime import datetime, timezone
 from email import policy
 from email.parser import BytesParser
 from email.utils import parseaddr
@@ -171,6 +172,7 @@ def sync_support_mailbox(limit=100):
                 email_to=parseaddr(message.get("To") or "")[1] or None,
                 external_message_id=external_id,
                 in_reply_to=(message.get("In-Reply-To") or "").strip() or None,
+                read_by_user_at=datetime.now(timezone.utc),
             )
             db.session.add(ticket_message)
             db.session.flush()

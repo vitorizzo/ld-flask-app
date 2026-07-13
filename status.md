@@ -2266,3 +2266,16 @@ Performance apertura giornata Agenda 2026-06-13:
   - `send_account_mail()` passa ora a `smtplib.sendmail()` il MIME serializzato con `Message.as_bytes()` invece di `as_string()`;
   - risolto l'errore `ascii codec can't encode character` con accenti nei messaggi Help Desk/assistenza e negli altri invii centralizzati;
   - verifica con SMTP simulato: oggetto e corpo contenenti `è`, `à` e `ò` serializzati/inviati come bytes MIME UTF-8.
+- 2026-07-13 bollini nuovi messaggi Help Desk:
+  - aggiunti `SupportTicketMessage.read_by_user_at` e `read_by_support_at` con migration `2c3d4e5f6071_add_ticket_message_read_state.py`, applicata al DB;
+  - i messaggi preesistenti sono stati marcati letti durante la migrazione per evitare notifiche storiche spurie;
+  - messaggi `support` non letti alimentano il bollino utente sulla navbar Help Desk e il conteggio per singolo ticket in `I miei ticket`;
+  - messaggi `user` non letti alimentano il bollino staff sulla voce DB `Assistenza LDApp` e sulle righe della lista assistenza;
+  - endpoint conteggio: `/auth/help-desk/unread-count` per l'utente e `/settings/support-tickets/unread-count` per l'assistenza;
+  - polling frontend ogni 60 secondi su entrambi i lati; apertura dettaglio marca letti soltanto i messaggi destinati al lato che sta visualizzando;
+  - messaggi creati via web/IMAP vengono marcati letti dal mittente e lasciati non letti per il destinatario;
+  - verifiche DB end-to-end: conteggi iniziali utente/assistenza `1/1`, apertura utente `0/1`, apertura staff `0`, badge presenti nel menu/lista, `node --check`, `py_compile`, `git diff --check`.
+- 2026-07-13 fix modali tile utenti:
+  - le modali di `/settings/users` hanno ora stacking dedicato sopra il backdrop globale dell'app;
+  - i passaggi dalla scheda utente alle modali Ruolo, Autorizzazioni, Reset password ed Elimina attendono la chiusura completa della modale corrente prima di aprire la successiva;
+  - append al `body`, gestione backdrop e lifecycle sono limitati alle sole modali utenti.

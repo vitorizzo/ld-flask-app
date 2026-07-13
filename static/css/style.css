@@ -482,6 +482,27 @@ section {
     background: #0dcaf0;
 }
 
+.help-desk-unread-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 21px;
+    height: 21px;
+    padding: 0 6px;
+    border-radius: 999px;
+    color: #fff;
+    background: #dc3545;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, .75);
+    font-family: "Open Sans", sans-serif;
+    font-size: .72rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.help-desk-unread-badge[hidden] {
+    display: none !important;
+}
+
 .ld-contact-modal .modal-content {
     color: #fff;
     background: rgba(74, 44, 42, .98);

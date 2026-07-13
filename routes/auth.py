@@ -9,7 +9,13 @@ from extensions import db
 from forms.forms import LoginForm, RegistrationForm, EditProfileForm, ForgotPasswordForm, ResetPasswordForm
 from tools.auth_manager import get_current_user, get_current_user_id
 from tools.mail_accounts import assistance_mail_sender, send_account_mail, send_assistance_mail
-from tools.support_tickets import outbound_ticket_message_id, public_ticket_url
+from tools.support_tickets import (
+    mark_ticket_read_by_user,
+    outbound_ticket_message_id,
+    public_ticket_url,
+    ticket_user_unread_count,
+    user_unread_count,
+)
 from models import User, PasswordResetToken, RoleActivationRequest, SupportTicket, SupportTicketMessage, SupportTicketAttachment
 from tools.log_utils import log_task, get_logger
 
@@ -244,6 +250,7 @@ def contact():
             email_from=reply_email,
             email_to=ASSISTANCE_EMAIL,
             body=message_body,
+            read_by_user_at=datetime.now(timezone.utc),
         )
         db.session.add(ticket_message)
         db.session.flush()
@@ -326,22 +333,35 @@ def help_desk_tickets():
                 "status": ticket.status,
                 "created_at": ticket.created_at.isoformat(),
                 "updated_at": ticket.updated_at.isoformat(),
+                "unread_count": ticket_user_unread_count(ticket.id),
                 "url": url_for("auth.help_desk_ticket", token=ticket.public_token),
             }
             for ticket in tickets
         ],
+        "unread_count": user_unread_count(current_user.id),
     }
+
+
+@auth_bp.get("/help-desk/unread-count")
+@login_required
+def help_desk_unread_count():
+    return {"ok": True, "unread_count": user_unread_count(current_user.id)}
 
 
 @auth_bp.route("/help-desk/ticket/<string:token>", methods=["GET", "POST"])
 def help_desk_ticket(token):
     ticket = SupportTicket.query.filter_by(public_token=token, ticket_type="support").first_or_404()
+    should_commit = False
     if (
         current_user.is_authenticated
         and ticket.user_id is None
         and str(ticket.reply_email or "").strip().casefold() == str(current_user.email or "").strip().casefold()
     ):
         ticket.user_id = current_user.id
+        should_commit = True
+    if mark_ticket_read_by_user(ticket.id):
+        should_commit = True
+    if should_commit:
         db.session.commit()
     if request.method == "POST":
         body = (request.form.get("body") or "").strip()
@@ -356,6 +376,7 @@ def help_desk_ticket(token):
             body=body,
             email_from=ticket.reply_email,
             email_to=ASSISTANCE_EMAIL,
+            read_by_user_at=datetime.now(timezone.utc),
         )
         db.session.add(message)
         db.session.flush()

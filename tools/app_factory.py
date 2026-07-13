@@ -330,11 +330,21 @@ def create_app():
                     "is_active": node.is_active,
                     "is_visible": node.is_visible,
                     "item_type": node.item_type,
+                    "badge_count": support_badge_count if node.route == "/settings/support-tickets" else 0,
                     "children": children_tree
                 })
             return result
 
         user_role_weight = current_user.max_role_weight if current_user.is_authenticated else 0
+        support_badge_count = 0
+        if current_user.is_authenticated and user_role_weight >= 900:
+            try:
+                from tools.support_tickets import support_unread_count
+
+                support_badge_count = support_unread_count()
+            except SQLAlchemyError:
+                db.session.rollback()
+                logger.exception("inject_menus: support unread count unavailable")
 
         # Carichiamo TUTTI i menu ordinati in modo deterministico
         try:

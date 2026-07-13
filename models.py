@@ -954,6 +954,8 @@ class SupportTicketMessage(db.Model):
     body = db.Column(db.Text, nullable=False)
     email_from = db.Column(db.String(255), nullable=True)
     email_to = db.Column(db.String(255), nullable=True)
+    read_by_user_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
+    read_by_support_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
 
     ticket = db.relationship("SupportTicket", back_populates="messages")

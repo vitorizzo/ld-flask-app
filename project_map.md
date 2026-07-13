@@ -1005,6 +1005,9 @@ Stato implementazione 2026-06-14:
     - `SupportTicketMessage.source`, `external_message_id` e `in_reply_to` gestiscono origine, deduplica e correlazione RFC;
     - `tools/support_mailbox.py` acquisisce via IMAP risposte e allegati, correla prima gli header RFC e poi `[Ticket #ID]`, e valida il mittente contro l'email del ticket;
     - Celery Beat esegue `config.tasks.sync_support_mailbox_task` ogni 2 minuti; `/settings/email` espone anche sincronizzazione manuale;
+    - `SupportTicketMessage.read_by_user_at` e `read_by_support_at` mantengono stati di lettura separati e persistenti;
+    - bollino utente sulla voce `Help Desk` e sui ticket con nuove risposte assistenza; bollino staff sulla voce `Assistenza LDApp` e sulle righe con nuovi messaggi cliente;
+    - entrambi i conteggi hanno endpoint dedicato e polling frontend ogni 60 secondi; si azzerano solo aprendo il relativo dettaglio dal lato destinatario;
     - le email in uscita includono `[Ticket #ID]`, `Message-ID` e link sicuro alla conversazione;
     - il solo numero ticket non costituisce autorizzazione all'accesso web.
   - `/settings/roles-permissions` separa dal vecchio widget configurazione la gestione ruoli e autorizzazioni:
@@ -1050,3 +1053,4 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - 2026-06-20/22 report/quadratura: correzione snapshot/report validata dall'utente su due giornate reali e sospensione rimossa.
 - 2026-06-20 utenti impostazioni: aggiunti `SpecialPermission`/`UserSpecialPermission` con migration `6f708192a3b4`; `/settings/users` ora supporta modali di modifica, cambio ruolo, autorizzazioni temporanee/speciali, eliminazione e reset password 24 ore.
 - 2026-06-20 UI impostazioni: `/settings/banks`, `/settings/pos-circuits` e `/settings/pos-devices` sono state uniformate allo stile `/settings/users` con tabelle, modali detail/edit, azioni rapide e fix preventivo focus/stacking modali.
+- 2026-07-13 utenti impostazioni: corretto lo stacking delle modali sopra il backdrop globale e serializzata la transizione tra dettaglio e azioni Ruolo/Autorizzazioni/Reset/Elimina per evitare finestre fuori fuoco.

@@ -21,7 +21,12 @@ from tools.mail_accounts import (
     send_account_mail,
     send_assistance_mail,
 )
-from tools.support_tickets import outbound_ticket_message_id, public_ticket_url
+from tools.support_tickets import (
+    mark_ticket_read_by_support,
+    outbound_ticket_message_id,
+    public_ticket_url,
+    support_unread_count,
+)
 from models import (
     Menu,
     AppPreference,
@@ -392,11 +397,31 @@ def settings_index():
 @role_required(900)
 def support_tickets():
     status = (request.args.get("status") or "").strip()
-    query = SupportTicket.query.filter(SupportTicket.ticket_type == "support")
+    query = SupportTicket.query.options(selectinload(SupportTicket.messages)).filter(SupportTicket.ticket_type == "support")
     if status:
         query = query.filter(SupportTicket.status == status)
     tickets = query.order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc()).limit(200).all()
-    return render_template("settings/support_tickets.html", tickets=tickets, status=status)
+    unread_counts = {
+        ticket.id: sum(
+            1
+            for message in ticket.messages
+            if message.sender_type == "user" and message.read_by_support_at is None
+        )
+        for ticket in tickets
+    }
+    return render_template(
+        "settings/support_tickets.html",
+        tickets=tickets,
+        status=status,
+        unread_counts=unread_counts,
+    )
+
+
+@settings_bp.get("/support-tickets/unread-count")
+@login_required
+@role_required(900)
+def support_tickets_unread_count():
+    return {"ok": True, "unread_count": support_unread_count()}
 
 
 @settings_bp.route("/support-tickets/<int:ticket_id>", methods=["GET", "POST"])
@@ -415,6 +440,9 @@ def support_ticket_detail(ticket_id):
     if not _can_handle_ticket(ticket):
         flash("Accesso negato.", "danger")
         return redirect(url_for("settings.settings_index"))
+
+    if ticket.ticket_type == "support" and mark_ticket_read_by_support(ticket.id):
+        db.session.commit()
 
     if request.method == "POST":
         action = (request.form.get("action") or "reply").strip()
@@ -443,6 +471,7 @@ def support_ticket_detail(ticket_id):
             email_from=ASSISTANCE_EMAIL,
             email_to=ticket.reply_email,
             external_message_id=outgoing_message_id,
+            read_by_support_at=datetime.now(timezone.utc),
         )
         db.session.add(message)
         db.session.flush()

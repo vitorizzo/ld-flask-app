@@ -20,7 +20,11 @@
   }
 
   .settings-user-modal {
-    z-index: 2100;
+    z-index: 5200 !important;
+  }
+
+  body.settings-user-modal-open .modal-backdrop {
+    z-index: 5190 !important;
   }
 
   .settings-user-modal .modal-dialog {
@@ -263,19 +267,19 @@
           </div>
           <div class="modal-body">
             <div class="settings-user-actions" aria-label="Azioni utente">
-              <button type="button" class="btn btn-outline-info" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#userRoleModal-{{ user.id }}">
+              <button type="button" class="btn btn-outline-info" data-user-modal-target="#userRoleModal-{{ user.id }}">
                 <i class="fa-solid fa-user-tag"></i>
                 Ruolo
               </button>
-              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#userAuthModal-{{ user.id }}">
+              <button type="button" class="btn btn-outline-secondary" data-user-modal-target="#userAuthModal-{{ user.id }}">
                 <i class="fa-solid fa-key"></i>
                 Autorizzazioni
               </button>
-              <button type="button" class="btn btn-outline-warning" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#userResetPasswordModal-{{ user.id }}">
+              <button type="button" class="btn btn-outline-warning" data-user-modal-target="#userResetPasswordModal-{{ user.id }}">
                 <i class="fa-solid fa-unlock-keyhole"></i>
                 Reset password
               </button>
-              <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#userDeleteModal-{{ user.id }}">
+              <button type="button" class="btn btn-outline-danger" data-user-modal-target="#userDeleteModal-{{ user.id }}">
                 <i class="fa-solid fa-trash"></i>
                 Elimina
               </button>
@@ -316,7 +320,7 @@
             </div>
           </div>
           <div class="modal-footer">
-            <button type="button" class="btn btn-outline-danger me-auto" data-bs-toggle="modal" data-bs-target="#userDeleteModal-{{ user.id }}">Elimina</button>
+            <button type="button" class="btn btn-outline-danger me-auto" data-user-modal-target="#userDeleteModal-{{ user.id }}">Elimina</button>
             <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
             <button type="submit" class="btn btn-info">Salva modifiche</button>
           </div>
@@ -334,19 +338,19 @@
         </div>
         <div class="modal-body">
           <div class="settings-user-actions" aria-label="Azioni utente">
-            <button type="button" class="btn btn-outline-info" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#userRoleModal-{{ user.id }}">
+            <button type="button" class="btn btn-outline-info" data-user-modal-target="#userRoleModal-{{ user.id }}">
               <i class="fa-solid fa-user-tag"></i>
               Ruolo
             </button>
-            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#userAuthModal-{{ user.id }}">
+            <button type="button" class="btn btn-outline-secondary" data-user-modal-target="#userAuthModal-{{ user.id }}">
               <i class="fa-solid fa-key"></i>
               Autorizzazioni
             </button>
-            <button type="button" class="btn btn-outline-warning" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#userResetPasswordModal-{{ user.id }}">
+            <button type="button" class="btn btn-outline-warning" data-user-modal-target="#userResetPasswordModal-{{ user.id }}">
               <i class="fa-solid fa-unlock-keyhole"></i>
               Reset password
             </button>
-            <button type="button" class="btn btn-outline-danger" data-bs-dismiss="modal" data-bs-toggle="modal" data-bs-target="#userDeleteModal-{{ user.id }}">
+            <button type="button" class="btn btn-outline-danger" data-user-modal-target="#userDeleteModal-{{ user.id }}">
               <i class="fa-solid fa-trash"></i>
               Elimina
             </button>
@@ -533,10 +537,34 @@
 {% block extra_js %}
 <script>
 document.addEventListener("DOMContentLoaded", () => {
-  document.querySelectorAll(".modal").forEach((modal) => {
+  const userModals = document.querySelectorAll(".settings-user-modal");
+
+  userModals.forEach((modal) => {
     if (modal.parentElement !== document.body) {
       document.body.appendChild(modal);
     }
+  });
+
+  function showUserModal(target) {
+    const modalEl = target ? document.querySelector(target) : null;
+    if (!modalEl || !window.bootstrap) return;
+
+    const currentModal = document.querySelector(".settings-user-modal.show");
+    const openTarget = () => window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    if (currentModal && currentModal !== modalEl) {
+      currentModal.addEventListener("hidden.bs.modal", openTarget, { once: true });
+      window.bootstrap.Modal.getOrCreateInstance(currentModal).hide();
+      return;
+    }
+    openTarget();
+  }
+
+  document.querySelectorAll("[data-user-modal-target]").forEach((button) => {
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      showUserModal(button.dataset.userModalTarget);
+    });
   });
 
   function syncAuthType(select) {
@@ -564,10 +592,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
       longPressTriggered = true;
       const target = row.dataset.userActionTarget;
-      const modalEl = target ? document.querySelector(target) : null;
-      if (modalEl && window.bootstrap) {
-        window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
-      }
+      showUserModal(target);
     }
 
     function clearLongPress() {
@@ -605,7 +630,11 @@ document.addEventListener("DOMContentLoaded", () => {
     }, true);
   });
 
-  document.querySelectorAll(".modal").forEach((modal) => {
+  userModals.forEach((modal) => {
+    modal.addEventListener("show.bs.modal", () => {
+      document.body.classList.add("settings-user-modal-open");
+    });
+
     modal.addEventListener("shown.bs.modal", () => {
       const submitBtn = modal.querySelector('button[type="submit"]');
       if (!submitBtn) return;
@@ -617,6 +646,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     modal.addEventListener("hidden.bs.modal", () => {
+      if (!document.querySelector(".settings-user-modal.show")) {
+        document.body.classList.remove("settings-user-modal-open");
+      }
       const submitBtn = modal.querySelector('button[type="submit"]');
       if (!submitBtn) return;
       submitBtn.disabled = false;
