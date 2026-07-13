@@ -1,5 +1,5 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session
-from flask_login import current_user, login_user, logout_user
+from flask import Blueprint, render_template, request, redirect, url_for, flash, current_app, session, send_from_directory
+from flask_login import current_user, login_required, login_user, logout_user
 from flask_mail import Message
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -9,6 +9,7 @@ from extensions import db
 from forms.forms import LoginForm, RegistrationForm, EditProfileForm, ForgotPasswordForm, ResetPasswordForm
 from tools.auth_manager import get_current_user, get_current_user_id
 from tools.mail_accounts import assistance_mail_sender, send_account_mail, send_assistance_mail
+from tools.support_tickets import outbound_ticket_message_id, public_ticket_url
 from models import User, PasswordResetToken, RoleActivationRequest, SupportTicket, SupportTicketMessage, SupportTicketAttachment
 from tools.log_utils import log_task, get_logger
 
@@ -252,8 +253,9 @@ def contact():
         flash(str(exc), "warning")
         return redirect(request.referrer or url_for("home"))
 
-    msg = Message(
-        subject=f"LDApp contattaci - {final_subject}",
+    ticket_url = public_ticket_url(ticket)
+    notification = Message(
+        subject=f"LDApp [Ticket #{ticket.id}] - {final_subject}",
         sender=assistance_mail_sender(),
         recipients=[ASSISTANCE_EMAIL],
         reply_to=reply_email,
@@ -267,15 +269,142 @@ def contact():
             f"{_attachments_note(attachments)}"
         ),
     )
+    receipt_message_id = outbound_ticket_message_id(ticket.id)
+    receipt_body = (
+        f"Abbiamo ricevuto la tua richiesta #{ticket.id}.\n\n"
+        f"Oggetto: {final_subject}\n\n"
+        "Puoi rispondere direttamente a questa email oppure consultare la conversazione al link sicuro:\n"
+        f"{ticket_url}\n\n"
+        "Conserva questo link: consente l'accesso al ticket anche senza login."
+    )
+    receipt_record = SupportTicketMessage(
+        ticket=ticket,
+        sender_type="system",
+        source="system",
+        body=receipt_body,
+        email_from=ASSISTANCE_EMAIL,
+        email_to=reply_email,
+        external_message_id=receipt_message_id,
+    )
+    db.session.add(receipt_record)
+    receipt = Message(
+        subject=f"Richiesta ricevuta [Ticket #{ticket.id}]",
+        sender=assistance_mail_sender(),
+        recipients=[reply_email],
+        reply_to=ASSISTANCE_EMAIL,
+        body=receipt_body,
+        extra_headers={"Message-ID": receipt_message_id},
+    )
     try:
-        send_assistance_mail(msg)
+        send_assistance_mail(notification)
+        send_assistance_mail(receipt)
         db.session.commit()
-        flash("Richiesta inviata correttamente.", "success")
+        flash(f"Richiesta #{ticket.id} inviata correttamente.", "success")
     except Exception as exc:
         db.session.rollback()
-        logger.exception("Errore invio richiesta contattaci")
+        logger.exception("Errore invio richiesta Help Desk")
         flash(f"Impossibile inviare la richiesta: {exc}", "danger")
     return redirect(request.referrer or url_for("home"))
+
+
+@auth_bp.get("/help-desk/tickets")
+@login_required
+def help_desk_tickets():
+    tickets = (
+        SupportTicket.query
+        .filter(SupportTicket.ticket_type == "support", SupportTicket.user_id == current_user.id)
+        .order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc())
+        .limit(200)
+        .all()
+    )
+    return {
+        "ok": True,
+        "tickets": [
+            {
+                "id": ticket.id,
+                "subject": ticket.subject,
+                "status": ticket.status,
+                "created_at": ticket.created_at.isoformat(),
+                "updated_at": ticket.updated_at.isoformat(),
+                "url": url_for("auth.help_desk_ticket", token=ticket.public_token),
+            }
+            for ticket in tickets
+        ],
+    }
+
+
+@auth_bp.route("/help-desk/ticket/<string:token>", methods=["GET", "POST"])
+def help_desk_ticket(token):
+    ticket = SupportTicket.query.filter_by(public_token=token, ticket_type="support").first_or_404()
+    if (
+        current_user.is_authenticated
+        and ticket.user_id is None
+        and str(ticket.reply_email or "").strip().casefold() == str(current_user.email or "").strip().casefold()
+    ):
+        ticket.user_id = current_user.id
+        db.session.commit()
+    if request.method == "POST":
+        body = (request.form.get("body") or "").strip()
+        if not body:
+            flash("Scrivi un messaggio prima di inviare.", "warning")
+            return redirect(url_for("auth.help_desk_ticket", token=token))
+        message = SupportTicketMessage(
+            ticket=ticket,
+            sender_type="user",
+            sender_user_id=current_user.id if current_user.is_authenticated else None,
+            source="web",
+            body=body,
+            email_from=ticket.reply_email,
+            email_to=ASSISTANCE_EMAIL,
+        )
+        db.session.add(message)
+        db.session.flush()
+        try:
+            attachments = _save_support_attachments(message, request.files.getlist("attachments"))
+            notification = Message(
+                subject=f"Nuova risposta [Ticket #{ticket.id}] - {ticket.subject}",
+                sender=assistance_mail_sender(),
+                recipients=[ASSISTANCE_EMAIL],
+                reply_to=ticket.reply_email,
+                body=(
+                    f"Nuova risposta sul ticket #{ticket.id}.\n"
+                    f"Email cliente: {ticket.reply_email}\n\n"
+                    f"{body}{_attachments_note(attachments)}"
+                ),
+            )
+            send_assistance_mail(notification)
+            ticket.status = "open"
+            ticket.closed_at = None
+            ticket.updated_at = datetime.now(timezone.utc)
+            db.session.commit()
+            flash("Risposta aggiunta al ticket.", "success")
+        except ValueError as exc:
+            db.session.rollback()
+            flash(str(exc), "warning")
+        except Exception as exc:
+            db.session.rollback()
+            logger.exception("Errore risposta Help Desk ticket %s", ticket.id)
+            flash(f"Impossibile inviare la risposta: {exc}", "danger")
+        return redirect(url_for("auth.help_desk_ticket", token=token))
+
+    return render_template("help_desk/ticket.html", ticket=ticket)
+
+
+@auth_bp.get("/help-desk/ticket/<string:token>/attachment/<int:attachment_id>")
+def help_desk_ticket_attachment(token, attachment_id):
+    attachment = (
+        SupportTicketAttachment.query
+        .join(SupportTicketMessage, SupportTicketAttachment.message_id == SupportTicketMessage.id)
+        .join(SupportTicket, SupportTicketMessage.ticket_id == SupportTicket.id)
+        .filter(SupportTicket.public_token == token, SupportTicketAttachment.id == attachment_id)
+        .first_or_404()
+    )
+    return send_from_directory(
+        current_app.static_folder,
+        attachment.file_path,
+        as_attachment=False,
+        download_name=attachment.original_filename,
+    )
 
 
 # @auth_bp.route('/reset_password', methods=['GET'])

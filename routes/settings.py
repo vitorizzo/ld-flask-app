@@ -21,6 +21,7 @@ from tools.mail_accounts import (
     send_account_mail,
     send_assistance_mail,
 )
+from tools.support_tickets import outbound_ticket_message_id, public_ticket_url
 from models import (
     Menu,
     AppPreference,
@@ -432,13 +433,16 @@ def support_ticket_detail(ticket_id):
         if not body:
             flash("Scrivi un messaggio di risposta.", "warning")
             return redirect(url_for("settings.support_ticket_detail", ticket_id=ticket.id))
+        outgoing_message_id = outbound_ticket_message_id(ticket.id)
         message = SupportTicketMessage(
             ticket_id=ticket.id,
             sender_type="support",
             sender_user_id=current_user.id,
+            source="web",
             body=body,
             email_from=ASSISTANCE_EMAIL,
             email_to=ticket.reply_email,
+            external_message_id=outgoing_message_id,
         )
         db.session.add(message)
         db.session.flush()
@@ -449,14 +453,20 @@ def support_ticket_detail(ticket_id):
                 sender=assistance_mail_sender(),
                 recipients=[ticket.reply_email],
                 reply_to=ASSISTANCE_EMAIL,
-                body=_ticket_email_body(ticket, body),
+                body=(
+                    f"{_ticket_email_body(ticket, body)}\n\n"
+                    "Puoi rispondere direttamente a questa email oppure aprire il ticket:\n"
+                    f"{public_ticket_url(ticket)}"
+                ),
+                extra_headers={"Message-ID": outgoing_message_id},
             )
             for attachment in attachments:
                 abs_path = os.path.join(current_app.static_folder, attachment.file_path)
                 with open(abs_path, "rb") as fp:
                     msg.attach(attachment.original_filename, attachment.mime_type or "application/octet-stream", fp.read())
             send_assistance_mail(msg)
-            ticket.status = "waiting_user" if ticket.status == "open" else ticket.status
+            ticket.status = "waiting_user"
+            ticket.closed_at = None
             db.session.commit()
             flash("Risposta inviata.", "success")
         except ValueError as exc:
@@ -1600,6 +1610,31 @@ def email_config():
         email_accounts=rows,
         email_accounts_table_ready=_email_accounts_table_ready(),
     )
+
+
+@settings_bp.post("/email/sync-support-mailbox")
+@login_required
+@role_required(40)
+@log_task(logger)
+def sync_support_mailbox_now():
+    try:
+        from tools.support_mailbox import sync_support_mailbox
+
+        result = sync_support_mailbox(limit=100)
+        if not result.get("enabled"):
+            flash("La lettura IMAP dell'account assistance non e' abilitata.", "warning")
+        else:
+            flash(
+                "Sincronizzazione completata: "
+                f"{result.get('imported', 0)} risposte importate, "
+                f"{result.get('duplicates', 0)} duplicate, "
+                f"{result.get('ignored', 0)} ignorate.",
+                "success",
+            )
+    except Exception as exc:
+        logger.exception("Errore sincronizzazione mailbox assistenza")
+        flash(f"Sincronizzazione mailbox non riuscita: {exc}", "danger")
+    return redirect(url_for("settings.email_config"))
 
 
 def _parse_env_local_custom_keys():

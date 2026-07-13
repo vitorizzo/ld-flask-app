@@ -50,6 +50,11 @@ beat_schedule = {
         'task': 'config.tasks.create_weekend_events_social_post_task',
         'schedule': crontab(hour='9', minute='0', day_of_week='friday'),
     },
+    'support-mailbox-sync': {
+        'task': 'config.tasks.sync_support_mailbox_task',
+        'schedule': crontab(minute='*/2'),
+        'args': (100,),
+    },
 }
 
 timezone = 'Europe/Rome'

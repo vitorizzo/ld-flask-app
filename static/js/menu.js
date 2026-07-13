@@ -4,9 +4,75 @@ document.addEventListener("DOMContentLoaded", function () {
     var contactOtherWrap = document.getElementById("contactOtherWrap");
     var contactOther = document.getElementById("contactSubjectOther");
     var contactCancel = document.getElementById("ldContactCancel");
-    var contactModal = document.getElementById("ldContactModal");
+    var contactModal = document.getElementById("ldHelpDeskModal");
     var contactDefaultEmail = document.getElementById("contactReplyEmail")?.value || "";
-    var contactTriggers = document.querySelectorAll("[data-bs-target='#ldContactModal']");
+    var contactTriggers = document.querySelectorAll("[data-bs-target='#ldHelpDeskModal']");
+    var ticketsLoaded = false;
+
+    function formatTicketDate(value) {
+        if (!value) return "-";
+        var date = new Date(value);
+        return Number.isNaN(date.getTime()) ? value : date.toLocaleString("it-IT", {dateStyle: "short", timeStyle: "short"});
+    }
+
+    function appendTicketCell(row, text) {
+        var cell = document.createElement("td");
+        cell.textContent = text;
+        row.appendChild(cell);
+        return cell;
+    }
+
+    async function loadHelpDeskTickets(force) {
+        if (!contactModal?.dataset.ticketsUrl || (ticketsLoaded && !force)) return;
+        var loading = document.getElementById("helpDeskTicketsLoading");
+        var error = document.getElementById("helpDeskTicketsError");
+        var empty = document.getElementById("helpDeskTicketsEmpty");
+        var wrap = document.getElementById("helpDeskTicketsTableWrap");
+        var body = document.getElementById("helpDeskTicketsBody");
+        if (!body) return;
+        loading.hidden = false;
+        error.hidden = true;
+        empty.hidden = true;
+        wrap.hidden = true;
+        try {
+            var response = await fetch(contactModal.dataset.ticketsUrl, {headers: {"Accept": "application/json"}});
+            var payload = await response.json();
+            if (!response.ok || !payload.ok) throw new Error(payload.error || "Impossibile caricare i ticket");
+            body.replaceChildren();
+            payload.tickets.forEach(function (ticket) {
+                var row = document.createElement("tr");
+                row.setAttribute("role", "button");
+                row.addEventListener("click", function () { window.location.href = ticket.url; });
+                appendTicketCell(row, "#" + ticket.id);
+                var subjectCell = appendTicketCell(row, ticket.subject);
+                subjectCell.classList.add("fw-semibold");
+                var statusCell = document.createElement("td");
+                var badge = document.createElement("span");
+                badge.className = "badge text-bg-info";
+                badge.textContent = ticket.status;
+                statusCell.appendChild(badge);
+                row.appendChild(statusCell);
+                appendTicketCell(row, formatTicketDate(ticket.updated_at));
+                var actionCell = document.createElement("td");
+                actionCell.className = "text-end";
+                var open = document.createElement("a");
+                open.className = "btn btn-sm btn-info";
+                open.href = ticket.url;
+                open.textContent = "Apri";
+                actionCell.appendChild(open);
+                row.appendChild(actionCell);
+                body.appendChild(row);
+            });
+            ticketsLoaded = true;
+            empty.hidden = payload.tickets.length !== 0;
+            wrap.hidden = payload.tickets.length === 0;
+        } catch (exc) {
+            error.textContent = exc.message || "Impossibile caricare i ticket";
+            error.hidden = false;
+        } finally {
+            loading.hidden = true;
+        }
+    }
 
     function syncContactOther() {
         if (!contactSubject || !contactOtherWrap || !contactOther) return;
@@ -45,7 +111,30 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     if (contactModal) {
+        if (contactModal.parentElement !== document.body) document.body.appendChild(contactModal);
+        contactModal.addEventListener("show.bs.modal", function () {
+            var submit = contactModal.querySelector('#ldContactForm button[type="submit"]');
+            if (submit) {
+                submit.disabled = false;
+                submit.innerHTML = '<i class="fa-regular fa-paper-plane"></i> Invia richiesta';
+            }
+        });
+        contactModal.addEventListener("shown.bs.modal", function () { loadHelpDeskTickets(false); });
         contactModal.addEventListener("hidden.bs.modal", syncContactOther);
+        document.getElementById("helpDeskTicketsTab")?.addEventListener("shown.bs.tab", function () { loadHelpDeskTickets(true); });
+        contactForm?.addEventListener("submit", function () {
+            var submit = contactForm.querySelector('button[type="submit"]');
+            if (submit) {
+                submit.disabled = true;
+                submit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Invio...';
+            }
+        });
+        var params = new URLSearchParams(window.location.search);
+        if (params.get("help_desk") === "1" && window.bootstrap?.Modal) {
+            bootstrap.Modal.getOrCreateInstance(contactModal).show();
+            var ticketsTab = document.getElementById("helpDeskTicketsTab");
+            if (ticketsTab && window.bootstrap?.Tab) bootstrap.Tab.getOrCreateInstance(ticketsTab).show();
+        }
     }
 });
 

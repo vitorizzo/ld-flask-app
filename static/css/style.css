@@ -529,6 +529,40 @@ section {
     min-height: 150px;
 }
 
+.help-desk-contact-form {
+    display: grid;
+    gap: 10px;
+}
+
+.help-desk-tabs {
+    border-color: rgba(255, 255, 255, .25);
+}
+
+.help-desk-tabs .nav-link {
+    color: rgba(255, 255, 255, .82);
+    font-weight: 700;
+}
+
+.help-desk-tabs .nav-link.active {
+    color: #4A2C2A;
+    background: #0dcaf0;
+    border-color: #0dcaf0;
+}
+
+.help-desk-ticket-table {
+    overflow: auto;
+    max-height: min(55vh, 560px);
+    color: #212529;
+    background: #fff;
+    border-radius: 10px;
+}
+
+.help-desk-ticket-table thead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
 .ld-profile-greeting {
     display: inline-flex;
     flex-direction: column;

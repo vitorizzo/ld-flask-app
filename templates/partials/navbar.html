@@ -45,9 +45,9 @@
             </ul>
             <ul class="navbar-nav align-items-center">
                 <li class="nav-item ld-contact-nav-item">
-                    <button class="nav-link-enabled ld-contact-trigger" type="button" data-bs-toggle="modal" data-bs-target="#ldContactModal">
-                        <i class="fa-regular fa-envelope"></i>
-                        <span>Contattaci</span>
+                    <button class="nav-link-enabled ld-contact-trigger" type="button" data-bs-toggle="modal" data-bs-target="#ldHelpDeskModal">
+                        <i class="fa-solid fa-headset"></i>
+                        <span>Help Desk</span>
                     </button>
                 </li>
                 <!-- Se l'utente è loggato -->
@@ -107,18 +107,28 @@
     </div>
 </nav>
 
-<div class="modal fade ld-contact-modal" id="ldContactModal" tabindex="-1" aria-labelledby="ldContactModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+<div class="modal fade ld-contact-modal ld-help-desk-modal" id="ldHelpDeskModal" tabindex="-1" aria-labelledby="ldHelpDeskModalLabel" aria-hidden="true"
+     {% if current_user.is_authenticated %}data-tickets-url="{{ url_for('auth.help_desk_tickets') }}"{% endif %}>
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content">
-            <form method="post" action="{{ url_for('auth.contact') }}" id="ldContactForm" enctype="multipart/form-data">
-                <div class="modal-header">
-                    <div>
-                        <h5 class="modal-title" id="ldContactModalLabel">Contattaci</h5>
-                        <p>Invia una richiesta all'assistenza LDApp.</p>
-                    </div>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+            <div class="modal-header">
+                <div>
+                    <h5 class="modal-title" id="ldHelpDeskModalLabel">Help Desk</h5>
+                    <p>{% if current_user.is_authenticated %}Contatta l'assistenza e consulta le tue richieste.{% else %}Invia una richiesta all'assistenza LDApp.{% endif %}</p>
                 </div>
-                <div class="modal-body">
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+            </div>
+            {% if current_user.is_authenticated %}
+            <div class="px-3 pt-3">
+                <ul class="nav nav-tabs help-desk-tabs" role="tablist">
+                    <li class="nav-item" role="presentation"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#helpDeskContactPane" type="button">Nuova richiesta</button></li>
+                    <li class="nav-item" role="presentation"><button class="nav-link" id="helpDeskTicketsTab" data-bs-toggle="tab" data-bs-target="#helpDeskTicketsPane" type="button">I miei ticket</button></li>
+                </ul>
+            </div>
+            {% endif %}
+            <div class="tab-content modal-body">
+                <div class="tab-pane fade show active" id="helpDeskContactPane" role="tabpanel">
+                  <form method="post" action="{{ url_for('auth.contact') }}" id="ldContactForm" enctype="multipart/form-data" class="help-desk-contact-form">
                     <label class="form-label" for="contactSubject">Oggetto</label>
                     <select class="form-select" id="contactSubject" name="contact_subject" required>
                         <option value="">Seleziona un oggetto</option>
@@ -141,15 +151,26 @@
 
                     <label class="form-label" for="contactAttachments">Allegati</label>
                     <input class="form-control" type="file" id="contactAttachments" name="contact_attachments" multiple>
+                    <div class="d-flex justify-content-end gap-2 mt-3">
+                        <button class="btn btn-outline-light" type="button" id="ldContactCancel" data-bs-dismiss="modal">Annulla</button>
+                        <button class="btn btn-info" type="submit"><i class="fa-regular fa-paper-plane"></i> Invia richiesta</button>
+                    </div>
+                  </form>
                 </div>
-                <div class="modal-footer">
-                    <button class="btn btn-outline-light" type="button" id="ldContactCancel" data-bs-dismiss="modal">Annulla</button>
-                    <button class="btn btn-info" type="submit">
-                        <i class="fa-regular fa-paper-plane"></i>
-                        Invia richiesta
-                    </button>
+                {% if current_user.is_authenticated %}
+                <div class="tab-pane fade" id="helpDeskTicketsPane" role="tabpanel">
+                    <div id="helpDeskTicketsLoading" class="text-center py-4"><i class="fa-solid fa-spinner fa-spin me-2"></i>Caricamento ticket...</div>
+                    <div id="helpDeskTicketsError" class="alert alert-danger" hidden></div>
+                    <div class="table-responsive help-desk-ticket-table" id="helpDeskTicketsTableWrap" hidden>
+                        <table class="table table-hover align-middle mb-0">
+                            <thead><tr><th>Ticket</th><th>Oggetto</th><th>Stato</th><th>Ultimo aggiornamento</th><th></th></tr></thead>
+                            <tbody id="helpDeskTicketsBody"></tbody>
+                        </table>
+                    </div>
+                    <div id="helpDeskTicketsEmpty" class="text-center py-4 opacity-75" hidden>Non hai ancora aperto ticket.</div>
                 </div>
-            </form>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>

@@ -2249,3 +2249,16 @@ Performance apertura giornata Agenda 2026-06-13:
   - il numero ticket restera' una chiave di correlazione ma non sara' sufficiente come autorizzazione web: per le email verra' verificato anche il mittente, per il browser verra' usato il token pubblico;
   - verifiche: `py_compile`, `git diff --check`, migrazione DB fino a `1b2c3d4e5f60`, account IMAP temporaneo creato con password cifrata e rimosso, token ticket esistenti completi/univoci, `node --check` dello script Email renderizzato;
   - prossimo step: servizio IMAP periodico con parsing messaggi/allegati, correlazione ticket e deduplica.
+- 2026-07-13 Help Desk e risposte email ticket - implementazione completata:
+  - scelta naming: `Help Desk` e' il punto di accesso utente in navbar/drawer; `Servizio clienti` resta il menu interno dello staff per Attivazioni Horeca e Assistenza LDApp;
+  - la modale Help Desk espone `Nuova richiesta` e, per autenticati, `I miei ticket` con elenco, stato e ultimo aggiornamento;
+  - aggiunte route cliente `GET /auth/help-desk/tickets` e `GET/POST /auth/help-desk/ticket/<token>`;
+  - il dettaglio mostra l'intera corrispondenza e consente risposte/allegati; gli allegati cliente passano da route protetta dal token invece che da URL statico diretto;
+  - ticket anonimi accessibili con token sicuro ricevuto via email; se l'utente accede dal link dopo login con la stessa email, il ticket viene associato al suo account;
+  - alla creazione viene inviata conferma al cliente con numero ticket e link sicuro, salvata anche nella conversazione come messaggio di sistema;
+  - le risposte staff includono `Message-ID`, `[Ticket #ID]` e link alla conversazione;
+  - aggiunto `tools/support_mailbox.py`: polling IMAP, parsing testo/HTML, allegati, correlazione tramite `In-Reply-To`/`References` e fallback numero ticket, controllo mittente e deduplica `Message-ID`/hash;
+  - aggiunto task `config.tasks.sync_support_mailbox_task` ogni 2 minuti e pulsante `Sincronizza assistenza` in `/settings/email`;
+  - una risposta cliente ricevuta riapre il ticket e viene salvata con `source='email'`;
+  - verifiche: `py_compile`, `node --check static/js/menu.js`, `git diff --check`, render Help Desk anonimo, elenco autenticato 200, dettaglio token 200, risposta web 302, conferma con due messaggi e `Message-ID`, import IMAP simulato `imported=1` e seconda lettura `duplicates=1`, cleanup dati test;
+  - test reale residuo: configurare e abilitare IMAP sull'account `assistance`, poi usare `Sincronizza assistenza` o attendere Celery Beat.

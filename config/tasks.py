@@ -97,3 +97,10 @@ def create_weekly_events_social_post_task(self):
 def create_weekend_events_social_post_task(self):
     from tools.social_events import create_social_event_post
     return {"post_id": create_social_event_post("weekend", auto=True).id}
+
+
+@celery.task(bind=True)
+@log_task(logger)
+def sync_support_mailbox_task(self, limit=100):
+    from tools.support_mailbox import sync_support_mailbox
+    return sync_support_mailbox(limit=limit)
