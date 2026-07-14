@@ -24,7 +24,7 @@ from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck,
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
     CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashOwnerTake, CashOwnerTakeCheck, \
     CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck, CashIssuedCheck, CashDepositCheck, BusinessRegistry, \
-    BusinessRegistryContact, CashClosure, CashDeposit, CashDayAuditEvent
+    BusinessRegistryContact, CashCustomerRegistryLink, CashClosure, CashDeposit, CashDayAuditEvent
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
@@ -1033,12 +1033,28 @@ def _cash_customer_from_registry(registry_id):
     if not registry:
         raise ValueError("Cliente anagrafica non trovato")
 
-    customer = None
+    existing_link = CashCustomerRegistryLink.query.filter_by(registry_id=registry.id).first()
+    if existing_link and existing_link.cash_customer:
+        return existing_link.cash_customer
+
+    candidates = []
+    match_source = None
     if registry.source_code:
-        customer = CashCustomer.query.filter_by(codice_cliente=registry.source_code).first()
-    if not customer and registry.vat_number:
-        customer = CashCustomer.query.filter_by(partita_iva=registry.vat_number).first()
-    if customer:
+        candidates = CashCustomer.query.filter_by(codice_cliente=registry.source_code).all()
+        match_source = "source_code"
+    if not candidates and registry.vat_number:
+        candidates = CashCustomer.query.filter_by(partita_iva=registry.vat_number).all()
+        match_source = "vat_number"
+    if len(candidates) > 1:
+        raise ValueError("Anagrafica cliente ambigua: associazione manuale necessaria")
+    if candidates:
+        customer = candidates[0]
+        db.session.add(CashCustomerRegistryLink(
+            cash_customer_id=customer.id,
+            registry_id=registry.id,
+            match_source=match_source,
+        ))
+        db.session.flush()
         return customer
 
     display_name = registry.display_name or registry.legal_name or registry.source_code
@@ -1052,6 +1068,12 @@ def _cash_customer_from_registry(registry_id):
         codice_cliente=registry.source_code,
     )
     db.session.add(customer)
+    db.session.flush()
+    db.session.add(CashCustomerRegistryLink(
+        cash_customer_id=customer.id,
+        registry_id=registry.id,
+        match_source="created_from_registry",
+    ))
     db.session.flush()
     return customer
 
@@ -3715,11 +3737,19 @@ def api_customers_suggest():
         .all()
     )
 
+    registry_ids = [registry.id for registry in registry_rows if registry.kind == "customer"]
+    linked_customer_ids = {
+        link.registry_id: link.cash_customer_id
+        for link in CashCustomerRegistryLink.query.filter(
+            CashCustomerRegistryLink.registry_id.in_(registry_ids or [0])
+        ).all()
+    }
+
     for registry in registry_rows:
-        existing_customer_id = None
-        if registry.kind == "customer" and registry.source_code:
-            existing = CashCustomer.query.filter_by(codice_cliente=registry.source_code).first()
-            existing_customer_id = existing.id if existing else None
+        existing_customer_id = linked_customer_ids.get(registry.id)
+        if not existing_customer_id and registry.kind == "customer" and registry.source_code:
+            matches = CashCustomer.query.filter_by(codice_cliente=registry.source_code).limit(2).all()
+            existing_customer_id = matches[0].id if len(matches) == 1 else None
 
         display_name = registry.display_name or registry.legal_name or registry.source_code
         detail_parts = [registry.city, registry.vat_number, registry.source_code]

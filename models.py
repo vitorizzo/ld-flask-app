@@ -1957,6 +1957,23 @@ class BusinessRegistry(db.Model):
         }
 
 
+class CashCustomerRegistryLink(db.Model):
+    __tablename__ = "cash_customer_registry_links"
+    __table_args__ = (
+        db.UniqueConstraint("registry_id", name="uq_cash_customer_registry_link_registry"),
+        db.Index("ix_cash_customer_registry_link_customer", "cash_customer_id"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    cash_customer_id = db.Column(db.Integer, db.ForeignKey("cash_customers.id", ondelete="CASCADE"), nullable=False)
+    registry_id = db.Column(db.Integer, db.ForeignKey("business_registries.id", ondelete="CASCADE"), nullable=False)
+    match_source = db.Column(db.String(30), nullable=False, default="manual")
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+
+    cash_customer = db.relationship("CashCustomer", backref=db.backref("registry_links", lazy="selectin"))
+    registry = db.relationship("BusinessRegistry", backref=db.backref("cash_customer_link", uselist=False))
+
+
 class BusinessRegistryContact(db.Model):
     __tablename__ = "business_registry_contacts"
     __table_args__ = (

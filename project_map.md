@@ -52,6 +52,13 @@ Nel flusso Codex locale la lettura avviene direttamente dai file del repository,
 - `reorder_menus` salva contestualmente ordine e nuovo `parent_id`, con controllo dei cicli;
 - i badge dei menu figli vengono aggregati ricorsivamente sugli antenati visibili; `Servizio clienti` espone la somma di `Assistenza LDApp` e `Attivazioni Horeca`.
 
+## Associazione anagrafiche Agenda
+
+- `CashCustomer` resta l'anagrafica operativa usata da incassi e assegni; `BusinessRegistry` resta l'anagrafica gestionale/importata;
+- `CashCustomerRegistryLink` (`cash_customer_registry_links`) persiste l'associazione tra i due archivi, con un solo cliente Agenda per ogni anagrafica gestionale;
+- migration `3d4e5f607182_add_cash_customer_registry_links.py` con backfill deterministico per codice cliente e, in fallback, P.IVA univoca;
+- il resolver `/cassa/api/customers/resolve-registry` consulta prima il link persistente e non sceglie arbitrariamente in presenza di match multipli.
+
 ---
 
 # MODULO EVENTI

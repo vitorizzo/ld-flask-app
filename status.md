@@ -2293,3 +2293,12 @@ Performance apertura giornata Agenda 2026-06-13:
   - durante il drag viene mostrato un placeholder azzurro nel punto di inserimento e le liste vuote espongono una zona di rilascio esplicita;
   - la modale menu viene spostata nel `body`, usa z-index dedicato sopra il backdrop globale e ripristina pulsante/stato su `shown.bs.modal` e `hidden.bs.modal`;
   - verifiche: `py_compile`, `node --check` sui due script, `git diff --check`, GET home/menu/endpoint 200 e rendering reale del badge aggregato `activation,support`.
+- 2026-07-14 stabilizzazione inserimenti Agenda incassi/assegni/clienti:
+  - corretto lo stato persistente dei carrier: all'apertura di un nuovo incasso e nel caricamento in modifica `applyPriCarrierRules()` riallinea sempre i controlli al flag corrente;
+  - aggiunto lock frontend `operationSaving` prima delle risoluzioni asincrone, impedendo submit concorrenti prima che il pulsante Salva venga disabilitato;
+  - la scelta da suggeritore/modale conserva `registry_id` e demanda la risoluzione a un unico punto durante il salvataggio, eliminando richieste concorrenti e selezioni transitorie;
+  - aggiunto modello/tabella `CashCustomerRegistryLink` e migration `3d4e5f607182_add_cash_customer_registry_links.py`, applicata al DB;
+  - il resolver usa prima l'associazione persistente, crea collegamenti solo per match univoci codice/P.IVA e rifiuta esplicitamente eventuali ambiguita';
+  - backfill completato: 2.002/2.002 anagrafiche clienti attive collegate, zero codici ambigui; doppia risoluzione verificata idempotente senza nuove righe;
+  - `static/js/agenda.js` normalizzato in UTF-8 sostituendo i byte CP1252 invalidi preesistenti (`€`, `•`, accenti);
+  - verifiche: `py_compile`, `node --check`, `git diff --check`, endpoint suggerimenti/resolve 200 e Alembic current/head `3d4e5f607182`.
