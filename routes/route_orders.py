@@ -4,7 +4,7 @@ import os
 from datetime import date, datetime, time, timedelta
 
 from flask import Blueprint, current_app, jsonify, render_template, request
-from flask_login import login_required
+from flask_login import current_user, login_required
 from sqlalchemy import or_
 from werkzeug.utils import secure_filename
 
@@ -1377,6 +1377,7 @@ def api_delete_order(entry_id):
     channel_id = entry.slack_channel_id
     message_ts = entry.slack_message_ts
     slack_warning = None
+    slack_action = None
     orders = []
     if channel_id and message_ts:
         orders = (
@@ -1390,7 +1391,20 @@ def api_delete_order(entry_id):
         bot_token = current_app.config.get("SLACK_BOT_TOKEN", "") or ""
         if bot_token:
             try:
-                SlackAPI(SlackAPIConfig(bot_token=bot_token)).delete_message(channel_id, message_ts)
+                actor = " ".join(
+                    value for value in (
+                        getattr(current_user, "name", None),
+                        getattr(current_user, "surname", None),
+                    ) if value
+                ).strip() or getattr(current_user, "email", None) or f"utente #{current_user.id}"
+                result = SlackAPI(SlackAPIConfig(bot_token=bot_token)).delete_or_mark_message(
+                    channel_id,
+                    message_ts,
+                    actor,
+                )
+                slack_action = result.get("action")
+                if result.get("warning"):
+                    slack_warning = f"Ordine marcato su Slack con avviso parziale: {result['warning']}"
             except Exception as exc:
                 slack_warning = f"Messaggio Slack non cancellato: {exc}"
                 logger.exception("Delete Slack message failed channel=%s ts=%s", channel_id, message_ts)
@@ -1409,7 +1423,7 @@ def api_delete_order(entry_id):
         db.session.delete(linked_entry)
 
     db.session.commit()
-    payload = {"ok": True}
+    payload = {"ok": True, "slack_action": slack_action}
     if slack_warning:
         payload["warning"] = slack_warning
     return jsonify(payload)

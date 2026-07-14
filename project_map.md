@@ -140,6 +140,7 @@ Pubblicazione operativa:
 - nello stesso flusso vengono creati/collegati `SlackOrder` e `RouteOrderBoardEntry`, rendendo l'ordine immediatamente disponibile nella bacheca;
 - i riferimenti `route_board_entry_id` e `slack_order_id` impediscono la doppia pubblicazione applicativa, mentre `client_msg_id` protegge anche il post Slack;
 - gli eventi Slack originati da bot/app non vengono inoltrati alle automazioni Slack, per evitare ricorsioni.
+- in cancellazione, i messaggi Slack del bot vengono rimossi; quelli appartenenti ad altri autori vengono conservati ma marcati con commento nominativo nel thread e reaction `:wastebasket:`.
 
 ---
 

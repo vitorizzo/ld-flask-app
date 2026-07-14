@@ -2302,3 +2302,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - backfill completato: 2.002/2.002 anagrafiche clienti attive collegate, zero codici ambigui; doppia risoluzione verificata idempotente senza nuove righe;
   - `static/js/agenda.js` normalizzato in UTF-8 sostituendo i byte CP1252 invalidi preesistenti (`€`, `•`, accenti);
   - verifiche: `py_compile`, `node --check`, `git diff --check`, endpoint suggerimenti/resolve 200 e Alembic current/head `3d4e5f607182`.
+- 2026-07-14 cancellazione ordini Slack non proprietari:
+  - confermato il limite Slack: il bot puo' cancellare con `chat.delete` soltanto messaggi pubblicati dallo stesso bot;
+  - `SlackAPI.delete_or_mark_message()` tenta prima la cancellazione reale e, se rifiutata, inserisce nel thread `Ordine eliminato dalla bacheca da <operatore>` e applica `:wastebasket:` al messaggio radice;
+  - fallback condiviso dai percorsi di cancellazione Kiosk e bacheca ordini; la cancellazione locale continua e la UI informa l'operatore quando Slack e' stato soltanto contrassegnato;
+  - test simulati: messaggio del bot cancellato senza marker; messaggio non eliminabile marcato con commento nel thread e reaction corretti.

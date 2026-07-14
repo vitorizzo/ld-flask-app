@@ -202,6 +202,48 @@ class SlackAPI:
             logger.exception("Errore inatteso in SlackAPI.delete_message")
             raise
 
+    def delete_or_mark_message(self, channel: str, timestamp: str, deleted_by: str) -> Dict[str, Any]:
+        """Cancella il messaggio; se non e' dell'app, lo marca come eliminato nel thread."""
+        try:
+            response = self.delete_message(channel, timestamp)
+            return {"ok": True, "action": "deleted", "delete_response": response}
+        except Exception as delete_error:
+            logger.info(
+                "Slack message not deletable, applying marker fallback channel=%s ts=%s",
+                channel,
+                timestamp,
+            )
+
+        comment_error = None
+        reaction_error = None
+        try:
+            self.post_message(
+                channel,
+                f"Ordine eliminato dalla bacheca da {deleted_by or 'operatore LDApp'}.",
+                thread_ts=timestamp,
+            )
+        except Exception as exc:
+            comment_error = exc
+            logger.exception("Slack delete fallback comment failed channel=%s ts=%s", channel, timestamp)
+
+        try:
+            self.add_reaction(channel, timestamp, "wastebasket")
+        except Exception as exc:
+            reaction_error = exc
+            logger.exception("Slack delete fallback reaction failed channel=%s ts=%s", channel, timestamp)
+
+        if comment_error and reaction_error:
+            raise RuntimeError(
+                f"messaggio non cancellabile; commento e reaction non applicati: {comment_error}; {reaction_error}"
+            )
+        return {
+            "ok": True,
+            "action": "marked_deleted",
+            "comment_added": comment_error is None,
+            "reaction_added": reaction_error is None,
+            "warning": str(comment_error or reaction_error) if (comment_error or reaction_error) else None,
+        }
+
     def get_permalink(self, channel: str, message_ts: str) -> Optional[str]:
         """
         Ritorna il permalink di un messaggio (utile per mapping Trello <-> Slack).
