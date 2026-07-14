@@ -96,7 +96,44 @@
 }
 
 #menuTree .menu-node > .menu-tree:empty {
-  min-height: 8px;
+  min-height: 34px;
+  border: 1px dashed rgba(107, 63, 54, 0.2);
+  border-radius: 8px;
+}
+
+#menuTree .menu-node > .menu-tree:empty::before {
+  content: "Trascina qui per creare un sotto-menu";
+  display: block;
+  padding: 8px 10px;
+  color: rgba(74, 44, 42, 0.5);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+#menuTree .menu-tree-collapsed {
+  display: none;
+}
+
+#menuTree .menu-collapse-btn,
+#menuTree .menu-collapse-spacer {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+}
+
+#menuTree .menu-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: #6b3f36;
+}
+
+#menuTree .menu-collapse-btn:hover {
+  background: rgba(107, 63, 54, 0.1);
 }
 
 #menuTree .menu-row {
@@ -286,9 +323,17 @@
   pointer-events: auto !important;
 }
 
-.sortable-ghost .menu-row {
-  opacity: 0.62;
-  border-style: dashed;
+.menu-drop-placeholder {
+  min-height: 12px !important;
+  margin: 5px 0 !important;
+  border: 2px solid #0dcaf0 !important;
+  border-radius: 6px;
+  background: rgba(13, 202, 240, 0.18) !important;
+  overflow: hidden;
+}
+
+.menu-drop-placeholder > * {
+  visibility: hidden;
 }
 
 .sortable-chosen .menu-row {
@@ -296,7 +341,11 @@
 }
 
 .settings-config-modal {
-  z-index: 2100;
+  z-index: 5200 !important;
+}
+
+body.settings-menu-modal-open .modal-backdrop {
+  z-index: 5190 !important;
 }
 
 .settings-config-modal .modal-dialog {

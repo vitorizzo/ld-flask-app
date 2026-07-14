@@ -2286,3 +2286,10 @@ Performance apertura giornata Agenda 2026-06-13:
   - i messaggi generati da bot/app vengono esclusi dal dispatcher delle automazioni Slack dopo il side-effect ordini, evitando catene ricorsive;
   - se Slack o la pubblicazione in bacheca falliscono, la transazione ordine viene annullata e il cliente riceve un errore esplicito;
   - verifica con Slack simulato e DB in rollback: un post, collegamenti bacheca/Slack presenti, seconda pubblicazione idempotente, automazioni bot non eseguite.
+- 2026-07-14 badge gerarchici e gestione menu:
+  - il badge di `Servizio clienti` somma ora gli elementi da gestire presenti nei figli visibili `Assistenza LDApp` e `Attivazioni Horeca`;
+  - il polling staff aggiorna separatamente i conteggi assistenza/attivazioni e tutti i relativi antenati; endpoint disponibile da peso ruolo 40;
+  - l'albero `/settings/menus` e' collassabile e SortableJS e' attivo su ogni livello, incluse le liste figlie vuote, consentendo di trasformare una voce principale in sotto-menu;
+  - durante il drag viene mostrato un placeholder azzurro nel punto di inserimento e le liste vuote espongono una zona di rilascio esplicita;
+  - la modale menu viene spostata nel `body`, usa z-index dedicato sopra il backdrop globale e ripristina pulsante/stato su `shown.bs.modal` e `hidden.bs.modal`;
+  - verifiche: `py_compile`, `node --check` sui due script, `git diff --check`, GET home/menu/endpoint 200 e rendering reale del badge aggregato `activation,support`.

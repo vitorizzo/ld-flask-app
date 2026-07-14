@@ -419,9 +419,20 @@ def support_tickets():
 
 @settings_bp.get("/support-tickets/unread-count")
 @login_required
-@role_required(900)
+@role_required(40)
 def support_tickets_unread_count():
-    return {"ok": True, "unread_count": support_unread_count()}
+    support_count = support_unread_count()
+    activation_count = SupportTicket.query.filter(
+        SupportTicket.ticket_type == "horeca_activation",
+        SupportTicket.status.notin_(["closed", "activated"]),
+    ).count()
+    return {
+        "ok": True,
+        "unread_count": support_count,
+        "support_count": support_count,
+        "activation_count": activation_count,
+        "total_count": support_count + activation_count,
+    }
 
 
 @settings_bp.route("/support-tickets/<int:ticket_id>", methods=["GET", "POST"])

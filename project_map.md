@@ -45,6 +45,13 @@ Nel flusso Codex locale la lettura avviene direttamente dai file del repository,
 - Blueprint: /routes
 - Form: /forms
 
+## Menu applicativi
+
+- albero DB-driven tramite `Menu.parent_id` e `sort_order`, gestito da `/settings/menus`;
+- editor gerarchico con drag/drop tra tutti i livelli, placeholder di inserimento, zone figlio vuote e rami collassabili;
+- `reorder_menus` salva contestualmente ordine e nuovo `parent_id`, con controllo dei cicli;
+- i badge dei menu figli vengono aggregati ricorsivamente sugli antenati visibili; `Servizio clienti` espone la somma di `Assistenza LDApp` e `Attivazioni Horeca`.
+
 ---
 
 # MODULO EVENTI

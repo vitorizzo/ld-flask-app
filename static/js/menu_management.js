@@ -8,6 +8,7 @@ if (window.__menuMgmtInitDone) {
   let modalSubmitting = false;
   let sortables = [];
   let hasPendingApply = false;
+  const collapsedMenuIds = new Set();
 
   async function fetchMenuStructure() {
     const res = await fetch("/settings/get_menu_structure", { credentials: "same-origin" });
@@ -139,6 +140,7 @@ if (window.__menuMgmtInitDone) {
       const title = isSeparator ? "Separatore" : escapeHtml(n.name ?? "");
       const route = !isSeparator && n.route ? escapeHtml(n.route) : "";
       const childCount = Array.isArray(n.children) ? n.children.length : 0;
+      const isCollapsed = collapsedMenuIds.has(Number(n.id));
       const statusBadges = [
         isSeparator ? `<span class="badge text-bg-secondary">separatore</span>` : "",
         isVisible ? "" : `<span class="badge text-bg-warning">nascosto</span>`,
@@ -150,6 +152,8 @@ if (window.__menuMgmtInitDone) {
           <span class="menu-handle" title="Trascina per riordinare">
             <i class="fa-solid fa-grip-vertical"></i>
           </span>
+
+          ${childCount ? `<button type="button" class="menu-collapse-btn" data-action="toggle-collapse" data-id="${n.id}" aria-expanded="${isCollapsed ? "false" : "true"}" title="${isCollapsed ? "Espandi" : "Comprimi"}"><i class="fa-solid fa-chevron-${isCollapsed ? "right" : "down"}"></i></button>` : `<span class="menu-collapse-spacer"></span>`}
 
           <span class="menu-node-title menu-title">
             <span class="menu-title-main">
@@ -188,7 +192,10 @@ if (window.__menuMgmtInitDone) {
         </div>
       `;
 
-      li.appendChild(renderTree(n.children || []));
+      const childTree = renderTree(n.children || []);
+      childTree.dataset.parentId = n.id;
+      childTree.classList.toggle("menu-tree-collapsed", isCollapsed);
+      li.appendChild(childTree);
       ul.appendChild(li);
     });
 
@@ -202,15 +209,18 @@ if (window.__menuMgmtInitDone) {
 
   function initSortable(root) {
     destroySortables();
-    const rootUl = root.querySelector(":scope > .menu-tree");
-    if (!rootUl) return;
-    [rootUl].forEach(ul => {
+    const lists = root.querySelectorAll(".menu-tree");
+    lists.forEach(ul => {
       const s = new Sortable(ul, {
-        group: { name: "menus-root", pull: true, put: true },
+        group: { name: "menus", pull: true, put: true },
         animation: 150,
         handle: ".menu-handle",
         fallbackOnBody: true,
+        emptyInsertThreshold: 28,
         swapThreshold: 0.65,
+        ghostClass: "menu-drop-placeholder",
+        chosenClass: "menu-drag-chosen",
+        dragClass: "menu-dragging",
         onMove(evt) {
           return !evt.dragged.contains(evt.related);
         },
@@ -267,6 +277,18 @@ if (window.__menuMgmtInitDone) {
 
       const id = Number(actionEl.dataset.id);
       const action = actionEl.dataset.action;
+
+      if (action === "toggle-collapse") {
+        if (collapsedMenuIds.has(id)) collapsedMenuIds.delete(id);
+        else collapsedMenuIds.add(id);
+        const node = actionEl.closest(".menu-node");
+        const childTree = node?.querySelector(":scope > .menu-tree");
+        childTree?.classList.toggle("menu-tree-collapsed", collapsedMenuIds.has(id));
+        actionEl.setAttribute("aria-expanded", collapsedMenuIds.has(id) ? "false" : "true");
+        const icon = actionEl.querySelector("i");
+        if (icon) icon.className = `fa-solid fa-chevron-${collapsedMenuIds.has(id) ? "right" : "down"}`;
+        return;
+      }
 
       if (action === "add-child") {
         openModal({ mode: "add-child", parentId: id });
@@ -423,6 +445,11 @@ if (window.__menuMgmtInitDone) {
       e.stopPropagation();
       if (modalSubmitting) return;
       modalSubmitting = true;
+      const submitButton = document.getElementById("mm_submit");
+      if (submitButton) {
+        submitButton.disabled = true;
+        submitButton.textContent = "Salvataggio...";
+      }
 
       const id = (document.getElementById("mm_menu_id").value || "").trim();
       const parentIdRaw = (document.getElementById("mm_parent_id").value || "").trim();
@@ -449,6 +476,10 @@ if (window.__menuMgmtInitDone) {
         alert(err.message || "Errore salvataggio menu");
       } finally {
         modalSubmitting = false;
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = "Salva";
+        }
       }
     });
   }
@@ -461,9 +492,26 @@ if (window.__menuMgmtInitDone) {
     if (modalEl && modalEl.parentElement !== document.body) {
       document.body.appendChild(modalEl);
     }
+    modalEl?.addEventListener("show.bs.modal", () => {
+      document.body.classList.add("settings-menu-modal-open");
+    });
     modalEl?.addEventListener("shown.bs.modal", () => {
+      const submit = modalEl.querySelector("#mm_submit");
+      if (submit) {
+        submit.disabled = false;
+        submit.textContent = "Salva";
+      }
       const first = modalEl.querySelector("#mm_name:not(:disabled), #mm_item_type:not(:disabled), input:not([type='hidden']):not(:disabled), select:not(:disabled)");
       first?.focus();
+    });
+    modalEl?.addEventListener("hidden.bs.modal", () => {
+      document.body.classList.remove("settings-menu-modal-open");
+      modalSubmitting = false;
+      const submit = modalEl.querySelector("#mm_submit");
+      if (submit) {
+        submit.disabled = false;
+        submit.textContent = "Salva";
+      }
     });
 
     bindActions(host);

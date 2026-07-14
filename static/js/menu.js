@@ -29,12 +29,17 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    function updateSupportUnreadBadge(count) {
-        var value = Number(count || 0);
-        document.querySelectorAll("[data-support-unread-badge]").forEach(function (badge) {
+    function updateStaffMenuBadges(payload) {
+        document.querySelectorAll("[data-menu-badge-sources]").forEach(function (badge) {
+            var sources = (badge.dataset.menuBadgeSources || "").split(",").filter(Boolean);
+            var value = sources.reduce(function (total, source) {
+                if (source === "support") return total + Number(payload.support_count || 0);
+                if (source === "activation") return total + Number(payload.activation_count || 0);
+                return total;
+            }, 0);
             badge.textContent = value > 99 ? "99+" : String(value);
             badge.hidden = value <= 0;
-            badge.setAttribute("aria-label", value + " nuovi messaggi");
+            badge.setAttribute("aria-label", value + " elementi da gestire");
         });
     }
 
@@ -44,7 +49,7 @@ document.addEventListener("DOMContentLoaded", function () {
         try {
             var response = await fetch(navbar.dataset.supportUnreadUrl, {headers: {"Accept": "application/json"}});
             var payload = await response.json();
-            if (response.ok && payload.ok) updateSupportUnreadBadge(payload.unread_count);
+            if (response.ok && payload.ok) updateStaffMenuBadges(payload);
         } catch (exc) {
             console.debug("Conteggio assistenza non disponibile", exc);
         }

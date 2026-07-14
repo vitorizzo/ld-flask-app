@@ -15,7 +15,7 @@ from extensions import db, mail
 from routes.automations_v2 import automations_v2_bp
 from routes.kiosk import kiosk_bp
 from tools.log_utils import get_logger
-from models import User, Menu, PasswordResetToken
+from models import User, Menu, PasswordResetToken, SupportTicket
 from routes.tools import get_user_menu
 from tools.preferences import PREFERENCE_DEFINITIONS, load_preferences_into_app_config
 
@@ -322,6 +322,21 @@ def create_app():
 
                 children_tree = build_menu_tree(children, all_menus, user_role_weight)
 
+                own_badge_sources = []
+                own_badge_count = 0
+                if node.route == "/settings/support-tickets":
+                    own_badge_sources.append("support")
+                    own_badge_count = support_badge_count
+                elif node.route == "/settings/horeca-activations":
+                    own_badge_sources.append("activation")
+                    own_badge_count = activation_badge_count
+                child_badge_sources = {
+                    source
+                    for child in children_tree
+                    for source in child.get("badge_sources", [])
+                }
+                badge_sources = sorted(set(own_badge_sources) | child_badge_sources)
+
                 result.append({
                     "id": node.id,
                     "name": node.name,
@@ -330,13 +345,24 @@ def create_app():
                     "is_active": node.is_active,
                     "is_visible": node.is_visible,
                     "item_type": node.item_type,
-                    "badge_count": support_badge_count if node.route == "/settings/support-tickets" else 0,
+                    "badge_count": own_badge_count + sum(child.get("badge_count", 0) for child in children_tree),
+                    "badge_sources": badge_sources,
                     "children": children_tree
                 })
             return result
 
         user_role_weight = current_user.max_role_weight if current_user.is_authenticated else 0
         support_badge_count = 0
+        activation_badge_count = 0
+        if current_user.is_authenticated and user_role_weight >= 40:
+            try:
+                activation_badge_count = SupportTicket.query.filter(
+                    SupportTicket.ticket_type == "horeca_activation",
+                    SupportTicket.status.notin_(["closed", "activated"]),
+                ).count()
+            except SQLAlchemyError:
+                db.session.rollback()
+                logger.exception("inject_menus: activation count unavailable")
         if current_user.is_authenticated and user_role_weight >= 900:
             try:
                 from tools.support_tickets import support_unread_count
