@@ -1676,6 +1676,12 @@ class SlackOrder(db.Model):
     document_issued_at = db.Column(db.DateTime, nullable=True)
 
     route = db.relationship("DeliveryRoute", backref="orders")
+    events = db.relationship(
+        "SlackOrderEvent",
+        back_populates="order",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     __table_args__ = (
         db.Index(
@@ -1708,7 +1714,7 @@ class SlackOrderEvent(db.Model):
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    order = db.relationship("SlackOrder", backref="events")
+    order = db.relationship("SlackOrder", back_populates="events")
 
 
 class OrderStatus(db.Model):

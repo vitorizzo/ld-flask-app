@@ -518,16 +518,41 @@ def support_ticket_detail(ticket_id):
             flash(f"Impossibile inviare la risposta: {exc}", "danger")
         return redirect(url_for("settings.support_ticket_detail", ticket_id=ticket.id))
 
-    registries = []
-    if ticket.ticket_type == "horeca_activation":
-        registries = (
-            BusinessRegistry.query
-            .filter(BusinessRegistry.kind == "customer", BusinessRegistry.is_active.is_(True))
-            .order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc())
-            .limit(500)
-            .all()
-        )
-    return render_template("settings/support_ticket_detail.html", ticket=ticket, registries=registries)
+    return render_template("settings/support_ticket_detail.html", ticket=ticket)
+
+
+@settings_bp.get("/api/customer-registries/search")
+@login_required
+@role_required(40)
+def customer_registries_search():
+    query_text = (request.args.get("q") or "").strip()
+    query = BusinessRegistry.query.filter(
+        BusinessRegistry.kind == "customer",
+        BusinessRegistry.is_active.is_(True),
+    )
+    if query_text:
+        pattern = f"%{query_text}%"
+        query = query.filter(or_(
+            BusinessRegistry.display_name.ilike(pattern),
+            BusinessRegistry.legal_name.ilike(pattern),
+            BusinessRegistry.source_code.ilike(pattern),
+            BusinessRegistry.vat_number.ilike(pattern),
+        ))
+    registries = query.order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc()).limit(50).all()
+    return jsonify({
+        "ok": True,
+        "items": [
+            {
+                "id": registry.id,
+                "label": (
+                    (registry.display_name or registry.legal_name or f"Cliente #{registry.id}")
+                    + (f" - {registry.source_code}" if registry.source_code else "")
+                    + (f" [ID {registry.id}]" )
+                ),
+            }
+            for registry in registries
+        ],
+    })
 
 
 @settings_bp.get("/horeca-activations")
@@ -542,14 +567,7 @@ def horeca_activations():
         .limit(200)
         .all()
     )
-    registries = (
-        BusinessRegistry.query
-        .filter(BusinessRegistry.kind == "customer", BusinessRegistry.is_active.is_(True))
-        .order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc())
-        .limit(500)
-        .all()
-    )
-    return render_template("settings/horeca_activations.html", tickets=tickets, registries=registries)
+    return render_template("settings/horeca_activations.html", tickets=tickets)
 
 
 @settings_bp.post("/horeca-activations/<int:ticket_id>/activate")

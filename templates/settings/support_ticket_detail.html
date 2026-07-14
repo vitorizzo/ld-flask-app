@@ -72,14 +72,10 @@
             <div class="card-body">
               <h2 class="h5">Attiva Horeca</h2>
               <form method="post" action="{{ url_for('settings.activate_horeca', ticket_id=ticket.id) }}" class="d-grid gap-2">
-                <select class="form-select" name="registry_id" required>
-                  <option value="">Seleziona cliente</option>
-                  {% for registry in registries %}
-                    <option value="{{ registry.id }}" {% if ticket.user and ticket.user.customer_registry_id == registry.id %}selected{% endif %}>
-                      {{ registry.display_name or registry.legal_name }}{% if registry.source_code %} - {{ registry.source_code }}{% endif %}
-                    </option>
-                  {% endfor %}
-                </select>
+                {% set lookup_id = 'ticket-registry-' ~ ticket.id %}
+                {% set selected_registry = ticket.user.customer_registry if ticket.user else none %}
+                {% set lookup_disabled = false %}
+                {% include 'settings/_customer_registry_lookup.html' %}
                 <textarea class="form-control" name="body" rows="4">La tua richiesta di attivazione Horeca e' stata approvata.
 Da questo momento puoi accedere ai servizi Horeca disponibili in LDApp.</textarea>
                 <button class="btn btn-info" type="submit">Associa e attiva</button>
@@ -118,4 +114,8 @@ Da questo momento puoi accedere ai servizi Horeca disponibili in LDApp.</textare
     </div>
   </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+  <script src="{{ url_for('static', filename='js/customer_registry_lookup.js') }}"></script>
 {% endblock %}

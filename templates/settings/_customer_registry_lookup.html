@@ -1,0 +1,15 @@
+<div class="customer-registry-lookup" data-search-url="{{ url_for('settings.customer_registries_search') }}" data-selected-id="{{ selected_registry.id if selected_registry else '' }}">
+  <input type="hidden" name="registry_id" value="{{ selected_registry.id if selected_registry else '' }}">
+  <input
+    class="form-control customer-registry-lookup-input"
+    type="search"
+    list="{{ lookup_id }}-options"
+    autocomplete="off"
+    placeholder="Cerca per ragione sociale, codice cliente o partita IVA"
+    value="{% if selected_registry %}{{ selected_registry.display_name or selected_registry.legal_name }}{% if selected_registry.source_code %} - {{ selected_registry.source_code }}{% endif %} [ID {{ selected_registry.id }}]{% endif %}"
+    {% if lookup_disabled %}disabled{% endif %}
+    required
+  >
+  <datalist id="{{ lookup_id }}-options"></datalist>
+  <div class="form-text">La ricerca viene eseguita su tutte le anagrafiche clienti attive.</div>
+</div>

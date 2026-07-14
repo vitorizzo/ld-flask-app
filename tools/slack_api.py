@@ -202,16 +202,62 @@ class SlackAPI:
             logger.exception("Errore inatteso in SlackAPI.delete_message")
             raise
 
+    def get_thread_replies(self, channel: str, timestamp: str) -> list[Dict[str, Any]]:
+        """Legge tutti i messaggi del thread, inclusa la radice."""
+        messages: list[Dict[str, Any]] = []
+        cursor = None
+        while True:
+            kwargs = {"channel": channel, "ts": timestamp, "limit": 200}
+            if cursor:
+                kwargs["cursor"] = cursor
+            resp = self.client.conversations_replies(**kwargs)
+            data = resp.data if hasattr(resp, "data") else dict(resp)
+            messages.extend(data.get("messages") or [])
+            cursor = ((data.get("response_metadata") or {}).get("next_cursor") or "").strip()
+            if not cursor:
+                return messages
+
+    def delete_thread(self, channel: str, timestamp: str) -> Dict[str, Any]:
+        """Cancella prima le risposte dell'app e infine il messaggio radice."""
+        identity = self.auth_test()
+        bot_user_id = identity.get("user_id")
+        bot_id = identity.get("bot_id")
+        replies = self.get_thread_replies(channel, timestamp)
+        foreign_replies = []
+        owned_replies = []
+        for message in replies:
+            message_ts = message.get("ts")
+            if not message_ts or message_ts == timestamp:
+                continue
+            is_owned = (
+                (bot_user_id and message.get("user") == bot_user_id)
+                or (bot_id and message.get("bot_id") == bot_id)
+            )
+            (owned_replies if is_owned else foreign_replies).append(message_ts)
+
+        if foreign_replies:
+            raise RuntimeError("il thread contiene risposte pubblicate da altri utenti")
+
+        for reply_ts in reversed(owned_replies):
+            self.delete_message(channel, reply_ts)
+        response = self.delete_message(channel, timestamp)
+        return {
+            "ok": True,
+            "action": "deleted",
+            "deleted_replies": len(owned_replies),
+            "delete_response": response,
+        }
+
     def delete_or_mark_message(self, channel: str, timestamp: str, deleted_by: str) -> Dict[str, Any]:
-        """Cancella il messaggio; se non e' dell'app, lo marca come eliminato nel thread."""
+        """Cancella tutto il thread dell'app; se non e' possibile, lo marca come eliminato."""
         try:
-            response = self.delete_message(channel, timestamp)
-            return {"ok": True, "action": "deleted", "delete_response": response}
+            return self.delete_thread(channel, timestamp)
         except Exception as delete_error:
             logger.info(
-                "Slack message not deletable, applying marker fallback channel=%s ts=%s",
+                "Slack thread not fully deletable, applying marker fallback channel=%s ts=%s error=%s",
                 channel,
                 timestamp,
+                delete_error,
             )
 
         comment_error = None

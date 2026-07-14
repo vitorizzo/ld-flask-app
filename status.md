@@ -2307,3 +2307,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - `SlackAPI.delete_or_mark_message()` tenta prima la cancellazione reale e, se rifiutata, inserisce nel thread `Ordine eliminato dalla bacheca da <operatore>` e applica `:wastebasket:` al messaggio radice;
   - fallback condiviso dai percorsi di cancellazione Kiosk e bacheca ordini; la cancellazione locale continua e la UI informa l'operatore quando Slack e' stato soltanto contrassegnato;
   - test simulati: messaggio del bot cancellato senza marker; messaggio non eliminabile marcato con commento nel thread e reaction corretti.
+  - corretto il successivo HTTP 500 nella cancellazione locale: gli eventi `SlackOrderEvent` vengono ora eliminati in cascata dall'ORM, senza tentare di impostare a `NULL` la loro chiave obbligatoria; entrambi gli endpoint eseguono rollback e restituiscono un errore esplicito se il commit locale fallisce.
+  - la cancellazione Slack legge ora l'intero thread e rimuove prima le risposte/allegati pubblicati dall'app, quindi il messaggio radice; in presenza di risposte di altri autori non elimina la radice e applica invece commento e reaction, evitando allegati orfani.
+- 2026-07-14 associazione attivazioni Horeca:
+  - rimosso il limite statico delle prime 500 anagrafiche nelle pagine elenco e dettaglio ticket;
+  - aggiunto lookup server-side sull'intero archivio clienti attivi per denominazione, ragione sociale, codice cliente e partita IVA, con selezione obbligatoria di un risultato valido;
+  - verifica DB su 2.002 clienti attivi: trovato correttamente tramite codice un cliente in posizione 701, oltre il vecchio limite; verificati template, JavaScript, Python e `git diff --check`.

@@ -1386,7 +1386,12 @@ def delete_order(order_id: int):
     for entry in entries:
         db.session.delete(entry)
     db.session.delete(order)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("[KIOSK] Local order delete failed order_id=%s", order_id)
+        return jsonify({"ok": False, "error": "Eliminazione locale dell'ordine non riuscita"}), 500
 
     payload = {"ok": True, "slack_action": slack_action}
     if slack_warning:

@@ -1184,7 +1184,7 @@
       if (button.dataset.action === "cancel") { if (!confirm("Annullare l'ordine?")) return; if (!customer.entry || !customer.entry.id) await saveEntry(customerId, {}); const fresh = customerById(customerId); await api(`/route-orders/api/entries/${fresh.entry.id}/cancel`, { method: "POST", body: "{}" }); await loadBoard(selectedRouteId()); }
       if (button.dataset.action === "order-associate") { await openAssociateOrderModal(button.dataset.orderId); }
       if (button.dataset.action === "order-attach") { const input = document.createElement("input"); input.type = "file"; input.multiple = true; input.onchange = async () => { await uploadFiles(`/route-orders/api/orders/${button.dataset.orderId}/attachments`, input.files); await loadBoard(selectedRouteId()); }; input.click(); }
-      if (button.dataset.action === "order-delete") { if (!confirm("Eliminare l'ordine da plancia, bacheca e Slack?")) return; const result = await api(`/kiosk/api/order/${button.dataset.orderId}`, { method: "DELETE" }); if (result.slack_action === "marked_deleted") alert("Il messaggio Slack appartiene a un altro autore: e' stato contrassegnato come eliminato con commento e reaction."); await loadBoard(selectedRouteId()); }
+      if (button.dataset.action === "order-delete") { if (!confirm("Eliminare l'ordine da plancia, bacheca e Slack?")) return; const result = await api(`/kiosk/api/order/${button.dataset.orderId}`, { method: "DELETE" }); if (result.slack_action === "marked_deleted") alert("Il thread Slack non puo' essere eliminato completamente: e' stato contrassegnato come eliminato con commento e reaction."); await loadBoard(selectedRouteId()); }
     } catch (err) { alert(err.message); }
   });
 
@@ -1290,7 +1290,7 @@
       if (button.dataset.action === "order-delete") {
         if (!confirm("Eliminare l'ordine da plancia, bacheca e Slack?")) return;
         const result = await api(`/kiosk/api/order/${button.dataset.orderId}`, { method: "DELETE" });
-        if (result.slack_action === "marked_deleted") alert("Il messaggio Slack appartiene a un altro autore: e' stato contrassegnato come eliminato con commento e reaction.");
+        if (result.slack_action === "marked_deleted") alert("Il thread Slack non puo' essere eliminato completamente: e' stato contrassegnato come eliminato con commento e reaction.");
         await loadDirectOrders();
       }
     } catch (err) { alert(err.message); }

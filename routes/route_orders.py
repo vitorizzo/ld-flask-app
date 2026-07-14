@@ -1422,7 +1422,12 @@ def api_delete_order(entry_id):
     for linked_entry in linked_entries:
         db.session.delete(linked_entry)
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Local order delete failed entry_id=%s", entry_id)
+        return jsonify({"ok": False, "error": "Eliminazione locale dell'ordine non riuscita"}), 500
     payload = {"ok": True, "slack_action": slack_action}
     if slack_warning:
         payload["warning"] = slack_warning
