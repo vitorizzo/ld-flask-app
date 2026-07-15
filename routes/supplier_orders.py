@@ -102,6 +102,7 @@ def _expanded_articles_for_group(group: SupplierOrderGroup) -> list[dict]:
 @supplier_orders_bp.get("/")
 @role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
 def index():
+    active_group_id = request.args.get("group_id", type=int)
     groups = (
         SupplierOrderGroup.query
         .order_by(SupplierOrderGroup.is_active.desc(), SupplierOrderGroup.name.asc())
@@ -117,6 +118,7 @@ def index():
     return render_template(
         "supplier_orders/index.html",
         group_cards=group_cards,
+        active_group_id=active_group_id,
     )
 
 

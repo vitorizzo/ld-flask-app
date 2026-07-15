@@ -59,6 +59,12 @@ Nel flusso Codex locale la lettura avviene direttamente dai file del repository,
 - migration `3d4e5f607182_add_cash_customer_registry_links.py` con backfill deterministico per codice cliente e, in fallback, P.IVA univoca;
 - il resolver `/cassa/api/customers/resolve-registry` consulta prima il link persistente e non sceglie arbitrariamente in presenza di match multipli.
 
+## Ordini fornitori
+
+- `routes/supplier_orders.py` gestisce gruppi fornitore, articoli espliciti e lookup remoto sul catalogo;
+- `templates/supplier_orders/index.html`, `static/js/supplier_orders.js` e `static/css/supplier_orders.css` espongono gestione e consultazione giacenze in modali dedicate;
+- le modali vengono spostate nel `body` e aperte manualmente sopra il backdrop globale; `?group_id=<id>` riapre automaticamente il gruppo interessato e porta il focus alla ricerca prodotti.
+
 ---
 
 # MODULO EVENTI

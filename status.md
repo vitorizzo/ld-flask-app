@@ -2313,3 +2313,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - rimosso il limite statico delle prime 500 anagrafiche nelle pagine elenco e dettaglio ticket;
   - aggiunto lookup server-side sull'intero archivio clienti attivi per denominazione, ragione sociale, codice cliente e partita IVA, con selezione obbligatoria di un risultato valido;
   - verifica DB su 2.002 clienti attivi: trovato correttamente tramite codice un cliente in posizione 701, oltre il vecchio limite; verificati template, JavaScript, Python e `git diff --check`.
+- 2026-07-15 revisione gestione gruppi ordini fornitori:
+  - risolto il fuori fuoco delle modali: il backdrop globale e' a quota `12040`, quindi le modali fornitori vengono ora portate nel `body`, aperte tramite istanza Bootstrap esplicita e posizionate a `12110` con backdrop dedicato a `12100`;
+  - resa evidente l'azione `Gestisci prodotti` e rinominata la sezione di ricerca in `Aggiungi prodotti al gruppo`, con istruzioni e validazione che obbliga a scegliere un risultato valido;
+  - il `group_id` gia' presente nei redirect viene ora letto: dopo creazione/modifica/aggiunta la modale si riapre, il gruppo interessato resta espanso e il focus torna alla ricerca prodotti;
+  - aggiunta gestione leggibile degli errori del lookup articoli e reset coerente dei pulsanti/risultati nei lifecycle `show/shown/hidden`;
+  - verifiche: pagina autorizzata 200 con gruppo richiesto aperto, lookup reale 200/20 risultati, template compilato, `node --check`, `py_compile`, `git diff --check`.

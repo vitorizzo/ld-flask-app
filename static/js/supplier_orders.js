@@ -57,22 +57,36 @@
         render([]);
         return;
       }
-      const response = await fetch(`/supplier-orders/api/articles?q=${encodeURIComponent(q)}`, {
-        credentials: "same-origin",
-        headers: { Accept: "application/json" },
-      });
-      if (!response.ok) {
+      try {
+        const response = await fetch(`/supplier-orders/api/articles?q=${encodeURIComponent(q)}`, {
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const payload = await response.json();
+        render(payload.items || []);
+      } catch (error) {
         render([]);
-        return;
+        results.textContent = "Ricerca prodotti non disponibile. Riprova.";
+        results.classList.add("is-open", "is-error");
+        console.error("Supplier article search failed", error);
       }
-      const payload = await response.json();
-      render(payload.items || []);
     }
 
     input.addEventListener("input", () => {
+      results.classList.remove("is-error");
       window.clearTimeout(timer);
       timer = window.setTimeout(search, 220);
     });
+
+    form.addEventListener("submit", (event) => {
+      if (codeInput.value) return;
+      event.preventDefault();
+      input.setCustomValidity("Seleziona un prodotto dai risultati della ricerca.");
+      input.reportValidity();
+    });
+
+    input.addEventListener("input", () => input.setCustomValidity(""));
   }
 
   function setupSilentGroupSearch() {
@@ -117,15 +131,32 @@
   }
 
   function setupSupplierModals() {
+    const instances = new Map();
     document.querySelectorAll(".supplier-orders-modal").forEach((modal) => {
       if (modal.parentElement !== document.body) {
         document.body.appendChild(modal);
       }
+      instances.set(`#${modal.id}`, bootstrap.Modal.getOrCreateInstance(modal));
+
+      modal.addEventListener("show.bs.modal", () => {
+        document.body.classList.add("supplier-orders-modal-open");
+        modal.querySelectorAll('form:not(.supplier-article-add) button[type="submit"]').forEach((button) => {
+          button.disabled = false;
+        });
+        modal.querySelectorAll(".supplier-add-article-btn").forEach((button) => {
+          const form = button.closest(".supplier-article-add");
+          button.disabled = !form?.querySelector(".supplier-article-code")?.value;
+        });
+      });
 
       modal.addEventListener("shown.bs.modal", () => {
-        document.body.classList.add("supplier-orders-modal-open");
-        const submitBtn = modal.querySelector('button[type="submit"]');
-        if (submitBtn) submitBtn.disabled = false;
+        const requestedGroup = modal.querySelector(".supplier-manage-group[open]");
+        if (requestedGroup) {
+          requestedGroup.scrollIntoView({ block: "start" });
+          requestedGroup.querySelector(".supplier-article-search-input")?.focus();
+          return;
+        }
+        modal.querySelector("input:not([type='hidden']), button:not(.btn-close)")?.focus();
       });
 
       modal.addEventListener("hidden.bs.modal", () => {
@@ -133,7 +164,7 @@
           document.body.classList.remove("supplier-orders-modal-open");
         }
         modal.querySelectorAll(".supplier-search-results.is-open").forEach((node) => {
-          node.classList.remove("is-open");
+          node.classList.remove("is-open", "is-error");
         });
         modal.querySelectorAll(".supplier-article-code").forEach((node) => {
           node.value = "";
@@ -143,6 +174,16 @@
         });
       });
     });
+
+    document.querySelectorAll("[data-supplier-modal-target]").forEach((trigger) => {
+      trigger.addEventListener("click", () => {
+        const instance = instances.get(trigger.dataset.supplierModalTarget);
+        if (instance) instance.show();
+      });
+    });
+
+    const requestedGroup = document.querySelector("#supplierGroupModal .supplier-manage-group[open]");
+    if (requestedGroup) instances.get("#supplierGroupModal")?.show();
   }
 
   setupSupplierModals();

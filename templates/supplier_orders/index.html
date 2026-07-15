@@ -3,7 +3,7 @@
 {% block title %}Ordini fornitori{% endblock %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_orders.css', v=app_version ~ '-draft4') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_orders.css', v=app_version ~ '-draft5') }}">
 {% endblock %}
 
 {% block content %}
@@ -14,7 +14,7 @@
         <h1>Ordini fornitori</h1>
         <p class="text-muted mb-0">Seleziona un gruppo per consultare le giacenze.</p>
       </div>
-      <button class="btn btn-info" type="button" data-bs-toggle="modal" data-bs-target="#supplierGroupModal">
+      <button class="btn btn-info" type="button" data-supplier-modal-target="#supplierGroupModal">
         <i class="fa-solid fa-layer-group me-1"></i>Definisci Gruppo
       </button>
     </div>
@@ -32,8 +32,7 @@
             class="supplier-group-link"
             type="button"
             data-group-name="{{ group.name|lower }}"
-            data-bs-toggle="modal"
-            data-bs-target="#supplierStockModal{{ group.id }}"
+            data-supplier-modal-target="#supplierStockModal{{ group.id }}"
           >
             <span>{{ group.name }}</span>
             <small>{{ group.items|length }} articoli · {{ card.operational_rows|length }} groupage</small>
@@ -71,12 +70,18 @@
         </form>
 
         <div class="supplier-manage-list">
+          {% if group_cards %}
+            <p class="text-muted mb-0">Apri un gruppo per modificarne i dati, cercare prodotti e aggiungerli all'ordine fornitore.</p>
+          {% endif %}
           {% for card in group_cards %}
             {% set group = card.group %}
-            <details class="supplier-orders-panel supplier-manage-group">
+            <details class="supplier-orders-panel supplier-manage-group" data-group-id="{{ group.id }}" {% if active_group_id == group.id %}open{% endif %}>
               <summary>
-                <strong>{{ group.name }}</strong>
-                <span>{{ group.items|length }} articoli</span>
+                <span>
+                  <strong>{{ group.name }}</strong>
+                  <small>{{ group.items|length }} articoli</small>
+                </span>
+                <span class="supplier-manage-action"><i class="fa-solid fa-boxes-stacked"></i> Gestisci prodotti</span>
               </summary>
 
               <form method="post" action="{{ url_for('supplier_orders.update_group', group_id=group.id) }}" class="supplier-group-edit">
@@ -87,12 +92,13 @@
               </form>
 
               <form class="supplier-article-add" method="post" action="{{ url_for('supplier_orders.add_item', group_id=group.id) }}">
-                <label class="form-label" for="supplierArticleSearch{{ group.id }}">Aggiungi articolo</label>
+                <label class="form-label" for="supplierArticleSearch{{ group.id }}"><strong>Aggiungi prodotti al gruppo</strong></label>
                 <div class="supplier-article-search">
                   <input class="form-control supplier-article-search-input" id="supplierArticleSearch{{ group.id }}" autocomplete="off" placeholder="Cerca codice o descrizione">
                   <input type="hidden" name="cod_art" class="supplier-article-code">
                   <button class="btn btn-info supplier-add-article-btn" type="submit" disabled>Aggiungi</button>
                 </div>
+                <div class="form-text">Digita almeno due caratteri e seleziona un prodotto dai risultati.</div>
                 <div class="supplier-search-results"></div>
               </form>
 
@@ -177,5 +183,5 @@
 {% endblock %}
 
 {% block extra_js %}
-  <script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-draft4') }}"></script>
+  <script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-draft5') }}"></script>
 {% endblock %}

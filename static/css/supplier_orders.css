@@ -132,6 +132,24 @@
   list-style: none;
 }
 
+.supplier-manage-group summary > span:first-child small {
+  display: block;
+  color: #6c757d;
+  font-weight: 400;
+}
+
+.supplier-manage-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: #087990;
+  background: rgba(13, 202, 240, 0.12);
+  font-size: .86rem;
+  font-weight: 700;
+}
+
 .supplier-manage-group summary::-webkit-details-marker {
   display: none;
 }
@@ -149,11 +167,11 @@
 
 .supplier-orders-modal.modal,
 .supplier-orders-modal.modal.show {
-  z-index: 2110;
+  z-index: 12110 !important;
 }
 
 body.supplier-orders-modal-open .modal-backdrop.show {
-  z-index: 2100;
+  z-index: 12100 !important;
 }
 
 .supplier-orders-modal .modal-header {
@@ -188,6 +206,12 @@ body.supplier-orders-modal-open .modal-backdrop.show {
 
 .supplier-search-results.is-open {
   display: grid;
+}
+
+.supplier-search-results.is-error {
+  padding: 10px 12px;
+  color: #842029;
+  background: #f8d7da;
 }
 
 .supplier-search-result {
