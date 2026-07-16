@@ -65,6 +65,8 @@ Nel flusso Codex locale la lettura avviene direttamente dai file del repository,
 - `templates/supplier_orders/index.html`, `static/js/supplier_orders.js` e `static/css/supplier_orders.css` espongono gestione e consultazione giacenze in modali dedicate;
 - la lista gruppi e' tabellare con consultazione per matrice/giacenza e azioni rapide di gestione prodotti, modifica ed eliminazione;
 - il gestore prodotti a doppio pannello usa `GET /supplier-orders/groups/<id>/items`, `POST /supplier-orders/groups/<id>/items/batch` e `/supplier-orders/api/articles` per ricerca e associazioni multiple;
+- `SupplierOrderMatrixName` (`supplier_order_matrix_names`, migration `4e5f60718293`) conserva il nome personalizzato per gruppo e codice matrice; `POST /supplier-orders/groups/<id>/matrix-name` salva o ripristina il titolo automatico;
+- le matrici articolo riconoscono suffissi annata a due o quattro cifre e usano come titolo automatico la descrizione completa della variante cronologicamente piu' recente;
 - le modali vengono spostate nel `body` e aperte manualmente sopra il backdrop globale; dopo la creazione `?group_id=<id>&modal=manage` apre automaticamente il gestore prodotti del nuovo gruppo.
 
 ---

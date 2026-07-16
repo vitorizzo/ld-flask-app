@@ -441,6 +441,18 @@ body.supplier-orders-modal-open .modal-backdrop.show {
   color: #2f211f;
 }
 
+.supplier-matrix-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.supplier-matrix-heading .btn {
+  flex: 0 0 auto;
+  padding: 0 4px;
+  color: #087990;
+}
+
 .supplier-stock {
   min-width: 88px;
   text-align: right;

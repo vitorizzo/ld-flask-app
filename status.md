@@ -2326,3 +2326,10 @@ Performance apertura giornata Agenda 2026-06-13:
   - il gestore prodotti usa due pannelli alfabetici: catalogo filtrato a sinistra e prodotti associati a destra, selezionabili con click o spazio; disponibili aggiunta/rimozione dei selezionati e operazioni massive sui risultati visibili/intero gruppo;
   - aggiunte API `GET /supplier-orders/groups/<id>/items` e `POST /supplier-orders/groups/<id>/items/batch`; descrizioni sempre composte da `descrizione` e `descrizione_aggiuntiva`;
   - test end-to-end con gruppi temporanei: creazione 302 verso gestore, pagina 200, aggiunta batch 1, lettura 1, rimozione batch 1, lettura 0, eliminazione 302 e zero residui; verificati template, JS, Python e diff.
+- 2026-07-16 fix refresh, matrici e titoli ordini fornitori:
+  - alla chiusura del gestore prodotti la pagina viene ricaricata soltanto se una modifica e' stata salvata, aggiornando conteggi e modali di consultazione;
+  - `_variant_root()` riconosce ora annate sia a due cifre (`-20`) sia a quattro (`-2020`); la variante piu' recente viene scelta con ordinamento cronologico del suffisso;
+  - introdotto `SupplierOrderMatrixName` e migration `4e5f60718293`, applicata al DB, per salvare un titolo personalizzato per coppia gruppo/codice matrice senza modificare articoli o matrice;
+  - la consultazione mostra codice matrice, numero varianti e comando di rinomina; nome vuoto rimuove l'override e ripristina la descrizione completa dell'ultima variante;
+  - test reale `VR075156`: una sola matrice con 8 varianti (`-14` ... `-23`), default `VINO MONTEPULCIANO 2023 75cl - CHRONICON - ZACCAGNINI`, rinomina persistita e reset con zero override residui;
+  - verificati migration, modello, route, template, JavaScript, Python e `git diff --check`.

@@ -78,6 +78,7 @@
   let groupItems = [];
   let searchTimer = null;
   let searchSequence = 0;
+  let managerDirty = false;
 
   function sortItems(items) {
     return [...items].sort((a, b) => (a.description || a.cod_art).localeCompare(b.description || b.cod_art, "it", { sensitivity: "base" }) || a.cod_art.localeCompare(b.cod_art));
@@ -156,6 +157,7 @@
       });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       await loadGroupItems();
+      managerDirty = true;
       managerStatus.textContent = "Modifiche salvate.";
     } catch (error) {
       managerStatus.textContent = "Salvataggio non riuscito.";
@@ -178,12 +180,16 @@
     catalogItems = [];
     groupItems = [];
     managerStatus.textContent = "";
+    managerDirty = false;
     renderManager();
     managerModal.show();
     try { await loadGroupItems(); } catch (error) { managerStatus.textContent = "Impossibile caricare i prodotti del gruppo."; console.error(error); }
   }
 
   managerModalNode.addEventListener("shown.bs.modal", () => filterInput.focus());
+  managerModalNode.addEventListener("hidden.bs.modal", () => {
+    if (managerDirty) window.location.reload();
+  });
   document.querySelectorAll("[data-group-manage]").forEach((button) => button.addEventListener("click", (event) => {
     event.stopPropagation();
     openManager({ id: button.dataset.groupId, name: button.dataset.groupName });
@@ -193,4 +199,31 @@
     const trigger = document.querySelector(`[data-group-manage][data-group-id="${CSS.escape(page.dataset.activeGroupId)}"]`);
     if (trigger) openManager({ id: trigger.dataset.groupId, name: trigger.dataset.groupName });
   }
+
+  document.querySelectorAll("[data-matrix-rename]").forEach((button) => button.addEventListener("click", async (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const proposed = window.prompt(
+      `Nome del raggruppamento ${button.dataset.matrixCode}.\nLascia vuoto per ripristinare il nome dell'ultima variante.`,
+      button.dataset.currentName || "",
+    );
+    if (proposed === null) return;
+    button.disabled = true;
+    try {
+      const response = await fetch(`/supplier-orders/groups/${button.dataset.groupId}/matrix-name`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ matrix_code: button.dataset.matrixCode, display_name: proposed.trim() }),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || `HTTP ${response.status}`);
+      const displayedName = payload.display_name || button.dataset.defaultName;
+      button.closest(".supplier-matrix-heading")?.querySelector("[data-matrix-title]")?.replaceChildren(displayedName);
+      button.dataset.currentName = displayedName;
+    } catch (error) {
+      window.alert(`Impossibile rinominare il raggruppamento: ${error.message}`);
+    } finally {
+      button.disabled = false;
+    }
+  }));
 })();

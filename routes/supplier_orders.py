@@ -5,7 +5,7 @@ from flask_login import current_user
 from sqlalchemy import func, or_
 
 from extensions import db
-from models import Articoli, InventarioExport, SupplierOrderGroup, SupplierOrderGroupItem
+from models import Articoli, InventarioExport, SupplierOrderGroup, SupplierOrderGroupItem, SupplierOrderMatrixName
 from tools.role_required import role_required
 
 
@@ -19,9 +19,23 @@ def _variant_root(cod_art: str) -> str:
     if "-" not in code:
         return code
     root, suffix = code.rsplit("-", 1)
-    if len(suffix) == 4 and suffix.isdigit() and suffix.startswith(("19", "20")):
+    if suffix.isdigit() and (
+        len(suffix) == 2
+        or (len(suffix) == 4 and suffix.startswith(("19", "20")))
+    ):
         return root
     return code
+
+
+def _variant_sort_key(cod_art: str) -> tuple[int, str]:
+    code = (cod_art or "").strip()
+    suffix = code.rsplit("-", 1)[-1] if "-" in code else ""
+    if suffix.isdigit() and len(suffix) == 2:
+        value = int(suffix)
+        return ((1900 if value >= 70 else 2000) + value, code)
+    if suffix.isdigit() and len(suffix) == 4:
+        return (int(suffix), code)
+    return (0, code)
 
 
 def _article_label(article: Articoli | None, fallback: str = "") -> str:
@@ -72,6 +86,7 @@ def _expanded_articles_for_group(group: SupplierOrderGroup) -> list[dict]:
     stock = _stock_map([article.cod_art for article in articles])
     selected_roots = {_variant_root(code) for code in selected_codes}
 
+    custom_names = {item.matrix_code: item.display_name for item in group.matrix_names}
     grouped: dict[str, dict] = {}
     for article in articles:
         root = _variant_root(article.cod_art)
@@ -79,7 +94,9 @@ def _expanded_articles_for_group(group: SupplierOrderGroup) -> list[dict]:
         if root not in grouped:
             grouped[root] = {
                 "root": root,
-                "description": _base_description(label),
+                "description": "",
+                "default_description": "",
+                "custom_description": custom_names.get(root),
                 "stock": 0,
                 "selected_count": 0,
                 "variants": [],
@@ -95,6 +112,11 @@ def _expanded_articles_for_group(group: SupplierOrderGroup) -> list[dict]:
         grouped[root]["stock"] += variant["stock"]
         grouped[root]["selected_count"] += 1 if variant["source_selected"] else 0
         grouped[root]["variants"].append(variant)
+
+    for row in grouped.values():
+        latest_variant = max(row["variants"], key=lambda variant: _variant_sort_key(variant["cod_art"]))
+        row["default_description"] = latest_variant["description"]
+        row["description"] = row["custom_description"] or row["default_description"]
 
     return sorted(grouped.values(), key=lambda row: (row["description"] or "", row["root"]))
 
@@ -209,6 +231,29 @@ def update_group_items(group_id):
         db.session.add(SupplierOrderGroupItem(group_id=group.id, cod_art=code, sort_order=next_sort))
     db.session.commit()
     return jsonify({"ok": True, "added": len(valid_add_codes - set(existing)), "removed": len(remove_codes & set(existing))})
+
+
+@supplier_orders_bp.post("/groups/<int:group_id>/matrix-name")
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def update_matrix_name(group_id):
+    group = SupplierOrderGroup.query.get_or_404(group_id)
+    payload = request.get_json(silent=True) or {}
+    matrix_code = (payload.get("matrix_code") or "").strip()
+    display_name = (payload.get("display_name") or "").strip()
+    valid_matrices = {_variant_root(item.cod_art) for item in group.items}
+    if not matrix_code or matrix_code not in valid_matrices:
+        return jsonify({"ok": False, "error": "Codice matrice non valido per il gruppo"}), 400
+
+    custom_name = SupplierOrderMatrixName.query.filter_by(group_id=group.id, matrix_code=matrix_code).first()
+    if display_name:
+        if custom_name:
+            custom_name.display_name = display_name
+        else:
+            db.session.add(SupplierOrderMatrixName(group_id=group.id, matrix_code=matrix_code, display_name=display_name))
+    elif custom_name:
+        db.session.delete(custom_name)
+    db.session.commit()
+    return jsonify({"ok": True, "matrix_code": matrix_code, "display_name": display_name})
 
 
 @supplier_orders_bp.post("/groups/<int:group_id>/items")

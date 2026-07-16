@@ -3,7 +3,7 @@
 {% block title %}Ordini fornitori{% endblock %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_orders.css', v=app_version ~ '-draft6') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_orders.css', v=app_version ~ '-draft7') }}">
 {% endblock %}
 
 {% block content %}
@@ -106,7 +106,7 @@
       <div class="modal-header"><div><h5 class="modal-title">{{ group.name }}</h5><div class="text-muted small">Prodotti raggruppati per codice matrice e relative giacenze.</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
       <div class="modal-body"><div class="supplier-operational-list">
         {% for groupage in card.operational_rows %}
-          <details class="supplier-operational-group {% if groupage.stock <= 0 %}is-empty{% endif %}"><summary class="supplier-operational-row"><div class="supplier-product-main"><strong>{{ groupage.description }}</strong><span>{{ groupage.root }} · {{ groupage.variants|length }} varianti</span></div><div class="supplier-stock"><span>{{ groupage.stock }}</span><small>giacenza</small></div></summary>
+          <details class="supplier-operational-group {% if groupage.stock <= 0 %}is-empty{% endif %}"><summary class="supplier-operational-row"><div class="supplier-product-main"><div class="supplier-matrix-heading"><strong data-matrix-title>{{ groupage.description }}</strong><button class="btn btn-sm btn-link" type="button" data-matrix-rename data-group-id="{{ group.id }}" data-matrix-code="{{ groupage.root }}" data-current-name="{{ groupage.description }}" data-default-name="{{ groupage.default_description }}" title="Rinomina raggruppamento" aria-label="Rinomina {{ groupage.root }}"><i class="fa-regular fa-pen-to-square"></i></button></div><span>Codice matrice {{ groupage.root }} · {{ groupage.variants|length }} varianti</span></div><div class="supplier-stock"><span>{{ groupage.stock }}</span><small>giacenza</small></div></summary>
             <div class="supplier-variant-list">{% for variant in groupage.variants %}<div class="supplier-variant-row {% if variant.stock <= 0 %}is-empty{% endif %}"><div class="supplier-product-main"><strong>{{ variant.description }}</strong><span>{{ variant.cod_art }}</span>{% if variant.expanded_from_group %}<em>variante rilevata automaticamente</em>{% endif %}</div><div class="supplier-stock supplier-stock--small"><span>{{ variant.stock }}</span><small>giacenza</small></div></div>{% endfor %}</div>
           </details>
         {% else %}<div class="text-muted">Nessun articolo da visualizzare.</div>{% endfor %}
@@ -116,4 +116,4 @@
 {% endfor %}
 {% endblock %}
 
-{% block extra_js %}<script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-draft6') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-draft7') }}"></script>{% endblock %}

@@ -843,6 +843,28 @@ class SupplierOrderGroupItem(db.Model):
         return f"<SupplierOrderGroupItem {self.group_id}:{self.cod_art}>"
 
 
+class SupplierOrderMatrixName(db.Model):
+    __tablename__ = "supplier_order_matrix_names"
+    __table_args__ = (
+        db.UniqueConstraint("group_id", "matrix_code", name="uq_supplier_order_matrix_names_group_matrix"),
+        db.Index("ix_supplier_order_matrix_names_group", "group_id"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey("supplier_order_groups.id", ondelete="CASCADE"), nullable=False)
+    matrix_code = db.Column(db.String(255), nullable=False)
+    display_name = db.Column(db.String(500), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    group = db.relationship("SupplierOrderGroup", backref=db.backref("matrix_names", cascade="all, delete-orphan"))
+
+
 class UserRole(db.Model):
     __tablename__ = 'user_roles'
 
