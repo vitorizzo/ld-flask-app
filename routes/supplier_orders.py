@@ -103,6 +103,7 @@ def _expanded_articles_for_group(group: SupplierOrderGroup) -> list[dict]:
 @role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
 def index():
     active_group_id = request.args.get("group_id", type=int)
+    modal_action = (request.args.get("modal") or "").strip()
     groups = (
         SupplierOrderGroup.query
         .order_by(SupplierOrderGroup.is_active.desc(), SupplierOrderGroup.name.asc())
@@ -119,6 +120,7 @@ def index():
         "supplier_orders/index.html",
         group_cards=group_cards,
         active_group_id=active_group_id,
+        modal_action=modal_action,
     )
 
 
@@ -135,7 +137,7 @@ def create_group():
         existing.is_active = True
         existing.notes = notes if notes is not None else existing.notes
         db.session.commit()
-        return redirect(url_for("supplier_orders.index", group_id=existing.id))
+        return redirect(url_for("supplier_orders.index", group_id=existing.id, modal="manage"))
 
     group = SupplierOrderGroup(
         name=name,
@@ -144,7 +146,7 @@ def create_group():
     )
     db.session.add(group)
     db.session.commit()
-    return redirect(url_for("supplier_orders.index", group_id=group.id))
+    return redirect(url_for("supplier_orders.index", group_id=group.id, modal="manage"))
 
 
 @supplier_orders_bp.post("/groups/<int:group_id>/update")
@@ -156,6 +158,57 @@ def update_group(group_id):
     group.is_active = request.form.get("is_active") == "1"
     db.session.commit()
     return redirect(url_for("supplier_orders.index", group_id=group.id))
+
+
+@supplier_orders_bp.post("/groups/<int:group_id>/delete")
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def delete_group(group_id):
+    group = SupplierOrderGroup.query.get_or_404(group_id)
+    db.session.delete(group)
+    db.session.commit()
+    return redirect(url_for("supplier_orders.index"))
+
+
+@supplier_orders_bp.get("/groups/<int:group_id>/items")
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def group_items(group_id):
+    group = SupplierOrderGroup.query.get_or_404(group_id)
+    items = sorted(
+        (
+            {
+                "cod_art": item.cod_art,
+                "description": _article_label(item.article, item.cod_art),
+                "root": _variant_root(item.cod_art),
+            }
+            for item in group.items
+        ),
+        key=lambda item: ((item["description"] or "").lower(), item["cod_art"].lower()),
+    )
+    return jsonify({"ok": True, "group": {"id": group.id, "name": group.name}, "items": items})
+
+
+@supplier_orders_bp.post("/groups/<int:group_id>/items/batch")
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def update_group_items(group_id):
+    group = SupplierOrderGroup.query.get_or_404(group_id)
+    payload = request.get_json(silent=True) or {}
+    add_codes = {str(code).strip() for code in (payload.get("add_codes") or []) if str(code).strip()}
+    remove_codes = {str(code).strip() for code in (payload.get("remove_codes") or []) if str(code).strip()}
+
+    valid_add_codes = {
+        code for (code,) in db.session.query(Articoli.cod_art).filter(Articoli.cod_art.in_(add_codes)).all()
+    } if add_codes else set()
+    existing = {item.cod_art: item for item in group.items}
+    for code in remove_codes:
+        item = existing.get(code)
+        if item:
+            db.session.delete(item)
+    next_sort = max((item.sort_order or 0 for item in group.items), default=0)
+    for code in sorted(valid_add_codes - set(existing)):
+        next_sort += 10
+        db.session.add(SupplierOrderGroupItem(group_id=group.id, cod_art=code, sort_order=next_sort))
+    db.session.commit()
+    return jsonify({"ok": True, "added": len(valid_add_codes - set(existing)), "removed": len(remove_codes & set(existing))})
 
 
 @supplier_orders_bp.post("/groups/<int:group_id>/items")
@@ -201,7 +254,7 @@ def search_articles():
             Articoli.descrizione_aggiuntiva.ilike(f"%{q}%"),
         ))
         .order_by(Articoli.descrizione.asc(), Articoli.cod_art.asc())
-        .limit(20)
+        .limit(100)
         .all()
     )
     return jsonify({

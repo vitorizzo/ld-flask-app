@@ -2319,3 +2319,10 @@ Performance apertura giornata Agenda 2026-06-13:
   - il `group_id` gia' presente nei redirect viene ora letto: dopo creazione/modifica/aggiunta la modale si riapre, il gruppo interessato resta espanso e il focus torna alla ricerca prodotti;
   - aggiunta gestione leggibile degli errori del lookup articoli e reset coerente dei pulsanti/risultati nei lifecycle `show/shown/hidden`;
   - verifiche: pagina autorizzata 200 con gruppo richiesto aperto, lookup reale 200/20 risultati, template compilato, `node --check`, `py_compile`, `git diff --check`.
+- 2026-07-16 nuova UI gruppi ordini fornitori:
+  - `Definisci Gruppo` apre una modale dedicata esclusivamente a nome/note; in creazione il comando `Crea e gestisci prodotti` salva e apre automaticamente il gestore del nuovo gruppo, mentre la stessa modale viene riusata da `Modifica` con i dati esistenti;
+  - i gruppi sono esposti a righe con azioni `Consulta`, `Prodotti`, `Modifica`, `Elimina`; click/Invio/spazio sulla riga apre la consultazione per codice matrice e giacenze;
+  - aggiunta cancellazione gruppo con conferma e nuova route `POST /supplier-orders/groups/<id>/delete`;
+  - il gestore prodotti usa due pannelli alfabetici: catalogo filtrato a sinistra e prodotti associati a destra, selezionabili con click o spazio; disponibili aggiunta/rimozione dei selezionati e operazioni massive sui risultati visibili/intero gruppo;
+  - aggiunte API `GET /supplier-orders/groups/<id>/items` e `POST /supplier-orders/groups/<id>/items/batch`; descrizioni sempre composte da `descrizione` e `descrizione_aggiuntiva`;
+  - test end-to-end con gruppi temporanei: creazione 302 verso gestore, pagina 200, aggiunta batch 1, lettura 1, rimozione batch 1, lettura 0, eliminazione 302 e zero residui; verificati template, JS, Python e diff.

@@ -1,200 +1,196 @@
 (function () {
   "use strict";
 
-  function escapeHtml(value) {
-    return String(value || "")
-      .replaceAll("&", "&amp;")
-      .replaceAll("<", "&lt;")
-      .replaceAll(">", "&gt;")
-      .replaceAll('"', "&quot;")
-      .replaceAll("'", "&#039;");
-  }
+  const page = document.querySelector(".supplier-orders-page");
+  if (!page || typeof bootstrap === "undefined") return;
 
-  function setupArticleSearch(form) {
-    const input = form.querySelector(".supplier-article-search-input");
-    const codeInput = form.querySelector(".supplier-article-code");
-    const results = form.querySelector(".supplier-search-results");
-    const addBtn = form.querySelector(".supplier-add-article-btn");
-    if (!input || !codeInput || !results || !addBtn) return;
-
-    let timer = null;
-
-    function clearSelection() {
-      codeInput.value = "";
-      addBtn.disabled = true;
-    }
-
-    function render(items) {
-      results.innerHTML = "";
-      if (!items.length) {
-        results.classList.remove("is-open");
-        return;
-      }
-      items.forEach((item) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "supplier-search-result";
-        button.innerHTML = `
-          <strong>${escapeHtml(item.description || item.cod_art)}</strong>
-          <span>${escapeHtml(item.cod_art)}${item.root && item.root !== item.cod_art ? " · base " + escapeHtml(item.root) : ""}</span>
-        `;
-        button.addEventListener("click", () => {
-          input.value = `${item.cod_art} - ${item.description || ""}`.trim();
-          codeInput.value = item.cod_art;
-          addBtn.disabled = false;
-          results.innerHTML = "";
-          results.classList.remove("is-open");
-        });
-        results.appendChild(button);
-      });
-      results.classList.add("is-open");
-    }
-
-    async function search() {
-      const q = input.value.trim();
-      clearSelection();
-      if (q.length < 2) {
-        render([]);
-        return;
-      }
-      try {
-        const response = await fetch(`/supplier-orders/api/articles?q=${encodeURIComponent(q)}`, {
-          credentials: "same-origin",
-          headers: { Accept: "application/json" },
-        });
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const payload = await response.json();
-        render(payload.items || []);
-      } catch (error) {
-        render([]);
-        results.textContent = "Ricerca prodotti non disponibile. Riprova.";
-        results.classList.add("is-open", "is-error");
-        console.error("Supplier article search failed", error);
-      }
-    }
-
-    input.addEventListener("input", () => {
-      results.classList.remove("is-error");
-      window.clearTimeout(timer);
-      timer = window.setTimeout(search, 220);
+  const modals = new Map();
+  document.querySelectorAll(".supplier-orders-modal").forEach((node) => {
+    if (node.parentElement !== document.body) document.body.appendChild(node);
+    modals.set(`#${node.id}`, bootstrap.Modal.getOrCreateInstance(node));
+    node.addEventListener("show.bs.modal", () => document.body.classList.add("supplier-orders-modal-open"));
+    node.addEventListener("hidden.bs.modal", () => {
+      if (!document.querySelector(".supplier-orders-modal.show")) document.body.classList.remove("supplier-orders-modal-open");
     });
-
-    form.addEventListener("submit", (event) => {
-      if (codeInput.value) return;
-      event.preventDefault();
-      input.setCustomValidity("Seleziona un prodotto dai risultati della ricerca.");
-      input.reportValidity();
-    });
-
-    input.addEventListener("input", () => input.setCustomValidity(""));
-  }
-
-  function setupSilentGroupSearch() {
-    const board = document.getElementById("supplierGroupsBoard");
-    if (!board) return;
-
-    let buffer = "";
-    let resetTimer = null;
-
-    function resetLater() {
-      window.clearTimeout(resetTimer);
-      resetTimer = window.setTimeout(() => {
-        buffer = "";
-      }, 900);
-    }
-
-    board.addEventListener("keydown", (event) => {
-      if (event.key === "Enter") {
-        const active = board.querySelector(".supplier-group-link.is-key-selected");
-        if (active) active.click();
-        return;
-      }
-      if (event.key === "Backspace") {
-        buffer = buffer.slice(0, -1);
-      } else if (event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
-        buffer += event.key.toLowerCase();
-      } else {
-        return;
-      }
-      resetLater();
-
-      const links = [...board.querySelectorAll(".supplier-group-link")];
-      links.forEach((link) => link.classList.remove("is-key-selected"));
-      if (!buffer) return;
-
-      const match = links.find((link) => (link.dataset.groupName || "").startsWith(buffer));
-      if (match) {
-        match.classList.add("is-key-selected");
-        match.scrollIntoView({ block: "nearest" });
-      }
-    });
-  }
-
-  function setupSupplierModals() {
-    const instances = new Map();
-    document.querySelectorAll(".supplier-orders-modal").forEach((modal) => {
-      if (modal.parentElement !== document.body) {
-        document.body.appendChild(modal);
-      }
-      instances.set(`#${modal.id}`, bootstrap.Modal.getOrCreateInstance(modal));
-
-      modal.addEventListener("show.bs.modal", () => {
-        document.body.classList.add("supplier-orders-modal-open");
-        modal.querySelectorAll('form:not(.supplier-article-add) button[type="submit"]').forEach((button) => {
-          button.disabled = false;
-        });
-        modal.querySelectorAll(".supplier-add-article-btn").forEach((button) => {
-          const form = button.closest(".supplier-article-add");
-          button.disabled = !form?.querySelector(".supplier-article-code")?.value;
-        });
-      });
-
-      modal.addEventListener("shown.bs.modal", () => {
-        const requestedGroup = modal.querySelector(".supplier-manage-group[open]");
-        if (requestedGroup) {
-          requestedGroup.scrollIntoView({ block: "start" });
-          requestedGroup.querySelector(".supplier-article-search-input")?.focus();
-          return;
-        }
-        modal.querySelector("input:not([type='hidden']), button:not(.btn-close)")?.focus();
-      });
-
-      modal.addEventListener("hidden.bs.modal", () => {
-        if (!document.querySelector(".supplier-orders-modal.show")) {
-          document.body.classList.remove("supplier-orders-modal-open");
-        }
-        modal.querySelectorAll(".supplier-search-results.is-open").forEach((node) => {
-          node.classList.remove("is-open", "is-error");
-        });
-        modal.querySelectorAll(".supplier-article-code").forEach((node) => {
-          node.value = "";
-        });
-        modal.querySelectorAll(".supplier-add-article-btn").forEach((button) => {
-          button.disabled = true;
-        });
-      });
-    });
-
-    document.querySelectorAll("[data-supplier-modal-target]").forEach((trigger) => {
-      trigger.addEventListener("click", () => {
-        const instance = instances.get(trigger.dataset.supplierModalTarget);
-        if (instance) instance.show();
-      });
-    });
-
-    const requestedGroup = document.querySelector("#supplierGroupModal .supplier-manage-group[open]");
-    if (requestedGroup) instances.get("#supplierGroupModal")?.show();
-  }
-
-  setupSupplierModals();
-  document.querySelectorAll(".supplier-article-add").forEach(setupArticleSearch);
-  setupSilentGroupSearch();
-
-  document.addEventListener("click", (event) => {
-    if (!event.target.closest(".supplier-article-add")) {
-      document.querySelectorAll(".supplier-search-results.is-open").forEach((node) => {
-        node.classList.remove("is-open");
-      });
-    }
   });
+
+  const definitionModalNode = document.getElementById("supplierGroupModal");
+  const definitionModal = modals.get("#supplierGroupModal");
+  const definitionForm = document.getElementById("supplierGroupForm");
+  const definitionTitle = definitionModalNode.querySelector(".modal-title");
+  const definitionSubmit = document.getElementById("supplierGroupSubmit");
+  const groupNameInput = document.getElementById("groupName");
+  const groupNotesInput = document.getElementById("groupNotes");
+  const groupActiveInput = definitionForm.querySelector('input[name="is_active"]');
+
+  function openDefinition(group) {
+    const editing = Boolean(group);
+    definitionTitle.textContent = editing ? `Modifica gruppo: ${group.name}` : "Definisci nuovo gruppo";
+    definitionForm.action = editing ? `/supplier-orders/groups/${group.id}/update` : "/supplier-orders/groups";
+    groupNameInput.value = editing ? group.name : "";
+    groupNotesInput.value = editing ? group.notes : "";
+    groupActiveInput.value = editing ? group.active : "1";
+    definitionSubmit.textContent = editing ? "Salva modifiche" : "Crea e gestisci prodotti";
+    definitionSubmit.disabled = false;
+    definitionModal.show();
+  }
+
+  definitionModalNode.addEventListener("shown.bs.modal", () => groupNameInput.focus());
+  definitionModalNode.addEventListener("hidden.bs.modal", () => {
+    definitionForm.reset();
+    definitionSubmit.disabled = false;
+  });
+  definitionForm.addEventListener("submit", () => { definitionSubmit.disabled = true; });
+  document.querySelector("[data-group-create]")?.addEventListener("click", () => openDefinition(null));
+  document.querySelectorAll("[data-group-edit]").forEach((button) => button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openDefinition({ id: button.dataset.groupId, name: button.dataset.groupName, notes: button.dataset.groupNotes || "", active: button.dataset.groupActive || "1" });
+  }));
+
+  document.querySelectorAll("[data-delete-group-form]").forEach((form) => form.addEventListener("submit", (event) => {
+    event.stopPropagation();
+    if (!window.confirm(`Eliminare il gruppo “${form.dataset.groupName}” e tutte le sue associazioni prodotto?`)) event.preventDefault();
+  }));
+
+  document.querySelectorAll("[data-consult-target]").forEach((element) => {
+    const open = (event) => {
+      if (event.target.closest(".supplier-row-actions") && !event.target.closest("[data-consult-target]")) return;
+      event.stopPropagation();
+      modals.get(element.dataset.consultTarget)?.show();
+    };
+    element.addEventListener("click", open);
+    if (element.matches("tr")) element.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); open(event); }
+    });
+  });
+
+  const managerModalNode = document.getElementById("supplierProductsModal");
+  const managerModal = modals.get("#supplierProductsModal");
+  const managerName = document.getElementById("supplierProductsGroupName");
+  const filterInput = document.getElementById("supplierCatalogFilter");
+  const catalogList = document.getElementById("supplierCatalogList");
+  const selectedList = document.getElementById("supplierSelectedList");
+  const catalogCount = document.getElementById("supplierCatalogCount");
+  const selectedCount = document.getElementById("supplierSelectedCount");
+  const managerStatus = document.getElementById("supplierManagerStatus");
+  let currentGroup = null;
+  let catalogItems = [];
+  let groupItems = [];
+  let searchTimer = null;
+  let searchSequence = 0;
+
+  function sortItems(items) {
+    return [...items].sort((a, b) => (a.description || a.cod_art).localeCompare(b.description || b.cod_art, "it", { sensitivity: "base" }) || a.cod_art.localeCompare(b.cod_art));
+  }
+
+  function productOption(item, selected) {
+    const option = document.createElement("button");
+    option.type = "button";
+    option.className = `supplier-product-option${selected ? " is-selected" : ""}`;
+    option.dataset.code = item.cod_art;
+    option.setAttribute("role", "option");
+    option.setAttribute("aria-selected", selected ? "true" : "false");
+    const description = document.createElement("strong");
+    description.textContent = item.description || item.cod_art;
+    const code = document.createElement("span");
+    code.textContent = item.cod_art;
+    option.append(description, code);
+    option.addEventListener("click", () => toggleOption(option));
+    option.addEventListener("keydown", (event) => {
+      if (event.key === " ") { event.preventDefault(); toggleOption(option); }
+    });
+    return option;
+  }
+
+  function toggleOption(option) {
+    const selected = !option.classList.contains("is-selected");
+    option.classList.toggle("is-selected", selected);
+    option.setAttribute("aria-selected", selected ? "true" : "false");
+  }
+
+  function renderManager() {
+    const assigned = new Set(groupItems.map((item) => item.cod_art));
+    const available = sortItems(catalogItems.filter((item) => !assigned.has(item.cod_art)));
+    catalogList.replaceChildren(...available.map((item) => productOption(item, false)));
+    selectedList.replaceChildren(...sortItems(groupItems).map((item) => productOption(item, false)));
+    if (!available.length) catalogList.innerHTML = '<div class="supplier-product-empty">Nessun prodotto disponibile per il filtro.</div>';
+    if (!groupItems.length) selectedList.innerHTML = '<div class="supplier-product-empty">Nessun prodotto associato.</div>';
+    catalogCount.textContent = `${available.length} risultati`;
+    selectedCount.textContent = `${groupItems.length} prodotti`;
+  }
+
+  async function loadGroupItems() {
+    const response = await fetch(`/supplier-orders/groups/${currentGroup.id}/items`, { headers: { Accept: "application/json" } });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    groupItems = payload.items || [];
+    renderManager();
+  }
+
+  async function searchCatalog() {
+    const query = filterInput.value.trim();
+    if (query.length < 2) { catalogItems = []; renderManager(); return; }
+    const sequence = ++searchSequence;
+    catalogList.innerHTML = '<div class="supplier-product-empty">Ricerca in corso…</div>';
+    try {
+      const response = await fetch(`/supplier-orders/api/articles?q=${encodeURIComponent(query)}`, { headers: { Accept: "application/json" } });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      if (sequence !== searchSequence) return;
+      catalogItems = payload.items || [];
+      renderManager();
+    } catch (error) {
+      catalogList.innerHTML = '<div class="supplier-product-empty text-danger">Ricerca non disponibile. Riprova.</div>';
+      console.error("Supplier catalog search failed", error);
+    }
+  }
+
+  async function transfer(addCodes, removeCodes) {
+    if (!currentGroup || (!addCodes.length && !removeCodes.length)) return;
+    managerStatus.textContent = "Salvataggio…";
+    try {
+      const response = await fetch(`/supplier-orders/groups/${currentGroup.id}/items/batch`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ add_codes: addCodes, remove_codes: removeCodes }),
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      await loadGroupItems();
+      managerStatus.textContent = "Modifiche salvate.";
+    } catch (error) {
+      managerStatus.textContent = "Salvataggio non riuscito.";
+      console.error("Supplier group update failed", error);
+    }
+  }
+
+  function selectedCodes(list) { return [...list.querySelectorAll(".supplier-product-option.is-selected")].map((item) => item.dataset.code); }
+  function allCodes(list) { return [...list.querySelectorAll(".supplier-product-option")].map((item) => item.dataset.code); }
+  document.getElementById("supplierAddSelected").addEventListener("click", () => transfer(selectedCodes(catalogList), []));
+  document.getElementById("supplierAddAll").addEventListener("click", () => transfer(allCodes(catalogList), []));
+  document.getElementById("supplierRemoveSelected").addEventListener("click", () => transfer([], selectedCodes(selectedList)));
+  document.getElementById("supplierRemoveAll").addEventListener("click", () => transfer([], allCodes(selectedList)));
+  filterInput.addEventListener("input", () => { clearTimeout(searchTimer); searchTimer = setTimeout(searchCatalog, 250); });
+
+  async function openManager(group) {
+    currentGroup = group;
+    managerName.textContent = group.name;
+    filterInput.value = "";
+    catalogItems = [];
+    groupItems = [];
+    managerStatus.textContent = "";
+    renderManager();
+    managerModal.show();
+    try { await loadGroupItems(); } catch (error) { managerStatus.textContent = "Impossibile caricare i prodotti del gruppo."; console.error(error); }
+  }
+
+  managerModalNode.addEventListener("shown.bs.modal", () => filterInput.focus());
+  document.querySelectorAll("[data-group-manage]").forEach((button) => button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    openManager({ id: button.dataset.groupId, name: button.dataset.groupName });
+  }));
+
+  if (page.dataset.modalAction === "manage" && page.dataset.activeGroupId) {
+    const trigger = document.querySelector(`[data-group-manage][data-group-id="${CSS.escape(page.dataset.activeGroupId)}"]`);
+    if (trigger) openManager({ id: trigger.dataset.groupId, name: trigger.dataset.groupName });
+  }
 })();

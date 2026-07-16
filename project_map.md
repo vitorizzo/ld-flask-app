@@ -63,7 +63,9 @@ Nel flusso Codex locale la lettura avviene direttamente dai file del repository,
 
 - `routes/supplier_orders.py` gestisce gruppi fornitore, articoli espliciti e lookup remoto sul catalogo;
 - `templates/supplier_orders/index.html`, `static/js/supplier_orders.js` e `static/css/supplier_orders.css` espongono gestione e consultazione giacenze in modali dedicate;
-- le modali vengono spostate nel `body` e aperte manualmente sopra il backdrop globale; `?group_id=<id>` riapre automaticamente il gruppo interessato e porta il focus alla ricerca prodotti.
+- la lista gruppi e' tabellare con consultazione per matrice/giacenza e azioni rapide di gestione prodotti, modifica ed eliminazione;
+- il gestore prodotti a doppio pannello usa `GET /supplier-orders/groups/<id>/items`, `POST /supplier-orders/groups/<id>/items/batch` e `/supplier-orders/api/articles` per ricerca e associazioni multiple;
+- le modali vengono spostate nel `body` e aperte manualmente sopra il backdrop globale; dopo la creazione `?group_id=<id>&modal=manage` apre automaticamente il gestore prodotti del nuovo gruppo.
 
 ---
 

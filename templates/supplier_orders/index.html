@@ -3,126 +3,98 @@
 {% block title %}Ordini fornitori{% endblock %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_orders.css', v=app_version ~ '-draft5') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_orders.css', v=app_version ~ '-draft6') }}">
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section page-shell supplier-orders-page">
+<section class="welcome-section page-shell supplier-orders-page" data-active-group-id="{{ active_group_id or '' }}" data-modal-action="{{ modal_action }}">
   <div class="container-fluid">
     <div class="supplier-orders-header">
       <div>
         <h1>Ordini fornitori</h1>
-        <p class="text-muted mb-0">Seleziona un gruppo per consultare le giacenze.</p>
+        <p class="text-muted mb-0">Consulta le giacenze e definisci i prodotti appartenenti a ogni gruppo.</p>
       </div>
-      <button class="btn btn-info" type="button" data-supplier-modal-target="#supplierGroupModal">
+      <button class="btn btn-info" type="button" data-group-create>
         <i class="fa-solid fa-layer-group me-1"></i>Definisci Gruppo
       </button>
     </div>
 
-    <div class="supplier-orders-panel supplier-groups-board" tabindex="0" id="supplierGroupsBoard" aria-label="Elenco gruppi fornitori">
+    <div class="supplier-orders-panel supplier-groups-board">
       <div class="supplier-section-title">
         <h2>Gruppi esistenti</h2>
-        <span class="text-muted">Digita per selezionare rapidamente un gruppo.</span>
+        <span class="text-muted">{{ group_cards|length }} gruppi configurati</span>
       </div>
-
-      <div class="supplier-group-list">
-        {% for card in group_cards %}
-          {% set group = card.group %}
-          <button
-            class="supplier-group-link"
-            type="button"
-            data-group-name="{{ group.name|lower }}"
-            data-supplier-modal-target="#supplierStockModal{{ group.id }}"
-          >
-            <span>{{ group.name }}</span>
-            <small>{{ group.items|length }} articoli · {{ card.operational_rows|length }} groupage</small>
-          </button>
-        {% else %}
-          <div class="text-muted">Nessun gruppo creato. Usa “Definisci Gruppo” per iniziare.</div>
-        {% endfor %}
+      <div class="supplier-group-table-wrap">
+        <table class="table supplier-group-table align-middle mb-0">
+          <thead><tr><th>Gruppo</th><th>Note</th><th>Prodotti</th><th class="text-end">Azioni</th></tr></thead>
+          <tbody>
+          {% for card in group_cards %}
+            {% set group = card.group %}
+            <tr class="supplier-group-row" data-consult-target="#supplierStockModal{{ group.id }}" tabindex="0">
+              <td><strong>{{ group.name }}</strong>{% if not group.is_active %}<span class="badge text-bg-secondary ms-2">Disattivo</span>{% endif %}</td>
+              <td class="text-muted">{{ group.notes or '—' }}</td>
+              <td>{{ group.items|length }} articoli · {{ card.operational_rows|length }} matrici</td>
+              <td>
+                <div class="supplier-row-actions" role="group" aria-label="Azioni {{ group.name }}">
+                  <button class="btn btn-sm btn-outline-info" type="button" data-consult-target="#supplierStockModal{{ group.id }}" title="Consulta"><i class="fa-solid fa-magnifying-glass"></i><span>Consulta</span></button>
+                  <button class="btn btn-sm btn-outline-primary" type="button" data-group-manage data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" title="Gestisci prodotti"><i class="fa-solid fa-boxes-stacked"></i><span>Prodotti</span></button>
+                  <button class="btn btn-sm btn-outline-secondary" type="button" data-group-edit data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" data-group-notes="{{ group.notes or '' }}" data-group-active="{{ 1 if group.is_active else 0 }}" title="Modifica"><i class="fa-regular fa-pen-to-square"></i><span>Modifica</span></button>
+                  <form method="post" action="{{ url_for('supplier_orders.delete_group', group_id=group.id) }}" data-delete-group-form data-group-name="{{ group.name }}">
+                    <button class="btn btn-sm btn-outline-danger" type="submit" title="Elimina"><i class="fa-regular fa-trash-can"></i><span>Elimina</span></button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="4" class="text-center text-muted py-4">Nessun gruppo creato. Usa “Definisci Gruppo” per iniziare.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
 </section>
 
 <div class="modal fade supplier-orders-modal" id="supplierGroupModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Definisci nuovo gruppo</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+      <form id="supplierGroupForm" method="post" action="{{ url_for('supplier_orders.create_group') }}">
+        <div class="modal-body">
+          <input type="hidden" name="is_active" value="1">
+          <div class="mb-3"><label class="form-label" for="groupName">Nome gruppo</label><input class="form-control" id="groupName" name="name" required placeholder="Coca Cola"></div>
+          <div><label class="form-label" for="groupNotes">Note</label><textarea class="form-control" id="groupNotes" name="notes" rows="3" placeholder="Referente, piattaforma, condizioni"></textarea></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button class="btn btn-info" type="submit" id="supplierGroupSubmit">Crea e gestisci prodotti</button></div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade supplier-orders-modal" id="supplierProductsModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Definisci Gruppo</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-      </div>
-      <div class="modal-body">
-        <form class="supplier-orders-panel mb-3" method="post" action="{{ url_for('supplier_orders.create_group') }}">
-          <div class="row g-2 align-items-end">
-            <div class="col-12 col-md-5">
-              <label class="form-label" for="groupName">Nome gruppo</label>
-              <input class="form-control" id="groupName" name="name" required placeholder="Coca Cola">
-            </div>
-            <div class="col-12 col-md-5">
-              <label class="form-label" for="groupNotes">Note</label>
-              <input class="form-control" id="groupNotes" name="notes" placeholder="Referente, piattaforma, condizioni">
-            </div>
-            <div class="col-12 col-md-2 d-grid">
-              <button class="btn btn-info" type="submit">Crea</button>
-            </div>
-          </div>
-        </form>
-
-        <div class="supplier-manage-list">
-          {% if group_cards %}
-            <p class="text-muted mb-0">Apri un gruppo per modificarne i dati, cercare prodotti e aggiungerli all'ordine fornitore.</p>
-          {% endif %}
-          {% for card in group_cards %}
-            {% set group = card.group %}
-            <details class="supplier-orders-panel supplier-manage-group" data-group-id="{{ group.id }}" {% if active_group_id == group.id %}open{% endif %}>
-              <summary>
-                <span>
-                  <strong>{{ group.name }}</strong>
-                  <small>{{ group.items|length }} articoli</small>
-                </span>
-                <span class="supplier-manage-action"><i class="fa-solid fa-boxes-stacked"></i> Gestisci prodotti</span>
-              </summary>
-
-              <form method="post" action="{{ url_for('supplier_orders.update_group', group_id=group.id) }}" class="supplier-group-edit">
-                <input type="hidden" name="is_active" value="{{ 1 if group.is_active else 0 }}">
-                <input class="form-control" name="name" value="{{ group.name }}" aria-label="Nome gruppo">
-                <input class="form-control" name="notes" value="{{ group.notes or '' }}" aria-label="Note gruppo">
-                <button class="btn btn-outline-info" type="submit">Salva</button>
-              </form>
-
-              <form class="supplier-article-add" method="post" action="{{ url_for('supplier_orders.add_item', group_id=group.id) }}">
-                <label class="form-label" for="supplierArticleSearch{{ group.id }}"><strong>Aggiungi prodotti al gruppo</strong></label>
-                <div class="supplier-article-search">
-                  <input class="form-control supplier-article-search-input" id="supplierArticleSearch{{ group.id }}" autocomplete="off" placeholder="Cerca codice o descrizione">
-                  <input type="hidden" name="cod_art" class="supplier-article-code">
-                  <button class="btn btn-info supplier-add-article-btn" type="submit" disabled>Aggiungi</button>
-                </div>
-                <div class="form-text">Digita almeno due caratteri e seleziona un prodotto dai risultati.</div>
-                <div class="supplier-search-results"></div>
-              </form>
-
-              <div class="supplier-selected-list">
-                {% for item in group.items %}
-                  <div class="supplier-selected-item">
-                    <div>
-                      <strong>{{ item.cod_art }}</strong>
-                      <span>{{ item.article.descrizione if item.article else "" }}{% if item.article and item.article.descrizione_aggiuntiva %} - {{ item.article.descrizione_aggiuntiva }}{% endif %}</span>
-                    </div>
-                    <form method="post" action="{{ url_for('supplier_orders.delete_item', group_id=group.id, item_id=item.id) }}">
-                      <button class="btn btn-sm btn-outline-danger" type="submit" title="Rimuovi">
-                        <i class="fa-regular fa-trash-can"></i>
-                      </button>
-                    </form>
-                  </div>
-                {% else %}
-                  <div class="text-muted">Nessun articolo nel gruppo.</div>
-                {% endfor %}
-              </div>
-            </details>
-          {% endfor %}
+      <div class="modal-header"><div><h5 class="modal-title">Gestisci prodotti</h5><div class="small text-white-50" id="supplierProductsGroupName"></div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+      <div class="modal-body supplier-products-manager">
+        <section class="supplier-product-panel">
+          <div class="supplier-product-panel-header"><h6>Catalogo prodotti</h6><span id="supplierCatalogCount">0 risultati</span></div>
+          <label class="visually-hidden" for="supplierCatalogFilter">Filtra prodotti</label>
+          <input class="form-control" id="supplierCatalogFilter" type="search" autocomplete="off" placeholder="Filtra per codice o descrizione">
+          <div class="form-text">Digita almeno due caratteri. Click o barra spaziatrice per selezionare.</div>
+          <div class="supplier-product-list" id="supplierCatalogList" role="listbox" aria-multiselectable="true"></div>
+        </section>
+        <div class="supplier-transfer-actions" aria-label="Sposta prodotti">
+          <button class="btn btn-info" type="button" id="supplierAddSelected" title="Aggiungi selezionati"><i class="fa-solid fa-angle-right"></i></button>
+          <button class="btn btn-outline-info" type="button" id="supplierAddAll" title="Aggiungi tutti i risultati"><i class="fa-solid fa-angles-right"></i></button>
+          <button class="btn btn-outline-danger" type="button" id="supplierRemoveSelected" title="Rimuovi selezionati"><i class="fa-solid fa-angle-left"></i></button>
+          <button class="btn btn-danger" type="button" id="supplierRemoveAll" title="Rimuovi tutti"><i class="fa-solid fa-angles-left"></i></button>
         </div>
+        <section class="supplier-product-panel">
+          <div class="supplier-product-panel-header"><h6>Prodotti nel gruppo</h6><span id="supplierSelectedCount">0 prodotti</span></div>
+          <div class="supplier-product-list" id="supplierSelectedList" role="listbox" aria-multiselectable="true"></div>
+        </section>
       </div>
+      <div class="modal-footer"><span class="text-muted me-auto" id="supplierManagerStatus"></span><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Chiudi</button></div>
     </div>
   </div>
 </div>
@@ -130,58 +102,18 @@
 {% for card in group_cards %}
   {% set group = card.group %}
   <div class="modal fade supplier-orders-modal" id="supplierStockModal{{ group.id }}" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-      <div class="modal-content">
-        <div class="modal-header">
-          <div>
-            <h5 class="modal-title">{{ group.name }}</h5>
-            <div class="text-muted small">Giacenze aggregate per groupage.</div>
-          </div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
-        </div>
-        <div class="modal-body">
-          <div class="supplier-operational-list">
-            {% for groupage in card.operational_rows %}
-              <details class="supplier-operational-group {% if groupage.stock <= 0 %}is-empty{% endif %}">
-                <summary class="supplier-operational-row">
-                  <div class="supplier-product-main">
-                    <strong>{{ groupage.description }}</strong>
-                    <span>{{ groupage.root }} · {{ groupage.variants|length }} varianti</span>
-                  </div>
-                  <div class="supplier-stock">
-                    <span>{{ groupage.stock }}</span>
-                    <small>giacenza</small>
-                  </div>
-                </summary>
-                <div class="supplier-variant-list">
-                  {% for variant in groupage.variants %}
-                    <div class="supplier-variant-row {% if variant.stock <= 0 %}is-empty{% endif %}">
-                      <div class="supplier-product-main">
-                        <strong>{{ variant.description }}</strong>
-                        <span>{{ variant.cod_art }}</span>
-                        {% if variant.expanded_from_group %}
-                          <em>variante rilevata automaticamente</em>
-                        {% endif %}
-                      </div>
-                      <div class="supplier-stock supplier-stock--small">
-                        <span>{{ variant.stock }}</span>
-                        <small>giacenza</small>
-                      </div>
-                    </div>
-                  {% endfor %}
-                </div>
-              </details>
-            {% else %}
-              <div class="text-muted">Nessun articolo da visualizzare.</div>
-            {% endfor %}
-          </div>
-        </div>
-      </div>
-    </div>
+    <div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
+      <div class="modal-header"><div><h5 class="modal-title">{{ group.name }}</h5><div class="text-muted small">Prodotti raggruppati per codice matrice e relative giacenze.</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+      <div class="modal-body"><div class="supplier-operational-list">
+        {% for groupage in card.operational_rows %}
+          <details class="supplier-operational-group {% if groupage.stock <= 0 %}is-empty{% endif %}"><summary class="supplier-operational-row"><div class="supplier-product-main"><strong>{{ groupage.description }}</strong><span>{{ groupage.root }} · {{ groupage.variants|length }} varianti</span></div><div class="supplier-stock"><span>{{ groupage.stock }}</span><small>giacenza</small></div></summary>
+            <div class="supplier-variant-list">{% for variant in groupage.variants %}<div class="supplier-variant-row {% if variant.stock <= 0 %}is-empty{% endif %}"><div class="supplier-product-main"><strong>{{ variant.description }}</strong><span>{{ variant.cod_art }}</span>{% if variant.expanded_from_group %}<em>variante rilevata automaticamente</em>{% endif %}</div><div class="supplier-stock supplier-stock--small"><span>{{ variant.stock }}</span><small>giacenza</small></div></div>{% endfor %}</div>
+          </details>
+        {% else %}<div class="text-muted">Nessun articolo da visualizzare.</div>{% endfor %}
+      </div></div>
+    </div></div>
   </div>
 {% endfor %}
 {% endblock %}
 
-{% block extra_js %}
-  <script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-draft5') }}"></script>
-{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-draft6') }}"></script>{% endblock %}
