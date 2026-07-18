@@ -152,7 +152,7 @@ Pubblicazione operativa:
 - i riferimenti `route_board_entry_id` e `slack_order_id` impediscono la doppia pubblicazione applicativa, mentre `client_msg_id` protegge anche il post Slack;
 - gli eventi Slack originati da bot/app non vengono inoltrati alle automazioni Slack, per evitare ricorsioni.
 - in cancellazione, i messaggi Slack del bot vengono rimossi; quelli appartenenti ad altri autori vengono conservati ma marcati con commento nominativo nel thread e reaction `:wastebasket:`.
-- nella bacheca Kiosk, il menu contestuale card supporta pressione lunga touch/pen con tolleranza al movimento e viene chiuso su azione, perdita focus, interazione esterna, scroll/resize/blur e prima di ogni rerender.
+- nella bacheca Kiosk, il menu contestuale card supporta pressione lunga touch/pen anche sulle hot-zone laterali; sui dispositivi coarse il drag HTML5 e' disabilitato e `touch-action: pan-y` mantiene lo scroll verticale senza cancellare il gesto; il menu viene chiuso su azione, perdita focus, interazione esterna, scroll/resize/blur e prima di ogni rerender.
 - il polling Kiosk confronta la firma delle card e differisce i cambiamenti mentre un menu e' attivo; le card usano sfondo neutro e cornice derivata dal colore del giro.
 
 ---

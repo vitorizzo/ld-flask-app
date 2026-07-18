@@ -2334,7 +2334,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - test reale `VR075156`: una sola matrice con 8 varianti (`-14` ... `-23`), default `VINO MONTEPULCIANO 2023 75cl - CHRONICON - ZACCAGNINI`, rinomina persistita e reset con zero override residui;
   - verificati migration, modello, route, template, JavaScript, Python e `git diff --check`.
 - 2026-07-18 menu contestuale card bacheca ordini:
-  - la pressione lunga touch/pen usa ora una soglia di movimento di 16 px invece di annullarsi a ogni minimo `pointermove`; durata ridotta a 520 ms;
+  - la pressione lunga touch/pen usa una soglia di movimento di 20 px invece di annullarsi a ogni minimo `pointermove`; durata 420 ms;
   - la scelta di un nuovo stato o dell'eliminazione chiude sincronicamente il dropdown prima della richiesta e del rerender;
   - il menu viene chiuso su tap/click fuori da menu e toggle, cambio focus, `Escape`, blur finestra, resize, scroll e pagina nascosta;
   - ogni rerender/refresh automatico chiude e ripristina prima il menu flottante, impedendo nodi orfani nel `body`;
@@ -2347,3 +2347,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - `_bump_agenda_day_version()` restituisce la versione Redis incrementata e il toggle check la invia al frontend come `agenda_version`; la modifica locale viene registrata subito e non innesca il successivo refresh del polling;
   - i refresh Agenda realmente esterni preservano scroll della pagina e dei pannelli Incassi, Spese, POS e Movimenti di cassa;
   - asset aggiornati a `mobile-board11` e `mobile-actions4`; verificati JS, Python, template, bump versione simulato `42` e `git diff --check`.
+- 2026-07-18 fix pressione lunga su mobile reale:
+  - le hot-zone laterali della card non escludono piu' il long press; il click di cambio stato viene soppresso quando il gesto ha aperto il menu;
+  - il drag HTML5 delle card resta disponibile con mouse ma viene disabilitato sui dispositivi `hover:none/pointer:coarse`, evitando il `pointercancel` del browser mobile;
+  - su mobile le card usano `touch-action: pan-y`, callout e selezione testo disabilitati, mantenendo lo scroll verticale senza cedere la pressione lunga al drag nativo;
+  - cache aggiornata a `mobile-board12`.

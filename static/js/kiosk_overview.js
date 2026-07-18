@@ -528,9 +528,17 @@ window.kioskState = {
       );
     }
 
-    function openCardContextMenu(ev) {
+    function isLongPressExcludedTarget(target) {
+      return Boolean(
+        target.closest(".order-actions") ||
+          target.closest(".order-delivery-badge") ||
+          target.closest("a, input, select, textarea")
+      );
+    }
+
+    function openCardContextMenu(ev, { fromLongPress = false } = {}) {
       if (!ddToggle || !window.bootstrap) return;
-      if (ev && isCardMenuExcludedTarget(ev.target)) return;
+      if (ev && (fromLongPress ? isLongPressExcludedTarget(ev.target) : isCardMenuExcludedTarget(ev.target))) return;
       if (ev) {
         ev.preventDefault();
         ev.stopPropagation();
@@ -563,20 +571,20 @@ window.kioskState = {
 
     div.addEventListener("pointerdown", (ev) => {
       if (ev.pointerType !== "touch" && ev.pointerType !== "pen") return;
-      if (isCardMenuExcludedTarget(ev.target)) return;
+      if (isLongPressExcludedTarget(ev.target)) return;
       cancelLongPress();
       longPressStart = { pointerId: ev.pointerId, x: ev.clientX, y: ev.clientY };
       longPressTimer = window.setTimeout(() => {
         longPressTimer = null;
         suppressCardClick = true;
-        openCardContextMenu(ev);
-      }, 520);
+        openCardContextMenu(ev, { fromLongPress: true });
+      }, 420);
     });
 
     div.addEventListener("pointermove", (ev) => {
       if (!longPressStart || ev.pointerId !== longPressStart.pointerId) return;
       const distance = Math.hypot(ev.clientX - longPressStart.x, ev.clientY - longPressStart.y);
-      if (distance > 16) cancelLongPress();
+      if (distance > 20) cancelLongPress();
     });
     ["pointerup", "pointercancel", "pointerleave"].forEach((eventName) => {
       div.addEventListener(eventName, cancelLongPress);
@@ -647,6 +655,10 @@ window.kioskState = {
       btn.addEventListener("click", async (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
+        if (suppressCardClick) {
+          suppressCardClick = false;
+          return;
+        }
 
         const dir = ev.currentTarget.getAttribute("data-step");
         const current = vm.status;
@@ -733,7 +745,8 @@ window.kioskState = {
     div.dataset.orderIds = JSON.stringify(orderIds);
     div.dataset.fromStatus = String(vm.status || "");
 
-    div.draggable = true;
+    const coarsePointer = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+    div.draggable = !coarsePointer;
 
     div.addEventListener("dragstart", (ev) => {
       if (ev.target && ev.target.closest && ev.target.closest(".order-actions")) {

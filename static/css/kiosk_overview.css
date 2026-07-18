@@ -1263,7 +1263,10 @@
   }
 
   .order-card {
-    touch-action: manipulation;
+    touch-action: pan-y;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
   }
 
   .order-card[draggable="true"] {
