@@ -2356,3 +2356,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - riprodotto in Edge mobile 390x844 tramite eventi touch CDP: il menu si apriva correttamente dopo 420 ms a `x=25, y=310`, ma il click sintetico al rilascio colpiva il menu appena sovrapposto e Bootstrap lo chiudeva subito;
   - il primo click sintetico touch/pen successivo al long press viene ora intercettato in capture, senza selezionare voci e senza raggiungere l'auto-close Bootstrap;
   - controprova automatizzata: dopo `touchEnd` il menu resta presente, visibile e aperto (`320x520`); cache aggiornata a `mobile-board13`.
+- 2026-07-18 posizionamento e scroll menu card mobile:
+  - il dropdown flottante viene vincolato con coordinate `fixed` alla `visualViewport`, neutralizzando gli aggiornamenti tardivi di Popper; il centro verticale del menu segue quello della card e viene limitato entro 14 px dai bordi visibili;
+  - altezza massima calcolata dalla viewport dinamica, overflow verticale touch, overscroll contenuto e scorrimento inerziale rendono raggiungibili tutte le azioni;
+  - il listener globale non chiude piu' il dropdown quando a scorrere e' il menu stesso, ma continua a chiuderlo per scroll esterni;
+  - test reali Edge/CDP con 17 card: menu interamente nella viewport a inizio/centro/fondo pagina su 390x844 e 360x640; su 360x520 pannello `492 px`, contenuto `572 px`, overflow `auto` e `scrollTop` modificabile senza chiusura; cache `mobile-board14`.

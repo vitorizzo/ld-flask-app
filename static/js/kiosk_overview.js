@@ -240,7 +240,14 @@ window.kioskState = {
 
   window.addEventListener("blur", () => closeActiveCardDropdown());
   window.addEventListener("resize", () => closeActiveCardDropdown());
-  document.addEventListener("scroll", () => closeActiveCardDropdown(), true);
+  document.addEventListener("scroll", (ev) => {
+    if (!activeCardDropdown) return;
+    const menu = activeCardDropdown.menu;
+    // Lo scroll interno serve a raggiungere tutte le azioni sui display bassi.
+    // Chiudiamo soltanto se a scorrere e' la pagina o un contenitore esterno.
+    if (menu && (ev.target === menu || menu.contains(ev.target))) return;
+    closeActiveCardDropdown();
+  }, true);
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) closeActiveCardDropdown();
   });
@@ -714,6 +721,7 @@ window.kioskState = {
         ddMenu.style.position = "";
         ddMenu.style.transform = "";
         ddMenu.style.inset = "";
+        ddMenu.style.maxHeight = "";
         ddMenu.classList.remove("is-touch-menu");
         ddMenu.removeAttribute("data-bs-popper");
         ddParent.appendChild(ddMenu);
@@ -725,27 +733,44 @@ window.kioskState = {
         ddMenu.classList.add("kiosk-floating-menu");
         const isTouchMenu = window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)").matches;
         ddMenu.classList.toggle("is-touch-menu", isTouchMenu);
+        const viewport = window.visualViewport;
+        const viewportLeft = viewport ? viewport.offsetLeft : 0;
+        const viewportTop = viewport ? viewport.offsetTop : 0;
+        const viewportWidth = viewport ? viewport.width : window.innerWidth;
+        const viewportHeight = viewport ? viewport.height : window.innerHeight;
         const anchor = contextMenuPoint || (() => {
           const rect = div.getBoundingClientRect();
           return { x: rect.left + Math.min(rect.width * 0.58, rect.width - 16), y: rect.top + Math.min(56, rect.height * 0.5) };
         })();
         const margin = isTouchMenu ? 14 : 8;
+        ddMenu.style.setProperty("position", "fixed", "important");
+        ddMenu.style.setProperty("inset", "auto", "important");
+        ddMenu.style.setProperty("transform", "none", "important");
+        ddMenu.style.setProperty("max-height", `${Math.max(160, viewportHeight - margin * 2)}px`, "important");
         const menuRect = ddMenu.getBoundingClientRect();
         const cardRect = div.getBoundingClientRect();
-        const preferredLeft = isTouchMenu ? cardRect.left + 18 : anchor.x;
-        const preferredTop = isTouchMenu ? cardRect.top + 28 : anchor.y;
-        const left = Math.min(Math.max(preferredLeft, margin), window.innerWidth - menuRect.width - margin);
-        const top = Math.min(Math.max(preferredTop, margin), window.innerHeight - menuRect.height - margin);
-        ddMenu.style.left = `${left}px`;
-        ddMenu.style.top = `${top}px`;
-        ddMenu.style.right = "auto";
-        ddMenu.style.bottom = "auto";
-        ddMenu.style.transform = "none";
-        ddMenu.style.inset = "auto";
+        const preferredLeft = isTouchMenu ? cardRect.left + (cardRect.width - menuRect.width) / 2 : anchor.x;
+        const cardCenter = cardRect.top + cardRect.height / 2;
+        const preferredTop = isTouchMenu ? cardCenter - menuRect.height / 2 : anchor.y;
+        const left = Math.min(
+          Math.max(preferredLeft, viewportLeft + margin),
+          viewportLeft + viewportWidth - menuRect.width - margin
+        );
+        const top = Math.min(
+          Math.max(preferredTop, viewportTop + margin),
+          viewportTop + viewportHeight - menuRect.height - margin
+        );
+        ddMenu.style.setProperty("left", `${left}px`, "important");
+        ddMenu.style.setProperty("top", `${top}px`, "important");
+        ddMenu.style.setProperty("right", "auto", "important");
+        ddMenu.style.setProperty("bottom", "auto", "important");
       };
       ddToggle.addEventListener("shown.bs.dropdown", () => {
         div.classList.add("menu-open");
         positionFloatingMenu();
+        // Popper completa il proprio aggiornamento dopo l'evento shown:
+        // ribadiamo le coordinate sulla viewport al frame successivo.
+        window.requestAnimationFrame(positionFloatingMenu);
         activeCardDropdown = { toggle: ddToggle, menu: ddMenu, card: div, restore: restoreFloatingMenu };
       });
       ddToggle.addEventListener("hidden.bs.dropdown", () => {

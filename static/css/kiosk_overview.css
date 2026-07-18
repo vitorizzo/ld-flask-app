@@ -850,10 +850,16 @@
 
 .dropdown-menu.kiosk-floating-menu {
   position: fixed !important;
+  inset: auto !important;
+  transform: none !important;
   z-index: 2147483000 !important;
   max-width: min(300px, calc(100vw - 16px));
-  max-height: calc(100vh - 16px);
-  overflow-y: auto;
+  max-height: calc(100dvh - 16px);
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .order-actions .dropdown-header {
@@ -987,7 +993,7 @@
   .dropdown-menu.kiosk-floating-menu {
     width: min(82vw, 430px);
     max-width: calc(100vw - 28px);
-    max-height: min(64vh, 520px);
+    max-height: calc(100dvh - 28px);
     padding: 12px;
     border-radius: 12px;
     border: 2px solid rgba(13, 202, 240, .95);
