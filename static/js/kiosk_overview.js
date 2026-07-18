@@ -215,13 +215,28 @@ window.kioskState = {
   document.addEventListener("pointerdown", (ev) => {
     if (!activeCardDropdown) return;
     const menu = activeCardDropdown.menu;
-    const card = activeCardDropdown.card;
-    if ((menu && menu.contains(ev.target)) || (card && card.contains(ev.target))) return;
+    const toggle = activeCardDropdown.toggle;
+    if ((menu && menu.contains(ev.target)) || (toggle && toggle.contains(ev.target))) return;
+    closeActiveCardDropdown();
+  }, true);
+
+  document.addEventListener("focusin", (ev) => {
+    if (!activeCardDropdown) return;
+    const menu = activeCardDropdown.menu;
+    const toggle = activeCardDropdown.toggle;
+    if ((menu && menu.contains(ev.target)) || (toggle && toggle.contains(ev.target))) return;
     closeActiveCardDropdown();
   }, true);
 
   document.addEventListener("keydown", (ev) => {
     if (ev.key === "Escape") closeActiveCardDropdown();
+  });
+
+  window.addEventListener("blur", () => closeActiveCardDropdown());
+  window.addEventListener("resize", () => closeActiveCardDropdown());
+  document.addEventListener("scroll", () => closeActiveCardDropdown(), true);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) closeActiveCardDropdown();
   });
 
   async function setOrderStatus(orderId, targetCode) {
@@ -489,7 +504,14 @@ window.kioskState = {
     };
     let suppressCardClick = false;
     let longPressTimer = null;
+    let longPressStart = null;
     let contextMenuPoint = null;
+
+    function cancelLongPress() {
+      window.clearTimeout(longPressTimer);
+      longPressTimer = null;
+      longPressStart = null;
+    }
 
     function isCardMenuExcludedTarget(target) {
       return Boolean(
@@ -536,18 +558,22 @@ window.kioskState = {
     div.addEventListener("pointerdown", (ev) => {
       if (ev.pointerType !== "touch" && ev.pointerType !== "pen") return;
       if (isCardMenuExcludedTarget(ev.target)) return;
-      window.clearTimeout(longPressTimer);
+      cancelLongPress();
+      longPressStart = { pointerId: ev.pointerId, x: ev.clientX, y: ev.clientY };
       longPressTimer = window.setTimeout(() => {
+        longPressTimer = null;
         suppressCardClick = true;
         openCardContextMenu(ev);
-      }, 620);
+      }, 520);
     });
 
-    ["pointerup", "pointercancel", "pointerleave", "pointermove"].forEach((eventName) => {
-      div.addEventListener(eventName, (ev) => {
-        if (eventName === "pointermove" && ev.pointerType !== "touch" && ev.pointerType !== "pen") return;
-        window.clearTimeout(longPressTimer);
-      });
+    div.addEventListener("pointermove", (ev) => {
+      if (!longPressStart || ev.pointerId !== longPressStart.pointerId) return;
+      const distance = Math.hypot(ev.clientX - longPressStart.x, ev.clientY - longPressStart.y);
+      if (distance > 16) cancelLongPress();
+    });
+    ["pointerup", "pointercancel", "pointerleave"].forEach((eventName) => {
+      div.addEventListener(eventName, cancelLongPress);
     });
 
     div.querySelectorAll("[data-edit-delivery]").forEach((btn) => {
@@ -565,6 +591,8 @@ window.kioskState = {
         ev.stopPropagation();
         const target = ev.currentTarget.getAttribute("data-move-to");
         if (!target) return;
+
+        closeActiveCardDropdown();
 
         const ids = isGroup ? vm.orders.map((o) => o.id) : [primary.id];
 
@@ -585,6 +613,7 @@ window.kioskState = {
       btn.addEventListener("click", async (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
+        closeActiveCardDropdown();
         const ids = isGroup ? vm.orders.map((o) => o.id) : [primary.id];
         const label = isGroup ? `${ids.length} ordini` : "questo ordine";
         if (!confirm(`Eliminare ${label} da bacheca, plancia e Slack?`)) return;
@@ -984,6 +1013,7 @@ window.kioskState = {
   }
 
   function applyFilterAndRender() {
+    closeActiveCardDropdown();
     const filter = kioskState.currentRouteFilter || "__all__";
     const cards = Array.isArray(kioskState.lastCards) ? kioskState.lastCards : [];
     const filtered = filter === "__all__" ? cards : cards.filter((c) => String(c.route_id) === String(filter));

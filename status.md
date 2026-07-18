@@ -2333,3 +2333,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - la consultazione mostra codice matrice, numero varianti e comando di rinomina; nome vuoto rimuove l'override e ripristina la descrizione completa dell'ultima variante;
   - test reale `VR075156`: una sola matrice con 8 varianti (`-14` ... `-23`), default `VINO MONTEPULCIANO 2023 75cl - CHRONICON - ZACCAGNINI`, rinomina persistita e reset con zero override residui;
   - verificati migration, modello, route, template, JavaScript, Python e `git diff --check`.
+- 2026-07-18 menu contestuale card bacheca ordini:
+  - la pressione lunga touch/pen usa ora una soglia di movimento di 16 px invece di annullarsi a ogni minimo `pointermove`; durata ridotta a 520 ms;
+  - la scelta di un nuovo stato o dell'eliminazione chiude sincronicamente il dropdown prima della richiesta e del rerender;
+  - il menu viene chiuso su tap/click fuori da menu e toggle, cambio focus, `Escape`, blur finestra, resize, scroll e pagina nascosta;
+  - ogni rerender/refresh automatico chiude e ripristina prima il menu flottante, impedendo nodi orfani nel `body`;
+  - cache asset portata a `mobile-board10`; verificati `node --check`, compilazione template e `git diff --check`.
