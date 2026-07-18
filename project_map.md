@@ -58,6 +58,7 @@ Nel flusso Codex locale la lettura avviene direttamente dai file del repository,
 - `CashCustomerRegistryLink` (`cash_customer_registry_links`) persiste l'associazione tra i due archivi, con un solo cliente Agenda per ogni anagrafica gestionale;
 - migration `3d4e5f607182_add_cash_customer_registry_links.py` con backfill deterministico per codice cliente e, in fallback, P.IVA univoca;
 - il resolver `/cassa/api/customers/resolve-registry` consulta prima il link persistente e non sceglie arbitrariamente in presenza di match multipli.
+- il toggle delle spunte righe restituisce `agenda_version`, sincronizzata subito dal frontend per non autoricaricare le liste; i refresh esterni preservano gli scroll operativi.
 
 ## Ordini fornitori
 
@@ -152,6 +153,7 @@ Pubblicazione operativa:
 - gli eventi Slack originati da bot/app non vengono inoltrati alle automazioni Slack, per evitare ricorsioni.
 - in cancellazione, i messaggi Slack del bot vengono rimossi; quelli appartenenti ad altri autori vengono conservati ma marcati con commento nominativo nel thread e reaction `:wastebasket:`.
 - nella bacheca Kiosk, il menu contestuale card supporta pressione lunga touch/pen con tolleranza al movimento e viene chiuso su azione, perdita focus, interazione esterna, scroll/resize/blur e prima di ogni rerender.
+- il polling Kiosk confronta la firma delle card e differisce i cambiamenti mentre un menu e' attivo; le card usano sfondo neutro e cornice derivata dal colore del giro.
 
 ---
 

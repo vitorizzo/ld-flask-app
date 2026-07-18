@@ -23,6 +23,8 @@ window.kioskState = {
   let refreshTimer = null;
   let deliveryScheduleState = { routes: [], rules: [], weekdays: [], frequencies: [] };
   let activeCardDropdown = null;
+  let lastRenderedCardsSignature = null;
+  let pendingCardRender = false;
 
   // Drag context (single dragged card at a time)
   let dragCtx = {
@@ -201,7 +203,7 @@ window.kioskState = {
     return meta.filter((s) => s.code !== currentCode);
   }
 
-  function closeActiveCardDropdown(exceptToggle = null) {
+  function closeActiveCardDropdown(exceptToggle = null, flushPending = true) {
     if (!activeCardDropdown || activeCardDropdown.toggle === exceptToggle) return false;
     const dropdown = window.bootstrap
       ? window.bootstrap.Dropdown.getInstance(activeCardDropdown.toggle)
@@ -209,6 +211,10 @@ window.kioskState = {
     if (dropdown) dropdown.hide();
     if (activeCardDropdown.restore) activeCardDropdown.restore();
     activeCardDropdown = null;
+    if (flushPending && pendingCardRender) {
+      pendingCardRender = false;
+      applyFilterAndRender();
+    }
     return true;
   }
 
@@ -592,7 +598,7 @@ window.kioskState = {
         const target = ev.currentTarget.getAttribute("data-move-to");
         if (!target) return;
 
-        closeActiveCardDropdown();
+        closeActiveCardDropdown(null, false);
 
         const ids = isGroup ? vm.orders.map((o) => o.id) : [primary.id];
 
@@ -613,7 +619,7 @@ window.kioskState = {
       btn.addEventListener("click", async (ev) => {
         ev.preventDefault();
         ev.stopPropagation();
-        closeActiveCardDropdown();
+        closeActiveCardDropdown(null, false);
         const ids = isGroup ? vm.orders.map((o) => o.id) : [primary.id];
         const label = isGroup ? `${ids.length} ordini` : "questo ordine";
         if (!confirm(`Eliminare ${label} da bacheca, plancia e Slack?`)) return;
@@ -1012,11 +1018,18 @@ window.kioskState = {
     }
   }
 
-  function applyFilterAndRender() {
-    closeActiveCardDropdown();
+  function applyFilterAndRender({ force = false } = {}) {
     const filter = kioskState.currentRouteFilter || "__all__";
     const cards = Array.isArray(kioskState.lastCards) ? kioskState.lastCards : [];
     const filtered = filter === "__all__" ? cards : cards.filter((c) => String(c.route_id) === String(filter));
+    const signature = JSON.stringify(filtered);
+    if (!force && signature === lastRenderedCardsSignature) return false;
+    if (activeCardDropdown) {
+      pendingCardRender = true;
+      return false;
+    }
+    lastRenderedCardsSignature = signature;
+    pendingCardRender = false;
 
     document.querySelectorAll(".kiosk-col").forEach((col) => {
       const body = col.querySelector(".kiosk-col__body");
@@ -1044,6 +1057,7 @@ window.kioskState = {
 
     const pillTotal = document.getElementById("pill-total");
     if (pillTotal) pillTotal.textContent = String(filtered.length);
+    return true;
     syncMobileStatusTabs();
     applyMobileStatusFilter();
   }
@@ -1226,10 +1240,11 @@ window.kioskState = {
       recountColumnsFromDOM();
     } catch (err) {
       console.error("[kiosk_overview] load error", err);
-      document.querySelectorAll(".kiosk-col__body").forEach((body) => {
-        body.innerHTML = `<div class="kiosk-empty">Nessun ordine</div>`;
-      });
-      document.querySelectorAll(".kiosk-col [data-count]").forEach((b) => (b.textContent = "0"));
+      if (!document.querySelector(".kiosk-col__body .order-card")) {
+        document.querySelectorAll(".kiosk-col__body").forEach((body) => {
+          body.innerHTML = `<div class="kiosk-empty">Aggiornamento non disponibile</div>`;
+        });
+      }
     }
   }
 

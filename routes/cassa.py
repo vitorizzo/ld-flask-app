@@ -174,10 +174,11 @@ def _agenda_day_version_key(day_date) -> str:
     return f"agenda:day:{day_date}:version"
 
 
-def _bump_agenda_day_version(day_date) -> None:
+def _bump_agenda_day_version(day_date) -> int:
+    version = 0
     try:
         r = get_redis()
-        r.incr(_agenda_day_version_key(day_date))
+        version = int(r.incr(_agenda_day_version_key(day_date)))
     except Exception:
         logger.exception("Errore incremento agenda day version")
 
@@ -186,6 +187,7 @@ def _bump_agenda_day_version(day_date) -> None:
             _mark_cash_closure_snapshots_stale_from(day_date)
     except Exception:
         logger.exception("Errore marcatura snapshot stale per %s", day_date)
+    return version
 
 
 def _get_agenda_day_version(day_date) -> int:
@@ -8590,8 +8592,7 @@ def api_toggle_row_check():
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
         pri_data, day_node, _, _ = _pri_find_cash_move(check_year, entity_id_str)
-        if day_node:
-            _bump_agenda_day_version(day_node["date"])
+        agenda_version = _bump_agenda_day_version(day_node["date"]) if day_node else 0
 
         return jsonify({
             "ok": True,
@@ -8599,6 +8600,7 @@ def api_toggle_row_check():
             "is_checked": bool(updated_row.get("is_checked")),
             "storage": "pri",
             "persistent": True,
+            "agenda_version": agenda_version,
         })
 
     if entity_id_str.startswith("pri-exp-"):
@@ -8613,8 +8615,7 @@ def api_toggle_row_check():
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
         pri_data, day_node, _, _ = _pri_find_expense(check_year, entity_id_str)
-        if day_node:
-            _bump_agenda_day_version(day_node["date"])
+        agenda_version = _bump_agenda_day_version(day_node["date"]) if day_node else 0
 
         return jsonify({
             "ok": True,
@@ -8622,6 +8623,7 @@ def api_toggle_row_check():
             "is_checked": bool(updated_row.get("is_checked")),
             "storage": "pri",
             "persistent": True,
+            "agenda_version": agenda_version,
         })
 
     if entity_id_str.startswith("pri-sale-"):
@@ -8636,8 +8638,7 @@ def api_toggle_row_check():
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
         pri_data, day_node, _, _ = _pri_find_sale(check_year, entity_id_str)
-        if day_node:
-            _bump_agenda_day_version(day_node["date"])
+        agenda_version = _bump_agenda_day_version(day_node["date"]) if day_node else 0
 
         return jsonify({
             "ok": True,
@@ -8645,6 +8646,7 @@ def api_toggle_row_check():
             "is_checked": bool(updated_row.get("is_checked")),
             "storage": "pri",
             "persistent": True,
+            "agenda_version": agenda_version,
         })
 
     # =========================
@@ -8678,8 +8680,7 @@ def api_toggle_row_check():
 
         db.session.commit()
 
-        if cash_day:
-            _bump_agenda_day_version(cash_day.day_date.isoformat())
+        agenda_version = _bump_agenda_day_version(cash_day.day_date.isoformat()) if cash_day else 0
 
         return jsonify({
             "ok": True,
@@ -8687,6 +8688,7 @@ def api_toggle_row_check():
             "is_checked": row.is_checked,
             "storage": "az",
             "persistent": True,
+            "agenda_version": agenda_version,
         })
 
     except Exception as e:

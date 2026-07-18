@@ -13,6 +13,7 @@ let vaultPollInterval = null;
 let lastKnownVaultStateVersion = null;
 let lastKnownAgendaVersion = null;
 let agendaPollInterval = null;
+let rowCheckMutationDepth = 0;
 let editingEcommerceId = null;
 
 const EXPENSE_POS_CARDS = [
@@ -192,7 +193,7 @@ function updateQuadraturaLeds(delta) {
 }
 
 async function pollAgendaVersion() {
-  if (!currentDay) return;
+  if (!currentDay || rowCheckMutationDepth > 0) return;
 
   try {
     const r = await fetch(`/cassa/api/day/${currentDay}/version`, {
@@ -215,7 +216,7 @@ async function pollAgendaVersion() {
       console.log("Agenda changed → refresh", lastKnownAgendaVersion, "→", version);
 
       lastKnownAgendaVersion = version;
-      await refreshAgendaData();
+      await refreshAgendaData(true);
     }
   } catch (err) {
     console.error("pollAgendaVersion error:", err);
@@ -249,7 +250,7 @@ async function pollPrivateVaultStatus() {
       console.log("Vault state version changed:", currentVersion);
 
       lastKnownVaultStateVersion = currentVersion;
-      await refreshAgendaData();
+      await refreshAgendaData(true);
       return;
     }
 
@@ -1222,8 +1223,33 @@ async function refreshAgendaSections(sections = []) {
   await Promise.all(jobs);
 }
 
-async function refreshAgendaData() {
+function captureAgendaScrollState() {
+  const elements = [
+    document.scrollingElement,
+    document.querySelector("main.app-content"),
+    document.querySelector(".welcome-section.agenda-page > .container-fluid"),
+    document.getElementById("incassiPanel"),
+    document.getElementById("spesePanel"),
+    document.getElementById("posPanel"),
+    document.getElementById("movCassaPanel"),
+  ].filter(Boolean);
+  return elements.map((element) => ({ element, top: element.scrollTop, left: element.scrollLeft }));
+}
+
+function restoreAgendaScrollState(state) {
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    state.forEach(({ element, top, left }) => {
+      if (!element?.isConnected && element !== document.scrollingElement) return;
+      element.scrollTop = top;
+      element.scrollLeft = left;
+    });
+  }));
+}
+
+async function refreshAgendaData(preserveView = false) {
   if (!currentDay) return;
+
+  const scrollState = preserveView ? captureAgendaScrollState() : null;
 
   await Promise.all([
     loadPreview(currentDay),
@@ -1236,6 +1262,7 @@ async function refreshAgendaData() {
   ]);
 
   loadAssegniScadenza(currentDay, false);
+  if (scrollState) restoreAgendaScrollState(scrollState);
 }
 
 /* =========================
@@ -2253,28 +2280,36 @@ async function fetchRowChecks(cashDayId, entityType) {
 }
 
 async function toggleRowCheck(entityType, entityId, cashDayId, isChecked) {
-  const r = await fetch("/cassa/api/row-check/toggle", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Accept": "application/json"
-    },
-    credentials: "same-origin",
-    body: JSON.stringify({
-      entity_type: entityType,
-      entity_id: entityId,
-      cash_day_id: cashDayId,
-      is_checked: isChecked
-    })
-  });
+  rowCheckMutationDepth += 1;
+  try {
+    const r = await fetch("/cassa/api/row-check/toggle", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/json"
+      },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        entity_type: entityType,
+        entity_id: entityId,
+        cash_day_id: cashDayId,
+        is_checked: isChecked
+      })
+    });
 
-  const data = await r.json();
+    const data = await r.json();
 
-  if (!data || data.ok !== true) {
-    throw new Error(data?.error || "Errore toggle check");
+    if (!data || data.ok !== true) {
+      throw new Error(data?.error || "Errore toggle check");
+    }
+
+    const agendaVersion = Number(data.agenda_version || 0);
+    if (agendaVersion > 0) lastKnownAgendaVersion = agendaVersion;
+
+    return data;
+  } finally {
+    rowCheckMutationDepth = Math.max(0, rowCheckMutationDepth - 1);
   }
-
-  return data;
 }
 
 async function loadPosMoves(dayStr) {

@@ -2339,3 +2339,11 @@ Performance apertura giornata Agenda 2026-06-13:
   - il menu viene chiuso su tap/click fuori da menu e toggle, cambio focus, `Escape`, blur finestra, resize, scroll e pagina nascosta;
   - ogni rerender/refresh automatico chiude e ripristina prima il menu flottante, impedendo nodi orfani nel `body`;
   - cache asset portata a `mobile-board10`; verificati `node --check`, compilazione template e `git diff --check`.
+- 2026-07-18 refresh trasparenti bacheca/Agenda e cornice card:
+  - la bacheca calcola una firma dei dati renderizzati e non ricostruisce il DOM durante il polling se nulla e' cambiato;
+  - se arrivano modifiche mentre un menu card e' aperto, conserva DOM/menu e differisce il rendering fino alla chiusura; le azioni sulla card chiudono il menu e applicano subito il refresh pertinente;
+  - un errore temporaneo del polling non svuota piu' una bacheca gia' popolata;
+  - le card hanno sfondo bianco e cornice da 3 px ottenuta dal colore precedente, resa piu' decisa tramite `color-mix`; mantenuti gli indicatori speciali di consegna;
+  - `_bump_agenda_day_version()` restituisce la versione Redis incrementata e il toggle check la invia al frontend come `agenda_version`; la modifica locale viene registrata subito e non innesca il successivo refresh del polling;
+  - i refresh Agenda realmente esterni preservano scroll della pagina e dei pannelli Incassi, Spese, POS e Movimenti di cassa;
+  - asset aggiornati a `mobile-board11` e `mobile-actions4`; verificati JS, Python, template, bump versione simulato `42` e `git diff --check`.
