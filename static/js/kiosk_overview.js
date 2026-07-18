@@ -556,6 +556,11 @@ window.kioskState = {
     div.addEventListener("click", (ev) => {
       if (dragCtx.isDragging) return;
       if (suppressCardClick) {
+        // Il browser genera un click sintetico quando il dito viene sollevato
+        // dopo la pressione lunga. Se arriva fino a document, Bootstrap lo
+        // interpreta come click esterno e richiude immediatamente il dropdown.
+        ev.preventDefault();
+        ev.stopPropagation();
         suppressCardClick = false;
         return;
       }
@@ -577,6 +582,18 @@ window.kioskState = {
       longPressTimer = window.setTimeout(() => {
         longPressTimer = null;
         suppressCardClick = true;
+        // Quando il menu compare sotto il dito, il click sintetico generato al
+        // rilascio ha come target il menu appena aperto (non piu la card).
+        // Intercettiamo solo quel primo click touch, prima che Bootstrap lo usi
+        // per richiudere il dropdown o attivare accidentalmente una voce.
+        const suppressReleaseClick = (clickEv) => {
+          if (clickEv.pointerType && clickEv.pointerType !== "touch" && clickEv.pointerType !== "pen") return;
+          clickEv.preventDefault();
+          clickEv.stopImmediatePropagation();
+          document.removeEventListener("click", suppressReleaseClick, true);
+        };
+        document.addEventListener("click", suppressReleaseClick, true);
+        window.setTimeout(() => document.removeEventListener("click", suppressReleaseClick, true), 800);
         openCardContextMenu(ev, { fromLongPress: true });
       }, 420);
     });

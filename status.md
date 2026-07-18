@@ -2352,3 +2352,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - il drag HTML5 delle card resta disponibile con mouse ma viene disabilitato sui dispositivi `hover:none/pointer:coarse`, evitando il `pointercancel` del browser mobile;
   - su mobile le card usano `touch-action: pan-y`, callout e selezione testo disabilitati, mantenendo lo scroll verticale senza cedere la pressione lunga al drag nativo;
   - cache aggiornata a `mobile-board12`.
+- 2026-07-18 diagnosi strumentata e fix rilascio long press mobile:
+  - riprodotto in Edge mobile 390x844 tramite eventi touch CDP: il menu si apriva correttamente dopo 420 ms a `x=25, y=310`, ma il click sintetico al rilascio colpiva il menu appena sovrapposto e Bootstrap lo chiudeva subito;
+  - il primo click sintetico touch/pen successivo al long press viene ora intercettato in capture, senza selezionare voci e senza raggiungere l'auto-close Bootstrap;
+  - controprova automatizzata: dopo `touchEnd` il menu resta presente, visibile e aperto (`320x520`); cache aggiornata a `mobile-board13`.
