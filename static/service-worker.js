@@ -1,4 +1,4 @@
-const CACHE_NAME = "ldapp-cache-v22"; // bump per forzare update
+const CACHE_NAME = "ldapp-cache-v23"; // bump per forzare update
 const MAX_PUSH_AGE_MS = 10 * 60 * 1000;
 
 function supportedNotificationActions(actions) {
@@ -51,6 +51,7 @@ self.addEventListener("install", (event) => {
         "/static/css/context_tabs.css?v=20260628-mobile-home-10",
         "/static/css/task_status.css?v=20260628-mobile-home-10",
         "/static/js/menu.js?v=20260628-mobile-home-10",
+        "/static/images/loghi_azienda/logo-ldenoteca-bianco.png",
         "/static/icons/icon-192.png",
         "/static/icons/icon-512.png",
       ]);

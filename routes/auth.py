@@ -16,7 +16,16 @@ from tools.support_tickets import (
     ticket_user_unread_count,
     user_unread_count,
 )
-from models import User, PasswordResetToken, RoleActivationRequest, SupportTicket, SupportTicketMessage, SupportTicketAttachment
+from models import (
+    User,
+    UserRole,
+    Role,
+    PasswordResetToken,
+    RoleActivationRequest,
+    SupportTicket,
+    SupportTicketMessage,
+    SupportTicketAttachment,
+)
 from tools.log_utils import log_task, get_logger
 
 import os
@@ -93,6 +102,11 @@ def register():
         if user:
             flash("Email già registrata. Usa un'altra email.", 'danger')
             return redirect(url_for('auth.register'))
+        customer_role = Role.query.filter_by(name="customer").first()
+        if customer_role is None:
+            logger.error("Registrazione interrotta: ruolo base customer non configurato")
+            flash("Registrazione momentaneamente non disponibile: ruolo cliente non configurato.", "danger")
+            return redirect(url_for("auth.register"))
         hashed_password = generate_password_hash(form.password.data)
         new_user = User(
             name=form.name.data,
@@ -106,8 +120,14 @@ def register():
             sex=int(form.sex.data)
         )
         db.session.add(new_user)
+        db.session.flush()
+        db.session.add(UserRole(
+            user_id=new_user.id,
+            role_id=customer_role.id,
+            type="lifetime",
+            notes="Ruolo base assegnato automaticamente alla registrazione.",
+        ))
         if form.merchant_request.data:
-            db.session.flush()
             activation_request = RoleActivationRequest(
                 user_id=new_user.id,
                 requested_role="customer_horeca",

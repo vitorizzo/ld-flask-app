@@ -145,6 +145,8 @@ section {
 
 .navbar-brand {
   position: relative;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .navbar-brand-home-hint {

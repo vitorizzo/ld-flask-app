@@ -2361,3 +2361,7 @@ Performance apertura giornata Agenda 2026-06-13:
   - altezza massima calcolata dalla viewport dinamica, overflow verticale touch, overscroll contenuto e scorrimento inerziale rendono raggiungibili tutte le azioni;
   - il listener globale non chiude piu' il dropdown quando a scorrere e' il menu stesso, ma continua a chiuderlo per scroll esterni;
   - test reali Edge/CDP con 17 card: menu interamente nella viewport a inizio/centro/fondo pagina su 390x844 e 360x640; su 360x520 pannello `492 px`, contenuto `572 px`, overflow `auto` e `scrollTop` modificabile senza chiusura; cache `mobile-board14`.
+- 2026-07-18 ruolo registrazione e logo navbar assistenza:
+  - `POST /auth/register` assegna contestualmente il ruolo lifetime `customer`; se il ruolo base non e' configurato la registrazione viene fermata con errore esplicito invece di creare un utente senza autorizzazioni;
+  - il brand navbar non puo' piu' restringersi nel layout flex, il logo dichiara dimensioni e priorita' di caricamento ed e' precaricato dal service worker `ldapp-cache-v23` per il fallback di rete;
+  - test end-to-end con utente temporaneo: redirect login e unico ruolo `customer`, poi cleanup verificato; pagina assistenza 200 e logo PNG 200/34.470 byte.
