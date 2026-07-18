@@ -2365,3 +2365,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - `POST /auth/register` assegna contestualmente il ruolo lifetime `customer`; se il ruolo base non e' configurato la registrazione viene fermata con errore esplicito invece di creare un utente senza autorizzazioni;
   - il brand navbar non puo' piu' restringersi nel layout flex, il logo dichiara dimensioni e priorita' di caricamento ed e' precaricato dal service worker `ldapp-cache-v23` per il fallback di rete;
   - test end-to-end con utente temporaneo: redirect login e unico ruolo `customer`, poi cleanup verificato; pagina assistenza 200 e logo PNG 200/34.470 byte.
+- 2026-07-18 azioni menu card e callout mobile:
+  - eliminata la finestra di 800 ms che poteva intercettare il primo tap intenzionale su una voce; il click sintetico di rilascio viene bloccato per soli 180 ms;
+  - il menu completa il long press sia su `pointerup` sia su `pointercancel`, usato dai browser che tentano di aprire il context menu nativo;
+  - `contextmenu` viene annullato in capture su card/menu nei dispositivi coarse/no-hover e il callout/selezione sono disabilitati anche sul pannello flottante;
+  - ignorati esclusivamente i rimbalzi iniziali di focus/scroll entro 250 ms dall'apertura; `data-bs-auto-close=outside`, mentre gli handler di stato/eliminazione chiudono esplicitamente il menu;
+  - test Edge touch con 24 card: sequenza `show/shown`, menu ancora visibile dopo il rilascio, voce azione individuata e sequenza di chiusura dell'handler; nessun evento DB di cambio stato prodotto dal test; cache `mobile-board15`.

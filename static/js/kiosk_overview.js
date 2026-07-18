@@ -226,8 +226,15 @@ window.kioskState = {
     closeActiveCardDropdown();
   }, true);
 
+  document.addEventListener("contextmenu", (ev) => {
+    if (!window.matchMedia("(hover: none), (pointer: coarse)").matches) return;
+    if (!ev.target.closest(".order-card, .dropdown-menu.kiosk-floating-menu")) return;
+    ev.preventDefault();
+  }, true);
+
   document.addEventListener("focusin", (ev) => {
     if (!activeCardDropdown) return;
+    if (performance.now() - (activeCardDropdown.openedAt || 0) < 250) return;
     const menu = activeCardDropdown.menu;
     const toggle = activeCardDropdown.toggle;
     if ((menu && menu.contains(ev.target)) || (toggle && toggle.contains(ev.target))) return;
@@ -242,6 +249,7 @@ window.kioskState = {
   window.addEventListener("resize", () => closeActiveCardDropdown());
   document.addEventListener("scroll", (ev) => {
     if (!activeCardDropdown) return;
+    if (performance.now() - (activeCardDropdown.openedAt || 0) < 250) return;
     const menu = activeCardDropdown.menu;
     // Lo scroll interno serve a raggiungere tutte le azioni sui display bassi.
     // Chiudiamo soltanto se a scorrere e' la pagina o un contenitore esterno.
@@ -456,7 +464,7 @@ window.kioskState = {
     const moveMenuHtml = moveOpts.length
       ? `
         <div class="order-actions dropdown">
-          <button class="btn btn-sm btn-dark dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">⋯</button>
+          <button class="btn btn-sm btn-dark dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">⋯</button>
           <ul class="dropdown-menu">
             <li class="dropdown-header">Sposta in</li>
             ${moveOpts
@@ -518,12 +526,16 @@ window.kioskState = {
     let suppressCardClick = false;
     let longPressTimer = null;
     let longPressStart = null;
+    let longPressReady = false;
+    let longPressMenuEvent = null;
     let contextMenuPoint = null;
 
     function cancelLongPress() {
       window.clearTimeout(longPressTimer);
       longPressTimer = null;
       longPressStart = null;
+      longPressReady = false;
+      longPressMenuEvent = null;
     }
 
     function isCardMenuExcludedTarget(target) {
@@ -553,7 +565,7 @@ window.kioskState = {
       }
       closeActiveCardDropdown(ddToggle);
       const dropdown = window.bootstrap.Dropdown.getOrCreateInstance(ddToggle, {
-        autoClose: true,
+        autoClose: "outside",
         boundary: document.body,
       });
       dropdown.show();
@@ -578,6 +590,21 @@ window.kioskState = {
     });
 
     div.addEventListener("contextmenu", (ev) => {
+      if (longPressStart) {
+        // Su touch/pen questo e' il callout nativo generato dal long press:
+        // lo blocchiamo e lasciamo che il nostro menu si apra al pointerup.
+        ev.preventDefault();
+        ev.stopImmediatePropagation();
+        longPressReady = true;
+        longPressMenuEvent = {
+          target: ev.target,
+          clientX: ev.clientX,
+          clientY: ev.clientY,
+          preventDefault() {},
+          stopPropagation() {},
+        };
+        return;
+      }
       openCardContextMenu(ev);
     });
 
@@ -586,22 +613,18 @@ window.kioskState = {
       if (isLongPressExcludedTarget(ev.target)) return;
       cancelLongPress();
       longPressStart = { pointerId: ev.pointerId, x: ev.clientX, y: ev.clientY };
+      longPressMenuEvent = {
+        target: ev.target,
+        clientX: ev.clientX,
+        clientY: ev.clientY,
+        preventDefault() {},
+        stopPropagation() {},
+      };
       longPressTimer = window.setTimeout(() => {
         longPressTimer = null;
+        longPressReady = true;
         suppressCardClick = true;
-        // Quando il menu compare sotto il dito, il click sintetico generato al
-        // rilascio ha come target il menu appena aperto (non piu la card).
-        // Intercettiamo solo quel primo click touch, prima che Bootstrap lo usi
-        // per richiudere il dropdown o attivare accidentalmente una voce.
-        const suppressReleaseClick = (clickEv) => {
-          if (clickEv.pointerType && clickEv.pointerType !== "touch" && clickEv.pointerType !== "pen") return;
-          clickEv.preventDefault();
-          clickEv.stopImmediatePropagation();
-          document.removeEventListener("click", suppressReleaseClick, true);
-        };
-        document.addEventListener("click", suppressReleaseClick, true);
-        window.setTimeout(() => document.removeEventListener("click", suppressReleaseClick, true), 800);
-        openCardContextMenu(ev, { fromLongPress: true });
+        if (navigator.vibrate) navigator.vibrate(18);
       }, 420);
     });
 
@@ -610,9 +633,34 @@ window.kioskState = {
       const distance = Math.hypot(ev.clientX - longPressStart.x, ev.clientY - longPressStart.y);
       if (distance > 20) cancelLongPress();
     });
-    ["pointerup", "pointercancel", "pointerleave"].forEach((eventName) => {
-      div.addEventListener(eventName, cancelLongPress);
-    });
+    const finishLongPress = (ev) => {
+      if (!longPressStart || ev.pointerId !== longPressStart.pointerId) return;
+      const shouldOpen = longPressReady;
+      const menuEvent = longPressMenuEvent;
+      if (shouldOpen) {
+        ev.preventDefault();
+        ev.stopPropagation();
+      }
+      cancelLongPress();
+      if (shouldOpen) {
+        const suppressReleaseClick = (clickEv) => {
+          if (clickEv.pointerType && clickEv.pointerType !== "touch" && clickEv.pointerType !== "pen") return;
+          clickEv.preventDefault();
+          clickEv.stopImmediatePropagation();
+          document.removeEventListener("click", suppressReleaseClick, true);
+        };
+        document.addEventListener("click", suppressReleaseClick, true);
+        // Il click sintetico segue immediatamente pointerup/pointercancel. Una
+        // finestra breve evita di intercettare il successivo tap intenzionale.
+        window.setTimeout(() => document.removeEventListener("click", suppressReleaseClick, true), 180);
+        contextMenuPoint = { x: menuEvent.clientX, y: menuEvent.clientY };
+        openCardContextMenu(null, { fromLongPress: true });
+        window.setTimeout(() => { suppressCardClick = false; }, 240);
+      }
+    };
+    div.addEventListener("pointerup", finishLongPress);
+    div.addEventListener("pointercancel", finishLongPress);
+    div.addEventListener("pointerleave", cancelLongPress);
 
     div.querySelectorAll("[data-edit-delivery]").forEach((btn) => {
       btn.addEventListener("click", (ev) => {
@@ -771,7 +819,13 @@ window.kioskState = {
         // Popper completa il proprio aggiornamento dopo l'evento shown:
         // ribadiamo le coordinate sulla viewport al frame successivo.
         window.requestAnimationFrame(positionFloatingMenu);
-        activeCardDropdown = { toggle: ddToggle, menu: ddMenu, card: div, restore: restoreFloatingMenu };
+        activeCardDropdown = {
+          toggle: ddToggle,
+          menu: ddMenu,
+          card: div,
+          restore: restoreFloatingMenu,
+          openedAt: performance.now(),
+        };
       });
       ddToggle.addEventListener("hidden.bs.dropdown", () => {
         div.classList.remove("menu-open");
