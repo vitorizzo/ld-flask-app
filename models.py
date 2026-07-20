@@ -108,6 +108,20 @@ class AppPreference(db.Model):
         return value
 
 
+class AppVisitor(db.Model):
+    __tablename__ = "app_visitors"
+    __table_args__ = (
+        db.UniqueConstraint("visitor_hash", name="uq_app_visitors_visitor_hash"),
+        db.Index("ix_app_visitors_last_seen", "last_seen"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    visitor_hash = db.Column(db.String(64), nullable=False)
+    first_seen = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    last_seen = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    visit_count = db.Column(db.BigInteger, nullable=False, default=1)
+
+
 class EmailAccount(db.Model):
     __tablename__ = "email_accounts"
     __table_args__ = (

@@ -2383,3 +2383,10 @@ Performance apertura giornata Agenda 2026-06-13:
   - il dettaglio espone `Rispondi` nell'intestazione e apre una modale con messaggio e allegati; lifecycle di pulsante, testo, handler e form viene inizializzato su `shown.bs.modal` e ripulito su `hidden.bs.modal`;
   - cambio stato mantenuto nel dettaglio con elenco di stati tradotti e pulsante `Salva stato`; lo stato `Attivato` resta disponibile soltanto per i ticket Horeca;
   - cache CSS aggiornata a `mobile15`; verificati compilazione Jinja e `git diff --check`.
+- 2026-07-20 dashboard Developer e analytics prima parte:
+  - aggiunti blueprint `/developer`, route `/developer/dashboard` e menu DB-driven `Developer > Dashboard`, entrambi riservati al ruolo `dev` tramite peso `999` anche lato backend;
+  - la dashboard mostra visitatori unici, visite totali, registrati totali e conteggi per ciascun ruolo attivo, segnalando anche eventuali utenti senza ruolo attivo;
+  - introdotto `AppVisitor`/`app_visitors` con migration `5f60718293a4`, applicata al DB; le statistiche visite decorrono dall'attivazione del sistema;
+  - analytics first-party aggregati: cookie casuale persistente salvato solo come SHA-256, sessione visita di 30 minuti, nessun IP, user-agent, URL o collegamento account memorizzato, esclusione bot nota e rispetto `DNT`/`Sec-GPC`;
+  - cookie `HttpOnly`, `SameSite=Lax`, `Secure` su HTTPS anche dietro `X-Forwarded-Proto`; il cookie analytics va descritto nell'informativa privacy/cookie;
+  - test end-to-end: prima visita `0 -> 1`, refresh senza incremento, DNT non tracciato, dashboard renderizzata come dev, menu verificato e dati test rimossi; cache CSS `mobile16`.

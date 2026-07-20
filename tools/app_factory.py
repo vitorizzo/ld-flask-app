@@ -249,6 +249,18 @@ def create_app():
         except Exception:
             logger.exception("refresh_runtime_preferences: unexpected error while loading runtime preferences")
 
+    @app.before_request
+    def record_visitor_analytics():
+        from tools.visitor_analytics import record_visit
+
+        record_visit()
+
+    @app.after_request
+    def attach_visitor_analytics_cookies(response):
+        from tools.visitor_analytics import set_analytics_cookies
+
+        return set_analytics_cookies(response)
+
     # **NUOVA CONFIGURAZIONE DI LOGGING**
     # Rimuovi gli handler di default del logger di Flask
     app.logger.handlers = []
@@ -426,6 +438,7 @@ def create_app():
     from routes.events import events_bp
     from routes.customer_orders import customer_orders_bp
     from routes.supplier_orders import supplier_orders_bp
+    from routes.developer import developer_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(settings_bp, url_prefix="/settings")
@@ -453,6 +466,7 @@ def create_app():
     app.register_blueprint(events_bp, url_prefix="/events")
     app.register_blueprint(customer_orders_bp, url_prefix="/customer-orders")
     app.register_blueprint(supplier_orders_bp, url_prefix="/supplier-orders")
+    app.register_blueprint(developer_bp, url_prefix="/developer")
 
     @app.cli.command("cleanup-reset-tokens")
     @click.option("--retention-days", default=30, show_default=True, type=int,

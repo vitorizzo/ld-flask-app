@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard Developer{% endblock %}
+
+{% block content %}
+<section class="welcome-section page-shell developer-dashboard">
+  <div class="container-fluid">
+    <header class="developer-dashboard__header mb-4">
+      <div>
+        <h1 class="mb-1">Dashboard Developer</h1>
+        <p class="mb-0 text-white-50">Statistiche aggregate della webapp dal momento di attivazione del monitoraggio.</p>
+      </div>
+    </header>
+
+    <div class="developer-kpi-grid mb-4">
+      <article class="developer-kpi-card">
+        <i class="fa-regular fa-eye" aria-hidden="true"></i>
+        <div><span>Visitatori unici</span><strong>{{ unique_visitors }}</strong></div>
+      </article>
+      <article class="developer-kpi-card">
+        <i class="fa-solid fa-arrow-pointer" aria-hidden="true"></i>
+        <div><span>Visite totali</span><strong>{{ total_visits }}</strong></div>
+      </article>
+      <article class="developer-kpi-card">
+        <i class="fa-solid fa-users" aria-hidden="true"></i>
+        <div><span>Registrati totali</span><strong>{{ total_users }}</strong></div>
+      </article>
+    </div>
+
+    <article class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+          <div>
+            <h2 class="h4 mb-1">Registrati per ruolo</h2>
+            <p class="text-muted mb-0">Sono considerati esclusivamente i ruoli attivi. Un utente con piu' ruoli compare in ogni ruolo assegnato.</p>
+          </div>
+        </div>
+        <div class="developer-role-list">
+          {% for role in role_counts %}
+            <div class="developer-role-row">
+              <div>
+                <strong>{{ role.name }}</strong>
+                {% if role.description %}<span>{{ role.description }}</span>{% endif %}
+              </div>
+              <span class="developer-role-count">{{ role.user_count }}</span>
+            </div>
+          {% endfor %}
+          {% if users_without_active_role %}
+            <div class="developer-role-row developer-role-row--warning">
+              <div><strong>Senza ruolo attivo</strong></div>
+              <span class="developer-role-count">{{ users_without_active_role }}</span>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </article>
+  </div>
+</section>
+{% endblock %}

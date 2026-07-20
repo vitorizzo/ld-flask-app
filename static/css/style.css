@@ -3487,3 +3487,110 @@ body.kiosk-body #flash-message,
     color: #fff;
     flex: 0 0 auto;
 }
+
+.developer-dashboard__header h1 {
+    text-align: left;
+}
+
+.developer-kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.developer-kpi-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+    padding: 20px;
+    border-radius: 10px;
+    color: #212529;
+    background: #fff;
+    box-shadow: 0 .125rem .25rem rgba(0, 0, 0, .075);
+}
+
+.developer-kpi-card > i {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    flex: 0 0 52px;
+    border-radius: 12px;
+    color: #062b33;
+    background: #0dcaf0;
+    font-size: 1.4rem;
+}
+
+.developer-kpi-card span,
+.developer-kpi-card strong {
+    display: block;
+}
+
+.developer-kpi-card span {
+    color: #6c757d;
+}
+
+.developer-kpi-card strong {
+    font-size: 2rem;
+    line-height: 1.1;
+}
+
+.developer-role-list {
+    display: grid;
+    gap: 8px;
+}
+
+.developer-role-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: #f8f9fa;
+}
+
+.developer-role-row span:not(.developer-role-count) {
+    display: block;
+    color: #6c757d;
+    font-size: .9rem;
+}
+
+.developer-role-count {
+    min-width: 48px;
+    padding: 5px 10px;
+    border-radius: 999px;
+    color: #062b33;
+    background: #0dcaf0;
+    font-size: 1.1rem;
+    font-weight: 800;
+    text-align: center;
+}
+
+.developer-role-row--warning {
+    background: #fff3cd;
+}
+
+@media (max-width: 820px) {
+    .welcome-section.page-shell.developer-dashboard {
+        height: auto;
+        min-height: 100%;
+        overflow: visible;
+        padding: 14px 10px;
+    }
+
+    .developer-dashboard > .container-fluid {
+        padding: 0;
+        overflow: visible;
+    }
+
+    .developer-kpi-grid {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+
+    .developer-kpi-card {
+        padding: 15px;
+    }
+}
