@@ -20,45 +20,37 @@
       {% endfor %}
     </div>
 
-    <div class="card border-0 shadow-sm">
-      <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
-          <thead>
-            <tr>
-              <th>Ticket</th>
-              <th>Oggetto</th>
-              <th>Email</th>
-              <th>Stato</th>
-              <th>Ultimo aggiornamento</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for ticket in tickets %}
-              <tr class="support-ticket-row">
-                <td data-label="Ticket">
-                  #{{ ticket.id }}
-                  {% if unread_counts.get(ticket.id, 0) %}
-                    <span class="help-desk-unread-badge ms-1" title="Nuovi messaggi">{{ unread_counts[ticket.id] if unread_counts[ticket.id] < 100 else '99+' }}</span>
-                  {% endif %}
-                </td>
-                <td data-label="Oggetto">
-                  <strong>{{ ticket.subject }}</strong>
-                  {% if ticket.user %}<div class="text-muted small">{{ ticket.user.name }} {{ ticket.user.surname }}</div>{% endif %}
-                </td>
-                <td data-label="Email">{{ ticket.reply_email }}</td>
-                <td data-label="Stato"><span class="badge text-bg-info">{{ ticket.status }}</span></td>
-                <td data-label="Aggiornato">{{ ticket.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
-                <td class="support-ticket-action text-end">
-                  <a class="btn btn-sm btn-info" href="{{ url_for('settings.support_ticket_detail', ticket_id=ticket.id) }}">Apri</a>
-                </td>
-              </tr>
-            {% else %}
-              <tr><td colspan="6" class="text-center text-muted py-4">Nessun ticket.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
+    {% set status_labels = {
+      'open': 'Aperto',
+      'in_progress': 'In lavorazione',
+      'waiting_user': 'In attesa utente',
+      'closed': 'Chiuso',
+      'activated': 'Attivato'
+    } %}
+    <div class="support-ticket-list" role="list">
+      {% for ticket in tickets %}
+        <a class="support-ticket-item" href="{{ url_for('settings.support_ticket_detail', ticket_id=ticket.id) }}" role="listitem">
+          <span class="support-ticket-item__bar">
+            <span class="support-ticket-item__number">
+              Ticket #{{ ticket.id }}
+              {% if unread_counts.get(ticket.id, 0) %}
+                <span class="help-desk-unread-badge" title="Nuovi messaggi">{{ unread_counts[ticket.id] if unread_counts[ticket.id] < 100 else '99+' }}</span>
+              {% endif %}
+            </span>
+            <span class="support-ticket-item__status">{{ status_labels.get(ticket.status, ticket.status) }}</span>
+            <time datetime="{{ ticket.updated_at.isoformat() }}">{{ ticket.updated_at.strftime('%d/%m/%Y %H:%M') }}</time>
+          </span>
+          <span class="support-ticket-item__body">
+            <span class="support-ticket-item__author">
+              {{ (ticket.user.name ~ ' ' ~ ticket.user.surname)|trim if ticket.user else 'Visitatore' }}
+            </span>
+            <strong class="support-ticket-item__subject">{{ ticket.subject }}</strong>
+            <i class="fa-solid fa-chevron-right" aria-hidden="true"></i>
+          </span>
+        </a>
+      {% else %}
+        <div class="card border-0 shadow-sm"><div class="card-body text-center text-muted">Nessun ticket.</div></div>
+      {% endfor %}
     </div>
   </div>
 </section>

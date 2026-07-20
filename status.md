@@ -2377,3 +2377,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - il lookup cliente conserva `registry_id` quando viene scelto un risultato e non rilancia una ricerca sull'etichetta completa; aggiunto recupero sicuro dell'ID dall'etichetta, sempre validato dal backend;
   - la card login non si restringe e non nasconde piu' i link inferiori su viewport mobile, incluso `Crea un nuovo account`;
   - cache CSS aggiornata a `mobile14`; verificati template Jinja, login via test client, sintassi JavaScript, selezione lookup e `git diff --check`.
+- 2026-07-20 revisione lista e dettaglio Assistenza LDApp:
+  - la lista iniziale non usa piu' la tabella dettagliata: ogni ticket e' una scheda interamente cliccabile con barra `numero - stato - aggiornamento` e seconda riga limitata ad autore/Visitatore e oggetto;
+  - dimensioni tipografiche e spaziature sono state aumentate per la lettura da smartphone;
+  - il dettaglio espone `Rispondi` nell'intestazione e apre una modale con messaggio e allegati; lifecycle di pulsante, testo, handler e form viene inizializzato su `shown.bs.modal` e ripulito su `hidden.bs.modal`;
+  - cambio stato mantenuto nel dettaglio con elenco di stati tradotti e pulsante `Salva stato`; lo stato `Attivato` resta disponibile soltanto per i ticket Horeca;
+  - cache CSS aggiornata a `mobile15`; verificati compilazione Jinja e `git diff --check`.

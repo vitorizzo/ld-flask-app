@@ -12,6 +12,11 @@
       </div>
       <div class="support-header-actions d-flex gap-2">
         {% if ticket.ticket_type == 'support' %}
+          <button class="btn btn-info" type="button" data-bs-toggle="modal" data-bs-target="#supportReplyModal">
+            <i class="fa-solid fa-reply me-1"></i> Rispondi
+          </button>
+        {% endif %}
+        {% if ticket.ticket_type == 'support' %}
           <a class="btn btn-outline-secondary" href="{{ url_for('settings.support_tickets') }}">Assistenza</a>
         {% else %}
           <a class="btn btn-outline-secondary" href="{{ url_for('settings.horeca_activations') }}">Attivazioni</a>
@@ -84,29 +89,21 @@ Da questo momento puoi accedere ai servizi Horeca disponibili in LDApp.</textare
           </div>
         {% endif %}
 
-        <div class="card border-0 shadow-sm mb-3">
-          <div class="card-body">
-            <h2 class="h5">Rispondi</h2>
-            <form method="post" enctype="multipart/form-data" class="d-grid gap-2">
-              <input type="hidden" name="action" value="reply">
-              <textarea class="form-control" name="body" rows="6" required></textarea>
-              <input class="form-control" type="file" name="attachments" multiple>
-              <button class="btn btn-info" type="submit">Invia risposta</button>
-            </form>
-          </div>
-        </div>
-
         <div class="card border-0 shadow-sm">
           <div class="card-body">
-            <h2 class="h5">Stato</h2>
+            <h2 class="h5">Cambia stato</h2>
             <form method="post" class="d-grid gap-2">
               <input type="hidden" name="action" value="status">
               <select class="form-select" name="status">
-                {% for item in ['open', 'in_progress', 'waiting_user', 'closed', 'activated'] %}
-                  <option value="{{ item }}" {% if ticket.status == item %}selected{% endif %}>{{ item }}</option>
-                {% endfor %}
+                <option value="open" {% if ticket.status == 'open' %}selected{% endif %}>Aperto</option>
+                <option value="in_progress" {% if ticket.status == 'in_progress' %}selected{% endif %}>In lavorazione</option>
+                <option value="waiting_user" {% if ticket.status == 'waiting_user' %}selected{% endif %}>In attesa utente</option>
+                <option value="closed" {% if ticket.status == 'closed' %}selected{% endif %}>Chiuso</option>
+                {% if ticket.ticket_type == 'horeca_activation' %}
+                  <option value="activated" {% if ticket.status == 'activated' %}selected{% endif %}>Attivato</option>
+                {% endif %}
               </select>
-              <button class="btn btn-outline-secondary" type="submit">Aggiorna stato</button>
+              <button class="btn btn-outline-secondary" type="submit">Salva stato</button>
             </form>
           </div>
         </div>
@@ -114,8 +111,70 @@ Da questo momento puoi accedere ai servizi Horeca disponibili in LDApp.</textare
     </div>
   </div>
 </section>
+
+{% if ticket.ticket_type == 'support' %}
+  <div class="modal fade support-reply-modal" id="supportReplyModal" tabindex="-1" aria-labelledby="supportReplyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content">
+        <form id="supportReplyForm" method="post" enctype="multipart/form-data">
+          <div class="modal-header">
+            <h2 class="modal-title fs-5" id="supportReplyModalLabel">Rispondi al ticket #{{ ticket.id }}</h2>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+          </div>
+          <div class="modal-body d-grid gap-3">
+            <input type="hidden" name="action" value="reply">
+            <div>
+              <label class="form-label" for="supportReplyBody">Messaggio</label>
+              <textarea class="form-control" id="supportReplyBody" name="body" rows="7" required></textarea>
+            </div>
+            <div>
+              <label class="form-label" for="supportReplyAttachments">Allegati</label>
+              <input class="form-control" id="supportReplyAttachments" type="file" name="attachments" multiple>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+            <button type="button" class="btn btn-info" id="supportReplySubmit">Invia risposta</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
   <script src="{{ url_for('static', filename='js/customer_registry_lookup.js') }}"></script>
+  {% if ticket.ticket_type == 'support' %}
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        const modal = document.getElementById("supportReplyModal");
+        const form = document.getElementById("supportReplyForm");
+        const submit = document.getElementById("supportReplySubmit");
+        const body = document.getElementById("supportReplyBody");
+        if (!modal || !form || !submit || !body) return;
+
+        document.body.appendChild(modal);
+        const sendReply = () => {
+          if (!form.reportValidity()) return;
+          submit.disabled = true;
+          submit.textContent = "Invio in corso...";
+          form.requestSubmit();
+        };
+
+        modal.addEventListener("shown.bs.modal", () => {
+          submit.disabled = false;
+          submit.textContent = "Invia risposta";
+          submit.addEventListener("click", sendReply);
+          body.focus();
+        });
+        modal.addEventListener("hidden.bs.modal", () => {
+          submit.removeEventListener("click", sendReply);
+          submit.disabled = false;
+          submit.textContent = "Invia risposta";
+          form.reset();
+        });
+      });
+    </script>
+  {% endif %}
 {% endblock %}
