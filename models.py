@@ -3392,6 +3392,13 @@ class CashCheckEvent(db.Model):
         nullable=True
     )
 
+    cash_expense_id = db.Column(
+        db.Integer,
+        db.ForeignKey("cash_expenses.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
     # Note libere
     note = db.Column(db.Text, nullable=True)
 
@@ -3409,6 +3416,7 @@ class CashCheckEvent(db.Model):
     ))
 
     created_by = db.relationship("User", backref="cash_check_events")
+    cash_expense = db.relationship("CashExpense", backref=db.backref("check_events", lazy="select"))
 
     def __repr__(self):
         return f"<CashCheckEvent check_id={self.check_id} {self.from_status}->{self.to_status}>"

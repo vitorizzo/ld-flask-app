@@ -2390,3 +2390,12 @@ Performance apertura giornata Agenda 2026-06-13:
   - analytics first-party aggregati: cookie casuale persistente salvato solo come SHA-256, sessione visita di 30 minuti, nessun IP, user-agent, URL o collegamento account memorizzato, esclusione bot nota e rispetto `DNT`/`Sec-GPC`;
   - cookie `HttpOnly`, `SameSite=Lax`, `Secure` su HTTPS anche dietro `X-Forwarded-Proto`; il cookie analytics va descritto nell'informativa privacy/cookie;
   - test end-to-end: prima visita `0 -> 1`, refresh senza incremento, DNT non tracciato, dashboard renderizzata come dev, menu verificato e dati test rimossi; cache CSS `mobile16`.
+- 2026-07-20 storico e spese assegni clienti:
+  - la modifica anagrafica dell'assegno non puo' piu' cambiare direttamente lo stato; le transizioni passano da `POST /cassa/api/checks/<id>/events` con validazione del percorso operativo;
+  - aggiunta modale `Stato e storico` con timeline, data evento, banca, spese bancarie, note e penale cliente; il lifecycle del pulsante viene inizializzato su `shown.bs.modal` e ripulito su `hidden.bs.modal`;
+  - ogni transizione persiste un `CashCheckEvent`; le spese bancarie generano nella stessa transazione una vera `CashExpense` con pagamento `bank`, flag aziendale `*`, categoria `Spese bancarie assegni` e collegamento `cash_expense_id`;
+  - il passaggio a `protested` calcola lato server una penale cliente del 10% del valore assegno con arrotondamento monetario `ROUND_HALF_UP`; la spesa bancaria resta distinta dalla penale;
+  - percorsi supportati includono `received -> deposited -> bounced -> deposited -> protested/cashed`, oltre a spostato, anticipato e ritirato; gli stati terminali limitano le transizioni disponibili;
+  - migration `60718293a4b5_add_check_event_expenses.py` applicata: aggiunto FK evento-spesa e backfill tecnico per i 27 assegni senza eventi; ora 51/51 assegni hanno almeno un evento, senza ricostruire transizioni storiche non conoscibili;
+  - test end-to-end temporaneo: `received, deposited, bounced, deposited, protested`, due spese Agenda da 12,34/20,00, penale protesto 10,00 su assegno 100,00, cleanup completo; vecchio cambio stato verificato HTTP 400; Alembic current/head `60718293a4b5`;
+  - asset aggiornati a `check-history1` e `mobile17`; verificati Jinja, JavaScript, Python e `git diff --check`.

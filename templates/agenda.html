@@ -4325,7 +4325,9 @@
 
                 <label class="form-label" for="checkStatus">Stato</label>
 
-                <select class="form-select" id="checkStatus"></select>
+                <select class="form-select" id="checkStatus" disabled></select>
+
+                <div class="form-text">Lo stato si modifica dalla cronologia.</div>
 
               </div>
 
@@ -4429,6 +4431,62 @@
 
   </div>
 
+</div>
+
+
+
+<div class="modal fade agenda-modal" id="checkHistoryModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title">Stato e storico assegno</h5>
+          <div class="small text-muted" id="checkHistorySubtitle"></div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <section class="mb-4">
+          <h6>Nuovo cambio di stato</h6>
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="checkEventStatus">Nuovo stato</label>
+              <select class="form-select" id="checkEventStatus"></select>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="checkEventDate">Data evento</label>
+              <input class="form-control" type="date" id="checkEventDate">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="checkEventBank">Banca che addebita le spese</label>
+              <select class="form-select" id="checkEventBank"></select>
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="checkEventExpense">Spese bancarie</label>
+              <input class="form-control text-end" type="text" inputmode="decimal" id="checkEventExpense" value="0,00">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label">Penale cliente</label>
+              <div class="form-control bg-light" id="checkEventPenalty">€ 0,00</div>
+              <div class="form-text">Per il protesto viene calcolato automaticamente il 10% del valore dell'assegno.</div>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="checkEventNote">Note dell'evento</label>
+              <textarea class="form-control" id="checkEventNote" rows="3"></textarea>
+            </div>
+          </div>
+        </section>
+        <section>
+          <h6>Cronologia</h6>
+          <div class="check-history-timeline" id="checkHistoryTimeline"></div>
+        </section>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+        <button type="button" class="btn btn-info" id="checkEventSaveBtn">Registra cambio stato</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 
@@ -4681,7 +4739,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-mobile-actions4') }}"></script>
+  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-check-history1') }}"></script>
 
 {% endblock %}
 
