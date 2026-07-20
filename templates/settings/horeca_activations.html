@@ -5,7 +5,7 @@
 {% block content %}
 <section class="welcome-section page-shell support-admin-page">
   <div class="container-fluid">
-    <div class="d-flex align-items-start justify-content-between gap-3 mb-4">
+    <div class="support-admin-header d-flex align-items-start justify-content-between gap-3 mb-4">
       <div>
         <h1 class="mb-1">Attivazioni Horeca</h1>
         <div class="text-muted">Richieste esercente da associare a un cliente e promuovere a customer_horeca.</div>
@@ -18,7 +18,7 @@
         <div class="col-12 col-xl-6">
           <article class="card border-0 shadow-sm h-100">
             <div class="card-body">
-              <div class="d-flex justify-content-between gap-3 mb-2">
+              <div class="support-card-heading d-flex justify-content-between gap-3 mb-2">
                 <div>
                   <strong>#{{ ticket.id }} - {{ ticket.subject }}</strong>
                   <div class="text-muted small">{{ ticket.created_at.strftime('%d/%m/%Y %H:%M') }}</div>
@@ -41,7 +41,7 @@
                 {% include 'settings/_customer_registry_lookup.html' %}
                 <textarea class="form-control" name="body" rows="3" {% if ticket.status == 'activated' %}disabled{% endif %}>La tua richiesta di attivazione Horeca e' stata approvata.
 Da questo momento puoi accedere ai servizi Horeca disponibili in LDApp.</textarea>
-                <div class="d-flex gap-2 justify-content-end">
+                <div class="support-card-actions d-flex gap-2 justify-content-end">
                   <a class="btn btn-outline-secondary" href="{{ url_for('settings.support_ticket_detail', ticket_id=ticket.id) }}">Dettaglio</a>
                   <button class="btn btn-info" type="submit" {% if ticket.status == 'activated' %}disabled{% endif %}>Attiva Horeca</button>
                 </div>

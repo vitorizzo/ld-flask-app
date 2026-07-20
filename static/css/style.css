@@ -2592,6 +2592,112 @@ body.kiosk-body #flash-message,
         flex-direction: column;
     }
 
+    .welcome-section.page-shell.support-admin-page {
+        height: auto;
+        min-height: 100%;
+        padding: 14px 10px;
+        overflow: visible;
+    }
+
+    .support-admin-page > .container-fluid {
+        padding: 0;
+        overflow: visible;
+    }
+
+    .support-admin-header,
+    .support-card-heading,
+    .support-message-heading {
+        align-items: flex-start !important;
+        flex-direction: column;
+    }
+
+    .support-admin-header h1 {
+        text-align: left;
+        font-size: 1.8rem;
+    }
+
+    .support-admin-header > .btn,
+    .support-header-actions,
+    .support-header-actions .btn,
+    .support-card-actions,
+    .support-card-actions .btn {
+        width: 100%;
+    }
+
+    .support-header-actions,
+    .support-card-actions {
+        flex-direction: column;
+    }
+
+    .support-admin-page .card-body {
+        padding: 14px;
+    }
+
+    .support-admin-page .form-control,
+    .support-admin-page .form-select,
+    .support-admin-page .btn {
+        min-height: 44px;
+    }
+
+    .support-admin-page .customer-registry-lookup-input {
+        font-size: 16px;
+    }
+
+    .support-status-filters {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .support-status-filters .btn:first-child {
+        grid-column: 1 / -1;
+    }
+
+    .support-admin-page .table-responsive {
+        overflow: visible;
+    }
+
+    .support-admin-page table,
+    .support-admin-page tbody,
+    .support-admin-page tr,
+    .support-admin-page td {
+        display: block;
+        width: 100%;
+    }
+
+    .support-admin-page thead {
+        display: none;
+    }
+
+    .support-admin-page .support-ticket-row {
+        padding: 12px;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .support-admin-page .support-ticket-row td {
+        display: grid;
+        grid-template-columns: 88px minmax(0, 1fr);
+        gap: 10px;
+        padding: 6px 0;
+        border: 0;
+        overflow-wrap: anywhere;
+        text-align: left !important;
+    }
+
+    .support-admin-page .support-ticket-row td[data-label]::before {
+        content: attr(data-label);
+        color: #6c757d;
+        font-weight: 700;
+    }
+
+    .support-admin-page .support-ticket-row .support-ticket-action {
+        display: block;
+        padding-top: 10px;
+    }
+
+    .support-ticket-action .btn {
+        width: 100%;
+    }
+
     .events-social-header,
     .events-social-actions {
         align-items: stretch;

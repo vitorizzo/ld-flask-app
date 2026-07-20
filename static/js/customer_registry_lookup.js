@@ -12,8 +12,17 @@ document.addEventListener("DOMContentLoaded", () => {
       values.set(input.value.trim(), root.dataset.selectedId);
     }
 
+    const selectedIdFromInput = () => {
+      const value = input.value.trim();
+      const mappedId = values.get(value);
+      if (mappedId) return mappedId;
+      const idMatch = value.match(/\[ID\s+(\d+)\]\s*$/i);
+      return idMatch ? idMatch[1] : "";
+    };
+
     const selectExactValue = () => {
-      hidden.value = values.get(input.value.trim()) || "";
+      hidden.value = selectedIdFromInput();
+      return hidden.value;
     };
 
     const search = async () => {
@@ -46,8 +55,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     input.addEventListener("input", () => {
       input.setCustomValidity("");
-      selectExactValue();
       clearTimeout(timer);
+      if (selectExactValue()) {
+        return;
+      }
       timer = setTimeout(search, 250);
     });
     input.addEventListener("change", selectExactValue);

@@ -5,7 +5,7 @@
 {% block content %}
 <section class="welcome-section page-shell support-admin-page">
   <div class="container-fluid">
-    <div class="d-flex align-items-start justify-content-between gap-3 mb-4">
+    <div class="support-admin-header d-flex align-items-start justify-content-between gap-3 mb-4">
       <div>
         <h1 class="mb-1">Assistenza LDApp</h1>
         <div class="text-muted">Ticket aperti dagli utenti tramite Help Desk.</div>
@@ -13,7 +13,7 @@
       <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">Impostazioni</a>
     </div>
 
-    <div class="d-flex gap-2 flex-wrap mb-3">
+    <div class="support-status-filters d-flex gap-2 flex-wrap mb-3">
       <a class="btn btn-sm {{ 'btn-info' if not status else 'btn-outline-secondary' }}" href="{{ url_for('settings.support_tickets') }}">Tutti</a>
       {% for item in ['open', 'in_progress', 'waiting_user', 'closed'] %}
         <a class="btn btn-sm {{ 'btn-info' if status == item else 'btn-outline-secondary' }}" href="{{ url_for('settings.support_tickets', status=item) }}">{{ item }}</a>
@@ -35,21 +35,21 @@
           </thead>
           <tbody>
             {% for ticket in tickets %}
-              <tr>
-                <td>
+              <tr class="support-ticket-row">
+                <td data-label="Ticket">
                   #{{ ticket.id }}
                   {% if unread_counts.get(ticket.id, 0) %}
                     <span class="help-desk-unread-badge ms-1" title="Nuovi messaggi">{{ unread_counts[ticket.id] if unread_counts[ticket.id] < 100 else '99+' }}</span>
                   {% endif %}
                 </td>
-                <td>
+                <td data-label="Oggetto">
                   <strong>{{ ticket.subject }}</strong>
                   {% if ticket.user %}<div class="text-muted small">{{ ticket.user.name }} {{ ticket.user.surname }}</div>{% endif %}
                 </td>
-                <td>{{ ticket.reply_email }}</td>
-                <td><span class="badge text-bg-info">{{ ticket.status }}</span></td>
-                <td>{{ ticket.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
-                <td class="text-end">
+                <td data-label="Email">{{ ticket.reply_email }}</td>
+                <td data-label="Stato"><span class="badge text-bg-info">{{ ticket.status }}</span></td>
+                <td data-label="Aggiornato">{{ ticket.updated_at.strftime('%d/%m/%Y %H:%M') }}</td>
+                <td class="support-ticket-action text-end">
                   <a class="btn btn-sm btn-info" href="{{ url_for('settings.support_ticket_detail', ticket_id=ticket.id) }}">Apri</a>
                 </td>
               </tr>

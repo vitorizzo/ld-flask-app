@@ -2371,3 +2371,9 @@ Performance apertura giornata Agenda 2026-06-13:
   - `contextmenu` viene annullato in capture su card/menu nei dispositivi coarse/no-hover e il callout/selezione sono disabilitati anche sul pannello flottante;
   - ignorati esclusivamente i rimbalzi iniziali di focus/scroll entro 250 ms dall'apertura; `data-bs-auto-close=outside`, mentre gli handler di stato/eliminazione chiudono esplicitamente il menu;
   - test Edge touch con 24 card: sequenza `show/shown`, menu ancora visibile dopo il rilascio, voce azione individuata e sequenza di chiusura dell'handler; nessun evento DB di cambio stato prodotto dal test; cache `mobile-board15`.
+- 2026-07-20 fix mobile Attivazioni Horeca, Assistenza LDApp e login:
+  - Attivazioni Horeca e dettaglio ticket hanno layout mobile verticale, controlli touch e azioni a piena larghezza;
+  - Assistenza LDApp trasforma la tabella ticket in schede etichettate sugli schermi stretti e rende filtri/intestazioni utilizzabili da smartphone;
+  - il lookup cliente conserva `registry_id` quando viene scelto un risultato e non rilancia una ricerca sull'etichetta completa; aggiunto recupero sicuro dell'ID dall'etichetta, sempre validato dal backend;
+  - la card login non si restringe e non nasconde piu' i link inferiori su viewport mobile, incluso `Crea un nuovo account`;
+  - cache CSS aggiornata a `mobile14`; verificati template Jinja, login via test client, sintassi JavaScript, selezione lookup e `git diff --check`.
