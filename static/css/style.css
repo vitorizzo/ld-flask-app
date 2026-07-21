@@ -658,6 +658,12 @@ section {
     overflow: auto;
 }
 
+.mailing-list-scroll {
+    padding-right: 4px;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+}
+
 .form-section table {
     margin: 0 auto; /* Centra la tabella orizzontalmente */
     box-shadow: -3px 5px 15px 5px rgba(88,64,31,0.45);

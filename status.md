@@ -2461,3 +2461,4 @@ Performance apertura giornata Agenda 2026-06-13:
   - creazione bozze campagna con scelta dell'account SMTP configurato e invio asincrono individuale tramite Celery;
   - storico aggregato destinatari/inviati/errori e dettaglio tecnico per singola consegna, senza esporre gli indirizzi degli altri destinatari;
   - migration `b5c6d7e8f9a0_add_mailing_list.py` aggiunge iscritti, campagne, consegne e aggiorna la route del menu.
+  - fix scrolling: tutto il contenuto della pagina e' ora racchiuso nel contenitore flessibile `page-scroll`, con scorrimento touch inerziale e overscroll contenuto.

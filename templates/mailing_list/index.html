@@ -2,6 +2,7 @@
 {% block title %}Mailing List - LD Enoteca{% endblock %}
 {% block content %}
 <section class="welcome-section page-shell">
+ <div class="page-scroll mailing-list-scroll">
   <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4"><div><h1>Mailing List</h1><p class="text-muted mb-0">Iscritti e campagne email.</p></div><span class="badge text-bg-info fs-6">{{ subscribers|selectattr('status','equalto','subscribed')|list|length }} iscritti attivi</span></div>
   <div class="row g-4">
     <div class="col-lg-5"><div class="card"><div class="card-body"><h2 class="h5">Nuovo iscritto</h2><form method="post" action="{{ url_for('mailing_list.add_subscriber') }}" class="row g-2"><div class="col-12"><input class="form-control" name="email" type="email" placeholder="Email" required></div><div class="col-12"><input class="form-control" name="name" placeholder="Nome (facoltativo)"></div><div class="col-12"><button class="btn btn-info" type="submit">Aggiungi iscritto</button></div></form></div></div></div>
@@ -9,5 +10,6 @@
   </div>
   <div class="card mt-4"><div class="card-body"><h2 class="h5">Campagne</h2><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Oggetto</th><th>Stato</th><th>Destinatari</th><th>Inviate / errori</th><th></th></tr></thead><tbody>{% for campaign in campaigns %}<tr><td>{{ campaign.subject }}</td><td>{{ campaign.status }}</td><td>{{ campaign.recipient_count }}</td><td>{{ campaign.sent_count }} / {{ campaign.failed_count }}</td><td>{% if campaign.status in ['draft','failed'] %}<form method="post" action="{{ url_for('mailing_list.send_campaign', campaign_id=campaign.id) }}" onsubmit="return confirm('Inviare questa campagna a tutti gli iscritti attivi?');"><button class="btn btn-sm btn-success">Invia</button></form>{% endif %}</td></tr>{% else %}<tr><td colspan="5">Nessuna campagna.</td></tr>{% endfor %}</tbody></table></div></div></div>
   <div class="card mt-4"><div class="card-body"><h2 class="h5">Iscritti</h2><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Email</th><th>Nome</th><th>Stato</th><th></th></tr></thead><tbody>{% for subscriber in subscribers %}<tr><td>{{ subscriber.email }}</td><td>{{ subscriber.name or '-' }}</td><td>{{ subscriber.status }}</td><td><form method="post" action="{{ url_for('mailing_list.toggle_subscriber', subscriber_id=subscriber.id) }}"><button class="btn btn-sm btn-outline-light">{{ 'Disiscrivi' if subscriber.status == 'subscribed' else 'Riattiva' }}</button></form></td></tr>{% else %}<tr><td colspan="4">Nessun iscritto.</td></tr>{% endfor %}</tbody></table></div></div></div>
+ </div>
 </section>
 {% endblock %}
