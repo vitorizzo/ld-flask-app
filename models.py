@@ -182,6 +182,52 @@ class EmailAccount(db.Model):
         }
 
 
+class MailingSubscriber(db.Model):
+    __tablename__ = "mailing_subscribers"
+    __table_args__ = (db.UniqueConstraint("email_normalized", name="uq_mailing_subscribers_email"),)
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), nullable=False)
+    email_normalized = db.Column(db.String(255), nullable=False, index=True)
+    name = db.Column(db.String(160), nullable=True)
+    status = db.Column(db.String(20), nullable=False, default="subscribed", index=True)
+    source = db.Column(db.String(40), nullable=False, default="manual")
+    consent_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    unsubscribed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    unsubscribe_token = db.Column(db.String(64), nullable=False, unique=True, default=lambda: secrets.token_urlsafe(32))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
+class MailingCampaign(db.Model):
+    __tablename__ = "mailing_campaigns"
+    id = db.Column(db.Integer, primary_key=True)
+    subject = db.Column(db.String(255), nullable=False)
+    html_body = db.Column(db.Text, nullable=False)
+    account_code = db.Column(db.String(50), nullable=False, default="general")
+    status = db.Column(db.String(20), nullable=False, default="draft", index=True)
+    recipient_count = db.Column(db.Integer, nullable=False, default=0)
+    sent_count = db.Column(db.Integer, nullable=False, default=0)
+    failed_count = db.Column(db.Integer, nullable=False, default=0)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    started_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    created_by = db.relationship("User", backref="mailing_campaigns")
+
+
+class MailingDelivery(db.Model):
+    __tablename__ = "mailing_deliveries"
+    __table_args__ = (db.UniqueConstraint("campaign_id", "subscriber_id", name="uq_mailing_delivery_recipient"),)
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(db.Integer, db.ForeignKey("mailing_campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
+    subscriber_id = db.Column(db.Integer, db.ForeignKey("mailing_subscribers.id", ondelete="CASCADE"), nullable=False, index=True)
+    status = db.Column(db.String(20), nullable=False, default="pending", index=True)
+    error_message = db.Column(db.Text, nullable=True)
+    sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    campaign = db.relationship("MailingCampaign", backref=db.backref("deliveries", cascade="all, delete-orphan"))
+    subscriber = db.relationship("MailingSubscriber")
+
+
 class Articoli(db.Model):
     id_art = db.Column(
         db.BigInteger,

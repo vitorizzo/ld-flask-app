@@ -101,6 +101,13 @@ def create_weekend_events_social_post_task(self):
 
 @celery.task(bind=True)
 @log_task(logger)
+def send_mailing_campaign_task(self, campaign_id):
+    from tools.mailing_list import send_campaign
+    return send_campaign(campaign_id)
+
+
+@celery.task(bind=True)
+@log_task(logger)
 def sync_support_mailbox_task(self, limit=100):
     from tools.support_mailbox import sync_support_mailbox
     return sync_support_mailbox(limit=limit)

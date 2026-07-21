@@ -2449,3 +2449,15 @@ Performance apertura giornata Agenda 2026-06-13:
   - migration `60718293a4b5_add_check_event_expenses.py` applicata: aggiunto FK evento-spesa e backfill tecnico per i 27 assegni senza eventi; ora 51/51 assegni hanno almeno un evento, senza ricostruire transizioni storiche non conoscibili;
   - test end-to-end temporaneo: `received, deposited, bounced, deposited, protested`, due spese Agenda da 12,34/20,00, penale protesto 10,00 su assegno 100,00, cleanup completo; vecchio cambio stato verificato HTTP 400; Alembic current/head `60718293a4b5`;
   - asset aggiornati a `check-history1` e `mobile17`; verificati Jinja, JavaScript, Python e `git diff --check`.
+- 2026-07-21 pubblicazione bozze eventi su Meta:
+  - le bozze social gia' generate possono essere pubblicate separatamente su Facebook e Instagram dalla pagina `/events/social-posts`;
+  - Facebook pubblica le locandine come foto non pubblicate collegate a un unico post, oppure un post con link quando non sono disponibili immagini;
+  - Instagram pubblica una singola immagine o un carosello fino a 10 locandine, attendendo il completamento dei container prima di inviarli;
+  - esito, ID esterno, permalink, data ed eventuale errore vengono conservati per singolo canale nel payload della bozza; un canale gia' pubblicato non viene duplicato durante un nuovo tentativo;
+  - i task automatici ora effettuano realmente l'invio quando l'auto-pubblicazione e le credenziali del relativo canale sono configurate.
+- 2026-07-21 mailing list:
+  - implementata la voce `Strumenti > Mailing List` su `/mailing-list/`, mantenendo il peso di accesso 100;
+  - gestione iscritti con consenso, stato attivo/disiscritto e token pubblico non prevedibile per la disiscrizione;
+  - creazione bozze campagna con scelta dell'account SMTP configurato e invio asincrono individuale tramite Celery;
+  - storico aggregato destinatari/inviati/errori e dettaglio tecnico per singola consegna, senza esporre gli indirizzi degli altri destinatari;
+  - migration `b5c6d7e8f9a0_add_mailing_list.py` aggiunge iscritti, campagne, consegne e aggiorna la route del menu.

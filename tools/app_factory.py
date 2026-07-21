@@ -439,6 +439,7 @@ def create_app():
     from routes.customer_orders import customer_orders_bp
     from routes.supplier_orders import supplier_orders_bp
     from routes.developer import developer_bp
+    from routes.mailing_list import mailing_list_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(settings_bp, url_prefix="/settings")
@@ -467,6 +468,7 @@ def create_app():
     app.register_blueprint(customer_orders_bp, url_prefix="/customer-orders")
     app.register_blueprint(supplier_orders_bp, url_prefix="/supplier-orders")
     app.register_blueprint(developer_bp, url_prefix="/developer")
+    app.register_blueprint(mailing_list_bp, url_prefix="/mailing-list")
 
     @app.cli.command("cleanup-reset-tokens")
     @click.option("--retention-days", default=30, show_default=True, type=int,

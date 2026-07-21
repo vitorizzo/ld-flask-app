@@ -47,6 +47,7 @@
             <div class="events-social-posts">
                 {% for post in social_posts %}
                     {% set media = (post.payload or {}).get('media') or {} %}
+                    {% set publication_results = (post.payload or {}).get('publication_results') or {} %}
                     <article class="events-social-post">
                         <div class="events-social-post__meta">
                             <strong>{{ post.title }}</strong>
@@ -148,11 +149,34 @@
                                 <i class="fa-regular fa-copy"></i>
                                 Copia testo
                             </button>
+                            <form class="d-flex flex-wrap align-items-center gap-2" method="post" action="{{ url_for('events.publish_social_post', post_id=post.id) }}" onsubmit="return confirm('Pubblicare ora il post sui canali selezionati?');">
+                                {% for destination, label in [('facebook', 'Facebook'), ('instagram', 'Instagram')] %}
+                                    {% set result = publication_results.get(destination) or {} %}
+                                    <label class="form-check form-check-inline mb-0">
+                                        <input class="form-check-input" type="checkbox" name="destinations" value="{{ destination }}" {% if result.get('status') == 'published' %}disabled{% else %}checked{% endif %}>
+                                        <span class="form-check-label">{{ label }}{% if result.get('status') == 'published' %} ✓{% endif %}</span>
+                                    </label>
+                                {% endfor %}
+                                <button class="btn btn-success" type="submit">
+                                    <i class="fa-solid fa-paper-plane"></i> Pubblica
+                                </button>
+                            </form>
                             <button class="btn btn-outline-danger" type="submit" form="delete-social-post-{{ post.id }}">
                                 <i class="fa-solid fa-trash"></i>
                                 Elimina bozza
                             </button>
                         </div>
+                        {% if publication_results %}
+                            <div class="events-social-post__status mt-2">
+                                {% for destination, result in publication_results.items() %}
+                                    <div>
+                                        <strong>{{ destination|capitalize }}:</strong>
+                                        {{ 'pubblicato' if result.get('status') == 'published' else result.get('error', 'non riuscito') }}
+                                        {% if result.get('permalink') %}<a href="{{ result.permalink }}" target="_blank" rel="noopener">Apri il post</a>{% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
                         <form id="delete-social-post-{{ post.id }}" method="post" action="{{ url_for('events.delete_social_post', post_id=post.id) }}" onsubmit="return confirm('Eliminare questa bozza social?');"></form>
                     </article>
                 {% endfor %}

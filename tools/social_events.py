@@ -249,4 +249,7 @@ def create_social_event_post(kind: str, *, created_by_user_id=None, today: date 
     )
     db.session.add(post)
     db.session.commit()
+    if auto and destinations and not missing:
+        from tools.meta_social import publish_social_event_post
+        publish_social_event_post(post, destinations)
     return post

@@ -9,6 +9,7 @@ from werkzeug.utils import secure_filename
 from extensions import db
 from models import Event, EventPoster, SocialEventPost
 from tools.social_events import create_social_event_post
+from tools.meta_social import publish_social_event_post
 from tools.role_required import role_required
 
 
@@ -264,6 +265,25 @@ def delete_social_post(post_id):
     db.session.delete(post)
     db.session.commit()
     flash("Bozza social eliminata.", "success")
+    return redirect(url_for("events.social_posts"))
+
+
+@events_bp.route("/social-posts/<int:post_id>/publish", methods=["POST"])
+@login_required
+@role_required(40)
+def publish_social_post(post_id):
+    post = SocialEventPost.query.get_or_404(post_id)
+    destinations = [name for name in request.form.getlist("destinations") if name in {"facebook", "instagram"}]
+    if not destinations:
+        flash("Seleziona almeno un canale di pubblicazione.", "warning")
+        return redirect(url_for("events.social_posts"))
+    results = publish_social_event_post(post, destinations)
+    failures = [name for name in destinations if (results.get(name) or {}).get("status") == "failed"]
+    if failures:
+        details = "; ".join(f"{name}: {results[name].get('error')}" for name in failures)
+        flash(f"Pubblicazione completata con problemi. {details}", "warning")
+    else:
+        flash("Post pubblicato correttamente.", "success")
     return redirect(url_for("events.social_posts"))
 
 
