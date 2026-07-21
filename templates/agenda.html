@@ -1161,7 +1161,7 @@
 
         ========================= -->
 
-        <div class="card mb-3" id="checkEditFormCard">
+        <div class="card mb-3">
 
           <div class="card-body py-3">
 
@@ -4251,121 +4251,11 @@
 
           </div>
 
-          <div class="col-6 col-lg-3 d-flex align-items-end justify-content-end gap-2">
+          <div class="col-6 col-lg-3 d-flex flex-column align-items-stretch justify-content-end gap-2">
 
-            <button type="button" class="btn btn-outline-secondary" id="checksResetBtn">Ripristina</button>
+            <button type="button" class="btn btn-outline-secondary w-100" id="checksResetBtn">Ripristina</button>
 
-            <button type="button" class="btn btn-outline-primary" id="checksReloadBtn">Applica</button>
-
-            <button type="button" class="btn btn-info" id="checksNewBtn">Nuovo assegno</button>
-
-          </div>
-
-        </div>
-
-
-
-        <div class="card mb-3">
-
-          <div class="card-body">
-
-            <input type="hidden" id="checkEditId">
-
-            <input type="hidden" id="checkCustomerId">
-
-            <div class="row g-2 align-items-end">
-
-              <div class="col-12 col-lg-3">
-
-                <label class="form-label" for="checkCustomerLabel">Cliente</label>
-
-                <input type="text" class="form-control" id="checkCustomerLabel" autocomplete="off">
-
-              </div>
-
-              <div class="col-6 col-lg-2">
-
-                <label class="form-label" for="checkBankName">Banca</label>
-
-                <input type="text" class="form-control" id="checkBankName">
-
-              </div>
-
-              <div class="col-6 col-lg-2">
-
-                <label class="form-label" for="checkNumber">Numero</label>
-
-                <input type="text" class="form-control" id="checkNumber">
-
-              </div>
-
-              <div class="col-6 col-lg-1">
-
-                <label class="form-label" for="checkAbi">ABI</label>
-
-                <input type="text" class="form-control" id="checkAbi">
-
-              </div>
-
-              <div class="col-6 col-lg-1">
-
-                <label class="form-label" for="checkCab">CAB</label>
-
-                <input type="text" class="form-control" id="checkCab">
-
-              </div>
-
-              <div class="col-6 col-lg-1">
-
-                <label class="form-label" for="checkAmount">Importo</label>
-
-                <input type="text" class="form-control text-end" id="checkAmount" inputmode="decimal">
-
-              </div>
-
-              <div class="col-6 col-lg-2">
-
-                <label class="form-label" for="checkStatus">Stato</label>
-
-                <select class="form-select" id="checkStatus" disabled></select>
-
-                <div class="form-text">Lo stato si modifica dalla cronologia.</div>
-
-              </div>
-
-              <div class="col-6 col-lg-2">
-
-                <label class="form-label" for="checkReceivedDate">Ricezione</label>
-
-                <input type="date" class="form-control" id="checkReceivedDate">
-
-              </div>
-
-              <div class="col-6 col-lg-2">
-
-                <label class="form-label" for="checkDueDate">Scadenza</label>
-
-                <input type="date" class="form-control" id="checkDueDate">
-
-              </div>
-
-              <div class="col-12 col-lg-5">
-
-                <label class="form-label" for="checkNote">Note</label>
-
-                <input type="text" class="form-control" id="checkNote">
-
-              </div>
-
-              <div class="col-12 col-lg-3 text-end">
-
-                <button type="button" class="btn btn-outline-secondary" id="checkCancelBtn">Annulla</button>
-
-                <button type="button" class="btn btn-success" id="checkSaveBtn">Salva assegno</button>
-
-              </div>
-
-            </div>
+            <button type="button" class="btn btn-outline-primary w-100" id="checksReloadBtn">Applica</button>
 
           </div>
 
@@ -4425,7 +4315,10 @@
 
         </div>
 
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+        <div class="d-flex gap-2">
+          <button type="button" class="btn btn-info" id="checksNewBtn">Inserisci nuovo assegno</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button>
+        </div>
 
       </div>
 
@@ -4444,7 +4337,22 @@
         <h5 class="modal-title" id="checkEditModalTitle">Nuovo assegno</h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
-      <div class="modal-body" id="checkEditModalBody"></div>
+      <div class="modal-body">
+        <input type="hidden" id="checkEditId"><input type="hidden" id="checkCustomerId">
+        <div class="row g-3">
+          <div class="col-12 col-md-6"><label class="form-label" for="checkCustomerLabel">Cliente</label><input type="text" class="form-control" id="checkCustomerLabel" autocomplete="off"></div>
+          <div class="col-12 col-md-6"><label class="form-label" for="checkBankName">Banca</label><input type="text" class="form-control" id="checkBankName"></div>
+          <div class="col-12 col-md-4"><label class="form-label" for="checkNumber">Numero</label><input type="text" class="form-control" id="checkNumber"></div>
+          <div class="col-6 col-md-2"><label class="form-label" for="checkAbi">ABI</label><input type="text" class="form-control" id="checkAbi"></div>
+          <div class="col-6 col-md-2"><label class="form-label" for="checkCab">CAB</label><input type="text" class="form-control" id="checkCab"></div>
+          <div class="col-12 col-md-4"><label class="form-label" for="checkAmount">Importo</label><input type="text" class="form-control text-end" id="checkAmount" inputmode="decimal"></div>
+          <div class="col-12 col-md-4"><label class="form-label" for="checkStatus">Stato</label><select class="form-select" id="checkStatus" disabled></select><div class="form-text">Lo stato si modifica dalla cronologia.</div></div>
+          <div class="col-6 col-md-4"><label class="form-label" for="checkReceivedDate">Ricezione</label><input type="date" class="form-control" id="checkReceivedDate"></div>
+          <div class="col-6 col-md-4"><label class="form-label" for="checkDueDate">Scadenza</label><input type="date" class="form-control" id="checkDueDate"></div>
+          <div class="col-12"><label class="form-label" for="checkNote">Note</label><textarea class="form-control" id="checkNote" rows="3"></textarea></div>
+        </div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="checkCancelBtn">Annulla</button><button type="button" class="btn btn-success" id="checkSaveBtn">Salva assegno</button></div>
     </div>
   </div>
 </div>
@@ -4456,12 +4364,12 @@
       <div class="modal-header">
         <div>
           <h5 class="modal-title">Stato e storico assegno</h5>
-          <div class="small text-muted" id="checkHistorySubtitle"></div>
+          <div class="small text-white" id="checkHistorySubtitle"></div>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
       <div class="modal-body">
-        <section class="mb-4">
+        <section class="mb-4" id="checkEventFormSection">
           <input type="hidden" id="checkEventEditId">
           <h6 id="checkEventFormTitle">Nuovo cambio di stato</h6>
           <div class="row g-3">
@@ -4493,13 +4401,10 @@
           </div>
         </section>
         <section>
-          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-            <h6 class="mb-0">Cronologia</h6>
-            <button type="button" class="btn btn-sm btn-outline-primary" id="checkCostBuildBtn">Calcola costo assegno</button>
-          </div>
+          <h6>Cronologia</h6>
           <div class="check-history-timeline" id="checkHistoryTimeline"></div>
         </section>
-        <section class="card mt-3 d-none" id="checkCostPanel">
+        <section class="card mt-3" id="checkCostPanel">
           <div class="card-body">
             <h6>Prospetto importo dovuto</h6>
             <div id="checkCostSummary"></div>
@@ -4516,14 +4421,45 @@
         </section>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary d-none" id="checkEventCancelEditBtn">Annulla modifica</button>
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
-        <button type="button" class="btn btn-info" id="checkEventSaveBtn">Registra cambio stato</button>
+        <button type="button" class="btn btn-outline-primary" id="checkCostBuildBtn">Calcola costo assegno</button>
+        <button type="button" class="btn btn-outline-success" id="checkPaymentNewBtn">Inserisci pagamento</button>
+        <button type="button" class="btn btn-info" id="checkEventNewBtn">Inserisci cambio di stato</button>
       </div>
     </div>
   </div>
 </div>
 
+
+
+<div class="modal fade agenda-modal" id="checkEventModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="checkEventModalTitle">Inserisci cambio di stato</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body" id="checkEventModalBody"></div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-info" id="checkEventSaveBtn">Salva cambio di stato</button></div>
+  </div></div>
+</div>
+
+<div class="modal fade agenda-modal" id="checkPaymentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="checkPaymentModalTitle">Inserisci pagamento</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body"><input type="hidden" id="checkPaymentEditId"><div class="row g-3">
+      <div class="col-12 col-sm-6"><label class="form-label" for="checkPaymentDate">Data pagamento</label><input class="form-control" type="date" id="checkPaymentDate"></div>
+      <div class="col-12 col-sm-6"><label class="form-label" for="checkPaymentAmount">Importo pagato</label><input class="form-control text-end" inputmode="decimal" id="checkPaymentAmount"></div>
+      <div class="col-12"><label class="form-label" for="checkPaymentMethod">Modalità</label><select class="form-select" id="checkPaymentMethod"><option value="bank">Bonifico</option><option value="cash">Contanti</option><option value="card">Carta/POS</option><option value="other">Altro</option></select></div>
+      <div class="col-12"><label class="form-label" for="checkPaymentNote">Note</label><textarea class="form-control" id="checkPaymentNote" rows="3"></textarea></div>
+    </div></div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-success" id="checkPaymentSaveBtn">Salva pagamento</button></div>
+  </div></div>
+</div>
+
+<div class="modal fade agenda-modal" id="checkCostModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header"><div><h5 class="modal-title">Calcolo costo assegno</h5><div class="small text-white" id="checkCostSubtitle"></div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body" id="checkCostModalBody"></div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button><button type="button" class="btn btn-primary" id="checkCostPrintBtn">Stampa</button></div>
+  </div></div>
+</div>
 
 
 <div class="modal fade agenda-modal" id="issuedChecksManagementModal" tabindex="-1" aria-hidden="true">
@@ -4774,7 +4710,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-check-history2') }}"></script>
+  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-check-history3') }}"></script>
 
 {% endblock %}
 

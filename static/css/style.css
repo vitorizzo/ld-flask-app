@@ -3581,6 +3581,11 @@ body.kiosk-body #flash-message,
     cursor: pointer;
 }
 
+.check-history-event--payment {
+    border-left-color: #198754;
+    background: rgba(25, 135, 84, 0.08);
+}
+
 .check-history-event {
     display: grid;
     grid-template-columns: 105px minmax(0, 1fr);

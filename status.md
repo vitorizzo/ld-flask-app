@@ -21,6 +21,15 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
 
 ## Task corrente (metodologia Codex)
 
+- Aggiornamento 2026-07-21 - seconda revisione UI assegni e pagamenti:
+  - Gestione assegni ridotta a filtri persistenti, tabella, totali e pulsanti finali;
+  - form assegno reso parte reale della modale nuovo/modifica, eliminando il trasferimento della card errata;
+  - sottotitolo storico reso bianco e leggibile;
+  - cambio stato spostato in una modale dedicata;
+  - aggiunta modale pagamenti con inserimento, modifica e cancellazione in cronologia;
+  - calcolo costo spostato in modale dedicata e stampabile, con pagamenti sottratti dal dovuto;
+  - migrazione `8293a4b5c6d7_add_cash_check_payments.py` applicata e CRUD pagamenti testata end-to-end.
+
 - Aggiornamento 2026-07-21 - leggibilità e correzione storico assegni clienti:
   - filtri persistenti con pulsanti `Applica` e `Ripristina`;
   - form nuovo/modifica assegno spostato in una modale dedicata;

@@ -3423,6 +3423,24 @@ class CashCheckEvent(db.Model):
         return f"<CashCheckEvent check_id={self.check_id} {self.from_status}->{self.to_status}>"
 
 
+class CashCheckPayment(db.Model):
+    __tablename__ = "cash_check_payments"
+
+    id = db.Column(db.Integer, primary_key=True)
+    check_id = db.Column(db.Integer, db.ForeignKey("cash_checks.id", ondelete="CASCADE"), nullable=False, index=True)
+    payment_date = db.Column(db.Date, nullable=False, index=True)
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    method = db.Column(db.String(20), nullable=False, default="bank")
+    note = db.Column(db.Text, nullable=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc),
+                           onupdate=lambda: datetime.now(timezone.utc))
+
+    check = db.relationship("CashCheck", backref=db.backref("check_payments", lazy="select", cascade="all, delete-orphan"))
+    created_by = db.relationship("User", backref="cash_check_payments")
+
+
 class CashReceiptClosure(db.Model):
     __tablename__ = "cash_receipt_closures"
 

@@ -22,7 +22,7 @@ from tools.role_required import role_required
 from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment, CashExpensePayment, \
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
-    CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashOwnerTake, CashOwnerTakeCheck, \
+    CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashCheckPayment, CashOwnerTake, CashOwnerTakeCheck, \
     CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck, CashIssuedCheck, CashDepositCheck, BusinessRegistry, \
     BusinessRegistryContact, CashCustomerRegistryLink, CashClosure, CashDeposit, CashDayAuditEvent
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
@@ -1022,6 +1022,17 @@ def _serialize_cash_check(check: CashCheck, include_events: bool = False):
             for status in CHECK_STATUS_TRANSITIONS.get(check.status, ())
         ]
         item["protest_penalty_rate"] = float(CHECK_PROTEST_PENALTY_RATE)
+        payments = (CashCheckPayment.query.filter_by(check_id=check.id)
+                    .order_by(CashCheckPayment.payment_date.asc(), CashCheckPayment.id.asc()).all())
+        item["payments"] = [{
+            "id": payment.id,
+            "payment_date": payment.payment_date.isoformat(),
+            "amount": float(payment.amount or 0),
+            "method": payment.method,
+            "note": payment.note,
+            "created_by_name": (f"{payment.created_by.name} {payment.created_by.surname}".strip()
+                                if payment.created_by else None),
+        } for payment in payments]
 
     return item
 
@@ -4759,6 +4770,70 @@ def api_update_check_settlement(check_id):
     except ValueError as exc:
         db.session.rollback()
         return jsonify({"ok": False, "error": str(exc)}), 400
+
+
+def _parse_check_payment_payload(data):
+    try:
+        payment_date = datetime.strptime((data.get("payment_date") or "").strip(), "%Y-%m-%d").date()
+    except ValueError:
+        raise ValueError("Data pagamento non valida")
+    amount = _parse_nonnegative_money(data.get("amount"), "Importo pagamento")
+    if amount <= 0:
+        raise ValueError("L'importo del pagamento deve essere maggiore di zero")
+    method = (data.get("method") or "").strip()
+    if method not in {"bank", "cash", "card", "other"}:
+        raise ValueError("Modalità di pagamento non valida")
+    return {"payment_date": payment_date, "amount": amount, "method": method,
+            "note": (data.get("note") or "").strip() or None}
+
+
+@cassa_bp.post("/api/checks/<int:check_id>/payments")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_create_check_payment(check_id):
+    check = CashCheck.query.filter_by(id=check_id).first()
+    if not check:
+        return jsonify({"ok": False, "error": "Assegno non trovato"}), 404
+    try:
+        values = _parse_check_payment_payload(request.get_json(silent=True) or {})
+        payment = CashCheckPayment(check_id=check.id, created_by_user_id=getattr(current_user, "id", None), **values)
+        db.session.add(payment)
+        db.session.commit()
+        return jsonify({"ok": True, "check": _serialize_cash_check(check, include_events=True)}), 201
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+
+@cassa_bp.put("/api/checks/<int:check_id>/payments/<int:payment_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_update_check_payment(check_id, payment_id):
+    check = CashCheck.query.filter_by(id=check_id).first()
+    payment = CashCheckPayment.query.filter_by(id=payment_id, check_id=check_id).first()
+    if not check or not payment:
+        return jsonify({"ok": False, "error": "Pagamento non trovato"}), 404
+    try:
+        for key, value in _parse_check_payment_payload(request.get_json(silent=True) or {}).items():
+            setattr(payment, key, value)
+        db.session.commit()
+        return jsonify({"ok": True, "check": _serialize_cash_check(check, include_events=True)})
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+
+@cassa_bp.delete("/api/checks/<int:check_id>/payments/<int:payment_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_delete_check_payment(check_id, payment_id):
+    check = CashCheck.query.filter_by(id=check_id).first()
+    payment = CashCheckPayment.query.filter_by(id=payment_id, check_id=check_id).first()
+    if not check or not payment:
+        return jsonify({"ok": False, "error": "Pagamento non trovato"}), 404
+    db.session.delete(payment)
+    db.session.commit()
+    return jsonify({"ok": True, "check": _serialize_cash_check(check, include_events=True)})
 
 
 @cassa_bp.delete("/api/checks/<int:check_id>")

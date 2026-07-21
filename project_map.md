@@ -30,7 +30,10 @@ ultimo commit del branch main.
 - API: `routes/cassa.py`, endpoint CRUD eventi `/cassa/api/checks/<id>/events[/<event_id>]` e saldo e stralcio `/settlement`.
 - UI: modali `checksManagementModal`, `checkEditModal` e `checkHistoryModal` in `templates/agenda.html`; logica in `static/js/agenda.js`.
 - La modifica/cancellazione degli eventi ricostruisce `from_status` e stato corrente in ordine data/id; le spese collegate sono sincronizzate atomicamente.
-- Migrazione corrente: `718293a4b5c6_add_check_settlement_amount.py`.
+- Migrazione saldo e stralcio: `718293a4b5c6_add_check_settlement_amount.py`; head corrente: `8293a4b5c6d7_add_cash_check_payments.py`.
+- Pagamenti cliente: modello `CashCheckPayment`, API `/cassa/api/checks/<id>/payments[/<payment_id>]`, migrazione `8293a4b5c6d7_add_cash_check_payments.py`.
+- Il prospetto stampabile calcola `importo + spese + penali - pagamenti`; se presente mostra anche il residuo sul saldo e stralcio.
+- UI separata in sei modali: lista, assegno, storico, evento, pagamento e calcolo costo stampabile.
 - `status.md`
 
 Nel flusso Codex locale la lettura avviene direttamente dai file del repository, senza incollare file in chat.

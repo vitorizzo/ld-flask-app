@@ -984,8 +984,6 @@ const checkCancelBtn = document.getElementById("checkCancelBtn");
 const checkSaveBtn = document.getElementById("checkSaveBtn");
 const checkEditModalEl = document.getElementById("checkEditModal");
 const checkEditModalTitle = document.getElementById("checkEditModalTitle");
-const checkEditFormCard = document.getElementById("checkEditFormCard");
-const checkEditModalBody = document.getElementById("checkEditModalBody");
 const checkHistoryModalEl = document.getElementById("checkHistoryModal");
 const checkHistorySubtitle = document.getElementById("checkHistorySubtitle");
 const checkHistoryTimeline = document.getElementById("checkHistoryTimeline");
@@ -996,18 +994,40 @@ const checkEventExpense = document.getElementById("checkEventExpense");
 const checkEventPenalty = document.getElementById("checkEventPenalty");
 const checkEventNote = document.getElementById("checkEventNote");
 const checkEventSaveBtn = document.getElementById("checkEventSaveBtn");
+const checkEventModalEl = document.getElementById("checkEventModal");
+const checkEventModalTitle = document.getElementById("checkEventModalTitle");
+const checkEventFormSection = document.getElementById("checkEventFormSection");
+const checkEventModalBody = document.getElementById("checkEventModalBody");
+const checkEventNewBtn = document.getElementById("checkEventNewBtn");
 const checkEventEditId = document.getElementById("checkEventEditId");
 const checkEventFormTitle = document.getElementById("checkEventFormTitle");
 const checkEventCancelEditBtn = document.getElementById("checkEventCancelEditBtn");
 const checkCostBuildBtn = document.getElementById("checkCostBuildBtn");
 const checkCostPanel = document.getElementById("checkCostPanel");
+const checkCostModalEl = document.getElementById("checkCostModal");
+const checkCostModalBody = document.getElementById("checkCostModalBody");
+const checkCostSubtitle = document.getElementById("checkCostSubtitle");
+const checkCostPrintBtn = document.getElementById("checkCostPrintBtn");
 const checkCostSummary = document.getElementById("checkCostSummary");
 const checkSettlementAmount = document.getElementById("checkSettlementAmount");
 const checkSettlementSaveBtn = document.getElementById("checkSettlementSaveBtn");
+const checkPaymentModalEl = document.getElementById("checkPaymentModal");
+const checkPaymentModalTitle = document.getElementById("checkPaymentModalTitle");
+const checkPaymentNewBtn = document.getElementById("checkPaymentNewBtn");
+const checkPaymentEditId = document.getElementById("checkPaymentEditId");
+const checkPaymentDate = document.getElementById("checkPaymentDate");
+const checkPaymentAmount = document.getElementById("checkPaymentAmount");
+const checkPaymentMethod = document.getElementById("checkPaymentMethod");
+const checkPaymentNote = document.getElementById("checkPaymentNote");
+const checkPaymentSaveBtn = document.getElementById("checkPaymentSaveBtn");
 
 let checksManagementModal = null;
 let checkEditModal = null;
 let checkHistoryModal = null;
+let checkEventModal = null;
+let checkPaymentModal = null;
+let checkCostModal = null;
+let checkSubmodalOpen = false;
 let activeHistoryCheck = null;
 let checkStatusOptions = [
   { value: "received", label: "In pancia" },
@@ -2988,7 +3008,8 @@ function startEditCheck(row) {
   if (checkNote) checkNote.value = row.note || "";
   if (checkSaveBtn) checkSaveBtn.textContent = "Salva modifica";
   if (checkEditModalTitle) checkEditModalTitle.textContent = "Modifica assegno";
-  checkEditModal?.show();
+  checksManagementModal?.hide();
+  setTimeout(() => checkEditModal?.show(), 180);
 }
 
 async function saveManagedCheck() {
@@ -3084,8 +3105,9 @@ function renderCheckHistory(check) {
   if (checkEventSaveBtn) checkEventSaveBtn.disabled = !transitions.length;
 
   const events = Array.isArray(check.events) ? check.events : [];
+  const payments = Array.isArray(check.payments) ? check.payments : [];
   if (checkHistoryTimeline) {
-    checkHistoryTimeline.innerHTML = events.length ? events.map(event => {
+    const eventRows = events.map(event => {
       const fromLabel = event.from_status
         ? (checkStatusOptions.find(item => item.value === event.from_status)?.label || event.from_status)
         : "Apertura storico";
@@ -3107,7 +3129,22 @@ function renderCheckHistory(check) {
             </div>
           </div>
         </article>`;
-    }).join("") : '<div class="text-muted">Nessun evento registrato.</div>';
+    });
+    const paymentRows = payments.map(payment => `
+      <article class="check-history-event check-history-event--payment">
+        <div class="check-history-event__date">${escapeHtml(formatDateIT(payment.payment_date))}</div>
+        <div class="check-history-event__body">
+          <strong>Pagamento ricevuto · ${eur(payment.amount || 0)}</strong>
+          <div>${escapeHtml(({bank: "Bonifico", cash: "Contanti", card: "Carta/POS", other: "Altro"})[payment.method] || payment.method)}</div>
+          ${payment.note ? `<p>${escapeHtml(payment.note)}</p>` : ""}
+          ${payment.created_by_name ? `<small>Registrato da ${escapeHtml(payment.created_by_name)}</small>` : ""}
+          <div class="mt-2 d-flex gap-2"><button type="button" class="btn btn-sm btn-outline-secondary btn-check-payment-edit" data-payment-id="${payment.id}">Modifica</button><button type="button" class="btn btn-sm btn-outline-danger btn-check-payment-delete" data-payment-id="${payment.id}">Elimina</button></div>
+        </div>
+      </article>`);
+    const rows = [...events.map((item, index) => ({date: item.event_date, order: index, html: eventRows[index]})),
+                  ...payments.map((item, index) => ({date: item.payment_date, order: 100000 + index, html: paymentRows[index]}))]
+      .sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order);
+    checkHistoryTimeline.innerHTML = rows.length ? rows.map(item => item.html).join("") : '<div class="text-muted">Nessun evento registrato.</div>';
   }
   updateCheckEventPenalty();
 }
@@ -3144,6 +3181,9 @@ function startEditCheckEvent(eventId) {
   if (checkEventCancelEditBtn) checkEventCancelEditBtn.classList.remove("d-none");
   if (checkEventSaveBtn) checkEventSaveBtn.textContent = "Salva evento";
   updateCheckEventPenalty();
+  checkSubmodalOpen = true;
+  checkHistoryModal?.hide();
+  setTimeout(() => checkEventModal?.show(), 180);
 }
 
 async function deleteCheckEvent(eventId) {
@@ -3164,16 +3204,21 @@ function renderCheckCost() {
   const events = activeHistoryCheck.events || [];
   const original = Number(activeHistoryCheck.amount || 0);
   const extras = events.reduce((sum, item) => sum + Number(item.amount_spese || 0) + Number(item.customer_charge_amount || 0), 0);
+  const payments = activeHistoryCheck.payments || [];
+  const paid = payments.reduce((sum, item) => sum + Number(item.amount || 0), 0);
   const total = original + extras;
+  const residual = total - paid;
   const lines = events.filter(item => Number(item.amount_spese || 0) || Number(item.customer_charge_amount || 0)).map(item => `
     <li class="d-flex justify-content-between gap-3"><span>${escapeHtml(formatDateIT(item.event_date))} · ${escapeHtml(item.to_status_label || item.to_status)}</span><strong>${eur(Number(item.amount_spese || 0) + Number(item.customer_charge_amount || 0))}</strong></li>`).join("");
   checkCostSummary.innerHTML = `
     <div class="d-flex justify-content-between"><span>Importo assegno</span><strong>${eur(original)}</strong></div>
     <ul class="list-unstyled my-2">${lines || '<li class="text-muted">Nessuna spesa o penale registrata.</li>'}</ul>
     <div class="d-flex justify-content-between border-top pt-2"><span>Totale dovuto</span><strong>${eur(total)}</strong></div>
-    ${activeHistoryCheck.settlement_amount != null ? `<div class="d-flex justify-content-between text-success"><span>Importo concordato a saldo e stralcio</span><strong>${eur(activeHistoryCheck.settlement_amount)}</strong></div>` : ""}`;
+    <div class="d-flex justify-content-between text-success"><span>Pagamenti ricevuti</span><strong>− ${eur(paid)}</strong></div>
+    <div class="d-flex justify-content-between border-top pt-2 fs-5"><span>${residual >= 0 ? "Residuo da pagare" : "Credito del cliente"}</span><strong>${eur(Math.abs(residual))}</strong></div>
+    ${activeHistoryCheck.settlement_amount != null ? `<div class="d-flex justify-content-between text-success"><span>Importo concordato a saldo e stralcio</span><strong>${eur(activeHistoryCheck.settlement_amount)}</strong></div><div class="d-flex justify-content-between fw-bold"><span>Residuo sul saldo e stralcio</span><strong>${eur(Math.max(0, Number(activeHistoryCheck.settlement_amount) - paid))}</strong></div>` : ""}`;
   if (checkSettlementAmount) checkSettlementAmount.value = activeHistoryCheck.settlement_amount == null ? "" : formatEuro2(activeHistoryCheck.settlement_amount);
-  checkCostPanel?.classList.remove("d-none");
+  if (checkCostSubtitle) checkCostSubtitle.textContent = `${activeHistoryCheck.customer_display_name || "Cliente"} · assegno ${activeHistoryCheck.check_number || ""}`;
 }
 
 async function saveCheckSettlement() {
@@ -3193,6 +3238,68 @@ async function saveCheckSettlement() {
   }
 }
 
+function resetCheckPaymentForm() {
+  if (checkPaymentEditId) checkPaymentEditId.value = "";
+  if (checkPaymentDate) checkPaymentDate.value = todayYmd();
+  if (checkPaymentAmount) checkPaymentAmount.value = "0,00";
+  if (checkPaymentMethod) checkPaymentMethod.value = "bank";
+  if (checkPaymentNote) checkPaymentNote.value = "";
+  if (checkPaymentModalTitle) checkPaymentModalTitle.textContent = "Inserisci pagamento";
+  if (checkPaymentSaveBtn) checkPaymentSaveBtn.textContent = "Salva pagamento";
+}
+
+function startEditCheckPayment(paymentId) {
+  const payment = (activeHistoryCheck?.payments || []).find(item => String(item.id) === String(paymentId));
+  if (!payment) return;
+  if (checkPaymentEditId) checkPaymentEditId.value = payment.id;
+  if (checkPaymentDate) checkPaymentDate.value = payment.payment_date || todayYmd();
+  if (checkPaymentAmount) checkPaymentAmount.value = formatEuro2(payment.amount || 0);
+  if (checkPaymentMethod) checkPaymentMethod.value = payment.method || "bank";
+  if (checkPaymentNote) checkPaymentNote.value = payment.note || "";
+  if (checkPaymentModalTitle) checkPaymentModalTitle.textContent = "Modifica pagamento";
+  if (checkPaymentSaveBtn) checkPaymentSaveBtn.textContent = "Salva modifica";
+  checkSubmodalOpen = true;
+  checkHistoryModal?.hide();
+  setTimeout(() => checkPaymentModal?.show(), 180);
+}
+
+async function saveCheckPayment() {
+  if (!activeHistoryCheck?.id) return;
+  const paymentId = (checkPaymentEditId?.value || "").trim();
+  const response = await fetch(paymentId ? `/cassa/api/checks/${activeHistoryCheck.id}/payments/${paymentId}` : `/cassa/api/checks/${activeHistoryCheck.id}/payments`, {
+    method: paymentId ? "PUT" : "POST", credentials: "same-origin",
+    headers: {"Content-Type": "application/json", "Accept": "application/json"},
+    body: JSON.stringify({payment_date: checkPaymentDate?.value || "", amount: parseEuroToNumber(checkPaymentAmount?.value || "0"), method: checkPaymentMethod?.value || "", note: (checkPaymentNote?.value || "").trim()})
+  });
+  const data = await response.json();
+  if (!response.ok || !data.ok) throw new Error(data.error || "Errore salvataggio pagamento");
+  activeHistoryCheck = data.check;
+  renderCheckHistory(activeHistoryCheck);
+  checkPaymentModal?.hide();
+}
+
+function handleSaveCheckPaymentClick() {
+  saveCheckPayment().catch(error => alert(error.message || "Errore salvataggio pagamento"));
+}
+
+async function deleteCheckPayment(paymentId) {
+  if (!window.confirm("Eliminare questo pagamento dalla storia dell'assegno?")) return;
+  const response = await fetch(`/cassa/api/checks/${activeHistoryCheck.id}/payments/${paymentId}`, {method: "DELETE", credentials: "same-origin", headers: {"Accept": "application/json"}});
+  const data = await response.json();
+  if (!response.ok || !data.ok) throw new Error(data.error || "Errore eliminazione pagamento");
+  activeHistoryCheck = data.check;
+  renderCheckHistory(activeHistoryCheck);
+}
+
+function printCheckCost() {
+  if (!activeHistoryCheck || !checkCostSummary) return;
+  const printWindow = window.open("", "_blank", "width=900,height=700");
+  if (!printWindow) { alert("Il browser ha bloccato la finestra di stampa."); return; }
+  printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Calcolo assegno ${escapeHtml(activeHistoryCheck.check_number || "")}</title><style>body{font-family:Arial,sans-serif;margin:32px;color:#222}h1{font-size:22px}.sheet{max-width:760px;margin:auto}.sheet>div{margin:8px 0}ul{padding:0;list-style:none}li{display:flex;justify-content:space-between;gap:20px;margin:6px 0}.no-print{display:none}@media print{body{margin:0}}</style></head><body><div class="sheet"><h1>Calcolo costo assegno</h1><p>${escapeHtml(activeHistoryCheck.customer_display_name || "Cliente")} · assegno ${escapeHtml(activeHistoryCheck.check_number || "")}</p>${checkCostSummary.innerHTML}</div></body></html>`);
+  printWindow.document.close();
+  setTimeout(() => printWindow.print(), 250);
+}
+
 async function openCheckHistory(checkId) {
   const response = await fetch(`/cassa/api/checks/${checkId}`, {
     credentials: "same-origin",
@@ -3203,7 +3310,8 @@ async function openCheckHistory(checkId) {
   if (!response.ok || !data.ok) throw new Error(data.error || "Errore caricamento storico assegno");
   activeHistoryCheck = data.check;
   renderCheckHistory(activeHistoryCheck);
-  checkHistoryModal?.show();
+  checksManagementModal?.hide();
+  setTimeout(() => checkHistoryModal?.show(), 180);
 }
 
 async function saveCheckStatusEvent() {
@@ -3238,6 +3346,7 @@ async function saveCheckStatusEvent() {
     activeHistoryCheck = data.check;
     resetCheckEventForm();
     renderCheckHistory(activeHistoryCheck);
+    checkEventModal?.hide();
     if (checkEventExpense) checkEventExpense.value = "0,00";
     if (checkEventNote) checkEventNote.value = "";
     await loadChecksManagement();
@@ -3646,10 +3755,18 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
   if (checkEditModalEl) {
     checkEditModal = new bootstrap.Modal(checkEditModalEl);
-    if (checkEditFormCard && checkEditModalBody) checkEditModalBody.appendChild(checkEditFormCard);
   }
   if (checkHistoryModalEl) {
     checkHistoryModal = new bootstrap.Modal(checkHistoryModalEl);
+  }
+  if (checkEventModalEl) {
+    checkEventModal = new bootstrap.Modal(checkEventModalEl);
+    if (checkEventFormSection && checkEventModalBody) checkEventModalBody.appendChild(checkEventFormSection);
+  }
+  if (checkPaymentModalEl) checkPaymentModal = new bootstrap.Modal(checkPaymentModalEl);
+  if (checkCostModalEl) {
+    checkCostModal = new bootstrap.Modal(checkCostModalEl);
+    if (checkCostPanel && checkCostModalBody) checkCostModalBody.appendChild(checkCostPanel);
   }
   if (issuedChecksManagementModalEl) {
     issuedChecksManagementModal = new bootstrap.Modal(issuedChecksManagementModalEl);
@@ -7408,7 +7525,8 @@ document.addEventListener("DOMContentLoaded", async function () {
   checksNewBtn?.addEventListener("click", () => {
     resetCheckForm();
     if (checkEditModalTitle) checkEditModalTitle.textContent = "Nuovo assegno";
-    checkEditModal?.show();
+    checksManagementModal?.hide();
+    setTimeout(() => checkEditModal?.show(), 180);
   });
 
   checkCancelBtn?.addEventListener("click", resetCheckForm);
@@ -7423,6 +7541,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   checkEditModalEl?.addEventListener("hidden.bs.modal", () => {
     checkSaveBtn?.removeEventListener("click", saveManagedCheck);
     resetCheckForm();
+    checksManagementModal?.show();
   });
 
   checkCustomerLabel?.addEventListener("input", () => {
@@ -7480,6 +7599,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (deleteBtn) {
       try { await deleteCheckEvent(deleteBtn.dataset.eventId); }
       catch (err) { alert(err.message || "Errore eliminazione evento"); }
+      return;
+    }
+    const paymentEditBtn = e.target.closest(".btn-check-payment-edit");
+    if (paymentEditBtn) { startEditCheckPayment(paymentEditBtn.dataset.paymentId); return; }
+    const paymentDeleteBtn = e.target.closest(".btn-check-payment-delete");
+    if (paymentDeleteBtn) {
+      try { await deleteCheckPayment(paymentDeleteBtn.dataset.paymentId); }
+      catch (err) { alert(err.message || "Errore eliminazione pagamento"); }
     }
   });
 
@@ -7488,34 +7615,86 @@ document.addEventListener("DOMContentLoaded", async function () {
     renderCheckHistory(activeHistoryCheck);
   });
 
-  checkCostBuildBtn?.addEventListener("click", renderCheckCost);
+  checkEventNewBtn?.addEventListener("click", () => {
+    resetCheckEventForm();
+    renderCheckHistory(activeHistoryCheck);
+    if (checkEventModalTitle) checkEventModalTitle.textContent = "Inserisci cambio di stato";
+    checkSubmodalOpen = true;
+    checkHistoryModal?.hide();
+    setTimeout(() => checkEventModal?.show(), 180);
+  });
+
+  checkPaymentNewBtn?.addEventListener("click", () => {
+    resetCheckPaymentForm();
+    checkSubmodalOpen = true;
+    checkHistoryModal?.hide();
+    setTimeout(() => checkPaymentModal?.show(), 180);
+  });
+
+  checkCostBuildBtn?.addEventListener("click", () => {
+    renderCheckCost();
+    checkSubmodalOpen = true;
+    checkHistoryModal?.hide();
+    setTimeout(() => checkCostModal?.show(), 180);
+  });
 
   checkHistoryModalEl?.addEventListener("shown.bs.modal", async () => {
     resetCheckEventForm();
+  });
+
+  checkEventModalEl?.addEventListener("shown.bs.modal", async () => {
     await loadBanks(checkEventBank);
+    const editingItem = (activeHistoryCheck?.events || []).find(item => String(item.id) === String(checkEventEditId?.value || ""));
+    if (editingItem && checkEventBank) checkEventBank.value = editingItem.cash_expense_bank_id || "";
     checkEventSaveBtn?.removeEventListener("click", saveCheckStatusEvent);
     checkEventSaveBtn?.addEventListener("click", saveCheckStatusEvent);
-    checkSettlementSaveBtn?.removeEventListener("click", saveCheckSettlement);
-    checkSettlementSaveBtn?.addEventListener("click", saveCheckSettlement);
     if (checkEventSaveBtn) {
-      checkEventSaveBtn.textContent = "Registra cambio stato";
-      checkEventSaveBtn.disabled = !(activeHistoryCheck?.allowed_transitions || []).length;
+      checkEventSaveBtn.textContent = checkEventEditId?.value ? "Salva modifica" : "Salva cambio di stato";
+      checkEventSaveBtn.disabled = checkEventStatus?.disabled || false;
     }
     updateCheckEventPenalty();
   });
 
-  checkHistoryModalEl?.addEventListener("hidden.bs.modal", () => {
+  checkEventModalEl?.addEventListener("hidden.bs.modal", () => {
     checkEventSaveBtn?.removeEventListener("click", saveCheckStatusEvent);
+    resetCheckEventForm();
+    checkSubmodalOpen = false;
+    checkHistoryModal?.show();
+  });
+
+  checkPaymentModalEl?.addEventListener("shown.bs.modal", () => {
+    checkPaymentSaveBtn?.removeEventListener("click", handleSaveCheckPaymentClick);
+    checkPaymentSaveBtn?.addEventListener("click", handleSaveCheckPaymentClick);
+    if (checkPaymentSaveBtn) checkPaymentSaveBtn.disabled = false;
+  });
+
+  checkPaymentModalEl?.addEventListener("hidden.bs.modal", () => {
+    checkPaymentSaveBtn?.removeEventListener("click", handleSaveCheckPaymentClick);
+    resetCheckPaymentForm();
+    checkSubmodalOpen = false;
+    checkHistoryModal?.show();
+  });
+
+  checkCostModalEl?.addEventListener("shown.bs.modal", () => {
+    renderCheckCost();
     checkSettlementSaveBtn?.removeEventListener("click", saveCheckSettlement);
-    if (checkEventSaveBtn) {
-      checkEventSaveBtn.disabled = false;
-      checkEventSaveBtn.textContent = "Registra cambio stato";
-    }
-    if (checkEventExpense) checkEventExpense.value = "0,00";
-    if (checkEventNote) checkEventNote.value = "";
-    checkCostPanel?.classList.add("d-none");
+    checkSettlementSaveBtn?.addEventListener("click", saveCheckSettlement);
+    checkCostPrintBtn?.removeEventListener("click", printCheckCost);
+    checkCostPrintBtn?.addEventListener("click", printCheckCost);
+  });
+
+  checkCostModalEl?.addEventListener("hidden.bs.modal", () => {
+    checkSettlementSaveBtn?.removeEventListener("click", saveCheckSettlement);
+    checkCostPrintBtn?.removeEventListener("click", printCheckCost);
+    checkSubmodalOpen = false;
+    checkHistoryModal?.show();
+  });
+
+  checkHistoryModalEl?.addEventListener("hidden.bs.modal", () => {
+    if (checkSubmodalOpen) return;
     if (checkCostSummary) checkCostSummary.innerHTML = "";
     activeHistoryCheck = null;
+    checksManagementModal?.show();
   });
 
   issuedChecksReloadBtn?.addEventListener("click", async () => {
