@@ -24,6 +24,12 @@ ultimo commit del branch main.
 - `new_chat_codex.md` — manifesto per flusso Codex locale con lettura diretta repository
 - `project_map.md`
 
+## Eventi
+
+- Pagina eventi interna: endpoint `events.index`, URL `/events/`, template `templates/events/index.html`.
+- Il pulsante `Eventi` della home e la voce `Eventi > Calendario Eventi` della navbar puntano entrambi a `/events/`.
+- Allineamento menu distribuito dalla migrazione dati `a4b5c6d7e8f9_update_events_calendar_menu_route.py`.
+
 ## Gestione assegni clienti - storico e costo
 
 - Ritaglio intelligente: `_smart_crop_check_image()` in `routes/cassa.py` usa OpenCV (`opencv-python-headless==4.10.0.84`) per contorni, quadrilatero e trasformazione prospettica.
@@ -32,7 +38,7 @@ ultimo commit del branch main.
 - Scansioni: campi `CashCheck.scan_path`, `scan_mime`, `scan_original_name`; storage privato `instance/check_scans/<check_id>`.
 - API protette `POST/GET/DELETE /cassa/api/checks/<id>/scan`; formati JPG, PNG e WebP, limite 8 MB, validazione Pillow.
 - UI scansione disponibile nella modale assegno e nei pagamenti con assegno singoli/multipli dell'Agenda; gli endpoint incasso restituiscono `check_ids` per associare gli upload.
-- Migrazione head: `93a4b5c6d7e8_add_cash_check_scan.py`.
+- Migrazione scansioni: `93a4b5c6d7e8_add_cash_check_scan.py`.
 
 - Stampa costo assegno: generata da `printProfessionalCheckCost()` in `static/js/agenda.js`; layout A4 professionale con tabella cronologica, riepilogo e area finale immagine. Accetta in futuro `image_url`, `scan_url` o `check_image_url` dal serializer; oggi mostra un segnaposto.
 

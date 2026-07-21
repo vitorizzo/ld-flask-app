@@ -21,6 +21,10 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
 
 ## Task corrente (metodologia Codex)
 
+- Aggiornamento 2026-07-21 - menu Eventi:
+  - `Eventi > Calendario Eventi` ora punta a `/events/`, la stessa pagina aperta dal pulsante Eventi della home;
+  - modifica distribuita tramite migrazione dati `a4b5c6d7e8f9_update_events_calendar_menu_route.py`.
+
 - Aggiornamento 2026-07-21 - ritaglio intelligente scansione assegni:
   - dopo foto/selezione viene aperto il confronto tra originale e assegno estratto;
   - OpenCV rileva il quadrilatero, elimina sfondo/contorno e corregge la prospettiva;
