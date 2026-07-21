@@ -3288,13 +3288,36 @@ async function deleteCheckPayment(paymentId) {
   renderCheckHistory(activeHistoryCheck);
 }
 
-function printCheckCost() {
-  if (!activeHistoryCheck || !checkCostSummary) return;
+function printProfessionalCheckCost() {
+  if (!activeHistoryCheck) return;
+  const check = activeHistoryCheck;
+  const events = Array.isArray(check.events) ? check.events : [];
+  const payments = Array.isArray(check.payments) ? check.payments : [];
+  const original = Number(check.amount || 0);
+  const expenses = events.reduce((sum, item) => sum + Number(item.amount_spese || 0) + Number(item.customer_charge_amount || 0), 0);
+  const paid = payments.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+  const totalDue = original + expenses;
+  const balance = totalDue - paid;
+  const historyRows = [
+    {date: check.received_date || "", label: "Importo assegno", note: "Valore nominale", debit: original, payment: 0, order: 0},
+    ...events.map((item, index) => ({date: item.event_date || "", label: item.to_status_label || item.to_status || "Cambio di stato", note: item.note || "", debit: Number(item.amount_spese || 0) + Number(item.customer_charge_amount || 0), payment: 0, order: 1000 + index})),
+    ...payments.map((item, index) => ({date: item.payment_date || "", label: "Pagamento ricevuto", note: item.note || ({bank: "Bonifico", cash: "Contanti", card: "Carta/POS", other: "Altro"})[item.method] || "", debit: 0, payment: Number(item.amount || 0), order: 2000 + index})),
+  ].sort((a, b) => a.date.localeCompare(b.date) || a.order - b.order);
+  const rowsHtml = historyRows.map(row => `<tr><td>${escapeHtml(formatDateIT(row.date))}</td><td>${escapeHtml(row.label)}</td><td class="note">${escapeHtml(row.note)}</td><td class="money">${row.debit ? eur(row.debit) : "—"}</td><td class="money">${row.payment ? eur(row.payment) : "—"}</td></tr>`).join("");
+  const candidateImage = check.image_url || check.scan_url || check.check_image_url || "";
+  const safeImage = /^(https?:\/\/|\/|data:image\/)/i.test(candidateImage) ? candidateImage : "";
+  const imageHtml = safeImage ? `<img class="check-image" src="${escapeHtml(safeImage)}" alt="Immagine assegno">` : `<div class="check-image-placeholder"><span>Immagine assegno non disponibile</span><small>La scansione sarà riportata qui quando associata all'assegno.</small></div>`;
   const printWindow = window.open("", "_blank", "width=900,height=700");
   if (!printWindow) { alert("Il browser ha bloccato la finestra di stampa."); return; }
-  printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Calcolo assegno ${escapeHtml(activeHistoryCheck.check_number || "")}</title><style>body{font-family:Arial,sans-serif;margin:32px;color:#222}h1{font-size:22px}.sheet{max-width:760px;margin:auto}.sheet>div{margin:8px 0}ul{padding:0;list-style:none}li{display:flex;justify-content:space-between;gap:20px;margin:6px 0}.no-print{display:none}@media print{body{margin:0}}</style></head><body><div class="sheet"><h1>Calcolo costo assegno</h1><p>${escapeHtml(activeHistoryCheck.customer_display_name || "Cliente")} · assegno ${escapeHtml(activeHistoryCheck.check_number || "")}</p>${checkCostSummary.innerHTML}</div></body></html>`);
+  printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Calcolo assegno ${escapeHtml(check.check_number || "")}</title><style>
+    @page{size:A4;margin:18mm}*{box-sizing:border-box}body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#20242a;font-size:12px}.sheet{max-width:174mm;margin:0 auto}h1{text-align:center;text-transform:uppercase;letter-spacing:.08em;font-size:22px;margin:0 0 18px}.subtitle{background:#343a40;color:#fff;text-align:center;padding:12px 18px;font-size:14px;font-weight:700;border-radius:3px;margin-bottom:24px}.subtitle span{display:inline-block;margin:0 8px}.history-table{width:100%;border-collapse:collapse;table-layout:fixed}.history-table th{padding:7px 8px;text-align:left;text-transform:uppercase;font-size:10px;letter-spacing:.06em;color:#60666d}.history-table td{padding:7px 8px;vertical-align:top;border:0}.history-table th:nth-child(1){width:16%}.history-table th:nth-child(2){width:24%}.history-table th:nth-child(3){width:30%}.history-table th:nth-child(4),.history-table th:nth-child(5){width:15%;text-align:right}.history-table .money{text-align:right;white-space:nowrap}.history-table .note{color:#596068}.totals{width:48%;margin:22px 0 0 auto}.total-row{display:flex;justify-content:space-between;gap:20px;padding:5px 8px}.total-row strong{white-space:nowrap}.total-row.balance{margin-top:5px;padding-top:10px;font-size:15px;font-weight:700;border-top:2px solid #343a40}.total-row.agreement{color:#18794e}.check-image-section{margin-top:34px;break-inside:avoid}.check-image-section h2{text-align:center;text-transform:uppercase;letter-spacing:.06em;font-size:12px;margin:0 0 12px}.check-image{display:block;width:100%;max-height:90mm;object-fit:contain;margin:auto}.check-image-placeholder{height:62mm;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f1f3f5;color:#6c757d;text-align:center}.check-image-placeholder span{font-weight:700;font-size:14px}.check-image-placeholder small{margin-top:6px}@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+  </style></head><body><main class="sheet"><h1>Calcolo costo assegno</h1><div class="subtitle"><span>${escapeHtml(check.customer_display_name || "Cliente")}</span><span>·</span><span>Assegno n. ${escapeHtml(check.check_number || "")}</span></div><table class="history-table"><thead><tr><th>Data</th><th>Voce</th><th>Note</th><th>Addebiti</th><th>Pagamenti</th></tr></thead><tbody>${rowsHtml}</tbody></table><section class="totals"><div class="total-row"><span>Importo assegno</span><strong>${eur(original)}</strong></div><div class="total-row"><span>Spese e penali</span><strong>${eur(expenses)}</strong></div><div class="total-row"><span>Totale dovuto</span><strong>${eur(totalDue)}</strong></div><div class="total-row agreement"><span>Pagamenti ricevuti</span><strong>− ${eur(paid)}</strong></div><div class="total-row balance"><span>${balance >= 0 ? "Residuo da pagare" : "Credito cliente"}</span><strong>${eur(Math.abs(balance))}</strong></div>${check.settlement_amount != null ? `<div class="total-row agreement"><span>Saldo e stralcio</span><strong>${eur(check.settlement_amount)}</strong></div><div class="total-row"><span>Residuo sull'accordo</span><strong>${eur(Math.max(0, Number(check.settlement_amount) - paid))}</strong></div>` : ""}</section><section class="check-image-section"><h2>Immagine dell'assegno</h2>${imageHtml}</section></main></body></html>`);
   printWindow.document.close();
   setTimeout(() => printWindow.print(), 250);
+}
+
+function printCheckCost() {
+  return printProfessionalCheckCost();
 }
 
 async function openCheckHistory(checkId) {

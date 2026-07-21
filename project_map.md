@@ -26,6 +26,8 @@ ultimo commit del branch main.
 
 ## Gestione assegni clienti - storico e costo
 
+- Stampa costo assegno: generata da `printProfessionalCheckCost()` in `static/js/agenda.js`; layout A4 professionale con tabella cronologica, riepilogo e area finale immagine. Accetta in futuro `image_url`, `scan_url` o `check_image_url` dal serializer; oggi mostra un segnaposto.
+
 - Regola corrente: importi, spese, penali e pagamenti della storia assegno sono solo informativi e non devono creare, modificare o cancellare movimenti Agenda.
 - I vecchi `cash_expense_id` restano esclusivamente come compatibilità storica; nessuna nuova operazione dello storico li sincronizza.
 

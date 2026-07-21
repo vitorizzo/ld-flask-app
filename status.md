@@ -21,6 +21,12 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
 
 ## Task corrente (metodologia Codex)
 
+- Aggiornamento 2026-07-21 - stampa professionale calcolo assegno:
+  - titolo centrato e intestazione cliente/numero assegno bianca su fascia scura;
+  - storia organizzata in tabella senza bordi con colonne data, voce, note, addebiti e pagamenti;
+  - riepilogo contabile allineato con dovuto, pagamenti, residuo ed eventuale saldo e stralcio;
+  - sezione finale predisposta per l'immagine dell'assegno, con segnaposto finché la scansione non sarà disponibile.
+
 - Aggiornamento 2026-07-21 - separazione storia assegni / Agenda:
   - spese, penali e pagamenti registrati nello storico assegno non generano movimenti Agenda;
   - modifica o cancellazione di un evento storico non aggiorna e non elimina eventuali vecchie spese Agenda collegate;
