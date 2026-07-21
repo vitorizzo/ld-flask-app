@@ -989,7 +989,6 @@ const checkHistorySubtitle = document.getElementById("checkHistorySubtitle");
 const checkHistoryTimeline = document.getElementById("checkHistoryTimeline");
 const checkEventStatus = document.getElementById("checkEventStatus");
 const checkEventDate = document.getElementById("checkEventDate");
-const checkEventBank = document.getElementById("checkEventBank");
 const checkEventExpense = document.getElementById("checkEventExpense");
 const checkEventPenalty = document.getElementById("checkEventPenalty");
 const checkEventNote = document.getElementById("checkEventNote");
@@ -3114,7 +3113,6 @@ function renderCheckHistory(check) {
       const costs = [];
       if (Number(event.amount_spese || 0) > 0) costs.push(`Spesa banca ${eur(event.amount_spese)}`);
       if (Number(event.customer_charge_amount || 0) > 0) costs.push(`Penale cliente ${eur(event.customer_charge_amount)}`);
-      if (event.cash_expense_id) costs.push(`Spesa Agenda #${event.cash_expense_id}`);
       return `
         <article class="check-history-event">
           <div class="check-history-event__date">${escapeHtml(formatDateIT(event.event_date))}</div>
@@ -3175,7 +3173,6 @@ function startEditCheckEvent(eventId) {
   renderCheckHistory(activeHistoryCheck);
   if (checkEventStatus) checkEventStatus.value = eventItem.to_status || "";
   if (checkEventDate) checkEventDate.value = eventItem.event_date || todayYmd();
-  if (checkEventBank) checkEventBank.value = eventItem.cash_expense_bank_id || "";
   if (checkEventExpense) checkEventExpense.value = formatEuro2(eventItem.amount_spese || 0);
   if (checkEventNote) checkEventNote.value = eventItem.note || "";
   if (checkEventCancelEditBtn) checkEventCancelEditBtn.classList.remove("d-none");
@@ -3187,7 +3184,7 @@ function startEditCheckEvent(eventId) {
 }
 
 async function deleteCheckEvent(eventId) {
-  if (!activeHistoryCheck?.id || !window.confirm("Eliminare questo evento dallo storico? Le eventuali spese collegate saranno eliminate.")) return;
+  if (!activeHistoryCheck?.id || !window.confirm("Eliminare questo evento dallo storico?")) return;
   const response = await fetch(`/cassa/api/checks/${activeHistoryCheck.id}/events/${eventId}`, {
     method: "DELETE", credentials: "same-origin", headers: { "Accept": "application/json" }
   });
@@ -3317,12 +3314,6 @@ async function openCheckHistory(checkId) {
 async function saveCheckStatusEvent() {
   if (!activeHistoryCheck?.id) return;
   const amountSpese = parseEuroToNumber(checkEventExpense?.value || "0");
-  if (amountSpese > 0 && !checkEventBank?.value) {
-    alert("Seleziona la banca che ha addebitato le spese.");
-    checkEventBank?.focus();
-    return;
-  }
-
   if (checkEventSaveBtn) {
     checkEventSaveBtn.disabled = true;
     checkEventSaveBtn.textContent = "Registrazione...";
@@ -3336,7 +3327,6 @@ async function saveCheckStatusEvent() {
       body: JSON.stringify({
         to_status: checkEventStatus?.value || "",
         event_date: checkEventDate?.value || "",
-        bank_id: checkEventBank?.value || null,
         amount_spese: amountSpese,
         note: (checkEventNote?.value || "").trim(),
       })
@@ -7642,10 +7632,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     resetCheckEventForm();
   });
 
-  checkEventModalEl?.addEventListener("shown.bs.modal", async () => {
-    await loadBanks(checkEventBank);
-    const editingItem = (activeHistoryCheck?.events || []).find(item => String(item.id) === String(checkEventEditId?.value || ""));
-    if (editingItem && checkEventBank) checkEventBank.value = editingItem.cash_expense_bank_id || "";
+  checkEventModalEl?.addEventListener("shown.bs.modal", () => {
     checkEventSaveBtn?.removeEventListener("click", saveCheckStatusEvent);
     checkEventSaveBtn?.addEventListener("click", saveCheckStatusEvent);
     if (checkEventSaveBtn) {

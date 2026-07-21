@@ -1059,46 +1059,6 @@ def _rebuild_check_event_chain(check):
     return events
 
 
-def _sync_check_event_expense(check, event_item, bank_expense_amount, bank_id, note):
-    expense = event_item.cash_expense
-    if expense:
-        previous_day = CashDay.query.filter_by(id=expense.cash_day_id).first()
-        if previous_day and previous_day.status == "closed":
-            raise ValueError("La giornata contabile della spesa collegata è chiusa")
-    if bank_expense_amount == 0:
-        if expense:
-            event_item.cash_expense = None
-            db.session.flush()
-            db.session.delete(expense)
-        return
-
-    bank = _validate_bank(bank_id) if bank_id else None
-    if bank is None:
-        raise ValueError("Seleziona la banca che ha addebitato la spesa")
-    closed_response = _reject_if_day_closed_for_date(event_item.event_date)
-    if closed_response:
-        raise ValueError("La giornata contabile delle spese è chiusa")
-    cash_day = CashDay.query.filter_by(day_date=event_item.event_date).first()
-    if cash_day is None:
-        cash_day = CashDay(day_date=event_item.event_date,
-                           opening_float=float(_find_latest_previous_cash_balance(event_item.event_date) or 0),
-                           status="open")
-        db.session.add(cash_day)
-        db.session.flush()
-    description = f"Spese assegno {check.check_number} - {CHECK_STATUS_LABELS.get(event_item.to_status, event_item.to_status)}"
-    if expense is None:
-        expense = CashExpense(created_by_user_id=getattr(current_user, "id", None), category="Spese bancarie assegni", doc_ref=check.check_number)
-        event_item.cash_expense = expense
-        db.session.add(expense)
-    expense.cash_day_id = cash_day.id
-    expense.supplier = bank.name
-    expense.notes = f"{description}{' - ' + note if note else ''}"
-    expense.payments.clear()
-    expense.payments.append(CashExpensePayment(direction="out", method="bank", off_cash=False,
-                                                amount=bank_expense_amount, flag="*", bank_id=bank.id,
-                                                description=description))
-
-
 def _find_or_create_cash_customer(label: str):
     display_name = (label or "").strip()
     if not display_name:
@@ -4601,57 +4561,13 @@ def api_create_check_event(check_id):
             raise ValueError("Importo spese bancarie non valido")
         if bank_expense_amount < 0:
             raise ValueError("Le spese bancarie non possono essere negative")
-        bank_id = int(data.get("bank_id")) if data.get("bank_id") else None
-        if bank_expense_amount > 0 and not bank_id:
-            raise ValueError("Seleziona la banca che ha addebitato la spesa")
-
-        bank = _validate_bank(bank_id) if bank_id else None
-        closed_response = _reject_if_day_closed_for_date(event_date)
-        if closed_response:
-            return closed_response
-
         penalty_amount = Decimal("0.00")
         if new_status == "protested":
             penalty_amount = (
                 Decimal(str(check.amount or 0)) * CHECK_PROTEST_PENALTY_RATE
             ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
-        expense = None
         note = (data.get("note") or "").strip() or None
-        if bank_expense_amount > 0:
-            cash_day = CashDay.query.filter_by(day_date=event_date).first()
-            if cash_day is None:
-                cash_day = CashDay(
-                    day_date=event_date,
-                    opening_float=float(_find_latest_previous_cash_balance(event_date) or 0),
-                    status="open",
-                )
-                db.session.add(cash_day)
-                db.session.flush()
-
-            description = (
-                f"Spese assegno {check.check_number} - "
-                f"{CHECK_STATUS_LABELS.get(new_status, new_status)}"
-            )
-            expense = CashExpense(
-                cash_day_id=cash_day.id,
-                created_by_user_id=getattr(current_user, "id", None),
-                supplier=bank.name,
-                category="Spese bancarie assegni",
-                doc_ref=check.check_number,
-                notes=f"{description}{' - ' + note if note else ''}",
-            )
-            expense.payments.append(CashExpensePayment(
-                direction="out",
-                method="bank",
-                off_cash=False,
-                amount=bank_expense_amount,
-                flag="*",
-                bank_id=bank.id,
-                description=description,
-            ))
-            db.session.add(expense)
-            db.session.flush()
 
         status_event = change_check_status(
             check=check,
@@ -4661,7 +4577,7 @@ def api_create_check_event(check_id):
             note=note,
             amount_spese=bank_expense_amount,
             customer_charge_amount=penalty_amount,
-            cash_expense_id=expense.id if expense else None,
+            cash_expense_id=None,
         )
         if status_event is None:
             raise ValueError("La transizione non ha prodotto un nuovo evento")
@@ -4671,7 +4587,7 @@ def api_create_check_event(check_id):
         return jsonify({
             "ok": True,
             "check": _serialize_cash_check(check, include_events=True),
-            "expense_id": expense.id if expense else None,
+            "expense_id": None,
             "penalty_amount": float(penalty_amount),
         }), 201
     except ValueError as exc:
@@ -4698,7 +4614,6 @@ def api_update_check_event(check_id, event_id):
             raise ValueError("Stato non valido")
         event_date = datetime.strptime((data.get("event_date") or "").strip(), "%Y-%m-%d").date()
         amount_spese = _parse_nonnegative_money(data.get("amount_spese"), "Importo spese bancarie")
-        bank_id = int(data.get("bank_id")) if data.get("bank_id") else None
         note = (data.get("note") or "").strip() or None
         event_item.to_status = new_status
         event_item.event_date = event_date
@@ -4707,7 +4622,6 @@ def api_update_check_event(check_id, event_id):
         event_item.customer_charge_amount = ((Decimal(str(check.amount or 0)) * CHECK_PROTEST_PENALTY_RATE)
                                              .quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
                                              if new_status == "protested" else Decimal("0.00"))
-        _sync_check_event_expense(check, event_item, amount_spese, bank_id, note)
         _rebuild_check_event_chain(check)
         db.session.commit()
         _bump_agenda_versions_for_check(check, [event_date.isoformat()])
@@ -4730,15 +4644,7 @@ def api_delete_check_event(check_id, event_id):
     if not check or not event_item:
         return jsonify({"ok": False, "error": "Evento assegno non trovato"}), 404
     try:
-        expense = event_item.cash_expense
         event_date = event_item.event_date
-        if expense:
-            expense_day = CashDay.query.filter_by(id=expense.cash_day_id).first()
-            if expense_day and expense_day.status == "closed":
-                raise ValueError("La giornata contabile della spesa è chiusa")
-            event_item.cash_expense = None
-            db.session.flush()
-            db.session.delete(expense)
         db.session.delete(event_item)
         db.session.flush()
         _rebuild_check_event_chain(check)

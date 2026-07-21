@@ -21,6 +21,12 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
 
 ## Task corrente (metodologia Codex)
 
+- Aggiornamento 2026-07-21 - separazione storia assegni / Agenda:
+  - spese, penali e pagamenti registrati nello storico assegno non generano movimenti Agenda;
+  - modifica o cancellazione di un evento storico non aggiorna e non elimina eventuali vecchie spese Agenda collegate;
+  - rimossa dalla modale evento la selezione della banca contabile;
+  - gli eventuali movimenti Agenda preesistenti restano invariati e sono gestibili manualmente.
+
 - Aggiornamento 2026-07-21 - seconda revisione UI assegni e pagamenti:
   - Gestione assegni ridotta a filtri persistenti, tabella, totali e pulsanti finali;
   - form assegno reso parte reale della modale nuovo/modifica, eliminando il trasferimento della card errata;

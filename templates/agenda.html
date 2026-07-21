@@ -4382,10 +4382,6 @@
               <input class="form-control" type="date" id="checkEventDate">
             </div>
             <div class="col-12 col-md-6">
-              <label class="form-label" for="checkEventBank">Banca che addebita le spese</label>
-              <select class="form-select" id="checkEventBank"></select>
-            </div>
-            <div class="col-12 col-md-6">
               <label class="form-label" for="checkEventExpense">Spese bancarie</label>
               <input class="form-control text-end" type="text" inputmode="decimal" id="checkEventExpense" value="0,00">
             </div>
@@ -4710,7 +4706,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-check-history3') }}"></script>
+  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-check-history4') }}"></script>
 
 {% endblock %}
 

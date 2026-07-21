@@ -26,6 +26,9 @@ ultimo commit del branch main.
 
 ## Gestione assegni clienti - storico e costo
 
+- Regola corrente: importi, spese, penali e pagamenti della storia assegno sono solo informativi e non devono creare, modificare o cancellare movimenti Agenda.
+- I vecchi `cash_expense_id` restano esclusivamente come compatibilità storica; nessuna nuova operazione dello storico li sincronizza.
+
 - Modello: `CashCheck.settlement_amount`; eventi in `CashCheckEvent` con eventuale `cash_expense_id`.
 - API: `routes/cassa.py`, endpoint CRUD eventi `/cassa/api/checks/<id>/events[/<event_id>]` e saldo e stralcio `/settlement`.
 - UI: modali `checksManagementModal`, `checkEditModal` e `checkHistoryModal` in `templates/agenda.html`; logica in `static/js/agenda.js`.
