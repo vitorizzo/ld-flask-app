@@ -3041,6 +3041,9 @@ class CashCheck(db.Model):
 
     amount = db.Column(db.Numeric(12, 2), nullable=False)
     settlement_amount = db.Column(db.Numeric(12, 2), nullable=True)
+    scan_path = db.Column(db.String(500), nullable=True)
+    scan_mime = db.Column(db.String(100), nullable=True)
+    scan_original_name = db.Column(db.String(255), nullable=True)
 
     received_date = db.Column(db.Date, nullable=False, default=date.today)
     due_date = db.Column(db.Date, nullable=False)

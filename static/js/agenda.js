@@ -980,6 +980,10 @@ const checkStatus = document.getElementById("checkStatus");
 const checkReceivedDate = document.getElementById("checkReceivedDate");
 const checkDueDate = document.getElementById("checkDueDate");
 const checkNote = document.getElementById("checkNote");
+const checkScanInput = document.getElementById("checkScanInput");
+const checkScanPreviewWrap = document.getElementById("checkScanPreviewWrap");
+const checkScanPreview = document.getElementById("checkScanPreview");
+const checkScanRemoveBtn = document.getElementById("checkScanRemoveBtn");
 const checkCancelBtn = document.getElementById("checkCancelBtn");
 const checkSaveBtn = document.getElementById("checkSaveBtn");
 const checkEditModalEl = document.getElementById("checkEditModal");
@@ -2916,6 +2920,9 @@ function resetCheckForm() {
   if (checkReceivedDate) checkReceivedDate.value = currentDay || todayYmd();
   if (checkDueDate) checkDueDate.value = currentDay || todayYmd();
   if (checkNote) checkNote.value = "";
+  if (checkScanInput) checkScanInput.value = "";
+  if (checkScanPreview) checkScanPreview.removeAttribute("src");
+  checkScanPreviewWrap?.classList.add("d-none");
   if (checkSaveBtn) checkSaveBtn.textContent = "Salva assegno";
 }
 
@@ -3005,10 +3012,39 @@ function startEditCheck(row) {
   if (checkReceivedDate) checkReceivedDate.value = row.received_date || todayYmd();
   if (checkDueDate) checkDueDate.value = row.due_date || todayYmd();
   if (checkNote) checkNote.value = row.note || "";
+  if (checkScanInput) checkScanInput.value = "";
+  if (row.scan_url && checkScanPreview) {
+    checkScanPreview.src = row.scan_url;
+    checkScanPreviewWrap?.classList.remove("d-none");
+  } else {
+    checkScanPreviewWrap?.classList.add("d-none");
+  }
   if (checkSaveBtn) checkSaveBtn.textContent = "Salva modifica";
   if (checkEditModalTitle) checkEditModalTitle.textContent = "Modifica assegno";
   checksManagementModal?.hide();
   setTimeout(() => checkEditModal?.show(), 180);
+}
+
+async function uploadCheckScan(checkId, file) {
+  if (!checkId || !file) return null;
+  if (file.size > 8 * 1024 * 1024) throw new Error("La scansione dell'assegno supera il limite di 8 MB.");
+  const formData = new FormData();
+  formData.append("scan", file, file.name || "assegno.jpg");
+  const response = await fetch(`/cassa/api/checks/${checkId}/scan`, {
+    method: "POST", credentials: "same-origin", headers: {"Accept": "application/json"}, body: formData
+  });
+  const data = await response.json();
+  if (!response.ok || !data.ok) throw new Error(data.error || "Errore caricamento scansione assegno");
+  return data.check;
+}
+
+async function deleteCheckScan(checkId) {
+  const response = await fetch(`/cassa/api/checks/${checkId}/scan`, {
+    method: "DELETE", credentials: "same-origin", headers: {"Accept": "application/json"}
+  });
+  const data = await response.json();
+  if (!response.ok || !data.ok) throw new Error(data.error || "Errore rimozione scansione assegno");
+  return data.check;
 }
 
 async function saveManagedCheck() {
@@ -4181,7 +4217,8 @@ document.addEventListener("DOMContentLoaded", async function () {
       "checkAmount",
       "checkBankSelect",
       "checkNumber",
-      "checkDueDate"
+      "checkDueDate",
+      "checkSaleScan"
     ];
 
     ids.forEach(id => {
@@ -6775,6 +6812,24 @@ document.addEventListener("DOMContentLoaded", async function () {
     return buildSinglePaymentPayload(base);
   }
 
+  function collectPendingOperationCheckScans(payload) {
+    const checkPayments = (payload?.payments || []).filter(item => item.method === "check");
+    if (!checkPayments.length) return [];
+    if (getPaymentMode() === "multi") {
+      let ordinal = 0;
+      const scans = [];
+      Array.from(multiPaymentsList?.querySelectorAll(".multi-payment-row") || []).forEach(row => {
+        if ((row.querySelector(".multi-method")?.value || "") !== "check") return;
+        const file = row.querySelector(".multi-check-scan")?.files?.[0];
+        if (file) scans.push({ordinal, checkId: checkPayments[ordinal]?.check_id || null, file});
+        ordinal += 1;
+      });
+      return scans;
+    }
+    const file = document.getElementById("checkSaleScan")?.files?.[0];
+    return file ? [{ordinal: 0, checkId: checkPayments[0]?.check_id || null, file}] : [];
+  }
+
   async function saveReceiptClosure() {
     if (!currentDay) {
       alert("Nessuna giornata selezionata.");
@@ -6932,6 +6987,12 @@ document.addEventListener("DOMContentLoaded", async function () {
       operationSaving = false;
       if (saveBtn) saveBtn.disabled = false;
       return;
+    }
+
+    const scanFile = checkScanInput?.files?.[0];
+    if (scanFile && data.check?.id) {
+      try { await uploadCheckScan(data.check.id, scanFile); }
+      catch (scanError) { alert(`Assegno salvato, ma scansione non caricata: ${scanError.message}`); }
     }
     if (!built.ok) {
       alert(built.error || "Dati operazione non validi.");
@@ -7561,6 +7622,25 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (checkCustomerId) checkCustomerId.value = "";
   });
 
+  checkScanInput?.addEventListener("change", () => {
+    const file = checkScanInput.files?.[0];
+    if (!file || !checkScanPreview) return;
+    checkScanPreview.src = URL.createObjectURL(file);
+    checkScanPreviewWrap?.classList.remove("d-none");
+  });
+
+  checkScanRemoveBtn?.addEventListener("click", async () => {
+    const checkId = (checkEditId?.value || "").trim();
+    if (checkId && checkScanPreview?.getAttribute("src") && !window.confirm("Rimuovere la scansione associata all'assegno?")) return;
+    if (checkScanInput) checkScanInput.value = "";
+    if (checkId && checkScanPreview?.getAttribute("src")) {
+      try { await deleteCheckScan(checkId); }
+      catch (error) { alert(error.message || "Errore rimozione scansione"); return; }
+    }
+    if (checkScanPreview) checkScanPreview.removeAttribute("src");
+    checkScanPreviewWrap?.classList.add("d-none");
+  });
+
   checksManagementRows?.addEventListener("click", async (e) => {
     const historyBtn = e.target.closest(".btn-check-history");
     if (historyBtn) {
@@ -7572,6 +7652,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
       return;
     }
+    const pendingCheckScans = opType === "sale" ? collectPendingOperationCheckScans(built.payload) : [];
 
     const editBtn = e.target.closest(".btn-check-edit");
     if (editBtn) {
@@ -8202,6 +8283,18 @@ document.addEventListener("DOMContentLoaded", async function () {
         deleteBtn.disabled = false;
         return;
       }
+
+      const scanErrors = [];
+      for (const pendingScan of pendingCheckScans) {
+        const targetCheckId = pendingScan.checkId || (data.check_ids || [])[pendingScan.ordinal];
+        if (!targetCheckId) {
+          scanErrors.push("assegno non identificato");
+          continue;
+        }
+        try { await uploadCheckScan(targetCheckId, pendingScan.file); }
+        catch (scanError) { scanErrors.push(scanError.message || "caricamento non riuscito"); }
+      }
+      if (scanErrors.length) alert(`Operazione salvata, ma alcune scansioni non sono state caricate: ${scanErrors.join("; ")}`);
 
       if (editingDepositId && String(editingDepositId) === String(depositId)) {
         await loadDepositBanks();

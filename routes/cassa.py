@@ -3,10 +3,13 @@ import os
 import json
 import base64
 import secrets
+from io import BytesIO
 
 from cryptography.hazmat.primitives.ciphers.algorithms import AES
-from flask import Blueprint, render_template, request, jsonify, session, current_app
+from flask import Blueprint, render_template, request, jsonify, session, current_app, url_for, send_file
 from flask_login import login_required, current_user
+from werkzeug.utils import secure_filename
+from PIL import Image, UnidentifiedImageError
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -983,6 +986,9 @@ def _serialize_cash_check(check: CashCheck, include_events: bool = False):
         "customer_display_name": customer.display_name if customer else None,
         "amount": float(check.amount or 0),
         "settlement_amount": float(check.settlement_amount) if check.settlement_amount is not None else None,
+        "scan_url": url_for("cassa.api_get_check_scan", check_id=check.id) if check.scan_path else None,
+        "scan_mime": check.scan_mime,
+        "scan_original_name": check.scan_original_name,
         "received_date": check.received_date.isoformat() if check.received_date else None,
         "due_date": check.due_date.isoformat() if check.due_date else None,
         "status": check.status,
@@ -4742,6 +4748,107 @@ def api_delete_check_payment(check_id, payment_id):
     return jsonify({"ok": True, "check": _serialize_cash_check(check, include_events=True)})
 
 
+CHECK_SCAN_MAX_BYTES = 8 * 1024 * 1024
+CHECK_SCAN_SIGNATURES = (
+    (b"\xff\xd8\xff", "jpg", "image/jpeg"),
+    (b"\x89PNG\r\n\x1a\n", "png", "image/png"),
+    (b"RIFF", "webp", "image/webp"),
+)
+
+
+def _remove_check_scan_file(relative_path):
+    if not relative_path:
+        return
+    uploads_root = os.path.abspath(os.path.join(current_app.instance_path, "check_scans"))
+    target = os.path.abspath(os.path.join(uploads_root, relative_path.replace("/", os.sep)))
+    if os.path.commonpath([uploads_root, target]) == uploads_root and os.path.isfile(target):
+        try:
+            os.remove(target)
+        except OSError as exc:
+            logger.warning("Impossibile rimuovere subito la scansione %s: %s", target, exc)
+
+
+@cassa_bp.post("/api/checks/<int:check_id>/scan")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_upload_check_scan(check_id):
+    check = CashCheck.query.filter_by(id=check_id).first()
+    if not check:
+        return jsonify({"ok": False, "error": "Assegno non trovato"}), 404
+    uploaded = request.files.get("scan")
+    if not uploaded or not uploaded.filename:
+        return jsonify({"ok": False, "error": "Seleziona un'immagine dell'assegno"}), 400
+    content = uploaded.read(CHECK_SCAN_MAX_BYTES + 1)
+    if not content or len(content) > CHECK_SCAN_MAX_BYTES:
+        return jsonify({"ok": False, "error": "L'immagine deve avere dimensione massima di 8 MB"}), 400
+    detected = None
+    for signature, extension, mime_type in CHECK_SCAN_SIGNATURES:
+        if content.startswith(signature) and (extension != "webp" or content[8:12] == b"WEBP"):
+            detected = (extension, mime_type)
+            break
+    if not detected:
+        return jsonify({"ok": False, "error": "Formato non valido: usa JPG, PNG o WebP"}), 400
+    try:
+        with Image.open(BytesIO(content)) as image:
+            image.verify()
+    except (UnidentifiedImageError, OSError, ValueError):
+        return jsonify({"ok": False, "error": "Il file non contiene un'immagine valida"}), 400
+    extension, mime_type = detected
+    folder = os.path.join(current_app.instance_path, "check_scans", str(check.id))
+    os.makedirs(folder, exist_ok=True)
+    filename = f"scan-{secrets.token_hex(12)}.{extension}"
+    absolute_path = os.path.join(folder, filename)
+    relative_path = f"{check.id}/{filename}"
+    old_path = check.scan_path
+    try:
+        with open(absolute_path, "wb") as destination:
+            destination.write(content)
+        check.scan_path = relative_path
+        check.scan_mime = mime_type
+        check.scan_original_name = secure_filename(uploaded.filename)[:255] or f"assegno.{extension}"
+        db.session.commit()
+        if old_path and old_path != relative_path:
+            _remove_check_scan_file(old_path)
+        return jsonify({"ok": True, "check": _serialize_cash_check(check, include_events=True)})
+    except Exception:
+        db.session.rollback()
+        if os.path.isfile(absolute_path):
+            os.remove(absolute_path)
+        logger.exception("api_upload_check_scan error check=%s", check_id)
+        return jsonify({"ok": False, "error": "Errore salvataggio immagine assegno"}), 500
+
+
+@cassa_bp.get("/api/checks/<int:check_id>/scan")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_get_check_scan(check_id):
+    check = CashCheck.query.filter_by(id=check_id).first()
+    if not check or not check.scan_path:
+        return jsonify({"ok": False, "error": "Scansione non trovata"}), 404
+    root = os.path.abspath(os.path.join(current_app.instance_path, "check_scans"))
+    target = os.path.abspath(os.path.join(root, check.scan_path.replace("/", os.sep)))
+    if os.path.commonpath([root, target]) != root or not os.path.isfile(target):
+        return jsonify({"ok": False, "error": "File scansione non disponibile"}), 404
+    return send_file(target, mimetype=check.scan_mime or "application/octet-stream", as_attachment=False,
+                     download_name=check.scan_original_name or f"assegno-{check.id}")
+
+
+@cassa_bp.delete("/api/checks/<int:check_id>/scan")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_delete_check_scan(check_id):
+    check = CashCheck.query.filter_by(id=check_id).first()
+    if not check:
+        return jsonify({"ok": False, "error": "Assegno non trovato"}), 404
+    old_path = check.scan_path
+    check.scan_path = None
+    check.scan_mime = None
+    check.scan_original_name = None
+    db.session.commit()
+    _remove_check_scan_file(old_path)
+    return jsonify({"ok": True, "check": _serialize_cash_check(check, include_events=True)})
+
+
 @cassa_bp.delete("/api/checks/<int:check_id>")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
@@ -4759,8 +4866,10 @@ def api_delete_check(check_id):
         return jsonify({"ok": False, "error": "Assegno collegato a movimenti: elimina o modifica prima il movimento collegato"}), 409
 
     try:
+        scan_path = check.scan_path
         db.session.delete(check)
         db.session.commit()
+        _remove_check_scan_file(scan_path)
         return jsonify({"ok": True, "check_id": check_id})
     except Exception as e:
         db.session.rollback()
@@ -4896,6 +5005,7 @@ def api_create_sale(day_date):
 
     db.session.add(sale)
     db.session.flush()
+    created_check_ids = []
 
     try:
         for idx, p in enumerate(payments_data, start=1):
@@ -4990,6 +5100,7 @@ def api_create_sale(day_date):
                 )
                 db.session.add(check)
                 db.session.flush()
+                created_check_ids.append(check.id)
 
                 change_check_status(
                     check=check,
@@ -5020,7 +5131,7 @@ def api_create_sale(day_date):
         logger.exception("api_create_sale error: %s", e)
         return jsonify({"ok": False, "error": "Internal error while creating sale"}), 500
 
-    return jsonify({"ok": True, "sale_id": sale.id}), 201
+    return jsonify({"ok": True, "sale_id": sale.id, "check_ids": created_check_ids}), 201
 
 
 @cassa_bp.get("/api/day/<day_date>/sales")
@@ -5671,6 +5782,7 @@ def api_update_sale(sale_id):
             if sale_check.check
         }
         reused_check_ids = set()
+        result_check_ids = []
 
         # 1) elimina eventuali pos_move collegati ai pagamenti POS
         for payment in (sale.payments or []):
@@ -5778,6 +5890,7 @@ def api_update_sale(sale_id):
                 db.session.flush()
 
                 reused_check_ids.add(check.id)
+                result_check_ids.append(check.id)
 
                 if is_new_check:
                     change_check_status(
@@ -5814,7 +5927,8 @@ def api_update_sale(sale_id):
 
         return jsonify({
             "ok": True,
-            "sale_id": sale.id
+            "sale_id": sale.id,
+            "check_ids": result_check_ids,
         })
 
     except ValueError as e:

@@ -26,6 +26,11 @@ ultimo commit del branch main.
 
 ## Gestione assegni clienti - storico e costo
 
+- Scansioni: campi `CashCheck.scan_path`, `scan_mime`, `scan_original_name`; storage privato `instance/check_scans/<check_id>`.
+- API protette `POST/GET/DELETE /cassa/api/checks/<id>/scan`; formati JPG, PNG e WebP, limite 8 MB, validazione Pillow.
+- UI scansione disponibile nella modale assegno e nei pagamenti con assegno singoli/multipli dell'Agenda; gli endpoint incasso restituiscono `check_ids` per associare gli upload.
+- Migrazione head: `93a4b5c6d7e8_add_cash_check_scan.py`.
+
 - Stampa costo assegno: generata da `printProfessionalCheckCost()` in `static/js/agenda.js`; layout A4 professionale con tabella cronologica, riepilogo e area finale immagine. Accetta in futuro `image_url`, `scan_url` o `check_image_url` dal serializer; oggi mostra un segnaposto.
 
 - Regola corrente: importi, spese, penali e pagamenti della storia assegno sono solo informativi e non devono creare, modificare o cancellare movimenti Agenda.

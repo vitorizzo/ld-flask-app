@@ -21,6 +21,14 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
 
 ## Task corrente (metodologia Codex)
 
+- Aggiornamento 2026-07-21 - scansione assegni:
+  - acquisizione da fotocamera posteriore o file nella Gestione assegni e nell'inserimento Agenda, anche per pagamenti multipli;
+  - upload protetto JPG/PNG/WebP, massimo 8 MB, con verifica reale dell'immagine tramite Pillow;
+  - file conservati in `instance/check_scans`, non esposti nella cartella pubblica `static`;
+  - anteprima, sostituzione e rimozione nella modale assegno;
+  - stampa costo collegata automaticamente alla scansione;
+  - migrazione `93a4b5c6d7e8_add_cash_check_scan.py` applicata e test upload/lettura/rimozione superato.
+
 - Aggiornamento 2026-07-21 - stampa professionale calcolo assegno:
   - titolo centrato e intestazione cliente/numero assegno bianca su fascia scura;
   - storia organizzata in tabella senza bordi con colonne data, voce, note, addebiti e pagamenti;
