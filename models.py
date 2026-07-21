@@ -3040,6 +3040,7 @@ class CashCheck(db.Model):
     )
 
     amount = db.Column(db.Numeric(12, 2), nullable=False)
+    settlement_amount = db.Column(db.Numeric(12, 2), nullable=True)
 
     received_date = db.Column(db.Date, nullable=False, default=date.today)
     due_date = db.Column(db.Date, nullable=False)

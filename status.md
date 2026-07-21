@@ -21,6 +21,16 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
 
 ## Task corrente (metodologia Codex)
 
+- Aggiornamento 2026-07-21 - leggibilità e correzione storico assegni clienti:
+  - filtri persistenti con pulsanti `Applica` e `Ripristina`;
+  - form nuovo/modifica assegno spostato in una modale dedicata;
+  - apertura dello storico anche cliccando la riga dell'assegno;
+  - modifica e cancellazione di ogni evento, compresi gli step iniziali importati, con riallineamento dello stato corrente;
+  - sincronizzazione delle spese Agenda collegate durante modifica/cancellazione evento;
+  - prospetto costo (importo, spese, penali e totale dovuto) e saldo e stralcio persistente;
+  - migrazione `718293a4b5c6_add_check_settlement_amount.py` applicata e verificata;
+  - test end-to-end superato per correzione insoluto→versato, nuova spesa, saldo e stralcio e cancellazione evento.
+
 - Aggiornamento 2026-06-02:
   - creato modulo `Spedizioni` raggiungibile da `/shipping`;
   - aggiunta voce menu `Spedizioni` con peso `30`;

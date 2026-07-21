@@ -1161,7 +1161,7 @@
 
         ========================= -->
 
-        <div class="card mb-3">
+        <div class="card mb-3" id="checkEditFormCard">
 
           <div class="card-body py-3">
 
@@ -4253,7 +4253,9 @@
 
           <div class="col-6 col-lg-3 d-flex align-items-end justify-content-end gap-2">
 
-            <button type="button" class="btn btn-outline-secondary" id="checksReloadBtn">Aggiorna</button>
+            <button type="button" class="btn btn-outline-secondary" id="checksResetBtn">Ripristina</button>
+
+            <button type="button" class="btn btn-outline-primary" id="checksReloadBtn">Applica</button>
 
             <button type="button" class="btn btn-info" id="checksNewBtn">Nuovo assegno</button>
 
@@ -4435,6 +4437,19 @@
 
 
 
+<div class="modal fade agenda-modal" id="checkEditModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="checkEditModalTitle">Nuovo assegno</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body" id="checkEditModalBody"></div>
+    </div>
+  </div>
+</div>
+
+
 <div class="modal fade agenda-modal" id="checkHistoryModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
@@ -4447,7 +4462,8 @@
       </div>
       <div class="modal-body">
         <section class="mb-4">
-          <h6>Nuovo cambio di stato</h6>
+          <input type="hidden" id="checkEventEditId">
+          <h6 id="checkEventFormTitle">Nuovo cambio di stato</h6>
           <div class="row g-3">
             <div class="col-12 col-md-6">
               <label class="form-label" for="checkEventStatus">Nuovo stato</label>
@@ -4477,11 +4493,30 @@
           </div>
         </section>
         <section>
-          <h6>Cronologia</h6>
+          <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+            <h6 class="mb-0">Cronologia</h6>
+            <button type="button" class="btn btn-sm btn-outline-primary" id="checkCostBuildBtn">Calcola costo assegno</button>
+          </div>
           <div class="check-history-timeline" id="checkHistoryTimeline"></div>
+        </section>
+        <section class="card mt-3 d-none" id="checkCostPanel">
+          <div class="card-body">
+            <h6>Prospetto importo dovuto</h6>
+            <div id="checkCostSummary"></div>
+            <div class="row g-2 align-items-end mt-2">
+              <div class="col-12 col-md-6">
+                <label class="form-label" for="checkSettlementAmount">Saldo e stralcio</label>
+                <input class="form-control text-end" id="checkSettlementAmount" inputmode="decimal" placeholder="Importo concordato">
+              </div>
+              <div class="col-12 col-md-6">
+                <button type="button" class="btn btn-success" id="checkSettlementSaveBtn">Salva saldo e stralcio</button>
+              </div>
+            </div>
+          </div>
         </section>
       </div>
       <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary d-none" id="checkEventCancelEditBtn">Annulla modifica</button>
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
         <button type="button" class="btn btn-info" id="checkEventSaveBtn">Registra cambio stato</button>
       </div>
@@ -4739,7 +4774,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-check-history1') }}"></script>
+  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-check-history2') }}"></script>
 
 {% endblock %}
 

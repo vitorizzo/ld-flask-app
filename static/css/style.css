@@ -3577,6 +3577,10 @@ body.kiosk-body #flash-message,
     gap: 12px;
 }
 
+.check-row-clickable {
+    cursor: pointer;
+}
+
 .check-history-event {
     display: grid;
     grid-template-columns: 105px minmax(0, 1fr);

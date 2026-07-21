@@ -982,6 +982,7 @@ def _serialize_cash_check(check: CashCheck, include_events: bool = False):
         "customer_id": check.customer_id,
         "customer_display_name": customer.display_name if customer else None,
         "amount": float(check.amount or 0),
+        "settlement_amount": float(check.settlement_amount) if check.settlement_amount is not None else None,
         "received_date": check.received_date.isoformat() if check.received_date else None,
         "due_date": check.due_date.isoformat() if check.due_date else None,
         "status": check.status,
@@ -1008,6 +1009,7 @@ def _serialize_cash_check(check: CashCheck, include_events: bool = False):
             "amount_spese": float(event.amount_spese or 0),
             "customer_charge_amount": float(event.customer_charge_amount or 0),
             "cash_expense_id": event.cash_expense_id,
+            "cash_expense_bank_id": next((payment.bank_id for payment in (event.cash_expense.payments if event.cash_expense else []) if payment.method == "bank"), None),
             "created_by_name": (
                 f"{event.created_by.name} {event.created_by.surname}".strip()
                 if event.created_by else None
@@ -1022,6 +1024,68 @@ def _serialize_cash_check(check: CashCheck, include_events: bool = False):
         item["protest_penalty_rate"] = float(CHECK_PROTEST_PENALTY_RATE)
 
     return item
+
+
+def _parse_nonnegative_money(value, label):
+    try:
+        amount = Decimal(str(value or 0)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    except (InvalidOperation, TypeError, ValueError):
+        raise ValueError(f"{label} non valido")
+    if amount < 0:
+        raise ValueError(f"{label} non può essere negativo")
+    return amount
+
+
+def _rebuild_check_event_chain(check):
+    events = (CashCheckEvent.query.filter_by(check_id=check.id)
+              .order_by(CashCheckEvent.event_date.asc(), CashCheckEvent.id.asc()).all())
+    previous = None
+    for event_item in events:
+        event_item.from_status = previous
+        previous = event_item.to_status
+    if events:
+        check.status = events[-1].to_status
+    return events
+
+
+def _sync_check_event_expense(check, event_item, bank_expense_amount, bank_id, note):
+    expense = event_item.cash_expense
+    if expense:
+        previous_day = CashDay.query.filter_by(id=expense.cash_day_id).first()
+        if previous_day and previous_day.status == "closed":
+            raise ValueError("La giornata contabile della spesa collegata è chiusa")
+    if bank_expense_amount == 0:
+        if expense:
+            event_item.cash_expense = None
+            db.session.flush()
+            db.session.delete(expense)
+        return
+
+    bank = _validate_bank(bank_id) if bank_id else None
+    if bank is None:
+        raise ValueError("Seleziona la banca che ha addebitato la spesa")
+    closed_response = _reject_if_day_closed_for_date(event_item.event_date)
+    if closed_response:
+        raise ValueError("La giornata contabile delle spese è chiusa")
+    cash_day = CashDay.query.filter_by(day_date=event_item.event_date).first()
+    if cash_day is None:
+        cash_day = CashDay(day_date=event_item.event_date,
+                           opening_float=float(_find_latest_previous_cash_balance(event_item.event_date) or 0),
+                           status="open")
+        db.session.add(cash_day)
+        db.session.flush()
+    description = f"Spese assegno {check.check_number} - {CHECK_STATUS_LABELS.get(event_item.to_status, event_item.to_status)}"
+    if expense is None:
+        expense = CashExpense(created_by_user_id=getattr(current_user, "id", None), category="Spese bancarie assegni", doc_ref=check.check_number)
+        event_item.cash_expense = expense
+        db.session.add(expense)
+    expense.cash_day_id = cash_day.id
+    expense.supplier = bank.name
+    expense.notes = f"{description}{' - ' + note if note else ''}"
+    expense.payments.clear()
+    expense.payments.append(CashExpensePayment(direction="out", method="bank", off_cash=False,
+                                                amount=bank_expense_amount, flag="*", bank_id=bank.id,
+                                                description=description))
 
 
 def _find_or_create_cash_customer(label: str):
@@ -4606,6 +4670,95 @@ def api_create_check_event(check_id):
         db.session.rollback()
         logger.exception("api_create_check_event error for check_id=%s", check_id)
         return jsonify({"ok": False, "error": "Errore durante il cambio stato dell'assegno"}), 500
+
+
+@cassa_bp.put("/api/checks/<int:check_id>/events/<int:event_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_update_check_event(check_id, event_id):
+    check = CashCheck.query.filter_by(id=check_id).first()
+    event_item = CashCheckEvent.query.filter_by(id=event_id, check_id=check_id).first()
+    if not check or not event_item:
+        return jsonify({"ok": False, "error": "Evento assegno non trovato"}), 404
+    data = request.get_json(silent=True) or {}
+    try:
+        new_status = (data.get("to_status") or "").strip()
+        if new_status not in CHECK_STATUSES:
+            raise ValueError("Stato non valido")
+        event_date = datetime.strptime((data.get("event_date") or "").strip(), "%Y-%m-%d").date()
+        amount_spese = _parse_nonnegative_money(data.get("amount_spese"), "Importo spese bancarie")
+        bank_id = int(data.get("bank_id")) if data.get("bank_id") else None
+        note = (data.get("note") or "").strip() or None
+        event_item.to_status = new_status
+        event_item.event_date = event_date
+        event_item.note = note
+        event_item.amount_spese = amount_spese
+        event_item.customer_charge_amount = ((Decimal(str(check.amount or 0)) * CHECK_PROTEST_PENALTY_RATE)
+                                             .quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+                                             if new_status == "protested" else Decimal("0.00"))
+        _sync_check_event_expense(check, event_item, amount_spese, bank_id, note)
+        _rebuild_check_event_chain(check)
+        db.session.commit()
+        _bump_agenda_versions_for_check(check, [event_date.isoformat()])
+        return jsonify({"ok": True, "check": _serialize_cash_check(check, include_events=True)})
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception:
+        db.session.rollback()
+        logger.exception("api_update_check_event error check=%s event=%s", check_id, event_id)
+        return jsonify({"ok": False, "error": "Errore modifica evento assegno"}), 500
+
+
+@cassa_bp.delete("/api/checks/<int:check_id>/events/<int:event_id>")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_delete_check_event(check_id, event_id):
+    check = CashCheck.query.filter_by(id=check_id).first()
+    event_item = CashCheckEvent.query.filter_by(id=event_id, check_id=check_id).first()
+    if not check or not event_item:
+        return jsonify({"ok": False, "error": "Evento assegno non trovato"}), 404
+    try:
+        expense = event_item.cash_expense
+        event_date = event_item.event_date
+        if expense:
+            expense_day = CashDay.query.filter_by(id=expense.cash_day_id).first()
+            if expense_day and expense_day.status == "closed":
+                raise ValueError("La giornata contabile della spesa è chiusa")
+            event_item.cash_expense = None
+            db.session.flush()
+            db.session.delete(expense)
+        db.session.delete(event_item)
+        db.session.flush()
+        _rebuild_check_event_chain(check)
+        db.session.commit()
+        _bump_agenda_versions_for_check(check, [event_date.isoformat()])
+        return jsonify({"ok": True, "check": _serialize_cash_check(check, include_events=True)})
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception:
+        db.session.rollback()
+        logger.exception("api_delete_check_event error check=%s event=%s", check_id, event_id)
+        return jsonify({"ok": False, "error": "Errore eliminazione evento assegno"}), 500
+
+
+@cassa_bp.put("/api/checks/<int:check_id>/settlement")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_update_check_settlement(check_id):
+    check = CashCheck.query.filter_by(id=check_id).first()
+    if not check:
+        return jsonify({"ok": False, "error": "Assegno non trovato"}), 404
+    data = request.get_json(silent=True) or {}
+    try:
+        raw_value = data.get("settlement_amount")
+        check.settlement_amount = None if raw_value in (None, "") else _parse_nonnegative_money(raw_value, "Saldo e stralcio")
+        db.session.commit()
+        return jsonify({"ok": True, "check": _serialize_cash_check(check, include_events=True)})
+    except ValueError as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": str(exc)}), 400
 
 
 @cassa_bp.delete("/api/checks/<int:check_id>")

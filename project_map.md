@@ -23,6 +23,14 @@ ultimo commit del branch main.
 - `new_chat.md` — manifesto per flusso ChatGPT con file incollati / RAW
 - `new_chat_codex.md` — manifesto per flusso Codex locale con lettura diretta repository
 - `project_map.md`
+
+## Gestione assegni clienti - storico e costo
+
+- Modello: `CashCheck.settlement_amount`; eventi in `CashCheckEvent` con eventuale `cash_expense_id`.
+- API: `routes/cassa.py`, endpoint CRUD eventi `/cassa/api/checks/<id>/events[/<event_id>]` e saldo e stralcio `/settlement`.
+- UI: modali `checksManagementModal`, `checkEditModal` e `checkHistoryModal` in `templates/agenda.html`; logica in `static/js/agenda.js`.
+- La modifica/cancellazione degli eventi ricostruisce `from_status` e stato corrente in ordine data/id; le spese collegate sono sincronizzate atomicamente.
+- Migrazione corrente: `718293a4b5c6_add_check_settlement_amount.py`.
 - `status.md`
 
 Nel flusso Codex locale la lettura avviene direttamente dai file del repository, senza incollare file in chat.
