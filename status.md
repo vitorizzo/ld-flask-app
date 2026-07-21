@@ -21,6 +21,13 @@ Dopo le ultime correzioni, la parte **spese** non fa più esplodere l’applicaz
 
 ## Task corrente (metodologia Codex)
 
+- Aggiornamento 2026-07-21 - ritaglio intelligente scansione assegni:
+  - dopo foto/selezione viene aperto il confronto tra originale e assegno estratto;
+  - OpenCV rileva il quadrilatero, elimina sfondo/contorno e corregge la prospettiva;
+  - l'utente conferma il ritaglio oppure mantiene l'originale;
+  - se i bordi non sono affidabili il ritaglio viene disabilitato con indicazione di usare uno sfondo contrastato;
+  - endpoint protetto `/cassa/api/checks/scan/crop-preview`, testato con immagine prospettica sintetica.
+
 - Aggiornamento 2026-07-21 - scansione assegni:
   - acquisizione da fotocamera posteriore o file nella Gestione assegni e nell'inserimento Agenda, anche per pagamenti multipli;
   - upload protetto JPG/PNG/WebP, massimo 8 MB, con verifica reale dell'immagine tramite Pillow;

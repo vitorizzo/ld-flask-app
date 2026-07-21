@@ -26,6 +26,9 @@ ultimo commit del branch main.
 
 ## Gestione assegni clienti - storico e costo
 
+- Ritaglio intelligente: `_smart_crop_check_image()` in `routes/cassa.py` usa OpenCV (`opencv-python-headless==4.10.0.84`) per contorni, quadrilatero e trasformazione prospettica.
+- Anteprima protetta `POST /cassa/api/checks/scan/crop-preview`; la modale `checkScanCropModal` confronta originale/ritaglio prima dell'upload definitivo.
+
 - Scansioni: campi `CashCheck.scan_path`, `scan_mime`, `scan_original_name`; storage privato `instance/check_scans/<check_id>`.
 - API protette `POST/GET/DELETE /cassa/api/checks/<id>/scan`; formati JPG, PNG e WebP, limite 8 MB, validazione Pillow.
 - UI scansione disponibile nella modale assegno e nei pagamenti con assegno singoli/multipli dell'Agenda; gli endpoint incasso restituiscono `check_ids` per associare gli upload.

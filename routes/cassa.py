@@ -10,6 +10,8 @@ from flask import Blueprint, render_template, request, jsonify, session, current
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 from PIL import Image, UnidentifiedImageError
+import cv2
+import numpy as np
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.exceptions import InvalidTag
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
@@ -4756,6 +4758,95 @@ CHECK_SCAN_SIGNATURES = (
 )
 
 
+def _read_valid_check_scan(uploaded):
+    if not uploaded or not uploaded.filename:
+        raise ValueError("Seleziona un'immagine dell'assegno")
+    content = uploaded.read(CHECK_SCAN_MAX_BYTES + 1)
+    if not content or len(content) > CHECK_SCAN_MAX_BYTES:
+        raise ValueError("L'immagine deve avere dimensione massima di 8 MB")
+    detected = None
+    for signature, extension, mime_type in CHECK_SCAN_SIGNATURES:
+        if content.startswith(signature) and (extension != "webp" or content[8:12] == b"WEBP"):
+            detected = (extension, mime_type)
+            break
+    if not detected:
+        raise ValueError("Formato non valido: usa JPG, PNG o WebP")
+    try:
+        with Image.open(BytesIO(content)) as image:
+            image.verify()
+    except (UnidentifiedImageError, OSError, ValueError):
+        raise ValueError("Il file non contiene un'immagine valida")
+    return content, detected[0], detected[1]
+
+
+def _order_document_points(points):
+    ordered = np.zeros((4, 2), dtype="float32")
+    sums = points.sum(axis=1)
+    differences = np.diff(points, axis=1).reshape(-1)
+    ordered[0] = points[np.argmin(sums)]
+    ordered[2] = points[np.argmax(sums)]
+    ordered[1] = points[np.argmin(differences)]
+    ordered[3] = points[np.argmax(differences)]
+    return ordered
+
+
+def _smart_crop_check_image(content):
+    source = cv2.imdecode(np.frombuffer(content, dtype=np.uint8), cv2.IMREAD_COLOR)
+    if source is None:
+        raise ValueError("Immagine non decodificabile")
+    original_height, original_width = source.shape[:2]
+    scale = min(1.0, 1600.0 / max(original_width, original_height))
+    working = cv2.resize(source, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA) if scale < 1 else source.copy()
+    gray = cv2.cvtColor(working, cv2.COLOR_BGR2GRAY)
+    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    edges = cv2.Canny(gray, 45, 140)
+    edges = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, np.ones((7, 7), np.uint8), iterations=2)
+    contours, _ = cv2.findContours(edges, cv2.RETR_LIST, cv2.CHAIN_APPROX_SIMPLE)
+    image_area = working.shape[0] * working.shape[1]
+    best = None
+    best_score = 0.0
+    for contour in sorted(contours, key=cv2.contourArea, reverse=True)[:30]:
+        area = cv2.contourArea(contour)
+        area_ratio = area / image_area
+        if area_ratio < 0.12 or area_ratio > 0.98:
+            continue
+        perimeter = cv2.arcLength(contour, True)
+        polygon = cv2.approxPolyDP(contour, 0.02 * perimeter, True)
+        if len(polygon) != 4 or not cv2.isContourConvex(polygon):
+            continue
+        points = polygon.reshape(4, 2).astype("float32")
+        rect = cv2.minAreaRect(points)
+        short_side, long_side = sorted(rect[1])
+        if short_side <= 0:
+            continue
+        aspect = long_side / short_side
+        aspect_score = max(0.0, 1.0 - abs(aspect - 2.25) / 2.25)
+        score = area_ratio * (0.7 + 0.3 * aspect_score)
+        if score > best_score:
+            best, best_score = points, score
+    if best is None:
+        ok, encoded = cv2.imencode(".jpg", source, [cv2.IMWRITE_JPEG_QUALITY, 92])
+        if not ok:
+            raise ValueError("Impossibile preparare l'anteprima")
+        return encoded.tobytes(), False, 0
+    points = _order_document_points(best / scale)
+    top_left, top_right, bottom_right, bottom_left = points
+    width = int(max(np.linalg.norm(bottom_right - bottom_left), np.linalg.norm(top_right - top_left)))
+    height = int(max(np.linalg.norm(top_right - bottom_right), np.linalg.norm(top_left - bottom_left)))
+    if width < 200 or height < 80:
+        raise ValueError("Ritaglio rilevato troppo piccolo")
+    destination = np.array([[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]], dtype="float32")
+    matrix = cv2.getPerspectiveTransform(points, destination)
+    cropped = cv2.warpPerspective(source, matrix, (width, height), borderMode=cv2.BORDER_REPLICATE)
+    if cropped.shape[0] > cropped.shape[1]:
+        cropped = cv2.rotate(cropped, cv2.ROTATE_90_CLOCKWISE)
+    ok, encoded = cv2.imencode(".jpg", cropped, [cv2.IMWRITE_JPEG_QUALITY, 92])
+    if not ok:
+        raise ValueError("Impossibile preparare il ritaglio")
+    confidence = min(99, max(1, int(best_score * 100)))
+    return encoded.tobytes(), True, confidence
+
+
 def _remove_check_scan_file(relative_path):
     if not relative_path:
         return
@@ -4776,24 +4867,10 @@ def api_upload_check_scan(check_id):
     if not check:
         return jsonify({"ok": False, "error": "Assegno non trovato"}), 404
     uploaded = request.files.get("scan")
-    if not uploaded or not uploaded.filename:
-        return jsonify({"ok": False, "error": "Seleziona un'immagine dell'assegno"}), 400
-    content = uploaded.read(CHECK_SCAN_MAX_BYTES + 1)
-    if not content or len(content) > CHECK_SCAN_MAX_BYTES:
-        return jsonify({"ok": False, "error": "L'immagine deve avere dimensione massima di 8 MB"}), 400
-    detected = None
-    for signature, extension, mime_type in CHECK_SCAN_SIGNATURES:
-        if content.startswith(signature) and (extension != "webp" or content[8:12] == b"WEBP"):
-            detected = (extension, mime_type)
-            break
-    if not detected:
-        return jsonify({"ok": False, "error": "Formato non valido: usa JPG, PNG o WebP"}), 400
     try:
-        with Image.open(BytesIO(content)) as image:
-            image.verify()
-    except (UnidentifiedImageError, OSError, ValueError):
-        return jsonify({"ok": False, "error": "Il file non contiene un'immagine valida"}), 400
-    extension, mime_type = detected
+        content, extension, mime_type = _read_valid_check_scan(uploaded)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
     folder = os.path.join(current_app.instance_path, "check_scans", str(check.id))
     os.makedirs(folder, exist_ok=True)
     filename = f"scan-{secrets.token_hex(12)}.{extension}"
@@ -4816,6 +4893,26 @@ def api_upload_check_scan(check_id):
             os.remove(absolute_path)
         logger.exception("api_upload_check_scan error check=%s", check_id)
         return jsonify({"ok": False, "error": "Errore salvataggio immagine assegno"}), 500
+
+
+@cassa_bp.post("/api/checks/scan/crop-preview")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_crop_check_scan_preview():
+    try:
+        content, _, _ = _read_valid_check_scan(request.files.get("scan"))
+        cropped, detected, confidence = _smart_crop_check_image(content)
+        response = send_file(BytesIO(cropped), mimetype="image/jpeg", as_attachment=False,
+                             download_name="assegno-ritagliato.jpg")
+        response.headers["X-Check-Crop-Detected"] = "1" if detected else "0"
+        response.headers["X-Check-Crop-Confidence"] = str(confidence)
+        response.headers["Cache-Control"] = "no-store"
+        return response
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception:
+        logger.exception("api_crop_check_scan_preview error")
+        return jsonify({"ok": False, "error": "Errore durante il ritaglio intelligente"}), 500
 
 
 @cassa_bp.get("/api/checks/<int:check_id>/scan")

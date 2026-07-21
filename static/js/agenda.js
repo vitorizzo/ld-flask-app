@@ -984,6 +984,12 @@ const checkScanInput = document.getElementById("checkScanInput");
 const checkScanPreviewWrap = document.getElementById("checkScanPreviewWrap");
 const checkScanPreview = document.getElementById("checkScanPreview");
 const checkScanRemoveBtn = document.getElementById("checkScanRemoveBtn");
+const checkScanCropModalEl = document.getElementById("checkScanCropModal");
+const checkScanCropStatus = document.getElementById("checkScanCropStatus");
+const checkScanOriginalPreview = document.getElementById("checkScanOriginalPreview");
+const checkScanCroppedPreview = document.getElementById("checkScanCroppedPreview");
+const checkScanUseOriginalBtn = document.getElementById("checkScanUseOriginalBtn");
+const checkScanUseCropBtn = document.getElementById("checkScanUseCropBtn");
 const checkCancelBtn = document.getElementById("checkCancelBtn");
 const checkSaveBtn = document.getElementById("checkSaveBtn");
 const checkEditModalEl = document.getElementById("checkEditModal");
@@ -1031,6 +1037,9 @@ let checkEventModal = null;
 let checkPaymentModal = null;
 let checkCostModal = null;
 let checkSubmodalOpen = false;
+let checkScanCropModal = null;
+let pendingCheckScanCrop = null;
+const preparedCheckScanFiles = new WeakMap();
 let activeHistoryCheck = null;
 let checkStatusOptions = [
   { value: "received", label: "In pancia" },
@@ -2921,6 +2930,7 @@ function resetCheckForm() {
   if (checkDueDate) checkDueDate.value = currentDay || todayYmd();
   if (checkNote) checkNote.value = "";
   if (checkScanInput) checkScanInput.value = "";
+  if (checkScanInput) preparedCheckScanFiles.delete(checkScanInput);
   if (checkScanPreview) checkScanPreview.removeAttribute("src");
   checkScanPreviewWrap?.classList.add("d-none");
   if (checkSaveBtn) checkSaveBtn.textContent = "Salva assegno";
@@ -3038,6 +3048,79 @@ async function uploadCheckScan(checkId, file) {
   return data.check;
 }
 
+function selectedCheckScanFile(input) {
+  return input ? (preparedCheckScanFiles.get(input) || input.files?.[0] || null) : null;
+}
+
+async function prepareCheckScanCrop(input) {
+  const originalFile = input?.files?.[0];
+  if (!originalFile) return;
+  if (originalFile.size > 8 * 1024 * 1024) {
+    input.value = "";
+    alert("La scansione dell'assegno supera il limite di 8 MB.");
+    return;
+  }
+  const originalUrl = URL.createObjectURL(originalFile);
+  pendingCheckScanCrop = {
+    input, originalFile, cropFile: null, originalUrl, cropUrl: null, chosen: false,
+    previousManagementPreview: input === checkScanInput ? (checkScanPreview?.getAttribute("src") || "") : "",
+  };
+  if (checkScanOriginalPreview) checkScanOriginalPreview.src = originalUrl;
+  if (checkScanCroppedPreview) checkScanCroppedPreview.removeAttribute("src");
+  if (checkScanCropStatus) checkScanCropStatus.textContent = "Analisi dei bordi in corso...";
+  if (checkScanUseCropBtn) checkScanUseCropBtn.disabled = true;
+  checkScanCropModal?.show();
+  try {
+    const formData = new FormData();
+    formData.append("scan", originalFile, originalFile.name || "assegno.jpg");
+    const response = await fetch("/cassa/api/checks/scan/crop-preview", {
+      method: "POST", credentials: "same-origin", headers: {"Accept": "image/jpeg, application/json"}, body: formData
+    });
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || "Ritaglio intelligente non riuscito");
+    }
+    const detected = response.headers.get("X-Check-Crop-Detected") === "1";
+    const confidence = Number(response.headers.get("X-Check-Crop-Confidence") || 0);
+    const blob = await response.blob();
+    if (!pendingCheckScanCrop || pendingCheckScanCrop.input !== input) return;
+    const cropFile = new File([blob], `assegno-ritagliato-${Date.now()}.jpg`, {type: "image/jpeg"});
+    const cropUrl = URL.createObjectURL(blob);
+    pendingCheckScanCrop.cropFile = cropFile;
+    pendingCheckScanCrop.cropUrl = cropUrl;
+    if (checkScanCroppedPreview) checkScanCroppedPreview.src = cropUrl;
+    if (checkScanUseCropBtn) checkScanUseCropBtn.disabled = !detected;
+    if (checkScanCropStatus) checkScanCropStatus.textContent = detected
+      ? `Bordi rilevati e prospettiva corretta · affidabilità ${confidence}%`
+      : "Non è stato rilevato con sicurezza il perimetro dell'assegno: usa la foto originale e prova uno sfondo più contrastato.";
+  } catch (error) {
+    if (checkScanCropStatus) checkScanCropStatus.textContent = error.message || "Ritaglio intelligente non riuscito";
+    if (checkScanUseCropBtn) checkScanUseCropBtn.disabled = true;
+  }
+}
+
+function confirmPreparedCheckScan(useCrop) {
+  const pending = pendingCheckScanCrop;
+  if (!pending) return;
+  const chosenFile = useCrop ? pending.cropFile : pending.originalFile;
+  if (!chosenFile) return;
+  preparedCheckScanFiles.set(pending.input, chosenFile);
+  pending.chosen = true;
+  if (pending.input === checkScanInput && checkScanPreview) {
+    checkScanPreview.src = URL.createObjectURL(chosenFile);
+    checkScanPreviewWrap?.classList.remove("d-none");
+  }
+  checkScanCropModal?.hide();
+}
+
+function handleUseOriginalCheckScan() {
+  confirmPreparedCheckScan(false);
+}
+
+function handleUseCroppedCheckScan() {
+  confirmPreparedCheckScan(true);
+}
+
 async function deleteCheckScan(checkId) {
   const response = await fetch(`/cassa/api/checks/${checkId}/scan`, {
     method: "DELETE", credentials: "same-origin", headers: {"Accept": "application/json"}
@@ -3082,6 +3165,12 @@ async function saveManagedCheck() {
     if (!r.ok || !data.ok) {
       alert(data.error || "Errore salvataggio assegno");
       return;
+    }
+
+    const scanFile = selectedCheckScanFile(checkScanInput);
+    if (scanFile && data.check?.id) {
+      try { await uploadCheckScan(data.check.id, scanFile); }
+      catch (scanError) { alert(`Assegno salvato, ma scansione non caricata: ${scanError.message}`); }
     }
 
     resetCheckForm();
@@ -3805,6 +3894,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   if (checkEditModalEl) {
     checkEditModal = new bootstrap.Modal(checkEditModalEl);
   }
+  if (checkScanCropModalEl) checkScanCropModal = new bootstrap.Modal(checkScanCropModalEl);
   if (checkHistoryModalEl) {
     checkHistoryModal = new bootstrap.Modal(checkHistoryModalEl);
   }
@@ -4225,6 +4315,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       const el = document.getElementById(id);
       if (!el) return;
       el.value = "";
+      if (el.type === "file") preparedCheckScanFiles.delete(el);
     });
 
     if (posCircuitSelect) {
@@ -6820,13 +6911,13 @@ document.addEventListener("DOMContentLoaded", async function () {
       const scans = [];
       Array.from(multiPaymentsList?.querySelectorAll(".multi-payment-row") || []).forEach(row => {
         if ((row.querySelector(".multi-method")?.value || "") !== "check") return;
-        const file = row.querySelector(".multi-check-scan")?.files?.[0];
+        const file = selectedCheckScanFile(row.querySelector(".multi-check-scan"));
         if (file) scans.push({ordinal, checkId: checkPayments[ordinal]?.check_id || null, file});
         ordinal += 1;
       });
       return scans;
     }
-    const file = document.getElementById("checkSaleScan")?.files?.[0];
+    const file = selectedCheckScanFile(document.getElementById("checkSaleScan"));
     return file ? [{ordinal: 0, checkId: checkPayments[0]?.check_id || null, file}] : [];
   }
 
@@ -6989,17 +7080,13 @@ document.addEventListener("DOMContentLoaded", async function () {
       return;
     }
 
-    const scanFile = checkScanInput?.files?.[0];
-    if (scanFile && data.check?.id) {
-      try { await uploadCheckScan(data.check.id, scanFile); }
-      catch (scanError) { alert(`Assegno salvato, ma scansione non caricata: ${scanError.message}`); }
-    }
     if (!built.ok) {
       alert(built.error || "Dati operazione non validi.");
       operationSaving = false;
       if (saveBtn) saveBtn.disabled = false;
       return;
     }
+    const pendingCheckScans = opType === "sale" ? collectPendingOperationCheckScans(built.payload) : [];
 
     try {
       if (saveBtn) saveBtn.disabled = true;
@@ -7017,6 +7104,15 @@ document.addEventListener("DOMContentLoaded", async function () {
         alert(data.error || "Errore durante il salvataggio.");
         return;
       }
+
+      const scanErrors = [];
+      for (const pendingScan of pendingCheckScans) {
+        const targetCheckId = pendingScan.checkId || (data.check_ids || [])[pendingScan.ordinal];
+        if (!targetCheckId) { scanErrors.push("assegno non identificato"); continue; }
+        try { await uploadCheckScan(targetCheckId, pendingScan.file); }
+        catch (scanError) { scanErrors.push(scanError.message || "caricamento non riuscito"); }
+      }
+      if (scanErrors.length) alert(`Operazione salvata, ma alcune scansioni non sono state caricate: ${scanErrors.join("; ")}`);
 
       resetOperationEditState();
       opModal.hide();
@@ -7622,17 +7718,52 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (checkCustomerId) checkCustomerId.value = "";
   });
 
-  checkScanInput?.addEventListener("change", () => {
-    const file = checkScanInput.files?.[0];
-    if (!file || !checkScanPreview) return;
-    checkScanPreview.src = URL.createObjectURL(file);
-    checkScanPreviewWrap?.classList.remove("d-none");
+  document.addEventListener("change", (event) => {
+    const input = event.target;
+    if (!(input instanceof HTMLInputElement) || input.type !== "file") return;
+    if (input !== checkScanInput && input.id !== "checkSaleScan" && !input.classList.contains("multi-check-scan")) return;
+    preparedCheckScanFiles.delete(input);
+    prepareCheckScanCrop(input).catch(error => alert(error.message || "Errore ritaglio assegno"));
+  });
+
+  checkScanCropModalEl?.addEventListener("shown.bs.modal", () => {
+    checkScanUseOriginalBtn?.removeEventListener("click", handleUseOriginalCheckScan);
+    checkScanUseCropBtn?.removeEventListener("click", handleUseCroppedCheckScan);
+    checkScanUseOriginalBtn?.addEventListener("click", handleUseOriginalCheckScan);
+    checkScanUseCropBtn?.addEventListener("click", handleUseCroppedCheckScan);
+    if (checkScanUseOriginalBtn) checkScanUseOriginalBtn.disabled = false;
+  });
+
+  checkScanCropModalEl?.addEventListener("hidden.bs.modal", () => {
+    checkScanUseOriginalBtn?.removeEventListener("click", handleUseOriginalCheckScan);
+    checkScanUseCropBtn?.removeEventListener("click", handleUseCroppedCheckScan);
+    const pending = pendingCheckScanCrop;
+    if (pending && !pending.chosen) {
+      pending.input.value = "";
+      preparedCheckScanFiles.delete(pending.input);
+      if (pending.input === checkScanInput && checkScanPreview) {
+        if (pending.previousManagementPreview) checkScanPreview.src = pending.previousManagementPreview;
+        else {
+          checkScanPreview.removeAttribute("src");
+          checkScanPreviewWrap?.classList.add("d-none");
+        }
+      }
+    }
+    if (pending?.originalUrl) URL.revokeObjectURL(pending.originalUrl);
+    if (pending?.cropUrl) URL.revokeObjectURL(pending.cropUrl);
+    pendingCheckScanCrop = null;
+    if (checkScanOriginalPreview) checkScanOriginalPreview.removeAttribute("src");
+    if (checkScanCroppedPreview) checkScanCroppedPreview.removeAttribute("src");
+    setTimeout(() => {
+      if (document.querySelector(".modal.show")) document.body.classList.add("modal-open");
+    }, 0);
   });
 
   checkScanRemoveBtn?.addEventListener("click", async () => {
     const checkId = (checkEditId?.value || "").trim();
     if (checkId && checkScanPreview?.getAttribute("src") && !window.confirm("Rimuovere la scansione associata all'assegno?")) return;
     if (checkScanInput) checkScanInput.value = "";
+    if (checkScanInput) preparedCheckScanFiles.delete(checkScanInput);
     if (checkId && checkScanPreview?.getAttribute("src")) {
       try { await deleteCheckScan(checkId); }
       catch (error) { alert(error.message || "Errore rimozione scansione"); return; }
@@ -7652,8 +7783,6 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
       return;
     }
-    const pendingCheckScans = opType === "sale" ? collectPendingOperationCheckScans(built.payload) : [];
-
     const editBtn = e.target.closest(".btn-check-edit");
     if (editBtn) {
       try {
@@ -8283,18 +8412,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         deleteBtn.disabled = false;
         return;
       }
-
-      const scanErrors = [];
-      for (const pendingScan of pendingCheckScans) {
-        const targetCheckId = pendingScan.checkId || (data.check_ids || [])[pendingScan.ordinal];
-        if (!targetCheckId) {
-          scanErrors.push("assegno non identificato");
-          continue;
-        }
-        try { await uploadCheckScan(targetCheckId, pendingScan.file); }
-        catch (scanError) { scanErrors.push(scanError.message || "caricamento non riuscito"); }
-      }
-      if (scanErrors.length) alert(`Operazione salvata, ma alcune scansioni non sono state caricate: ${scanErrors.join("; ")}`);
 
       if (editingDepositId && String(editingDepositId) === String(depositId)) {
         await loadDepositBanks();

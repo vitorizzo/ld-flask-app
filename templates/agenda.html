@@ -4367,6 +4367,17 @@
   </div>
 </div>
 
+<div class="modal fade agenda-modal" id="checkScanCropModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header"><div><h5 class="modal-title">Ritaglio intelligente assegno</h5><div class="small text-white" id="checkScanCropStatus">Analisi dei bordi in corso...</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body"><div class="row g-3">
+      <div class="col-12 col-lg-6"><h6 class="text-center">Foto originale</h6><div class="check-scan-compare"><img id="checkScanOriginalPreview" alt="Foto originale assegno"></div></div>
+      <div class="col-12 col-lg-6"><h6 class="text-center">Assegno estratto</h6><div class="check-scan-compare"><img id="checkScanCroppedPreview" alt="Assegno ritagliato"></div></div>
+    </div></div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-outline-primary" id="checkScanUseOriginalBtn">Usa foto originale</button><button type="button" class="btn btn-success" id="checkScanUseCropBtn">Usa assegno estratto</button></div>
+  </div></div>
+</div>
+
 
 <div class="modal fade agenda-modal" id="checkHistoryModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -4716,7 +4727,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-check-scan1') }}"></script>
+  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-check-scan2') }}"></script>
 
 {% endblock %}
 

@@ -43,6 +43,7 @@ numpy==2.2.1
 packaging==24.2
 pandas==2.2.3
 pillow==11.0.0
+opencv-python-headless==4.10.0.84
 portalocker==3.1.1
 prestapyt==0.11.1
 prometheus_client==0.21.1
