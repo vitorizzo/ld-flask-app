@@ -3,6 +3,7 @@ from config.celery_app import celery
 from tools.importazioni import (
     import_anagrafiche,
     import_articoli,
+    import_estratti_conto_clienti,
     import_giacenze,
     import_poleepo_products,
     import_ps,
@@ -47,6 +48,12 @@ def import_barcode_task(self):
 @log_task(logger)
 def import_anagrafiche_task(self):
     return import_anagrafiche(task_id=self.request.id)
+
+
+@celery.task(bind=True)
+@log_task(logger)
+def import_estratti_conto_clienti_task(self):
+    return import_estratti_conto_clienti(task_id=self.request.id)
 
 
 @celery.task(bind=True)

@@ -14,7 +14,11 @@ def inizializza_db_moduli():
         {"nome": "barcode", "descrizione": "Codici a barre"},
         {"nome": "prestashop", "descrizione": "Dati da Prestashop"},
         {"nome": "poleepo_prodotti", "descrizione": "Prodotti da Poleepo"},
-        {"nome": "anagrafiche", "descrizione": "Anagrafiche clienti e fornitori"}
+        {"nome": "anagrafiche", "descrizione": "Anagrafiche clienti e fornitori"},
+        {
+            "nome": "estratti_conto_clienti",
+            "descrizione": "Estratti conto clienti TeamSystem"
+        }
     ]
 
     aggiunti = 0

@@ -1,5 +1,6 @@
 import csv
 import hashlib
+import os
 import re
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -602,7 +603,7 @@ def import_anagrafiche(task_id=None):
     try:
         db.create_all()
         summary["customers"] = _import_registry_file(
-            "exp_clienti.csv",
+            "exp_cli.csv",
             "customer",
             task_id=task_id,
             task_name=task_name,
@@ -611,7 +612,7 @@ def import_anagrafiche(task_id=None):
         )
         db.session.flush()
         summary["suppliers"] = _import_registry_file(
-            "exp_fornitori.csv",
+            "exp_for.csv",
             "supplier",
             task_id=task_id,
             task_name=task_name,
@@ -630,6 +631,50 @@ def import_anagrafiche(task_id=None):
         update_task(task_id, task_name, 0, status_string["error"], e)
         registra_importazione("anagrafiche", esito=False, messaggio=str(e))
         return {"success": False, "error": str(e), "summary": summary}
+
+
+@log_task(logger)
+def import_estratti_conto_clienti(task_id=None):
+    """Verifica la disponibilità dell'export TeamSystem in attesa del parser."""
+    from routes.esportazioni_teamsystem import serve_risorsa
+    from tools.redis_utils import clear_task_status, status_string, update_task
+
+    task_name = "Importazione estratti conto clienti TeamSystem"
+    file_name = "ec_cli.csv"
+    update_task(task_id, task_name, 0, status_string["start"])
+    logger.info(">>> Verifica file estratti conto clienti: %s", file_name)
+
+    try:
+        file_path = serve_risorsa(file_name)
+        file_size = os.path.getsize(file_path)
+        if file_size <= 0:
+            raise ValueError(f"Il file {file_name} è vuoto")
+
+        message = (
+            f"File {file_name} disponibile ({file_size} byte); "
+            "elaborazione non ancora implementata"
+        )
+        update_task(task_id, task_name, 100, status_string["end"])
+        if task_id:
+            clear_task_status(task_id)
+        registra_importazione("estratti_conto_clienti", esito=True, messaggio=message)
+        return {
+            "success": True,
+            "processed": False,
+            "file_name": file_name,
+            "file_size": file_size,
+            "message": message,
+        }
+    except Exception as e:
+        logger.exception("Errore durante la verifica degli estratti conto clienti:")
+        update_task(task_id, task_name, 0, status_string["error"], e)
+        registra_importazione("estratti_conto_clienti", esito=False, messaggio=str(e))
+        return {
+            "success": False,
+            "processed": False,
+            "file_name": file_name,
+            "error": str(e),
+        }
 
 
 @log_task(logger)

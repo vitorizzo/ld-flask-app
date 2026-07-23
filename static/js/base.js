@@ -19,6 +19,7 @@
     { test: path => path === "/settings/import_giacenze", label: "Import giacenze" },
     { test: path => path === "/settings/import_barcode", label: "Import barcode" },
     { test: path => path === "/settings/import_anagrafiche", label: "Import anagrafiche" },
+    { test: path => path === "/settings/import_estratti_conto_clienti", label: "Import estratti conto clienti" },
     { test: path => path === "/trello/actions", label: "Gestione azioni Trello" },
     { test: path => path === "/trello/connections", label: "Connessioni Trello" },
     { test: path => path === "/trello/connection/editor/new", label: "Nuova connessione Trello" },

@@ -68,6 +68,7 @@ from config.tasks import (
     import_anagrafiche_task,
     import_articoli_task,
     import_barcode_task,
+    import_estratti_conto_clienti_task,
     import_giacenze_task,
     import_poleepo_products_task,
     import_ps_task,
@@ -2313,6 +2314,21 @@ def lancia_import_anagrafiche():
     if request.accept_mimetypes.best == "application/json" or request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return jsonify({"ok": True, "task_id": task.id}), 202
     flash("Importazione anagrafiche avviata.", "success")
+    return redirect(request.referrer or "/importazioni/storico")
+
+
+@settings_bp.route('/import_estratti_conto_clienti', methods=['GET', 'POST'])
+@login_required
+@role_required(100)
+@log_task(logger)
+def lancia_import_estratti_conto_clienti():
+    logger.info("Verifica estratti conto clienti richiesta.")
+    task = import_estratti_conto_clienti_task.delay()
+    from tools.redis_utils import update_task, status_string
+    update_task(task.id, "Importazione estratti conto clienti TeamSystem", 0, status_string['attached'])
+    if request.accept_mimetypes.best == "application/json" or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+        return jsonify({"ok": True, "task_id": task.id}), 202
+    flash("Verifica del file estratti conto clienti avviata.", "success")
     return redirect(request.referrer or "/importazioni/storico")
 
 
