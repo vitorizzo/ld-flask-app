@@ -10,13 +10,17 @@ logger = get_logger('teamsystem_export')
 
 file_bp = Blueprint("file_bp", __name__)
 
-# Cartella dove il gestionale esporta i file
-ESTRAZIONI_FOLDER = "/dati/discorete/estrazioni"
+# Fallback di produzione; EXPORT_FOLDER da ambiente/config resta prioritario.
+DEFAULT_EXPORT_FOLDER = "/dati/DISCORETE/estrazioni/export"
 ALLOWED_EXPORT_EXTENSIONS = {".csv", ".txt", ".pdf"}
 
 
 def _export_folder():
-    return os.getenv("EXPORT_FOLDER") or current_app.config.get("EXPORT_FOLDER") or ESTRAZIONI_FOLDER
+    return (
+        os.getenv("EXPORT_FOLDER")
+        or current_app.config.get("EXPORT_FOLDER")
+        or DEFAULT_EXPORT_FOLDER
+    )
 
 
 def _resolve_export_file(filename):
