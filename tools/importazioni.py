@@ -467,7 +467,12 @@ def _import_registry_file(file_name, kind, task_id=None, task_name="Importazione
     from tools.redis_utils import update_task, status_string
 
     file_csv = serve_risorsa(file_name)
-    logger.info("File anagrafiche %s: %s", kind, file_csv)
+    logger.info(
+        "File anagrafiche %s richiesto=%s risolto=%s",
+        kind,
+        file_name,
+        file_csv,
+    )
 
     counters = {
         "created": 0,
