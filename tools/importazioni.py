@@ -424,6 +424,10 @@ def _parse_registry_row(row, kind):
             "7": _clean_registry_text(_field(row, 7)),
             "8": vat_or_tax,
             "9": alternate_tax,
+            "23": _clean_zero_value(_field(row, 23)),
+            "24": _clean_registry_text(_field(row, 24)),
+            "25": _clean_zero_value(_field(row, 25)),
+            "26": _clean_registry_text(_field(row, 26)),
             "52": _clean_registry_text(_field(row, 52)),
             "53": _clean_registry_text(_field(row, 53)),
             "54": _clean_registry_text(_field(row, 54)),
@@ -449,6 +453,10 @@ def _parse_registry_row(row, kind):
         "city": _clean_registry_text(_field(row, 6)),
         "province": _clean_registry_text(_field(row, 7)),
         "country": "IT",
+        "category_code": _clean_zero_value(_field(row, 23)),
+        "category_description": _clean_registry_text(_field(row, 24)),
+        "subcategory_code": _clean_zero_value(_field(row, 25)),
+        "subcategory_description": _clean_registry_text(_field(row, 26)),
         "source_payload": payload,
         "contacts": [
             ("phone", _normalize_phone(_field(row, 52), _field(row, 53)), "telefono", "52+53", True),
@@ -555,6 +563,10 @@ def _import_registry_file(file_name, kind, task_id=None, task_name="Importazione
                 "city",
                 "province",
                 "country",
+                "category_code",
+                "category_description",
+                "subcategory_code",
+                "subcategory_description",
                 "source_payload",
             ):
                 value = parsed[field]

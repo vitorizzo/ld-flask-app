@@ -19,7 +19,6 @@ from models import User, Menu, PasswordResetToken, SupportTicket
 from routes.tools import get_user_menu
 from tools.preferences import PREFERENCE_DEFINITIONS, load_preferences_into_app_config
 
-load_dotenv()
 # Determina la root del progetto (supponendo che questo file sia in tools/)
 project_root = os.path.dirname(os.path.dirname(__file__))
 
@@ -94,10 +93,11 @@ def create_app():
     env_local_path = os.path.join(base, ".env.local")
     env_defaults_path = os.path.join(base, ".env.defaults")
 
-    load_dotenv(env_path, override=False)
-    load_dotenv(env_local_path, override=True)
     if os.path.exists(env_defaults_path):
         load_dotenv(env_defaults_path, override=False)
+    load_dotenv(env_path, override=True)
+    if os.path.exists(env_local_path):
+        load_dotenv(env_local_path, override=True)
 
     logger = get_logger('factory')
     # ora che gli env sono caricati, leggi qui le variabili

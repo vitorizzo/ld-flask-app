@@ -1989,6 +1989,12 @@ class BusinessRegistry(db.Model):
     __table_args__ = (
         db.UniqueConstraint("kind", "source", "source_code", name="uq_business_registry_kind_source_code"),
         db.Index("ix_business_registry_kind_display", "kind", "display_name"),
+        db.Index(
+            "ix_business_registry_customer_cluster",
+            "kind",
+            "category_code",
+            "subcategory_code",
+        ),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -2008,6 +2014,11 @@ class BusinessRegistry(db.Model):
     city = db.Column(db.String(120), nullable=True, index=True)
     province = db.Column(db.String(8), nullable=True, index=True)
     country = db.Column(db.String(4), nullable=True, default="IT")
+
+    category_code = db.Column(db.String(32), nullable=True)
+    category_description = db.Column(db.String(160), nullable=True)
+    subcategory_code = db.Column(db.String(32), nullable=True)
+    subcategory_description = db.Column(db.String(160), nullable=True)
 
     source_payload = db.Column(db.JSON, nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
@@ -2041,6 +2052,11 @@ class BusinessRegistry(db.Model):
             "city": self.city,
             "province": self.province,
             "country": self.country,
+            "category_code": self.category_code,
+            "category_description": self.category_description,
+            "subcategory_code": self.subcategory_code,
+            "subcategory_description": self.subcategory_description,
+            "cluster_key": [self.category_code, self.subcategory_code],
             "is_active": self.is_active,
         }
 
