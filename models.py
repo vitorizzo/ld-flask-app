@@ -198,12 +198,74 @@ class MailingSubscriber(db.Model):
     updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
 
+class MailingList(db.Model):
+    __tablename__ = "mailing_lists"
+    __table_args__ = (db.UniqueConstraint("name", name="uq_mailing_lists_name"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    source_type = db.Column(db.String(30), nullable=False, default="manual", index=True)
+    filter_config = db.Column(db.JSON, nullable=False, default=dict)
+    is_system = db.Column(db.Boolean, nullable=False, default=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    members = db.relationship(
+        "MailingListMember",
+        back_populates="mailing_list",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
+
+
+class MailingListMember(db.Model):
+    __tablename__ = "mailing_list_members"
+    __table_args__ = (
+        db.UniqueConstraint("mailing_list_id", "subscriber_id", name="uq_mailing_list_member"),
+        db.Index("ix_mailing_list_members_list_active", "mailing_list_id", "is_active"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    mailing_list_id = db.Column(
+        db.Integer,
+        db.ForeignKey("mailing_lists.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    subscriber_id = db.Column(
+        db.Integer,
+        db.ForeignKey("mailing_subscribers.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    source_type = db.Column(db.String(30), nullable=False, default="manual")
+    source_entity_id = db.Column(db.Integer, nullable=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    mailing_list = db.relationship("MailingList", back_populates="members")
+    subscriber = db.relationship("MailingSubscriber", backref=db.backref("list_memberships", lazy="selectin"))
+
+
 class MailingCampaign(db.Model):
     __tablename__ = "mailing_campaigns"
     id = db.Column(db.Integer, primary_key=True)
     subject = db.Column(db.String(255), nullable=False)
     html_body = db.Column(db.Text, nullable=False)
     account_code = db.Column(db.String(50), nullable=False, default="general")
+    mailing_list_id = db.Column(db.Integer, db.ForeignKey("mailing_lists.id"), nullable=True, index=True)
     status = db.Column(db.String(20), nullable=False, default="draft", index=True)
     recipient_count = db.Column(db.Integer, nullable=False, default=0)
     sent_count = db.Column(db.Integer, nullable=False, default=0)
@@ -213,6 +275,7 @@ class MailingCampaign(db.Model):
     started_at = db.Column(db.DateTime(timezone=True), nullable=True)
     completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
     created_by = db.relationship("User", backref="mailing_campaigns")
+    mailing_list = db.relationship("MailingList", backref="campaigns")
 
 
 class MailingDelivery(db.Model):

@@ -664,6 +664,15 @@ section {
     -webkit-overflow-scrolling: touch;
 }
 
+.mailing-filter-select {
+    min-height: 11rem;
+}
+
+.mailing-members-table {
+    max-height: 34rem;
+    overflow: auto;
+}
+
 .form-section table {
     margin: 0 auto; /* Centra la tabella orizzontalmente */
     box-shadow: -3px 5px 15px 5px rgba(88,64,31,0.45);

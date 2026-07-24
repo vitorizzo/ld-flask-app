@@ -2462,3 +2462,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - storico aggregato destinatari/inviati/errori e dettaglio tecnico per singola consegna, senza esporre gli indirizzi degli altri destinatari;
   - migration `b5c6d7e8f9a0_add_mailing_list.py` aggiunge iscritti, campagne, consegne e aggiorna la route del menu.
   - fix scrolling: tutto il contenuto della pagina e' ora racchiuso nel contenitore flessibile `page-scroll`, con scorrimento touch inerziale e overscroll contenuto.
+- 2026-07-24 mailing list multiple e cluster clienti:
+  - aggiunte liste distinte con appartenenze deduplicate; le liste di sistema `Clienti` e `Utenti APP` sono alimentate rispettivamente dalle anagrafiche TeamSystem e dagli utenti registrati;
+  - i clienti sono filtrabili per coppia categoria-sottocategoria usando i codici come chiave stabile e le descrizioni importate per l'interfaccia; gli utenti sono filtrabili per ruolo attivo;
+  - le campagne sono associate a una singola lista e inviano solo ai relativi membri attivi, rispettando lo stato globale di disiscrizione;
+  - migration `d7e8f9a0b1c2_add_multiple_mailing_lists.py`.

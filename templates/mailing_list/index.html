@@ -2,14 +2,181 @@
 {% block title %}Mailing List - LD Enoteca{% endblock %}
 {% block content %}
 <section class="welcome-section page-shell">
- <div class="page-scroll mailing-list-scroll">
-  <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4"><div><h1>Mailing List</h1><p class="text-muted mb-0">Iscritti e campagne email.</p></div><span class="badge text-bg-info fs-6">{{ subscribers|selectattr('status','equalto','subscribed')|list|length }} iscritti attivi</span></div>
-  <div class="row g-4">
-    <div class="col-lg-5"><div class="card"><div class="card-body"><h2 class="h5">Nuovo iscritto</h2><form method="post" action="{{ url_for('mailing_list.add_subscriber') }}" class="row g-2"><div class="col-12"><input class="form-control" name="email" type="email" placeholder="Email" required></div><div class="col-12"><input class="form-control" name="name" placeholder="Nome (facoltativo)"></div><div class="col-12"><button class="btn btn-info" type="submit">Aggiungi iscritto</button></div></form></div></div></div>
-    <div class="col-lg-7"><div class="card"><div class="card-body"><h2 class="h5">Nuova campagna</h2><form method="post" action="{{ url_for('mailing_list.create_campaign') }}" class="row g-2"><div class="col-md-8"><input class="form-control" name="subject" placeholder="Oggetto" required></div><div class="col-md-4"><select class="form-select" name="account_code">{% for account in accounts %}<option value="{{ account.code }}">{{ account.name }}</option>{% else %}<option value="general">Email generale</option>{% endfor %}</select></div><div class="col-12"><textarea class="form-control" name="html_body" rows="7" placeholder="Contenuto HTML della newsletter" required></textarea></div><div class="col-12"><button class="btn btn-info" type="submit">Salva bozza</button></div></form></div></div></div>
+  <div class="page-scroll mailing-list-scroll">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+      <div>
+        <h1>Mailing List</h1>
+        <p class="text-muted mb-0">Liste multiple, destinatari e campagne email.</p>
+      </div>
+      {% if selected_list %}
+        <span class="badge text-bg-info fs-6">{{ members|length }} destinatari in {{ selected_list.name }}</span>
+      {% endif %}
+    </div>
+
+    <div class="row g-3">
+      <div class="col-xl-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <h2 class="h5">Liste</h2>
+            <div class="list-group mb-3">
+              {% for item in mailing_lists %}
+                <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {% if selected_list and item.id == selected_list.id %}active{% endif %}"
+                   href="{{ url_for('mailing_list.index', list_id=item.id) }}">
+                  <span>{{ item.name }}</span>
+                  <small>{{ item.source_type }}</small>
+                </a>
+              {% else %}
+                <div class="text-muted">Nessuna lista.</div>
+              {% endfor %}
+            </div>
+            <form method="post" action="{{ url_for('mailing_list.create_list') }}" class="vstack gap-2">
+              <input class="form-control" name="name" placeholder="Nome nuova lista" required>
+              <select class="form-select" name="source_type">
+                <option value="manual">Manuale</option>
+                <option value="customers">Clienti</option>
+                <option value="users">Utenti APP</option>
+              </select>
+              <button class="btn btn-outline-info" type="submit">Crea lista</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-9">
+        {% if selected_list %}
+          <div class="card mb-3">
+            <div class="card-body">
+              <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                <div>
+                  <h2 class="h5 mb-1">{{ selected_list.name }}</h2>
+                  <div class="text-muted small">Origine: {{ selected_list.source_type }}</div>
+                </div>
+                {% if selected_list.source_type != 'manual' %}
+                  <form method="post" action="{{ url_for('mailing_list.sync_list', list_id=selected_list.id) }}">
+                    <button class="btn btn-outline-light" type="submit">Sincronizza</button>
+                  </form>
+                {% endif %}
+              </div>
+
+              {% if selected_list.source_type == 'customers' %}
+                <form method="post" action="{{ url_for('mailing_list.update_filters', list_id=selected_list.id) }}">
+                  <label class="form-label">Categorie e sottocategorie</label>
+                  <select class="form-select mailing-filter-select" name="clusters" multiple size="9">
+                    {% for category_code, category_description, subcategory_code, subcategory_description in clusters %}
+                      {% set cluster_value = (category_code or '') ~ '|' ~ (subcategory_code or '') %}
+                      <option value="{{ cluster_value }}" {% if cluster_value in selected_clusters %}selected{% endif %}>
+                        {{ category_description or category_code or 'Senza categoria' }} — {{ subcategory_description or subcategory_code or 'Senza sottocategoria' }}
+                      </option>
+                    {% endfor %}
+                  </select>
+                  <div class="form-text">Nessuna selezione include tutti i clienti con un indirizzo email.</div>
+                  <button class="btn btn-info mt-2" type="submit">Applica filtri e sincronizza</button>
+                </form>
+              {% elif selected_list.source_type == 'users' %}
+                <form method="post" action="{{ url_for('mailing_list.update_filters', list_id=selected_list.id) }}">
+                  <label class="form-label">Ruoli attivi</label>
+                  <select class="form-select mailing-filter-select" name="role_ids" multiple size="7">
+                    {% for role in roles %}
+                      <option value="{{ role.id }}" {% if role.id in selected_role_ids %}selected{% endif %}>{{ role.name }}</option>
+                    {% endfor %}
+                  </select>
+                  <div class="form-text">Nessuna selezione include tutti gli utenti registrati.</div>
+                  <button class="btn btn-info mt-2" type="submit">Applica filtri e sincronizza</button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="card mb-3">
+            <div class="card-body">
+              <h2 class="h5">Aggiungi indirizzo</h2>
+              <form method="post" action="{{ url_for('mailing_list.add_subscriber') }}" class="row g-2">
+                <input type="hidden" name="mailing_list_id" value="{{ selected_list.id }}">
+                <div class="col-md-5"><input class="form-control" name="email" type="email" placeholder="Email" required></div>
+                <div class="col-md-5"><input class="form-control" name="name" placeholder="Nome (facoltativo)"></div>
+                <div class="col-md-2 d-grid"><button class="btn btn-info" type="submit">Aggiungi</button></div>
+              </form>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-body">
+        <h2 class="h5">Nuova campagna</h2>
+        <form method="post" action="{{ url_for('mailing_list.create_campaign') }}" class="row g-2">
+          <div class="col-md-4">
+            <select class="form-select" name="mailing_list_id" required>
+              {% for item in mailing_lists %}
+                <option value="{{ item.id }}" {% if selected_list and item.id == selected_list.id %}selected{% endif %}>{{ item.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-5"><input class="form-control" name="subject" placeholder="Oggetto" required></div>
+          <div class="col-md-3">
+            <select class="form-select" name="account_code">
+              {% for account in accounts %}<option value="{{ account.code }}">{{ account.name }}</option>
+              {% else %}<option value="general">Email generale</option>{% endfor %}
+            </select>
+          </div>
+          <div class="col-12"><textarea class="form-control" name="html_body" rows="7" placeholder="Contenuto HTML della newsletter" required></textarea></div>
+          <div class="col-12"><button class="btn btn-info" type="submit">Salva bozza</button></div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card mt-3">
+      <div class="card-body">
+        <h2 class="h5">Campagne</h2>
+        <div class="table-responsive">
+          <table class="table align-middle">
+            <thead><tr><th>Oggetto</th><th>Lista</th><th>Stato</th><th>Destinatari</th><th>Inviate / errori</th><th></th></tr></thead>
+            <tbody>
+              {% for campaign in campaigns %}
+                <tr>
+                  <td>{{ campaign.subject }}</td>
+                  <td>{{ campaign.mailing_list.name if campaign.mailing_list else '-' }}</td>
+                  <td>{{ campaign.status }}</td>
+                  <td>{{ campaign.recipient_count }}</td>
+                  <td>{{ campaign.sent_count }} / {{ campaign.failed_count }}</td>
+                  <td>{% if campaign.status in ['draft','failed'] %}<form method="post" action="{{ url_for('mailing_list.send_campaign', campaign_id=campaign.id) }}" onsubmit="return confirm('Inviare questa campagna alla lista selezionata?');"><button class="btn btn-sm btn-success">Invia</button></form>{% endif %}</td>
+                </tr>
+              {% else %}<tr><td colspan="6">Nessuna campagna.</td></tr>{% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {% if selected_list %}
+      <div class="card mt-3">
+        <div class="card-body">
+          <h2 class="h5">Destinatari — {{ selected_list.name }}</h2>
+          <div class="table-responsive mailing-members-table">
+            <table class="table align-middle">
+              <thead><tr><th>Email</th><th>Nome</th><th>Origine</th><th>Stato globale</th><th></th></tr></thead>
+              <tbody>
+                {% for member in members %}
+                  <tr>
+                    <td>{{ member.subscriber.email }}</td>
+                    <td>{{ member.subscriber.name or '-' }}</td>
+                    <td>{{ member.source_type }}</td>
+                    <td>{{ member.subscriber.status }}</td>
+                    <td>
+                      <form method="post" action="{{ url_for('mailing_list.toggle_subscriber', subscriber_id=member.subscriber.id) }}">
+                        <input type="hidden" name="mailing_list_id" value="{{ selected_list.id }}">
+                        <button class="btn btn-sm btn-outline-light">{{ 'Disiscrivi' if member.subscriber.status == 'subscribed' else 'Riattiva' }}</button>
+                      </form>
+                    </td>
+                  </tr>
+                {% else %}<tr><td colspan="5">Nessun destinatario. Sincronizza la lista.</td></tr>{% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    {% endif %}
   </div>
-  <div class="card mt-4"><div class="card-body"><h2 class="h5">Campagne</h2><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Oggetto</th><th>Stato</th><th>Destinatari</th><th>Inviate / errori</th><th></th></tr></thead><tbody>{% for campaign in campaigns %}<tr><td>{{ campaign.subject }}</td><td>{{ campaign.status }}</td><td>{{ campaign.recipient_count }}</td><td>{{ campaign.sent_count }} / {{ campaign.failed_count }}</td><td>{% if campaign.status in ['draft','failed'] %}<form method="post" action="{{ url_for('mailing_list.send_campaign', campaign_id=campaign.id) }}" onsubmit="return confirm('Inviare questa campagna a tutti gli iscritti attivi?');"><button class="btn btn-sm btn-success">Invia</button></form>{% endif %}</td></tr>{% else %}<tr><td colspan="5">Nessuna campagna.</td></tr>{% endfor %}</tbody></table></div></div></div>
-  <div class="card mt-4"><div class="card-body"><h2 class="h5">Iscritti</h2><div class="table-responsive"><table class="table align-middle"><thead><tr><th>Email</th><th>Nome</th><th>Stato</th><th></th></tr></thead><tbody>{% for subscriber in subscribers %}<tr><td>{{ subscriber.email }}</td><td>{{ subscriber.name or '-' }}</td><td>{{ subscriber.status }}</td><td><form method="post" action="{{ url_for('mailing_list.toggle_subscriber', subscriber_id=subscriber.id) }}"><button class="btn btn-sm btn-outline-light">{{ 'Disiscrivi' if subscriber.status == 'subscribed' else 'Riattiva' }}</button></form></td></tr>{% else %}<tr><td colspan="4">Nessun iscritto.</td></tr>{% endfor %}</tbody></table></div></div></div>
- </div>
 </section>
 {% endblock %}

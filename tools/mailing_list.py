@@ -4,7 +4,7 @@ from flask import url_for
 from flask_mail import Message
 
 from extensions import db
-from models import MailingCampaign, MailingDelivery, MailingSubscriber
+from models import MailingCampaign, MailingDelivery, MailingListMember, MailingSubscriber
 from tools.mail_accounts import send_account_mail
 
 
@@ -13,7 +13,17 @@ def send_campaign(campaign_id):
     if not campaign or campaign.status == "sent":
         return {"campaign_id": campaign_id, "skipped": True}
     campaign.status, campaign.started_at = "sending", datetime.now(timezone.utc)
-    subscribers = MailingSubscriber.query.filter_by(status="subscribed").order_by(MailingSubscriber.id).all()
+    subscribers = (
+        MailingSubscriber.query
+        .join(MailingListMember)
+        .filter(
+            MailingListMember.mailing_list_id == campaign.mailing_list_id,
+            MailingListMember.is_active.is_(True),
+            MailingSubscriber.status == "subscribed",
+        )
+        .order_by(MailingSubscriber.id)
+        .all()
+    )
     campaign.recipient_count = len(subscribers)
     db.session.commit()
     for subscriber in subscribers:
