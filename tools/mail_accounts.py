@@ -94,7 +94,7 @@ def assistance_mail_sender():
     return account_sender("assistance") or "assistenza.ldapp@ldenoteca.it"
 
 
-def send_account_mail(code, message):
+def send_account_mail(code, message, timeout=None):
     if current_app.testing or config_bool("MAIL_SUPPRESS_SEND", False):
         return
 
@@ -116,7 +116,14 @@ def send_account_mail(code, message):
     message.sender = account.get("default_sender") or username
     recipients = list(message.send_to)
     smtp_cls = smtplib.SMTP_SSL if account.get("use_ssl") else smtplib.SMTP
-    with smtp_cls(server, port) as smtp:
+    smtp_timeout = timeout
+    if smtp_timeout is None:
+        smtp_timeout = current_app.config.get("MAIL_SMTP_TIMEOUT", 30)
+    try:
+        smtp_timeout = max(1, int(smtp_timeout))
+    except (TypeError, ValueError):
+        smtp_timeout = 30
+    with smtp_cls(server, port, timeout=smtp_timeout) as smtp:
         if account.get("use_tls") and not account.get("use_ssl"):
             smtp.starttls()
         smtp.login(username, password)

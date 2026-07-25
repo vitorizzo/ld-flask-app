@@ -8,12 +8,8 @@ from models import MailingCampaign, MailingDelivery, MailingListMember, MailingS
 from tools.mail_accounts import send_account_mail
 
 
-def send_campaign(campaign_id):
-    campaign = db.session.get(MailingCampaign, campaign_id)
-    if not campaign or campaign.status == "sent":
-        return {"campaign_id": campaign_id, "skipped": True}
-    campaign.status, campaign.started_at = "sending", datetime.now(timezone.utc)
-    subscribers = (
+def _eligible_subscribers(campaign):
+    return (
         MailingSubscriber.query
         .join(MailingListMember)
         .filter(
@@ -24,15 +20,96 @@ def send_campaign(campaign_id):
         .order_by(MailingSubscriber.id)
         .all()
     )
-    campaign.recipient_count = len(subscribers)
+
+
+def prepare_campaign(campaign):
+    """Congela i destinatari della campagna prima che venga accodata."""
+    existing = {
+        delivery.subscriber_id: delivery
+        for delivery in MailingDelivery.query.filter_by(campaign_id=campaign.id).all()
+    }
+    if not existing:
+        for subscriber in _eligible_subscribers(campaign):
+            db.session.add(MailingDelivery(
+                campaign_id=campaign.id,
+                subscriber_id=subscriber.id,
+                status="pending",
+            ))
+        db.session.flush()
+
+    campaign.recipient_count = MailingDelivery.query.filter_by(campaign_id=campaign.id).count()
+    campaign.sent_count = MailingDelivery.query.filter_by(campaign_id=campaign.id, status="sent").count()
+    campaign.failed_count = MailingDelivery.query.filter_by(campaign_id=campaign.id, status="failed").count()
+    return campaign.recipient_count
+
+
+def _finalize_campaign(campaign):
+    campaign.sent_count = MailingDelivery.query.filter_by(campaign_id=campaign.id, status="sent").count()
+    campaign.failed_count = MailingDelivery.query.filter_by(campaign_id=campaign.id, status="failed").count()
+    pending_count = MailingDelivery.query.filter_by(campaign_id=campaign.id, status="pending").count()
+    campaign.status = "sent" if campaign.failed_count == 0 and pending_count == 0 else "failed"
+    campaign.completed_at = datetime.now(timezone.utc)
     db.session.commit()
-    for subscriber in subscribers:
-        delivery = MailingDelivery.query.filter_by(campaign_id=campaign.id, subscriber_id=subscriber.id).first()
-        if delivery and delivery.status == "sent":
+
+
+def fail_campaign(campaign_id, error):
+    db.session.rollback()
+    campaign = db.session.get(MailingCampaign, campaign_id)
+    if not campaign or campaign.status == "sent":
+        return
+    campaign.status = "failed"
+    campaign.completed_at = datetime.now(timezone.utc)
+    message = str(error)[:1000]
+    for delivery in MailingDelivery.query.filter_by(campaign_id=campaign.id, status="pending").all():
+        delivery.status = "failed"
+        delivery.error_message = message
+    campaign.failed_count = MailingDelivery.query.filter_by(campaign_id=campaign.id, status="failed").count()
+    campaign.sent_count = MailingDelivery.query.filter_by(campaign_id=campaign.id, status="sent").count()
+    db.session.commit()
+
+
+def reset_campaign_delivery_state(campaign):
+    if campaign.status in {"queued", "sending"}:
+        raise ValueError("Non puoi azzerare una campagna mentre l'invio e' in corso.")
+    MailingDelivery.query.filter_by(campaign_id=campaign.id).delete(synchronize_session=False)
+    campaign.status = "draft"
+    campaign.recipient_count = 0
+    campaign.sent_count = 0
+    campaign.failed_count = 0
+    campaign.started_at = None
+    campaign.completed_at = None
+    db.session.flush()
+    prepare_campaign(campaign)
+    db.session.commit()
+    return campaign.recipient_count
+
+
+def send_campaign(campaign_id):
+    campaign = db.session.get(MailingCampaign, campaign_id)
+    if not campaign or campaign.status == "sent":
+        return {"campaign_id": campaign_id, "skipped": True}
+    prepare_campaign(campaign)
+    campaign.status = "sending"
+    campaign.started_at = datetime.now(timezone.utc)
+    campaign.completed_at = None
+    db.session.commit()
+
+    deliveries = (
+        MailingDelivery.query
+        .filter(
+            MailingDelivery.campaign_id == campaign.id,
+            MailingDelivery.status.in_(("pending", "failed")),
+        )
+        .order_by(MailingDelivery.id)
+        .all()
+    )
+    for delivery in deliveries:
+        if delivery.status == "sent":
             continue
-        if not delivery:
-            delivery = MailingDelivery(campaign_id=campaign.id, subscriber_id=subscriber.id)
-            db.session.add(delivery)
+        subscriber = delivery.subscriber
+        delivery.status = "pending"
+        delivery.error_message = None
+        db.session.commit()
         unsubscribe_url = url_for("mailing_list.unsubscribe", token=subscriber.unsubscribe_token, _external=True)
         footer = f'<hr><p style="font-size:12px;color:#666">Ricevi questa email perche\' sei iscritto alla mailing list LD Enoteca. <a href="{unsubscribe_url}">Disiscriviti</a>.</p>'
         message = Message(subject=campaign.subject, recipients=[subscriber.email], html=campaign.html_body + footer)
@@ -42,9 +119,5 @@ def send_campaign(campaign_id):
         except Exception as exc:
             delivery.status, delivery.error_message = "failed", str(exc)[:1000]
         db.session.commit()
-    campaign.sent_count = MailingDelivery.query.filter_by(campaign_id=campaign.id, status="sent").count()
-    campaign.failed_count = MailingDelivery.query.filter_by(campaign_id=campaign.id, status="failed").count()
-    campaign.status = "sent" if campaign.failed_count == 0 else "failed"
-    campaign.completed_at = datetime.now(timezone.utc)
-    db.session.commit()
+    _finalize_campaign(campaign)
     return {"campaign_id": campaign.id, "sent": campaign.sent_count, "failed": campaign.failed_count}

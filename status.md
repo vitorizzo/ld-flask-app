@@ -2467,3 +2467,12 @@ Performance apertura giornata Agenda 2026-06-13:
   - i clienti sono filtrabili per coppia categoria-sottocategoria usando i codici come chiave stabile e le descrizioni importate per l'interfaccia; gli utenti sono filtrabili per ruolo attivo;
   - le campagne sono associate a una singola lista e inviano solo ai relativi membri attivi, rispettando lo stato globale di disiscrizione;
   - migration `d7e8f9a0b1c2_add_multiple_mailing_lists.py`.
+- 2026-07-25 stabilizzazione invio mailing list:
+  - i destinatari vengono congelati in `MailingDelivery` al salvataggio della bozza, quindi il conteggio e' disponibile prima dell'accodamento;
+  - l'invio elabora consegne persistite `pending/failed`, aggiorna ogni esito singolarmente e chiude sempre la campagna in `sent/failed`;
+  - le connessioni SMTP usano un timeout configurabile `MAIL_SMTP_TIMEOUT` con default 30 secondi; il task registra come fallite le consegne pendenti in caso di errore non gestito;
+  - una campagna senza destinatari non viene accodata;
+  - la campagna reale `Promo Spritz`, rimasta bloccata in `sending` prima della correzione, e' stata recuperata in stato `failed` ed e' nuovamente inviabile;
+  - test end-to-end temporaneo verificato: snapshot di un destinatario, invio riuscito, timeout simulato, chiusura corretta degli stati e cleanup completo.
+  - per la fase di test, le campagne `sent/failed` espongono `Azzera invio`: elimina gli esiti precedenti, ricrea lo snapshot dei destinatari correnti e riporta la campagna in `draft`; il reset e' bloccato durante `queued/sending`.
+  - test reset verificato con consegna inviata ricreata come `pending`, conteggi/date azzerati, protezione dello stato `sending` e cleanup completo.

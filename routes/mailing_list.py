@@ -267,6 +267,8 @@ def toggle_subscriber(subscriber_id):
 @login_required
 @role_required(100)
 def create_campaign():
+    from tools.mailing_list import prepare_campaign
+
     subject = (request.form.get("subject") or "").strip()
     body = (request.form.get("html_body") or "").strip()
     if not subject or not body:
@@ -281,8 +283,10 @@ def create_campaign():
         created_by_user_id=current_user.id,
     )
     db.session.add(campaign)
+    db.session.flush()
+    prepare_campaign(campaign)
     db.session.commit()
-    flash("Campagna salvata come bozza.", "success")
+    flash(f"Campagna salvata come bozza con {campaign.recipient_count} destinatari.", "success")
     return redirect(url_for("mailing_list.index", list_id=mailing_list.id))
 
 
@@ -290,6 +294,8 @@ def create_campaign():
 @login_required
 @role_required(100)
 def send_campaign(campaign_id):
+    from tools.mailing_list import prepare_campaign
+
     campaign = MailingCampaign.query.get_or_404(campaign_id)
     if not campaign.mailing_list_id:
         flash("La campagna non è associata a una mailing list.", "warning")
@@ -297,7 +303,13 @@ def send_campaign(campaign_id):
         flash("Questa campagna e' gia' in lavorazione o completata.", "warning")
     else:
         from config.tasks import send_mailing_campaign_task
+        prepare_campaign(campaign)
+        if campaign.recipient_count == 0:
+            db.session.commit()
+            flash("La lista selezionata non contiene destinatari attivi.", "warning")
+            return redirect(url_for("mailing_list.index", list_id=campaign.mailing_list_id))
         campaign.status = "queued"
+        campaign.completed_at = None
         db.session.commit()
         try:
             send_mailing_campaign_task.delay(campaign.id)
@@ -307,6 +319,25 @@ def send_campaign(campaign_id):
             db.session.commit()
             flash("Impossibile accodare la campagna: servizio task non disponibile.", "warning")
     return redirect(url_for("mailing_list.index"))
+
+
+@mailing_list_bp.post("/campaigns/<int:campaign_id>/reset")
+@login_required
+@role_required(100)
+def reset_campaign(campaign_id):
+    from tools.mailing_list import reset_campaign_delivery_state
+
+    campaign = MailingCampaign.query.get_or_404(campaign_id)
+    try:
+        recipient_count = reset_campaign_delivery_state(campaign)
+    except ValueError as exc:
+        flash(str(exc), "warning")
+        return redirect(url_for("mailing_list.index", list_id=campaign.mailing_list_id))
+    flash(
+        f"Invio azzerato. La campagna e' tornata in bozza con {recipient_count} destinatari.",
+        "success",
+    )
+    return redirect(url_for("mailing_list.index", list_id=campaign.mailing_list_id))
 
 
 @mailing_list_bp.route("/unsubscribe/<token>", methods=["GET", "POST"])
