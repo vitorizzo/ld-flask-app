@@ -139,7 +139,25 @@
                   <td>{{ campaign.mailing_list.name if campaign.mailing_list else '-' }}</td>
                   <td>{{ campaign.status }}</td>
                   <td>{{ campaign.recipient_count }}</td>
-                  <td>{{ campaign.sent_count }} / {{ campaign.failed_count }}</td>
+                  <td>
+                    <div>{{ campaign.sent_count }} / {{ campaign.failed_count }}</div>
+                    {% set delivery_errors = campaign_errors.get(campaign.id, []) %}
+                    {% if delivery_errors %}
+                      <details class="mt-1">
+                        <summary class="text-warning small">Dettaglio errori</summary>
+                        <div class="small mt-2">
+                          {% for error in delivery_errors %}
+                            {% set delivery = error.delivery %}
+                            <div class="border-top py-2">
+                              <div class="fw-semibold">{{ delivery.subscriber.email }}</div>
+                              <div><span class="badge text-bg-warning">{{ error.kind }}</span></div>
+                              <div class="text-break text-danger">{{ delivery.error_message or 'Errore non specificato' }}</div>
+                            </div>
+                          {% endfor %}
+                        </div>
+                      </details>
+                    {% endif %}
+                  </td>
                   <td>
                     <div class="d-flex flex-wrap gap-2">
                       {% if campaign.status in ['draft','failed'] %}

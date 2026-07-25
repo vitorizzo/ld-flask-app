@@ -9,6 +9,7 @@ from models import (
     BusinessRegistry,
     EmailAccount,
     MailingCampaign,
+    MailingDelivery,
     MailingList,
     MailingListMember,
     MailingSubscriber,
@@ -18,6 +19,19 @@ from models import (
 from tools.role_required import role_required
 
 mailing_list_bp = Blueprint("mailing_list", __name__)
+
+
+def _delivery_error_kind(message):
+    normalized = (message or "").casefold()
+    if "unable to build urls" in normalized or "server_name" in normalized:
+        return "Configurazione link pubblico"
+    if "authentication" in normalized or "authenticate" in normalized or "smtp 535" in normalized:
+        return "Autenticazione SMTP"
+    if "recipient" in normalized or "recipientsrefused" in normalized or "smtp 550" in normalized:
+        return "Destinatario rifiutato"
+    if "timed out" in normalized or "timeout" in normalized or "connection" in normalized:
+        return "Connessione SMTP"
+    return "Errore di invio"
 
 
 def _ensure_system_lists():
@@ -138,6 +152,24 @@ def index():
             .all()
         )
     campaigns = MailingCampaign.query.order_by(MailingCampaign.created_at.desc()).limit(50).all()
+    campaign_errors = {}
+    campaign_ids = [campaign.id for campaign in campaigns]
+    if campaign_ids:
+        failed_deliveries = (
+            MailingDelivery.query
+            .filter(
+                MailingDelivery.campaign_id.in_(campaign_ids),
+                MailingDelivery.status == "failed",
+            )
+            .join(MailingSubscriber)
+            .order_by(MailingDelivery.campaign_id.desc(), MailingSubscriber.email)
+            .all()
+        )
+        for delivery in failed_deliveries:
+            campaign_errors.setdefault(delivery.campaign_id, []).append({
+                "delivery": delivery,
+                "kind": _delivery_error_kind(delivery.error_message),
+            })
     accounts = EmailAccount.query.filter_by(is_enabled=True).order_by(EmailAccount.name).all()
     clusters = (
         db.session.query(
@@ -166,6 +198,7 @@ def index():
         selected_list=selected_list,
         members=members,
         campaigns=campaigns,
+        campaign_errors=campaign_errors,
         accounts=accounts,
         clusters=clusters,
         roles=roles,

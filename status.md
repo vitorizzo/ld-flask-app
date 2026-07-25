@@ -2476,3 +2476,6 @@ Performance apertura giornata Agenda 2026-06-13:
   - test end-to-end temporaneo verificato: snapshot di un destinatario, invio riuscito, timeout simulato, chiusura corretta degli stati e cleanup completo.
   - per la fase di test, le campagne `sent/failed` espongono `Azzera invio`: elimina gli esiti precedenti, ricrea lo snapshot dei destinatari correnti e riporta la campagna in `draft`; il reset e' bloccato durante `queued/sending`.
   - test reset verificato con consegna inviata ricreata come `pending`, conteggi/date azzerati, protezione dello stato `sending` e cleanup completo.
+  - fix worker: il link di disiscrizione viene composto da `PUBLIC_BASE_URL` con fallback `https://ldapp.ldenoteca.it`, senza dipendere da un request context Flask; eliminato l'errore `Unable to build URLs outside an active request`.
+  - la tabella campagne espone ora `Dettaglio errori` per destinatario, con classificazione leggibile (configurazione link, autenticazione/connessione SMTP, destinatario rifiutato o errore generico) e messaggio tecnico completo.
+  - test worker fuori da request context verificato con link pubblico corretto, consegna `sent` e cleanup completo.

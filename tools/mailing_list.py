@@ -1,11 +1,16 @@
 from datetime import datetime, timezone
 
-from flask import url_for
+from flask import current_app
 from flask_mail import Message
 
 from extensions import db
 from models import MailingCampaign, MailingDelivery, MailingListMember, MailingSubscriber
 from tools.mail_accounts import send_account_mail
+
+
+def _unsubscribe_url(subscriber):
+    base_url = (current_app.config.get("PUBLIC_BASE_URL") or "https://ldapp.ldenoteca.it").rstrip("/")
+    return f"{base_url}/mailing-list/unsubscribe/{subscriber.unsubscribe_token}"
 
 
 def _eligible_subscribers(campaign):
@@ -110,7 +115,7 @@ def send_campaign(campaign_id):
         delivery.status = "pending"
         delivery.error_message = None
         db.session.commit()
-        unsubscribe_url = url_for("mailing_list.unsubscribe", token=subscriber.unsubscribe_token, _external=True)
+        unsubscribe_url = _unsubscribe_url(subscriber)
         footer = f'<hr><p style="font-size:12px;color:#666">Ricevi questa email perche\' sei iscritto alla mailing list LD Enoteca. <a href="{unsubscribe_url}">Disiscriviti</a>.</p>'
         message = Message(subject=campaign.subject, recipients=[subscriber.email], html=campaign.html_body + footer)
         try:
