@@ -12,6 +12,7 @@ from tools.importazioni import (
 from tools.log_utils import log_task, get_logger
 
 logger = get_logger('tasks')
+mailing_logger = get_logger('mailing_list')
 
 
 @celery.task(bind=True)
@@ -107,7 +108,7 @@ def create_weekend_events_social_post_task(self):
 
 
 @celery.task(bind=True)
-@log_task(logger)
+@log_task(mailing_logger)
 def send_mailing_campaign_task(self, campaign_id):
     from tools.mailing_list import fail_campaign, send_campaign
     try:

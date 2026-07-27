@@ -17,8 +17,10 @@ from models import (
     User,
 )
 from tools.role_required import role_required
+from tools.log_utils import get_logger
 
 mailing_list_bp = Blueprint("mailing_list", __name__)
+logger = get_logger("mailing_list")
 
 
 def _delivery_error_kind(message):
@@ -222,6 +224,13 @@ def create_list():
     mailing_list = MailingList(name=name, source_type=source_type)
     db.session.add(mailing_list)
     db.session.commit()
+    logger.info(
+        "Mailing list creata list_id=%s name=%s source_type=%s user_id=%s",
+        mailing_list.id,
+        mailing_list.name,
+        mailing_list.source_type,
+        current_user.id,
+    )
     flash("Mailing list creata.", "success")
     return redirect(url_for("mailing_list.index", list_id=mailing_list.id))
 
@@ -233,6 +242,13 @@ def sync_list(list_id):
     mailing_list = MailingList.query.get_or_404(list_id)
     count = _sync_list(mailing_list)
     db.session.commit()
+    logger.info(
+        "Mailing list sincronizzata list_id=%s source_type=%s processed=%s user_id=%s",
+        mailing_list.id,
+        mailing_list.source_type,
+        count,
+        current_user.id,
+    )
     flash(f"Lista sincronizzata: {count} indirizzi elaborati.", "success")
     return redirect(url_for("mailing_list.index", list_id=mailing_list.id))
 
@@ -252,6 +268,13 @@ def update_filters(list_id):
         mailing_list.filter_config = {"role_ids": request.form.getlist("role_ids", type=int)}
     count = _sync_list(mailing_list)
     db.session.commit()
+    logger.info(
+        "Filtri mailing applicati list_id=%s source_type=%s processed=%s user_id=%s",
+        mailing_list.id,
+        mailing_list.source_type,
+        count,
+        current_user.id,
+    )
     flash(f"Filtri applicati: {count} indirizzi elaborati.", "success")
     return redirect(url_for("mailing_list.index", list_id=mailing_list.id))
 
@@ -278,6 +301,13 @@ def add_subscriber():
         db.session.flush()
     _activate_member(mailing_list, subscriber, "manual")
     db.session.commit()
+    logger.info(
+        "Iscritto aggiunto list_id=%s subscriber_id=%s email=%s user_id=%s",
+        mailing_list.id,
+        subscriber.id,
+        subscriber.email,
+        current_user.id,
+    )
     flash("Iscritto salvato.", "success")
     return redirect(url_for("mailing_list.index", list_id=mailing_list.id))
 
@@ -293,6 +323,13 @@ def toggle_subscriber(subscriber_id):
     else:
         subscriber.status, subscriber.consent_at, subscriber.unsubscribed_at = "subscribed", now, None
     db.session.commit()
+    logger.info(
+        "Stato iscritto modificato subscriber_id=%s email=%s status=%s user_id=%s",
+        subscriber.id,
+        subscriber.email,
+        subscriber.status,
+        current_user.id,
+    )
     return redirect(url_for("mailing_list.index", list_id=request.form.get("mailing_list_id", type=int)))
 
 
@@ -319,6 +356,14 @@ def create_campaign():
     db.session.flush()
     prepare_campaign(campaign)
     db.session.commit()
+    logger.info(
+        "Campagna creata campaign_id=%s list_id=%s account=%s recipients=%s user_id=%s",
+        campaign.id,
+        campaign.mailing_list_id,
+        campaign.account_code,
+        campaign.recipient_count,
+        current_user.id,
+    )
     flash(f"Campagna salvata come bozza con {campaign.recipient_count} destinatari.", "success")
     return redirect(url_for("mailing_list.index", list_id=mailing_list.id))
 
@@ -346,8 +391,21 @@ def send_campaign(campaign_id):
         db.session.commit()
         try:
             send_mailing_campaign_task.delay(campaign.id)
+            logger.info(
+                "Campagna accodata campaign_id=%s list_id=%s account=%s recipients=%s user_id=%s",
+                campaign.id,
+                campaign.mailing_list_id,
+                campaign.account_code,
+                campaign.recipient_count,
+                current_user.id,
+            )
             flash("Campagna accodata per l'invio.", "success")
         except Exception:
+            logger.exception(
+                "Accodamento campagna fallito campaign_id=%s user_id=%s",
+                campaign.id,
+                current_user.id,
+            )
             campaign.status = "draft"
             db.session.commit()
             flash("Impossibile accodare la campagna: servizio task non disponibile.", "warning")
@@ -366,6 +424,12 @@ def reset_campaign(campaign_id):
     except ValueError as exc:
         flash(str(exc), "warning")
         return redirect(url_for("mailing_list.index", list_id=campaign.mailing_list_id))
+    logger.info(
+        "Reset campagna richiesto campaign_id=%s recipients=%s user_id=%s",
+        campaign.id,
+        recipient_count,
+        current_user.id,
+    )
     flash(
         f"Invio azzerato. La campagna e' tornata in bozza con {recipient_count} destinatari.",
         "success",
@@ -380,4 +444,9 @@ def unsubscribe(token):
         subscriber.status = "unsubscribed"
         subscriber.unsubscribed_at = datetime.now(timezone.utc)
         db.session.commit()
+        logger.info(
+            "Disiscrizione completata subscriber_id=%s email=%s",
+            subscriber.id,
+            subscriber.email,
+        )
     return render_template("mailing_list/unsubscribe.html", subscriber=subscriber)

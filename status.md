@@ -7,6 +7,20 @@ Data aggiornamento: 2026-06-02
 Quando si implementa o si modifica una modale, il bottone di conferma va inizializzato su `shown.bs.modal` e ripulito su `hidden.bs.modal`.
 Non va mai lasciato affidato al solo stato iniziale del DOM perché nel progetto tende a restare disabilitato o con handler residui al primo utilizzo.
 
+## Regola universale logging
+
+Ogni modulo nuovo o modificato deve usare il sistema centralizzato `tools.log_utils.get_logger("<nome_modulo>")`.
+Gli eventi operativi e gli errori devono essere scritti contemporaneamente:
+
+- nel file dedicato `logs/<nome_modulo>.log`;
+- nel log aggregato `logs/main.log`.
+
+Il logger di modulo deve coprire almeno avvio, conclusione, identificativi tecnici utili, conteggi, cambi di stato, errori gestiti e traceback degli errori imprevisti.
+I task asincroni devono usare nel decorator `log_task` il logger del modulo funzionale, non soltanto il logger generico `tasks`.
+Gli errori gestiti e assorbiti dal flusso devono comunque essere registrati nel logger di modulo.
+Nei log non devono mai comparire password, token, cookie, chiavi API o altri segreti; dati identificativi come email o ID vanno registrati soltanto quando sono necessari alla diagnosi amministrativa.
+Ogni implementazione deve verificare che almeno un evento significativo compaia sia nel file dedicato sia in `main.log`.
+
 ---
 
 ## 🔄 Stato generale modulo Agenda / Cassa
@@ -2479,3 +2493,8 @@ Performance apertura giornata Agenda 2026-06-13:
   - fix worker: il link di disiscrizione viene composto da `PUBLIC_BASE_URL` con fallback `https://ldapp.ldenoteca.it`, senza dipendere da un request context Flask; eliminato l'errore `Unable to build URLs outside an active request`.
   - la tabella campagne espone ora `Dettaglio errori` per destinatario, con classificazione leggibile (configurazione link, autenticazione/connessione SMTP, destinatario rifiutato o errore generico) e messaggio tecnico completo.
   - test worker fuori da request context verificato con link pubblico corretto, consegna `sent` e cleanup completo.
+  - logging dedicato attivo con `get_logger("mailing_list")`: creazione/sincronizzazione liste, preparazione/reset/accodamento campagne, avvio worker, tentativi e risultati per destinatario, riepilogo e traceback finiscono sia in `mailing_list.log` sia in `main.log`;
+  - `send_account_mail()` usa anche `get_logger("mail_accounts")` e registra connessione e risposta SMTP in `mail_accounts.log`/`main.log`, senza password o token;
+  - il task Celery mailing usa `log_task(mailing_logger)` invece del logger generico `tasks`;
+  - la UI specifica `Accettate SMTP / errori`: lo stato `sent` certifica l'accettazione da parte del server SMTP, non la consegna finale nella casella; bounce, spam e quarantena richiedono riscontri successivi;
+  - test temporaneo verificato per percorso riuscito e fallimento SMTP simulato: eventi presenti in entrambi i log, traceback registrato e cleanup DB completo.

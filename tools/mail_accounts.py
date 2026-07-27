@@ -4,6 +4,10 @@ from flask import current_app
 from sqlalchemy import inspect
 
 from extensions import db
+from tools.log_utils import get_logger
+
+
+logger = get_logger("mail_accounts")
 
 
 SYSTEM_EMAIL_ACCOUNTS = {
@@ -96,7 +100,8 @@ def assistance_mail_sender():
 
 def send_account_mail(code, message, timeout=None):
     if current_app.testing or config_bool("MAIL_SUPPRESS_SEND", False):
-        return
+        logger.info("Invio email soppresso account=%s recipients=%s", code, len(message.send_to))
+        return {"accepted": list(message.send_to), "refused": {}, "suppressed": True}
 
     account = get_email_account(code)
     if not account:
@@ -123,14 +128,36 @@ def send_account_mail(code, message, timeout=None):
         smtp_timeout = max(1, int(smtp_timeout))
     except (TypeError, ValueError):
         smtp_timeout = 30
-    with smtp_cls(server, port, timeout=smtp_timeout) as smtp:
-        if account.get("use_tls") and not account.get("use_ssl"):
-            smtp.starttls()
-        smtp.login(username, password)
-        # smtplib codifica automaticamente in ASCII quando riceve una stringa.
-        # Il MIME prodotto da Flask-Mail contiene gia' la codifica UTF-8 corretta:
-        # passarlo come bytes preserva accenti e altri caratteri non ASCII.
-        smtp.sendmail(message.sender, recipients, message.as_bytes())
+    logger.info(
+        "Connessione SMTP account=%s server=%s port=%s ssl=%s tls=%s recipients=%s",
+        code,
+        server,
+        port,
+        bool(account.get("use_ssl")),
+        bool(account.get("use_tls")),
+        len(recipients),
+    )
+    try:
+        with smtp_cls(server, port, timeout=smtp_timeout) as smtp:
+            if account.get("use_tls") and not account.get("use_ssl"):
+                smtp.starttls()
+            smtp.login(username, password)
+            # smtplib codifica automaticamente in ASCII quando riceve una stringa.
+            # Il MIME prodotto da Flask-Mail contiene gia' la codifica UTF-8 corretta:
+            # passarlo come bytes preserva accenti e altri caratteri non ASCII.
+            refused = smtp.sendmail(message.sender, recipients, message.as_bytes())
+    except Exception:
+        logger.exception("Invio SMTP fallito account=%s recipients=%s", code, recipients)
+        raise
+
+    accepted = [recipient for recipient in recipients if recipient not in refused]
+    logger.info(
+        "Risposta SMTP account=%s accepted=%s refused=%s",
+        code,
+        accepted,
+        refused,
+    )
+    return {"accepted": accepted, "refused": refused, "suppressed": False}
 
 
 def send_assistance_mail(message):
