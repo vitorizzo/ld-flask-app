@@ -668,9 +668,137 @@ section {
     min-height: 11rem;
 }
 
+.mailing-filter-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.mailing-filter-summary {
+    margin-left: auto;
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 0.875rem;
+}
+
+.mailing-filter-tree,
+.mailing-filter-children {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.mailing-filter-tree {
+    max-height: 32rem;
+    overflow: auto;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 0.5rem;
+    background: rgba(0, 0, 0, 0.12);
+    overscroll-behavior: contain;
+}
+
+.mailing-filter-category + .mailing-filter-category {
+    border-top: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.mailing-filter-category-row {
+    display: grid;
+    grid-template-columns: 2rem 1.5rem minmax(0, 1fr);
+    align-items: center;
+    min-height: 3rem;
+    padding: 0.35rem 0.75rem 0.35rem 0.35rem;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.mailing-filter-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.35rem;
+    color: inherit;
+    background: transparent;
+}
+
+.mailing-filter-toggle:hover,
+.mailing-filter-toggle:focus-visible {
+    color: var(--bs-info);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.mailing-filter-toggle i {
+    transition: transform 0.18s ease;
+}
+
+.mailing-filter-toggle[aria-expanded="false"] i {
+    transform: rotate(-90deg);
+}
+
+.mailing-filter-category-label,
+.mailing-filter-child label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    min-width: 0;
+    margin: 0;
+    cursor: pointer;
+}
+
+.mailing-filter-category-label {
+    font-weight: 700;
+}
+
+.mailing-filter-children {
+    padding: 0.35rem 0.75rem 0.55rem 3.85rem;
+}
+
+.mailing-filter-child {
+    display: grid;
+    grid-template-columns: 1.5rem minmax(0, 1fr);
+    align-items: center;
+    min-height: 2.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.mailing-filter-child:first-child {
+    border-top: 0;
+}
+
+.mailing-filter-count {
+    flex: 0 0 auto;
+    color: rgba(255, 255, 255, 0.64);
+    font-size: 0.78rem;
+    font-weight: 400;
+}
+
+.mailing-filter-parent:indeterminate {
+    background-color: var(--bs-secondary);
+    border-color: var(--bs-secondary);
+}
+
 .mailing-members-table {
     max-height: 34rem;
     overflow: auto;
+}
+
+@media (max-width: 575.98px) {
+    .mailing-filter-summary {
+        flex-basis: 100%;
+        margin-left: 0;
+    }
+
+    .mailing-filter-category-row {
+        padding-right: 0.5rem;
+    }
+
+    .mailing-filter-children {
+        padding-left: 2.85rem;
+    }
 }
 
 .form-section table {

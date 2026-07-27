@@ -59,17 +59,68 @@
               </div>
 
               {% if selected_list.source_type == 'customers' %}
-                <form method="post" action="{{ url_for('mailing_list.update_filters', list_id=selected_list.id) }}">
-                  <label class="form-label">Categorie e sottocategorie</label>
-                  <select class="form-select mailing-filter-select" name="clusters" multiple size="9">
-                    {% for category_code, category_description, subcategory_code, subcategory_description in clusters %}
-                      {% set cluster_value = (category_code or '') ~ '|' ~ (subcategory_code or '') %}
-                      <option value="{{ cluster_value }}" {% if cluster_value in selected_clusters %}selected{% endif %}>
-                        {{ category_description or category_code or 'Senza categoria' }} — {{ subcategory_description or subcategory_code or 'Senza sottocategoria' }}
-                      </option>
-                    {% endfor %}
-                  </select>
-                  <div class="form-text">Nessuna selezione include tutti i clienti con un indirizzo email.</div>
+                <form method="post"
+                      action="{{ url_for('mailing_list.update_filters', list_id=selected_list.id) }}"
+                      data-mailing-filter-form>
+                  <fieldset>
+                    <legend class="h6 mb-2">Categorie e sottocategorie clienti</legend>
+                    <p class="form-text mt-0">
+                      Seleziona intere categorie oppure apri un ramo e scegli solo le sottocategorie desiderate.
+                    </p>
+                    <div class="mailing-filter-toolbar">
+                      <button class="btn btn-sm btn-outline-light" type="button" data-mailing-select-all>Seleziona tutto</button>
+                      <button class="btn btn-sm btn-outline-light" type="button" data-mailing-clear-all>Deseleziona tutto</button>
+                      <span class="mailing-filter-summary" role="status" aria-live="polite" data-mailing-filter-summary></span>
+                    </div>
+                    <ul class="mailing-filter-tree" aria-label="Filtri per categoria cliente">
+                      {% for category in customer_filter_tree %}
+                        {% set category_id = 'mailing-category-' ~ loop.index %}
+                        {% set children_id = category_id ~ '-children' %}
+                        <li class="mailing-filter-category" data-mailing-category>
+                          <div class="mailing-filter-category-row">
+                            <button class="mailing-filter-toggle"
+                                    type="button"
+                                    aria-expanded="true"
+                                    aria-controls="{{ children_id }}"
+                                    title="Espandi o comprimi {{ category.label }}">
+                              <i class="fas fa-chevron-down" aria-hidden="true"></i>
+                              <span class="visually-hidden">Espandi o comprimi {{ category.label }}</span>
+                            </button>
+                            <input class="form-check-input mailing-filter-parent"
+                                   id="{{ category_id }}"
+                                   type="checkbox"
+                                   data-mailing-parent>
+                            <label class="mailing-filter-category-label" for="{{ category_id }}">
+                              <span>{{ category.label }}</span>
+                              <span class="mailing-filter-count">{{ category.customer_count }} clienti</span>
+                            </label>
+                          </div>
+                          <ul class="mailing-filter-children"
+                              id="{{ children_id }}">
+                            {% for subcategory in category.subcategories %}
+                              {% set child_id = category_id ~ '-subcategory-' ~ loop.index %}
+                              <li class="mailing-filter-child">
+                                <input class="form-check-input"
+                                       id="{{ child_id }}"
+                                       type="checkbox"
+                                       name="clusters"
+                                       value="{{ subcategory.value }}"
+                                       data-mailing-child
+                                       {% if subcategory.value in selected_clusters %}checked{% endif %}>
+                                <label for="{{ child_id }}">
+                                  <span>{{ subcategory.label }}</span>
+                                  <span class="mailing-filter-count">{{ subcategory.customer_count }}</span>
+                                </label>
+                              </li>
+                            {% endfor %}
+                          </ul>
+                        </li>
+                      {% else %}
+                        <li class="text-muted">Nessuna categoria cliente disponibile.</li>
+                      {% endfor %}
+                    </ul>
+                  </fieldset>
+                  <div class="form-text">Le modifiche diventano effettive dopo il salvataggio e la sincronizzazione.</div>
                   <button class="btn btn-info mt-2" type="submit">Applica filtri e sincronizza</button>
                 </form>
               {% elif selected_list.source_type == 'users' %}
@@ -210,4 +261,7 @@
     {% endif %}
   </div>
 </section>
+{% endblock %}
+{% block extra_js %}
+  <script src="{{ url_for('static', filename='js/mailing_list.js', v=app_version ~ '-filters1') }}"></script>
 {% endblock %}

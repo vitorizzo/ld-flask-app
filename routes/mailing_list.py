@@ -92,11 +92,12 @@ def _sync_customers(mailing_list):
         (str(item.get("category_code") or ""), str(item.get("subcategory_code") or ""))
         for item in config.get("clusters", [])
     }
+    selection_is_explicit = config.get("filter_mode") == "selected" or bool(config.get("clusters"))
     registries = BusinessRegistry.query.filter_by(kind="customer", is_active=True).all()
     count = 0
     for registry in registries:
         cluster = (registry.category_code or "", registry.subcategory_code or "")
-        if selected and cluster not in selected:
+        if selection_is_explicit and cluster not in selected:
             continue
         for contact in registry.contacts:
             if contact.contact_type not in {"email", "pec"}:
@@ -132,6 +133,54 @@ def _sync_list(mailing_list):
     if mailing_list.source_type == "users":
         return _sync_users(mailing_list)
     return 0
+
+
+def _customer_filter_tree():
+    rows = (
+        db.session.query(
+            BusinessRegistry.category_code,
+            BusinessRegistry.subcategory_code,
+            func.count(BusinessRegistry.id),
+        )
+        .filter(BusinessRegistry.kind == "customer", BusinessRegistry.is_active.is_(True))
+        .group_by(BusinessRegistry.category_code, BusinessRegistry.subcategory_code)
+        .all()
+    )
+    grouped = {}
+    for category_code, subcategory_code, customer_count in rows:
+        category_key = category_code or ""
+        subcategory_key = subcategory_code or ""
+        category = grouped.setdefault(category_key, {
+            "code": category_key,
+            "label": category_key or "Senza categoria",
+            "customer_count": 0,
+            "subcategories": [],
+        })
+        category["customer_count"] += int(customer_count or 0)
+        category["subcategories"].append({
+            "code": subcategory_key,
+            "label": subcategory_key or "Senza sottocategoria",
+            "value": f"{category_key}|{subcategory_key}",
+            "customer_count": int(customer_count or 0),
+        })
+
+    tree = list(grouped.values())
+    tree.sort(key=lambda item: item["label"].casefold())
+    for category in tree:
+        category["subcategories"].sort(key=lambda item: item["label"].casefold())
+    return tree
+
+
+def _customer_filter_config(values):
+    clusters = []
+    for value in values:
+        category_code, separator, subcategory_code = value.partition("|")
+        if separator:
+            clusters.append({
+                "category_code": category_code,
+                "subcategory_code": subcategory_code,
+            })
+    return {"filter_mode": "selected", "clusters": clusters}
 
 
 @mailing_list_bp.route("/")
@@ -173,23 +222,24 @@ def index():
                 "kind": _delivery_error_kind(delivery.error_message),
             })
     accounts = EmailAccount.query.filter_by(is_enabled=True).order_by(EmailAccount.name).all()
-    clusters = (
-        db.session.query(
-            BusinessRegistry.category_code,
-            BusinessRegistry.category_description,
-            BusinessRegistry.subcategory_code,
-            BusinessRegistry.subcategory_description,
-        )
-        .filter(BusinessRegistry.kind == "customer", BusinessRegistry.is_active.is_(True))
-        .distinct()
-        .order_by(BusinessRegistry.category_description, BusinessRegistry.subcategory_description)
-        .all()
-    )
+    customer_filter_tree = _customer_filter_tree()
     roles = Role.query.order_by(Role.name).all()
+    selected_filter_config = (selected_list.filter_config or {}) if selected_list else {}
     selected_clusters = {
         f"{item.get('category_code') or ''}|{item.get('subcategory_code') or ''}"
-        for item in ((selected_list.filter_config or {}).get("clusters", []) if selected_list else [])
+        for item in (selected_filter_config.get("clusters", []) if selected_list else [])
     }
+    if (
+        selected_list
+        and selected_list.source_type == "customers"
+        and selected_filter_config.get("filter_mode") != "selected"
+        and not selected_clusters
+    ):
+        selected_clusters = {
+            subcategory["value"]
+            for category in customer_filter_tree
+            for subcategory in category["subcategories"]
+        }
     selected_role_ids = {
         int(value)
         for value in ((selected_list.filter_config or {}).get("role_ids", []) if selected_list else [])
@@ -202,7 +252,7 @@ def index():
         campaigns=campaigns,
         campaign_errors=campaign_errors,
         accounts=accounts,
-        clusters=clusters,
+        customer_filter_tree=customer_filter_tree,
         roles=roles,
         selected_clusters=selected_clusters,
         selected_role_ids=selected_role_ids,
@@ -259,11 +309,7 @@ def sync_list(list_id):
 def update_filters(list_id):
     mailing_list = MailingList.query.get_or_404(list_id)
     if mailing_list.source_type == "customers":
-        clusters = []
-        for value in request.form.getlist("clusters"):
-            category_code, _, subcategory_code = value.partition("|")
-            clusters.append({"category_code": category_code, "subcategory_code": subcategory_code})
-        mailing_list.filter_config = {"clusters": clusters}
+        mailing_list.filter_config = _customer_filter_config(request.form.getlist("clusters"))
     elif mailing_list.source_type == "users":
         mailing_list.filter_config = {"role_ids": request.form.getlist("role_ids", type=int)}
     count = _sync_list(mailing_list)

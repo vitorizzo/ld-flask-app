@@ -2498,3 +2498,11 @@ Performance apertura giornata Agenda 2026-06-13:
   - il task Celery mailing usa `log_task(mailing_logger)` invece del logger generico `tasks`;
   - la UI specifica `Accettate SMTP / errori`: lo stato `sent` certifica l'accettazione da parte del server SMTP, non la consegna finale nella casella; bounce, spam e quarantena richiedono riscontri successivi;
   - test temporaneo verificato per percorso riuscito e fallimento SMTP simulato: eventi presenti in entrambi i log, traceback registrato e cleanup DB completo.
+- 2026-07-27 albero filtri clienti mailing list:
+  - sostituito il multiselect piatto con un albero accessibile di 6 categorie leggibili e 62 sottocategorie uniche derivate dai dati reali (`HO.RE.CA.`, `BAR`, `RISTORANTI`, ecc.);
+  - ogni categoria ha checkbox padre e ramo espandibile; il padre seleziona/deseleziona tutte le figlie ed entra nello stato nativo `indeterminate` quando ne e' selezionata soltanto una parte;
+  - aggiunti comandi `Seleziona tutto`/`Deseleziona tutto`, conteggio dinamico delle sottocategorie selezionate e conteggi clienti per voce;
+  - i codici salvati restano le coppie compatibili `category_code|subcategory_code`; i vecchi filtri non vuoti restano validi;
+  - una configurazione storica vuota continua inizialmente a rappresentare tutti i clienti e viene mostrata con tutte le checkbox selezionate; dopo il primo salvataggio `filter_mode=selected` rende esplicita anche una selezione vuota, che produce zero destinatari;
+  - asset `static/js/mailing_list.js`, stili in `static/css/style.css`, cache CSS `mobile22` e JS `filters1`;
+  - verificati albero DB reale, rendering autenticato, semantica config vuota/parziale, template Jinja, sintassi Python/JavaScript e `git diff --check`.
