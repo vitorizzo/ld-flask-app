@@ -1,18 +1,24 @@
 from datetime import datetime, timezone
+import mimetypes
+from pathlib import Path
+from uuid import uuid4
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
+from werkzeug.utils import secure_filename
 
 from extensions import db
 from models import (
     BusinessRegistry,
     EmailAccount,
     MailingCampaign,
+    MailingCampaignAttachment,
     MailingDelivery,
     MailingList,
     MailingListMember,
     MailingSubscriber,
+    MailingTemplate,
     Role,
     User,
 )
@@ -21,6 +27,75 @@ from tools.log_utils import get_logger
 
 mailing_list_bp = Blueprint("mailing_list", __name__)
 logger = get_logger("mailing_list")
+
+MAILING_ATTACHMENT_EXTENSIONS = {
+    "pdf", "jpg", "jpeg", "png", "gif", "webp", "doc", "docx", "xls", "xlsx",
+}
+MAILING_ATTACHMENT_MAX_BYTES = 15 * 1024 * 1024
+MAILING_ATTACHMENT_MAX_COUNT = 10
+
+
+def _mailing_attachment_root():
+    root = Path(current_app.instance_path) / "mailing_attachments"
+    root.mkdir(parents=True, exist_ok=True)
+    return root.resolve()
+
+
+def _save_campaign_attachments(campaign, files):
+    uploads = [item for item in files if item and item.filename]
+    if len(campaign.attachments) + len(uploads) > MAILING_ATTACHMENT_MAX_COUNT:
+        raise ValueError(f"Sono consentiti al massimo {MAILING_ATTACHMENT_MAX_COUNT} allegati per campagna.")
+
+    validated = []
+    for upload in uploads:
+        original_name = secure_filename(upload.filename)
+        extension = Path(original_name).suffix.lower().lstrip(".")
+        if not original_name or extension not in MAILING_ATTACHMENT_EXTENSIONS:
+            raise ValueError(f"Formato allegato non consentito: {upload.filename}")
+        upload.stream.seek(0, 2)
+        file_size = upload.stream.tell()
+        upload.stream.seek(0)
+        if file_size <= 0 or file_size > MAILING_ATTACHMENT_MAX_BYTES:
+            raise ValueError(f"L'allegato {original_name} deve avere dimensione compresa tra 1 byte e 15 MB.")
+        validated.append((upload, original_name, extension, file_size))
+
+    saved_paths = []
+    try:
+        campaign_folder = _mailing_attachment_root() / str(campaign.id)
+        campaign_folder.mkdir(parents=True, exist_ok=True)
+        for upload, original_name, extension, file_size in validated:
+            stored_name = f"{uuid4().hex}.{extension}"
+            absolute_path = campaign_folder / stored_name
+            upload.save(absolute_path)
+            saved_paths.append(absolute_path)
+            db.session.add(MailingCampaignAttachment(
+                campaign_id=campaign.id,
+                original_filename=original_name[:255],
+                storage_path=f"{campaign.id}/{stored_name}",
+                mime_type=(upload.mimetype or mimetypes.guess_type(original_name)[0] or "application/octet-stream")[:120],
+                file_size=file_size,
+                created_by_user_id=current_user.id,
+            ))
+    except Exception:
+        for path in saved_paths:
+            path.unlink(missing_ok=True)
+        raise
+    return len(validated)
+
+
+def _remove_attachment_file(storage_path, attachment_id=None):
+    try:
+        root = _mailing_attachment_root()
+        path = (root / storage_path).resolve()
+        if root not in path.parents:
+            raise ValueError("Percorso allegato non valido.")
+        path.unlink(missing_ok=True)
+    except (OSError, ValueError):
+        logger.exception(
+            "Rimozione file allegato fallita attachment_id=%s path=%s",
+            attachment_id,
+            storage_path,
+        )
 
 
 def _delivery_error_kind(message):
@@ -242,6 +317,7 @@ def index():
                 "kind": _delivery_error_kind(delivery.error_message),
             })
     accounts = EmailAccount.query.filter_by(is_enabled=True).order_by(EmailAccount.name).all()
+    mailing_templates = MailingTemplate.query.filter_by(is_active=True).order_by(MailingTemplate.name).all()
     customer_filter_tree = _customer_filter_tree()
     roles = Role.query.order_by(Role.name).all()
     selected_filter_config = (selected_list.filter_config or {}) if selected_list else {}
@@ -277,13 +353,14 @@ def index():
         sent_campaigns=sent_campaigns,
         campaign_errors=campaign_errors,
         accounts=accounts,
+        mailing_templates=mailing_templates,
         customer_filter_tree=customer_filter_tree,
         roles=roles,
         selected_clusters=selected_clusters,
         selected_role_ids=selected_role_ids,
         requested_modal=(
             request.args.get("modal")
-            if request.args.get("modal") in {"lists", "campaigns", "history"}
+            if request.args.get("modal") in {"lists", "campaigns", "history", "templates"}
             else None
         ),
     )
@@ -425,27 +502,100 @@ def create_campaign():
         flash("Oggetto e contenuto sono obbligatori.", "warning")
         return redirect(url_for("mailing_list.index", modal="campaigns"))
     mailing_list = MailingList.query.get_or_404(request.form.get("mailing_list_id", type=int))
+    template_id = request.form.get("template_id", type=int)
+    mailing_template = MailingTemplate.query.filter_by(id=template_id, is_active=True).first() if template_id else None
     campaign = MailingCampaign(
         subject=subject,
         html_body=body,
         account_code=(request.form.get("account_code") or "general").strip(),
         mailing_list_id=mailing_list.id,
+        template_id=mailing_template.id if mailing_template else None,
         created_by_user_id=current_user.id,
     )
     db.session.add(campaign)
     db.session.flush()
-    prepare_campaign(campaign)
+    try:
+        attachment_count = _save_campaign_attachments(campaign, request.files.getlist("attachments"))
+        prepare_campaign(campaign)
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "warning")
+        return redirect(url_for("mailing_list.index", modal="campaigns"))
     db.session.commit()
     logger.info(
-        "Campagna creata campaign_id=%s list_id=%s account=%s recipients=%s user_id=%s",
+        "Campagna creata campaign_id=%s list_id=%s account=%s recipients=%s attachments=%s user_id=%s",
         campaign.id,
         campaign.mailing_list_id,
         campaign.account_code,
         campaign.recipient_count,
+        attachment_count,
         current_user.id,
     )
     flash(f"Campagna salvata come bozza con {campaign.recipient_count} destinatari.", "success")
     return redirect(url_for("mailing_list.index", list_id=mailing_list.id, modal="campaigns"))
+
+
+@mailing_list_bp.post("/templates")
+@login_required
+@role_required(100)
+def create_template():
+    name = (request.form.get("name") or "").strip()
+    subject = (request.form.get("subject") or "").strip()
+    body = (request.form.get("html_body") or "").strip()
+    if not name or not subject or not body:
+        flash("Nome, oggetto e contenuto del template sono obbligatori.", "warning")
+        return redirect(url_for("mailing_list.index", modal="templates"))
+    if MailingTemplate.query.filter(func.lower(MailingTemplate.name) == name.casefold()).first():
+        flash("Esiste già un template con questo nome.", "warning")
+        return redirect(url_for("mailing_list.index", modal="templates"))
+
+    mailing_template = MailingTemplate(
+        name=name,
+        subject=subject,
+        html_body=body,
+        created_by_user_id=current_user.id,
+    )
+    db.session.add(mailing_template)
+    db.session.commit()
+    logger.info("Template mailing creato template_id=%s user_id=%s", mailing_template.id, current_user.id)
+    flash("Template salvato.", "success")
+    return redirect(url_for("mailing_list.index", modal="templates"))
+
+
+@mailing_list_bp.post("/templates/<int:template_id>/edit")
+@login_required
+@role_required(100)
+def edit_template(template_id):
+    mailing_template = MailingTemplate.query.get_or_404(template_id)
+    name = (request.form.get("name") or "").strip()
+    subject = (request.form.get("subject") or "").strip()
+    body = (request.form.get("html_body") or "").strip()
+    duplicate = MailingTemplate.query.filter(
+        func.lower(MailingTemplate.name) == name.casefold(),
+        MailingTemplate.id != mailing_template.id,
+    ).first()
+    if not name or not subject or not body or duplicate:
+        flash("Dati template incompleti oppure nome già utilizzato.", "warning")
+        return redirect(url_for("mailing_list.index", modal="templates"))
+    mailing_template.name = name
+    mailing_template.subject = subject
+    mailing_template.html_body = body
+    db.session.commit()
+    logger.info("Template mailing modificato template_id=%s user_id=%s", mailing_template.id, current_user.id)
+    flash("Template aggiornato.", "success")
+    return redirect(url_for("mailing_list.index", modal="templates"))
+
+
+@mailing_list_bp.post("/templates/<int:template_id>/delete")
+@login_required
+@role_required(100)
+def delete_template(template_id):
+    mailing_template = MailingTemplate.query.get_or_404(template_id)
+    mailing_template.is_active = False
+    db.session.commit()
+    logger.info("Template mailing disattivato template_id=%s user_id=%s", mailing_template.id, current_user.id)
+    flash("Template eliminato.", "success")
+    return redirect(url_for("mailing_list.index", modal="templates"))
 
 
 @mailing_list_bp.post("/campaigns/<int:campaign_id>/edit")
@@ -466,10 +616,13 @@ def edit_campaign(campaign_id):
         return redirect(url_for("mailing_list.index", modal="campaigns"))
 
     mailing_list = MailingList.query.get_or_404(request.form.get("mailing_list_id", type=int))
+    template_id = request.form.get("template_id", type=int)
+    mailing_template = MailingTemplate.query.filter_by(id=template_id, is_active=True).first() if template_id else None
     campaign.subject = subject
     campaign.html_body = body
     campaign.account_code = (request.form.get("account_code") or "general").strip()
     campaign.mailing_list_id = mailing_list.id
+    campaign.template_id = mailing_template.id if mailing_template else None
     MailingDelivery.query.filter_by(campaign_id=campaign.id).delete(synchronize_session=False)
     campaign.status = "draft"
     campaign.recipient_count = 0
@@ -478,14 +631,21 @@ def edit_campaign(campaign_id):
     campaign.started_at = None
     campaign.completed_at = None
     db.session.flush()
-    prepare_campaign(campaign)
+    try:
+        attachment_count = _save_campaign_attachments(campaign, request.files.getlist("attachments"))
+        prepare_campaign(campaign)
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "warning")
+        return redirect(url_for("mailing_list.index"))
     db.session.commit()
     logger.info(
-        "Campagna modificata campaign_id=%s list_id=%s account=%s recipients=%s user_id=%s",
+        "Campagna modificata campaign_id=%s list_id=%s account=%s recipients=%s new_attachments=%s user_id=%s",
         campaign.id,
         campaign.mailing_list_id,
         campaign.account_code,
         campaign.recipient_count,
+        attachment_count,
         current_user.id,
     )
     flash(f"Campagna aggiornata con {campaign.recipient_count} destinatari.", "success")
@@ -501,10 +661,16 @@ def delete_campaign(campaign_id):
         flash("Non è possibile eliminare una campagna accodata o in invio.", "warning")
         return redirect(url_for("mailing_list.index"))
 
+    attachment_files = [
+        (attachment.storage_path, attachment.id)
+        for attachment in campaign.attachments
+    ]
     subject = campaign.subject
     status = campaign.status
     db.session.delete(campaign)
     db.session.commit()
+    for storage_path, attachment_id in attachment_files:
+        _remove_attachment_file(storage_path, attachment_id)
     logger.info(
         "Campagna eliminata campaign_id=%s subject=%s status=%s user_id=%s",
         campaign_id,
@@ -513,6 +679,32 @@ def delete_campaign(campaign_id):
         current_user.id,
     )
     flash("Campagna eliminata.", "success")
+    return redirect(url_for("mailing_list.index"))
+
+
+@mailing_list_bp.post("/campaigns/<int:campaign_id>/attachments/<int:attachment_id>/delete")
+@login_required
+@role_required(100)
+def delete_campaign_attachment(campaign_id, attachment_id):
+    campaign = MailingCampaign.query.get_or_404(campaign_id)
+    if campaign.status in {"queued", "sending"}:
+        flash("Non è possibile rimuovere allegati durante l'invio.", "warning")
+        return redirect(url_for("mailing_list.index"))
+    attachment = MailingCampaignAttachment.query.filter_by(
+        id=attachment_id,
+        campaign_id=campaign.id,
+    ).first_or_404()
+    storage_path = attachment.storage_path
+    db.session.delete(attachment)
+    db.session.commit()
+    _remove_attachment_file(storage_path, attachment_id)
+    logger.info(
+        "Allegato campagna rimosso campaign_id=%s attachment_id=%s user_id=%s",
+        campaign.id,
+        attachment_id,
+        current_user.id,
+    )
+    flash("Allegato rimosso.", "success")
     return redirect(url_for("mailing_list.index"))
 
 

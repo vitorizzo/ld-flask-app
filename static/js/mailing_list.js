@@ -9,6 +9,39 @@
     const campaignHeading = campaignModal?.querySelector("[data-mailing-campaign-heading]");
     const campaignSubmit = campaignModal?.querySelector("[data-mailing-campaign-submit]");
     const campaignCancel = campaignModal?.querySelector("[data-mailing-campaign-cancel]");
+    const campaignAttachments = campaignModal?.querySelector("[data-mailing-existing-attachments]");
+    const templateModal = document.getElementById("mailingTemplatesModal");
+    const templateForm = templateModal?.querySelector("[data-mailing-template-form]");
+    const templateHeading = templateModal?.querySelector("[data-mailing-template-heading]");
+    const templateSubmit = templateModal?.querySelector("[data-mailing-template-submit]");
+    const templateCancel = templateModal?.querySelector("[data-mailing-template-cancel]");
+
+    const renderCampaignAttachments = (attachments = []) => {
+        if (!campaignAttachments) return;
+        campaignAttachments.replaceChildren();
+        campaignAttachments.classList.toggle("d-none", attachments.length === 0);
+        attachments.forEach((attachment) => {
+            const row = document.createElement("div");
+            row.className = "d-flex flex-wrap justify-content-between align-items-center gap-2 border rounded p-2";
+            const label = document.createElement("span");
+            label.textContent = `${attachment.name} (${Math.max(1, Math.ceil(attachment.size / 1024))} KB)`;
+            const form = document.createElement("form");
+            form.method = "post";
+            form.action = attachment.deleteAction;
+            form.addEventListener("submit", (event) => {
+                if (!window.confirm(`Rimuovere l'allegato ${attachment.name}?`)) {
+                    event.preventDefault();
+                }
+            });
+            const button = document.createElement("button");
+            button.type = "submit";
+            button.className = "btn btn-sm btn-outline-danger";
+            button.textContent = "Rimuovi";
+            form.appendChild(button);
+            row.append(label, form);
+            campaignAttachments.appendChild(row);
+        });
+    };
 
     const resetCampaignForm = () => {
         if (!campaignForm) return;
@@ -19,6 +52,7 @@
         campaignSubmit.textContent = "Salva bozza";
         campaignSubmit.disabled = false;
         campaignCancel.classList.add("d-none");
+        renderCampaignAttachments();
         delete campaignForm.dataset.editingCampaignId;
     };
 
@@ -30,7 +64,9 @@
         campaignForm.elements.mailing_list_id.value = String(campaign.mailingListId ?? "");
         campaignForm.elements.subject.value = campaign.subject ?? "";
         campaignForm.elements.account_code.value = campaign.accountCode ?? "general";
+        campaignForm.elements.template_id.value = String(campaign.templateId ?? "");
         campaignForm.elements.html_body.value = campaign.htmlBody ?? "";
+        renderCampaignAttachments(campaign.attachments);
         campaignForm.dataset.editingCampaignId = String(campaign.id);
         campaignTitle.textContent = "Modifica campagna";
         campaignHeading.textContent = `Modifica: ${campaign.subject}`;
@@ -38,6 +74,29 @@
         campaignSubmit.disabled = false;
         campaignCancel.classList.remove("d-none");
         modalInstances.get("mailingCampaignModal")?.show();
+    };
+
+    const resetTemplateForm = () => {
+        if (!templateForm) return;
+        templateForm.reset();
+        templateForm.action = templateForm.dataset.createAction;
+        templateHeading.textContent = "Nuovo template";
+        templateSubmit.textContent = "Salva template";
+        templateSubmit.disabled = false;
+        templateCancel.classList.add("d-none");
+    };
+
+    const editTemplate = (templateId) => {
+        const template = window.mailingTemplateDetails?.[String(templateId)];
+        if (!templateForm || !template) return;
+        templateForm.action = template.editAction;
+        templateForm.elements.name.value = template.name ?? "";
+        templateForm.elements.subject.value = template.subject ?? "";
+        templateForm.elements.html_body.value = template.htmlBody ?? "";
+        templateHeading.textContent = `Modifica: ${template.name}`;
+        templateSubmit.textContent = "Salva modifiche";
+        templateSubmit.disabled = false;
+        templateCancel.classList.remove("d-none");
     };
 
     modals.forEach((modalElement) => {
@@ -64,6 +123,9 @@
             if (modalElement.id === "mailingCampaignModal") {
                 resetCampaignForm();
             }
+            if (modalElement.id === "mailingTemplatesModal") {
+                resetTemplateForm();
+            }
         });
     });
 
@@ -72,7 +134,14 @@
             if (button.hasAttribute("data-mailing-new-campaign")) {
                 resetCampaignForm();
             }
-            modalInstances.get(button.dataset.mailingOpenModal)?.show();
+            const target = modalInstances.get(button.dataset.mailingOpenModal);
+            const openModal = document.querySelector(".modal.show");
+            if (openModal && openModal.id !== button.dataset.mailingOpenModal) {
+                openModal.addEventListener("hidden.bs.modal", () => target?.show(), {once: true});
+                modalInstances.get(openModal.id)?.hide();
+            } else {
+                target?.show();
+            }
         });
     });
 
@@ -97,6 +166,18 @@
     });
 
     campaignCancel?.addEventListener("click", resetCampaignForm);
+    templateCancel?.addEventListener("click", resetTemplateForm);
+
+    document.querySelectorAll("[data-mailing-edit-template]").forEach((button) => {
+        button.addEventListener("click", () => editTemplate(button.dataset.mailingEditTemplate));
+    });
+
+    campaignForm?.elements.template_id?.addEventListener("change", (event) => {
+        const template = window.mailingTemplateDetails?.[String(event.target.value)];
+        if (!template || !campaignForm) return;
+        campaignForm.elements.subject.value = template.subject ?? "";
+        campaignForm.elements.html_body.value = template.htmlBody ?? "";
+    });
 
     const forms = document.querySelectorAll("[data-mailing-filter-form]");
 
@@ -179,6 +260,8 @@
             ? "mailingCampaignModal"
             : window.mailingRequestedModal === "history"
                 ? "mailingHistoryModal"
+            : window.mailingRequestedModal === "templates"
+                ? "mailingTemplatesModal"
             : null;
     if (requestedModalId) {
         modalInstances.get(requestedModalId)?.show();

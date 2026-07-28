@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from pathlib import Path
 
 from flask import current_app
 from flask_mail import Message
@@ -10,6 +11,19 @@ from tools.log_utils import get_logger
 
 
 logger = get_logger("mailing_list")
+
+
+def _attach_campaign_files(message, campaign):
+    root = (Path(current_app.instance_path) / "mailing_attachments").resolve()
+    for attachment in campaign.attachments:
+        path = (root / attachment.storage_path).resolve()
+        if root not in path.parents or not path.is_file():
+            raise FileNotFoundError(f"Allegato non disponibile: {attachment.original_filename}")
+        message.attach(
+            attachment.original_filename,
+            attachment.mime_type or "application/octet-stream",
+            path.read_bytes(),
+        )
 
 
 def _unsubscribe_url(subscriber):
@@ -173,6 +187,7 @@ def send_campaign(campaign_id):
         footer = f'<hr><p style="font-size:12px;color:#666">Ricevi questa email perche\' sei iscritto alla mailing list LD Enoteca. <a href="{unsubscribe_url}">Disiscriviti</a>.</p>'
         message = Message(subject=campaign.subject, recipients=[subscriber.email], html=campaign.html_body + footer)
         try:
+            _attach_campaign_files(message, campaign)
             smtp_result = send_account_mail(campaign.account_code, message)
             delivery.status, delivery.sent_at, delivery.error_message = "sent", datetime.now(timezone.utc), None
             logger.info(

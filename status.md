@@ -2540,3 +2540,13 @@ Performance apertura giornata Agenda 2026-06-13:
 - La modale ripristina form, action, testi e pulsanti nei lifecycle Bootstrap, evitando di ereditare lo stato della campagna modificata.
 - Verificati route, AST Python, Jinja, JavaScript, rendering autenticato in sola lettura e `git diff --check`.
 - Verifica gerarchia clienti sul DB reale: l'export contiene direttamente associazioni ripetute o semanticamente inattese (ad esempio `FORNITORI` sotto `ALTRO` e `HO.RE.CA.`, `INGROSSO` sotto più categorie); non è stata introdotta una tassonomia inventata. Per correggere semanticamente l'albero serve la matrice categorie/sottocategorie considerata canonica.
+## 2026-07-28 - Template e allegati campagne operativi
+
+- La modale campagna espone ora la selezione del template: scegliendo un template vengono copiati oggetto e contenuto, che restano modificabili nella singola campagna; `template_id` conserva il riferimento sorgente.
+- Aggiunta la modale `Template campagne` con creazione, modifica ed eliminazione logica dei template; una cancellazione non altera i contenuti già copiati nelle campagne.
+- Il form campagna supporta upload multiplo di PDF, JPG/JPEG, PNG, GIF, WEBP, DOC/DOCX e XLS/XLSX, massimo 10 file e 15 MB per file.
+- Gli allegati sono salvati in storage privato sotto `instance/mailing_attachments/<campaign_id>`, con nome casuale, metadati DB e controllo anti path traversal; non sono pubblicati sotto `static`.
+- In modifica sono visibili gli allegati esistenti e possono essere rimossi; cancellando una campagna vengono rimossi anche i file fisici oltre ai record in cascade.
+- `tools/mailing_list.py` aggiunge gli allegati reali al MIME `Message` prima di ogni invio SMTP e tratta un file mancante come errore esplicito della consegna.
+- Logging dedicato `mailing_list` aggiunto per CRUD template e rimozioni allegati, nel rispetto della duplicazione su `mailing_list.log` e `main.log`.
+- Test reale controllato superato: creazione template, campagna con PDF, persistenza privata, associazione `template_id`, costruzione MIME e cleanup completo senza invio SMTP. Superati anche AST Python, Jinja, sintassi JavaScript e `git diff --check`.

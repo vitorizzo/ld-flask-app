@@ -1146,3 +1146,10 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `routes/mailing_list.py`: nuove route POST `/campaigns/<id>/edit` e `/campaigns/<id>/delete`; modifica consentita per bozze/fallite, cancellazione bloccata durante accodamento/invio.
 - `templates/mailing_list/index.html` e `static/js/mailing_list.js`: le righe modificabili aprono la modale campagna precaricata; sono disponibili azioni esplicite `Modifica` ed `Elimina`.
 - La modifica rigenera le `MailingDelivery` dalla lista selezionata e riporta la campagna in bozza.
+### Mailing List - template e allegati operativi (2026-07-28)
+
+- `routes/mailing_list.py`: CRUD template; validazione, persistenza privata e rimozione degli allegati campagne; lo storage è `instance/mailing_attachments`.
+- `templates/mailing_list/index.html`: selettore template, gestione template in modale, upload multiplo e gestione allegati esistenti nel form campagna.
+- `static/js/mailing_list.js`: applicazione template, compilazione delle modali di modifica e rendering/rimozione degli allegati.
+- `tools/mailing_list.py`: caricamento dei file privati e inserimento nel MIME inviato da `send_account_mail`.
+- Modelli e tabelle restano quelli introdotti dalla migration `e8f9a0b1c2d3_add_mailing_campaign_foundation.py`; non è richiesta una nuova migrazione.
