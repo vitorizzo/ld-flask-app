@@ -693,6 +693,14 @@ section {
     margin: 0;
 }
 
+.mailing-campaign-row {
+    cursor: pointer;
+}
+
+.mailing-campaign-row:hover > * {
+    background: rgba(13, 202, 240, 0.1);
+}
+
 .mailing-filter-select {
     min-height: 11rem;
 }

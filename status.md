@@ -2532,3 +2532,11 @@ Performance apertura giornata Agenda 2026-06-13:
 - Il controller separa ora esplicitamente `active_campaigns` e `sent_campaigns`; il parametro `modal=history` è supportato per la riapertura contestuale.
 - Aggiornati i cache key di CSS (`mobile24`) e JavaScript Mailing List (`layout3`).
 - Verificati sintassi JavaScript, AST Python, compilazione Jinja e whitespace della diff.
+## 2026-07-28 - Gestione campagne: modifica, apertura da riga ed eliminazione
+
+- Le campagne in stato `draft` o `failed` sono apribili facendo clic sulla riga oppure tramite l'azione `Modifica`; la modale viene popolata con lista, oggetto, account e contenuto esistenti.
+- Il salvataggio della modifica ricrea lo snapshot dei destinatari sulla lista scelta, azzera i vecchi esiti e riporta la campagna in `draft`.
+- Aggiunta l'azione `Elimina`; è esclusa durante gli stati `queued` e `sending` e rimuove tramite le cascade esistenti consegne, run, pianificazione e allegati collegati.
+- La modale ripristina form, action, testi e pulsanti nei lifecycle Bootstrap, evitando di ereditare lo stato della campagna modificata.
+- Verificati route, AST Python, Jinja, JavaScript, rendering autenticato in sola lettura e `git diff --check`.
+- Verifica gerarchia clienti sul DB reale: l'export contiene direttamente associazioni ripetute o semanticamente inattese (ad esempio `FORNITORI` sotto `ALTRO` e `HO.RE.CA.`, `INGROSSO` sotto più categorie); non è stata introdotta una tassonomia inventata. Per correggere semanticamente l'albero serve la matrice categorie/sottocategorie considerata canonica.

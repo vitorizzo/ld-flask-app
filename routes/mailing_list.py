@@ -448,6 +448,74 @@ def create_campaign():
     return redirect(url_for("mailing_list.index", list_id=mailing_list.id, modal="campaigns"))
 
 
+@mailing_list_bp.post("/campaigns/<int:campaign_id>/edit")
+@login_required
+@role_required(100)
+def edit_campaign(campaign_id):
+    from tools.mailing_list import prepare_campaign
+
+    campaign = MailingCampaign.query.get_or_404(campaign_id)
+    if campaign.status not in {"draft", "failed"}:
+        flash("È possibile modificare soltanto una campagna in bozza o fallita.", "warning")
+        return redirect(url_for("mailing_list.index"))
+
+    subject = (request.form.get("subject") or "").strip()
+    body = (request.form.get("html_body") or "").strip()
+    if not subject or not body:
+        flash("Oggetto e contenuto sono obbligatori.", "warning")
+        return redirect(url_for("mailing_list.index", modal="campaigns"))
+
+    mailing_list = MailingList.query.get_or_404(request.form.get("mailing_list_id", type=int))
+    campaign.subject = subject
+    campaign.html_body = body
+    campaign.account_code = (request.form.get("account_code") or "general").strip()
+    campaign.mailing_list_id = mailing_list.id
+    MailingDelivery.query.filter_by(campaign_id=campaign.id).delete(synchronize_session=False)
+    campaign.status = "draft"
+    campaign.recipient_count = 0
+    campaign.sent_count = 0
+    campaign.failed_count = 0
+    campaign.started_at = None
+    campaign.completed_at = None
+    db.session.flush()
+    prepare_campaign(campaign)
+    db.session.commit()
+    logger.info(
+        "Campagna modificata campaign_id=%s list_id=%s account=%s recipients=%s user_id=%s",
+        campaign.id,
+        campaign.mailing_list_id,
+        campaign.account_code,
+        campaign.recipient_count,
+        current_user.id,
+    )
+    flash(f"Campagna aggiornata con {campaign.recipient_count} destinatari.", "success")
+    return redirect(url_for("mailing_list.index"))
+
+
+@mailing_list_bp.post("/campaigns/<int:campaign_id>/delete")
+@login_required
+@role_required(100)
+def delete_campaign(campaign_id):
+    campaign = MailingCampaign.query.get_or_404(campaign_id)
+    if campaign.status in {"queued", "sending"}:
+        flash("Non è possibile eliminare una campagna accodata o in invio.", "warning")
+        return redirect(url_for("mailing_list.index"))
+
+    subject = campaign.subject
+    status = campaign.status
+    db.session.delete(campaign)
+    db.session.commit()
+    logger.info(
+        "Campagna eliminata campaign_id=%s subject=%s status=%s user_id=%s",
+        campaign_id,
+        subject,
+        status,
+        current_user.id,
+    )
+    flash("Campagna eliminata.", "success")
+    return redirect(url_for("mailing_list.index"))
+
+
 @mailing_list_bp.post("/campaigns/<int:campaign_id>/send")
 @login_required
 @role_required(100)

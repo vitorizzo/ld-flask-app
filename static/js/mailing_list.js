@@ -3,6 +3,42 @@
 
     const modals = Array.from(document.querySelectorAll("[data-mailing-modal]"));
     const modalInstances = new Map();
+    const campaignModal = document.getElementById("mailingCampaignModal");
+    const campaignForm = campaignModal?.querySelector("[data-mailing-campaign-form]");
+    const campaignTitle = campaignModal?.querySelector("[data-mailing-campaign-title]");
+    const campaignHeading = campaignModal?.querySelector("[data-mailing-campaign-heading]");
+    const campaignSubmit = campaignModal?.querySelector("[data-mailing-campaign-submit]");
+    const campaignCancel = campaignModal?.querySelector("[data-mailing-campaign-cancel]");
+
+    const resetCampaignForm = () => {
+        if (!campaignForm) return;
+        campaignForm.reset();
+        campaignForm.action = campaignForm.dataset.createAction;
+        campaignTitle.textContent = "Nuova campagna";
+        campaignHeading.textContent = "Crea campagna";
+        campaignSubmit.textContent = "Salva bozza";
+        campaignSubmit.disabled = false;
+        campaignCancel.classList.add("d-none");
+        delete campaignForm.dataset.editingCampaignId;
+    };
+
+    const editCampaign = (campaignId) => {
+        const campaign = window.mailingCampaignDetails?.[String(campaignId)];
+        if (!campaignForm || !campaign) return;
+
+        campaignForm.action = campaign.editAction;
+        campaignForm.elements.mailing_list_id.value = String(campaign.mailingListId ?? "");
+        campaignForm.elements.subject.value = campaign.subject ?? "";
+        campaignForm.elements.account_code.value = campaign.accountCode ?? "general";
+        campaignForm.elements.html_body.value = campaign.htmlBody ?? "";
+        campaignForm.dataset.editingCampaignId = String(campaign.id);
+        campaignTitle.textContent = "Modifica campagna";
+        campaignHeading.textContent = `Modifica: ${campaign.subject}`;
+        campaignSubmit.textContent = "Salva modifiche";
+        campaignSubmit.disabled = false;
+        campaignCancel.classList.remove("d-none");
+        modalInstances.get("mailingCampaignModal")?.show();
+    };
 
     modals.forEach((modalElement) => {
         document.body.appendChild(modalElement);
@@ -25,14 +61,42 @@
                     button.innerHTML = button.dataset.defaultText;
                 }
             });
+            if (modalElement.id === "mailingCampaignModal") {
+                resetCampaignForm();
+            }
         });
     });
 
     document.querySelectorAll("[data-mailing-open-modal]").forEach((button) => {
         button.addEventListener("click", () => {
+            if (button.hasAttribute("data-mailing-new-campaign")) {
+                resetCampaignForm();
+            }
             modalInstances.get(button.dataset.mailingOpenModal)?.show();
         });
     });
+
+    document.querySelectorAll("[data-mailing-edit-campaign]").forEach((element) => {
+        element.addEventListener("click", (event) => {
+            if (
+                element.matches("tr")
+                && event.target.closest("form, button, a, details, input, select, textarea")
+            ) {
+                return;
+            }
+            event.stopPropagation();
+            editCampaign(element.dataset.mailingEditCampaign);
+        });
+        if (element.matches("tr")) {
+            element.addEventListener("keydown", (event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                editCampaign(element.dataset.mailingEditCampaign);
+            });
+        }
+    });
+
+    campaignCancel?.addEventListener("click", resetCampaignForm);
 
     const forms = document.querySelectorAll("[data-mailing-filter-form]");
 

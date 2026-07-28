@@ -1141,3 +1141,8 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `routes/mailing_list.py`: espone alla vista campagne attive e campagne inviate (`sent`) come collezioni distinte.
 - `static/css/style.css`: le modali Mailing List hanno uno z-index applicativo superiore al backdrop globale e restano interagibili.
 - `static/js/mailing_list.js`: gestisce anche apertura e ripristino contestuale della modale storico.
+### Mailing List - modifica ed eliminazione campagne (2026-07-28)
+
+- `routes/mailing_list.py`: nuove route POST `/campaigns/<id>/edit` e `/campaigns/<id>/delete`; modifica consentita per bozze/fallite, cancellazione bloccata durante accodamento/invio.
+- `templates/mailing_list/index.html` e `static/js/mailing_list.js`: le righe modificabili aprono la modale campagna precaricata; sono disponibili azioni esplicite `Modifica` ed `Elimina`.
+- La modifica rigenera le `MailingDelivery` dalla lista selezionata e riporta la campagna in bozza.

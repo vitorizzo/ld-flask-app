@@ -16,7 +16,12 @@
       </thead>
       <tbody>
         {% for campaign in campaign_items %}
-          <tr>
+          <tr class="{% if campaign.status in ['draft', 'failed'] %}mailing-campaign-row{% endif %}"
+              {% if campaign.status in ['draft', 'failed'] %}
+                role="button"
+                tabindex="0"
+                data-mailing-edit-campaign="{{ campaign.id }}"
+              {% endif %}>
             <td>{{ campaign.subject }}</td>
             <td>{{ campaign.mailing_list.name if campaign.mailing_list else '-' }}</td>
             <td><span class="badge text-bg-secondary">{{ campaign.status }}</span></td>
@@ -43,10 +48,23 @@
             <td>
               <div class="d-flex flex-wrap gap-2">
                 {% if campaign.status in ['draft', 'failed'] %}
+                  <button class="btn btn-sm btn-outline-info"
+                          type="button"
+                          data-mailing-edit-campaign="{{ campaign.id }}">Modifica</button>
+                {% endif %}
+                {% if campaign.status in ['draft', 'failed'] %}
                   <form method="post"
                         action="{{ url_for('mailing_list.send_campaign', campaign_id=campaign.id) }}"
                         onsubmit="return confirm('Inviare questa campagna alla lista selezionata?');">
                     <button class="btn btn-sm btn-success" type="submit">Invia</button>
+                  </form>
+                {% endif %}
+                {% if campaign.status not in ['queued', 'sending'] %}
+                  <form method="post"
+                        action="{{ url_for('mailing_list.delete_campaign', campaign_id=campaign.id) }}"
+                        data-mailing-row-action
+                        onsubmit="return confirm('Eliminare definitivamente questa campagna e tutti i relativi esiti di invio?');">
+                    <button class="btn btn-sm btn-outline-danger" type="submit">Elimina</button>
                   </form>
                 {% endif %}
                 {% if campaign.status in ['sent', 'failed'] %}
@@ -79,7 +97,10 @@
         <button class="btn btn-outline-info" type="button" data-mailing-open-modal="mailingListsModal">
           <i class="fa-solid fa-address-book me-1" aria-hidden="true"></i>Liste di Invio
         </button>
-        <button class="btn btn-info" type="button" data-mailing-open-modal="mailingCampaignModal">
+        <button class="btn btn-info"
+                type="button"
+                data-mailing-open-modal="mailingCampaignModal"
+                data-mailing-new-campaign>
           <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Nuova campagna
         </button>
         <button class="btn btn-outline-light" type="button" data-mailing-open-modal="mailingHistoryModal">
@@ -307,15 +328,19 @@
     <div class="modal-content">
       <div class="modal-header">
         <div>
-          <h2 class="modal-title h5 mb-1" id="mailingCampaignModalLabel">Nuova campagna</h2>
+          <h2 class="modal-title h5 mb-1" id="mailingCampaignModalLabel" data-mailing-campaign-title>Nuova campagna</h2>
           <p class="text-muted small mb-0">Crea una comunicazione e consulta tutte le campagne.</p>
         </div>
         <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
       <div class="modal-body">
         <div class="mailing-modal-panel mb-4">
-          <h3 class="h6">Crea campagna</h3>
-          <form method="post" action="{{ url_for('mailing_list.create_campaign') }}" class="row g-3">
+          <h3 class="h6" data-mailing-campaign-heading>Crea campagna</h3>
+          <form method="post"
+                action="{{ url_for('mailing_list.create_campaign') }}"
+                data-mailing-campaign-form
+                data-create-action="{{ url_for('mailing_list.create_campaign') }}"
+                class="row g-3">
             <div class="col-md-4">
               <label class="form-label">Lista di invio</label>
               <select class="form-select" name="mailing_list_id" required>
@@ -343,7 +368,10 @@
               <textarea class="form-control" name="html_body" rows="8" required></textarea>
             </div>
             <div class="col-12">
-              <button class="btn btn-info" type="submit">Salva bozza</button>
+              <button class="btn btn-info" type="submit" data-mailing-campaign-submit>Salva bozza</button>
+              <button class="btn btn-outline-light d-none"
+                      type="button"
+                      data-mailing-campaign-cancel>Annulla modifica</button>
             </div>
           </form>
         </div>
@@ -391,6 +419,18 @@
 {% block extra_js %}
   <script>
     window.mailingRequestedModal = {{ requested_modal|tojson }};
+    window.mailingCampaignDetails = {
+      {% for campaign in campaigns %}
+        {{ campaign.id|tojson }}: {
+          id: {{ campaign.id|tojson }},
+          subject: {{ campaign.subject|tojson }},
+          htmlBody: {{ campaign.html_body|tojson }},
+          accountCode: {{ campaign.account_code|tojson }},
+          mailingListId: {{ campaign.mailing_list_id|tojson }},
+          editAction: {{ url_for('mailing_list.edit_campaign', campaign_id=campaign.id)|tojson }}
+        }{% if not loop.last %},{% endif %}
+      {% endfor %}
+    };
   </script>
-  <script src="{{ url_for('static', filename='js/mailing_list.js', v=app_version ~ '-layout3') }}"></script>
+  <script src="{{ url_for('static', filename='js/mailing_list.js', v=app_version ~ '-layout4') }}"></script>
 {% endblock %}
