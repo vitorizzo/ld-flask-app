@@ -668,6 +668,10 @@ section {
     max-width: min(96vw, 1400px);
 }
 
+.modal.mailing-management-modal {
+    z-index: 12050;
+}
+
 .mailing-management-modal .modal-content {
     max-height: calc(100dvh - 2rem);
 }

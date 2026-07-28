@@ -113,6 +113,8 @@
         ? "mailingListsModal"
         : window.mailingRequestedModal === "campaigns"
             ? "mailingCampaignModal"
+            : window.mailingRequestedModal === "history"
+                ? "mailingHistoryModal"
             : null;
     if (requestedModalId) {
         modalInstances.get(requestedModalId)?.show();

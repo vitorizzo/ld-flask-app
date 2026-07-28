@@ -2525,3 +2525,10 @@ Performance apertura giornata Agenda 2026-06-13:
   - riallineate nel DB 2.026 anagrafiche clienti tramite l'import corretto, senza nuovi record o contatti;
   - cache CSS `mobile23` e JS mailing `layout2`;
   - verificati parser sul CSV reale, gerarchia DB, rendering autenticato, separazione pagina/modali, redirect di riapertura, Jinja, sintassi Python/JavaScript e `git diff --check`.
+## 2026-07-28 - Mailing List: modali interattive e storico campagne
+
+- Corretto il livello delle modali Mailing List: `.mailing-management-modal` usa ora `z-index: 12050`, superiore al backdrop applicativo globale (`12040`), evitando che la modale aperta resti coperta e non interagibile.
+- Aggiunto nella pagina principale il pulsante `Storico campagne`, con modale dedicata alle campagne completate (`status = sent`).
+- Il controller separa ora esplicitamente `active_campaigns` e `sent_campaigns`; il parametro `modal=history` è supportato per la riapertura contestuale.
+- Aggiornati i cache key di CSS (`mobile24`) e JavaScript Mailing List (`layout3`).
+- Verificati sintassi JavaScript, AST Python, compilazione Jinja e whitespace della diff.

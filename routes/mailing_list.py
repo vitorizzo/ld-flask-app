@@ -218,6 +218,11 @@ def index():
         for campaign in campaigns
         if campaign.status in {"draft", "queued", "sending", "failed"}
     ]
+    sent_campaigns = [
+        campaign
+        for campaign in campaigns
+        if campaign.status == "sent"
+    ]
     campaign_errors = {}
     campaign_ids = [campaign.id for campaign in campaigns]
     if campaign_ids:
@@ -269,13 +274,18 @@ def index():
         members=members,
         campaigns=campaigns,
         active_campaigns=active_campaigns,
+        sent_campaigns=sent_campaigns,
         campaign_errors=campaign_errors,
         accounts=accounts,
         customer_filter_tree=customer_filter_tree,
         roles=roles,
         selected_clusters=selected_clusters,
         selected_role_ids=selected_role_ids,
-        requested_modal=request.args.get("modal") if request.args.get("modal") in {"lists", "campaigns"} else None,
+        requested_modal=(
+            request.args.get("modal")
+            if request.args.get("modal") in {"lists", "campaigns", "history"}
+            else None
+        ),
     )
 
 

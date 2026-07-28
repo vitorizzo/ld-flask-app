@@ -82,6 +82,9 @@
         <button class="btn btn-info" type="button" data-mailing-open-modal="mailingCampaignModal">
           <i class="fa-solid fa-plus me-1" aria-hidden="true"></i>Nuova campagna
         </button>
+        <button class="btn btn-outline-light" type="button" data-mailing-open-modal="mailingHistoryModal">
+          <i class="fa-solid fa-clock-rotate-left me-1" aria-hidden="true"></i>Storico campagne
+        </button>
       </div>
     </div>
 
@@ -356,11 +359,38 @@
     </div>
   </div>
 </div>
+
+<div class="modal fade mailing-management-modal"
+     id="mailingHistoryModal"
+     tabindex="-1"
+     aria-labelledby="mailingHistoryModalLabel"
+     aria-hidden="true"
+     data-mailing-modal>
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title h5 mb-1" id="mailingHistoryModalLabel">Storico campagne</h2>
+          <p class="text-muted small mb-0">Campagne il cui invio risulta completato.</p>
+        </div>
+        <button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mailing-modal-panel">
+          {{ campaign_table(sent_campaigns, 'Nessuna campagna inviata nello storico.') }}
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
   <script>
     window.mailingRequestedModal = {{ requested_modal|tojson }};
   </script>
-  <script src="{{ url_for('static', filename='js/mailing_list.js', v=app_version ~ '-layout2') }}"></script>
+  <script src="{{ url_for('static', filename='js/mailing_list.js', v=app_version ~ '-layout3') }}"></script>
 {% endblock %}
