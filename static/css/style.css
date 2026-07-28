@@ -664,6 +664,31 @@ section {
     -webkit-overflow-scrolling: touch;
 }
 
+.mailing-management-modal .modal-dialog {
+    max-width: min(96vw, 1400px);
+}
+
+.mailing-management-modal .modal-content {
+    max-height: calc(100dvh - 2rem);
+}
+
+.mailing-management-modal .modal-body {
+    min-height: 0;
+}
+
+.mailing-modal-panel {
+    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 0.65rem;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+.mailing-campaign-table .table,
+.mailing-members-table .table {
+    width: 100%;
+    margin: 0;
+}
+
 .mailing-filter-select {
     min-height: 11rem;
 }
@@ -787,6 +812,19 @@ section {
 }
 
 @media (max-width: 575.98px) {
+    .mailing-management-modal .modal-dialog {
+        max-width: none;
+        min-height: 100%;
+        margin: 0;
+    }
+
+    .mailing-management-modal .modal-content {
+        min-height: 100dvh;
+        max-height: 100dvh;
+        border: 0;
+        border-radius: 0;
+    }
+
     .mailing-filter-summary {
         flex-basis: 100%;
         margin-left: 0;

@@ -89,14 +89,17 @@ def _activate_member(mailing_list, subscriber, source_type, source_entity_id=Non
 def _sync_customers(mailing_list):
     config = mailing_list.filter_config or {}
     selected = {
-        (str(item.get("category_code") or ""), str(item.get("subcategory_code") or ""))
+        (
+            str(item.get("category_code") or ""),
+            str(item.get("subcategory_description") or item.get("subcategory_code") or ""),
+        )
         for item in config.get("clusters", [])
     }
     selection_is_explicit = config.get("filter_mode") == "selected" or bool(config.get("clusters"))
     registries = BusinessRegistry.query.filter_by(kind="customer", is_active=True).all()
     count = 0
     for registry in registries:
-        cluster = (registry.category_code or "", registry.subcategory_code or "")
+        cluster = (registry.category_code or "", registry.subcategory_description or "")
         if selection_is_explicit and cluster not in selected:
             continue
         for contact in registry.contacts:
@@ -139,34 +142,41 @@ def _customer_filter_tree():
     rows = (
         db.session.query(
             BusinessRegistry.category_code,
-            BusinessRegistry.subcategory_code,
+            BusinessRegistry.category_description,
+            BusinessRegistry.subcategory_description,
             func.count(BusinessRegistry.id),
         )
         .filter(BusinessRegistry.kind == "customer", BusinessRegistry.is_active.is_(True))
-        .group_by(BusinessRegistry.category_code, BusinessRegistry.subcategory_code)
+        .group_by(
+            BusinessRegistry.category_code,
+            BusinessRegistry.category_description,
+            BusinessRegistry.subcategory_description,
+        )
         .all()
     )
     grouped = {}
-    for category_code, subcategory_code, customer_count in rows:
+    for category_code, category_description, subcategory_description, customer_count in rows:
         category_key = category_code or ""
-        subcategory_key = subcategory_code or ""
+        subcategory_key = subcategory_description or ""
         category = grouped.setdefault(category_key, {
             "code": category_key,
-            "label": category_key or "Senza categoria",
+            "label": category_description or category_key or "Senza categoria",
             "customer_count": 0,
-            "subcategories": [],
+            "subcategories": {},
         })
         category["customer_count"] += int(customer_count or 0)
-        category["subcategories"].append({
+        subcategory = category["subcategories"].setdefault(subcategory_key, {
             "code": subcategory_key,
             "label": subcategory_key or "Senza sottocategoria",
             "value": f"{category_key}|{subcategory_key}",
-            "customer_count": int(customer_count or 0),
+            "customer_count": 0,
         })
+        subcategory["customer_count"] += int(customer_count or 0)
 
     tree = list(grouped.values())
     tree.sort(key=lambda item: item["label"].casefold())
     for category in tree:
+        category["subcategories"] = list(category["subcategories"].values())
         category["subcategories"].sort(key=lambda item: item["label"].casefold())
     return tree
 
@@ -174,11 +184,11 @@ def _customer_filter_tree():
 def _customer_filter_config(values):
     clusters = []
     for value in values:
-        category_code, separator, subcategory_code = value.partition("|")
+        category_code, separator, subcategory_description = value.partition("|")
         if separator:
             clusters.append({
                 "category_code": category_code,
-                "subcategory_code": subcategory_code,
+                "subcategory_description": subcategory_description,
             })
     return {"filter_mode": "selected", "clusters": clusters}
 
@@ -203,6 +213,11 @@ def index():
             .all()
         )
     campaigns = MailingCampaign.query.order_by(MailingCampaign.created_at.desc()).limit(50).all()
+    active_campaigns = [
+        campaign
+        for campaign in campaigns
+        if campaign.status in {"draft", "queued", "sending", "failed"}
+    ]
     campaign_errors = {}
     campaign_ids = [campaign.id for campaign in campaigns]
     if campaign_ids:
@@ -226,7 +241,10 @@ def index():
     roles = Role.query.order_by(Role.name).all()
     selected_filter_config = (selected_list.filter_config or {}) if selected_list else {}
     selected_clusters = {
-        f"{item.get('category_code') or ''}|{item.get('subcategory_code') or ''}"
+        (
+            f"{item.get('category_code') or ''}|"
+            f"{item.get('subcategory_description') or item.get('subcategory_code') or ''}"
+        )
         for item in (selected_filter_config.get("clusters", []) if selected_list else [])
     }
     if (
@@ -250,12 +268,14 @@ def index():
         selected_list=selected_list,
         members=members,
         campaigns=campaigns,
+        active_campaigns=active_campaigns,
         campaign_errors=campaign_errors,
         accounts=accounts,
         customer_filter_tree=customer_filter_tree,
         roles=roles,
         selected_clusters=selected_clusters,
         selected_role_ids=selected_role_ids,
+        requested_modal=request.args.get("modal") if request.args.get("modal") in {"lists", "campaigns"} else None,
     )
 
 
@@ -267,10 +287,10 @@ def create_list():
     source_type = (request.form.get("source_type") or "manual").strip()
     if not name or source_type not in {"manual", "customers", "users"}:
         flash("Nome o origine della lista non validi.", "warning")
-        return redirect(url_for("mailing_list.index"))
+        return redirect(url_for("mailing_list.index", modal="lists"))
     if MailingList.query.filter(func.lower(MailingList.name) == name.casefold()).first():
         flash("Esiste già una lista con questo nome.", "warning")
-        return redirect(url_for("mailing_list.index"))
+        return redirect(url_for("mailing_list.index", modal="lists"))
     mailing_list = MailingList(name=name, source_type=source_type)
     db.session.add(mailing_list)
     db.session.commit()
@@ -282,7 +302,7 @@ def create_list():
         current_user.id,
     )
     flash("Mailing list creata.", "success")
-    return redirect(url_for("mailing_list.index", list_id=mailing_list.id))
+    return redirect(url_for("mailing_list.index", list_id=mailing_list.id, modal="lists"))
 
 
 @mailing_list_bp.post("/lists/<int:list_id>/sync")
@@ -300,7 +320,7 @@ def sync_list(list_id):
         current_user.id,
     )
     flash(f"Lista sincronizzata: {count} indirizzi elaborati.", "success")
-    return redirect(url_for("mailing_list.index", list_id=mailing_list.id))
+    return redirect(url_for("mailing_list.index", list_id=mailing_list.id, modal="lists"))
 
 
 @mailing_list_bp.post("/lists/<int:list_id>/filters")
@@ -322,7 +342,7 @@ def update_filters(list_id):
         current_user.id,
     )
     flash(f"Filtri applicati: {count} indirizzi elaborati.", "success")
-    return redirect(url_for("mailing_list.index", list_id=mailing_list.id))
+    return redirect(url_for("mailing_list.index", list_id=mailing_list.id, modal="lists"))
 
 
 @mailing_list_bp.post("/subscribers")
@@ -335,7 +355,7 @@ def add_subscriber():
     normalized = email.casefold()
     if not email or "@" not in email:
         flash("Inserisci un indirizzo email valido.", "warning")
-        return redirect(url_for("mailing_list.index"))
+        return redirect(url_for("mailing_list.index", list_id=mailing_list.id, modal="lists"))
     subscriber = MailingSubscriber.query.filter(func.lower(MailingSubscriber.email) == normalized).first()
     now = datetime.now(timezone.utc)
     if subscriber:
@@ -355,7 +375,7 @@ def add_subscriber():
         current_user.id,
     )
     flash("Iscritto salvato.", "success")
-    return redirect(url_for("mailing_list.index", list_id=mailing_list.id))
+    return redirect(url_for("mailing_list.index", list_id=mailing_list.id, modal="lists"))
 
 
 @mailing_list_bp.post("/subscribers/<int:subscriber_id>/toggle")
@@ -376,7 +396,11 @@ def toggle_subscriber(subscriber_id):
         subscriber.status,
         current_user.id,
     )
-    return redirect(url_for("mailing_list.index", list_id=request.form.get("mailing_list_id", type=int)))
+    return redirect(url_for(
+        "mailing_list.index",
+        list_id=request.form.get("mailing_list_id", type=int),
+        modal="lists",
+    ))
 
 
 @mailing_list_bp.post("/campaigns")
@@ -389,7 +413,7 @@ def create_campaign():
     body = (request.form.get("html_body") or "").strip()
     if not subject or not body:
         flash("Oggetto e contenuto sono obbligatori.", "warning")
-        return redirect(url_for("mailing_list.index"))
+        return redirect(url_for("mailing_list.index", modal="campaigns"))
     mailing_list = MailingList.query.get_or_404(request.form.get("mailing_list_id", type=int))
     campaign = MailingCampaign(
         subject=subject,
@@ -411,7 +435,7 @@ def create_campaign():
         current_user.id,
     )
     flash(f"Campagna salvata come bozza con {campaign.recipient_count} destinatari.", "success")
-    return redirect(url_for("mailing_list.index", list_id=mailing_list.id))
+    return redirect(url_for("mailing_list.index", list_id=mailing_list.id, modal="campaigns"))
 
 
 @mailing_list_bp.post("/campaigns/<int:campaign_id>/send")

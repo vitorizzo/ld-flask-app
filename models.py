@@ -259,6 +259,27 @@ class MailingListMember(db.Model):
     subscriber = db.relationship("MailingSubscriber", backref=db.backref("list_memberships", lazy="selectin"))
 
 
+class MailingTemplate(db.Model):
+    __tablename__ = "mailing_templates"
+    __table_args__ = (db.UniqueConstraint("name", name="uq_mailing_templates_name"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(160), nullable=False)
+    subject = db.Column(db.String(255), nullable=False)
+    html_body = db.Column(db.Text, nullable=False)
+    is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    created_by = db.relationship("User", backref="mailing_templates")
+
+
 class MailingCampaign(db.Model):
     __tablename__ = "mailing_campaigns"
     id = db.Column(db.Integer, primary_key=True)
@@ -266,6 +287,12 @@ class MailingCampaign(db.Model):
     html_body = db.Column(db.Text, nullable=False)
     account_code = db.Column(db.String(50), nullable=False, default="general")
     mailing_list_id = db.Column(db.Integer, db.ForeignKey("mailing_lists.id"), nullable=True, index=True)
+    template_id = db.Column(
+        db.Integer,
+        db.ForeignKey("mailing_templates.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     status = db.Column(db.String(20), nullable=False, default="draft", index=True)
     recipient_count = db.Column(db.Integer, nullable=False, default=0)
     sent_count = db.Column(db.Integer, nullable=False, default=0)
@@ -276,6 +303,138 @@ class MailingCampaign(db.Model):
     completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
     created_by = db.relationship("User", backref="mailing_campaigns")
     mailing_list = db.relationship("MailingList", backref="campaigns")
+    template = db.relationship("MailingTemplate", backref="campaigns")
+
+
+class MailingCampaignAttachment(db.Model):
+    __tablename__ = "mailing_campaign_attachments"
+    __table_args__ = (
+        db.UniqueConstraint("storage_path", name="uq_mailing_campaign_attachments_storage_path"),
+        db.CheckConstraint("file_size > 0", name="ck_mailing_campaign_attachment_size"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("mailing_campaigns.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    original_filename = db.Column(db.String(255), nullable=False)
+    storage_path = db.Column(db.String(500), nullable=False)
+    mime_type = db.Column(db.String(120), nullable=False)
+    file_size = db.Column(db.BigInteger, nullable=False)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    campaign = db.relationship(
+        "MailingCampaign",
+        backref=db.backref("attachments", cascade="all, delete-orphan", lazy="selectin"),
+    )
+    created_by = db.relationship("User", backref="mailing_campaign_attachments")
+
+
+class MailingCampaignSchedule(db.Model):
+    __tablename__ = "mailing_campaign_schedules"
+    __table_args__ = (
+        db.UniqueConstraint("campaign_id", name="uq_mailing_campaign_schedules_campaign"),
+        db.Index("ix_mailing_campaign_schedules_due", "status", "next_run_at"),
+        db.CheckConstraint(
+            "mode IN ('single', 'periodic', 'multiple', 'until')",
+            name="ck_mailing_campaign_schedule_mode",
+        ),
+        db.CheckConstraint(
+            "status IN ('draft', 'active', 'paused', 'completed', 'cancelled')",
+            name="ck_mailing_campaign_schedule_status",
+        ),
+        db.CheckConstraint(
+            "interval_unit IS NULL OR interval_unit IN ('day', 'week', 'month')",
+            name="ck_mailing_campaign_schedule_interval_unit",
+        ),
+        db.CheckConstraint(
+            "interval_value IS NULL OR interval_value > 0",
+            name="ck_mailing_campaign_schedule_interval_value",
+        ),
+        db.CheckConstraint(
+            "max_runs IS NULL OR max_runs > 0",
+            name="ck_mailing_campaign_schedule_max_runs",
+        ),
+        db.CheckConstraint(
+            "completed_runs >= 0",
+            name="ck_mailing_campaign_schedule_completed_runs",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("mailing_campaigns.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    mode = db.Column(db.String(20), nullable=False, default="single")
+    status = db.Column(db.String(20), nullable=False, default="draft", index=True)
+    starts_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    interval_value = db.Column(db.Integer, nullable=True)
+    interval_unit = db.Column(db.String(12), nullable=True)
+    ends_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    max_runs = db.Column(db.Integer, nullable=True)
+    completed_runs = db.Column(db.Integer, nullable=False, default=0)
+    next_run_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
+    last_run_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    campaign = db.relationship(
+        "MailingCampaign",
+        backref=db.backref("schedule", uselist=False, cascade="all, delete-orphan"),
+    )
+
+
+class MailingCampaignRun(db.Model):
+    __tablename__ = "mailing_campaign_runs"
+    __table_args__ = (
+        db.UniqueConstraint("campaign_id", "run_number", name="uq_mailing_campaign_run_number"),
+        db.Index("ix_mailing_campaign_runs_campaign_status", "campaign_id", "status"),
+        db.CheckConstraint("run_number > 0", name="ck_mailing_campaign_run_number"),
+        db.CheckConstraint(
+            "trigger_type IN ('manual', 'scheduled', 'legacy')",
+            name="ck_mailing_campaign_run_trigger",
+        ),
+        db.CheckConstraint(
+            "status IN ('pending', 'queued', 'sending', 'sent', 'failed', 'cancelled')",
+            name="ck_mailing_campaign_run_status",
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey("mailing_campaigns.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    run_number = db.Column(db.Integer, nullable=False)
+    trigger_type = db.Column(db.String(20), nullable=False, default="manual")
+    scheduled_for = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
+    status = db.Column(db.String(20), nullable=False, default="pending", index=True)
+    recipient_count = db.Column(db.Integer, nullable=False, default=0)
+    sent_count = db.Column(db.Integer, nullable=False, default=0)
+    failed_count = db.Column(db.Integer, nullable=False, default=0)
+    started_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    completed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    error_message = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    campaign = db.relationship(
+        "MailingCampaign",
+        backref=db.backref("runs", cascade="all, delete-orphan", lazy="selectin"),
+    )
 
 
 class MailingDelivery(db.Model):
@@ -283,11 +442,21 @@ class MailingDelivery(db.Model):
     __table_args__ = (db.UniqueConstraint("campaign_id", "subscriber_id", name="uq_mailing_delivery_recipient"),)
     id = db.Column(db.Integer, primary_key=True)
     campaign_id = db.Column(db.Integer, db.ForeignKey("mailing_campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
+    run_id = db.Column(
+        db.Integer,
+        db.ForeignKey("mailing_campaign_runs.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
     subscriber_id = db.Column(db.Integer, db.ForeignKey("mailing_subscribers.id", ondelete="CASCADE"), nullable=False, index=True)
     status = db.Column(db.String(20), nullable=False, default="pending", index=True)
     error_message = db.Column(db.Text, nullable=True)
     sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
     campaign = db.relationship("MailingCampaign", backref=db.backref("deliveries", cascade="all, delete-orphan"))
+    run = db.relationship(
+        "MailingCampaignRun",
+        backref=db.backref("deliveries", cascade="all, delete-orphan"),
+    )
     subscriber = db.relationship("MailingSubscriber")
 
 

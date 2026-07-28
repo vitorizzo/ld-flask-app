@@ -2506,3 +2506,22 @@ Performance apertura giornata Agenda 2026-06-13:
   - una configurazione storica vuota continua inizialmente a rappresentare tutti i clienti e viene mostrata con tutte le checkbox selezionate; dopo il primo salvataggio `filter_mode=selected` rende esplicita anche una selezione vuota, che produce zero destinatari;
   - asset `static/js/mailing_list.js`, stili in `static/css/style.css`, cache CSS `mobile22` e JS `filters1`;
   - verificati albero DB reale, rendering autenticato, semantica config vuota/parziale, template Jinja, sintassi Python/JavaScript e `git diff --check`.
+- 2026-07-28 fondazione campagne mailing evolute:
+  - aggiunti i modelli `MailingTemplate`, `MailingCampaignAttachment`, `MailingCampaignSchedule` e `MailingCampaignRun`;
+  - `MailingCampaign.template_id` conserva il template sorgente senza vincolare le successive modifiche della campagna;
+  - gli allegati conservano metadati e percorso storage privato; la gestione fisica dei file e la UI saranno implementate nel prossimo step;
+  - le pianificazioni supportano a livello dati `single`, `periodic`, `multiple` e `until`, intervalli in giorni/settimane/mesi, prossima esecuzione, pausa/completamento e contatori;
+  - ogni esecuzione ha numero progressivo, origine manuale/programmata/legacy, stato, conteggi, date ed eventuale errore;
+  - `MailingDelivery.run_id` collega le consegne all'esecuzione; resta temporaneamente nullable e il vecchio vincolo campagna/destinatario resta attivo finche' il motore di invio non viene convertito, mantenendo compatibile l'app attuale;
+  - migration `e8f9a0b1c2d3_add_mailing_campaign_foundation.py` applicata al DB; backfill: campagna storica convertita in run `legacy` con 3 consegne collegate e zero orfane;
+  - verificati upgrade, downgrade e nuovo upgrade fino a head `e8f9a0b1c2d3`; test CRUD temporaneo superato per template, campagna, allegato, schedule, run, delivery, relazioni e cascade, con cleanup completo.
+- 2026-07-28 riorganizzazione pagina mailing list e gerarchia TeamSystem:
+  - la pagina principale mostra soltanto le campagne attive (`draft`, `queued`, `sending`, `failed`) e i pulsanti `Liste di Invio` e `Nuova campagna`;
+  - `Liste di Invio` apre una modale XL con scelta/creazione lista, sincronizzazione, filtri, aggiunta manuale e tabella destinatari; i redirect delle operazioni riaprono automaticamente la stessa modale e la lista selezionata;
+  - `Nuova campagna` apre una modale XL con form di creazione e gestione di tutte le campagne, incluse quelle completate;
+  - entrambe le modali vengono portate nel `body`, aperte tramite istanza Bootstrap e ripristinano esplicitamente pulsanti/testo nei lifecycle `shown.bs.modal`/`hidden.bs.modal`;
+  - corretto il mapping import TeamSystem: categoria `22/23` (codice/descrizione), sottocategoria descrittiva `25`; la colonna `26` e' un parametro commerciale e non una descrizione;
+  - poiche' nessun presunto codice sottocategoria e' univoco, i filtri usano la coppia affidabile `category_code + subcategory_description`; l'albero mostra 6 categorie e 62 sottocategorie associate senza collisioni;
+  - riallineate nel DB 2.026 anagrafiche clienti tramite l'import corretto, senza nuovi record o contatti;
+  - cache CSS `mobile23` e JS mailing `layout2`;
+  - verificati parser sul CSV reale, gerarchia DB, rendering autenticato, separazione pagina/modali, redirect di riapertura, Jinja, sintassi Python/JavaScript e `git diff --check`.

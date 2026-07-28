@@ -1,6 +1,39 @@
 (() => {
     "use strict";
 
+    const modals = Array.from(document.querySelectorAll("[data-mailing-modal]"));
+    const modalInstances = new Map();
+
+    modals.forEach((modalElement) => {
+        document.body.appendChild(modalElement);
+        const instance = bootstrap.Modal.getOrCreateInstance(modalElement);
+        modalInstances.set(modalElement.id, instance);
+
+        modalElement.addEventListener("shown.bs.modal", () => {
+            modalElement.querySelectorAll("button[type='submit']").forEach((button) => {
+                button.disabled = false;
+                if (!button.dataset.defaultText) {
+                    button.dataset.defaultText = button.innerHTML;
+                }
+            });
+        });
+
+        modalElement.addEventListener("hidden.bs.modal", () => {
+            modalElement.querySelectorAll("button[type='submit']").forEach((button) => {
+                button.disabled = false;
+                if (button.dataset.defaultText) {
+                    button.innerHTML = button.dataset.defaultText;
+                }
+            });
+        });
+    });
+
+    document.querySelectorAll("[data-mailing-open-modal]").forEach((button) => {
+        button.addEventListener("click", () => {
+            modalInstances.get(button.dataset.mailingOpenModal)?.show();
+        });
+    });
+
     const forms = document.querySelectorAll("[data-mailing-filter-form]");
 
     forms.forEach((form) => {
@@ -75,4 +108,13 @@
 
         syncTree();
     });
+
+    const requestedModalId = window.mailingRequestedModal === "lists"
+        ? "mailingListsModal"
+        : window.mailingRequestedModal === "campaigns"
+            ? "mailingCampaignModal"
+            : null;
+    if (requestedModalId) {
+        modalInstances.get(requestedModalId)?.show();
+    }
 })();
