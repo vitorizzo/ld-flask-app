@@ -439,7 +439,9 @@ class MailingCampaignRun(db.Model):
 
 class MailingDelivery(db.Model):
     __tablename__ = "mailing_deliveries"
-    __table_args__ = (db.UniqueConstraint("campaign_id", "subscriber_id", name="uq_mailing_delivery_recipient"),)
+    __table_args__ = (
+        db.UniqueConstraint("run_id", "subscriber_id", name="uq_mailing_delivery_run_recipient"),
+    )
     id = db.Column(db.Integer, primary_key=True)
     campaign_id = db.Column(db.Integer, db.ForeignKey("mailing_campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
     run_id = db.Column(

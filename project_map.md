@@ -1153,3 +1153,15 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `static/js/mailing_list.js`: applicazione template, compilazione delle modali di modifica e rendering/rimozione degli allegati.
 - `tools/mailing_list.py`: caricamento dei file privati e inserimento nel MIME inviato da `send_account_mail`.
 - Modelli e tabelle restano quelli introdotti dalla migration `e8f9a0b1c2d3_add_mailing_campaign_foundation.py`; non è richiesta una nuova migrazione.
+### Flash globali (2026-07-28)
+
+- `templates/base.html` rende centralmente i flash in `#flash-message`.
+- `static/js/base.js` applica chiusura automatica universale con timeout differenziato per severità e pausa su hover/focus.
+### Mailing List - scheduler ciclico (2026-07-29)
+
+- `migrations/versions/f9a0b1c2d3e4_enable_recurring_mailing_runs.py`: rende le consegne univoche per esecuzione e destinatario, consentendo più cicli della stessa campagna.
+- `tools/mailing_list.py`: snapshot destinatari per run, invio run-specifico, avanzamento giornaliero/settimanale/mensile e dispatcher delle pianificazioni scadute.
+- `config/tasks.py`: `send_mailing_campaign_task` accetta il `run_id`; nuovo `dispatch_due_mailing_schedules_task`.
+- `config/celeryconfig.py`: Celery Beat richiama il dispatcher mailing ogni minuto.
+- `routes/mailing_list.py`: validazione in timezone `Europe/Rome`, persistenza schedule e pausa/riattivazione.
+- `templates/mailing_list/index.html` e `static/js/mailing_list.js`: campi dinamici per manuale/singolo/periodico/multiplo/fino-a-data e riepilogo delle esecuzioni.

@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 import mimetypes
 from pathlib import Path
 from uuid import uuid4
+from zoneinfo import ZoneInfo
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -14,6 +15,7 @@ from models import (
     EmailAccount,
     MailingCampaign,
     MailingCampaignAttachment,
+    MailingCampaignSchedule,
     MailingDelivery,
     MailingList,
     MailingListMember,
@@ -33,6 +35,7 @@ MAILING_ATTACHMENT_EXTENSIONS = {
 }
 MAILING_ATTACHMENT_MAX_BYTES = 15 * 1024 * 1024
 MAILING_ATTACHMENT_MAX_COUNT = 10
+ROME_TIMEZONE = ZoneInfo("Europe/Rome")
 
 
 def _mailing_attachment_root():
@@ -96,6 +99,71 @@ def _remove_attachment_file(storage_path, attachment_id=None):
             attachment_id,
             storage_path,
         )
+
+
+def _schedule_config_from_form():
+    mode = (request.form.get("schedule_mode") or "manual").strip()
+    if mode == "manual":
+        return None
+    if mode not in {"single", "periodic", "multiple", "until"}:
+        raise ValueError("Tipo di pianificazione non valido.")
+    raw_starts_at = (request.form.get("schedule_starts_at") or "").strip()
+    try:
+        starts_at = datetime.fromisoformat(raw_starts_at).replace(tzinfo=ROME_TIMEZONE).astimezone(timezone.utc)
+    except ValueError as exc:
+        raise ValueError("Data e ora di inizio non valide.") from exc
+
+    interval_value = None
+    interval_unit = None
+    if mode != "single":
+        interval_value = request.form.get("schedule_interval_value", type=int)
+        interval_unit = (request.form.get("schedule_interval_unit") or "").strip()
+        if not interval_value or interval_value <= 0 or interval_unit not in {"day", "week", "month"}:
+            raise ValueError("Indicare una ciclicità valida.")
+
+    max_runs = None
+    if mode == "multiple":
+        max_runs = request.form.get("schedule_max_runs", type=int)
+        if not max_runs or max_runs <= 0:
+            raise ValueError("Il numero di invii deve essere maggiore di zero.")
+
+    ends_at = None
+    if mode == "until":
+        raw_ends_at = (request.form.get("schedule_ends_at") or "").strip()
+        try:
+            ends_at = datetime.fromisoformat(raw_ends_at).replace(tzinfo=ROME_TIMEZONE).astimezone(timezone.utc)
+        except ValueError as exc:
+            raise ValueError("Data e ora di termine non valide.") from exc
+        if ends_at < starts_at:
+            raise ValueError("La data di termine non può precedere quella di inizio.")
+
+    return {
+        "mode": mode,
+        "starts_at": starts_at,
+        "interval_value": interval_value,
+        "interval_unit": interval_unit,
+        "max_runs": max_runs,
+        "ends_at": ends_at,
+    }
+
+
+def _apply_campaign_schedule(campaign, config):
+    if config is None:
+        if campaign.schedule:
+            db.session.delete(campaign.schedule)
+        return
+    schedule = campaign.schedule or MailingCampaignSchedule(campaign=campaign)
+    schedule.mode = config["mode"]
+    schedule.status = "active"
+    schedule.starts_at = config["starts_at"]
+    schedule.interval_value = config["interval_value"]
+    schedule.interval_unit = config["interval_unit"]
+    schedule.max_runs = config["max_runs"]
+    schedule.ends_at = config["ends_at"]
+    schedule.completed_runs = 0
+    schedule.next_run_at = config["starts_at"]
+    schedule.last_run_at = None
+    db.session.add(schedule)
 
 
 def _delivery_error_kind(message):
@@ -358,6 +426,7 @@ def index():
         roles=roles,
         selected_clusters=selected_clusters,
         selected_role_ids=selected_role_ids,
+        mailing_timezone=ROME_TIMEZONE,
         requested_modal=(
             request.args.get("modal")
             if request.args.get("modal") in {"lists", "campaigns", "history", "templates"}
@@ -501,6 +570,11 @@ def create_campaign():
     if not subject or not body:
         flash("Oggetto e contenuto sono obbligatori.", "warning")
         return redirect(url_for("mailing_list.index", modal="campaigns"))
+    try:
+        schedule_config = _schedule_config_from_form()
+    except ValueError as exc:
+        flash(str(exc), "warning")
+        return redirect(url_for("mailing_list.index", modal="campaigns"))
     mailing_list = MailingList.query.get_or_404(request.form.get("mailing_list_id", type=int))
     template_id = request.form.get("template_id", type=int)
     mailing_template = MailingTemplate.query.filter_by(id=template_id, is_active=True).first() if template_id else None
@@ -515,6 +589,7 @@ def create_campaign():
     db.session.add(campaign)
     db.session.flush()
     try:
+        _apply_campaign_schedule(campaign, schedule_config)
         attachment_count = _save_campaign_attachments(campaign, request.files.getlist("attachments"))
         prepare_campaign(campaign)
     except ValueError as exc:
@@ -614,6 +689,11 @@ def edit_campaign(campaign_id):
     if not subject or not body:
         flash("Oggetto e contenuto sono obbligatori.", "warning")
         return redirect(url_for("mailing_list.index", modal="campaigns"))
+    try:
+        schedule_config = _schedule_config_from_form()
+    except ValueError as exc:
+        flash(str(exc), "warning")
+        return redirect(url_for("mailing_list.index"))
 
     mailing_list = MailingList.query.get_or_404(request.form.get("mailing_list_id", type=int))
     template_id = request.form.get("template_id", type=int)
@@ -623,7 +703,7 @@ def edit_campaign(campaign_id):
     campaign.account_code = (request.form.get("account_code") or "general").strip()
     campaign.mailing_list_id = mailing_list.id
     campaign.template_id = mailing_template.id if mailing_template else None
-    MailingDelivery.query.filter_by(campaign_id=campaign.id).delete(synchronize_session=False)
+    MailingDelivery.query.filter_by(campaign_id=campaign.id, run_id=None).delete(synchronize_session=False)
     campaign.status = "draft"
     campaign.recipient_count = 0
     campaign.sent_count = 0
@@ -632,6 +712,7 @@ def edit_campaign(campaign_id):
     campaign.completed_at = None
     db.session.flush()
     try:
+        _apply_campaign_schedule(campaign, schedule_config)
         attachment_count = _save_campaign_attachments(campaign, request.files.getlist("attachments"))
         prepare_campaign(campaign)
     except ValueError as exc:
@@ -705,6 +786,27 @@ def delete_campaign_attachment(campaign_id, attachment_id):
         current_user.id,
     )
     flash("Allegato rimosso.", "success")
+    return redirect(url_for("mailing_list.index"))
+
+
+@mailing_list_bp.post("/campaigns/<int:campaign_id>/schedule/toggle")
+@login_required
+@role_required(100)
+def toggle_campaign_schedule(campaign_id):
+    campaign = MailingCampaign.query.get_or_404(campaign_id)
+    schedule = campaign.schedule
+    if not schedule or schedule.status in {"completed", "cancelled"}:
+        flash("Questa campagna non ha una pianificazione attiva modificabile.", "warning")
+        return redirect(url_for("mailing_list.index"))
+    schedule.status = "paused" if schedule.status == "active" else "active"
+    db.session.commit()
+    logger.info(
+        "Pianificazione campagna modificata campaign_id=%s status=%s user_id=%s",
+        campaign.id,
+        schedule.status,
+        current_user.id,
+    )
+    flash("Pianificazione sospesa." if schedule.status == "paused" else "Pianificazione riattivata.", "success")
     return redirect(url_for("mailing_list.index"))
 
 

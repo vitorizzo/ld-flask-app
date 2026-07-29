@@ -109,13 +109,20 @@ def create_weekend_events_social_post_task(self):
 
 @celery.task(bind=True)
 @log_task(mailing_logger)
-def send_mailing_campaign_task(self, campaign_id):
+def send_mailing_campaign_task(self, campaign_id, run_id=None):
     from tools.mailing_list import fail_campaign, send_campaign
     try:
-        return send_campaign(campaign_id)
+        return send_campaign(campaign_id, run_id=run_id)
     except Exception as exc:
-        fail_campaign(campaign_id, exc)
+        fail_campaign(campaign_id, exc, run_id=run_id)
         raise
+
+
+@celery.task(bind=True)
+@log_task(mailing_logger)
+def dispatch_due_mailing_schedules_task(self):
+    from tools.mailing_list import dispatch_due_mailing_schedules
+    return dispatch_due_mailing_schedules()
 
 
 @celery.task(bind=True)

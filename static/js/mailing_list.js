@@ -15,6 +15,25 @@
     const templateHeading = templateModal?.querySelector("[data-mailing-template-heading]");
     const templateSubmit = templateModal?.querySelector("[data-mailing-template-submit]");
     const templateCancel = templateModal?.querySelector("[data-mailing-template-cancel]");
+    const scheduleMode = campaignForm?.querySelector("[data-mailing-schedule-mode]");
+
+    const syncScheduleFields = () => {
+        if (!campaignForm || !scheduleMode) return;
+        const mode = scheduleMode.value;
+        const visibleFields = new Set();
+        if (mode !== "manual") visibleFields.add("start");
+        if (["periodic", "multiple", "until"].includes(mode)) visibleFields.add("interval");
+        if (mode === "multiple") visibleFields.add("max-runs");
+        if (mode === "until") visibleFields.add("end");
+
+        campaignForm.querySelectorAll("[data-schedule-field]").forEach((field) => {
+            const visible = visibleFields.has(field.dataset.scheduleField);
+            field.classList.toggle("d-none", !visible);
+            field.querySelectorAll("input, select").forEach((control) => {
+                control.required = visible;
+            });
+        });
+    };
 
     const renderCampaignAttachments = (attachments = []) => {
         if (!campaignAttachments) return;
@@ -53,6 +72,7 @@
         campaignSubmit.disabled = false;
         campaignCancel.classList.add("d-none");
         renderCampaignAttachments();
+        syncScheduleFields();
         delete campaignForm.dataset.editingCampaignId;
     };
 
@@ -66,6 +86,13 @@
         campaignForm.elements.account_code.value = campaign.accountCode ?? "general";
         campaignForm.elements.template_id.value = String(campaign.templateId ?? "");
         campaignForm.elements.html_body.value = campaign.htmlBody ?? "";
+        campaignForm.elements.schedule_mode.value = campaign.schedule?.mode ?? "manual";
+        campaignForm.elements.schedule_starts_at.value = campaign.schedule?.startsAt ?? "";
+        campaignForm.elements.schedule_interval_value.value = campaign.schedule?.intervalValue ?? 1;
+        campaignForm.elements.schedule_interval_unit.value = campaign.schedule?.intervalUnit ?? "day";
+        campaignForm.elements.schedule_max_runs.value = campaign.schedule?.maxRuns ?? "";
+        campaignForm.elements.schedule_ends_at.value = campaign.schedule?.endsAt ?? "";
+        syncScheduleFields();
         renderCampaignAttachments(campaign.attachments);
         campaignForm.dataset.editingCampaignId = String(campaign.id);
         campaignTitle.textContent = "Modifica campagna";
@@ -166,6 +193,7 @@
     });
 
     campaignCancel?.addEventListener("click", resetCampaignForm);
+    scheduleMode?.addEventListener("change", syncScheduleFields);
     templateCancel?.addEventListener("click", resetTemplateForm);
 
     document.querySelectorAll("[data-mailing-edit-template]").forEach((button) => {
@@ -266,4 +294,5 @@
     if (requestedModalId) {
         modalInstances.get(requestedModalId)?.show();
     }
+    syncScheduleFields();
 })();

@@ -186,9 +186,45 @@
     updateShellState();
     renderPageTabs();
 
-    const flash = document.getElementById("flash-message");
-    if (flash) {
-      flash.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
+    document.querySelectorAll("#flash-message .alert").forEach((alertElement) => {
+      const timeoutByCategory = {
+        danger: 12000,
+        warning: 8000,
+        success: 5000,
+        info: 5000,
+      };
+      const category = Object.keys(timeoutByCategory).find((name) =>
+        alertElement.classList.contains(`alert-${name}`)
+      );
+      let remaining = timeoutByCategory[category] || 5000;
+      let startedAt = 0;
+      let timerId = null;
+
+      const closeAlert = () => {
+        timerId = null;
+        if (window.bootstrap?.Alert) {
+          window.bootstrap.Alert.getOrCreateInstance(alertElement).close();
+        } else {
+          alertElement.remove();
+        }
+      };
+      const startTimer = () => {
+        if (timerId || remaining <= 0) return;
+        startedAt = Date.now();
+        timerId = window.setTimeout(closeAlert, remaining);
+      };
+      const pauseTimer = () => {
+        if (!timerId) return;
+        window.clearTimeout(timerId);
+        timerId = null;
+        remaining -= Date.now() - startedAt;
+      };
+
+      alertElement.addEventListener("mouseenter", pauseTimer);
+      alertElement.addEventListener("mouseleave", startTimer);
+      alertElement.addEventListener("focusin", pauseTimer);
+      alertElement.addEventListener("focusout", startTimer);
+      startTimer();
+    });
   });
 })();

@@ -2550,3 +2550,21 @@ Performance apertura giornata Agenda 2026-06-13:
 - `tools/mailing_list.py` aggiunge gli allegati reali al MIME `Message` prima di ogni invio SMTP e tratta un file mancante come errore esplicito della consegna.
 - Logging dedicato `mailing_list` aggiunto per CRUD template e rimozioni allegati, nel rispetto della duplicazione su `mailing_list.log` e `main.log`.
 - Test reale controllato superato: creazione template, campagna con PDF, persistenza privata, associazione `template_id`, costruzione MIME e cleanup completo senza invio SMTP. Superati anche AST Python, Jinja, sintassi JavaScript e `git diff --check`.
+## 2026-07-28 - Chiusura automatica universale dei messaggi flash
+
+- `static/js/base.js` gestisce ora tutti gli alert dentro `#flash-message` in ogni pagina basata su `base.html`.
+- Timeout per leggibilità: `success/info` 5 secondi, `warning` 8 secondi, `danger` 12 secondi; la chiusura manuale resta sempre disponibile.
+- Il timeout viene sospeso durante hover e focus e riprende all'uscita, evitando la scomparsa mentre l'utente sta leggendo o usando il pulsante di chiusura.
+- La chiusura usa l'istanza Bootstrap `Alert`, con fallback alla rimozione DOM; cache key di `base.js` aggiornata a `flash1`.
+## 2026-07-29 - Invii ciclici mailing list operativi
+
+- La modale campagna supporta `Invio manuale`, `Invio singolo programmato`, `Invio periodico`, `Numero definito di invii` e `Invii fino a una data`.
+- Le modalità cicliche richiedono data/ora iniziale e intervallo in giorni, settimane o mesi; `multiple` richiede il numero di invii, `until` la data/ora finale. Le date inserite sono interpretate in `Europe/Rome` e persistite in UTC.
+- `MailingCampaignSchedule` è ora gestito dalle route di creazione/modifica; una pianificazione parte in stato `active` e può essere sospesa o riattivata dalla tabella campagne.
+- Celery Beat esegue `config.tasks.dispatch_due_mailing_schedules_task` ogni minuto. Il dispatcher seleziona con lock le pianificazioni scadute, crea un `MailingCampaignRun`, congela i destinatari della singola esecuzione, calcola la prossima ricorrenza e accoda il worker.
+- Ogni ciclo conserva consegne e conteggi separati tramite `run_id`; la UI mostra stato, prossima esecuzione, numero di invii accodati e dettaglio storico dei run.
+- La cadenza mensile preserva il giorno quando possibile e usa l'ultimo giorno del mese negli altri casi (es. 31 gennaio -> 28/29 febbraio).
+- Dopo un fermo dello scheduler viene accodato un solo invio di recupero e la ricorrenza successiva riparte dall'ora effettiva, evitando raffiche di invii arretrati; una pianificazione `until` già oltre il termine viene completata senza spedire fuori finestra.
+- Migration `f9a0b1c2d3e4_enable_recurring_mailing_runs.py`: sostituisce l'unicità storica `(campaign_id, subscriber_id)` con `(run_id, subscriber_id)`. Applicata al DB, downgrade e nuovo upgrade verificati; head corrente `f9a0b1c2d3e4`.
+- Test reale controllato con SMTP soppresso: due cicli della stessa campagna hanno prodotto due run `sent`, due consegne distinte allo stesso destinatario, rendering UI, pausa/riattivazione, cadenza mensile e creazione `multiple` via route. Cleanup verificato: zero record temporanei.
+- Logging del dispatcher e delle esecuzioni usa `get_logger("mailing_list")`/`log_task(mailing_logger)`, quindi confluisce in `mailing_list.log` e `main.log`.

@@ -11,6 +11,10 @@ broker_connection_retry_on_startup = True
 logger.info(f"Configurazione Celery: broker_url={broker_url}, result_backend={result_backend}")
 
 beat_schedule = {
+    'dispatch-due-mailing-schedules-every-minute': {
+        'task': 'config.tasks.dispatch_due_mailing_schedules_task',
+        'schedule': crontab(minute='*'),
+    },
     'import-articoli': {
         'task': 'config.tasks.import_articoli_task',
         'schedule': crontab(hour='4', minute='0'),

@@ -9,6 +9,7 @@
           <th>Oggetto</th>
           <th>Lista</th>
           <th>Stato</th>
+          <th>Pianificazione</th>
           <th>Destinatari</th>
           <th>Accettate SMTP / errori</th>
           <th>Azioni</th>
@@ -25,6 +26,36 @@
             <td>{{ campaign.subject }}</td>
             <td>{{ campaign.mailing_list.name if campaign.mailing_list else '-' }}</td>
             <td><span class="badge text-bg-secondary">{{ campaign.status }}</span></td>
+            <td>
+              {% if campaign.schedule %}
+                <div>{{ campaign.schedule.mode }}</div>
+                <small class="text-muted">{{ campaign.schedule.status }}</small>
+                <div class="small">{{ campaign.schedule.completed_runs }} invii accodati</div>
+                {% if campaign.schedule.next_run_at %}
+                  <div class="small text-muted">
+                    Prossimo: {{ campaign.schedule.next_run_at.astimezone(mailing_timezone).strftime('%d/%m/%Y %H:%M') }}
+                  </div>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">Manuale</span>
+              {% endif %}
+              {% if campaign.runs %}
+                <details class="mt-1">
+                  <summary class="small">Esecuzioni ({{ campaign.runs|length }})</summary>
+                  <div class="small mt-2">
+                    {% for run in campaign.runs|sort(attribute='run_number', reverse=true) %}
+                      <div class="border-top py-1">
+                        #{{ run.run_number }} · {{ run.status }} ·
+                        {{ run.sent_count }}/{{ run.failed_count }}
+                        {% if run.scheduled_for %}
+                          · {{ run.scheduled_for.astimezone(mailing_timezone).strftime('%d/%m/%Y %H:%M') }}
+                        {% endif %}
+                      </div>
+                    {% endfor %}
+                  </div>
+                </details>
+              {% endif %}
+            </td>
             <td>{{ campaign.recipient_count }}</td>
             <td>
               <div>{{ campaign.sent_count }} / {{ campaign.failed_count }}</div>
@@ -67,6 +98,15 @@
                     <button class="btn btn-sm btn-outline-danger" type="submit">Elimina</button>
                   </form>
                 {% endif %}
+                {% if campaign.schedule and campaign.schedule.status in ['active', 'paused'] %}
+                  <form method="post"
+                        action="{{ url_for('mailing_list.toggle_campaign_schedule', campaign_id=campaign.id) }}"
+                        data-mailing-row-action>
+                    <button class="btn btn-sm btn-outline-light" type="submit">
+                      {{ 'Sospendi ciclo' if campaign.schedule.status == 'active' else 'Riattiva ciclo' }}
+                    </button>
+                  </form>
+                {% endif %}
                 {% if campaign.status in ['sent', 'failed'] %}
                   <form method="post"
                         action="{{ url_for('mailing_list.reset_campaign', campaign_id=campaign.id) }}"
@@ -78,7 +118,7 @@
             </td>
           </tr>
         {% else %}
-          <tr><td colspan="6" class="text-muted">{{ empty_message }}</td></tr>
+          <tr><td colspan="7" class="text-muted">{{ empty_message }}</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -393,6 +433,47 @@
               <div class="vstack gap-2 mt-2 d-none" data-mailing-existing-attachments></div>
             </div>
             <div class="col-12">
+              <fieldset class="border rounded p-3" data-mailing-schedule-fields>
+                <legend class="h6 float-none w-auto px-2">Pianificazione invio</legend>
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label">Modalità</label>
+                    <select class="form-select" name="schedule_mode" data-mailing-schedule-mode>
+                      <option value="manual">Invio manuale</option>
+                      <option value="single">Invio singolo programmato</option>
+                      <option value="periodic">Invio periodico</option>
+                      <option value="multiple">Numero definito di invii</option>
+                      <option value="until">Invii fino a una data</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4 d-none" data-schedule-field="start">
+                    <label class="form-label">Data e ora di inizio</label>
+                    <input class="form-control" type="datetime-local" name="schedule_starts_at">
+                  </div>
+                  <div class="col-md-2 d-none" data-schedule-field="interval">
+                    <label class="form-label">Ogni</label>
+                    <input class="form-control" type="number" min="1" name="schedule_interval_value" value="1">
+                  </div>
+                  <div class="col-md-2 d-none" data-schedule-field="interval">
+                    <label class="form-label">Unità</label>
+                    <select class="form-select" name="schedule_interval_unit">
+                      <option value="day">Giorni</option>
+                      <option value="week">Settimane</option>
+                      <option value="month">Mesi</option>
+                    </select>
+                  </div>
+                  <div class="col-md-3 d-none" data-schedule-field="max-runs">
+                    <label class="form-label">Numero invii</label>
+                    <input class="form-control" type="number" min="1" name="schedule_max_runs">
+                  </div>
+                  <div class="col-md-4 d-none" data-schedule-field="end">
+                    <label class="form-label">Data e ora termine</label>
+                    <input class="form-control" type="datetime-local" name="schedule_ends_at">
+                  </div>
+                </div>
+              </fieldset>
+            </div>
+            <div class="col-12">
               <button class="btn btn-info" type="submit" data-mailing-campaign-submit>Salva bozza</button>
               <button class="btn btn-outline-light d-none"
                       type="button"
@@ -534,6 +615,15 @@
           accountCode: {{ campaign.account_code|tojson }},
           mailingListId: {{ campaign.mailing_list_id|tojson }},
           templateId: {{ campaign.template_id|tojson }},
+          schedule: {% if campaign.schedule %}{
+            mode: {{ campaign.schedule.mode|tojson }},
+            status: {{ campaign.schedule.status|tojson }},
+            startsAt: {{ campaign.schedule.starts_at.astimezone(mailing_timezone).strftime('%Y-%m-%dT%H:%M')|tojson }},
+            intervalValue: {{ campaign.schedule.interval_value|tojson }},
+            intervalUnit: {{ campaign.schedule.interval_unit|tojson }},
+            maxRuns: {{ campaign.schedule.max_runs|tojson }},
+            endsAt: {% if campaign.schedule.ends_at %}{{ campaign.schedule.ends_at.astimezone(mailing_timezone).strftime('%Y-%m-%dT%H:%M')|tojson }}{% else %}null{% endif %}
+          }{% else %}null{% endif %},
           attachments: [
             {% for attachment in campaign.attachments %}
               {
@@ -560,5 +650,5 @@
       {% endfor %}
     };
   </script>
-  <script src="{{ url_for('static', filename='js/mailing_list.js', v=app_version ~ '-layout5') }}"></script>
+  <script src="{{ url_for('static', filename='js/mailing_list.js', v=app_version ~ '-layout6') }}"></script>
 {% endblock %}

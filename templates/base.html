@@ -86,22 +86,10 @@
         <script src="{{ url_for('static', filename='js/menu.js', v=app_version ~ '-mobile11') }}"></script>
         <script src="{{ url_for('static', filename='js/scheda_articolo.js') }}"></script>
         <script src="{{ url_for('static', filename='js/task_status.js') }}"></script>
-        <script src="{{ url_for('static', filename='js/base.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/base.js', v=app_version ~ '-flash1') }}"></script>
         <script src="{{ url_for('static', filename='js/pwa_push.js') }}"></script>
         <script src="{{ url_for('static', filename='js/app_update.js') }}"></script>
 
-        <!-- Script per rimozione automatica dei flash -->
-<!--        <script>
-          document.addEventListener("DOMContentLoaded", function () {
-            const flashes = document.querySelectorAll(".alert");
-            flashes.forEach(flash => {
-              setTimeout(() => {
-                flash.classList.add("fade-out");
-                setTimeout(() => flash.remove(), 1000);
-              }, 5000); // Dopo 5 secondi
-            });
-          });
-        </script> -->
         <script>
             if ("serviceWorker" in navigator) {
                 let refreshing = false;
