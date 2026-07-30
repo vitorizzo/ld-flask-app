@@ -2,7 +2,7 @@
 from flask_login import current_user, login_required
 from flask_mail import Message
 from flask_socketio import SocketIO
-from sqlalchemy import and_, asc, inspect, or_, text
+from sqlalchemy import and_, asc, case, func, inspect, or_, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload, load_only
 from werkzeug.utils import secure_filename
@@ -41,6 +41,8 @@ from models import (
     UserSpecialPermission,
     PasswordResetToken,
     BusinessRegistry,
+    CustomerAccountEntry,
+    CustomerAccountStatementImport,
     RoleActivationRequest,
     SupportTicket,
     SupportTicketMessage,
@@ -63,6 +65,12 @@ from tools.preferences import (
     get_definition_map,
     load_preferences_into_app_config,
     save_preferences_from_form,
+)
+from tools.import_transfer_config import (
+    available_export_files,
+    available_trace_files,
+    build_transfer_definitions,
+    save_transfer_definitions,
 )
 from config.tasks import (
     import_anagrafiche_task,
@@ -372,6 +380,22 @@ def settings_index():
             "min_weight": 40,
         },
         {
+            "title": "Tracciati importazione",
+            "description": "Associa file export e tracciati alle importazioni gestionali.",
+            "route": url_for("settings.import_transfer_definitions"),
+            "icon": "fa-solid fa-file-import",
+            "icon_class": "text-bg-success",
+            "min_weight": 900,
+        },
+        {
+            "title": "Situazioni contabili clienti",
+            "description": "Saldi e movimenti dell'ultimo estratto conto importato.",
+            "route": url_for("settings.customer_account_statements"),
+            "icon": "fa-solid fa-file-invoice-dollar",
+            "icon_class": "text-bg-warning",
+            "min_weight": 40,
+        },
+        {
             "title": "Opzioni consegna Horeca",
             "description": "Scelte disponibili per la consegna degli ordini Horeca.",
             "route": url_for("settings.customer_order_options"),
@@ -391,6 +415,120 @@ def settings_index():
     max_weight = current_user.max_role_weight or 0
     entries = [entry for entry in all_entries if max_weight >= entry["min_weight"]]
     return render_template("settings/index.html", entries=entries)
+
+
+@settings_bp.route("/customer-account-statements", methods=["GET"])
+@login_required
+@role_required(40)
+@log_task(logger)
+def customer_account_statements():
+    current_import = CustomerAccountStatementImport.query.order_by(
+        CustomerAccountStatementImport.imported_at.desc(),
+        CustomerAccountStatementImport.id.desc(),
+    ).first()
+    if current_import is None:
+        return render_template(
+            "settings/customer_account_statements.html",
+            current_import=None, statements=None, totals=None, search="",
+        )
+
+    search = (request.args.get("q") or "").strip()
+    page = max(1, _parse_int(request.args.get("page"), 1))
+    debit = func.sum(case((CustomerAccountEntry.accounting_side == "D", CustomerAccountEntry.amount), else_=0))
+    credit = func.sum(case((CustomerAccountEntry.accounting_side == "A", CustomerAccountEntry.amount), else_=0))
+    query = (
+        db.session.query(
+            CustomerAccountEntry.source_customer_code.label("source_customer_code"),
+            func.max(CustomerAccountEntry.customer_name).label("customer_name"),
+            func.max(CustomerAccountEntry.registry_id).label("registry_id"),
+            func.count(CustomerAccountEntry.id).label("movement_count"),
+            debit.label("debit"),
+            credit.label("credit"),
+            func.sum(CustomerAccountEntry.signed_amount).label("balance"),
+            func.min(CustomerAccountEntry.document_date).label("first_document_date"),
+            func.max(CustomerAccountEntry.document_date).label("last_document_date"),
+        )
+        .filter(CustomerAccountEntry.import_id == current_import.id)
+        .group_by(CustomerAccountEntry.source_customer_code)
+    )
+    if search:
+        pattern = f"%{search}%"
+        query = query.filter(or_(
+            CustomerAccountEntry.source_customer_code.ilike(pattern),
+            CustomerAccountEntry.customer_name.ilike(pattern),
+        ))
+    statements = query.order_by(func.sum(CustomerAccountEntry.signed_amount).desc()).paginate(
+        page=page, per_page=50, error_out=False,
+    )
+    totals = db.session.query(
+        debit.label("debit"),
+        credit.label("credit"),
+        func.sum(CustomerAccountEntry.signed_amount).label("balance"),
+    ).filter(CustomerAccountEntry.import_id == current_import.id).one()
+    return render_template(
+        "settings/customer_account_statements.html",
+        current_import=current_import, statements=statements, totals=totals, search=search,
+    )
+
+
+@settings_bp.route("/customer-account-statements/<source_customer_code>", methods=["GET"])
+@login_required
+@role_required(40)
+@log_task(logger)
+def customer_account_statement_detail(source_customer_code):
+    current_import = CustomerAccountStatementImport.query.order_by(
+        CustomerAccountStatementImport.imported_at.desc(),
+        CustomerAccountStatementImport.id.desc(),
+    ).first_or_404()
+    base_query = CustomerAccountEntry.query.filter_by(
+        import_id=current_import.id,
+        source_customer_code=source_customer_code,
+    )
+    customer = base_query.order_by(CustomerAccountEntry.row_number.asc()).first_or_404()
+    entries = base_query.order_by(
+        CustomerAccountEntry.document_date.desc().nullslast(),
+        CustomerAccountEntry.row_number.desc(),
+    ).paginate(page=max(1, _parse_int(request.args.get("page"), 1)), per_page=100, error_out=False)
+    totals = db.session.query(
+        func.sum(case((CustomerAccountEntry.accounting_side == "D", CustomerAccountEntry.amount), else_=0)).label("debit"),
+        func.sum(case((CustomerAccountEntry.accounting_side == "A", CustomerAccountEntry.amount), else_=0)).label("credit"),
+        func.sum(CustomerAccountEntry.signed_amount).label("balance"),
+    ).filter(
+        CustomerAccountEntry.import_id == current_import.id,
+        CustomerAccountEntry.source_customer_code == source_customer_code,
+    ).one()
+    return render_template(
+        "settings/customer_account_statement_detail.html",
+        current_import=current_import, customer=customer, entries=entries, totals=totals,
+    )
+
+
+@settings_bp.route("/import-transfer-definitions", methods=["GET", "POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def import_transfer_definitions():
+    if request.method == "POST":
+        try:
+            save_transfer_definitions(request.form)
+        except ValueError as exc:
+            flash(str(exc), "warning")
+        except SQLAlchemyError:
+            db.session.rollback()
+            logger.exception("Salvataggio configurazione tracciati importazione fallito")
+            flash("Impossibile salvare la configurazione dei tracciati.", "danger")
+        else:
+            flash("Configurazione importazioni aggiornata.", "success")
+        return redirect(url_for("settings.import_transfer_definitions"))
+
+    return render_template(
+        "settings/import_transfer_definitions.html",
+        definitions=build_transfer_definitions(),
+        export_files=available_export_files(),
+        trace_files=available_trace_files(),
+        export_folder=current_app.config.get("EXPORT_FOLDER"),
+        trace_folder="static/tracciati/importazione",
+    )
 
 
 @settings_bp.get("/support-tickets")
@@ -2322,13 +2460,13 @@ def lancia_import_anagrafiche():
 @role_required(100)
 @log_task(logger)
 def lancia_import_estratti_conto_clienti():
-    logger.info("Verifica estratti conto clienti richiesta.")
+    logger.info("Importazione estratti conto clienti richiesta.")
     task = import_estratti_conto_clienti_task.delay()
     from tools.redis_utils import update_task, status_string
     update_task(task.id, "Importazione estratti conto clienti TeamSystem", 0, status_string['attached'])
     if request.accept_mimetypes.best == "application/json" or request.headers.get("X-Requested-With") == "XMLHttpRequest":
         return jsonify({"ok": True, "task_id": task.id}), 202
-    flash("Verifica del file estratti conto clienti avviata.", "success")
+    flash("Importazione delle situazioni contabili avviata.", "success")
     return redirect(request.referrer or "/importazioni/storico")
 
 

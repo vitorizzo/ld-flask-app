@@ -14,6 +14,8 @@ from models import (
     Barcode,
     BusinessRegistry,
     BusinessRegistryContact,
+    CustomerAccountEntry,
+    CustomerAccountStatementImport,
     CashCustomer,
     CashCustomerAlias,
     CourierIntegration,
@@ -25,8 +27,52 @@ from models import (
 )
 from flask import jsonify
 from tools.log_utils import log_task, get_logger
+from tools.import_transfer_config import configured_source_file, configured_trace_path
 
 logger = get_logger('importazioni')
+
+
+def _read_teamsystem_trace(trace_path):
+    data = trace_path.read_bytes()
+    if len(data) < 900 or len(data) % 300:
+        raise ValueError(f"Tracciato {trace_path.name} non valido: lunghezza inattesa")
+
+    fields = {}
+    for offset in range(600, len(data), 300):
+        record = data[offset:offset + 300]
+        name = record[31:56].decode("latin1").strip()
+        start = int.from_bytes(record[56:58], "big")
+        end = int.from_bytes(record[58:60], "big")
+        field_type = record[60:66].decode("latin1").strip()
+        if name and start > 0 and end >= start:
+            fields[name] = {"start": start, "end": end, "type": field_type}
+    if not fields:
+        raise ValueError(f"Il tracciato {trace_path.name} non contiene campi")
+    return fields
+
+
+def _teamsystem_text(row, field):
+    definition = field
+    return row[definition["start"] - 1:definition["end"]].decode("cp1252", "replace").strip()
+
+
+def _teamsystem_decimal(raw_value):
+    raw = (raw_value or "").strip()
+    if not raw:
+        return Decimal("0.00")
+    sign = Decimal("-1") if raw.endswith("-") else Decimal("1")
+    digits = re.sub(r"\D", "", raw[:-1] if raw[-1:] in "+-" else raw)
+    return (Decimal(digits or "0") / Decimal("100") * sign).quantize(Decimal("0.01"))
+
+
+def _teamsystem_date(raw_value):
+    raw = (raw_value or "").strip()
+    if not raw or set(raw) == {"0"}:
+        return None
+    try:
+        return datetime.strptime(raw, "%y%m%d").date()
+    except ValueError as exc:
+        raise ValueError(f"Data TeamSystem non valida: {raw}") from exc
 
 
 def _sha256_text(value) -> str | None:
@@ -621,7 +667,7 @@ def import_anagrafiche(task_id=None):
     try:
         db.create_all()
         summary["customers"] = _import_registry_file(
-            "exp_cli.csv",
+            configured_source_file("customers"),
             "customer",
             task_id=task_id,
             task_name=task_name,
@@ -630,7 +676,7 @@ def import_anagrafiche(task_id=None):
         )
         db.session.flush()
         summary["suppliers"] = _import_registry_file(
-            "exp_for.csv",
+            configured_source_file("suppliers"),
             "supplier",
             task_id=task_id,
             task_name=task_name,
@@ -653,38 +699,144 @@ def import_anagrafiche(task_id=None):
 
 @log_task(logger)
 def import_estratti_conto_clienti(task_id=None):
-    """Verifica la disponibilità dell'export TeamSystem in attesa del parser."""
+    """Importa lo snapshot dei movimenti contabili clienti TeamSystem."""
     from routes.esportazioni_teamsystem import serve_risorsa
     from tools.redis_utils import clear_task_status, status_string, update_task
 
     task_name = "Importazione estratti conto clienti TeamSystem"
-    file_name = "ec_cli.csv"
+    file_name = configured_source_file("customer_statements")
+    trace_path = configured_trace_path("customer_statements")
     update_task(task_id, task_name, 0, status_string["start"])
-    logger.info(">>> Verifica file estratti conto clienti: %s", file_name)
+    logger.info(">>> Import estratti conto clienti: %s tracciato=%s", file_name, trace_path.name if trace_path else None)
 
     try:
+        if trace_path is None or not trace_path.is_file():
+            raise ValueError("Nessun tracciato valido configurato per le situazioni contabili")
         file_path = serve_risorsa(file_name)
-        file_size = os.path.getsize(file_path)
-        if file_size <= 0:
+        with open(file_path, "rb") as source_file:
+            source_data = source_file.read()
+        if not source_data:
             raise ValueError(f"Il file {file_name} è vuoto")
 
+        source_sha256 = hashlib.sha256(source_data).hexdigest()
+        previous = CustomerAccountStatementImport.query.filter_by(source_sha256=source_sha256).first()
+        if previous:
+            message = (
+                f"File già importato il {previous.imported_at:%d/%m/%Y %H:%M}: "
+                f"{previous.record_count} movimenti, {previous.customer_count} clienti"
+            )
+            update_task(task_id, task_name, 100, status_string["end"])
+            if task_id:
+                clear_task_status(task_id)
+            registra_importazione("estratti_conto_clienti", esito=True, messaggio=message)
+            logger.info("Snapshot contabile già presente: import_id=%s sha256=%s", previous.id, source_sha256)
+            return {"success": True, "processed": False, "import_id": previous.id, "message": message}
+
+        fields = _read_teamsystem_trace(trace_path)
+        required = {
+            "ECS-CODICE", "ECS-RAGSOC", "ECS-SCADE", "ECS-DATAREG",
+            "ECS-NUMDOC", "ECS-DATDOC", "ECS-IMPORTO-EUR",
+            "ECS-DESCRIZIONE", "ECS-DESCRIAGG", "ECS-SEGNO",
+        }
+        missing = sorted(required - fields.keys())
+        if missing:
+            raise ValueError(f"Campi mancanti nel tracciato: {', '.join(missing)}")
+
+        record_length = max(item["end"] for item in fields.values())
+        rows = source_data.splitlines()
+        invalid_lengths = [(index, len(row)) for index, row in enumerate(rows, start=1) if len(row) != record_length]
+        if not rows:
+            raise ValueError(f"Il file {file_name} non contiene record")
+        if invalid_lengths:
+            index, length = invalid_lengths[0]
+            raise ValueError(f"Record {index} lungo {length} caratteri invece dei {record_length} previsti")
+
+        registries_by_code = {}
+        for registry in BusinessRegistry.query.filter_by(kind="customer").all():
+            try:
+                normalized_code = str(int(registry.source_code))
+            except (TypeError, ValueError):
+                continue
+            registries_by_code.setdefault(normalized_code, registry)
+
+        statement_import = CustomerAccountStatementImport(
+            source_file=file_name,
+            trace_file=trace_path.name,
+            source_sha256=source_sha256,
+        )
+        db.session.add(statement_import)
+        db.session.flush()
+
+        customer_codes = set()
+        matched_codes = set()
+        unmatched_codes = set()
+        for index, row in enumerate(rows, start=1):
+            get_value = lambda name: _teamsystem_text(row, fields[name])
+            source_code = get_value("ECS-CODICE")
+            normalized_code = str(int(source_code)) if source_code.isdigit() else source_code.lstrip("0") or "0"
+            registry = registries_by_code.get(normalized_code)
+            customer_codes.add(source_code)
+            (matched_codes if registry else unmatched_codes).add(source_code)
+
+            side = get_value("ECS-SEGNO").upper()
+            if side not in {"D", "A"}:
+                raise ValueError(f"Segno contabile non valido al record {index}: {side or '(vuoto)'}")
+            amount = abs(_teamsystem_decimal(get_value("ECS-IMPORTO-EUR")))
+            db.session.add(CustomerAccountEntry(
+                import_id=statement_import.id,
+                row_number=index,
+                registry_id=registry.id if registry else None,
+                source_customer_code=source_code,
+                customer_name=get_value("ECS-RAGSOC") or (registry.display_name if registry else source_code),
+                registration_date=_teamsystem_date(get_value("ECS-DATAREG")),
+                document_date=_teamsystem_date(get_value("ECS-DATDOC")),
+                due_date=_teamsystem_date(get_value("ECS-SCADE")),
+                document_number=get_value("ECS-NUMDOC"),
+                description=get_value("ECS-DESCRIZIONE"),
+                additional_description=get_value("ECS-DESCRIAGG"),
+                accounting_side=side,
+                amount=amount,
+                signed_amount=amount if side == "D" else -amount,
+                source_payload={
+                    "record_type": get_value("ECS-TIPO") if "ECS-TIPO" in fields else None,
+                    "document_number_suffix": get_value("ECS-NUMDOC-BIS") if "ECS-NUMDOC-BIS" in fields else None,
+                },
+            ))
+            if index % 200 == 0:
+                update_task(task_id, task_name, min(90, int(index / len(rows) * 90)), status_string["start"])
+
+        statement_import.record_count = len(rows)
+        statement_import.customer_count = len(customer_codes)
+        statement_import.matched_customer_count = len(matched_codes)
+        statement_import.unmatched_customer_count = len(unmatched_codes)
+        db.session.commit()
+
         message = (
-            f"File {file_name} disponibile ({file_size} byte); "
-            "elaborazione non ancora implementata"
+            f"Importati {len(rows)} movimenti di {len(customer_codes)} clienti; "
+            f"{len(matched_codes)} collegati, {len(unmatched_codes)} non collegati"
         )
         update_task(task_id, task_name, 100, status_string["end"])
         if task_id:
             clear_task_status(task_id)
         registra_importazione("estratti_conto_clienti", esito=True, messaggio=message)
+        logger.info(
+            "Snapshot contabile importato: import_id=%s record=%s clienti=%s collegati=%s non_collegati=%s sha256=%s",
+            statement_import.id, len(rows), len(customer_codes), len(matched_codes), len(unmatched_codes), source_sha256,
+        )
         return {
             "success": True,
-            "processed": False,
+            "processed": True,
+            "import_id": statement_import.id,
             "file_name": file_name,
-            "file_size": file_size,
+            "record_count": len(rows),
+            "customer_count": len(customer_codes),
+            "matched_customer_count": len(matched_codes),
+            "unmatched_customer_count": len(unmatched_codes),
             "message": message,
         }
     except Exception as e:
-        logger.exception("Errore durante la verifica degli estratti conto clienti:")
+        logger.exception("Errore durante l'importazione degli estratti conto clienti:")
+        db.session.rollback()
         update_task(task_id, task_name, 0, status_string["error"], e)
         registra_importazione("estratti_conto_clienti", esito=False, messaggio=str(e))
         return {
@@ -923,7 +1075,8 @@ def import_articoli(task_id=None):
 
     db.create_all()
 
-    file_csv = serve_risorsa("ARTICOLI.CSV")
+    source_file = configured_source_file("articles")
+    file_csv = serve_risorsa(source_file)
     logger.info(f"File CSV: {file_csv}")
 
     run = None
@@ -940,7 +1093,7 @@ def import_articoli(task_id=None):
         # Crea ImportRun
         run = ImportRun(
             task_id=str(task_id) if task_id else "manual",
-            file_name="ARTICOLI.CSV",
+            file_name=source_file,
             started_at=datetime.utcnow(),
         )
         db.session.add(run)
@@ -1109,7 +1262,7 @@ def import_giacenze(task_id=None):
     db.session.commit()
     logger.info("Tabella giacenze svuotata.")
 
-    file_csv = serve_risorsa("GIACENZE.CSV")
+    file_csv = serve_risorsa(configured_source_file("stock"))
     logger.info(f"File CSV: {file_csv}")
     try:
         with open(file_csv, 'r', encoding='utf-8', errors='ignore') as csvfile:
@@ -1207,7 +1360,7 @@ def run_import_barcode(task_id=None):
         "total_rows": 0,
     }
     try:
-        file_csv = serve_risorsa("CODBAR.CSV")
+        file_csv = serve_risorsa(configured_source_file("barcodes"))
         logger.info(f"File CSV: {file_csv}")
         with open(file_csv, 'r', encoding='utf-8', errors='ignore') as csvfile:
             reader = list(csv.reader(csvfile, delimiter='\t'))

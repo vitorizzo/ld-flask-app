@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Tracciati importazione - LD Enoteca{% endblock %}
+
+{% block content %}
+<section class="welcome-section page-shell">
+  <div class="page-scroll">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+      <div>
+        <h1 class="mb-1">Tracciati importazione</h1>
+        <p class="text-muted mb-0">
+          Associa ogni trasferimento al file presente nella cartella export e al relativo tracciato.
+        </p>
+      </div>
+      <a class="btn btn-outline-light" href="{{ url_for('settings.settings_index') }}">
+        <i class="fa-solid fa-arrow-left me-1" aria-hidden="true"></i>Impostazioni
+      </a>
+    </div>
+
+    <div class="alert alert-info">
+      <div><strong>File export:</strong> {{ export_folder or 'cartella remota configurata' }}</div>
+      <div><strong>Tracciati:</strong> {{ trace_folder }}</div>
+      <div class="small mt-1">
+        I file non vengono spostati: questa pagina salva esclusivamente le associazioni utilizzate dagli import.
+      </div>
+    </div>
+
+    <form method="post">
+      <div class="card border-0 shadow-sm">
+        <div class="card-body">
+          <div class="table-responsive">
+            <table class="table align-middle">
+              <thead>
+                <tr>
+                  <th>Importazione</th>
+                  <th>File sorgente</th>
+                  <th>Tracciato</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for item in definitions %}
+                  <tr>
+                    <td>
+                      <div class="fw-semibold">{{ item.label }}</div>
+                      <div class="small text-muted">{{ item.description }}</div>
+                    </td>
+                    <td>
+                      <label class="visually-hidden" for="{{ item.code }}SourceFile">
+                        File sorgente {{ item.label }}
+                      </label>
+                      <select class="form-select"
+                              id="{{ item.code }}SourceFile"
+                              name="{{ item.code }}_source_file"
+                              required>
+                        {% if item.source_file and item.source_file not in export_files %}
+                          <option value="{{ item.source_file }}" selected>
+                            {{ item.source_file }} (configurato, non rilevato)
+                          </option>
+                        {% endif %}
+                        {% for file_name in export_files %}
+                          <option value="{{ file_name }}"
+                                  {% if file_name == item.source_file %}selected{% endif %}>
+                            {{ file_name }}
+                          </option>
+                        {% endfor %}
+                        {% if not export_files and item.source_file %}
+                          <option value="{{ item.source_file }}" selected>{{ item.source_file }}</option>
+                        {% endif %}
+                      </select>
+                    </td>
+                    <td>
+                      <label class="visually-hidden" for="{{ item.code }}TraceFile">
+                        Tracciato {{ item.label }}
+                      </label>
+                      <select class="form-select"
+                              id="{{ item.code }}TraceFile"
+                              name="{{ item.code }}_trace_file">
+                        <option value="">Nessun tracciato</option>
+                        {% for file_name in trace_files %}
+                          <option value="{{ file_name }}"
+                                  {% if file_name == item.trace_file %}selected{% endif %}>
+                            {{ file_name }}
+                          </option>
+                        {% endfor %}
+                      </select>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="d-flex justify-content-end mt-3">
+            <button class="btn btn-info" type="submit">
+              <i class="fa-solid fa-floppy-disk me-1" aria-hidden="true"></i>Salva configurazione
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

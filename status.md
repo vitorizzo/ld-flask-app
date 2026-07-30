@@ -2568,3 +2568,38 @@ Performance apertura giornata Agenda 2026-06-13:
 - Migration `f9a0b1c2d3e4_enable_recurring_mailing_runs.py`: sostituisce l'unicità storica `(campaign_id, subscriber_id)` con `(run_id, subscriber_id)`. Applicata al DB, downgrade e nuovo upgrade verificati; head corrente `f9a0b1c2d3e4`.
 - Test reale controllato con SMTP soppresso: due cicli della stessa campagna hanno prodotto due run `sent`, due consegne distinte allo stesso destinatario, rendering UI, pausa/riattivazione, cadenza mensile e creazione `multiple` via route. Cleanup verificato: zero record temporanei.
 - Logging del dispatcher e delle esecuzioni usa `get_logger("mailing_list")`/`log_task(mailing_logger)`, quindi confluisce in `mailing_list.log` e `main.log`.
+## 2026-07-29 - Analisi preliminare export situazioni contabili `EC_CLI.CSV`
+
+- `tools.importazioni.import_estratti_conto_clienti()` oggi verifica soltanto esistenza/dimensione del file e dichiara esplicitamente che il parser non è implementato.
+- Verificato direttamente l'export remoto configurato: `/dati/DISCORETE/estrazioni/export/EC_CLI.CSV`, aggiornato il 29/07/2026 alle 05:01, circa 7.094 KB.
+- Il contenuto corrente non espone dati contabili interpretabili: 1.774 record da 4.094 caratteri esatti; l'intero file contiene soltanto tab, spazi, `+` e le cifre `0`, `1`, `6`, `9`. Non sono presenti lettere, separatori decimali, segni negativi, date/documenti leggibili o codici cliente variabili.
+- Non è stato creato un modello/import fittizio: serve correggere l'export TeamSystem oppure ottenere il relativo tracciato colonne e un campione valido prima di definire persistenza e visualizzazione.
+- Obiettivo confermato per il passo successivo: importazione idempotente delle situazioni contabili, vista comprensibile per cliente e successiva integrazione con campagne di servizio non disiscrivibili.
+## 2026-07-30 - Configurazione dinamica file e tracciati importazione
+
+- Aggiunto in `/settings` il tile amministrativo `Tracciati importazione` (peso minimo 900), collegato a `/settings/import-transfer-definitions`.
+- La pagina configura i trasferimenti file-based reali: articoli, giacenze, barcode, anagrafiche clienti, anagrafiche fornitori e situazioni contabili clienti; Prestashop/Poleepo restano esclusi perché API-driven.
+- Per ogni trasferimento sono selezionabili:
+  - il file sorgente lasciato nella cartella export TeamSystem corrente, catalogata localmente oppure tramite `EXPORT_FOLDER_URL/lista_export`;
+  - un tracciato presente in `static/tracciati/importazione`.
+- La configurazione è persistita in `AppPreference` come JSON con chiave `imports.transfer_definitions`; nessuna nuova migration è necessaria. Se la preferenza o la tabella non sono disponibili, restano attivi i nomi file storici.
+- `tools/import_transfer_config.py` centralizza catalogo, validazione anti path traversal, elenco file/tracciati, lettura/salvataggio e risoluzione runtime.
+- Gli import di articoli, giacenze, barcode, clienti, fornitori ed estratti conto usano ora il file sorgente configurato; l'import estratti conto risolve e registra anche il tracciato associato.
+- Copiato `docs/transport/tracciato_ec_cli.csv` in `static/tracciati/importazione/tracciato_ec_cli.csv`, preservando il file originale.
+- Test reale controllato superato: catalogo remoto, catalogo tracciati, rendering autenticato, salvataggio e lettura runtime; l'eventuale preferenza precedente è stata ripristinata. Superati anche AST Python, Jinja, route e `git diff --check`.
+- Logging dedicato tramite `get_logger("import_transfer_config")`; salvataggi ed errori di catalogazione confluiscono nel log modulo e in `main.log`.
+
+## 2026-07-30 - Prima versione situazioni contabili clienti
+
+- Implementato l'import reale di `EC_CLI.CSV` usando il tracciato configurabile `tracciato_ec_cli.csv`; il formato testo TeamSystem contiene record fissi da 1.703 byte e 157 campi.
+- Aggiunti `CustomerAccountStatementImport` e `CustomerAccountEntry`: ogni import è uno snapshot identificato dall'hash SHA-256 del file, quindi un secondo passaggio sul medesimo export non duplica i dati.
+- Ogni movimento conserva cliente, date registrazione/documento/scadenza, numero documento, descrizioni, segno Dare/Avere, importo e payload tecnico minimo.
+- `ECS-CODICE` viene normalizzato numericamente per il collegamento a `BusinessRegistry.source_code`.
+- Migrazione `ca1b2c3d4e5f_add_customer_account_statements.py` applicata; head DB corrente `ca1b2c3d4e5f`.
+- Prima importazione reale completata: 1.788 movimenti, 186 clienti, 186 collegati e zero non collegati; Dare 676.104,36 euro, Avere 115.777,19 euro, saldo movimenti 560.327,17 euro.
+- Aggiunto in `/settings` il tile `Situazioni contabili clienti`; la pagina di riepilogo offre ricerca, conteggi, Dare/Avere/Saldo e accesso al dettaglio cronologico per cliente.
+- L'import può essere rilanciato dalla pagina; la route ora comunica un'importazione reale e non più una semplice verifica file.
+- Lo scaduto non è ancora esposto come saldo definitivo: i campi riepilogativi dell'export risultano a zero e la prima versione evita di simulare una riconciliazione delle partite.
+- Logging dell'import tramite `get_logger("importazioni")`, quindi eventi ed errori confluiscono in `importazioni.log` e `main.log`.
+- Verificati parser su 157 campi/1.788 record, AST, compilazione Jinja, migrazione, idempotenza, somme contabili, rendering autenticato del riepilogo e del dettaglio, e `git diff --check`.
+- Prossimo confronto: valutare leggibilità della pagina e definire la logica corretta di partite aperte/scaduto prima dell'invio automatico obbligatorio ai clienti.

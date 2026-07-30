@@ -2295,6 +2295,68 @@ class BusinessRegistry(db.Model):
         }
 
 
+class CustomerAccountStatementImport(db.Model):
+    __tablename__ = "customer_account_statement_imports"
+
+    id = db.Column(db.Integer, primary_key=True)
+    source_file = db.Column(db.String(255), nullable=False)
+    trace_file = db.Column(db.String(255), nullable=False)
+    source_sha256 = db.Column(db.String(64), nullable=False, unique=True, index=True)
+    record_count = db.Column(db.Integer, nullable=False, default=0)
+    customer_count = db.Column(db.Integer, nullable=False, default=0)
+    matched_customer_count = db.Column(db.Integer, nullable=False, default=0)
+    unmatched_customer_count = db.Column(db.Integer, nullable=False, default=0)
+    imported_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False, index=True)
+
+    entries = db.relationship(
+        "CustomerAccountEntry",
+        backref="statement_import",
+        cascade="all, delete-orphan",
+        lazy="dynamic",
+    )
+
+
+class CustomerAccountEntry(db.Model):
+    __tablename__ = "customer_account_entries"
+    __table_args__ = (
+        db.UniqueConstraint("import_id", "row_number", name="uq_customer_account_entry_import_row"),
+        db.Index("ix_customer_account_entry_import_customer", "import_id", "registry_id"),
+        db.Index("ix_customer_account_entry_import_source", "import_id", "source_customer_code"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    import_id = db.Column(
+        db.Integer,
+        db.ForeignKey("customer_account_statement_imports.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    row_number = db.Column(db.Integer, nullable=False)
+    registry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("business_registries.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    source_customer_code = db.Column(db.String(64), nullable=False, index=True)
+    customer_name = db.Column(db.String(255), nullable=False)
+    registration_date = db.Column(db.Date, nullable=True)
+    document_date = db.Column(db.Date, nullable=True)
+    due_date = db.Column(db.Date, nullable=True, index=True)
+    document_number = db.Column(db.String(64), nullable=True)
+    description = db.Column(db.String(255), nullable=True)
+    additional_description = db.Column(db.String(255), nullable=True)
+    accounting_side = db.Column(db.String(1), nullable=False)
+    amount = db.Column(db.Numeric(14, 2), nullable=False)
+    signed_amount = db.Column(db.Numeric(14, 2), nullable=False)
+    source_payload = db.Column(db.JSON, nullable=True)
+
+    registry = db.relationship(
+        "BusinessRegistry",
+        backref=db.backref("customer_account_entries", lazy="dynamic"),
+    )
+
+
 class CashCustomerRegistryLink(db.Model):
     __tablename__ = "cash_customer_registry_links"
     __table_args__ = (

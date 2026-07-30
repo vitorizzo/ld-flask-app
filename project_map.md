@@ -24,6 +24,19 @@ ultimo commit del branch main.
 - `new_chat_codex.md` — manifesto per flusso Codex locale con lettura diretta repository
 - `project_map.md`
 
+## Situazioni contabili clienti
+
+- Modelli snapshot: `CustomerAccountStatementImport` e `CustomerAccountEntry` in `models.py`.
+- Migrazione: `ca1b2c3d4e5f_add_customer_account_statements.py`.
+- Parser/import TeamSystem: `tools.importazioni.import_estratti_conto_clienti()`, configurato tramite `tools/import_transfer_config.py`.
+- Il parser legge dinamicamente il tracciato binario TeamSystem a record da 300 byte e usa le posizioni 1-based definite dal file.
+- Import idempotente tramite SHA-256 dell'export; ogni snapshot mantiene sorgente, tracciato, conteggi e movimenti.
+- Collegamento clienti tramite normalizzazione numerica di `ECS-CODICE` e `BusinessRegistry.source_code`.
+- Interpretazione corrente: `ECS-SEGNO=D` addebito, `A` accredito; il saldo visualizzato è Dare meno Avere.
+- UI: `/settings/customer-account-statements` e dettaglio `/settings/customer-account-statements/<source_customer_code>`, template sotto `templates/settings/customer_account_statement*.html`.
+- Tile `Situazioni contabili clienti` nella dashboard `/settings`, accessibile da peso ruolo 40.
+- I totali scaduti dell'export non sono valorizzati: la prima versione non li presenta come dato definitivo e non avvia ancora invii automatici.
+
 ## Eventi
 
 - Pagina eventi interna: endpoint `events.index`, URL `/events/`, template `templates/events/index.html`.
@@ -1165,3 +1178,9 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `config/celeryconfig.py`: Celery Beat richiama il dispatcher mailing ogni minuto.
 - `routes/mailing_list.py`: validazione in timezone `Europe/Rome`, persistenza schedule e pausa/riattivazione.
 - `templates/mailing_list/index.html` e `static/js/mailing_list.js`: campi dinamici per manuale/singolo/periodico/multiplo/fino-a-data e riepilogo delle esecuzioni.
+### Impostazioni - tracciati importazione (2026-07-30)
+
+- `tools/import_transfer_config.py`: catalogo dei trasferimenti file-based e configurazione JSON `imports.transfer_definitions` in `AppPreference`.
+- `routes/settings.py` + `templates/settings/import_transfer_definitions.html`: tile e pagina amministrativa per associare file export e tracciati.
+- `static/tracciati/importazione/`: directory dei tracciati selezionabili; contiene `tracciato_ec_cli.csv`.
+- `tools/importazioni.py`: risolve dinamicamente i file sorgente configurati mantenendo fallback ai nomi storici.
