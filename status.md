@@ -2649,9 +2649,18 @@ Performance apertura giornata Agenda 2026-06-13:
 - Ogni riga cliente è interamente cliccabile e apre il relativo estratto conto; tornando indietro si rientra nella dashboard clienti oppure nella zona di origine.
 - Il dettaglio cliente espone in alto:
   - KPI Dare, Avere e Saldo dovuto;
-  - KPI `Giorni medi di scoperto`, ponderato per importo residuo;
+  - KPI `Giorni medi di scoperto`, ponderato sui movimenti netti;
   - grafico mensile dell'esposizione del singolo cliente, basato sull'ultimo snapshot di ciascun mese.
 - Aggiunto istogramma aging con fasce `0-30`, `31-60`, `61-90`, `91-120`, `oltre 120 giorni`.
-- Prima regola di riconciliazione esplicita: gli accrediti compensano FIFO gli addebiti più vecchi; l'età usa la scadenza, con fallback alla data documento/registrazione. Date future producono età zero e confluiscono nella prima fascia.
+- Formula aging verificata: ogni movimento confluisce nella fascia determinata dall'età della data documento (fallback registrazione/scadenza); Dare aumenta e Avere riduce il valore netto della medesima fascia.
 - La tabella cronologica dei movimenti resta disponibile sotto gli indicatori.
-- Test unitario FIFO superato; test read-only sul DB reale superato per ordinamento decrescente, uguaglianza saldo/aging residuo e rendering autenticato di dashboard, storico, KPI e istogramma. Superati anche AST, Jinja, JavaScript e `git diff --check`.
+- Test read-only sul DB reale superato per ordinamento decrescente, uguaglianza saldo/somma aging e rendering autenticato di dashboard, storico, KPI e istogramma. Superati anche AST, Jinja, JavaScript e `git diff --check`.
+
+## 2026-07-30 - Correzione formula aging su cliente Bottone 1950
+
+- Audit puntuale richiesto sul cliente `0001950`: la prima implementazione FIFO/scadenza mostrava erroneamente 12.965,62 euro nella fascia 0-30 giorni.
+- Composizione reale degli ultimi 30 giorni per data documento: fatture luglio 3.791,02 euro meno nota credito luglio 36,60 euro = 3.754,42 euro.
+- Rimossa l'allocazione FIFO e adottato il saldo netto dei movimenti nella fascia della loro data documento; il totale delle fasce continua a coincidere esattamente con il saldo cliente.
+- Risultato Bottone verificato: `0-30 = 3.754,42`, `31-60 = 5.440,25`, `61-90 = 3.734,35`, `91-120 = 4.470,24`, `oltre 120 = 13.218,96`; totale 30.618,22 euro.
+- Audit su tutti i 187 codici cliente dello snapshot: zero discrepanze tra saldo, totale aging e somma delle cinque fasce.
+- Cinque clienti presentano almeno una fascia netta negativa per effetto di note credito/accrediti; l'istogramma ora supporta valori sotto zero e li distingue graficamente in verde.

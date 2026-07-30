@@ -19,16 +19,20 @@
     node.textContent = value;
     svg.appendChild(node);
   };
-  const chartFrame = (svg, values) => {
+  const chartFrame = (svg, values, includeNegative = false) => {
     const frame = { width: 900, height: 310, left: 92, right: 28, top: 22, bottom: 58 };
     frame.plotWidth = frame.width - frame.left - frame.right;
     frame.plotHeight = frame.height - frame.top - frame.bottom;
     const rawMax = Math.max(...values, 1);
-    const magnitude = 10 ** Math.floor(Math.log10(rawMax));
+    const rawMin = includeNegative ? Math.min(...values, 0) : 0;
+    const scaleMax = Math.max(Math.abs(rawMax), Math.abs(rawMin), 1);
+    const magnitude = 10 ** Math.floor(Math.log10(scaleMax));
     frame.maximum = Math.ceil(rawMax / magnitude) * magnitude;
-    frame.y = (value) => frame.top + frame.plotHeight - Number(value) / frame.maximum * frame.plotHeight;
+    frame.minimum = includeNegative && rawMin < 0 ? Math.floor(rawMin / magnitude) * magnitude : 0;
+    const range = frame.maximum - frame.minimum;
+    frame.y = (value) => frame.top + frame.plotHeight - (Number(value) - frame.minimum) / range * frame.plotHeight;
     for (let index = 0; index <= 4; index += 1) {
-      const value = frame.maximum * index / 4;
+      const value = frame.minimum + (frame.maximum - frame.minimum) * index / 4;
       const y = frame.y(value);
       svg.appendChild(svgNode("line", { x1: frame.left, x2: frame.width - frame.right, y1: y, y2: y, class: "credit-detail-grid" }));
       text(svg, compact.format(value), frame.left - 12, y + 4, "end");
@@ -54,15 +58,24 @@
   const aging = readData("customerAgingData");
   const agingSvg = document.getElementById("customerAgingChart");
   if (agingSvg && aging.length) {
-    const frame = chartFrame(agingSvg, aging.map((item) => Number(item.value)));
+    const frame = chartFrame(agingSvg, aging.map((item) => Number(item.value)), true);
     const slot = frame.plotWidth / aging.length;
+    const baseline = frame.y(0);
     aging.forEach((item, index) => {
       const x = frame.left + index * slot + slot * 0.18;
       const y = frame.y(item.value);
-      const bar = svgNode("rect", { x, y, width: slot * 0.64, height: frame.top + frame.plotHeight - y, rx: 5, class: "credit-detail-bar" });
+      const bar = svgNode("rect", {
+        x,
+        y: Math.min(y, baseline),
+        width: slot * 0.64,
+        height: Math.max(1, Math.abs(baseline - y)),
+        rx: 5,
+        class: Number(item.value) < 0 ? "credit-detail-bar credit-detail-bar-negative" : "credit-detail-bar"
+      });
       const title = svgNode("title"); title.textContent = `${item.label}: ${money.format(item.value)}`; bar.appendChild(title); agingSvg.appendChild(bar);
       text(agingSvg, item.label, x + slot * 0.32, frame.height - 22);
-      text(agingSvg, compact.format(item.value), x + slot * 0.32, Math.max(frame.top + 14, y - 8));
+      const valueLabelY = Number(item.value) < 0 ? Math.min(frame.height - frame.bottom + 18, y + 18) : Math.max(frame.top + 14, y - 8);
+      text(agingSvg, compact.format(item.value), x + slot * 0.32, valueLabelY);
     });
   }
 })();

@@ -46,9 +46,9 @@ ultimo commit del branch main.
 - Lo scoperto aggregato somma soltanto i saldi cliente positivi, così i clienti a credito non compensano quelli esposti.
 - Analisi cliente:
   - storico esposizione: ultimo snapshot di ciascun mese, fino a 24 mesi;
-  - aging: gli accrediti sono allocati FIFO sugli addebiti più vecchi;
-  - età dalla scadenza, con fallback data documento/registrazione;
-  - KPI giorni medi ponderato per importo residuo e fasce `0-30`, `31-60`, `61-90`, `91-120`, `oltre 120`.
+  - aging: saldo netto `Dare - Avere` nella fascia temporale del singolo movimento;
+  - età dalla data documento, con fallback data registrazione/scadenza;
+  - KPI giorni medi ponderato sui movimenti netti e fasce `0-30`, `31-60`, `61-90`, `91-120`, `oltre 120`.
 - Grafici dettaglio: `static/js/customer_credit_detail.js` e `static/css/customer_credit_detail.css`.
 - I totali scaduti dell'export non sono valorizzati: la prima versione non li presenta come dato definitivo e non avvia ancora invii automatici.
 

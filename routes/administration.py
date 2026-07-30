@@ -147,17 +147,6 @@ def _monthly_customer_credit_history(source_customer_code, month_limit=24):
 
 def _customer_aging(entries, today=None):
     today = today or date.today()
-    remaining_credit = sum(
-        (entry.amount for entry in entries if entry.accounting_side == "A"),
-        Decimal("0"),
-    )
-    debit_entries = sorted(
-        (entry for entry in entries if entry.accounting_side == "D"),
-        key=lambda entry: (
-            entry.due_date or entry.document_date or entry.registration_date or date.min,
-            entry.row_number,
-        ),
-    )
     buckets = [
         {"label": "0–30 gg", "value": Decimal("0")},
         {"label": "31–60 gg", "value": Decimal("0")},
@@ -166,27 +155,20 @@ def _customer_aging(entries, today=None):
         {"label": "Oltre 120 gg", "value": Decimal("0")},
     ]
     weighted_days = Decimal("0")
-    outstanding_total = Decimal("0")
-    for entry in debit_entries:
-        outstanding = entry.amount
-        if remaining_credit > 0:
-            allocated = min(outstanding, remaining_credit)
-            outstanding -= allocated
-            remaining_credit -= allocated
-        if outstanding <= 0:
-            continue
-
-        reference_date = entry.due_date or entry.document_date or entry.registration_date or today
+    net_total = Decimal("0")
+    for entry in entries:
+        reference_date = entry.document_date or entry.registration_date or entry.due_date or today
         age_days = max(0, (today - reference_date).days)
         bucket_index = 0 if age_days <= 30 else 1 if age_days <= 60 else 2 if age_days <= 90 else 3 if age_days <= 120 else 4
-        buckets[bucket_index]["value"] += outstanding
-        outstanding_total += outstanding
-        weighted_days += outstanding * age_days
+        signed_amount = entry.amount if entry.accounting_side == "D" else -entry.amount
+        buckets[bucket_index]["value"] += signed_amount
+        net_total += signed_amount
+        weighted_days += signed_amount * age_days
 
-    average_days = int((weighted_days / outstanding_total).quantize(Decimal("1"))) if outstanding_total else 0
+    average_days = max(0, int((weighted_days / net_total).quantize(Decimal("1")))) if net_total > 0 else 0
     return {
         "average_days": average_days,
-        "outstanding_total": outstanding_total,
+        "outstanding_total": net_total,
         "buckets": buckets,
     }
 

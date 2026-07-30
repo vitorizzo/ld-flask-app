@@ -38,3 +38,7 @@
   fill: var(--bs-danger);
   opacity: 0.82;
 }
+
+.credit-detail-bar-negative {
+  fill: var(--bs-success);
+}
