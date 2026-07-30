@@ -44,7 +44,10 @@
     <thead><tr><th>Data</th><th>Documento</th><th>Descrizione</th><th>Scadenza</th><th>Segno</th><th class="text-end">Importo</th></tr></thead>
     <tbody>{% for entry in entries.items %}<tr>
       <td class="text-nowrap">{{ entry.document_date.strftime("%d/%m/%Y") if entry.document_date else "—" }}</td><td>{{ entry.document_number or "—" }}</td>
-      <td><div>{{ entry.description or "—" }}</div>{% if entry.additional_description %}<div class="small text-muted">{{ entry.additional_description }}</div>{% endif %}</td>
+      <td>
+        <div>{{ entry.description or "—" }}{% if not entry.is_balance_relevant %}<span class="badge text-bg-secondary ms-1">riga tecnica esclusa dal saldo</span>{% endif %}</div>
+        {% if entry.additional_description %}<div class="small text-muted">{{ entry.additional_description }}</div>{% endif %}
+      </td>
       <td class="text-nowrap">{{ entry.due_date.strftime("%d/%m/%Y") if entry.due_date else "—" }}</td>
       <td><span class="badge {{ 'text-bg-danger' if entry.accounting_side == 'D' else 'text-bg-success' }}">{{ 'Dare' if entry.accounting_side == 'D' else 'Avere' }}</span></td><td class="text-end fw-semibold">{{ money(entry.amount) }}</td>
     </tr>{% endfor %}</tbody>

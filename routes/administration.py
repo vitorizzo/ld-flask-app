@@ -43,7 +43,10 @@ def _customer_credit_rows(import_id):
             balance.label("balance"),
         )
         .outerjoin(BusinessRegistry, BusinessRegistry.id == CustomerAccountEntry.registry_id)
-        .filter(CustomerAccountEntry.import_id == import_id)
+        .filter(
+            CustomerAccountEntry.import_id == import_id,
+            CustomerAccountEntry.is_balance_relevant.is_(True),
+        )
         .group_by(CustomerAccountEntry.source_customer_code)
         .having(balance > 0)
         .all()
@@ -54,7 +57,10 @@ def _history_area_options(import_id):
     rows = (
         db.session.query(BusinessRegistry.province)
         .join(CustomerAccountEntry, CustomerAccountEntry.registry_id == BusinessRegistry.id)
-        .filter(CustomerAccountEntry.import_id == import_id)
+        .filter(
+            CustomerAccountEntry.import_id == import_id,
+            CustomerAccountEntry.is_balance_relevant.is_(True),
+        )
         .distinct()
         .all()
     )
@@ -89,6 +95,7 @@ def _monthly_credit_history(selected_area=None, month_limit=24):
         )
         .outerjoin(BusinessRegistry, BusinessRegistry.id == CustomerAccountEntry.registry_id)
         .filter(CustomerAccountEntry.import_id.in_(import_ids))
+        .filter(CustomerAccountEntry.is_balance_relevant.is_(True))
         .group_by(CustomerAccountEntry.import_id, CustomerAccountEntry.source_customer_code)
         .having(customer_balance > 0)
         .all()
@@ -132,6 +139,7 @@ def _monthly_customer_credit_history(source_customer_code, month_limit=24):
         .filter(
             CustomerAccountEntry.import_id.in_([item.id for item in selected_imports]),
             CustomerAccountEntry.source_customer_code == source_customer_code,
+            CustomerAccountEntry.is_balance_relevant.is_(True),
         )
         .group_by(CustomerAccountEntry.import_id)
         .all()
@@ -157,6 +165,8 @@ def _customer_aging(entries, today=None):
     weighted_days = Decimal("0")
     net_total = Decimal("0")
     for entry in entries:
+        if not entry.is_balance_relevant:
+            continue
         reference_date = entry.document_date or entry.registration_date or entry.due_date or today
         age_days = max(0, (today - reference_date).days)
         bucket_index = 0 if age_days <= 30 else 1 if age_days <= 60 else 2 if age_days <= 90 else 3 if age_days <= 120 else 4
@@ -382,6 +392,7 @@ def customer_credit_detail(source_customer_code):
     ).filter(
         CustomerAccountEntry.import_id == current_import.id,
         CustomerAccountEntry.source_customer_code == source_customer_code,
+        CustomerAccountEntry.is_balance_relevant.is_(True),
     ).one()
     area = (request.args.get("area") or "").strip()
     zone = (request.args.get("zone") or "").strip()

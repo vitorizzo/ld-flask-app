@@ -719,19 +719,6 @@ def import_estratti_conto_clienti(task_id=None):
             raise ValueError(f"Il file {file_name} è vuoto")
 
         source_sha256 = hashlib.sha256(source_data).hexdigest()
-        previous = CustomerAccountStatementImport.query.filter_by(source_sha256=source_sha256).first()
-        if previous:
-            message = (
-                f"File già importato il {previous.imported_at:%d/%m/%Y %H:%M}: "
-                f"{previous.record_count} movimenti, {previous.customer_count} clienti"
-            )
-            update_task(task_id, task_name, 100, status_string["end"])
-            if task_id:
-                clear_task_status(task_id)
-            registra_importazione("estratti_conto_clienti", esito=True, messaggio=message)
-            logger.info("Snapshot contabile già presente: import_id=%s sha256=%s", previous.id, source_sha256)
-            return {"success": True, "processed": False, "import_id": previous.id, "message": message}
-
         fields = _read_teamsystem_trace(trace_path)
         required = {
             "ECS-CODICE", "ECS-RAGSOC", "ECS-SCADE", "ECS-DATAREG",
@@ -741,6 +728,60 @@ def import_estratti_conto_clienti(task_id=None):
         missing = sorted(required - fields.keys())
         if missing:
             raise ValueError(f"Campi mancanti nel tracciato: {', '.join(missing)}")
+
+        previous = CustomerAccountStatementImport.query.filter_by(source_sha256=source_sha256).first()
+        if previous:
+            source_rows = source_data.splitlines()
+            existing_entries = {
+                entry.row_number: entry
+                for entry in CustomerAccountEntry.query.filter_by(import_id=previous.id).all()
+            }
+            metadata_updated = 0
+            if len(source_rows) == previous.record_count and len(existing_entries) == previous.record_count:
+                for row_number, row in enumerate(source_rows, start=1):
+                    entry = existing_entries[row_number]
+                    get_value = lambda name: _teamsystem_text(row, fields[name])
+                    accounting_reason = get_value("ECS-CAUSALE") if "ECS-CAUSALE" in fields else None
+                    accounting_reference = get_value("ECS-NUMRIF") if "ECS-NUMRIF" in fields else None
+                    is_balance_relevant = not (
+                        accounting_reason == "096"
+                        and (accounting_reference or "").strip("0") == ""
+                    )
+                    if (
+                        entry.accounting_reason != accounting_reason
+                        or entry.accounting_reference != accounting_reference
+                        or entry.is_balance_relevant != is_balance_relevant
+                    ):
+                        entry.accounting_reason = accounting_reason
+                        entry.accounting_reference = accounting_reference
+                        entry.is_balance_relevant = is_balance_relevant
+                        payload = dict(entry.source_payload or {})
+                        payload["installment_number"] = (
+                            get_value("ECS-NUMRATA") if "ECS-NUMRATA" in fields else None
+                        )
+                        entry.source_payload = payload
+                        metadata_updated += 1
+                if metadata_updated:
+                    db.session.commit()
+            message = (
+                f"File già importato il {previous.imported_at:%d/%m/%Y %H:%M}: "
+                f"{previous.record_count} movimenti, {previous.customer_count} clienti"
+            )
+            update_task(task_id, task_name, 100, status_string["end"])
+            if task_id:
+                clear_task_status(task_id)
+            registra_importazione("estratti_conto_clienti", esito=True, messaggio=message)
+            logger.info(
+                "Snapshot contabile già presente: import_id=%s sha256=%s metadati_aggiornati=%s",
+                previous.id, source_sha256, metadata_updated,
+            )
+            return {
+                "success": True,
+                "processed": False,
+                "import_id": previous.id,
+                "metadata_updated": metadata_updated,
+                "message": message,
+            }
 
         record_length = max(item["end"] for item in fields.values())
         rows = source_data.splitlines()
@@ -782,6 +823,12 @@ def import_estratti_conto_clienti(task_id=None):
             if side not in {"D", "A"}:
                 raise ValueError(f"Segno contabile non valido al record {index}: {side or '(vuoto)'}")
             amount = abs(_teamsystem_decimal(get_value("ECS-IMPORTO-EUR")))
+            accounting_reason = get_value("ECS-CAUSALE") if "ECS-CAUSALE" in fields else None
+            accounting_reference = get_value("ECS-NUMRIF") if "ECS-NUMRIF" in fields else None
+            is_balance_relevant = not (
+                accounting_reason == "096"
+                and (accounting_reference or "").strip("0") == ""
+            )
             db.session.add(CustomerAccountEntry(
                 import_id=statement_import.id,
                 row_number=index,
@@ -794,12 +841,16 @@ def import_estratti_conto_clienti(task_id=None):
                 document_number=get_value("ECS-NUMDOC"),
                 description=get_value("ECS-DESCRIZIONE"),
                 additional_description=get_value("ECS-DESCRIAGG"),
+                accounting_reason=accounting_reason,
+                accounting_reference=accounting_reference,
+                is_balance_relevant=is_balance_relevant,
                 accounting_side=side,
                 amount=amount,
                 signed_amount=amount if side == "D" else -amount,
                 source_payload={
                     "record_type": get_value("ECS-TIPO") if "ECS-TIPO" in fields else None,
                     "document_number_suffix": get_value("ECS-NUMDOC-BIS") if "ECS-NUMDOC-BIS" in fields else None,
+                    "installment_number": get_value("ECS-NUMRATA") if "ECS-NUMRATA" in fields else None,
                 },
             ))
             if index % 200 == 0:

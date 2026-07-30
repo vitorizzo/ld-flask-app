@@ -2664,3 +2664,14 @@ Performance apertura giornata Agenda 2026-06-13:
 - Risultato Bottone verificato: `0-30 = 3.754,42`, `31-60 = 5.440,25`, `61-90 = 3.734,35`, `91-120 = 4.470,24`, `oltre 120 = 13.218,96`; totale 30.618,22 euro.
 - Audit su tutti i 187 codici cliente dello snapshot: zero discrepanze tra saldo, totale aging e somma delle cinque fasce.
 - Cinque clienti presentano almeno una fascia netta negativa per effetto di note credito/accrediti; l'istogramma ora supporta valori sotto zero e li distingue graficamente in verde.
+
+## 2026-07-30 - Rilevanza righe TeamSystem, audit Bar Castello 1141
+
+- Il cliente `0001141` risultava erroneamente debitore di 655,92 euro, mentre l'e/c TeamSystem chiude a zero.
+- Audit dei sei record: due fatture causale `001` in Dare; due contropartite tecniche causale `096`, Dare e `ECS-NUMRIF=00000`; due riscossioni causale `096` in Avere con riferimento valorizzato.
+- Regola verificata: causale `096` + riferimento `00000` non concorre al saldo cliente, indipendentemente dal segno.
+- Audit globale: 93 contropartite tecniche Dare per 53.810,52 euro e una Avere da 178,36 euro; due Dare causale 096 con riferimento valorizzato restano correttamente rilevanti.
+- Aggiunti a `CustomerAccountEntry` `accounting_reason`, `accounting_reference`, `is_balance_relevant`; migration `cc3d4e5f6071_add_customer_entry_relevance.py` applicata, head DB `cc3d4e5f6071`.
+- L'import valorizza i campi e completa idempotentemente i metadati mancanti su uno snapshot con hash già noto; lo snapshot 2 è stato aggiornato su tutte le 1.792 righe senza duplicazione.
+- Dashboard, storico, KPI e aging usano solo righe rilevanti. L'e/c mantiene le righe tecniche con badge `riga tecnica esclusa dal saldo`.
+- Test reale superato: Bar Castello saldo 0,00 e assente dai debitori; due righe tecniche visibili e marcate; Bottone 1950 invariato con 0-30 pari a 3.754,42 euro.

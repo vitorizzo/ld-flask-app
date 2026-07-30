@@ -34,6 +34,8 @@ ultimo commit del branch main.
 - Import idempotente tramite SHA-256 dell'export; ogni snapshot mantiene sorgente, tracciato, conteggi e movimenti.
 - Collegamento clienti tramite normalizzazione numerica di `ECS-CODICE` e `BusinessRegistry.source_code`.
 - Interpretazione corrente: `ECS-SEGNO=D` addebito, `A` accredito; il saldo visualizzato è Dare meno Avere.
+- `CustomerAccountEntry` conserva `accounting_reason`, `accounting_reference` e `is_balance_relevant`; migrazione `cc3d4e5f6071_add_customer_entry_relevance.py`.
+- Regola TeamSystem verificata: causale `096` con `ECS-NUMRIF=00000` identifica una contropartita tecnica. La riga resta visibile nell'e/c ma non concorre a saldo, dashboard, storico o aging.
 - UI amministrativa: `/administration/customer-credit` e dettaglio `/administration/customer-credit/<source_customer_code>`.
 - Seconda dashboard: `/administration/customer-credit/customers`, elenco dei clienti con saldo positivo ordinato per debito decrescente; i pulsanti `Situazione Zone`/`Situazione Clienti` collegano le due viste.
 - Blueprint e aggregazioni: `routes/administration.py`; template dashboard `templates/administration/customer_credit.html`.
