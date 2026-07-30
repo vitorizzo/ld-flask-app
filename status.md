@@ -2620,3 +2620,11 @@ Performance apertura giornata Agenda 2026-06-13:
 - La dashboard è responsive, include legenda scorrevole, tabella leggibile degli stessi dati e totale scoperto del livello selezionato.
 - Logging dedicato tramite `get_logger("administration")`, duplicato in `administration.log` e `main.log`.
 - Verificati su DB reale: menu/peso/genitore, saldi positivi, rendering autenticato dei tre livelli, drill-down AQ -> CARSOLI -> cliente, ritorno contestuale al grafico, vecchia route rimossa, AST, Jinja, JavaScript e `git diff --check`.
+
+## 2026-07-30 - Import contabile automatico semiorario
+
+- Celery Beat accoda `config.tasks.import_estratti_conto_clienti_task` ogni ora ai minuti `.00` e `.30`, coerentemente con la produzione dell'export TeamSystem.
+- Lo scheduler usa la timezone applicativa già configurata `Europe/Rome`.
+- Ogni messaggio pianificato scade dopo 25 minuti: se worker/Redis rimangono fermi non vengono processate importazioni arretrate quando è già prossimo o disponibile uno snapshot più recente.
+- L'hash SHA-256 già presente mantiene l'import idempotente: se il file non è cambiato non vengono creati snapshot o movimenti duplicati.
+- Restano disponibili l'import manuale dalla dashboard e il logging universale in `importazioni.log`/`main.log`.

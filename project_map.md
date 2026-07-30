@@ -29,6 +29,7 @@ ultimo commit del branch main.
 - Modelli snapshot: `CustomerAccountStatementImport` e `CustomerAccountEntry` in `models.py`.
 - Migrazione: `ca1b2c3d4e5f_add_customer_account_statements.py`.
 - Parser/import TeamSystem: `tools.importazioni.import_estratti_conto_clienti()`, configurato tramite `tools/import_transfer_config.py`.
+- Automazione: Celery Beat accoda `config.tasks.import_estratti_conto_clienti_task` ai minuti `.00` e `.30` di ogni ora (`Europe/Rome`); i messaggi scadono dopo 25 minuti per evitare recuperi obsoleti.
 - Il parser legge dinamicamente il tracciato binario TeamSystem a record da 300 byte e usa le posizioni 1-based definite dal file.
 - Import idempotente tramite SHA-256 dell'export; ogni snapshot mantiene sorgente, tracciato, conteggi e movimenti.
 - Collegamento clienti tramite normalizzazione numerica di `ECS-CODICE` e `BusinessRegistry.source_code`.

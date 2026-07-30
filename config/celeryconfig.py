@@ -31,6 +31,11 @@ beat_schedule = {
         'task': 'config.tasks.import_anagrafiche_task',
         'schedule': crontab(hour='4', minute='30'),
     },
+    'import-customer-account-statements-half-hourly': {
+        'task': 'config.tasks.import_estratti_conto_clienti_task',
+        'schedule': crontab(minute='0,30'),
+        'options': {'expires': 25 * 60},
+    },
     'poleepo-import-orders': {
         'task': 'config.tasks.import_poleepo_orders_task',
         'schedule': crontab(minute='*/15'),
