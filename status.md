@@ -2641,3 +2641,17 @@ Performance apertura giornata Agenda 2026-06-13:
 - Il test integrato read-only sul DB reale non è stato completato perché il server PostgreSQL `100.120.25.12` è andato in timeout in due tentativi consecutivi prima della prima query; non sono state eseguite scritture.
 - Riorganizzazione UI successiva: `Totale scoperto` è stato spostato a destra nella fascia con snapshot, file e clienti esposti; il grafico mensile occupa ora la colonna destra precedentemente riservata al totale.
 - Nei livelli Area/Zona il form del filtro storico conserva i parametri di drill-down tramite campi hidden, evitando di riportare involontariamente alla radice.
+
+## 2026-07-30 - Dashboard Situazione Clienti e aging individuale
+
+- Aggiunta `/administration/customer-credit/customers`: mostra soltanto clienti con saldo positivo, ordinati in modo decrescente per valore del debito.
+- In alto nelle dashboard e nel dettaglio cliente sono presenti i pulsanti `Situazione Zone` e `Situazione Clienti`; lo stato attivo è distinto visivamente.
+- Ogni riga cliente è interamente cliccabile e apre il relativo estratto conto; tornando indietro si rientra nella dashboard clienti oppure nella zona di origine.
+- Il dettaglio cliente espone in alto:
+  - KPI Dare, Avere e Saldo dovuto;
+  - KPI `Giorni medi di scoperto`, ponderato per importo residuo;
+  - grafico mensile dell'esposizione del singolo cliente, basato sull'ultimo snapshot di ciascun mese.
+- Aggiunto istogramma aging con fasce `0-30`, `31-60`, `61-90`, `91-120`, `oltre 120 giorni`.
+- Prima regola di riconciliazione esplicita: gli accrediti compensano FIFO gli addebiti più vecchi; l'età usa la scadenza, con fallback alla data documento/registrazione. Date future producono età zero e confluiscono nella prima fascia.
+- La tabella cronologica dei movimenti resta disponibile sotto gli indicatori.
+- Test unitario FIFO superato; test read-only sul DB reale superato per ordinamento decrescente, uguaglianza saldo/aging residuo e rendering autenticato di dashboard, storico, KPI e istogramma. Superati anche AST, Jinja, JavaScript e `git diff --check`.

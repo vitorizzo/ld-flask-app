@@ -1,0 +1,40 @@
+.credit-detail-chart-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.credit-detail-chart {
+  display: block;
+  width: 100%;
+  min-width: 620px;
+  height: auto;
+}
+
+.credit-detail-grid {
+  stroke: var(--bs-border-color);
+  stroke-width: 1;
+}
+
+.credit-detail-axis {
+  fill: var(--bs-secondary-color);
+  font-size: 13px;
+}
+
+.credit-detail-line {
+  fill: none;
+  stroke: var(--bs-danger);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.credit-detail-point {
+  fill: #fff;
+  stroke: var(--bs-danger);
+  stroke-width: 4;
+}
+
+.credit-detail-bar {
+  fill: var(--bs-danger);
+  opacity: 0.82;
+}

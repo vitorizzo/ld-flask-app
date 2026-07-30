@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}LD Enoteca - Situazione clienti{% endblock %}
+{% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
+{% block content %}
+<section class="welcome-section page-shell"><div class="container-fluid">
+  <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+    <div>
+      <h1 class="mb-1">Situazione clienti</h1>
+      <div class="text-muted">Clienti con saldo dovuto, ordinati per esposizione decrescente.</div>
+      <div class="btn-group mt-3" role="group" aria-label="Dashboard credito">
+        <a class="btn btn-outline-primary" href="{{ url_for('administration.customer_credit') }}">Situazione Zone</a>
+        <a class="btn btn-primary" href="{{ url_for('administration.customer_credit_customers') }}">Situazione Clienti</a>
+      </div>
+    </div>
+    <form method="post" action="{{ url_for('settings.lancia_import_estratti_conto_clienti') }}">
+      <button class="btn btn-primary" type="submit"><i class="fa-solid fa-rotate me-1"></i> Importa ultimo file</button>
+    </form>
+  </div>
+
+  {% if not current_import %}
+    <div class="alert alert-info">Non è ancora presente alcuna situazione contabile importata.</div>
+  {% else %}
+    <div class="alert alert-light border d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+      <div class="d-flex flex-wrap gap-3">
+        <span><strong>Snapshot:</strong> {{ current_import.imported_at.strftime("%d/%m/%Y %H:%M") }}</span>
+        <span><strong>File:</strong> {{ current_import.source_file }}</span>
+        <span><strong>Clienti nello scoperto:</strong> {{ customers|length }}</span>
+      </div>
+      <div class="ms-auto text-nowrap"><span class="text-muted me-2">Totale scoperto</span><strong class="text-danger fs-5">{{ money(total_exposure) }}</strong></div>
+    </div>
+
+    <form class="row g-2 mb-3" method="get">
+      <div class="col-12 col-md-6 col-xl-4"><input class="form-control" name="q" value="{{ search }}" placeholder="Cerca codice o ragione sociale"></div>
+      <div class="col-auto"><button class="btn btn-outline-primary" type="submit">Cerca</button></div>
+      {% if search %}<div class="col-auto"><a class="btn btn-outline-secondary" href="{{ url_for('administration.customer_credit_customers') }}">Azzera</a></div>{% endif %}
+    </form>
+
+    <div class="card border-0 shadow-sm"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
+      <thead><tr><th>#</th><th>Cliente</th><th>Area</th><th>Zona</th><th class="text-end">Movimenti</th><th class="text-end">Saldo dovuto</th><th></th></tr></thead>
+      <tbody>
+        {% for customer in customers %}<tr class="position-relative">
+          <td class="text-muted">{{ loop.index }}</td>
+          <td><div class="fw-semibold"><a class="stretched-link text-decoration-none text-body" href="{{ url_for('administration.customer_credit_detail', source_customer_code=customer.source_customer_code, origin='customers') }}">{{ customer.customer_name }}</a></div><div class="small text-muted">Cod. {{ customer.source_customer_code }}</div></td>
+          <td>{{ customer.province or "Non definita" }}</td><td>{{ customer.city or "Non definita" }}</td>
+          <td class="text-end">{{ customer.movement_count }}</td><td class="text-end fw-semibold text-danger">{{ money(customer.balance) }}</td>
+          <td class="text-end"><span class="btn btn-sm btn-outline-primary position-relative z-1">Estratto conto</span></td>
+        </tr>{% else %}<tr><td colspan="7" class="text-center text-muted py-4">Nessun cliente con saldo dovuto.</td></tr>{% endfor %}
+      </tbody>
+    </table></div></div>
+  {% endif %}
+</div></section>
+{% endblock %}
