@@ -2,7 +2,7 @@
 from flask_login import current_user, login_required
 from flask_mail import Message
 from flask_socketio import SocketIO
-from sqlalchemy import and_, asc, case, func, inspect, or_, text
+from sqlalchemy import and_, asc, inspect, or_, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload, load_only
 from werkzeug.utils import secure_filename
@@ -41,8 +41,6 @@ from models import (
     UserSpecialPermission,
     PasswordResetToken,
     BusinessRegistry,
-    CustomerAccountEntry,
-    CustomerAccountStatementImport,
     RoleActivationRequest,
     SupportTicket,
     SupportTicketMessage,
@@ -388,14 +386,6 @@ def settings_index():
             "min_weight": 900,
         },
         {
-            "title": "Situazioni contabili clienti",
-            "description": "Saldi e movimenti dell'ultimo estratto conto importato.",
-            "route": url_for("settings.customer_account_statements"),
-            "icon": "fa-solid fa-file-invoice-dollar",
-            "icon_class": "text-bg-warning",
-            "min_weight": 40,
-        },
-        {
             "title": "Opzioni consegna Horeca",
             "description": "Scelte disponibili per la consegna degli ordini Horeca.",
             "route": url_for("settings.customer_order_options"),
@@ -415,92 +405,6 @@ def settings_index():
     max_weight = current_user.max_role_weight or 0
     entries = [entry for entry in all_entries if max_weight >= entry["min_weight"]]
     return render_template("settings/index.html", entries=entries)
-
-
-@settings_bp.route("/customer-account-statements", methods=["GET"])
-@login_required
-@role_required(40)
-@log_task(logger)
-def customer_account_statements():
-    current_import = CustomerAccountStatementImport.query.order_by(
-        CustomerAccountStatementImport.imported_at.desc(),
-        CustomerAccountStatementImport.id.desc(),
-    ).first()
-    if current_import is None:
-        return render_template(
-            "settings/customer_account_statements.html",
-            current_import=None, statements=None, totals=None, search="",
-        )
-
-    search = (request.args.get("q") or "").strip()
-    page = max(1, _parse_int(request.args.get("page"), 1))
-    debit = func.sum(case((CustomerAccountEntry.accounting_side == "D", CustomerAccountEntry.amount), else_=0))
-    credit = func.sum(case((CustomerAccountEntry.accounting_side == "A", CustomerAccountEntry.amount), else_=0))
-    query = (
-        db.session.query(
-            CustomerAccountEntry.source_customer_code.label("source_customer_code"),
-            func.max(CustomerAccountEntry.customer_name).label("customer_name"),
-            func.max(CustomerAccountEntry.registry_id).label("registry_id"),
-            func.count(CustomerAccountEntry.id).label("movement_count"),
-            debit.label("debit"),
-            credit.label("credit"),
-            func.sum(CustomerAccountEntry.signed_amount).label("balance"),
-            func.min(CustomerAccountEntry.document_date).label("first_document_date"),
-            func.max(CustomerAccountEntry.document_date).label("last_document_date"),
-        )
-        .filter(CustomerAccountEntry.import_id == current_import.id)
-        .group_by(CustomerAccountEntry.source_customer_code)
-    )
-    if search:
-        pattern = f"%{search}%"
-        query = query.filter(or_(
-            CustomerAccountEntry.source_customer_code.ilike(pattern),
-            CustomerAccountEntry.customer_name.ilike(pattern),
-        ))
-    statements = query.order_by(func.sum(CustomerAccountEntry.signed_amount).desc()).paginate(
-        page=page, per_page=50, error_out=False,
-    )
-    totals = db.session.query(
-        debit.label("debit"),
-        credit.label("credit"),
-        func.sum(CustomerAccountEntry.signed_amount).label("balance"),
-    ).filter(CustomerAccountEntry.import_id == current_import.id).one()
-    return render_template(
-        "settings/customer_account_statements.html",
-        current_import=current_import, statements=statements, totals=totals, search=search,
-    )
-
-
-@settings_bp.route("/customer-account-statements/<source_customer_code>", methods=["GET"])
-@login_required
-@role_required(40)
-@log_task(logger)
-def customer_account_statement_detail(source_customer_code):
-    current_import = CustomerAccountStatementImport.query.order_by(
-        CustomerAccountStatementImport.imported_at.desc(),
-        CustomerAccountStatementImport.id.desc(),
-    ).first_or_404()
-    base_query = CustomerAccountEntry.query.filter_by(
-        import_id=current_import.id,
-        source_customer_code=source_customer_code,
-    )
-    customer = base_query.order_by(CustomerAccountEntry.row_number.asc()).first_or_404()
-    entries = base_query.order_by(
-        CustomerAccountEntry.document_date.desc().nullslast(),
-        CustomerAccountEntry.row_number.desc(),
-    ).paginate(page=max(1, _parse_int(request.args.get("page"), 1)), per_page=100, error_out=False)
-    totals = db.session.query(
-        func.sum(case((CustomerAccountEntry.accounting_side == "D", CustomerAccountEntry.amount), else_=0)).label("debit"),
-        func.sum(case((CustomerAccountEntry.accounting_side == "A", CustomerAccountEntry.amount), else_=0)).label("credit"),
-        func.sum(CustomerAccountEntry.signed_amount).label("balance"),
-    ).filter(
-        CustomerAccountEntry.import_id == current_import.id,
-        CustomerAccountEntry.source_customer_code == source_customer_code,
-    ).one()
-    return render_template(
-        "settings/customer_account_statement_detail.html",
-        current_import=current_import, customer=customer, entries=entries, totals=totals,
-    )
 
 
 @settings_bp.route("/import-transfer-definitions", methods=["GET", "POST"])

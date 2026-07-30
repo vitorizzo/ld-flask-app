@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}LD Enoteca - Credito clienti{% endblock %}
+{% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_credit.css', v=app_version ~ '-credit1') }}">
+{% endblock %}
+
+{% block content %}
+<section class="welcome-section page-shell"><div class="container-fluid">
+  <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-3">
+    <div>
+      <h1 class="mb-1">Credito clienti</h1>
+      <div class="text-muted">Distribuzione dello scoperto per area geografica.</div>
+    </div>
+    <div class="d-flex gap-2">
+      {% if back_url %}<a class="btn btn-outline-secondary" href="{{ back_url }}"><i class="fa-solid fa-arrow-left me-1"></i> Indietro</a>{% endif %}
+      <form method="post" action="{{ url_for('settings.lancia_import_estratti_conto_clienti') }}">
+        <button class="btn btn-primary" type="submit"><i class="fa-solid fa-rotate me-1"></i> Importa ultimo file</button>
+      </form>
+    </div>
+  </div>
+
+  <nav aria-label="Percorso credito" class="mb-3">
+    <ol class="breadcrumb mb-0">
+      {% for crumb in breadcrumbs %}
+        <li class="breadcrumb-item {{ 'active' if not crumb.url }}" {% if not crumb.url %}aria-current="page"{% endif %}>
+          {% if crumb.url %}<a href="{{ crumb.url }}">{{ crumb.label }}</a>{% else %}{{ crumb.label }}{% endif %}
+        </li>
+      {% endfor %}
+    </ol>
+  </nav>
+
+  {% if not current_import %}
+    <div class="alert alert-info">Non è ancora presente alcuna situazione contabile importata.</div>
+  {% else %}
+    <div class="alert alert-light border d-flex flex-wrap gap-3 mb-3">
+      <span><strong>Snapshot:</strong> {{ current_import.imported_at.strftime("%d/%m/%Y %H:%M") }}</span>
+      <span><strong>File:</strong> {{ current_import.source_file }}</span>
+      <span><strong>Clienti nello scoperto:</strong> {{ customer_count }}</span>
+    </div>
+
+    <div class="row g-3 mb-3">
+      <div class="col-12 col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white border-0 pt-4 px-4">
+            <h2 class="h5 mb-1">
+              {% if level == "areas" %}Scoperto per area
+              {% elif level == "zones" %}Zone dell'area {{ area }}
+              {% else %}Clienti della zona {{ zone }}{% endif %}
+            </h2>
+            <div class="text-muted small">Seleziona una fetta o una voce della legenda per entrare nel dettaglio.</div>
+          </div>
+          <div class="card-body p-4">
+            {% if chart_items %}
+              <div class="credit-chart-layout">
+                <div class="credit-pie-wrap">
+                  <svg id="customerCreditPie" class="credit-pie" viewBox="0 0 240 240" role="img" aria-label="Grafico a torta dello scoperto"></svg>
+                </div>
+                <div id="customerCreditLegend" class="credit-legend" aria-label="Legenda grafico"></div>
+              </div>
+            {% else %}
+              <div class="text-center text-muted py-5">Nessun saldo cliente positivo in questo livello.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-lg-4">
+        <div class="card border-0 shadow-sm h-100"><div class="card-body p-4 d-flex flex-column justify-content-center">
+          <div class="text-muted">Totale scoperto</div>
+          <div class="display-6 fw-semibold text-danger">{{ money(total_exposure) }}</div>
+          <hr>
+          <div class="small text-muted">Somma dei soli saldi cliente positivi. I clienti a credito non compensano quelli esposti.</div>
+        </div></div>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+      <div class="table-responsive"><table class="table table-hover align-middle mb-0">
+        <thead><tr>
+          <th>{% if level == "areas" %}Area{% elif level == "zones" %}Zona{% else %}Cliente{% endif %}</th>
+          <th class="text-end">{% if level == "customers" %}Movimenti{% else %}Clienti{% endif %}</th>
+          <th class="text-end">Scoperto</th><th></th>
+        </tr></thead>
+        <tbody>
+          {% for item in chart_items %}<tr>
+            <td><div class="fw-semibold">{{ item.label }}</div>{% if item.subtitle %}<div class="small text-muted">{{ item.subtitle }}</div>{% endif %}</td>
+            <td class="text-end">{{ item.movement_count if level == "customers" else item.customer_count }}</td>
+            <td class="text-end fw-semibold text-danger">{{ money(item.value) }}</td>
+            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ item.url }}">{{ "Movimenti" if level == "customers" else "Dettaglio" }}</a></td>
+          </tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+  {% endif %}
+</div></section>
+{% if current_import %}<script id="customerCreditData" type="application/json">{{ chart_payload|tojson }}</script>{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/customer_credit.js', v=app_version ~ '-credit1') }}"></script>
+{% endblock %}

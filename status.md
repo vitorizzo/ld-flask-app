@@ -2603,3 +2603,20 @@ Performance apertura giornata Agenda 2026-06-13:
 - Logging dell'import tramite `get_logger("importazioni")`, quindi eventi ed errori confluiscono in `importazioni.log` e `main.log`.
 - Verificati parser su 157 campi/1.788 record, AST, compilazione Jinja, migrazione, idempotenza, somme contabili, rendering autenticato del riepilogo e del dettaglio, e `git diff --check`.
 - Prossimo confronto: valutare leggibilità della pagina e definire la logica corretta di partite aperte/scaduto prima dell'invio automatico obbligatorio ai clienti.
+
+## 2026-07-30 - Dashboard gerarchica credito clienti
+
+- `Situazioni contabili clienti` è stata rimossa dalla dashboard Impostazioni e spostata sotto il menu `Amministrazione`.
+- La nuova voce ha peso 40, corrispondente al ruolo `office`; migration `cb2c3d4e5f60_add_customer_credit_menu.py` applicata, head DB corrente `cb2c3d4e5f60`.
+- Nuova route principale `/administration/customer-credit`; la vecchia `/settings/customer-account-statements` restituisce 404.
+- Il grafico a torta naviga gerarchicamente:
+  - `Credito -> Aree`: aggregazione per provincia;
+  - selezione area -> zone: aggregazione per comune;
+  - selezione zona -> clienti;
+  - selezione cliente -> dettaglio movimenti.
+- Ogni fetta SVG e ogni voce della legenda sono link reali; breadcrumb e pulsante `Indietro` riportano al livello immediatamente superiore, mentre il dettaglio cliente torna alla zona di origine.
+- Province o comuni mancanti restano visibili come `Provincia non definita` e `Comune non definito`.
+- Lo `scoperto` è calcolato sommando soltanto i saldi finali positivi dei singoli clienti; eventuali clienti con saldo negativo non compensano l'esposizione degli altri.
+- La dashboard è responsive, include legenda scorrevole, tabella leggibile degli stessi dati e totale scoperto del livello selezionato.
+- Logging dedicato tramite `get_logger("administration")`, duplicato in `administration.log` e `main.log`.
+- Verificati su DB reale: menu/peso/genitore, saldi positivi, rendering autenticato dei tre livelli, drill-down AQ -> CARSOLI -> cliente, ritorno contestuale al grafico, vecchia route rimossa, AST, Jinja, JavaScript e `git diff --check`.

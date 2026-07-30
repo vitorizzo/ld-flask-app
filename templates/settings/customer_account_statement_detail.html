@@ -5,7 +5,7 @@
 <section class="welcome-section page-shell"><div class="container-fluid">
   <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
     <div><div class="text-muted small">Situazione contabile cliente</div><h1 class="mb-1">{{ customer.customer_name }}</h1><div class="text-muted">Codice TeamSystem {{ customer.source_customer_code }}</div></div>
-    <a class="btn btn-outline-secondary" href="{{ url_for('settings.customer_account_statements') }}"><i class="fa-solid fa-arrow-left me-1"></i> Riepilogo</a>
+    <a class="btn btn-outline-secondary" href="{{ back_url or url_for('administration.customer_credit') }}"><i class="fa-solid fa-arrow-left me-1"></i> Riepilogo</a>
   </div>
   <div class="row g-3 mb-3">
     {% for label, value in [("Dare", totals.debit), ("Avere", totals.credit), ("Saldo movimenti", totals.balance)] %}
@@ -22,7 +22,7 @@
     </tr>{% endfor %}</tbody>
   </table></div></div>
   {% if entries.pages > 1 %}<nav class="mt-3"><ul class="pagination justify-content-center">
-    {% for page_number in entries.iter_pages() %}{% if page_number %}<li class="page-item {{ 'active' if page_number == entries.page }}"><a class="page-link" href="{{ url_for('settings.customer_account_statement_detail', source_customer_code=customer.source_customer_code, page=page_number) }}">{{ page_number }}</a></li>{% else %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}{% endfor %}
+    {% for page_number in entries.iter_pages() %}{% if page_number %}<li class="page-item {{ 'active' if page_number == entries.page }}"><a class="page-link" href="{{ url_for('administration.customer_credit_detail', source_customer_code=customer.source_customer_code, page=page_number, area=area, zone=zone) }}">{{ page_number }}</a></li>{% else %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}{% endfor %}
   </ul></nav>{% endif %}
 </div></section>
 {% endblock %}

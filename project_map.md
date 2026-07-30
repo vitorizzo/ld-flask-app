@@ -33,8 +33,13 @@ ultimo commit del branch main.
 - Import idempotente tramite SHA-256 dell'export; ogni snapshot mantiene sorgente, tracciato, conteggi e movimenti.
 - Collegamento clienti tramite normalizzazione numerica di `ECS-CODICE` e `BusinessRegistry.source_code`.
 - Interpretazione corrente: `ECS-SEGNO=D` addebito, `A` accredito; il saldo visualizzato è Dare meno Avere.
-- UI: `/settings/customer-account-statements` e dettaglio `/settings/customer-account-statements/<source_customer_code>`, template sotto `templates/settings/customer_account_statement*.html`.
-- Tile `Situazioni contabili clienti` nella dashboard `/settings`, accessibile da peso ruolo 40.
+- UI amministrativa: `/administration/customer-credit` e dettaglio `/administration/customer-credit/<source_customer_code>`.
+- Blueprint e aggregazioni: `routes/administration.py`; template dashboard `templates/administration/customer_credit.html`.
+- Grafico interattivo repository-native: `static/js/customer_credit.js` e `static/css/customer_credit.css`, senza dipendenze CDN aggiuntive.
+- La navigazione usa la gerarchia `Credito -> Aree (province) -> Zone (comuni) -> Clienti`; breadcrumb e pulsante indietro conservano il contesto.
+- La voce `Situazioni contabili clienti` è figlia del menu `Amministrazione`, con peso `office` 40; migrazione menu `cb2c3d4e5f60_add_customer_credit_menu.py`.
+- Il tile precedentemente esposto in `/settings` e le vecchie route `/settings/customer-account-statements*` sono stati rimossi.
+- Lo scoperto aggregato somma soltanto i saldi cliente positivi, così i clienti a credito non compensano quelli esposti.
 - I totali scaduti dell'export non sono valorizzati: la prima versione non li presenta come dato definitivo e non avvia ancora invii automatici.
 
 ## Eventi
