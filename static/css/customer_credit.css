@@ -71,7 +71,7 @@
 }
 
 .credit-history-filter {
-  width: min(100%, 420px);
+  width: 100%;
 }
 
 .credit-trend-wrap {
@@ -84,6 +84,15 @@
   width: 100%;
   min-width: 680px;
   height: auto;
+}
+
+.credit-trend-wrap-compact .credit-trend {
+  min-width: 430px;
+}
+
+.credit-snapshot-total {
+  margin-left: auto;
+  white-space: nowrap;
 }
 
 .credit-trend-grid {
@@ -121,5 +130,12 @@
 
   .credit-legend {
     max-height: 320px;
+  }
+
+  .credit-snapshot-total {
+    width: 100%;
+    margin-left: 0;
+    padding-top: 0.65rem;
+    border-top: 1px solid var(--bs-border-color);
   }
 }

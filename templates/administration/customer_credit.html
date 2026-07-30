@@ -3,7 +3,7 @@
 {% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_credit.css', v=app_version ~ '-credit2') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_credit.css', v=app_version ~ '-credit3') }}">
 {% endblock %}
 
 {% block content %}
@@ -34,10 +34,16 @@
   {% if not current_import %}
     <div class="alert alert-info">Non è ancora presente alcuna situazione contabile importata.</div>
   {% else %}
-    <div class="alert alert-light border d-flex flex-wrap gap-3 mb-3">
-      <span><strong>Snapshot:</strong> {{ current_import.imported_at.strftime("%d/%m/%Y %H:%M") }}</span>
-      <span><strong>File:</strong> {{ current_import.source_file }}</span>
-      <span><strong>Clienti nello scoperto:</strong> {{ customer_count }}</span>
+    <div class="alert alert-light border d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
+      <div class="d-flex flex-wrap gap-3">
+        <span><strong>Snapshot:</strong> {{ current_import.imported_at.strftime("%d/%m/%Y %H:%M") }}</span>
+        <span><strong>File:</strong> {{ current_import.source_file }}</span>
+        <span><strong>Clienti nello scoperto:</strong> {{ customer_count }}</span>
+      </div>
+      <div class="credit-snapshot-total">
+        <span class="text-muted me-2">Totale scoperto</span>
+        <strong class="text-danger fs-5">{{ money(total_exposure) }}</strong>
+      </div>
     </div>
 
     <div class="row g-3 mb-3">
@@ -66,50 +72,37 @@
         </div>
       </div>
       <div class="col-12 col-lg-4">
-        <div class="card border-0 shadow-sm h-100"><div class="card-body p-4 d-flex flex-column justify-content-center">
-          <div class="text-muted">Totale scoperto</div>
-          <div class="display-6 fw-semibold text-danger">{{ money(total_exposure) }}</div>
-          <hr>
-          <div class="small text-muted">Somma dei soli saldi cliente positivi. I clienti a credito non compensano quelli esposti.</div>
-        </div></div>
-      </div>
-    </div>
-
-    {% if level == "areas" %}
-      <div class="card border-0 shadow-sm mb-3">
-        <div class="card-header bg-white border-0 pt-4 px-4">
-          <div class="d-flex flex-wrap align-items-end justify-content-between gap-3">
-            <div>
-              <h2 class="h5 mb-1">Andamento mensile dell'esposizione</h2>
-              <div class="text-muted small">Ultimo snapshot disponibile di ogni mese, fino a 24 mesi.</div>
-            </div>
-            <form class="credit-history-filter" method="get">
-              <label class="form-label small mb-1" for="historyZone">Filtra per zona</label>
-              <div class="input-group">
-                <select class="form-select" id="historyZone" name="history_zone">
-                  <option value="">Tutte le zone</option>
-                  {% for option in history_zone_options %}
-                    <option value="{{ option.value }}" {{ "selected" if option.value == selected_history_zone_value }}>{{ option.label }}</option>
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white border-0 pt-4 px-4">
+            <h2 class="h5 mb-1">Andamento mensile</h2>
+            <div class="text-muted small">Ultimo snapshot mensile, fino a 24 mesi.</div>
+            <form class="credit-history-filter mt-3" method="get">
+              {% if area %}<input type="hidden" name="area" value="{{ area }}">{% endif %}
+              {% if zone %}<input type="hidden" name="zone" value="{{ zone }}">{% endif %}
+              <label class="form-label small mb-1" for="historyArea">Filtra per area</label>
+              <div class="input-group input-group-sm">
+                <select class="form-select" id="historyArea" name="history_area">
+                  <option value="">Tutte le aree</option>
+                  {% for option in history_area_options %}
+                    <option value="{{ option }}" {{ "selected" if option == selected_history_area_value }}>{{ option }}</option>
                   {% endfor %}
                 </select>
                 <button class="btn btn-outline-primary" type="submit">Applica</button>
               </div>
             </form>
           </div>
-        </div>
-        <div class="card-body p-4">
-          {% if selected_history_zone %}
-            <div class="small mb-2"><strong>Zona:</strong> {{ selected_history_zone.label }}</div>
-          {% endif %}
-          <div class="credit-trend-wrap">
-            <svg id="customerCreditTrend" class="credit-trend" viewBox="0 0 900 330" role="img" aria-label="Andamento mensile dell'esposizione"></svg>
+          <div class="card-body px-3 pb-3 pt-2">
+            {% if selected_history_area %}<div class="small mb-1"><strong>Area:</strong> {{ selected_history_area }}</div>{% endif %}
+            <div class="credit-trend-wrap credit-trend-wrap-compact">
+              <svg id="customerCreditTrend" class="credit-trend" viewBox="0 0 900 330" role="img" aria-label="Andamento mensile dell'esposizione"></svg>
+            </div>
+            {% if history_points|length == 1 %}
+              <div class="text-muted small text-center mt-1">La linea si formerà con i prossimi mesi.</div>
+            {% endif %}
           </div>
-          {% if history_points|length == 1 %}
-            <div class="text-muted small text-center mt-2">Lo storico contiene per ora un solo mese; la linea si formerà con i prossimi snapshot mensili.</div>
-          {% endif %}
         </div>
       </div>
-    {% endif %}
+    </div>
 
     <div class="card border-0 shadow-sm">
       <div class="table-responsive"><table class="table table-hover align-middle mb-0">
@@ -132,7 +125,7 @@
 </div></section>
 {% if current_import %}
   <script id="customerCreditData" type="application/json">{{ chart_payload|tojson }}</script>
-  {% if level == "areas" %}<script id="customerCreditHistoryData" type="application/json">{{ history_payload|tojson }}</script>{% endif %}
+  <script id="customerCreditHistoryData" type="application/json">{{ history_payload|tojson }}</script>
 {% endif %}
 {% endblock %}
 

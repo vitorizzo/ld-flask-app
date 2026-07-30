@@ -49,31 +49,21 @@ def _customer_credit_rows(import_id):
     )
 
 
-def _history_zone_options(import_id):
+def _history_area_options(import_id):
     rows = (
-        db.session.query(
-            BusinessRegistry.province,
-            BusinessRegistry.city,
-        )
+        db.session.query(BusinessRegistry.province)
         .join(CustomerAccountEntry, CustomerAccountEntry.registry_id == BusinessRegistry.id)
         .filter(CustomerAccountEntry.import_id == import_id)
         .distinct()
         .all()
     )
-    options = []
-    for province, city in rows:
-        area_label = province or UNKNOWN_AREA
-        zone_label = city or UNKNOWN_ZONE
-        options.append({
-            "value": f"{area_label}|{zone_label}",
-            "label": f"{zone_label} ({area_label})",
-            "area": area_label,
-            "zone": zone_label,
-        })
-    return sorted(options, key=lambda item: (item["label"].casefold(), item["value"]))
+    return sorted(
+        {province or UNKNOWN_AREA for (province,) in rows},
+        key=str.casefold,
+    )
 
 
-def _monthly_credit_history(selected_zone=None, month_limit=24):
+def _monthly_credit_history(selected_area=None, month_limit=24):
     imports = CustomerAccountStatementImport.query.order_by(
         CustomerAccountStatementImport.imported_at.asc(),
         CustomerAccountStatementImport.id.asc(),
@@ -105,10 +95,9 @@ def _monthly_credit_history(selected_zone=None, month_limit=24):
 
     totals = defaultdict(lambda: Decimal("0"))
     for row in customer_rows:
-        if selected_zone:
+        if selected_area:
             area_label = row.province or UNKNOWN_AREA
-            zone_label = row.city or UNKNOWN_ZONE
-            if area_label != selected_zone["area"] or zone_label != selected_zone["zone"]:
+            if area_label != selected_area:
                 continue
         totals[row.import_id] += row.balance
 
@@ -148,13 +137,14 @@ def customer_credit():
         abort(404)
 
     rows = _customer_credit_rows(current_import.id)
-    history_zone_options = _history_zone_options(current_import.id)
-    selected_history_zone_value = (request.args.get("history_zone") or "").strip()
-    selected_history_zone = next(
-        (item for item in history_zone_options if item["value"] == selected_history_zone_value),
-        None,
+    history_area_options = _history_area_options(current_import.id)
+    selected_history_area_value = (request.args.get("history_area") or "").strip()
+    selected_history_area = (
+        selected_history_area_value
+        if selected_history_area_value in history_area_options
+        else None
     )
-    history_points = _monthly_credit_history(selected_history_zone)
+    history_points = _monthly_credit_history(selected_history_area)
     history_payload = [
         {"label": item["label"], "value": float(item["value"])}
         for item in history_points
@@ -253,9 +243,9 @@ def customer_credit():
         chart_payload=chart_payload,
         history_points=history_points,
         history_payload=history_payload,
-        history_zone_options=history_zone_options,
-        selected_history_zone_value=selected_history_zone_value if selected_history_zone else "",
-        selected_history_zone=selected_history_zone,
+        history_area_options=history_area_options,
+        selected_history_area_value=selected_history_area or "",
+        selected_history_area=selected_history_area,
         level=level,
         area=area,
         zone=zone,
