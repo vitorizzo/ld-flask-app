@@ -67,9 +67,90 @@
     startAngle += sweep;
   });
 
+  renderTrend();
+
   function escapeHtml(value) {
     const node = document.createElement("span");
     node.textContent = String(value);
     return node.innerHTML;
+  }
+
+  function renderTrend() {
+    const historyNode = document.getElementById("customerCreditHistoryData");
+    const trendSvg = document.getElementById("customerCreditTrend");
+    if (!historyNode || !trendSvg) return;
+
+    let points;
+    try {
+      points = JSON.parse(historyNode.textContent || "[]");
+    } catch (_error) {
+      return;
+    }
+    if (!points.length) return;
+
+    const width = 900;
+    const height = 330;
+    const margin = { top: 24, right: 28, bottom: 58, left: 92 };
+    const plotWidth = width - margin.left - margin.right;
+    const plotHeight = height - margin.top - margin.bottom;
+    const rawMaximum = Math.max(...points.map((item) => Number(item.value) || 0), 1);
+    const magnitude = 10 ** Math.floor(Math.log10(rawMaximum));
+    const maximum = Math.ceil(rawMaximum / magnitude) * magnitude;
+    const compactMoney = new Intl.NumberFormat("it-IT", {
+      style: "currency",
+      currency: "EUR",
+      notation: "compact",
+      maximumFractionDigits: 1
+    });
+    const xAt = (index) => margin.left + (points.length === 1 ? plotWidth / 2 : index / (points.length - 1) * plotWidth);
+    const yAt = (value) => margin.top + plotHeight - (Number(value) / maximum * plotHeight);
+    const addText = (text, x, y, className, anchor = "middle") => {
+      const node = document.createElementNS(namespace, "text");
+      node.textContent = text;
+      node.setAttribute("x", x);
+      node.setAttribute("y", y);
+      node.setAttribute("text-anchor", anchor);
+      node.setAttribute("class", className);
+      trendSvg.appendChild(node);
+    };
+
+    for (let index = 0; index <= 4; index += 1) {
+      const value = maximum * index / 4;
+      const y = yAt(value);
+      const line = document.createElementNS(namespace, "line");
+      line.setAttribute("x1", margin.left);
+      line.setAttribute("x2", width - margin.right);
+      line.setAttribute("y1", y);
+      line.setAttribute("y2", y);
+      line.setAttribute("class", "credit-trend-grid");
+      trendSvg.appendChild(line);
+      addText(compactMoney.format(value), margin.left - 12, y + 4, "credit-trend-axis", "end");
+    }
+
+    const coordinates = points.map((item, index) => `${xAt(index)},${yAt(item.value)}`);
+    if (points.length > 1) {
+      const line = document.createElementNS(namespace, "polyline");
+      line.setAttribute("points", coordinates.join(" "));
+      line.setAttribute("class", "credit-trend-line");
+      trendSvg.appendChild(line);
+    }
+
+    const labelStep = Math.max(1, Math.ceil(points.length / 8));
+    points.forEach((item, index) => {
+      const x = xAt(index);
+      const y = yAt(item.value);
+      const circle = document.createElementNS(namespace, "circle");
+      circle.setAttribute("cx", x);
+      circle.setAttribute("cy", y);
+      circle.setAttribute("r", "5.5");
+      circle.setAttribute("class", "credit-trend-point");
+      const title = document.createElementNS(namespace, "title");
+      title.textContent = `${item.label}: ${money.format(item.value)}`;
+      circle.appendChild(title);
+      trendSvg.appendChild(circle);
+      if (index % labelStep === 0 || index === points.length - 1) {
+        addText(item.label, x, height - 22, "credit-trend-axis");
+      }
+    });
   }
 })();

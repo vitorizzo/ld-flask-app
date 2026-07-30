@@ -3,7 +3,7 @@
 {% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_credit.css', v=app_version ~ '-credit1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_credit.css', v=app_version ~ '-credit2') }}">
 {% endblock %}
 
 {% block content %}
@@ -75,6 +75,42 @@
       </div>
     </div>
 
+    {% if level == "areas" %}
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-white border-0 pt-4 px-4">
+          <div class="d-flex flex-wrap align-items-end justify-content-between gap-3">
+            <div>
+              <h2 class="h5 mb-1">Andamento mensile dell'esposizione</h2>
+              <div class="text-muted small">Ultimo snapshot disponibile di ogni mese, fino a 24 mesi.</div>
+            </div>
+            <form class="credit-history-filter" method="get">
+              <label class="form-label small mb-1" for="historyZone">Filtra per zona</label>
+              <div class="input-group">
+                <select class="form-select" id="historyZone" name="history_zone">
+                  <option value="">Tutte le zone</option>
+                  {% for option in history_zone_options %}
+                    <option value="{{ option.value }}" {{ "selected" if option.value == selected_history_zone_value }}>{{ option.label }}</option>
+                  {% endfor %}
+                </select>
+                <button class="btn btn-outline-primary" type="submit">Applica</button>
+              </div>
+            </form>
+          </div>
+        </div>
+        <div class="card-body p-4">
+          {% if selected_history_zone %}
+            <div class="small mb-2"><strong>Zona:</strong> {{ selected_history_zone.label }}</div>
+          {% endif %}
+          <div class="credit-trend-wrap">
+            <svg id="customerCreditTrend" class="credit-trend" viewBox="0 0 900 330" role="img" aria-label="Andamento mensile dell'esposizione"></svg>
+          </div>
+          {% if history_points|length == 1 %}
+            <div class="text-muted small text-center mt-2">Lo storico contiene per ora un solo mese; la linea si formerà con i prossimi snapshot mensili.</div>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+
     <div class="card border-0 shadow-sm">
       <div class="table-responsive"><table class="table table-hover align-middle mb-0">
         <thead><tr>
@@ -94,9 +130,12 @@
     </div>
   {% endif %}
 </div></section>
-{% if current_import %}<script id="customerCreditData" type="application/json">{{ chart_payload|tojson }}</script>{% endif %}
+{% if current_import %}
+  <script id="customerCreditData" type="application/json">{{ chart_payload|tojson }}</script>
+  {% if level == "areas" %}<script id="customerCreditHistoryData" type="application/json">{{ history_payload|tojson }}</script>{% endif %}
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/customer_credit.js', v=app_version ~ '-credit1') }}"></script>
+<script src="{{ url_for('static', filename='js/customer_credit.js', v=app_version ~ '-credit2') }}"></script>
 {% endblock %}

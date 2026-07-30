@@ -2628,3 +2628,14 @@ Performance apertura giornata Agenda 2026-06-13:
 - Ogni messaggio pianificato scade dopo 25 minuti: se worker/Redis rimangono fermi non vengono processate importazioni arretrate quando è già prossimo o disponibile uno snapshot più recente.
 - L'hash SHA-256 già presente mantiene l'import idempotente: se il file non è cambiato non vengono creati snapshot o movimenti duplicati.
 - Restano disponibili l'import manuale dalla dashboard e il logging universale in `importazioni.log`/`main.log`.
+
+## 2026-07-30 - Andamento mensile esposizione clienti
+
+- La pagina principale `/administration/customer-credit` include un secondo grafico SVG con l'andamento mensile dello scoperto.
+- La serie copre fino a 24 mesi e usa l'ultimo snapshot disponibile di ciascun mese; le 48 importazioni giornaliere non diventano quindi 48 punti visivi.
+- Il calcolo resta coerente con la torta: per ogni snapshot vengono prima calcolati i saldi cliente e poi sommati soltanto quelli positivi.
+- Aggiunto filtro per zona; la chiave include comune e provincia (`CARSOLI (AQ)`), evitando di unire comuni omonimi appartenenti ad aree diverse.
+- Una zona senza esposizione in un mese rimane nella serie con valore zero; con il solo snapshot oggi disponibile il grafico mostra correttamente un unico punto e segnala che la linea crescerà con lo storico.
+- Il grafico è responsive, ha assi e griglia, tooltip nativi sui punti e scorrimento orizzontale sui dispositivi stretti.
+- Superati AST, compilazione Jinja, sintassi JavaScript e `git diff --check`.
+- Il test integrato read-only sul DB reale non è stato completato perché il server PostgreSQL `100.120.25.12` è andato in timeout in due tentativi consecutivi prima della prima query; non sono state eseguite scritture.

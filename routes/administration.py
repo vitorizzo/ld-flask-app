@@ -16,6 +16,10 @@ logger = get_logger("administration")
 
 UNKNOWN_AREA = "Provincia non definita"
 UNKNOWN_ZONE = "Comune non definito"
+MONTH_LABELS = (
+    "Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
+    "Lug", "Ago", "Set", "Ott", "Nov", "Dic",
+)
 
 
 def _latest_statement_import():
@@ -45,6 +49,79 @@ def _customer_credit_rows(import_id):
     )
 
 
+def _history_zone_options(import_id):
+    rows = (
+        db.session.query(
+            BusinessRegistry.province,
+            BusinessRegistry.city,
+        )
+        .join(CustomerAccountEntry, CustomerAccountEntry.registry_id == BusinessRegistry.id)
+        .filter(CustomerAccountEntry.import_id == import_id)
+        .distinct()
+        .all()
+    )
+    options = []
+    for province, city in rows:
+        area_label = province or UNKNOWN_AREA
+        zone_label = city or UNKNOWN_ZONE
+        options.append({
+            "value": f"{area_label}|{zone_label}",
+            "label": f"{zone_label} ({area_label})",
+            "area": area_label,
+            "zone": zone_label,
+        })
+    return sorted(options, key=lambda item: (item["label"].casefold(), item["value"]))
+
+
+def _monthly_credit_history(selected_zone=None, month_limit=24):
+    imports = CustomerAccountStatementImport.query.order_by(
+        CustomerAccountStatementImport.imported_at.asc(),
+        CustomerAccountStatementImport.id.asc(),
+    ).all()
+    latest_by_month = {}
+    for statement_import in imports:
+        key = (statement_import.imported_at.year, statement_import.imported_at.month)
+        latest_by_month[key] = statement_import
+    selected_imports = list(latest_by_month.values())[-month_limit:]
+    if not selected_imports:
+        return []
+
+    import_ids = [item.id for item in selected_imports]
+    customer_balance = func.sum(CustomerAccountEntry.signed_amount)
+    customer_rows = (
+        db.session.query(
+            CustomerAccountEntry.import_id.label("import_id"),
+            CustomerAccountEntry.source_customer_code.label("source_customer_code"),
+            func.max(BusinessRegistry.province).label("province"),
+            func.max(BusinessRegistry.city).label("city"),
+            customer_balance.label("balance"),
+        )
+        .outerjoin(BusinessRegistry, BusinessRegistry.id == CustomerAccountEntry.registry_id)
+        .filter(CustomerAccountEntry.import_id.in_(import_ids))
+        .group_by(CustomerAccountEntry.import_id, CustomerAccountEntry.source_customer_code)
+        .having(customer_balance > 0)
+        .all()
+    )
+
+    totals = defaultdict(lambda: Decimal("0"))
+    for row in customer_rows:
+        if selected_zone:
+            area_label = row.province or UNKNOWN_AREA
+            zone_label = row.city or UNKNOWN_ZONE
+            if area_label != selected_zone["area"] or zone_label != selected_zone["zone"]:
+                continue
+        totals[row.import_id] += row.balance
+
+    return [
+        {
+            "label": f"{MONTH_LABELS[item.imported_at.month - 1]} {item.imported_at.year}",
+            "value": totals[item.id],
+            "imported_at": item.imported_at,
+        }
+        for item in selected_imports
+    ]
+
+
 @administration_bp.route("/customer-credit", methods=["GET"])
 @login_required
 @role_required(40, roles=["office"])
@@ -71,6 +148,17 @@ def customer_credit():
         abort(404)
 
     rows = _customer_credit_rows(current_import.id)
+    history_zone_options = _history_zone_options(current_import.id)
+    selected_history_zone_value = (request.args.get("history_zone") or "").strip()
+    selected_history_zone = next(
+        (item for item in history_zone_options if item["value"] == selected_history_zone_value),
+        None,
+    )
+    history_points = _monthly_credit_history(selected_history_zone)
+    history_payload = [
+        {"label": item["label"], "value": float(item["value"])}
+        for item in history_points
+    ]
     total_exposure = sum((row.balance for row in rows), Decimal("0"))
     chart_items = []
     breadcrumbs = [{"label": "Credito", "url": url_for("administration.customer_credit")}]
@@ -163,6 +251,11 @@ def customer_credit():
         current_import=current_import,
         chart_items=chart_items,
         chart_payload=chart_payload,
+        history_points=history_points,
+        history_payload=history_payload,
+        history_zone_options=history_zone_options,
+        selected_history_zone_value=selected_history_zone_value if selected_history_zone else "",
+        selected_history_zone=selected_history_zone,
         level=level,
         area=area,
         zone=zone,

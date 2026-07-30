@@ -70,6 +70,46 @@
   text-align: right;
 }
 
+.credit-history-filter {
+  width: min(100%, 420px);
+}
+
+.credit-trend-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.credit-trend {
+  display: block;
+  width: 100%;
+  min-width: 680px;
+  height: auto;
+}
+
+.credit-trend-grid {
+  stroke: var(--bs-border-color);
+  stroke-width: 1;
+}
+
+.credit-trend-line {
+  fill: none;
+  stroke: var(--bs-danger);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.credit-trend-point {
+  fill: #fff;
+  stroke: var(--bs-danger);
+  stroke-width: 4;
+}
+
+.credit-trend-axis {
+  fill: var(--bs-secondary-color);
+  font-size: 13px;
+}
+
 @media (max-width: 991.98px) {
   .credit-chart-layout {
     grid-template-columns: 1fr;
