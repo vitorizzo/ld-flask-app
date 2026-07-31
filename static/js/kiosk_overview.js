@@ -205,12 +205,16 @@ window.kioskState = {
 
   function closeActiveCardDropdown(exceptToggle = null, flushPending = true) {
     if (!activeCardDropdown || activeCardDropdown.toggle === exceptToggle) return false;
+    const currentDropdown = activeCardDropdown;
     const dropdown = window.bootstrap
-      ? window.bootstrap.Dropdown.getInstance(activeCardDropdown.toggle)
+      ? window.bootstrap.Dropdown.getInstance(currentDropdown.toggle)
       : null;
-    if (dropdown) dropdown.hide();
-    if (activeCardDropdown.restore) activeCardDropdown.restore();
     activeCardDropdown = null;
+    if (dropdown) {
+      dropdown.hide();
+    } else if (currentDropdown.restore) {
+      currentDropdown.restore();
+    }
     if (flushPending && pendingCardRender) {
       pendingCardRender = false;
       applyFilterAndRender();

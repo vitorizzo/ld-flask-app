@@ -1,5 +1,11 @@
 # PROJECT_MAP.md — v2.4
 
+## Bacheca ordini - azioni menu contestuale (2026-07-31)
+
+- `static/js/kiosk_overview.js`: `closeActiveCardDropdown()` conserva il riferimento corrente prima di nascondere il dropdown; l'evento Bootstrap `hidden.bs.dropdown` non puo' piu' azzerare lo stato globale durante una successiva lettura di `restore`.
+- Le azioni `Sposta in` tornano quindi a raggiungere `POST /kiosk/api/order/<id>/set-status`.
+- `templates/kiosk_overview.html`: cache key dello script aggiornata a `mobile-board16`.
+
 ## Regola prioritaria modali
 
 Le modali nuove o modificate devono inizializzare esplicitamente il bottone di conferma su `shown.bs.modal` e ripulire lo stato su `hidden.bs.modal`.

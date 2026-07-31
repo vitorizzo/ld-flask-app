@@ -2675,3 +2675,11 @@ Performance apertura giornata Agenda 2026-06-13:
 - L'import valorizza i campi e completa idempotentemente i metadati mancanti su uno snapshot con hash già noto; lo snapshot 2 è stato aggiornato su tutte le 1.792 righe senza duplicazione.
 - Dashboard, storico, KPI e aging usano solo righe rilevanti. L'e/c mantiene le righe tecniche con badge `riga tecnica esclusa dal saldo`.
 - Test reale superato: Bar Castello saldo 0,00 e assente dai debitori; due righe tecniche visibili e marcate; Bottone 1950 invariato con 0-30 pari a 3.754,42 euro.
+
+## 2026-07-31 - Fix azioni menu contestuale bacheca ordini
+
+- Corretto `closeActiveCardDropdown()` in `static/js/kiosk_overview.js`: la chiusura Bootstrap azzerava `activeCardDropdown` tramite `hidden.bs.dropdown` e il codice tentava subito dopo di leggere `restore` sul riferimento ormai nullo.
+- L'errore JavaScript interrompeva il click prima della chiamata a `/kiosk/api/order/<id>/set-status`, quindi le azioni `Sposta in` non producevano effetti.
+- Il riferimento al dropdown viene ora conservato localmente, lo stato globale viene azzerato prima di `hide()` e il ripristino manuale resta soltanto come fallback quando non esiste un'istanza Bootstrap.
+- Cache key di `kiosk_overview.js` aggiornata a `mobile-board16`.
+- Verificati `node --check static/js/kiosk_overview.js` e `git diff --check`.
