@@ -1679,6 +1679,13 @@ body.kiosk-body .modal-backdrop.show {
 }
 .check-scan-editor {
   --check-editor-accent: #0dcaf0;
+  color: #212529;
+  background: #f5f1ed;
+}
+
+.check-scan-editor h6 {
+  color: #2d211d;
+  font-weight: 700;
 }
 
 .check-scan-toolbar {
@@ -1687,6 +1694,40 @@ body.kiosk-body .modal-backdrop.show {
   align-items: center;
   gap: 12px;
   margin-bottom: 10px;
+  padding: 14px;
+  border: 1px solid #765244;
+  border-radius: 10px;
+  color: #fff;
+  background: #4b3027;
+  box-shadow: 0 4px 14px rgba(45, 27, 20, .2);
+}
+
+.check-scan-toolbar .btn-outline-light {
+  color: #fff;
+  border-color: rgba(255, 255, 255, .82);
+  background: rgba(255, 255, 255, .06);
+}
+
+.check-scan-toolbar .btn-outline-light:hover,
+.check-scan-toolbar .btn-outline-light:focus,
+.check-scan-toolbar .btn-outline-light.active {
+  color: #2d211d;
+  border-color: #fff;
+  background: #fff;
+}
+
+.check-scan-toolbar .btn-info,
+.check-scan-toolbar .btn-outline-info:hover,
+.check-scan-toolbar .btn-outline-info:focus {
+  color: #102a30;
+  border-color: #53d8f2;
+  background: #53d8f2;
+}
+
+.check-scan-toolbar .btn-outline-info {
+  color: #8cecff;
+  border-color: #53d8f2;
+  background: transparent;
 }
 
 .check-scan-angle {
@@ -1694,10 +1735,56 @@ body.kiosk-body .modal-backdrop.show {
   white-space: nowrap;
 }
 
+.check-scan-rotation-slider {
+  flex: 1 1 260px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+}
+
+.check-scan-rotation-slider span {
+  white-space: nowrap;
+}
+
+.check-scan-rotation-slider .form-range {
+  min-width: 180px;
+  margin: 0;
+}
+
+.check-scan-rotation-slider .form-range::-webkit-slider-runnable-track {
+  background: #d7e3e6;
+}
+
+.check-scan-rotation-slider .form-range::-moz-range-track {
+  background: #d7e3e6;
+}
+
+.check-scan-rotation-slider .form-range::-webkit-slider-thumb {
+  background: #0dcaf0;
+  border: 2px solid #fff;
+}
+
+.check-scan-rotation-slider .form-range::-moz-range-thumb {
+  background: #0dcaf0;
+  border: 2px solid #fff;
+}
+
 .check-scan-help {
   padding: 8px 12px;
   border-left: 4px solid var(--check-editor-accent);
   background: rgba(13, 202, 240, .08);
+  color: #263238;
+  font-weight: 600;
+}
+
+#checkScanCropModal .modal-footer {
+  background: #f5f1ed;
+  border-top-color: #d7ccc6;
+}
+
+#checkScanCropModal .modal-footer .btn {
+  font-weight: 700;
 }
 
 .check-scan-canvas-wrap {
@@ -1731,5 +1818,6 @@ body.kiosk-body .modal-backdrop.show {
   }
   .check-scan-toolbar .btn { flex: 1 1 auto; min-height: 48px; }
   .check-scan-angle { margin-left: 0; }
+  .check-scan-rotation-slider { flex-basis: 100%; }
   .check-scan-canvas-wrap { min-height: 280px; padding: 6px; }
 }

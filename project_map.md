@@ -12,6 +12,7 @@
 - Le coordinate sono conservate normalizzate e inviate come unico payload geometrico, indipendentemente dalla modalita' UI scelta.
 - `routes/cassa.py`: `_manual_crop_check_image()` ruota l'immagine, applica la prospettiva e genera un JPEG 1402x567 px (178x72 mm a circa 200 DPI).
 - Lo stesso endpoint protetto `/cassa/api/checks/scan/crop-preview` gestisce anteprima automatica e manuale; il salvataggio definitivo continua a usare `/cassa/api/checks/<id>/scan` e lo storage privato esistente.
+- La rotazione e' controllabile tramite pulsanti, trascinamento sul canvas e cursore continuo -180/+180; i comandi condividono `setCheckScanEditorAngle()`.
 
 ## Regola prioritaria modali
 

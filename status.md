@@ -2693,3 +2693,5 @@ Performance apertura giornata Agenda 2026-06-13:
 - L'utente genera l'anteprima, la controlla e la conferma; il file risultante riusa il caricamento scansione gia' esistente e resta nello storage privato `instance/check_scans`.
 - Asset Agenda versionati con cache key `check-editor1`.
 - Verificati sintassi Python/JavaScript, trasformazione sintetica con output reale 1402x567 e `git diff --check`.
+- Correzione UX successiva: aggiunto cursore di rotazione continua da -180 a +180 gradi; tutti i comandi usano `setCheckScanEditorAngle()` e segnalano esplicitamente quando la foto non ha ancora terminato il caricamento. Cache key aggiornata a `check-editor2`.
+- Correzione contrasto editor: toolbar marrone con pulsanti chiari/azzurri delimitati, titoli e istruzioni scuri sul corpo chiaro, slider ad alto contrasto e azioni footer leggibili. Cache CSS aggiornata a `check-editor3`.

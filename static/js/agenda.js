@@ -997,6 +997,7 @@ const checkScanLinesModeBtn = document.getElementById("checkScanLinesModeBtn");
 const checkScanFreeRotateBtn = document.getElementById("checkScanFreeRotateBtn");
 const checkScanResetRotationBtn = document.getElementById("checkScanResetRotationBtn");
 const checkScanAngleValue = document.getElementById("checkScanAngleValue");
+const checkScanRotationRange = document.getElementById("checkScanRotationRange");
 const checkScanEditorHelp = document.getElementById("checkScanEditorHelp");
 const checkCancelBtn = document.getElementById("checkCancelBtn");
 const checkSaveBtn = document.getElementById("checkSaveBtn");
@@ -3072,6 +3073,7 @@ function updateCheckScanEditorLabels() {
   const state = checkScanEditorState;
   if (!state) return;
   if (checkScanAngleValue) checkScanAngleValue.textContent = `${state.angle.toFixed(1).replace(".", ",")}°`;
+  if (checkScanRotationRange && document.activeElement !== checkScanRotationRange) checkScanRotationRange.value = String(state.angle);
   checkScanCornersModeBtn?.classList.toggle("active", state.mode === "corners");
   checkScanCornersModeBtn?.classList.toggle("btn-info", state.mode === "corners");
   checkScanCornersModeBtn?.classList.toggle("btn-outline-info", state.mode !== "corners");
@@ -3087,6 +3089,21 @@ function updateCheckScanEditorLabels() {
         ? "Trascina le linee superiore, inferiore, sinistra e destra fino ai bordi dell'assegno."
         : "Trascina i quattro spigoli sul perimetro dell'assegno per correggere anche la prospettiva.";
   }
+}
+
+function setCheckScanEditorAngle(angle) {
+  if (!checkScanEditorState) {
+    if (checkScanCropStatus) checkScanCropStatus.textContent = "Attendi il caricamento della foto prima di ruotarla.";
+    return false;
+  }
+  let normalized = Number(angle);
+  if (!Number.isFinite(normalized)) normalized = 0;
+  while (normalized > 180) normalized -= 360;
+  while (normalized < -180) normalized += 360;
+  checkScanEditorState.angle = normalized;
+  checkScanEditorState.freeRotate = false;
+  drawCheckScanEditor();
+  return true;
 }
 
 function buildRotatedCheckScanCanvas(image, angle) {
@@ -7937,18 +7954,13 @@ document.addEventListener("DOMContentLoaded", async function () {
   checkScanEditorCanvas?.addEventListener("pointercancel", finishCheckScanEditorDrag);
   document.querySelectorAll("[data-check-rotate]").forEach(button => {
     button.addEventListener("click", () => {
-      if (!checkScanEditorState) return;
-      checkScanEditorState.angle = Number(button.getAttribute("data-check-rotate") || 0);
-      checkScanEditorState.freeRotate = false;
-      drawCheckScanEditor();
+      setCheckScanEditorAngle(button.getAttribute("data-check-rotate") || 0);
     });
   });
   checkScanResetRotationBtn?.addEventListener("click", () => {
-    if (!checkScanEditorState) return;
-    checkScanEditorState.angle = 0;
-    checkScanEditorState.freeRotate = false;
-    drawCheckScanEditor();
+    setCheckScanEditorAngle(0);
   });
+  checkScanRotationRange?.addEventListener("input", () => setCheckScanEditorAngle(checkScanRotationRange.value));
   checkScanFreeRotateBtn?.addEventListener("click", () => {
     if (!checkScanEditorState) return;
     checkScanEditorState.freeRotate = !checkScanEditorState.freeRotate;

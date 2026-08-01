@@ -12,7 +12,7 @@
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda.css', v=app_version ~ '-check-editor1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda.css', v=app_version ~ '-check-editor3') }}">
 
 {% endblock %}
 
@@ -4384,6 +4384,10 @@
           <button type="button" class="btn btn-outline-info" id="checkScanLinesModeBtn">4 linee</button>
         </div>
         <span class="check-scan-angle">Angolo: <strong id="checkScanAngleValue">0,0°</strong></span>
+        <label class="check-scan-rotation-slider" for="checkScanRotationRange">
+          <span>Rotazione continua</span>
+          <input type="range" class="form-range" id="checkScanRotationRange" min="-180" max="180" step="0.5" value="0">
+        </label>
       </div>
       <p class="check-scan-help" id="checkScanEditorHelp">Trascina i quattro spigoli sul perimetro dell'assegno.</p>
       <div class="row g-3">
@@ -4392,7 +4396,7 @@
       </div>
       <img id="checkScanOriginalPreview" class="d-none" alt="Foto originale assegno">
     </div>
-    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-outline-light" id="checkScanUseOriginalBtn">Usa foto originale</button><button type="button" class="btn btn-success" id="checkScanUseCropBtn">Usa anteprima 178 × 72 mm</button></div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-outline-dark" id="checkScanUseOriginalBtn">Usa foto originale</button><button type="button" class="btn btn-success" id="checkScanUseCropBtn">Usa anteprima 178 × 72 mm</button></div>
   </div></div>
 </div>
 
@@ -4745,7 +4749,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-check-editor1') }}"></script>
+  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-check-editor2') }}"></script>
 
 {% endblock %}
 
