@@ -1,5 +1,7 @@
 import logging
 import os
+import threading
+import time
 import click
 
 from flask import Flask, render_template, send_from_directory, make_response, session, jsonify, request
@@ -137,10 +139,19 @@ def create_app():
     )
 
     @app.after_request
-    def no_cache(response):
-        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-        response.headers["Pragma"] = "no-cache"
-        response.headers["Expires"] = "0"
+    def configure_response_cache(response):
+        if request.endpoint == "static":
+            # Gli asset con ?v= sono legati alla versione applicativa: il browser
+            # puo conservarli senza ricontrollarli a ogni apertura pagina.
+            max_age = 31536000 if request.args.get("v") else 3600
+            suffix = ", immutable" if request.args.get("v") else ""
+            response.headers["Cache-Control"] = f"public, max-age={max_age}{suffix}"
+            response.headers.pop("Pragma", None)
+            response.headers.pop("Expires", None)
+        else:
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+            response.headers["Expires"] = "0"
         return response
 
     app.config.update(
@@ -238,16 +249,31 @@ def create_app():
     except Exception:
         logger.exception("Unexpected error while loading startup preferences")
 
+    preference_refresh_seconds = max(
+        0.0,
+        float(os.getenv("PREFERENCES_REFRESH_SECONDS", "5")),
+    )
+    preference_refresh_lock = threading.Lock()
+    preference_refresh_state = {"last_check": time.monotonic()}
+
     @app.before_request
     def refresh_runtime_preferences():
         if request.endpoint == "static":
             return
-        try:
-            load_preferences_into_app_config(app)
-        except (OperationalError, SQLAlchemyError):
-            logger.debug("refresh_runtime_preferences: database not available, keep current config")
-        except Exception:
-            logger.exception("refresh_runtime_preferences: unexpected error while loading runtime preferences")
+        now = time.monotonic()
+        if now - preference_refresh_state["last_check"] < preference_refresh_seconds:
+            return
+        with preference_refresh_lock:
+            now = time.monotonic()
+            if now - preference_refresh_state["last_check"] < preference_refresh_seconds:
+                return
+            preference_refresh_state["last_check"] = now
+            try:
+                load_preferences_into_app_config(app)
+            except (OperationalError, SQLAlchemyError):
+                logger.debug("refresh_runtime_preferences: database not available, keep current config")
+            except Exception:
+                logger.exception("refresh_runtime_preferences: unexpected error while loading runtime preferences")
 
     @app.before_request
     def record_visitor_analytics():

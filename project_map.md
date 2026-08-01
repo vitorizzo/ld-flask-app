@@ -1216,3 +1216,9 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `routes/settings.py` + `templates/settings/import_transfer_definitions.html`: tile e pagina amministrativa per associare file export e tracciati.
 - `static/tracciati/importazione/`: directory dei tracciati selezionabili; contiene `tracciato_ec_cli.csv`.
 - `tools/importazioni.py`: risolve dinamicamente i file sorgente configurati mantenendo fallback ai nomi storici.
+
+### Prestazioni applicative e Agenda (2026-08-01)
+
+- `tools/app_factory.py`: distingue la cache dei documenti/API da quella degli asset statici; le risorse con versione applicativa sono immutabili per un anno, mentre la configurazione runtime viene riletta dal DB con TTL breve e lock per processo.
+- `templates/base.html`: tutti gli script applicativi globali includono `APP_VERSION`, così una nuova distribuzione invalida automaticamente la cache del browser.
+- `static/js/agenda.js`: polling versioni Agenda/vault serializzato ogni 5 secondi, sospeso nelle schede nascoste; i pannelli assegni sono caricati fuori dal percorso critico iniziale.

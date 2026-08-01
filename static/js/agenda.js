@@ -9,10 +9,10 @@ let editingOperationId = null;
 let editingOperationCheckIds = [];
 let priVaultUnlocked = false;
 let lastKnownVaultState = null;
-let vaultPollInterval = null;
+let agendaPollTimer = null;
+let agendaPollRunning = false;
 let lastKnownVaultStateVersion = null;
 let lastKnownAgendaVersion = null;
-let agendaPollInterval = null;
 let rowCheckMutationDepth = 0;
 let editingEcommerceId = null;
 
@@ -1137,13 +1137,25 @@ function updateDayStatusBadge() {
 }
 
 function startPolling() {
-  if (!vaultPollInterval) {
-    vaultPollInterval = setInterval(pollPrivateVaultStatus, 3000);
-  }
+  if (agendaPollTimer) return;
 
-  if (!agendaPollInterval) {
-    agendaPollInterval = setInterval(pollAgendaVersion, 3000);
-  }
+  const runPoll = async () => {
+    agendaPollTimer = null;
+    if (!agendaPollRunning && document.visibilityState === "visible") {
+      agendaPollRunning = true;
+      try {
+        await Promise.allSettled([
+          pollPrivateVaultStatus(),
+          pollAgendaVersion()
+        ]);
+      } finally {
+        agendaPollRunning = false;
+      }
+    }
+    agendaPollTimer = setTimeout(runPoll, 5000);
+  };
+
+  agendaPollTimer = setTimeout(runPoll, 5000);
 }
 
 function isCurrentDayClosed() {
@@ -1325,12 +1337,17 @@ async function refreshAgendaData(preserveView = false) {
     loadSpese(currentDay),
     loadPosMoves(currentDay),
     loadCashMoves(currentDay),
-    loadCoinsBalance(currentDay),
-    loadAssegniRientranti(currentDay)
+    loadCoinsBalance(currentDay)
   ]);
 
-  loadAssegniScadenza(currentDay, false);
   if (scrollState) restoreAgendaScrollState(scrollState);
+
+  // I riepiloghi assegni non devono ritardare la prima interazione con l'agenda.
+  // Restano aggiornati in background e dal loro refresh periodico dedicato.
+  void Promise.allSettled([
+    loadAssegniRientranti(currentDay),
+    loadAssegniScadenza(currentDay, false)
+  ]);
 }
 
 /* =========================

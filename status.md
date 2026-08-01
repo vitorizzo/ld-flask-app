@@ -2697,3 +2697,13 @@ Performance apertura giornata Agenda 2026-06-13:
 - Correzione contrasto editor: toolbar marrone con pulsanti chiari/azzurri delimitati, titoli e istruzioni scuri sul corpo chiaro, slider ad alto contrasto e azioni footer leggibili. Cache CSS aggiornata a `check-editor3`.
 - Formati scansione estesi: PDF, TIFF/TIF, BMP, GIF, PNG, WebP, JPEG e gli altri formati raster riconosciuti da Pillow vengono convertiti in JPEG prima dell'editor; per documenti multipagina viene acquisita la prima pagina. Limite portato a 25 MB.
 - Aggiunta dipendenza permissiva `pypdfium2==5.12.1` per il rendering PDF senza programmi esterni; test sintetici PDF/TIFF/BMP/GIF/PNG tutti normalizzati correttamente in JPEG. Cache JS aggiornata a `check-editor4`.
+
+## 2026-08-01 - Ottimizzazione prestazioni operative
+
+- Eseguito un benchmark autenticato su Agenda e gestione assegni: le query assegni risultano rapide sul volume corrente (60 record, circa 6 ms), mentre il costo percepito derivava soprattutto dal ventaglio di richieste iniziali, dal polling continuo e dal download ripetuto degli asset.
+- Gli asset statici versionati con `?v=` ora ricevono `Cache-Control: public, max-age=31536000, immutable`; gli altri asset statici hanno cache breve di un'ora. HTML e API restano esplicitamente `no-store` per non mostrare dati operativi obsoleti.
+- Gli script globali prima privi di versione (`scheda_articolo`, `task_status`, `pwa_push`, `app_update`) usano ora `APP_VERSION`, consentendo la cache lunga con invalidazione automatica al deploy.
+- Il caricamento delle preferenze runtime e' limitato a una lettura DB ogni 5 secondi per processo, con lock contro richieste concorrenti; i salvataggi dalle Impostazioni continuano ad applicare direttamente la configurazione aggiornata.
+- Il polling Agenda e vault e' stato unificato in un ciclo non sovrapponibile ogni 5 secondi e non interroga il server quando la scheda browser e' nascosta.
+- I riepiloghi assegni in scadenza/rientro vengono caricati in background dopo i dati principali, rendendo prima utilizzabili comandi, incassi, spese, POS e movimenti.
+- Benchmark successivo: gli endpoint operativi caldi restano tra circa 21 e 73 ms; la lista di 60 assegni scende a circa 37 ms. Verificati sintassi Python/JavaScript e `git diff --check`.
