@@ -2698,6 +2698,15 @@ Performance apertura giornata Agenda 2026-06-13:
 - Formati scansione estesi: PDF, TIFF/TIF, BMP, GIF, PNG, WebP, JPEG e gli altri formati raster riconosciuti da Pillow vengono convertiti in JPEG prima dell'editor; per documenti multipagina viene acquisita la prima pagina. Limite portato a 25 MB.
 - Aggiunta dipendenza permissiva `pypdfium2==5.12.1` per il rendering PDF senza programmi esterni; test sintetici PDF/TIFF/BMP/GIF/PNG tutti normalizzati correttamente in JPEG. Cache JS aggiornata a `check-editor4`.
 
+## 2026-08-01 - Filtro device nel quadrante POS
+
+- Nell'intestazione del quadrante POS dell'Agenda e' disponibile una tendina `Tutti i POS` / singolo dispositivo.
+- La selezione filtra immediatamente le righe e ricalcola il totale mostrato, così la quadratura puo essere eseguita terminale per terminale.
+- L'API dei movimenti POS restituisce anche l'elenco dei device configurati: sono selezionabili anche quelli senza movimenti nella giornata, per i quali il totale filtrato risulta zero.
+- Cambiando device viene azzerato l'eventuale filtro circuito precedente; passando a un'altra giornata una selezione non piu disponibile viene riportata automaticamente a `Tutti i POS`.
+- Layout adattato anche a smartphone; asset Agenda versionati con cache key `pos-device-filter1`.
+- Verificati sintassi Python/JavaScript, parsing Jinja e `git diff --check`.
+
 ## 2026-08-01 - Ottimizzazione prestazioni operative
 
 - Eseguito un benchmark autenticato su Agenda e gestione assegni: le query assegni risultano rapide sul volume corrente (60 record, circa 6 ms), mentre il costo percepito derivava soprattutto dal ventaglio di richieste iniziali, dal polling continuo e dal download ripetuto degli asset.

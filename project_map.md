@@ -1222,3 +1222,10 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `tools/app_factory.py`: distingue la cache dei documenti/API da quella degli asset statici; le risorse con versione applicativa sono immutabili per un anno, mentre la configurazione runtime viene riletta dal DB con TTL breve e lock per processo.
 - `templates/base.html`: tutti gli script applicativi globali includono `APP_VERSION`, così una nuova distribuzione invalida automaticamente la cache del browser.
 - `static/js/agenda.js`: polling versioni Agenda/vault serializzato ogni 5 secondi, sospeso nelle schede nascoste; i pannelli assegni sono caricati fuori dal percorso critico iniziale.
+
+### Agenda - filtro quadratura POS per device (2026-08-01)
+
+- `routes/cassa.py`: `GET /cassa/api/day/<day_date>/pos_moves` include `pos_devices`, unione dei device attivi e di quelli presenti nei movimenti storici della giornata.
+- `templates/agenda.html`: tendina `#posDeviceFilter` nell'intestazione del quadrante POS.
+- `static/js/agenda.js`: sincronizza le opzioni con la giornata, filtra le righe e calcola il totale netto sul device selezionato; `Tutti i POS` ripristina la vista complessiva.
+- `static/css/agenda.css`: dimensioni, contrasto e resa mobile del selettore POS.

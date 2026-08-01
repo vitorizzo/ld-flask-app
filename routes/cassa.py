@@ -7270,7 +7270,18 @@ def api_list_pos_moves(day_date):
             "notes": m.notes,
         })
 
-    return jsonify({"ok": True, "day_date": d.isoformat(), "pos_moves": out})
+    devices = [
+        {"id": dev.id, "name": dev.name}
+        for dev in sorted(dev_map.values(), key=lambda item: (item.name or "").lower())
+        if dev.is_active or dev.id in {move.pos_device_id for move in moves}
+    ]
+
+    return jsonify({
+        "ok": True,
+        "day_date": d.isoformat(),
+        "pos_moves": out,
+        "pos_devices": devices,
+    })
 
 
 @cassa_bp.get("/api/banks", endpoint="api_list_cash_banks")

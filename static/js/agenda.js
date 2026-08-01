@@ -2420,6 +2420,7 @@ async function loadPosMoves(dayStr) {
 
     const moves = data.pos_moves || [];
     lastPosMoves = moves;
+    syncPosDeviceFilterSelect(moves, data.pos_devices || []);
     const visibleMoves = applyPosFilters(moves);
     if (!moves.length) {
       listEl.innerHTML = `<div class="list-group-item text-muted small">Nessun POS</div>`;
@@ -2500,6 +2501,44 @@ async function loadPosMoves(dayStr) {
 
 function hasActivePosFilters() {
   return !!(posFilters.deviceId || posFilters.circuitId);
+}
+
+function syncPosDeviceFilterSelect(moves = lastPosMoves, configuredDevices = []) {
+  const select = document.getElementById("posDeviceFilter");
+  if (!select) return;
+
+  const devices = new Map();
+  for (const device of configuredDevices || []) {
+    if (!device.id) continue;
+    devices.set(String(device.id), device.name || `POS ${device.id}`);
+  }
+  for (const move of moves || []) {
+    if (!move.pos_device_id) continue;
+    const id = String(move.pos_device_id);
+    if (!devices.has(id)) devices.set(id, move.pos_device_name || `POS ${id}`);
+  }
+
+  const options = Array.from(devices.entries())
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name, "it"));
+  const selected = String(posFilters.deviceId || "");
+
+  select.innerHTML = [
+    '<option value="">Tutti i POS</option>',
+    ...options.map(option => `<option value="${escapeHtml(option.id)}">${escapeHtml(option.name)}</option>`)
+  ].join("");
+
+  if (selected && devices.has(selected)) {
+    select.value = selected;
+  } else {
+    select.value = "";
+    if (selected) {
+      posFilters.deviceId = null;
+      posFilters.deviceName = "";
+      posFilters.circuitId = null;
+      posFilters.circuitName = "";
+    }
+  }
 }
 
 function applyPosFilters(moves) {
@@ -8875,6 +8914,15 @@ document.addEventListener("DOMContentLoaded", async function () {
     } finally {
       checkbox.disabled = false;
     }
+  });
+
+  document.getElementById("posDeviceFilter")?.addEventListener("change", async (event) => {
+    const select = event.currentTarget;
+    const value = select.value || null;
+    const label = value ? (select.selectedOptions[0]?.textContent?.trim() || "") : "";
+    posFilters.circuitId = null;
+    posFilters.circuitName = "";
+    await setPosDeviceFilter(value, label);
   });
 
   document.getElementById("movCassaList")?.addEventListener("change", async (e) => {

@@ -12,7 +12,7 @@
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda.css', v=app_version ~ '-check-editor3') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda.css', v=app_version ~ '-pos-device-filter1') }}">
 
 {% endblock %}
 
@@ -816,7 +816,7 @@
 
             <div class="card shadow-sm h-100">
 
-              <div class="card-header d-flex align-items-center justify-content-between header-pos">
+              <div class="card-header d-flex align-items-center justify-content-between gap-2 header-pos">
 
                 <div class="d-flex align-items-center gap-2">
 
@@ -841,6 +841,13 @@
                   </button>
 
                 </div>
+
+                <label class="pos-device-filter-wrap" for="posDeviceFilter">
+                  <span class="visually-hidden">Filtra movimenti per dispositivo POS</span>
+                  <select class="form-select form-select-sm pos-device-filter" id="posDeviceFilter" aria-label="Filtra per dispositivo POS">
+                    <option value="">Tutti i POS</option>
+                  </select>
+                </label>
 
                 <span class="text-muted small">
 
@@ -4749,7 +4756,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-check-editor4') }}"></script>
+  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-pos-device-filter1') }}"></script>
 
 {% endblock %}
 
