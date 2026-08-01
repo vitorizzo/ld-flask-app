@@ -12,7 +12,7 @@
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda.css', v=app_version ~ '-mobile18') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda.css', v=app_version ~ '-check-editor1') }}">
 
 {% endblock %}
 
@@ -4369,12 +4369,30 @@
 
 <div class="modal fade agenda-modal" id="checkScanCropModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
-    <div class="modal-header"><div><h5 class="modal-title">Ritaglio intelligente assegno</h5><div class="small text-white" id="checkScanCropStatus">Analisi dei bordi in corso...</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
-    <div class="modal-body"><div class="row g-3">
-      <div class="col-12 col-lg-6"><h6 class="text-center">Foto originale</h6><div class="check-scan-compare"><img id="checkScanOriginalPreview" alt="Foto originale assegno"></div></div>
-      <div class="col-12 col-lg-6"><h6 class="text-center">Assegno estratto</h6><div class="check-scan-compare"><img id="checkScanCroppedPreview" alt="Assegno ritagliato"></div></div>
-    </div></div>
-    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-outline-primary" id="checkScanUseOriginalBtn">Usa foto originale</button><button type="button" class="btn btn-success" id="checkScanUseCropBtn">Usa assegno estratto</button></div>
+    <div class="modal-header"><div><h5 class="modal-title">Acquisizione immagine assegno</h5><div class="small text-white" id="checkScanCropStatus">Analisi dei bordi in corso...</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body check-scan-editor">
+      <div class="check-scan-toolbar" role="toolbar" aria-label="Strumenti ritaglio assegno">
+        <div class="btn-group" role="group" aria-label="Rotazioni rapide">
+          <button type="button" class="btn btn-outline-light" data-check-rotate="90">90°</button>
+          <button type="button" class="btn btn-outline-light" data-check-rotate="180">180°</button>
+          <button type="button" class="btn btn-outline-light" data-check-rotate="270">270°</button>
+          <button type="button" class="btn btn-outline-light" id="checkScanFreeRotateBtn">Rotazione libera</button>
+          <button type="button" class="btn btn-outline-light" id="checkScanResetRotationBtn">Azzera</button>
+        </div>
+        <div class="btn-group" role="group" aria-label="Modalita selezione">
+          <button type="button" class="btn btn-info active" id="checkScanCornersModeBtn">4 spigoli</button>
+          <button type="button" class="btn btn-outline-info" id="checkScanLinesModeBtn">4 linee</button>
+        </div>
+        <span class="check-scan-angle">Angolo: <strong id="checkScanAngleValue">0,0°</strong></span>
+      </div>
+      <p class="check-scan-help" id="checkScanEditorHelp">Trascina i quattro spigoli sul perimetro dell'assegno.</p>
+      <div class="row g-3">
+        <div class="col-12 col-xl-8"><h6 class="text-center">Regolazione manuale</h6><div class="check-scan-canvas-wrap"><canvas id="checkScanEditorCanvas" aria-label="Editor ritaglio assegno"></canvas></div></div>
+        <div class="col-12 col-xl-4"><h6 class="text-center">Anteprima 178 × 72 mm</h6><div class="check-scan-compare"><img id="checkScanCroppedPreview" alt="Assegno ritagliato"></div><button type="button" class="btn btn-info w-100 mt-3" id="checkScanBuildPreviewBtn">Genera anteprima</button></div>
+      </div>
+      <img id="checkScanOriginalPreview" class="d-none" alt="Foto originale assegno">
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-outline-light" id="checkScanUseOriginalBtn">Usa foto originale</button><button type="button" class="btn btn-success" id="checkScanUseCropBtn">Usa anteprima 178 × 72 mm</button></div>
   </div></div>
 </div>
 
@@ -4727,7 +4745,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-check-scan2') }}"></script>
+  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-check-editor1') }}"></script>
 
 {% endblock %}
 

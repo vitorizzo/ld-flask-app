@@ -2683,3 +2683,13 @@ Performance apertura giornata Agenda 2026-06-13:
 - Il riferimento al dropdown viene ora conservato localmente, lo stato globale viene azzerato prima di `hide()` e il ripristino manuale resta soltanto come fallback quando non esiste un'istanza Bootstrap.
 - Cache key di `kiosk_overview.js` aggiornata a `mobile-board16`.
 - Verificati `node --check static/js/kiosk_overview.js` e `git diff --check`.
+
+## 2026-08-01 - Editor manuale acquisizione assegni
+
+- La modale `checkScanCropModal` e' stata estesa senza creare un secondo flusso di acquisizione.
+- L'editor canvas permette rotazioni rapide a 90/180/270 gradi, rotazione libera tramite trascinamento, selezione con quattro linee ortogonali e selezione prospettica con quattro spigoli indipendenti.
+- `POST /cassa/api/checks/scan/crop-preview` accetta anche il payload `transform` con angolo e quattro punti normalizzati; OpenCV applica rotazione, trasformazione prospettica e normalizzazione.
+- Il risultato manuale e il ritaglio automatico riuscito vengono prodotti come JPEG 1402x567 px, rapporto fisico 178x72 mm a circa 200 DPI, adatto alla miniatura e alla stampa nel prospetto assegno.
+- L'utente genera l'anteprima, la controlla e la conferma; il file risultante riusa il caricamento scansione gia' esistente e resta nello storage privato `instance/check_scans`.
+- Asset Agenda versionati con cache key `check-editor1`.
+- Verificati sintassi Python/JavaScript, trasformazione sintetica con output reale 1402x567 e `git diff --check`.

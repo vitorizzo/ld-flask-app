@@ -990,6 +990,14 @@ const checkScanOriginalPreview = document.getElementById("checkScanOriginalPrevi
 const checkScanCroppedPreview = document.getElementById("checkScanCroppedPreview");
 const checkScanUseOriginalBtn = document.getElementById("checkScanUseOriginalBtn");
 const checkScanUseCropBtn = document.getElementById("checkScanUseCropBtn");
+const checkScanEditorCanvas = document.getElementById("checkScanEditorCanvas");
+const checkScanBuildPreviewBtn = document.getElementById("checkScanBuildPreviewBtn");
+const checkScanCornersModeBtn = document.getElementById("checkScanCornersModeBtn");
+const checkScanLinesModeBtn = document.getElementById("checkScanLinesModeBtn");
+const checkScanFreeRotateBtn = document.getElementById("checkScanFreeRotateBtn");
+const checkScanResetRotationBtn = document.getElementById("checkScanResetRotationBtn");
+const checkScanAngleValue = document.getElementById("checkScanAngleValue");
+const checkScanEditorHelp = document.getElementById("checkScanEditorHelp");
 const checkCancelBtn = document.getElementById("checkCancelBtn");
 const checkSaveBtn = document.getElementById("checkSaveBtn");
 const checkEditModalEl = document.getElementById("checkEditModal");
@@ -1039,6 +1047,7 @@ let checkCostModal = null;
 let checkSubmodalOpen = false;
 let checkScanCropModal = null;
 let pendingCheckScanCrop = null;
+let checkScanEditorState = null;
 const preparedCheckScanFiles = new WeakMap();
 let activeHistoryCheck = null;
 let checkStatusOptions = [
@@ -3052,6 +3061,199 @@ function selectedCheckScanFile(input) {
   return input ? (preparedCheckScanFiles.get(input) || input.files?.[0] || null) : null;
 }
 
+function defaultCheckScanPoints() {
+  return [
+    {x: 0.06, y: 0.08}, {x: 0.94, y: 0.08},
+    {x: 0.94, y: 0.92}, {x: 0.06, y: 0.92},
+  ];
+}
+
+function updateCheckScanEditorLabels() {
+  const state = checkScanEditorState;
+  if (!state) return;
+  if (checkScanAngleValue) checkScanAngleValue.textContent = `${state.angle.toFixed(1).replace(".", ",")}°`;
+  checkScanCornersModeBtn?.classList.toggle("active", state.mode === "corners");
+  checkScanCornersModeBtn?.classList.toggle("btn-info", state.mode === "corners");
+  checkScanCornersModeBtn?.classList.toggle("btn-outline-info", state.mode !== "corners");
+  checkScanLinesModeBtn?.classList.toggle("active", state.mode === "lines");
+  checkScanLinesModeBtn?.classList.toggle("btn-info", state.mode === "lines");
+  checkScanLinesModeBtn?.classList.toggle("btn-outline-info", state.mode !== "lines");
+  checkScanFreeRotateBtn?.classList.toggle("active", state.freeRotate);
+  checkScanEditorCanvas?.classList.toggle("is-free-rotate", state.freeRotate);
+  if (checkScanEditorHelp) {
+    checkScanEditorHelp.textContent = state.freeRotate
+      ? "Trascina orizzontalmente sull'immagine per regolare liberamente la rotazione."
+      : state.mode === "lines"
+        ? "Trascina le linee superiore, inferiore, sinistra e destra fino ai bordi dell'assegno."
+        : "Trascina i quattro spigoli sul perimetro dell'assegno per correggere anche la prospettiva.";
+  }
+}
+
+function buildRotatedCheckScanCanvas(image, angle) {
+  const maxSide = 1600;
+  const scale = Math.min(1, maxSide / Math.max(image.naturalWidth, image.naturalHeight));
+  const width = Math.max(1, Math.round(image.naturalWidth * scale));
+  const height = Math.max(1, Math.round(image.naturalHeight * scale));
+  const radians = angle * Math.PI / 180;
+  const cosine = Math.abs(Math.cos(radians));
+  const sine = Math.abs(Math.sin(radians));
+  const boundWidth = Math.ceil(width * cosine + height * sine);
+  const boundHeight = Math.ceil(width * sine + height * cosine);
+  const canvas = document.createElement("canvas");
+  canvas.width = boundWidth;
+  canvas.height = boundHeight;
+  const context = canvas.getContext("2d");
+  context.translate(boundWidth / 2, boundHeight / 2);
+  context.rotate(radians);
+  context.drawImage(image, -width / 2, -height / 2, width, height);
+  return canvas;
+}
+
+function drawCheckScanEditor() {
+  const state = checkScanEditorState;
+  if (!state?.image || !checkScanEditorCanvas) return;
+  const rotated = buildRotatedCheckScanCanvas(state.image, state.angle);
+  state.rotatedCanvas = rotated;
+  checkScanEditorCanvas.width = rotated.width;
+  checkScanEditorCanvas.height = rotated.height;
+  const context = checkScanEditorCanvas.getContext("2d");
+  context.drawImage(rotated, 0, 0);
+  const points = state.points.map(point => ({x: point.x * rotated.width, y: point.y * rotated.height}));
+  context.save();
+  context.lineWidth = Math.max(3, Math.min(rotated.width, rotated.height) / 180);
+  context.strokeStyle = "#0dcaf0";
+  context.fillStyle = "rgba(13, 202, 240, .12)";
+  context.beginPath();
+  points.forEach((point, index) => index ? context.lineTo(point.x, point.y) : context.moveTo(point.x, point.y));
+  context.closePath();
+  context.fill();
+  context.stroke();
+  const radius = Math.max(10, Math.min(rotated.width, rotated.height) / 45);
+  points.forEach((point, index) => {
+    context.beginPath();
+    context.arc(point.x, point.y, radius, 0, Math.PI * 2);
+    context.fillStyle = "#fff";
+    context.fill();
+    context.strokeStyle = index === state.dragIndex ? "#ffc107" : "#0dcaf0";
+    context.stroke();
+  });
+  context.restore();
+  updateCheckScanEditorLabels();
+}
+
+function checkScanCanvasPoint(event) {
+  const rect = checkScanEditorCanvas.getBoundingClientRect();
+  return {
+    x: Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)),
+    y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
+  };
+}
+
+function startCheckScanEditorDrag(event) {
+  const state = checkScanEditorState;
+  if (!state) return;
+  event.preventDefault();
+  checkScanEditorCanvas.setPointerCapture?.(event.pointerId);
+  const point = checkScanCanvasPoint(event);
+  if (state.freeRotate) {
+    state.rotateDrag = {x: event.clientX, angle: state.angle};
+    return;
+  }
+  if (state.mode === "corners") {
+    let nearest = 0;
+    let distance = Infinity;
+    state.points.forEach((candidate, index) => {
+      const current = Math.hypot(candidate.x - point.x, candidate.y - point.y);
+      if (current < distance) { distance = current; nearest = index; }
+    });
+    state.dragIndex = nearest;
+  } else {
+    const edges = [
+      {name: "top", distance: Math.abs(point.y - state.points[0].y)},
+      {name: "right", distance: Math.abs(point.x - state.points[1].x)},
+      {name: "bottom", distance: Math.abs(point.y - state.points[2].y)},
+      {name: "left", distance: Math.abs(point.x - state.points[0].x)},
+    ];
+    state.dragEdge = edges.sort((a, b) => a.distance - b.distance)[0].name;
+  }
+  drawCheckScanEditor();
+}
+
+function moveCheckScanEditorDrag(event) {
+  const state = checkScanEditorState;
+  if (!state) return;
+  if (state.rotateDrag) {
+    state.angle = Math.max(-180, Math.min(180, state.rotateDrag.angle + (event.clientX - state.rotateDrag.x) * 0.35));
+    drawCheckScanEditor();
+    return;
+  }
+  if (state.dragIndex == null && !state.dragEdge) return;
+  event.preventDefault();
+  const point = checkScanCanvasPoint(event);
+  const pad = 0.002;
+  point.x = Math.max(pad, Math.min(1 - pad, point.x));
+  point.y = Math.max(pad, Math.min(1 - pad, point.y));
+  if (state.dragIndex != null) {
+    state.points[state.dragIndex] = point;
+  } else if (state.dragEdge === "top") {
+    state.points[0].y = state.points[1].y = Math.min(point.y, state.points[2].y - .01);
+  } else if (state.dragEdge === "right") {
+    state.points[1].x = state.points[2].x = Math.max(point.x, state.points[0].x + .01);
+  } else if (state.dragEdge === "bottom") {
+    state.points[2].y = state.points[3].y = Math.max(point.y, state.points[0].y + .01);
+  } else if (state.dragEdge === "left") {
+    state.points[0].x = state.points[3].x = Math.min(point.x, state.points[1].x - .01);
+  }
+  drawCheckScanEditor();
+}
+
+function finishCheckScanEditorDrag(event) {
+  if (!checkScanEditorState) return;
+  checkScanEditorCanvas?.releasePointerCapture?.(event.pointerId);
+  checkScanEditorState.dragIndex = null;
+  checkScanEditorState.dragEdge = null;
+  checkScanEditorState.rotateDrag = null;
+  drawCheckScanEditor();
+}
+
+async function initializeCheckScanEditor(url) {
+  const image = new Image();
+  image.decoding = "async";
+  await new Promise((resolve, reject) => {
+    image.onload = resolve;
+    image.onerror = () => reject(new Error("Impossibile leggere la foto selezionata"));
+    image.src = url;
+  });
+  checkScanEditorState = {image, angle: 0, mode: "corners", points: defaultCheckScanPoints(), freeRotate: false, dragIndex: null, dragEdge: null, rotateDrag: null};
+  drawCheckScanEditor();
+}
+
+async function generateManualCheckScanPreview() {
+  const pending = pendingCheckScanCrop;
+  const state = checkScanEditorState;
+  if (!pending || !state) return;
+  if (checkScanBuildPreviewBtn) { checkScanBuildPreviewBtn.disabled = true; checkScanBuildPreviewBtn.textContent = "Elaborazione..."; }
+  try {
+    const formData = new FormData();
+    formData.append("scan", pending.originalFile, pending.originalFile.name || "assegno.jpg");
+    formData.append("transform", JSON.stringify({angle: state.angle, points: state.points}));
+    const response = await fetch("/cassa/api/checks/scan/crop-preview", {method: "POST", credentials: "same-origin", headers: {"Accept": "image/jpeg, application/json"}, body: formData});
+    if (!response.ok) {
+      const data = await response.json().catch(() => ({}));
+      throw new Error(data.error || "Ritaglio manuale non riuscito");
+    }
+    const blob = await response.blob();
+    if (pending.cropUrl) URL.revokeObjectURL(pending.cropUrl);
+    pending.cropFile = new File([blob], `assegno-178x72-${Date.now()}.jpg`, {type: "image/jpeg"});
+    pending.cropUrl = URL.createObjectURL(blob);
+    if (checkScanCroppedPreview) checkScanCroppedPreview.src = pending.cropUrl;
+    if (checkScanUseCropBtn) checkScanUseCropBtn.disabled = false;
+    if (checkScanCropStatus) checkScanCropStatus.textContent = "Anteprima manuale pronta · formato 178 × 72 mm · 200 DPI";
+  } finally {
+    if (checkScanBuildPreviewBtn) { checkScanBuildPreviewBtn.disabled = false; checkScanBuildPreviewBtn.textContent = "Genera anteprima"; }
+  }
+}
+
 async function prepareCheckScanCrop(input) {
   const originalFile = input?.files?.[0];
   if (!originalFile) return;
@@ -3070,6 +3272,9 @@ async function prepareCheckScanCrop(input) {
   if (checkScanCropStatus) checkScanCropStatus.textContent = "Analisi dei bordi in corso...";
   if (checkScanUseCropBtn) checkScanUseCropBtn.disabled = true;
   checkScanCropModal?.show();
+  initializeCheckScanEditor(originalUrl).catch(error => {
+    if (checkScanCropStatus) checkScanCropStatus.textContent = error.message;
+  });
   try {
     const formData = new FormData();
     formData.append("scan", originalFile, originalFile.name || "assegno.jpg");
@@ -7726,12 +7931,62 @@ document.addEventListener("DOMContentLoaded", async function () {
     prepareCheckScanCrop(input).catch(error => alert(error.message || "Errore ritaglio assegno"));
   });
 
+  checkScanEditorCanvas?.addEventListener("pointerdown", startCheckScanEditorDrag);
+  checkScanEditorCanvas?.addEventListener("pointermove", moveCheckScanEditorDrag);
+  checkScanEditorCanvas?.addEventListener("pointerup", finishCheckScanEditorDrag);
+  checkScanEditorCanvas?.addEventListener("pointercancel", finishCheckScanEditorDrag);
+  document.querySelectorAll("[data-check-rotate]").forEach(button => {
+    button.addEventListener("click", () => {
+      if (!checkScanEditorState) return;
+      checkScanEditorState.angle = Number(button.getAttribute("data-check-rotate") || 0);
+      checkScanEditorState.freeRotate = false;
+      drawCheckScanEditor();
+    });
+  });
+  checkScanResetRotationBtn?.addEventListener("click", () => {
+    if (!checkScanEditorState) return;
+    checkScanEditorState.angle = 0;
+    checkScanEditorState.freeRotate = false;
+    drawCheckScanEditor();
+  });
+  checkScanFreeRotateBtn?.addEventListener("click", () => {
+    if (!checkScanEditorState) return;
+    checkScanEditorState.freeRotate = !checkScanEditorState.freeRotate;
+    updateCheckScanEditorLabels();
+  });
+  checkScanCornersModeBtn?.addEventListener("click", () => {
+    if (!checkScanEditorState) return;
+    checkScanEditorState.mode = "corners";
+    checkScanEditorState.freeRotate = false;
+    drawCheckScanEditor();
+  });
+  checkScanLinesModeBtn?.addEventListener("click", () => {
+    if (!checkScanEditorState) return;
+    const xs = checkScanEditorState.points.map(point => point.x);
+    const ys = checkScanEditorState.points.map(point => point.y);
+    const left = Math.min(...xs), right = Math.max(...xs), top = Math.min(...ys), bottom = Math.max(...ys);
+    checkScanEditorState.points = [{x: left, y: top}, {x: right, y: top}, {x: right, y: bottom}, {x: left, y: bottom}];
+    checkScanEditorState.mode = "lines";
+    checkScanEditorState.freeRotate = false;
+    drawCheckScanEditor();
+  });
+  checkScanBuildPreviewBtn?.addEventListener("click", () => {
+    generateManualCheckScanPreview().catch(error => {
+      if (checkScanCropStatus) checkScanCropStatus.textContent = error.message || "Ritaglio manuale non riuscito";
+    });
+  });
+
   checkScanCropModalEl?.addEventListener("shown.bs.modal", () => {
     checkScanUseOriginalBtn?.removeEventListener("click", handleUseOriginalCheckScan);
     checkScanUseCropBtn?.removeEventListener("click", handleUseCroppedCheckScan);
     checkScanUseOriginalBtn?.addEventListener("click", handleUseOriginalCheckScan);
     checkScanUseCropBtn?.addEventListener("click", handleUseCroppedCheckScan);
     if (checkScanUseOriginalBtn) checkScanUseOriginalBtn.disabled = false;
+    if (checkScanBuildPreviewBtn) {
+      checkScanBuildPreviewBtn.disabled = false;
+      checkScanBuildPreviewBtn.textContent = "Genera anteprima";
+    }
+    requestAnimationFrame(drawCheckScanEditor);
   });
 
   checkScanCropModalEl?.addEventListener("hidden.bs.modal", () => {
@@ -7752,6 +8007,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (pending?.originalUrl) URL.revokeObjectURL(pending.originalUrl);
     if (pending?.cropUrl) URL.revokeObjectURL(pending.cropUrl);
     pendingCheckScanCrop = null;
+    checkScanEditorState = null;
     if (checkScanOriginalPreview) checkScanOriginalPreview.removeAttribute("src");
     if (checkScanCroppedPreview) checkScanCroppedPreview.removeAttribute("src");
     setTimeout(() => {

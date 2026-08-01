@@ -1677,3 +1677,59 @@ body.kiosk-body .modal-backdrop.show {
     padding: 22px;
   }
 }
+.check-scan-editor {
+  --check-editor-accent: #0dcaf0;
+}
+
+.check-scan-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.check-scan-angle {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.check-scan-help {
+  padding: 8px 12px;
+  border-left: 4px solid var(--check-editor-accent);
+  background: rgba(13, 202, 240, .08);
+}
+
+.check-scan-canvas-wrap {
+  min-height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: #171a1d;
+  touch-action: none;
+}
+
+#checkScanEditorCanvas {
+  display: block;
+  max-width: 100%;
+  max-height: 62vh;
+  cursor: crosshair;
+  touch-action: none;
+}
+
+#checkScanEditorCanvas.is-free-rotate {
+  cursor: ew-resize;
+}
+
+@media (max-width: 820px), (hover: none) and (pointer: coarse) {
+  .check-scan-toolbar .btn-group {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .check-scan-toolbar .btn { flex: 1 1 auto; min-height: 48px; }
+  .check-scan-angle { margin-left: 0; }
+  .check-scan-canvas-wrap { min-height: 280px; padding: 6px; }
+}

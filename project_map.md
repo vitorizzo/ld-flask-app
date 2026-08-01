@@ -6,6 +6,13 @@
 - Le azioni `Sposta in` tornano quindi a raggiungere `POST /kiosk/api/order/<id>/set-status`.
 - `templates/kiosk_overview.html`: cache key dello script aggiornata a `mobile-board16`.
 
+## Acquisizione manuale immagini assegni (2026-08-01)
+
+- `templates/agenda.html`, `static/js/agenda.js` e `static/css/agenda.css`: la modale di acquisizione integra un editor canvas con rotazioni rapide/libera, quattro linee di taglio e quattro spigoli prospettici.
+- Le coordinate sono conservate normalizzate e inviate come unico payload geometrico, indipendentemente dalla modalita' UI scelta.
+- `routes/cassa.py`: `_manual_crop_check_image()` ruota l'immagine, applica la prospettiva e genera un JPEG 1402x567 px (178x72 mm a circa 200 DPI).
+- Lo stesso endpoint protetto `/cassa/api/checks/scan/crop-preview` gestisce anteprima automatica e manuale; il salvataggio definitivo continua a usare `/cassa/api/checks/<id>/scan` e lo storage privato esistente.
+
 ## Regola prioritaria modali
 
 Le modali nuove o modificate devono inizializzare esplicitamente il bottone di conferma su `shown.bs.modal` e ripulire lo stato su `hidden.bs.modal`.

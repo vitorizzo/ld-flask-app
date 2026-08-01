@@ -4790,6 +4790,83 @@ def _order_document_points(points):
     return ordered
 
 
+CHECK_SCAN_OUTPUT_WIDTH = 1402
+CHECK_SCAN_OUTPUT_HEIGHT = 567
+
+
+def _rotate_check_image(source, angle):
+    angle = float(angle or 0.0)
+    if abs(angle) < 0.01:
+        return source
+    height, width = source.shape[:2]
+    center = (width / 2.0, height / 2.0)
+    # Nel canvas browser gli angoli positivi ruotano in senso orario.
+    matrix = cv2.getRotationMatrix2D(center, -angle, 1.0)
+    cosine = abs(matrix[0, 0])
+    sine = abs(matrix[0, 1])
+    bound_width = int((height * sine) + (width * cosine))
+    bound_height = int((height * cosine) + (width * sine))
+    matrix[0, 2] += (bound_width / 2.0) - center[0]
+    matrix[1, 2] += (bound_height / 2.0) - center[1]
+    return cv2.warpAffine(
+        source,
+        matrix,
+        (bound_width, bound_height),
+        flags=cv2.INTER_CUBIC,
+        borderMode=cv2.BORDER_REPLICATE,
+    )
+
+
+def _normalize_check_from_points(source, points):
+    points = np.asarray(points, dtype="float32")
+    if points.shape != (4, 2) or not np.isfinite(points).all():
+        raise ValueError("I quattro spigoli dell'assegno non sono validi")
+    height, width = source.shape[:2]
+    if (points[:, 0] < 0).any() or (points[:, 0] > width).any() or (points[:, 1] < 0).any() or (points[:, 1] > height).any():
+        raise ValueError("Gli spigoli devono restare all'interno dell'immagine")
+    area = abs(cv2.contourArea(points))
+    if area < width * height * 0.01:
+        raise ValueError("L'area selezionata e' troppo piccola")
+    destination = np.array(
+        [
+            [0, 0],
+            [CHECK_SCAN_OUTPUT_WIDTH - 1, 0],
+            [CHECK_SCAN_OUTPUT_WIDTH - 1, CHECK_SCAN_OUTPUT_HEIGHT - 1],
+            [0, CHECK_SCAN_OUTPUT_HEIGHT - 1],
+        ],
+        dtype="float32",
+    )
+    matrix = cv2.getPerspectiveTransform(points, destination)
+    return cv2.warpPerspective(
+        source,
+        matrix,
+        (CHECK_SCAN_OUTPUT_WIDTH, CHECK_SCAN_OUTPUT_HEIGHT),
+        flags=cv2.INTER_CUBIC,
+        borderMode=cv2.BORDER_REPLICATE,
+    )
+
+
+def _manual_crop_check_image(content, transform):
+    source = cv2.imdecode(np.frombuffer(content, dtype=np.uint8), cv2.IMREAD_COLOR)
+    if source is None:
+        raise ValueError("Immagine non decodificabile")
+    rotated = _rotate_check_image(source, transform.get("angle", 0))
+    height, width = rotated.shape[:2]
+    normalized_points = transform.get("points") or []
+    if len(normalized_points) != 4:
+        raise ValueError("Posiziona tutti e quattro gli spigoli dell'assegno")
+    points = []
+    for point in normalized_points:
+        if not isinstance(point, dict):
+            raise ValueError("Coordinate di ritaglio non valide")
+        points.append([float(point.get("x")) * width, float(point.get("y")) * height])
+    cropped = _normalize_check_from_points(rotated, points)
+    ok, encoded = cv2.imencode(".jpg", cropped, [cv2.IMWRITE_JPEG_QUALITY, 90])
+    if not ok:
+        raise ValueError("Impossibile preparare il ritaglio manuale")
+    return encoded.tobytes()
+
+
 def _smart_crop_check_image(content):
     source = cv2.imdecode(np.frombuffer(content, dtype=np.uint8), cv2.IMREAD_COLOR)
     if source is None:
@@ -4835,12 +4912,16 @@ def _smart_crop_check_image(content):
     height = int(max(np.linalg.norm(top_right - bottom_right), np.linalg.norm(top_left - bottom_left)))
     if width < 200 or height < 80:
         raise ValueError("Ritaglio rilevato troppo piccolo")
-    destination = np.array([[0, 0], [width - 1, 0], [width - 1, height - 1], [0, height - 1]], dtype="float32")
-    matrix = cv2.getPerspectiveTransform(points, destination)
-    cropped = cv2.warpPerspective(source, matrix, (width, height), borderMode=cv2.BORDER_REPLICATE)
-    if cropped.shape[0] > cropped.shape[1]:
-        cropped = cv2.rotate(cropped, cv2.ROTATE_90_CLOCKWISE)
-    ok, encoded = cv2.imencode(".jpg", cropped, [cv2.IMWRITE_JPEG_QUALITY, 92])
+    if height > width:
+        source = cv2.rotate(source, cv2.ROTATE_90_CLOCKWISE)
+        source_height, source_width = source.shape[:2]
+        points = np.array(
+            [[source_width - 1 - y, x] for x, y in points],
+            dtype="float32",
+        )
+        points = _order_document_points(points)
+    cropped = _normalize_check_from_points(source, points)
+    ok, encoded = cv2.imencode(".jpg", cropped, [cv2.IMWRITE_JPEG_QUALITY, 90])
     if not ok:
         raise ValueError("Impossibile preparare il ritaglio")
     confidence = min(99, max(1, int(best_score * 100)))
@@ -4901,7 +4982,16 @@ def api_upload_check_scan(check_id):
 def api_crop_check_scan_preview():
     try:
         content, _, _ = _read_valid_check_scan(request.files.get("scan"))
-        cropped, detected, confidence = _smart_crop_check_image(content)
+        manual_payload = request.form.get("transform")
+        if manual_payload:
+            try:
+                transform = json.loads(manual_payload)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                raise ValueError("Dati di ritaglio manuale non validi")
+            cropped = _manual_crop_check_image(content, transform)
+            detected, confidence = True, 100
+        else:
+            cropped, detected, confidence = _smart_crop_check_image(content)
         response = send_file(BytesIO(cropped), mimetype="image/jpeg", as_attachment=False,
                              download_name="assegno-ritagliato.jpg")
         response.headers["X-Check-Crop-Detected"] = "1" if detected else "0"
