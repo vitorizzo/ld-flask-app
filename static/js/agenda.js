@@ -3047,7 +3047,7 @@ function startEditCheck(row) {
 
 async function uploadCheckScan(checkId, file) {
   if (!checkId || !file) return null;
-  if (file.size > 8 * 1024 * 1024) throw new Error("La scansione dell'assegno supera il limite di 8 MB.");
+  if (file.size > 25 * 1024 * 1024) throw new Error("La scansione dell'assegno supera il limite di 25 MB.");
   const formData = new FormData();
   formData.append("scan", file, file.name || "assegno.jpg");
   const response = await fetch(`/cassa/api/checks/${checkId}/scan`, {
@@ -3274,25 +3274,38 @@ async function generateManualCheckScanPreview() {
 async function prepareCheckScanCrop(input) {
   const originalFile = input?.files?.[0];
   if (!originalFile) return;
-  if (originalFile.size > 8 * 1024 * 1024) {
+  if (originalFile.size > 25 * 1024 * 1024) {
     input.value = "";
-    alert("La scansione dell'assegno supera il limite di 8 MB.");
+    alert("La scansione dell'assegno supera il limite di 25 MB.");
     return;
   }
-  const originalUrl = URL.createObjectURL(originalFile);
   pendingCheckScanCrop = {
-    input, originalFile, cropFile: null, originalUrl, cropUrl: null, chosen: false,
+    input, originalFile, sourceFile: null, cropFile: null, originalUrl: null, cropUrl: null, chosen: false,
     previousManagementPreview: input === checkScanInput ? (checkScanPreview?.getAttribute("src") || "") : "",
   };
-  if (checkScanOriginalPreview) checkScanOriginalPreview.src = originalUrl;
   if (checkScanCroppedPreview) checkScanCroppedPreview.removeAttribute("src");
-  if (checkScanCropStatus) checkScanCropStatus.textContent = "Analisi dei bordi in corso...";
+  if (checkScanCropStatus) checkScanCropStatus.textContent = "Preparazione della scansione...";
   if (checkScanUseCropBtn) checkScanUseCropBtn.disabled = true;
   checkScanCropModal?.show();
-  initializeCheckScanEditor(originalUrl).catch(error => {
-    if (checkScanCropStatus) checkScanCropStatus.textContent = error.message;
-  });
   try {
+    const sourceFormData = new FormData();
+    sourceFormData.append("scan", originalFile, originalFile.name || "assegno");
+    sourceFormData.append("source_only", "1");
+    const sourceResponse = await fetch("/cassa/api/checks/scan/crop-preview", {
+      method: "POST", credentials: "same-origin", headers: {"Accept": "image/jpeg, application/json"}, body: sourceFormData
+    });
+    if (!sourceResponse.ok) {
+      const data = await sourceResponse.json().catch(() => ({}));
+      throw new Error(data.error || "Formato scansione non leggibile");
+    }
+    const sourceBlob = await sourceResponse.blob();
+    if (!pendingCheckScanCrop || pendingCheckScanCrop.input !== input) return;
+    pendingCheckScanCrop.sourceFile = new File([sourceBlob], `assegno-sorgente-${Date.now()}.jpg`, {type: "image/jpeg"});
+    pendingCheckScanCrop.originalUrl = URL.createObjectURL(sourceBlob);
+    if (checkScanOriginalPreview) checkScanOriginalPreview.src = pendingCheckScanCrop.originalUrl;
+    await initializeCheckScanEditor(pendingCheckScanCrop.originalUrl);
+    if (checkScanCropStatus) checkScanCropStatus.textContent = "Scansione pronta. Regola il perimetro oppure attendi il tentativo automatico.";
+
     const formData = new FormData();
     formData.append("scan", originalFile, originalFile.name || "assegno.jpg");
     const response = await fetch("/cassa/api/checks/scan/crop-preview", {
@@ -3324,7 +3337,7 @@ async function prepareCheckScanCrop(input) {
 function confirmPreparedCheckScan(useCrop) {
   const pending = pendingCheckScanCrop;
   if (!pending) return;
-  const chosenFile = useCrop ? pending.cropFile : pending.originalFile;
+  const chosenFile = useCrop ? pending.cropFile : (pending.sourceFile || pending.originalFile);
   if (!chosenFile) return;
   preparedCheckScanFiles.set(pending.input, chosenFile);
   pending.chosen = true;

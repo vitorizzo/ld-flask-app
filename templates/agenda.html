@@ -1611,7 +1611,7 @@
 
               <div class="col-12">
                 <label class="form-label mb-0" for="checkSaleScan">Scansione assegno</label>
-                <input type="file" class="form-control" id="checkSaleScan" accept="image/jpeg,image/png,image/webp,image/*" capture="environment">
+                <input type="file" class="form-control" id="checkSaleScan" accept="image/*,application/pdf,.pdf,.tif,.tiff,.bmp,.gif,.webp,.png,.jpg,.jpeg,.ico">
                 <div class="form-text">Scatta una foto oppure scegli un'immagine JPG, PNG o WebP (massimo 8 MB).</div>
               </div>
 
@@ -1959,7 +1959,7 @@
 
                 <div class="col-12 multi-check-sale-fields d-none">
                   <label class="form-label mb-0">Scansione assegno</label>
-                  <input type="file" class="form-control multi-check-scan" accept="image/jpeg,image/png,image/webp,image/*" capture="environment">
+                  <input type="file" class="form-control multi-check-scan" accept="image/*,application/pdf,.pdf,.tif,.tiff,.bmp,.gif,.webp,.png,.jpg,.jpeg,.ico">
                 </div>
 
 
@@ -4359,7 +4359,7 @@
           <div class="col-6 col-md-4"><label class="form-label" for="checkReceivedDate">Ricezione</label><input type="date" class="form-control" id="checkReceivedDate"></div>
           <div class="col-6 col-md-4"><label class="form-label" for="checkDueDate">Scadenza</label><input type="date" class="form-control" id="checkDueDate"></div>
           <div class="col-12"><label class="form-label" for="checkNote">Note</label><textarea class="form-control" id="checkNote" rows="3"></textarea></div>
-          <div class="col-12"><label class="form-label" for="checkScanInput">Scansione assegno</label><input type="file" class="form-control" id="checkScanInput" accept="image/jpeg,image/png,image/webp,image/*" capture="environment"><div class="form-text">Scatta una foto oppure scegli un'immagine JPG, PNG o WebP (massimo 8 MB).</div><div class="mt-2 d-none" id="checkScanPreviewWrap"><img id="checkScanPreview" class="img-fluid rounded border" alt="Anteprima assegno"><button type="button" class="btn btn-sm btn-outline-danger mt-2" id="checkScanRemoveBtn">Rimuovi scansione</button></div></div>
+          <div class="col-12"><label class="form-label" for="checkScanInput">Scansione assegno</label><input type="file" class="form-control" id="checkScanInput" accept="image/*,application/pdf,.pdf,.tif,.tiff,.bmp,.gif,.webp,.png,.jpg,.jpeg,.ico"><div class="form-text">Scatta una foto oppure scegli PDF, JPG, PNG, WebP, TIFF, BMP, GIF o un altro formato immagine leggibile (massimo 25 MB). Per PDF e immagini multipagina viene acquisita la prima pagina.</div><div class="mt-2 d-none" id="checkScanPreviewWrap"><img id="checkScanPreview" class="img-fluid rounded border" alt="Anteprima assegno"><button type="button" class="btn btn-sm btn-outline-danger mt-2" id="checkScanRemoveBtn">Rimuovi scansione</button></div></div>
         </div>
       </div>
       <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="checkCancelBtn">Annulla</button><button type="button" class="btn btn-success" id="checkSaveBtn">Salva assegno</button></div>
@@ -4749,7 +4749,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-check-editor2') }}"></script>
+  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-check-editor4') }}"></script>
 
 {% endblock %}
 

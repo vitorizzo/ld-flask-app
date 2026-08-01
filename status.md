@@ -2695,3 +2695,5 @@ Performance apertura giornata Agenda 2026-06-13:
 - Verificati sintassi Python/JavaScript, trasformazione sintetica con output reale 1402x567 e `git diff --check`.
 - Correzione UX successiva: aggiunto cursore di rotazione continua da -180 a +180 gradi; tutti i comandi usano `setCheckScanEditorAngle()` e segnalano esplicitamente quando la foto non ha ancora terminato il caricamento. Cache key aggiornata a `check-editor2`.
 - Correzione contrasto editor: toolbar marrone con pulsanti chiari/azzurri delimitati, titoli e istruzioni scuri sul corpo chiaro, slider ad alto contrasto e azioni footer leggibili. Cache CSS aggiornata a `check-editor3`.
+- Formati scansione estesi: PDF, TIFF/TIF, BMP, GIF, PNG, WebP, JPEG e gli altri formati raster riconosciuti da Pillow vengono convertiti in JPEG prima dell'editor; per documenti multipagina viene acquisita la prima pagina. Limite portato a 25 MB.
+- Aggiunta dipendenza permissiva `pypdfium2==5.12.1` per il rendering PDF senza programmi esterni; test sintetici PDF/TIFF/BMP/GIF/PNG tutti normalizzati correttamente in JPEG. Cache JS aggiornata a `check-editor4`.

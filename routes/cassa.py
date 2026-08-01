@@ -9,7 +9,7 @@ from cryptography.hazmat.primitives.ciphers.algorithms import AES
 from flask import Blueprint, render_template, request, jsonify, session, current_app, url_for, send_file
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
-from PIL import Image, UnidentifiedImageError
+from PIL import Image, ImageOps, UnidentifiedImageError
 import cv2
 import numpy as np
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -4750,12 +4750,46 @@ def api_delete_check_payment(check_id, payment_id):
     return jsonify({"ok": True, "check": _serialize_cash_check(check, include_events=True)})
 
 
-CHECK_SCAN_MAX_BYTES = 8 * 1024 * 1024
-CHECK_SCAN_SIGNATURES = (
-    (b"\xff\xd8\xff", "jpg", "image/jpeg"),
-    (b"\x89PNG\r\n\x1a\n", "png", "image/png"),
-    (b"RIFF", "webp", "image/webp"),
-)
+CHECK_SCAN_MAX_BYTES = 25 * 1024 * 1024
+CHECK_SCAN_MAX_PIXELS = 60_000_000
+
+
+def _check_scan_image_to_jpeg(image):
+    image.seek(0)
+    image = ImageOps.exif_transpose(image)
+    if image.width * image.height > CHECK_SCAN_MAX_PIXELS:
+        raise ValueError("La scansione ha una risoluzione troppo elevata")
+    if image.mode in {"RGBA", "LA"} or (image.mode == "P" and "transparency" in image.info):
+        rgba = image.convert("RGBA")
+        background = Image.new("RGB", rgba.size, "white")
+        background.paste(rgba, mask=rgba.getchannel("A"))
+        image = background
+    else:
+        image = image.convert("RGB")
+    output = BytesIO()
+    image.save(output, format="JPEG", quality=94, optimize=True)
+    return output.getvalue()
+
+
+def _check_scan_pdf_to_jpeg(content):
+    try:
+        import pypdfium2 as pdfium
+    except ImportError as exc:
+        raise ValueError("Supporto PDF non installato sul server") from exc
+    try:
+        document = pdfium.PdfDocument(content)
+        if len(document) < 1:
+            raise ValueError("Il PDF non contiene pagine")
+        page = document[0]
+        width, height = page.get_size()
+        scale = min(3.0, 3200.0 / max(width, height))
+        bitmap = page.render(scale=max(1.0, scale))
+        image = bitmap.to_pil()
+        return _check_scan_image_to_jpeg(image)
+    except ValueError:
+        raise
+    except Exception as exc:
+        raise ValueError("Il PDF non contiene una scansione leggibile") from exc
 
 
 def _read_valid_check_scan(uploaded):
@@ -4763,20 +4797,15 @@ def _read_valid_check_scan(uploaded):
         raise ValueError("Seleziona un'immagine dell'assegno")
     content = uploaded.read(CHECK_SCAN_MAX_BYTES + 1)
     if not content or len(content) > CHECK_SCAN_MAX_BYTES:
-        raise ValueError("L'immagine deve avere dimensione massima di 8 MB")
-    detected = None
-    for signature, extension, mime_type in CHECK_SCAN_SIGNATURES:
-        if content.startswith(signature) and (extension != "webp" or content[8:12] == b"WEBP"):
-            detected = (extension, mime_type)
-            break
-    if not detected:
-        raise ValueError("Formato non valido: usa JPG, PNG o WebP")
+        raise ValueError("La scansione deve avere dimensione massima di 25 MB")
+    if content.startswith(b"%PDF-"):
+        return _check_scan_pdf_to_jpeg(content), "jpg", "image/jpeg"
     try:
         with Image.open(BytesIO(content)) as image:
-            image.verify()
-    except (UnidentifiedImageError, OSError, ValueError):
-        raise ValueError("Il file non contiene un'immagine valida")
-    return content, detected[0], detected[1]
+            normalized = _check_scan_image_to_jpeg(image)
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
+        raise ValueError("Formato non valido: usa PDF o un formato immagine leggibile")
+    return normalized, "jpg", "image/jpeg"
 
 
 def _order_document_points(points):
@@ -4982,6 +5011,11 @@ def api_upload_check_scan(check_id):
 def api_crop_check_scan_preview():
     try:
         content, _, _ = _read_valid_check_scan(request.files.get("scan"))
+        if request.form.get("source_only") == "1":
+            response = send_file(BytesIO(content), mimetype="image/jpeg", as_attachment=False,
+                                 download_name="scansione-assegno.jpg")
+            response.headers["Cache-Control"] = "no-store"
+            return response
         manual_payload = request.form.get("transform")
         if manual_payload:
             try:
