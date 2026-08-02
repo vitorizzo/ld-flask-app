@@ -2707,6 +2707,13 @@ Performance apertura giornata Agenda 2026-06-13:
 - Layout adattato anche a smartphone; asset Agenda versionati con cache key `pos-device-filter1`.
 - Verificati sintassi Python/JavaScript, parsing Jinja e `git diff --check`.
 
+## 2026-08-02 - Rendering immediato grafici credito clienti
+
+- Diagnosticato il ritardo dei grafici: i dataset erano gia inclusi nella pagina, ma `customer_credit.js` veniva richiesto ed eseguito soltanto dopo Bootstrap CDN e tutti gli script applicativi globali; una risorsa lenta lasciava gli SVG vuoti per molto tempo.
+- Il renderer dei grafici viene ora precaricato nell'`head` ed eseguito in modalita `async` appena il contenuto necessario e' presente, senza dipendere dalla catena JavaScript globale.
+- Torta e andamento mensile mostrano immediatamente uno stato `Elaborazione...`; a rendering completato l'indicatore scompare, mentre dati mancanti o non validi producono un messaggio visibile invece di un riquadro vuoto.
+- Asset pagina versionati con cache key `credit-fast1`.
+
 ## 2026-08-01 - Ottimizzazione prestazioni operative
 
 - Eseguito un benchmark autenticato su Agenda e gestione assegni: le query assegni risultano rapide sul volume corrente (60 record, circa 6 ms), mentre il costo percepito derivava soprattutto dal ventaglio di richieste iniziali, dal polling continuo e dal download ripetuto degli asset.

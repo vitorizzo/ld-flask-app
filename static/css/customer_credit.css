@@ -5,6 +5,32 @@
   align-items: center;
 }
 
+.credit-pie-wrap,
+.credit-trend-wrap {
+  position: relative;
+}
+
+.credit-chart-loading {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 110px;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.9);
+  color: #495057;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.credit-chart-loading.is-error {
+  color: #842029;
+  background: rgba(248, 215, 218, 0.94);
+}
+
 .credit-pie-wrap {
   width: 100%;
   max-width: 430px;

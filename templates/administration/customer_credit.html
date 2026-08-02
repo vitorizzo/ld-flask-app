@@ -3,7 +3,8 @@
 {% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_credit.css', v=app_version ~ '-credit3') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_credit.css', v=app_version ~ '-credit-fast1') }}">
+<link rel="preload" as="script" href="{{ url_for('static', filename='js/customer_credit.js', v=app_version ~ '-credit-fast1') }}">
 {% endblock %}
 
 {% block content %}
@@ -65,6 +66,10 @@
             {% if chart_items %}
               <div class="credit-chart-layout">
                 <div class="credit-pie-wrap">
+                  <div class="credit-chart-loading" id="customerCreditPieLoading" role="status">
+                    <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                    <span>Elaborazione grafico...</span>
+                  </div>
                   <svg id="customerCreditPie" class="credit-pie" viewBox="0 0 240 240" role="img" aria-label="Grafico a torta dello scoperto"></svg>
                 </div>
                 <div id="customerCreditLegend" class="credit-legend" aria-label="Legenda grafico"></div>
@@ -98,6 +103,10 @@
           <div class="card-body px-3 pb-3 pt-2">
             {% if selected_history_area %}<div class="small mb-1"><strong>Area:</strong> {{ selected_history_area }}</div>{% endif %}
             <div class="credit-trend-wrap credit-trend-wrap-compact">
+              <div class="credit-chart-loading" id="customerCreditTrendLoading" role="status">
+                <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                <span>Elaborazione andamento...</span>
+              </div>
               <svg id="customerCreditTrend" class="credit-trend" viewBox="0 0 900 330" role="img" aria-label="Andamento mensile dell'esposizione"></svg>
             </div>
             {% if history_points|length == 1 %}
@@ -130,9 +139,7 @@
 {% if current_import %}
   <script id="customerCreditData" type="application/json">{{ chart_payload|tojson }}</script>
   <script id="customerCreditHistoryData" type="application/json">{{ history_payload|tojson }}</script>
+  {# Parte subito e non attende Bootstrap/CDN o gli script globali in fondo a base.html. #}
+  <script async src="{{ url_for('static', filename='js/customer_credit.js', v=app_version ~ '-credit-fast1') }}"></script>
 {% endif %}
-{% endblock %}
-
-{% block extra_js %}
-<script src="{{ url_for('static', filename='js/customer_credit.js', v=app_version ~ '-credit2') }}"></script>
 {% endblock %}

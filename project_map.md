@@ -1229,3 +1229,9 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `templates/agenda.html`: tendina `#posDeviceFilter` nell'intestazione del quadrante POS.
 - `static/js/agenda.js`: sincronizza le opzioni con la giornata, filtra le righe e calcola il totale netto sul device selezionato; `Tutti i POS` ripristina la vista complessiva.
 - `static/css/agenda.css`: dimensioni, contrasto e resa mobile del selettore POS.
+
+### Credito clienti - avvio rapido grafici (2026-08-02)
+
+- `templates/administration/customer_credit.html`: preload del renderer, esecuzione asincrona prima degli script globali e indicatori di elaborazione nei contenitori dei due SVG.
+- `static/js/customer_credit.js`: chiude gli indicatori dopo il disegno e rende visibili gli stati senza dati o gli errori di parsing.
+- `static/css/customer_credit.css`: overlay di caricamento e stato errore per torta e andamento mensile.

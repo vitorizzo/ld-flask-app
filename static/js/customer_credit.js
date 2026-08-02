@@ -1,18 +1,39 @@
 (() => {
   "use strict";
 
+  const finishLoading = (id, message = "") => {
+    const node = document.getElementById(id);
+    if (!node) return;
+    if (message) {
+      node.classList.add("is-error");
+      node.replaceChildren(document.createTextNode(message));
+      return;
+    }
+    node.remove();
+  };
+
   const dataNode = document.getElementById("customerCreditData");
   const svg = document.getElementById("customerCreditPie");
   const legend = document.getElementById("customerCreditLegend");
-  if (!dataNode || !svg || !legend) return;
+  if (!dataNode || !svg || !legend) {
+    finishLoading("customerCreditPieLoading", "Grafico non disponibile.");
+    finishLoading("customerCreditTrendLoading", "Andamento non disponibile.");
+    return;
+  }
 
   let items;
   try {
     items = JSON.parse(dataNode.textContent || "[]").filter((item) => Number(item.value) > 0);
   } catch (_error) {
+    finishLoading("customerCreditPieLoading", "Impossibile leggere i dati del grafico.");
+    finishLoading("customerCreditTrendLoading", "Impossibile leggere i dati dell'andamento.");
     return;
   }
-  if (!items.length) return;
+  if (!items.length) {
+    finishLoading("customerCreditPieLoading", "Nessun dato da rappresentare.");
+    finishLoading("customerCreditTrendLoading", "Nessun dato da rappresentare.");
+    return;
+  }
 
   const namespace = "http://www.w3.org/2000/svg";
   const total = items.reduce((sum, item) => sum + Number(item.value), 0);
@@ -67,6 +88,8 @@
     startAngle += sweep;
   });
 
+  finishLoading("customerCreditPieLoading");
+
   renderTrend();
 
   function escapeHtml(value) {
@@ -78,15 +101,22 @@
   function renderTrend() {
     const historyNode = document.getElementById("customerCreditHistoryData");
     const trendSvg = document.getElementById("customerCreditTrend");
-    if (!historyNode || !trendSvg) return;
+    if (!historyNode || !trendSvg) {
+      finishLoading("customerCreditTrendLoading", "Andamento non disponibile.");
+      return;
+    }
 
     let points;
     try {
       points = JSON.parse(historyNode.textContent || "[]");
     } catch (_error) {
+      finishLoading("customerCreditTrendLoading", "Impossibile leggere i dati dell'andamento.");
       return;
     }
-    if (!points.length) return;
+    if (!points.length) {
+      finishLoading("customerCreditTrendLoading", "Nessuno storico disponibile.");
+      return;
+    }
 
     const width = 900;
     const height = 330;
@@ -152,5 +182,6 @@
         addText(item.label, x, height - 22, "credit-trend-axis");
       }
     });
+    finishLoading("customerCreditTrendLoading");
   }
 })();
