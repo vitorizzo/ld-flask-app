@@ -12,7 +12,11 @@
         <a class="btn btn-outline-primary" href="{{ url_for('administration.customer_credit_customers') }}">Situazione Clienti</a>
       </div>
     </div>
-    <a class="btn btn-outline-secondary" href="{{ back_url or url_for('administration.customer_credit_customers') }}"><i class="fa-solid fa-arrow-left me-1"></i> Riepilogo</a>
+    <div class="d-flex flex-wrap justify-content-end gap-2">
+      <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#creditStatementSendModal"><i class="fa-solid fa-file-invoice me-1"></i> Invia estratto conto</button>
+      <button class="btn btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#creditReminderSendModal"><i class="fa-solid fa-bell me-1"></i> Invia sollecito</button>
+      <a class="btn btn-outline-secondary" href="{{ back_url or url_for('administration.customer_credit_customers') }}"><i class="fa-solid fa-arrow-left me-1"></i> Riepilogo</a>
+    </div>
   </div>
 
   <div class="row g-3 mb-3">
@@ -56,7 +60,34 @@
     {% for page_number in entries.iter_pages() %}{% if page_number %}<li class="page-item {{ 'active' if page_number == entries.page }}"><a class="page-link" href="{{ url_for('administration.customer_credit_detail', source_customer_code=customer.source_customer_code, page=page_number, area=area, zone=zone, origin=origin) }}">{{ page_number }}</a></li>{% else %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}{% endfor %}
   </ul></nav>{% endif %}
 </div></section>
+{% macro communication_modal(modal_id, title, kind, reminder=false) %}
+<div class="modal fade credit-send-modal" id="{{ modal_id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><h2 class="modal-title fs-5">{{ title }}</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body">
+      <div class="alert alert-light border small"><strong>{{ customer.customer_name }}</strong><br>Saldo attuale: <span class="text-danger fw-semibold">{{ money(totals.balance) }}</span></div>
+      <label class="form-label" for="{{ modal_id }}Channel">Canale di invio</label>
+      <select class="form-select credit-send-channel" id="{{ modal_id }}Channel" data-kind="{{ kind }}">
+        <option value="email" data-account-ready="{{ 1 if credit_mail_available else 0 }}">Email ordinaria — CreditManagement{{ '' if credit_mail_available else ' (account non configurato)' }}</option>
+        {% if reminder %}<option value="pec" data-account-ready="{{ 1 if pec_mail_available else 0 }}">PEC — PEC{{ '' if pec_mail_available else ' (account non configurato)' }}</option>{% endif %}
+      </select>
+      <label class="form-label mt-3" for="{{ modal_id }}Recipient">Destinatario</label>
+      <select class="form-select credit-send-recipient" id="{{ modal_id }}Recipient"><option value="">Seleziona un recapito</option></select>
+      <div class="form-text credit-send-help"></div>
+      <div class="credit-send-feedback mt-3" aria-live="polite"></div>
+      <div class="small text-muted mt-3">Verrà inviata la situazione contabile dello snapshot corrente. Controlla canale e destinatario prima di confermare.</div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-primary credit-send-confirm" data-kind="{{ kind }}">Conferma invio</button></div>
+  </div></div>
+</div>
+{% endmacro %}
+{{ communication_modal('creditStatementSendModal', 'Invia estratto conto', 'statement') }}
+{{ communication_modal('creditReminderSendModal', 'Invia sollecito', 'reminder', true) }}
 <script id="customerExposureHistoryData" type="application/json">{{ customer_history_payload|tojson }}</script>
 <script id="customerAgingData" type="application/json">{{ aging_payload|tojson }}</script>
+<script id="customerCreditCommunicationData" type="application/json">{{ {
+  'endpoint': url_for('administration.send_customer_credit_communication', source_customer_code=customer.source_customer_code),
+  'contacts': communication_contacts
+}|tojson }}</script>
 {% endblock %}
-{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_credit_detail.js', v=app_version ~ '-credit-detail2') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_credit_detail.js', v=app_version ~ '-credit-communications1') }}"></script>{% endblock %}

@@ -2714,6 +2714,16 @@ Performance apertura giornata Agenda 2026-06-13:
 - Torta e andamento mensile mostrano immediatamente uno stato `Elaborazione...`; a rendering completato l'indicatore scompare, mentre dati mancanti o non validi producono un messaggio visibile invece di un riquadro vuoto.
 - Asset pagina versionati con cache key `credit-fast1`.
 
+## 2026-08-02 - Invio estratto conto e sollecito cliente
+
+- Nella scheda situazione cliente sono disponibili in alto a destra `Invia estratto conto` e `Invia sollecito`.
+- L'estratto conto usa l'account futuro `CreditManagement`; il sollecito permette email ordinaria tramite `CreditManagement` oppure PEC tramite l'account futuro `PEC`.
+- Finché un account non e' configurato/attivo, la modale mostra il canale come non disponibile e impedisce l'invio.
+- I destinatari sono esclusivamente recapiti email/PEC appartenenti all'anagrafica collegata; non e' possibile specificare arbitrariamente un indirizzo esterno.
+- Il template include cliente, saldo corrente e movimenti rilevanti dello snapshot contabile attuale. Un sollecito e' bloccato quando il saldo non e' positivo.
+- Ogni invio richiede conferma, mostra avanzamento/esito e viene registrato in `administration.log` e `main.log`; errori SMTP non espongono credenziali al client.
+- WhatsApp e SMS non sono stati implementati. Test read-only del template superato su dati reali, senza invio SMTP; verificati Python, JavaScript, Jinja e `git diff --check`.
+
 ## 2026-08-01 - Ottimizzazione prestazioni operative
 
 - Eseguito un benchmark autenticato su Agenda e gestione assegni: le query assegni risultano rapide sul volume corrente (60 record, circa 6 ms), mentre il costo percepito derivava soprattutto dal ventaglio di richieste iniziali, dal polling continuo e dal download ripetuto degli asset.

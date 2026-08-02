@@ -42,3 +42,17 @@
 .credit-detail-bar-negative {
   fill: var(--bs-success);
 }
+
+.credit-send-modal .modal-content {
+  border: 0;
+  box-shadow: 0 1.25rem 3rem rgba(0, 0, 0, 0.24);
+}
+
+.credit-send-modal .modal-header {
+  background: #f8f3ea;
+  color: #352418;
+}
+
+.credit-send-modal .credit-send-help {
+  min-height: 1.25rem;
+}

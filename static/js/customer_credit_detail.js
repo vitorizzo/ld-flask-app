@@ -78,4 +78,101 @@
       text(agingSvg, compact.format(item.value), x + slot * 0.32, valueLabelY);
     });
   }
+
+  const communicationNode = document.getElementById("customerCreditCommunicationData");
+  let communicationData = null;
+  try {
+    communicationData = communicationNode ? JSON.parse(communicationNode.textContent || "null") : null;
+  } catch (_error) {
+    communicationData = null;
+  }
+
+  const updateCommunicationModal = (modal) => {
+    if (!modal || !communicationData) return;
+    const channelSelect = modal.querySelector(".credit-send-channel");
+    const recipientSelect = modal.querySelector(".credit-send-recipient");
+    const help = modal.querySelector(".credit-send-help");
+    const confirm = modal.querySelector(".credit-send-confirm");
+    const selectedOption = channelSelect?.selectedOptions[0];
+    const channel = channelSelect?.value || "email";
+    const accountReady = selectedOption?.dataset.accountReady === "1";
+    const contacts = communicationData.contacts?.[channel] || [];
+
+    if (recipientSelect) {
+      recipientSelect.innerHTML = '<option value="">Seleziona un recapito</option>';
+      contacts.forEach((contact) => {
+        const option = document.createElement("option");
+        option.value = String(contact.id);
+        option.textContent = `${contact.value}${contact.label ? ` — ${contact.label}` : ""}`;
+        recipientSelect.appendChild(option);
+      });
+      const primary = contacts.find((contact) => contact.is_primary) || contacts[0];
+      if (primary) recipientSelect.value = String(primary.id);
+    }
+
+    if (help) {
+      help.textContent = !accountReady
+        ? `L'account ${channel === "pec" ? "PEC" : "CreditManagement"} deve ancora essere configurato.`
+        : !contacts.length
+          ? `Nessun recapito ${channel === "pec" ? "PEC" : "email"} presente nell'anagrafica cliente.`
+          : `Il messaggio sarà inviato tramite l'account ${channel === "pec" ? "PEC" : "CreditManagement"}.`;
+    }
+    if (confirm) confirm.disabled = !accountReady || !contacts.length || !recipientSelect?.value;
+  };
+
+  document.querySelectorAll(".credit-send-modal").forEach((modal) => {
+    modal.addEventListener("show.bs.modal", () => {
+      const channelSelect = modal.querySelector(".credit-send-channel");
+      const readyOption = Array.from(channelSelect?.options || []).find((option) => option.dataset.accountReady === "1");
+      if (readyOption) channelSelect.value = readyOption.value;
+      const feedback = modal.querySelector(".credit-send-feedback");
+      if (feedback) feedback.replaceChildren();
+      updateCommunicationModal(modal);
+    });
+    modal.querySelector(".credit-send-channel")?.addEventListener("change", () => updateCommunicationModal(modal));
+    modal.querySelector(".credit-send-recipient")?.addEventListener("change", () => updateCommunicationModal(modal));
+
+    modal.querySelector(".credit-send-confirm")?.addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      const channel = modal.querySelector(".credit-send-channel")?.value || "";
+      const contactId = modal.querySelector(".credit-send-recipient")?.value || "";
+      const feedback = modal.querySelector(".credit-send-feedback");
+      if (!channel || !contactId || !communicationData?.endpoint) return;
+
+      button.disabled = true;
+      let sent = false;
+      const originalHtml = button.innerHTML;
+      button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Invio...';
+      if (feedback) feedback.replaceChildren();
+      try {
+        const response = await fetch(communicationData.endpoint, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Accept": "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify({ kind: button.dataset.kind, channel, contact_id: contactId })
+        });
+        const result = await response.json().catch(() => ({}));
+        const alert = document.createElement("div");
+        alert.className = `alert ${response.ok && result.ok ? "alert-success" : "alert-danger"} mb-0`;
+        alert.textContent = result.message || result.error || "Invio non riuscito.";
+        feedback?.replaceChildren(alert);
+        if (response.ok && result.ok) {
+          sent = true;
+          return;
+        }
+      } catch (_error) {
+        const alert = document.createElement("div");
+        alert.className = "alert alert-danger mb-0";
+        alert.textContent = "Errore di rete durante l'invio.";
+        feedback?.replaceChildren(alert);
+      } finally {
+        button.innerHTML = originalHtml;
+        updateCommunicationModal(modal);
+        if (sent) {
+          button.disabled = true;
+          button.textContent = "Inviato";
+        }
+      }
+    });
+  });
 })();

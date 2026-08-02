@@ -1235,3 +1235,10 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `templates/administration/customer_credit.html`: preload del renderer, esecuzione asincrona prima degli script globali e indicatori di elaborazione nei contenitori dei due SVG.
 - `static/js/customer_credit.js`: chiude gli indicatori dopo il disegno e rende visibili gli stati senza dati o gli errori di parsing.
 - `static/css/customer_credit.css`: overlay di caricamento e stato errore per torta e andamento mensile.
+
+### Credito clienti - comunicazioni contabili (2026-08-02)
+
+- `routes/administration.py`: `POST /administration/customer-credit/<source_customer_code>/communications` valida tipo, canale, account e recapito anagrafico; genera il template dallo snapshot corrente e invia tramite `creditmanagement` o `pec`.
+- `templates/settings/customer_account_statement_detail.html`: pulsanti e modali per estratto conto e sollecito, con scelta canale/destinatario e riepilogo saldo.
+- `static/js/customer_credit_detail.js`: popola i recapiti email/PEC, gestisce disponibilita account, conferma, stato invio ed esito.
+- `static/css/customer_credit_detail.css`: presentazione delle modali di comunicazione.

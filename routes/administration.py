@@ -1,14 +1,17 @@
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
+from html import escape
 
-from flask import Blueprint, abort, render_template, request, url_for
+from flask import Blueprint, abort, jsonify, render_template, request, url_for
+from flask_mail import Message
 from flask_login import login_required
 from sqlalchemy import case, func
 
 from extensions import db
-from models import BusinessRegistry, CustomerAccountEntry, CustomerAccountStatementImport
+from models import BusinessRegistry, BusinessRegistryContact, CustomerAccountEntry, CustomerAccountStatementImport
 from tools.log_utils import get_logger, log_task
+from tools.mail_accounts import account_sender, get_email_account, send_account_mail
 from tools.role_required import role_required
 
 
@@ -181,6 +184,66 @@ def _customer_aging(entries, today=None):
         "outstanding_total": net_total,
         "buckets": buckets,
     }
+
+
+def _credit_communication_contacts(customer):
+    registry = customer.registry
+    if not registry:
+        return {"email": [], "pec": []}
+    contacts = {"email": [], "pec": []}
+    for contact in sorted(registry.contacts, key=lambda item: (not item.is_primary, item.id)):
+        if contact.contact_type in contacts:
+            contacts[contact.contact_type].append({
+                "id": contact.id,
+                "value": contact.value,
+                "label": contact.label or ("Principale" if contact.is_primary else "Altro recapito"),
+                "is_primary": bool(contact.is_primary),
+            })
+    return contacts
+
+
+def _credit_account_available(code):
+    account = get_email_account(code, include_password=False, legacy_fallback=False)
+    return bool(account and account.get("is_enabled"))
+
+
+def _credit_money(value):
+    return f"{Decimal(value or 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def _credit_message_html(kind, customer, entries, totals):
+    balance = Decimal(totals.balance or 0)
+    rows = []
+    for entry in entries:
+        reference_date = entry.document_date or entry.registration_date or entry.due_date
+        rows.append(
+            "<tr>"
+            f"<td>{escape(reference_date.strftime('%d/%m/%Y') if reference_date else '—')}</td>"
+            f"<td>{escape(entry.document_number or '—')}</td>"
+            f"<td>{escape(entry.description or '—')}</td>"
+            f"<td style='text-align:right'>{escape(_credit_money(entry.signed_amount))} €</td>"
+            "</tr>"
+        )
+    table = (
+        "<table style='width:100%;border-collapse:collapse' border='1' cellpadding='7'>"
+        "<thead><tr><th>Data</th><th>Documento</th><th>Descrizione</th><th>Importo</th></tr></thead>"
+        f"<tbody>{''.join(rows)}</tbody></table>"
+    )
+    heading = "Estratto conto aggiornato" if kind == "statement" else "Sollecito di pagamento"
+    intro = (
+        "trasmettiamo di seguito la situazione contabile aggiornata risultante dai nostri archivi."
+        if kind == "statement"
+        else "dai nostri archivi risulta un saldo ancora dovuto. Vi chiediamo cortesemente di provvedere al saldo delle partite aperte o di segnalarci eventuali difformità."
+    )
+    return (
+        f"<h2>{heading}</h2>"
+        f"<p>Spett.le {escape(customer.customer_name)},</p>"
+        f"<p>{intro}</p>"
+        f"<p><strong>Saldo attuale: {_credit_money(balance)} €</strong></p>"
+        f"{table}"
+        "<p>Per chiarimenti potete rispondere direttamente a questa comunicazione.</p>"
+        "<p>Cordiali saluti<br>LD Enoteca</p>"
+    )
 
 
 @administration_bp.route("/customer-credit", methods=["GET"])
@@ -406,6 +469,7 @@ def customer_credit_detail(source_customer_code):
     )
     customer_history = _monthly_customer_credit_history(source_customer_code)
     aging = _customer_aging(all_entries)
+    communication_contacts = _credit_communication_contacts(customer)
     return render_template(
         "settings/customer_account_statement_detail.html",
         current_import=current_import,
@@ -426,4 +490,104 @@ def customer_credit_detail(source_customer_code):
             {"label": item["label"], "value": float(item["value"])}
             for item in aging["buckets"]
         ],
+        communication_contacts=communication_contacts,
+        credit_mail_available=_credit_account_available("creditmanagement"),
+        pec_mail_available=_credit_account_available("pec"),
     )
+
+
+@administration_bp.post("/customer-credit/<source_customer_code>/communications")
+@login_required
+@role_required(40, roles=["office"])
+@log_task(logger)
+def send_customer_credit_communication(source_customer_code):
+    payload = request.get_json(silent=True) or {}
+    kind = str(payload.get("kind") or "").strip().lower()
+    channel = str(payload.get("channel") or "").strip().lower()
+    contact_id = payload.get("contact_id")
+
+    allowed = {
+        "statement": {"email": ("email", "creditmanagement")},
+        "reminder": {
+            "email": ("email", "creditmanagement"),
+            "pec": ("pec", "pec"),
+        },
+    }
+    if kind not in allowed or channel not in allowed[kind]:
+        return jsonify({"ok": False, "error": "Tipo di comunicazione o canale non valido."}), 400
+
+    current_import = _latest_statement_import()
+    if current_import is None:
+        return jsonify({"ok": False, "error": "Nessuna situazione contabile disponibile."}), 404
+
+    base_query = CustomerAccountEntry.query.filter_by(
+        import_id=current_import.id,
+        source_customer_code=source_customer_code,
+    )
+    customer = base_query.order_by(CustomerAccountEntry.row_number.asc()).first()
+    if customer is None or customer.registry_id is None:
+        return jsonify({"ok": False, "error": "Cliente non collegato a un'anagrafica con recapiti."}), 404
+
+    contact_type, account_code = allowed[kind][channel]
+    try:
+        contact_id = int(contact_id)
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Seleziona un destinatario valido."}), 400
+    contact = BusinessRegistryContact.query.filter_by(
+        id=contact_id,
+        registry_id=customer.registry_id,
+        contact_type=contact_type,
+    ).first()
+    if contact is None:
+        return jsonify({"ok": False, "error": "Il recapito selezionato non appartiene al cliente."}), 400
+
+    account = get_email_account(account_code, include_password=False, legacy_fallback=False)
+    if not account or not account.get("is_enabled"):
+        label = "PEC" if account_code == "pec" else "CreditManagement"
+        return jsonify({"ok": False, "error": f"Account {label} non ancora configurato o disattivato."}), 409
+
+    entries = base_query.filter(CustomerAccountEntry.is_balance_relevant.is_(True)).order_by(
+        CustomerAccountEntry.document_date.asc().nullsfirst(),
+        CustomerAccountEntry.row_number.asc(),
+    ).all()
+    totals = db.session.query(
+        func.sum(case((CustomerAccountEntry.accounting_side == "D", CustomerAccountEntry.amount), else_=0)).label("debit"),
+        func.sum(case((CustomerAccountEntry.accounting_side == "A", CustomerAccountEntry.amount), else_=0)).label("credit"),
+        func.sum(CustomerAccountEntry.signed_amount).label("balance"),
+    ).filter(
+        CustomerAccountEntry.import_id == current_import.id,
+        CustomerAccountEntry.source_customer_code == source_customer_code,
+        CustomerAccountEntry.is_balance_relevant.is_(True),
+    ).one()
+    if kind == "reminder" and Decimal(totals.balance or 0) <= 0:
+        return jsonify({"ok": False, "error": "Il cliente non presenta un saldo positivo da sollecitare."}), 409
+
+    subject = (
+        f"Estratto conto aggiornato - {customer.customer_name}"
+        if kind == "statement"
+        else f"Sollecito di pagamento - {customer.customer_name}"
+    )
+    message = Message(
+        subject=subject,
+        recipients=[contact.value],
+        sender=account_sender(account_code),
+        html=_credit_message_html(kind, customer, entries, totals),
+    )
+    try:
+        result = send_account_mail(account_code, message)
+    except Exception:
+        logger.exception(
+            "Invio comunicazione credito fallito customer=%s kind=%s channel=%s contact_id=%s",
+            source_customer_code, kind, channel, contact.id,
+        )
+        return jsonify({"ok": False, "error": "Invio non riuscito. Controlla la configurazione dell'account e riprova."}), 502
+
+    logger.info(
+        "Comunicazione credito inviata customer=%s import_id=%s kind=%s channel=%s contact_id=%s suppressed=%s",
+        source_customer_code, current_import.id, kind, channel, contact.id, bool(result.get("suppressed")),
+    )
+    return jsonify({
+        "ok": True,
+        "message": f"Comunicazione inviata a {contact.value}.",
+        "suppressed": bool(result.get("suppressed")),
+    })
