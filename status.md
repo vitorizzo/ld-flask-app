@@ -2734,6 +2734,7 @@ Performance apertura giornata Agenda 2026-06-13:
 - Verificati Python, JavaScript, Jinja e `git diff --check`. Il test integrato read-only con gli account reali non ha raggiunto l'anteprima per una chiusura improvvisa della connessione PostgreSQL; nessun messaggio e' stato inviato.
 - Correzione stacking modali: il backdrop globale dell'app (`z-index: 12040`) copriva le finestre Bootstrap standard e ne intercettava i clic. Entrambe le modali estratto conto/sollecito sono ora a `z-index: 12050` con interazione esplicita; cache CSS aggiornata a `credit-modal-stack1`.
 - Verificati sul DB gli account `creditmanagement` e `pec`: entrambi attivi, con mittente e server SMTP valorizzati; nessuna credenziale e' stata esposta nel controllo.
+- Correzione definitiva focus/stacking: il solo `z-index` non era sufficiente perche' le due modali restavano figlie di `page-shell`, che crea uno stacking context autonomo. `customer_credit_detail.js` sposta ora entrambe in `document.body` prima dell'inizializzazione Bootstrap, applicando il pattern obbligatorio gia documentato per tutte le modali dell'app; cache JS `credit-modal-body1`.
 
 ## 2026-08-01 - Ottimizzazione prestazioni operative
 

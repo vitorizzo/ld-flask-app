@@ -1250,3 +1250,4 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `static/js/customer_credit_detail.js`: invalida l'anteprima al cambio dei parametri e separa rigorosamente generazione e conferma dell'invio.
 - `static/css/customer_credit_detail.css`: busta riepilogativa, editor del messaggio e modale ampliata durante la revisione.
 - Le modali `.credit-send-modal` usano il livello applicativo `12050`, sopra il backdrop globale `12040`, per mantenere attivi campi e pulsanti in entrambi i flussi.
+- Prima di creare l'istanza Bootstrap, `static/js/customer_credit_detail.js` riaggancia entrambe le `.credit-send-modal` direttamente a `document.body`; il livello CSS resta una protezione aggiuntiva e non sostituisce questo passaggio.

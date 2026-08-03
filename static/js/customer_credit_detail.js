@@ -160,6 +160,14 @@
   };
 
   document.querySelectorAll(".credit-send-modal").forEach((modal) => {
+    // Le modali definite dentro page-shell restano intrappolate nel suo
+    // stacking context: vanno portate nel body prima che Bootstrap le apra.
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+    if (window.bootstrap?.Modal) {
+      window.bootstrap.Modal.getOrCreateInstance(modal);
+    }
     modal.addEventListener("show.bs.modal", () => {
       const channelSelect = modal.querySelector(".credit-send-channel");
       const readyOption = Array.from(channelSelect?.options || []).find((option) => option.dataset.accountReady === "1");
@@ -170,6 +178,11 @@
       if (feedback) feedback.replaceChildren();
       resetCommunicationPreview(modal);
       updateCommunicationModal(modal);
+    });
+    modal.addEventListener("hidden.bs.modal", () => {
+      resetCommunicationPreview(modal);
+      const active = document.activeElement;
+      if (active && modal.contains(active)) active.blur();
     });
     modal.querySelector(".credit-send-channel")?.addEventListener("change", () => {
       resetCommunicationPreview(modal);
