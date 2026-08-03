@@ -74,10 +74,31 @@
       <label class="form-label mt-3" for="{{ modal_id }}Recipient">Destinatario</label>
       <select class="form-select credit-send-recipient" id="{{ modal_id }}Recipient"><option value="">Seleziona un recapito</option></select>
       <div class="form-text credit-send-help"></div>
+      <div class="form-check form-switch mt-3">
+        <input class="form-check-input credit-send-test-mode" type="checkbox" role="switch" id="{{ modal_id }}TestMode">
+        <label class="form-check-label fw-semibold" for="{{ modal_id }}TestMode">Modalità test — non inviare al cliente</label>
+      </div>
+      <div class="credit-send-test-address d-none mt-2">
+        <label class="form-label" for="{{ modal_id }}TestEmail">Indirizzo destinatario di test</label>
+        <input class="form-control credit-send-test-email" id="{{ modal_id }}TestEmail" type="email" autocomplete="email" placeholder="tuo.indirizzo@example.com">
+        <div class="form-text">L'indirizzo viene usato solo per questo invio e non modifica l'anagrafica.</div>
+      </div>
+      <div class="credit-send-preview d-none mt-3">
+        <div class="credit-send-envelope small mb-3">
+          <div><strong>Da:</strong> <span data-preview-sender></span></div>
+          <div><strong>A:</strong> <span data-preview-recipient></span></div>
+          <div><strong>Account:</strong> <span data-preview-account></span></div>
+        </div>
+        <label class="form-label" for="{{ modal_id }}Subject">Oggetto</label>
+        <input class="form-control credit-send-subject" id="{{ modal_id }}Subject" maxlength="255">
+        <label class="form-label mt-3">Contenuto del messaggio</label>
+        <div class="credit-send-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>
+        <div class="form-text">Puoi correggere oggetto e contenuto prima dell'invio.</div>
+      </div>
       <div class="credit-send-feedback mt-3" aria-live="polite"></div>
-      <div class="small text-muted mt-3">Verrà inviata la situazione contabile dello snapshot corrente. Controlla canale e destinatario prima di confermare.</div>
+      <div class="small text-muted mt-3">Prima dell'invio verranno mostrati mittente, destinatario, oggetto e contenuto completo.</div>
     </div>
-    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-primary credit-send-confirm" data-kind="{{ kind }}">Conferma invio</button></div>
+    <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-outline-primary credit-send-preview-btn" data-kind="{{ kind }}">Mostra anteprima</button><button type="button" class="btn btn-primary credit-send-confirm d-none" data-kind="{{ kind }}">Invia ora</button></div>
   </div></div>
 </div>
 {% endmacro %}
@@ -90,4 +111,4 @@
   'contacts': communication_contacts
 }|tojson }}</script>
 {% endblock %}
-{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_credit_detail.js', v=app_version ~ '-credit-communications1') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_credit_detail.js', v=app_version ~ '-credit-preview1') }}"></script>{% endblock %}

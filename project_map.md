@@ -1242,3 +1242,10 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `templates/settings/customer_account_statement_detail.html`: pulsanti e modali per estratto conto e sollecito, con scelta canale/destinatario e riepilogo saldo.
 - `static/js/customer_credit_detail.js`: popola i recapiti email/PEC, gestisce disponibilita account, conferma, stato invio ed esito.
 - `static/css/customer_credit_detail.css`: presentazione delle modali di comunicazione.
+
+### Credito clienti - preview e test invio (2026-08-03)
+
+- `routes/administration.py`: lo stesso endpoint comunicazioni supporta `action=preview|send`, destinatario anagrafico oppure indirizzo temporaneo di test, oggetto/corpo revisionati e marcatura `[TEST]`.
+- `templates/settings/customer_account_statement_detail.html`: switch test, indirizzo temporaneo, riepilogo busta, oggetto modificabile ed editor visuale del corpo.
+- `static/js/customer_credit_detail.js`: invalida l'anteprima al cambio dei parametri e separa rigorosamente generazione e conferma dell'invio.
+- `static/css/customer_credit_detail.css`: busta riepilogativa, editor del messaggio e modale ampliata durante la revisione.

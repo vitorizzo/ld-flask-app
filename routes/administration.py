@@ -1,6 +1,7 @@
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
+from email.utils import parseaddr
 from html import escape
 
 from flask import Blueprint, abort, jsonify, render_template, request, url_for
@@ -502,9 +503,15 @@ def customer_credit_detail(source_customer_code):
 @log_task(logger)
 def send_customer_credit_communication(source_customer_code):
     payload = request.get_json(silent=True) or {}
+    action = str(payload.get("action") or "preview").strip().lower()
     kind = str(payload.get("kind") or "").strip().lower()
     channel = str(payload.get("channel") or "").strip().lower()
     contact_id = payload.get("contact_id")
+    test_mode = bool(payload.get("test_mode"))
+    test_email = str(payload.get("test_email") or "").strip()
+
+    if action not in {"preview", "send"}:
+        return jsonify({"ok": False, "error": "Azione non valida."}), 400
 
     allowed = {
         "statement": {"email": ("email", "creditmanagement")},
@@ -529,17 +536,25 @@ def send_customer_credit_communication(source_customer_code):
         return jsonify({"ok": False, "error": "Cliente non collegato a un'anagrafica con recapiti."}), 404
 
     contact_type, account_code = allowed[kind][channel]
-    try:
-        contact_id = int(contact_id)
-    except (TypeError, ValueError):
-        return jsonify({"ok": False, "error": "Seleziona un destinatario valido."}), 400
-    contact = BusinessRegistryContact.query.filter_by(
-        id=contact_id,
-        registry_id=customer.registry_id,
-        contact_type=contact_type,
-    ).first()
-    if contact is None:
-        return jsonify({"ok": False, "error": "Il recapito selezionato non appartiene al cliente."}), 400
+    contact = None
+    if test_mode:
+        parsed_email = parseaddr(test_email)[1]
+        if not parsed_email or parsed_email != test_email or "@" not in parsed_email:
+            return jsonify({"ok": False, "error": "Inserisci un indirizzo email di test valido."}), 400
+        recipient = parsed_email
+    else:
+        try:
+            contact_id = int(contact_id)
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "Seleziona un destinatario valido."}), 400
+        contact = BusinessRegistryContact.query.filter_by(
+            id=contact_id,
+            registry_id=customer.registry_id,
+            contact_type=contact_type,
+        ).first()
+        if contact is None:
+            return jsonify({"ok": False, "error": "Il recapito selezionato non appartiene al cliente."}), 400
+        recipient = contact.value
 
     account = get_email_account(account_code, include_password=False, legacy_fallback=False)
     if not account or not account.get("is_enabled"):
@@ -562,32 +577,58 @@ def send_customer_credit_communication(source_customer_code):
     if kind == "reminder" and Decimal(totals.balance or 0) <= 0:
         return jsonify({"ok": False, "error": "Il cliente non presenta un saldo positivo da sollecitare."}), 409
 
-    subject = (
+    default_subject = (
         f"Estratto conto aggiornato - {customer.customer_name}"
         if kind == "statement"
         else f"Sollecito di pagamento - {customer.customer_name}"
     )
+    default_html = _credit_message_html(kind, customer, entries, totals)
+    sender = account.get("default_sender") or account.get("username") or account_sender(account_code)
+
+    if action == "preview":
+        return jsonify({
+            "ok": True,
+            "preview": {
+                "sender": sender,
+                "recipient": recipient,
+                "subject": f"[TEST] {default_subject}" if test_mode else default_subject,
+                "html": default_html,
+                "test_mode": test_mode,
+                "account": "PEC" if account_code == "pec" else "CreditManagement",
+            },
+        })
+
+    subject = str(payload.get("subject") or default_subject).strip()[:255]
+    html_body = str(payload.get("html") or default_html).strip()
+    if not subject:
+        return jsonify({"ok": False, "error": "L'oggetto non può essere vuoto."}), 400
+    if not html_body or len(html_body.encode("utf-8")) > 500_000:
+        return jsonify({"ok": False, "error": "Il contenuto del messaggio non è valido o è troppo grande."}), 400
+    if test_mode and not subject.startswith("[TEST]"):
+        subject = f"[TEST] {subject}"
+
     message = Message(
         subject=subject,
-        recipients=[contact.value],
-        sender=account_sender(account_code),
-        html=_credit_message_html(kind, customer, entries, totals),
+        recipients=[recipient],
+        sender=sender,
+        html=html_body,
     )
     try:
         result = send_account_mail(account_code, message)
     except Exception:
         logger.exception(
             "Invio comunicazione credito fallito customer=%s kind=%s channel=%s contact_id=%s",
-            source_customer_code, kind, channel, contact.id,
+            source_customer_code, kind, channel, contact.id if contact else None,
         )
         return jsonify({"ok": False, "error": "Invio non riuscito. Controlla la configurazione dell'account e riprova."}), 502
 
     logger.info(
-        "Comunicazione credito inviata customer=%s import_id=%s kind=%s channel=%s contact_id=%s suppressed=%s",
-        source_customer_code, current_import.id, kind, channel, contact.id, bool(result.get("suppressed")),
+        "Comunicazione credito inviata customer=%s import_id=%s kind=%s channel=%s contact_id=%s test_mode=%s recipient=%s suppressed=%s",
+        source_customer_code, current_import.id, kind, channel, contact.id if contact else None,
+        test_mode, recipient, bool(result.get("suppressed")),
     )
     return jsonify({
         "ok": True,
-        "message": f"Comunicazione inviata a {contact.value}.",
+        "message": f"Comunicazione {'di test ' if test_mode else ''}inviata a {recipient}.",
         "suppressed": bool(result.get("suppressed")),
     })

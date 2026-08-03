@@ -2724,6 +2724,15 @@ Performance apertura giornata Agenda 2026-06-13:
 - Ogni invio richiede conferma, mostra avanzamento/esito e viene registrato in `administration.log` e `main.log`; errori SMTP non espongono credenziali al client.
 - WhatsApp e SMS non sono stati implementati. Test read-only del template superato su dati reali, senza invio SMTP; verificati Python, JavaScript, Jinja e `git diff --check`.
 
+## 2026-08-03 - Anteprima e modalita test comunicazioni credito
+
+- L'invio dalla scheda cliente e' ora un flusso esplicito a due passaggi: `Mostra anteprima` e, soltanto dopo, `Invia ora`.
+- L'anteprima mostra indirizzo mittente effettivo, account SMTP, destinatario, oggetto e corpo completo; oggetto e contenuto sono modificabili prima della conferma.
+- La `Modalita test` disabilita il recapito cliente e accetta un indirizzo esterno per la singola prova, senza salvarlo nell'anagrafica.
+- Oggetto e log degli invii di prova vengono marcati `[TEST]`; il server ricalcola comunque lo snapshot e convalida account, canale, saldo e indirizzo prima dell'invio.
+- Cambiando canale, destinatario o modalita dopo l'anteprima, questa viene invalidata e deve essere rigenerata, evitando invii con riepiloghi non aggiornati.
+- Verificati Python, JavaScript, Jinja e `git diff --check`. Il test integrato read-only con gli account reali non ha raggiunto l'anteprima per una chiusura improvvisa della connessione PostgreSQL; nessun messaggio e' stato inviato.
+
 ## 2026-08-01 - Ottimizzazione prestazioni operative
 
 - Eseguito un benchmark autenticato su Agenda e gestione assegni: le query assegni risultano rapide sul volume corrente (60 record, circa 6 ms), mentre il costo percepito derivava soprattutto dal ventaglio di richieste iniziali, dal polling continuo e dal download ripetuto degli asset.

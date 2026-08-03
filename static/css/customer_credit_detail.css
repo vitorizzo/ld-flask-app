@@ -56,3 +56,32 @@
 .credit-send-modal .credit-send-help {
   min-height: 1.25rem;
 }
+
+.credit-send-envelope {
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.65rem;
+  background: var(--bs-tertiary-bg);
+  overflow-wrap: anywhere;
+}
+
+.credit-send-editor {
+  min-height: 260px;
+  max-height: 45vh;
+  overflow: auto;
+  padding: 1rem;
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.65rem;
+  background: #fff;
+  color: #212529;
+}
+
+.credit-send-editor:focus {
+  border-color: #86b7fe;
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.credit-send-modal:has(.credit-send-preview:not(.d-none)) .modal-dialog {
+  max-width: min(920px, calc(100vw - 2rem));
+}

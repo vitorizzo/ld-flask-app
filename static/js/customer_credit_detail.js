@@ -97,8 +97,11 @@
     const channel = channelSelect?.value || "email";
     const accountReady = selectedOption?.dataset.accountReady === "1";
     const contacts = communicationData.contacts?.[channel] || [];
+    const testMode = modal.querySelector(".credit-send-test-mode")?.checked === true;
+    const testEmail = modal.querySelector(".credit-send-test-email");
 
     if (recipientSelect) {
+      const previousValue = recipientSelect.value;
       recipientSelect.innerHTML = '<option value="">Seleziona un recapito</option>';
       contacts.forEach((contact) => {
         const option = document.createElement("option");
@@ -107,17 +110,53 @@
         recipientSelect.appendChild(option);
       });
       const primary = contacts.find((contact) => contact.is_primary) || contacts[0];
-      if (primary) recipientSelect.value = String(primary.id);
+      const previousStillAvailable = contacts.some((contact) => String(contact.id) === previousValue);
+      if (previousStillAvailable) recipientSelect.value = previousValue;
+      else if (primary) recipientSelect.value = String(primary.id);
     }
 
     if (help) {
       help.textContent = !accountReady
         ? `L'account ${channel === "pec" ? "PEC" : "CreditManagement"} deve ancora essere configurato.`
+        : testMode
+          ? "Modalità test attiva: nessun messaggio verrà inviato al cliente."
         : !contacts.length
           ? `Nessun recapito ${channel === "pec" ? "PEC" : "email"} presente nell'anagrafica cliente.`
           : `Il messaggio sarà inviato tramite l'account ${channel === "pec" ? "PEC" : "CreditManagement"}.`;
     }
-    if (confirm) confirm.disabled = !accountReady || !contacts.length || !recipientSelect?.value;
+    recipientSelect?.toggleAttribute("disabled", testMode);
+    modal.querySelector(".credit-send-test-address")?.classList.toggle("d-none", !testMode);
+    const ready = accountReady && (testMode
+      ? !!testEmail?.value.trim() && testEmail.checkValidity()
+      : !!recipientSelect?.value);
+    const previewButton = modal.querySelector(".credit-send-preview-btn");
+    if (previewButton) previewButton.disabled = !ready;
+    if (confirm) confirm.disabled = false;
+  };
+
+  const resetCommunicationPreview = (modal) => {
+    modal.querySelector(".credit-send-preview")?.classList.add("d-none");
+    modal.querySelector(".credit-send-confirm")?.classList.add("d-none");
+    modal.querySelector(".credit-send-preview-btn")?.classList.remove("d-none");
+    modal.querySelector(".credit-send-feedback")?.replaceChildren();
+  };
+
+  const communicationPayload = (modal, action, button) => ({
+    action,
+    kind: button.dataset.kind,
+    channel: modal.querySelector(".credit-send-channel")?.value || "",
+    contact_id: modal.querySelector(".credit-send-recipient")?.value || "",
+    test_mode: modal.querySelector(".credit-send-test-mode")?.checked === true,
+    test_email: modal.querySelector(".credit-send-test-email")?.value.trim() || "",
+    subject: action === "send" ? modal.querySelector(".credit-send-subject")?.value.trim() : undefined,
+    html: action === "send" ? modal.querySelector(".credit-send-editor")?.innerHTML : undefined
+  });
+
+  const showCommunicationFeedback = (modal, ok, message) => {
+    const alert = document.createElement("div");
+    alert.className = `alert ${ok ? "alert-success" : "alert-danger"} mb-0`;
+    alert.textContent = message;
+    modal.querySelector(".credit-send-feedback")?.replaceChildren(alert);
   };
 
   document.querySelectorAll(".credit-send-modal").forEach((modal) => {
@@ -125,19 +164,68 @@
       const channelSelect = modal.querySelector(".credit-send-channel");
       const readyOption = Array.from(channelSelect?.options || []).find((option) => option.dataset.accountReady === "1");
       if (readyOption) channelSelect.value = readyOption.value;
+      modal.querySelector(".credit-send-test-mode").checked = false;
+      modal.querySelector(".credit-send-test-email").value = "";
       const feedback = modal.querySelector(".credit-send-feedback");
       if (feedback) feedback.replaceChildren();
+      resetCommunicationPreview(modal);
       updateCommunicationModal(modal);
     });
-    modal.querySelector(".credit-send-channel")?.addEventListener("change", () => updateCommunicationModal(modal));
-    modal.querySelector(".credit-send-recipient")?.addEventListener("change", () => updateCommunicationModal(modal));
+    modal.querySelector(".credit-send-channel")?.addEventListener("change", () => {
+      resetCommunicationPreview(modal);
+      updateCommunicationModal(modal);
+    });
+    modal.querySelector(".credit-send-recipient")?.addEventListener("change", () => {
+      resetCommunicationPreview(modal);
+      updateCommunicationModal(modal);
+    });
+    modal.querySelector(".credit-send-test-mode")?.addEventListener("change", () => {
+      resetCommunicationPreview(modal);
+      updateCommunicationModal(modal);
+    });
+    modal.querySelector(".credit-send-test-email")?.addEventListener("input", () => {
+      resetCommunicationPreview(modal);
+      updateCommunicationModal(modal);
+    });
+
+    modal.querySelector(".credit-send-preview-btn")?.addEventListener("click", async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      const originalHtml = button.innerHTML;
+      button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Preparazione...';
+      try {
+        const response = await fetch(communicationData.endpoint, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Accept": "application/json", "Content-Type": "application/json" },
+          body: JSON.stringify(communicationPayload(modal, "preview", button))
+        });
+        const result = await response.json().catch(() => ({}));
+        if (!response.ok || !result.ok) throw new Error(result.error || "Anteprima non disponibile.");
+        const preview = result.preview;
+        modal.querySelector("[data-preview-sender]").textContent = preview.sender || "—";
+        modal.querySelector("[data-preview-recipient]").textContent = preview.recipient || "—";
+        modal.querySelector("[data-preview-account]").textContent = preview.account || "—";
+        modal.querySelector(".credit-send-subject").value = preview.subject || "";
+        modal.querySelector(".credit-send-editor").innerHTML = preview.html || "";
+        modal.querySelector(".credit-send-preview")?.classList.remove("d-none");
+        modal.querySelector(".credit-send-confirm")?.classList.remove("d-none");
+        button.classList.add("d-none");
+      } catch (error) {
+        showCommunicationFeedback(modal, false, error.message || "Errore durante la preparazione dell'anteprima.");
+      } finally {
+        button.innerHTML = originalHtml;
+        updateCommunicationModal(modal);
+      }
+    });
 
     modal.querySelector(".credit-send-confirm")?.addEventListener("click", async (event) => {
       const button = event.currentTarget;
       const channel = modal.querySelector(".credit-send-channel")?.value || "";
       const contactId = modal.querySelector(".credit-send-recipient")?.value || "";
       const feedback = modal.querySelector(".credit-send-feedback");
-      if (!channel || !contactId || !communicationData?.endpoint) return;
+      const testMode = modal.querySelector(".credit-send-test-mode")?.checked === true;
+      if (!channel || (!testMode && !contactId) || !communicationData?.endpoint) return;
 
       button.disabled = true;
       let sent = false;
@@ -149,7 +237,7 @@
           method: "POST",
           credentials: "same-origin",
           headers: { "Accept": "application/json", "Content-Type": "application/json" },
-          body: JSON.stringify({ kind: button.dataset.kind, channel, contact_id: contactId })
+          body: JSON.stringify(communicationPayload(modal, "send", button))
         });
         const result = await response.json().catch(() => ({}));
         const alert = document.createElement("div");
