@@ -2732,6 +2732,8 @@ Performance apertura giornata Agenda 2026-06-13:
 - Oggetto e log degli invii di prova vengono marcati `[TEST]`; il server ricalcola comunque lo snapshot e convalida account, canale, saldo e indirizzo prima dell'invio.
 - Cambiando canale, destinatario o modalita dopo l'anteprima, questa viene invalidata e deve essere rigenerata, evitando invii con riepiloghi non aggiornati.
 - Verificati Python, JavaScript, Jinja e `git diff --check`. Il test integrato read-only con gli account reali non ha raggiunto l'anteprima per una chiusura improvvisa della connessione PostgreSQL; nessun messaggio e' stato inviato.
+- Correzione stacking modali: il backdrop globale dell'app (`z-index: 12040`) copriva le finestre Bootstrap standard e ne intercettava i clic. Entrambe le modali estratto conto/sollecito sono ora a `z-index: 12050` con interazione esplicita; cache CSS aggiornata a `credit-modal-stack1`.
+- Verificati sul DB gli account `creditmanagement` e `pec`: entrambi attivi, con mittente e server SMTP valorizzati; nessuna credenziale e' stata esposta nel controllo.
 
 ## 2026-08-01 - Ottimizzazione prestazioni operative
 

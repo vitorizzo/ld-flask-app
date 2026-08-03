@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}LD Enoteca - Dettaglio situazione contabile{% endblock %}
 {% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
-{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_credit_detail.css', v=app_version ~ '-credit-detail2') }}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_credit_detail.css', v=app_version ~ '-credit-modal-stack1') }}">{% endblock %}
 {% block content %}
 <section class="welcome-section page-shell"><div class="container-fluid">
   <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">

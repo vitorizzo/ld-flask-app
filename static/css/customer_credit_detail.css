@@ -43,6 +43,16 @@
   fill: var(--bs-success);
 }
 
+.modal.credit-send-modal {
+  z-index: 12050;
+  pointer-events: auto;
+}
+
+.credit-send-modal .modal-dialog,
+.credit-send-modal .modal-content {
+  pointer-events: auto;
+}
+
 .credit-send-modal .modal-content {
   border: 0;
   box-shadow: 0 1.25rem 3rem rgba(0, 0, 0, 0.24);
