@@ -99,6 +99,7 @@
     const contacts = communicationData.contacts?.[channel] || [];
     const testMode = modal.querySelector(".credit-send-test-mode")?.checked === true;
     const testEmail = modal.querySelector(".credit-send-test-email");
+    const manualEmail = modal.querySelector(".credit-send-manual-email");
 
     if (recipientSelect) {
       const previousValue = recipientSelect.value;
@@ -109,26 +110,39 @@
         option.textContent = `${contact.value}${contact.label ? ` — ${contact.label}` : ""}`;
         recipientSelect.appendChild(option);
       });
+      const manualOption = document.createElement("option");
+      manualOption.value = "__manual__";
+      manualOption.textContent = "Inserisci un indirizzo manualmente";
+      recipientSelect.appendChild(manualOption);
       const primary = contacts.find((contact) => contact.is_primary) || contacts[0];
-      const previousStillAvailable = contacts.some((contact) => String(contact.id) === previousValue);
+      const previousStillAvailable = previousValue === "__manual__"
+        || contacts.some((contact) => String(contact.id) === previousValue);
       if (previousStillAvailable) recipientSelect.value = previousValue;
       else if (primary) recipientSelect.value = String(primary.id);
+      else recipientSelect.value = "__manual__";
     }
+
+    const manualMode = recipientSelect?.value === "__manual__";
 
     if (help) {
       help.textContent = !accountReady
         ? `L'account ${channel === "pec" ? "PEC" : "CreditManagement"} deve ancora essere configurato.`
         : testMode
           ? "Modalità test attiva: nessun messaggio verrà inviato al cliente."
+        : manualMode
+          ? "Il recapito inserito verrà usato solo per questa comunicazione e mostrato nell'anteprima."
         : !contacts.length
           ? `Nessun recapito ${channel === "pec" ? "PEC" : "email"} presente nell'anagrafica cliente.`
           : `Il messaggio sarà inviato tramite l'account ${channel === "pec" ? "PEC" : "CreditManagement"}.`;
     }
     recipientSelect?.toggleAttribute("disabled", testMode);
+    modal.querySelector(".credit-send-manual-address")?.classList.toggle("d-none", testMode || !manualMode);
     modal.querySelector(".credit-send-test-address")?.classList.toggle("d-none", !testMode);
     const ready = accountReady && (testMode
       ? !!testEmail?.value.trim() && testEmail.checkValidity()
-      : !!recipientSelect?.value);
+      : manualMode
+        ? !!manualEmail?.value.trim() && manualEmail.checkValidity()
+        : !!recipientSelect?.value);
     const previewButton = modal.querySelector(".credit-send-preview-btn");
     if (previewButton) previewButton.disabled = !ready;
     if (confirm) confirm.disabled = false;
@@ -148,6 +162,8 @@
     contact_id: modal.querySelector(".credit-send-recipient")?.value || "",
     test_mode: modal.querySelector(".credit-send-test-mode")?.checked === true,
     test_email: modal.querySelector(".credit-send-test-email")?.value.trim() || "",
+    manual_recipient: modal.querySelector(".credit-send-recipient")?.value === "__manual__",
+    manual_email: modal.querySelector(".credit-send-manual-email")?.value.trim() || "",
     subject: action === "send" ? modal.querySelector(".credit-send-subject")?.value.trim() : undefined,
     html: action === "send" ? modal.querySelector(".credit-send-editor")?.innerHTML : undefined
   });
@@ -174,6 +190,7 @@
       if (readyOption) channelSelect.value = readyOption.value;
       modal.querySelector(".credit-send-test-mode").checked = false;
       modal.querySelector(".credit-send-test-email").value = "";
+      modal.querySelector(".credit-send-manual-email").value = "";
       const feedback = modal.querySelector(".credit-send-feedback");
       if (feedback) feedback.replaceChildren();
       resetCommunicationPreview(modal);
@@ -197,6 +214,10 @@
       updateCommunicationModal(modal);
     });
     modal.querySelector(".credit-send-test-email")?.addEventListener("input", () => {
+      resetCommunicationPreview(modal);
+      updateCommunicationModal(modal);
+    });
+    modal.querySelector(".credit-send-manual-email")?.addEventListener("input", () => {
       resetCommunicationPreview(modal);
       updateCommunicationModal(modal);
     });
@@ -238,7 +259,8 @@
       const contactId = modal.querySelector(".credit-send-recipient")?.value || "";
       const feedback = modal.querySelector(".credit-send-feedback");
       const testMode = modal.querySelector(".credit-send-test-mode")?.checked === true;
-      if (!channel || (!testMode && !contactId) || !communicationData?.endpoint) return;
+      const manualMode = contactId === "__manual__";
+      if (!channel || (!testMode && !manualMode && !contactId) || !communicationData?.endpoint) return;
 
       button.disabled = true;
       let sent = false;

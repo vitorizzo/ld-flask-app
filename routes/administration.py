@@ -509,6 +509,8 @@ def send_customer_credit_communication(source_customer_code):
     contact_id = payload.get("contact_id")
     test_mode = bool(payload.get("test_mode"))
     test_email = str(payload.get("test_email") or "").strip()
+    manual_recipient = bool(payload.get("manual_recipient"))
+    manual_email = str(payload.get("manual_email") or "").strip()
 
     if action not in {"preview", "send"}:
         return jsonify({"ok": False, "error": "Azione non valida."}), 400
@@ -532,8 +534,8 @@ def send_customer_credit_communication(source_customer_code):
         source_customer_code=source_customer_code,
     )
     customer = base_query.order_by(CustomerAccountEntry.row_number.asc()).first()
-    if customer is None or customer.registry_id is None:
-        return jsonify({"ok": False, "error": "Cliente non collegato a un'anagrafica con recapiti."}), 404
+    if customer is None:
+        return jsonify({"ok": False, "error": "Cliente non trovato nella situazione contabile."}), 404
 
     contact_type, account_code = allowed[kind][channel]
     contact = None
@@ -542,7 +544,14 @@ def send_customer_credit_communication(source_customer_code):
         if not parsed_email or parsed_email != test_email or "@" not in parsed_email:
             return jsonify({"ok": False, "error": "Inserisci un indirizzo email di test valido."}), 400
         recipient = parsed_email
+    elif manual_recipient:
+        parsed_email = parseaddr(manual_email)[1]
+        if not parsed_email or parsed_email != manual_email or "@" not in parsed_email:
+            return jsonify({"ok": False, "error": "Inserisci un indirizzo destinatario valido."}), 400
+        recipient = parsed_email
     else:
+        if customer.registry_id is None:
+            return jsonify({"ok": False, "error": "Cliente non collegato a un'anagrafica: inserisci il recapito manualmente."}), 404
         try:
             contact_id = int(contact_id)
         except (TypeError, ValueError):
@@ -623,9 +632,9 @@ def send_customer_credit_communication(source_customer_code):
         return jsonify({"ok": False, "error": "Invio non riuscito. Controlla la configurazione dell'account e riprova."}), 502
 
     logger.info(
-        "Comunicazione credito inviata customer=%s import_id=%s kind=%s channel=%s contact_id=%s test_mode=%s recipient=%s suppressed=%s",
+        "Comunicazione credito inviata customer=%s import_id=%s kind=%s channel=%s contact_id=%s test_mode=%s manual_recipient=%s recipient=%s suppressed=%s",
         source_customer_code, current_import.id, kind, channel, contact.id if contact else None,
-        test_mode, recipient, bool(result.get("suppressed")),
+        test_mode, manual_recipient, recipient, bool(result.get("suppressed")),
     )
     return jsonify({
         "ok": True,

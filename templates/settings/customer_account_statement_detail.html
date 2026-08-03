@@ -74,6 +74,11 @@
       <label class="form-label mt-3" for="{{ modal_id }}Recipient">Destinatario</label>
       <select class="form-select credit-send-recipient" id="{{ modal_id }}Recipient"><option value="">Seleziona un recapito</option></select>
       <div class="form-text credit-send-help"></div>
+      <div class="credit-send-manual-address d-none mt-2">
+        <label class="form-label" for="{{ modal_id }}ManualEmail">Indirizzo inserito per questo invio</label>
+        <input class="form-control credit-send-manual-email" id="{{ modal_id }}ManualEmail" type="email" autocomplete="email" placeholder="destinatario@example.com">
+        <div class="form-text">Viene usato soltanto per questa comunicazione e non modifica l'anagrafica cliente.</div>
+      </div>
       <div class="form-check form-switch mt-3">
         <input class="form-check-input credit-send-test-mode" type="checkbox" role="switch" id="{{ modal_id }}TestMode">
         <label class="form-check-label fw-semibold" for="{{ modal_id }}TestMode">Modalità test — non inviare al cliente</label>
@@ -111,4 +116,4 @@
   'contacts': communication_contacts
 }|tojson }}</script>
 {% endblock %}
-{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_credit_detail.js', v=app_version ~ '-credit-modal-body1') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_credit_detail.js', v=app_version ~ '-credit-manual-recipient1') }}"></script>{% endblock %}

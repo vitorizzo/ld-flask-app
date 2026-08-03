@@ -2735,6 +2735,8 @@ Performance apertura giornata Agenda 2026-06-13:
 - Correzione stacking modali: il backdrop globale dell'app (`z-index: 12040`) copriva le finestre Bootstrap standard e ne intercettava i clic. Entrambe le modali estratto conto/sollecito sono ora a `z-index: 12050` con interazione esplicita; cache CSS aggiornata a `credit-modal-stack1`.
 - Verificati sul DB gli account `creditmanagement` e `pec`: entrambi attivi, con mittente e server SMTP valorizzati; nessuna credenziale e' stata esposta nel controllo.
 - Correzione definitiva focus/stacking: il solo `z-index` non era sufficiente perche' le due modali restavano figlie di `page-shell`, che crea uno stacking context autonomo. `customer_credit_detail.js` sposta ora entrambe in `document.body` prima dell'inizializzazione Bootstrap, applicando il pattern obbligatorio gia documentato per tutte le modali dell'app; cache JS `credit-modal-body1`.
+- Recapito a caldo: entrambe le modali includono sempre `Inserisci un indirizzo manualmente`; se l'anagrafica non restituisce email/PEC, l'opzione viene selezionata automaticamente. L'indirizzo vale solo per il singolo invio, non viene salvato e viene mostrato nell'anteprima prima della conferma.
+- Il backend convalida nuovamente il recapito manuale e lo accetta anche per clienti non collegati a un'anagrafica, mantenendo invariati i controlli su account, canale e saldo. Test read-only dell'anteprima superato con destinatario manuale, mittente reale valorizzato e nessun invio SMTP. Cache JS `credit-manual-recipient1`.
 
 ## 2026-08-01 - Ottimizzazione prestazioni operative
 
