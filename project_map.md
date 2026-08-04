@@ -1,5 +1,13 @@
 # PROJECT_MAP.md — v2.4
 
+## Integrazione TeamSystem MATRIXWS (2026-08-04)
+
+- `tools/preferences.py`: la categoria `TeamSystem MATRIXWS` nel tile `Chiavi API` espone URL server, ambiente, start, applicativo e secret Bearer; il secret usa `AppPreference.secret_value` cifrato e non viene riproposto nella form.
+- Config runtime predisposta: `MATRIXWS_BASE_URL`, `MATRIXWS_ENVIRONMENT`, `MATRIXWS_START`, `MATRIXWS_APPLICATION` (default `MULTI`) e `MATRIXWS_SECRET`.
+- `routes/settings.py`: la nuova categoria e' inclusa tra le integrazioni configurabili di `/settings/api-keys`.
+- `templates/settings/api_keys.html`: tutte le modali vengono portate nel `body`, ripristinate su `shown.bs.modal`/`hidden.bs.modal` e mantenute sopra il backdrop globale con `z-index: 12050`.
+- Non e' ancora presente un client HTTP MATRIXWS: il prossimo passaggio e' individuare start, Swagger e servizio anagrafiche sull'installazione TeamSystem.
+
 ## Bacheca ordini - azioni menu contestuale (2026-07-31)
 
 - `static/js/kiosk_overview.js`: `closeActiveCardDropdown()` conserva il riferimento corrente prima di nascondere il dropdown; l'evento Bootstrap `hidden.bs.dropdown` non puo' piu' azzerare lo stato globale durante una successiva lettura di `restore`.

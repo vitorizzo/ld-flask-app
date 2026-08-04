@@ -1346,9 +1346,10 @@ def _save_role_preferences_from_form(form):
     return changed
 
 
-API_KEY_PREFERENCE_CATEGORIES = {"Prestashop", "Poleepo", "Trello", "Slack", "Facebook", "Instagram", "Notifiche push"}
+API_KEY_PREFERENCE_CATEGORIES = {"TeamSystem MATRIXWS", "Prestashop", "Poleepo", "Trello", "Slack", "Facebook", "Instagram", "Notifiche push"}
 ROLE_PERMISSION_PREFERENCE_CATEGORIES = {"Permessi e ruoli"}
 API_KEY_CATEGORY_LABELS = {
+    "TeamSystem MATRIXWS": "TeamSystem MATRIXWS",
     "Prestashop": "Prestashop",
     "Poleepo": "Poleepo",
     "Trello": "Trello",

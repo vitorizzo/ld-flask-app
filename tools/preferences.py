@@ -27,6 +27,7 @@ class PreferenceDefinition:
 
 
 PREFERENCE_CATEGORY_ORDER = [
+    "TeamSystem MATRIXWS",
     "Prestashop",
     "Poleepo",
     "Trello",
@@ -38,6 +39,52 @@ PREFERENCE_CATEGORY_ORDER = [
 ]
 
 PREFERENCE_DEFINITIONS: list[PreferenceDefinition] = [
+    PreferenceDefinition(
+        key="matrixws.base_url",
+        category="TeamSystem MATRIXWS",
+        label="Indirizzo server",
+        default="",
+        description="URL base del server TeamSystem/Polyedro raggiungibile via Tailscale, senza slash finale.",
+        config_key="MATRIXWS_BASE_URL",
+        sort_order=10,
+    ),
+    PreferenceDefinition(
+        key="matrixws.environment",
+        category="TeamSystem MATRIXWS",
+        label="Ambiente",
+        default="",
+        description="Nome dell'ambiente TS Azienda usato nel percorso dei servizi MATRIXWS.",
+        config_key="MATRIXWS_ENVIRONMENT",
+        sort_order=20,
+    ),
+    PreferenceDefinition(
+        key="matrixws.start",
+        category="TeamSystem MATRIXWS",
+        label="Start",
+        default="",
+        description="Nome della start TeamSystem; nel percorso MATRIXWS viene normalmente usato in minuscolo.",
+        config_key="MATRIXWS_START",
+        sort_order=30,
+    ),
+    PreferenceDefinition(
+        key="matrixws.application",
+        category="TeamSystem MATRIXWS",
+        label="Applicativo",
+        default="MULTI",
+        description="Nome dell'applicativo TeamSystem usato nel percorso dei servizi.",
+        config_key="MATRIXWS_APPLICATION",
+        sort_order=40,
+    ),
+    PreferenceDefinition(
+        key="matrixws.secret",
+        category="TeamSystem MATRIXWS",
+        label="Secret Bearer",
+        value_type="secret",
+        default="",
+        description="Secret generato da Gestione Secret MATRIXWS; viene conservato cifrato e non viene mostrato dopo il salvataggio.",
+        config_key="MATRIXWS_SECRET",
+        sort_order=50,
+    ),
     PreferenceDefinition(
         key="prestashop.url",
         category="Prestashop",

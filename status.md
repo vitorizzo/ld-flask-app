@@ -2,6 +2,16 @@ TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
 Data aggiornamento: 2026-06-02
 
+## 2026-08-04 - Configurazione TeamSystem MATRIXWS
+
+- Aggiunta al tile `Chiavi API` la sezione `TeamSystem MATRIXWS`.
+- Campi disponibili: indirizzo server, ambiente, start, applicativo (default `MULTI`) e secret Bearer.
+- Il secret segue il sistema esistente `AppPreference`: storage cifrato, campo vuoto dopo il salvataggio e mantenimento del valore se non viene reinserito.
+- I valori sono caricati nella configurazione runtime tramite le chiavi `MATRIXWS_*`; non sono ancora eseguite chiamate verso TeamSystem.
+- Corretto il focus delle modali del tile Chiavi API: sono portate nel `body`, hanno lifecycle esplicito dei pulsanti e `z-index` superiore al backdrop globale.
+- Verificati compilazione Python, parsing Jinja e `git diff --check`.
+- Prossimo punto: inserire i dati noti e reperire sull'installazione lo Swagger statico, la start e il servizio di lettura anagrafiche/clienti.
+
 ## Regola prioritaria modali
 
 Quando si implementa o si modifica una modale, il bottone di conferma va inizializzato su `shown.bs.modal` e ripulito su `hidden.bs.modal`.
