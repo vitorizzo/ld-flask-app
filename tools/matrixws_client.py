@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Any
 from urllib.parse import quote, urlparse
 
@@ -134,6 +135,8 @@ def _extract_renewed_secret(data: Any, response_text: str) -> str | None:
         candidate = find(data)
     else:
         candidate = response_text.strip().strip('"')
+    if candidate:
+        candidate = re.sub(r"^Bearer\s+", "", candidate.strip(), flags=re.IGNORECASE)
     if not candidate or len(candidate) < 32 or len(candidate) > 4096 or any(char.isspace() for char in candidate):
         return None
     return candidate

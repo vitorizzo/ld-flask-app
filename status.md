@@ -24,6 +24,7 @@ Data aggiornamento: 2026-06-02
 - Dopo un `401`, il test richiama una sola volta `pgsecrenew` con il Bearer scaduto, valida il nuovo valore, lo salva cifrato in `AppPreference` e ritenta la richiesta originale.
 - Se rinnovo o persistenza falliscono, il vecchio secret non viene sovrascritto; nessun valore vecchio o nuovo viene inviato al browser o scritto nei log diagnostici.
 - Il parser del rinnovo riconosce anche i nomi campo TeamSystem prefissati/suffissati (es. `JSsecret`); in caso di formato ancora ignoto espone solo nomi, tipi e lunghezze della risposta, mai i valori.
+- Verificato dal manuale TeamSystem e dalla risposta reale che `pgsecrenew` restituisce `auth.headers.Authorization: Bearer PGAUTH-...`; il parser rimuove il solo prefisso `Bearer ` e salva cifrato il token `PGAUTH-...`.
 
 ## Regola prioritaria modali
 
