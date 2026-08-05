@@ -17,6 +17,7 @@
 - `tools/matrixws_client.py`: `renew_secret()` gestisce `GET /www/pg/pg_public/open_public?function=pgsecrenew`; la route di test lo usa una sola volta dopo HTTP 401, persiste il nuovo secret cifrato e ripete la read.
 - Il parser di rinnovo accetta campi TeamSystem contenenti `secret` o terminanti in `token`, con vincoli di lunghezza/assenza spazi; gli errori mostrano soltanto lo schema sanitizzato della risposta.
 - Formato rinnovo verificato: `auth.headers.Authorization` contiene `Bearer PGAUTH-...`; il client normalizza il prefisso prima della persistenza, evitando un header successivo del tipo `Bearer Bearer ...`.
+- `docs/transport/CONFWS-000.xlsx` censisce i servizi attivi di `GALASSIA`: il diagnostico usa `3/1 Estrazione informazioni statistiche (GTAB0500)`; i candidati anagrafici successivi sono `25/1 CFEST08 - READ` e `1000/1 Estrazione clienti/fornitori`.
 
 ## Bacheca ordini - azioni menu contestuale (2026-07-31)
 

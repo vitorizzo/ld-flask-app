@@ -535,7 +535,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (data.request || data.response) {
           meta.classList.remove("d-none");
           requestMeta.textContent = data.request
-            ? `${data.request.method} ${data.request.url} (CodiceWS ${data.request.service_code})`
+            ? `${data.request.method} ${data.request.url} (CodiceWS ${data.request.service_code} - ${data.request.service_description || "servizio"})`
             : "-";
           httpStatus.textContent = data.response?.status_code ?? "-";
           responseBody.textContent = data.response?.body == null
