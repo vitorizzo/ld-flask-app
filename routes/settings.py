@@ -2055,7 +2055,7 @@ def matrixws_test():
         "message": message,
         "request": {
             "url": result["url"],
-            "method": "GET",
+            "method": result["method"],
             "service_code": payload["CodiceWS"],
             "service_description": "Estrazione informazioni statistiche (GTAB0500)",
             "operation": payload["Operazione"],

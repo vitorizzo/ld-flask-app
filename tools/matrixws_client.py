@@ -200,11 +200,20 @@ def renew_secret(config: MatrixWSConfig, *, timeout=(5, 20)) -> str:
     return renewed_secret
 
 
-def call_sync(config: MatrixWSConfig, payload: dict[str, Any], *, timeout=(5, 25)) -> dict[str, Any]:
+def call_sync(
+    config: MatrixWSConfig,
+    payload: dict[str, Any],
+    *,
+    method: str = "POST",
+    timeout=(5, 25),
+) -> dict[str, Any]:
     url = config.service_url("EVWSSYNC")
+    method = str(method or "POST").strip().upper()
+    if method not in {"GET", "POST"}:
+        raise MatrixWSError("Metodo HTTP MATRIXWS non supportato.", kind="configuration")
     try:
         response = requests.request(
-            "GET",
+            method,
             url,
             headers={
                 "Authorization": f"Bearer {config.secret}",
@@ -226,6 +235,7 @@ def call_sync(config: MatrixWSConfig, payload: dict[str, Any], *, timeout=(5, 25
     response_text = response.text or ""
     return {
         "url": url,
+        "method": method,
         "status_code": response.status_code,
         "ok": response.ok,
         "content_type": content_type,
