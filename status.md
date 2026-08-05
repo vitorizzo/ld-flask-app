@@ -33,6 +33,7 @@ Data aggiornamento: 2026-06-02
 - Metodo HTTP allineato al manuale TeamSystem/Postman: `EVWSSYNC` viene chiamato con `POST` e body JSON; la collection esterna usava invece un GET con body non standard.
 - Letto `docs/transport/3_1.json`, generato dal pulsante CONFWS `Salva request`: per questo servizio `Operazione` deve essere vuota e `TabellaCampi` deve contenere nello stesso oggetto tutti i campi `GT05-TIPOREC`, `GT05-CODICEX`, `GT05-TIPO`, inizialmente vuoti e senza `operatore`.
 - Il diagnostico replica ora esattamente il template TeamSystem; eventuali filtri Action verranno aggiunti solo dopo una prima risposta valida.
+- Dopo che `POST + request CONFWS` ha restituito lo stesso `500 UnhandledException`, il diagnostico usa esplicitamente `GET + body`, come la collection Postman (`disableBodyPruning`). E' la prima prova che combina metodo della collection e payload reale dell'ambiente.
 
 ## Regola prioritaria modali
 
