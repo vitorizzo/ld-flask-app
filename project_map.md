@@ -18,6 +18,7 @@
 - Il parser di rinnovo accetta campi TeamSystem contenenti `secret` o terminanti in `token`, con vincoli di lunghezza/assenza spazi; gli errori mostrano soltanto lo schema sanitizzato della risposta.
 - Formato rinnovo verificato: `auth.headers.Authorization` contiene `Bearer PGAUTH-...`; il client normalizza il prefisso prima della persistenza, evitando un header successivo del tipo `Bearer Bearer ...`.
 - `docs/transport/CONFWS-000.xlsx` censisce i servizi attivi di `GALASSIA`: il diagnostico usa `3/1 Estrazione informazioni statistiche (GTAB0500)`; i candidati anagrafici successivi sono `25/1 CFEST08 - READ` e `1000/1 Estrazione clienti/fornitori`.
+- I codici letti dall'export numerico CONFWS vengono rappresentati nel protocollo MATRIXWS a sei cifre: il diagnostico invia `000003`; analogamente i candidati futuri sono `000025` e `001000`.
 
 ## Bacheca ordini - azioni menu contestuale (2026-07-31)
 
