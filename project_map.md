@@ -23,6 +23,7 @@
 - Il client sincrono usa `POST` per default, come prescritto dalla guida Postman TeamSystem, pur potendo riprodurre esplicitamente il GET anomalo della collection se necessario.
 - Contratto request reale salvato in `docs/transport/3_1.json`: `Operazione: ""` e un unico record `TabellaCampi` con `GT05-TIPOREC`, `GT05-CODICEX`, `GT05-TIPO`; il test lo riproduce letteralmente.
 - La route diagnostica forza `GET` con body JSON per replicare la collection Postman; il client mantiene il supporto esplicito sia GET sia POST.
+- Per il servizio standard `3/1`, la route segue ora l'esempio ufficiale TeamSystem: POST, identificativi numerici, `Operazione: read`, nessuna `Versione`, `TabellaCampi: []`. Il client continua a supportare entrambi i metodi per servizi diversi.
 
 ## Bacheca ordini - azioni menu contestuale (2026-07-31)
 

@@ -1990,23 +1990,16 @@ def api_keys():
 @log_task(logger)
 def matrixws_test():
     payload = {
-        "CodiceWS": "3",
-        "Schema": "1",
-        "Versione": "20260001",
-        "Operazione": "",
-        "Ditta": "1",
-        "TabellaCampi": [
-            {
-                "GT05-TIPOREC": "",
-                "GT05-CODICEX": "",
-                "GT05-TIPO": "",
-            }
-        ],
+        "CodiceWS": 3,
+        "Schema": 1,
+        "Operazione": "read",
+        "Ditta": 1,
+        "TabellaCampi": [],
     }
 
     try:
         config = MatrixWSConfig.from_app_config(current_app.config)
-        result = call_matrixws_sync(config, payload, method="GET")
+        result = call_matrixws_sync(config, payload, method="POST")
         secret_renewed = False
         if result["status_code"] == 401:
             renewed_secret = renew_matrixws_secret(config)
@@ -2019,7 +2012,7 @@ def matrixws_test():
             db.session.commit()
             load_preferences_into_app_config(current_app._get_current_object())
             config = MatrixWSConfig.from_app_config(current_app.config)
-            result = call_matrixws_sync(config, payload, method="GET")
+            result = call_matrixws_sync(config, payload, method="POST")
             secret_renewed = True
     except MatrixWSError as exc:
         db.session.rollback()
@@ -2059,7 +2052,7 @@ def matrixws_test():
             "method": result["method"],
             "service_code": payload["CodiceWS"],
             "service_description": "Estrazione informazioni statistiche (GTAB0500)",
-            "operation": payload["Operazione"] or "output default CONFWS",
+            "operation": payload["Operazione"],
         },
         "response": {
             "status_code": status_code,

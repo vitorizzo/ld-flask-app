@@ -34,6 +34,8 @@ Data aggiornamento: 2026-06-02
 - Letto `docs/transport/3_1.json`, generato dal pulsante CONFWS `Salva request`: per questo servizio `Operazione` deve essere vuota e `TabellaCampi` deve contenere nello stesso oggetto tutti i campi `GT05-TIPOREC`, `GT05-CODICEX`, `GT05-TIPO`, inizialmente vuoti e senza `operatore`.
 - Il diagnostico replica ora esattamente il template TeamSystem; eventuali filtri Action verranno aggiunti solo dopo una prima risposta valida.
 - Dopo che `POST + request CONFWS` ha restituito lo stesso `500 UnhandledException`, il diagnostico usa esplicitamente `GET + body`, come la collection Postman (`disableBodyPruning`). E' la prima prova che combina metodo della collection e payload reale dell'ambiente.
+- La pagina ufficiale `MANUALE_WEBSERVICE.1.25.htm` chiarisce il formato dei servizi standard in lettura: `CodiceWS`, `Schema` e `Ditta` numerici, nessun campo `Versione`, `Operazione: read`, `TabellaCampi: []` per lettura senza filtri. Il test `3/1` replica ora questo formato con metodo POST.
+- `3_1.json` viene trattato come template dei campi configurati (utile per nomi Request), non come prova che valori vuoti e `Operazione` vuota costituiscano una chiamata eseguibile.
 
 ## Regola prioritaria modali
 
