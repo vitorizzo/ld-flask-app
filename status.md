@@ -23,6 +23,7 @@ Data aggiornamento: 2026-06-02
 - Prossimo punto: deploy, compilazione di `start=gamma` e `applicativo=GAMMA`, quindi esecuzione del test dalla UI e analisi della risposta.
 - Dopo un `401`, il test richiama una sola volta `pgsecrenew` con il Bearer scaduto, valida il nuovo valore, lo salva cifrato in `AppPreference` e ritenta la richiesta originale.
 - Se rinnovo o persistenza falliscono, il vecchio secret non viene sovrascritto; nessun valore vecchio o nuovo viene inviato al browser o scritto nei log diagnostici.
+- Il parser del rinnovo riconosce anche i nomi campo TeamSystem prefissati/suffissati (es. `JSsecret`); in caso di formato ancora ignoto espone solo nomi, tipi e lunghezze della risposta, mai i valori.
 
 ## Regola prioritaria modali
 

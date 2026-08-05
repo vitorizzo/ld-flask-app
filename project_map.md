@@ -15,6 +15,7 @@
 - `templates/settings/api_keys.html`: la riga TeamSystem MATRIXWS espone l'azione `Verifica connessione` e una modale con URL, stato HTTP e corpo della risposta.
 - Il test distingue configurazione incompleta, TLS, timeout/connessione, autenticazione, endpoint mancante e risposta applicativa; non esegue operazioni di scrittura.
 - `tools/matrixws_client.py`: `renew_secret()` gestisce `GET /www/pg/pg_public/open_public?function=pgsecrenew`; la route di test lo usa una sola volta dopo HTTP 401, persiste il nuovo secret cifrato e ripete la read.
+- Il parser di rinnovo accetta campi TeamSystem contenenti `secret` o terminanti in `token`, con vincoli di lunghezza/assenza spazi; gli errori mostrano soltanto lo schema sanitizzato della risposta.
 
 ## Bacheca ordini - azioni menu contestuale (2026-07-31)
 

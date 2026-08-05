@@ -2022,7 +2022,12 @@ def matrixws_test():
             secret_renewed = True
     except MatrixWSError as exc:
         db.session.rollback()
-        return jsonify({"ok": False, "kind": exc.kind, "message": str(exc)}), 400
+        return jsonify({
+            "ok": False,
+            "kind": exc.kind,
+            "message": str(exc),
+            "details": exc.details,
+        }), 400
     except Exception:
         db.session.rollback()
         logger.exception("Errore salvando il rinnovo secret MATRIXWS")

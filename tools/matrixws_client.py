@@ -10,9 +10,10 @@ import requests
 class MatrixWSError(RuntimeError):
     """Errore di configurazione o trasporto MATRIXWS privo di credenziali."""
 
-    def __init__(self, message: str, *, kind: str = "request"):
+    def __init__(self, message: str, *, kind: str = "request", details: Any = None):
         super().__init__(message)
         self.kind = kind
+        self.details = details
 
 
 @dataclass(frozen=True)
@@ -101,11 +102,18 @@ def _raise_transport_error(exc: requests.RequestException) -> None:
 def _extract_renewed_secret(data: Any, response_text: str) -> str | None:
     known_keys = {"secret", "newsecret", "new_secret", "token", "authorization", "bearer"}
 
+    def is_secret_key(key: Any) -> bool:
+        normalized = str(key).strip().lower().replace("-", "_")
+        return (
+            normalized in known_keys
+            or "secret" in normalized
+            or normalized.endswith("token")
+        )
+
     def find(value: Any) -> str | None:
         if isinstance(value, dict):
             for key, nested in value.items():
-                normalized_key = str(key).strip().lower().replace("-", "_")
-                if normalized_key in known_keys and isinstance(nested, str):
+                if is_secret_key(key) and isinstance(nested, str):
                     return nested.strip()
             for nested in value.values():
                 if isinstance(nested, (dict, list)):
@@ -126,9 +134,23 @@ def _extract_renewed_secret(data: Any, response_text: str) -> str | None:
         candidate = find(data)
     else:
         candidate = response_text.strip().strip('"')
-    if not candidate or len(candidate) < 20 or len(candidate) > 4096 or any(char.isspace() for char in candidate):
+    if not candidate or len(candidate) < 32 or len(candidate) > 4096 or any(char.isspace() for char in candidate):
         return None
     return candidate
+
+
+def _safe_response_shape(value: Any, *, depth: int = 0) -> Any:
+    if depth >= 4:
+        return "..."
+    if isinstance(value, dict):
+        return {str(key): _safe_response_shape(nested, depth=depth + 1) for key, nested in value.items()}
+    if isinstance(value, list):
+        return [_safe_response_shape(nested, depth=depth + 1) for nested in value[:5]]
+    if isinstance(value, str):
+        return {"type": "string", "length": len(value)}
+    if value is None:
+        return {"type": "null"}
+    return {"type": type(value).__name__}
 
 
 def renew_secret(config: MatrixWSConfig, *, timeout=(5, 20)) -> str:
@@ -160,6 +182,12 @@ def renew_secret(config: MatrixWSConfig, *, timeout=(5, 20)) -> str:
         raise MatrixWSError(
             "TeamSystem ha risposto al rinnovo senza un nuovo secret riconoscibile.",
             kind="renewal_response",
+            details={
+                "content_type": response.headers.get("Content-Type", ""),
+                "structure": _safe_response_shape(response_data)
+                if response_data is not None
+                else {"type": "text", "length": len(response.text or "")},
+            },
         )
     if renewed_secret == config.secret:
         raise MatrixWSError(
