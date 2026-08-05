@@ -1992,10 +1992,15 @@ def matrixws_test():
     payload = {
         "CodiceWS": "3",
         "Schema": "1",
-        "Versione": "20250005",
+        "Versione": "20260001",
         "Operazione": "read",
         "Ditta": "1",
-        "TabellaCampi": [],
+        "TabellaCampi": [
+            {
+                "GT05-TIPOREC": "02",
+                "operatore": "=",
+            }
+        ],
     }
 
     try:

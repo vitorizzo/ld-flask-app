@@ -28,6 +28,8 @@ Data aggiornamento: 2026-06-02
 - Letta l'esportazione reale `docs/transport/CONFWS-000.xlsx`: `CodiceWS 500008` non e' configurato in `GALASSIA`; il test usa ora `CodiceWS 3`, schema 1, `Estrazione informazioni statistiche (GTAB0500)`, attivo e read-only.
 - Servizi reali rilevanti per i prossimi passi: `25/1 CFEST08 - READ` e `1000/1 Estrazione clienti/fornitori`; non vengono ancora richiamati per evitare estrazioni anagrafiche non filtrate.
 - Il successivo export testuale `CONFWS-000.gam` conserva esplicitamente `Codice 3`: l'ipotesi degli zeri iniziali e' stata rimossa e il diagnostico usa nuovamente il codice esatto esportato. Il file e' solo un catalogo e non include versione, Request o Response.
+- Quattro screenshot CONFWS del servizio `3/1` mostrano la versione reale `20260001` (la collection esterna usava erroneamente `20250005`), azienda/ditta 1, Request `GT05-TIPOREC`, `GT05-CODICEX`, `GT05-TIPO` e Response `GT05-CODICEX`, `GT05-DESC`, `GT05-TIPOREC`.
+- Il test statistico usa ora `Versione 20260001` e filtra `GT05-TIPOREC = 02`, corrispondente al secondo raggruppamento statistico `Action` indicato dall'utente.
 
 ## Regola prioritaria modali
 

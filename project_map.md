@@ -19,6 +19,7 @@
 - Formato rinnovo verificato: `auth.headers.Authorization` contiene `Bearer PGAUTH-...`; il client normalizza il prefisso prima della persistenza, evitando un header successivo del tipo `Bearer Bearer ...`.
 - `docs/transport/CONFWS-000.xlsx` censisce i servizi attivi di `GALASSIA`: il diagnostico usa `3/1 Estrazione informazioni statistiche (GTAB0500)`; i candidati anagrafici successivi sono `25/1 CFEST08 - READ` e `1000/1 Estrazione clienti/fornitori`.
 - `CONFWS-000.gam` conferma che i codici standard sono esportati senza padding (`3`, `25`, `1000`); il test usa il valore esatto `3`. Il catalogo non contiene versione del servizio né tracciati Request/Response, da recuperare aprendo la singola configurazione in CONFWS/Swagger.
+- Config reale `3/1` verificata da CONFWS: versione `20260001`; Request su `GT05-TIPOREC`, `GT05-CODICEX`, `GT05-TIPO`; Response su `GT05-CODICEX`, `GT05-DESC`, `GT05-TIPOREC`. Il diagnostico restringe la read a `GT05-TIPOREC = 02` (`Action`).
 
 ## Bacheca ordini - azioni menu contestuale (2026-07-31)
 
