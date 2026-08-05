@@ -30,7 +30,9 @@ Data aggiornamento: 2026-06-02
 - Il successivo export testuale `CONFWS-000.gam` conserva esplicitamente `Codice 3`: l'ipotesi degli zeri iniziali e' stata rimossa e il diagnostico usa nuovamente il codice esatto esportato. Il file e' solo un catalogo e non include versione, Request o Response.
 - Quattro screenshot CONFWS del servizio `3/1` mostrano la versione reale `20260001` (la collection esterna usava erroneamente `20250005`), azienda/ditta 1, Request `GT05-TIPOREC`, `GT05-CODICEX`, `GT05-TIPO` e Response `GT05-CODICEX`, `GT05-DESC`, `GT05-TIPOREC`.
 - Il test statistico usa ora `Versione 20260001` e filtra `GT05-TIPOREC = 02`, corrispondente al secondo raggruppamento statistico `Action` indicato dall'utente.
-- Metodo HTTP allineato al manuale TeamSystem/Postman: `EVWSSYNC` viene ora chiamato con `POST` e body JSON; `Operazione` resta `read`. La collection esterna usava invece un GET con body non standard.
+- Metodo HTTP allineato al manuale TeamSystem/Postman: `EVWSSYNC` viene chiamato con `POST` e body JSON; la collection esterna usava invece un GET con body non standard.
+- Letto `docs/transport/3_1.json`, generato dal pulsante CONFWS `Salva request`: per questo servizio `Operazione` deve essere vuota e `TabellaCampi` deve contenere nello stesso oggetto tutti i campi `GT05-TIPOREC`, `GT05-CODICEX`, `GT05-TIPO`, inizialmente vuoti e senza `operatore`.
+- Il diagnostico replica ora esattamente il template TeamSystem; eventuali filtri Action verranno aggiunti solo dopo una prima risposta valida.
 
 ## Regola prioritaria modali
 

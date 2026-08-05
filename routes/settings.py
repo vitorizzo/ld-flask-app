@@ -1993,12 +1993,13 @@ def matrixws_test():
         "CodiceWS": "3",
         "Schema": "1",
         "Versione": "20260001",
-        "Operazione": "read",
+        "Operazione": "",
         "Ditta": "1",
         "TabellaCampi": [
             {
-                "GT05-TIPOREC": "02",
-                "operatore": "=",
+                "GT05-TIPOREC": "",
+                "GT05-CODICEX": "",
+                "GT05-TIPO": "",
             }
         ],
     }
@@ -2058,7 +2059,7 @@ def matrixws_test():
             "method": result["method"],
             "service_code": payload["CodiceWS"],
             "service_description": "Estrazione informazioni statistiche (GTAB0500)",
-            "operation": payload["Operazione"],
+            "operation": payload["Operazione"] or "output default CONFWS",
         },
         "response": {
             "status_code": status_code,

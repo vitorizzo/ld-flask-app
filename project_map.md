@@ -21,6 +21,7 @@
 - `CONFWS-000.gam` conferma che i codici standard sono esportati senza padding (`3`, `25`, `1000`); il test usa il valore esatto `3`. Il catalogo non contiene versione del servizio né tracciati Request/Response, da recuperare aprendo la singola configurazione in CONFWS/Swagger.
 - Config reale `3/1` verificata da CONFWS: versione `20260001`; Request su `GT05-TIPOREC`, `GT05-CODICEX`, `GT05-TIPO`; Response su `GT05-CODICEX`, `GT05-DESC`, `GT05-TIPOREC`. Il diagnostico restringe la read a `GT05-TIPOREC = 02` (`Action`).
 - Il client sincrono usa `POST` per default, come prescritto dalla guida Postman TeamSystem, pur potendo riprodurre esplicitamente il GET anomalo della collection se necessario.
+- Contratto request reale salvato in `docs/transport/3_1.json`: `Operazione: ""` e un unico record `TabellaCampi` con `GT05-TIPOREC`, `GT05-CODICEX`, `GT05-TIPO`; il test lo riproduce letteralmente.
 
 ## Bacheca ordini - azioni menu contestuale (2026-07-31)
 
