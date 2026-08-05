@@ -14,6 +14,7 @@
 - `POST /settings/api-keys/matrixws/test`: prova read-only basata sulla collection Postman (`CodiceWS 500008`, schema/versione e filtro originali) e restituisce un diagnostico senza secret.
 - `templates/settings/api_keys.html`: la riga TeamSystem MATRIXWS espone l'azione `Verifica connessione` e una modale con URL, stato HTTP e corpo della risposta.
 - Il test distingue configurazione incompleta, TLS, timeout/connessione, autenticazione, endpoint mancante e risposta applicativa; non esegue operazioni di scrittura.
+- `tools/matrixws_client.py`: `renew_secret()` gestisce `GET /www/pg/pg_public/open_public?function=pgsecrenew`; la route di test lo usa una sola volta dopo HTTP 401, persiste il nuovo secret cifrato e ripete la read.
 
 ## Bacheca ordini - azioni menu contestuale (2026-07-31)
 

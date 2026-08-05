@@ -76,6 +76,98 @@ class MatrixWSConfig:
         encoded = "/".join(quote(part, safe="-_.~") for part in parts)
         return f"{self.base_url}/www/lynfaws/{encoded}"
 
+    def secret_renewal_url(self) -> str:
+        return f"{self.base_url}/www/pg/pg_public/open_public?function=pgsecrenew"
+
+
+def _raise_transport_error(exc: requests.RequestException) -> None:
+    if isinstance(exc, requests.exceptions.SSLError):
+        raise MatrixWSError(
+            "Connessione TLS non valida. Il certificato potrebbe non corrispondere all'indirizzo IP: prova il nome DNS Tailscale del server.",
+            kind="tls",
+        ) from exc
+    if isinstance(exc, requests.exceptions.ConnectTimeout):
+        raise MatrixWSError("Timeout durante la connessione al server MATRIXWS.", kind="timeout") from exc
+    if isinstance(exc, requests.exceptions.ReadTimeout):
+        raise MatrixWSError("Il server MATRIXWS non ha risposto entro il tempo previsto.", kind="timeout") from exc
+    if isinstance(exc, requests.exceptions.ConnectionError):
+        raise MatrixWSError(
+            "Server MATRIXWS non raggiungibile dal server applicativo. Verifica indirizzo, Tailscale e porta HTTPS.",
+            kind="connection",
+        ) from exc
+    raise MatrixWSError("Errore di comunicazione con MATRIXWS.", kind="request") from exc
+
+
+def _extract_renewed_secret(data: Any, response_text: str) -> str | None:
+    known_keys = {"secret", "newsecret", "new_secret", "token", "authorization", "bearer"}
+
+    def find(value: Any) -> str | None:
+        if isinstance(value, dict):
+            for key, nested in value.items():
+                normalized_key = str(key).strip().lower().replace("-", "_")
+                if normalized_key in known_keys and isinstance(nested, str):
+                    return nested.strip()
+            for nested in value.values():
+                if isinstance(nested, (dict, list)):
+                    found = find(nested)
+                    if found:
+                        return found
+        elif isinstance(value, list):
+            for nested in value:
+                if isinstance(nested, (dict, list)):
+                    found = find(nested)
+                    if found:
+                        return found
+        return None
+
+    if isinstance(data, str):
+        candidate = data.strip()
+    elif data is not None:
+        candidate = find(data)
+    else:
+        candidate = response_text.strip().strip('"')
+    if not candidate or len(candidate) < 20 or len(candidate) > 4096 or any(char.isspace() for char in candidate):
+        return None
+    return candidate
+
+
+def renew_secret(config: MatrixWSConfig, *, timeout=(5, 20)) -> str:
+    try:
+        response = requests.request(
+            "GET",
+            config.secret_renewal_url(),
+            headers={
+                "Authorization": f"Bearer {config.secret}",
+                "Accept": "application/json",
+            },
+            timeout=timeout,
+        )
+    except requests.RequestException as exc:
+        _raise_transport_error(exc)
+
+    if not response.ok:
+        raise MatrixWSError(
+            f"Rinnovo secret rifiutato da TeamSystem (HTTP {response.status_code}).",
+            kind="renewal",
+        )
+
+    try:
+        response_data = response.json()
+    except ValueError:
+        response_data = None
+    renewed_secret = _extract_renewed_secret(response_data, response.text or "")
+    if not renewed_secret:
+        raise MatrixWSError(
+            "TeamSystem ha risposto al rinnovo senza un nuovo secret riconoscibile.",
+            kind="renewal_response",
+        )
+    if renewed_secret == config.secret:
+        raise MatrixWSError(
+            "TeamSystem ha restituito lo stesso secret scaduto durante il rinnovo.",
+            kind="renewal_response",
+        )
+    return renewed_secret
+
 
 def call_sync(config: MatrixWSConfig, payload: dict[str, Any], *, timeout=(5, 25)) -> dict[str, Any]:
     url = config.service_url("EVWSSYNC")
@@ -91,22 +183,8 @@ def call_sync(config: MatrixWSConfig, payload: dict[str, Any], *, timeout=(5, 25
             json=payload,
             timeout=timeout,
         )
-    except requests.exceptions.SSLError as exc:
-        raise MatrixWSError(
-            "Connessione TLS non valida. Il certificato potrebbe non corrispondere all'indirizzo IP: prova il nome DNS Tailscale del server.",
-            kind="tls",
-        ) from exc
-    except requests.exceptions.ConnectTimeout as exc:
-        raise MatrixWSError("Timeout durante la connessione al server MATRIXWS.", kind="timeout") from exc
-    except requests.exceptions.ReadTimeout as exc:
-        raise MatrixWSError("Il server MATRIXWS non ha risposto entro il tempo previsto.", kind="timeout") from exc
-    except requests.exceptions.ConnectionError as exc:
-        raise MatrixWSError(
-            "Server MATRIXWS non raggiungibile dal server applicativo. Verifica indirizzo, Tailscale e porta HTTPS.",
-            kind="connection",
-        ) from exc
     except requests.RequestException as exc:
-        raise MatrixWSError("Errore di comunicazione con MATRIXWS.", kind="request") from exc
+        _raise_transport_error(exc)
 
     content_type = response.headers.get("Content-Type", "")
     try:

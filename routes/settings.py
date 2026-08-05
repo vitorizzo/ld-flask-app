@@ -64,7 +64,12 @@ from tools.preferences import (
     load_preferences_into_app_config,
     save_preferences_from_form,
 )
-from tools.matrixws_client import MatrixWSConfig, MatrixWSError, call_sync as call_matrixws_sync
+from tools.matrixws_client import (
+    MatrixWSConfig,
+    MatrixWSError,
+    call_sync as call_matrixws_sync,
+    renew_secret as renew_matrixws_secret,
+)
 from tools.import_transfer_config import (
     available_export_files,
     available_trace_files,
@@ -2001,8 +2006,31 @@ def matrixws_test():
     try:
         config = MatrixWSConfig.from_app_config(current_app.config)
         result = call_matrixws_sync(config, payload)
+        secret_renewed = False
+        if result["status_code"] == 401:
+            renewed_secret = renew_matrixws_secret(config)
+            secret_definition = get_definition_map()["matrixws.secret"]
+            _upsert_api_preference(
+                secret_definition,
+                renewed_secret,
+                keep_empty_secret=False,
+            )
+            db.session.commit()
+            load_preferences_into_app_config(current_app._get_current_object())
+            config = MatrixWSConfig.from_app_config(current_app.config)
+            result = call_matrixws_sync(config, payload)
+            secret_renewed = True
     except MatrixWSError as exc:
+        db.session.rollback()
         return jsonify({"ok": False, "kind": exc.kind, "message": str(exc)}), 400
+    except Exception:
+        db.session.rollback()
+        logger.exception("Errore salvando il rinnovo secret MATRIXWS")
+        return jsonify({
+            "ok": False,
+            "kind": "renewal_storage",
+            "message": "Il secret e' stato rinnovato ma non e' stato possibile salvarlo in modo sicuro.",
+        }), 500
 
     status_code = result["status_code"]
     if status_code in {401, 403}:
@@ -2013,9 +2041,12 @@ def matrixws_test():
         message = f"MATRIXWS ha risposto con stato HTTP {status_code}."
     else:
         message = "Connessione e autenticazione MATRIXWS riuscite."
+        if secret_renewed:
+            message += " Il secret scaduto e' stato rinnovato e salvato automaticamente."
 
     return jsonify({
         "ok": result["ok"],
+        "secret_renewed": secret_renewed,
         "message": message,
         "request": {
             "url": result["url"],
