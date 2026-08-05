@@ -27,7 +27,7 @@ Data aggiornamento: 2026-06-02
 - Verificato dal manuale TeamSystem e dalla risposta reale che `pgsecrenew` restituisce `auth.headers.Authorization: Bearer PGAUTH-...`; il parser rimuove il solo prefisso `Bearer ` e salva cifrato il token `PGAUTH-...`.
 - Letta l'esportazione reale `docs/transport/CONFWS-000.xlsx`: `CodiceWS 500008` non e' configurato in `GALASSIA`; il test usa ora `CodiceWS 3`, schema 1, `Estrazione informazioni statistiche (GTAB0500)`, attivo e read-only.
 - Servizi reali rilevanti per i prossimi passi: `25/1 CFEST08 - READ` e `1000/1 Estrazione clienti/fornitori`; non vengono ancora richiamati per evitare estrazioni anagrafiche non filtrate.
-- Correzione formato `CodiceWS`: l'export Excel salva la colonna come numero e rimuove gli zeri iniziali; coerentemente con i codici a sei cifre della collection, il servizio statistico viene chiamato come `000003` (e non `3`).
+- Il successivo export testuale `CONFWS-000.gam` conserva esplicitamente `Codice 3`: l'ipotesi degli zeri iniziali e' stata rimossa e il diagnostico usa nuovamente il codice esatto esportato. Il file e' solo un catalogo e non include versione, Request o Response.
 
 ## Regola prioritaria modali
 
