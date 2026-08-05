@@ -64,6 +64,7 @@ from tools.preferences import (
     load_preferences_into_app_config,
     save_preferences_from_form,
 )
+from tools.matrixws_client import MatrixWSConfig, MatrixWSError, call_sync as call_matrixws_sync
 from tools.import_transfer_config import (
     available_export_files,
     available_trace_files,
@@ -1976,6 +1977,59 @@ def api_keys():
         api_rows=_build_api_key_rows(sections),
         custom_env_keys=_parse_env_local_custom_keys(),
     )
+
+
+@settings_bp.route("/api-keys/matrixws/test", methods=["POST"])
+@login_required
+@role_required(900)
+@log_task(logger)
+def matrixws_test():
+    payload = {
+        "CodiceWS": "500008",
+        "Schema": "1",
+        "Versione": "20250005",
+        "Operazione": "read",
+        "Ditta": "1",
+        "TabellaCampi": [
+            {
+                "M-CODMAGPR": "008037    NE   S",
+                "operatore": "=",
+            }
+        ],
+    }
+
+    try:
+        config = MatrixWSConfig.from_app_config(current_app.config)
+        result = call_matrixws_sync(config, payload)
+    except MatrixWSError as exc:
+        return jsonify({"ok": False, "kind": exc.kind, "message": str(exc)}), 400
+
+    status_code = result["status_code"]
+    if status_code in {401, 403}:
+        message = "Secret MATRIXWS non accettato o non autorizzato per il servizio richiesto."
+    elif status_code == 404:
+        message = "Endpoint MATRIXWS non trovato: verifica ambiente, start e applicativo."
+    elif not result["ok"]:
+        message = f"MATRIXWS ha risposto con stato HTTP {status_code}."
+    else:
+        message = "Connessione e autenticazione MATRIXWS riuscite."
+
+    return jsonify({
+        "ok": result["ok"],
+        "message": message,
+        "request": {
+            "url": result["url"],
+            "method": "GET",
+            "service_code": payload["CodiceWS"],
+            "operation": payload["Operazione"],
+        },
+        "response": {
+            "status_code": status_code,
+            "content_type": result["content_type"],
+            "body": result["json"] if result["json"] is not None else result["text"],
+            "truncated": result["truncated"],
+        },
+    }), (200 if result["ok"] else 502)
 
 
 @settings_bp.route("/roles-permissions", methods=["GET", "POST"])

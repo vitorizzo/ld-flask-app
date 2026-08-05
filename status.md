@@ -12,6 +12,16 @@ Data aggiornamento: 2026-06-02
 - Verificati compilazione Python, parsing Jinja e `git diff --check`.
 - Prossimo punto: inserire i dati noti e reperire sull'installazione lo Swagger statico, la start e il servizio di lettura anagrafiche/clienti.
 
+## 2026-08-05 - Test read-only TeamSystem MATRIXWS
+
+- Aggiunto nella riga MATRIXWS del tile `Chiavi API` il pulsante `Verifica connessione`.
+- Il backend usa server, ambiente, start, applicativo e secret cifrato gia' presenti nella configurazione runtime.
+- Il test replica la richiesta GET con body della collection Postman verso `EVWSSYNC`, usando `CodiceWS 500008` e `Operazione: read`.
+- Il secret e' utilizzato solo nell'header Authorization e non viene restituito alla UI o incluso nei messaggi diagnostici.
+- La verifica TLS resta abilitata; un certificato non valido o non corrispondente all'IP produce un'indicazione esplicita verso l'uso del DNS Tailscale.
+- Verificati compilazione Python, costruzione endpoint, parsing Jinja e `git diff --check`. Nessuna chiamata reale e' stata eseguita dall'ambiente locale.
+- Prossimo punto: deploy, compilazione di `start=gamma` e `applicativo=GAMMA`, quindi esecuzione del test dalla UI e analisi della risposta.
+
 ## Regola prioritaria modali
 
 Quando si implementa o si modifica una modale, il bottone di conferma va inizializzato su `shown.bs.modal` e ripulito su `hidden.bs.modal`.

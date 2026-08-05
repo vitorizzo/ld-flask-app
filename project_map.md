@@ -6,7 +6,14 @@
 - Config runtime predisposta: `MATRIXWS_BASE_URL`, `MATRIXWS_ENVIRONMENT`, `MATRIXWS_START`, `MATRIXWS_APPLICATION` (default `MULTI`) e `MATRIXWS_SECRET`.
 - `routes/settings.py`: la nuova categoria e' inclusa tra le integrazioni configurabili di `/settings/api-keys`.
 - `templates/settings/api_keys.html`: tutte le modali vengono portate nel `body`, ripristinate su `shown.bs.modal`/`hidden.bs.modal` e mantenute sopra il backdrop globale con `z-index: 12050`.
-- Non e' ancora presente un client HTTP MATRIXWS: il prossimo passaggio e' individuare start, Swagger e servizio anagrafiche sull'installazione TeamSystem.
+- La prima base del client HTTP e' ora disponibile per il test read-only; restano da individuare Swagger e servizio anagrafiche sull'installazione TeamSystem.
+
+### Test connessione MATRIXWS (2026-08-05)
+
+- `tools/matrixws_client.py`: client REST isolato per MATRIXWS; costruisce l'endpoint `EVWSSYNC`, invia il Bearer soltanto nell'header e mantiene attiva la verifica TLS.
+- `POST /settings/api-keys/matrixws/test`: prova read-only basata sulla collection Postman (`CodiceWS 500008`, schema/versione e filtro originali) e restituisce un diagnostico senza secret.
+- `templates/settings/api_keys.html`: la riga TeamSystem MATRIXWS espone l'azione `Verifica connessione` e una modale con URL, stato HTTP e corpo della risposta.
+- Il test distingue configurazione incompleta, TLS, timeout/connessione, autenticazione, endpoint mancante e risposta applicativa; non esegue operazioni di scrittura.
 
 ## Bacheca ordini - azioni menu contestuale (2026-07-31)
 

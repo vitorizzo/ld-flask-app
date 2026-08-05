@@ -192,6 +192,12 @@
                       </td>
                       <td class="text-end" onclick="event.stopPropagation();">
                         <span class="settings-actions">
+                          {% if row.category == 'TeamSystem MATRIXWS' %}
+                            <button type="button" class="btn btn-sm btn-outline-success matrixws-test-button" data-test-url="{{ url_for('settings.matrixws_test') }}" title="Verifica connessione">
+                              <i class="fa-solid fa-plug-circle-check"></i>
+                              <span class="visually-hidden">Verifica connessione</span>
+                            </button>
+                          {% endif %}
                           <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#apiEditModal-{{ loop.index }}" title="Modifica">
                             <i class="fa-solid fa-pen"></i>
                             <span class="visually-hidden">Modifica</span>
@@ -449,6 +455,29 @@
     </div>
   </div>
 {% endfor %}
+
+<div class="modal fade settings-config-modal" id="matrixwsTestModal" tabindex="-1" aria-labelledby="matrixwsTestTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="matrixwsTestTitle">Test TeamSystem MATRIXWS</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div id="matrixwsTestStatus" class="alert alert-info mb-3">Test in preparazione...</div>
+        <dl id="matrixwsTestMeta" class="row small mb-3 d-none">
+          <dt class="col-sm-3">Richiesta</dt><dd class="col-sm-9" id="matrixwsTestRequest"></dd>
+          <dt class="col-sm-3">Stato HTTP</dt><dd class="col-sm-9" id="matrixwsTestHttpStatus"></dd>
+        </dl>
+        <label class="form-label" for="matrixwsTestResponse">Risposta diagnostica</label>
+        <pre id="matrixwsTestResponse" class="settings-code p-3 mb-0" style="max-height: 360px; overflow: auto; white-space: pre-wrap;">In attesa...</pre>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -472,6 +501,59 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     modal.addEventListener("shown.bs.modal", resetSubmit);
     modal.addEventListener("hidden.bs.modal", resetSubmit);
+  });
+
+  const testModalElement = document.getElementById("matrixwsTestModal");
+  const testModal = testModalElement && window.bootstrap
+    ? bootstrap.Modal.getOrCreateInstance(testModalElement)
+    : null;
+  document.querySelectorAll(".matrixws-test-button").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!testModal) return;
+      const status = document.getElementById("matrixwsTestStatus");
+      const meta = document.getElementById("matrixwsTestMeta");
+      const requestMeta = document.getElementById("matrixwsTestRequest");
+      const httpStatus = document.getElementById("matrixwsTestHttpStatus");
+      const responseBody = document.getElementById("matrixwsTestResponse");
+      status.className = "alert alert-info mb-3";
+      status.textContent = "Connessione al server TeamSystem in corso...";
+      meta.classList.add("d-none");
+      requestMeta.textContent = "";
+      httpStatus.textContent = "";
+      responseBody.textContent = "In attesa...";
+      button.disabled = true;
+      testModal.show();
+
+      try {
+        const response = await fetch(button.dataset.testUrl, {
+          method: "POST",
+          headers: {"Accept": "application/json"},
+        });
+        const data = await response.json();
+        status.className = `alert ${data.ok ? "alert-success" : "alert-danger"} mb-3`;
+        status.textContent = data.message || "Test completato senza un messaggio diagnostico.";
+        if (data.request || data.response) {
+          meta.classList.remove("d-none");
+          requestMeta.textContent = data.request
+            ? `${data.request.method} ${data.request.url} (CodiceWS ${data.request.service_code})`
+            : "-";
+          httpStatus.textContent = data.response?.status_code ?? "-";
+          responseBody.textContent = data.response?.body == null
+            ? "Nessun corpo restituito."
+            : (typeof data.response.body === "string"
+              ? data.response.body
+              : JSON.stringify(data.response.body, null, 2));
+        } else {
+          responseBody.textContent = JSON.stringify(data, null, 2);
+        }
+      } catch (error) {
+        status.className = "alert alert-danger mb-3";
+        status.textContent = "Impossibile completare il test dall'applicazione.";
+        responseBody.textContent = String(error);
+      } finally {
+        button.disabled = false;
+      }
+    });
   });
 });
 </script>
