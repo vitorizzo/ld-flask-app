@@ -1996,10 +1996,10 @@ def matrixws_test():
         "Ditta": 1,
         "TabellaCampi": [
             {
-                "GT05-TIPOREC": "02",
-                "GT05-CODICEX": "      ",
-                "GT05-TIPO": " ",
-                "operatore": ">",
+                "GT05-TIPOREC": "00",
+                "GT05-CODICEX": "000000",
+                "GT05-TIPO": "0",
+                "operatore": ">=",
             }
         ],
     }

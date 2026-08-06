@@ -42,6 +42,7 @@ Data aggiornamento: 2026-06-02
 - Il servizio `3/1` risponde HTTP 200 e, con i tre campi esportati valorizzati a stringa vuota, restituisce `ERR_REC_NOT_FOUND`: MATRIXWS interpreta quindi quel record come chiave esatta vuota. Il diagnostico usa ora la lettura senza limiti documentata (`TabellaCampi: []`, identificativi numerici e nessuna `Versione`).
 - La lettura `3/1` con `TabellaCampi: []` restituisce `ERR_PARAM_REQUEST`, confermando che la configurazione locale rende obbligatori tutti i campi Request. Il test usa ora la chiave composta minima del gruppo Action (`GT05-TIPOREC: 02`, altri segmenti vuoti) con operatore `>` per estrarre i record successivi senza cercare una chiave vuota esatta.
 - CONFWS indica lunghezze fisse Request `GT05-TIPOREC=2`, `GT05-CODICEX=6`, `GT05-TIPO=1`. Le stringhe di lunghezza zero spiegano il precedente errore COBOL `Reference modifier range error ... length = 0`; il test riempie ora i segmenti vuoti con rispettivamente 6 e 1 spazi.
+- Il manuale MATRIXWS definisce l'operatore `A partire` come `>=`. Poiche' la chiave `02` con segmenti a spazi non trova record, il diagnostico parte dalla chiave minima completa a lunghezza fissa (`00`, `000000`, `0`) con `>=`, rimandando il filtro Action alla risposta.
 - Il test usa il secret rinnovato gia' cifrato nell'app, evitando di esporlo o copiarlo in Postman.
 
 ## Regola prioritaria modali

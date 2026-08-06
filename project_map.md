@@ -29,6 +29,7 @@
 - Nel servizio `3/1`, inviare un record con `GT05-TIPOREC`, `GT05-CODICEX` e `GT05-TIPO` vuoti produce `ERR_REC_NOT_FOUND` (ricerca di una chiave vuota). La lettura diagnostica corrente usa pertanto il formato senza limiti documentato da TeamSystem: `TabellaCampi: []`.
 - Poiche' la configurazione locale `3/1` rifiuta anche `TabellaCampi: []` con `ERR_PARAM_REQUEST`, la diagnostica usa tutti i campi obbligatori e una selezione `>` dalla chiave minima `GT05-TIPOREC=02` (Action); gli eventuali gruppi successivi potranno essere filtrati dalla risposta.
 - I campi Request di `GTAB0500` sono COBOL a lunghezza fissa: `TIPOREC` 2, `CODICEX` 6, `TIPO` 1. I valori minimi non possono essere stringhe vuote: il diagnostico usa padding a spazi (`CODICEX` 6, `TIPO` 1), coerente con il runtime e con il precedente errore `length = 0`.
+- Per una scansione iniziale del file statistico il test usa l'operatore documentato `>=` (`A partire`) sulla chiave minima completa `TIPOREC=00`, `CODICEX=000000`, `TIPO=0`; solo dopo una risposta dati verra' applicato il filtro logico Action.
 
 ## Bacheca ordini - azioni menu contestuale (2026-07-31)
 
