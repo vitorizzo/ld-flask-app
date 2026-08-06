@@ -1990,18 +1990,11 @@ def api_keys():
 @log_task(logger)
 def matrixws_test():
     payload = {
-        "CodiceWS": "3",
-        "Schema": "1",
-        "Versione": "20260001",
+        "CodiceWS": 3,
+        "Schema": 1,
         "Operazione": "read",
-        "Ditta": "1",
-        "TabellaCampi": [
-            {
-                "GT05-TIPOREC": "",
-                "GT05-CODICEX": "",
-                "GT05-TIPO": "",
-            }
-        ],
+        "Ditta": 1,
+        "TabellaCampi": [],
     }
 
     try:

@@ -26,6 +26,7 @@
 - Il client supporta sia GET sia POST; il diagnostico corrente usa il formato ufficiale standard POST con identificativi numerici, `Operazione: read` e nessuna `Versione`.
 - Dopo la verifica positiva di trasporto e autenticazione tramite il servizio standard `1/1`, il diagnostico usa il servizio obiettivo `3/1 Estrazione informazioni statistiche (GTAB0500)` con la struttura esportata da CONFWS (`GT05-TIPOREC`, `GT05-CODICEX`, `GT05-TIPO`).
 - La chiave ambiente della route e' case-sensitive e deve usare il nome della risorsa MATRIXWS (`env:galassia` -> URL `/lynfaws/galassia/...`), non la sigla descrittiva maiuscola mostrata nell'amministrazione Lynfa. Connessione e Bearer sono stati verificati con risposta HTTP 200; l'eventuale `ERR_PARAM_REQUEST` dipende dai campi definiti nella scheda Request della configurazione locale CONFWS.
+- Nel servizio `3/1`, inviare un record con `GT05-TIPOREC`, `GT05-CODICEX` e `GT05-TIPO` vuoti produce `ERR_REC_NOT_FOUND` (ricerca di una chiave vuota). La lettura diagnostica corrente usa pertanto il formato senza limiti documentato da TeamSystem: `TabellaCampi: []`.
 
 ## Bacheca ordini - azioni menu contestuale (2026-07-31)
 
