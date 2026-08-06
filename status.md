@@ -36,6 +36,8 @@ Data aggiornamento: 2026-06-02
 - Dopo che `POST + request CONFWS` ha restituito lo stesso `500 UnhandledException`, il diagnostico usa esplicitamente `GET + body`, come la collection Postman (`disableBodyPruning`). E' la prima prova che combina metodo della collection e payload reale dell'ambiente.
 - La pagina ufficiale `MANUALE_WEBSERVICE.1.25.htm` chiarisce il formato dei servizi standard in lettura: `CodiceWS`, `Schema` e `Ditta` numerici, nessun campo `Versione`, `Operazione: read`, `TabellaCampi: []` per lettura senza filtri. Il test `3/1` replica ora questo formato con metodo POST.
 - `3_1.json` viene trattato come template dei campi configurati (utile per nomi Request), non come prova che valori vuoti e `Operazione` vuota costituiscano una chiamata eseguibile.
+- Per isolare definitivamente infrastruttura e configurazione del servizio `3/1`, il diagnostico esegue ora letteralmente l'esempio ufficiale TeamSystem sul servizio attivo `1/1`: POST, `CodiceWS: 1`, `Operazione: read`, filtro `causale = 1`.
+- Il test usa il secret rinnovato gia' cifrato nell'app, evitando di esporlo o copiarlo in Postman.
 
 ## Regola prioritaria modali
 

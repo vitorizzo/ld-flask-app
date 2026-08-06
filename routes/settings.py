@@ -1990,11 +1990,16 @@ def api_keys():
 @log_task(logger)
 def matrixws_test():
     payload = {
-        "CodiceWS": 3,
+        "CodiceWS": 1,
         "Schema": 1,
         "Operazione": "read",
         "Ditta": 1,
-        "TabellaCampi": [],
+        "TabellaCampi": [
+            {
+                "causale": "1",
+                "operatore": "=",
+            }
+        ],
     }
 
     try:
@@ -2051,7 +2056,7 @@ def matrixws_test():
             "url": result["url"],
             "method": result["method"],
             "service_code": payload["CodiceWS"],
-            "service_description": "Estrazione informazioni statistiche (GTAB0500)",
+            "service_description": "Esempio ufficiale: causale di magazzino 1 (FTABE42)",
             "operation": payload["Operazione"],
         },
         "response": {
