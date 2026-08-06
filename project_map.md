@@ -24,8 +24,8 @@
 - Contratto request reale salvato in `docs/transport/3_1.json`: `Operazione: ""` e un unico record `TabellaCampi` con `GT05-TIPOREC`, `GT05-CODICEX`, `GT05-TIPO`; il test lo riproduce letteralmente.
 - La route diagnostica forza `GET` con body JSON per replicare la collection Postman; il client mantiene il supporto esplicito sia GET sia POST.
 - Il client supporta sia GET sia POST; il diagnostico corrente usa il formato ufficiale standard POST con identificativi numerici, `Operazione: read` e nessuna `Versione`.
-- Diagnostico temporaneamente allineato all'esempio ufficiale `1/1 Estrazione causali di magazzino (FTABE42)`, con filtro `causale = 1`, per separare un problema generale MATRIXWS da uno specifico del servizio statistico `3/1`.
-- La chiave ambiente della route e' case-sensitive e deve usare il nome della risorsa MATRIXWS (`env:galassia` -> URL `/lynfaws/galassia/...`), non la sigla descrittiva maiuscola mostrata nell'amministrazione Lynfa. Connessione e Bearer sono stati verificati con risposta HTTP 200; il test `1/1` invia anche la versione CONFWS `20260001`.
+- Dopo la verifica positiva di trasporto e autenticazione tramite il servizio standard `1/1`, il diagnostico usa il servizio obiettivo `3/1 Estrazione informazioni statistiche (GTAB0500)` con la struttura esportata da CONFWS (`GT05-TIPOREC`, `GT05-CODICEX`, `GT05-TIPO`).
+- La chiave ambiente della route e' case-sensitive e deve usare il nome della risorsa MATRIXWS (`env:galassia` -> URL `/lynfaws/galassia/...`), non la sigla descrittiva maiuscola mostrata nell'amministrazione Lynfa. Connessione e Bearer sono stati verificati con risposta HTTP 200; l'eventuale `ERR_PARAM_REQUEST` dipende dai campi definiti nella scheda Request della configurazione locale CONFWS.
 
 ## Bacheca ordini - azioni menu contestuale (2026-07-31)
 
