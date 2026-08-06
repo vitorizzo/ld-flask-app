@@ -1990,10 +1990,11 @@ def api_keys():
 @log_task(logger)
 def matrixws_test():
     payload = {
-        "CodiceWS": 1,
-        "Schema": 1,
+        "CodiceWS": "1",
+        "Schema": "1",
+        "Versione": "20260001",
         "Operazione": "read",
-        "Ditta": 1,
+        "Ditta": "1",
         "TabellaCampi": [
             {
                 "causale": "1",

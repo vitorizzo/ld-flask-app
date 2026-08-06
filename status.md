@@ -37,6 +37,8 @@ Data aggiornamento: 2026-06-02
 - La pagina ufficiale `MANUALE_WEBSERVICE.1.25.htm` chiarisce il formato dei servizi standard in lettura: `CodiceWS`, `Schema` e `Ditta` numerici, nessun campo `Versione`, `Operazione: read`, `TabellaCampi: []` per lettura senza filtri. Il test `3/1` replica ora questo formato con metodo POST.
 - `3_1.json` viene trattato come template dei campi configurati (utile per nomi Request), non come prova che valori vuoti e `Operazione` vuota costituiscano una chiamata eseguibile.
 - Per isolare definitivamente infrastruttura e configurazione del servizio `3/1`, il diagnostico esegue ora letteralmente l'esempio ufficiale TeamSystem sul servizio attivo `1/1`: POST, `CodiceWS: 1`, `Operazione: read`, filtro `causale = 1`.
+- 2026-08-06: individuata la chiave risorsa case-sensitive dell'ambiente: la sigla amministrativa `GALASSIA` e' registrata in `mwsresources.json` come `env:galassia`; con `MATRIXWS_ENVIRONMENT=galassia` EVWSSYNC risponde HTTP 200 e autentica correttamente.
+- La risposta applicativa `ERR_PARAM_REQUEST` ha confermato il trasporto funzionante; il payload diagnostico `1/1` include ora anche `Versione: 20260001` e usa stringhe per codice, schema e ditta, coerentemente con gli export CONFWS.
 - Il test usa il secret rinnovato gia' cifrato nell'app, evitando di esporlo o copiarlo in Postman.
 
 ## Regola prioritaria modali
