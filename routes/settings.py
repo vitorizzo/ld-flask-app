@@ -1994,7 +1994,14 @@ def matrixws_test():
         "Schema": 1,
         "Operazione": "read",
         "Ditta": 1,
-        "TabellaCampi": [],
+        "TabellaCampi": [
+            {
+                "GT05-TIPOREC": "02",
+                "GT05-CODICEX": "",
+                "GT05-TIPO": "",
+                "operatore": ">",
+            }
+        ],
     }
 
     try:

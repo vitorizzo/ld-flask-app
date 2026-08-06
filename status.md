@@ -40,6 +40,7 @@ Data aggiornamento: 2026-06-02
 - 2026-08-06: individuata la chiave risorsa case-sensitive dell'ambiente: la sigla amministrativa `GALASSIA` e' registrata in `mwsresources.json` come `env:galassia`; con `MATRIXWS_ENVIRONMENT=galassia` EVWSSYNC risponde HTTP 200 e autentica correttamente.
 - La risposta applicativa `ERR_PARAM_REQUEST` ha confermato il trasporto funzionante. Il confronto con l'esempio ufficiale TeamSystem conferma il payload `1/1` senza `Versione`; occorre confrontarlo con la scheda Request della configurazione locale CONFWS, che puo' richiedere campi diversi.
 - Il servizio `3/1` risponde HTTP 200 e, con i tre campi esportati valorizzati a stringa vuota, restituisce `ERR_REC_NOT_FOUND`: MATRIXWS interpreta quindi quel record come chiave esatta vuota. Il diagnostico usa ora la lettura senza limiti documentata (`TabellaCampi: []`, identificativi numerici e nessuna `Versione`).
+- La lettura `3/1` con `TabellaCampi: []` restituisce `ERR_PARAM_REQUEST`, confermando che la configurazione locale rende obbligatori tutti i campi Request. Il test usa ora la chiave composta minima del gruppo Action (`GT05-TIPOREC: 02`, altri segmenti vuoti) con operatore `>` per estrarre i record successivi senza cercare una chiave vuota esatta.
 - Il test usa il secret rinnovato gia' cifrato nell'app, evitando di esporlo o copiarlo in Postman.
 
 ## Regola prioritaria modali
