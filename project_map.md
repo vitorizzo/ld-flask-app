@@ -28,6 +28,7 @@
 - La chiave ambiente della route e' case-sensitive e deve usare il nome della risorsa MATRIXWS (`env:galassia` -> URL `/lynfaws/galassia/...`), non la sigla descrittiva maiuscola mostrata nell'amministrazione Lynfa. Connessione e Bearer sono stati verificati con risposta HTTP 200; l'eventuale `ERR_PARAM_REQUEST` dipende dai campi definiti nella scheda Request della configurazione locale CONFWS.
 - Nel servizio `3/1`, inviare un record con `GT05-TIPOREC`, `GT05-CODICEX` e `GT05-TIPO` vuoti produce `ERR_REC_NOT_FOUND` (ricerca di una chiave vuota). La lettura diagnostica corrente usa pertanto il formato senza limiti documentato da TeamSystem: `TabellaCampi: []`.
 - Poiche' la configurazione locale `3/1` rifiuta anche `TabellaCampi: []` con `ERR_PARAM_REQUEST`, la diagnostica usa tutti i campi obbligatori e una selezione `>` dalla chiave minima `GT05-TIPOREC=02` (Action); gli eventuali gruppi successivi potranno essere filtrati dalla risposta.
+- I campi Request di `GTAB0500` sono COBOL a lunghezza fissa: `TIPOREC` 2, `CODICEX` 6, `TIPO` 1. I valori minimi non possono essere stringhe vuote: il diagnostico usa padding a spazi (`CODICEX` 6, `TIPO` 1), coerente con il runtime e con il precedente errore `length = 0`.
 
 ## Bacheca ordini - azioni menu contestuale (2026-07-31)
 

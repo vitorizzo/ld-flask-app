@@ -1997,8 +1997,8 @@ def matrixws_test():
         "TabellaCampi": [
             {
                 "GT05-TIPOREC": "02",
-                "GT05-CODICEX": "",
-                "GT05-TIPO": "",
+                "GT05-CODICEX": "      ",
+                "GT05-TIPO": " ",
                 "operatore": ">",
             }
         ],
