@@ -1990,18 +1990,12 @@ def api_keys():
 @log_task(logger)
 def matrixws_test():
     payload = {
-        "CodiceWS": 3,
-        "Schema": 1,
-        "Operazione": "read",
-        "Ditta": 1,
-        "TabellaCampi": [
-            {
-                "GT05-TIPOREC": "00",
-                "GT05-CODICEX": "000000",
-                "GT05-TIPO": "0",
-                "operatore": ">=",
-            }
-        ],
+        "CodiceWS": "1000",
+        "Schema": "1",
+        "Versione": "20260001",
+        "Operazione": "",
+        "Ditta": "1",
+        "TabellaCampi": [],
     }
 
     try:
@@ -2050,6 +2044,22 @@ def matrixws_test():
         if secret_renewed:
             message += " Il secret scaduto e' stato rinnovato e salvato automaticamente."
 
+    response_body = result["json"] if result["json"] is not None else result["text"]
+    response_truncated = result["truncated"]
+    if isinstance(response_body, dict) and isinstance(response_body.get("dati"), list):
+        record_count = len(response_body["dati"])
+        if record_count > 25:
+            response_body = {
+                **response_body,
+                "dati": response_body["dati"][:25],
+                "diagnostica_app": {
+                    "record_totali": record_count,
+                    "record_mostrati": 25,
+                    "nota": "Anteprima limitata per non rallentare la pagina impostazioni.",
+                },
+            }
+            response_truncated = True
+
     return jsonify({
         "ok": result["ok"],
         "secret_renewed": secret_renewed,
@@ -2058,14 +2068,14 @@ def matrixws_test():
             "url": result["url"],
             "method": result["method"],
             "service_code": payload["CodiceWS"],
-            "service_description": "Estrazione informazioni statistiche (GTAB0500)",
+            "service_description": "Estrazione clienti/fornitori (CLIFOR)",
             "operation": payload["Operazione"],
         },
         "response": {
             "status_code": status_code,
             "content_type": result["content_type"],
-            "body": result["json"] if result["json"] is not None else result["text"],
-            "truncated": result["truncated"],
+            "body": response_body,
+            "truncated": response_truncated,
         },
     }), (200 if result["ok"] else 502)
 
