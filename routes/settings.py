@@ -1993,7 +1993,7 @@ def matrixws_test():
         "CodiceWS": "1000",
         "Schema": "1",
         "Versione": "20260001",
-        "Operazione": "",
+        "Operazione": "read",
         "Ditta": "1",
         "TabellaCampi": [],
     }
