@@ -7,7 +7,11 @@ Data aggiornamento: 2026-06-02
 - Connessione, autenticazione, rinnovo secret e lettura sincrona verificati sul servizio standard `1000/1`: risposta applicativa `200` con 3.234 anagrafiche.
 - Il servizio standard e' stato duplicato dall'utente nelle personalizzazioni come `500001/1`, aggiungendo area, zona e i codici statistici 1-5 sia come codice sia come descrizione.
 - Il diagnostico `POST /settings/api-keys/matrixws/test` interroga ora `500001/1` con versione `20260001`, operazione `read`, ditta `1` e nessun filtro; la risposta resta limitata a 25 record in UI con conteggio totale.
-- Primo punto di ripartenza: acquisire una risposta reale di `500001/1`, censire i nomi tecnici restituiti e solo dopo collegare l'estrazione all'upsert esistente di `BusinessRegistry` e alla clusterizzazione `Action`.
+- La lettura reale di `500001/1` risponde correttamente con stato applicativo `200` e restituisce anagrafiche, area, categoria/sottocategoria e campi statistici personalizzati.
+- Il contratto non e' ancora importabile in sicurezza: la chiave JSON `CF-ZONA` compare ripetutamente nello stesso record e un parser JSON conserva soltanto l'ultima occorrenza. Anche le uscite statistiche `GT05-*|9000xx|` devono essere associate con certezza ai campi 1-5.
+- Dopo l'aggiunta delle descrizioni il servizio puo' superare i 25 secondi del client sincrono; il solo diagnostico `500001/1` usa ora un timeout di lettura di 120 secondi. L'import periodico definitivo dovra' usare il dispatcher asincrono MATRIXWS, senza tenere aperta una richiesta browser.
+- Per isolare il tracciato senza estrarre 3.234 clienti, il test corrente richiede il solo `CFCOD = 11`, record gia' noto con campi statistici valorizzati. Se CONFWS rifiuta il filtro, `CFCOD` va aggiunto alla scheda Request del servizio personalizzato.
+- Primo punto di ripartenza: correggere o documentare nella Response CONFWS nomi/alias univoci per zona e codici/descrizioni statistiche; quindi collegare l'estrazione all'upsert esistente di `BusinessRegistry` e alla clusterizzazione `Action`.
 
 ## 2026-08-04 - Configurazione TeamSystem MATRIXWS
 

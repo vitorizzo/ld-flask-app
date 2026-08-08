@@ -1995,12 +1995,17 @@ def matrixws_test():
         "Versione": "20260001",
         "Operazione": "read",
         "Ditta": "1",
-        "TabellaCampi": [],
+        "TabellaCampi": [
+            {
+                "CFCOD": "11",
+                "operatore": "=",
+            }
+        ],
     }
 
     try:
         config = MatrixWSConfig.from_app_config(current_app.config)
-        result = call_matrixws_sync(config, payload, method="POST")
+        result = call_matrixws_sync(config, payload, method="POST", timeout=(5, 120))
         secret_renewed = False
         if result["status_code"] == 401:
             renewed_secret = renew_matrixws_secret(config)
@@ -2013,7 +2018,7 @@ def matrixws_test():
             db.session.commit()
             load_preferences_into_app_config(current_app._get_current_object())
             config = MatrixWSConfig.from_app_config(current_app.config)
-            result = call_matrixws_sync(config, payload, method="POST")
+            result = call_matrixws_sync(config, payload, method="POST", timeout=(5, 120))
             secret_renewed = True
     except MatrixWSError as exc:
         db.session.rollback()
