@@ -1990,7 +1990,7 @@ def api_keys():
 @log_task(logger)
 def matrixws_test():
     payload = {
-        "CodiceWS": "1000",
+        "CodiceWS": "500001",
         "Schema": "1",
         "Versione": "20260001",
         "Operazione": "read",
@@ -2068,7 +2068,7 @@ def matrixws_test():
             "url": result["url"],
             "method": result["method"],
             "service_code": payload["CodiceWS"],
-            "service_description": "Estrazione clienti/fornitori (CLIFOR)",
+            "service_description": "Estrazione clienti personalizzata con cluster",
             "operation": payload["Operazione"],
         },
         "response": {

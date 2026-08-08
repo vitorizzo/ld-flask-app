@@ -2,6 +2,13 @@ TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
 Data aggiornamento: 2026-06-02
 
+## 2026-08-08 - Estrazione clienti personalizzata MATRIXWS
+
+- Connessione, autenticazione, rinnovo secret e lettura sincrona verificati sul servizio standard `1000/1`: risposta applicativa `200` con 3.234 anagrafiche.
+- Il servizio standard e' stato duplicato dall'utente nelle personalizzazioni come `500001/1`, aggiungendo area, zona e i codici statistici 1-5 sia come codice sia come descrizione.
+- Il diagnostico `POST /settings/api-keys/matrixws/test` interroga ora `500001/1` con versione `20260001`, operazione `read`, ditta `1` e nessun filtro; la risposta resta limitata a 25 record in UI con conteggio totale.
+- Primo punto di ripartenza: acquisire una risposta reale di `500001/1`, censire i nomi tecnici restituiti e solo dopo collegare l'estrazione all'upsert esistente di `BusinessRegistry` e alla clusterizzazione `Action`.
+
 ## 2026-08-04 - Configurazione TeamSystem MATRIXWS
 
 - Aggiunta al tile `Chiavi API` la sezione `TeamSystem MATRIXWS`.

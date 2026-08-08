@@ -2,6 +2,13 @@
 
 ## Integrazione TeamSystem MATRIXWS (2026-08-04)
 
+### Servizio clienti personalizzato (2026-08-08)
+
+- Il servizio standard read-only `1000/1` e' stato verificato end-to-end con 3.234 anagrafiche restituite.
+- La personalizzazione TeamSystem `500001/1` estende la stessa vista clienti con area, zona e cinque campi statistici, ciascuno esposto come codice e descrizione.
+- `routes/settings.py`: il test MATRIXWS usa temporaneamente `500001/1` per censire il contratto JSON reale prima di implementare l'import.
+- Destinazione applicativa gia' esistente: `BusinessRegistry` e l'upsert in `tools/importazioni.py`; non va creato un archivio clienti parallelo. I cluster correnti `category_*`/`subcategory_*` devono essere estesi o rimappati soltanto dopo aver identificato i nomi esatti della risposta.
+
 - `tools/preferences.py`: la categoria `TeamSystem MATRIXWS` nel tile `Chiavi API` espone URL server, ambiente, start, applicativo e secret Bearer; il secret usa `AppPreference.secret_value` cifrato e non viene riproposto nella form.
 - Config runtime predisposta: `MATRIXWS_BASE_URL`, `MATRIXWS_ENVIRONMENT`, `MATRIXWS_START`, `MATRIXWS_APPLICATION` (default `MULTI`) e `MATRIXWS_SECRET`.
 - `routes/settings.py`: la nuova categoria e' inclusa tra le integrazioni configurabili di `/settings/api-keys`.
