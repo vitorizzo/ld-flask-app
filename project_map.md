@@ -1,5 +1,11 @@
 # PROJECT_MAP.md — v2.4
 
+## Accesso persistente (2026-08-08)
+
+- `routes/auth.py`: il login rispetta il campo `Ricordami`; `POST /profile/remember-login` abilita o revoca il remember cookie per l'utente autenticato senza terminare la sessione corrente.
+- `templates/partials/navbar.html`: il menu profilo mostra l'azione contestuale `Rimani connesso` / `Non restare connesso` in base al cookie presente sul dispositivo.
+- `tools/app_factory.py`: remember cookie annuale a scadenza mobile, HttpOnly e SameSite Lax.
+
 ## Integrazione TeamSystem MATRIXWS (2026-08-04)
 
 ### Servizio clienti personalizzato (2026-08-08)

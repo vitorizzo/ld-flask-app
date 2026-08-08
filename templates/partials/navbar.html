@@ -92,6 +92,17 @@
                         {% if current_user.max_role_weight >= 30 %}
                             <li><button class="dropdown-item" type="button" data-pwa-push-test-order>Test notifica ordine</button></li>
                         {% endif %}
+                        {% set remember_cookie_name = config.get('REMEMBER_COOKIE_NAME', 'remember_token') %}
+                        {% set remember_login_enabled = request.cookies.get(remember_cookie_name) %}
+                        <li>
+                            <form method="post" action="{{ url_for('auth.remember_login') }}" class="m-0">
+                                <input type="hidden" name="enabled" value="{{ 0 if remember_login_enabled else 1 }}">
+                                <input type="hidden" name="next" value="{{ request.full_path }}">
+                                <button class="dropdown-item" type="submit">
+                                    {% if remember_login_enabled %}Non restare connesso{% else %}Rimani connesso{% endif %}
+                                </button>
+                            </form>
+                        </li>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">Log Out</a></li>
                     </ul>

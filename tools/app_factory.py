@@ -199,6 +199,10 @@ def create_app():
         POLEEPO_PPKEY=os.getenv("POLEEPO_PPKEY"),
         MAX_CONTENT_LENGTH=max_upload_mb * 1024 * 1024,
         MAX_UPLOAD_MB=max_upload_mb,
+        REMEMBER_COOKIE_DURATION=timedelta(days=365),
+        REMEMBER_COOKIE_REFRESH_EACH_REQUEST=True,
+        REMEMBER_COOKIE_HTTPONLY=True,
+        REMEMBER_COOKIE_SAMESITE="Lax",
         APP_VERSION=_compute_app_version(base)
     )
 

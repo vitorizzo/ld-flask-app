@@ -2,6 +2,14 @@ TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
 Data aggiornamento: 2026-06-02
 
+## 2026-08-08 - Accesso persistente dal menu profilo
+
+- Il checkbox `Ricordami` gia' presente nel login e' nuovamente collegato a `login_user(..., remember=True)` quando selezionato.
+- Il menu profilo espone `Rimani connesso` / `Non restare connesso`; il comando agisce sul solo dispositivo corrente e la disattivazione non chiude la sessione in corso.
+- Il remember cookie e' HttpOnly, SameSite Lax, dura 365 giorni e rinnova la scadenza durante l'uso dell'app.
+- Nuova route autenticata `POST /profile/remember-login`; gli eventi sono registrati dal logger `auth` senza salvare token.
+- Verificati sintassi Python, parsing Jinja e `git diff --check`.
+
 ## 2026-08-08 - Estrazione clienti personalizzata MATRIXWS
 
 - Connessione, autenticazione, rinnovo secret e lettura sincrona verificati sul servizio standard `1000/1`: risposta applicativa `200` con 3.234 anagrafiche.

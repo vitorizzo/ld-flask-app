@@ -203,8 +203,7 @@ def login():
     if form.validate_on_submit():
         user = User.query.filter_by(email=form.email.data).first()
         if user and check_password_hash(user.password, form.password.data):
-            # login_user(user, remember=form.remember.data)
-            login_user(user, remember=False)
+            login_user(user, remember=bool(form.remember.data))
 
             next_page = request.args.get('next')
             if next_page and next_page.startswith('/'):
@@ -218,6 +217,27 @@ def login():
             return response
         flash('Credenziali errate.', 'danger')
     return render_template('login.html', form=form)
+
+
+@auth_bp.route('/profile/remember-login', methods=['POST'])
+@login_required
+@log_task(logger)
+def remember_login():
+    enabled = (request.form.get('enabled') or '').strip() == '1'
+    if enabled:
+        login_user(current_user, remember=True, fresh=True)
+        logger.info("Accesso persistente abilitato user_id=%s", current_user.id)
+        flash('Rimarrai connesso su questo dispositivo.', 'success')
+    else:
+        session['_remember'] = 'clear'
+        session.pop('_remember_seconds', None)
+        logger.info("Accesso persistente disabilitato user_id=%s", current_user.id)
+        flash('Accesso persistente disabilitato. La sessione corrente resta attiva.', 'success')
+
+    next_page = (request.form.get('next') or '').strip()
+    if not next_page.startswith('/') or next_page.startswith('//'):
+        next_page = url_for('home')
+    return redirect(next_page)
 
 
 @auth_bp.route("/contact", methods=["POST"])
