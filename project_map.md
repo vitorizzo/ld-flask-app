@@ -25,7 +25,8 @@
 - `500002/1` e' il servizio personalizzato del dizionario GTAB0500: Request vuota, lettura completa tramite il diagnostico MATRIXWS e Response destinata a `GT05-TIPOREC`, `GT05-CODICEX`, `GT05-TIPO`, `GT05-DESC`.
 - La prima lettura `500002/1` senza filtri non enumera l'archivio e restituisce `ERR_REC_NOT_FOUND`; va verificato che il servizio usi una sorgente tabella/vista enumerabile e non abbia ereditato dal `3/1` una lettura applicativa obbligatoriamente puntuale.
 - Le schermate CONFWS confermano la causa: `500002/1` e' `Tabellare` su `GTAB0500-X`/`GTABE`, con Response corretta; nella duplicazione la modalita' sorgente non puo' essere cambiata in Vista.
-- La modalita' sorgente non e' modificabile nella duplicazione; `Adattatore` resta vuoto. `500002/1` espone ora in Request il solo prefisso `GT05-TIPOREC`, interrogato dal test con due spazi e `>=` per partire dalla prima chiave tabellare.
+- La modalita' sorgente non e' modificabile nella duplicazione; `Adattatore` resta vuoto. `500002/1` espone in Request il solo prefisso `GT05-TIPOREC`; il primo tentativo con due spazi e `>=` non ha enumerato la tabella.
+- Poiche' la scansione da chiave minima fallisce, il diagnostico `500002/1` verifica in un solo click le quattro codifiche/padding esatte del gruppo Action sul solo campo Request `GT05-TIPOREC`.
 
 - `tools/preferences.py`: la categoria `TeamSystem MATRIXWS` nel tile `Chiavi API` espone URL server, ambiente, start, applicativo e secret Bearer; il secret usa `AppPreference.secret_value` cifrato e non viene riproposto nella form.
 - Config runtime predisposta: `MATRIXWS_BASE_URL`, `MATRIXWS_ENVIRONMENT`, `MATRIXWS_START`, `MATRIXWS_APPLICATION` (default `MULTI`) e `MATRIXWS_SECRET`.
