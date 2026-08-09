@@ -1995,7 +1995,12 @@ def matrixws_test():
         "Versione": "20260001",
         "Operazione": "read",
         "Ditta": "1",
-        "TabellaCampi": [],
+        "TabellaCampi": [
+            {
+                "GT05-TIPOREC": "  ",
+                "operatore": ">=",
+            }
+        ],
     }
 
     try:
@@ -2068,7 +2073,7 @@ def matrixws_test():
             "url": result["url"],
             "method": result["method"],
             "service_code": payload["CodiceWS"],
-            "service_description": "Dizionario completo informazioni statistiche (GTAB0500)",
+            "service_description": "Dizionario informazioni statistiche da chiave minima (GTAB0500)",
             "operation": payload["Operazione"],
         },
         "response": {
