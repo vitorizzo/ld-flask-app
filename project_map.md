@@ -18,7 +18,8 @@
 - Destinazione applicativa gia' esistente: `BusinessRegistry` e l'upsert in `tools/importazioni.py`; non va creato un archivio clienti parallelo. I cluster correnti `category_*`/`subcategory_*` devono essere estesi o rimappati soltanto dopo aver identificato i nomi esatti della risposta.
 - La prima risposta reale `500001/1` contiene chiavi duplicate `CF-ZONA` e uscite personalizzate `GT05-*|9000xx|`; l'import REST resta intenzionalmente sospeso finche' il tracciato Response non espone identificatori univoci per i cinque statistici, evitando perdita silenziosa di valori nel parser JSON.
 - Per le prove manuali `routes/settings.py` concede a `500001/1` fino a 120 secondi di lettura. Le estrazioni massive di produzione dovranno essere accodate con `EVWSASYNC` e recuperate tramite `/www/matrixws/batch/response`.
-- Il diagnostico del tracciato usa temporaneamente il filtro esatto `CFCOD = 11` per ottenere un solo cliente significativo; il campo deve essere esposto nella Request CONFWS di `500001/1`.
+- Il tentativo diagnostico `CFCOD = 11` non e' stato applicato da `500001/1`, poiche' il campo non e' esposto nella Request CONFWS; la UI ha comunque mostrato soltanto i primi 25 record.
+- Contratto semplificato verificato: `500001/1` espone direttamente `CF-AREA`, `CF-ZONA`, `CF-CATE`, `CF-SCATE` e `CF-STAT1`...`CF-STAT5`; le descrizioni saranno risolte separatamente tramite servizi dizionario. Il test corrente interroga `3/1` per `Action (02)`, codice `1`.
 
 - `tools/preferences.py`: la categoria `TeamSystem MATRIXWS` nel tile `Chiavi API` espone URL server, ambiente, start, applicativo e secret Bearer; il secret usa `AppPreference.secret_value` cifrato e non viene riproposto nella form.
 - Config runtime predisposta: `MATRIXWS_BASE_URL`, `MATRIXWS_ENVIRONMENT`, `MATRIXWS_START`, `MATRIXWS_APPLICATION` (default `MULTI`) e `MATRIXWS_SECRET`.

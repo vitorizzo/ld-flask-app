@@ -8,6 +8,12 @@ Data aggiornamento: 2026-06-02
 - Rimosso il trigger Bootstrap dall'intera riga API: l'apertura della configurazione e' ora gestita esplicitamente solo per click su zone non interattive, eliminando alla radice la doppia apertura e i conflitti di focus/backdrop.
 - Tutte le modali della pagina Chiavi API sono trascinabili dall'intestazione su viewport desktop; posizione e stili vengono ripristinati alla chiusura, mentre su mobile rimane il comportamento responsive standard.
 
+## 2026-08-09 - Contratto codici cliente MATRIXWS
+
+- Il servizio personalizzato `500001/1` e' stato alleggerito in TeamSystem e restituisce ora chiavi JSON univoche per area, zona, categoria, sottocategoria e `CF-STAT1`...`CF-STAT5`, senza espansioni descrittive.
+- Il cliente `CFCOD=11` conferma un caso Action valorizzato: `CF-STAT2=1`.
+- Il diagnostico passa temporaneamente al servizio dizionario `3/1` e cerca la chiave esatta `TIPOREC=02`, `CODICEX=000001`, `TIPO=0` per verificare la descrizione dell'Action 1.
+
 ## 2026-08-08 - Accesso persistente dal menu profilo
 
 - Il checkbox `Ricordami` gia' presente nel login e' nuovamente collegato a `login_user(..., remember=True)` quando selezionato.
@@ -24,7 +30,7 @@ Data aggiornamento: 2026-06-02
 - La lettura reale di `500001/1` risponde correttamente con stato applicativo `200` e restituisce anagrafiche, area, categoria/sottocategoria e campi statistici personalizzati.
 - Il contratto non e' ancora importabile in sicurezza: la chiave JSON `CF-ZONA` compare ripetutamente nello stesso record e un parser JSON conserva soltanto l'ultima occorrenza. Anche le uscite statistiche `GT05-*|9000xx|` devono essere associate con certezza ai campi 1-5.
 - Dopo l'aggiunta delle descrizioni il servizio puo' superare i 25 secondi del client sincrono; il solo diagnostico `500001/1` usa ora un timeout di lettura di 120 secondi. L'import periodico definitivo dovra' usare il dispatcher asincrono MATRIXWS, senza tenere aperta una richiesta browser.
-- Per isolare il tracciato senza estrarre 3.234 clienti, il test corrente richiede il solo `CFCOD = 11`, record gia' noto con campi statistici valorizzati. Se CONFWS rifiuta il filtro, `CFCOD` va aggiunto alla scheda Request del servizio personalizzato.
+- Il tentativo di filtro `CFCOD = 11` non e' stato applicato dal servizio perche' il campo non e' configurato nella Request; l'anteprima applicativa ha comunque limitato a 25 i 3.234 record ricevuti.
 - Primo punto di ripartenza: correggere o documentare nella Response CONFWS nomi/alias univoci per zona e codici/descrizioni statistiche; quindi collegare l'estrazione all'upsert esistente di `BusinessRegistry` e alla clusterizzazione `Action`.
 
 ## 2026-08-04 - Configurazione TeamSystem MATRIXWS

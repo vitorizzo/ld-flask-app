@@ -1990,15 +1990,16 @@ def api_keys():
 @log_task(logger)
 def matrixws_test():
     payload = {
-        "CodiceWS": "500001",
+        "CodiceWS": "3",
         "Schema": "1",
         "Versione": "20260001",
         "Operazione": "read",
         "Ditta": "1",
         "TabellaCampi": [
             {
-                "CFCOD": "11",
-                "operatore": "=",
+                "GT05-TIPOREC": "02",
+                "GT05-CODICEX": "000001",
+                "GT05-TIPO": "0",
             }
         ],
     }
@@ -2073,7 +2074,7 @@ def matrixws_test():
             "url": result["url"],
             "method": result["method"],
             "service_code": payload["CodiceWS"],
-            "service_description": "Estrazione clienti personalizzata con cluster",
+            "service_description": "Descrizione statistico Action codice 1 (GTAB0500)",
             "operation": payload["Operazione"],
         },
         "response": {
