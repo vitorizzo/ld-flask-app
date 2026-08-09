@@ -29,7 +29,8 @@ beat_schedule = {
     },
     'import-anagrafiche': {
         'task': 'config.tasks.import_anagrafiche_task',
-        'schedule': crontab(hour='4', minute='30'),
+        'schedule': crontab(minute='0,30'),
+        'options': {'expires': 25 * 60},
     },
     'import-customer-account-statements-half-hourly': {
         'task': 'config.tasks.import_estratti_conto_clienti_task',

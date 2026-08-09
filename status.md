@@ -2,6 +2,13 @@ TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
 Data aggiornamento: 2026-06-02
 
+## 2026-08-10 - Import anagrafiche ogni 30 minuti in background
+
+- Celery Beat accoda `config.tasks.import_anagrafiche_task` ai minuti `.00` e `.30` di ogni ora.
+- Il messaggio scade dopo 25 minuti se non e' ancora stato preso in carico, evitando il recupero tardivo di esecuzioni ormai obsolete.
+- L'intero flusso resta nel worker Celery: clienti tramite MATRIXWS `500001/1` e, temporaneamente, fornitori dal file configurato. Anche l'avvio manuale usa `.delay()` e non esegue l'importazione nel processo web.
+- Prossimo passaggio: sostituire anche la sorgente file dei fornitori con il servizio MATRIXWS dedicato, mantenendo invariata la schedulazione in background.
+
 ## 2026-08-09 - Import anagrafiche clienti tramite MATRIXWS
 
 - Il task anagrafiche non legge piu' il file export clienti: usa `POST EVWSSYNC`, servizio personalizzato `500001/1`, versione `20260001`, operazione `read`, ditta `1`.
