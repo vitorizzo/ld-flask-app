@@ -8,7 +8,7 @@
 
 ## Integrazione TeamSystem MATRIXWS (2026-08-04)
 
-- `templates/settings/api_keys.html`: il click sul test MATRIXWS viene fermato direttamente sul pulsante, isolandolo dal trigger modale presente sull'intera riga di configurazione.
+- `templates/settings/api_keys.html`: la riga API non e' piu' un trigger Bootstrap delegato; un handler apre la configurazione solo dai punti non interattivi, mentre il test MATRIXWS resta isolato. Le modali della pagina sono trascinabili dall'header su desktop e si ripristinano alla chiusura.
 
 ### Servizio clienti personalizzato (2026-08-08)
 

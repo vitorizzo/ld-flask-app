@@ -105,6 +105,19 @@
     min-height: 58px;
   }
 
+  @media (min-width: 768px) {
+    .settings-config-modal .modal-header {
+      cursor: move;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .settings-config-modal .modal-header button,
+    .settings-config-modal .modal-header a {
+      cursor: pointer;
+    }
+  }
+
   .settings-config-modal .modal-title {
     color: #fff;
     font-weight: 700;
@@ -169,7 +182,7 @@
                 </thead>
                 <tbody>
                   {% for row in api_rows %}
-                    <tr role="button" data-bs-toggle="modal" data-bs-target="#apiEditModal-{{ loop.index }}">
+                    <tr role="button" data-api-edit-target="#apiEditModal-{{ loop.index }}">
                       <td>
                         <div class="fw-semibold">{{ row.label }}</div>
                         <div class="text-muted small">{{ row.category }}</div>
@@ -501,6 +514,73 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     modal.addEventListener("shown.bs.modal", resetSubmit);
     modal.addEventListener("hidden.bs.modal", resetSubmit);
+  });
+
+  document.querySelectorAll("[data-api-edit-target]").forEach((row) => {
+    row.addEventListener("click", (event) => {
+      if (event.target.closest("button, a, input, select, textarea, label, form")) return;
+      const target = document.querySelector(row.dataset.apiEditTarget);
+      if (!target || !window.bootstrap) return;
+      bootstrap.Modal.getOrCreateInstance(target).show();
+    });
+  });
+
+  document.querySelectorAll(".settings-config-modal").forEach((modal) => {
+    const dialog = modal.querySelector(".modal-dialog");
+    const handle = modal.querySelector(".modal-header");
+    if (!dialog || !handle) return;
+
+    let dragState = null;
+    const finishDrag = (event) => {
+      if (!dragState) return;
+      if (handle.hasPointerCapture?.(dragState.pointerId)) {
+        handle.releasePointerCapture(dragState.pointerId);
+      }
+      dragState = null;
+      if (event) event.preventDefault();
+    };
+
+    handle.addEventListener("pointerdown", (event) => {
+      if (window.innerWidth < 768 || event.button !== 0) return;
+      if (event.target.closest("button, a, input, select, textarea")) return;
+
+      const rect = dialog.getBoundingClientRect();
+      dialog.style.position = "fixed";
+      dialog.style.margin = "0";
+      dialog.style.left = `${rect.left}px`;
+      dialog.style.top = `${rect.top}px`;
+      dialog.style.width = `${rect.width}px`;
+      dialog.style.maxWidth = "calc(100vw - 16px)";
+      dialog.style.transform = "none";
+      dragState = {
+        pointerId: event.pointerId,
+        offsetX: event.clientX - rect.left,
+        offsetY: event.clientY - rect.top,
+      };
+      handle.setPointerCapture?.(event.pointerId);
+      event.preventDefault();
+    });
+
+    handle.addEventListener("pointermove", (event) => {
+      if (!dragState || event.pointerId !== dragState.pointerId) return;
+      const rect = dialog.getBoundingClientRect();
+      const maxLeft = Math.max(0, window.innerWidth - rect.width);
+      const maxTop = Math.max(0, window.innerHeight - Math.min(rect.height, window.innerHeight));
+      const left = Math.min(maxLeft, Math.max(0, event.clientX - dragState.offsetX));
+      const top = Math.min(maxTop, Math.max(0, event.clientY - dragState.offsetY));
+      dialog.style.left = `${left}px`;
+      dialog.style.top = `${top}px`;
+      event.preventDefault();
+    });
+
+    handle.addEventListener("pointerup", finishDrag);
+    handle.addEventListener("pointercancel", finishDrag);
+    modal.addEventListener("hidden.bs.modal", () => {
+      dragState = null;
+      for (const property of ["position", "margin", "left", "top", "width", "maxWidth", "transform"]) {
+        dialog.style[property] = "";
+      }
+    });
   });
 
   const testModalElement = document.getElementById("matrixwsTestModal");
