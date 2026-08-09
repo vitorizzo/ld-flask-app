@@ -5,9 +5,11 @@ import logging
 from pathlib import Path
 
 from flask import Blueprint, render_template, request
+from flask_login import login_required
 
 from config.paths_config import LOGS_FOLDER
 from tools.log_utils import get_logger
+from tools.role_required import role_required
 
 logger = get_logger("logs_viewer", level=logging.DEBUG)
 
@@ -41,6 +43,8 @@ def _available_log_files() -> list[str]:
 
 
 @logs_bp.route("/view")
+@login_required
+@role_required(999)
 def visualizza_logs():
     logger.info(f"chiamata route visualizza logs")
     files = _available_log_files()

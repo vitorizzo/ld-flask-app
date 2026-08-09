@@ -2850,3 +2850,4 @@ Performance apertura giornata Agenda 2026-06-13:
 - Verifica finale: 2.031 registry clienti storici, nessun payload MATRIXWS contaminato, nessun codice senza padding, nessuna riga residua col timestamp della transazione errata e zero differenze sui 1.994 `CashCustomer` riconciliabili con la baseline.
 - `tools/importazioni.py` filtra ora soltanto `CF-TIPO=1`, normalizza `CFCOD` a 5 cifre, deduplica prima dell'upsert e rifiuta codici ripetuti con identita' discordanti. Un guard blocca eventuali nuovi import finche' esistono record contaminati.
 - Backup locale ignorato da Git: `docs/transport/matrixws_clifor_backup_20260809_232016.json`.
+- Chiuso l'accesso pubblico al viewer dei log: `/logs/view` usa ora `login_required` e `role_required(999)`, coerentemente con la dashboard Developer.
