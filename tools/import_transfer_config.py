@@ -40,20 +40,6 @@ IMPORT_TRANSFER_CATALOG = (
         "default_trace_file": "",
     },
     {
-        "code": "customers",
-        "label": "Anagrafiche clienti",
-        "description": "Anagrafiche clienti TeamSystem",
-        "default_source_file": "exp_cli.csv",
-        "default_trace_file": "",
-    },
-    {
-        "code": "suppliers",
-        "label": "Anagrafiche fornitori",
-        "description": "Anagrafiche fornitori TeamSystem",
-        "default_source_file": "exp_for.csv",
-        "default_trace_file": "",
-    },
-    {
         "code": "customer_statements",
         "label": "Situazioni contabili clienti",
         "description": "Estratti conto e scadenze clienti TeamSystem",

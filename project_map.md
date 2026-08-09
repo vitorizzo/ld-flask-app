@@ -13,13 +13,15 @@
 ### Servizio clienti personalizzato (2026-08-08)
 
 - Il servizio standard read-only `1000/1` e' stato verificato end-to-end con 3.234 anagrafiche restituite.
-- La personalizzazione TeamSystem `500001/1` estende la stessa vista clienti con area, zona e cinque codici statistici; le descrizioni non sono ancora esposte.
-- `tools/importazioni.py`: il ramo clienti di `import_anagrafiche()` usa direttamente `EVWSSYNC` e `500001/1`; il ramo fornitori conserva per ora il file configurato. Parser REST e parser file confluiscono nello stesso upsert di `BusinessRegistry`, contatti e `CashCustomer`.
-- Poiche' `500001/1` deriva da `CLIFOR`, la risposta contiene anche fornitori (`CF-TIPO=2`) e record tecnici (`CF-TIPO=0`): l'import clienti accetta esclusivamente `CF-TIPO=1`, normalizza `CFCOD` al formato storico a 5 cifre e blocca codici duplicati con dati anagrafici discordanti.
+- La personalizzazione TeamSystem `500001/1` estende la vista CLIFOR con area, zona e cinque codici statistici; le descrizioni non sono ancora esposte.
+- `tools/importazioni.py`: `import_anagrafiche()` esegue una sola chiamata `EVWSSYNC` a `500001/1`, poi usa la stessa risposta per i registry clienti e fornitori.
+- La partizione e' rigorosa: `CF-TIPO=1` diventa `kind=customer`, `CF-TIPO=2` diventa `kind=supplier` e `CF-TIPO=0` viene ignorato. `CFCOD` e' normalizzato al formato storico a 5 cifre per entrambi; duplicati discordanti bloccano soltanto il relativo ramo prima del commit.
+- La chiave univoca dei registry include `kind`, quindi lo stesso codice TeamSystem puo' identificare separatamente un cliente e un fornitore. Solo i clienti alimentano `CashCustomer` e alias.
 - Un controllo preventivo interrompe il task se rileva registry MATRIXWS prodotti dalla precedente importazione mista e non ancora bonificati, evitando ulteriori aggiornamenti di `CashCustomer` o alias.
 - `routes/logs_display.py`: il viewer `/logs/view` richiede autenticazione e ruolo Developer (`weight >= 999`); i log applicativi non sono piu' consultabili pubblicamente.
 - Il task Celery ammette fino a 300 secondi per l'estrazione sincrona e rinnova/persiste automaticamente il secret su HTTP 401. Un eventuale passaggio futuro a `EVWSASYNC` non cambia il mapping o l'upsert.
-- `config/celeryconfig.py`: Celery Beat accoda l'import anagrafiche ogni 30 minuti (`.00` e `.30`) con scadenza del messaggio a 25 minuti; clienti REST e fornitori file-based vengono elaborati interamente dal worker `config.tasks.import_anagrafiche_task`.
+- `config/celeryconfig.py`: Celery Beat accoda l'import anagrafiche ogni 30 minuti (`.00` e `.30`) con scadenza del messaggio a 25 minuti; entrambi i rami MATRIXWS vengono elaborati interamente dal worker `config.tasks.import_anagrafiche_task`.
+- `tools/import_transfer_config.py`: clienti e fornitori non compaiono piu' tra i trasferimenti file configurabili, poiche' non dipendono dagli export `exp_cli.csv`/`exp_for.csv`.
 - `models.py` e migration `cd4e5f607182_add_business_registry_matrixws_fields.py`: area, zona, cinque coppie codice/descrizione e indice operativo sul cluster Action (`kind + statistical_code_2`).
 - Il riepilogo import espone `missing_required_response_keys` e `fields_to_add_to_response`; i campi descrittivi assenti sono omessi dal mapping, quindi un successivo arricchimento non viene cancellato.
 - Il tentativo diagnostico `CFCOD = 11` non e' stato applicato da `500001/1`, poiche' il campo non e' esposto nella Request CONFWS; la UI ha comunque mostrato soltanto i primi 25 record.

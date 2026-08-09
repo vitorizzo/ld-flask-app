@@ -710,7 +710,7 @@ def _matrixws_value(row, key):
     return _clean_registry_text(row.get(key))
 
 
-def _canonical_matrixws_customer_code(value):
+def _canonical_matrixws_registry_code(value):
     """Allinea il codice REST al formato a 5 cifre usato dagli export TeamSystem."""
     value = _clean_zero_value(value)
     if value and value.isdigit():
@@ -718,11 +718,20 @@ def _canonical_matrixws_customer_code(value):
     return value
 
 
-def _parse_matrixws_customer_row(row):
-    if _matrixws_value(row, "CF-TIPO|100002|") != "1":
+def _canonical_matrixws_customer_code(value):
+    """Compatibilita' con il nome usato dai controlli dell'import clienti."""
+    return _canonical_matrixws_registry_code(value)
+
+
+def _parse_matrixws_registry_row(row, kind):
+    record_type_by_kind = {"customer": "1", "supplier": "2"}
+    expected_record_type = record_type_by_kind.get(kind)
+    if expected_record_type is None:
+        raise ValueError(f"Tipo anagrafica MATRIXWS non supportato: {kind}")
+    if _matrixws_value(row, "CF-TIPO|100002|") != expected_record_type:
         return None
 
-    source_code = _canonical_matrixws_customer_code(row.get("CFCOD"))
+    source_code = _canonical_matrixws_registry_code(row.get("CFCOD"))
     legal_name = _matrixws_value(row, "ANRASO|100003|")
     if not source_code or not legal_name:
         return None
@@ -734,7 +743,7 @@ def _parse_matrixws_customer_row(row):
     country_code = _matrixws_value(row, "ANPAESE|100003|")
 
     return {
-        "kind": "customer",
+        "kind": kind,
         "source": "teamsystem",
         "source_record_type": _matrixws_value(row, "CF-TIPO|100002|"),
         "source_company_code": "1",
@@ -772,6 +781,10 @@ def _parse_matrixws_customer_row(row):
     }
 
 
+def _parse_matrixws_customer_row(row):
+    return _parse_matrixws_registry_row(row, "customer")
+
+
 def _save_renewed_matrixws_secret(secret):
     definition = get_definition_map()["matrixws.secret"]
     row = AppPreference.query.filter_by(key=definition.key).first()
@@ -801,7 +814,7 @@ def _save_renewed_matrixws_secret(secret):
 def _matrixws_response_rows(result):
     if result["status_code"] != 200 or not isinstance(result.get("json"), dict):
         raise MatrixWSError(
-            f"MATRIXWS ha risposto con stato HTTP {result['status_code']} durante l'importazione clienti.",
+            f"MATRIXWS ha risposto con stato HTTP {result['status_code']} durante l'importazione anagrafiche.",
             kind="response",
         )
 
@@ -809,7 +822,7 @@ def _matrixws_response_rows(result):
     rows = body.get("dati")
     if body.get("status") == "error" or not isinstance(rows, list):
         error = body.get("error") if isinstance(body.get("error"), dict) else {}
-        description = error.get("description") or "Risposta MATRIXWS priva dell'elenco clienti."
+        description = error.get("description") or "Risposta MATRIXWS priva dell'elenco anagrafiche."
         raise MatrixWSError(str(description), kind="application_response", details=error)
     if rows and isinstance(rows[0], dict) and isinstance(rows[0].get("error"), dict):
         error = rows[0]["error"]
@@ -821,29 +834,33 @@ def _matrixws_response_rows(result):
     return [row for row in rows if isinstance(row, dict)]
 
 
-def _import_registry_matrixws_customers(
-    task_id=None,
-    task_name="Importazione anagrafiche",
-    progress_offset=0,
-    progress_span=60,
-):
-    contaminated = [
-        registry
-        for registry in BusinessRegistry.query.filter_by(kind="customer", source="teamsystem").all()
-        if isinstance(registry.source_payload, dict)
-        and registry.source_payload.get("source") == "matrixws"
-        and (
-            registry.source_record_type != "1"
-            or registry.source_code != _canonical_matrixws_customer_code(registry.source_code)
-        )
-    ]
+def _validate_matrixws_registry_state():
+    expected_record_type = {"customer": "1", "supplier": "2"}
+    contaminated = []
+    registries = BusinessRegistry.query.filter(
+        BusinessRegistry.kind.in_(tuple(expected_record_type)),
+        BusinessRegistry.source == "teamsystem",
+    ).all()
+    for registry in registries:
+        if not isinstance(registry.source_payload, dict):
+            continue
+        if registry.source_payload.get("source") != "matrixws":
+            continue
+        if (
+            registry.source_record_type != expected_record_type[registry.kind]
+            or registry.source_code != _canonical_matrixws_registry_code(registry.source_code)
+        ):
+            contaminated.append(registry)
+
     if contaminated:
         raise MatrixWSError(
-            "Import clienti bloccato: sono presenti record della precedente chiamata CLIFOR "
+            "Import anagrafiche bloccato: sono presenti record della precedente chiamata CLIFOR "
             f"non ancora bonificati ({len(contaminated)}).",
             kind="contaminated_registry",
         )
 
+
+def _fetch_matrixws_registry_rows():
     payload = {
         "CodiceWS": "500001",
         "Schema": "1",
@@ -865,9 +882,31 @@ def _import_registry_matrixws_customers(
     rows = _matrixws_response_rows(result)
     if not rows:
         raise MatrixWSError(
-            "MATRIXWS non ha restituito anagrafiche clienti dal servizio 500001/1.",
+            "MATRIXWS non ha restituito anagrafiche dal servizio 500001/1.",
             kind="empty_response",
         )
+    return rows, secret_renewed
+
+
+def _import_registry_matrixws_rows(
+    rows,
+    kind,
+    *,
+    secret_renewed=False,
+    task_id=None,
+    task_name="Importazione anagrafiche",
+    progress_offset=0,
+    progress_span=50,
+):
+    record_type_by_kind = {"customer": "1", "supplier": "2"}
+    label_by_kind = {"customer": "clienti", "supplier": "fornitori"}
+    plural_key_by_kind = {"customer": "customers", "supplier": "suppliers"}
+    expected_record_type = record_type_by_kind.get(kind)
+    label = label_by_kind.get(kind)
+    plural_key = plural_key_by_kind.get(kind)
+    if expected_record_type is None or label is None or plural_key is None:
+        raise ValueError(f"Tipo anagrafica MATRIXWS non supportato: {kind}")
+
     counters = _registry_import_counters()
     counters["total_rows"] = len(rows)
     counters["source"] = "matrixws:500001/1"
@@ -879,10 +918,10 @@ def _import_registry_matrixws_customers(
     for row in rows:
         record_type = _matrixws_value(row, "CF-TIPO|100002|") or ""
         record_type_counts[record_type] = record_type_counts.get(record_type, 0) + 1
-        if record_type != "1":
+        if record_type != expected_record_type:
             continue
 
-        parsed = _parse_matrixws_customer_row(row)
+        parsed = _parse_matrixws_registry_row(row, kind)
         if parsed:
             previous = parsed_by_source_code.get(parsed["source_code"])
             if previous and (
@@ -896,21 +935,37 @@ def _import_registry_matrixws_customers(
         else:
             counters["skipped"] += 1
 
+    expected_rows = record_type_counts.get(expected_record_type, 0)
+    if expected_rows == 0:
+        raise MatrixWSError(
+            f"Import {label} bloccato: MATRIXWS non ha restituito record CF-TIPO={expected_record_type}.",
+            kind=f"missing_{kind}_record_type",
+            details={"record_types": record_type_counts},
+        )
+
     if conflicting_source_codes:
         raise MatrixWSError(
-            "Import clienti bloccato: MATRIXWS ha restituito lo stesso codice cliente "
+            f"Import {label} bloccato: MATRIXWS ha restituito lo stesso codice "
             f"con anagrafiche diverse ({len(conflicting_source_codes)} codici).",
-            kind="conflicting_customer_codes",
+            kind=f"conflicting_{kind}_codes",
             details={"source_codes": sorted(conflicting_source_codes)[:25]},
         )
 
     parsed_rows = list(parsed_by_source_code.values())
+    if not parsed_rows:
+        raise MatrixWSError(
+            f"Import {label} bloccato: nessun record valido dopo il controllo dei campi obbligatori.",
+            kind=f"empty_{kind}_records",
+            details={"record_type_rows": expected_rows, "skipped": counters["skipped"]},
+        )
     counters["record_types"] = record_type_counts
-    counters["filtered_non_customers"] = len(rows) - record_type_counts.get("1", 0)
-    counters["unique_customers"] = len(parsed_rows)
+    counters["filtered_other_record_types"] = len(rows) - expected_rows
+    counters[f"filtered_non_{plural_key}"] = counters["filtered_other_record_types"]
+    counters[f"unique_{plural_key}"] = len(parsed_rows)
 
     response_keys = {key for row in rows for key in row}
     required_keys = {
+        "CF-TIPO|100002|",
         "CFCOD",
         "ANRASO|100003|",
         "ANPIVA|100003|",
@@ -940,7 +995,8 @@ def _import_registry_matrixws_customers(
     ]
 
     logger.info(
-        "Import clienti MATRIXWS 500001: ricevuti=%s validi=%s scartati=%s campi_tecnici_mancanti=%s",
+        "Import %s MATRIXWS 500001: ricevuti=%s validi=%s scartati=%s campi_tecnici_mancanti=%s",
+        label,
         len(rows),
         len(parsed_rows),
         counters["skipped"],
@@ -948,15 +1004,35 @@ def _import_registry_matrixws_customers(
     )
     _upsert_registry_rows(
         parsed_rows,
-        "customer",
+        kind,
         counters,
         task_id=task_id,
         task_name=task_name,
         progress_offset=progress_offset,
         progress_span=progress_span,
     )
-    logger.info("Import clienti MATRIXWS 500001 completato: %s", counters)
+    logger.info("Import %s MATRIXWS 500001 completato: %s", label, counters)
     return counters
+
+
+def _import_registry_matrixws_customers(
+    task_id=None,
+    task_name="Importazione anagrafiche",
+    progress_offset=0,
+    progress_span=60,
+):
+    """Wrapper mantenuto per gli eventuali richiami diretti del solo ramo clienti."""
+    _validate_matrixws_registry_state()
+    rows, secret_renewed = _fetch_matrixws_registry_rows()
+    return _import_registry_matrixws_rows(
+        rows,
+        "customer",
+        secret_renewed=secret_renewed,
+        task_id=task_id,
+        task_name=task_name,
+        progress_offset=progress_offset,
+        progress_span=progress_span,
+    )
 
 
 @log_task(logger)
@@ -970,16 +1046,22 @@ def import_anagrafiche(task_id=None):
     summary = {}
     try:
         db.create_all()
-        summary["customers"] = _import_registry_matrixws_customers(
+        _validate_matrixws_registry_state()
+        matrixws_rows, secret_renewed = _fetch_matrixws_registry_rows()
+        summary["customers"] = _import_registry_matrixws_rows(
+            matrixws_rows,
+            "customer",
+            secret_renewed=secret_renewed,
             task_id=task_id,
             task_name=task_name,
             progress_offset=0,
             progress_span=60,
         )
         db.session.flush()
-        summary["suppliers"] = _import_registry_file(
-            configured_source_file("suppliers"),
+        summary["suppliers"] = _import_registry_matrixws_rows(
+            matrixws_rows,
             "supplier",
+            secret_renewed=secret_renewed,
             task_id=task_id,
             task_name=task_name,
             progress_offset=60,

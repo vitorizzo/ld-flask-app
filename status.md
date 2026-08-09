@@ -6,13 +6,19 @@ Data aggiornamento: 2026-06-02
 
 - Celery Beat accoda `config.tasks.import_anagrafiche_task` ai minuti `.00` e `.30` di ogni ora.
 - Il messaggio scade dopo 25 minuti se non e' ancora stato preso in carico, evitando il recupero tardivo di esecuzioni ormai obsolete.
-- L'intero flusso resta nel worker Celery: clienti tramite MATRIXWS `500001/1` e, temporaneamente, fornitori dal file configurato. Anche l'avvio manuale usa `.delay()` e non esegue l'importazione nel processo web.
-- Prossimo passaggio: sostituire anche la sorgente file dei fornitori con il servizio MATRIXWS dedicato, mantenendo invariata la schedulazione in background.
+- L'intero flusso resta nel worker Celery e anche l'avvio manuale usa `.delay()`, senza eseguire l'importazione nel processo web.
+
+## 2026-08-10 - Clienti e fornitori dalla stessa chiamata MATRIXWS
+
+- Ogni ciclo esegue una sola lettura del servizio `500001/1` e partiziona la risposta CLIFOR esclusivamente tramite `CF-TIPO`: `1` nei registry `customer`, `2` nei registry `supplier`, `0` scartato come record tecnico.
+- `CFCOD` viene normalizzato a cinque cifre per entrambi i tipi. Lo stesso codice puo' esistere una volta per tipo grazie alla chiave distinta `(kind, source, source_code)`; solo il ramo cliente sincronizza `CashCustomer` e relativi alias.
+- Deduplicazione, controllo delle identita' discordanti e guardia sui precedenti record contaminati vengono applicati separatamente a clienti e fornitori prima dell'upsert transazionale.
+- Il file `exp_for.csv` non viene piu' letto. Clienti e fornitori sono stati rimossi dalla configurazione dei trasferimenti file-based; restano file-based articoli, giacenze, barcode e situazioni contabili.
 
 ## 2026-08-09 - Import anagrafiche clienti tramite MATRIXWS
 
 - Il task anagrafiche non legge piu' il file export clienti: usa `POST EVWSSYNC`, servizio personalizzato `500001/1`, versione `20260001`, operazione `read`, ditta `1`.
-- L'import fornitori resta temporaneamente file-based; entrambi i flussi condividono lo stesso upsert idempotente di `BusinessRegistry`, contatti e `CashCustomer`.
+- Dal 2026-08-10 anche i fornitori provengono dalla stessa risposta MATRIXWS; entrambi i rami condividono lo stesso upsert idempotente di `BusinessRegistry` e contatti, mentre `CashCustomer` riguarda soltanto i clienti.
 - Il mapping salva area, zona e codici statistici 1-5; `CF-STAT2` e' la chiave cluster Action. Le descrizioni non esposte non vengono azzerate su record gia' presenti.
 - Il rinnovo del secret scaduto e il salvataggio cifrato vengono eseguiti automaticamente anche dal task di importazione.
 - Il riepilogo del task segnala chiavi tecniche mancanti e annota i campi da aggiungere alla Response: descrizioni area/zona/categoria/sottocategoria/statistici, cellulare, fax e PEC/email alternativa.
