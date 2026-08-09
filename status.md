@@ -13,6 +13,7 @@ Data aggiornamento: 2026-06-02
 - Il servizio personalizzato `500001/1` e' stato alleggerito in TeamSystem e restituisce ora chiavi JSON univoche per area, zona, categoria, sottocategoria e `CF-STAT1`...`CF-STAT5`, senza espansioni descrittive.
 - Il cliente `CFCOD=11` conferma un caso Action valorizzato: `CF-STAT2=1`.
 - Il diagnostico passa temporaneamente al servizio dizionario `3/1` e cerca la chiave esatta `TIPOREC=02`, `CODICEX=000001`, `TIPO=0` per verificare la descrizione dell'Action 1.
+- La prima chiave esatta `02/000001/0` ha restituito `ERR_REC_NOT_FOUND`. Il test prova ora in una sola esecuzione 11 combinazioni controllate di padding `CODICEX` e `GT05-TIPO` (`1`, `0`, spazio), interrompendosi al primo record valido e mostrando tutti gli esiti senza segreti.
 
 ## 2026-08-08 - Accesso persistente dal menu profilo
 

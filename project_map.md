@@ -20,6 +20,7 @@
 - Per le prove manuali `routes/settings.py` concede a `500001/1` fino a 120 secondi di lettura. Le estrazioni massive di produzione dovranno essere accodate con `EVWSASYNC` e recuperate tramite `/www/matrixws/batch/response`.
 - Il tentativo diagnostico `CFCOD = 11` non e' stato applicato da `500001/1`, poiche' il campo non e' esposto nella Request CONFWS; la UI ha comunque mostrato soltanto i primi 25 record.
 - Contratto semplificato verificato: `500001/1` espone direttamente `CF-AREA`, `CF-ZONA`, `CF-CATE`, `CF-SCATE` e `CF-STAT1`...`CF-STAT5`; le descrizioni saranno risolte separatamente tramite servizi dizionario. Il test corrente interroga `3/1` per `Action (02)`, codice `1`.
+- Il diagnostico `3/1` gestisce le varianti COBOL di `CODICEX` (grezzo, zero-padded, allineato a destra/sinistra) e `TIPO` in un solo click; continua soltanto dopo `ERR_REC_NOT_FOUND` e si ferma su dati o errori differenti.
 
 - `tools/preferences.py`: la categoria `TeamSystem MATRIXWS` nel tile `Chiavi API` espone URL server, ambiente, start, applicativo e secret Bearer; il secret usa `AppPreference.secret_value` cifrato e non viene riproposto nella form.
 - Config runtime predisposta: `MATRIXWS_BASE_URL`, `MATRIXWS_ENVIRONMENT`, `MATRIXWS_START`, `MATRIXWS_APPLICATION` (default `MULTI`) e `MATRIXWS_SECRET`.
