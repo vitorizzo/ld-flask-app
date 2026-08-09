@@ -2842,3 +2842,11 @@ Performance apertura giornata Agenda 2026-06-13:
 - Il polling Agenda e vault e' stato unificato in un ciclo non sovrapponibile ogni 5 secondi e non interroga il server quando la scheda browser e' nascosta.
 - I riepiloghi assegni in scadenza/rientro vengono caricati in background dopo i dati principali, rendendo prima utilizzabili comandi, incassi, spese, POS e movimenti.
 - Benchmark successivo: gli endpoint operativi caldi restano tra circa 21 e 73 ms; la lista di 60 assegni scende a circa 37 ms. Verificati sintassi Python/JavaScript e `git diff --check`.
+
+## 2026-08-09 - Ripristino import anagrafiche MATRIXWS CLIFOR
+
+- Individuata la causa delle 2.096 false nuove anagrafiche: `500001/1` restituiva clienti, fornitori e record tecnici, mentre `CFCOD` REST era privo del padding a 5 cifre usato dal precedente `exp_cli.csv`.
+- Ripristino eseguito dalla baseline `exp_cli.csv` in transazione unica, dopo dry-run e backup JSON: rimossi 2.096 registry contaminati, 1.552 relativi contatti, 79 `CashCustomer` creati e 1.216 alias; ripristinate 1.969 anagrafiche preesistenti.
+- Verifica finale: 2.031 registry clienti storici, nessun payload MATRIXWS contaminato, nessun codice senza padding, nessuna riga residua col timestamp della transazione errata e zero differenze sui 1.994 `CashCustomer` riconciliabili con la baseline.
+- `tools/importazioni.py` filtra ora soltanto `CF-TIPO=1`, normalizza `CFCOD` a 5 cifre, deduplica prima dell'upsert e rifiuta codici ripetuti con identita' discordanti. Un guard blocca eventuali nuovi import finche' esistono record contaminati.
+- Backup locale ignorato da Git: `docs/transport/matrixws_clifor_backup_20260809_232016.json`.

@@ -710,8 +710,19 @@ def _matrixws_value(row, key):
     return _clean_registry_text(row.get(key))
 
 
+def _canonical_matrixws_customer_code(value):
+    """Allinea il codice REST al formato a 5 cifre usato dagli export TeamSystem."""
+    value = _clean_zero_value(value)
+    if value and value.isdigit():
+        return value.zfill(5)
+    return value
+
+
 def _parse_matrixws_customer_row(row):
-    source_code = _clean_zero_value(row.get("CFCOD"))
+    if _matrixws_value(row, "CF-TIPO|100002|") != "1":
+        return None
+
+    source_code = _canonical_matrixws_customer_code(row.get("CFCOD"))
     legal_name = _matrixws_value(row, "ANRASO|100003|")
     if not source_code or not legal_name:
         return None
@@ -816,6 +827,23 @@ def _import_registry_matrixws_customers(
     progress_offset=0,
     progress_span=60,
 ):
+    contaminated = [
+        registry
+        for registry in BusinessRegistry.query.filter_by(kind="customer", source="teamsystem").all()
+        if isinstance(registry.source_payload, dict)
+        and registry.source_payload.get("source") == "matrixws"
+        and (
+            registry.source_record_type != "1"
+            or registry.source_code != _canonical_matrixws_customer_code(registry.source_code)
+        )
+    ]
+    if contaminated:
+        raise MatrixWSError(
+            "Import clienti bloccato: sono presenti record della precedente chiamata CLIFOR "
+            f"non ancora bonificati ({len(contaminated)}).",
+            kind="contaminated_registry",
+        )
+
     payload = {
         "CodiceWS": "500001",
         "Schema": "1",
@@ -845,13 +873,41 @@ def _import_registry_matrixws_customers(
     counters["source"] = "matrixws:500001/1"
     counters["secret_renewed"] = secret_renewed
 
-    parsed_rows = []
+    record_type_counts = {}
+    parsed_by_source_code = {}
+    conflicting_source_codes = set()
     for row in rows:
+        record_type = _matrixws_value(row, "CF-TIPO|100002|") or ""
+        record_type_counts[record_type] = record_type_counts.get(record_type, 0) + 1
+        if record_type != "1":
+            continue
+
         parsed = _parse_matrixws_customer_row(row)
         if parsed:
-            parsed_rows.append(parsed)
+            previous = parsed_by_source_code.get(parsed["source_code"])
+            if previous and (
+                previous.get("legal_name") != parsed.get("legal_name")
+                or previous.get("vat_number") != parsed.get("vat_number")
+                or previous.get("tax_code") != parsed.get("tax_code")
+            ):
+                conflicting_source_codes.add(parsed["source_code"])
+            else:
+                parsed_by_source_code[parsed["source_code"]] = parsed
         else:
             counters["skipped"] += 1
+
+    if conflicting_source_codes:
+        raise MatrixWSError(
+            "Import clienti bloccato: MATRIXWS ha restituito lo stesso codice cliente "
+            f"con anagrafiche diverse ({len(conflicting_source_codes)} codici).",
+            kind="conflicting_customer_codes",
+            details={"source_codes": sorted(conflicting_source_codes)[:25]},
+        )
+
+    parsed_rows = list(parsed_by_source_code.values())
+    counters["record_types"] = record_type_counts
+    counters["filtered_non_customers"] = len(rows) - record_type_counts.get("1", 0)
+    counters["unique_customers"] = len(parsed_rows)
 
     response_keys = {key for row in rows for key in row}
     required_keys = {
