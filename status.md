@@ -2,6 +2,11 @@ TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
 Data aggiornamento: 2026-06-02
 
+## 2026-08-09 - Isolamento modale test MATRIXWS
+
+- Il pulsante `Verifica connessione` e' annidato nella riga che apre la configurazione API; il suo handler ora blocca esplicitamente default e propagazione del click prima di mostrare `matrixwsTestModal`.
+- Il test MATRIXWS non deve quindi piu' aprire contemporaneamente la modale di configurazione sottostante.
+
 ## 2026-08-08 - Accesso persistente dal menu profilo
 
 - Il checkbox `Ricordami` gia' presente nel login e' nuovamente collegato a `login_user(..., remember=True)` quando selezionato.

@@ -508,7 +508,9 @@ document.addEventListener("DOMContentLoaded", () => {
     ? bootstrap.Modal.getOrCreateInstance(testModalElement)
     : null;
   document.querySelectorAll(".matrixws-test-button").forEach((button) => {
-    button.addEventListener("click", async () => {
+    button.addEventListener("click", async (event) => {
+      event.preventDefault();
+      event.stopPropagation();
       if (!testModal) return;
       const status = document.getElementById("matrixwsTestStatus");
       const meta = document.getElementById("matrixwsTestMeta");

@@ -8,6 +8,8 @@
 
 ## Integrazione TeamSystem MATRIXWS (2026-08-04)
 
+- `templates/settings/api_keys.html`: il click sul test MATRIXWS viene fermato direttamente sul pulsante, isolandolo dal trigger modale presente sull'intera riga di configurazione.
+
 ### Servizio clienti personalizzato (2026-08-08)
 
 - Il servizio standard read-only `1000/1` e' stato verificato end-to-end con 3.234 anagrafiche restituite.
