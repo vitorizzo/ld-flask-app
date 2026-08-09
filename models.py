@@ -2229,6 +2229,11 @@ class BusinessRegistry(db.Model):
             "category_code",
             "subcategory_code",
         ),
+        db.Index(
+            "ix_business_registry_customer_action",
+            "kind",
+            "statistical_code_2",
+        ),
     )
 
     id = db.Column(db.Integer, primary_key=True)
@@ -2253,6 +2258,22 @@ class BusinessRegistry(db.Model):
     category_description = db.Column(db.String(160), nullable=True)
     subcategory_code = db.Column(db.String(32), nullable=True)
     subcategory_description = db.Column(db.String(160), nullable=True)
+
+    area_code = db.Column(db.String(32), nullable=True)
+    area_description = db.Column(db.String(160), nullable=True)
+    zone_code = db.Column(db.String(32), nullable=True)
+    zone_description = db.Column(db.String(160), nullable=True)
+
+    statistical_code_1 = db.Column(db.String(32), nullable=True)
+    statistical_description_1 = db.Column(db.String(160), nullable=True)
+    statistical_code_2 = db.Column(db.String(32), nullable=True)
+    statistical_description_2 = db.Column(db.String(160), nullable=True)
+    statistical_code_3 = db.Column(db.String(32), nullable=True)
+    statistical_description_3 = db.Column(db.String(160), nullable=True)
+    statistical_code_4 = db.Column(db.String(32), nullable=True)
+    statistical_description_4 = db.Column(db.String(160), nullable=True)
+    statistical_code_5 = db.Column(db.String(32), nullable=True)
+    statistical_description_5 = db.Column(db.String(160), nullable=True)
 
     source_payload = db.Column(db.JSON, nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
@@ -2291,6 +2312,24 @@ class BusinessRegistry(db.Model):
             "subcategory_code": self.subcategory_code,
             "subcategory_description": self.subcategory_description,
             "cluster_key": [self.category_code, self.subcategory_code],
+            "area_code": self.area_code,
+            "area_description": self.area_description,
+            "zone_code": self.zone_code,
+            "zone_description": self.zone_description,
+            "statistical_codes": {
+                "monitor": self.statistical_code_1,
+                "action": self.statistical_code_2,
+                "statistical_3": self.statistical_code_3,
+                "status": self.statistical_code_4,
+                "peroni": self.statistical_code_5,
+            },
+            "statistical_descriptions": {
+                "monitor": self.statistical_description_1,
+                "action": self.statistical_description_2,
+                "statistical_3": self.statistical_description_3,
+                "status": self.statistical_description_4,
+                "peroni": self.statistical_description_5,
+            },
             "is_active": self.is_active,
         }
 

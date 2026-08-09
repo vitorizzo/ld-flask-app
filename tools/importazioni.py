@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from tools.ps_util import get_product_ids, get_product_images, get_product_payload
 from extensions import db
 from models import (
+    AppPreference,
     Articoli,
     Barcode,
     BusinessRegistry,
@@ -25,9 +26,16 @@ from models import (
     ProductPlatformField,
     ProductPlatformLink,
 )
-from flask import jsonify
+from flask import current_app, jsonify
 from tools.log_utils import log_task, get_logger
 from tools.import_transfer_config import configured_source_file, configured_trace_path
+from tools.matrixws_client import (
+    MatrixWSConfig,
+    MatrixWSError,
+    call_sync as call_matrixws_sync,
+    renew_secret as renew_matrixws_secret,
+)
+from tools.preferences import get_definition_map, load_preferences_into_app_config
 
 logger = get_logger('importazioni')
 
@@ -517,19 +525,8 @@ def _parse_registry_row(row, kind):
     }
 
 
-def _import_registry_file(file_name, kind, task_id=None, task_name="Importazione anagrafiche", progress_offset=0, progress_span=50):
-    from routes.esportazioni_teamsystem import serve_risorsa
-    from tools.redis_utils import update_task, status_string
-
-    file_csv = serve_risorsa(file_name)
-    logger.info(
-        "File anagrafiche %s richiesto=%s risolto=%s",
-        kind,
-        file_name,
-        file_csv,
-    )
-
-    counters = {
+def _registry_import_counters():
+    return {
         "created": 0,
         "updated": 0,
         "unchanged": 0,
@@ -539,16 +536,18 @@ def _import_registry_file(file_name, kind, task_id=None, task_name="Importazione
         "total_rows": 0,
     }
 
-    with open(file_csv, "r", encoding="utf-8-sig", errors="ignore", newline="") as csvfile:
-        rows = list(csv.reader(csvfile, delimiter="\t"))
 
-    parsed_rows = []
-    for row in rows:
-        parsed = _parse_registry_row(row, kind)
-        if parsed:
-            parsed_rows.append(parsed)
-        else:
-            counters["skipped"] += 1
+def _upsert_registry_rows(
+    parsed_rows,
+    kind,
+    counters,
+    *,
+    task_id=None,
+    task_name="Importazione anagrafiche",
+    progress_offset=0,
+    progress_span=50,
+):
+    from tools.redis_utils import update_task, status_string
 
     source_codes = [parsed["source_code"] for parsed in parsed_rows]
     registry_by_key = {
@@ -577,8 +576,6 @@ def _import_registry_file(file_name, kind, task_id=None, task_name="Importazione
         customer_by_code = {customer.codice_cliente: customer for customer in customers if customer.codice_cliente}
         customer_by_vat = {customer.partita_iva: customer for customer in customers if customer.partita_iva}
 
-    counters["total_rows"] = len(rows)
-    logger.info("Import anagrafiche %s: lette %s righe da %s", kind, counters["total_rows"], file_csv)
     with db.session.no_autoflush:
         for index, parsed in enumerate(parsed_rows):
             registry_key = (kind, parsed["source"], parsed["source_code"])
@@ -614,8 +611,24 @@ def _import_registry_file(file_name, kind, task_id=None, task_name="Importazione
                 "category_description",
                 "subcategory_code",
                 "subcategory_description",
+                "area_code",
+                "area_description",
+                "zone_code",
+                "zone_description",
+                "statistical_code_1",
+                "statistical_description_1",
+                "statistical_code_2",
+                "statistical_description_2",
+                "statistical_code_3",
+                "statistical_description_3",
+                "statistical_code_4",
+                "statistical_description_4",
+                "statistical_code_5",
+                "statistical_description_5",
                 "source_payload",
             ):
+                if field not in parsed:
+                    continue
                 value = parsed[field]
                 if getattr(registry, field) != value:
                     setattr(registry, field, value)
@@ -645,13 +658,248 @@ def _import_registry_file(file_name, kind, task_id=None, task_name="Importazione
                 counters["unchanged"] += 1
 
             if index % 100 == 0:
-                progress = progress_offset + int((index / max(len(rows), 1)) * progress_span)
+                progress = progress_offset + int((index / max(len(parsed_rows), 1)) * progress_span)
                 update_task(task_id, task_name, progress, status_string["update"])
                 db.session.flush()
 
     db.session.flush()
+    return counters
+
+
+def _import_registry_file(file_name, kind, task_id=None, task_name="Importazione anagrafiche", progress_offset=0, progress_span=50):
+    from routes.esportazioni_teamsystem import serve_risorsa
+
+    file_csv = serve_risorsa(file_name)
+    logger.info(
+        "File anagrafiche %s richiesto=%s risolto=%s",
+        kind,
+        file_name,
+        file_csv,
+    )
+
+    counters = _registry_import_counters()
+    with open(file_csv, "r", encoding="utf-8-sig", errors="ignore", newline="") as csvfile:
+        rows = list(csv.reader(csvfile, delimiter="\t"))
+
+    parsed_rows = []
+    for row in rows:
+        parsed = _parse_registry_row(row, kind)
+        if parsed:
+            parsed_rows.append(parsed)
+        else:
+            counters["skipped"] += 1
+
+    counters["total_rows"] = len(rows)
+    counters["source"] = f"file:{file_name}"
+    logger.info("Import anagrafiche %s: lette %s righe da %s", kind, counters["total_rows"], file_csv)
+    _upsert_registry_rows(
+        parsed_rows,
+        kind,
+        counters,
+        task_id=task_id,
+        task_name=task_name,
+        progress_offset=progress_offset,
+        progress_span=progress_span,
+    )
 
     logger.info("Import anagrafiche %s completato: %s", kind, counters)
+    return counters
+
+
+def _matrixws_value(row, key):
+    return _clean_registry_text(row.get(key))
+
+
+def _parse_matrixws_customer_row(row):
+    source_code = _clean_zero_value(row.get("CFCOD"))
+    legal_name = _matrixws_value(row, "ANRASO|100003|")
+    if not source_code or not legal_name:
+        return None
+
+    vat_number, tax_code = _split_vat_tax(
+        _matrixws_value(row, "ANPIVA|100003|"),
+        _matrixws_value(row, "ANCOFI|100003|"),
+    )
+    country_code = _matrixws_value(row, "ANPAESE|100003|")
+
+    return {
+        "kind": "customer",
+        "source": "teamsystem",
+        "source_record_type": _matrixws_value(row, "CF-TIPO|100002|"),
+        "source_company_code": "1",
+        "source_code": source_code,
+        "display_name": legal_name,
+        "legal_name": legal_name,
+        "vat_number": vat_number,
+        "tax_code": tax_code,
+        "address": _matrixws_value(row, "ANIND|100003|"),
+        "zip_code": _clean_zero_value(row.get("ANCAP|100003|")),
+        "city": _matrixws_value(row, "ANCITTA|100003|"),
+        "province": _matrixws_value(row, "ANPROV|100003|"),
+        "country": "IT" if country_code in {"", "0"} else country_code,
+        "category_code": _clean_zero_value(row.get("CF-CATE|100002|")),
+        "subcategory_code": _clean_zero_value(row.get("CF-SCATE|100002|")),
+        "area_code": _clean_zero_value(row.get("CF-AREA|100002|")),
+        "zone_code": _clean_zero_value(row.get("CF-ZONA|100002|")),
+        "statistical_code_1": _matrixws_value(row, "CF-STAT1|100002|"),
+        "statistical_code_2": _matrixws_value(row, "CF-STAT2|100002|"),
+        "statistical_code_3": _matrixws_value(row, "CF-STAT3|100002|"),
+        "statistical_code_4": _matrixws_value(row, "CF-STAT4|100002|"),
+        "statistical_code_5": _matrixws_value(row, "CF-STAT5|100002|"),
+        "source_payload": {
+            "source": "matrixws",
+            "service": "500001",
+            "schema": "1",
+            "row": row,
+        },
+        "contacts": [
+            ("phone", _normalize_phone(row.get("ANTELEFONO|100003|")), "telefono", "ANTELEFONO", True),
+        ],
+        "emails": [
+            (_normalize_email(row.get("ANEMAIL|100003|")), "email principale", "ANEMAIL", True),
+        ],
+    }
+
+
+def _save_renewed_matrixws_secret(secret):
+    definition = get_definition_map()["matrixws.secret"]
+    row = AppPreference.query.filter_by(key=definition.key).first()
+    if row is None:
+        row = AppPreference(
+            key=definition.key,
+            category=definition.category,
+            label=definition.label,
+            description=definition.description,
+            value_type=definition.value_type,
+            sort_order=definition.sort_order,
+        )
+        db.session.add(row)
+    else:
+        row.category = definition.category
+        row.label = definition.label
+        row.description = definition.description
+        row.value_type = definition.value_type
+        row.sort_order = definition.sort_order
+    row.secret_value = secret
+    row.value_text = None
+    row.value_json = None
+    db.session.commit()
+    load_preferences_into_app_config(current_app._get_current_object())
+
+
+def _matrixws_response_rows(result):
+    if result["status_code"] != 200 or not isinstance(result.get("json"), dict):
+        raise MatrixWSError(
+            f"MATRIXWS ha risposto con stato HTTP {result['status_code']} durante l'importazione clienti.",
+            kind="response",
+        )
+
+    body = result["json"]
+    rows = body.get("dati")
+    if body.get("status") == "error" or not isinstance(rows, list):
+        error = body.get("error") if isinstance(body.get("error"), dict) else {}
+        description = error.get("description") or "Risposta MATRIXWS priva dell'elenco clienti."
+        raise MatrixWSError(str(description), kind="application_response", details=error)
+    if rows and isinstance(rows[0], dict) and isinstance(rows[0].get("error"), dict):
+        error = rows[0]["error"]
+        raise MatrixWSError(
+            str(error.get("description") or "MATRIXWS ha restituito un errore applicativo."),
+            kind="application_response",
+            details=error,
+        )
+    return [row for row in rows if isinstance(row, dict)]
+
+
+def _import_registry_matrixws_customers(
+    task_id=None,
+    task_name="Importazione anagrafiche",
+    progress_offset=0,
+    progress_span=60,
+):
+    payload = {
+        "CodiceWS": "500001",
+        "Schema": "1",
+        "Versione": "20260001",
+        "Operazione": "read",
+        "Ditta": "1",
+        "TabellaCampi": [],
+    }
+    config = MatrixWSConfig.from_app_config(current_app.config)
+    result = call_matrixws_sync(config, payload, method="POST", timeout=(10, 300))
+    secret_renewed = False
+    if result["status_code"] == 401:
+        renewed_secret = renew_matrixws_secret(config)
+        _save_renewed_matrixws_secret(renewed_secret)
+        config = MatrixWSConfig.from_app_config(current_app.config)
+        result = call_matrixws_sync(config, payload, method="POST", timeout=(10, 300))
+        secret_renewed = True
+
+    rows = _matrixws_response_rows(result)
+    if not rows:
+        raise MatrixWSError(
+            "MATRIXWS non ha restituito anagrafiche clienti dal servizio 500001/1.",
+            kind="empty_response",
+        )
+    counters = _registry_import_counters()
+    counters["total_rows"] = len(rows)
+    counters["source"] = "matrixws:500001/1"
+    counters["secret_renewed"] = secret_renewed
+
+    parsed_rows = []
+    for row in rows:
+        parsed = _parse_matrixws_customer_row(row)
+        if parsed:
+            parsed_rows.append(parsed)
+        else:
+            counters["skipped"] += 1
+
+    response_keys = {key for row in rows for key in row}
+    required_keys = {
+        "CFCOD",
+        "ANRASO|100003|",
+        "ANPIVA|100003|",
+        "ANCOFI|100003|",
+        "ANIND|100003|",
+        "ANCAP|100003|",
+        "ANCITTA|100003|",
+        "ANPROV|100003|",
+        "ANTELEFONO|100003|",
+        "ANEMAIL|100003|",
+        "CF-AREA|100002|",
+        "CF-ZONA|100002|",
+        "CF-CATE|100002|",
+        "CF-SCATE|100002|",
+        *{f"CF-STAT{index}|100002|" for index in range(1, 6)},
+    }
+    counters["missing_required_response_keys"] = sorted(required_keys - response_keys)
+    counters["fields_to_add_to_response"] = [
+        "descrizione area",
+        "descrizione zona",
+        "descrizione categoria",
+        "descrizione sottocategoria",
+        "descrizioni codici statistici 1-5",
+        "cellulare",
+        "fax",
+        "PEC/email alternativa",
+    ]
+
+    logger.info(
+        "Import clienti MATRIXWS 500001: ricevuti=%s validi=%s scartati=%s campi_tecnici_mancanti=%s",
+        len(rows),
+        len(parsed_rows),
+        counters["skipped"],
+        counters["missing_required_response_keys"],
+    )
+    _upsert_registry_rows(
+        parsed_rows,
+        "customer",
+        counters,
+        task_id=task_id,
+        task_name=task_name,
+        progress_offset=progress_offset,
+        progress_span=progress_span,
+    )
+    logger.info("Import clienti MATRIXWS 500001 completato: %s", counters)
     return counters
 
 
@@ -666,13 +914,11 @@ def import_anagrafiche(task_id=None):
     summary = {}
     try:
         db.create_all()
-        summary["customers"] = _import_registry_file(
-            configured_source_file("customers"),
-            "customer",
+        summary["customers"] = _import_registry_matrixws_customers(
             task_id=task_id,
             task_name=task_name,
             progress_offset=0,
-            progress_span=50,
+            progress_span=60,
         )
         db.session.flush()
         summary["suppliers"] = _import_registry_file(
@@ -680,8 +926,8 @@ def import_anagrafiche(task_id=None):
             "supplier",
             task_id=task_id,
             task_name=task_name,
-            progress_offset=50,
-            progress_span=50,
+            progress_offset=60,
+            progress_span=40,
         )
         db.session.commit()
         update_task(task_id, task_name, 100, status_string["end"])

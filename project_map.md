@@ -13,11 +13,11 @@
 ### Servizio clienti personalizzato (2026-08-08)
 
 - Il servizio standard read-only `1000/1` e' stato verificato end-to-end con 3.234 anagrafiche restituite.
-- La personalizzazione TeamSystem `500001/1` estende la stessa vista clienti con area, zona e cinque campi statistici, ciascuno esposto come codice e descrizione.
-- `routes/settings.py`: il test MATRIXWS usa temporaneamente `500001/1` per censire il contratto JSON reale prima di implementare l'import.
-- Destinazione applicativa gia' esistente: `BusinessRegistry` e l'upsert in `tools/importazioni.py`; non va creato un archivio clienti parallelo. I cluster correnti `category_*`/`subcategory_*` devono essere estesi o rimappati soltanto dopo aver identificato i nomi esatti della risposta.
-- La prima risposta reale `500001/1` contiene chiavi duplicate `CF-ZONA` e uscite personalizzate `GT05-*|9000xx|`; l'import REST resta intenzionalmente sospeso finche' il tracciato Response non espone identificatori univoci per i cinque statistici, evitando perdita silenziosa di valori nel parser JSON.
-- Per le prove manuali `routes/settings.py` concede a `500001/1` fino a 120 secondi di lettura. Le estrazioni massive di produzione dovranno essere accodate con `EVWSASYNC` e recuperate tramite `/www/matrixws/batch/response`.
+- La personalizzazione TeamSystem `500001/1` estende la stessa vista clienti con area, zona e cinque codici statistici; le descrizioni non sono ancora esposte.
+- `tools/importazioni.py`: il ramo clienti di `import_anagrafiche()` usa direttamente `EVWSSYNC` e `500001/1`; il ramo fornitori conserva per ora il file configurato. Parser REST e parser file confluiscono nello stesso upsert di `BusinessRegistry`, contatti e `CashCustomer`.
+- Il task Celery ammette fino a 300 secondi per l'estrazione sincrona e rinnova/persiste automaticamente il secret su HTTP 401. Un eventuale passaggio futuro a `EVWSASYNC` non cambia il mapping o l'upsert.
+- `models.py` e migration `cd4e5f607182_add_business_registry_matrixws_fields.py`: area, zona, cinque coppie codice/descrizione e indice operativo sul cluster Action (`kind + statistical_code_2`).
+- Il riepilogo import espone `missing_required_response_keys` e `fields_to_add_to_response`; i campi descrittivi assenti sono omessi dal mapping, quindi un successivo arricchimento non viene cancellato.
 - Il tentativo diagnostico `CFCOD = 11` non e' stato applicato da `500001/1`, poiche' il campo non e' esposto nella Request CONFWS; la UI ha comunque mostrato soltanto i primi 25 record.
 - Contratto semplificato verificato: `500001/1` espone direttamente `CF-AREA`, `CF-ZONA`, `CF-CATE`, `CF-SCATE` e `CF-STAT1`...`CF-STAT5`; le descrizioni saranno risolte separatamente tramite servizi dizionario. Il test corrente interroga `3/1` per `Action (02)`, codice `1`.
 - Il diagnostico `3/1` gestisce le varianti COBOL di `CODICEX` (grezzo, zero-padded, allineato a destra/sinistra) e `TIPO` in un solo click; continua soltanto dopo `ERR_REC_NOT_FOUND` e si ferma su dati o errori differenti.
@@ -28,6 +28,7 @@
 - La modalita' sorgente non e' modificabile nella duplicazione; `Adattatore` resta vuoto. `500002/1` espone in Request il solo prefisso `GT05-TIPOREC`; il primo tentativo con due spazi e `>=` non ha enumerato la tabella.
 - Dopo il fallimento della chiave minima a spazi, il diagnostico `500002/1` ha verificato le codifiche/padding esatte del gruppo Action sul solo campo Request `GT05-TIPOREC`.
 - `GT05-TIPOREC` e' stato confermato numerico; il test corrente tenta l'enumerazione dal valore minimo valido `0` tramite operatore `>=`, eliminando padding e chiavi composite dalla diagnosi.
+- La prova numerica minima fallisce ancora: la sorgente Tabellare richiede una chiave completa e non e' adatta a estrarre il dizionario. Questo non blocca il flusso principale: `500001/1` fornisce gia' `CF-STAT2` come indice numerico stabile per clusterizzare Action; le etichette descrittive saranno risolte separatamente in seguito.
 
 - `tools/preferences.py`: la categoria `TeamSystem MATRIXWS` nel tile `Chiavi API` espone URL server, ambiente, start, applicativo e secret Bearer; il secret usa `AppPreference.secret_value` cifrato e non viene riproposto nella form.
 - Config runtime predisposta: `MATRIXWS_BASE_URL`, `MATRIXWS_ENVIRONMENT`, `MATRIXWS_START`, `MATRIXWS_APPLICATION` (default `MULTI`) e `MATRIXWS_SECRET`.

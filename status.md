@@ -2,6 +2,16 @@ TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
 Data aggiornamento: 2026-06-02
 
+## 2026-08-09 - Import anagrafiche clienti tramite MATRIXWS
+
+- Il task anagrafiche non legge piu' il file export clienti: usa `POST EVWSSYNC`, servizio personalizzato `500001/1`, versione `20260001`, operazione `read`, ditta `1`.
+- L'import fornitori resta temporaneamente file-based; entrambi i flussi condividono lo stesso upsert idempotente di `BusinessRegistry`, contatti e `CashCustomer`.
+- Il mapping salva area, zona e codici statistici 1-5; `CF-STAT2` e' la chiave cluster Action. Le descrizioni non esposte non vengono azzerate su record gia' presenti.
+- Il rinnovo del secret scaduto e il salvataggio cifrato vengono eseguiti automaticamente anche dal task di importazione.
+- Il riepilogo del task segnala chiavi tecniche mancanti e annota i campi da aggiungere alla Response: descrizioni area/zona/categoria/sottocategoria/statistici, cellulare, fax e PEC/email alternativa.
+- `BusinessRegistry` e' stato esteso con colonne dedicate e indice `(kind, statistical_code_2)`; migration `cd4e5f607182_add_business_registry_matrixws_fields.py`.
+- Verificati mapping campione, sintassi Python, head Alembic `cd4e5f607182` e `git diff --check`. La chiamata reale e l'upsert DB richiedono deploy, migration e test dal server con accesso Tailscale.
+
 ## 2026-08-09 - Isolamento modale test MATRIXWS
 
 - Il pulsante `Verifica connessione` e' annidato nella riga che apre la configurazione API; il suo handler ora blocca esplicitamente default e propagazione del click prima di mostrare `matrixwsTestModal`.
@@ -22,6 +32,8 @@ Data aggiornamento: 2026-06-02
 - Poiche' la sorgente Tabellare e' bloccata e `Adattatore` richiede codice TeamSystem specifico, nella Request di `500002/1` e' stato aggiunto soltanto `GT05-TIPOREC`. Il primo tentativo ha usato la chiave minima a lunghezza fissa (due spazi) con operatore `>=`.
 - Anche la chiave minima a spazi con `>=` ha restituito `ERR_REC_NOT_FOUND`; il test ha quindi provato quattro forme esatte del solo gruppo Action (`02`, spazio+`2`, `2`+spazio, `2`).
 - Il test delle varianti ha stabilito che `GT05-TIPOREC` e' numerico: `02` e' valido ma inesistente, mentre spazio+`2` produce `ERR_NUMERIC_FIELD`. Il diagnostico usa ora il minimo numerico `0` con `>=`, mantenendo come unico campo Request `GT05-TIPOREC`.
+- Anche `GT05-TIPOREC=0` con `>=` restituisce `ERR_REC_NOT_FOUND`: `500002/1` Tabellare non enumera GTAB0500 tramite Request parziale. I tentativi sul dizionario diretto vengono sospesi.
+- Strategia corretta: importare direttamente da `500001/1` tutti i codici anagrafici e statistici; `CF-STAT2` e' gia' sufficiente come chiave di cluster Action. Le descrizioni, attualmente vuote, sono un arricchimento successivo e non bloccano importazione o clusterizzazione.
 
 ## 2026-08-08 - Accesso persistente dal menu profilo
 
@@ -40,7 +52,7 @@ Data aggiornamento: 2026-06-02
 - Il contratto non e' ancora importabile in sicurezza: la chiave JSON `CF-ZONA` compare ripetutamente nello stesso record e un parser JSON conserva soltanto l'ultima occorrenza. Anche le uscite statistiche `GT05-*|9000xx|` devono essere associate con certezza ai campi 1-5.
 - Dopo l'aggiunta delle descrizioni il servizio puo' superare i 25 secondi del client sincrono; il solo diagnostico `500001/1` usa ora un timeout di lettura di 120 secondi. L'import periodico definitivo dovra' usare il dispatcher asincrono MATRIXWS, senza tenere aperta una richiesta browser.
 - Il tentativo di filtro `CFCOD = 11` non e' stato applicato dal servizio perche' il campo non e' configurato nella Request; l'anteprima applicativa ha comunque limitato a 25 i 3.234 record ricevuti.
-- Primo punto di ripartenza: correggere o documentare nella Response CONFWS nomi/alias univoci per zona e codici/descrizioni statistiche; quindi collegare l'estrazione all'upsert esistente di `BusinessRegistry` e alla clusterizzazione `Action`.
+- Nota storica superata il 2026-08-09: la Response e' stata semplificata con alias univoci e l'estrazione e' ora collegata all'upsert di `BusinessRegistry`; le descrizioni restano l'arricchimento successivo.
 
 ## 2026-08-04 - Configurazione TeamSystem MATRIXWS
 
