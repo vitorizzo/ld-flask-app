@@ -20,7 +20,8 @@ Data aggiornamento: 2026-06-02
 - La lettura senza filtri di `500002/1` restituisce ancora `ERR_REC_NOT_FOUND`: la personalizzazione ha conservato una semantica di lettura puntuale per chiave e non sta enumerando GTAB0500. Prima di altri payload occorre verificare in CONFWS Parametri, Gestione campi, Request e Response del nuovo servizio.
 - Screenshot CONFWS verificati: `500002/1` e' attivo, Output JSON, Request realmente vuota e Response corretta sui quattro campi; la sorgente e' pero' `Gestione campi = Tabellare`, tabella `GTAB0500-X` (Raggruppamenti statistici alfanumerici), archivio `GTABE`. Il comportamento conferma che questa modalita' esegue una lettura per chiave, non una scansione completa come la Vista CLIFOR.
 - Poiche' la sorgente Tabellare e' bloccata e `Adattatore` richiede codice TeamSystem specifico, nella Request di `500002/1` e' stato aggiunto soltanto `GT05-TIPOREC`. Il primo tentativo ha usato la chiave minima a lunghezza fissa (due spazi) con operatore `>=`.
-- Anche la chiave minima con `>=` restituisce `ERR_REC_NOT_FOUND`: l'operatore non avvia una scansione. Il test prova ora quattro forme esatte del solo gruppo Action (`02`, spazio+`2`, `2`+spazio, `2`) e si ferma alla prima risposta dati.
+- Anche la chiave minima a spazi con `>=` ha restituito `ERR_REC_NOT_FOUND`; il test ha quindi provato quattro forme esatte del solo gruppo Action (`02`, spazio+`2`, `2`+spazio, `2`).
+- Il test delle varianti ha stabilito che `GT05-TIPOREC` e' numerico: `02` e' valido ma inesistente, mentre spazio+`2` produce `ERR_NUMERIC_FIELD`. Il diagnostico usa ora il minimo numerico `0` con `>=`, mantenendo come unico campo Request `GT05-TIPOREC`.
 
 ## 2026-08-08 - Accesso persistente dal menu profilo
 
