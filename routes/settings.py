@@ -1989,90 +1989,32 @@ def api_keys():
 @role_required(900)
 @log_task(logger)
 def matrixws_test():
-    base_payload = {
-        "CodiceWS": "3",
+    payload = {
+        "CodiceWS": "500002",
         "Schema": "1",
         "Versione": "20260001",
         "Operazione": "read",
         "Ditta": "1",
+        "TabellaCampi": [],
     }
-    key_variants = [
-        ("1     ", "1"),
-        ("     1", "1"),
-        ("000001", "1"),
-        ("1", "1"),
-        ("1     ", "0"),
-        ("     1", "0"),
-        ("1", "0"),
-        ("1     ", " "),
-        ("     1", " "),
-        ("000001", " "),
-        ("1", " "),
-    ]
-    payloads = [
-        {
-            **base_payload,
-            "TabellaCampi": [{
-                "GT05-TIPOREC": "02",
-                "GT05-CODICEX": code,
-                "GT05-TIPO": value_type,
-            }],
-        }
-        for code, value_type in key_variants
-    ]
-    payload = payloads[0]
-    attempts = []
-    application_record_found = False
-
-    def application_error_type(call_result):
-        body = call_result.get("json")
-        records = body.get("dati") if isinstance(body, dict) else None
-        if not isinstance(records, list) or not records:
-            return None
-        first = records[0]
-        error = first.get("error") if isinstance(first, dict) else None
-        return error.get("type") if isinstance(error, dict) else None
-
-    def contains_application_data(call_result):
-        body = call_result.get("json")
-        records = body.get("dati") if isinstance(body, dict) else None
-        return bool(
-            isinstance(records, list)
-            and records
-            and any(isinstance(record, dict) and not record.get("error") for record in records)
-        )
 
     try:
         config = MatrixWSConfig.from_app_config(current_app.config)
+        result = call_matrixws_sync(config, payload, method="POST", timeout=(5, 120))
         secret_renewed = False
-        for payload in payloads:
+        if result["status_code"] == 401:
+            renewed_secret = renew_matrixws_secret(config)
+            secret_definition = get_definition_map()["matrixws.secret"]
+            _upsert_api_preference(
+                secret_definition,
+                renewed_secret,
+                keep_empty_secret=False,
+            )
+            db.session.commit()
+            load_preferences_into_app_config(current_app._get_current_object())
+            config = MatrixWSConfig.from_app_config(current_app.config)
             result = call_matrixws_sync(config, payload, method="POST", timeout=(5, 120))
-            if result["status_code"] == 401 and not secret_renewed:
-                renewed_secret = renew_matrixws_secret(config)
-                secret_definition = get_definition_map()["matrixws.secret"]
-                _upsert_api_preference(
-                    secret_definition,
-                    renewed_secret,
-                    keep_empty_secret=False,
-                )
-                db.session.commit()
-                load_preferences_into_app_config(current_app._get_current_object())
-                config = MatrixWSConfig.from_app_config(current_app.config)
-                result = call_matrixws_sync(config, payload, method="POST", timeout=(5, 120))
-                secret_renewed = True
-
-            fields = payload["TabellaCampi"][0]
-            error_type = application_error_type(result)
-            attempts.append({
-                "codicex": fields["GT05-CODICEX"].replace(" ", "·"),
-                "tipo": fields["GT05-TIPO"].replace(" ", "·"),
-                "esito": error_type or ("dati" if contains_application_data(result) else "vuoto"),
-            })
-            if contains_application_data(result):
-                application_record_found = True
-                break
-            if not result["ok"] or error_type not in {None, "ERR_REC_NOT_FOUND"}:
-                break
+            secret_renewed = True
     except MatrixWSError as exc:
         db.session.rollback()
         return jsonify({
@@ -2099,24 +2041,11 @@ def matrixws_test():
         message = f"MATRIXWS ha risposto con stato HTTP {status_code}."
     else:
         message = "Connessione e autenticazione MATRIXWS riuscite."
-        if application_record_found:
-            message += " Individuata la codifica della chiave Action 1."
-        elif attempts:
-            message += " Nessuna variante della chiave Action 1 ha restituito dati."
         if secret_renewed:
             message += " Il secret scaduto e' stato rinnovato e salvato automaticamente."
 
     response_body = result["json"] if result["json"] is not None else result["text"]
     response_truncated = result["truncated"]
-    if isinstance(response_body, dict):
-        response_body = {
-            **response_body,
-            "diagnostica_app": {
-                "record_trovato": application_record_found,
-                "tentativi": attempts,
-                "nota": "Il punto medio rappresenta uno spazio di padding.",
-            },
-        }
     if isinstance(response_body, dict) and isinstance(response_body.get("dati"), list):
         record_count = len(response_body["dati"])
         if record_count > 25:
@@ -2139,7 +2068,7 @@ def matrixws_test():
             "url": result["url"],
             "method": result["method"],
             "service_code": payload["CodiceWS"],
-            "service_description": "Descrizione statistico Action codice 1 (GTAB0500)",
+            "service_description": "Dizionario completo informazioni statistiche (GTAB0500)",
             "operation": payload["Operazione"],
         },
         "response": {

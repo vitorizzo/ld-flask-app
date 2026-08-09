@@ -14,6 +14,9 @@ Data aggiornamento: 2026-06-02
 - Il cliente `CFCOD=11` conferma un caso Action valorizzato: `CF-STAT2=1`.
 - Il diagnostico passa temporaneamente al servizio dizionario `3/1` e cerca la chiave esatta `TIPOREC=02`, `CODICEX=000001`, `TIPO=0` per verificare la descrizione dell'Action 1.
 - La prima chiave esatta `02/000001/0` ha restituito `ERR_REC_NOT_FOUND`. Il test prova ora in una sola esecuzione 11 combinazioni controllate di padding `CODICEX` e `GT05-TIPO` (`1`, `0`, spazio), interrompendosi al primo record valido e mostrando tutti gli esiti senza segreti.
+- Tutte le 11 combinazioni hanno restituito `ERR_REC_NOT_FOUND`: il problema non e' il padding di `CODICEX` ne' `GT05-TIPO`; non e' verificato che il gruppo Action corrisponda tecnicamente a `GT05-TIPOREC=02`.
+- Prossimo punto: duplicare `3/1` nelle personalizzazioni (proposto `500002/1`), lasciare vuota la Request ed esporre in Response `GT05-TIPOREC`, `GT05-CODICEX`, `GT05-TIPO`, `GT05-DESC`; una lettura senza filtri fornira' il dizionario reale.
+- Il servizio personalizzato `500002/1` e' stato creato. Il diagnostico interroga ora il dizionario completo con `Operazione=read` e `TabellaCampi=[]`, mostrando al massimo 25 righe e il totale ricevuto.
 
 ## 2026-08-08 - Accesso persistente dal menu profilo
 
