@@ -1,5 +1,15 @@
 # PROJECT_MAP.md — v2.4
 
+## Situazioni contabili MATRIXWS (2026-08-11)
+
+- `1011/1 - Estrazione scadenze` e' stato verificato realmente: la lettura completa sincrona supera il timeout TeamSystem, mentre `EVWSASYNC` + `/www/matrixws/batch/response` restituisce 98.291 righe dopo stati transitori `BATCH_NOT_FINISHED` veicolati con HTTP 500.
+- Configurazione CONFWS reale: versione `20260100`, Gestione campi `Vista`, vista `251 - Scadenze per WS`, archivio `WKSCADWS`, Adattatore vuoto e Request senza campi. Non e' quindi possibile limitare il risultato mediante il contratto standard corrente.
+- Campi tecnici della Response: `WKSCADWS-DTDOC`, `WKSCADWS-DTSCAD`, `WKSCADWS-NRDOC`, `WKSCADWS-TEFF`, `WKSCADWS-STATO-EFF`, `WKSCADWS-IMPEFF`, `WKSCADWS-CODCF`.
+- La Response standard contiene sette campi (`CodCli`, date documento/scadenza, numero documento, importo, tipo/stato effetto) e non puo' alimentare in sicurezza `CustomerAccountEntry`: mancano tipo cliente/fornitore, Dare/Avere, data registrazione, descrizioni, causale e riferimento.
+- Il confronto con l'ultimo snapshot file (1.814 movimenti/186 clienti) conferma dataset differenti; l'import `import_estratti_conto_clienti()` resta su `EC_CLI.CSV` finche' un servizio personalizzato non replica il tracciato `MOESEQ-LD`.
+- Il futuro client REST contabile dovra' essere asincrono e considerare HTTP 500 + `Exception=BATCH_NOT_FINISHED` uno stato di polling, non un errore definitivo.
+- `routes/settings.py`: il test MATRIXWS punta temporaneamente alla copia `500003/1`, versione `20260100`, con Request `WKSCADWS-STATO-EFF = Aperto`, per verificare se il filtro viene applicato dalla vista prima di progettare mapping e import asincrono.
+
 ## Accesso persistente (2026-08-08)
 
 - `routes/auth.py`: il login rispetta il campo `Ricordami`; `POST /profile/remember-login` abilita o revoca il remember cookie per l'utente autenticato senza terminare la sessione corrente.

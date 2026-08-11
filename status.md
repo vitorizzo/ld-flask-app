@@ -2,6 +2,17 @@ TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
 Data aggiornamento: 2026-06-02
 
+## 2026-08-11 - Verifica situazioni contabili via MATRIXWS
+
+- Il catalogo CONFWS identifica `1011/1 - Estrazione scadenze` come servizio standard read-only piu' vicino all'attuale `EC_CLI.CSV`.
+- Le schermate CONFWS confermano che `1011/1` usa la Vista `251 - Scadenze per WS`, archivio tecnico `WKSCADWS`, senza Adattatore e con versione configurata `20260100`.
+- La scheda Request e' vuota: il servizio standard non accetta filtri configurati, quindi la lettura restituisce l'intera vista. La Response contiene esattamente sette campi tecnici: `WKSCADWS-DTDOC`, `WKSCADWS-DTSCAD`, `WKSCADWS-NRDOC`, `WKSCADWS-TEFF`, `WKSCADWS-STATO-EFF`, `WKSCADWS-IMPEFF`, `WKSCADWS-CODCF`.
+- La chiamata sincrona senza filtri viene accettata ma termina con HTTP 408 interno TeamSystem. Lo stesso payload tramite `EVWSASYNC` parte correttamente e il polling `/www/matrixws/batch/response` completa il batch in circa due minuti; durante l'elaborazione il server usa HTTP 500 + `BATCH_NOT_FINISHED` come stato transitorio.
+- Il batch reale contiene 98.291 scadenze: 96.098 chiuse e 2.193 aperte. La Response standard espone soltanto `CodCli`, `Data Doc.`, `Data Scadenza`, `NrDoc`, `Tipo Effetto`, `Stato effetto` e `Importo`.
+- Il servizio standard non e' equivalente allo snapshot contabile dell'app: l'ultimo `EC_CLI.CSV` contiene 1.814 movimenti di 186 clienti e richiede Dare/Avere, data registrazione, descrizioni, causale e riferimento. Sulle scadenze aperte del `1011`, 956 righe hanno un codice presente sia tra clienti sia tra fornitori e manca il discriminante del tipo; il confronto esatto su codice/date/documento/importo non trova sovrapposizioni con lo snapshot corrente.
+- L'importazione produttiva resta quindi file-based. Per la sostituzione REST occorre una personalizzazione che replichi `MOESEQ-LD` oppure arricchisca una copia del `1011` almeno con tipo cliente/fornitore, segno Dare/Avere, data registrazione, ragione sociale, descrizioni, causale, riferimento e numero rata; il trasporto dovra' usare il batch asincrono.
+- Il servizio e' stato duplicato come `500003/1` e nella Request e' stato aggiunto `WKSCADWS-STATO-EFF`. Il diagnostico usa ora versione `20260100` e filtro esatto `Stato effetto = Aperto`; questa prova non modifica ancora l'importazione produttiva.
+
 ## 2026-08-10 - Import anagrafiche ogni 30 minuti in background
 
 - Celery Beat accoda `config.tasks.import_anagrafiche_task` ai minuti `.00` e `.30` di ogni ora.

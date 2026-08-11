@@ -1990,15 +1990,15 @@ def api_keys():
 @log_task(logger)
 def matrixws_test():
     payload = {
-        "CodiceWS": "500002",
+        "CodiceWS": "500003",
         "Schema": "1",
-        "Versione": "20260001",
+        "Versione": "20260100",
         "Operazione": "read",
         "Ditta": "1",
         "TabellaCampi": [
             {
-                "GT05-TIPOREC": "0",
-                "operatore": ">=",
+                "WKSCADWS-STATO-EFF": "Aperto",
+                "operatore": "=",
             }
         ],
     }
@@ -2073,7 +2073,7 @@ def matrixws_test():
             "url": result["url"],
             "method": result["method"],
             "service_code": payload["CodiceWS"],
-            "service_description": "Dizionario GTAB0500 da raggruppamento numerico minimo",
+            "service_description": "Estrazione scadenze aperte personalizzata",
             "operation": payload["Operazione"],
         },
         "response": {
