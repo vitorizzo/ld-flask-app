@@ -1,5 +1,11 @@
 # PROJECT_MAP.md — v2.4
 
+## Report Agenda e QR home (2026-08-13)
+
+- `static/css/style.css`, `templates/home.html`: la modale QR vive nel `body`, usa apertura Bootstrap esplicita ed e' sopra il backdrop globale (`12050` contro `12040`).
+- `static/js/agenda.js`: nel report, il valore `Totale consegnato` deriva esclusivamente dai prelievi titolare di tipo `serale`; il totale complessivo dei prelievi viene incluso tra parentesi nell'etichetta. Nessun totale persistito o calcolo di quadratura e' stato modificato.
+- `templates/base.html`, `templates/agenda.html`: cache key aggiornate per CSS e report JavaScript.
+
 ## Monitor task e QR home (2026-08-13)
 
 - `templates/home.html`: `appQrModal` viene spostata nel `body` e aperta esplicitamente tramite Bootstrap, evitando modali inattive per stacking/focus del contenitore principale.

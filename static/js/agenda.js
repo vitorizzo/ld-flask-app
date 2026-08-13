@@ -10065,12 +10065,21 @@ function buildReportBodyHtml(payload) {
   const expenseRows = paymentRowsForReport(payload.expenses?.expenses || [], "expense", payload);
   const posRecap = posRecapRows(payload);
   const closingHeaders = priVaultUnlocked ? [] : ["Voce", "Importo"];
-  const deliveredTotal = priVaultUnlocked ? totals.incasso_consegnato : totals.valore_atteso_cassetto;
+  const ownerTakes = payload.ownerTakes?.owner_takes || [];
+  const ownerTakeAmount = row => Number(
+    row.total_amount ?? (Number(row.cash_amount || 0) + Number(row.check_amount || 0))
+  );
+  const totalTaken = sumRows(ownerTakes, ownerTakeAmount);
+  const eveningTaken = sumRows(
+    ownerTakes.filter(row => String(row.take_type || '').toLowerCase() === 'serale'),
+    ownerTakeAmount,
+  );
+  const deliveredLabel = `Totale consegnato (totale prelevato ${signedReportMoney(totalTaken)})`;
   const closingRows = [
     [reportText("Totale di giornata"), signedReportMoney(totalGiornata)],
     [reportText("Totale pagamenti elettronici"), signedReportMoney(totals.totale_incassi_elettronici)],
     [reportText("Totale atteso nel cassetto"), signedReportMoney(totals.valore_atteso_cassetto)],
-    [reportText("Totale consegnato"), signedReportMoney(deliveredTotal)],
+    [reportText(deliveredLabel), signedReportMoney(eveningTaken)],
     [reportText("Totale Versabile"), signedReportMoney(totals.versabile_giornata)],
   ];
   if (priVaultUnlocked) {

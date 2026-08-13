@@ -2,6 +2,12 @@ TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
 Data aggiornamento: 2026-06-02
 
+## 2026-08-13 - QR home e totale consegnato nel report Agenda
+
+- Identificata la causa residua della modale QR: il backdrop globale e' a `z-index: 12040`, mentre la modale QR conservava lo z-index Bootstrap `2100`; pur essendo nel `body`, risultava quindi visivamente presente ma non interattiva. `appQrModal` e' ora esplicitamente a `12050` e la cache CSS e' stata aggiornata.
+- Nel riepilogo di chiusura del report Agenda, `Totale consegnato` mostra come importo la somma dei soli prelievi titolare `take_type=serale`. La somma di tutti i prelievi, serali e parziali, viene riportata tra parentesi nell'etichetta come `totale prelevato`; i calcoli contabili e le API restano invariati.
+- Aggiornata la cache key di `agenda.js` per rendere immediata la nuova stampa dopo il deploy.
+
 ## 2026-08-13 - Home e monitor processi in background
 
 - La modale QR della home viene trasferita direttamente nel `body` e aperta con un'istanza Bootstrap esplicita; rimosso il trigger dichiarativo duplicato che poteva lasciare backdrop/focus sopra la modale.
