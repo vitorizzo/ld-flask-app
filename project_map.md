@@ -1,5 +1,13 @@
 # PROJECT_MAP.md — v2.4
 
+## Monitor task e QR home (2026-08-13)
+
+- `templates/home.html`: `appQrModal` viene spostata nel `body` e aperta esplicitamente tramite Bootstrap, evitando modali inattive per stacking/focus del contenitore principale.
+- `templates/base.html`: il monitor task e i relativi asset sono globali per tutte le pagine autenticate; cache key dedicata `monitor11`.
+- `static/js/task_status.js`, `static/css/task_status.css`, `templates/partials/task_status.html`: barra sempre visibile, conteggi attivi/errori separati, pannello scrollabile su ogni viewport, rendering sicuro e pulizia cumulativa degli errori archiviati.
+- `tools/redis_utils.py`: timestamp sugli aggiornamenti, TTL configurabili (`TASK_STATUS_ACTIVE_TTL`, default 24 ore; `TASK_STATUS_ERROR_TTL`, default 7 giorni), classificazione terminale e rimozione selettiva degli errori. Le vecchie chiavi senza timestamp restano riconoscibili come storiche finche' l'utente non le rimuove.
+- `routes/status_routes.py`, `routes/task_routes.py`, `tools/task_monitor.py`: API autenticate; gli stati terminali possono essere rimossi senza revocare Celery, mentre lo stop reale usa revoke con terminate senza imporre `SIGKILL`.
+
 ## Situazioni contabili MATRIXWS (2026-08-11)
 
 - `1011/1 - Estrazione scadenze` e' stato verificato realmente: la lettura completa sincrona supera il timeout TeamSystem, mentre `EVWSASYNC` + `/www/matrixws/batch/response` restituisce 98.291 righe dopo stati transitori `BATCH_NOT_FINISHED` veicolati con HTTP 500.
@@ -9,6 +17,9 @@
 - Il confronto con l'ultimo snapshot file (1.814 movimenti/186 clienti) conferma dataset differenti; l'import `import_estratti_conto_clienti()` resta su `EC_CLI.CSV` finche' un servizio personalizzato non replica il tracciato `MOESEQ-LD`.
 - Il futuro client REST contabile dovra' essere asincrono e considerare HTTP 500 + `Exception=BATCH_NOT_FINISHED` uno stato di polling, non un errore definitivo.
 - `routes/settings.py`: il test MATRIXWS punta temporaneamente alla copia `500003/1`, versione `20260100`, con Request `WKSCADWS-STATO-EFF = Aperto`, per verificare se il filtro viene applicato dalla vista prima di progettare mapping e import asincrono.
+- Il primo test filtrato riceve `ERR_PARAM_REQUEST`; il nome/valore ipotizzato non basta a soddisfare il contratto della scheda Request. La prossima modifica deve essere basata sull'export `Salva request` di CONFWS, non su ulteriori varianti speculative.
+- `docs/transport/500003_1.json` mostra il contratto effettivo: unico parametro `WKSCADWS-TIPODIST` e versione `20260001`. La Request va corretta in CONFWS affinche' esponga `WKSCADWS-STATO-EFF`; solo il successivo export potra' essere riportato fedelmente nel diagnostico.
+- Verifica CONFWS successiva: selezionare `WKSCADWS-STATO-EFF` nella Request produce sempre `WKSCADWS-TIPODIST`. La vista tratta lo stato come sola uscita e non offre un filtro server sullo stato; per ottenere le sole partite aperte occorre filtrare le 98.291 righe dopo il batch asincrono oppure usare una vista/adattatore personalizzato.
 
 ## Accesso persistente (2026-08-08)
 

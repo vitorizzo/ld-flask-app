@@ -7,13 +7,24 @@ task_bp = Blueprint("task_bp", __name__, url_prefix="/task_manage")
 
 
 @task_bp.route("/status/<task_id>")
+@login_required
 def task_status(task_id):
     return jsonify(get_task_status(task_id))
 
 
 @task_bp.route("/kill/<task_id>", methods=["POST"])
+@login_required
 def task_kill(task_id):
-    return jsonify(kill_task(task_id))
+    payload = request.get_json(silent=True) or {}
+    return jsonify(kill_task(task_id, revoke=not bool(payload.get("remove_only"))))
+
+
+@task_bp.route("/clear_errors", methods=["POST"])
+@login_required
+def clear_errors():
+    from tools.redis_utils import clear_terminal_task_statuses
+    cleared = clear_terminal_task_statuses()
+    return jsonify({"message": f"Rimossi {cleared} errori archiviati dal monitor.", "cleared": cleared})
 
 
 @task_bp.route("/clear_all_tasks", methods=["GET", "POST"])

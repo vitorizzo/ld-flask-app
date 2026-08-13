@@ -1,6 +1,7 @@
 import os
 import json
 import redis
+from datetime import datetime, timezone
 from functools import lru_cache
 from urllib.parse import urlparse
 from redis.exceptions import RedisError
@@ -18,6 +19,9 @@ status_string = {
     "error": "errore",
     "attached": "in coda..."
 }
+
+TASK_STATUS_ACTIVE_TTL = int(os.getenv("TASK_STATUS_ACTIVE_TTL", "86400"))
+TASK_STATUS_ERROR_TTL = int(os.getenv("TASK_STATUS_ERROR_TTL", "604800"))
 
 
 @lru_cache(maxsize=1)
@@ -39,7 +43,8 @@ def update_task(task_id, descrizione, progress, status, exception=None):
     data = {
         "name": descrizione,
         "progress": progress,
-        "stato": status
+        "stato": status,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
     }
     if status in ("errore", "error") and exception:
         data["errore"] = str(exception)
@@ -53,7 +58,9 @@ def set_task_status(task_id, status_dict):
     r = get_redis()
     if "name" not in status_dict:
         status_dict["name"] = task_id
-    r.set(f"task_status:{task_id}", json.dumps(status_dict))
+    stato = str(status_dict.get("stato") or "").strip().lower()
+    ttl = TASK_STATUS_ERROR_TTL if stato in {"errore", "error", "fallito", "failed"} else TASK_STATUS_ACTIVE_TTL
+    r.setex(f"task_status:{task_id}", ttl, json.dumps(status_dict))
 
 
 def get_all_tasks_status():
@@ -74,8 +81,14 @@ def get_all_tasks_status():
         task["task_id"] = key.replace("task_status:", "", 1).strip()
         stato = (task.get("stato", "") or "").lower()
         if stato not in ("completato",):
+            task["terminal"] = stato in ("errore", "error", "fallito", "failed", "revocato", "revoked")
+            task["legacy"] = not bool(task.get("updated_at"))
             task_list.append(task)
-    return task_list
+    return sorted(
+        task_list,
+        key=lambda task: (bool(task.get("terminal")), str(task.get("updated_at") or "")),
+        reverse=False,
+    )
 
 
 def clear_task_status(task_id):
@@ -99,3 +112,24 @@ def clear_all_task_statuses():
             r.delete(*keys)
     except RedisError:
         return
+
+
+def clear_terminal_task_statuses():
+    """Rimuove dal monitor soltanto errori/revoche, senza toccare task attivi."""
+    r = get_redis()
+    cleared = 0
+    try:
+        for key in r.scan_iter("task_status:*"):
+            raw = r.get(key)
+            if not raw:
+                continue
+            try:
+                task = json.loads(raw)
+            except (TypeError, ValueError):
+                continue
+            stato = str(task.get("stato") or "").strip().lower()
+            if stato in {"errore", "error", "fallito", "failed", "revocato", "revoked"}:
+                cleared += int(r.delete(key) or 0)
+    except RedisError:
+        return cleared
+    return cleared

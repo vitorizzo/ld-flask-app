@@ -2,6 +2,15 @@ TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
 Data aggiornamento: 2026-06-02
 
+## 2026-08-13 - Home e monitor processi in background
+
+- La modale QR della home viene trasferita direttamente nel `body` e aperta con un'istanza Bootstrap esplicita; rimosso il trigger dichiarativo duplicato che poteva lasciare backdrop/focus sopra la modale.
+- Il monitor dei task e' sempre visibile nelle pagine degli utenti autenticati, anche quando non esistono attivita', e mostra separatamente conteggio attivi, errori e avanzamento medio dei soli processi attivi.
+- L'elenco dettagli ha altezza massima e scroll verticale su desktop, tablet e mobile; messaggi e nomi provenienti da Redis vengono sottoposti a escaping prima del rendering.
+- Causa degli circa 80 errori: le chiavi `task_status:*` di errore venivano salvate senza TTL e l'endpoint escludeva soltanto lo stato `completato`, presentando per sempre ogni errore storico come processo attivo. I nuovi stati hanno timestamp e TTL (24 ore per attivi, 7 giorni per errori).
+- Gli errori terminali mostrano `Rimuovi` invece di `Stop`; il comando cumulativo `Rimuovi errori archiviati` elimina soltanto errori/revoche dal monitor Redis senza inviare revoke ai task attivi. Lo stop di un processo vero resta disponibile e non forza piu' il segnale Unix `SIGKILL`.
+- Endpoint di stato, dettaglio, stop e pulizia sono ora autenticati. Verificati sintassi Python/Jinja/JavaScript, lifecycle Redis simulato e `git diff --check`.
+
 ## 2026-08-11 - Verifica situazioni contabili via MATRIXWS
 
 - Il catalogo CONFWS identifica `1011/1 - Estrazione scadenze` come servizio standard read-only piu' vicino all'attuale `EC_CLI.CSV`.
@@ -12,6 +21,9 @@ Data aggiornamento: 2026-06-02
 - Il servizio standard non e' equivalente allo snapshot contabile dell'app: l'ultimo `EC_CLI.CSV` contiene 1.814 movimenti di 186 clienti e richiede Dare/Avere, data registrazione, descrizioni, causale e riferimento. Sulle scadenze aperte del `1011`, 956 righe hanno un codice presente sia tra clienti sia tra fornitori e manca il discriminante del tipo; il confronto esatto su codice/date/documento/importo non trova sovrapposizioni con lo snapshot corrente.
 - L'importazione produttiva resta quindi file-based. Per la sostituzione REST occorre una personalizzazione che replichi `MOESEQ-LD` oppure arricchisca una copia del `1011` almeno con tipo cliente/fornitore, segno Dare/Avere, data registrazione, ragione sociale, descrizioni, causale, riferimento e numero rata; il trasporto dovra' usare il batch asincrono.
 - Il servizio e' stato duplicato come `500003/1` e nella Request e' stato aggiunto `WKSCADWS-STATO-EFF`. Il diagnostico usa ora versione `20260100` e filtro esatto `Stato effetto = Aperto`; questa prova non modifica ancora l'importazione produttiva.
+- La prima prova di `500003/1` restituisce HTTP di trasporto 200 ma errore applicativo `ERR_PARAM_REQUEST - Non sono presenti tutti i parametri della request`: il filtro non e' stato ancora eseguito. Prima di correggere il payload occorre acquisire il JSON prodotto dal comando CONFWS `Salva request`, che rappresenta il contratto effettivo della copia personalizzata.
+- L'export reale `docs/transport/500003_1.json` spiega l'errore: nella Request e' presente soltanto `WKSCADWS-TIPODIST`, non `WKSCADWS-STATO-EFF`; riporta inoltre `Versione=20260001`. Prima di ripetere il test bisogna sostituire il campo Request con `WKSCADWS-STATO-EFF` e riesportare il contratto.
+- CONFWS sostituisce sistematicamente `WKSCADWS-STATO-EFF` con `WKSCADWS-TIPODIST` anche dopo rimozione e nuovo inserimento. Non e' un errore dell'utente: nella vista `WKSCADWS` lo stato e' disponibile in output ma non come parametro di selezione; il solo input esposto dalla vista e' il tipo distinta. Il `500003/1` non puo' quindi filtrare lato server le sole righe `Aperto` con la configurazione standard della vista.
 
 ## 2026-08-10 - Import anagrafiche ogni 30 minuti in background
 

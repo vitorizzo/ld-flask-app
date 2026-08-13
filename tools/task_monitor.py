@@ -16,11 +16,13 @@ def get_task_status(task_id):
     }
 
 
-def kill_task(task_id):
-    """Revoca e termina un task Celery attivo."""
+def kill_task(task_id, *, revoke=True):
+    """Revoca un task attivo oppure rimuove un risultato terminale dal monitor."""
     task_id = (task_id or "").strip()
     if not task_id:
         return {"message": "ID task mancante.", "cleared": 0}
-    celery.control.revoke(task_id, terminate=True, signal='SIGKILL')
+    if revoke:
+        celery.control.revoke(task_id, terminate=True)
     cleared = clear_task_status(task_id)
-    return {"message": f"Task {task_id} revocato e rimosso dal monitor.", "cleared": cleared}
+    action = "revocato e rimosso" if revoke else "rimosso"
+    return {"message": f"Task {task_id} {action} dal monitor.", "cleared": cleared}

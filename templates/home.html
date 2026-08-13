@@ -26,7 +26,7 @@
         {% endif %}
         <a class="quick-action" href="/search/ricerca_x_descrizione"><i class="fa-solid fa-magnifying-glass"></i><span>Informazioni articoli</span></a>
         <a class="quick-action" href="{{ url_for('events.index') }}"><i class="fa-regular fa-calendar-check"></i><span>Eventi</span></a>
-        <button class="quick-action" type="button" data-bs-toggle="modal" data-bs-target="#appQrModal">
+        <button class="quick-action" type="button" data-app-qr-trigger>
             <i class="fa-solid fa-qrcode"></i>
             <span>QR App</span>
         </button>
@@ -77,9 +77,13 @@
     <script>
     document.addEventListener("DOMContentLoaded", () => {
       const modal = document.getElementById("appQrModal");
-      if (modal && modal.parentElement !== document.body) {
-        document.body.appendChild(modal);
-      }
+      if (!modal) return;
+      if (modal.parentElement !== document.body) document.body.appendChild(modal);
+      const qrModal = window.bootstrap ? bootstrap.Modal.getOrCreateInstance(modal) : null;
+      document.querySelector('[data-app-qr-trigger]')?.addEventListener("click", (event) => {
+        event.preventDefault();
+        qrModal?.show();
+      });
       document.querySelector("[data-copy-app-link]")?.addEventListener("click", async () => {
         const url = "https://ldapp.ldenoteca.it";
         try {

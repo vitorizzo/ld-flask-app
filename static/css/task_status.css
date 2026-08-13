@@ -44,9 +44,22 @@
     background-color: #212529;
     padding: 0.5rem 1rem;
     border-top: 1px solid #444;
+    max-height: min(62vh, 560px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
 }
 
-.clickable {
+.task-status-expand {
+    display: inline-grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
     cursor: pointer;
 }
 
@@ -64,6 +77,34 @@
 
 #task-status-list li span {
     display: block;
+}
+
+#task-status-list .task-status-copy {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+#task-status-list li > div {
+    gap: 0.75rem;
+}
+
+#task-status-list .btn-group {
+    flex: 0 0 auto;
+}
+
+#task-status-list li.task-status-empty {
+    color: #adb5bd;
+    text-align: center;
+}
+
+.task-status-actions {
+    position: sticky;
+    top: -0.5rem;
+    z-index: 1;
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.35rem 0 0.55rem;
+    background: #212529;
 }
 
 #task-status-list .btn {
