@@ -8,6 +8,11 @@
 - La variante desktop richiede viewport ampia, hover e puntatore preciso; Galaxy S25, tablet e altri dispositivi touch mantengono quindi i controlli mobile anche con layout esteso.
 - `static/css/kiosk_order_detail.css` contiene due scale touch coerenti con il resto dell'app: mobile standard fino a 820 px e mobile ad alta risoluzione da 821 px, con tipografia e target quasi raddoppiati.
 
+## Inserimento ordine da smartphone (2026-08-16)
+
+- `templates/route_orders/board.html`: la modale `#directModal` usa campi raggruppati, feedback accessibile e apertura immediata; ricerca cliente con debounce/race protection e invio con validazione e stato inline.
+- `static/css/registry_tools.css`: modale ordine fullscreen e scrollabile sui touch, con scala standard fino a 820 px e scala ad alta risoluzione da 821 px.
+
 ## Report Agenda e QR home (2026-08-13)
 
 - `static/css/style.css`, `templates/home.html`: la modale QR vive nel `body`, usa apertura Bootstrap esplicita ed e' sopra il backdrop globale (`12050` contro `12040`).

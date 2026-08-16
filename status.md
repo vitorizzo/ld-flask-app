@@ -11,6 +11,12 @@ Data aggiornamento: 2026-06-02
 - Correzione Galaxy S25 e dispositivi touch ad alta risoluzione: la variante desktop richiede ora anche mouse e supporto hover, non soltanto una viewport larga. Il dettaglio usa cache key `mobile-status3` e risposta HTTP `no-store`.
 - Aggiunta la seconda scala mobile gia' adottata nel resto dell'app: sui dispositivi touch con viewport dichiarata da almeno 821 px (come S25) contenitore, testi, metadati, selettore, pulsante, pannelli e allegati hanno dimensioni maggiorate. Cache key aggiornata a `mobile-status4`.
 
+## 2026-08-16 - Inserisci ordine ottimizzato per smartphone
+
+- La modale `Inserisci ordine` della Plancia ordini e' ora fullscreen sui dispositivi touch, con corpo scrollabile, header/footer fissi, campi e lista clienti dimensionati per il tocco.
+- Sono previste due scale: smartphone standard fino a 820 px e touch ad alta risoluzione da 821 px, con controlli da 92-94 px e tipografia maggiorata per Galaxy S25.
+- La modale si apre subito mostrando il caricamento clienti; la ricerca e' temporizzata, scarta risposte superate e l'invio espone validazione, avanzamento ed errori inline. Cache key `direct-order-mobile1`.
+
 ## 2026-08-13 - QR home e totale consegnato nel report Agenda
 
 - Identificata la causa residua della modale QR: il backdrop globale e' a `z-index: 12040`, mentre la modale QR conservava lo z-index Bootstrap `2100`; pur essendo nel `body`, risultava quindi visivamente presente ma non interattiva. `appQrModal` e' ora esplicitamente a `12050` e la cache CSS e' stata aggiornata.

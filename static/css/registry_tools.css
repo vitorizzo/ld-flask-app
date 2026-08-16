@@ -591,3 +591,185 @@ body.registry-tools-modal-open .modal-backdrop.show {
     font-size: 1.35rem;
   }
 }
+
+/* Inserimento ordine diretto: la modale viene spostata nel body, quindi i
+   controlli richiedono regole touch esplicite non legate al page shell. */
+@media (max-width: 820px), (hover: none) and (pointer: coarse) {
+  #directModal .modal-dialog {
+    width: 100vw;
+    max-width: none;
+    height: 100vh;
+    height: 100dvh;
+    margin: 0;
+  }
+
+  #directModal .modal-content {
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+    border: 0;
+    border-radius: 0;
+  }
+
+  #directModal .modal-header {
+    flex: 0 0 auto;
+    min-height: 68px;
+    padding: max(14px, env(safe-area-inset-top)) 16px 14px;
+    border-bottom-width: 2px;
+  }
+
+  #directModal .modal-title {
+    font-size: 1.5rem;
+    font-weight: 900;
+  }
+
+  #directModal .btn-close {
+    width: 1.35rem;
+    height: 1.35rem;
+    padding: 12px;
+  }
+
+  #directModal .modal-body {
+    min-height: 0;
+    padding: 18px 16px 24px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #directModal .direct-order-field {
+    display: grid;
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  #directModal .form-label {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  #directModal .form-control,
+  #directModal .form-select {
+    min-height: 52px;
+    border-radius: 10px;
+    font-size: 1.05rem;
+  }
+
+  #directModal #directCustomerSelect {
+    min-height: clamp(190px, 27dvh, 270px);
+    padding: 4px;
+  }
+
+  #directModal #directCustomerSelect option {
+    padding: 12px 10px;
+    white-space: normal;
+  }
+
+  #directModal #directNote {
+    min-height: 170px;
+    line-height: 1.45;
+    resize: vertical;
+  }
+
+  #directModal .modal-footer {
+    flex: 0 0 auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    padding: 12px 16px max(12px, env(safe-area-inset-bottom));
+    background: #fff;
+    border-top-width: 2px;
+  }
+
+  #directModal .modal-footer .btn {
+    width: 100%;
+    min-height: 54px;
+    margin: 0;
+    border-radius: 10px;
+    font-size: 1.05rem;
+    font-weight: 800;
+  }
+
+  #directModal .direct-order-feedback {
+    grid-column: 1 / -1;
+    min-height: 22px;
+    color: #166534;
+    font-size: .92rem;
+    font-weight: 800;
+    text-align: center;
+  }
+
+  #directModal .direct-order-feedback.is-error {
+    color: #b91c1c;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) and (min-width: 821px) {
+  #directModal .modal-header {
+    min-height: 126px;
+    padding: max(30px, env(safe-area-inset-top)) 38px 26px;
+  }
+
+  #directModal .modal-title {
+    font-size: 2.7rem;
+  }
+
+  #directModal .btn-close {
+    width: 2.4rem;
+    height: 2.4rem;
+    padding: 22px;
+  }
+
+  #directModal .modal-body {
+    padding: 36px 42px 48px;
+  }
+
+  #directModal .direct-order-field {
+    gap: 16px;
+    margin-bottom: 34px;
+  }
+
+  #directModal .form-label {
+    font-size: 1.8rem;
+  }
+
+  #directModal .form-control,
+  #directModal .form-select {
+    min-height: 92px;
+    padding: 16px 22px;
+    border-width: 2px;
+    border-radius: 16px;
+    font-size: 1.85rem;
+  }
+
+  #directModal #directCustomerSelect {
+    min-height: clamp(340px, 28dvh, 480px);
+    padding: 8px;
+  }
+
+  #directModal #directCustomerSelect option {
+    padding: 20px 18px;
+  }
+
+  #directModal #directNote {
+    min-height: 310px;
+  }
+
+  #directModal .modal-footer {
+    gap: 20px;
+    padding: 22px 42px max(26px, env(safe-area-inset-bottom));
+  }
+
+  #directModal .modal-footer .btn {
+    min-height: 94px;
+    border-radius: 16px;
+    font-size: 1.8rem;
+  }
+
+  #directModal .direct-order-feedback {
+    min-height: 38px;
+    font-size: 1.55rem;
+  }
+}

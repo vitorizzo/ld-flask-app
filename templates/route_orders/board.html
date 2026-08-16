@@ -3,7 +3,7 @@
 {% block title %}Plancia ordini giri{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css', v=app_version ~ '-direct-order-mobile1') }}">
 <style>
   .route-board-section {
     text-align: left;
@@ -673,19 +673,31 @@
 
 <div class="modal fade registry-tools-modal" id="directModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg"><div class="modal-content">
-    <div class="modal-header"><h5 class="modal-title">Ordine diretto</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-header"><h5 class="modal-title">Inserisci ordine</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">
-      <label class="form-label" for="directCustomerSearch">Cliente</label>
-      <input class="form-control" id="directCustomerSearch" autocomplete="off" placeholder="Cerca cliente">
-      <select class="form-select mt-2" id="directCustomerSelect" size="5"></select>
-      <label class="form-label mt-3" for="directNote">Ordine</label>
-      <textarea class="form-control" id="directNote" rows="6"></textarea>
-      <label class="form-label mt-3" for="directDeliveryDate">Consegna personalizzata</label>
-      <input class="form-control" type="date" id="directDeliveryDate">
-      <label class="form-label mt-3" for="directFiles">Allegati</label>
-      <input class="form-control" type="file" id="directFiles" multiple>
+      <div class="direct-order-field">
+        <label class="form-label" for="directCustomerSearch">Cliente</label>
+        <input class="form-control" id="directCustomerSearch" autocomplete="off" placeholder="Cerca per nome, codice o citta'">
+        <select class="form-select" id="directCustomerSelect" size="5" aria-label="Risultati ricerca cliente"></select>
+      </div>
+      <div class="direct-order-field">
+        <label class="form-label" for="directNote">Ordine</label>
+        <textarea class="form-control" id="directNote" rows="6" placeholder="Scrivi qui il testo dell'ordine"></textarea>
+      </div>
+      <div class="direct-order-field">
+        <label class="form-label" for="directDeliveryDate">Consegna personalizzata</label>
+        <input class="form-control" type="date" id="directDeliveryDate">
+      </div>
+      <div class="direct-order-field">
+        <label class="form-label" for="directFiles">Allegati</label>
+        <input class="form-control" type="file" id="directFiles" multiple>
+      </div>
     </div>
-    <div class="modal-footer"><button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button><button class="btn btn-info" type="button" id="directSendBtn">Invia a LDApp</button></div>
+    <div class="modal-footer">
+      <div class="direct-order-feedback" id="directOrderFeedback" role="status" aria-live="polite"></div>
+      <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Annulla</button>
+      <button class="btn btn-info" type="button" id="directSendBtn">Invia a LDApp</button>
+    </div>
   </div></div>
 </div>
 
@@ -804,6 +816,8 @@
   let directOrders = [];
   let directCustomers = [];
   let directPrefillCustomerId = "";
+  let directCustomerRequestId = 0;
+  let directCustomerSearchTimer = null;
 
   const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[ch]));
   const fmtDate = value => value ? new Date(value).toLocaleDateString("it-IT", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : "-";
@@ -1055,12 +1069,23 @@
   }
 
   async function loadDirectCustomers(q = "") {
+    const requestId = ++directCustomerRequestId;
     const data = await api(`/route-orders/api/customers?q=${encodeURIComponent(q)}`);
-    document.getElementById("directCustomerSelect").innerHTML = data.customers.map(c => `<option value="${c.id}">${esc(c.display)} ${esc(c.city || "")}</option>`).join("");
+    if (requestId !== directCustomerRequestId) return;
+    const select = document.getElementById("directCustomerSelect");
+    select.innerHTML = data.customers.length
+      ? data.customers.map(c => `<option value="${c.id}">${esc(c.display)} ${esc(c.city || "")}</option>`).join("")
+      : `<option value="" disabled>Nessun cliente trovato</option>`;
     if (directPrefillCustomerId) {
-      document.getElementById("directCustomerSelect").value = directPrefillCustomerId;
+      select.value = directPrefillCustomerId;
       directPrefillCustomerId = "";
     }
+  }
+
+  function setDirectOrderFeedback(message = "", isError = false) {
+    const feedback = document.getElementById("directOrderFeedback");
+    feedback.textContent = message;
+    feedback.classList.toggle("is-error", isError);
   }
 
   async function loadAssociateCustomers(q = "") {
@@ -1315,8 +1340,30 @@
     } catch (err) { alert(err.message); }
   });
 
-  document.getElementById("newDirectOrderBtn").addEventListener("click", async () => { document.getElementById("directCustomerSearch").value = ""; document.getElementById("directNote").value = ""; document.getElementById("directDeliveryDate").value = ""; document.getElementById("directFiles").value = ""; await loadDirectCustomers(); directModal.show(); });
-  document.getElementById("directCustomerSearch").addEventListener("input", event => loadDirectCustomers(event.target.value).catch(err => alert(err.message)));
+  document.getElementById("newDirectOrderBtn").addEventListener("click", async () => {
+    window.clearTimeout(directCustomerSearchTimer);
+    directCustomerRequestId += 1;
+    document.getElementById("directCustomerSearch").value = "";
+    document.getElementById("directNote").value = "";
+    document.getElementById("directDeliveryDate").value = "";
+    document.getElementById("directFiles").value = "";
+    document.getElementById("directCustomerSelect").innerHTML = `<option value="" disabled>Caricamento clienti...</option>`;
+    setDirectOrderFeedback();
+    directModal.show();
+    try {
+      await loadDirectCustomers();
+    } catch (err) {
+      setDirectOrderFeedback(err.message || "Errore caricamento clienti", true);
+    }
+  });
+  document.getElementById("directCustomerSearch").addEventListener("input", event => {
+    window.clearTimeout(directCustomerSearchTimer);
+    directCustomerRequestId += 1;
+    document.getElementById("directCustomerSelect").innerHTML = `<option value="" disabled>Ricerca in corso...</option>`;
+    directCustomerSearchTimer = window.setTimeout(() => {
+      loadDirectCustomers(event.target.value).catch(err => setDirectOrderFeedback(err.message || "Errore ricerca clienti", true));
+    }, 250);
+  });
   document.getElementById("associateCustomerSearch").addEventListener("input", event => loadAssociateCustomers(event.target.value).catch(err => alert(err.message)));
   document.getElementById("associateOrderSaveBtn").addEventListener("click", async () => {
     const orderId = document.getElementById("associateOrderId").value;
@@ -1330,16 +1377,29 @@
     await refreshActiveBoard();
   });
   document.getElementById("directSendBtn").addEventListener("click", async () => {
+    const sendButton = document.getElementById("directSendBtn");
+    const registryId = document.getElementById("directCustomerSelect").value;
+    const orderNote = document.getElementById("directNote").value.trim();
+    if (!registryId) return setDirectOrderFeedback("Seleziona un cliente.", true);
+    if (!orderNote) return setDirectOrderFeedback("Inserisci il testo dell'ordine.", true);
     const form = new FormData();
-    form.append("registry_id", document.getElementById("directCustomerSelect").value);
-    form.append("order_note", document.getElementById("directNote").value);
+    form.append("registry_id", registryId);
+    form.append("order_note", orderNote);
     form.append("planned_delivery_at", document.getElementById("directDeliveryDate").value);
     Array.from(document.getElementById("directFiles").files || []).forEach(file => form.append("files", file));
-    const res = await fetch("/route-orders/api/direct-orders", { method: "POST", credentials: "same-origin", body: form });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || data.ok === false) return alert(data.error || `HTTP ${res.status}`);
-    await loadDirectOrders();
-    directModal.hide();
+    sendButton.disabled = true;
+    setDirectOrderFeedback("Invio ordine in corso...");
+    try {
+      const res = await fetch("/route-orders/api/direct-orders", { method: "POST", credentials: "same-origin", body: form });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.ok === false) throw new Error(data.error || `HTTP ${res.status}`);
+      await loadDirectOrders();
+      directModal.hide();
+    } catch (err) {
+      setDirectOrderFeedback(err.message || "Invio ordine non riuscito", true);
+    } finally {
+      sendButton.disabled = false;
+    }
   });
 
   document.getElementById("deliverySaveBtn").addEventListener("click", () => {
