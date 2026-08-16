@@ -2,6 +2,13 @@ TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
 Data aggiornamento: 2026-06-02
 
+## 2026-08-16 - Cambio stato ordine da notifica su smartphone
+
+- Il click sulla push ordine continua ad aprire `/kiosk/order/<id>`, ma il dettaglio ha ora una UI mobile dedicata: stato corrente leggibile, select a piena larghezza, pulsante esplicito `Aggiorna stato` e feedback accessibile senza alert.
+- Su smartphone il pannello stato resta sticky durante lo scorrimento, usa target touch da almeno 50 px e safe-area; intestazione, metadati, testo e pannelli sono stati compattati per viewport stretti.
+- Da 680 px in su rimane la griglia rapida desktop di tutti gli stati. Dopo un aggiornamento, select, badge, griglia e stato interno vengono sincronizzati senza reload.
+- Aggiornate le cache key di CSS e JavaScript del dettaglio ordine.
+
 ## 2026-08-13 - QR home e totale consegnato nel report Agenda
 
 - Identificata la causa residua della modale QR: il backdrop globale e' a `z-index: 12040`, mentre la modale QR conservava lo z-index Bootstrap `2100`; pur essendo nel `body`, risultava quindi visivamente presente ma non interattiva. `appQrModal` e' ora esplicitamente a `12050` e la cache CSS e' stata aggiornata.

@@ -1,7 +1,7 @@
 {% extends "base_kiosk.html" %}
 
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_order_detail.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_order_detail.css', v=app_version ~ '-mobile-status2') }}">
 {% endblock %}
 
 {% block content %}
@@ -23,17 +23,43 @@
     </div>
   </header>
 
-  <div class="order-detail__status">
-    {% for status in statuses %}
-      <button
-        class="order-detail__status-btn{% if status.code == order.status %} is-active{% endif %}"
-        type="button"
-        data-status="{{ status.code }}"
-      >
-        {{ status.label }}
+  <section class="order-detail__status-card" aria-labelledby="orderStatusTitle">
+    <div class="order-detail__status-heading">
+      <span id="orderStatusTitle">Stato ordine</span>
+      <strong data-current-status-label>
+        {{ current_status.label if current_status else order.status }}
+      </strong>
+    </div>
+
+    <div class="order-detail__status-mobile">
+      <label for="orderStatusSelect">Nuovo stato</label>
+      <select id="orderStatusSelect" class="form-select" data-status-select>
+        {% if not current_status %}
+          <option value="{{ order.status }}" selected>{{ order.status }}</option>
+        {% endif %}
+        {% for status in statuses %}
+          <option value="{{ status.code }}" {% if status.code == order.status %}selected{% endif %}>{{ status.label }}</option>
+        {% endfor %}
+      </select>
+      <button class="btn btn-dark" type="button" data-status-apply disabled>
+        <i class="fa-solid fa-check" aria-hidden="true"></i>
+        Aggiorna stato
       </button>
-    {% endfor %}
-  </div>
+    </div>
+
+    <div class="order-detail__status" aria-label="Cambio stato rapido">
+      {% for status in statuses %}
+        <button
+          class="order-detail__status-btn{% if status.code == order.status %} is-active{% endif %}"
+          type="button"
+          data-status="{{ status.code }}"
+        >
+          {{ status.label }}
+        </button>
+      {% endfor %}
+    </div>
+    <div class="order-detail__status-feedback" data-status-feedback role="status" aria-live="polite"></div>
+  </section>
 
   <article class="order-detail__panel">
     <div class="order-detail__panel-title">Testo ordine</div>
@@ -48,5 +74,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/kiosk_order_detail.js') }}"></script>
+<script src="{{ url_for('static', filename='js/kiosk_order_detail.js', v=app_version ~ '-mobile-status2') }}"></script>
 {% endblock %}

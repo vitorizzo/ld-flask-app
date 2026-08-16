@@ -404,11 +404,16 @@ def kiosk_order_detail(order_id: int):
         .order_by(OrderStatus.order_index.asc())
         .all()
     )
+    current_status = next(
+        (status for status in statuses if status.code == order.status),
+        None,
+    )
     return render_template(
         "kiosk_order_detail.html",
         order=order,
         route=DeliveryRoute.query.get(order.route_id) if order.route_id else None,
         statuses=statuses,
+        current_status=current_status,
         kiosk_mode=True,
     )
 

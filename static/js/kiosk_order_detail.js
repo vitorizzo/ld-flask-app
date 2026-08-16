@@ -7,6 +7,11 @@
   const orderId = root.dataset.orderId;
   const extra = document.querySelector("[data-detail-extra]");
   const statusLabel = document.querySelector("[data-current-status]");
+  const statusDisplay = document.querySelector("[data-current-status-label]");
+  const statusSelect = document.querySelector("[data-status-select]");
+  const statusApply = document.querySelector("[data-status-apply]");
+  const statusFeedback = document.querySelector("[data-status-feedback]");
+  let currentStatus = statusSelect?.value || statusLabel?.textContent?.trim() || "";
 
   function escapeHtml(value) {
     return String(value || "")
@@ -75,10 +80,17 @@
   }
 
   async function setStatus(status) {
+    if (!status || status === currentStatus) return;
     const buttons = Array.from(document.querySelectorAll("[data-status]"));
     buttons.forEach((button) => {
       button.disabled = true;
     });
+    if (statusSelect) statusSelect.disabled = true;
+    if (statusApply) statusApply.disabled = true;
+    if (statusFeedback) {
+      statusFeedback.classList.remove("is-error");
+      statusFeedback.textContent = "Aggiornamento in corso...";
+    }
     try {
       await api(`/kiosk/api/order/${orderId}/set-status`, {
         method: "POST",
@@ -87,13 +99,27 @@
       buttons.forEach((button) => {
         button.classList.toggle("is-active", button.dataset.status === status);
       });
+      currentStatus = status;
+      if (statusSelect) statusSelect.value = status;
       if (statusLabel) statusLabel.textContent = status;
+      if (statusDisplay && statusSelect) {
+        statusDisplay.textContent = statusSelect.selectedOptions[0]?.textContent?.trim() || status;
+      }
+      if (statusFeedback) statusFeedback.textContent = "Stato aggiornato.";
     } catch (err) {
-      alert(err.message || "Errore cambio stato");
+      if (statusSelect) statusSelect.value = currentStatus;
+      if (statusFeedback) {
+        statusFeedback.classList.add("is-error");
+        statusFeedback.textContent = err.message || "Errore durante il cambio stato.";
+      } else {
+        alert(err.message || "Errore cambio stato");
+      }
     } finally {
       buttons.forEach((button) => {
         button.disabled = false;
       });
+      if (statusSelect) statusSelect.disabled = false;
+      if (statusApply) statusApply.disabled = !statusSelect || statusSelect.value === currentStatus;
     }
   }
 
@@ -102,6 +128,16 @@
     if (!button || button.classList.contains("is-active")) return;
     setStatus(button.dataset.status);
   });
+
+  statusSelect?.addEventListener("change", () => {
+    if (statusFeedback) {
+      statusFeedback.classList.remove("is-error");
+      statusFeedback.textContent = "";
+    }
+    if (statusApply) statusApply.disabled = statusSelect.value === currentStatus;
+  });
+
+  statusApply?.addEventListener("click", () => setStatus(statusSelect?.value));
 
   loadDetails().catch((err) => {
     if (extra) extra.innerHTML = `<div class="text-danger">Errore caricamento dettagli: ${escapeHtml(err.message || err)}</div>`;

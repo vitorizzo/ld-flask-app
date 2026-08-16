@@ -1,5 +1,11 @@
 # PROJECT_MAP.md — v2.4
 
+## Dettaglio ordine da push su mobile (2026-08-16)
+
+- `tools/push_notifications.py`, `static/service-worker.js`: il click standard della notifica ordine conduce gia' a `/kiosk/order/<id>`; il contratto push non cambia.
+- `templates/kiosk_order_detail.html`, `static/css/kiosk_order_detail.css`: controllo stato touch-first e sticky sotto 680 px, con select e conferma; griglia rapida preservata su desktop.
+- `static/js/kiosk_order_detail.js`: aggiornamento atomico dell'interfaccia dopo la POST, blocco dei controlli durante la richiesta, rollback della select e messaggio inline in caso di errore.
+
 ## Report Agenda e QR home (2026-08-13)
 
 - `static/css/style.css`, `templates/home.html`: la modale QR vive nel `body`, usa apertura Bootstrap esplicita ed e' sopra il backdrop globale (`12050` contro `12040`).
