@@ -1,6 +1,6 @@
 TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
-Data aggiornamento: 2026-06-02
+Data aggiornamento: 2026-08-16
 
 ## 2026-08-16 - Cambio stato ordine da notifica su smartphone
 
@@ -22,6 +22,11 @@ Data aggiornamento: 2026-06-02
 - La fisarmonica anagrafica mostra i contatti con nome, ruolo, telefono/email e note su righe separate; numeri ed email sono direttamente azionabili con `tel:` e `mailto:`.
 - Sezioni, testi e pulsanti Modifica/Dissocia sono dimensionati per il tocco nelle due scale mobile standard e ad alta risoluzione S25.
 - Il form Nuovo/Modifica contatto e' fullscreen, scrollabile e a campi impilati su tutti i touch; tastiera telefono/email coerente col tipo selezionato, validazione e stato salvataggio inline. Cache key aggiornata a `book2`.
+- Integrato il Contact Picker nativo: su browser Android compatibili e contesto HTTPS il pulsante `Importa dalla rubrica del telefono` acquisisce, previa scelta esplicita dell'utente, nome e primo telefono condiviso oppure email. Browser non compatibili mantengono l'inserimento manuale; cache key `book3`.
+- Aggiunto il fallback vCard alla rubrica clienti: Safari/iOS e gli altri browser privi di Contact Picker possono selezionare un file `.vcf`; nome e recapiti vengono mostrati nell'anteprima prima del salvataggio. Limite file 2 MB; cache key `book4`.
+- Esteso il Web Share Target PWA alle vCard: su Android/Chrome con LDApp installata, la condivisione di un contatto apre l'anteprima con scelta del cliente; lo stesso flusso viene usato dal selettore `.vcf` della rubrica.
+- Il parser vCard importa tutti i telefoni/email e, quando incorporata, la foto `PHOTO`; l'immagine viene validata, ridimensionata a 512x512, convertita in JPEG e conservata nell'area privata `instance/registry_contact_photos`, mentre il file `.vcf` originale non viene salvato.
+- Aggiunti avatar nella rubrica, riuso del contatto quando un recapito identico esiste gia' e migration `ce5f60718293`; manifest versionato `20260816-vcard1`. Su iOS resta necessario il selettore file per assenza di Web Share Target in Safari.
 
 ## 2026-08-13 - QR home e totale consegnato nel report Agenda
 

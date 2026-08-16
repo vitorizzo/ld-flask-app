@@ -2455,6 +2455,8 @@ class RegistryContact(db.Model):
     display_name = db.Column(db.String(255), nullable=False, index=True)
     role = db.Column(db.String(120), nullable=True)
     notes = db.Column(db.Text, nullable=True)
+    photo_path = db.Column(db.String(500), nullable=True)
+    photo_mime = db.Column(db.String(80), nullable=True)
     is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
     updated_at = db.Column(
@@ -2484,8 +2486,50 @@ class RegistryContact(db.Model):
             "display_name": self.display_name,
             "role": self.role,
             "notes": self.notes,
+            "has_photo": bool(self.photo_path),
+            "photo_url": f"/registry/api/contacts/{self.id}/photo" if self.photo_path else None,
             "is_active": self.is_active,
             "points": [point.to_dict() for point in self.points],
+        }
+
+
+class RegistryContactImportIntent(db.Model):
+    __tablename__ = "registry_contact_import_intents"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    suggested_registry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("business_registries.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    source_filename = db.Column(db.String(255), nullable=True)
+    display_name = db.Column(db.String(255), nullable=True)
+    phones = db.Column(db.JSON, nullable=True)
+    emails = db.Column(db.JSON, nullable=True)
+    photo_path = db.Column(db.String(500), nullable=True)
+    photo_mime = db.Column(db.String(80), nullable=True)
+    status = db.Column(db.String(30), nullable=False, default="pending", index=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
+    updated_at = db.Column(
+        db.DateTime,
+        default=db.func.current_timestamp(),
+        onupdate=db.func.current_timestamp(),
+        nullable=False,
+    )
+
+    user = db.relationship("User")
+    suggested_registry = db.relationship("BusinessRegistry")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "display_name": self.display_name,
+            "phones": self.phones or [],
+            "emails": self.emails or [],
+            "has_photo": bool(self.photo_path),
+            "status": self.status,
         }
 
 

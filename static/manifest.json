@@ -34,6 +34,11 @@
             "video/*",
             "audio/*",
             "text/plain",
+            "text/vcard",
+            "text/x-vcard",
+            "text/directory",
+            "application/vcard",
+            ".vcf",
             "application/pdf",
             ".pdf"
           ]

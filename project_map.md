@@ -17,6 +17,11 @@
 
 - `templates/registry/registry_book.html`: rendering strutturato dei punti di contatto con link telefono/email; form con feedback inline e input mode adattato a telefono o email.
 - `static/css/registry_tools.css`: fisarmonica leggibile, azioni touch e `#contactLinkModal` fullscreen; doppia scala fino a 820 px e da 821 px per dispositivi ad alta risoluzione.
+- `templates/registry/registry_book.html`: integrazione progressiva con `navigator.contacts.select()` (`name`, `tel`, `email`) in secure context; fallback multipiattaforma tramite selezione e parsing locale di file vCard `.vcf`, oltre all'inserimento manuale.
+- `tools/vcard_utils.py` / `tools/contact_imports.py`: parsing vCard (telefoni, email e foto incorporata), normalizzazione avatar e gestione privata degli intent di importazione; nessuna persistenza del file `.vcf` originale.
+- `templates/registry/contact_import_review.html`: anteprima mobile del contatto condiviso, selezione dei recapiti, ricerca cliente e conferma associazione; doppia scala touch standard/alta risoluzione in `static/css/registry_tools.css`.
+- `static/manifest.json` / `routes/pwa.py`: il Web Share Target gia' usato per ordini e allegati riconosce ora anche `.vcf` e instrada le vCard verso la rubrica clienti.
+- `migrations/versions/ce5f60718293_add_registry_contact_vcard_imports.py`: foto privata su `registry_contacts` e tabella temporanea `registry_contact_import_intents`.
 
 ## Report Agenda e QR home (2026-08-13)
 

@@ -1,7 +1,7 @@
 from datetime import date, time
 
-from flask import Blueprint, jsonify, render_template, request
-from flask_login import login_required
+from flask import Blueprint, jsonify, redirect, render_template, request, send_file, url_for
+from flask_login import current_user, login_required
 from sqlalchemy import or_
 
 from extensions import db
@@ -12,7 +12,14 @@ from models import (
     DeliveryRoute,
     DeliveryRouteCustomer,
     RegistryContact,
+    RegistryContactImportIntent,
     RegistryContactPoint,
+)
+from tools.contact_imports import (
+    create_contact_import_intent,
+    finalize_contact_import,
+    is_vcard_upload,
+    resolve_photo_path,
 )
 from tools.role_required import role_required
 
@@ -117,6 +124,13 @@ def _sync_contact_points(contact, points, replace=True):
         item.is_primary = bool(point.get("is_primary"))
 
 
+def _contact_import_access(intent_id):
+    intent = RegistryContactImportIntent.query.filter_by(id=intent_id).first_or_404()
+    if intent.user_id != current_user.id and (current_user.max_role_weight or 0) < 100:
+        return None
+    return intent
+
+
 @registry_bp.get("/customer-routes")
 @login_required
 @role_required(30)
@@ -136,6 +150,116 @@ def customers_book_page():
 @role_required(40)
 def suppliers_book_page():
     return render_template("registry/registry_book.html", kind="supplier", title="Rubrica fornitori")
+
+
+@registry_bp.post("/api/contact-imports")
+@login_required
+@role_required(30)
+def api_contact_import_create():
+    upload = request.files.get("file")
+    if not upload or not is_vcard_upload(upload):
+        return jsonify({"ok": False, "error": "Seleziona un file vCard .vcf valido"}), 400
+    suggested_registry_id = request.form.get("registry_id", type=int)
+    if suggested_registry_id:
+        registry = BusinessRegistry.query.filter_by(
+            id=suggested_registry_id,
+            kind="customer",
+            is_active=True,
+        ).first()
+        suggested_registry_id = registry.id if registry else None
+    try:
+        intent = create_contact_import_intent(upload, current_user.id, suggested_registry_id)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    return jsonify({
+        "ok": True,
+        "intent": intent.to_dict(),
+        "review_url": url_for("registry.contact_import_review", intent_id=intent.id),
+    })
+
+
+@registry_bp.get("/contact-imports/<int:intent_id>")
+@login_required
+@role_required(30)
+def contact_import_review(intent_id):
+    intent = _contact_import_access(intent_id)
+    if not intent:
+        return "Accesso negato", 403
+    if intent.status == "completed":
+        return redirect(url_for("registry.customers_book_page"))
+    return render_template(
+        "registry/contact_import_review.html",
+        intent=intent,
+        suggested_registry=intent.suggested_registry,
+    )
+
+
+@registry_bp.get("/contact-imports/<int:intent_id>/photo")
+@login_required
+@role_required(30)
+def contact_import_photo(intent_id):
+    intent = _contact_import_access(intent_id)
+    if not intent:
+        return "Accesso negato", 403
+    path = resolve_photo_path(intent.photo_path)
+    if not path:
+        return "Foto non trovata", 404
+    return send_file(path, mimetype=intent.photo_mime or "image/jpeg", conditional=True, max_age=0)
+
+
+@registry_bp.get("/api/contacts/<int:contact_id>/photo")
+@login_required
+@role_required(30)
+def registry_contact_photo(contact_id):
+    contact = RegistryContact.query.filter_by(id=contact_id, is_active=True).first_or_404()
+    path = resolve_photo_path(contact.photo_path)
+    if not path:
+        return "Foto non trovata", 404
+    return send_file(path, mimetype=contact.photo_mime or "image/jpeg", conditional=True, max_age=0)
+
+
+@registry_bp.post("/api/contact-imports/<int:intent_id>/confirm")
+@login_required
+@role_required(30)
+def api_contact_import_confirm(intent_id):
+    intent = _contact_import_access(intent_id)
+    if not intent:
+        return jsonify({"ok": False, "error": "Accesso negato"}), 403
+    if intent.status != "pending":
+        return jsonify({"ok": False, "error": "Questa importazione e' gia' stata completata"}), 409
+    data = request.get_json(silent=True) or {}
+    registry_id = data.get("registry_id")
+    registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first()
+    if not registry:
+        return jsonify({"ok": False, "error": "Seleziona un cliente valido"}), 400
+    display_name = (data.get("display_name") or intent.display_name or "").strip()
+    if not display_name:
+        return jsonify({"ok": False, "error": "Il nome del contatto e' obbligatorio"}), 400
+    selected_keys = data.get("selected_points") or []
+    if not isinstance(selected_keys, list):
+        selected_keys = []
+    role = (data.get("role") or "").strip()
+    notes = (data.get("notes") or "").strip()
+    try:
+        contact, reused = finalize_contact_import(intent, registry, display_name, selected_keys, role, notes)
+        link = BusinessRegistryContactLink.query.filter_by(registry_id=registry.id, contact_id=contact.id).first()
+        if not link:
+            link = BusinessRegistryContactLink(registry=registry, contact=contact)
+            db.session.add(link)
+        link.role = role or link.role
+        link.notes = notes or link.notes
+        link.is_active = True
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+    return jsonify({
+        "ok": True,
+        "contact": contact.to_dict(),
+        "reused": reused,
+        "registry": _registry_to_dict(registry, include_contacts=True),
+        "redirect_url": url_for("registry.customers_book_page"),
+    })
 
 
 @registry_bp.get("/api/routes/customers")

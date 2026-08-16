@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Associa contatto{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css', v=app_version ~ '-vcard-share1') }}">
+{% endblock %}
+
+{% block content %}
+<section class="welcome-section page-shell contact-import-page" data-intent-id="{{ intent.id }}">
+  <div class="container contact-import-shell">
+    <header class="contact-import-header">
+      <a class="btn btn-outline-secondary" href="{{ url_for('registry.customers_book_page') }}" aria-label="Annulla">
+        <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
+      </a>
+      <div>
+        <h1>Associa contatto</h1>
+        <p>Controlla i dati ricevuti e scegli il cliente.</p>
+      </div>
+    </header>
+
+    <div class="contact-import-grid">
+      <article class="contact-import-card contact-import-preview">
+        <div class="contact-import-avatar">
+          {% if intent.photo_path %}
+            <img src="{{ url_for('registry.contact_import_photo', intent_id=intent.id) }}" alt="Foto di {{ intent.display_name or 'contatto' }}">
+          {% else %}
+            <span>{{ (intent.display_name or '?')[:1]|upper }}</span>
+          {% endif %}
+        </div>
+        <div class="flex-grow-1">
+          <label class="form-label" for="importContactName">Nome contatto</label>
+          <input class="form-control" id="importContactName" value="{{ intent.display_name or '' }}" autocomplete="name">
+          <div class="row g-2 mt-2">
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="importContactRole">Ruolo</label>
+              <input class="form-control" id="importContactRole" placeholder="Amministrazione, titolare...">
+            </div>
+            <div class="col-12 col-md-6">
+              <label class="form-label" for="importContactNotes">Note</label>
+              <input class="form-control" id="importContactNotes" placeholder="Note facoltative">
+            </div>
+          </div>
+        </div>
+      </article>
+
+      <article class="contact-import-card">
+        <h2>Recapiti da importare</h2>
+        <div class="contact-import-points">
+          {% for point in intent.phones or [] %}
+            <label class="contact-import-point">
+              <input class="form-check-input" type="checkbox" name="selectedPoint" value="phone:{{ loop.index0 }}" checked>
+              <span><strong>{{ point.label or ('Cellulare' if point.contact_type == 'mobile' else 'Telefono') }}</strong>{{ point.value }}</span>
+            </label>
+          {% endfor %}
+          {% for point in intent.emails or [] %}
+            <label class="contact-import-point">
+              <input class="form-check-input" type="checkbox" name="selectedPoint" value="email:{{ loop.index0 }}" checked>
+              <span><strong>{{ point.label or 'Email' }}</strong>{{ point.value }}</span>
+            </label>
+          {% endfor %}
+          {% if not intent.phones and not intent.emails %}
+            <div class="alert alert-warning mb-0">La vCard non contiene recapiti, ma puoi comunque associare il nominativo.</div>
+          {% endif %}
+        </div>
+      </article>
+
+      <article class="contact-import-card">
+        <h2>Cliente da associare</h2>
+        <div class="contact-import-selected" id="selectedCustomer" {% if not suggested_registry %}hidden{% endif %}>
+          <i class="fa-solid fa-building" aria-hidden="true"></i>
+          <div><strong id="selectedCustomerName">{{ suggested_registry.display_name or suggested_registry.legal_name if suggested_registry else '' }}</strong><span id="selectedCustomerMeta">{{ suggested_registry.source_code if suggested_registry else '' }}</span></div>
+          <button class="btn btn-sm btn-outline-secondary" id="changeCustomerBtn" type="button">Cambia</button>
+        </div>
+        <input type="hidden" id="selectedCustomerId" value="{{ suggested_registry.id if suggested_registry else '' }}">
+        <div class="contact-import-search" id="customerSearchPanel" {% if suggested_registry %}hidden{% endif %}>
+          <div class="input-group">
+            <input class="form-control" id="customerSearchInput" placeholder="Cerca ragione sociale, codice o P.IVA" autocomplete="off">
+            <button class="btn btn-info" id="customerSearchBtn" type="button">Cerca</button>
+          </div>
+          <div class="list-group contact-import-results" id="customerSearchResults"></div>
+        </div>
+      </article>
+    </div>
+
+    <div class="contact-import-footer">
+      <div class="contact-import-feedback" id="contactImportFeedback" role="status" aria-live="polite"></div>
+      <button class="btn btn-info" id="confirmContactImportBtn" type="button">
+        <i class="fa-solid fa-link" aria-hidden="true"></i> Associa contatto
+      </button>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+  const page = document.querySelector(".contact-import-page");
+  const intentId = page.dataset.intentId;
+  const searchPanel = document.getElementById("customerSearchPanel");
+  const selectedPanel = document.getElementById("selectedCustomer");
+  const selectedId = document.getElementById("selectedCustomerId");
+  const searchInput = document.getElementById("customerSearchInput");
+  const results = document.getElementById("customerSearchResults");
+  const feedback = document.getElementById("contactImportFeedback");
+  const confirmBtn = document.getElementById("confirmContactImportBtn");
+  const esc = value => String(value || "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+
+  function setFeedback(message = "", error = false) {
+    feedback.textContent = message;
+    feedback.classList.toggle("is-error", error);
+  }
+
+  function selectCustomer(customer) {
+    selectedId.value = customer.id;
+    document.getElementById("selectedCustomerName").textContent = customer.display || customer.display_name || customer.legal_name;
+    document.getElementById("selectedCustomerMeta").textContent = [customer.source_code, customer.city].filter(Boolean).join(" · ");
+    selectedPanel.hidden = false;
+    searchPanel.hidden = true;
+    results.innerHTML = "";
+    setFeedback();
+  }
+
+  async function searchCustomers() {
+    const query = searchInput.value.trim();
+    if (query.length < 2) return setFeedback("Inserisci almeno 2 caratteri per cercare il cliente.", true);
+    results.innerHTML = '<div class="list-group-item text-muted">Ricerca...</div>';
+    setFeedback();
+    try {
+      const response = await fetch(`/registry/api/registries?kind=customer&q=${encodeURIComponent(query)}`, {credentials: "same-origin"});
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "Errore ricerca clienti");
+      if (!data.registries.length) {
+        results.innerHTML = '<div class="list-group-item text-muted">Nessun cliente trovato.</div>';
+        return;
+      }
+      results.innerHTML = data.registries.map(customer => `
+        <button class="list-group-item list-group-item-action" type="button" data-customer='${esc(JSON.stringify(customer))}'>
+          <strong>${esc(customer.display)}</strong><span>${esc([customer.source_code, customer.city, customer.province].filter(Boolean).join(" · "))}</span>
+        </button>`).join("");
+    } catch (error) {
+      results.innerHTML = "";
+      setFeedback(error.message || "Errore ricerca clienti", true);
+    }
+  }
+
+  document.getElementById("customerSearchBtn").addEventListener("click", searchCustomers);
+  searchInput.addEventListener("keydown", event => {
+    if (event.key === "Enter") { event.preventDefault(); searchCustomers(); }
+  });
+  results.addEventListener("click", event => {
+    const button = event.target.closest("[data-customer]");
+    if (button) selectCustomer(JSON.parse(button.dataset.customer));
+  });
+  document.getElementById("changeCustomerBtn").addEventListener("click", () => {
+    selectedId.value = "";
+    selectedPanel.hidden = true;
+    searchPanel.hidden = false;
+    searchInput.focus();
+  });
+
+  confirmBtn.addEventListener("click", async () => {
+    const displayName = document.getElementById("importContactName").value.trim();
+    if (!displayName) return setFeedback("Inserisci il nome del contatto.", true);
+    if (!selectedId.value) return setFeedback("Seleziona il cliente da associare.", true);
+    confirmBtn.disabled = true;
+    setFeedback("Associazione in corso...");
+    try {
+      const response = await fetch(`/registry/api/contact-imports/${intentId}/confirm`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          registry_id: Number(selectedId.value),
+          display_name: displayName,
+          role: document.getElementById("importContactRole").value.trim(),
+          notes: document.getElementById("importContactNotes").value.trim(),
+          selected_points: [...document.querySelectorAll('[name="selectedPoint"]:checked')].map(item => item.value),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "Errore associazione contatto");
+      setFeedback(data.reused ? "Contatto gia' presente: associazione aggiunta." : "Contatto importato e associato.");
+      window.setTimeout(() => window.location.assign(data.redirect_url), 700);
+    } catch (error) {
+      setFeedback(error.message || "Errore associazione contatto", true);
+      confirmBtn.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}

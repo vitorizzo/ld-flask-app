@@ -21,6 +21,7 @@ from models import (
     SlackOrder,
     SlackOrderEvent,
 )
+from tools.contact_imports import create_contact_import_intent, is_vcard_upload
 from tools.push_notifications import (
     is_push_configured,
     order_push_payload,
@@ -186,6 +187,18 @@ def share_target():
     files = []
     for _, values in request.files.lists():
         files.extend(values)
+    vcard = next((item for item in files if item and is_vcard_upload(item)), None)
+    if vcard:
+        if (current_user.max_role_weight or 0) < 30:
+            return render_template(
+                "registry/contact_import_error.html",
+                error="Il tuo profilo non puo' associare contatti alle anagrafiche clienti.",
+            ), 403
+        try:
+            intent = create_contact_import_intent(vcard, current_user.id)
+        except ValueError as exc:
+            return render_template("registry/contact_import_error.html", error=str(exc)), 400
+        return redirect(url_for("registry.contact_import_review", intent_id=intent.id))
     if not files:
         logger.info(
             "PWA share senza file: form_keys=%s file_keys=%s content_type=%s",

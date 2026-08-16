@@ -3,7 +3,7 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css', v=app_version ~ '-book2') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css', v=app_version ~ '-book4') }}">
 {% endblock %}
 
 {% block content %}
@@ -49,6 +49,24 @@
       <div class="modal-body">
         <input type="hidden" id="contactRegistryId">
         <input type="hidden" id="contactId">
+        <div class="contact-picker-panel" id="contactPickerPanel" hidden>
+          <button class="btn btn-outline-info contact-picker-button" type="button" id="contactPickerBtn">
+            <i class="fa-solid fa-address-book" aria-hidden="true"></i>
+            Importa dalla rubrica del telefono
+          </button>
+          <div class="contact-picker-help">Scegli tu il contatto e quali dati condividere con LDApp.</div>
+        </div>
+        <div class="contact-vcard-panel">
+          <button class="btn btn-outline-info contact-picker-button" type="button" id="contactVcardBtn">
+            <i class="fa-solid fa-file-arrow-up" aria-hidden="true"></i>
+            Importa file vCard (.vcf)
+          </button>
+          <input id="contactVcardInput" class="visually-hidden" type="file" accept=".vcf,text/vcard,text/x-vcard" tabindex="-1">
+          <div class="contact-picker-help">Su iPhone: condividi o esporta il contatto come vCard, salvalo in File e selezionalo qui.</div>
+        </div>
+        <div class="contact-picker-unavailable" id="contactPickerUnavailable" hidden>
+          L'apertura diretta della rubrica non e' disponibile in questo browser. Puoi usare una vCard oppure inserire il contatto manualmente.
+        </div>
         <div class="row g-2">
           <div class="col-12 col-md-6">
             <label class="form-label" for="contactDisplayName">Nome contatto</label>
@@ -101,6 +119,17 @@
   const modalEl = document.getElementById("contactLinkModal");
   let modal = null;
   const saveBtn = document.getElementById("contactSaveBtn");
+  const contactPickerBtn = document.getElementById("contactPickerBtn");
+  const contactPickerPanel = document.getElementById("contactPickerPanel");
+  const contactPickerUnavailable = document.getElementById("contactPickerUnavailable");
+  const contactVcardBtn = document.getElementById("contactVcardBtn");
+  const contactVcardInput = document.getElementById("contactVcardInput");
+  const contactPickerSupported = Boolean(
+    window.isSecureContext
+    && navigator.contacts
+    && typeof navigator.contacts.select === "function"
+  );
+  let contactPickerProperties = ["name", "tel", "email"];
   let registries = [];
 
   if (modalEl) {
@@ -116,6 +145,17 @@
       }
     });
     modal = new bootstrap.Modal(modalEl);
+  }
+
+  contactPickerPanel.hidden = !contactPickerSupported;
+  contactPickerUnavailable.hidden = contactPickerSupported || !window.matchMedia("(hover: none), (pointer: coarse)").matches;
+  if (contactPickerSupported && typeof navigator.contacts.getProperties === "function") {
+    navigator.contacts.getProperties()
+      .then(properties => {
+        const available = ["name", "tel", "email"].filter(item => properties.includes(item));
+        if (available.length) contactPickerProperties = available;
+      })
+      .catch(() => {});
   }
 
   const esc = value => String(value || "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
@@ -160,8 +200,13 @@
   function registryContactHtml(link, registryId) {
     const c = link.contact || {};
     const points = contactPoints(c);
+    const initials = String(c.display_name || "?").trim().charAt(0).toUpperCase() || "?";
+    const avatar = c.photo_url
+      ? `<img src="${esc(c.photo_url)}" alt="" loading="lazy">`
+      : `<span>${esc(initials)}</span>`;
     return `
       <div class="registry-contact-row ${link.is_active ? "" : "registry-contact-row--inactive"}">
+        <div class="registry-contact-avatar">${avatar}</div>
         <div class="registry-contact-row__main">
           <div class="registry-contact-name">${esc(c.display_name || "Contatto senza nome")}</div>
           <div class="registry-contact-meta">
@@ -304,6 +349,85 @@
     input.placeholder = isEmail ? "nome@dominio.it" : "Numero di telefono";
   }
 
+  function firstSharedValue(value) {
+    if (Array.isArray(value)) return String(value.find(item => String(item || "").trim()) || "").trim();
+    return String(value || "").trim();
+  }
+
+  async function importContactFromVcard(file) {
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setContactFormFeedback("Il file vCard supera il limite di 2 MB.", true);
+      return;
+    }
+    contactVcardBtn.disabled = true;
+    setContactFormFeedback("Preparazione anteprima vCard...");
+    try {
+      const form = new FormData();
+      form.append("file", file, file.name || "contatto.vcf");
+      const registryId = document.getElementById("contactRegistryId").value;
+      if (registryId) form.append("registry_id", registryId);
+      const response = await fetch("/registry/api/contact-imports", {
+        method: "POST",
+        credentials: "same-origin",
+        body: form,
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "Impossibile importare la vCard.");
+      window.location.assign(data.review_url);
+    } catch (err) {
+      setContactFormFeedback(err.message || "Impossibile leggere il file vCard.", true);
+    } finally {
+      contactVcardBtn.disabled = false;
+      contactVcardInput.value = "";
+    }
+  }
+
+  async function importContactFromDevice() {
+    if (!contactPickerSupported) {
+      setContactFormFeedback("Rubrica del dispositivo non disponibile in questo browser.", true);
+      return;
+    }
+    contactPickerBtn.disabled = true;
+    setContactFormFeedback("Apertura rubrica...");
+    try {
+      const selected = await navigator.contacts.select(contactPickerProperties, { multiple: false });
+      const contact = Array.isArray(selected) ? selected[0] : null;
+      if (!contact) {
+        setContactFormFeedback();
+        return;
+      }
+      const name = firstSharedValue(contact.name);
+      const phone = firstSharedValue(contact.tel);
+      const email = firstSharedValue(contact.email);
+      if (!name && !phone && !email) {
+        setContactFormFeedback("Il contatto scelto non ha condiviso nome, telefono o email.", true);
+        return;
+      }
+      if (name) document.getElementById("contactDisplayName").value = name;
+      if (phone) {
+        document.getElementById("contactPointType").value = "mobile";
+        document.getElementById("contactPointValue").value = phone;
+      } else if (email) {
+        document.getElementById("contactPointType").value = "email";
+        document.getElementById("contactPointValue").value = email;
+      }
+      syncContactPointInput();
+      const phoneCount = Array.isArray(contact.tel) ? contact.tel.filter(Boolean).length : (phone ? 1 : 0);
+      setContactFormFeedback(phoneCount > 1
+        ? `Contatto importato. E' stato utilizzato il primo di ${phoneCount} numeri condivisi.`
+        : "Contatto importato dalla rubrica. Controlla i dati e premi Salva.");
+    } catch (err) {
+      if (err && (err.name === "AbortError" || err.name === "InvalidStateError")) {
+        setContactFormFeedback();
+      } else {
+        setContactFormFeedback(err.message || "Impossibile aprire la rubrica del dispositivo.", true);
+      }
+    } finally {
+      contactPickerBtn.disabled = false;
+    }
+  }
+
   async function saveContact() {
     const registryId = document.getElementById("contactRegistryId").value;
     const contactId = document.getElementById("contactId").value.trim();
@@ -439,6 +563,9 @@
   });
 
   saveBtn.addEventListener("click", saveContact);
+  contactPickerBtn.addEventListener("click", importContactFromDevice);
+  contactVcardBtn.addEventListener("click", () => contactVcardInput.click());
+  contactVcardInput.addEventListener("change", () => importContactFromVcard(contactVcardInput.files?.[0]));
   document.getElementById("contactPointType").addEventListener("change", syncContactPointInput);
   loadData().catch(err => {
     listEl.innerHTML = `<div class="alert alert-danger mb-0">${esc(err.message)}</div>`;
