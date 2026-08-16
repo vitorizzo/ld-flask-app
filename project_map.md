@@ -13,6 +13,11 @@
 - `templates/route_orders/board.html`: la modale `#directModal` usa campi raggruppati, feedback accessibile e apertura immediata; ricerca cliente con debounce/race protection e invio con validazione e stato inline.
 - `static/css/registry_tools.css`: modale ordine fullscreen e scrollabile sui touch, con scala standard fino a 820 px e scala ad alta risoluzione da 821 px.
 
+## Rubrica contatti mobile (2026-08-16)
+
+- `templates/registry/registry_book.html`: rendering strutturato dei punti di contatto con link telefono/email; form con feedback inline e input mode adattato a telefono o email.
+- `static/css/registry_tools.css`: fisarmonica leggibile, azioni touch e `#contactLinkModal` fullscreen; doppia scala fino a 820 px e da 821 px per dispositivi ad alta risoluzione.
+
 ## Report Agenda e QR home (2026-08-13)
 
 - `static/css/style.css`, `templates/home.html`: la modale QR vive nel `body`, usa apertura Bootstrap esplicita ed e' sopra il backdrop globale (`12050` contro `12040`).

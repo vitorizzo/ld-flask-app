@@ -3,7 +3,7 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css', v=app_version ~ '-book1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css', v=app_version ~ '-book2') }}">
 {% endblock %}
 
 {% block content %}
@@ -71,7 +71,7 @@
           </div>
           <div class="col-12 col-md-8">
             <label class="form-label" for="contactPointValue">Valore</label>
-            <input class="form-control" id="contactPointValue" autocomplete="off">
+            <input class="form-control" id="contactPointValue" type="tel" inputmode="tel" autocomplete="tel">
           </div>
         </div>
         <div class="mt-2">
@@ -80,6 +80,7 @@
         </div>
       </div>
       <div class="modal-footer">
+        <div class="contact-form-feedback" id="contactFormFeedback" role="status" aria-live="polite"></div>
         <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Annulla</button>
         <button class="btn btn-info" type="button" id="contactSaveBtn">Salva</button>
       </div>
@@ -128,10 +129,32 @@
     return /^[A-Z]$/.test(letter) ? letter : "#";
   }
 
+  const contactTypeLabels = {
+    phone: "Telefono",
+    mobile: "Cellulare",
+    email: "Email",
+    pec: "PEC",
+  };
+
+  function contactPointHtml(point) {
+    const type = String(point.contact_type || point.type || "").toLowerCase();
+    const value = String(point.value || "").trim();
+    if (!value) return "";
+    const label = point.label || contactTypeLabels[type] || type || "Contatto";
+    let href = "";
+    if (type === "phone" || type === "mobile") {
+      href = `tel:${value.replace(/[^+0-9,;#*]/g, "")}`;
+    } else if (type === "email" || type === "pec") {
+      href = `mailto:${value}`;
+    }
+    const renderedValue = href
+      ? `<a href="${esc(href)}">${esc(value)}</a>`
+      : `<span>${esc(value)}</span>`;
+    return `<div class="registry-contact-point"><span class="registry-contact-point__label">${esc(label)}</span><strong class="registry-contact-point__value">${renderedValue}</strong></div>`;
+  }
+
   function contactPoints(contact) {
-    return (contact.points || [])
-      .map(p => `${esc(p.label ? `${p.label} ` : "")}${esc(p.contact_type)}: ${esc(p.value)}`)
-      .join("<br>");
+    return (contact.points || []).map(contactPointHtml).filter(Boolean).join("");
   }
 
   function registryContactHtml(link, registryId) {
@@ -142,8 +165,8 @@
         <div class="registry-contact-row__main">
           <div class="registry-contact-name">${esc(c.display_name || "Contatto senza nome")}</div>
           <div class="registry-contact-meta">
-            ${link.role ? `<span>${esc(link.role)}</span>` : ""}
-            ${points ? `<span class="registry-contact-points">${points}</span>` : ""}
+            ${link.role ? `<span class="registry-contact-role">${esc(link.role)}</span>` : ""}
+            ${points ? `<div class="registry-contact-points">${points}</div>` : ""}
           </div>
           ${link.notes ? `<div class="registry-contact-notes">${esc(link.notes)}</div>` : ""}
         </div>
@@ -251,7 +274,7 @@
   }
 
   function openContactModal(registryId, contact = null) {
-    document.getElementById("contactLinkModalTitle").textContent = contact ? "Modifica contatto" : "Associa contatto";
+    document.getElementById("contactLinkModalTitle").textContent = contact ? "Modifica contatto" : "Nuovo contatto";
     document.getElementById("contactRegistryId").value = registryId;
     document.getElementById("contactId").value = contact?.id || "";
     document.getElementById("contactDisplayName").value = contact?.display_name || "";
@@ -260,7 +283,25 @@
     const point = (contact?.points || [])[0] || {};
     document.getElementById("contactPointType").value = point.contact_type || "phone";
     document.getElementById("contactPointValue").value = point.value || "";
+    syncContactPointInput();
+    setContactFormFeedback();
     modal?.show();
+  }
+
+  function setContactFormFeedback(message = "", isError = false) {
+    const feedback = document.getElementById("contactFormFeedback");
+    feedback.textContent = message;
+    feedback.classList.toggle("is-error", isError);
+  }
+
+  function syncContactPointInput() {
+    const type = document.getElementById("contactPointType").value;
+    const input = document.getElementById("contactPointValue");
+    const isEmail = type === "email" || type === "pec";
+    input.type = isEmail ? "email" : "tel";
+    input.inputMode = isEmail ? "email" : "tel";
+    input.autocomplete = isEmail ? "email" : "tel";
+    input.placeholder = isEmail ? "nome@dominio.it" : "Numero di telefono";
   }
 
   async function saveContact() {
@@ -271,7 +312,8 @@
     const pointType = document.getElementById("contactPointType").value;
     const pointValue = document.getElementById("contactPointValue").value.trim();
     const notes = document.getElementById("contactNotes").value.trim();
-    if (!registryId || !displayName) return;
+    if (!registryId) return setContactFormFeedback("Anagrafica cliente non valida.", true);
+    if (!displayName) return setContactFormFeedback("Inserisci il nome del contatto.", true);
 
     const payload = {
       display_name: displayName,
@@ -281,6 +323,7 @@
     };
 
     saveBtn.disabled = true;
+    setContactFormFeedback("Salvataggio in corso...");
     try {
       let res;
       if (contactId) {
@@ -313,7 +356,7 @@
       modal?.hide();
       await loadData();
     } catch (err) {
-      alert(err.message || "Errore salvataggio");
+      setContactFormFeedback(err.message || "Errore salvataggio", true);
     } finally {
       saveBtn.disabled = false;
     }
@@ -396,6 +439,7 @@
   });
 
   saveBtn.addEventListener("click", saveContact);
+  document.getElementById("contactPointType").addEventListener("change", syncContactPointInput);
   loadData().catch(err => {
     listEl.innerHTML = `<div class="alert alert-danger mb-0">${esc(err.message)}</div>`;
   });

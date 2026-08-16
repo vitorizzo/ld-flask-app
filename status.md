@@ -17,6 +17,12 @@ Data aggiornamento: 2026-06-02
 - Sono previste due scale: smartphone standard fino a 820 px e touch ad alta risoluzione da 821 px, con controlli da 92-94 px e tipografia maggiorata per Galaxy S25.
 - La modale si apre subito mostrando il caricamento clienti; la ricerca e' temporizzata, scarta risposte superate e l'invio espone validazione, avanzamento ed errori inline. Cache key `direct-order-mobile1`.
 
+## 2026-08-16 - Rubrica clienti e contatti su smartphone
+
+- La fisarmonica anagrafica mostra i contatti con nome, ruolo, telefono/email e note su righe separate; numeri ed email sono direttamente azionabili con `tel:` e `mailto:`.
+- Sezioni, testi e pulsanti Modifica/Dissocia sono dimensionati per il tocco nelle due scale mobile standard e ad alta risoluzione S25.
+- Il form Nuovo/Modifica contatto e' fullscreen, scrollabile e a campi impilati su tutti i touch; tastiera telefono/email coerente col tipo selezionato, validazione e stato salvataggio inline. Cache key aggiornata a `book2`.
+
 ## 2026-08-13 - QR home e totale consegnato nel report Agenda
 
 - Identificata la causa residua della modale QR: il backdrop globale e' a `z-index: 12040`, mentre la modale QR conservava lo z-index Bootstrap `2100`; pur essendo nel `body`, risultava quindi visivamente presente ma non interattiva. `appQrModal` e' ora esplicitamente a `12050` e la cache CSS e' stata aggiornata.
