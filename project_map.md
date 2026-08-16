@@ -6,6 +6,7 @@
 - `templates/kiosk_order_detail.html`, `static/css/kiosk_order_detail.css`: controllo stato touch-first e sticky sotto 680 px, con select e conferma; griglia rapida preservata su desktop.
 - `static/js/kiosk_order_detail.js`: aggiornamento atomico dell'interfaccia dopo la POST, blocco dei controlli durante la richiesta, rollback della select e messaggio inline in caso di errore.
 - La variante desktop richiede viewport ampia, hover e puntatore preciso; Galaxy S25, tablet e altri dispositivi touch mantengono quindi i controlli mobile anche con layout esteso.
+- `static/css/kiosk_order_detail.css` contiene due scale touch coerenti con il resto dell'app: mobile standard fino a 820 px e mobile ad alta risoluzione da 821 px, con tipografia e target quasi raddoppiati.
 
 ## Report Agenda e QR home (2026-08-13)
 

@@ -9,6 +9,7 @@ Data aggiornamento: 2026-06-02
 - Da 680 px in su rimane la griglia rapida desktop di tutti gli stati. Dopo un aggiornamento, select, badge, griglia e stato interno vengono sincronizzati senza reload.
 - Aggiornate le cache key di CSS e JavaScript del dettaglio ordine.
 - Correzione Galaxy S25 e dispositivi touch ad alta risoluzione: la variante desktop richiede ora anche mouse e supporto hover, non soltanto una viewport larga. Il dettaglio usa cache key `mobile-status3` e risposta HTTP `no-store`.
+- Aggiunta la seconda scala mobile gia' adottata nel resto dell'app: sui dispositivi touch con viewport dichiarata da almeno 821 px (come S25) contenitore, testi, metadati, selettore, pulsante, pannelli e allegati hanno dimensioni maggiorate. Cache key aggiornata a `mobile-status4`.
 
 ## 2026-08-13 - QR home e totale consegnato nel report Agenda
 

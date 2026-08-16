@@ -271,3 +271,139 @@
     font-size: 0.76rem;
   }
 }
+
+/* Smartphone touch ad alta risoluzione (es. Galaxy S25): Android puo'
+   esporre una viewport CSS molto piu' larga di quella di un telefono comune. */
+@media (hover: none) and (pointer: coarse) and (min-width: 821px) {
+  .order-detail {
+    width: 100%;
+    max-width: none;
+    padding: max(42px, env(safe-area-inset-top)) 42px max(64px, env(safe-area-inset-bottom));
+  }
+
+  .order-detail__header {
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 28px;
+    margin-bottom: 28px;
+  }
+
+  .order-detail__back {
+    width: 88px;
+    height: 88px;
+    border-width: 2px;
+    border-radius: 18px;
+    font-size: 2rem;
+  }
+
+  .order-detail__eyebrow {
+    font-size: 1.5rem;
+  }
+
+  .order-detail h1 {
+    font-size: 3.2rem;
+    line-height: 1.12;
+  }
+
+  .order-detail__meta {
+    margin-top: 18px;
+    gap: 14px;
+  }
+
+  .order-detail__meta span {
+    padding: 10px 18px;
+    font-size: 1.55rem;
+  }
+
+  .order-detail__status-card {
+    margin: 0 -10px 28px;
+    padding: 28px;
+    border-width: 2px;
+    border-radius: 24px;
+    box-shadow: 0 16px 42px rgba(17, 24, 39, 0.16);
+  }
+
+  .order-detail__status-heading {
+    gap: 24px;
+    margin-bottom: 22px;
+    font-size: 1.65rem;
+  }
+
+  .order-detail__status-heading strong {
+    font-size: 2rem;
+  }
+
+  .order-detail__status-mobile {
+    gap: 16px;
+  }
+
+  .order-detail__status-mobile label {
+    font-size: 1.5rem;
+  }
+
+  .order-detail__status-mobile .form-select,
+  .order-detail__status-mobile .btn {
+    min-height: 96px;
+    border-width: 2px;
+    border-radius: 18px;
+    font-size: 2rem;
+  }
+
+  .order-detail__status-mobile .form-select {
+    padding-right: 4.5rem;
+  }
+
+  .order-detail__status-mobile .btn {
+    gap: 18px;
+  }
+
+  .order-detail__status-feedback {
+    min-height: 36px;
+    margin-top: 12px;
+    font-size: 1.5rem;
+  }
+
+  .order-detail__panel {
+    padding: 28px;
+    margin-bottom: 24px;
+    border-width: 2px;
+    border-radius: 22px;
+  }
+
+  .order-detail__panel-title {
+    margin-bottom: 18px;
+    font-size: 2rem;
+  }
+
+  .order-detail__text,
+  .order-detail__loading {
+    font-size: 1.8rem;
+    line-height: 1.55;
+  }
+
+  .order-detail__events,
+  .order-detail__attachments {
+    gap: 16px;
+  }
+
+  .order-detail__event,
+  .order-detail__attachment {
+    padding: 20px;
+    border-width: 2px;
+    border-radius: 16px;
+    font-size: 1.65rem;
+  }
+
+  .order-detail__event-label {
+    font-size: 1.35rem;
+  }
+
+  .order-detail__attachment {
+    gap: 20px;
+  }
+
+  .order-detail__attachment img {
+    width: 128px;
+    height: 128px;
+    border-radius: 12px;
+  }
+}
