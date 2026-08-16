@@ -2919,3 +2919,10 @@ Performance apertura giornata Agenda 2026-06-13:
 - `tools/importazioni.py` filtra ora soltanto `CF-TIPO=1`, normalizza `CFCOD` a 5 cifre, deduplica prima dell'upsert e rifiuta codici ripetuti con identita' discordanti. Un guard blocca eventuali nuovi import finche' esistono record contaminati.
 - Backup locale ignorato da Git: `docs/transport/matrixws_clifor_backup_20260809_232016.json`.
 - Chiuso l'accesso pubblico al viewer dei log: `/logs/view` usa ora `login_required` e `role_required(999)`, coerentemente con la dashboard Developer.
+
+## 2026-08-16 - Distribuzione automatica aggiornamenti WebAPK
+
+- Corretto il canale di aggiornamento delle PWA Android: il link al manifest non cambia piu' a ogni release ma mantiene l'URL storico `manifest.json?v=20260522-3`, usato dagli utenti gia' installati.
+- Aggiunti al manifest un `id` e uno `scope` espliciti e stabili (`/`), senza cambiare identita', start URL o nome dell'app.
+- Il manifest non eredita piu' la cache annuale `immutable` degli asset versionati: viene sempre servito con `no-store/no-cache`, permettendo a Chrome di rilevare e distribuire automaticamente le modifiche al WebAPK e al Web Share Target.
+- L'aggiornamento dell'integrazione nel menu Condividi resta gestito dal browser/sistema Android e puo' richiedere il normale ciclo asincrono del WebAPK; non richiede disinstallazione o reinstallazione da parte dell'utente.

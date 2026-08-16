@@ -1,7 +1,9 @@
 {
   "name": "LD WebApp",
   "short_name": "LDApp",
+  "id": "/",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2c3e50",

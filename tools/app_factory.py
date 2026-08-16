@@ -141,6 +141,15 @@ def create_app():
     @app.after_request
     def configure_response_cache(response):
         if request.endpoint == "static":
+            if request.path.endswith("/manifest.json"):
+                # Il manifest mantiene intenzionalmente un URL stabile per
+                # consentire l'aggiornamento automatico dei WebAPK installati.
+                # Deve quindi essere sempre rivalidato, anche se l'URL storico
+                # contiene il parametro ?v=.
+                response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+                response.headers["Pragma"] = "no-cache"
+                response.headers["Expires"] = "0"
+                return response
             # Gli asset con ?v= sono legati alla versione applicativa: il browser
             # puo conservarli senza ricontrollarli a ogni apertura pagina.
             max_age = 31536000 if request.args.get("v") else 3600

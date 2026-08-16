@@ -1,5 +1,11 @@
 # PROJECT_MAP.md — v2.4
 
+## Aggiornamento automatico integrazioni PWA Android (2026-08-16)
+
+- `templates/base.html`: il manifest conserva definitivamente l'URL storico `manifest.json?v=20260522-3`; non deve essere versionato a ogni release, perche' Chrome identifica da quell'URL il WebAPK gia' installato e ne aggiorna le integrazioni Android.
+- `static/manifest.json`: `id` e `scope` sono ora espliciti e stabili (`/`); il `share_target` aggiornato continua a includere le vCard.
+- `tools/app_factory.py`: il manifest e' escluso dalla cache immutable degli asset con `?v=` e viene sempre restituito con direttive `no-store/no-cache`, cosi' Chrome puo' rilevare le nuove funzionalita' senza reinstallazione.
+
 ## Dettaglio ordine da push su mobile (2026-08-16)
 
 - `tools/push_notifications.py`, `static/service-worker.js`: il click standard della notifica ordine conduce gia' a `/kiosk/order/<id>`; il contratto push non cambia.
