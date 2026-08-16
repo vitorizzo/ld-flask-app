@@ -216,7 +216,9 @@
   background: #e5e7eb;
 }
 
-@media (min-width: 680px) {
+/* Una viewport ampia puo' appartenere anche a un telefono ad alta risoluzione.
+   La variante desktop richiede quindi anche mouse e supporto hover. */
+@media (min-width: 680px) and (hover: hover) and (pointer: fine) {
   .order-detail {
     padding: 28px;
   }

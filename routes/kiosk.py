@@ -408,14 +408,17 @@ def kiosk_order_detail(order_id: int):
         (status for status in statuses if status.code == order.status),
         None,
     )
-    return render_template(
+    response = make_response(render_template(
         "kiosk_order_detail.html",
         order=order,
         route=DeliveryRoute.query.get(order.route_id) if order.route_id else None,
         statuses=statuses,
         current_status=current_status,
         kiosk_mode=True,
-    )
+    ))
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    return response
 
 
 @kiosk_bp.get("/api/routes")

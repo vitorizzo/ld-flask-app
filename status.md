@@ -8,6 +8,7 @@ Data aggiornamento: 2026-06-02
 - Su smartphone il pannello stato resta sticky durante lo scorrimento, usa target touch da almeno 50 px e safe-area; intestazione, metadati, testo e pannelli sono stati compattati per viewport stretti.
 - Da 680 px in su rimane la griglia rapida desktop di tutti gli stati. Dopo un aggiornamento, select, badge, griglia e stato interno vengono sincronizzati senza reload.
 - Aggiornate le cache key di CSS e JavaScript del dettaglio ordine.
+- Correzione Galaxy S25 e dispositivi touch ad alta risoluzione: la variante desktop richiede ora anche mouse e supporto hover, non soltanto una viewport larga. Il dettaglio usa cache key `mobile-status3` e risposta HTTP `no-store`.
 
 ## 2026-08-13 - QR home e totale consegnato nel report Agenda
 
