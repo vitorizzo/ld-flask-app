@@ -21,7 +21,11 @@ from models import (
     SlackOrder,
     SlackOrderEvent,
 )
-from tools.contact_imports import create_contact_import_intent, is_vcard_upload
+from tools.contact_imports import (
+    create_claimable_contact_import_intent,
+    create_contact_import_intent,
+    is_vcard_upload,
+)
 from tools.push_notifications import (
     is_push_configured,
     order_push_payload,
@@ -177,7 +181,6 @@ def _add_shared_attachment_event(order, intent, event_type="note"):
 
 
 @pwa_bp.post("/share")
-@login_required
 def share_target():
     title = (request.form.get("title") or "").strip()
     text = (request.form.get("text") or "").strip()
@@ -189,16 +192,27 @@ def share_target():
         files.extend(values)
     vcard = next((item for item in files if item and is_vcard_upload(item)), None)
     if vcard:
-        if (current_user.max_role_weight or 0) < 30:
+        if current_user.is_authenticated and (current_user.max_role_weight or 0) < 30:
             return render_template(
                 "registry/contact_import_error.html",
                 error="Il tuo profilo non puo' associare contatti alle anagrafiche clienti.",
             ), 403
         try:
-            intent = create_contact_import_intent(vcard, current_user.id)
+            if current_user.is_authenticated:
+                intent = create_contact_import_intent(vcard, current_user.id)
+                review_url = url_for("registry.contact_import_review", intent_id=intent.id)
+            else:
+                intent, claim_token = create_claimable_contact_import_intent(vcard)
+                review_url = url_for(
+                    "registry.contact_import_review",
+                    intent_id=intent.id,
+                    claim=claim_token,
+                )
         except ValueError as exc:
             return render_template("registry/contact_import_error.html", error=str(exc)), 400
-        return redirect(url_for("registry.contact_import_review", intent_id=intent.id))
+        return redirect(review_url)
+    if not current_user.is_authenticated:
+        return redirect(url_for("auth.login", next=url_for("home")))
     if not files:
         logger.info(
             "PWA share senza file: form_keys=%s file_keys=%s content_type=%s",

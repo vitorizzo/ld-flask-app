@@ -7,6 +7,9 @@
 - `tools/app_factory.py`: il manifest e' escluso dalla cache immutable degli asset con `?v=` e viene sempre restituito con direttive `no-store/no-cache`, cosi' Chrome puo' rilevare le nuove funzionalita' senza reinstallazione.
 - Verifica produzione 2026-08-17: manifest e header pubblici sono corretti; la comparsa selettiva per foto/contatto consente di distinguere un WebAPK non aggiornato da una semplice scorciatoia/installazione senza share target.
 - Test S25: target foto presente e target contatto assente = WebAPK ancora dotato dei vecchi filtri. Il manifest include quindi fallback `text/*`, `application/x-vcard`, `application/octet-stream` e un cambio impercettibile di `theme_color` che forza una nuova generazione WebAPK senza reinstallazione.
+- Manifest forzante verificato anche in produzione; diagnostica/aggiornamento manuale Chrome Android disponibile tramite `about://webapks` (Samsung Internet non documenta un comando equivalente).
+- `routes/pwa.py`, `tools/contact_imports.py`, `routes/registry.py`: la share vCard funziona anche quando Android non invia il cookie. Il file viene trasformato in intento anonimo temporaneo, protetto da token monouso hashato e scadenza 30 minuti; login e ruolo 30 restano obbligatori prima di vedere o associare il contatto.
+- `models.py`, `migrations/versions/f1a2b3c4d5e6_allow_claiming_shared_vcards.py`: supporto a intent non ancora assegnati con `claim_token_hash` e `claim_expires_at`; il claim assegna definitivamente l'intento all'utente e rimuove il segreto.
 
 ## Dettaglio ordine da push su mobile (2026-08-16)
 

@@ -16,6 +16,7 @@ from models import (
     RegistryContactPoint,
 )
 from tools.contact_imports import (
+    claim_contact_import_intent,
     create_contact_import_intent,
     finalize_contact_import,
     is_vcard_upload,
@@ -182,6 +183,12 @@ def api_contact_import_create():
 @login_required
 @role_required(30)
 def contact_import_review(intent_id):
+    unclaimed = RegistryContactImportIntent.query.filter_by(id=intent_id, user_id=None).first()
+    if unclaimed:
+        claim_token = (request.args.get("claim") or "").strip()
+        if not claim_contact_import_intent(unclaimed, current_user.id, claim_token):
+            return "Importazione scaduta o non valida", 403
+        return redirect(url_for("registry.contact_import_review", intent_id=intent_id))
     intent = _contact_import_access(intent_id)
     if not intent:
         return "Accesso negato", 403

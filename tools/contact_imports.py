@@ -1,7 +1,11 @@
 from __future__ import annotations
 
 import os
+import hashlib
+import hmac
+import secrets
 import uuid
+from datetime import datetime, timedelta
 
 from flask import current_app
 
@@ -41,7 +45,14 @@ def resolve_photo_path(relative_path: str | None) -> str | None:
     return candidate
 
 
-def create_contact_import_intent(upload, user_id: int, suggested_registry_id: int | None = None):
+def create_contact_import_intent(
+    upload,
+    user_id: int | None,
+    suggested_registry_id: int | None = None,
+    *,
+    claim_token_hash: str | None = None,
+    claim_expires_at: datetime | None = None,
+):
     parsed = parse_vcard(upload.read())
     photo_path = None
     if parsed.photo_bytes:
@@ -60,10 +71,38 @@ def create_contact_import_intent(upload, user_id: int, suggested_registry_id: in
         emails=parsed.emails,
         photo_path=photo_path,
         photo_mime=parsed.photo_mime,
+        claim_token_hash=claim_token_hash,
+        claim_expires_at=claim_expires_at,
     )
     db.session.add(intent)
     db.session.commit()
     return intent
+
+
+def create_claimable_contact_import_intent(upload):
+    token = secrets.token_urlsafe(32)
+    intent = create_contact_import_intent(
+        upload,
+        None,
+        claim_token_hash=hashlib.sha256(token.encode("utf-8")).hexdigest(),
+        claim_expires_at=datetime.utcnow() + timedelta(minutes=30),
+    )
+    return intent, token
+
+
+def claim_contact_import_intent(intent, user_id: int, token: str) -> bool:
+    if intent.user_id is not None or not token or not intent.claim_token_hash:
+        return False
+    if not intent.claim_expires_at or intent.claim_expires_at < datetime.utcnow():
+        return False
+    candidate = hashlib.sha256(token.encode("utf-8")).hexdigest()
+    if not hmac.compare_digest(candidate, intent.claim_token_hash):
+        return False
+    intent.user_id = user_id
+    intent.claim_token_hash = None
+    intent.claim_expires_at = None
+    db.session.commit()
+    return True
 
 
 def _move_intent_photo(intent, contact) -> None:

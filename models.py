@@ -2497,7 +2497,7 @@ class RegistryContactImportIntent(db.Model):
     __tablename__ = "registry_contact_import_intents"
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=True, index=True)
     suggested_registry_id = db.Column(
         db.Integer,
         db.ForeignKey("business_registries.id", ondelete="SET NULL"),
@@ -2510,6 +2510,8 @@ class RegistryContactImportIntent(db.Model):
     emails = db.Column(db.JSON, nullable=True)
     photo_path = db.Column(db.String(500), nullable=True)
     photo_mime = db.Column(db.String(80), nullable=True)
+    claim_token_hash = db.Column(db.String(64), nullable=True)
+    claim_expires_at = db.Column(db.DateTime, nullable=True)
     status = db.Column(db.String(30), nullable=False, default="pending", index=True)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
     updated_at = db.Column(
