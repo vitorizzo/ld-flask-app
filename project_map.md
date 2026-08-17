@@ -12,6 +12,7 @@
 - `routes/pwa.py`: ogni uscita dalla POST del Web Share Target usa `303 See Other` (non `302`), evitando che il WebAPK ripeta o consideri fallita la navigazione multipart; log diagnostico registra solo stato auth, conteggio/MIME e id intento.
 - `static/service-worker.js`, `templates/base.html`: il worker `v25` gestisce integralmente `POST /pwa/share`: estrae il `FormData`, lo consegna al backend tramite richiesta JSON dedicata e costruisce il `303` finale verso la pagina GET; eventuali errori sono mostrati come diagnostica testuale. Registrazione `mobile13` per attivazione automatica sulle installazioni esistenti.
 - `routes/pwa.py`: con `X-LDApp-Share-Worker: 1` restituisce `{ok, redirect_url}` oppure un errore JSON; il comportamento diretto senza worker resta compatibile tramite `303`. Il log indica anche se la consegna proviene dal worker.
+- `static/css/registry_tools.css`, `templates/registry/contact_import_review.html`: l'anteprima vCard usa un pannello interno con scroll verticale touch e spazio inferiore calibrato per il comando sticky, sia nella scala mobile standard sia in quella ad alta risoluzione.
 - `models.py`, `migrations/versions/f1a2b3c4d5e6_allow_claiming_shared_vcards.py`: supporto a intent non ancora assegnati con `claim_token_hash` e `claim_expires_at`; il claim assegna definitivamente l'intento all'utente e rimuove il segreto.
 
 ## Dettaglio ordine da push su mobile (2026-08-16)
