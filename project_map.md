@@ -9,6 +9,7 @@
 - Test S25: target foto presente e target contatto assente = WebAPK ancora dotato dei vecchi filtri. Il manifest include quindi fallback `text/*`, `application/x-vcard`, `application/octet-stream` e un cambio impercettibile di `theme_color` che forza una nuova generazione WebAPK senza reinstallazione.
 - Manifest forzante verificato anche in produzione; diagnostica/aggiornamento manuale Chrome Android disponibile tramite `about://webapks` (Samsung Internet non documenta un comando equivalente).
 - `routes/pwa.py`, `tools/contact_imports.py`, `routes/registry.py`: la share vCard funziona anche quando Android non invia il cookie. Il file viene trasformato in intento anonimo temporaneo, protetto da token monouso hashato e scadenza 30 minuti; login e ruolo 30 restano obbligatori prima di vedere o associare il contatto.
+- `routes/pwa.py`: ogni uscita dalla POST del Web Share Target usa `303 See Other` (non `302`), evitando che il WebAPK ripeta o consideri fallita la navigazione multipart; log diagnostico registra solo stato auth, conteggio/MIME e id intento.
 - `models.py`, `migrations/versions/f1a2b3c4d5e6_allow_claiming_shared_vcards.py`: supporto a intent non ancora assegnati con `claim_token_hash` e `claim_expires_at`; il claim assegna definitivamente l'intento all'utente e rimuove il segreto.
 
 ## Dettaglio ordine da push su mobile (2026-08-16)

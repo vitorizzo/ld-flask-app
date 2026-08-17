@@ -190,6 +190,13 @@ def share_target():
     files = []
     for _, values in request.files.lists():
         files.extend(values)
+    logger.info(
+        "PWA share ricevuta: authenticated=%s files=%s mime_types=%s content_length=%s",
+        current_user.is_authenticated,
+        len(files),
+        [(item.mimetype or "") for item in files if item],
+        request.content_length,
+    )
     vcard = next((item for item in files if item and is_vcard_upload(item)), None)
     if vcard:
         if current_user.is_authenticated and (current_user.max_role_weight or 0) < 30:
@@ -210,9 +217,14 @@ def share_target():
                 )
         except ValueError as exc:
             return render_template("registry/contact_import_error.html", error=str(exc)), 400
-        return redirect(review_url)
+        logger.info(
+            "PWA share vCard acquisita: intent_id=%s authenticated=%s",
+            intent.id,
+            current_user.is_authenticated,
+        )
+        return redirect(review_url, code=303)
     if not current_user.is_authenticated:
-        return redirect(url_for("auth.login", next=url_for("home")))
+        return redirect(url_for("auth.login", next=url_for("home")), code=303)
     if not files:
         logger.info(
             "PWA share senza file: form_keys=%s file_keys=%s content_type=%s",
@@ -255,7 +267,7 @@ def share_target():
     )
     db.session.add(intent)
     db.session.commit()
-    return redirect(url_for("pwa.share_review", intent_id=intent.id))
+    return redirect(url_for("pwa.share_review", intent_id=intent.id), code=303)
 
 
 @pwa_bp.get("/share/<int:intent_id>")
