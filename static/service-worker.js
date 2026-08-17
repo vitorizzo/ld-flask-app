@@ -1,4 +1,4 @@
-const CACHE_NAME = "ldapp-cache-v23"; // bump per forzare update
+const CACHE_NAME = "ldapp-cache-v24"; // bump per forzare update
 const MAX_PUSH_AGE_MS = 10 * 60 * 1000;
 
 function supportedNotificationActions(actions) {
@@ -83,11 +83,20 @@ self.addEventListener("message", (event) => {
 
 self.addEventListener("fetch", (event) => {
   const req = event.request;
+  const url = new URL(req.url);
+
+  // Il Web Share Target apre l'app con una navigazione POST. Gestirla
+  // esplicitamente nel worker evita che Android/WebAPK perda il passaggio
+  // di consegna o i redirect prodotti dal server.
+  if (req.method === "POST" && url.origin === self.location.origin && url.pathname === "/pwa/share") {
+    event.respondWith(
+      fetch(req, { credentials: "include", redirect: "follow", cache: "no-store" })
+    );
+    return;
+  }
 
   // Solo GET
   if (req.method !== "GET") return;
-
-  const url = new URL(req.url);
 
   // ✅ Non cache-are roba non HTTP(S) (chrome-extension, data, blob, ecc.)
   if (url.protocol !== "http:" && url.protocol !== "https:") return;

@@ -107,7 +107,7 @@
                     refreshing = true;
                     window.location.reload();
                 });
-                navigator.serviceWorker.register("/service-worker.js?v={{ app_version }}-mobile11")
+                navigator.serviceWorker.register("/service-worker.js?v={{ app_version }}-mobile12")
                     .then((registration) => {
                         console.log("Service Worker registrato");
                         registration.update();
