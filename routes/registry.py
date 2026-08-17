@@ -1,8 +1,9 @@
 from datetime import date, time
 
-from flask import Blueprint, jsonify, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import or_
+from sqlalchemy.orm import load_only, raiseload
 
 from extensions import db
 from models import (
@@ -73,6 +74,20 @@ def _registry_to_dict(registry, include_contacts=False, include_routes=False):
     return data
 
 
+def _registry_search_to_dict(registry):
+    return {
+        "id": registry.id,
+        "source_code": registry.source_code,
+        "display_name": registry.display_name,
+        "legal_name": registry.legal_name,
+        "vat_number": registry.vat_number,
+        "tax_code": registry.tax_code,
+        "city": registry.city,
+        "province": registry.province,
+        "display": _registry_label(registry),
+    }
+
+
 def _search_registries(kind, q="", limit=None):
     query = BusinessRegistry.query.filter(
         BusinessRegistry.kind == kind,
@@ -94,6 +109,42 @@ def _search_registries(kind, q="", limit=None):
         ))
     if limit is None:
         limit = 120 if q else 2000
+    return (
+        query
+        .order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc())
+        .limit(limit)
+        .all()
+    )
+
+
+def _search_registries_compact(kind, q, limit=30):
+    q = (q or "").strip()
+    query = (
+        BusinessRegistry.query
+        .options(load_only(
+            BusinessRegistry.id,
+            BusinessRegistry.source_code,
+            BusinessRegistry.display_name,
+            BusinessRegistry.legal_name,
+            BusinessRegistry.vat_number,
+            BusinessRegistry.tax_code,
+            BusinessRegistry.city,
+            BusinessRegistry.province,
+        ), raiseload("*"))
+        .filter(
+            BusinessRegistry.kind == kind,
+            BusinessRegistry.is_active.is_(True),
+        )
+    )
+    if q:
+        like = f"%{q}%"
+        query = query.filter(or_(
+            BusinessRegistry.display_name.ilike(like),
+            BusinessRegistry.legal_name.ilike(like),
+            BusinessRegistry.vat_number.ilike(like),
+            BusinessRegistry.tax_code.ilike(like),
+            BusinessRegistry.source_code.ilike(like),
+        ))
     return (
         query
         .order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc())
@@ -183,22 +234,30 @@ def api_contact_import_create():
 @login_required
 @role_required(30)
 def contact_import_review(intent_id):
-    unclaimed = RegistryContactImportIntent.query.filter_by(id=intent_id, user_id=None).first()
-    if unclaimed:
-        claim_token = (request.args.get("claim") or "").strip()
-        if not claim_contact_import_intent(unclaimed, current_user.id, claim_token):
-            return "Importazione scaduta o non valida", 403
-        return redirect(url_for("registry.contact_import_review", intent_id=intent_id))
-    intent = _contact_import_access(intent_id)
+    intent = db.session.get(RegistryContactImportIntent, intent_id)
     if not intent:
+        abort(404)
+    clean_url = None
+    claimed = False
+    if intent.user_id is None:
+        claim_token = (request.args.get("claim") or "").strip()
+        if not claim_contact_import_intent(intent, current_user.id, claim_token, commit=False):
+            return "Importazione scaduta o non valida", 403
+        clean_url = url_for("registry.contact_import_review", intent_id=intent_id)
+        claimed = True
+    elif intent.user_id != current_user.id and (current_user.max_role_weight or 0) < 100:
         return "Accesso negato", 403
     if intent.status == "completed":
         return redirect(url_for("registry.customers_book_page"))
-    return render_template(
+    response = render_template(
         "registry/contact_import_review.html",
         intent=intent,
         suggested_registry=intent.suggested_registry,
+        clean_url=clean_url,
     )
+    if claimed:
+        db.session.commit()
+    return response
 
 
 @registry_bp.get("/contact-imports/<int:intent_id>/photo")
@@ -457,14 +516,19 @@ def api_registries_index():
     if kind not in {"customer", "supplier"}:
         return jsonify({"ok": False, "error": "Tipo anagrafica non valido"}), 400
     q = (request.args.get("q") or "").strip()
-    registries = _search_registries(kind, q=q, limit=120 if q else None)
+    compact = (request.args.get("compact") or "").strip().lower() in {"1", "true", "yes"}
+    registries = (
+        _search_registries_compact(kind, q=q, limit=30)
+        if compact
+        else _search_registries(kind, q=q, limit=120 if q else None)
+    )
     return jsonify({
         "ok": True,
         "kind": kind,
         "count": len(registries),
         "limited": bool(q),
         "registries": [
-            _registry_to_dict(registry, include_contacts=True)
+            (_registry_search_to_dict(registry) if compact else _registry_to_dict(registry, include_contacts=True))
             for registry in registries
         ],
     })

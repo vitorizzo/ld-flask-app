@@ -7,7 +7,7 @@
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section page-shell contact-import-page" data-intent-id="{{ intent.id }}">
+<section class="welcome-section page-shell contact-import-page" data-intent-id="{{ intent.id }}"{% if clean_url %} data-clean-url="{{ clean_url }}"{% endif %}>
   <div class="container contact-import-shell">
     <header class="contact-import-header">
       <a class="btn btn-outline-secondary" href="{{ url_for('registry.customers_book_page') }}" aria-label="Annulla">
@@ -105,7 +105,24 @@
   const results = document.getElementById("customerSearchResults");
   const feedback = document.getElementById("contactImportFeedback");
   const confirmBtn = document.getElementById("confirmContactImportBtn");
+  const searchCache = new Map();
+  let searchController = null;
   const esc = value => String(value || "").replace(/[&<>"']/g, char => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
+
+  if (page.dataset.cleanUrl && window.history && window.history.replaceState) {
+    window.history.replaceState({}, document.title, page.dataset.cleanUrl);
+  }
+
+  function renderCustomers(customers) {
+    if (!customers.length) {
+      results.innerHTML = '<div class="list-group-item text-muted">Nessun cliente trovato.</div>';
+      return;
+    }
+    results.innerHTML = customers.map(customer => `
+      <button class="list-group-item list-group-item-action" type="button" data-customer='${esc(JSON.stringify(customer))}'>
+        <strong>${esc(customer.display)}</strong><span>${esc([customer.source_code, customer.city, customer.province].filter(Boolean).join(" · "))}</span>
+      </button>`).join("");
+  }
 
   function setFeedback(message = "", error = false) {
     feedback.textContent = message;
@@ -125,21 +142,27 @@
   async function searchCustomers() {
     const query = searchInput.value.trim();
     if (query.length < 2) return setFeedback("Inserisci almeno 2 caratteri per cercare il cliente.", true);
+    const cacheKey = query.toLocaleLowerCase("it-IT");
+    if (searchCache.has(cacheKey)) {
+      renderCustomers(searchCache.get(cacheKey));
+      setFeedback();
+      return;
+    }
+    if (searchController) searchController.abort();
+    searchController = new AbortController();
     results.innerHTML = '<div class="list-group-item text-muted">Ricerca...</div>';
     setFeedback();
     try {
-      const response = await fetch(`/registry/api/registries?kind=customer&q=${encodeURIComponent(query)}`, {credentials: "same-origin"});
+      const response = await fetch(`/registry/api/registries?kind=customer&compact=1&q=${encodeURIComponent(query)}`, {
+        credentials: "same-origin",
+        signal: searchController.signal,
+      });
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error || "Errore ricerca clienti");
-      if (!data.registries.length) {
-        results.innerHTML = '<div class="list-group-item text-muted">Nessun cliente trovato.</div>';
-        return;
-      }
-      results.innerHTML = data.registries.map(customer => `
-        <button class="list-group-item list-group-item-action" type="button" data-customer='${esc(JSON.stringify(customer))}'>
-          <strong>${esc(customer.display)}</strong><span>${esc([customer.source_code, customer.city, customer.province].filter(Boolean).join(" · "))}</span>
-        </button>`).join("");
+      searchCache.set(cacheKey, data.registries);
+      renderCustomers(data.registries);
     } catch (error) {
+      if (error.name === "AbortError") return;
       results.innerHTML = "";
       setFeedback(error.message || "Errore ricerca clienti", true);
     }

@@ -90,7 +90,7 @@ def create_claimable_contact_import_intent(upload):
     return intent, token
 
 
-def claim_contact_import_intent(intent, user_id: int, token: str) -> bool:
+def claim_contact_import_intent(intent, user_id: int, token: str, *, commit: bool = True) -> bool:
     if intent.user_id is not None or not token or not intent.claim_token_hash:
         return False
     if not intent.claim_expires_at or intent.claim_expires_at < datetime.utcnow():
@@ -101,7 +101,10 @@ def claim_contact_import_intent(intent, user_id: int, token: str) -> bool:
     intent.user_id = user_id
     intent.claim_token_hash = None
     intent.claim_expires_at = None
-    db.session.commit()
+    if commit:
+        db.session.commit()
+    else:
+        db.session.flush()
     return True
 
 
