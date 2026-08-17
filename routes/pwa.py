@@ -182,6 +182,18 @@ def _add_shared_attachment_event(order, intent, event_type="note"):
 
 @pwa_bp.post("/share")
 def share_target():
+    worker_request = request.headers.get("X-LDApp-Share-Worker") == "1"
+
+    def share_destination(target_url, status_code=201):
+        if worker_request:
+            return jsonify({"ok": True, "redirect_url": target_url}), status_code
+        return redirect(target_url, code=303)
+
+    def share_error(message, status_code):
+        if worker_request:
+            return jsonify({"ok": False, "error": message}), status_code
+        return render_template("registry/contact_import_error.html", error=message), status_code
+
     title = (request.form.get("title") or "").strip()
     text = (request.form.get("text") or "").strip()
     url = (request.form.get("url") or "").strip()
@@ -191,7 +203,8 @@ def share_target():
     for _, values in request.files.lists():
         files.extend(values)
     logger.info(
-        "PWA share ricevuta: authenticated=%s files=%s mime_types=%s content_length=%s",
+        "PWA share ricevuta: worker=%s authenticated=%s files=%s mime_types=%s content_length=%s",
+        worker_request,
         current_user.is_authenticated,
         len(files),
         [(item.mimetype or "") for item in files if item],
@@ -200,10 +213,7 @@ def share_target():
     vcard = next((item for item in files if item and is_vcard_upload(item)), None)
     if vcard:
         if current_user.is_authenticated and (current_user.max_role_weight or 0) < 30:
-            return render_template(
-                "registry/contact_import_error.html",
-                error="Il tuo profilo non puo' associare contatti alle anagrafiche clienti.",
-            ), 403
+            return share_error("Il tuo profilo non puo' associare contatti alle anagrafiche clienti.", 403)
         try:
             if current_user.is_authenticated:
                 intent = create_contact_import_intent(vcard, current_user.id)
@@ -216,15 +226,15 @@ def share_target():
                     claim=claim_token,
                 )
         except ValueError as exc:
-            return render_template("registry/contact_import_error.html", error=str(exc)), 400
+            return share_error(str(exc), 400)
         logger.info(
             "PWA share vCard acquisita: intent_id=%s authenticated=%s",
             intent.id,
             current_user.is_authenticated,
         )
-        return redirect(review_url, code=303)
+        return share_destination(review_url)
     if not current_user.is_authenticated:
-        return redirect(url_for("auth.login", next=url_for("home")), code=303)
+        return share_destination(url_for("auth.login", next=url_for("home")), status_code=200)
     if not files:
         logger.info(
             "PWA share senza file: form_keys=%s file_keys=%s content_type=%s",
@@ -267,7 +277,7 @@ def share_target():
     )
     db.session.add(intent)
     db.session.commit()
-    return redirect(url_for("pwa.share_review", intent_id=intent.id), code=303)
+    return share_destination(url_for("pwa.share_review", intent_id=intent.id))
 
 
 @pwa_bp.get("/share/<int:intent_id>")

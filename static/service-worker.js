@@ -1,4 +1,4 @@
-const CACHE_NAME = "ldapp-cache-v24"; // bump per forzare update
+const CACHE_NAME = "ldapp-cache-v25"; // bump per forzare update
 const MAX_PUSH_AGE_MS = 10 * 60 * 1000;
 
 function supportedNotificationActions(actions) {
@@ -39,6 +39,36 @@ function updateOrderStatus(orderId, status) {
     if (!response.ok) throw new Error(`Aggiornamento stato fallito: ${response.status}`);
     return response.json();
   });
+}
+
+async function handleShareTargetRequest(request) {
+  try {
+    const formData = await request.formData();
+    const response = await fetch("/pwa/share", {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+      headers: {
+        Accept: "application/json",
+        "X-LDApp-Share-Worker": "1",
+      },
+      body: formData,
+    });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || !payload.redirect_url) {
+      const detail = payload.error || `Risposta server non valida (${response.status})`;
+      return new Response(`LDApp non ha potuto importare il contatto.\n\n${detail}`, {
+        status: response.ok ? 502 : response.status,
+        headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+      });
+    }
+    return Response.redirect(new URL(payload.redirect_url, self.location.origin).href, 303);
+  } catch (error) {
+    return new Response(`LDApp non ha potuto ricevere il contatto.\n\n${error && error.message ? error.message : "Errore Web Share Target"}`, {
+      status: 502,
+      headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" },
+    });
+  }
 }
 
 self.addEventListener("install", (event) => {
@@ -85,13 +115,11 @@ self.addEventListener("fetch", (event) => {
   const req = event.request;
   const url = new URL(req.url);
 
-  // Il Web Share Target apre l'app con una navigazione POST. Gestirla
-  // esplicitamente nel worker evita che Android/WebAPK perda il passaggio
-  // di consegna o i redirect prodotti dal server.
+  // Il Web Share Target apre l'app con una navigazione POST. Il worker
+  // estrae il multipart, lo consegna al server e restituisce ad Android una
+  // singola navigazione 303 verso la pagina GET ricevuta come JSON.
   if (req.method === "POST" && url.origin === self.location.origin && url.pathname === "/pwa/share") {
-    event.respondWith(
-      fetch(req, { credentials: "include", redirect: "follow", cache: "no-store" })
-    );
+    event.respondWith(handleShareTargetRequest(req));
     return;
   }
 
