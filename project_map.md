@@ -1355,6 +1355,14 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `templates/base.html`: tutti gli script applicativi globali includono `APP_VERSION`, così una nuova distribuzione invalida automaticamente la cache del browser.
 - `static/js/agenda.js`: polling versioni Agenda/vault serializzato ogni 5 secondi, sospeso nelle schede nascoste; i pannelli assegni sono caricati fuori dal percorso critico iniziale.
 
+### Aggiornamenti PWA senza interruzioni (2026-08-17)
+
+- `static/js/app_update.js`: rileva e scarica una nuova versione in background, registrandola come pendente senza ricaricare il documento aperto o cancellarne le cache.
+- `templates/base.html`: la registrazione del service worker non forza piu' `SKIP_WAITING` e non ricarica la pagina al `controllerchange`.
+- `static/service-worker.js`: dalla cache `v26` l'installazione non chiama automaticamente `skipWaiting`; l'attivazione avviene al successivo ciclo naturale dell'app.
+- `static/js/agenda.js`: il conteggio fondo cassa non salvato e' mantenuto in una bozza di sessione per giornata e viene ripristinato dopo refresh, se la versione salvata sul server non e' cambiata.
+- Il polling realtime continua ogni 5 secondi ma passa da un coordinatore che rinvia i soli aggiornamenti DOM durante un'interazione e consolida variazioni Agenda/vault concorrenti; pagina, pannelli e contenitori scrollabili interni mantengono la posizione.
+
 ### Agenda - filtro quadratura POS per device (2026-08-01)
 
 - `routes/cassa.py`: `GET /cassa/api/day/<day_date>/pos_moves` include `pos_devices`, unione dei device attivi e di quelli presenti nei movimenti storici della giornata.

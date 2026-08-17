@@ -15,6 +15,10 @@ let lastKnownVaultStateVersion = null;
 let lastKnownAgendaVersion = null;
 let rowCheckMutationDepth = 0;
 let editingEcommerceId = null;
+let realtimeAgendaRefreshPending = false;
+let realtimeAgendaRefreshPromise = null;
+let agendaInteractionUntil = 0;
+let agendaRefreshFlushTimer = null;
 
 const EXPENSE_POS_CARDS = [
   "Carta aziendale",
@@ -193,7 +197,7 @@ function updateQuadraturaLeds(delta) {
 }
 
 async function pollAgendaVersion() {
-  if (!currentDay || rowCheckMutationDepth > 0) return;
+  if (!currentDay || rowCheckMutationDepth > 0) return false;
 
   try {
     const r = await fetch(`/cassa/api/day/${currentDay}/version`, {
@@ -203,24 +207,25 @@ async function pollAgendaVersion() {
     });
 
     const data = await r.json();
-    if (!data.ok) return;
+    if (!data.ok) return false;
 
     const version = Number(data.version || 0);
 
     if (lastKnownAgendaVersion === null) {
       lastKnownAgendaVersion = version;
-      return;
+      return false;
     }
 
     if (version !== lastKnownAgendaVersion) {
       console.log("Agenda changed → refresh", lastKnownAgendaVersion, "→", version);
 
       lastKnownAgendaVersion = version;
-      await refreshAgendaData(true);
+      return true;
     }
   } catch (err) {
     console.error("pollAgendaVersion error:", err);
   }
+  return false;
 }
 
 /* =========================
@@ -243,20 +248,20 @@ async function pollPrivateVaultStatus() {
 
     if (lastKnownVaultStateVersion === null) {
       lastKnownVaultStateVersion = currentVersion;
-      return;
+      return false;
     }
 
     if (currentVersion !== lastKnownVaultStateVersion) {
       console.log("Vault state version changed:", currentVersion);
 
       lastKnownVaultStateVersion = currentVersion;
-      await refreshAgendaData(true);
-      return;
+      return true;
     }
 
   } catch (err) {
     console.error("pollPrivateVaultStatus error:", err);
   }
+  return false;
 }
 
 async function refreshPrivateVaultStatus() {
@@ -904,6 +909,75 @@ const drawerSaveBtn = document.getElementById("drawerSaveBtn");
 const drawerDeleteBtn = document.getElementById("drawerDeleteBtn");
 
 let drawerModal = null;
+let drawerServerSignature = "";
+
+function drawerDraftKey(day = currentDay) {
+  return day ? `ldapp.drawerCountDraft.v1.${day}` : "";
+}
+
+function drawerLinesSignature(lines) {
+  return (Array.isArray(lines) ? lines : [])
+    .map(line => `${Number(line.denomination || 0)}:${Number(line.quantity || 0)}`)
+    .sort()
+    .join("|");
+}
+
+function currentDrawerLines() {
+  if (!drawerRowsEl) return [];
+  return Array.from(drawerRowsEl.querySelectorAll(".drawer-qty")).map(input => ({
+    denomination: input.dataset.denom,
+    quantity: Number(input.value || 0)
+  }));
+}
+
+function persistDrawerDraft() {
+  const key = drawerDraftKey();
+  if (!key) return;
+
+  const lines = currentDrawerLines();
+  if (drawerLinesSignature(lines) === drawerServerSignature) {
+    sessionStorage.removeItem(key);
+    return;
+  }
+
+  sessionStorage.setItem(key, JSON.stringify({
+    baseSignature: drawerServerSignature,
+    lines,
+    updatedAt: Date.now()
+  }));
+}
+
+function restoreDrawerDraft() {
+  const key = drawerDraftKey();
+  if (!key || !drawerRowsEl) return false;
+
+  try {
+    const draft = JSON.parse(sessionStorage.getItem(key) || "null");
+    if (!draft || draft.baseSignature !== drawerServerSignature || !Array.isArray(draft.lines)) {
+      sessionStorage.removeItem(key);
+      return false;
+    }
+
+    const quantities = new Map(
+      draft.lines.map(line => [String(Number(line.denomination || 0)), Number(line.quantity || 0)])
+    );
+    drawerRowsEl.querySelectorAll(".drawer-qty").forEach(input => {
+      const denomination = String(Number(input.dataset.denom || 0));
+      if (quantities.has(denomination)) input.value = quantities.get(denomination);
+    });
+    updateDrawerTotals();
+    return true;
+  } catch (err) {
+    console.warn("Ripristino bozza fondo cassa non riuscito", err);
+    sessionStorage.removeItem(key);
+    return false;
+  }
+}
+
+function clearDrawerDraft() {
+  const key = drawerDraftKey();
+  if (key) sessionStorage.removeItem(key);
+}
 
 /* =========================
    ECOMMERCE MODAL REFS
@@ -1144,10 +1218,14 @@ function startPolling() {
     if (!agendaPollRunning && document.visibilityState === "visible") {
       agendaPollRunning = true;
       try {
-        await Promise.allSettled([
+        const pollResults = await Promise.allSettled([
           pollPrivateVaultStatus(),
           pollAgendaVersion()
         ]);
+        const needsRefresh = pollResults.some(result => (
+          result.status === "fulfilled" && result.value === true
+        ));
+        if (needsRefresh) await requestRealtimeAgendaRefresh();
       } finally {
         agendaPollRunning = false;
       }
@@ -1312,8 +1390,15 @@ function captureAgendaScrollState() {
     document.getElementById("spesePanel"),
     document.getElementById("posPanel"),
     document.getElementById("movCassaPanel"),
+    ...document.querySelectorAll(
+      ".agenda-page .table-responsive, .agenda-page .modal-body, .agenda-page .offcanvas-body"
+    ),
   ].filter(Boolean);
-  return elements.map((element) => ({ element, top: element.scrollTop, left: element.scrollLeft }));
+  return Array.from(new Set(elements)).map((element) => ({
+    element,
+    top: element.scrollTop,
+    left: element.scrollLeft
+  }));
 }
 
 function restoreAgendaScrollState(state) {
@@ -1350,6 +1435,62 @@ async function refreshAgendaData(preserveView = false) {
   ]);
 }
 
+function hasActiveAgendaInteraction() {
+  if (document.querySelector(".modal.show")) return true;
+  return Date.now() < agendaInteractionUntil;
+}
+
+function scheduleRealtimeAgendaRefresh(delay = 700) {
+  if (agendaRefreshFlushTimer) clearTimeout(agendaRefreshFlushTimer);
+  agendaRefreshFlushTimer = setTimeout(() => {
+    agendaRefreshFlushTimer = null;
+    if (!realtimeAgendaRefreshPending) return;
+    if (hasActiveAgendaInteraction()) {
+      scheduleRealtimeAgendaRefresh();
+      return;
+    }
+    void requestRealtimeAgendaRefresh();
+  }, delay);
+}
+
+function markAgendaInteraction(duration = 700) {
+  agendaInteractionUntil = Math.max(agendaInteractionUntil, Date.now() + duration);
+  if (realtimeAgendaRefreshPending) scheduleRealtimeAgendaRefresh(duration + 50);
+}
+
+async function requestRealtimeAgendaRefresh() {
+  realtimeAgendaRefreshPending = true;
+
+  if (hasActiveAgendaInteraction()) {
+    scheduleRealtimeAgendaRefresh();
+    return;
+  }
+
+  if (realtimeAgendaRefreshPromise) return realtimeAgendaRefreshPromise;
+
+  realtimeAgendaRefreshPending = false;
+  realtimeAgendaRefreshPromise = refreshAgendaData(true)
+    .catch(err => {
+      console.error("Realtime agenda refresh error:", err);
+    })
+    .finally(() => {
+      realtimeAgendaRefreshPromise = null;
+      if (realtimeAgendaRefreshPending) scheduleRealtimeAgendaRefresh(100);
+    });
+
+  return realtimeAgendaRefreshPromise;
+}
+
+document.addEventListener("pointerdown", () => markAgendaInteraction(900), { passive: true });
+document.addEventListener("pointerup", () => markAgendaInteraction(500), { passive: true });
+document.addEventListener("touchstart", () => markAgendaInteraction(900), { passive: true });
+document.addEventListener("wheel", () => markAgendaInteraction(700), { passive: true });
+document.addEventListener("scroll", () => markAgendaInteraction(700), { passive: true, capture: true });
+document.addEventListener("input", () => markAgendaInteraction(900), { passive: true });
+document.addEventListener("hidden.bs.modal", () => {
+  if (realtimeAgendaRefreshPending) scheduleRealtimeAgendaRefresh(100);
+});
+
 /* =========================
    DRAWER COUNT
 ========================= */
@@ -1373,7 +1514,10 @@ async function openDrawerCountModal() {
       return;
     }
 
-    renderDrawerRows(data.drawer_count?.lines || []);
+    const serverLines = data.drawer_count?.lines || [];
+    drawerServerSignature = drawerLinesSignature(serverLines);
+    renderDrawerRows(serverLines);
+    restoreDrawerDraft();
 
     if (!drawerModal) {
       alert("Modale conteggio fondo non disponibile.");
@@ -1590,6 +1734,8 @@ async function saveDrawerCount() {
       return;
     }
 
+    clearDrawerDraft();
+
     if (drawerModal) {
       drawerModal.hide();
     }
@@ -1628,6 +1774,8 @@ async function deleteDrawerCount() {
       alert(data.error || "Errore eliminazione fondo cassa");
       return;
     }
+
+    clearDrawerDraft();
 
     if (drawerModal) {
       drawerModal.hide();
@@ -8624,7 +8772,10 @@ document.addEventListener("DOMContentLoaded", async function () {
     await handleClosedDayMutation("inserire un conteggio fondocassa", () => openDrawerCountModal());
   });
 
-  drawerRowsEl?.addEventListener("input", updateDrawerTotals);
+  drawerRowsEl?.addEventListener("input", () => {
+    updateDrawerTotals();
+    persistDrawerDraft();
+  });
 
   drawerSaveBtn?.addEventListener("click", async () => {
     await saveDrawerCount();

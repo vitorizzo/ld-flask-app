@@ -97,32 +97,16 @@
         {% endif %}
         <script src="{{ url_for('static', filename='js/base.js', v=app_version ~ '-flash1') }}"></script>
         <script src="{{ url_for('static', filename='js/pwa_push.js', v=app_version) }}"></script>
-        <script src="{{ url_for('static', filename='js/app_update.js', v=app_version) }}"></script>
+        <script src="{{ url_for('static', filename='js/app_update.js', v=app_version ~ '-safe-refresh1') }}"></script>
 
         <script>
             if ("serviceWorker" in navigator) {
-                let refreshing = false;
-                navigator.serviceWorker.addEventListener("controllerchange", () => {
-                    if (refreshing) return;
-                    refreshing = true;
-                    window.location.reload();
-                });
-                navigator.serviceWorker.register("/service-worker.js?v={{ app_version }}-mobile13")
+                navigator.serviceWorker.register("/service-worker.js?v={{ app_version }}-safe-refresh1")
                     .then((registration) => {
                         console.log("Service Worker registrato");
+                        // Verifica e scarica gli aggiornamenti in background. Non
+                        // forziamo attivazione o reload della pagina attualmente in uso.
                         registration.update();
-                        if (registration.waiting) {
-                            registration.waiting.postMessage({ type: "SKIP_WAITING" });
-                        }
-                        registration.addEventListener("updatefound", () => {
-                            const worker = registration.installing;
-                            if (!worker) return;
-                            worker.addEventListener("statechange", () => {
-                                if (worker.state === "installed" && navigator.serviceWorker.controller) {
-                                    worker.postMessage({ type: "SKIP_WAITING" });
-                                }
-                            });
-                        });
                     })
                     .catch((err) => console.error("Errore SW:", err));
             }

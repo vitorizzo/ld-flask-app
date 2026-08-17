@@ -1,4 +1,4 @@
-const CACHE_NAME = "ldapp-cache-v25"; // bump per forzare update
+const CACHE_NAME = "ldapp-cache-v26";
 const MAX_PUSH_AGE_MS = 10 * 60 * 1000;
 
 function supportedNotificationActions(actions) {
@@ -72,7 +72,6 @@ async function handleShareTargetRequest(request) {
 }
 
 self.addEventListener("install", (event) => {
-  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll([

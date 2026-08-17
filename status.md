@@ -2946,3 +2946,13 @@ Performance apertura giornata Agenda 2026-06-13:
 - Confermato il funzionamento della condivisione vCard su S25. Corretta la pagina di associazione mobile: `.contact-import-shell` e' ora il contenitore verticale scrollabile touch, mentre il `page-shell` esterno resta vincolato all'area tra navbar e footer; aggiunto spazio di scorrimento dedicato per il footer sticky nelle due scale mobile.
 - Ottimizzata l'apertura dell'import vCard: il claim viene validato, renderizzato e confermato nella stessa richiesta; il token sparisce subito dall'URL tramite `history.replaceState`, eliminando il precedente redirect e il secondo caricamento completo.
 - La ricerca cliente del form usa ora `compact=1`: massimo 30 risultati, sole otto colonne necessarie, nessun caricamento di contatti/situazioni contabili e cache per query nel browser. Benchmark sul database configurato: da 10 query/~707 ms a 1 query/~106 ms per `car`, senza duplicati da join.
+
+## 2026-08-17 - Aggiornamenti PWA trasparenti e protezione fondo cassa
+
+- Eliminato ogni reload automatico dal controllo versione e dal cambio di controller del service worker: gli aggiornamenti vengono verificati e scaricati in background senza interrompere la pagina, i form o le modali in uso.
+- Il nuovo service worker `v26` non forza piu' `skipWaiting`: resta pronto e si attiva nel normale ciclo di chiusura/riapertura dell'app, senza sostituire risorse durante un'operazione dell'utente.
+- Il conteggio fondo cassa conserva in `sessionStorage`, separatamente per giornata, una bozza aggiornata a ogni modifica. Un refresh manuale ripristina quantità e totale; la bozza viene rimossa solo dopo salvataggio o eliminazione confermati dal server.
+- La bozza viene scartata se nel frattempo il conteggio salvato sul server e' cambiato, evitando di sovrascrivere dati piu' recenti con valori locali obsoleti.
+- Verificate sintassi JavaScript, assenza di reload/attivazioni forzate nel percorso di aggiornamento e integrita' delle patch con `git diff --check`.
+- Corretto anche il refresh realtime interno dell'Agenda: il polling delle versioni resta ogni 5 secondi, ma il ridisegno dei dati viene accodato durante modali, input, touch, rotella e scorrimento e applicato una sola volta al termine dell'interazione.
+- Le richieste simultanee dovute a versione Agenda e versione vault vengono consolidate nello stesso refresh; oltre allo scroll della pagina vengono preservati gli scroll interni delle tabelle responsive e delle aree modali.
