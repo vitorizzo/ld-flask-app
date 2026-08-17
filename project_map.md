@@ -5,6 +5,8 @@
 - `templates/base.html`: il manifest conserva definitivamente l'URL storico `manifest.json?v=20260522-3`; non deve essere versionato a ogni release, perche' Chrome identifica da quell'URL il WebAPK gia' installato e ne aggiorna le integrazioni Android.
 - `static/manifest.json`: `id` e `scope` sono ora espliciti e stabili (`/`); il `share_target` aggiornato continua a includere le vCard.
 - `tools/app_factory.py`: il manifest e' escluso dalla cache immutable degli asset con `?v=` e viene sempre restituito con direttive `no-store/no-cache`, cosi' Chrome puo' rilevare le nuove funzionalita' senza reinstallazione.
+- Verifica produzione 2026-08-17: manifest e header pubblici sono corretti; la comparsa selettiva per foto/contatto consente di distinguere un WebAPK non aggiornato da una semplice scorciatoia/installazione senza share target.
+- Test S25: target foto presente e target contatto assente = WebAPK ancora dotato dei vecchi filtri. Il manifest include quindi fallback `text/*`, `application/x-vcard`, `application/octet-stream` e un cambio impercettibile di `theme_color` che forza una nuova generazione WebAPK senza reinstallazione.
 
 ## Dettaglio ordine da push su mobile (2026-08-16)
 

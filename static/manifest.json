@@ -6,7 +6,7 @@
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#2c3e50",
+  "theme_color": "#2c3e51",
   "orientation": "portrait",
   "share_target": {
     "action": "/pwa/share",
@@ -36,10 +36,13 @@
             "video/*",
             "audio/*",
             "text/plain",
+            "text/*",
             "text/vcard",
             "text/x-vcard",
             "text/directory",
             "application/vcard",
+            "application/x-vcard",
+            "application/octet-stream",
             ".vcf",
             "application/pdf",
             ".pdf"

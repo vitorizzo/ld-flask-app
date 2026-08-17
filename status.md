@@ -2926,3 +2926,12 @@ Performance apertura giornata Agenda 2026-06-13:
 - Aggiunti al manifest un `id` e uno `scope` espliciti e stabili (`/`), senza cambiare identita', start URL o nome dell'app.
 - Il manifest non eredita piu' la cache annuale `immutable` degli asset versionati: viene sempre servito con `no-store/no-cache`, permettendo a Chrome di rilevare e distribuire automaticamente le modifiche al WebAPK e al Web Share Target.
 - L'aggiornamento dell'integrazione nel menu Condividi resta gestito dal browser/sistema Android e puo' richiedere il normale ciclo asincrono del WebAPK; non richiede disinstallazione o reinstallazione da parte dell'utente.
+
+## 2026-08-17 - Diagnostica Web Share Target vCard in produzione
+
+- Verificato direttamente `https://ldapp.ldenoteca.it`: la pagina pubblica collega l'URL storico stabile `/static/manifest.json?v=20260522-3` e il server restituisce il manifest aggiornato con HTTP 200.
+- Il manifest di produzione contiene `id=/`, `scope=/`, i MIME vCard e l'estensione `.vcf`; le intestazioni effettive sono `no-cache, no-store, must-revalidate, max-age=0`, quindi il deploy e la cache del server non spiegano l'assenza dal menu Condividi.
+- La discriminante residua e' Android: se LDApp compare condividendo una foto ma non un contatto, il WebAPK installato conserva i vecchi filtri MIME; se non compare nemmeno per una foto, l'installazione non e' registrata come WebAPK/share target dal browser che l'ha installata.
+- Test reale S25: LDApp compare per le foto ma non per i contatti, confermando un WebAPK valido rimasto con i precedenti intent filter multimediali.
+- `static/manifest.json` accetta ora anche `text/*`, `application/x-vcard` e `application/octet-stream`, coprendo le varianti con cui rubriche e content provider Android possono esportare un `.vcf`.
+- `theme_color` passa da `#2c3e50` a `#2c3e51` (differenza visivamente impercettibile): e' un campo che forza esplicitamente l'aggiornamento del WebAPK, cosi' la nuova APK rigenerata incorpora anche i filtri di condivisione aggiornati.

@@ -10,7 +10,13 @@ from models import RegistryContact, RegistryContactImportIntent, RegistryContact
 from tools.vcard_utils import parse_vcard
 
 
-VCARD_MIME_TYPES = {"text/vcard", "text/x-vcard", "text/directory", "application/vcard"}
+VCARD_MIME_TYPES = {
+    "text/vcard",
+    "text/x-vcard",
+    "text/directory",
+    "application/vcard",
+    "application/x-vcard",
+}
 
 
 def is_vcard_upload(upload) -> bool:
