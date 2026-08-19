@@ -1185,6 +1185,9 @@ async function loadDay(dateStr) {
       updateDayStatusBadge();
       setText("agendaLastUpdated", "Ultimo aggiornamento: " + new Date().toLocaleTimeString());
 
+      // Riallinea la sessione al vault globale prima di caricare anche i mesi
+      // storici: la UI non deve restare in full con risposte fiscali silenziose.
+      await refreshPrivateVaultStatus();
       await refreshAgendaData();
       lastKnownVaultStateVersion = Number(window.currentVaultStateVersion || 0);
 
@@ -1234,6 +1237,10 @@ function startPolling() {
   };
 
   agendaPollTimer = setTimeout(runPoll, 5000);
+}
+
+function agendaDataView() {
+  return priVaultUnlocked ? "complete" : "fiscal";
 }
 
 function isCurrentDayClosed() {
@@ -2033,7 +2040,7 @@ async function loadCashMoves(dayStr) {
 
   try {
     const [movesRes, checksMap] = await Promise.all([
-      fetch(`/cassa/api/day/${dayStr}/cash_moves`, { credentials: "same-origin" }),
+      fetch(`/cassa/api/day/${dayStr}/cash_moves?view=${agendaDataView()}`, { credentials: "same-origin" }),
       fetchRowChecks(Number(document.getElementById("dayId")?.textContent || 0), "cash_move")
     ]);
 
@@ -2252,7 +2259,7 @@ async function loadIncassi(dayStr) {
 
   try {
     const [salesRes, checksMap] = await Promise.all([
-      fetch(`/cassa/api/day/${dayStr}/sales`, { credentials: "same-origin" }),
+      fetch(`/cassa/api/day/${dayStr}/sales?view=${agendaDataView()}`, { credentials: "same-origin" }),
       fetchRowChecks(Number(document.getElementById("dayId")?.textContent || 0), "sale")
     ]);
 
@@ -2374,7 +2381,7 @@ async function loadSpese(dayStr) {
 
   try {
     const [expensesRes, checksMap] = await Promise.all([
-      fetch(`/cassa/api/day/${dayStr}/expenses`, { credentials: "same-origin" }),
+      fetch(`/cassa/api/day/${dayStr}/expenses?view=${agendaDataView()}`, { credentials: "same-origin" }),
       fetchRowChecks(Number(document.getElementById("dayId")?.textContent || 0), "expense")
     ]);
 

@@ -1377,6 +1377,12 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `static/js/agenda.js`: sincronizza le opzioni con la giornata, filtra le righe e calcola il totale netto sul device selezionato; `Tutti i POS` ripristina la vista complessiva.
 - `static/css/agenda.css`: dimensioni, contrasto e resa mobile del selettore POS.
 
+### Agenda - modalita full nei mesi storici (2026-08-19)
+
+- `routes/cassa.py`: `_agenda_private_day_data()` interpreta `view=complete|fiscal`, riaggancia la chiave vault globale e carica il payload PRI usando l'anno della giornata richiesta; le API sales, expenses e cash moves dichiarano nella risposta se i dati privati sono inclusi.
+- `static/js/agenda.js`: prima del caricamento di una giornata riallinea lo stato vault e passa la vista esplicita alle tre API, evitando la degradazione silenziosa che nascondeva i movimenti `+` e `x` nei mesi storici.
+- Un errore di lettura del vault in vista full viene mostrato nei quadranti; frequenza e coordinamento del polling realtime non cambiano.
+
 ### Credito clienti - avvio rapido grafici (2026-08-02)
 
 - `templates/administration/customer_credit.html`: preload del renderer, esecuzione asincrona prima degli script globali e indicatori di elaborazione nei contenitori dei due SVG.

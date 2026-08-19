@@ -780,6 +780,30 @@ def _pri_load_year(year: int) -> dict:
     return json.loads(pt.decode("utf-8"))
 
 
+def _agenda_private_day_data(day_date: date) -> tuple[dict | None, bool]:
+    """Carica il vault per l'Agenda rispettando la vista richiesta dal client.
+
+    ``view=complete`` e' intenzionale: se il vault non e' disponibile non
+    dobbiamo degradare silenziosamente alla vista fiscale, altrimenti i
+    movimenti +/x sembrano inesistenti soprattutto navigando nei mesi storici.
+    Le richieste senza ``view`` mantengono il comportamento precedente.
+    """
+    requested_view = (request.args.get("view") or "").strip().lower()
+    if requested_view == "fiscal":
+        return None, False
+
+    wants_private = requested_view == "complete" or bool(session.get("pri_vault_unlocked"))
+    if not wants_private:
+        return None, False
+
+    if not _pri_adopt_active_key_if_unlocked():
+        if requested_view == "complete":
+            raise RuntimeError("Modalita full non disponibile: vault privato non sbloccato")
+        return None, False
+
+    return _pri_load_year(day_date.year), True
+
+
 def _pri_save_year(year: int, data: dict) -> bool|None:
     """
     Cifra e salva il file annuale PRI usando:
@@ -5443,9 +5467,10 @@ def api_list_sales(day_date):
     # =========================
     # Merge PRI (vault)
     # =========================
-    if session.get("pri_vault_unlocked"):
-        try:
-            pri_data = _pri_load_year(d.year)
+    private_included = False
+    try:
+        pri_data, private_included = _agenda_private_day_data(d)
+        if pri_data:
             day_node = next((x for x in pri_data["days"] if x["date"] == d.isoformat()), None)
 
             if day_node:
@@ -5474,12 +5499,23 @@ def api_list_sales(day_date):
                             }
                         ],
                     })
-        except Exception as e:
-            logger.exception("Errore lettura PRI sales: %s", e)
+    except Exception as e:
+        logger.exception("Errore lettura PRI sales: %s", e)
+        if (request.args.get("view") or "").strip().lower() == "complete":
+            return jsonify({
+                "ok": False,
+                "error": "Modalita full non disponibile: impossibile leggere i movimenti +/x",
+            }), 409
 
     items.sort(key=lambda x: x.get("created_at") or "")
 
-    return jsonify({"ok": True, "day_date": d.isoformat(), "sales": items})
+    return jsonify({
+        "ok": True,
+        "day_date": d.isoformat(),
+        "sales": items,
+        "view_mode": "complete" if private_included else "fiscal",
+        "private_included": private_included,
+    })
 
 
 @cassa_bp.delete("/api/sales/<sale_id>")
@@ -6421,11 +6457,8 @@ def api_list_expenses(day_date):
         .filter(CashDay.day_date == d)
         .first()
     )
-    if not cash_day:
-        return jsonify({"ok": False, "error": "CashDay not found"}), 404
-
     items = []
-    for e in cash_day.expenses:
+    for e in (cash_day.expenses if cash_day else []):
         pay = []
         issued_checks = sorted(e.issued_checks or [], key=lambda item: item.id or 0)
         issued_idx = 0
@@ -6469,11 +6502,10 @@ def api_list_expenses(day_date):
     # =========================
     # Merge PRI (vault)
     # =========================
-    if session.get("pri_vault_unlocked"):
-        try:
-            year = d.year
-            pri_data = _pri_load_year(year)
-
+    private_included = False
+    try:
+        pri_data, private_included = _agenda_private_day_data(d)
+        if pri_data:
             day_node = next((x for x in pri_data["days"] if x["date"] == d.isoformat()), None)
 
             if day_node:
@@ -6502,10 +6534,21 @@ def api_list_expenses(day_date):
                             }
                         ],
                     })
-        except Exception as e:
-            logger.exception("Errore lettura PRI expenses: %s", e)
+    except Exception as e:
+        logger.exception("Errore lettura PRI expenses: %s", e)
+        if (request.args.get("view") or "").strip().lower() == "complete":
+            return jsonify({
+                "ok": False,
+                "error": "Modalita full non disponibile: impossibile leggere i movimenti +/x",
+            }), 409
 
-    return jsonify({"ok": True, "day_date": d.isoformat(), "expenses": items})
+    return jsonify({
+        "ok": True,
+        "day_date": d.isoformat(),
+        "expenses": items,
+        "view_mode": "complete" if private_included else "fiscal",
+        "private_included": private_included,
+    })
 
 
 @cassa_bp.delete("/api/expenses/<expense_id>")
@@ -7473,9 +7516,10 @@ def api_list_cash_moves(day_date):
             })
 
     # --- Vault PRI
-    if session.get("pri_vault_unlocked"):
-        try:
-            pri_data = _pri_load_year(d.year)
+    private_included = False
+    try:
+        pri_data, private_included = _agenda_private_day_data(d)
+        if pri_data:
             day_node = next((x for x in pri_data["days"] if x["date"] == d.isoformat()), None)
 
             if day_node:
@@ -7492,15 +7536,22 @@ def api_list_cash_moves(day_date):
                         "flag": m.get("flag"),
                         "storage": "pri",
                     })
-        except Exception as e:
-            logger.warning("api_list_cash_moves PRI read skipped: %s", e)
+    except Exception as e:
+        logger.exception("Errore lettura PRI cash moves: %s", e)
+        if (request.args.get("view") or "").strip().lower() == "complete":
+            return jsonify({
+                "ok": False,
+                "error": "Modalita full non disponibile: impossibile leggere i movimenti +/x",
+            }), 409
 
     if not out:
         # Se non ci sono movimenti → NON è errore
         return jsonify({
             "ok": True,
             "day_date": d.isoformat(),
-            "cash_moves": out
+            "cash_moves": out,
+            "view_mode": "complete" if private_included else "fiscal",
+            "private_included": private_included,
         })
 
     out.sort(key=lambda x: x.get("created_at") or "")
@@ -7508,7 +7559,9 @@ def api_list_cash_moves(day_date):
     return jsonify({
         "ok": True,
         "day_date": d.isoformat(),
-        "cash_moves": out
+        "cash_moves": out,
+        "view_mode": "complete" if private_included else "fiscal",
+        "private_included": private_included,
     })
 
 

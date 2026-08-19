@@ -2968,3 +2968,10 @@ Performance apertura giornata Agenda 2026-06-13:
 - Ogni riga desktop e scheda mobile apre un dettaglio ordine scrollabile con cliente, giro, consegna, stato, invio Slack, testo completo, allegati e cronologia disponibile.
 - Verificati con sessione autenticata e database configurato lo storico filtrato e i dettagli di entrambe le origini (`console` e `slack`), tutti con risposta HTTP 200.
 - Corretta l'interazione della modale dettaglio: viene riagganciata a `document.body` prima dell'inizializzazione e usa il livello applicativo `12050`, sopra il backdrop globale `12040`. Colori di intestazione, corpo, metadati, testo, cronologia e pulsante di chiusura hanno ora contrasto esplicito.
+
+## 2026-08-19 - Agenda full sui mesi storici
+
+- Incassi, spese e movimenti di cassa inviano ora esplicitamente al server la vista `complete` oppure `fiscal`; navigando su giugno la modalita full non dipende piu dal solo cookie di sessione rimasto in memoria.
+- Il backend riallinea ogni richiesta full alla chiave vault attiva globale e apre il file PRI dell'anno selezionato, non quello dell'anno corrente.
+- Se il vault non e disponibile o non e leggibile, la risposta full fallisce in modo visibile invece di restituire silenziosamente i soli movimenti fiscali e nascondere i flag `+` e `x`.
+- Il polling realtime resta a 5 secondi e non e stato modificato. Verificati sintassi Python/JavaScript, integrita patch e caricamento mirato di un giugno storico.
