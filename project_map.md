@@ -1382,6 +1382,7 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `routes/cassa.py`: `_agenda_private_day_data()` interpreta `view=complete|fiscal`, riaggancia la chiave vault globale e carica il payload PRI usando l'anno della giornata richiesta; le API sales, expenses e cash moves dichiarano nella risposta se i dati privati sono inclusi.
 - `static/js/agenda.js`: prima del caricamento di una giornata riallinea lo stato vault e passa la vista esplicita alle tre API, evitando la degradazione silenziosa che nascondeva i movimenti `+` e `x` nei mesi storici.
 - Un errore di lettura del vault in vista full viene mostrato nei quadranti; frequenza e coordinamento del polling realtime non cambiano.
+- `GET /cassa/api/search/customer` usa la stessa vista esplicita: la sottostringa inserita viene cercata senza distinzione maiuscole/minuscole sia nei dati fiscali sia nei campi cliente/fornitore delle vendite e spese PRI comprese nell'intervallo selezionato.
 
 ### Credito clienti - avvio rapido grafici (2026-08-02)
 

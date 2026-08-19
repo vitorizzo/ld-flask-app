@@ -3422,7 +3422,6 @@ def api_search_customer_movements():
         return jsonify({"ok": False, "error": "Inserisci un cliente/fornitore da cercare"}), 400
 
     like = f"%{q}%"
-    out = []
     rows = []
 
     sales = (
@@ -3467,8 +3466,63 @@ def api_search_customer_movements():
                 party=expense.supplier or "", description=payment.description or expense.notes or "", method=payment.method
             ))
 
+    # La ricerca deve rispettare la stessa vista dei quadranti. In full i
+    # movimenti +/x vivono nel vault e non compaiono nelle tabelle fiscali.
+    private_included = False
+    try:
+        needle = q.casefold()
+        for year in range(d_from.year, d_to.year + 1):
+            pri_data, included = _agenda_private_day_data(date(year, 1, 1))
+            private_included = private_included or included
+            if not pri_data:
+                continue
+
+            for day_node in pri_data.get("days", []):
+                try:
+                    private_day = date.fromisoformat(str(day_node.get("date") or ""))
+                except ValueError:
+                    continue
+                if private_day < d_from or private_day > d_to:
+                    continue
+
+                for sale in day_node.get("sales", []):
+                    party = str(sale.get("customer_label") or "")
+                    if needle not in party.casefold():
+                        continue
+                    rows.append(_movement_row(
+                        "sale", "Incasso", private_day, sale.get("id"), sale.get("amount"),
+                        party=party,
+                        description=sale.get("description") or "",
+                        method=sale.get("method") or "cash",
+                        storage="pri",
+                    ))
+
+                for expense in day_node.get("expenses", []):
+                    party = str(expense.get("supplier") or "")
+                    if needle not in party.casefold():
+                        continue
+                    rows.append(_movement_row(
+                        "expense", "Spesa", private_day, expense.get("id"), expense.get("amount"),
+                        party=party,
+                        description=expense.get("description") or "",
+                        method=expense.get("method") or "cash",
+                        storage="pri",
+                    ))
+    except Exception as e:
+        logger.exception("Errore lettura PRI ricerca cliente/fornitore: %s", e)
+        if (request.args.get("view") or "").strip().lower() == "complete":
+            return jsonify({
+                "ok": False,
+                "error": "Modalita full non disponibile: impossibile cercare i movimenti +/x",
+            }), 409
+
     rows.sort(key=lambda x: (x["day_date"], x["kind_label"], str(x["id"])))
-    return jsonify({"ok": True, "rows": rows})
+    return jsonify({
+        "ok": True,
+        "rows": rows,
+        "view_mode": "complete" if private_included else "fiscal",
+        "private_included": private_included,
+    })
 
 
 @cassa_bp.get("/api/search/amount")

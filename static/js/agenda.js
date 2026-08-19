@@ -7729,7 +7729,8 @@ document.addEventListener("DOMContentLoaded", async function () {
     const params = new URLSearchParams({
       customer: movementSearchCustomerText?.value || "",
       date_from: movementSearchCustomerFrom?.value || "",
-      date_to: movementSearchCustomerTo?.value || ""
+      date_to: movementSearchCustomerTo?.value || "",
+      view: agendaDataView()
     });
 
     if (movementSearchCustomerResults) {

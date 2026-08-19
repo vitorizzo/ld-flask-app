@@ -2975,3 +2975,4 @@ Performance apertura giornata Agenda 2026-06-13:
 - Il backend riallinea ogni richiesta full alla chiave vault attiva globale e apre il file PRI dell'anno selezionato, non quello dell'anno corrente.
 - Se il vault non e disponibile o non e leggibile, la risposta full fallisce in modo visibile invece di restituire silenziosamente i soli movimenti fiscali e nascondere i flag `+` e `x`.
 - Il polling realtime resta a 5 secondi e non e stato modificato. Verificati sintassi Python/JavaScript, integrita patch e caricamento mirato di un giugno storico.
+- Corretta anche la ricerca movimenti per cliente/fornitore: il confronto continua a essere parziale e case-insensitive nelle tabelle fiscali e ora viene applicato anche a clienti e fornitori dei movimenti `+`/`x` nel vault per tutto il periodo scelto. Verificato il caso `peschiu` contro `ASS. CULT. "PESCHIU NOSTRU"`.
