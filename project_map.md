@@ -1363,6 +1363,12 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `static/js/agenda.js`: il conteggio fondo cassa non salvato e' mantenuto in una bozza di sessione per giornata e viene ripristinato dopo refresh, se la versione salvata sul server non e' cambiata.
 - Il polling realtime continua ogni 5 secondi ma passa da un coordinatore che rinvia i soli aggiornamenti DOM durante un'interazione e consolida variazioni Agenda/vault concorrenti; pagina, pannelli e contenitori scrollabili interni mantengono la posizione.
 
+### Magazzino - storico ordini (2026-08-19)
+
+- `routes/route_orders.py`: endpoint HTML `/route-orders/history` (ruolo 30) con filtri server-side e vista unificata di console e ordini Slack non duplicati.
+- `templates/route_orders/history.html`: ricerca, indicatori inviato/non inviato, dettagli di origine e ordine, paginazione e layout differenziato desktop/mobile.
+- `migrations/versions/a2b3c4d5e6f8_add_order_history_menu.py`: inserisce `Storico ordini` sotto il menu principale `Magazzino`, creandolo solo come fallback se assente.
+
 ### Agenda - filtro quadratura POS per device (2026-08-01)
 
 - `routes/cassa.py`: `GET /cassa/api/day/<day_date>/pos_moves` include `pos_devices`, unione dei device attivi e di quelli presenti nei movimenti storici della giornata.

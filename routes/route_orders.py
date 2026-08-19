@@ -6,6 +6,7 @@ from datetime import date, datetime, time, timedelta
 from flask import Blueprint, current_app, jsonify, render_template, request
 from flask_login import current_user, login_required
 from sqlalchemy import or_
+from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 
 from extensions import db
@@ -758,6 +759,238 @@ def publish_customer_order(order):
 @role_required(30)
 def board_page():
     return render_template("route_orders/board.html", statuses=BOARD_STATUSES)
+
+
+@route_orders_bp.get("/history")
+@login_required
+@role_required(30)
+def order_history_page():
+    today = date.today()
+    default_from = today - timedelta(days=30)
+
+    def query_date(name, fallback):
+        raw = (request.args.get(name) or "").strip()
+        if not raw:
+            return fallback
+        try:
+            return date.fromisoformat(raw)
+        except ValueError:
+            return fallback
+
+    date_from = query_date("date_from", default_from)
+    date_to = query_date("date_to", today)
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+
+    search = (request.args.get("q") or "").strip()[:160]
+    route_id = request.args.get("route_id", type=int)
+    status = (request.args.get("status") or "").strip()[:40]
+    origin = (request.args.get("origin") or "all").strip()
+    if origin not in {"all", "console", "slack"}:
+        origin = "all"
+    posting = (request.args.get("posting") or "all").strip()
+    if posting not in {"all", "posted", "pending"}:
+        posting = "all"
+    page = max(request.args.get("page", default=1, type=int) or 1, 1)
+    per_page = 50
+    fetch_limit = 2001
+    rows = []
+    board_status_labels = {item["code"]: item["label"] for item in BOARD_STATUSES}
+    operational_status_labels = {
+        "acquisito": "Acquisito",
+        "listato": "Listato",
+        "preparato": "Preparato",
+        "controllato": "Controllato",
+        "in_consegna": "In consegna",
+        "inconsegna": "In consegna",
+        "evaso": "Evaso",
+        "annullato": "Annullato",
+        "cancellato": "Cancellato",
+    }
+    operational_status_labels.update({
+        item.code: item.label
+        for item in OrderStatus.query.order_by(OrderStatus.order_index.asc(), OrderStatus.id.asc()).all()
+    })
+    status_options = {**board_status_labels, **operational_status_labels}
+
+    entries = []
+    if origin in {"all", "console"}:
+        entry_date = db.func.coalesce(
+            db.func.date(RouteOrderBoardEntry.sent_at),
+            RouteOrderBoardEntry.board_date,
+        )
+        entry_query = (
+            RouteOrderBoardEntry.query
+            .options(
+                joinedload(RouteOrderBoardEntry.route),
+                joinedload(RouteOrderBoardEntry.registry),
+            )
+            .filter(entry_date >= date_from, entry_date <= date_to)
+        )
+        if route_id:
+            entry_query = entry_query.filter(RouteOrderBoardEntry.route_id == route_id)
+        if posting == "posted":
+            entry_query = entry_query.filter(RouteOrderBoardEntry.sent_at.isnot(None))
+        elif posting == "pending":
+            entry_query = entry_query.filter(RouteOrderBoardEntry.sent_at.is_(None))
+        if search:
+            like = f"%{search}%"
+            entry_query = entry_query.join(RouteOrderBoardEntry.registry).filter(or_(
+                BusinessRegistry.display_name.ilike(like),
+                BusinessRegistry.legal_name.ilike(like),
+                BusinessRegistry.source_code.ilike(like),
+                RouteOrderBoardEntry.order_note.ilike(like),
+            ))
+        entries = (
+            entry_query
+            .order_by(entry_date.desc(), RouteOrderBoardEntry.id.desc())
+            .limit(fetch_limit)
+            .all()
+        )
+
+    linked_orders = {}
+    linked_channels = {entry.slack_channel_id for entry in entries if entry.slack_channel_id}
+    linked_timestamps = {entry.slack_message_ts for entry in entries if entry.slack_message_ts}
+    if linked_channels and linked_timestamps:
+        candidates = SlackOrder.query.filter(
+            SlackOrder.slack_channel_id.in_(linked_channels),
+            SlackOrder.slack_message_ts.in_(linked_timestamps),
+        ).all()
+        linked_orders = {
+            (order.slack_channel_id, order.slack_message_ts): order
+            for order in candidates
+        }
+
+    for entry in entries:
+        registry = entry.registry
+        linked_order = linked_orders.get((entry.slack_channel_id, entry.slack_message_ts))
+        effective_status = linked_order.status if linked_order else entry.status
+        if status and status not in {entry.status, effective_status}:
+            continue
+        effective_date = (entry.sent_at.date() if entry.sent_at else entry.board_date)
+        rows.append({
+            "kind": "console",
+            "id": entry.id,
+            "date": effective_date,
+            "sort_at": entry.sent_at or datetime.combine(effective_date, time.min),
+            "customer": _label_registry(registry) if registry else f"Cliente {entry.registry_id}",
+            "customer_key": registry.source_code if registry else "",
+            "route": entry.route.name if entry.route else "",
+            "status": effective_status,
+            "status_label": status_options.get(effective_status, effective_status),
+            "text": entry.order_note or (linked_order.raw_text if linked_order else "") or "",
+            "planned_delivery_at": entry.planned_delivery_at,
+            "board_date": entry.board_date,
+            "sent_at": entry.sent_at,
+            "posted": bool(entry.sent_at and entry.slack_message_ts),
+            "slack_order_id": linked_order.id if linked_order else None,
+            "slack_message_ts": entry.slack_message_ts,
+            "source_label": "Console",
+        })
+
+    slack_orders = []
+    if origin in {"all", "slack"} and posting != "pending":
+        linked_entry_exists = db.session.query(RouteOrderBoardEntry.id).filter(
+            RouteOrderBoardEntry.slack_channel_id == SlackOrder.slack_channel_id,
+            RouteOrderBoardEntry.slack_message_ts == SlackOrder.slack_message_ts,
+        ).exists()
+        slack_query = (
+            SlackOrder.query
+            .options(joinedload(SlackOrder.route))
+            .filter(
+                SlackOrder.order_date >= date_from,
+                SlackOrder.order_date <= date_to,
+                ~linked_entry_exists,
+            )
+        )
+        if route_id:
+            slack_query = slack_query.filter(SlackOrder.route_id == route_id)
+        if status:
+            slack_query = slack_query.filter(SlackOrder.status == status)
+        if search:
+            like = f"%{search}%"
+            slack_query = slack_query.filter(or_(
+                SlackOrder.customer_display.ilike(like),
+                SlackOrder.customer_key.ilike(like),
+                SlackOrder.raw_text.ilike(like),
+            ))
+        slack_orders = (
+            slack_query
+            .order_by(SlackOrder.order_date.desc(), SlackOrder.created_at.desc(), SlackOrder.id.desc())
+            .limit(fetch_limit)
+            .all()
+        )
+
+    event_origins = {}
+    if slack_orders:
+        created_events = (
+            SlackOrderEvent.query
+            .filter(
+                SlackOrderEvent.order_id.in_([order.id for order in slack_orders]),
+                SlackOrderEvent.type == "created",
+            )
+            .order_by(SlackOrderEvent.created_at.asc(), SlackOrderEvent.id.asc())
+            .all()
+        )
+        for event in created_events:
+            event_origins.setdefault(event.order_id, (event.payload or {}).get("via"))
+
+    source_labels = {
+        "route_order_board_direct": "Ordine diretto",
+        "customer_horeca_app": "Inserisci ordine",
+        "route_order_board": "Console",
+    }
+    for order in slack_orders:
+        via = event_origins.get(order.id)
+        rows.append({
+            "kind": "slack",
+            "id": order.id,
+            "date": order.order_date,
+            "sort_at": order.created_at or datetime.combine(order.order_date, time.min),
+            "customer": order.customer_display,
+            "customer_key": order.customer_key,
+            "route": order.route.name if order.route else "",
+            "status": order.status,
+            "status_label": status_options.get(order.status, order.status),
+            "text": order.raw_text or "",
+            "planned_delivery_at": order.planned_delivery_at,
+            "board_date": None,
+            "sent_at": order.created_at,
+            "posted": True,
+            "slack_order_id": order.id,
+            "slack_message_ts": order.slack_message_ts,
+            "source_label": source_labels.get(via, "Slack / integrazione"),
+        })
+
+    rows.sort(key=lambda row: (row["sort_at"], row["id"]), reverse=True)
+    total = len(rows)
+    pages = max((total + per_page - 1) // per_page, 1)
+    page = min(page, pages)
+    visible_rows = rows[(page - 1) * per_page:page * per_page]
+    truncated = len(entries) >= fetch_limit or len(slack_orders) >= fetch_limit
+
+    routes = DeliveryRoute.query.order_by(DeliveryRoute.name.asc()).all()
+
+    filters = {
+        "q": search,
+        "date_from": date_from.isoformat(),
+        "date_to": date_to.isoformat(),
+        "route_id": route_id or "",
+        "status": status,
+        "origin": origin,
+        "posting": posting,
+    }
+    return render_template(
+        "route_orders/history.html",
+        rows=visible_rows,
+        total=total,
+        page=page,
+        pages=pages,
+        routes=routes,
+        status_options=status_options,
+        filters=filters,
+        truncated=truncated,
+    )
 
 
 @route_orders_bp.get("/api/board")

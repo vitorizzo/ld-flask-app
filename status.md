@@ -2956,3 +2956,11 @@ Performance apertura giornata Agenda 2026-06-13:
 - Verificate sintassi JavaScript, assenza di reload/attivazioni forzate nel percorso di aggiornamento e integrita' delle patch con `git diff --check`.
 - Corretto anche il refresh realtime interno dell'Agenda: il polling delle versioni resta ogni 5 secondi, ma il ridisegno dei dati viene accodato durante modali, input, touch, rotella e scorrimento e applicato una sola volta al termine dell'interazione.
 - Le richieste simultanee dovute a versione Agenda e versione vault vengono consolidate nello stesso refresh; oltre allo scroll della pagina vengono preservati gli scroll interni delle tabelle responsive e delle aree modali.
+
+## 2026-08-19 - Storico ordini unificato
+
+- Aggiunta `/route-orders/history`, accessibile dal menu Magazzino con ruolo minimo 30, con ricerca per cliente/codice/testo, intervallo date, giro, stato, origine e stato di invio Slack.
+- Lo storico unisce le righe `route_order_board_entries` della console agli ordini operativi `slack_orders`: il collegamento channel/timestamp evita duplicati e rende immediatamente visibili le righe salvate in console ma mai inviate.
+- Gli ordini Slack non collegati alla console restano visibili e vengono classificati tramite l'evento di creazione come ordine diretto, `Inserisci ordine` o integrazione Slack.
+- Risultati ordinati cronologicamente, paginati a 50 elementi e presentati con tabella desktop e schede mobile ad alta leggibilita; le ricerche eccessivamente ampie vengono segnalate e possono essere ristrette.
+- Aggiunta migrazione `a2b3c4d5e6f8` per la voce `Storico ordini` sotto il menu reale `Magazzino`. Verificati AST Python, compilazione Jinja, singola head Alembic, `git diff --check` e risposta HTTP 200 autenticata su dati reali della settimana 10–16 agosto.
