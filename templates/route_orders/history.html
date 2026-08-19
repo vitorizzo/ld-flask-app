@@ -10,22 +10,40 @@
   .order-history__panel { background: #fff; border: 1px solid #dee2e6; border-radius: 10px; overflow: hidden; color: #212529; }
   .order-history__table { margin: 0; min-width: 1050px; }
   .order-history__table td { vertical-align: top; }
+  .order-history__row { cursor: pointer; }
+  .order-history__row:focus { outline: 3px solid rgba(13, 202, 240, .65); outline-offset: -3px; }
   .order-history__text { white-space: pre-wrap; max-width: 420px; max-height: 7rem; overflow: auto; font-size: .85rem; }
   .order-history__meta { color: #6c757d; font-size: .78rem; }
   .order-history__source { white-space: nowrap; }
   .order-history__mobile { display: none; }
+  .history-customer-picker { position: relative; }
+  .history-customer-results { position: absolute; z-index: 1060; top: 100%; right: 0; left: 0; max-height: 280px; overflow-y: auto; background: #fff; border: 1px solid #ced4da; border-radius: 0 0 .5rem .5rem; box-shadow: 0 .5rem 1rem rgba(0,0,0,.18); }
+  .history-customer-results button { width: 100%; padding: .65rem .75rem; border: 0; border-bottom: 1px solid #eee; background: #fff; text-align: left; }
+  .history-customer-results button:hover, .history-customer-results button:focus { background: #e9f7fb; }
+  .history-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
+  .history-detail-field { padding: .75rem; border: 1px solid #dee2e6; border-radius: .5rem; background: #f8f9fa; }
+  .history-detail-field__label { display: block; color: #6c757d; font-size: .72rem; font-weight: 800; text-transform: uppercase; }
+  .history-detail-text { min-height: 8rem; max-height: 38vh; overflow: auto; white-space: pre-wrap; border: 1px solid #dee2e6; border-radius: .5rem; background: #fff; padding: 1rem; }
+  .history-detail-events { max-height: 30vh; overflow: auto; }
+  .history-detail-event { border-left: 3px solid #0dcaf0; padding: .4rem 0 .4rem .75rem; margin-bottom: .6rem; }
+  .history-detail-event pre { margin: .3rem 0 0; white-space: pre-wrap; font-size: .78rem; }
   @media (max-width: 767.98px), (min-width: 768px) and (max-width: 1100px) and (min-resolution: 2dppx) {
     .order-history.page-shell { padding: 10px; font-size: 1rem; }
     .order-history__filters { padding: 12px; }
     .order-history__desktop { display: none; }
     .order-history__mobile { display: grid; gap: 10px; }
-    .order-history-card { background: #fff; border: 1px solid #dee2e6; border-left: 5px solid #6c757d; border-radius: 10px; padding: 12px; color: #212529; }
+    .order-history-card { cursor: pointer; background: #fff; border: 1px solid #dee2e6; border-left: 5px solid #6c757d; border-radius: 10px; padding: 12px; color: #212529; }
     .order-history-card.is-pending { border-left-color: #ffc107; }
     .order-history-card.is-posted { border-left-color: #198754; }
+    .order-history-card:focus { outline: 3px solid rgba(13, 202, 240, .65); }
     .order-history-card__head { display: flex; justify-content: space-between; gap: 10px; align-items: flex-start; }
     .order-history-card__customer { font-weight: 800; font-size: 1.08rem; }
     .order-history-card__text { white-space: pre-wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid #e9ecef; }
     .order-history .form-control, .order-history .form-select, .order-history .btn { min-height: 46px; font-size: 1rem; }
+    .history-detail-grid { grid-template-columns: 1fr; }
+    #orderHistoryDetailModal .modal-dialog { margin: 0; }
+    #orderHistoryDetailModal .modal-content { min-height: 100dvh; border-radius: 0; }
+    #orderHistoryDetailModal .modal-body { overflow-y: auto; -webkit-overflow-scrolling: touch; }
   }
 </style>
 {% endblock %}
@@ -37,33 +55,37 @@
       <h1 class="h3 mb-1">Storico ordini</h1>
       <div class="text-white-50">Console, ordini diretti e ordini inseriti dall'app senza duplicati.</div>
     </div>
-    <a class="btn btn-outline-light" href="{{ url_for('route_orders.board_page') }}">
-      <i class="fa-solid fa-table-columns me-1"></i> Plancia ordini
-    </a>
+    <a class="btn btn-outline-light" href="{{ url_for('route_orders.board_page') }}"><i class="fa-solid fa-table-columns me-1"></i> Plancia ordini</a>
   </div>
 
-  <form class="order-history__filters mb-3" method="get">
+  <form class="order-history__filters mb-3" method="get" id="orderHistoryFilters">
     <div class="row g-2 align-items-end">
-      <div class="col-12 col-xl-4">
-        <label class="form-label" for="historyQ">Cliente, codice o testo ordine</label>
-        <input class="form-control" id="historyQ" name="q" value="{{ filters.q }}" autocomplete="off" placeholder="Es. Rossi, 00123, prosecco">
+      <div class="col-12 col-lg-4 history-customer-picker">
+        <label class="form-label" for="historyCustomer">Cliente</label>
+        <input class="form-control" id="historyCustomer" name="customer" value="{{ selected_customer_label }}" autocomplete="off" placeholder="Cerca per nome o codice">
+        <input id="historyCustomerId" name="customer_id" type="hidden" value="{{ filters.customer_id }}">
+        <div class="history-customer-results d-none" id="historyCustomerResults" role="listbox"></div>
       </div>
-      <div class="col-6 col-md-3 col-xl-2">
-        <label class="form-label" for="historyFrom">Dal</label>
+      <div class="col-12 col-lg-4">
+        <label class="form-label" for="historyQ">Testo ordine</label>
+        <input class="form-control" id="historyQ" name="q" value="{{ filters.q }}" autocomplete="off" placeholder="Es. prosecco, 12 bottiglie">
+      </div>
+      <div class="col-6 col-md-3 col-lg-2">
+        <label class="form-label" for="historyFrom">Data dal</label>
         <input class="form-control" id="historyFrom" name="date_from" type="date" value="{{ filters.date_from }}">
       </div>
-      <div class="col-6 col-md-3 col-xl-2">
-        <label class="form-label" for="historyTo">Al</label>
+      <div class="col-6 col-md-3 col-lg-2">
+        <label class="form-label" for="historyTo">Data al</label>
         <input class="form-control" id="historyTo" name="date_to" type="date" value="{{ filters.date_to }}">
       </div>
-      <div class="col-12 col-md-6 col-xl-2">
+      <div class="col-12 col-md-6 col-xl-3">
         <label class="form-label" for="historyRoute">Giro</label>
         <select class="form-select" id="historyRoute" name="route_id">
           <option value="">Tutti i giri</option>
           {% for route in routes %}<option value="{{ route.id }}" {% if filters.route_id|string == route.id|string %}selected{% endif %}>{{ route.name }}</option>{% endfor %}
         </select>
       </div>
-      <div class="col-12 col-md-4 col-xl-2">
+      <div class="col-12 col-md-4 col-xl-3">
         <label class="form-label" for="historyStatus">Stato</label>
         <select class="form-select" id="historyStatus" name="status">
           <option value="">Tutti gli stati</option>
@@ -86,18 +108,15 @@
           <option value="pending" {% if filters.posting == 'pending' %}selected{% endif %}>Non inviati</option>
         </select>
       </div>
-      <div class="col-12 col-md-4 col-xl-8 d-flex gap-2 justify-content-xl-end">
-        <button class="btn btn-info flex-grow-1 flex-xl-grow-0" type="submit"><i class="fa-solid fa-magnifying-glass me-1"></i> Cerca</button>
+      <div class="col-12 col-xl-2 d-flex gap-2 justify-content-xl-end">
+        <button class="btn btn-info flex-grow-1" type="submit"><i class="fa-solid fa-magnifying-glass me-1"></i> Cerca</button>
         <a class="btn btn-outline-secondary" href="{{ url_for('route_orders.order_history_page') }}">Azzera</a>
       </div>
     </div>
   </form>
 
-  <div class="d-flex justify-content-between align-items-center mb-2 text-white">
-    <span><strong>{{ total }}</strong> risultati</span>
-    <span>Pagina {{ page }} di {{ pages }}</span>
-  </div>
-  {% if truncated %}<div class="alert alert-warning">La ricerca è molto ampia: restringi date o testo per visualizzare tutti i risultati.</div>{% endif %}
+  <div class="d-flex justify-content-between align-items-center mb-2 text-white"><span><strong>{{ total }}</strong> risultati</span><span>Pagina {{ page }} di {{ pages }}</span></div>
+  {% if truncated %}<div class="alert alert-warning">La ricerca è molto ampia: restringi date, cliente o testo per visualizzare tutti i risultati.</div>{% endif %}
 
   <div class="order-history__panel order-history__desktop">
     <div class="table-responsive">
@@ -105,7 +124,7 @@
         <thead><tr><th>Data</th><th>Cliente</th><th>Giro</th><th>Origine</th><th>Stato</th><th>Invio</th><th>Ordine</th></tr></thead>
         <tbody>
           {% for row in rows %}
-          <tr>
+          <tr class="order-history__row" tabindex="0" role="button" aria-label="Apri dettaglio ordine di {{ row.customer }}" data-detail-url="{{ url_for('route_orders.order_history_detail', kind=row.kind, record_id=row.id) }}">
             <td class="text-nowrap">{{ row.date.strftime('%d/%m/%Y') }}<div class="order-history__meta">ID {{ row.kind }} #{{ row.id }}</div></td>
             <td><strong>{{ row.customer }}</strong>{% if row.customer_key %}<div class="order-history__meta">{{ row.customer_key }}</div>{% endif %}</td>
             <td>{{ row.route or '—' }}{% if row.planned_delivery_at %}<div class="order-history__meta">Consegna {{ row.planned_delivery_at.strftime('%d/%m/%Y %H:%M') }}</div>{% endif %}</td>
@@ -122,7 +141,7 @@
 
   <div class="order-history__mobile">
     {% for row in rows %}
-    <article class="order-history-card {{ 'is-posted' if row.posted else 'is-pending' }}">
+    <article class="order-history-card {{ 'is-posted' if row.posted else 'is-pending' }}" tabindex="0" role="button" aria-label="Apri dettaglio ordine di {{ row.customer }}" data-detail-url="{{ url_for('route_orders.order_history_detail', kind=row.kind, record_id=row.id) }}">
       <div class="order-history-card__head">
         <div><div class="order-history-card__customer">{{ row.customer }}</div><div class="order-history__meta">{{ row.route or 'Nessun giro' }} · {{ row.date.strftime('%d/%m/%Y') }}</div></div>
         <span class="badge {{ 'text-bg-success' if row.posted else 'text-bg-warning' }}">{{ 'Inviato' if row.posted else 'Non inviato' }}</span>
@@ -141,4 +160,123 @@
   </ul></nav>
   {% endif %}
 </section>
+
+<div class="modal fade" id="orderHistoryDetailModal" tabindex="-1" aria-labelledby="orderHistoryDetailTitle" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header"><div><h2 class="modal-title h5" id="orderHistoryDetailTitle">Dettaglio ordine</h2><div class="text-muted small" id="historyDetailSubtitle"></div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+      <div class="modal-body" id="historyDetailBody"><div class="text-center py-5"><div class="spinner-border text-info" role="status"></div></div></div>
+      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+  const customerInput = document.getElementById('historyCustomer');
+  const customerIdInput = document.getElementById('historyCustomerId');
+  const customerResults = document.getElementById('historyCustomerResults');
+  let customerTimer = null;
+  let selectedCustomerLabel = customerInput.value;
+
+  const hideCustomerResults = () => customerResults.classList.add('d-none');
+  customerInput.addEventListener('input', () => {
+    if (customerInput.value !== selectedCustomerLabel) customerIdInput.value = '';
+    window.clearTimeout(customerTimer);
+    const query = customerInput.value.trim();
+    if (query.length < 2) { hideCustomerResults(); return; }
+    customerTimer = window.setTimeout(async () => {
+      try {
+        const response = await fetch(`{{ url_for('route_orders.api_customers') }}?q=${encodeURIComponent(query)}`, {headers: {'Accept': 'application/json'}});
+        const payload = await response.json();
+        customerResults.replaceChildren();
+        (payload.customers || []).forEach(customer => {
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.setAttribute('role', 'option');
+          button.textContent = `${customer.display}${customer.city ? ` · ${customer.city}` : ''}`;
+          button.addEventListener('click', () => {
+            customerInput.value = customer.display;
+            customerIdInput.value = customer.id;
+            selectedCustomerLabel = customer.display;
+            hideCustomerResults();
+          });
+          customerResults.appendChild(button);
+        });
+        customerResults.classList.toggle('d-none', !customerResults.children.length);
+      } catch (_) { hideCustomerResults(); }
+    }, 220);
+  });
+  document.addEventListener('click', event => { if (!event.target.closest('.history-customer-picker')) hideCustomerResults(); });
+
+  const modalElement = document.getElementById('orderHistoryDetailModal');
+  const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+  const title = document.getElementById('orderHistoryDetailTitle');
+  const subtitle = document.getElementById('historyDetailSubtitle');
+  const body = document.getElementById('historyDetailBody');
+  const formatDateTime = value => value ? new Intl.DateTimeFormat('it-IT', {dateStyle: 'short', timeStyle: 'short'}).format(new Date(value)) : '—';
+  const formatDate = value => value ? new Intl.DateTimeFormat('it-IT', {dateStyle: 'short'}).format(new Date(`${value}T12:00:00`)) : '—';
+  const addText = (parent, tag, className, value) => { const node = document.createElement(tag); node.className = className; node.textContent = value; parent.appendChild(node); return node; };
+  const detailField = (grid, label, value) => { const field = document.createElement('div'); field.className = 'history-detail-field'; addText(field, 'span', 'history-detail-field__label', label); addText(field, 'span', '', value || '—'); grid.appendChild(field); };
+  const eventLabel = type => ({created: 'Ordine creato', append_text: 'Testo aggiunto', status_change: 'Cambio stato', note: 'Nota', reaction: 'Reazione Slack'}[type] || type);
+
+  async function openDetail(url) {
+    title.textContent = 'Dettaglio ordine'; subtitle.textContent = '';
+    body.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-info" role="status"></div></div>';
+    modal.show();
+    try {
+      const response = await fetch(url, {headers: {'Accept': 'application/json'}});
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || 'Dettaglio non disponibile');
+      const detail = payload.detail;
+      body.replaceChildren();
+      title.textContent = detail.customer || 'Dettaglio ordine';
+      subtitle.textContent = `${detail.source_label} · ${detail.route || 'Nessun giro'} · ID ${detail.kind} #${detail.id}`;
+      const grid = document.createElement('div'); grid.className = 'history-detail-grid mb-3';
+      detailField(grid, 'Data ordine', formatDate(detail.order_date));
+      detailField(grid, 'Consegna prevista', formatDateTime(detail.planned_delivery_at));
+      detailField(grid, 'Stato', detail.status_label);
+      detailField(grid, 'Cliente / codice', detail.customer_key || detail.customer);
+      detailField(grid, 'Invio Slack', detail.posted ? `Inviato${detail.sent_at ? ` · ${formatDateTime(detail.sent_at)}` : ''}` : 'Non inviato');
+      detailField(grid, 'Documento', detail.document_issued ? `Emesso${detail.document_issued_at ? ` · ${formatDateTime(detail.document_issued_at)}` : ''}` : 'Non emesso');
+      body.appendChild(grid);
+      addText(body, 'h3', 'h6', 'Contenuto ordine');
+      addText(body, 'div', 'history-detail-text mb-3', detail.text || 'Nessun testo ordine');
+      if ((detail.attachments || []).length) {
+        addText(body, 'h3', 'h6', 'Allegati');
+        const attachments = document.createElement('div'); attachments.className = 'd-flex flex-wrap gap-2 mb-3';
+        detail.attachments.forEach(item => {
+          const link = document.createElement('a'); link.className = 'btn btn-sm btn-outline-secondary'; link.textContent = item.name || item.title || 'Allegato';
+          if (item.url && String(item.url).startsWith('/static/')) { link.href = item.url; link.target = '_blank'; link.rel = 'noopener'; } else { link.classList.add('disabled'); }
+          attachments.appendChild(link);
+        });
+        body.appendChild(attachments);
+      }
+      if ((detail.events || []).length) {
+        addText(body, 'h3', 'h6', 'Cronologia');
+        const events = document.createElement('div'); events.className = 'history-detail-events';
+        detail.events.forEach(item => {
+          const event = document.createElement('div'); event.className = 'history-detail-event';
+          addText(event, 'strong', '', eventLabel(item.type));
+          addText(event, 'span', 'text-muted small ms-2', formatDateTime(item.created_at));
+          const payloadText = item.payload && (item.payload.text || (item.payload.from || item.payload.to ? `${item.payload.from || '—'} → ${item.payload.to || '—'}` : ''));
+          if (payloadText) addText(event, 'div', 'small mt-1', payloadText);
+          events.appendChild(event);
+        });
+        body.appendChild(events);
+      }
+    } catch (error) {
+      body.replaceChildren();
+      addText(body, 'div', 'alert alert-danger', error.message || 'Impossibile caricare il dettaglio.');
+    }
+  }
+
+  document.querySelectorAll('[data-detail-url]').forEach(element => {
+    element.addEventListener('click', () => openDetail(element.dataset.detailUrl));
+    element.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openDetail(element.dataset.detailUrl); } });
+  });
+})();
+</script>
 {% endblock %}

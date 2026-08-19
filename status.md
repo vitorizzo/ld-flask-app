@@ -2964,3 +2964,6 @@ Performance apertura giornata Agenda 2026-06-13:
 - Gli ordini Slack non collegati alla console restano visibili e vengono classificati tramite l'evento di creazione come ordine diretto, `Inserisci ordine` o integrazione Slack.
 - Risultati ordinati cronologicamente, paginati a 50 elementi e presentati con tabella desktop e schede mobile ad alta leggibilita; le ricerche eccessivamente ampie vengono segnalate e possono essere ristrette.
 - Aggiunta migrazione `a2b3c4d5e6f8` per la voce `Storico ordini` sotto il menu reale `Magazzino`. Verificati AST Python, compilazione Jinja, singola head Alembic, `git diff --check` e risposta HTTP 200 autenticata su dati reali della settimana 10–16 agosto.
+- Separato il filtro Cliente dalla ricerca nel testo: il cliente supporta suggerimenti asincroni, selezione esatta per anagrafica e ricerca libera per nome/codice; intervallo date e giro restano combinabili con gli altri filtri.
+- Ogni riga desktop e scheda mobile apre un dettaglio ordine scrollabile con cliente, giro, consegna, stato, invio Slack, testo completo, allegati e cronologia disponibile.
+- Verificati con sessione autenticata e database configurato lo storico filtrato e i dettagli di entrambe le origini (`console` e `slack`), tutti con risposta HTTP 200.

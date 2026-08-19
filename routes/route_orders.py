@@ -783,6 +783,17 @@ def order_history_page():
         date_from, date_to = date_to, date_from
 
     search = (request.args.get("q") or "").strip()[:160]
+    customer_search = (request.args.get("customer") or "").strip()[:160]
+    customer_id = request.args.get("customer_id", type=int)
+    selected_customer = None
+    if customer_id:
+        selected_customer = BusinessRegistry.query.filter_by(
+            id=customer_id,
+            kind="customer",
+            is_active=True,
+        ).first()
+        if not selected_customer:
+            customer_id = None
     route_id = request.args.get("route_id", type=int)
     status = (request.args.get("status") or "").strip()[:40]
     origin = (request.args.get("origin") or "all").strip()
@@ -829,6 +840,15 @@ def order_history_page():
         )
         if route_id:
             entry_query = entry_query.filter(RouteOrderBoardEntry.route_id == route_id)
+        if customer_id:
+            entry_query = entry_query.filter(RouteOrderBoardEntry.registry_id == customer_id)
+        elif customer_search:
+            customer_like = f"%{customer_search}%"
+            entry_query = entry_query.filter(RouteOrderBoardEntry.registry.has(or_(
+                BusinessRegistry.display_name.ilike(customer_like),
+                BusinessRegistry.legal_name.ilike(customer_like),
+                BusinessRegistry.source_code.ilike(customer_like),
+            )))
         if posting == "posted":
             entry_query = entry_query.filter(RouteOrderBoardEntry.sent_at.isnot(None))
         elif posting == "pending":
@@ -905,6 +925,29 @@ def order_history_page():
         )
         if route_id:
             slack_query = slack_query.filter(SlackOrder.route_id == route_id)
+        if selected_customer:
+            customer_keys = {
+                str(selected_customer.id),
+                str(selected_customer.source_code or "").strip(),
+            }
+            customer_keys.discard("")
+            customer_names = {
+                str(selected_customer.display_name or "").strip(),
+                str(selected_customer.legal_name or "").strip(),
+            }
+            customer_names.discard("")
+            customer_filters = []
+            if customer_keys:
+                customer_filters.append(SlackOrder.customer_key.in_(customer_keys))
+            if customer_names:
+                customer_filters.append(SlackOrder.customer_display.in_(customer_names))
+            slack_query = slack_query.filter(or_(*customer_filters))
+        elif customer_search:
+            customer_like = f"%{customer_search}%"
+            slack_query = slack_query.filter(or_(
+                SlackOrder.customer_display.ilike(customer_like),
+                SlackOrder.customer_key.ilike(customer_like),
+            ))
         if status:
             slack_query = slack_query.filter(SlackOrder.status == status)
         if search:
@@ -973,6 +1016,8 @@ def order_history_page():
 
     filters = {
         "q": search,
+        "customer": customer_search,
+        "customer_id": customer_id or "",
         "date_from": date_from.isoformat(),
         "date_to": date_to.isoformat(),
         "route_id": route_id or "",
@@ -989,8 +1034,119 @@ def order_history_page():
         routes=routes,
         status_options=status_options,
         filters=filters,
+        selected_customer_label=_label_registry(selected_customer) if selected_customer else customer_search,
         truncated=truncated,
     )
+
+
+@route_orders_bp.get("/history/detail/<string:kind>/<int:record_id>")
+@login_required
+@role_required(30)
+def order_history_detail(kind, record_id):
+    """Return a read-only, source-independent order detail for the history modal."""
+    if kind not in {"console", "slack"}:
+        return jsonify({"ok": False, "error": "Origine ordine non valida"}), 404
+
+    entry = None
+    order = None
+    if kind == "console":
+        entry = (
+            RouteOrderBoardEntry.query
+            .options(joinedload(RouteOrderBoardEntry.route), joinedload(RouteOrderBoardEntry.registry))
+            .filter(RouteOrderBoardEntry.id == record_id)
+            .first_or_404()
+        )
+        if entry.slack_channel_id and entry.slack_message_ts:
+            order = SlackOrder.query.filter_by(
+                slack_channel_id=entry.slack_channel_id,
+                slack_message_ts=entry.slack_message_ts,
+            ).first()
+    else:
+        order = (
+            SlackOrder.query
+            .options(joinedload(SlackOrder.route))
+            .filter(SlackOrder.id == record_id)
+            .first_or_404()
+        )
+
+    events = []
+    if order:
+        events = (
+            SlackOrderEvent.query
+            .filter(SlackOrderEvent.order_id == order.id)
+            .order_by(SlackOrderEvent.created_at.asc(), SlackOrderEvent.id.asc())
+            .all()
+        )
+
+    registry = entry.registry if entry else _registry_for_order(order)
+    route = entry.route if entry else order.route
+    effective_status = order.status if order else entry.status
+    event_payloads = [event.payload or {} for event in events]
+    created_via = next(
+        (payload.get("via") for event, payload in zip(events, event_payloads) if event.type == "created"),
+        None,
+    )
+    source_labels = {
+        "route_order_board_direct": "Ordine diretto",
+        "customer_horeca_app": "Inserisci ordine",
+        "route_order_board": "Console",
+    }
+    attachments = list(entry.order_attachments or []) if entry else []
+    for event, payload in zip(events, event_payloads):
+        if event.type == "note" and payload.get("attachments"):
+            attachments.extend(payload.get("attachments") or [])
+    unique_attachments = []
+    seen_attachments = set()
+    for attachment in attachments:
+        identity = attachment.get("id") or attachment.get("url") or attachment.get("name")
+        if identity and identity in seen_attachments:
+            continue
+        if identity:
+            seen_attachments.add(identity)
+        unique_attachments.append(attachment)
+    status_label = _order_status_label(effective_status)
+    if not status_label or status_label == effective_status:
+        status_label = next(
+            (item["label"] for item in BOARD_STATUSES if item["code"] == effective_status),
+            effective_status,
+        )
+
+    return jsonify({
+        "ok": True,
+        "detail": {
+            "kind": kind,
+            "id": record_id,
+            "customer": _label_registry(registry) if registry else (order.customer_display if order else ""),
+            "customer_key": registry.source_code if registry else (order.customer_key if order else ""),
+            "route": route.name if route else "",
+            "source_label": "Console" if entry else source_labels.get(created_via, "Slack / integrazione"),
+            "status": effective_status,
+            "status_label": status_label,
+            "text": (entry.order_note if entry else None) or (order.raw_text if order else "") or "",
+            "order_date": (order.order_date if order else entry.board_date).isoformat(),
+            "board_date": entry.board_date.isoformat() if entry else None,
+            "planned_delivery_at": (
+                (entry.planned_delivery_at if entry else order.planned_delivery_at).isoformat()
+                if (entry.planned_delivery_at if entry else order.planned_delivery_at) else None
+            ),
+            "posted": bool(order or (entry and entry.sent_at and entry.slack_message_ts)),
+            "sent_at": entry.sent_at.isoformat() if entry and entry.sent_at else (order.created_at.isoformat() if order else None),
+            "created_at": (entry.created_at if entry else order.created_at).isoformat(),
+            "updated_at": (entry.updated_at if entry else order.updated_at).isoformat(),
+            "slack_order_id": order.id if order else None,
+            "slack_message_ts": (order.slack_message_ts if order else entry.slack_message_ts),
+            "document_issued": bool(order and order.document_issued),
+            "document_issued_at": order.document_issued_at.isoformat() if order and order.document_issued_at else None,
+            "has_issues": bool(order and order.has_issues),
+            "attachments": unique_attachments,
+            "events": [{
+                "id": event.id,
+                "type": event.type,
+                "payload": payload,
+                "created_at": event.created_at.isoformat(),
+            } for event, payload in zip(events, event_payloads)],
+        },
+    })
 
 
 @route_orders_bp.get("/api/board")
