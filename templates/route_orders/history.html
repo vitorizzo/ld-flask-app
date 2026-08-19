@@ -21,11 +21,22 @@
   .history-customer-results button { width: 100%; padding: .65rem .75rem; border: 0; border-bottom: 1px solid #eee; background: #fff; text-align: left; }
   .history-customer-results button:hover, .history-customer-results button:focus { background: #e9f7fb; }
   .history-detail-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; }
-  .history-detail-field { padding: .75rem; border: 1px solid #dee2e6; border-radius: .5rem; background: #f8f9fa; }
-  .history-detail-field__label { display: block; color: #6c757d; font-size: .72rem; font-weight: 800; text-transform: uppercase; }
-  .history-detail-text { min-height: 8rem; max-height: 38vh; overflow: auto; white-space: pre-wrap; border: 1px solid #dee2e6; border-radius: .5rem; background: #fff; padding: 1rem; }
+  .modal.order-history-detail-modal,
+  .modal.order-history-detail-modal.show { z-index: 12050 !important; color: #212529; }
+  body.order-history-detail-open .modal-backdrop.show { z-index: 12040 !important; }
+  .order-history-detail-modal .modal-content { color: #212529; background: #fff; border: 1px solid rgba(255,255,255,.22); box-shadow: 0 1.5rem 4rem rgba(0,0,0,.45); }
+  .order-history-detail-modal .modal-header { color: #fff; background: #4a2c2a; border-bottom-color: #321c1b; }
+  .order-history-detail-modal .modal-header .modal-title { color: #fff; }
+  .order-history-detail-modal .modal-header .text-muted { color: rgba(255,255,255,.82) !important; }
+  .order-history-detail-modal .modal-body { color: #212529; background: #f4f1ed; }
+  .order-history-detail-modal .modal-body h3 { color: #321c1b; font-weight: 800; }
+  .order-history-detail-modal .modal-footer { color: #212529; background: #fff; border-top-color: #d6d0ca; }
+  .history-detail-field { padding: .75rem; color: #212529; border: 1px solid #c9c2bc; border-radius: .5rem; background: #fff; }
+  .history-detail-field__label { display: block; color: #5f514d; font-size: .72rem; font-weight: 800; text-transform: uppercase; }
+  .history-detail-text { min-height: 8rem; max-height: 38vh; overflow: auto; color: #111; white-space: pre-wrap; border: 1px solid #bdb5af; border-radius: .5rem; background: #fff; padding: 1rem; }
   .history-detail-events { max-height: 30vh; overflow: auto; }
-  .history-detail-event { border-left: 3px solid #0dcaf0; padding: .4rem 0 .4rem .75rem; margin-bottom: .6rem; }
+  .history-detail-event { color: #212529; border-left: 4px solid #087990; padding: .5rem .65rem; margin-bottom: .6rem; background: #fff; border-radius: 0 .35rem .35rem 0; }
+  .history-detail-event .text-muted { color: #5c636a !important; }
   .history-detail-event pre { margin: .3rem 0 0; white-space: pre-wrap; font-size: .78rem; }
   @media (max-width: 767.98px), (min-width: 768px) and (max-width: 1100px) and (min-resolution: 2dppx) {
     .order-history.page-shell { padding: 10px; font-size: 1rem; }
@@ -161,10 +172,10 @@
   {% endif %}
 </section>
 
-<div class="modal fade" id="orderHistoryDetailModal" tabindex="-1" aria-labelledby="orderHistoryDetailTitle" aria-hidden="true">
+<div class="modal fade order-history-detail-modal" id="orderHistoryDetailModal" tabindex="-1" aria-labelledby="orderHistoryDetailTitle" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header"><div><h2 class="modal-title h5" id="orderHistoryDetailTitle">Dettaglio ordine</h2><div class="text-muted small" id="historyDetailSubtitle"></div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+      <div class="modal-header"><div><h2 class="modal-title h5" id="orderHistoryDetailTitle">Dettaglio ordine</h2><div class="text-muted small" id="historyDetailSubtitle"></div></div><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
       <div class="modal-body" id="historyDetailBody"><div class="text-center py-5"><div class="spinner-border text-info" role="status"></div></div></div>
       <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button></div>
     </div>
@@ -212,6 +223,9 @@
   document.addEventListener('click', event => { if (!event.target.closest('.history-customer-picker')) hideCustomerResults(); });
 
   const modalElement = document.getElementById('orderHistoryDetailModal');
+  if (modalElement.parentElement !== document.body) document.body.appendChild(modalElement);
+  modalElement.addEventListener('show.bs.modal', () => document.body.classList.add('order-history-detail-open'));
+  modalElement.addEventListener('hidden.bs.modal', () => document.body.classList.remove('order-history-detail-open'));
   const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
   const title = document.getElementById('orderHistoryDetailTitle');
   const subtitle = document.getElementById('historyDetailSubtitle');

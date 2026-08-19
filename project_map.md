@@ -1367,6 +1367,7 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 
 - `routes/route_orders.py`: endpoint HTML `/route-orders/history` (ruolo 30) con filtri server-side per cliente, testo, date, giro e stato; vista unificata di console e ordini Slack non duplicati; endpoint JSON read-only `/route-orders/history/detail/<kind>/<id>` per il dettaglio completo.
 - `templates/route_orders/history.html`: autocomplete cliente, indicatori inviato/non inviato, paginazione e layout desktop/mobile; righe e schede aprono una modale scrollabile con testo, metadati, allegati e cronologia.
+- La modale dettaglio viene spostata sotto `document.body`, ha z-index `12050` sopra il backdrop globale e una palette ad alto contrasto indipendente dagli stili della pagina.
 - `migrations/versions/a2b3c4d5e6f8_add_order_history_menu.py`: inserisce `Storico ordini` sotto il menu principale `Magazzino`, creandolo solo come fallback se assente.
 
 ### Agenda - filtro quadratura POS per device (2026-08-01)

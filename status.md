@@ -2967,3 +2967,4 @@ Performance apertura giornata Agenda 2026-06-13:
 - Separato il filtro Cliente dalla ricerca nel testo: il cliente supporta suggerimenti asincroni, selezione esatta per anagrafica e ricerca libera per nome/codice; intervallo date e giro restano combinabili con gli altri filtri.
 - Ogni riga desktop e scheda mobile apre un dettaglio ordine scrollabile con cliente, giro, consegna, stato, invio Slack, testo completo, allegati e cronologia disponibile.
 - Verificati con sessione autenticata e database configurato lo storico filtrato e i dettagli di entrambe le origini (`console` e `slack`), tutti con risposta HTTP 200.
+- Corretta l'interazione della modale dettaglio: viene riagganciata a `document.body` prima dell'inizializzazione e usa il livello applicativo `12050`, sopra il backdrop globale `12040`. Colori di intestazione, corpo, metadati, testo, cronologia e pulsante di chiusura hanno ora contrasto esplicito.
