@@ -1,6 +1,7 @@
 import os
 import json
 import redis
+import uuid
 from datetime import datetime, timezone
 from functools import lru_cache
 from urllib.parse import urlparse
@@ -20,8 +21,9 @@ status_string = {
     "attached": "in coda..."
 }
 
-TASK_STATUS_ACTIVE_TTL = int(os.getenv("TASK_STATUS_ACTIVE_TTL", "86400"))
+TASK_STATUS_ACTIVE_TTL = int(os.getenv("TASK_STATUS_ACTIVE_TTL", "7200"))
 TASK_STATUS_ERROR_TTL = int(os.getenv("TASK_STATUS_ERROR_TTL", "604800"))
+IMPORT_LOCK_TTL = int(os.getenv("IMPORT_LOCK_TTL", "7200"))
 
 
 @lru_cache(maxsize=1)
@@ -63,6 +65,50 @@ def set_task_status(task_id, status_dict):
     r.setex(f"task_status:{task_id}", ttl, json.dumps(status_dict))
 
 
+def acquire_import_lock(import_name, ttl=None):
+    """Restituisce il token del lock, None se occupato, oppure '' se Redis non è disponibile."""
+    token = uuid.uuid4().hex
+    try:
+        acquired = get_redis().set(
+            f"import_lock:{import_name}",
+            token,
+            nx=True,
+            ex=int(ttl or IMPORT_LOCK_TTL),
+        )
+    except RedisError:
+        return ""
+    return token if acquired else None
+
+
+def release_import_lock(import_name, token):
+    if not token:
+        return
+    script = """
+        if redis.call('get', KEYS[1]) == ARGV[1] then
+            return redis.call('del', KEYS[1])
+        end
+        return 0
+    """
+    try:
+        get_redis().eval(script, 1, f"import_lock:{import_name}", token)
+    except RedisError:
+        return
+
+
+def get_import_source_signature(import_name):
+    try:
+        return get_redis().get(f"import_source_signature:{import_name}")
+    except RedisError:
+        return None
+
+
+def set_import_source_signature(import_name, signature):
+    try:
+        get_redis().set(f"import_source_signature:{import_name}", str(signature))
+    except RedisError:
+        return
+
+
 def get_all_tasks_status():
     r = get_redis()
     try:
@@ -81,8 +127,16 @@ def get_all_tasks_status():
         task["task_id"] = key.replace("task_status:", "", 1).strip()
         stato = (task.get("stato", "") or "").lower()
         if stato not in ("completato",):
-            task["terminal"] = stato in ("errore", "error", "fallito", "failed", "revocato", "revoked")
             task["legacy"] = not bool(task.get("updated_at"))
+            if task["legacy"]:
+                task["stale"] = True
+                task["terminal"] = True
+                task["stato"] = "residuo"
+                task.setdefault("errore", "Stato storico privo di aggiornamenti: non risulta un processo attivo.")
+            else:
+                task["terminal"] = stato in (
+                    "errore", "error", "fallito", "failed", "revocato", "revoked", "residuo", "stale"
+                )
             task_list.append(task)
     return sorted(
         task_list,
@@ -115,7 +169,7 @@ def clear_all_task_statuses():
 
 
 def clear_terminal_task_statuses():
-    """Rimuove dal monitor soltanto errori/revoche, senza toccare task attivi."""
+    """Rimuove errori, revoche e record legacy senza toccare task attivi."""
     r = get_redis()
     cleared = 0
     try:
@@ -128,7 +182,9 @@ def clear_terminal_task_statuses():
             except (TypeError, ValueError):
                 continue
             stato = str(task.get("stato") or "").strip().lower()
-            if stato in {"errore", "error", "fallito", "failed", "revocato", "revoked"}:
+            if not task.get("updated_at") or stato in {
+                "errore", "error", "fallito", "failed", "revocato", "revoked", "residuo", "stale"
+            }:
                 cleared += int(r.delete(key) or 0)
     except RedisError:
         return cleared

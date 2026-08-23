@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     const progress = Number(task.progress || 0);
                     const state = (task.stato || task.status || "").toString();
                     const error = (task.errore || task.error || "").toString();
-                    const isError = ["errore", "error", "fallito", "failed"].some(value => state.toLowerCase().includes(value));
+                    const isError = ["errore", "error", "fallito", "failed", "residuo", "stale"].some(value => state.toLowerCase().includes(value));
                     const isTerminal = Boolean(task.terminal) || isError;
                     if (isTerminal) errorCount += 1;
                     else {
@@ -72,7 +72,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 const avgProgress = activeCount ? Math.floor(totalProgress / activeCount) : 0;
                 progressBar.style.width = `${avgProgress}%`;
-                label.innerText = `Attivi: ${activeCount} | Errori: ${errorCount}${activeCount ? ` | ${avgProgress}%` : ''}`;
+                label.innerText = `Attivi: ${activeCount} | Errori/residui: ${errorCount}${activeCount ? ` | ${avgProgress}%` : ''}`;
                 actions?.classList.toggle('d-none', errorCount === 0);
             } else {
                 taskList.innerHTML = '<li class="list-group-item task-status-empty">Nessun processo attivo o in errore.</li>';
@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     clearErrorsButton?.addEventListener('click', async function () {
-        if (!confirm('Rimuovere dal monitor tutti gli errori archiviati? I processi attivi non saranno toccati.')) return;
+        if (!confirm('Rimuovere dal monitor errori e stati residui? I processi attivi non saranno toccati.')) return;
         clearErrorsButton.disabled = true;
         try {
             const response = await fetch('/task_manage/clear_errors', {method: 'POST', headers: {'Accept': 'application/json'}});
@@ -114,7 +114,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
             await fetchStatus();
         } catch (error) {
-            alert(`Impossibile rimuovere gli errori archiviati: ${error}`);
+            alert(`Impossibile rimuovere errori e stati residui: ${error}`);
         } finally {
             clearErrorsButton.disabled = false;
         }

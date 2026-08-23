@@ -317,6 +317,94 @@ def clean_text(text):
     return text
 
 
+def _teamsystem_stock_integer(raw_value):
+    """Converte un numerico TeamSystem con due decimali impliciti in intero."""
+    raw = (clean_text(raw_value) or "").strip()
+    if raw and not re.search(r"\d", raw):
+        raise ValueError(f"Numerico TeamSystem non valido: {raw}")
+    return int(_teamsystem_decimal(raw))
+
+
+def _collect_stock_rows(reader, progress_callback=None):
+    """Valida e aggrega completamente le giacenze prima di modificare il DB."""
+    counters = {
+        "total_rows": 0,
+        "accepted_rows": 0,
+        "aggregated_rows": 0,
+        "invalid_rows": 0,
+        "skipped_rows": 0,
+        "unsupported_depot_rows": 0,
+    }
+    stock_by_code = {}
+    seen_slots = set()
+    try:
+        total_rows = len(reader)
+    except TypeError:
+        total_rows = None
+
+    for index, row in enumerate(reader):
+        if index == 0:
+            continue
+        counters["total_rows"] += 1
+        if len(row) < 4:
+            counters["invalid_rows"] += 1
+            continue
+        try:
+            cod_art = (clean_text(row[0]) or "").strip()
+            quantity = _teamsystem_stock_integer(row[1])
+            depot = _teamsystem_stock_integer(row[2])
+            value_type = _teamsystem_stock_integer(row[3])
+        except (InvalidOperation, TypeError, ValueError):
+            counters["invalid_rows"] += 1
+            continue
+        if not cod_art or value_type != 1 or quantity == 0:
+            counters["skipped_rows"] += 1
+            continue
+        field_name = {0: "giac_neg", 400: "giac_www"}.get(depot)
+        if not field_name:
+            counters["unsupported_depot_rows"] += 1
+            continue
+
+        slot = (cod_art, field_name)
+        if slot in seen_slots:
+            counters["aggregated_rows"] += 1
+        seen_slots.add(slot)
+        values = stock_by_code.setdefault(cod_art, {"giac_neg": 0, "giac_www": 0})
+        values[field_name] += quantity
+        counters["accepted_rows"] += 1
+        if progress_callback and total_rows and index % 500 == 0:
+            progress_callback(int((index / max(total_rows, 1)) * 80))
+
+    rows = [
+        {"cod_art": cod_art, **values}
+        for cod_art, values in stock_by_code.items()
+        if values["giac_neg"] != 0 or values["giac_www"] != 0
+    ]
+    counters["articles"] = len(rows)
+    counters["total_giac_neg"] = sum(row["giac_neg"] for row in rows)
+    counters["total_giac_www"] = sum(row["giac_www"] for row in rows)
+    return rows, counters
+
+
+def _diff_stock_rows(stock_rows, existing_rows):
+    incoming = {row["cod_art"]: row for row in stock_rows}
+    existing = {
+        cod_art: {"giac_neg": giac_neg or 0, "giac_www": giac_www or 0}
+        for cod_art, giac_neg, giac_www in existing_rows
+    }
+    created = [row for code, row in incoming.items() if code not in existing]
+    changed = [
+        row for code, row in incoming.items()
+        if code in existing and (
+            existing[code]["giac_neg"] != row["giac_neg"]
+            or existing[code]["giac_www"] != row["giac_www"]
+        )
+    ]
+    removed = [code for code in existing if code not in incoming]
+    unchanged = len(incoming) - len(created) - len(changed)
+    return created, changed, removed, unchanged
+
+
 def _clean_registry_text(value):
     if value is None:
         return None
@@ -1500,7 +1588,13 @@ def import_poleepo_products(task_id=None, options=None):
 def import_articoli(task_id=None):
     from datetime import datetime
     from routes.esportazioni_teamsystem import serve_risorsa
-    from tools.redis_utils import update_task, status_string, clear_task_status
+    from tools.redis_utils import (
+        clear_task_status,
+        get_import_source_signature,
+        set_import_source_signature,
+        status_string,
+        update_task,
+    )
     from models import ImportRun, ImportConflict  # se l'import nel tuo progetto è diverso, adegua
 
     task_name = "Importazione articoli"
@@ -1508,13 +1602,9 @@ def import_articoli(task_id=None):
     logger.info(">>> Entrata nella funzione: import_articoli()")
     logger.info("Importazione articoli avviata...")
 
-    db.create_all()
-
-    source_file = configured_source_file("articles")
-    file_csv = serve_risorsa(source_file)
-    logger.info(f"File CSV: {file_csv}")
-
     run = None
+    file_csv = None
+    cleanup_download = False
     counters = {
         "created": 0,
         "updated": 0,
@@ -1525,6 +1615,24 @@ def import_articoli(task_id=None):
     }
 
     try:
+        db.create_all()
+        source_file = configured_source_file("articles")
+        file_csv = serve_risorsa(source_file)
+        cleanup_download = os.path.basename(file_csv).lower() != os.path.basename(source_file).lower()
+        source_stat = os.stat(file_csv)
+        source_signature = f"{source_stat.st_size}:{source_stat.st_mtime_ns}"
+        logger.info("File articoli: %s (%d byte, modificato %s)", file_csv, source_stat.st_size,
+                    datetime.fromtimestamp(source_stat.st_mtime).isoformat(timespec="seconds"))
+        if get_import_source_signature("articles") == source_signature:
+            clear_task_status(task_id)
+            logger.info("Import articoli saltato: archivio sorgente invariato")
+            return {
+                "success": True,
+                "skipped": True,
+                "reason": "unchanged_source",
+                "message": "Archivio articoli invariato.",
+            }
+
         # Crea ImportRun
         run = ImportRun(
             task_id=str(task_id) if task_id else "manual",
@@ -1652,9 +1760,14 @@ def import_articoli(task_id=None):
 
         # chiudi run
         run.finished_at = datetime.utcnow()
+        counters.update({
+            "source_size": source_stat.st_size,
+            "source_modified_at": datetime.fromtimestamp(source_stat.st_mtime).isoformat(timespec="seconds"),
+        })
         run.summary = counters
 
         db.session.commit()
+        set_import_source_signature("articles", source_signature)
         update_task(task_id, task_name, 100, status_string['end'])
         logger.info("Articoli importati con successo!")
         logger.info(f"Summary import articoli: {counters}")
@@ -1681,95 +1794,146 @@ def import_articoli(task_id=None):
         update_task(task_id, task_name, 0, status_string['error'], e)
         registra_importazione("articoli", esito=False, messaggio=str(e))
         return {'success': False, 'error': str(e)}
+    finally:
+        if cleanup_download and file_csv:
+            try:
+                os.unlink(file_csv)
+            except OSError:
+                logger.warning("Impossibile rimuovere il file temporaneo articoli: %s", file_csv)
 
 
 
 @log_task(logger)
 def import_giacenze(task_id=None):
     from routes.esportazioni_teamsystem import serve_risorsa
-    from tools.redis_utils import update_task, clear_task_status, status_string
+    from tools.redis_utils import (
+        clear_task_status,
+        get_import_source_signature,
+        set_import_source_signature,
+        status_string,
+        update_task,
+    )
     task_name = "Importazione giacenze da gestionale"
     update_task(task_id, task_name, 0, status_string['start'])
     logger.info(">>> Entrata nella funzione: import_giacenze()")
     logger.info("Importazione giacenze avviata...")
-    db.create_all()
-    db.session.query(Giacenza).delete()
-    db.session.commit()
-    logger.info("Tabella giacenze svuotata.")
-
-    file_csv = serve_risorsa(configured_source_file("stock"))
-    logger.info(f"File CSV: {file_csv}")
+    file_csv = None
+    cleanup_download = False
     try:
+        db.create_all()
+        source_file = configured_source_file("stock")
+        file_csv = serve_risorsa(source_file)
+        cleanup_download = os.path.basename(file_csv).lower() != os.path.basename(source_file).lower()
+        source_stat = os.stat(file_csv)
+        source_modified_at = datetime.fromtimestamp(source_stat.st_mtime)
+        source_signature = f"{source_stat.st_size}:{source_stat.st_mtime_ns}"
+        logger.info("File giacenze: %s (%d byte, modificato %s)", file_csv, source_stat.st_size,
+                    source_modified_at.isoformat(timespec="seconds"))
+        if get_import_source_signature("stock") == source_signature:
+            clear_task_status(task_id)
+            logger.info("Import giacenze saltato: archivio sorgente invariato")
+            return {
+                "success": True,
+                "skipped": True,
+                "reason": "unchanged_source",
+                "message": "Archivio giacenze invariato.",
+            }
         with open(file_csv, 'r', encoding='utf-8', errors='ignore') as csvfile:
-            reader = list(csv.reader(csvfile, delimiter='\t'))
-            total_rows = len(reader)
-            logger.info(f"Righe totali: {total_rows}")
+            stock_rows, counters = _collect_stock_rows(
+                csv.reader(csvfile, delimiter='\t'),
+                lambda progress: update_task(task_id, task_name, progress, status_string['update']),
+            )
+        source_stat_after = os.stat(file_csv)
+        if (
+            source_stat_after.st_size != source_stat.st_size
+            or source_stat_after.st_mtime_ns != source_stat.st_mtime_ns
+        ):
+            raise RuntimeError("Archivio giacenze modificato durante la lettura; import rinviato")
+        logger.info("Righe giacenze lette: %d", counters["total_rows"])
+        if counters["total_rows"] == 0:
+            raise ValueError("Il file giacenze non contiene righe dati")
+        if not stock_rows:
+            raise ValueError("Il file giacenze non contiene quantità valide per i depositi 0/400")
+        counters.update({
+            "source_file": source_file,
+            "source_size": source_stat.st_size,
+            "source_modified_at": source_modified_at.isoformat(timespec="seconds"),
+        })
 
-            with db.session.no_autoflush:
-                for index, row in enumerate(reader):
-                    if index > 0 and len(row) >= 4:
-                        cod_art = clean_text(row[0])
-                        giacenza = int(clean_text(row[1])[:-2])
-                        deposito = int(clean_text(row[2])[:-2])
-                        tipo_valore = int(clean_text(row[3])[:-2])
+        update_task(task_id, task_name, 85, status_string['update'])
+        existing_rows = db.session.query(
+            Giacenza.cod_art, Giacenza.giac_neg, Giacenza.giac_www
+        ).all()
+        if len(existing_rows) >= 100 and len(stock_rows) < int(len(existing_rows) * 0.80):
+            raise RuntimeError(
+                f"Snapshot giacenze anomalo: {len(stock_rows)} articoli contro {len(existing_rows)} correnti"
+            )
+        created_rows, changed_rows, removed_codes, unchanged_count = _diff_stock_rows(stock_rows, existing_rows)
+        counters.update({
+            "created": len(created_rows),
+            "updated": len(changed_rows),
+            "removed": len(removed_codes),
+            "unchanged": unchanged_count,
+        })
 
-                        if cod_art and tipo_valore == 1 and giacenza != 0:
-                            giacenza_esistente = Giacenza.query.filter_by(cod_art=cod_art).first()
-                            if giacenza_esistente:
-                                modifiche = []
-                                match deposito:
-                                    case 0:
-                                        if giacenza_esistente.giac_neg == 0:
-                                            setattr(giacenza_esistente, "giac_neg", giacenza)
-                                        else:
-                                            modifiche.append((cod_art, "giac_neg", giacenza_esistente.giac_neg,
-                                                              giacenza))
-                                    case 400:
-                                        if giacenza_esistente.giac_www == 0:
-                                            setattr(giacenza_esistente, "giac_www", giacenza)
-                                        else:
-                                            modifiche.append((cod_art, "giac_www", giacenza_esistente.giac_www,
-                                                              giacenza))
-                                if modifiche:
-                                    for articolo, campo, valore_vecchio, valore_nuovo in modifiche:
-                                        scelta = input(f"Differenza trovata per il campo {campo} dell'articolo "
-                                                       f"{articolo}: vecchio='{valore_vecchio}', "
-                                                       f" nuovo='{valore_nuovo}'. "
-                                                       f"(v=vecchio, n=nuovo): ").strip().lower()
-                                        if scelta == 'n':
-                                            setattr(giacenza_esistente, campo, valore_nuovo)
-                            else:
-                                giac_neg = 0
-                                giac_www = 0
-                                match deposito:
-                                    case 0: giac_neg = giacenza
-                                    case 400: giac_www = giacenza
-
-                                nuova_giacenza = Giacenza(
-                                    cod_art=cod_art,
-                                    giac_neg=giac_neg,
-                                    giac_www=giac_www,
-                                )
-                                db.session.add(nuova_giacenza)
-                                db.session.flush()
-                    # 🔁 Aggiorna progresso ogni 50 righe
-                    if index % 50 == 0:
-                        progresso = int((index / total_rows) * 100)
-                        update_task(task_id, task_name, progresso, status_string['update'])
-        logger.info("Ciclo di filtraggio terminato!")
+        if created_rows:
+            db.session.execute(Giacenza.__table__.insert(), created_rows)
+        if changed_rows:
+            db.session.bulk_update_mappings(Giacenza, changed_rows)
+        for offset in range(0, len(removed_codes), 500):
+            Giacenza.query.filter(
+                Giacenza.cod_art.in_(removed_codes[offset:offset + 500])
+            ).delete(synchronize_session=False)
+        if created_rows:
+            db.session.execute(db.text("""
+                UPDATE giacenza AS g
+                SET id_art = a.id_art
+                FROM articoli AS a
+                WHERE a.cod_art = g.cod_art AND g.id_art IS NULL
+            """))
+        counters["missing_articles"] = db.session.execute(db.text(
+            "SELECT COUNT(*) FROM giacenza WHERE id_art IS NULL"
+        )).scalar() or 0
         db.session.commit()
+        set_import_source_signature("stock", source_signature)
         update_task(task_id, task_name, 100, status_string['end'])
-        logger.info("Giacenze importate con successo!")
+        logger.info("Giacenze importate con successo: %s", counters)
         if task_id:
             clear_task_status(task_id)
-        registra_importazione("giacenze", esito=True)
-        return jsonify({'message': 'Giacenze importate con successo!', 'progress': 100}), 200
+        changed_count = counters["created"] + counters["updated"] + counters["removed"]
+        if changed_count == 0:
+            return {
+                'success': True,
+                'skipped': True,
+                'reason': 'no_changes',
+                'message': 'Nessuna giacenza variata.',
+                'progress': 100,
+                'summary': counters,
+            }
+        history_message = (
+            f"{source_file}; +{counters['created']} ~{counters['updated']} -{counters['removed']}; "
+            f"NEG {counters['total_giac_neg']}; WWW {counters['total_giac_www']}; "
+            f"sorgente {source_modified_at.strftime('%d/%m/%Y %H:%M')}"
+        )
+        registra_importazione("giacenze", esito=True, messaggio=history_message)
+        return {
+            'success': True,
+            'message': 'Giacenze importate con successo!',
+            'progress': 100,
+            'summary': counters,
+        }
     except Exception as e:
         logger.exception("Errore durante l'importazione delle Giacenze:")
         db.session.rollback()
         update_task(task_id, task_name, 0, status_string['error'], e)
         registra_importazione("giacenze", esito=False, messaggio=str(e))
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return {'success': False, 'error': str(e)}
+    finally:
+        if cleanup_download and file_csv:
+            try:
+                os.unlink(file_csv)
+            except OSError:
+                logger.warning("Impossibile rimuovere il file temporaneo giacenze: %s", file_csv)
 
 
 @log_task(logger)

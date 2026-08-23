@@ -24,7 +24,7 @@ def task_kill(task_id):
 def clear_errors():
     from tools.redis_utils import clear_terminal_task_statuses
     cleared = clear_terminal_task_statuses()
-    return jsonify({"message": f"Rimossi {cleared} errori archiviati dal monitor.", "cleared": cleared})
+    return jsonify({"message": f"Rimossi {cleared} errori o stati residui dal monitor.", "cleared": cleared})
 
 
 @task_bp.route("/clear_all_tasks", methods=["GET", "POST"])

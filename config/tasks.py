@@ -15,10 +15,32 @@ logger = get_logger('tasks')
 mailing_logger = get_logger('mailing_list')
 
 
+def _run_locked_import(import_name, task_id, task_name, callback):
+    from tools.redis_utils import acquire_import_lock, clear_task_status, release_import_lock
+
+    lock_token = acquire_import_lock(import_name)
+    if lock_token is None:
+        clear_task_status(task_id)
+        logger.info("Import %s non avviato: esecuzione precedente ancora attiva", import_name)
+        return {
+            "success": True,
+            "skipped": True,
+            "reason": "previous_run_active",
+            "message": f"{task_name}: esecuzione precedente ancora attiva.",
+        }
+    try:
+        return callback()
+    finally:
+        release_import_lock(import_name, lock_token)
+
+
 @celery.task(bind=True)
 @log_task(logger)
 def import_articoli_task(self):
-    return import_articoli(task_id=self.request.id)
+    return _run_locked_import(
+        "articles", self.request.id, "Importazione articoli",
+        lambda: import_articoli(task_id=self.request.id),
+    )
 
 
 @celery.task(bind=True)
@@ -36,7 +58,10 @@ def import_poleepo_products_task(self, options=None):
 @celery.task(bind=True)
 @log_task(logger)
 def import_giacenze_task(self):
-    return import_giacenze(task_id=self.request.id)
+    return _run_locked_import(
+        "stock", self.request.id, "Importazione giacenze",
+        lambda: import_giacenze(task_id=self.request.id),
+    )
 
 
 @celery.task(bind=True)

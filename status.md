@@ -2976,3 +2976,15 @@ Performance apertura giornata Agenda 2026-06-13:
 - Se il vault non e disponibile o non e leggibile, la risposta full fallisce in modo visibile invece di restituire silenziosamente i soli movimenti fiscali e nascondere i flag `+` e `x`.
 - Il polling realtime resta a 5 secondi e non e stato modificato. Verificati sintassi Python/JavaScript, integrita patch e caricamento mirato di un giugno storico.
 - Corretta anche la ricerca movimenti per cliente/fornitore: il confronto continua a essere parziale e case-insensitive nelle tabelle fiscali e ora viene applicato anche a clienti e fornitori dei movimenti `+`/`x` nel vault per tutto il periodo scelto. Verificato il caso `peschiu` contro `ASS. CULT. "PESCHIU NOSTRU"`.
+
+## 2026-08-23 - Affidabilita importazioni giacenze e monitor task
+
+- Verificata la fonte effettiva degli import file-based: prima `EXPORT_FOLDER`, altrimenti download da `EXPORT_FOLDER_URL`; i nomi configurati restano `ARTICOLI.CSV`, `GIACENZE.CSV`, `CODBAR.CSV` ed `EC_CLI.CSV`. Le anagrafiche usano invece MATRIXWS REST `500001`.
+- Individuato un disallineamento temporale: il task giacenze delle 04:10 risultava riuscito ma `GIACENZE.CSV` veniva pubblicato intorno alle 09:10. La sincronizzazione ora controlla le giacenze ogni 5 minuti e gli articoli due minuti dopo, evitando la dipendenza da un unico orario giornaliero.
+- L'import giacenze ora legge e valida l'intero archivio prima di modificare il database, somma le righe ripetute per articolo/deposito e sostituisce la tabella in una sola transazione. Eliminato l'`input()` interattivo incompatibile con Celery.
+- Il download remoto non materializza piu preventivamente l'intero file tramite `response.text`, conserva sul temporaneo il `Last-Modified` remoto e il parser giacenze lavora in streaming per contenere la memoria.
+- Lo storico giacenze registra file, timestamp sorgente, articoli importati, totali NEG/WWW e righe aggregate; un esito positivo diventa quindi verificabile.
+- Gli stati Redis senza `updated_at` vengono classificati come residui terminali, non come processi attivi; il comando del monitor rimuove errori e residui senza revocare worker reali. TTL dei nuovi stati attivi ridotto a due ore e rinnovato a ogni avanzamento.
+- Giacenze e articoli usano un lock Redis di importazione: una nuova esecuzione viene ignorata se la precedente e' ancora attiva, mentre i task rimasti in coda scadono prima del ciclo successivo.
+- La giacenza non viene piu riscritta integralmente: il confronto applica soltanto nuovi articoli, quantità cambiate e codici non piu presenti. Sorgenti con firma invariata vengono saltate; se il file cambia durante la lettura o lo snapshot si riduce in modo anomalo, l'import viene rinviato senza modificare il database.
+- La raccolta e il confronto rimangono separati dalla provenienza dei dati: quando saranno disponibili i servizi MATRIXWS per articoli e giacenze, il lettore file potra essere sostituito mantenendo invariata la sincronizzazione incrementale.

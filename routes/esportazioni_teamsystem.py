@@ -1,5 +1,6 @@
 import tempfile
 from datetime import datetime
+from email.utils import parsedate_to_datetime
 
 import requests
 import os
@@ -93,15 +94,6 @@ def _download_export_file(filename):
                     response = None
                     continue
                 response.raise_for_status()
-                preview = response.text[:300] if response.encoding else ""
-                if preview.strip().startswith(("/", "\\")):
-                    possible_path = preview.strip()
-                    if os.path.exists(possible_path):
-                        logger.info("Il server ha restituito un path locale valido: %s", possible_path)
-                        return possible_path
-                    last_error = ValueError(f"Il server ha restituito solo un path non accessibile: {possible_path}")
-                    response = None
-                    continue
                 break
             except requests.RequestException as exc:
                 last_error = exc
@@ -122,6 +114,14 @@ def _download_export_file(filename):
             if chunk:
                 temp_file.write(chunk)
         temp_file_path = temp_file.name
+
+    last_modified = response.headers.get("Last-Modified")
+    if last_modified:
+        try:
+            modified_at = parsedate_to_datetime(last_modified)
+            os.utime(temp_file_path, (modified_at.timestamp(), modified_at.timestamp()))
+        except (TypeError, ValueError, OSError):
+            logger.warning("Last-Modified non applicabile per %s: %s", safe_name, last_modified)
 
     logger.info("File export %s scaricato in: %s", safe_name, temp_file_path)
     return temp_file_path

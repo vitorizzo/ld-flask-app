@@ -1348,6 +1348,10 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `routes/settings.py` + `templates/settings/import_transfer_definitions.html`: tile e pagina amministrativa per associare file export e tracciati.
 - `static/tracciati/importazione/`: directory dei tracciati selezionabili; contiene `tracciato_ec_cli.csv`.
 - `tools/importazioni.py`: risolve dinamicamente i file sorgente configurati mantenendo fallback ai nomi storici.
+- Per gli import file-based `routes/esportazioni_teamsystem.py` cerca prima in `EXPORT_FOLDER` e usa `EXPORT_FOLDER_URL` come fallback remoto. Gli archivi correnti sono `ARTICOLI.CSV`, `GIACENZE.CSV`, `CODBAR.CSV` ed `EC_CLI.CSV`; l'import anagrafiche usa MATRIXWS REST `500001`.
+- L'import giacenze aggrega le righe per articolo e deposito 0/400 in streaming, valida lo snapshot e aggiorna solo record nuovi, variati o rimossi. Celery Beat controlla le giacenze ogni 5 minuti e gli articoli ai minuti 2/7/12/.../57; firma sorgente, lock Redis, scadenza della coda e controllo anti-snapshot-parziale evitano lavoro inutile e sovrapposizioni.
+- Il parser e il diff giacenze sono indipendenti dal trasporto: il futuro adapter MATRIXWS sostituira la risoluzione dell'archivio senza cambiare la logica incrementale o la persistenza.
+- `tools/redis_utils.py` assegna ai nuovi stati attivi un TTL rinnovabile di due ore e presenta i record storici senza `updated_at` come residui terminali rimovibili dal monitor senza revoca Celery.
 
 ### Prestazioni applicative e Agenda (2026-08-01)
 
