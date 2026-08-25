@@ -15,6 +15,7 @@ from models import (
     DeliveryRouteCustomer,
 )
 from tools.role_required import role_required
+from tools.customer_memberships import customer_registry_for_user
 
 
 customer_orders_bp = Blueprint("customer_orders", __name__)
@@ -115,10 +116,7 @@ def _selected_delivery_option():
 
 
 def _customer_registry():
-    registry = getattr(current_user, "customer_registry", None)
-    if registry and registry.kind == "customer" and registry.is_active:
-        return registry
-    return None
+    return customer_registry_for_user(current_user)
 
 
 def _customer_route(registry):

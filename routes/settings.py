@@ -58,6 +58,7 @@ from models import (
     CashSalePaymentPosMove,
 )
 from tools.role_required import role_required
+from tools.customer_memberships import clear_primary_customer_membership, set_primary_customer_membership
 from tools.preferences import (
     build_preferences_sections,
     get_definition_map,
@@ -639,7 +640,12 @@ def activate_horeca(ticket_id):
 
     now = datetime.now()
     user = ticket.user
-    user.customer_registry_id = registry.id
+    set_primary_customer_membership(
+        user,
+        registry,
+        approved_by_user_id=current_user.id,
+        source="horeca_activation",
+    )
     for user_role in user.roles or []:
         if user_role.role and user_role.role.name == "customer" and (user_role.valid_until is None or user_role.valid_until >= now):
             user_role.valid_until = now
@@ -741,9 +747,17 @@ def customer_order_links():
         user = User.query.get_or_404(_parse_int(request.form.get("user_id")))
         registry_id = _parse_int(request.form.get("registry_id"))
         registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first() if registry_id else None
-        user.customer_registry_id = registry.id if registry else None
+        if registry:
+            set_primary_customer_membership(
+                user,
+                registry,
+                approved_by_user_id=current_user.id,
+                source="customer_order_links",
+            )
+        else:
+            clear_primary_customer_membership(user)
         db.session.commit()
-        flash("Associazione account-anagrafica aggiornata.", "success")
+        flash("Cliente principale dell'account aggiornato.", "success")
         return redirect(url_for("settings.customer_order_links"))
 
     users = User.query.order_by(User.surname.asc(), User.name.asc()).all()

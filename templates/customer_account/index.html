@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}La mia situazione contabile - LD Enoteca{% endblock %}
+{% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_account.css', v=app_version ~ '-foundation1') }}">{% endblock %}
+{% block content %}
+<section class="customer-account-page">
+  <header class="customer-account-hero">
+    <div>
+      <div class="customer-account-eyebrow">{{ 'Anteprima Developer' if is_developer else 'Area cliente Horeca' }}</div>
+      <h1>{{ 'Situazione contabile cliente' if is_developer else 'La mia situazione contabile' }}</h1>
+      {% if registry %}<p>{{ registry.display_name or registry.legal_name }} · codice cliente {{ registry.source_code }}</p>{% endif %}
+    </div>
+    {% if is_developer or registries|length > 1 %}
+      <label class="customer-account-selector">Cliente
+        {% if is_developer %}<input class="form-control" type="search" placeholder="Filtra clienti…" aria-label="Filtra clienti" data-customer-filter>{% endif %}
+        <select class="form-select" onchange="if(this.value) location.href=this.value" data-customer-select>
+          {% for item in registries %}<option value="{{ url_for('customer_account.index', customer=item.id) }}" {{ 'selected' if registry and item.id == registry.id }}>{{ item.display_name or item.legal_name or item.source_code }}</option>{% endfor %}
+        </select>
+      </label>
+    {% endif %}
+  </header>
+
+  {% if not registry %}
+    <div class="alert alert-warning">{{ "Non ci sono anagrafiche cliente attive." if is_developer else "Il tuo profilo Horeca non è ancora associato a un'anagrafica cliente. Contatta l'assistenza per completare l'attivazione." }}</div>
+  {% elif not current_import %}
+    <div class="alert alert-info">La situazione contabile non è ancora disponibile.</div>
+  {% else %}
+    <div class="customer-account-sync"><i class="fa-solid fa-rotate"></i> Dati aggiornati al {{ current_import.imported_at.strftime('%d/%m/%Y alle %H:%M') }}</div>
+    <div class="customer-account-totals">
+      <article><span>Dare</span><strong>{{ money(totals.debit) }}</strong></article>
+      <article><span>Avere</span><strong>{{ money(totals.credit) }}</strong></article>
+      <article class="customer-account-balance"><span>Saldo contabile</span><strong>{{ money(totals.balance) }}</strong></article>
+    </div>
+
+    <div class="customer-account-notice">
+      <i class="fa-solid fa-shield-halved"></i>
+      <div><strong>Pagamenti e segnalazioni in preparazione</strong><p>La struttura protetta è pronta. Attiveremo PayByLink, invio contabili e contestazioni appena MATRIXWS esporrà una chiave stabile per identificare ogni singola partita.</p></div>
+    </div>
+
+    {% if open_cases %}
+      <div class="alert alert-info">Hai {{ open_cases|length }} {{ 'pratica in corso' if open_cases|length == 1 else 'pratiche in corso' }}.</div>
+    {% endif %}
+
+    <div class="customer-account-card">
+      <div class="customer-account-card-head"><h2>Movimenti contabili</h2><span>{{ entries.total }} righe</span></div>
+      <div class="table-responsive"><table class="table align-middle mb-0">
+        <thead><tr><th>Data</th><th>Documento</th><th>Descrizione</th><th>Scadenza</th><th>Segno</th><th class="text-end">Importo</th></tr></thead>
+        <tbody>
+          {% for entry in entries.items %}<tr>
+            <td data-label="Data">{{ entry.document_date.strftime('%d/%m/%Y') if entry.document_date else '—' }}</td>
+            <td data-label="Documento">{{ entry.document_number or '—' }}</td>
+            <td data-label="Descrizione"><strong>{{ entry.description or '—' }}</strong>{% if entry.additional_description %}<small>{{ entry.additional_description }}</small>{% endif %}{% if not entry.is_balance_relevant %}<small>Riga tecnica esclusa dal saldo</small>{% endif %}</td>
+            <td data-label="Scadenza">{{ entry.due_date.strftime('%d/%m/%Y') if entry.due_date else '—' }}</td>
+            <td data-label="Segno"><span class="badge {{ 'text-bg-danger' if entry.accounting_side == 'D' else 'text-bg-success' }}">{{ 'Dare' if entry.accounting_side == 'D' else 'Avere' }}</span></td>
+            <td data-label="Importo" class="text-end fw-semibold">{{ money(entry.amount) }}</td>
+          </tr>{% else %}<tr><td colspan="6" class="text-center py-5 text-muted">Nessun movimento disponibile per questo cliente.</td></tr>{% endfor %}
+        </tbody>
+      </table></div>
+    </div>
+    {% if entries.pages > 1 %}<nav class="mt-3" aria-label="Pagine movimenti"><ul class="pagination justify-content-center flex-wrap">
+      {% for page_number in entries.iter_pages() %}{% if page_number %}<li class="page-item {{ 'active' if page_number == entries.page }}"><a class="page-link" href="{{ url_for('customer_account.index', customer=registry.id, page=page_number) }}">{{ page_number }}</a></li>{% else %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}{% endfor %}
+    </ul></nav>{% endif %}
+    <p class="customer-account-footnote">Questa vista riproduce l'ultimo aggiornamento ricevuto dal gestionale. Lo stato operativo delle future richieste di pagamento resterà separato dai dati contabili TeamSystem.</p>
+  {% endif %}
+</section>
+{% if is_developer %}<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const input = document.querySelector('[data-customer-filter]');
+  const select = document.querySelector('[data-customer-select]');
+  if (!input || !select) return;
+  const options = Array.from(select.options).map(option => ({ value: option.value, text: option.text, selected: option.selected }));
+  input.addEventListener('input', () => {
+    const query = input.value.trim().toLocaleLowerCase('it');
+    const currentValue = select.value;
+    select.replaceChildren(...options.filter(item => item.selected || !query || item.text.toLocaleLowerCase('it').includes(query)).map(item => new Option(item.text, item.value, item.selected, item.value === currentValue)));
+  });
+});
+</script>{% endif %}
+{% endblock %}

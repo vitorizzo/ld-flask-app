@@ -962,6 +962,13 @@ class User(db.Model, UserMixin):
 
     roles = db.relationship('UserRole', backref='user', lazy=True)
     customer_registry = db.relationship("BusinessRegistry", foreign_keys=[customer_registry_id])
+    customer_memberships = db.relationship(
+        "CustomerRegistryMembership",
+        foreign_keys="CustomerRegistryMembership.user_id",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
 
     @property
     def active_roles(self):
@@ -979,6 +986,10 @@ class User(db.Model, UserMixin):
                     and (ur.valid_until is None or ur.valid_until >= now)
             )
         ]
+
+    def has_active_role(self, *role_names):
+        allowed = {str(name).strip().lower() for name in role_names if name}
+        return any(str(role.name).strip().lower() in allowed for role in self.active_roles or [])
 
     @property
     def max_role_weight(self):
@@ -2291,6 +2302,13 @@ class BusinessRegistry(db.Model):
         cascade="all, delete-orphan",
         lazy="selectin",
     )
+    customer_memberships = db.relationship(
+        "CustomerRegistryMembership",
+        foreign_keys="CustomerRegistryMembership.registry_id",
+        back_populates="registry",
+        cascade="all, delete-orphan",
+        lazy="select",
+    )
 
     def to_dict(self):
         return {
@@ -2397,6 +2415,168 @@ class CustomerAccountEntry(db.Model):
         "BusinessRegistry",
         backref=db.backref("customer_account_entries", lazy="dynamic"),
     )
+
+
+class CustomerRegistryMembership(db.Model):
+    """Autorizzazione di un utente ad agire per una specifica anagrafica cliente."""
+
+    __tablename__ = "customer_registry_memberships"
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "registry_id", name="uq_customer_registry_membership_user_registry"),
+        db.Index("ix_customer_registry_membership_user_status", "user_id", "status"),
+        db.Index("ix_customer_registry_membership_registry_status", "registry_id", "status"),
+        db.Index(
+            "uq_customer_registry_membership_primary",
+            "user_id",
+            unique=True,
+            postgresql_where=db.text("is_primary AND status = 'active'"),
+        ),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
+    registry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("business_registries.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    role = db.Column(db.String(20), nullable=False, default="owner")  # owner|payments|viewer
+    status = db.Column(db.String(20), nullable=False, default="active")
+    is_primary = db.Column(db.Boolean, nullable=False, default=False)
+    source = db.Column(db.String(40), nullable=False, default="manual")
+    approved_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    approved_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    user = db.relationship("User", foreign_keys=[user_id], back_populates="customer_memberships")
+    registry = db.relationship("BusinessRegistry", foreign_keys=[registry_id], back_populates="customer_memberships")
+    approved_by = db.relationship("User", foreign_keys=[approved_by_user_id])
+
+
+class CustomerPaymentCase(db.Model):
+    """Pratica LDApp per PayByLink, bonifico dichiarato o pagamento contestato."""
+
+    __tablename__ = "customer_payment_cases"
+    __table_args__ = (
+        db.Index("ix_customer_payment_case_registry_status", "registry_id", "status"),
+        db.Index("ix_customer_payment_case_creator_created", "created_by_user_id", "created_at"),
+    )
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    public_id = db.Column(db.String(48), nullable=False, unique=True, index=True, default=lambda: secrets.token_urlsafe(24))
+    registry_id = db.Column(db.Integer, db.ForeignKey("business_registries.id", ondelete="RESTRICT"), nullable=False)
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="RESTRICT"), nullable=False)
+    case_type = db.Column(db.String(24), nullable=False)  # paybylink|bank_transfer|payment_claim
+    status = db.Column(db.String(32), nullable=False, default="draft", index=True)
+    currency = db.Column(db.String(3), nullable=False, default="EUR")
+    declared_amount = db.Column(db.Numeric(14, 2), nullable=False)
+    payment_reference = db.Column(db.String(255), nullable=True)
+    note = db.Column(db.Text, nullable=True)
+    provider = db.Column(db.String(40), nullable=True)
+    provider_reference = db.Column(db.String(160), nullable=True, index=True)
+    payment_url = db.Column(db.Text, nullable=True)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    submitted_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    provider_confirmed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    resolved_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    rejection_message = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    registry = db.relationship("BusinessRegistry")
+    created_by = db.relationship("User", foreign_keys=[created_by_user_id])
+    allocations = db.relationship("CustomerPaymentAllocation", back_populates="payment_case", cascade="all, delete-orphan")
+    evidence = db.relationship("CustomerPaymentEvidence", back_populates="payment_case", cascade="all, delete-orphan")
+    events = db.relationship("CustomerPaymentEvent", back_populates="payment_case", cascade="all, delete-orphan")
+
+
+class CustomerPaymentAllocation(db.Model):
+    __tablename__ = "customer_payment_allocations"
+    __table_args__ = (
+        db.UniqueConstraint("case_id", "source_item_key", name="uq_customer_payment_allocation_case_item"),
+    )
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    case_id = db.Column(db.BigInteger, db.ForeignKey("customer_payment_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    source_customer_code = db.Column(db.String(64), nullable=False)
+    source_item_key = db.Column(db.String(160), nullable=False, index=True)
+    current_entry_id = db.Column(db.Integer, db.ForeignKey("customer_account_entries.id", ondelete="SET NULL"), nullable=True)
+    allocated_amount = db.Column(db.Numeric(14, 2), nullable=False)
+    document_snapshot = db.Column(JSONB, nullable=False, default=dict)
+
+    payment_case = db.relationship("CustomerPaymentCase", back_populates="allocations")
+    current_entry = db.relationship("CustomerAccountEntry")
+
+
+class CustomerPaymentEvidence(db.Model):
+    __tablename__ = "customer_payment_evidence"
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    case_id = db.Column(db.BigInteger, db.ForeignKey("customer_payment_cases.id", ondelete="CASCADE"), nullable=False, index=True)
+    uploaded_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="RESTRICT"), nullable=False)
+    original_filename = db.Column(db.String(255), nullable=False)
+    storage_path = db.Column(db.String(500), nullable=False)
+    content_type = db.Column(db.String(120), nullable=True)
+    size_bytes = db.Column(db.BigInteger, nullable=False)
+    sha256 = db.Column(db.String(64), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    payment_case = db.relationship("CustomerPaymentCase", back_populates="evidence")
+    uploaded_by = db.relationship("User")
+
+
+class CustomerPaymentEvent(db.Model):
+    __tablename__ = "customer_payment_events"
+    __table_args__ = (db.Index("ix_customer_payment_event_case_created", "case_id", "created_at"),)
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    case_id = db.Column(db.BigInteger, db.ForeignKey("customer_payment_cases.id", ondelete="CASCADE"), nullable=False)
+    actor_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    event_type = db.Column(db.String(40), nullable=False)
+    from_status = db.Column(db.String(32), nullable=True)
+    to_status = db.Column(db.String(32), nullable=True)
+    message = db.Column(db.Text, nullable=True)
+    event_metadata = db.Column(JSONB, nullable=False, default=dict)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    payment_case = db.relationship("CustomerPaymentCase", back_populates="events")
+    actor = db.relationship("User")
+
+
+class CustomerAccountingItemState(db.Model):
+    """Stato operativo LDApp separato dallo stato contabile importato da TeamSystem."""
+
+    __tablename__ = "customer_accounting_item_states"
+    __table_args__ = (
+        db.UniqueConstraint("registry_id", "source_item_key", name="uq_customer_accounting_item_state_registry_item"),
+        db.Index("ix_customer_accounting_item_state_registry_status", "registry_id", "status"),
+    )
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    registry_id = db.Column(db.Integer, db.ForeignKey("business_registries.id", ondelete="CASCADE"), nullable=False)
+    source_customer_code = db.Column(db.String(64), nullable=False)
+    source_item_key = db.Column(db.String(160), nullable=False)
+    status = db.Column(db.String(32), nullable=False)
+    payment_case_id = db.Column(db.BigInteger, db.ForeignKey("customer_payment_cases.id", ondelete="SET NULL"), nullable=True)
+    last_seen_entry_id = db.Column(db.Integer, db.ForeignKey("customer_account_entries.id", ondelete="SET NULL"), nullable=True)
+    message = db.Column(db.Text, nullable=True)
+    updated_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    registry = db.relationship("BusinessRegistry")
+    payment_case = db.relationship("CustomerPaymentCase")
+    last_seen_entry = db.relationship("CustomerAccountEntry")
 
 
 class CashCustomerRegistryLink(db.Model):

@@ -1,5 +1,15 @@
 # PROJECT_MAP.md — v2.4
 
+## Area contabile clienti Horeca (2026-08-25)
+
+- Policy ruoli in `routes/customer_account.py`: sono ammessi esclusivamente `customer_horeca` e `Developer` (confronto normalizzato); non viene usato `max_role_weight`. Il primo e' limitato alle membership, il secondo puo' selezionare un cliente attivo per collaudare la stessa vista.
+- `models.py`: `CustomerRegistryMembership` implementa autorizzazioni molti-a-molti con cliente principale; `CustomerPaymentCase`, `CustomerPaymentAllocation`, `CustomerPaymentEvidence`, `CustomerPaymentEvent` e `CustomerAccountingItemState` costituiscono il workflow pagamenti senza modificare i dati importati da TeamSystem.
+- `tools/customer_memberships.py`: risoluzione sicura delle sole anagrafiche autorizzate, scelta del cliente principale e compatibilita' temporanea con `User.customer_registry_id`.
+- `routes/customer_account.py`, `templates/customer_account/index.html`, `static/css/customer_account.css`: portale contabile Horeca read-only, selettore multi-cliente, riepilogo e movimenti dell'ultimo snapshot con layout mobile.
+- `routes/settings.py`: attivazione Horeca e collegamenti account aggiornano il nuovo modello; `routes/customer_orders.py` usa la stessa risoluzione autorizzativa mantenendo il cliente principale.
+- `migrations/versions/b3c4d5e6f9a0_add_customer_account_portal_foundations.py`: nuove tabelle e backfill transazionale delle associazioni esistenti.
+- Vincolo di progetto: una pratica potra' allocare importi soltanto tramite `source_item_key` stabile fornita da MATRIXWS. `CustomerAccountEntry.id` e `row_number` non devono mai essere usati come identita' persistente di una partita.
+
 ## Aggiornamento automatico integrazioni PWA Android (2026-08-16)
 
 - `templates/base.html`: il manifest conserva definitivamente l'URL storico `manifest.json?v=20260522-3`; non deve essere versionato a ogni release, perche' Chrome identifica da quell'URL il WebAPK gia' installato e ne aggiorna le integrazioni Android.
