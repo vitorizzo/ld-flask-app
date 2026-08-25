@@ -1,11 +1,11 @@
 {% extends "base.html" %}
 {% block title %}La mia situazione contabile - LD Enoteca{% endblock %}
 {% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
-{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_account.css', v=app_version ~ '-foundation1') }}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_account.css', v=app_version ~ '-mobile1') }}">{% endblock %}
 {% block content %}
 <section class="customer-account-page">
   <header class="customer-account-hero">
-    <div>
+    <div class="customer-account-title">
       <div class="customer-account-eyebrow">{{ 'Anteprima Developer' if is_developer else 'Area cliente Horeca' }}</div>
       <h1>{{ 'Situazione contabile cliente' if is_developer else 'La mia situazione contabile' }}</h1>
       {% if registry %}<p>{{ registry.display_name or registry.legal_name }} · codice cliente {{ registry.source_code }}</p>{% endif %}
