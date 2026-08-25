@@ -9,7 +9,7 @@ from tools.customer_memberships import active_customer_memberships, customer_reg
 
 
 customer_account_bp = Blueprint("customer_account", __name__)
-ALLOWED_ROLE_NAMES = {"customer_horeca", "developer"}
+ALLOWED_ROLE_NAMES = {"customer_horeca", "dev"}
 
 
 def _active_role_names():
@@ -23,7 +23,7 @@ def index():
     if not role_names.intersection(ALLOWED_ROLE_NAMES):
         abort(403)
 
-    is_developer = "developer" in role_names
+    is_developer = "dev" in role_names
     requested_registry_id = request.args.get("customer", type=int)
     if is_developer:
         registries = (
@@ -111,7 +111,7 @@ def select_registry(registry_id):
     role_names = _active_role_names()
     if not role_names.intersection(ALLOWED_ROLE_NAMES):
         abort(403)
-    if "developer" in role_names:
+    if "dev" in role_names:
         registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first()
     else:
         registry = customer_registry_for_user(current_user, registry_id)

@@ -4,7 +4,7 @@ Data aggiornamento: 2026-08-25
 
 ## 2026-08-25 - Prime basi area contabile clienti Horeca
 
-- Accesso reso esplicito per ruolo, senza soglie di peso: `customer_horeca` vede soltanto i clienti assegnati; `Developer` apre la medesima vista in modalita' anteprima e dispone del selettore filtrabile di tutte le anagrafiche cliente attive.
+- Accesso reso esplicito per ruolo, senza soglie di peso: `customer_horeca` vede soltanto i clienti assegnati; `dev` (nome verificato nella tabella `roles`) apre la medesima vista in modalita' anteprima e dispone del selettore filtrabile di tutte le anagrafiche cliente attive.
 - Aggiunta l'associazione molti-a-molti `CustomerRegistryMembership`: un utente puo' operare per piu' clienti e piu' utenti possono essere autorizzati sullo stesso cliente, mantenendo `User.customer_registry_id` come cliente principale compatibile con i flussi esistenti.
 - La migration `b3c4d5e6f9a0` crea le associazioni e importa automaticamente tutti i collegamenti Horeca gia' presenti, senza rimuovere o riscrivere l'associazione storica.
 - L'attivazione Horeca e la configurazione dei collegamenti ordine registrano ora anche la nuova membership; l'inserimento ordini continua a usare il cliente principale.

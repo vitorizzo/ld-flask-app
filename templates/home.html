@@ -24,7 +24,7 @@
         {% if current_user.is_authenticated and current_user.has_active_role('customer_horeca') %}
             <a class="quick-action" href="{{ url_for('customer_orders.index') }}"><i class="fa-solid fa-basket-shopping"></i><span>Fai un ordine</span></a>
         {% endif %}
-        {% if current_user.is_authenticated and current_user.has_active_role('customer_horeca', 'Developer') %}
+        {% if current_user.is_authenticated and current_user.has_active_role('customer_horeca', 'dev') %}
             <a class="quick-action" href="{{ url_for('customer_account.index') }}"><i class="fa-solid fa-file-invoice-dollar"></i><span>Situazione contabile</span></a>
         {% endif %}
         <a class="quick-action" href="/search/ricerca_x_descrizione"><i class="fa-solid fa-magnifying-glass"></i><span>Informazioni articoli</span></a>

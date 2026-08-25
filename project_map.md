@@ -2,7 +2,7 @@
 
 ## Area contabile clienti Horeca (2026-08-25)
 
-- Policy ruoli in `routes/customer_account.py`: sono ammessi esclusivamente `customer_horeca` e `Developer` (confronto normalizzato); non viene usato `max_role_weight`. Il primo e' limitato alle membership, il secondo puo' selezionare un cliente attivo per collaudare la stessa vista.
+- Policy ruoli in `routes/customer_account.py`: sono ammessi esclusivamente `customer_horeca` e `dev` (nome verificato nella tabella `roles`, ID 0); non viene usato `max_role_weight`. Il primo e' limitato alle membership, il secondo puo' selezionare un cliente attivo per collaudare la stessa vista.
 - `models.py`: `CustomerRegistryMembership` implementa autorizzazioni molti-a-molti con cliente principale; `CustomerPaymentCase`, `CustomerPaymentAllocation`, `CustomerPaymentEvidence`, `CustomerPaymentEvent` e `CustomerAccountingItemState` costituiscono il workflow pagamenti senza modificare i dati importati da TeamSystem.
 - `tools/customer_memberships.py`: risoluzione sicura delle sole anagrafiche autorizzate, scelta del cliente principale e compatibilita' temporanea con `User.customer_registry_id`.
 - `routes/customer_account.py`, `templates/customer_account/index.html`, `static/css/customer_account.css`: portale contabile Horeca read-only, selettore multi-cliente, riepilogo e movimenti dell'ultimo snapshot con layout mobile.
