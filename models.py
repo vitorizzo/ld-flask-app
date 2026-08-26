@@ -2499,6 +2499,31 @@ class CustomerPaymentCase(db.Model):
     events = db.relationship("CustomerPaymentEvent", back_populates="payment_case", cascade="all, delete-orphan")
 
 
+class CustomerPaymentInstructions(db.Model):
+    """Coordinate bancarie centralizzate mostrate nell'area contabile Horeca."""
+
+    __tablename__ = "customer_payment_instructions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    label = db.Column(db.String(120), nullable=False, default="Bonifico bancario")
+    account_holder = db.Column(db.String(255), nullable=False)
+    iban = db.Column(db.String(34), nullable=False)
+    bank_name = db.Column(db.String(160), nullable=True)
+    bic_swift = db.Column(db.String(16), nullable=True)
+    beneficiary_address = db.Column(db.String(255), nullable=True)
+    payment_reason_template = db.Column(db.String(500), nullable=True)
+    notes = db.Column(db.Text, nullable=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    updated_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    updated_by = db.relationship("User")
+
+
 class CustomerPaymentAllocation(db.Model):
     __tablename__ = "customer_payment_allocations"
     __table_args__ = (

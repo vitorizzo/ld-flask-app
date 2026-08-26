@@ -1,15 +1,24 @@
 # PROJECT_MAP.md — v2.4
 
+## Comunicazione bonifici clienti Horeca (2026-08-26)
+
+- `routes/customer_account.py`, `tools/customer_payments.py`: sono selezionabili soltanto righe Dare, causale fattura `001`, rilevanti per il saldo e con importo positivo. Il server rivalida cliente, snapshot e stato senza fidarsi degli ID inviati dal browser.
+- L'identita' operativa della partita e' una chiave composita deterministica ricavata dai dati MATRIXWS (cliente, tipo record, causale, documento/suffisso, rata, date e riferimento); l'ID volatile di `CustomerAccountEntry` rimane solo un puntatore all'ultimo snapshot.
+- La comunicazione crea una `CustomerPaymentCase` in `awaiting_accounting`, allocazioni, stato delle partite ed evento audit in una sola transazione. La contabile e' ammessa solo come PDF/immagine riconosciuta dal contenuto, massimo 12 MB, e salvata nell'area privata `instance/customer_payment_evidence`.
+- `CustomerPaymentInstructions` contiene intestatario, IBAN, banca, BIC/SWIFT, indirizzo, causale e note centralizzati. Soltanto `dev` puo' modificarli; `customer_horeca` consulta esclusivamente le coordinate attive.
+- `templates/customer_account/index.html`, `static/js/customer_account.js`, `static/css/customer_account.css`: selezione fatture, totale live, invio contabile, copia IBAN e pratiche in corso; modali nel `body`, interfaccia touch fullscreen e doppia scala smartphone standard/alta risoluzione.
+- Migration: `c4d5e6f7a0b1_add_customer_payment_instructions.py` (successiva alle fondazioni `b3c4d5e6f9a0`).
+
 ## Area contabile clienti Horeca (2026-08-25)
 
-- `static/css/customer_account.css`: layout touch completo con schede movimento al posto della tabella, KPI adattivi, controlli/paginazione touch, safe-area e doppia scala standard/alta risoluzione S25; asset richiamato con cache key `mobile1`.
+- `static/css/customer_account.css`: layout touch completo con schede movimento al posto della tabella, KPI adattivi, controlli/paginazione touch, safe-area e doppia scala standard/alta risoluzione S25; asset richiamato con cache key `payments1`.
 - Policy ruoli in `routes/customer_account.py`: sono ammessi esclusivamente `customer_horeca` e `dev` (nome verificato nella tabella `roles`, ID 0); non viene usato `max_role_weight`. Il primo e' limitato alle membership, il secondo puo' selezionare un cliente attivo per collaudare la stessa vista.
 - `models.py`: `CustomerRegistryMembership` implementa autorizzazioni molti-a-molti con cliente principale; `CustomerPaymentCase`, `CustomerPaymentAllocation`, `CustomerPaymentEvidence`, `CustomerPaymentEvent` e `CustomerAccountingItemState` costituiscono il workflow pagamenti senza modificare i dati importati da TeamSystem.
 - `tools/customer_memberships.py`: risoluzione sicura delle sole anagrafiche autorizzate, scelta del cliente principale e compatibilita' temporanea con `User.customer_registry_id`.
 - `routes/customer_account.py`, `templates/customer_account/index.html`, `static/css/customer_account.css`: portale contabile Horeca read-only, selettore multi-cliente, riepilogo e movimenti dell'ultimo snapshot con layout mobile.
 - `routes/settings.py`: attivazione Horeca e collegamenti account aggiornano il nuovo modello; `routes/customer_orders.py` usa la stessa risoluzione autorizzativa mantenendo il cliente principale.
 - `migrations/versions/b3c4d5e6f9a0_add_customer_account_portal_foundations.py`: nuove tabelle e backfill transazionale delle associazioni esistenti.
-- Vincolo di progetto: una pratica potra' allocare importi soltanto tramite `source_item_key` stabile fornita da MATRIXWS. `CustomerAccountEntry.id` e `row_number` non devono mai essere usati come identita' persistente di una partita.
+- Vincolo di progetto: una pratica alloca importi tramite `source_item_key` deterministica costruita dai campi stabili MATRIXWS. `CustomerAccountEntry.id`, `import_id` e `row_number` non sono mai usati come identita' persistente di una partita.
 
 ## Aggiornamento automatico integrazioni PWA Android (2026-08-16)
 

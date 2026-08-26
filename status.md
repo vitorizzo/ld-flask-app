@@ -1,18 +1,27 @@
 TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
-Data aggiornamento: 2026-08-25
+Data aggiornamento: 2026-08-26
+
+## 2026-08-26 - Comunicazione bonifici dall'area contabile Horeca
+
+- Attivata la selezione delle fatture pagabili nell'ultimo snapshot, con conteggio e totale in tempo reale e barra azione compatibile con quella dei processi in background.
+- Il cliente puo' allegare una contabile PDF o immagine (massimo 12 MB), indicare data, CRO/riferimento e nota. La richiesta crea una pratica `awaiting_accounting`, blocca le partite da nuove comunicazioni e conserva allegato e audit in area privata.
+- La pagina mostra le pratiche ancora aperte e permette di riscaricare la contabile soltanto agli utenti autorizzati per la stessa anagrafica o al ruolo esatto `dev`.
+- Aggiunte coordinate bancarie centralizzate con pulsante di consultazione e copia IBAN. Il ruolo `dev` modifica intestatario, IBAN, banca, BIC/SWIFT, indirizzo, causale, note e visibilita'; l'IBAN e' validato anche con checksum MOD-97.
+- Selezione, upload e coordinate sono ottimizzati sia per smartphone standard sia per touch ad alta risoluzione, con modali fullscreen scrollabili e senza sovrapposizioni.
+- Nuova migration head `c4d5e6f7a0b1`; dopo il deploy eseguire `python -m flask --app app.py db upgrade` prima del riavvio.
 
 ## 2026-08-25 - Prime basi area contabile clienti Horeca
 
 - L'intera area contabile e' touch-first: intestazione, filtro/selettore Developer, riepiloghi, avvisi, paginazione e movimenti sono ottimizzati per smartphone. Le righe contabili diventano schede verticali e non richiedono zoom o scorrimento orizzontale.
-- Come nelle altre aree LDApp sono previste due scale: smartphone standard fino a 820 px (o qualunque dispositivo touch) e touch ad alta risoluzione da 821 px, con controlli da 92 px, tipografia e spazi maggiorati per Galaxy S25. Inclusi safe-area e cache key `mobile1`.
+- Come nelle altre aree LDApp sono previste due scale: smartphone standard fino a 820 px (o qualunque dispositivo touch) e touch ad alta risoluzione da 821 px, con controlli da 92 px, tipografia e spazi maggiorati per Galaxy S25. Inclusi safe-area e cache key `payments1`.
 - Accesso reso esplicito per ruolo, senza soglie di peso: `customer_horeca` vede soltanto i clienti assegnati; `dev` (nome verificato nella tabella `roles`) apre la medesima vista in modalita' anteprima e dispone del selettore filtrabile di tutte le anagrafiche cliente attive.
 - Aggiunta l'associazione molti-a-molti `CustomerRegistryMembership`: un utente puo' operare per piu' clienti e piu' utenti possono essere autorizzati sullo stesso cliente, mantenendo `User.customer_registry_id` come cliente principale compatibile con i flussi esistenti.
 - La migration `b3c4d5e6f9a0` crea le associazioni e importa automaticamente tutti i collegamenti Horeca gia' presenti, senza rimuovere o riscrivere l'associazione storica.
 - L'attivazione Horeca e la configurazione dei collegamenti ordine registrano ora anche la nuova membership; l'inserimento ordini continua a usare il cliente principale.
 - Nuova area protetta `/customer-account/`, disponibile ai clienti Horeca, con scelta dell'anagrafica autorizzata, ultimo aggiornamento, totali Dare/Avere/saldo e movimenti contabili paginati. La pagina e' responsive e mostra soltanto dati dell'anagrafica effettivamente assegnata all'utente.
 - Predisposto il dominio delle pratiche di pagamento: PayByLink, comunicazione bonifico e contestazione di una partita, con allocazioni, allegati privati, audit degli eventi e stato operativo LDApp separato dallo stato contabile TeamSystem.
-- Le azioni finanziarie restano intenzionalmente non attive: le righe attuali di `CustomerAccountEntry` cambiano a ogni import e non costituiscono una chiave sicura di partita. L'attivazione richiede che il servizio MATRIXWS esponga una chiave stabile della scadenza/partita e il relativo residuo.
+- Le azioni usano una chiave deterministica composta dai campi stabili MATRIXWS e mai l'ID volatile della riga importata. Una futura chiave nativa della scadenza esposta dal servizio potra' sostituire questa composizione senza legare le pratiche agli snapshot.
 
 ## 2026-08-16 - Cambio stato ordine da notifica su smartphone
 

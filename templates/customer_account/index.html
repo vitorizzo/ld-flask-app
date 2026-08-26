@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}La mia situazione contabile - LD Enoteca{% endblock %}
 {% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
-{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_account.css', v=app_version ~ '-mobile1') }}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_account.css', v=app_version ~ '-payments1') }}">{% endblock %}
 {% block content %}
 <section class="customer-account-page">
   <header class="customer-account-hero">
@@ -20,6 +20,11 @@
     {% endif %}
   </header>
 
+  {% if registry %}<div class="customer-account-actions">
+    {% if payment_instructions and payment_instructions.is_active %}<button class="btn btn-outline-primary" type="button" data-bank-details-trigger><i class="fa-solid fa-building-columns"></i> Coordinate per bonifico</button>{% endif %}
+    {% if is_developer %}<button class="btn btn-outline-secondary" type="button" data-bank-edit-trigger><i class="fa-solid fa-pen"></i> {{ 'Modifica coordinate' if payment_instructions else 'Configura coordinate' }}</button>{% endif %}
+  </div>{% endif %}
+
   {% if not registry %}
     <div class="alert alert-warning">{{ "Non ci sono anagrafiche cliente attive." if is_developer else "Il tuo profilo Horeca non è ancora associato a un'anagrafica cliente. Contatta l'assistenza per completare l'attivazione." }}</div>
   {% elif not current_import %}
@@ -33,27 +38,41 @@
     </div>
 
     <div class="customer-account-notice">
-      <i class="fa-solid fa-shield-halved"></i>
-      <div><strong>Pagamenti e segnalazioni in preparazione</strong><p>La struttura protetta è pronta. Attiveremo PayByLink, invio contabili e contestazioni appena MATRIXWS esporrà una chiave stabile per identificare ogni singola partita.</p></div>
+      <i class="fa-solid fa-file-shield"></i>
+      <div><strong>Hai già effettuato un bonifico?</strong><p>Seleziona le fatture interessate, controlla il totale e allega la contabile. I documenti verranno contrassegnati come in attesa di contabilizzazione.</p></div>
     </div>
 
     {% if open_cases %}
-      <div class="alert alert-info">Hai {{ open_cases|length }} {{ 'pratica in corso' if open_cases|length == 1 else 'pratiche in corso' }}.</div>
+      <section class="customer-payment-cases" aria-labelledby="paymentCasesTitle">
+        <div class="customer-account-card-head"><h2 id="paymentCasesTitle">Comunicazioni in corso</h2><span>{{ open_cases|length }}</span></div>
+        <div class="customer-payment-case-list">
+          {% for payment_case in open_cases %}<article class="customer-payment-case">
+            <div><strong>{{ case_status_labels.get(payment_case.status, payment_case.status) }}</strong><small>Pratica {{ payment_case.public_id[-8:] }} · {{ payment_case.created_at.strftime('%d/%m/%Y %H:%M') }}</small></div>
+            <div class="customer-payment-case-amount">{{ money(payment_case.declared_amount) }}<small>{{ payment_case.allocations|length }} {{ 'fattura' if payment_case.allocations|length == 1 else 'fatture' }}</small></div>
+            {% if payment_case.evidence %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('customer_account.download_payment_evidence', evidence_id=payment_case.evidence[0].id) }}"><i class="fa-solid fa-paperclip"></i> Contabile</a>{% endif %}
+          </article>{% endfor %}
+        </div>
+      </section>
     {% endif %}
 
     <div class="customer-account-card">
       <div class="customer-account-card-head"><h2>Movimenti contabili</h2><span>{{ entries.total }} righe</span></div>
       <div class="table-responsive"><table class="table align-middle mb-0">
-        <thead><tr><th>Data</th><th>Documento</th><th>Descrizione</th><th>Scadenza</th><th>Segno</th><th class="text-end">Importo</th></tr></thead>
+        <thead><tr><th class="customer-payment-check"><input class="form-check-input" type="checkbox" aria-label="Seleziona tutte le fatture visibili" data-select-all-invoices></th><th>Data</th><th>Documento</th><th>Descrizione</th><th>Scadenza</th><th>Segno</th><th class="text-end">Importo</th></tr></thead>
         <tbody>
-          {% for entry in entries.items %}<tr>
+          {% for entry in entries.items %}<tr class="{{ 'customer-invoice-selectable' if entry.id in payable_entry_ids }}">
+            <td data-label="Pagamento" class="customer-payment-check">
+              {% if entry.id in payable_entry_ids %}<input class="form-check-input" type="checkbox" value="{{ entry.id }}" data-invoice-checkbox data-amount="{{ entry.amount }}" aria-label="Seleziona fattura {{ entry.document_number }} da {{ money(entry.amount) }}">
+              {% elif entry_states.get(entry.id) %}<span class="badge text-bg-warning">{{ case_status_labels.get(entry_states[entry.id].status, entry_states[entry.id].status) }}</span>
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
             <td data-label="Data">{{ entry.document_date.strftime('%d/%m/%Y') if entry.document_date else '—' }}</td>
             <td data-label="Documento">{{ entry.document_number or '—' }}</td>
             <td data-label="Descrizione"><strong>{{ entry.description or '—' }}</strong>{% if entry.additional_description %}<small>{{ entry.additional_description }}</small>{% endif %}{% if not entry.is_balance_relevant %}<small>Riga tecnica esclusa dal saldo</small>{% endif %}</td>
             <td data-label="Scadenza">{{ entry.due_date.strftime('%d/%m/%Y') if entry.due_date else '—' }}</td>
             <td data-label="Segno"><span class="badge {{ 'text-bg-danger' if entry.accounting_side == 'D' else 'text-bg-success' }}">{{ 'Dare' if entry.accounting_side == 'D' else 'Avere' }}</span></td>
             <td data-label="Importo" class="text-end fw-semibold">{{ money(entry.amount) }}</td>
-          </tr>{% else %}<tr><td colspan="6" class="text-center py-5 text-muted">Nessun movimento disponibile per questo cliente.</td></tr>{% endfor %}
+          </tr>{% else %}<tr><td colspan="7" class="text-center py-5 text-muted">Nessun movimento disponibile per questo cliente.</td></tr>{% endfor %}
         </tbody>
       </table></div>
     </div>
@@ -63,17 +82,61 @@
     <p class="customer-account-footnote">Questa vista riproduce l'ultimo aggiornamento ricevuto dal gestionale. Lo stato operativo delle future richieste di pagamento resterà separato dai dati contabili TeamSystem.</p>
   {% endif %}
 </section>
-{% if is_developer %}<script>
-document.addEventListener('DOMContentLoaded', () => {
-  const input = document.querySelector('[data-customer-filter]');
-  const select = document.querySelector('[data-customer-select]');
-  if (!input || !select) return;
-  const options = Array.from(select.options).map(option => ({ value: option.value, text: option.text, selected: option.selected }));
-  input.addEventListener('input', () => {
-    const query = input.value.trim().toLocaleLowerCase('it');
-    const currentValue = select.value;
-    select.replaceChildren(...options.filter(item => item.selected || !query || item.text.toLocaleLowerCase('it').includes(query)).map(item => new Option(item.text, item.value, item.selected, item.value === currentValue)));
-  });
-});
-</script>{% endif %}
+
+{% if registry and entries %}<div class="customer-payment-selection" data-payment-selection hidden>
+  <div><span data-selection-count>0 fatture</span><strong data-selection-total>0,00 €</strong></div>
+  <button class="btn btn-primary" type="button" data-communicate-payment-trigger><i class="fa-solid fa-upload"></i> Comunica bonifico</button>
+</div>{% endif %}
+
+{% if registry %}<div class="modal fade customer-payment-modal" id="communicatePaymentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <form method="post" action="{{ url_for('customer_account.communicate_bank_transfer') }}" enctype="multipart/form-data" data-payment-form>
+      <div class="modal-header"><div><div class="customer-account-eyebrow">Comunicazione pagamento</div><h2 class="modal-title">Invia la contabile</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+      <div class="modal-body">
+        <input type="hidden" name="registry_id" value="{{ registry.id }}"><div data-selected-entry-inputs></div>
+        <div class="customer-payment-modal-total"><span>Totale documenti selezionati</span><strong data-modal-selection-total>0,00 €</strong><small data-modal-selection-count></small></div>
+        <label class="form-label" for="paymentEvidence">Contabile del bonifico</label>
+        <input class="form-control" id="paymentEvidence" type="file" name="payment_evidence" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,.pdf,.jpg,.jpeg,.png,.webp,.heic,.heif" required>
+        <div class="form-text">PDF o immagine, massimo 12 MB. Il file viene conservato in area privata.</div>
+        <div class="row g-3 mt-1"><div class="col-12 col-md-5"><label class="form-label" for="transferDate">Data bonifico</label><input class="form-control" id="transferDate" type="date" name="transfer_date"></div><div class="col-12 col-md-7"><label class="form-label" for="transferReference">Riferimento/CRO</label><input class="form-control" id="transferReference" name="transfer_reference" maxlength="255" autocomplete="off"></div></div>
+        <label class="form-label mt-3" for="paymentNote">Nota facoltativa</label><textarea class="form-control" id="paymentNote" name="note" rows="3" maxlength="4000"></textarea>
+        <div class="customer-payment-feedback" data-payment-feedback aria-live="polite"></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Invia comunicazione</button></div>
+    </form>
+  </div></div>
+</div>{% endif %}
+
+{% if payment_instructions or is_developer %}<div class="modal fade customer-payment-modal" id="bankDetailsModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <div class="modal-header"><div><div class="customer-account-eyebrow">Pagamenti</div><h2 class="modal-title">Coordinate per bonifico</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body">
+      <div data-bank-view {{ 'hidden' if not payment_instructions }}>
+        {% if payment_instructions %}<dl class="customer-bank-details">
+          <div><dt>Intestatario</dt><dd>{{ payment_instructions.account_holder }}</dd></div>
+          <div><dt>IBAN</dt><dd class="customer-bank-iban"><span data-bank-iban>{{ formatted_iban }}</span><button class="btn btn-sm btn-outline-secondary" type="button" data-copy-iban><i class="fa-regular fa-copy"></i> Copia</button></dd></div>
+          {% if payment_instructions.bank_name %}<div><dt>Banca</dt><dd>{{ payment_instructions.bank_name }}</dd></div>{% endif %}
+          {% if payment_instructions.bic_swift %}<div><dt>BIC/SWIFT</dt><dd>{{ payment_instructions.bic_swift }}</dd></div>{% endif %}
+          {% if payment_instructions.beneficiary_address %}<div><dt>Indirizzo</dt><dd>{{ payment_instructions.beneficiary_address }}</dd></div>{% endif %}
+          {% if payment_instructions.payment_reason_template %}<div><dt>Causale</dt><dd>{{ payment_instructions.payment_reason_template }}</dd></div>{% endif %}
+          {% if payment_instructions.notes %}<div><dt>Note</dt><dd>{{ payment_instructions.notes }}</dd></div>{% endif %}
+        </dl>{% endif %}
+      </div>
+      {% if is_developer %}<form method="post" action="{{ url_for('customer_account.save_bank_details') }}" data-bank-edit-form hidden>
+        <input type="hidden" name="registry_id" value="{{ registry.id if registry else '' }}">
+        <div class="row g-3"><div class="col-12"><label class="form-label">Etichetta</label><input class="form-control" name="label" maxlength="120" value="{{ payment_instructions.label if payment_instructions else 'Bonifico bancario' }}"></div>
+        <div class="col-12"><label class="form-label">Intestatario</label><input class="form-control" name="account_holder" maxlength="255" value="{{ payment_instructions.account_holder if payment_instructions else '' }}" required></div>
+        <div class="col-12"><label class="form-label">IBAN</label><input class="form-control" name="iban" maxlength="42" value="{{ formatted_iban or '' }}" autocapitalize="characters" spellcheck="false" required></div>
+        <div class="col-12 col-md-7"><label class="form-label">Banca</label><input class="form-control" name="bank_name" maxlength="160" value="{{ payment_instructions.bank_name if payment_instructions else '' }}"></div><div class="col-12 col-md-5"><label class="form-label">BIC/SWIFT</label><input class="form-control" name="bic_swift" maxlength="16" value="{{ payment_instructions.bic_swift if payment_instructions else '' }}" autocapitalize="characters"></div>
+        <div class="col-12"><label class="form-label">Indirizzo intestatario</label><input class="form-control" name="beneficiary_address" maxlength="255" value="{{ payment_instructions.beneficiary_address if payment_instructions else '' }}"></div>
+        <div class="col-12"><label class="form-label">Indicazioni per la causale</label><textarea class="form-control" name="payment_reason_template" rows="2" maxlength="500">{{ payment_instructions.payment_reason_template if payment_instructions else '' }}</textarea></div>
+        <div class="col-12"><label class="form-label">Note</label><textarea class="form-control" name="notes" rows="3" maxlength="4000">{{ payment_instructions.notes if payment_instructions else '' }}</textarea></div></div>
+        <div class="form-check form-switch mt-3"><input class="form-check-input" id="bankDetailsActive" type="checkbox" name="is_active" value="1" {{ 'checked' if not payment_instructions or payment_instructions.is_active }}><label class="form-check-label" for="bankDetailsActive">Mostra queste coordinate ai clienti</label></div>
+        <div class="d-grid mt-4"><button class="btn btn-primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Salva coordinate</button></div>
+      </form>{% endif %}
+    </div>
+    <div class="modal-footer" data-bank-view-footer {{ 'hidden' if not payment_instructions }}>{% if is_developer %}<button type="button" class="btn btn-outline-secondary" data-bank-edit-inside><i class="fa-solid fa-pen"></i> Modifica</button>{% endif %}<button type="button" class="btn btn-primary" data-bs-dismiss="modal">Chiudi</button></div>
+  </div></div>
+</div>{% endif %}
 {% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_account.js', v=app_version ~ '-payments1') }}"></script>{% endblock %}
