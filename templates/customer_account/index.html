@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}La mia situazione contabile - LD Enoteca{% endblock %}
 {% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
-{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_account.css', v=app_version ~ '-payments2') }}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_account.css', v=app_version ~ '-payments3') }}">{% endblock %}
 {% block content %}
 <section class="customer-account-page">
   <header class="customer-account-hero">
@@ -114,7 +114,7 @@
       <div data-bank-view {{ 'hidden' if not payment_instructions }}>
         {% if payment_instructions %}<dl class="customer-bank-details">
           <div><dt>Intestatario</dt><dd>{{ payment_instructions.account_holder }}</dd></div>
-          <div><dt>IBAN</dt><dd class="customer-bank-iban"><span data-bank-iban>{{ formatted_iban }}</span><button class="btn btn-sm btn-outline-secondary" type="button" data-copy-iban><i class="fa-regular fa-copy"></i> Copia</button></dd></div>
+          <div><dt>IBAN</dt><dd class="customer-bank-iban"><span data-bank-iban data-bank-iban-raw="{{ payment_instructions.iban }}">{{ formatted_iban }}</span><button class="btn btn-sm btn-outline-secondary" type="button" data-copy-iban><i class="fa-regular fa-copy"></i> Copia</button></dd></div>
           {% if payment_instructions.bank_name %}<div><dt>Banca</dt><dd>{{ payment_instructions.bank_name }}</dd></div>{% endif %}
           {% if payment_instructions.bic_swift %}<div><dt>BIC/SWIFT</dt><dd>{{ payment_instructions.bic_swift }}</dd></div>{% endif %}
           {% if payment_instructions.beneficiary_address %}<div><dt>Indirizzo</dt><dd>{{ payment_instructions.beneficiary_address }}</dd></div>{% endif %}
@@ -126,7 +126,7 @@
         <input type="hidden" name="registry_id" value="{{ registry.id if registry else '' }}">
         <div class="row g-3"><div class="col-12"><label class="form-label">Etichetta</label><input class="form-control" name="label" maxlength="120" value="{{ payment_instructions.label if payment_instructions else 'Bonifico bancario' }}"></div>
         <div class="col-12"><label class="form-label">Intestatario</label><input class="form-control" name="account_holder" maxlength="255" value="{{ payment_instructions.account_holder if payment_instructions else '' }}" required></div>
-        <div class="col-12"><label class="form-label">IBAN</label><input class="form-control" name="iban" maxlength="42" value="{{ formatted_iban or '' }}" autocapitalize="characters" spellcheck="false" required></div>
+        <div class="col-12"><label class="form-label">IBAN</label><input class="form-control" name="iban" maxlength="42" value="{{ payment_instructions.iban if payment_instructions else '' }}" autocapitalize="characters" spellcheck="false" required></div>
         <div class="col-12 col-md-7"><label class="form-label">Banca</label><input class="form-control" name="bank_name" maxlength="160" value="{{ payment_instructions.bank_name if payment_instructions else '' }}"></div><div class="col-12 col-md-5"><label class="form-label">BIC/SWIFT</label><input class="form-control" name="bic_swift" maxlength="16" value="{{ payment_instructions.bic_swift if payment_instructions else '' }}" autocapitalize="characters"></div>
         <div class="col-12"><label class="form-label">Indirizzo intestatario</label><input class="form-control" name="beneficiary_address" maxlength="255" value="{{ payment_instructions.beneficiary_address if payment_instructions else '' }}"></div>
         <div class="col-12"><label class="form-label">Indicazioni per la causale</label><textarea class="form-control" name="payment_reason_template" rows="2" maxlength="500">{{ payment_instructions.payment_reason_template if payment_instructions else '' }}</textarea></div>
@@ -139,4 +139,4 @@
   </div></div>
 </div>{% endif %}
 {% endblock %}
-{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_account.js', v=app_version ~ '-payments2') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_account.js', v=app_version ~ '-payments3') }}"></script>{% endblock %}

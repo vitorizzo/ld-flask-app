@@ -58,6 +58,17 @@ def account_entry_snapshot(entry):
 
 def format_iban(value):
     compact = "".join(str(value or "").upper().split())
+    if compact.startswith("IT") and len(compact) == 27:
+        # Visualizzazione italiana richiesta: paese, CIN, controllo, ABI, CAB, conto.
+        groups = (
+            compact[:2],
+            compact[4:5],
+            compact[2:4],
+            compact[5:10],
+            compact[10:15],
+            compact[15:27],
+        )
+        return " ".join(groups)
     return " ".join(compact[index:index + 4] for index in range(0, len(compact), 4))
 
 

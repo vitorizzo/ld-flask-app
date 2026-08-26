@@ -6,7 +6,7 @@
 - L'identita' operativa della partita e' una chiave composita deterministica ricavata dai dati MATRIXWS (cliente, tipo record, causale, documento/suffisso, rata, date e riferimento); l'ID volatile di `CustomerAccountEntry` rimane solo un puntatore all'ultimo snapshot.
 - La comunicazione crea una `CustomerPaymentCase` in `awaiting_accounting`, allocazioni, stato delle partite ed evento audit in una sola transazione. La contabile e' ammessa solo come PDF/immagine riconosciuta dal contenuto, massimo 12 MB, e salvata nell'area privata `instance/customer_payment_evidence`.
 - `CustomerPaymentInstructions` contiene intestatario, IBAN, banca, BIC/SWIFT, indirizzo, causale e note centralizzati. Soltanto `dev` puo' modificarli; `customer_horeca` consulta esclusivamente le coordinate attive.
-- `templates/customer_account/index.html`, `static/js/customer_account.js`, `static/css/customer_account.css`: selezione fatture, totale live, invio contabile, copia IBAN e pratiche in corso; modali nel `body`, interfaccia touch fullscreen e doppia scala smartphone standard/alta risoluzione.
+- `templates/customer_account/index.html`, `static/js/customer_account.js`, `static/css/customer_account.css`: selezione fatture, totale live, invio contabile, copia IBAN e pratiche in corso; modali nel `body`, interfaccia touch fullscreen e doppia scala smartphone standard/alta risoluzione. L'IBAN italiano e' visualizzato come `XX X XX XXXXX XXXXX XXXXXXXXXXXX`, conservando per copia e salvataggio il valore canonico; la modale `dev` usa cache key `payments3` e controlli maggiorati.
 - Migration: `c4d5e6f7a0b1_add_customer_payment_instructions.py` (successiva alle fondazioni `b3c4d5e6f9a0`).
 
 ## Area contabile clienti Horeca (2026-08-25)

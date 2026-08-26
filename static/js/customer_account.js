@@ -166,6 +166,7 @@
     const bankEditForm = bankModal && bankModal.querySelector("[data-bank-edit-form]");
     function showBankModal(editing) {
       if (!bankModal) return;
+      bankModal.classList.toggle("customer-bank-modal-editing", editing);
       if (bankView) bankView.hidden = editing;
       if (bankFooter) bankFooter.hidden = editing;
       if (bankEditForm) bankEditForm.hidden = !editing;
@@ -189,7 +190,7 @@
     if (copyButton) {
       copyButton.addEventListener("click", async function () {
         const ibanNode = bankModal.querySelector("[data-bank-iban]");
-        const iban = ibanNode ? ibanNode.textContent.replace(/\s+/g, "") : "";
+        const iban = ibanNode ? (ibanNode.dataset.bankIbanRaw || ibanNode.textContent.replace(/\s+/g, "")) : "";
         if (!iban) return;
         try {
           if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(iban);

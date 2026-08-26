@@ -4,6 +4,7 @@ Data aggiornamento: 2026-08-26
 
 ## 2026-08-26 - Comunicazione bonifici dall'area contabile Horeca
 
+- Coordinate bancarie rifinite: IBAN italiano mostrato nel formato `XX X XX XXXXX XXXXX XXXXXXXXXXXX` senza modificare il valore canonico copiato; la modalita' di impostazione `dev` e' piu' larga e usa testi, campi, switch e pulsanti maggiorati anche su smartphone. Cache key `payments3`.
 - Correzione compensazione: oltre alle fatture `001` sono selezionabili le note di credito `002`; il totale e le allocazioni conservano il segno contabile. Sul caso reale cliente `01978`, 5.051,91 euro di fatture meno 923,67 euro di NC produce correttamente un bonifico netto di 4.128,24 euro; resta possibile scegliere una fattura e una NC soltanto. Il netto comunicato deve comunque essere maggiore di zero.
 - Attivata la selezione delle fatture pagabili nell'ultimo snapshot, con conteggio e totale in tempo reale e barra azione compatibile con quella dei processi in background.
 - Il cliente puo' allegare una contabile PDF o immagine (massimo 12 MB), indicare data, CRO/riferimento e nota. La richiesta crea una pratica `awaiting_accounting`, blocca le partite da nuove comunicazioni e conserva allegato e audit in area privata.
