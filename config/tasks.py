@@ -84,6 +84,14 @@ def import_estratti_conto_clienti_task(self):
 
 @celery.task(bind=True)
 @log_task(logger)
+def notify_customer_payment_case_task(self, case_id):
+    from tools.customer_payment_notifications import notify_customer_payment_case
+
+    return notify_customer_payment_case(case_id)
+
+
+@celery.task(bind=True)
+@log_task(logger)
 def import_poleepo_orders_task(self, options=None):
     from routes.shipping import run_poleepo_import
     try:

@@ -46,6 +46,7 @@ from models import (
     SupportTicketMessage,
     SupportTicketAttachment,
     CustomerOrderDeliveryOption,
+    CustomerPaymentCase,
     CashBank,
     PosCircuit,
     PosDevice,
@@ -476,12 +477,23 @@ def support_tickets_unread_count():
         SupportTicket.ticket_type == "horeca_activation",
         SupportTicket.status.notin_(["closed", "activated"]),
     ).count()
+    terminal_payment_statuses = ("accounted", "rejected", "cancelled", "failed", "expired")
+    payment_communication_count = CustomerPaymentCase.query.filter(
+        CustomerPaymentCase.case_type.in_(("bank_transfer", "paybylink")),
+        CustomerPaymentCase.status.notin_(terminal_payment_statuses),
+    ).count()
+    payment_dispute_count = CustomerPaymentCase.query.filter(
+        CustomerPaymentCase.case_type == "payment_claim",
+        CustomerPaymentCase.status.notin_(terminal_payment_statuses),
+    ).count()
     return {
         "ok": True,
         "unread_count": support_count,
         "support_count": support_count,
         "activation_count": activation_count,
-        "total_count": support_count + activation_count,
+        "payment_communication_count": payment_communication_count,
+        "payment_dispute_count": payment_dispute_count,
+        "total_count": support_count + activation_count + payment_communication_count + payment_dispute_count,
     }
 
 

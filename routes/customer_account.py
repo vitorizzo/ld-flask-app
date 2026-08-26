@@ -22,6 +22,7 @@ from models import (
     CustomerPaymentEvent,
     CustomerPaymentEvidence,
     CustomerPaymentInstructions,
+    User,
 )
 from tools.customer_memberships import active_customer_memberships, customer_registry_for_user
 from tools.customer_payments import (
@@ -33,6 +34,7 @@ from tools.customer_payments import (
     is_selectable_settlement_item,
 )
 from tools.log_utils import get_logger
+from tools.role_required import role_required
 
 
 customer_account_bp = Blueprint("customer_account", __name__)
@@ -45,6 +47,14 @@ CASE_STATUS_LABELS = {
     "rejected": "Rigettato",
     "cancelled": "Annullato",
     "failed": "Errore",
+    "expired": "Scaduto",
+}
+TERMINAL_CASE_STATUSES = {"accounted", "rejected", "cancelled", "failed", "expired"}
+OFFICE_CASE_STATUSES = tuple(CASE_STATUS_LABELS)
+CASE_TYPE_LABELS = {
+    "bank_transfer": "Comunicazione di pagamento",
+    "payment_claim": "Contestazione partita aperta",
+    "paybylink": "Pagamento PayByLink",
 }
 MAX_EVIDENCE_BYTES = 12 * 1024 * 1024
 logger = get_logger("customer_account")
@@ -144,7 +154,7 @@ def index():
     current_import = _latest_statement_import()
     entries = None
     totals = None
-    open_cases = []
+    recent_cases = []
     payable_entry_ids = set()
     entry_states = {}
     if registry is not None and current_import is not None:
@@ -191,7 +201,7 @@ def index():
                 for entry_id, source_key in entry_keys.items()
                 if source_key in states_by_key
             }
-        open_cases = (
+        recent_cases = (
             CustomerPaymentCase.query
             .options(
                 selectinload(CustomerPaymentCase.allocations),
@@ -199,7 +209,6 @@ def index():
             )
             .filter(
                 CustomerPaymentCase.registry_id == registry.id,
-                CustomerPaymentCase.status.notin_(("accounted", "rejected", "expired", "cancelled", "failed")),
             )
             .order_by(CustomerPaymentCase.created_at.desc())
             .limit(20)
@@ -215,7 +224,7 @@ def index():
         current_import=current_import,
         entries=entries,
         totals=totals,
-        open_cases=open_cases,
+        recent_cases=recent_cases,
         is_developer=is_developer,
         payable_entry_ids=payable_entry_ids,
         entry_states=entry_states,
@@ -436,9 +445,26 @@ def communicate_bank_transfer():
         flash("Non e' stato possibile registrare la comunicazione. Riprova.", "danger")
         return redirect(url_for("customer_account.index", customer=registry.id))
 
+    try:
+        from config.tasks import notify_customer_payment_case_task
+
+        notify_customer_payment_case_task.delay(payment_case.id)
+    except Exception:
+        logger.exception("Impossibile accodare la notifica ufficio per la pratica %s", payment_case.id)
+        try:
+            db.session.add(CustomerPaymentEvent(
+                case_id=payment_case.id,
+                event_type="office_notification_queue_failed",
+                message="Notifica email non accodata; la pratica resta disponibile nella coda ufficio.",
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            logger.exception("Impossibile registrare il mancato accodamento della pratica %s", payment_case.id)
+
     flash(
         f"Contabile inviata: {len(entries)} documenti per {declared_amount:.2f} EUR. "
-        "La pratica e' in attesa di contabilizzazione.",
+        "La pratica e' in attesa di contabilizzazione ed e' stata inoltrata all'ufficio.",
         "success",
     )
     return redirect(url_for("customer_account.index", customer=registry.id))
@@ -447,10 +473,11 @@ def communicate_bank_transfer():
 @customer_account_bp.get("/payment-evidence/<int:evidence_id>")
 @login_required
 def download_payment_evidence(evidence_id):
-    _, is_developer = _role_context()
     evidence = CustomerPaymentEvidence.query.get_or_404(evidence_id)
-    if _authorized_registry(evidence.payment_case.registry_id, is_developer) is None:
-        abort(403)
+    if current_user.max_role_weight < 40:
+        _, is_developer = _role_context()
+        if _authorized_registry(evidence.payment_case.registry_id, is_developer) is None:
+            abort(403)
     instance_root = Path(current_app.instance_path).resolve()
     target = (instance_root / evidence.storage_path).resolve()
     if instance_root not in target.parents or not target.is_file():
@@ -462,4 +489,136 @@ def download_payment_evidence(evidence_id):
         download_name=evidence.original_filename,
         conditional=True,
         max_age=0,
+    )
+
+
+def _office_case_query(case_types):
+    return (
+        CustomerPaymentCase.query
+        .options(
+            selectinload(CustomerPaymentCase.registry),
+            selectinload(CustomerPaymentCase.created_by),
+            selectinload(CustomerPaymentCase.allocations),
+            selectinload(CustomerPaymentCase.evidence),
+        )
+        .filter(CustomerPaymentCase.case_type.in_(case_types))
+    )
+
+
+def _render_office_cases(queue_code, case_types, title, description):
+    query = _office_case_query(case_types)
+    selected_status = (request.args.get("status") or "active").strip()
+    if selected_status == "active":
+        query = query.filter(CustomerPaymentCase.status.notin_(tuple(TERMINAL_CASE_STATUSES)))
+    elif selected_status in OFFICE_CASE_STATUSES:
+        query = query.filter(CustomerPaymentCase.status == selected_status)
+    elif selected_status != "all":
+        selected_status = "active"
+        query = query.filter(CustomerPaymentCase.status.notin_(tuple(TERMINAL_CASE_STATUSES)))
+
+    search = (request.args.get("q") or "").strip()[:120]
+    if search:
+        pattern = f"%{search}%"
+        query = query.filter(or_(
+            CustomerPaymentCase.public_id.ilike(pattern),
+            CustomerPaymentCase.payment_reference.ilike(pattern),
+            CustomerPaymentCase.registry.has(or_(
+                BusinessRegistry.display_name.ilike(pattern),
+                BusinessRegistry.legal_name.ilike(pattern),
+                BusinessRegistry.source_code.ilike(pattern),
+            )),
+            CustomerPaymentCase.created_by.has(or_(
+                User.email.ilike(pattern),
+                User.name.ilike(pattern),
+                User.surname.ilike(pattern),
+            )),
+        ))
+
+    cases = query.order_by(CustomerPaymentCase.created_at.desc()).paginate(
+        page=max(1, request.args.get("page", type=int) or 1), per_page=40, error_out=False,
+    )
+    return render_template(
+        "customer_account/office_cases.html",
+        queue_code=queue_code,
+        title=title,
+        description=description,
+        cases=cases,
+        search=search,
+        selected_status=selected_status,
+        status_labels=CASE_STATUS_LABELS,
+        terminal_statuses=TERMINAL_CASE_STATUSES,
+    )
+
+
+@customer_account_bp.get("/office/payment-communications")
+@login_required
+@role_required(40)
+def office_payment_communications():
+    return _render_office_cases(
+        "payments", ("bank_transfer", "paybylink"), "Comunicazioni di pagamento",
+        "Bonifici comunicati dai clienti e pagamenti in attesa di riscontro contabile.",
+    )
+
+
+@customer_account_bp.get("/office/payment-disputes")
+@login_required
+@role_required(40)
+def office_payment_disputes():
+    return _render_office_cases(
+        "disputes", ("payment_claim",), "Contestazioni partite aperte",
+        "Documenti che il cliente dichiara gia' pagati e che richiedono una verifica.",
+    )
+
+
+@customer_account_bp.route("/office/cases/<int:case_id>", methods=["GET", "POST"])
+@login_required
+@role_required(40)
+def office_case_detail(case_id):
+    payment_case = (
+        _office_case_query(("bank_transfer", "paybylink", "payment_claim"))
+        .options(selectinload(CustomerPaymentCase.events).selectinload(CustomerPaymentEvent.actor))
+        .filter(CustomerPaymentCase.id == case_id)
+        .first_or_404()
+    )
+    if request.method == "POST":
+        new_status = (request.form.get("status") or "").strip()
+        message = (request.form.get("message") or "").strip()[:4000] or None
+        if new_status not in OFFICE_CASE_STATUSES:
+            abort(400, description="Stato pratica non valido.")
+        if new_status == "rejected" and not message:
+            flash("Indica al cliente il motivo del rigetto.", "warning")
+            return redirect(url_for("customer_account.office_case_detail", case_id=payment_case.id))
+
+        old_status = payment_case.status
+        payment_case.status = new_status
+        payment_case.resolved_at = datetime.now(timezone.utc) if new_status in TERMINAL_CASE_STATUSES else None
+        payment_case.rejection_message = message if new_status == "rejected" else None
+        CustomerAccountingItemState.query.filter_by(payment_case_id=payment_case.id).update({
+            CustomerAccountingItemState.status: new_status,
+            CustomerAccountingItemState.message: message or CASE_STATUS_LABELS.get(new_status, new_status),
+        }, synchronize_session=False)
+        db.session.add(CustomerPaymentEvent(
+            case_id=payment_case.id,
+            actor_user_id=current_user.id,
+            event_type="office_status_changed",
+            from_status=old_status,
+            to_status=new_status,
+            message=message,
+        ))
+        db.session.commit()
+        flash("Stato della pratica aggiornato.", "success")
+        return redirect(url_for("customer_account.office_case_detail", case_id=payment_case.id))
+
+    queue_endpoint = (
+        "customer_account.office_payment_disputes"
+        if payment_case.case_type == "payment_claim"
+        else "customer_account.office_payment_communications"
+    )
+    return render_template(
+        "customer_account/office_case_detail.html",
+        payment_case=payment_case,
+        queue_endpoint=queue_endpoint,
+        status_labels=CASE_STATUS_LABELS,
+        case_type_labels=CASE_TYPE_LABELS,
+        office_statuses=OFFICE_CASE_STATUSES,
     )

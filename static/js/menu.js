@@ -35,6 +35,8 @@ document.addEventListener("DOMContentLoaded", function () {
             var value = sources.reduce(function (total, source) {
                 if (source === "support") return total + Number(payload.support_count || 0);
                 if (source === "activation") return total + Number(payload.activation_count || 0);
+                if (source === "payment_communications") return total + Number(payload.payment_communication_count || 0);
+                if (source === "payment_disputes") return total + Number(payload.payment_dispute_count || 0);
                 return total;
             }, 0);
             badge.textContent = value > 99 ? "99+" : String(value);

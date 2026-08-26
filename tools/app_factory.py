@@ -17,7 +17,7 @@ from extensions import db, mail
 from routes.automations_v2 import automations_v2_bp
 from routes.kiosk import kiosk_bp
 from tools.log_utils import get_logger
-from models import User, Menu, PasswordResetToken, SupportTicket
+from models import CustomerPaymentCase, User, Menu, PasswordResetToken, SupportTicket
 from routes.tools import get_user_menu
 from tools.preferences import PREFERENCE_DEFINITIONS, load_preferences_into_app_config
 
@@ -381,6 +381,12 @@ def create_app():
                 elif node.route == "/settings/horeca-activations":
                     own_badge_sources.append("activation")
                     own_badge_count = activation_badge_count
+                elif node.route == "/customer-account/office/payment-communications":
+                    own_badge_sources.append("payment_communications")
+                    own_badge_count = payment_communication_badge_count
+                elif node.route == "/customer-account/office/payment-disputes":
+                    own_badge_sources.append("payment_disputes")
+                    own_badge_count = payment_dispute_badge_count
                 child_badge_sources = {
                     source
                     for child in children_tree
@@ -405,6 +411,8 @@ def create_app():
         user_role_weight = current_user.max_role_weight if current_user.is_authenticated else 0
         support_badge_count = 0
         activation_badge_count = 0
+        payment_communication_badge_count = 0
+        payment_dispute_badge_count = 0
         if current_user.is_authenticated and user_role_weight >= 40:
             try:
                 activation_badge_count = SupportTicket.query.filter(
@@ -414,6 +422,19 @@ def create_app():
             except SQLAlchemyError:
                 db.session.rollback()
                 logger.exception("inject_menus: activation count unavailable")
+            try:
+                terminal_payment_statuses = ("accounted", "rejected", "cancelled", "failed", "expired")
+                payment_communication_badge_count = CustomerPaymentCase.query.filter(
+                    CustomerPaymentCase.case_type.in_(("bank_transfer", "paybylink")),
+                    CustomerPaymentCase.status.notin_(terminal_payment_statuses),
+                ).count()
+                payment_dispute_badge_count = CustomerPaymentCase.query.filter(
+                    CustomerPaymentCase.case_type == "payment_claim",
+                    CustomerPaymentCase.status.notin_(terminal_payment_statuses),
+                ).count()
+            except SQLAlchemyError:
+                db.session.rollback()
+                logger.exception("inject_menus: payment queue counts unavailable")
         if current_user.is_authenticated and user_role_weight >= 900:
             try:
                 from tools.support_tickets import support_unread_count

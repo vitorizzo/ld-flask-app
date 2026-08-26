@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Pratica {{ payment_case.public_id[-8:] }} - LD Enoteca{% endblock %}
+{% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_payment_office.css', v=app_version ~ '-office1') }}">{% endblock %}
+{% block content %}
+<section class="payment-office-page">
+  <a class="payment-office-back" href="{{ url_for(queue_endpoint) }}"><i class="fa-solid fa-arrow-left"></i> Torna alla coda</a>
+  <header class="payment-office-hero payment-office-detail-hero">
+    <div><div class="payment-office-eyebrow">{{ case_type_labels.get(payment_case.case_type, payment_case.case_type) }}</div><h1>{{ payment_case.registry.display_name or payment_case.registry.legal_name }}</h1><p>Cliente {{ payment_case.registry.source_code }} · pratica {{ payment_case.public_id }}</p></div>
+    <div class="payment-office-total"><span>Totale dichiarato</span><strong>{{ money(payment_case.declared_amount) }}</strong><small>{{ status_labels.get(payment_case.status, payment_case.status) }}</small></div>
+  </header>
+
+  <div class="payment-office-detail-grid"><main>
+    <article class="payment-office-card"><h2>Comunicazione</h2><dl class="payment-office-data">
+      <div><dt>Utente</dt><dd>{{ payment_case.created_by.name }} {{ payment_case.created_by.surname }}<small>{{ payment_case.created_by.email }}</small></dd></div>
+      <div><dt>Data</dt><dd>{{ payment_case.created_at.strftime('%d/%m/%Y alle %H:%M') }}</dd></div>
+      <div><dt>Riferimento</dt><dd>{{ payment_case.payment_reference or '—' }}</dd></div>
+      <div><dt>Nota</dt><dd>{{ payment_case.note or '—' }}</dd></div>
+    </dl></article>
+
+    <article class="payment-office-card"><h2>Documenti selezionati</h2><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Documento</th><th>Data</th><th>Scadenza</th><th>Descrizione</th><th class="text-end">Importo</th></tr></thead><tbody>
+      {% for allocation in payment_case.allocations %}{% set doc = allocation.document_snapshot or {} %}<tr><td data-label="Documento"><strong>{{ doc.get('document_number') or '—' }}</strong></td><td data-label="Data">{{ doc.get('document_date') or '—' }}</td><td data-label="Scadenza">{{ doc.get('due_date') or '—' }}</td><td data-label="Descrizione">{{ doc.get('description') or '—' }}</td><td data-label="Importo" class="text-end fw-semibold">{{ money(allocation.allocated_amount) }}</td></tr>
+      {% else %}<tr><td colspan="5" class="text-center text-muted py-4">Nessun documento associato.</td></tr>{% endfor %}
+    </tbody></table></div></article>
+
+    <article class="payment-office-card"><h2>Allegati protetti</h2><div class="payment-office-evidence-list">
+      {% for evidence in payment_case.evidence %}<a class="btn btn-outline-primary" href="{{ url_for('customer_account.download_payment_evidence', evidence_id=evidence.id) }}"><i class="fa-solid fa-paperclip"></i><span>{{ evidence.original_filename }}<small>{{ (evidence.size_bytes / 1024)|round|int }} KB</small></span></a>
+      {% else %}<p class="text-muted mb-0">Nessun allegato.</p>{% endfor %}
+    </div></article>
+
+    <article class="payment-office-card"><h2>Cronologia</h2><div class="payment-office-timeline">
+      {% for event in payment_case.events|sort(attribute='created_at', reverse=true) %}<div><i></i><p><strong>{{ event.message or event.event_type }}</strong><span>{{ event.created_at.strftime('%d/%m/%Y %H:%M') }}{% if event.actor %} · {{ event.actor.name }} {{ event.actor.surname }}{% endif %}</span>{% if event.from_status or event.to_status %}<small>{{ status_labels.get(event.from_status, event.from_status or 'Creata') }} → {{ status_labels.get(event.to_status, event.to_status or '—') }}</small>{% endif %}</p></div>{% endfor %}
+    </div></article>
+  </main><aside>
+    <form class="payment-office-card payment-office-status-form" method="post">
+      <h2>Gestione pratica</h2><label>Stato<select class="form-select" name="status" required>{% for code in office_statuses %}<option value="{{ code }}" {{ 'selected' if payment_case.status == code }}>{{ status_labels.get(code, code) }}</option>{% endfor %}</select></label>
+      <label>Nota per il cliente<textarea class="form-control" name="message" rows="5" maxlength="4000" placeholder="Obbligatoria in caso di rigetto">{{ payment_case.rejection_message or '' }}</textarea></label>
+      <button class="btn btn-primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Aggiorna pratica</button>
+      <small>Il nuovo stato è subito visibile al cliente nella sua situazione contabile.</small>
+    </form>
+  </aside></div>
+</section>
+{% endblock %}

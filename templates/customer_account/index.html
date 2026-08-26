@@ -42,13 +42,14 @@
       <div><strong>Hai già effettuato un bonifico?</strong><p>Seleziona le fatture e le eventuali note di credito da compensare, controlla il netto da bonificare e allega la contabile. I documenti verranno contrassegnati come in attesa di contabilizzazione.</p></div>
     </div>
 
-    {% if open_cases %}
+    {% if recent_cases %}
       <section class="customer-payment-cases" aria-labelledby="paymentCasesTitle">
-        <div class="customer-account-card-head"><h2 id="paymentCasesTitle">Comunicazioni in corso</h2><span>{{ open_cases|length }}</span></div>
+        <div class="customer-account-card-head"><h2 id="paymentCasesTitle">Comunicazioni recenti</h2><span>{{ recent_cases|length }}</span></div>
         <div class="customer-payment-case-list">
-          {% for payment_case in open_cases %}<article class="customer-payment-case">
+          {% for payment_case in recent_cases %}<article class="customer-payment-case">
             <div><strong>{{ case_status_labels.get(payment_case.status, payment_case.status) }}</strong><small>Pratica {{ payment_case.public_id[-8:] }} · {{ payment_case.created_at.strftime('%d/%m/%Y %H:%M') }}</small></div>
             <div class="customer-payment-case-amount">{{ money(payment_case.declared_amount) }}<small>{{ payment_case.allocations|length }} {{ 'documento' if payment_case.allocations|length == 1 else 'documenti' }}</small></div>
+            {% if payment_case.rejection_message %}<p class="text-danger mb-0">{{ payment_case.rejection_message }}</p>{% endif %}
             {% if payment_case.evidence %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('customer_account.download_payment_evidence', evidence_id=payment_case.evidence[0].id) }}"><i class="fa-solid fa-paperclip"></i> Contabile</a>{% endif %}
           </article>{% endfor %}
         </div>
