@@ -2,7 +2,7 @@
 
 ## Comunicazione bonifici clienti Horeca (2026-08-26)
 
-- `routes/customer_account.py`, `tools/customer_payments.py`: sono selezionabili soltanto righe Dare, causale fattura `001`, rilevanti per il saldo e con importo positivo. Il server rivalida cliente, snapshot e stato senza fidarsi degli ID inviati dal browser.
+- `routes/customer_account.py`, `tools/customer_payments.py`: sono selezionabili le fatture Dare causale `001` e le note di credito Avere causale `002`, purche' rilevanti per il saldo, documentate e con importo valorizzato. Il totale usa `signed_amount`, quindi le NC compensano le fatture; il server rivalida cliente, snapshot, stato e netto positivo senza fidarsi degli ID inviati dal browser.
 - L'identita' operativa della partita e' una chiave composita deterministica ricavata dai dati MATRIXWS (cliente, tipo record, causale, documento/suffisso, rata, date e riferimento); l'ID volatile di `CustomerAccountEntry` rimane solo un puntatore all'ultimo snapshot.
 - La comunicazione crea una `CustomerPaymentCase` in `awaiting_accounting`, allocazioni, stato delle partite ed evento audit in una sola transazione. La contabile e' ammessa solo come PDF/immagine riconosciuta dal contenuto, massimo 12 MB, e salvata nell'area privata `instance/customer_payment_evidence`.
 - `CustomerPaymentInstructions` contiene intestatario, IBAN, banca, BIC/SWIFT, indirizzo, causale e note centralizzati. Soltanto `dev` puo' modificarli; `customer_horeca` consulta esclusivamente le coordinate attive.
@@ -11,7 +11,7 @@
 
 ## Area contabile clienti Horeca (2026-08-25)
 
-- `static/css/customer_account.css`: layout touch completo con schede movimento al posto della tabella, KPI adattivi, controlli/paginazione touch, safe-area e doppia scala standard/alta risoluzione S25; asset richiamato con cache key `payments1`.
+- `static/css/customer_account.css`: layout touch completo con schede movimento al posto della tabella, KPI adattivi, controlli/paginazione touch, safe-area e doppia scala standard/alta risoluzione S25; asset richiamato con cache key `payments2`.
 - Policy ruoli in `routes/customer_account.py`: sono ammessi esclusivamente `customer_horeca` e `dev` (nome verificato nella tabella `roles`, ID 0); non viene usato `max_role_weight`. Il primo e' limitato alle membership, il secondo puo' selezionare un cliente attivo per collaudare la stessa vista.
 - `models.py`: `CustomerRegistryMembership` implementa autorizzazioni molti-a-molti con cliente principale; `CustomerPaymentCase`, `CustomerPaymentAllocation`, `CustomerPaymentEvidence`, `CustomerPaymentEvent` e `CustomerAccountingItemState` costituiscono il workflow pagamenti senza modificare i dati importati da TeamSystem.
 - `tools/customer_memberships.py`: risoluzione sicura delle sole anagrafiche autorizzate, scelta del cliente principale e compatibilita' temporanea con `User.customer_registry_id`.

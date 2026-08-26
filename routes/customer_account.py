@@ -30,7 +30,7 @@ from tools.customer_payments import (
     account_entry_source_key,
     format_iban,
     is_valid_iban,
-    is_payable_invoice,
+    is_selectable_settlement_item,
 )
 from tools.log_utils import get_logger
 
@@ -169,7 +169,7 @@ def index():
         entry_keys = {
             entry.id: account_entry_source_key(entry)
             for entry in entries.items
-            if is_payable_invoice(entry)
+            if is_selectable_settlement_item(entry)
         }
         if entry_keys:
             active_states = (
@@ -302,9 +302,9 @@ def communicate_bank_transfer():
         )
         .all()
     )
-    entries_by_id = {entry.id: entry for entry in entries if is_payable_invoice(entry)}
+    entries_by_id = {entry.id: entry for entry in entries if is_selectable_settlement_item(entry)}
     if len(entries_by_id) != len(entry_ids):
-        abort(400, description="Una o piu' righe non sono fatture selezionabili dell'ultimo aggiornamento.")
+        abort(400, description="Uno o piu' documenti non sono selezionabili nell'ultimo aggiornamento.")
     entries = [entries_by_id[entry_id] for entry_id in entry_ids]
     source_keys = [account_entry_source_key(entry) for entry in entries]
     if len(set(source_keys)) != len(source_keys):
@@ -320,7 +320,12 @@ def communicate_bank_transfer():
         .first()
     )
     if already_active:
-        flash("Almeno una fattura selezionata appartiene gia' a una pratica in corso.", "warning")
+        flash("Almeno un documento selezionato appartiene gia' a una pratica in corso.", "warning")
+        return redirect(url_for("customer_account.index", customer=registry.id))
+
+    declared_amount = sum((Decimal(entry.signed_amount) for entry in entries), Decimal("0.00"))
+    if declared_amount <= 0:
+        flash("Il totale dei documenti selezionati deve essere maggiore di zero.", "warning")
         return redirect(url_for("customer_account.index", customer=registry.id))
 
     upload = request.files.get("payment_evidence")
@@ -340,7 +345,6 @@ def communicate_bank_transfer():
         return redirect(url_for("customer_account.index", customer=registry.id))
 
     submitted_at = datetime.now(timezone.utc)
-    declared_amount = sum((Decimal(entry.amount) for entry in entries), Decimal("0.00"))
     transfer_date = _trimmed_form_value("transfer_date", 10)
     if transfer_date:
         try:
@@ -396,7 +400,7 @@ def communicate_bank_transfer():
                 source_customer_code=entry.source_customer_code,
                 source_item_key=source_key,
                 current_entry_id=entry.id,
-                allocated_amount=entry.amount,
+                allocated_amount=entry.signed_amount,
                 document_snapshot=account_entry_snapshot(entry),
             ))
             item_state = existing_states.get(source_key)
@@ -418,7 +422,7 @@ def communicate_bank_transfer():
             from_status=None,
             to_status="awaiting_accounting",
             message="Contabile bonifico inviata",
-            event_metadata={"invoice_count": len(entries), "evidence_sha256": hashlib.sha256(evidence_data).hexdigest()},
+            event_metadata={"document_count": len(entries), "evidence_sha256": hashlib.sha256(evidence_data).hexdigest()},
         ))
         db.session.commit()
     except Exception:
@@ -433,7 +437,7 @@ def communicate_bank_transfer():
         return redirect(url_for("customer_account.index", customer=registry.id))
 
     flash(
-        f"Contabile inviata: {len(entries)} fatture per {declared_amount:.2f} EUR. "
+        f"Contabile inviata: {len(entries)} documenti per {declared_amount:.2f} EUR. "
         "La pratica e' in attesa di contabilizzazione.",
         "success",
     )

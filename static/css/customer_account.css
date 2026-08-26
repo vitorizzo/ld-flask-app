@@ -341,6 +341,11 @@
   font-size: 1.15rem;
 }
 
+.customer-payment-selection .is-net-invalid,
+.customer-payment-modal-total .is-net-invalid {
+  color: #dc3545;
+}
+
 .customer-payment-modal {
   z-index: 12110 !important;
 }

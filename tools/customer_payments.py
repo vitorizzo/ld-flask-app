@@ -6,14 +6,15 @@ from decimal import Decimal
 ACTIVE_ITEM_STATUSES = {"link_active", "awaiting_accounting", "under_review", "partially_accounted"}
 
 
-def is_payable_invoice(entry):
-    return bool(
-        entry
-        and entry.is_balance_relevant
-        and entry.accounting_side == "D"
-        and entry.accounting_reason == "001"
-        and entry.document_number
-        and Decimal(entry.amount or 0) > 0
+def is_selectable_settlement_item(entry):
+    """Riconosce fatture e note di credito utilizzabili per comporre un pagamento."""
+    if not entry or not entry.is_balance_relevant or not entry.document_number:
+        return False
+    if Decimal(entry.amount or 0) <= 0:
+        return False
+    return (
+        (entry.accounting_side == "D" and entry.accounting_reason == "001")
+        or (entry.accounting_side == "A" and entry.accounting_reason == "002")
     )
 
 
@@ -51,6 +52,7 @@ def account_entry_snapshot(entry):
         "accounting_reference": entry.accounting_reference,
         "accounting_side": entry.accounting_side,
         "amount": str(entry.amount),
+        "signed_amount": str(entry.signed_amount),
     }
 
 

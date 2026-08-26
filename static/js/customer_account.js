@@ -59,6 +59,7 @@
     const modalTotal = document.querySelector("[data-modal-selection-total]");
     const selectedInputs = document.querySelector("[data-selected-entry-inputs]");
     const paymentFeedback = document.querySelector("[data-payment-feedback]");
+    const communicateTrigger = document.querySelector("[data-communicate-payment-trigger]");
 
     function checkedInvoices() {
       return invoiceCheckboxes.filter(function (checkbox) { return checkbox.checked; });
@@ -69,13 +70,23 @@
       const total = selected.reduce(function (sum, checkbox) {
         return sum + parseAmount(checkbox.dataset.amount);
       }, 0);
-      const countLabel = selected.length + (selected.length === 1 ? " fattura" : " fatture");
+      const countLabel = selected.length + (selected.length === 1 ? " documento" : " documenti");
 
       if (selectionCount) selectionCount.textContent = countLabel;
-      if (selectionTotal) selectionTotal.textContent = euro.format(total);
+      if (selectionTotal) {
+        selectionTotal.textContent = euro.format(total);
+        selectionTotal.classList.toggle("is-net-invalid", total <= 0);
+      }
       if (modalCount) modalCount.textContent = countLabel;
-      if (modalTotal) modalTotal.textContent = euro.format(total);
+      if (modalTotal) {
+        modalTotal.textContent = euro.format(total);
+        modalTotal.classList.toggle("is-net-invalid", total <= 0);
+      }
       if (selectionBar) selectionBar.hidden = selected.length === 0;
+      if (communicateTrigger) {
+        communicateTrigger.disabled = selected.length === 0 || total <= 0;
+        communicateTrigger.title = total <= 0 ? "Il netto da bonificare deve essere maggiore di zero" : "";
+      }
       document.body.classList.toggle("customer-payment-selection-active", selected.length > 0);
       if (selectAll) {
         selectAll.checked = invoiceCheckboxes.length > 0 && selected.length === invoiceCheckboxes.length;
@@ -106,11 +117,13 @@
     }
     updateSelection();
 
-    const communicateTrigger = document.querySelector("[data-communicate-payment-trigger]");
     if (communicateTrigger && paymentModal) {
       communicateTrigger.addEventListener("click", function () {
         const selected = checkedInvoices();
-        if (!selected.length) return;
+        const total = selected.reduce(function (sum, checkbox) {
+          return sum + parseAmount(checkbox.dataset.amount);
+        }, 0);
+        if (!selected.length || total <= 0) return;
         selectedInputs.replaceChildren.apply(selectedInputs, selected.map(function (checkbox) {
           const input = document.createElement("input");
           input.type = "hidden";
@@ -128,12 +141,15 @@
       paymentForm.addEventListener("submit", function (event) {
         const selected = checkedInvoices();
         const fileInput = paymentForm.querySelector('input[type="file"]');
-        if (!selected.length || !fileInput || !fileInput.files.length) {
+        const netAmount = selected.reduce(function (sum, checkbox) {
+          return sum + parseAmount(checkbox.dataset.amount);
+        }, 0);
+        if (!selected.length || netAmount <= 0 || !fileInput || !fileInput.files.length) {
           event.preventDefault();
           if (paymentFeedback) {
-            paymentFeedback.textContent = !selected.length
-              ? "Seleziona almeno una fattura."
-              : "Allega la contabile del bonifico.";
+            if (!selected.length) paymentFeedback.textContent = "Seleziona almeno un documento.";
+            else if (netAmount <= 0) paymentFeedback.textContent = "Il netto da bonificare deve essere maggiore di zero.";
+            else paymentFeedback.textContent = "Allega la contabile del bonifico.";
           }
           return;
         }

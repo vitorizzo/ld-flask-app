@@ -4,6 +4,7 @@ Data aggiornamento: 2026-08-26
 
 ## 2026-08-26 - Comunicazione bonifici dall'area contabile Horeca
 
+- Correzione compensazione: oltre alle fatture `001` sono selezionabili le note di credito `002`; il totale e le allocazioni conservano il segno contabile. Sul caso reale cliente `01978`, 5.051,91 euro di fatture meno 923,67 euro di NC produce correttamente un bonifico netto di 4.128,24 euro; resta possibile scegliere una fattura e una NC soltanto. Il netto comunicato deve comunque essere maggiore di zero.
 - Attivata la selezione delle fatture pagabili nell'ultimo snapshot, con conteggio e totale in tempo reale e barra azione compatibile con quella dei processi in background.
 - Il cliente puo' allegare una contabile PDF o immagine (massimo 12 MB), indicare data, CRO/riferimento e nota. La richiesta crea una pratica `awaiting_accounting`, blocca le partite da nuove comunicazioni e conserva allegato e audit in area privata.
 - La pagina mostra le pratiche ancora aperte e permette di riscaricare la contabile soltanto agli utenti autorizzati per la stessa anagrafica o al ruolo esatto `dev`.
@@ -14,7 +15,7 @@ Data aggiornamento: 2026-08-26
 ## 2026-08-25 - Prime basi area contabile clienti Horeca
 
 - L'intera area contabile e' touch-first: intestazione, filtro/selettore Developer, riepiloghi, avvisi, paginazione e movimenti sono ottimizzati per smartphone. Le righe contabili diventano schede verticali e non richiedono zoom o scorrimento orizzontale.
-- Come nelle altre aree LDApp sono previste due scale: smartphone standard fino a 820 px (o qualunque dispositivo touch) e touch ad alta risoluzione da 821 px, con controlli da 92 px, tipografia e spazi maggiorati per Galaxy S25. Inclusi safe-area e cache key `payments1`.
+- Come nelle altre aree LDApp sono previste due scale: smartphone standard fino a 820 px (o qualunque dispositivo touch) e touch ad alta risoluzione da 821 px, con controlli da 92 px, tipografia e spazi maggiorati per Galaxy S25. Inclusi safe-area e cache key `payments2`.
 - Accesso reso esplicito per ruolo, senza soglie di peso: `customer_horeca` vede soltanto i clienti assegnati; `dev` (nome verificato nella tabella `roles`) apre la medesima vista in modalita' anteprima e dispone del selettore filtrabile di tutte le anagrafiche cliente attive.
 - Aggiunta l'associazione molti-a-molti `CustomerRegistryMembership`: un utente puo' operare per piu' clienti e piu' utenti possono essere autorizzati sullo stesso cliente, mantenendo `User.customer_registry_id` come cliente principale compatibile con i flussi esistenti.
 - La migration `b3c4d5e6f9a0` crea le associazioni e importa automaticamente tutti i collegamenti Horeca gia' presenti, senza rimuovere o riscrivere l'associazione storica.

@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}La mia situazione contabile - LD Enoteca{% endblock %}
 {% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
-{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_account.css', v=app_version ~ '-payments1') }}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_account.css', v=app_version ~ '-payments2') }}">{% endblock %}
 {% block content %}
 <section class="customer-account-page">
   <header class="customer-account-hero">
@@ -39,7 +39,7 @@
 
     <div class="customer-account-notice">
       <i class="fa-solid fa-file-shield"></i>
-      <div><strong>Hai già effettuato un bonifico?</strong><p>Seleziona le fatture interessate, controlla il totale e allega la contabile. I documenti verranno contrassegnati come in attesa di contabilizzazione.</p></div>
+      <div><strong>Hai già effettuato un bonifico?</strong><p>Seleziona le fatture e le eventuali note di credito da compensare, controlla il netto da bonificare e allega la contabile. I documenti verranno contrassegnati come in attesa di contabilizzazione.</p></div>
     </div>
 
     {% if open_cases %}
@@ -48,7 +48,7 @@
         <div class="customer-payment-case-list">
           {% for payment_case in open_cases %}<article class="customer-payment-case">
             <div><strong>{{ case_status_labels.get(payment_case.status, payment_case.status) }}</strong><small>Pratica {{ payment_case.public_id[-8:] }} · {{ payment_case.created_at.strftime('%d/%m/%Y %H:%M') }}</small></div>
-            <div class="customer-payment-case-amount">{{ money(payment_case.declared_amount) }}<small>{{ payment_case.allocations|length }} {{ 'fattura' if payment_case.allocations|length == 1 else 'fatture' }}</small></div>
+            <div class="customer-payment-case-amount">{{ money(payment_case.declared_amount) }}<small>{{ payment_case.allocations|length }} {{ 'documento' if payment_case.allocations|length == 1 else 'documenti' }}</small></div>
             {% if payment_case.evidence %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('customer_account.download_payment_evidence', evidence_id=payment_case.evidence[0].id) }}"><i class="fa-solid fa-paperclip"></i> Contabile</a>{% endif %}
           </article>{% endfor %}
         </div>
@@ -58,11 +58,11 @@
     <div class="customer-account-card">
       <div class="customer-account-card-head"><h2>Movimenti contabili</h2><span>{{ entries.total }} righe</span></div>
       <div class="table-responsive"><table class="table align-middle mb-0">
-        <thead><tr><th class="customer-payment-check"><input class="form-check-input" type="checkbox" aria-label="Seleziona tutte le fatture visibili" data-select-all-invoices></th><th>Data</th><th>Documento</th><th>Descrizione</th><th>Scadenza</th><th>Segno</th><th class="text-end">Importo</th></tr></thead>
+        <thead><tr><th class="customer-payment-check"><input class="form-check-input" type="checkbox" aria-label="Seleziona tutti i documenti compensabili visibili" data-select-all-invoices></th><th>Data</th><th>Documento</th><th>Descrizione</th><th>Scadenza</th><th>Segno</th><th class="text-end">Importo</th></tr></thead>
         <tbody>
           {% for entry in entries.items %}<tr class="{{ 'customer-invoice-selectable' if entry.id in payable_entry_ids }}">
             <td data-label="Pagamento" class="customer-payment-check">
-              {% if entry.id in payable_entry_ids %}<input class="form-check-input" type="checkbox" value="{{ entry.id }}" data-invoice-checkbox data-amount="{{ entry.amount }}" aria-label="Seleziona fattura {{ entry.document_number }} da {{ money(entry.amount) }}">
+              {% if entry.id in payable_entry_ids %}<input class="form-check-input" type="checkbox" value="{{ entry.id }}" data-invoice-checkbox data-amount="{{ entry.signed_amount }}" aria-label="Seleziona documento {{ entry.document_number }} da {{ money(entry.signed_amount) }}">
               {% elif entry_states.get(entry.id) %}<span class="badge text-bg-warning">{{ case_status_labels.get(entry_states[entry.id].status, entry_states[entry.id].status) }}</span>
               {% else %}<span class="text-muted">—</span>{% endif %}
             </td>
@@ -71,7 +71,7 @@
             <td data-label="Descrizione"><strong>{{ entry.description or '—' }}</strong>{% if entry.additional_description %}<small>{{ entry.additional_description }}</small>{% endif %}{% if not entry.is_balance_relevant %}<small>Riga tecnica esclusa dal saldo</small>{% endif %}</td>
             <td data-label="Scadenza">{{ entry.due_date.strftime('%d/%m/%Y') if entry.due_date else '—' }}</td>
             <td data-label="Segno"><span class="badge {{ 'text-bg-danger' if entry.accounting_side == 'D' else 'text-bg-success' }}">{{ 'Dare' if entry.accounting_side == 'D' else 'Avere' }}</span></td>
-            <td data-label="Importo" class="text-end fw-semibold">{{ money(entry.amount) }}</td>
+            <td data-label="Importo" class="text-end fw-semibold {{ 'text-success' if entry.signed_amount < 0 }}">{{ money(entry.signed_amount) }}</td>
           </tr>{% else %}<tr><td colspan="7" class="text-center py-5 text-muted">Nessun movimento disponibile per questo cliente.</td></tr>{% endfor %}
         </tbody>
       </table></div>
@@ -84,7 +84,7 @@
 </section>
 
 {% if registry and entries %}<div class="customer-payment-selection" data-payment-selection hidden>
-  <div><span data-selection-count>0 fatture</span><strong data-selection-total>0,00 €</strong></div>
+  <div><span data-selection-count>0 documenti</span><strong data-selection-total>0,00 €</strong></div>
   <button class="btn btn-primary" type="button" data-communicate-payment-trigger><i class="fa-solid fa-upload"></i> Comunica bonifico</button>
 </div>{% endif %}
 
@@ -139,4 +139,4 @@
   </div></div>
 </div>{% endif %}
 {% endblock %}
-{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_account.js', v=app_version ~ '-payments1') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_account.js', v=app_version ~ '-payments2') }}"></script>{% endblock %}
