@@ -50,6 +50,7 @@ CASE_STATUS_LABELS = {
     "expired": "Scaduto",
 }
 TERMINAL_CASE_STATUSES = {"accounted", "rejected", "cancelled", "failed", "expired"}
+CUSTOMER_EDITABLE_CASE_STATUSES = {"awaiting_accounting", "under_review"}
 OFFICE_CASE_STATUSES = tuple(CASE_STATUS_LABELS)
 CASE_TYPE_LABELS = {
     "bank_transfer": "Comunicazione di pagamento",
@@ -209,6 +210,7 @@ def index():
             )
             .filter(
                 CustomerPaymentCase.registry_id == registry.id,
+                CustomerPaymentCase.status != "cancelled",
             )
             .order_by(CustomerPaymentCase.created_at.desc())
             .limit(20)
@@ -231,6 +233,7 @@ def index():
         payment_instructions=payment_instructions,
         formatted_iban=format_iban(payment_instructions.iban) if payment_instructions else None,
         case_status_labels=CASE_STATUS_LABELS,
+        customer_editable_case_statuses=CUSTOMER_EDITABLE_CASE_STATUSES,
     )
 
 
@@ -490,6 +493,243 @@ def download_payment_evidence(evidence_id):
         conditional=True,
         max_age=0,
     )
+
+
+def _customer_owned_editable_case(case_id):
+    _, is_developer = _role_context()
+    payment_case = (
+        CustomerPaymentCase.query
+        .options(
+            selectinload(CustomerPaymentCase.registry),
+            selectinload(CustomerPaymentCase.allocations),
+            selectinload(CustomerPaymentCase.evidence),
+        )
+        .filter(CustomerPaymentCase.id == case_id)
+        .first_or_404()
+    )
+    if _authorized_registry(payment_case.registry_id, is_developer) is None:
+        abort(403)
+    if not is_developer and payment_case.created_by_user_id != current_user.id:
+        abort(403)
+    if payment_case.status not in CUSTOMER_EDITABLE_CASE_STATUSES:
+        abort(409, description="La pratica e' gia' in lavorazione e non puo' piu' essere modificata.")
+    return payment_case
+
+
+def _queue_case_notification(case_id, notification_kind):
+    try:
+        from config.tasks import notify_customer_payment_case_task
+
+        notify_customer_payment_case_task.delay(case_id, notification_kind)
+    except Exception:
+        logger.exception("Impossibile accodare la notifica %s per la pratica %s", notification_kind, case_id)
+
+
+@customer_account_bp.route("/payments/<int:case_id>/edit", methods=["GET", "POST"])
+@login_required
+def edit_payment_case(case_id):
+    payment_case = _customer_owned_editable_case(case_id)
+    current_import = _latest_statement_import()
+    if current_import is None:
+        abort(409, description="La situazione contabile non e' disponibile.")
+
+    all_entries = (
+        CustomerAccountEntry.query
+        .filter(
+            CustomerAccountEntry.import_id == current_import.id,
+            _entry_ownership_filter(payment_case.registry),
+        )
+        .order_by(CustomerAccountEntry.document_date.desc().nullslast(), CustomerAccountEntry.row_number.desc())
+        .all()
+    )
+    selectable_entries = [entry for entry in all_entries if is_selectable_settlement_item(entry)]
+    entry_keys = {entry.id: account_entry_source_key(entry) for entry in selectable_entries}
+    selected_keys = {allocation.source_item_key for allocation in payment_case.allocations}
+    states = CustomerAccountingItemState.query.filter(
+        CustomerAccountingItemState.registry_id == payment_case.registry_id,
+        CustomerAccountingItemState.source_item_key.in_(tuple(entry_keys.values()) or ("",)),
+    ).all()
+    states_by_key = {state.source_item_key: state for state in states}
+    available_entries = [
+        entry for entry in selectable_entries
+        if entry_keys[entry.id] in selected_keys
+        or entry_keys[entry.id] not in states_by_key
+        or states_by_key[entry_keys[entry.id]].payment_case_id == payment_case.id
+        or states_by_key[entry_keys[entry.id]].status not in ACTIVE_ITEM_STATUSES
+    ]
+
+    if request.method == "POST":
+        try:
+            entry_ids = list(dict.fromkeys(
+                int(value) for value in request.form.getlist("entry_ids") if str(value).strip()
+            ))
+        except (TypeError, ValueError):
+            entry_ids = []
+        available_by_id = {entry.id: entry for entry in available_entries}
+        if not entry_ids or len(entry_ids) > 50 or any(entry_id not in available_by_id for entry_id in entry_ids):
+            flash("Seleziona da uno a 50 documenti disponibili.", "warning")
+            return redirect(url_for("customer_account.edit_payment_case", case_id=payment_case.id))
+        selected_entries = [available_by_id[entry_id] for entry_id in entry_ids]
+        new_keys = [entry_keys[entry.id] for entry in selected_entries]
+        if len(set(new_keys)) != len(new_keys):
+            abort(409, description="Due righe selezionate hanno la stessa identita' contabile.")
+        declared_amount = sum((Decimal(entry.signed_amount) for entry in selected_entries), Decimal("0.00"))
+        if declared_amount <= 0:
+            flash("Il totale netto dei documenti deve essere maggiore di zero.", "warning")
+            return redirect(url_for("customer_account.edit_payment_case", case_id=payment_case.id))
+
+        replacement_data = None
+        replacement_extension = None
+        replacement_content_type = None
+        replacement_upload = request.files.get("payment_evidence")
+        if replacement_upload is not None and replacement_upload.filename:
+            replacement_data = replacement_upload.read(MAX_EVIDENCE_BYTES + 1)
+            if not replacement_data or len(replacement_data) > MAX_EVIDENCE_BYTES:
+                flash("Il nuovo allegato e' vuoto oppure supera 12 MB.", "warning")
+                return redirect(url_for("customer_account.edit_payment_case", case_id=payment_case.id))
+            replacement_extension, replacement_content_type = _detect_evidence_type(replacement_data)
+            if not replacement_extension:
+                flash("Formato allegato non supportato.", "warning")
+                return redirect(url_for("customer_account.edit_payment_case", case_id=payment_case.id))
+
+        target_path = None
+        old_evidence_paths = []
+        old_keys = sorted(selected_keys)
+        try:
+            active_other_case = CustomerAccountingItemState.query.filter(
+                CustomerAccountingItemState.registry_id == payment_case.registry_id,
+                CustomerAccountingItemState.source_item_key.in_(tuple(new_keys)),
+                CustomerAccountingItemState.status.in_(tuple(ACTIVE_ITEM_STATUSES)),
+                CustomerAccountingItemState.payment_case_id != payment_case.id,
+            ).first()
+            if active_other_case:
+                abort(409, description="Uno dei documenti appartiene gia' a un'altra pratica attiva.")
+
+            CustomerPaymentAllocation.query.filter_by(case_id=payment_case.id).delete(synchronize_session=False)
+            db.session.flush()
+            owned_states = CustomerAccountingItemState.query.filter_by(payment_case_id=payment_case.id).all()
+            new_key_set = set(new_keys)
+            for state in owned_states:
+                if state.source_item_key not in new_key_set:
+                    db.session.delete(state)
+            current_states = {
+                state.source_item_key: state
+                for state in CustomerAccountingItemState.query.filter(
+                    CustomerAccountingItemState.registry_id == payment_case.registry_id,
+                    CustomerAccountingItemState.source_item_key.in_(tuple(new_keys)),
+                ).all()
+            }
+            target_status = "under_review" if payment_case.case_type == "payment_claim" else "awaiting_accounting"
+            for entry, source_key in zip(selected_entries, new_keys):
+                db.session.add(CustomerPaymentAllocation(
+                    case_id=payment_case.id,
+                    source_customer_code=entry.source_customer_code,
+                    source_item_key=source_key,
+                    current_entry_id=entry.id,
+                    allocated_amount=entry.signed_amount,
+                    document_snapshot=account_entry_snapshot(entry),
+                ))
+                item_state = current_states.get(source_key)
+                if item_state is None:
+                    item_state = CustomerAccountingItemState(
+                        registry_id=payment_case.registry_id,
+                        source_customer_code=entry.source_customer_code,
+                        source_item_key=source_key,
+                    )
+                    db.session.add(item_state)
+                item_state.status = target_status
+                item_state.payment_case_id = payment_case.id
+                item_state.last_seen_entry_id = entry.id
+                item_state.message = "Pratica modificata dal cliente"
+
+            payment_case.declared_amount = declared_amount
+            payment_case.payment_reference = _trimmed_form_value("payment_reference", 255)
+            payment_case.note = (request.form.get("note") or "").strip()[:4000] or None
+            if replacement_data is not None:
+                evidence_root = Path(current_app.instance_path) / "customer_payment_evidence"
+                case_folder = evidence_root / payment_case.public_id
+                case_folder.mkdir(parents=True, exist_ok=True)
+                stored_name = f"{secrets.token_hex(16)}.{replacement_extension}"
+                target_path = case_folder / stored_name
+                target_path.write_bytes(replacement_data)
+                for evidence in list(payment_case.evidence):
+                    old_evidence_paths.append(evidence.storage_path)
+                    db.session.delete(evidence)
+                original_filename = secure_filename(Path(replacement_upload.filename).name)[:255] or f"allegato.{replacement_extension}"
+                db.session.add(CustomerPaymentEvidence(
+                    case_id=payment_case.id,
+                    uploaded_by_user_id=current_user.id,
+                    original_filename=original_filename,
+                    storage_path=target_path.relative_to(Path(current_app.instance_path)).as_posix(),
+                    content_type=replacement_content_type,
+                    size_bytes=len(replacement_data),
+                    sha256=hashlib.sha256(replacement_data).hexdigest(),
+                ))
+            db.session.add(CustomerPaymentEvent(
+                case_id=payment_case.id,
+                actor_user_id=current_user.id,
+                event_type="customer_case_edited",
+                from_status=payment_case.status,
+                to_status=payment_case.status,
+                message="Pratica corretta dal cliente",
+                event_metadata={
+                    "old_document_count": len(old_keys), "new_document_count": len(new_keys),
+                    "evidence_replaced": replacement_data is not None,
+                },
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            if target_path is not None:
+                try:
+                    target_path.unlink(missing_ok=True)
+                except OSError:
+                    pass
+            raise
+
+        instance_root = Path(current_app.instance_path).resolve()
+        for relative_path in old_evidence_paths:
+            old_path = (instance_root / relative_path).resolve()
+            if instance_root in old_path.parents:
+                try:
+                    old_path.unlink(missing_ok=True)
+                except OSError:
+                    logger.exception("Impossibile eliminare il vecchio allegato %s", old_path)
+        _queue_case_notification(payment_case.id, "updated")
+        flash("Comunicazione aggiornata e ufficio avvisato.", "success")
+        return redirect(url_for("customer_account.index", customer=payment_case.registry_id))
+
+    return render_template(
+        "customer_account/edit_case.html",
+        payment_case=payment_case,
+        entries=available_entries,
+        selected_keys=selected_keys,
+        entry_keys=entry_keys,
+        case_type_labels=CASE_TYPE_LABELS,
+    )
+
+
+@customer_account_bp.post("/payments/<int:case_id>/delete")
+@login_required
+def delete_payment_case(case_id):
+    payment_case = _customer_owned_editable_case(case_id)
+    registry_id = payment_case.registry_id
+    CustomerAccountingItemState.query.filter_by(payment_case_id=payment_case.id).delete(synchronize_session=False)
+    old_status = payment_case.status
+    payment_case.status = "cancelled"
+    payment_case.resolved_at = datetime.now(timezone.utc)
+    db.session.add(CustomerPaymentEvent(
+        case_id=payment_case.id,
+        actor_user_id=current_user.id,
+        event_type="customer_case_cancelled",
+        from_status=old_status,
+        to_status="cancelled",
+        message="Pratica eliminata dal cliente prima della lavorazione",
+    ))
+    db.session.commit()
+    _queue_case_notification(payment_case.id, "cancelled")
+    flash("Comunicazione eliminata. I documenti sono nuovamente selezionabili.", "success")
+    return redirect(url_for("customer_account.index", customer=registry_id))
 
 
 def _office_case_query(case_types):

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Modifica comunicazione - LD Enoteca{% endblock %}
+{% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_account.css', v=app_version ~ '-payments4') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_payment_edit.css', v=app_version ~ '-edit1') }}">
+{% endblock %}
+{% block content %}
+<section class="customer-case-edit-page">
+  <a class="customer-case-edit-back" href="{{ url_for('customer_account.index', customer=payment_case.registry_id) }}"><i class="fa-solid fa-arrow-left"></i> Torna alla situazione contabile</a>
+  <header><div class="customer-account-eyebrow">{{ case_type_labels.get(payment_case.case_type, payment_case.case_type) }}</div><h1>Modifica comunicazione</h1><p>{{ payment_case.registry.display_name or payment_case.registry.legal_name }} · pratica {{ payment_case.public_id[-8:] }}</p></header>
+
+  <form method="post" enctype="multipart/form-data" data-case-edit-form>
+    <section class="customer-case-edit-card"><div class="customer-case-edit-title"><div><h2>Documenti interessati</h2><p>Correggi la selezione. Il totale netto deve rimanere maggiore di zero.</p></div><strong data-edit-total>{{ money(payment_case.declared_amount) }}</strong></div>
+      <div class="customer-case-edit-documents">
+        {% for entry in entries %}{% set source_key = entry_keys.get(entry.id) %}<label class="customer-case-edit-document">
+          <input class="form-check-input" type="checkbox" name="entry_ids" value="{{ entry.id }}" data-edit-entry data-amount="{{ entry.signed_amount }}" {{ 'checked' if source_key in selected_keys }}>
+          <span><strong>{{ entry.document_number }}</strong><small>{{ entry.document_date.strftime('%d/%m/%Y') if entry.document_date else '—' }} · {{ entry.description or 'Documento contabile' }}</small></span>
+          <b class="{{ 'text-success' if entry.signed_amount < 0 }}">{{ money(entry.signed_amount) }}</b>
+        </label>{% else %}<p class="text-muted">Non ci sono documenti modificabili nell'ultimo aggiornamento.</p>{% endfor %}
+      </div>
+    </section>
+
+    <section class="customer-case-edit-card"><h2>Dati della comunicazione</h2>
+      <label class="form-label" for="caseReference">Data e riferimento/CRO</label><input class="form-control" id="caseReference" name="payment_reference" maxlength="255" value="{{ payment_case.payment_reference or '' }}">
+      <label class="form-label mt-3" for="caseNote">Nota</label><textarea class="form-control" id="caseNote" name="note" rows="4" maxlength="4000">{{ payment_case.note or '' }}</textarea>
+      <label class="form-label mt-3" for="caseEvidence">Sostituisci {{ 'la prova di pagamento' if payment_case.case_type == 'payment_claim' else 'la contabile' }}</label><input class="form-control" id="caseEvidence" type="file" name="payment_evidence" accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,.pdf,.jpg,.jpeg,.png,.webp,.heic,.heif">
+      <div class="form-text">Lascia vuoto per mantenere l'allegato attuale. PDF o immagine, massimo 12 MB.</div>
+      {% for evidence in payment_case.evidence %}<a class="customer-case-current-file" href="{{ url_for('customer_account.download_payment_evidence', evidence_id=evidence.id) }}"><i class="fa-solid fa-paperclip"></i> Allegato attuale: {{ evidence.original_filename }}</a>{% endfor %}
+    </section>
+    <div class="customer-case-edit-actions"><a class="btn btn-outline-secondary" href="{{ url_for('customer_account.index', customer=payment_case.registry_id) }}">Annulla</a><button class="btn btn-primary" type="submit" data-save-case><i class="fa-solid fa-floppy-disk"></i> Salva modifiche</button></div>
+  </form>
+  <form class="customer-case-delete" method="post" action="{{ url_for('customer_account.delete_payment_case', case_id=payment_case.id) }}" onsubmit="return confirm('Eliminare questa comunicazione e liberare i documenti selezionati?')"><button class="btn btn-outline-danger" type="submit"><i class="fa-solid fa-trash"></i> Elimina comunicazione</button><small>L'operazione resta tracciata per sicurezza, ma la pratica scompare dalla tua area e i documenti tornano selezionabili.</small></form>
+</section>
+{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_payment_edit.js', v=app_version ~ '-edit1') }}"></script>{% endblock %}

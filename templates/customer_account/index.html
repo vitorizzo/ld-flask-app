@@ -51,6 +51,10 @@
             <div class="customer-payment-case-amount">{{ money(payment_case.declared_amount) }}<small>{{ payment_case.allocations|length }} {{ 'documento' if payment_case.allocations|length == 1 else 'documenti' }}</small></div>
             {% if payment_case.rejection_message %}<p class="text-danger mb-0">{{ payment_case.rejection_message }}</p>{% endif %}
             {% if payment_case.evidence %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('customer_account.download_payment_evidence', evidence_id=payment_case.evidence[0].id) }}"><i class="fa-solid fa-paperclip"></i> Contabile</a>{% endif %}
+            {% if payment_case.status in customer_editable_case_statuses and (is_developer or payment_case.created_by_user_id == current_user.id) %}<div class="customer-payment-case-actions">
+              <a class="btn btn-sm btn-outline-primary" href="{{ url_for('customer_account.edit_payment_case', case_id=payment_case.id) }}"><i class="fa-solid fa-pen"></i> Modifica</a>
+              <form method="post" action="{{ url_for('customer_account.delete_payment_case', case_id=payment_case.id) }}" onsubmit="return confirm('Eliminare questa comunicazione e liberare i documenti selezionati?')"><button class="btn btn-sm btn-outline-danger" type="submit"><i class="fa-solid fa-trash"></i> Elimina</button></form>
+            </div>{% endif %}
           </article>{% endfor %}
         </div>
       </section>

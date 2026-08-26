@@ -84,10 +84,10 @@ def import_estratti_conto_clienti_task(self):
 
 @celery.task(bind=True)
 @log_task(logger)
-def notify_customer_payment_case_task(self, case_id):
+def notify_customer_payment_case_task(self, case_id, notification_kind="created"):
     from tools.customer_payment_notifications import notify_customer_payment_case
 
-    return notify_customer_payment_case(case_id)
+    return notify_customer_payment_case(case_id, notification_kind=notification_kind)
 
 
 @celery.task(bind=True)
