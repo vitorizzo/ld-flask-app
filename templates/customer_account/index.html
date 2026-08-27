@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}La mia situazione contabile - LD Enoteca{% endblock %}
 {% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
-{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_account.css', v=app_version ~ '-payments3') }}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_account.css', v=app_version ~ '-payments4') }}">{% endblock %}
 {% block content %}
 <section class="customer-account-page">
   <header class="customer-account-hero">
@@ -49,8 +49,9 @@
           {% for payment_case in recent_cases %}<article class="customer-payment-case">
             <div><strong>{{ case_status_labels.get(payment_case.status, payment_case.status) }}</strong><small>Pratica {{ payment_case.public_id[-8:] }} · {{ payment_case.created_at.strftime('%d/%m/%Y %H:%M') }}</small></div>
             <div class="customer-payment-case-amount">{{ money(payment_case.declared_amount) }}<small>{{ payment_case.allocations|length }} {{ 'documento' if payment_case.allocations|length == 1 else 'documenti' }}</small></div>
+            <span class="badge {{ 'text-bg-warning' if payment_case.case_type == 'payment_claim' else 'text-bg-primary' }}">{{ case_type_labels.get(payment_case.case_type, payment_case.case_type) }}</span>
             {% if payment_case.rejection_message %}<p class="text-danger mb-0">{{ payment_case.rejection_message }}</p>{% endif %}
-            {% if payment_case.evidence %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('customer_account.download_payment_evidence', evidence_id=payment_case.evidence[0].id) }}"><i class="fa-solid fa-paperclip"></i> Contabile</a>{% endif %}
+            {% if payment_case.evidence %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('customer_account.download_payment_evidence', evidence_id=payment_case.evidence[0].id) }}"><i class="fa-solid fa-paperclip"></i> {{ 'Prova' if payment_case.case_type == 'payment_claim' else 'Contabile' }}</a>{% endif %}
             {% if payment_case.status in customer_editable_case_statuses and (is_developer or payment_case.created_by_user_id == current_user.id) %}<div class="customer-payment-case-actions">
               <a class="btn btn-sm btn-outline-primary" href="{{ url_for('customer_account.edit_payment_case', case_id=payment_case.id) }}"><i class="fa-solid fa-pen"></i> Modifica</a>
               <form method="post" action="{{ url_for('customer_account.delete_payment_case', case_id=payment_case.id) }}" onsubmit="return confirm('Eliminare questa comunicazione e liberare i documenti selezionati?')"><button class="btn btn-sm btn-outline-danger" type="submit"><i class="fa-solid fa-trash"></i> Elimina</button></form>
@@ -90,7 +91,7 @@
 
 {% if registry and entries %}<div class="customer-payment-selection" data-payment-selection hidden>
   <div><span data-selection-count>0 documenti</span><strong data-selection-total>0,00 €</strong></div>
-  <button class="btn btn-primary" type="button" data-communicate-payment-trigger><i class="fa-solid fa-upload"></i> Comunica bonifico</button>
+  <div class="customer-payment-selection-actions"><button class="btn btn-outline-warning" type="button" data-contest-payment-trigger><i class="fa-solid fa-triangle-exclamation"></i> Contesta partite</button><button class="btn btn-primary" type="button" data-communicate-payment-trigger><i class="fa-solid fa-upload"></i> Comunica bonifico</button></div>
 </div>{% endif %}
 
 {% if registry %}<div class="modal fade customer-payment-modal" id="communicatePaymentModal" tabindex="-1" aria-hidden="true">
@@ -108,6 +109,25 @@
         <div class="customer-payment-feedback" data-payment-feedback aria-live="polite"></div>
       </div>
       <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button type="submit" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Invia comunicazione</button></div>
+    </form>
+  </div></div>
+</div>{% endif %}
+
+{% if registry %}<div class="modal fade customer-payment-modal" id="contestPaymentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <form method="post" action="{{ url_for('customer_account.submit_payment_claim') }}" enctype="multipart/form-data" data-claim-form>
+      <div class="modal-header"><div><div class="customer-account-eyebrow">Contestazione contabile</div><h2 class="modal-title">Contesta le partite selezionate</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+      <div class="modal-body">
+        <input type="hidden" name="registry_id" value="{{ registry.id }}"><div data-claim-entry-inputs></div>
+        <div class="customer-payment-modal-total"><span>Totale contabile selezionato</span><strong data-claim-selection-total>0,00 €</strong><small data-claim-selection-count></small></div>
+        <div class="alert alert-info py-2">Indica perché queste partite non dovrebbero risultare aperte. Puoi allegare ricevute, contabili o screenshot del pagamento.</div>
+        <label class="form-label" for="claimReason">Motivazione</label><textarea class="form-control" id="claimReason" name="reason" rows="5" maxlength="4000" placeholder="Ad esempio: fatture saldate con bonifico del…"></textarea>
+        <label class="form-label mt-3" for="claimReference">Riferimento pagamento/CRO facoltativo</label><input class="form-control" id="claimReference" name="claim_reference" maxlength="255" autocomplete="off">
+        <label class="form-label mt-3" for="claimEvidence">Prove di pagamento facoltative</label><input class="form-control" id="claimEvidence" type="file" name="claim_evidence" multiple accept="application/pdf,image/jpeg,image/png,image/webp,image/heic,image/heif,.pdf,.jpg,.jpeg,.png,.webp,.heic,.heif">
+        <div class="form-text">Massimo 5 file, 12 MB ciascuno e 24 MB complessivi. È obbligatoria almeno una motivazione o una prova.</div>
+        <div class="customer-payment-feedback" data-claim-feedback aria-live="polite"></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button type="submit" class="btn btn-warning"><i class="fa-solid fa-paper-plane"></i> Invia contestazione</button></div>
     </form>
   </div></div>
 </div>{% endif %}
@@ -144,4 +164,4 @@
   </div></div>
 </div>{% endif %}
 {% endblock %}
-{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_account.js', v=app_version ~ '-payments3') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_account.js', v=app_version ~ '-payments4') }}"></script>{% endblock %}

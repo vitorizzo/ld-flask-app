@@ -6,6 +6,7 @@
     const checkboxes = Array.from(form.querySelectorAll("[data-edit-entry]"));
     const totalNode = form.querySelector("[data-edit-total]");
     const saveButton = form.querySelector("[data-save-case]");
+    const requirePositive = form.dataset.requirePositive !== "0";
     const euro = new Intl.NumberFormat("it-IT", {style: "currency", currency: "EUR"});
 
     function update() {
@@ -15,8 +16,8 @@
         return sum + (Number.isFinite(value) ? value : 0);
       }, 0);
       totalNode.textContent = euro.format(total);
-      totalNode.classList.toggle("text-danger", total <= 0);
-      saveButton.disabled = checked.length === 0 || total <= 0;
+      totalNode.classList.toggle("text-danger", requirePositive && total <= 0);
+      saveButton.disabled = checked.length === 0 || (requirePositive && total <= 0);
       checkboxes.forEach(function (item) {
         item.closest("label")?.classList.toggle("is-selected", item.checked);
       });

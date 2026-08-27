@@ -233,6 +233,7 @@ def index():
         payment_instructions=payment_instructions,
         formatted_iban=format_iban(payment_instructions.iban) if payment_instructions else None,
         case_status_labels=CASE_STATUS_LABELS,
+        case_type_labels=CASE_TYPE_LABELS,
         customer_editable_case_statuses=CUSTOMER_EDITABLE_CASE_STATUSES,
     )
 
@@ -473,6 +474,162 @@ def communicate_bank_transfer():
     return redirect(url_for("customer_account.index", customer=registry.id))
 
 
+@customer_account_bp.post("/payments/claim")
+@login_required
+def submit_payment_claim():
+    _, is_developer = _role_context()
+    registry_id = request.form.get("registry_id", type=int)
+    registry = _authorized_registry(registry_id, is_developer)
+    if registry is None:
+        abort(403)
+
+    try:
+        entry_ids = list(dict.fromkeys(
+            int(value) for value in request.form.getlist("entry_ids") if str(value).strip()
+        ))
+    except (TypeError, ValueError):
+        entry_ids = []
+    if not entry_ids or len(entry_ids) > 50:
+        flash("Seleziona da uno a 50 documenti da contestare.", "warning")
+        return redirect(url_for("customer_account.index", customer=registry.id))
+
+    current_import = _latest_statement_import()
+    if current_import is None:
+        flash("La situazione contabile non e' disponibile.", "warning")
+        return redirect(url_for("customer_account.index", customer=registry.id))
+    entries = CustomerAccountEntry.query.filter(
+        CustomerAccountEntry.import_id == current_import.id,
+        CustomerAccountEntry.id.in_(entry_ids),
+        _entry_ownership_filter(registry),
+    ).all()
+    entries_by_id = {entry.id: entry for entry in entries if is_selectable_settlement_item(entry)}
+    if len(entries_by_id) != len(entry_ids):
+        abort(400, description="Uno o piu' documenti non sono contestabili nell'ultimo aggiornamento.")
+    entries = [entries_by_id[entry_id] for entry_id in entry_ids]
+    source_keys = [account_entry_source_key(entry) for entry in entries]
+    if len(set(source_keys)) != len(source_keys):
+        abort(409, description="Due righe selezionate hanno la stessa identita' contabile.")
+    if CustomerAccountingItemState.query.filter(
+        CustomerAccountingItemState.registry_id == registry.id,
+        CustomerAccountingItemState.source_item_key.in_(tuple(source_keys)),
+        CustomerAccountingItemState.status.in_(tuple(ACTIVE_ITEM_STATUSES)),
+    ).first():
+        flash("Almeno un documento selezionato appartiene gia' a una pratica in corso.", "warning")
+        return redirect(url_for("customer_account.index", customer=registry.id))
+
+    reason = (request.form.get("reason") or "").strip()[:4000] or None
+    uploads = [item for item in request.files.getlist("claim_evidence") if item and item.filename]
+    if len(uploads) > 5:
+        flash("Puoi allegare al massimo 5 prove di pagamento.", "warning")
+        return redirect(url_for("customer_account.index", customer=registry.id))
+    if not reason and not uploads:
+        flash("Scrivi una motivazione oppure allega almeno una prova di pagamento.", "warning")
+        return redirect(url_for("customer_account.index", customer=registry.id))
+
+    prepared_uploads = []
+    total_evidence_bytes = 0
+    for upload in uploads:
+        data = upload.read(MAX_EVIDENCE_BYTES + 1)
+        extension, content_type = _detect_evidence_type(data)
+        if not data or len(data) > MAX_EVIDENCE_BYTES or not extension:
+            flash("Una delle prove non e' valida. Usa PDF, JPG, PNG, WEBP o HEIC, massimo 12 MB ciascuna.", "warning")
+            return redirect(url_for("customer_account.index", customer=registry.id))
+        total_evidence_bytes += len(data)
+        if total_evidence_bytes > 24 * 1024 * 1024:
+            flash("Gli allegati superano complessivamente 24 MB.", "warning")
+            return redirect(url_for("customer_account.index", customer=registry.id))
+        prepared_uploads.append((upload, data, extension, content_type))
+
+    submitted_at = datetime.now(timezone.utc)
+    payment_case = CustomerPaymentCase(
+        registry_id=registry.id,
+        created_by_user_id=current_user.id,
+        case_type="payment_claim",
+        status="under_review",
+        currency="EUR",
+        declared_amount=sum((Decimal(entry.signed_amount) for entry in entries), Decimal("0.00")),
+        payment_reference=_trimmed_form_value("claim_reference", 255),
+        note=reason,
+        submitted_at=submitted_at,
+    )
+    db.session.add(payment_case)
+    written_paths = []
+    try:
+        db.session.flush()
+        case_folder = Path(current_app.instance_path) / "customer_payment_evidence" / payment_case.public_id
+        if prepared_uploads:
+            case_folder.mkdir(parents=True, exist_ok=True)
+        for upload, data, extension, content_type in prepared_uploads:
+            target_path = case_folder / f"{secrets.token_hex(16)}.{extension}"
+            target_path.write_bytes(data)
+            written_paths.append(target_path)
+            original_filename = secure_filename(Path(upload.filename).name)[:255] or f"prova.{extension}"
+            db.session.add(CustomerPaymentEvidence(
+                case_id=payment_case.id,
+                uploaded_by_user_id=current_user.id,
+                original_filename=original_filename,
+                storage_path=target_path.relative_to(Path(current_app.instance_path)).as_posix(),
+                content_type=content_type,
+                size_bytes=len(data),
+                sha256=hashlib.sha256(data).hexdigest(),
+            ))
+        existing_states = {
+            state.source_item_key: state
+            for state in CustomerAccountingItemState.query.filter(
+                CustomerAccountingItemState.registry_id == registry.id,
+                CustomerAccountingItemState.source_item_key.in_(tuple(source_keys)),
+            ).all()
+        }
+        for entry, source_key in zip(entries, source_keys):
+            db.session.add(CustomerPaymentAllocation(
+                case_id=payment_case.id,
+                source_customer_code=entry.source_customer_code,
+                source_item_key=source_key,
+                current_entry_id=entry.id,
+                allocated_amount=entry.signed_amount,
+                document_snapshot=account_entry_snapshot(entry),
+            ))
+            item_state = existing_states.get(source_key)
+            if item_state is None:
+                item_state = CustomerAccountingItemState(
+                    registry_id=registry.id,
+                    source_customer_code=entry.source_customer_code,
+                    source_item_key=source_key,
+                )
+                db.session.add(item_state)
+            item_state.status = "under_review"
+            item_state.payment_case_id = payment_case.id
+            item_state.last_seen_entry_id = entry.id
+            item_state.message = "Partita contestata dal cliente"
+        db.session.add(CustomerPaymentEvent(
+            case_id=payment_case.id,
+            actor_user_id=current_user.id,
+            event_type="payment_claim_submitted",
+            from_status=None,
+            to_status="under_review",
+            message="Contestazione partita aperta inviata",
+            event_metadata={"document_count": len(entries), "evidence_count": len(prepared_uploads)},
+        ))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        for target_path in written_paths:
+            try:
+                target_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+        logger.exception("Errore registrazione contestazione cliente=%s", registry.id)
+        flash("Non e' stato possibile registrare la contestazione. Riprova.", "danger")
+        return redirect(url_for("customer_account.index", customer=registry.id))
+
+    _queue_case_notification(payment_case.id, "created")
+    flash(
+        f"Contestazione inviata per {len(entries)} documenti. La pratica e' in fase di verifica.",
+        "success",
+    )
+    return redirect(url_for("customer_account.index", customer=registry.id))
+
+
 @customer_account_bp.get("/payment-evidence/<int:evidence_id>")
 @login_required
 def download_payment_evidence(evidence_id):
@@ -574,7 +731,7 @@ def edit_payment_case(case_id):
         if len(set(new_keys)) != len(new_keys):
             abort(409, description="Due righe selezionate hanno la stessa identita' contabile.")
         declared_amount = sum((Decimal(entry.signed_amount) for entry in selected_entries), Decimal("0.00"))
-        if declared_amount <= 0:
+        if payment_case.case_type != "payment_claim" and declared_amount <= 0:
             flash("Il totale netto dei documenti deve essere maggiore di zero.", "warning")
             return redirect(url_for("customer_account.edit_payment_case", case_id=payment_case.id))
 

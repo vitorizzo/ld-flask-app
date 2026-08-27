@@ -32,8 +32,10 @@
 
   document.addEventListener("DOMContentLoaded", function () {
     const paymentModal = document.getElementById("communicatePaymentModal");
+    const claimModal = document.getElementById("contestPaymentModal");
     const bankModal = document.getElementById("bankDetailsModal");
     moveModalToBody(paymentModal);
+    moveModalToBody(claimModal);
     moveModalToBody(bankModal);
 
     const customerFilter = document.querySelector("[data-customer-filter]");
@@ -60,6 +62,11 @@
     const selectedInputs = document.querySelector("[data-selected-entry-inputs]");
     const paymentFeedback = document.querySelector("[data-payment-feedback]");
     const communicateTrigger = document.querySelector("[data-communicate-payment-trigger]");
+    const contestTrigger = document.querySelector("[data-contest-payment-trigger]");
+    const claimCount = document.querySelector("[data-claim-selection-count]");
+    const claimTotal = document.querySelector("[data-claim-selection-total]");
+    const claimInputs = document.querySelector("[data-claim-entry-inputs]");
+    const claimFeedback = document.querySelector("[data-claim-feedback]");
 
     function checkedInvoices() {
       return invoiceCheckboxes.filter(function (checkbox) { return checkbox.checked; });
@@ -82,11 +89,14 @@
         modalTotal.textContent = euro.format(total);
         modalTotal.classList.toggle("is-net-invalid", total <= 0);
       }
+      if (claimCount) claimCount.textContent = countLabel;
+      if (claimTotal) claimTotal.textContent = euro.format(total);
       if (selectionBar) selectionBar.hidden = selected.length === 0;
       if (communicateTrigger) {
         communicateTrigger.disabled = selected.length === 0 || total <= 0;
         communicateTrigger.title = total <= 0 ? "Il netto da bonificare deve essere maggiore di zero" : "";
       }
+      if (contestTrigger) contestTrigger.disabled = selected.length === 0;
       document.body.classList.toggle("customer-payment-selection-active", selected.length > 0);
       if (selectAll) {
         selectAll.checked = invoiceCheckboxes.length > 0 && selected.length === invoiceCheckboxes.length;
@@ -136,6 +146,22 @@
       });
     }
 
+    if (contestTrigger && claimModal) {
+      contestTrigger.addEventListener("click", function () {
+        const selected = checkedInvoices();
+        if (!selected.length) return;
+        claimInputs.replaceChildren.apply(claimInputs, selected.map(function (checkbox) {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = "entry_ids";
+          input.value = checkbox.value;
+          return input;
+        }));
+        if (claimFeedback) claimFeedback.textContent = "";
+        window.bootstrap.Modal.getOrCreateInstance(claimModal).show();
+      });
+    }
+
     const paymentForm = document.querySelector("[data-payment-form]");
     if (paymentForm) {
       paymentForm.addEventListener("submit", function (event) {
@@ -154,6 +180,32 @@
           return;
         }
         const submit = paymentForm.querySelector('button[type="submit"]');
+        if (submit) {
+          submit.disabled = true;
+          submit.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Invio in corso…';
+        }
+      });
+    }
+
+    const claimForm = document.querySelector("[data-claim-form]");
+    if (claimForm) {
+      claimForm.addEventListener("submit", function (event) {
+        const selected = checkedInvoices();
+        const reason = claimForm.querySelector('[name="reason"]')?.value.trim() || "";
+        const files = Array.from(claimForm.querySelector('[name="claim_evidence"]')?.files || []);
+        const totalBytes = files.reduce(function (sum, file) { return sum + file.size; }, 0);
+        let error = "";
+        if (!selected.length) error = "Seleziona almeno un documento.";
+        else if (!reason && !files.length) error = "Scrivi una motivazione oppure allega una prova di pagamento.";
+        else if (files.length > 5) error = "Puoi allegare al massimo 5 file.";
+        else if (files.some(function (file) { return file.size > 12 * 1024 * 1024; })) error = "Ogni allegato può pesare al massimo 12 MB.";
+        else if (totalBytes > 24 * 1024 * 1024) error = "Gli allegati possono pesare complessivamente al massimo 24 MB.";
+        if (error) {
+          event.preventDefault();
+          if (claimFeedback) claimFeedback.textContent = error;
+          return;
+        }
+        const submit = claimForm.querySelector('button[type="submit"]');
         if (submit) {
           submit.disabled = true;
           submit.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Invio in corso…';
