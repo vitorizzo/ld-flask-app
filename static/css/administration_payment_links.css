@@ -1,0 +1,51 @@
+.payment-links-page { max-width: 1500px; margin: 0 auto; }
+.payment-links-table thead th { white-space: nowrap; font-size: .78rem; text-transform: uppercase; letter-spacing: .035em; color: #64748b; }
+.payment-link-modal .modal-content { border: 0; border-radius: 18px; box-shadow: 0 24px 70px rgba(15, 23, 42, .28); }
+.payment-link-modal .modal-header, .payment-link-modal .modal-footer { padding: 1.15rem 1.35rem; }
+.payment-link-modal .modal-body { padding: 1.35rem; }
+.recipient-types { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .65rem; }
+.recipient-types label { cursor: pointer; }
+.recipient-types input { position: absolute; opacity: 0; pointer-events: none; }
+.recipient-types span { min-height: 76px; padding: .75rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .4rem; border: 1px solid #d5dce5; border-radius: 12px; text-align: center; background: #fff; transition: .15s ease; }
+.recipient-types span i { font-size: 1.25rem; color: #52677b; }
+.recipient-types input:checked + span { border-color: #0d6efd; box-shadow: 0 0 0 3px rgba(13, 110, 253, .14); background: #f5f9ff; color: #073b79; }
+.recipient-types input:focus-visible + span { outline: 3px solid rgba(13, 110, 253, .35); outline-offset: 2px; }
+.recipient-results { display: grid; gap: .4rem; margin-top: .45rem; max-height: 230px; overflow-y: auto; }
+.recipient-result { width: 100%; border: 1px solid #d9e0e8; background: #fff; border-radius: 10px; padding: .7rem .85rem; text-align: left; display: flex; flex-direction: column; }
+.recipient-result:hover, .recipient-result:focus { border-color: #0d6efd; background: #f6f9ff; }
+.recipient-result span, .selected-recipient span { color: #687789; font-size: .86rem; }
+.recipient-empty { padding: .8rem; color: #687789; text-align: center; }
+.selected-recipient { display: grid; grid-template-columns: 1fr auto; margin-top: .65rem; padding: .8rem 2.7rem .8rem .9rem; border-radius: 10px; background: #eaf7ef; color: #175c34; position: relative; }
+.selected-recipient span { grid-column: 1; }
+.selected-recipient .btn-close { position: absolute; right: .8rem; top: 50%; transform: translateY(-50%); }
+.payment-link-result { padding: 1.1rem; border: 1px solid #b8dfc8; background: #f0faf4; border-radius: 14px; }
+
+@media (max-width: 767.98px) {
+  .payment-links-page h1 { font-size: 1.65rem; }
+  .payment-links-page #newPaymentLinkButton { width: 100%; min-height: 52px; }
+  .recipient-types { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .recipient-types span { min-height: 82px; font-size: .92rem; }
+  .payment-link-modal .modal-dialog { margin: .45rem; min-height: calc(100% - .9rem); }
+  .payment-link-modal .modal-content { min-height: calc(100vh - .9rem); border-radius: 14px; }
+  .payment-link-modal .modal-header, .payment-link-modal .modal-footer { padding: 1rem; }
+  .payment-link-modal .modal-body { padding: 1rem; }
+  .payment-link-modal .form-label { font-size: 1rem; font-weight: 600; }
+  .payment-link-modal .form-control, .payment-link-modal .input-group-text { min-height: 50px; font-size: 16px; }
+  .payment-link-modal .modal-footer { display: grid; grid-template-columns: 1fr 1fr; }
+  .payment-link-modal .modal-footer .btn { min-height: 52px; margin: 0; }
+  .payment-links-table thead { display: none; }
+  .payment-links-table, .payment-links-table tbody, .payment-links-table tr, .payment-links-table td { display: block; width: 100%; }
+  .payment-links-table tr { padding: .9rem 1rem; border-bottom: 1px solid #e4e8ed; }
+  .payment-links-table td { display: grid; grid-template-columns: 105px minmax(0, 1fr); text-align: left !important; border: 0; padding: .32rem 0; gap: .65rem; }
+  .payment-links-table td::before { content: attr(data-label); color: #687789; font-size: .78rem; font-weight: 700; text-transform: uppercase; }
+  .payment-links-table td .btn-group { width: 100%; }
+  .payment-links-table td .btn { flex: 1; min-height: 44px; }
+  .payment-link-result .input-group { display: grid; grid-template-columns: 1fr; }
+  .payment-link-result .input-group > * { width: 100%; border-radius: 8px !important; }
+  .payment-link-result .input-group .btn { margin-top: .55rem; min-height: 50px; }
+}
+
+@media (min-width: 768px) and (max-width: 1100px), (min-width: 360px) and (min-resolution: 2dppx) and (max-width: 520px) {
+  .payment-link-modal .modal-title { font-size: 1.45rem; }
+  .payment-link-modal .btn-lg { min-height: 52px; font-size: 1rem; }
+}

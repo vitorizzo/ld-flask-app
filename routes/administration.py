@@ -1,18 +1,29 @@
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from email.utils import parseaddr
 from html import escape
+import hmac
+import os
 
-from flask import Blueprint, abort, jsonify, render_template, request, url_for
+from flask import Blueprint, abort, current_app, jsonify, render_template, request, url_for
 from flask_mail import Message
-from flask_login import login_required
+from flask_login import current_user, login_required
 from sqlalchemy import case, func
 
 from extensions import db
-from models import BusinessRegistry, BusinessRegistryContact, CustomerAccountEntry, CustomerAccountStatementImport
+from models import (
+    AdministrationPaymentLink,
+    AdministrationPaymentLinkDelivery,
+    BusinessRegistry,
+    BusinessRegistryContact,
+    CustomerAccountEntry,
+    CustomerAccountStatementImport,
+    User,
+)
 from tools.log_utils import get_logger, log_task
 from tools.mail_accounts import account_sender, get_email_account, send_account_mail
+from tools.nexi_xpay import NexiXPayClient, NexiXPayError, NexiXPayUncertainError
 from tools.role_required import role_required
 
 
@@ -25,6 +36,45 @@ MONTH_LABELS = (
     "Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
     "Lug", "Ago", "Set", "Ott", "Nov", "Dic",
 )
+
+
+def _base36(value):
+    alphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    value = int(value)
+    result = "0"
+    if value > 0:
+        chars = []
+        while value:
+            value, remainder = divmod(value, 36)
+            chars.append(alphabet[remainder])
+        result = "".join(reversed(chars))
+    return result
+
+
+def _public_url(endpoint=None, **values):
+    if endpoint:
+        path = url_for(endpoint, _external=False, **values)
+    else:
+        path = "/"
+    base_url = current_app.config.get("PUBLIC_BASE_URL") or os.getenv("PUBLIC_BASE_URL") or "https://ldapp.ldenoteca.it"
+    return f"{str(base_url).rstrip('/')}{path}"
+
+
+def _parse_positive_amount(raw_value):
+    normalized = str(raw_value or "").strip().replace(" ", "")
+    if "," in normalized:
+        normalized = normalized.replace(".", "").replace(",", ".")
+    try:
+        amount = Decimal(normalized).quantize(Decimal("0.01"))
+    except (ArithmeticError, ValueError):
+        return None
+    return amount if Decimal("0.01") <= amount <= Decimal("999999999999.99") else None
+
+
+def _valid_email(value):
+    value = str(value or "").strip()
+    parsed = parseaddr(value)[1]
+    return parsed if parsed and parsed == value and "@" in parsed and len(parsed) <= 255 else None
 
 
 def _latest_statement_import():
@@ -641,3 +691,325 @@ def send_customer_credit_communication(source_customer_code):
         "message": f"Comunicazione {'di test ' if test_mode else ''}inviata a {recipient}.",
         "suppressed": bool(result.get("suppressed")),
     })
+
+
+def _payment_link_recipient(payload):
+    recipient_type = str(payload.get("recipient_type") or "none").strip().lower()
+    if recipient_type in {"", "none", "copy"}:
+        return None
+    if recipient_type == "email":
+        email = _valid_email(payload.get("recipient_email"))
+        if not email:
+            raise ValueError("Inserisci un indirizzo email valido.")
+        return {"type": "email", "email": email, "name": str(payload.get("recipient_name") or "").strip()[:255] or None}
+    try:
+        recipient_id = int(payload.get("recipient_id"))
+    except (TypeError, ValueError):
+        raise ValueError("Seleziona un destinatario valido.")
+    if recipient_type == "user":
+        user = User.query.get(recipient_id)
+        if user is None or not _valid_email(user.email):
+            raise ValueError("L'utente selezionato non dispone di un indirizzo email valido.")
+        return {
+            "type": "user", "email": user.email, "name": f"{user.name} {user.surname}".strip(),
+            "user_id": user.id,
+        }
+    if recipient_type == "customer":
+        registry = BusinessRegistry.query.filter_by(id=recipient_id, kind="customer", is_active=True).first()
+        if registry is None:
+            raise ValueError("Cliente non trovato.")
+        requested_contact_id = payload.get("recipient_contact_id")
+        query = BusinessRegistryContact.query.filter(
+            BusinessRegistryContact.registry_id == registry.id,
+            BusinessRegistryContact.contact_type == "email",
+        )
+        if requested_contact_id:
+            try:
+                query = query.filter(BusinessRegistryContact.id == int(requested_contact_id))
+            except (TypeError, ValueError):
+                raise ValueError("Recapito cliente non valido.")
+        contact = query.order_by(BusinessRegistryContact.is_primary.desc(), BusinessRegistryContact.id.asc()).first()
+        if contact is None or not _valid_email(contact.value):
+            raise ValueError("Il cliente selezionato non dispone di un indirizzo email valido.")
+        return {
+            "type": "customer", "email": contact.value,
+            "name": registry.display_name or registry.legal_name or registry.source_code,
+            "registry_id": registry.id, "contact_id": contact.id,
+        }
+    raise ValueError("Tipo di destinatario non valido.")
+
+
+def _queue_payment_link_delivery(payment_link, recipient):
+    if not recipient:
+        return None
+    delivery = AdministrationPaymentLinkDelivery(
+        payment_link_id=payment_link.id,
+        requested_by_user_id=current_user.id,
+        recipient_type=recipient["type"],
+        recipient_user_id=recipient.get("user_id"),
+        recipient_registry_id=recipient.get("registry_id"),
+        recipient_name=recipient.get("name"),
+        recipient_email=recipient["email"],
+        status="queued",
+    )
+    db.session.add(delivery)
+    db.session.commit()
+    try:
+        from config.tasks import send_administration_payment_link_task
+
+        send_administration_payment_link_task.delay(delivery.id)
+    except Exception as exc:
+        logger.exception("Impossibile accodare invio PayByLink delivery=%s", delivery.id)
+        delivery.status = "failed"
+        delivery.error_message = f"Accodamento non riuscito: {str(exc)[:500]}"
+        db.session.commit()
+    return delivery
+
+
+@administration_bp.get("/payment-links")
+@login_required
+@role_required(40, roles=["office"])
+@log_task(logger)
+def payment_links():
+    expired_count = AdministrationPaymentLink.query.filter(
+        AdministrationPaymentLink.status == "active",
+        AdministrationPaymentLink.expires_at.isnot(None),
+        AdministrationPaymentLink.expires_at <= datetime.now(timezone.utc),
+    ).update({AdministrationPaymentLink.status: "expired"}, synchronize_session=False)
+    if expired_count:
+        db.session.commit()
+    page = request.args.get("page", 1, type=int)
+    links = AdministrationPaymentLink.query.order_by(
+        AdministrationPaymentLink.created_at.desc(), AdministrationPaymentLink.id.desc(),
+    ).paginate(page=max(1, page), per_page=30, error_out=False)
+    return render_template(
+        "administration/payment_links.html",
+        links=links,
+        xpay_configured=bool(current_app.config.get("NEXI_XPAY_API_KEY")),
+        xpay_environment=current_app.config.get("NEXI_XPAY_ENVIRONMENT", "sandbox"),
+    )
+
+
+@administration_bp.get("/payment-links/result")
+def payment_link_result():
+    return render_template("administration/payment_link_result.html", cancelled=False)
+
+
+@administration_bp.get("/payment-links/cancelled")
+def payment_link_cancelled():
+    return render_template("administration/payment_link_result.html", cancelled=True)
+
+
+@administration_bp.get("/payment-links/recipients")
+@login_required
+@role_required(40, roles=["office"])
+def payment_link_recipients():
+    recipient_type = str(request.args.get("type") or "").strip().lower()
+    search = str(request.args.get("q") or "").strip()[:100]
+    if len(search) < 2:
+        return jsonify({"ok": True, "items": []})
+    pattern = f"%{search}%"
+    if recipient_type == "user":
+        users = User.query.filter(
+            db.or_(User.name.ilike(pattern), User.surname.ilike(pattern), User.email.ilike(pattern)),
+        ).order_by(User.surname.asc(), User.name.asc()).limit(20).all()
+        items = [
+            {"id": user.id, "label": f"{user.name} {user.surname}", "email": user.email}
+            for user in users if _valid_email(user.email)
+        ]
+    elif recipient_type == "customer":
+        registries = BusinessRegistry.query.filter(
+            BusinessRegistry.kind == "customer",
+            BusinessRegistry.is_active.is_(True),
+            db.or_(
+                BusinessRegistry.display_name.ilike(pattern),
+                BusinessRegistry.legal_name.ilike(pattern),
+                BusinessRegistry.source_code.ilike(pattern),
+            ),
+        ).order_by(BusinessRegistry.display_name.asc()).limit(20).all()
+        items = []
+        for registry in registries:
+            contacts = [
+                contact for contact in registry.contacts
+                if contact.contact_type == "email" and _valid_email(contact.value)
+            ]
+            if contacts:
+                items.append({
+                    "id": registry.id,
+                    "label": registry.display_name or registry.legal_name or registry.source_code,
+                    "code": registry.source_code,
+                    "contacts": [{"id": item.id, "email": item.value, "label": item.label or item.contact_type.upper()} for item in contacts],
+                })
+    else:
+        return jsonify({"ok": False, "error": "Tipo destinatario non valido."}), 400
+    return jsonify({"ok": True, "items": items})
+
+
+@administration_bp.post("/payment-links")
+@login_required
+@role_required(40, roles=["office"])
+@log_task(logger)
+def create_payment_link():
+    if not current_app.config.get("NEXI_XPAY_API_KEY"):
+        return jsonify({"ok": False, "error": "Configura prima la API key Nexi XPay nelle impostazioni."}), 409
+    payload_in = request.get_json(silent=True) or {}
+    amount = _parse_positive_amount(payload_in.get("amount"))
+    description = str(payload_in.get("description") or "").strip()
+    if amount is None:
+        return jsonify({"ok": False, "error": "Inserisci un importo valido maggiore di zero."}), 400
+    if not description or len(description) > 255:
+        return jsonify({"ok": False, "error": "Inserisci una descrizione (massimo 255 caratteri)."}), 400
+    try:
+        recipient = _payment_link_recipient(payload_in)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=1)).replace(hour=23, minute=59, second=59, microsecond=0)
+    payment_link = AdministrationPaymentLink(
+        created_by_user_id=current_user.id,
+        amount=amount,
+        currency="EUR",
+        description=description,
+        status="creating",
+        provider="nexi_xpay",
+        expires_at=expires_at,
+    )
+    db.session.add(payment_link)
+    db.session.flush()
+    payment_link.provider_order_id = f"PL{_base36(payment_link.id)}"
+    db.session.commit()
+
+    amount_minor = str(int((amount * 100).quantize(Decimal("1"))))
+    provider_payload = {
+        "order": {
+            "orderId": payment_link.provider_order_id,
+            "amount": amount_minor,
+            "currency": "EUR",
+            "description": description,
+            "customField": payment_link.public_id[:255],
+        },
+        "paymentSession": {
+            "actionType": "PAY",
+            "amount": amount_minor,
+            "captureType": "IMPLICIT",
+            "language": "ita",
+            "resultUrl": _public_url("administration.payment_link_result"),
+            "cancelUrl": _public_url("administration.payment_link_cancelled"),
+            "notificationUrl": _public_url("administration.payment_link_nexi_notification"),
+            "expirationDate": expires_at.strftime("%Y-%m-%d"),
+        },
+    }
+    if recipient and recipient.get("email"):
+        provider_payload["customerInfo"] = {"cardHolderEmail": recipient["email"]}
+    try:
+        result = NexiXPayClient.from_app().create_paybylink(provider_payload)
+        payment_link.provider_reference = result.link_id
+        payment_link.provider_security_token = result.security_token
+        payment_link.payment_url = result.payment_url
+        payment_link.status = "active"
+        payment_link.last_error = None
+        db.session.commit()
+    except NexiXPayUncertainError as exc:
+        db.session.rollback()
+        payment_link = AdministrationPaymentLink.query.get(payment_link.id)
+        payment_link.status = "provider_uncertain"
+        payment_link.last_error = str(exc)[:1000]
+        db.session.commit()
+        logger.error("Creazione PayByLink incerta id=%s order=%s", payment_link.id, payment_link.provider_order_id)
+        return jsonify({"ok": False, "uncertain": True, "error": str(exc)}), 502
+    except NexiXPayError as exc:
+        db.session.rollback()
+        payment_link = AdministrationPaymentLink.query.get(payment_link.id)
+        payment_link.status = "failed"
+        payment_link.last_error = str(exc)[:1000]
+        db.session.commit()
+        return jsonify({"ok": False, "error": str(exc)}), 502
+    except Exception:
+        db.session.rollback()
+        logger.exception("Errore inatteso creazione PayByLink id=%s", payment_link.id)
+        payment_link = AdministrationPaymentLink.query.get(payment_link.id)
+        if payment_link:
+            payment_link.status = "provider_uncertain"
+            payment_link.last_error = "Errore tecnico durante il salvataggio della risposta Nexi."
+            db.session.commit()
+        return jsonify({"ok": False, "uncertain": True, "error": "Esito Nexi incerto: non generare un secondo link."}), 502
+
+    delivery = _queue_payment_link_delivery(payment_link, recipient)
+    return jsonify({
+        "ok": True,
+        "item": {
+            "id": payment_link.id,
+            "url": payment_link.payment_url,
+            "status": payment_link.status,
+            "amount": str(payment_link.amount),
+            "description": payment_link.description,
+            "expires_at": payment_link.expires_at.isoformat() if payment_link.expires_at else None,
+            "delivery": ({"id": delivery.id, "status": delivery.status, "email": delivery.recipient_email} if delivery else None),
+        },
+    }), 201
+
+
+@administration_bp.post("/payment-links/<int:payment_link_id>/send")
+@login_required
+@role_required(40, roles=["office"])
+@log_task(logger)
+def send_payment_link(payment_link_id):
+    payment_link = AdministrationPaymentLink.query.get_or_404(payment_link_id)
+    if payment_link.status == "active" and payment_link.expires_at and payment_link.expires_at <= datetime.now(timezone.utc):
+        payment_link.status = "expired"
+        db.session.commit()
+    if payment_link.status != "active" or not payment_link.payment_url:
+        return jsonify({"ok": False, "error": "Il link non e' attivo e non puo' essere inviato."}), 409
+    payload = request.get_json(silent=True) or {}
+    try:
+        recipient = _payment_link_recipient(payload)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    if recipient is None:
+        return jsonify({"ok": False, "error": "Seleziona un destinatario email."}), 400
+    delivery = _queue_payment_link_delivery(payment_link, recipient)
+    return jsonify({"ok": True, "delivery": {"id": delivery.id, "status": delivery.status, "email": delivery.recipient_email}}), 202
+
+
+@administration_bp.post("/payment-links/nexi/notification")
+def payment_link_nexi_notification():
+    if request.content_length is not None and request.content_length > 128 * 1024:
+        abort(413)
+    payload = request.get_json(silent=True)
+    operation = payload.get("operation") if isinstance(payload, dict) else None
+    if not isinstance(operation, dict):
+        abort(400)
+    order_id = str(operation.get("orderId") or "").strip()
+    payment_link = AdministrationPaymentLink.query.filter_by(provider="nexi_xpay", provider_order_id=order_id).first()
+    if payment_link is None:
+        abort(404)
+    supplied_token = str(payload.get("securityToken") or "")
+    expected_token = str(payment_link.provider_security_token or "")
+    if not expected_token or not hmac.compare_digest(supplied_token, expected_token):
+        abort(400)
+    event_id = str(payload.get("eventId") or "").strip()[:80]
+    if event_id and event_id == payment_link.provider_last_event_id:
+        return ("", 200)
+    try:
+        expected_amount = int((Decimal(payment_link.amount) * 100).quantize(Decimal("1")))
+        notified_amount = int(str(operation.get("operationAmount")))
+    except (TypeError, ValueError, ArithmeticError):
+        abort(400)
+    if notified_amount != expected_amount or str(operation.get("operationCurrency") or "").upper() != payment_link.currency:
+        abort(400)
+    channel_detail = str(operation.get("channelDetail") or "").upper()
+    if channel_detail not in {"PAY_BY_LINK", "POST_PAYMENT_OPERATION"}:
+        abort(400)
+    result = str(operation.get("operationResult") or "").upper()
+    operation_type = str(operation.get("operationType") or "").upper()
+    payment_link.provider_last_event_id = event_id or payment_link.provider_last_event_id
+    payment_link.provider_operation_id = str(operation.get("operationId") or "").strip()[:160] or payment_link.provider_operation_id
+    if result == "EXECUTED" and operation_type == "CAPTURE":
+        payment_link.status = "paid"
+        payment_link.provider_confirmed_at = datetime.now(timezone.utc)
+    elif result in {"DECLINED", "DENIED_BY_RISK", "THREEDS_FAILED", "FAILED"}:
+        payment_link.status = "failed"
+    elif result == "CANCELED":
+        payment_link.status = "cancelled"
+    db.session.commit()
+    return ("", 200)

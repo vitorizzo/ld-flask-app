@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}LD Enoteca - Link di pagamento{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/administration_payment_links.css', v=app_version ~ '-pbl1') }}">{% endblock %}
+
+{% block content %}
+<div class="payment-links-page" data-create-url="{{ url_for('administration.create_payment_link') }}" data-search-url="{{ url_for('administration.payment_link_recipients') }}">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+      <div class="text-uppercase text-muted small fw-semibold">Amministrazione</div>
+      <h1 class="mb-1">Manda un link di pagamento</h1>
+      <p class="text-muted mb-0">Genera un PayByLink Nexi autonomo, copialo o invialo via email senza gestire dati di carta.</p>
+    </div>
+    <button class="btn btn-primary btn-lg" type="button" id="newPaymentLinkButton" data-bs-toggle="modal" data-bs-target="#paymentLinkModal" {% if not xpay_configured %}disabled{% endif %}>
+      <i class="fa-solid fa-link me-2"></i>Nuovo link
+    </button>
+  </div>
+
+  {% if not xpay_configured %}
+  <div class="alert alert-warning d-flex gap-3 align-items-start" role="alert">
+    <i class="fa-solid fa-key mt-1"></i>
+    <div><strong>In attesa delle credenziali Nexi.</strong><br>La pagina e lo storico sono pronti; il pulsante si abiliterà dopo aver salvato la API key XPay nelle impostazioni.</div>
+  </div>
+  {% else %}
+  <div class="alert {{ 'alert-danger' if xpay_environment == 'production' else 'alert-info' }} py-2" role="status">
+    Ambiente Nexi attivo: <strong>{{ 'Produzione' if xpay_environment == 'production' else 'Sandbox' }}</strong>
+  </div>
+  {% endif %}
+
+  <div id="paymentLinkPageAlert" class="alert d-none" role="alert"></div>
+
+  <section class="card shadow-sm border-0">
+    <div class="card-header bg-white border-0 pt-3 px-3 d-flex justify-content-between align-items-center">
+      <div><h2 class="h5 mb-1">Link generati</h2><div class="small text-muted">Ogni invio email viene accodato e tracciato separatamente.</div></div>
+      <span class="badge text-bg-light">{{ links.total }}</span>
+    </div>
+    <div class="card-body p-0">
+      {% if links.items %}
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0 payment-links-table">
+          <thead><tr><th>Creato</th><th>Descrizione</th><th class="text-end">Importo</th><th>Stato</th><th>Ultimo invio</th><th class="text-end">Azioni</th></tr></thead>
+          <tbody>
+          {% set status_labels = {'creating':'Creazione','active':'Attivo','provider_uncertain':'Da verificare','paid':'Pagato','failed':'Errore','cancelled':'Annullato','expired':'Scaduto'} %}
+          {% set status_classes = {'active':'success','paid':'primary','provider_uncertain':'warning','failed':'danger','cancelled':'secondary','expired':'secondary','creating':'info'} %}
+          {% for item in links.items %}
+            {% set delivery = item.deliveries[0] if item.deliveries else none %}
+            <tr>
+              <td data-label="Creato"><div class="fw-semibold">{{ item.created_at.strftime('%d/%m/%Y') }}</div><div class="small text-muted">{{ item.created_at.strftime('%H:%M') }} · {{ item.created_by.name }} {{ item.created_by.surname }}</div></td>
+              <td data-label="Descrizione"><div class="fw-semibold">{{ item.description }}</div><div class="small text-muted">Ordine {{ item.provider_order_id or '—' }}</div></td>
+              <td data-label="Importo" class="text-end fw-bold">{{ '{:,.2f}'.format(item.amount).replace(',', 'X').replace('.', ',').replace('X', '.') }} €</td>
+              <td data-label="Stato"><span class="badge text-bg-{{ status_classes.get(item.status, 'secondary') }}">{{ status_labels.get(item.status, item.status) }}</span>{% if item.expires_at %}<div class="small text-muted mt-1">Scade {{ item.expires_at.strftime('%d/%m %H:%M') }}</div>{% endif %}</td>
+              <td data-label="Ultimo invio">{% if delivery %}<div>{{ delivery.recipient_email }}</div><span class="badge text-bg-{{ 'success' if delivery.status == 'sent' else ('danger' if delivery.status == 'failed' else 'warning') }}">{{ delivery.status }}</span>{% else %}<span class="text-muted">Solo link</span>{% endif %}</td>
+              <td data-label="Azioni" class="text-end">
+                {% if item.payment_url and item.status == 'active' %}
+                <div class="btn-group">
+                  <button class="btn btn-outline-primary copy-payment-link" type="button" data-url="{{ item.payment_url }}" title="Copia link"><i class="fa-regular fa-copy"></i><span class="d-lg-none ms-2">Copia</span></button>
+                  <button class="btn btn-outline-secondary send-payment-link" type="button" data-id="{{ item.id }}" data-description="{{ item.description }}" data-amount="{{ item.amount }}" title="Invia email"><i class="fa-regular fa-envelope"></i><span class="d-lg-none ms-2">Invia</span></button>
+                </div>
+                {% else %}<span class="small text-muted">Non disponibile</span>{% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}<div class="text-center text-muted p-5"><i class="fa-solid fa-link fa-2x mb-3 d-block"></i>Nessun link ancora generato.</div>{% endif %}
+    </div>
+  </section>
+
+  {% if links.pages > 1 %}<nav class="mt-3" aria-label="Pagine storico"><ul class="pagination justify-content-center">{% for page_number in links.iter_pages() %}{% if page_number %}<li class="page-item {{ 'active' if page_number == links.page }}"><a class="page-link" href="{{ url_for('administration.payment_links', page=page_number) }}">{{ page_number }}</a></li>{% else %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}{% endfor %}</ul></nav>{% endif %}
+</div>
+
+<div class="modal fade payment-link-modal" id="paymentLinkModal" tabindex="-1" aria-labelledby="paymentLinkModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><div><div class="small text-uppercase text-muted fw-semibold">Nexi PayByLink</div><h2 class="modal-title h4" id="paymentLinkModalLabel">Genera link di pagamento</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+      <div class="modal-body">
+        <div id="paymentLinkModalAlert" class="alert d-none" role="alert"></div>
+        <form id="paymentLinkForm" novalidate>
+          <input type="hidden" id="paymentLinkExistingId">
+          <div id="paymentLinkCoreFields" class="row g-3 mb-4">
+            <div class="col-sm-4"><label class="form-label" for="paymentLinkAmount">Importo</label><div class="input-group input-group-lg"><input class="form-control" id="paymentLinkAmount" inputmode="decimal" placeholder="0,00" required><span class="input-group-text">€</span></div></div>
+            <div class="col-sm-8"><label class="form-label" for="paymentLinkDescription">Descrizione</label><input class="form-control form-control-lg" id="paymentLinkDescription" maxlength="255" placeholder="Es. Saldo ordine o acconto" required></div>
+          </div>
+          <fieldset>
+            <legend class="h6">Consegna del link</legend>
+            <p class="small text-muted">Puoi generarlo soltanto per copiarlo oppure accodare subito l'invio email.</p>
+            <div class="recipient-types" role="radiogroup" aria-label="Destinatario">
+              <label><input type="radio" name="paymentLinkRecipientType" value="none" checked><span><i class="fa-regular fa-copy"></i> Solo genera e copia</span></label>
+              <label><input type="radio" name="paymentLinkRecipientType" value="email"><span><i class="fa-regular fa-envelope"></i> Indirizzo email</span></label>
+              <label><input type="radio" name="paymentLinkRecipientType" value="user"><span><i class="fa-regular fa-user"></i> Utente LDApp</span></label>
+              <label><input type="radio" name="paymentLinkRecipientType" value="customer"><span><i class="fa-regular fa-building"></i> Cliente</span></label>
+            </div>
+            <div id="paymentLinkEmailFields" class="row g-3 mt-1 d-none"><div class="col-sm-5"><label class="form-label" for="paymentLinkRecipientName">Nome (facoltativo)</label><input class="form-control" id="paymentLinkRecipientName"></div><div class="col-sm-7"><label class="form-label" for="paymentLinkRecipientEmail">Email</label><input class="form-control" id="paymentLinkRecipientEmail" type="email"></div></div>
+            <div id="paymentLinkSearchFields" class="mt-3 d-none"><label class="form-label" for="paymentLinkRecipientSearch">Cerca destinatario</label><input class="form-control form-control-lg" id="paymentLinkRecipientSearch" autocomplete="off" placeholder="Scrivi almeno 2 caratteri"><div id="paymentLinkRecipientResults" class="recipient-results"></div><input type="hidden" id="paymentLinkRecipientId"><input type="hidden" id="paymentLinkRecipientContactId"><div id="paymentLinkRecipientSelected" class="selected-recipient d-none"></div></div>
+          </fieldset>
+        </form>
+        <div id="paymentLinkResult" class="payment-link-result d-none"><div class="text-success fw-semibold mb-2"><i class="fa-solid fa-circle-check me-1"></i> Link generato</div><div id="paymentLinkResultSummary" class="mb-3"></div><div class="input-group input-group-lg"><input class="form-control" id="paymentLinkResultUrl" readonly><button class="btn btn-primary" id="copyGeneratedPaymentLink" type="button"><i class="fa-regular fa-copy me-2"></i>Copia</button></div><div id="paymentLinkDeliveryStatus" class="small text-muted mt-2"></div></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary btn-lg" data-bs-dismiss="modal">Chiudi</button><button type="submit" form="paymentLinkForm" class="btn btn-primary btn-lg" id="generatePaymentLinkButton"><span class="button-label">Genera link</span><span class="spinner-border spinner-border-sm ms-2 d-none" aria-hidden="true"></span></button></div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/administration_payment_links.js', v=app_version ~ '-pbl1') }}"></script>{% endblock %}

@@ -43,10 +43,10 @@ PREFERENCE_DEFINITIONS: list[PreferenceDefinition] = [
     PreferenceDefinition(
         key="nexi_xpay.api_key",
         category="Nexi XPay",
-        label="API key XPay (Hosted Payment Page)",
+        label="API key Nexi XPay",
         value_type="secret",
         default="",
-        description="Chiave del terminale XPay abilitato alle API Hosted Payment Page. Viene conservata cifrata e non viene mostrata dopo il salvataggio.",
+        description="Chiave del terminale XPay abilitato alle API Hosted Payment Page e PayByLink. Viene conservata cifrata e non viene mostrata dopo il salvataggio.",
         config_key="NEXI_XPAY_API_KEY",
         sort_order=10,
     ),

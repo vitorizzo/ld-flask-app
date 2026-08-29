@@ -1,6 +1,15 @@
 TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
-Data aggiornamento: 2026-08-26
+Data aggiornamento: 2026-08-29
+
+## 2026-08-29 - PayByLink autonomi da Amministrazione
+
+- Predisposta la voce `Manda un link di pagamento` per `office`: importo e descrizione, generazione Nexi, copia negli appunti, invio a email libera, utente LDApp o cliente e storico dei link/invii.
+- Il workflow usa tabelle proprie e non interferisce con pratiche contabili, fatture selezionate o checkout XPay HPP dei clienti Horeca.
+- Invii SMTP eseguiti esclusivamente in background e registrati come `queued/sent/failed`; ricerca utenti/clienti limitata e caricata su richiesta.
+- Payload e webhook seguono le specifiche ufficiali `POST /v2/orders/paybylink`: ordine univoco massimo 18 caratteri, scadenza a data, URL pubblici senza slash finale, token e validazione completa della notifica `PAY_BY_LINK`.
+- Interfaccia mobile responsive con modale spostata nel `body` per evitare il noto problema di stacking/focus. API key assente: pagina consultabile e generazione disabilitata fino alla configurazione Nexi.
+- Nuova migration head `b9c0d1e2f4a6`; dopo il deploy eseguire `python -m flask --app app.py db upgrade` prima del riavvio di web app e worker Celery.
 
 ## 2026-08-26 - Comunicazione bonifici dall'area contabile Horeca
 

@@ -27,6 +27,15 @@ class HostedPaymentPageResult:
     security_token: str
 
 
+@dataclass(frozen=True)
+class PayByLinkResult:
+    link_id: str
+    payment_url: str
+    security_token: str
+    expiration_date: str | None
+    status: str | None
+
+
 class NexiXPayClient:
     def __init__(self, api_key: str, environment: str = "sandbox", timeout: tuple[int, int] = (8, 25), session=None):
         self.api_key = str(api_key or "").strip()
@@ -101,6 +110,28 @@ class NexiXPayClient:
             raise NexiXPayUncertainError("Nexi XPay ha restituito una risposta incompleta. Non ripetere il pagamento.") from exc
         if not result.hosted_page.startswith("https://") or not result.security_token:
             raise NexiXPayUncertainError("Nexi XPay ha restituito una pagina di pagamento non valida. Non ripetere il pagamento.")
+        return result
+
+    def create_paybylink(self, payload: dict[str, Any]) -> PayByLinkResult:
+        response = self._request("POST", "v2/orders/paybylink", json=payload)
+        try:
+            body = response.json()
+            payment_link = body["paymentLink"]
+            result = PayByLinkResult(
+                link_id=str(payment_link["linkId"]),
+                payment_url=str(payment_link["link"]),
+                security_token=str(body["securityToken"]),
+                expiration_date=str(payment_link.get("expirationDate") or "") or None,
+                status=str(payment_link.get("status") or "") or None,
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            raise NexiXPayUncertainError(
+                "Nexi XPay ha restituito una risposta PayByLink incompleta. Non generare un secondo link."
+            ) from exc
+        if not result.link_id or not result.payment_url.startswith("https://") or not result.security_token:
+            raise NexiXPayUncertainError(
+                "Nexi XPay ha restituito un PayByLink non valido. Non generare un secondo link."
+            )
         return result
 
     def get_order(self, order_id: str) -> dict[str, Any]:

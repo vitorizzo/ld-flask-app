@@ -1,5 +1,12 @@
 # PROJECT_MAP.md — v2.4
 
+## PayByLink amministrativo Nexi (2026-08-29)
+
+- `/administration/payment-links`, protetta dal ruolo `office` (peso 40), genera PayByLink autonomi e completamente separati dalle partite contabili/HPP Horeca; la relativa voce viene inserita sotto `Amministrazione` dalla migration `b9c0d1e2f4a6`.
+- `AdministrationPaymentLink` conserva importo, descrizione, riferimenti/token Nexi cifrato, URL, scadenza e stato; `AdministrationPaymentLinkDelivery` traccia ogni consegna email accodata verso indirizzo libero, utente LDApp o recapito cliente.
+- `tools/nexi_xpay.py` implementa `POST /v2/orders/paybylink`; notifica S2S pubblica con verifica token, ordine, importo, valuta, canale ed evento idempotente. Nessun dato carta transita o viene salvato in LDApp.
+- `templates/administration/payment_links.html` e relativi asset offrono modale touch/mobile, ricerca destinatari lato server, storico, reinvio e copia con fallback; l'email viene sempre eseguita dal task Celery `send_administration_payment_link_task`.
+
 ## Comunicazione bonifici clienti Horeca (2026-08-26)
 
 - `routes/customer_account.py`, `tools/customer_payments.py`: sono selezionabili le fatture Dare causale `001` e le note di credito Avere causale `002`, purche' rilevanti per il saldo, documentate e con importo valorizzato. Il totale usa `signed_amount`, quindi le NC compensano le fatture; il server rivalida cliente, snapshot, stato e netto positivo senza fidarsi degli ID inviati dal browser.

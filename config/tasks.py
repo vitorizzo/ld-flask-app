@@ -92,6 +92,14 @@ def notify_customer_payment_case_task(self, case_id, notification_kind="created"
 
 @celery.task(bind=True)
 @log_task(logger)
+def send_administration_payment_link_task(self, delivery_id):
+    from tools.administration_payment_links import send_administration_payment_link
+
+    return send_administration_payment_link(delivery_id)
+
+
+@celery.task(bind=True)
+@log_task(logger)
 def import_poleepo_orders_task(self, options=None):
     from routes.shipping import run_poleepo_import
     try:

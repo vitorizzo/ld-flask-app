@@ -2503,6 +2503,82 @@ class CustomerPaymentCase(db.Model):
     events = db.relationship("CustomerPaymentEvent", back_populates="payment_case", cascade="all, delete-orphan")
 
 
+class AdministrationPaymentLink(db.Model):
+    """PayByLink autonomo creato dall'ufficio, senza legame con partite contabili."""
+
+    __tablename__ = "administration_payment_links"
+    __table_args__ = (
+        db.Index("ix_administration_payment_link_status_created", "status", "created_at"),
+        db.Index("ix_administration_payment_link_creator_created", "created_by_user_id", "created_at"),
+    )
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    public_id = db.Column(db.String(48), nullable=False, unique=True, index=True, default=lambda: secrets.token_urlsafe(24))
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="RESTRICT"), nullable=False)
+    amount = db.Column(db.Numeric(14, 2), nullable=False)
+    currency = db.Column(db.String(3), nullable=False, default="EUR")
+    description = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(32), nullable=False, default="creating", index=True)
+    provider = db.Column(db.String(40), nullable=False, default="nexi_xpay")
+    provider_order_id = db.Column(db.String(18), nullable=True, unique=True, index=True)
+    provider_reference = db.Column(db.String(160), nullable=True, index=True)
+    provider_operation_id = db.Column(db.String(160), nullable=True, index=True)
+    provider_security_token = db.Column(EncryptedString(512), nullable=True)
+    provider_last_event_id = db.Column(db.String(80), nullable=True, index=True)
+    payment_url = db.Column(db.Text, nullable=True)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    provider_confirmed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    last_error = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    created_by = db.relationship("User", foreign_keys=[created_by_user_id])
+    deliveries = db.relationship(
+        "AdministrationPaymentLinkDelivery",
+        back_populates="payment_link",
+        cascade="all, delete-orphan",
+        order_by="AdministrationPaymentLinkDelivery.created_at.desc()",
+    )
+
+
+class AdministrationPaymentLinkDelivery(db.Model):
+    """Tentativo tracciato di consegna email di un PayByLink amministrativo."""
+
+    __tablename__ = "administration_payment_link_deliveries"
+    __table_args__ = (
+        db.Index("ix_administration_payment_link_delivery_link_created", "payment_link_id", "created_at"),
+    )
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    payment_link_id = db.Column(
+        db.BigInteger,
+        db.ForeignKey("administration_payment_links.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    requested_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    recipient_type = db.Column(db.String(24), nullable=False)  # email|user|customer
+    recipient_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    recipient_registry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("business_registries.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    recipient_name = db.Column(db.String(255), nullable=True)
+    recipient_email = db.Column(db.String(255), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default="queued", index=True)
+    error_message = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
+    payment_link = db.relationship("AdministrationPaymentLink", back_populates="deliveries")
+    requested_by = db.relationship("User", foreign_keys=[requested_by_user_id])
+    recipient_user = db.relationship("User", foreign_keys=[recipient_user_id])
+    recipient_registry = db.relationship("BusinessRegistry", foreign_keys=[recipient_registry_id])
+
+
 class CustomerPaymentInstructions(db.Model):
     """Coordinate bancarie centralizzate mostrate nell'area contabile Horeca."""
 
