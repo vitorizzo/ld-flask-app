@@ -582,6 +582,10 @@ body > .modal-backdrop {
     grid-template-columns: 1fr 1fr;
   }
 
+  .customer-payment-selection-actions .customer-online-payment-trigger {
+    grid-column: 1 / -1;
+  }
+
   .customer-payment-selection > div:first-child {
     display: flex;
     align-items: center;

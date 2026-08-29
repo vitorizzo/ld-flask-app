@@ -63,7 +63,10 @@ def notify_customer_payment_case(case_id, notification_kind="created"):
     registry = payment_case.registry
     user = payment_case.created_by
     recipient = _recipient_for(payment_case.case_type)
-    subject_prefix = "Contestazione partita" if payment_case.case_type == "payment_claim" else "Comunicazione pagamento"
+    subject_prefix = {
+        "payment_claim": "Contestazione partita",
+        "online_payment": "Pagamento online confermato",
+    }.get(payment_case.case_type, "Comunicazione pagamento")
     notification_labels = {
         "created": ("Nuova", "ricevuta", "office_email_sent"),
         "updated": ("Aggiornamento", "modificata dal cliente", "office_email_update_sent"),

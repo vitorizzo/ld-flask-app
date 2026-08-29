@@ -3,7 +3,10 @@ import json
 from decimal import Decimal
 
 
-ACTIVE_ITEM_STATUSES = {"link_active", "awaiting_accounting", "under_review", "partially_accounted", "accounted"}
+ACTIVE_ITEM_STATUSES = {
+    "creating_checkout", "checkout_ready", "provider_authorized", "provider_uncertain",
+    "awaiting_accounting", "under_review", "partially_accounted", "accounted",
+}
 
 
 def is_selectable_settlement_item(entry):

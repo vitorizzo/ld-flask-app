@@ -28,6 +28,7 @@ class PreferenceDefinition:
 
 PREFERENCE_CATEGORY_ORDER = [
     "TeamSystem MATRIXWS",
+    "Nexi XPay",
     "Prestashop",
     "Poleepo",
     "Trello",
@@ -39,6 +40,25 @@ PREFERENCE_CATEGORY_ORDER = [
 ]
 
 PREFERENCE_DEFINITIONS: list[PreferenceDefinition] = [
+    PreferenceDefinition(
+        key="nexi_xpay.api_key",
+        category="Nexi XPay",
+        label="API key XPay (Hosted Payment Page)",
+        value_type="secret",
+        default="",
+        description="Chiave del terminale XPay abilitato alle API Hosted Payment Page. Viene conservata cifrata e non viene mostrata dopo il salvataggio.",
+        config_key="NEXI_XPAY_API_KEY",
+        sort_order=10,
+    ),
+    PreferenceDefinition(
+        key="nexi_xpay.environment",
+        category="Nexi XPay",
+        label="Ambiente",
+        default="sandbox",
+        description="Usa 'sandbox' per i test e 'production' soltanto dopo il collaudo.",
+        config_key="NEXI_XPAY_ENVIRONMENT",
+        sort_order=20,
+    ),
     PreferenceDefinition(
         key="matrixws.base_url",
         category="TeamSystem MATRIXWS",

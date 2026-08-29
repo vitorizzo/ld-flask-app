@@ -479,7 +479,7 @@ def support_tickets_unread_count():
     ).count()
     terminal_payment_statuses = ("accounted", "rejected", "cancelled", "failed", "expired")
     payment_communication_count = CustomerPaymentCase.query.filter(
-        CustomerPaymentCase.case_type.in_(("bank_transfer", "paybylink")),
+        CustomerPaymentCase.case_type.in_(("bank_transfer", "online_payment")),
         CustomerPaymentCase.status.notin_(terminal_payment_statuses),
     ).count()
     payment_dispute_count = CustomerPaymentCase.query.filter(
@@ -1378,10 +1378,11 @@ def _save_role_preferences_from_form(form):
     return changed
 
 
-API_KEY_PREFERENCE_CATEGORIES = {"TeamSystem MATRIXWS", "Prestashop", "Poleepo", "Trello", "Slack", "Facebook", "Instagram", "Notifiche push"}
+API_KEY_PREFERENCE_CATEGORIES = {"TeamSystem MATRIXWS", "Nexi XPay", "Prestashop", "Poleepo", "Trello", "Slack", "Facebook", "Instagram", "Notifiche push"}
 ROLE_PERMISSION_PREFERENCE_CATEGORIES = {"Permessi e ruoli"}
 API_KEY_CATEGORY_LABELS = {
     "TeamSystem MATRIXWS": "TeamSystem MATRIXWS",
+    "Nexi XPay": "Nexi XPay",
     "Prestashop": "Prestashop",
     "Poleepo": "Poleepo",
     "Trello": "Trello",

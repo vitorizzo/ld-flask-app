@@ -203,6 +203,8 @@ def create_app():
         VAPID_PRIVATE_KEY=os.getenv("VAPID_PRIVATE_KEY"),
         VAPID_PRIVATE_KEY_FILE=os.getenv("VAPID_PRIVATE_KEY_FILE"),
         VAPID_SUBJECT=os.getenv("VAPID_SUBJECT", "mailto:admin@ldenoteca.it"),
+        NEXI_XPAY_API_KEY=os.getenv("NEXI_XPAY_API_KEY"),
+        NEXI_XPAY_ENVIRONMENT=os.getenv("NEXI_XPAY_ENVIRONMENT", "sandbox"),
         POLEEPO_URL=os.getenv("POLEEPO_URL"),
         POLEEPO_PKEY=os.getenv("POLEEPO_PKEY"),
         POLEEPO_PPKEY=os.getenv("POLEEPO_PPKEY"),
@@ -425,7 +427,7 @@ def create_app():
             try:
                 terminal_payment_statuses = ("accounted", "rejected", "cancelled", "failed", "expired")
                 payment_communication_badge_count = CustomerPaymentCase.query.filter(
-                    CustomerPaymentCase.case_type.in_(("bank_transfer", "paybylink")),
+                    CustomerPaymentCase.case_type.in_(("bank_transfer", "online_payment")),
                     CustomerPaymentCase.status.notin_(terminal_payment_statuses),
                 ).count()
                 payment_dispute_badge_count = CustomerPaymentCase.query.filter(

@@ -33,9 +33,11 @@
   document.addEventListener("DOMContentLoaded", function () {
     const paymentModal = document.getElementById("communicatePaymentModal");
     const claimModal = document.getElementById("contestPaymentModal");
+    const onlinePaymentModal = document.getElementById("onlinePaymentModal");
     const bankModal = document.getElementById("bankDetailsModal");
     moveModalToBody(paymentModal);
     moveModalToBody(claimModal);
+    moveModalToBody(onlinePaymentModal);
     moveModalToBody(bankModal);
 
     const customerFilter = document.querySelector("[data-customer-filter]");
@@ -67,6 +69,11 @@
     const claimTotal = document.querySelector("[data-claim-selection-total]");
     const claimInputs = document.querySelector("[data-claim-entry-inputs]");
     const claimFeedback = document.querySelector("[data-claim-feedback]");
+    const onlinePaymentTrigger = document.querySelector("[data-online-payment-trigger]");
+    const onlinePaymentCount = document.querySelector("[data-online-payment-selection-count]");
+    const onlinePaymentTotal = document.querySelector("[data-online-payment-selection-total]");
+    const onlinePaymentInputs = document.querySelector("[data-online-payment-entry-inputs]");
+    const onlinePaymentFeedback = document.querySelector("[data-online-payment-feedback]");
 
     function checkedInvoices() {
       return invoiceCheckboxes.filter(function (checkbox) { return checkbox.checked; });
@@ -91,12 +98,18 @@
       }
       if (claimCount) claimCount.textContent = countLabel;
       if (claimTotal) claimTotal.textContent = euro.format(total);
+      if (onlinePaymentCount) onlinePaymentCount.textContent = countLabel;
+      if (onlinePaymentTotal) {
+        onlinePaymentTotal.textContent = euro.format(total);
+        onlinePaymentTotal.classList.toggle("is-net-invalid", total <= 0);
+      }
       if (selectionBar) selectionBar.hidden = selected.length === 0;
       if (communicateTrigger) {
         communicateTrigger.disabled = selected.length === 0 || total <= 0;
         communicateTrigger.title = total <= 0 ? "Il netto da bonificare deve essere maggiore di zero" : "";
       }
       if (contestTrigger) contestTrigger.disabled = selected.length === 0;
+      if (onlinePaymentTrigger && !onlinePaymentTrigger.title) onlinePaymentTrigger.disabled = selected.length === 0 || total <= 0;
       document.body.classList.toggle("customer-payment-selection-active", selected.length > 0);
       if (selectAll) {
         selectAll.checked = invoiceCheckboxes.length > 0 && selected.length === invoiceCheckboxes.length;
@@ -159,6 +172,45 @@
         }));
         if (claimFeedback) claimFeedback.textContent = "";
         window.bootstrap.Modal.getOrCreateInstance(claimModal).show();
+      });
+    }
+
+    if (onlinePaymentTrigger && onlinePaymentModal) {
+      onlinePaymentTrigger.addEventListener("click", function () {
+        const selected = checkedInvoices();
+        const total = selected.reduce(function (sum, checkbox) {
+          return sum + parseAmount(checkbox.dataset.amount);
+        }, 0);
+        if (!selected.length || total <= 0 || onlinePaymentTrigger.disabled) return;
+        onlinePaymentInputs.replaceChildren.apply(onlinePaymentInputs, selected.map(function (checkbox) {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = "entry_ids";
+          input.value = checkbox.value;
+          return input;
+        }));
+        if (onlinePaymentFeedback) onlinePaymentFeedback.textContent = "";
+        window.bootstrap.Modal.getOrCreateInstance(onlinePaymentModal).show();
+      });
+    }
+
+    const onlinePaymentForm = document.querySelector("[data-online-payment-form]");
+    if (onlinePaymentForm) {
+      onlinePaymentForm.addEventListener("submit", function (event) {
+        const selected = checkedInvoices();
+        const total = selected.reduce(function (sum, checkbox) {
+          return sum + parseAmount(checkbox.dataset.amount);
+        }, 0);
+        if (!selected.length || total <= 0) {
+          event.preventDefault();
+          if (onlinePaymentFeedback) onlinePaymentFeedback.textContent = "Seleziona documenti con un totale netto maggiore di zero.";
+          return;
+        }
+        const submit = onlinePaymentForm.querySelector('button[type="submit"]');
+        if (submit) {
+          submit.disabled = true;
+          submit.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Apertura pagamento…';
+        }
       });
     }
 

@@ -22,7 +22,7 @@ Data aggiornamento: 2026-08-26
 - La migration `b3c4d5e6f9a0` crea le associazioni e importa automaticamente tutti i collegamenti Horeca gia' presenti, senza rimuovere o riscrivere l'associazione storica.
 - L'attivazione Horeca e la configurazione dei collegamenti ordine registrano ora anche la nuova membership; l'inserimento ordini continua a usare il cliente principale.
 - Nuova area protetta `/customer-account/`, disponibile ai clienti Horeca, con scelta dell'anagrafica autorizzata, ultimo aggiornamento, totali Dare/Avere/saldo e movimenti contabili paginati. La pagina e' responsive e mostra soltanto dati dell'anagrafica effettivamente assegnata all'utente.
-- Predisposto il dominio delle pratiche di pagamento: PayByLink, comunicazione bonifico e contestazione di una partita, con allocazioni, allegati privati, audit degli eventi e stato operativo LDApp separato dallo stato contabile TeamSystem.
+- Predisposto il dominio delle pratiche di pagamento: checkout online tramite provider esterni, comunicazione bonifico e contestazione di una partita, con allocazioni, allegati privati, audit degli eventi e stato operativo LDApp separato dallo stato contabile TeamSystem.
 - Le azioni usano una chiave deterministica composta dai campi stabili MATRIXWS e mai l'ID volatile della riga importata. Una futura chiave nativa della scadenza esposta dal servizio potra' sostituire questa composizione senza legare le pratiche agli snapshot.
 
 ## 2026-08-16 - Cambio stato ordine da notifica su smartphone

@@ -2460,7 +2460,7 @@ class CustomerRegistryMembership(db.Model):
 
 
 class CustomerPaymentCase(db.Model):
-    """Pratica LDApp per PayByLink, bonifico dichiarato o pagamento contestato."""
+    """Pratica LDApp per pagamento online, bonifico dichiarato o contestazione."""
 
     __tablename__ = "customer_payment_cases"
     __table_args__ = (
@@ -2472,14 +2472,18 @@ class CustomerPaymentCase(db.Model):
     public_id = db.Column(db.String(48), nullable=False, unique=True, index=True, default=lambda: secrets.token_urlsafe(24))
     registry_id = db.Column(db.Integer, db.ForeignKey("business_registries.id", ondelete="RESTRICT"), nullable=False)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="RESTRICT"), nullable=False)
-    case_type = db.Column(db.String(24), nullable=False)  # paybylink|bank_transfer|payment_claim
+    case_type = db.Column(db.String(24), nullable=False)  # online_payment|bank_transfer|payment_claim
     status = db.Column(db.String(32), nullable=False, default="draft", index=True)
     currency = db.Column(db.String(3), nullable=False, default="EUR")
     declared_amount = db.Column(db.Numeric(14, 2), nullable=False)
     payment_reference = db.Column(db.String(255), nullable=True)
     note = db.Column(db.Text, nullable=True)
     provider = db.Column(db.String(40), nullable=True)
+    provider_order_id = db.Column(db.String(18), nullable=True, unique=True, index=True)
     provider_reference = db.Column(db.String(160), nullable=True, index=True)
+    provider_operation_id = db.Column(db.String(160), nullable=True, index=True)
+    provider_security_token = db.Column(EncryptedString(512), nullable=True)
+    provider_last_event_id = db.Column(db.String(80), nullable=True, index=True)
     payment_url = db.Column(db.Text, nullable=True)
     expires_at = db.Column(db.DateTime(timezone=True), nullable=True)
     submitted_at = db.Column(db.DateTime(timezone=True), nullable=True)

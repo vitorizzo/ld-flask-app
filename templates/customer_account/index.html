@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}La mia situazione contabile - LD Enoteca{% endblock %}
 {% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
-{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_account.css', v=app_version ~ '-payments4') }}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_account.css', v=app_version ~ '-payments6') }}">{% endblock %}
 {% block content %}
 <section class="customer-account-page">
   <header class="customer-account-hero">
@@ -52,6 +52,9 @@
             <span class="badge {{ 'text-bg-warning' if payment_case.case_type == 'payment_claim' else 'text-bg-primary' }}">{{ case_type_labels.get(payment_case.case_type, payment_case.case_type) }}</span>
             {% if payment_case.rejection_message %}<p class="text-danger mb-0">{{ payment_case.rejection_message }}</p>{% endif %}
             {% if payment_case.evidence %}<a class="btn btn-sm btn-outline-secondary" href="{{ url_for('customer_account.download_payment_evidence', evidence_id=payment_case.evidence[0].id) }}"><i class="fa-solid fa-paperclip"></i> {{ 'Prova' if payment_case.case_type == 'payment_claim' else 'Contabile' }}</a>{% endif %}
+            {% if payment_case.case_type == 'online_payment' and payment_case.status == 'checkout_ready' and payment_case.payment_url %}<div class="customer-payment-case-actions">
+              <a class="btn btn-sm btn-success" href="{{ payment_case.payment_url }}" rel="noopener"><i class="fa-solid fa-credit-card"></i> Riprendi pagamento</a>
+            </div>{% endif %}
             {% if payment_case.status in customer_editable_case_statuses and (is_developer or payment_case.created_by_user_id == current_user.id) %}<div class="customer-payment-case-actions">
               <a class="btn btn-sm btn-outline-primary" href="{{ url_for('customer_account.edit_payment_case', case_id=payment_case.id) }}"><i class="fa-solid fa-pen"></i> Modifica</a>
               <form method="post" action="{{ url_for('customer_account.delete_payment_case', case_id=payment_case.id) }}" onsubmit="return confirm('Eliminare questa comunicazione e liberare i documenti selezionati?')"><button class="btn btn-sm btn-outline-danger" type="submit"><i class="fa-solid fa-trash"></i> Elimina</button></form>
@@ -91,7 +94,24 @@
 
 {% if registry and entries %}<div class="customer-payment-selection" data-payment-selection hidden>
   <div><span data-selection-count>0 documenti</span><strong data-selection-total>0,00 €</strong></div>
-  <div class="customer-payment-selection-actions"><button class="btn btn-outline-warning" type="button" data-contest-payment-trigger><i class="fa-solid fa-triangle-exclamation"></i> Contesta partite</button><button class="btn btn-primary" type="button" data-communicate-payment-trigger><i class="fa-solid fa-upload"></i> Comunica bonifico</button></div>
+  <div class="customer-payment-selection-actions"><button class="btn btn-success customer-online-payment-trigger" type="button" data-online-payment-trigger {{ 'disabled' if not nexi_configured }} title="{{ '' if nexi_configured else 'Nexi XPay non ancora configurato' }}"><i class="fa-solid fa-credit-card"></i> Paga ora</button><button class="btn btn-outline-warning" type="button" data-contest-payment-trigger><i class="fa-solid fa-triangle-exclamation"></i> Contesta partite</button><button class="btn btn-primary" type="button" data-communicate-payment-trigger><i class="fa-solid fa-upload"></i> Comunica bonifico</button></div>
+</div>{% endif %}
+
+{% if registry %}<div class="modal fade customer-payment-modal" id="onlinePaymentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+    <form method="post" action="{{ url_for('customer_account.create_online_payment_checkout') }}" data-online-payment-form>
+      <div class="modal-header"><div><div class="customer-account-eyebrow">Pagamento sicuro Nexi</div><h2 class="modal-title">Paga i documenti selezionati</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+      <div class="modal-body">
+        <input type="hidden" name="registry_id" value="{{ registry.id }}"><div data-online-payment-entry-inputs></div>
+        <div class="customer-payment-modal-total"><span>Importo netto da pagare</span><strong data-online-payment-selection-total>0,00 €</strong><small data-online-payment-selection-count></small></div>
+        {% if nexi_environment not in ('production', 'prod') %}<div class="alert alert-warning"><i class="fa-solid fa-flask"></i> Ambiente di collaudo Nexi: non verranno eseguiti addebiti reali.</div>{% endif %}
+        <p>Verrai trasferito sulla pagina di pagamento protetta XPay. Al termine tornerai automaticamente su LDApp.</p>
+        <p class="mb-0 text-muted"><i class="fa-solid fa-shield-halved"></i> LDApp non riceve né conserva i dati della carta. Le partite passeranno in attesa di contabilizzazione soltanto dopo la conferma server-to-server di Nexi.</p>
+        <div class="customer-payment-feedback" data-online-payment-feedback aria-live="polite"></div>
+      </div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button type="submit" class="btn btn-success"><i class="fa-solid fa-lock"></i> Continua su Nexi</button></div>
+    </form>
+  </div></div>
 </div>{% endif %}
 
 {% if registry %}<div class="modal fade customer-payment-modal" id="communicatePaymentModal" tabindex="-1" aria-hidden="true">
@@ -164,4 +184,4 @@
   </div></div>
 </div>{% endif %}
 {% endblock %}
-{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_account.js', v=app_version ~ '-payments4') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_account.js', v=app_version ~ '-payments6') }}"></script>{% endblock %}
