@@ -102,6 +102,10 @@
 
 ## Integrazione TeamSystem MATRIXWS (2026-08-04)
 
+- Il tile `TeamSystem MATRIXWS` mantiene un pannello diagnostico cumulativo: i test di connessione (`1000/1`), anagrafiche (`500001/1`) e articoli (`500004/1`) restano selezionabili separatamente e i futuri flussi verranno aggiunti senza sostituire quelli esistenti.
+- I test avviano `EVWSASYNC` dalla richiesta web e delegano a Celery il polling di `/www/matrixws/batch/response`; HTTP 500 con `BATCH_NOT_FINISHED` e' uno stato transitorio. La modale interroga il task LDApp e mostra al massimo 25 record, senza persistere o importare la risposta.
+- Il test articoli e' soltanto diagnostico: `import_articoli()` continua a leggere `ARTICOLI.CSV` e la relativa schedulazione non e' stata modificata.
+
 - `templates/settings/api_keys.html`: la riga API non e' piu' un trigger Bootstrap delegato; un handler apre la configurazione solo dai punti non interattivi, mentre il test MATRIXWS resta isolato. Le modali della pagina sono trascinabili dall'header su desktop e si ripristinano alla chiusura.
 
 ### Servizio clienti personalizzato (2026-08-08)

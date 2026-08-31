@@ -69,7 +69,8 @@ from tools.preferences import (
 from tools.matrixws_client import (
     MatrixWSConfig,
     MatrixWSError,
-    call_sync as call_matrixws_sync,
+    call_async as call_matrixws_async,
+    extract_batch_uuid as extract_matrixws_batch_uuid,
     renew_secret as renew_matrixws_secret,
 )
 from tools.import_transfer_config import (
@@ -84,6 +85,7 @@ from config.tasks import (
     import_barcode_task,
     import_estratti_conto_clienti_task,
     import_giacenze_task,
+    matrixws_test_poll_task,
     import_poleepo_products_task,
     import_ps_task,
 )
@@ -98,6 +100,29 @@ settings_bp = Blueprint('settings', __name__, url_prefix='/settings')
 socketio = SocketIO()
 ASSISTANCE_EMAIL = "assistenza.ldapp@ldenoteca.it"
 SUPPORT_ALLOWED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".webp", ".txt", ".doc", ".docx", ".xls", ".xlsx"}
+MATRIXWS_TEST_PROFILES = {
+    "connection": {
+        "label": "Connessione e autenticazione",
+        "description": "Servizio standard clienti/fornitori usato come verifica completa del canale MATRIXWS",
+        "service_code": "1000",
+        "schema": "1",
+        "version": "20260001",
+    },
+    "registries": {
+        "label": "Anagrafiche clienti e fornitori",
+        "description": "Estrazione personalizzata anagrafiche con campi di cluster",
+        "service_code": "500001",
+        "schema": "1",
+        "version": "20260001",
+    },
+    "articles": {
+        "label": "Articoli",
+        "description": "Estrazione articoli personalizzata in corso di configurazione",
+        "service_code": "500004",
+        "schema": "1",
+        "version": "20260001",
+    },
+}
 
 
 def _form_bool(form, key, default=False):
@@ -2008,6 +2033,7 @@ def api_keys():
         sections=sections,
         api_rows=_build_api_key_rows(sections),
         custom_env_keys=_parse_env_local_custom_keys(),
+        matrixws_test_profiles=MATRIXWS_TEST_PROFILES,
     )
 
 
@@ -2016,23 +2042,28 @@ def api_keys():
 @role_required(900)
 @log_task(logger)
 def matrixws_test():
+    body = request.get_json(silent=True) or {}
+    test_key = str(body.get("test_key") or "").strip().lower()
+    profile = MATRIXWS_TEST_PROFILES.get(test_key)
+    if profile is None:
+        return jsonify({"ok": False, "message": "Test MATRIXWS non riconosciuto."}), 400
+    service_code = profile["service_code"]
+    schema = profile["schema"]
+    version = profile["version"]
+    service_description = profile["description"]
+
     payload = {
-        "CodiceWS": "500003",
-        "Schema": "1",
-        "Versione": "20260100",
+        "CodiceWS": service_code,
+        "Schema": schema,
+        "Versione": version,
         "Operazione": "read",
         "Ditta": "1",
-        "TabellaCampi": [
-            {
-                "WKSCADWS-STATO-EFF": "Aperto",
-                "operatore": "=",
-            }
-        ],
+        "TabellaCampi": [],
     }
 
     try:
         config = MatrixWSConfig.from_app_config(current_app.config)
-        result = call_matrixws_sync(config, payload, method="POST", timeout=(5, 120))
+        result = call_matrixws_async(config, payload, method="POST", timeout=(5, 30))
         secret_renewed = False
         if result["status_code"] == 401:
             renewed_secret = renew_matrixws_secret(config)
@@ -2045,7 +2076,7 @@ def matrixws_test():
             db.session.commit()
             load_preferences_into_app_config(current_app._get_current_object())
             config = MatrixWSConfig.from_app_config(current_app.config)
-            result = call_matrixws_sync(config, payload, method="POST", timeout=(5, 120))
+            result = call_matrixws_async(config, payload, method="POST", timeout=(5, 30))
             secret_renewed = True
     except MatrixWSError as exc:
         db.session.rollback()
@@ -2071,45 +2102,78 @@ def matrixws_test():
         message = "Endpoint MATRIXWS non trovato: verifica ambiente, start e applicativo."
     elif not result["ok"]:
         message = f"MATRIXWS ha risposto con stato HTTP {status_code}."
-    else:
-        message = "Connessione e autenticazione MATRIXWS riuscite."
-        if secret_renewed:
-            message += " Il secret scaduto e' stato rinnovato e salvato automaticamente."
+    if not result["ok"]:
+        return jsonify({
+            "ok": False,
+            "message": message,
+            "response": {
+                "status_code": status_code,
+                "body": result["json"] if result["json"] is not None else result["text"],
+            },
+        }), 502
 
-    response_body = result["json"] if result["json"] is not None else result["text"]
-    response_truncated = result["truncated"]
-    if isinstance(response_body, dict) and isinstance(response_body.get("dati"), list):
-        record_count = len(response_body["dati"])
-        if record_count > 25:
-            response_body = {
-                **response_body,
-                "dati": response_body["dati"][:25],
-                "diagnostica_app": {
-                    "record_totali": record_count,
-                    "record_mostrati": 25,
-                    "nota": "Anteprima limitata per non rallentare la pagina impostazioni.",
-                },
-            }
-            response_truncated = True
+    batch_uuid = extract_matrixws_batch_uuid(result.get("json"))
+    if not batch_uuid:
+        return jsonify({
+            "ok": False,
+            "message": "MATRIXWS ha accettato la richiesta ma non ha restituito il batch_uuid.",
+            "response": {"status_code": status_code, "body": result.get("json")},
+        }), 502
 
+    request_meta = {
+        "url": result["url"],
+        "method": result["method"],
+        "service_code": service_code,
+        "service_description": service_description,
+        "test_key": test_key,
+        "test_label": profile["label"],
+        "schema": schema,
+        "version": version,
+        "operation": payload["Operazione"],
+    }
+    task = matrixws_test_poll_task.delay(batch_uuid, request_meta)
+    message = f"Batch MATRIXWS {batch_uuid} avviato; il polling prosegue in background."
+    if secret_renewed:
+        message += " Il secret scaduto e' stato rinnovato e salvato automaticamente."
     return jsonify({
-        "ok": result["ok"],
+        "ok": True,
+        "pending": True,
+        "task_id": task.id,
+        "batch_uuid": batch_uuid,
         "secret_renewed": secret_renewed,
         "message": message,
-        "request": {
-            "url": result["url"],
-            "method": result["method"],
-            "service_code": payload["CodiceWS"],
-            "service_description": "Estrazione scadenze aperte personalizzata",
-            "operation": payload["Operazione"],
-        },
-        "response": {
-            "status_code": status_code,
-            "content_type": result["content_type"],
-            "body": response_body,
-            "truncated": response_truncated,
-        },
-    }), (200 if result["ok"] else 502)
+        "request": request_meta,
+        "status_url": url_for("settings.matrixws_test_status", task_id=task.id),
+    }), 202
+
+
+@settings_bp.route("/api-keys/matrixws/test/<task_id>", methods=["GET"])
+@login_required
+@role_required(900)
+def matrixws_test_status(task_id):
+    if not re.fullmatch(r"[a-fA-F0-9-]{20,64}", str(task_id or "")):
+        return jsonify({"ok": False, "message": "Identificativo task non valido."}), 400
+    task = matrixws_test_poll_task.AsyncResult(task_id)
+    if not task.ready():
+        return jsonify({
+            "ok": True,
+            "pending": True,
+            "state": task.state,
+            "message": "Batch MATRIXWS ancora in elaborazione sul server TeamSystem.",
+        })
+    if task.failed():
+        logger.error("Task diagnostico MATRIXWS fallito task_id=%s result=%s", task_id, task.result)
+        return jsonify({
+            "ok": False,
+            "pending": False,
+            "state": task.state,
+            "message": "Il task diagnostico MATRIXWS e' terminato con un errore.",
+        }), 500
+    result = task.result if isinstance(task.result, dict) else {
+        "ok": False,
+        "message": "Il task MATRIXWS non ha restituito un risultato diagnostico valido.",
+    }
+    return jsonify({**result, "pending": False, "state": task.state})
 
 
 @settings_bp.route("/roles-permissions", methods=["GET", "POST"])

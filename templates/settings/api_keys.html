@@ -206,9 +206,9 @@
                       <td class="text-end" onclick="event.stopPropagation();">
                         <span class="settings-actions">
                           {% if row.category == 'TeamSystem MATRIXWS' %}
-                            <button type="button" class="btn btn-sm btn-outline-success matrixws-test-button" data-test-url="{{ url_for('settings.matrixws_test') }}" title="Verifica connessione">
+                            <button type="button" class="btn btn-sm btn-outline-success matrixws-test-button" data-test-url="{{ url_for('settings.matrixws_test') }}" title="Test MATRIXWS disponibili">
                               <i class="fa-solid fa-plug-circle-check"></i>
-                              <span class="visually-hidden">Verifica connessione</span>
+                              <span class="visually-hidden">Test MATRIXWS disponibili</span>
                             </button>
                           {% endif %}
                           <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#apiEditModal-{{ loop.index }}" title="Modifica">
@@ -477,7 +477,25 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
       </div>
       <div class="modal-body">
-        <div id="matrixwsTestStatus" class="alert alert-info mb-3">Test in preparazione...</div>
+        <div class="row g-2 align-items-end mb-3">
+          <div class="col-md">
+            <label class="form-label" for="matrixwsTestProfile">Diagnostica disponibile</label>
+            <select class="form-select" id="matrixwsTestProfile">
+              {% for key, profile in matrixws_test_profiles.items() %}
+                <option value="{{ key }}">{{ profile.label }} — CodiceWS {{ profile.service_code }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-auto d-grid">
+            <button type="button" class="btn btn-success" id="matrixwsRunTestButton">
+              <i class="fa-solid fa-play me-1"></i>Esegui test
+            </button>
+          </div>
+        </div>
+        <div class="small text-muted mb-3">
+          Ogni test e' di sola lettura. Il batch viene elaborato dal worker e non modifica le importazioni correnti.
+        </div>
+        <div id="matrixwsTestStatus" class="alert alert-secondary mb-3">Seleziona una diagnostica e premi Esegui test.</div>
         <dl id="matrixwsTestMeta" class="row small mb-3 d-none">
           <dt class="col-sm-3">Richiesta</dt><dd class="col-sm-9" id="matrixwsTestRequest"></dd>
           <dt class="col-sm-3">Stato HTTP</dt><dd class="col-sm-9" id="matrixwsTestHttpStatus"></dd>
@@ -587,55 +605,89 @@ document.addEventListener("DOMContentLoaded", () => {
   const testModal = testModalElement && window.bootstrap
     ? bootstrap.Modal.getOrCreateInstance(testModalElement)
     : null;
+  const runTestButton = document.getElementById("matrixwsRunTestButton");
+  const testProfile = document.getElementById("matrixwsTestProfile");
+  let matrixwsTestUrl = "";
+
+  function renderMatrixwsResult(data) {
+    const status = document.getElementById("matrixwsTestStatus");
+    const meta = document.getElementById("matrixwsTestMeta");
+    const requestMeta = document.getElementById("matrixwsTestRequest");
+    const httpStatus = document.getElementById("matrixwsTestHttpStatus");
+    const responseBody = document.getElementById("matrixwsTestResponse");
+    status.className = `alert ${data.pending ? "alert-info" : (data.ok ? "alert-success" : "alert-danger")} mb-3`;
+    status.textContent = data.message || "Test completato senza un messaggio diagnostico.";
+    if (data.request || data.response) {
+      meta.classList.remove("d-none");
+      requestMeta.textContent = data.request
+        ? `${data.request.method || ""} ${data.request.url || ""} (CodiceWS ${data.request.service_code || "-"} - ${data.request.test_label || data.request.service_description || "servizio"})`
+        : "-";
+      httpStatus.textContent = data.response?.status_code ?? (data.pending ? "in attesa" : "-");
+      if (data.response?.body != null) {
+        responseBody.textContent = typeof data.response.body === "string"
+          ? data.response.body
+          : JSON.stringify(data.response.body, null, 2);
+      }
+    } else if (!data.pending) {
+      responseBody.textContent = JSON.stringify(data, null, 2);
+    }
+  }
+
   document.querySelectorAll(".matrixws-test-button").forEach((button) => {
-    button.addEventListener("click", async (event) => {
+    button.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
       if (!testModal) return;
+      matrixwsTestUrl = button.dataset.testUrl;
       const status = document.getElementById("matrixwsTestStatus");
       const meta = document.getElementById("matrixwsTestMeta");
-      const requestMeta = document.getElementById("matrixwsTestRequest");
-      const httpStatus = document.getElementById("matrixwsTestHttpStatus");
+      const responseBody = document.getElementById("matrixwsTestResponse");
+      status.className = "alert alert-secondary mb-3";
+      status.textContent = "Seleziona una diagnostica e premi Esegui test.";
+      meta.classList.add("d-none");
+      responseBody.textContent = "Nessun test eseguito.";
+      testModal.show();
+    });
+  });
+
+  runTestButton?.addEventListener("click", async () => {
+      if (!matrixwsTestUrl || !testProfile) return;
+      const status = document.getElementById("matrixwsTestStatus");
+      const meta = document.getElementById("matrixwsTestMeta");
       const responseBody = document.getElementById("matrixwsTestResponse");
       status.className = "alert alert-info mb-3";
-      status.textContent = "Connessione al server TeamSystem in corso...";
+      status.textContent = "Avvio del batch MATRIXWS in corso...";
       meta.classList.add("d-none");
-      requestMeta.textContent = "";
-      httpStatus.textContent = "";
-      responseBody.textContent = "In attesa...";
-      button.disabled = true;
-      testModal.show();
-
+      responseBody.textContent = "In attesa del batch_uuid...";
+      runTestButton.disabled = true;
       try {
-        const response = await fetch(button.dataset.testUrl, {
+        const response = await fetch(matrixwsTestUrl, {
           method: "POST",
-          headers: {"Accept": "application/json"},
+          headers: {"Accept": "application/json", "Content-Type": "application/json"},
+          body: JSON.stringify({test_key: testProfile.value}),
         });
-        const data = await response.json();
-        status.className = `alert ${data.ok ? "alert-success" : "alert-danger"} mb-3`;
-        status.textContent = data.message || "Test completato senza un messaggio diagnostico.";
-        if (data.request || data.response) {
-          meta.classList.remove("d-none");
-          requestMeta.textContent = data.request
-            ? `${data.request.method} ${data.request.url} (CodiceWS ${data.request.service_code} - ${data.request.service_description || "servizio"})`
-            : "-";
-          httpStatus.textContent = data.response?.status_code ?? "-";
-          responseBody.textContent = data.response?.body == null
-            ? "Nessun corpo restituito."
-            : (typeof data.response.body === "string"
-              ? data.response.body
-              : JSON.stringify(data.response.body, null, 2));
-        } else {
-          responseBody.textContent = JSON.stringify(data, null, 2);
+        let data = await response.json();
+        renderMatrixwsResult(data);
+        if (!response.ok || !data.pending || !data.status_url) return;
+
+        const pollingDeadline = Date.now() + (16 * 60 * 1000);
+        while (data.pending) {
+          if (Date.now() >= pollingDeadline) {
+            throw new Error("Il test non si e' concluso entro 16 minuti. Controlla il worker e il monitor dei processi.");
+          }
+          await new Promise((resolve) => window.setTimeout(resolve, 2000));
+          const pollResponse = await fetch(data.status_url, {headers: {"Accept": "application/json"}});
+          data = await pollResponse.json();
+          renderMatrixwsResult(data);
+          if (!pollResponse.ok && !data.pending) break;
         }
       } catch (error) {
         status.className = "alert alert-danger mb-3";
         status.textContent = "Impossibile completare il test dall'applicazione.";
         responseBody.textContent = String(error);
       } finally {
-        button.disabled = false;
+        runTestButton.disabled = false;
       }
-    });
   });
 });
 </script>

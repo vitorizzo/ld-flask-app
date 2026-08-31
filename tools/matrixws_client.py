@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import re
-from typing import Any
+import time
+from typing import Any, Callable
 from urllib.parse import quote, urlparse
 
 import requests
@@ -80,6 +81,9 @@ class MatrixWSConfig:
 
     def secret_renewal_url(self) -> str:
         return f"{self.base_url}/www/pg/pg_public/open_public?function=pgsecrenew"
+
+    def batch_response_url(self) -> str:
+        return f"{self.base_url}/www/matrixws/batch/response"
 
 
 def _raise_transport_error(exc: requests.RequestException) -> None:
@@ -239,6 +243,216 @@ def call_sync(
         "status_code": response.status_code,
         "ok": response.ok,
         "content_type": content_type,
+        "json": response_data,
+        "text": response_text[:12000] if response_data is None else None,
+        "truncated": response_data is None and len(response_text) > 12000,
+    }
+
+
+def call_async(
+    config: MatrixWSConfig,
+    payload: dict[str, Any],
+    *,
+    method: str = "POST",
+    timeout=(5, 25),
+) -> dict[str, Any]:
+    """Avvia un'elaborazione MATRIXWS e restituisce la risposta con il batch UUID."""
+    return _call_json(
+        config,
+        config.service_url("EVWSASYNC"),
+        payload,
+        method=method,
+        timeout=timeout,
+    )
+
+
+def call_batch_response(
+    config: MatrixWSConfig,
+    batch_uuid: str,
+    *,
+    method: str = "GET",
+    timeout=(5, 60),
+) -> dict[str, Any]:
+    """Legge lo stato o il risultato di un batch MATRIXWS gia' avviato."""
+    normalized_uuid = str(batch_uuid or "").strip()
+    if not normalized_uuid:
+        raise MatrixWSError("Identificativo batch MATRIXWS mancante.", kind="configuration")
+    return _call_json(
+        config,
+        config.batch_response_url(),
+        {"batch_uuid": normalized_uuid},
+        method=method,
+        timeout=timeout,
+    )
+
+
+def extract_batch_uuid(value: Any) -> str | None:
+    """Estrae il batch UUID anche quando TeamSystem lo annida nella risposta."""
+    if isinstance(value, dict):
+        for key, nested in value.items():
+            normalized_key = str(key).strip().lower().replace("-", "_")
+            if normalized_key in {"batch_uuid", "batchuuid"} and isinstance(nested, str):
+                candidate = nested.strip()
+                if candidate:
+                    return candidate
+        for nested in value.values():
+            found = extract_batch_uuid(nested)
+            if found:
+                return found
+    elif isinstance(value, list):
+        for nested in value:
+            found = extract_batch_uuid(nested)
+            if found:
+                return found
+    return None
+
+
+def is_batch_not_finished(result: dict[str, Any]) -> bool:
+    """Riconosce il particolare HTTP 500 usato da MATRIXWS durante il polling."""
+    return _contains_text(result.get("json"), "BATCH_NOT_FINISHED") or _contains_text(
+        result.get("text"), "BATCH_NOT_FINISHED"
+    )
+
+
+def wait_for_async_result(
+    config: MatrixWSConfig,
+    payload: dict[str, Any],
+    *,
+    method: str = "POST",
+    start_timeout=(5, 30),
+    poll_timeout=(5, 60),
+    poll_interval: float = 2.0,
+    max_wait: float = 15 * 60,
+    progress_callback: Callable[[str, float], None] | None = None,
+    sleep: Callable[[float], None] = time.sleep,
+    monotonic: Callable[[], float] = time.monotonic,
+) -> dict[str, Any]:
+    """Avvia e attende un batch nel worker, trattando BATCH_NOT_FINISHED come stato transitorio."""
+    started = call_async(config, payload, method=method, timeout=start_timeout)
+    if started["status_code"] == 401:
+        raise MatrixWSError("Secret MATRIXWS scaduto o non autorizzato.", kind="unauthorized")
+    batch_uuid = extract_batch_uuid(started.get("json"))
+    if not batch_uuid:
+        raise MatrixWSError(
+            f"Avvio batch MATRIXWS non riuscito (HTTP {started['status_code']}): identificativo batch assente.",
+            kind="async_start",
+            details={
+                "status_code": started["status_code"],
+                "response": started.get("json") if started.get("json") is not None else started.get("text"),
+            },
+        )
+
+    return wait_for_batch_result(
+        config,
+        batch_uuid,
+        poll_timeout=poll_timeout,
+        poll_interval=poll_interval,
+        max_wait=max_wait,
+        progress_callback=progress_callback,
+        sleep=sleep,
+        monotonic=monotonic,
+    )
+
+
+def wait_for_batch_result(
+    config: MatrixWSConfig,
+    batch_uuid: str,
+    *,
+    poll_timeout=(5, 60),
+    poll_interval: float = 2.0,
+    max_wait: float = 15 * 60,
+    progress_callback: Callable[[str, float], None] | None = None,
+    sleep: Callable[[float], None] = time.sleep,
+    monotonic: Callable[[], float] = time.monotonic,
+) -> dict[str, Any]:
+    """Attende un batch gia' avviato senza coinvolgere la richiesta web che lo ha creato."""
+    batch_uuid = str(batch_uuid or "").strip()
+    if not batch_uuid:
+        raise MatrixWSError("Identificativo batch MATRIXWS mancante.", kind="configuration")
+
+    started_at = monotonic()
+    interval = max(float(poll_interval), 0.1)
+    deadline = started_at + max(float(max_wait), interval)
+    if progress_callback:
+        progress_callback(batch_uuid, 0.0)
+
+    while True:
+        result = call_batch_response(config, batch_uuid, timeout=poll_timeout)
+        elapsed = max(monotonic() - started_at, 0.0)
+        if is_batch_not_finished(result):
+            if progress_callback:
+                progress_callback(batch_uuid, elapsed)
+            if monotonic() >= deadline:
+                raise MatrixWSError(
+                    f"Batch MATRIXWS {batch_uuid} ancora in elaborazione dopo {int(max_wait)} secondi.",
+                    kind="async_timeout",
+                    details={"batch_uuid": batch_uuid, "elapsed": elapsed},
+                )
+            sleep(interval)
+            continue
+        if result["status_code"] == 401:
+            raise MatrixWSError("Secret MATRIXWS scaduto durante il polling.", kind="unauthorized")
+        if not result["ok"]:
+            raise MatrixWSError(
+                f"Lettura batch MATRIXWS fallita con HTTP {result['status_code']}.",
+                kind="async_response",
+                details={
+                    "batch_uuid": batch_uuid,
+                    "status_code": result["status_code"],
+                    "response": result.get("json") if result.get("json") is not None else result.get("text"),
+                },
+            )
+        if progress_callback:
+            progress_callback(batch_uuid, elapsed)
+        return {**result, "batch_uuid": batch_uuid, "elapsed": elapsed}
+
+
+def _contains_text(value: Any, expected: str) -> bool:
+    target = expected.upper()
+    if isinstance(value, dict):
+        return any(_contains_text(key, expected) or _contains_text(nested, expected) for key, nested in value.items())
+    if isinstance(value, list):
+        return any(_contains_text(nested, expected) for nested in value)
+    return target in str(value or "").upper()
+
+
+def _call_json(
+    config: MatrixWSConfig,
+    url: str,
+    payload: dict[str, Any],
+    *,
+    method: str,
+    timeout,
+) -> dict[str, Any]:
+    method = str(method or "POST").strip().upper()
+    if method not in {"GET", "POST"}:
+        raise MatrixWSError("Metodo HTTP MATRIXWS non supportato.", kind="configuration")
+    try:
+        response = requests.request(
+            method,
+            url,
+            headers={
+                "Authorization": f"Bearer {config.secret}",
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+            timeout=timeout,
+        )
+    except requests.RequestException as exc:
+        _raise_transport_error(exc)
+
+    try:
+        response_data = response.json()
+    except ValueError:
+        response_data = None
+    response_text = response.text or ""
+    return {
+        "url": url,
+        "method": method,
+        "status_code": response.status_code,
+        "ok": response.ok,
+        "content_type": response.headers.get("Content-Type", ""),
         "json": response_data,
         "text": response_text[:12000] if response_data is None else None,
         "truncated": response_data is None and len(response_text) > 12000,
