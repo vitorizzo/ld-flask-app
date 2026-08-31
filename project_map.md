@@ -8,6 +8,7 @@
 - `routes/customer_account.py` crea un provider distinto (`nexi_xpay_mac`), mantiene selezione e blocco delle partite già esistenti e considera il pagamento confermato soltanto dopo la notifica server-to-server firmata di Nexi. Il rientro del browser non può confermare autonomamente un pagamento.
 - La diagnostica registra avvio, rientro browser e notifica S2S con ordine, ambiente, importo ed eventuali codici/messaggi Nexi; MAC, chiave, email e dati di pagamento sono esclusi dai log.
 - Endpoint sandbox: `https://int-ecommerce.nexi.it/ecomm/ecomm/DispatcherServlet`; produzione separata e selezionabile solo impostando esplicitamente l'ambiente `production`.
+- Nel tracciato web Pagamento Semplice `divisa` deve essere `EUR` (non il codice numerico `978` usato da altri tracciati Nexi) e il form dichiara la codifica ISO-8859-1. `gruppo` e `num_contratto` non vengono inviati perché appartengono al primo pagamento OneClick e comportano l'associazione della carta, funzione estranea al checkout singolo LDApp.
 
 ## PayByLink amministrativo Nexi (2026-08-29)
 

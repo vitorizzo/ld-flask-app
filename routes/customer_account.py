@@ -1093,7 +1093,7 @@ def _validate_classic_nexi_response(payment_case, values):
     if str(values.get("codTrans") or "").strip() != str(payment_case.provider_order_id or ""):
         abort(400)
     expected_amount = str(int((Decimal(payment_case.declared_amount) * 100).quantize(Decimal("1"))))
-    if str(values.get("importo") or "").strip() != expected_amount or str(values.get("divisa") or "").strip() != "978":
+    if str(values.get("importo") or "").strip() != expected_amount or str(values.get("divisa") or "").strip() != "EUR":
         logger.warning("Risposta Nexi MAC con importo/valuta incoerenti order=%s", payment_case.provider_order_id)
         abort(400)
     expected_alias = str(current_app.config.get("NEXI_XPAY_ALIAS") or "").strip()

@@ -90,7 +90,7 @@ class NexiXPayClassic:
         fields = {
             "alias": self.alias,
             "importo": str(amount),
-            "divisa": "978",
+            "divisa": "EUR",
             "codTrans": str(order_id),
             "url": str(result_url),
             "url_back": str(cancel_url),

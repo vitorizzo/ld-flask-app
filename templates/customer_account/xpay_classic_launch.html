@@ -7,7 +7,7 @@
       <div class="spinner-border text-primary mb-3" role="status"><span class="visually-hidden">Caricamento</span></div>
       <h1 class="h4">Connessione alla pagina sicura Nexi</h1>
       <p class="text-muted">Importo: {{ '%.2f'|format(payment_case.declared_amount)|replace('.', ',') }} €</p>
-      <form id="nexiClassicPaymentForm" method="post" action="{{ endpoint }}">
+      <form id="nexiClassicPaymentForm" method="post" action="{{ endpoint }}" accept-charset="ISO-8859-1">
         {% for name, value in fields.items() %}<input type="hidden" name="{{ name }}" value="{{ value }}">{% endfor %}
         <button class="btn btn-success btn-lg" type="submit">Continua su Nexi</button>
       </form>
