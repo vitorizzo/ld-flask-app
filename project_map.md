@@ -1,5 +1,13 @@
 # PROJECT_MAP.md — v2.4
 
+## Collaudo XPay Pagamento Semplice con credenziali MAC (2026-08-31)
+
+- Nexi ha fornito credenziali di collaudo composte da Terminal ID, Alias e chiave MAC. I valori non sono documentati né versionati: vengono inseriti in `Chiavi API > Nexi XPay`, con la chiave conservata cifrata nelle preferenze.
+- Queste credenziali appartengono al protocollo XPay classico/Pagamento Semplice, non all'API JSON v2 già predisposta. Il checkout delle partite Horeca usa quindi il form POST firmato verso la cassa Nexi sandbox quando Alias e MAC sono configurati; l'API v2 rimane il fallback e continua a servire il PayByLink amministrativo.
+- `tools/nexi_xpay.py` calcola la firma di avvio e verifica la firma di esito senza esporre il segreto. Il Terminal ID resta un riferimento di configurazione perché il tracciato Pagamento Semplice invia l'Alias, non il Terminal ID.
+- `routes/customer_account.py` crea un provider distinto (`nexi_xpay_mac`), mantiene selezione e blocco delle partite già esistenti e considera il pagamento confermato soltanto dopo la notifica server-to-server firmata di Nexi. Il rientro del browser non può confermare autonomamente un pagamento.
+- Endpoint sandbox: `https://int-ecommerce.nexi.it/ecomm/ecomm/DispatcherServlet`; produzione separata e selezionabile solo impostando esplicitamente l'ambiente `production`.
+
 ## PayByLink amministrativo Nexi (2026-08-29)
 
 - `/administration/payment-links`, protetta dal ruolo `office` (peso 40), genera PayByLink autonomi e completamente separati dalle partite contabili/HPP Horeca; la relativa voce viene inserita sotto `Amministrazione` dalla migration `b9c0d1e2f4a6`.

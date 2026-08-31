@@ -36,7 +36,7 @@ from tools.customer_payments import (
     is_selectable_settlement_item,
 )
 from tools.log_utils import get_logger
-from tools.nexi_xpay import NexiXPayClient, NexiXPayError, NexiXPayUncertainError
+from tools.nexi_xpay import NexiXPayClassic, NexiXPayClient, NexiXPayError, NexiXPayUncertainError
 from tools.role_required import role_required
 
 
@@ -82,7 +82,14 @@ def _base36(value):
 
 
 def _nexi_is_configured():
-    return bool(str(current_app.config.get("NEXI_XPAY_API_KEY") or "").strip())
+    return _nexi_classic_is_configured() or bool(str(current_app.config.get("NEXI_XPAY_API_KEY") or "").strip())
+
+
+def _nexi_classic_is_configured():
+    return bool(
+        str(current_app.config.get("NEXI_XPAY_ALIAS") or "").strip()
+        and str(current_app.config.get("NEXI_XPAY_MAC_KEY") or "").strip()
+    )
 
 
 def _public_url(endpoint, **values):
@@ -780,6 +787,35 @@ def create_online_payment_checkout():
         return redirect(url_for("customer_account.index", customer=registry.id))
 
     amount_minor = str(int((declared_amount * 100).quantize(Decimal("1"))))
+    if _nexi_classic_is_configured():
+        try:
+            payment_case.provider = "nexi_xpay_mac"
+            payment_case.payment_url = url_for(
+                "customer_account.xpay_classic_launch",
+                public_id=payment_case.public_id,
+                order_id=payment_case.provider_order_id,
+            )
+            payment_case.status = "checkout_ready"
+            for state in CustomerAccountingItemState.query.filter_by(payment_case_id=payment_case.id).all():
+                state.status = "checkout_ready"
+                state.message = "Pagamento Nexi da completare"
+            db.session.add(CustomerPaymentEvent(
+                case_id=payment_case.id,
+                actor_user_id=current_user.id,
+                event_type="online_checkout_created",
+                from_status="creating_checkout",
+                to_status="checkout_ready",
+                message="Checkout XPay Pagamento Semplice creato",
+                event_metadata={"provider": "nexi_xpay_mac"},
+            ))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            logger.exception("Errore preparazione checkout XPay MAC pratica=%s", payment_case.id)
+            flash("Non e' stato possibile preparare il collegamento sicuro con Nexi.", "danger")
+            return redirect(url_for("customer_account.index", customer=registry.id))
+        return redirect(payment_case.payment_url, code=303)
+
     customer_info = {}
     if current_user.email:
         customer_info["cardHolderEmail"] = str(current_user.email)[:255]
@@ -880,6 +916,47 @@ def create_online_payment_checkout():
         return redirect(url_for("customer_account.index", customer=registry.id))
 
     return redirect(payment_case.payment_url, code=303)
+
+
+@customer_account_bp.get("/payments/xpay/classic/launch/<public_id>/<order_id>")
+@login_required
+def xpay_classic_launch(public_id, order_id):
+    payment_case = CustomerPaymentCase.query.filter_by(
+        public_id=public_id, provider="nexi_xpay_mac", case_type="online_payment",
+    ).first_or_404()
+    if not hmac.compare_digest(str(order_id), str(payment_case.provider_order_id or "")):
+        abort(404)
+    _, is_developer = _role_context()
+    if _authorized_registry(payment_case.registry_id, is_developer) is None:
+        abort(403)
+    if payment_case.status != "checkout_ready":
+        flash("Questo checkout Nexi non e' piu' disponibile.", "warning")
+        return redirect(url_for("customer_account.index", customer=payment_case.registry_id))
+    amount_minor = str(int((Decimal(payment_case.declared_amount) * 100).quantize(Decimal("1"))))
+    client = NexiXPayClassic.from_app()
+    endpoint, fields = client.payment_form(
+        order_id=payment_case.provider_order_id,
+        amount=amount_minor,
+        result_url=_public_url(
+            "customer_account.xpay_checkout_result",
+            public_id=payment_case.public_id,
+            order_id=payment_case.provider_order_id,
+        ),
+        cancel_url=_public_url(
+            "customer_account.xpay_checkout_cancelled_return",
+            public_id=payment_case.public_id,
+            order_id=payment_case.provider_order_id,
+        ),
+        notification_url=_public_url("customer_account.nexi_notification"),
+        email=current_user.email,
+        description=f"Pagamento documenti LD Enoteca - pratica {payment_case.public_id[-8:]}",
+    )
+    return render_template(
+        "customer_account/xpay_classic_launch.html",
+        endpoint=endpoint,
+        fields=fields,
+        payment_case=payment_case,
+    )
 
 
 def _validate_nexi_operation(payment_case, operation, *, expected_channel=True):
@@ -989,6 +1066,70 @@ def _sync_nexi_order(payment_case, *, source="order_check"):
     return operation, confirmed, old_status
 
 
+def _validate_classic_nexi_response(payment_case, values):
+    values = dict(values or {})
+    if str(values.get("codTrans") or "").strip() != str(payment_case.provider_order_id or ""):
+        abort(400)
+    expected_amount = str(int((Decimal(payment_case.declared_amount) * 100).quantize(Decimal("1"))))
+    if str(values.get("importo") or "").strip() != expected_amount or str(values.get("divisa") or "").strip() != "978":
+        logger.warning("Risposta Nexi MAC con importo/valuta incoerenti order=%s", payment_case.provider_order_id)
+        abort(400)
+    expected_alias = str(current_app.config.get("NEXI_XPAY_ALIAS") or "").strip()
+    supplied_alias = str(values.get("alias") or "").strip()
+    if supplied_alias and expected_alias and not hmac.compare_digest(supplied_alias, expected_alias):
+        abort(400)
+    if not NexiXPayClassic.from_app().verify_response(values):
+        logger.warning("Risposta Nexi con MAC non valido order=%s", payment_case.provider_order_id)
+        abort(400)
+    return values
+
+
+def _apply_classic_nexi_notification(payment_case, values):
+    values = _validate_classic_nexi_response(payment_case, values)
+    outcome = str(values.get("esito") or "").strip().upper()
+    if outcome not in {"OK", "KO", "ANNULLO", "ERRORE"}:
+        abort(400)
+    event_id = hashlib.sha256(
+        "|".join(str(values.get(key) or "") for key in ("codTrans", "esito", "data", "orario", "codAut")).encode("utf-8")
+    ).hexdigest()[:80]
+    if event_id == payment_case.provider_last_event_id:
+        return outcome == "OK", payment_case.status
+    old_status = payment_case.status
+    payment_case.provider_last_event_id = event_id
+    payment_case.provider_operation_id = str(values.get("codAut") or "").strip()[:160] or payment_case.provider_operation_id
+    confirmed = outcome == "OK"
+    if confirmed and payment_case.status != "accounted":
+        payment_case.status = "awaiting_accounting"
+        payment_case.provider_confirmed_at = datetime.now(timezone.utc)
+        payment_case.submitted_at = payment_case.provider_confirmed_at
+        payment_case.resolved_at = None
+        state_message = "Pagamento Nexi confermato; in attesa di contabilizzazione"
+    elif payment_case.status not in {"awaiting_accounting", "accounted"}:
+        payment_case.status = "cancelled" if outcome == "ANNULLO" else "failed"
+        payment_case.resolved_at = datetime.now(timezone.utc)
+        state_message = "Pagamento Nexi annullato" if outcome == "ANNULLO" else "Pagamento Nexi non riuscito"
+    else:
+        state_message = None
+    if state_message:
+        CustomerAccountingItemState.query.filter_by(payment_case_id=payment_case.id).update({
+            CustomerAccountingItemState.status: payment_case.status,
+            CustomerAccountingItemState.message: state_message,
+        }, synchronize_session=False)
+    db.session.add(CustomerPaymentEvent(
+        case_id=payment_case.id,
+        event_type="nexi_classic_notification",
+        from_status=old_status,
+        to_status=payment_case.status,
+        message=f"Nexi Pagamento Semplice: {outcome}",
+        event_metadata={
+            "event_id": event_id,
+            "authorization_code": str(values.get("codAut") or "")[:40],
+            "brand": str(values.get("brand") or "")[:80],
+        },
+    ))
+    return confirmed, old_status
+
+
 @customer_account_bp.get("/payments/xpay/result/<public_id>/<order_id>")
 @login_required
 def xpay_checkout_result(public_id, order_id):
@@ -998,10 +1139,14 @@ def xpay_checkout_result(public_id, order_id):
     _, is_developer = _role_context()
     if _authorized_registry(payment_case.registry_id, is_developer) is None:
         abort(403)
-    try:
-        _sync_nexi_order(payment_case, source="return_check")
-    except NexiXPayError as exc:
-        logger.warning("Verifica rientro XPay non riuscita order=%s: %s", order_id, exc)
+    if payment_case.provider == "nexi_xpay_mac":
+        if request.args.get("mac"):
+            _validate_classic_nexi_response(payment_case, request.args.to_dict(flat=True))
+    else:
+        try:
+            _sync_nexi_order(payment_case, source="return_check")
+        except NexiXPayError as exc:
+            logger.warning("Verifica rientro XPay non riuscita order=%s: %s", order_id, exc)
     if payment_case.status == "awaiting_accounting":
         flash("Pagamento confermato da Nexi. Le partite sono in attesa di contabilizzazione.", "success")
     elif payment_case.status in {"failed", "cancelled"}:
@@ -1020,11 +1165,15 @@ def xpay_checkout_cancelled_return(public_id, order_id):
     _, is_developer = _role_context()
     if _authorized_registry(payment_case.registry_id, is_developer) is None:
         abort(403)
-    try:
-        operation, _, _ = _sync_nexi_order(payment_case, source="cancel_return_check")
-    except NexiXPayError as exc:
+    if payment_case.provider == "nexi_xpay_mac":
         operation = None
-        logger.warning("Verifica annullamento XPay non riuscita order=%s: %s", order_id, exc)
+        # Il rientro browser non modifica lo stato: solo la notifica server-to-server firmata conferma l'esito.
+    else:
+        try:
+            operation, _, _ = _sync_nexi_order(payment_case, source="cancel_return_check")
+        except NexiXPayError as exc:
+            operation = None
+            logger.warning("Verifica annullamento XPay non riuscita order=%s: %s", order_id, exc)
     if payment_case.status == "awaiting_accounting":
         flash("Pagamento confermato da Nexi. Le partite sono in attesa di contabilizzazione.", "success")
     elif payment_case.status in {"failed", "cancelled"}:
@@ -1040,6 +1189,20 @@ def xpay_checkout_cancelled_return(public_id, order_id):
 def nexi_notification():
     if request.content_length is not None and request.content_length > 128 * 1024:
         abort(413)
+    if request.form:
+        values = request.form.to_dict(flat=True)
+        order_id = str(values.get("codTrans") or "").strip()
+        payment_case = CustomerPaymentCase.query.filter_by(
+            provider="nexi_xpay_mac", provider_order_id=order_id, case_type="online_payment",
+        ).first()
+        if payment_case is None:
+            abort(404)
+        confirmed, old_status = _apply_classic_nexi_notification(payment_case, values)
+        db.session.commit()
+        if confirmed and old_status != "awaiting_accounting":
+            _queue_case_notification(payment_case.id, "created")
+        return ("", 200)
+
     payload = request.get_json(silent=True)
     operation = payload.get("operation") if isinstance(payload, dict) else None
     if not isinstance(operation, dict):

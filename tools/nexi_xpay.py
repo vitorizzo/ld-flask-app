@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
+import hmac
 from typing import Any
 from urllib.parse import quote
 from uuid import uuid4
@@ -11,6 +13,8 @@ from flask import current_app
 
 SANDBOX_BASE_URL = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api"
 PRODUCTION_BASE_URL = "https://xpay.nexigroup.com/api/phoenix-0.0/psp/api"
+CLASSIC_SANDBOX_URL = "https://int-ecommerce.nexi.it/ecomm/ecomm/DispatcherServlet"
+CLASSIC_PRODUCTION_URL = "https://ecommerce.nexi.it/ecomm/ecomm/DispatcherServlet"
 
 
 class NexiXPayError(RuntimeError):
@@ -34,6 +38,71 @@ class PayByLinkResult:
     security_token: str
     expiration_date: str | None
     status: str | None
+
+
+class NexiXPayClassic:
+    """Firma e valida il flusso redirect XPay/Pagamento Semplice."""
+
+    def __init__(self, alias: str, mac_key: str, environment: str = "sandbox"):
+        self.alias = str(alias or "").strip()
+        self.mac_key = str(mac_key or "").strip()
+        normalized_environment = str(environment or "sandbox").strip().lower()
+        self.environment = "production" if normalized_environment in {"production", "prod"} else "sandbox"
+        self.endpoint = CLASSIC_PRODUCTION_URL if self.environment == "production" else CLASSIC_SANDBOX_URL
+        if not self.alias or not self.mac_key:
+            raise NexiXPayError("Nexi XPay non e' configurato: mancano Alias o chiave MAC.")
+
+    @classmethod
+    def from_app(cls):
+        return cls(
+            alias=current_app.config.get("NEXI_XPAY_ALIAS"),
+            mac_key=current_app.config.get("NEXI_XPAY_MAC_KEY"),
+            environment=current_app.config.get("NEXI_XPAY_ENVIRONMENT", "sandbox"),
+        )
+
+    @staticmethod
+    def _sha1(value: str) -> str:
+        return hashlib.sha1(value.encode("utf-8")).hexdigest()
+
+    def request_mac(self, order_id: str, currency: str, amount: str) -> str:
+        message = f"codTrans={order_id}divisa={currency}importo={amount}{self.mac_key}"
+        return self._sha1(message)
+
+    def response_mac(self, values: dict[str, Any]) -> str:
+        message = (
+            f"codTrans={values.get('codTrans', '')}"
+            f"esito={values.get('esito', '')}"
+            f"importo={values.get('importo', '')}"
+            f"divisa={values.get('divisa', '')}"
+            f"data={values.get('data', '')}"
+            f"orario={values.get('orario', '')}"
+            f"codAut={values.get('codAut', '')}"
+            f"{self.mac_key}"
+        )
+        return self._sha1(message)
+
+    def verify_response(self, values: dict[str, Any]) -> bool:
+        supplied = str(values.get("mac") or "").strip().lower()
+        return bool(supplied) and hmac.compare_digest(supplied, self.response_mac(values).lower())
+
+    def payment_form(self, *, order_id: str, amount: str, result_url: str, cancel_url: str,
+                     notification_url: str, email: str | None = None, description: str | None = None):
+        fields = {
+            "alias": self.alias,
+            "importo": str(amount),
+            "divisa": "978",
+            "codTrans": str(order_id),
+            "url": str(result_url),
+            "url_back": str(cancel_url),
+            "urlpost": str(notification_url),
+            "languageId": "ITA",
+        }
+        if email:
+            fields["mail"] = str(email)[:150]
+        if description:
+            fields["descrizione"] = str(description)[:2000]
+        fields["mac"] = self.request_mac(fields["codTrans"], fields["divisa"], fields["importo"])
+        return self.endpoint, fields
 
 
 class NexiXPayClient:
