@@ -6,6 +6,7 @@
 - Queste credenziali appartengono al protocollo XPay classico/Pagamento Semplice, non all'API JSON v2 già predisposta. Il checkout delle partite Horeca usa quindi il form POST firmato verso la cassa Nexi sandbox quando Alias e MAC sono configurati; l'API v2 rimane il fallback e continua a servire il PayByLink amministrativo.
 - `tools/nexi_xpay.py` calcola la firma di avvio e verifica la firma di esito senza esporre il segreto. Il Terminal ID resta un riferimento di configurazione perché il tracciato Pagamento Semplice invia l'Alias, non il Terminal ID.
 - `routes/customer_account.py` crea un provider distinto (`nexi_xpay_mac`), mantiene selezione e blocco delle partite già esistenti e considera il pagamento confermato soltanto dopo la notifica server-to-server firmata di Nexi. Il rientro del browser non può confermare autonomamente un pagamento.
+- La diagnostica registra avvio, rientro browser e notifica S2S con ordine, ambiente, importo ed eventuali codici/messaggi Nexi; MAC, chiave, email e dati di pagamento sono esclusi dai log.
 - Endpoint sandbox: `https://int-ecommerce.nexi.it/ecomm/ecomm/DispatcherServlet`; produzione separata e selezionabile solo impostando esplicitamente l'ambiente `production`.
 
 ## PayByLink amministrativo Nexi (2026-08-29)

@@ -92,6 +92,20 @@ def _nexi_classic_is_configured():
     )
 
 
+def _nexi_classic_safe_diagnostics(values):
+    """Estrae solo campi tecnici innocui: mai MAC, email o dati del mezzo di pagamento."""
+    allowed = (
+        "codTrans", "esito", "importo", "divisa", "data", "orario",
+        "codice", "codiceErrore", "errore", "messaggio", "message",
+    )
+    result = {}
+    for key in allowed:
+        value = str((values or {}).get(key) or "").strip()
+        if value:
+            result[key] = value[:300]
+    return result
+
+
 def _public_url(endpoint, **values):
     path = url_for(endpoint, _external=False, **values)
     base_url = (
@@ -951,6 +965,14 @@ def xpay_classic_launch(public_id, order_id):
         email=current_user.email,
         description=f"Pagamento documenti LD Enoteca - pratica {payment_case.public_id[-8:]}",
     )
+    logger.info(
+        "Avvio checkout Nexi MAC order=%s pratica=%s ambiente=%s importo_minore=%s endpoint=%s",
+        payment_case.provider_order_id,
+        payment_case.public_id[-8:],
+        client.environment,
+        amount_minor,
+        endpoint,
+    )
     return render_template(
         "customer_account/xpay_classic_launch.html",
         endpoint=endpoint,
@@ -1140,6 +1162,8 @@ def xpay_checkout_result(public_id, order_id):
     if _authorized_registry(payment_case.registry_id, is_developer) is None:
         abort(403)
     if payment_case.provider == "nexi_xpay_mac":
+        diagnostics = _nexi_classic_safe_diagnostics(request.args)
+        logger.info("Rientro browser Nexi MAC order=%s dati=%s", order_id, diagnostics)
         if request.args.get("mac"):
             _validate_classic_nexi_response(payment_case, request.args.to_dict(flat=True))
     else:
@@ -1167,6 +1191,11 @@ def xpay_checkout_cancelled_return(public_id, order_id):
         abort(403)
     if payment_case.provider == "nexi_xpay_mac":
         operation = None
+        diagnostics = _nexi_classic_safe_diagnostics(request.args)
+        if diagnostics:
+            logger.warning("Rientro annullo/errore Nexi MAC order=%s dati=%s", order_id, diagnostics)
+        else:
+            logger.warning("Rientro annullo/errore Nexi MAC order=%s senza diagnostica", order_id)
         # Il rientro browser non modifica lo stato: solo la notifica server-to-server firmata conferma l'esito.
     else:
         try:
@@ -1196,7 +1225,16 @@ def nexi_notification():
             provider="nexi_xpay_mac", provider_order_id=order_id, case_type="online_payment",
         ).first()
         if payment_case is None:
+            logger.warning(
+                "Notifica Nexi MAC per ordine sconosciuto dati=%s",
+                _nexi_classic_safe_diagnostics(values),
+            )
             abort(404)
+        logger.info(
+            "Notifica Nexi MAC order=%s dati=%s",
+            order_id,
+            _nexi_classic_safe_diagnostics(values),
+        )
         confirmed, old_status = _apply_classic_nexi_notification(payment_case, values)
         db.session.commit()
         if confirmed and old_status != "awaiting_accounting":
