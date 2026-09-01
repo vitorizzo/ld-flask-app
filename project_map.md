@@ -1,5 +1,13 @@
 # PROJECT_MAP.md — v2.4
 
+## Stato ordini clienti Horeca (2026-09-01)
+
+- `GET /customer-orders/status` espone al solo ruolo `customer_horeca` lo storico dell'anagrafica autorizzata tramite `CustomerRegistryMembership`; con più associazioni il cliente può scegliere esclusivamente tra le proprie membership attive.
+- La vista unifica gli ordini inseriti da LDApp, le righe effettivamente inviate dalla console e gli ordini Slack con chiave gestionale esatta. Il collegamento a `SlackOrder` fornisce lo stato operativo reale (`acquisito`, `listato`, `preparato`, `controllato`, `in_consegna`, `evaso`) e deduplica le diverse rappresentazioni dello stesso ordine.
+- Per sicurezza non viene usato alcun matching parziale o fuzzy sul nome cliente e non vengono mostrate bozze console non inviate, eventi Slack o note interne dell'ufficio.
+- `templates/customer_orders/status.html` mostra filtri data, avanzamento, consegna prevista, dettaglio e allegati; `static/css/style.css` include layout touch per smartphone standard e ad alta risoluzione. La home Horeca espone `I miei ordini` e la pagina di inserimento mostra lo stato reale anche nel riepilogo recente.
+- Nessuna migrazione è necessaria: vengono riusati i collegamenti e le tabelle ordini esistenti.
+
 ## Collaudo XPay Pagamento Semplice con credenziali MAC (2026-08-31)
 
 - Nexi ha fornito credenziali di collaudo composte da Terminal ID, Alias e chiave MAC. I valori non sono documentati né versionati: vengono inseriti in `Chiavi API > Nexi XPay`, con la chiave conservata cifrata nelle preferenze.

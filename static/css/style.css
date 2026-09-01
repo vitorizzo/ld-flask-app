@@ -2176,8 +2176,22 @@ body.kiosk-body #flash-message,
 }
 
 .customer-order-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
     padding: 24px;
     margin-bottom: 18px;
+}
+
+.customer-order-status-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    white-space: nowrap;
+    font-weight: 700;
 }
 
 .customer-order-hero h1,
@@ -2342,6 +2356,172 @@ body.kiosk-body #flash-message,
     color: rgba(255, 255, 255, .68);
     font-weight: 500;
 }
+
+.customer-order-summary-status,
+.customer-order-status-reference {
+    display: grid;
+    gap: 5px;
+}
+
+.customer-order-summary-status {
+    justify-items: end;
+}
+
+.customer-order-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 30px;
+    padding: 5px 10px;
+    border: 1px solid rgba(255, 255, 255, .25);
+    border-radius: 999px;
+    color: #172033;
+    background: #dbeafe;
+    font-size: .84rem;
+    line-height: 1.1;
+    white-space: nowrap;
+}
+
+.customer-order-status--listato { background: #fef3c7; }
+.customer-order-status--preparato { background: #fde68a; }
+.customer-order-status--controllato { background: #cffafe; }
+.customer-order-status--in_consegna,
+.customer-order-status--inconsegna { background: #bfdbfe; }
+.customer-order-status--evaso { background: #bbf7d0; }
+.customer-order-status--annullato,
+.customer-order-status--annullata,
+.customer-order-status--cancellato,
+.customer-order-status--cancelled { color: #7f1d1d; background: #fecaca; }
+
+.customer-order-eyebrow {
+    display: block;
+    margin-bottom: 4px;
+    color: #9ee9f6;
+    font-size: .75rem;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.customer-order-status-filters {
+    display: grid;
+    grid-template-columns: minmax(180px, 1.5fr) repeat(2, minmax(145px, .8fr)) auto;
+    align-items: end;
+    gap: 12px;
+}
+
+.customer-order-status-filters label {
+    display: grid;
+    gap: 6px;
+    margin: 0;
+    font-weight: 700;
+}
+
+.customer-order-status-filters .form-control,
+.customer-order-status-filters .form-select,
+.customer-order-status-filters .btn {
+    min-height: 44px;
+}
+
+.customer-order-status-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.customer-order-status-heading p {
+    margin: 4px 0 0;
+    color: rgba(255, 255, 255, .7);
+}
+
+.customer-order-progress {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0;
+    margin: 6px 4px 24px;
+}
+
+.customer-order-progress::before,
+.customer-order-progress::after {
+    position: absolute;
+    top: 7px;
+    left: calc(100% / 12);
+    width: calc(100% - 100% / 6);
+    height: 4px;
+    border-radius: 999px;
+    content: "";
+}
+
+.customer-order-progress::before { background: rgba(255, 255, 255, .2); }
+.customer-order-progress::after {
+    width: calc((100% - 100% / 6) * var(--order-progress) / 100);
+    background: #22c55e;
+}
+
+.customer-order-progress span {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    justify-items: center;
+    gap: 7px;
+    min-width: 0;
+    color: rgba(255, 255, 255, .64);
+    text-align: center;
+}
+
+.customer-order-progress span i {
+    width: 18px;
+    height: 18px;
+    border: 3px solid #8a7775;
+    border-radius: 50%;
+    background: #4a2c2a;
+}
+
+.customer-order-progress span.is-complete { color: #fff; }
+.customer-order-progress span.is-complete i { border-color: #22c55e; background: #22c55e; }
+
+.customer-order-progress small {
+    overflow-wrap: anywhere;
+    font-size: .72rem;
+}
+
+.customer-order-status-data {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0;
+}
+
+.customer-order-status-data div {
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(0, 0, 0, .14);
+}
+
+.customer-order-status-data dt {
+    color: rgba(255, 255, 255, .65);
+    font-size: .75rem;
+}
+
+.customer-order-status-data dd {
+    margin: 3px 0 0;
+    font-weight: 700;
+}
+
+.customer-order-status-empty {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    padding: 44px 16px;
+    text-align: center;
+}
+
+.customer-order-status-empty > i { font-size: 2.5rem; color: #9ee9f6; }
+.customer-order-status-empty h3,
+.customer-order-status-empty p { margin: 0; }
+.customer-order-status-empty p { color: rgba(255, 255, 255, .7); }
 
 .customer-order-item-body,
 .customer-order-staff-item {
@@ -3016,6 +3196,22 @@ body.kiosk-body #flash-message,
         padding: 16px;
     }
 
+    .customer-order-hero,
+    .customer-order-status-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .customer-order-status-link,
+    .customer-order-status-heading .btn {
+        width: 100%;
+    }
+
+    .customer-order-status-filters,
+    .customer-order-status-data {
+        grid-template-columns: 1fr;
+    }
+
     .customer-order-delivery,
     .customer-order-tools {
         grid-template-columns: 1fr;
@@ -3042,6 +3238,47 @@ body.kiosk-body #flash-message,
         align-items: flex-start;
         flex-direction: column;
     }
+
+    .customer-order-summary-status {
+        width: 100%;
+        justify-items: start;
+    }
+
+    .customer-order-status-item summary .customer-order-status {
+        align-self: stretch;
+        width: 100%;
+        min-height: 38px;
+    }
+
+    .customer-order-progress {
+        grid-template-columns: 1fr;
+        gap: 0;
+        margin: 4px 0 20px;
+    }
+
+    .customer-order-progress::before,
+    .customer-order-progress::after {
+        top: 9px;
+        bottom: 9px;
+        left: 7px;
+        width: 4px;
+        height: auto;
+    }
+
+    .customer-order-progress::after {
+        width: 4px;
+        height: calc((100% - 18px) * var(--order-progress) / 100);
+    }
+
+    .customer-order-progress span {
+        grid-template-columns: 18px minmax(0, 1fr);
+        justify-items: start;
+        gap: 10px;
+        min-height: 42px;
+        text-align: left;
+    }
+
+    .customer-order-progress small { font-size: .84rem; }
 }
 
 @media (hover: none) and (pointer: coarse) and (min-width: 821px) {
@@ -3595,6 +3832,14 @@ body.kiosk-body #flash-message,
         font-size: 4.2rem;
     }
 
+    .customer-order-status-link,
+    .customer-order-status-heading .btn,
+    .customer-order-status-filters .btn {
+        min-height: 92px;
+        font-size: 2rem;
+        border-radius: 14px;
+    }
+
     .customer-order-hero p,
     .customer-order-form label,
     .customer-order-revision-form label,
@@ -3623,11 +3868,55 @@ body.kiosk-body #flash-message,
     .customer-order-form .form-control,
     .customer-order-form .form-select,
     .customer-order-revision-form .form-control,
-    .customer-order-revision-form .form-select {
+    .customer-order-revision-form .form-select,
+    .customer-order-status-filters .form-control,
+    .customer-order-status-filters .form-select {
         min-height: 86px;
         font-size: 2rem;
         border-radius: 14px;
     }
+
+    .customer-order-status-filters label,
+    .customer-order-status-heading p,
+    .customer-order-status-data,
+    .customer-order-progress small,
+    .customer-order-status-empty {
+        font-size: 2rem;
+    }
+
+    .customer-order-status {
+        min-height: 62px;
+        padding: 12px 20px;
+        font-size: 1.7rem;
+    }
+
+    .customer-order-progress span {
+        grid-template-columns: 30px minmax(0, 1fr);
+        min-height: 76px;
+    }
+
+    .customer-order-progress span i {
+        width: 30px;
+        height: 30px;
+        border-width: 5px;
+    }
+
+    .customer-order-progress::before,
+    .customer-order-progress::after {
+        top: 15px;
+        bottom: 15px;
+        left: 13px;
+        width: 5px;
+    }
+
+    .customer-order-progress::after { width: 5px; }
+
+    .customer-order-status-data div {
+        padding: 22px;
+        border-radius: 14px;
+    }
+
+    .customer-order-status-data dt { font-size: 1.5rem; }
 
     .customer-order-tool {
         min-height: 112px;

@@ -13,6 +13,12 @@
         <p>Account non ancora collegato a un'anagrafica cliente.</p>
       {% endif %}
     </div>
+    {% if registry %}
+      <a class="btn btn-light customer-order-status-link" href="{{ url_for('customer_orders.status') }}">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        Stato dei miei ordini
+      </a>
+    {% endif %}
   </header>
 
   {% if not registry %}
@@ -82,10 +88,14 @@
       {% if orders %}
         <div class="customer-order-list">
           {% for order in orders %}
+            {% set order_status = effective_order_status(order) %}
             <details class="customer-order-item">
               <summary>
                 <span>Ordine #{{ order.id }}</span>
-                <small>{{ order.created_at.strftime('%d/%m/%Y %H:%M') }} - {{ order.status }}</small>
+                <span class="customer-order-summary-status">
+                  <small>{{ order.created_at.strftime('%d/%m/%Y %H:%M') }}</small>
+                  <b class="customer-order-status customer-order-status--{{ order_status.code }}">{{ order_status.label }}</b>
+                </span>
               </summary>
               <div class="customer-order-item-body">
                 {% if order.delivery_option %}

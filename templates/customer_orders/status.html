@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+
+{% block title %}Stato ordini - LD Enoteca{% endblock %}
+
+{% block content %}
+<section class="customer-order-page customer-order-status-page">
+  <header class="customer-order-hero">
+    <div>
+      <span class="customer-order-eyebrow">Area cliente</span>
+      <h1>I miei ordini</h1>
+      {% if registry %}
+        <p>{{ registry.display_name or registry.legal_name }}{% if registry.source_code %} · cliente {{ registry.source_code }}{% endif %}</p>
+      {% else %}
+        <p>Account non ancora collegato a un’anagrafica cliente.</p>
+      {% endif %}
+    </div>
+    <a class="btn btn-light customer-order-status-link" href="{{ url_for('customer_orders.index') }}">
+      <i class="fa-solid fa-plus"></i>
+      Nuovo ordine
+    </a>
+  </header>
+
+  {% if not registry %}
+    <div class="customer-order-panel">
+      <div class="alert alert-warning mb-0">Per consultare gli ordini serve associare l’account a un’anagrafica cliente.</div>
+    </div>
+  {% else %}
+    <form class="customer-order-panel customer-order-status-filters" method="get">
+      {% if memberships|length > 1 %}
+        <label>
+          <span>Cliente</span>
+          <select class="form-select" name="registry_id">
+            {% for membership in memberships %}
+              <option value="{{ membership.registry_id }}" {% if membership.registry_id == registry.id %}selected{% endif %}>
+                {{ membership.registry.display_name or membership.registry.legal_name or membership.registry.source_code }}
+              </option>
+            {% endfor %}
+          </select>
+        </label>
+      {% endif %}
+      <label>
+        <span>Dal</span>
+        <input class="form-control" type="date" name="date_from" value="{{ date_from.isoformat() }}">
+      </label>
+      <label>
+        <span>Al</span>
+        <input class="form-control" type="date" name="date_to" value="{{ date_to.isoformat() }}">
+      </label>
+      <button class="btn btn-info" type="submit"><i class="fa-solid fa-filter"></i> Aggiorna</button>
+    </form>
+
+    <section class="customer-order-panel">
+      <div class="customer-order-status-heading">
+        <div>
+          <h2>Stato degli ordini</h2>
+          <p>{{ rows|length }} {{ 'ordine trovato' if rows|length == 1 else 'ordini trovati' }}</p>
+        </div>
+        <button class="btn btn-outline-light" type="button" onclick="window.location.reload()">
+          <i class="fa-solid fa-rotate"></i> Aggiorna stato
+        </button>
+      </div>
+
+      {% if rows %}
+        <div class="customer-order-list">
+          {% for row in rows %}
+            <details class="customer-order-item customer-order-status-item">
+              <summary>
+                <span class="customer-order-status-reference">
+                  <b>{{ row.reference }}</b>
+                  <small>{{ row.order_date.strftime('%d/%m/%Y') }}{% if row.route %} · {{ row.route }}{% endif %}</small>
+                </span>
+                <b class="customer-order-status customer-order-status--{{ row.status.code }}">{{ row.status.label }}</b>
+              </summary>
+              <div class="customer-order-item-body">
+                <div class="customer-order-progress" style="--order-progress: {{ ((row.status.rank - 1) / 5 * 100)|round|int }}%" aria-label="Avanzamento ordine: {{ row.status.label }}">
+                  {% for step, label in [(1, 'Ricevuto'), (2, 'Preparazione'), (3, 'Preparato'), (4, 'Controllato'), (5, 'Consegna'), (6, 'Evaso')] %}
+                    <span class="{% if not row.status.cancelled and row.status.rank >= step %}is-complete{% endif %}"><i></i><small>{{ label }}</small></span>
+                  {% endfor %}
+                </div>
+
+                <dl class="customer-order-status-data">
+                  <div><dt>Stato</dt><dd>{{ row.status.label }}</dd></div>
+                  <div><dt>Inserito</dt><dd>{{ row.created_at.strftime('%d/%m/%Y %H:%M') }}</dd></div>
+                  {% if row.planned_delivery_at %}<div><dt>Consegna prevista</dt><dd>{{ row.planned_delivery_at.strftime('%d/%m/%Y') }}</dd></div>{% endif %}
+                  {% if row.updated_at %}<div><dt>Ultimo aggiornamento</dt><dd>{{ row.updated_at.strftime('%d/%m/%Y %H:%M') }}</dd></div>{% endif %}
+                  {% if row.delivery_label %}<div><dt>Preferenza</dt><dd>{{ row.delivery_label }}{% if row.delivery_value %}: {{ row.delivery_value }}{% endif %}</dd></div>{% endif %}
+                  <div><dt>Origine</dt><dd>{{ row.source_label }}</dd></div>
+                </dl>
+
+                {% if row.text %}<pre>{{ row.text }}</pre>{% endif %}
+                {% if row.attachments %}
+                  <div class="customer-order-attachments">
+                    {% for attachment in row.attachments %}
+                      <a href="{{ attachment.url }}" target="_blank" rel="noopener">
+                        {% if attachment.is_audio %}<i class="fa-solid fa-microphone"></i>
+                        {% elif attachment.is_image %}<i class="fa-solid fa-image"></i>
+                        {% else %}<i class="fa-solid fa-paperclip"></i>{% endif %}
+                        {{ attachment.title or attachment.name or 'Allegato' }}
+                      </a>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+            </details>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="customer-order-status-empty">
+          <i class="fa-solid fa-basket-shopping"></i>
+          <h3>Nessun ordine nel periodo selezionato</h3>
+          <p>Prova ad ampliare l’intervallo oppure inserisci un nuovo ordine.</p>
+          <a class="btn btn-info" href="{{ url_for('customer_orders.index') }}">Inserisci ordine</a>
+        </div>
+      {% endif %}
+    </section>
+  {% endif %}
+</section>
+{% endblock %}

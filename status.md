@@ -3020,3 +3020,11 @@ Performance apertura giornata Agenda 2026-06-13:
 - Giacenze e articoli usano un lock Redis di importazione: una nuova esecuzione viene ignorata se la precedente e' ancora attiva, mentre i task rimasti in coda scadono prima del ciclo successivo.
 - La giacenza non viene piu riscritta integralmente: il confronto applica soltanto nuovi articoli, quantità cambiate e codici non piu presenti. Sorgenti con firma invariata vengono saltate; se il file cambia durante la lettura o lo snapshot si riduce in modo anomalo, l'import viene rinviato senza modificare il database.
 - La raccolta e il confronto rimangono separati dalla provenienza dei dati: quando saranno disponibili i servizi MATRIXWS per articoli e giacenze, il lettore file potra essere sostituito mantenendo invariata la sincronizzazione incrementale.
+
+## 2026-09-01 - Stato ordini per clienti Horeca
+
+- Aggiunta la sezione `I miei ordini` in home e la pagina `/customer-orders/status`, protetta dal ruolo `customer_horeca` e dalle associazioni cliente attive già usate dalla situazione contabile.
+- Lo stato mostrato non è più il valore tecnico fermo a `published/changed`: viene letto dall'ordine operativo collegato alla bacheca e tradotto in ricevuto, preparazione, preparato, controllato, in consegna, evaso o annullato.
+- Lo storico comprende ordini LDApp e ordini effettivamente registrati/inviati dall'ufficio, deduplicati per ordine Slack e channel/timestamp. Gli ordini Slack isolati sono ammessi soltanto con codice cliente esatto; nessun confronto fuzzy sul nome viene usato nella vista cliente.
+- Disponibili intervallo date, selettore per utenti associati a più clienti, dettaglio dell'ordine, allegati e avanzamento visuale. Layout predisposto per desktop, touch standard e smartphone ad alta risoluzione.
+- Verificati compilazione Python/Jinja, registrazione della rotta, integrità patch e query read-only sui dati configurati: 11 righe reali restituite senza duplicati e con stato valido.

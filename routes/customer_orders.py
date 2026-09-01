@@ -1,9 +1,10 @@
 import mimetypes
 import os
-from datetime import datetime
+from datetime import date, datetime, time, timedelta
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy.orm import joinedload
 from werkzeug.utils import secure_filename
 
 from extensions import db
@@ -13,12 +14,47 @@ from models import (
     CustomerOrderDeliveryOption,
     CustomerOrderRevision,
     DeliveryRouteCustomer,
+    RouteOrderBoardEntry,
+    SlackOrder,
 )
 from tools.role_required import role_required
-from tools.customer_memberships import customer_registry_for_user
+from tools.customer_memberships import active_customer_memberships, customer_registry_for_user
 
 
 customer_orders_bp = Blueprint("customer_orders", __name__)
+
+
+CUSTOMER_ORDER_STATUS_LABELS = {
+    "received": "Ordine ricevuto",
+    "published": "Ordine ricevuto",
+    "changed": "Modifica ricevuta",
+    "acquisito": "Ordine ricevuto",
+    "listato": "In preparazione",
+    "preparato": "Preparato",
+    "controllato": "Controllato",
+    "in_consegna": "In consegna",
+    "inconsegna": "In consegna",
+    "evaso": "Evaso",
+    "annullato": "Annullato",
+    "annullata": "Annullato",
+    "cancellato": "Cancellato",
+    "cancelled": "Cancellato",
+}
+
+CUSTOMER_ORDER_STATUS_RANKS = {
+    "received": 1,
+    "published": 1,
+    "changed": 1,
+    "acquisito": 1,
+    "listato": 2,
+    "preparato": 3,
+    "controllato": 4,
+    "in_consegna": 5,
+    "inconsegna": 5,
+    "evaso": 6,
+}
+
+CUSTOMER_ORDER_TERMINAL_STATUSES = {"evaso", "annullato", "annullata", "cancellato", "cancelled"}
 
 
 def _active_role_names():
@@ -119,6 +155,157 @@ def _customer_registry():
     return customer_registry_for_user(current_user)
 
 
+def _customer_order_status(code):
+    normalized = (code or "received").strip().lower()
+    return {
+        "code": normalized,
+        "label": CUSTOMER_ORDER_STATUS_LABELS.get(normalized, normalized.replace("_", " ").capitalize()),
+        "rank": CUSTOMER_ORDER_STATUS_RANKS.get(normalized, 1),
+        "terminal": normalized in CUSTOMER_ORDER_TERMINAL_STATUSES,
+        "cancelled": normalized in {"annullato", "annullata", "cancellato", "cancelled"},
+    }
+
+
+def _effective_customer_order_status(order):
+    return _customer_order_status(order.slack_order.status if order.slack_order else order.status)
+
+
+def _parse_date(value, fallback):
+    try:
+        return date.fromisoformat((value or "").strip())
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _linked_slack_order(entry):
+    if not entry.slack_channel_id or not entry.slack_message_ts:
+        return None
+    return SlackOrder.query.filter_by(
+        slack_channel_id=entry.slack_channel_id,
+        slack_message_ts=entry.slack_message_ts,
+    ).first()
+
+
+def _customer_order_rows(registry, date_from, date_to):
+    """Build a customer-safe order history using only exact registry links/keys."""
+    rows = []
+    seen_slack_ids = set()
+    seen_message_keys = set()
+
+    app_orders = (
+        CustomerOrder.query
+        .options(
+            joinedload(CustomerOrder.slack_order),
+            joinedload(CustomerOrder.route),
+            joinedload(CustomerOrder.delivery_option),
+        )
+        .filter(
+            CustomerOrder.registry_id == registry.id,
+            CustomerOrder.created_at >= datetime.combine(date_from, time.min),
+            CustomerOrder.created_at <= datetime.combine(date_to, time.max),
+        )
+        .order_by(CustomerOrder.created_at.desc(), CustomerOrder.id.desc())
+        .all()
+    )
+    for order in app_orders:
+        linked = order.slack_order
+        if linked:
+            seen_slack_ids.add(linked.id)
+            seen_message_keys.add((linked.slack_channel_id, linked.slack_message_ts))
+        status = _effective_customer_order_status(order)
+        rows.append({
+            "key": f"app-{order.id}",
+            "reference": f"Ordine #{order.id}",
+            "source_label": "LDApp",
+            "created_at": order.created_at,
+            "order_date": linked.order_date if linked else order.created_at.date(),
+            "planned_delivery_at": linked.planned_delivery_at if linked else None,
+            "route": order.route.name if order.route else "",
+            "status": status,
+            "text": order.order_text or (linked.raw_text if linked else "") or "",
+            "attachments": order.attachments or [],
+            "delivery_label": order.delivery_option.label if order.delivery_option else "",
+            "delivery_value": order.delivery_option_value or "",
+            "updated_at": linked.updated_at if linked else order.updated_at,
+        })
+
+    entries = (
+        RouteOrderBoardEntry.query
+        .options(joinedload(RouteOrderBoardEntry.route))
+        .filter(
+            RouteOrderBoardEntry.registry_id == registry.id,
+            RouteOrderBoardEntry.board_date >= date_from,
+            RouteOrderBoardEntry.board_date <= date_to,
+            RouteOrderBoardEntry.sent_at.isnot(None),
+        )
+        .order_by(RouteOrderBoardEntry.board_date.desc(), RouteOrderBoardEntry.id.desc())
+        .all()
+    )
+    for entry in entries:
+        message_key = (entry.slack_channel_id, entry.slack_message_ts)
+        if message_key in seen_message_keys:
+            continue
+        linked = _linked_slack_order(entry)
+        if linked and linked.id in seen_slack_ids:
+            continue
+        if linked:
+            seen_slack_ids.add(linked.id)
+            seen_message_keys.add(message_key)
+        status = _customer_order_status(linked.status if linked else entry.status)
+        rows.append({
+            "key": f"board-{entry.id}",
+            "reference": f"Ordine {entry.board_date.strftime('%d/%m/%Y')}",
+            "source_label": "Ordine registrato",
+            "created_at": entry.sent_at or entry.created_at,
+            "order_date": linked.order_date if linked else entry.board_date,
+            "planned_delivery_at": entry.planned_delivery_at,
+            "route": entry.route.name if entry.route else "",
+            "status": status,
+            "text": entry.order_note or (linked.raw_text if linked else "") or "",
+            "attachments": entry.order_attachments or [],
+            "delivery_label": "",
+            "delivery_value": "",
+            "updated_at": linked.updated_at if linked else entry.updated_at,
+        })
+
+    source_code = str(registry.source_code or "").strip()
+    # Gli ordini pubblicati dall'app usano sempre source_code quando presente.
+    # Non mescoliamo source_code e PK interna: lo stesso numero potrebbe
+    # appartenere come codice gestionale a un'altra anagrafica.
+    exact_keys = {source_code} if source_code else {str(registry.id)}
+    slack_orders = (
+        SlackOrder.query
+        .options(joinedload(SlackOrder.route))
+        .filter(
+            SlackOrder.customer_key.in_(tuple(exact_keys)),
+            SlackOrder.order_date >= date_from,
+            SlackOrder.order_date <= date_to,
+        )
+        .order_by(SlackOrder.order_date.desc(), SlackOrder.created_at.desc(), SlackOrder.id.desc())
+        .all()
+    )
+    for order in slack_orders:
+        if order.id in seen_slack_ids:
+            continue
+        rows.append({
+            "key": f"slack-{order.id}",
+            "reference": f"Ordine #{order.id}",
+            "source_label": "Ordine registrato",
+            "created_at": order.created_at,
+            "order_date": order.order_date,
+            "planned_delivery_at": order.planned_delivery_at,
+            "route": order.route.name if order.route else "",
+            "status": _customer_order_status(order.status),
+            "text": order.raw_text or "",
+            "attachments": [],
+            "delivery_label": "",
+            "delivery_value": "",
+            "updated_at": order.updated_at,
+        })
+    rows.sort(key=lambda item: (item["created_at"] or datetime.min, item["key"]), reverse=True)
+    return rows
+
+
 def _customer_route(registry):
     link = (
         DeliveryRouteCustomer.query
@@ -155,6 +342,7 @@ def index():
     if registry:
         orders = (
             CustomerOrder.query
+            .options(joinedload(CustomerOrder.slack_order))
             .filter(CustomerOrder.registry_id == registry.id)
             .order_by(CustomerOrder.created_at.desc(), CustomerOrder.id.desc())
             .limit(20)
@@ -166,6 +354,34 @@ def index():
         route=_customer_route(registry) if registry else None,
         delivery_options=_delivery_options(),
         orders=orders,
+        effective_order_status=_effective_customer_order_status,
+    )
+
+
+@customer_orders_bp.get("/status")
+@login_required
+def status():
+    if "customer_horeca" not in _active_role_names():
+        flash("Funzione disponibile per clienti Horeca.", "warning")
+        return redirect(url_for("home"))
+
+    memberships = active_customer_memberships(current_user)
+    requested_registry_id = request.args.get("registry_id", type=int)
+    registry = customer_registry_for_user(current_user, requested_registry_id) if requested_registry_id else _customer_registry()
+    today = date.today()
+    date_from = _parse_date(request.args.get("date_from"), today - timedelta(days=180))
+    date_to = _parse_date(request.args.get("date_to"), today)
+    if date_from > date_to:
+        date_from, date_to = date_to, date_from
+
+    rows = _customer_order_rows(registry, date_from, date_to) if registry else []
+    return render_template(
+        "customer_orders/status.html",
+        registry=registry,
+        memberships=memberships,
+        rows=rows,
+        date_from=date_from,
+        date_to=date_to,
     )
 
 
