@@ -3021,6 +3021,14 @@ Performance apertura giornata Agenda 2026-06-13:
 - La giacenza non viene piu riscritta integralmente: il confronto applica soltanto nuovi articoli, quantità cambiate e codici non piu presenti. Sorgenti con firma invariata vengono saltate; se il file cambia durante la lettura o lo snapshot si riduce in modo anomalo, l'import viene rinviato senza modificare il database.
 - La raccolta e il confronto rimangono separati dalla provenienza dei dati: quando saranno disponibili i servizi MATRIXWS per articoli e giacenze, il lettore file potra essere sostituito mantenendo invariata la sincronizzazione incrementale.
 
+## 2026-09-01 - Area Developer per simulazione ruoli
+
+- Adottata la convenzione `Developer > Test > <nome_ruolo>` per tutte le future funzioni riservate a ruoli specifici: il test riusa la vista reale e non altera ruoli, membership o cliente principale del Developer.
+- La migration `c0d1e2f3a5b7` aggiunge `Developer > Test > customer_horeca` e raccoglie `Situazione contabile`, `Fai un ordine` e `I miei ordini`.
+- Le pagine ordini ora riconoscono esplicitamente i soli ruoli `customer_horeca` e `dev`. Il primo puo' selezionare soltanto clienti associati; il secondo dispone in alto del selettore filtrabile di tutte le anagrafiche cliente attive.
+- La selezione e' rivalidata anche nelle POST: un ID cliente alterato nel browser non consente a un Horeca di operare su altre anagrafiche. Le modifiche e gli ordini creati in simulazione continuano a conservare il vero `user_id` Developer per l'audit.
+- Rimosse dalla home del Developer le scorciatoie della vista cliente; restano disponibili ai veri `customer_horeca`, mentre il Developer utilizza il menu di collaudo dedicato.
+
 ## 2026-09-01 - Stato ordini per clienti Horeca
 
 - Aggiunta la sezione `I miei ordini` in home e la pagina `/customer-orders/status`, protetta dal ruolo `customer_horeca` e dalle associazioni cliente attive già usate dalla situazione contabile.

@@ -6,7 +6,7 @@
 <section class="customer-order-page customer-order-status-page">
   <header class="customer-order-hero">
     <div>
-      <span class="customer-order-eyebrow">Area cliente</span>
+      <span class="customer-order-eyebrow">{{ 'Simulazione customer_horeca' if is_developer else 'Area cliente' }}</span>
       <h1>I miei ordini</h1>
       {% if registry %}
         <p>{{ registry.display_name or registry.legal_name }}{% if registry.source_code %} · cliente {{ registry.source_code }}{% endif %}</p>
@@ -14,10 +14,20 @@
         <p>Account non ancora collegato a un’anagrafica cliente.</p>
       {% endif %}
     </div>
-    <a class="btn btn-light customer-order-status-link" href="{{ url_for('customer_orders.index') }}">
-      <i class="fa-solid fa-plus"></i>
-      Nuovo ordine
-    </a>
+    <div class="customer-order-hero-actions">
+      {% if is_developer or registries|length > 1 %}
+        <label class="customer-order-customer-selector">Cliente
+          {% if is_developer %}<input class="form-control" type="search" placeholder="Filtra clienti…" aria-label="Filtra clienti" data-order-customer-filter>{% endif %}
+          <select class="form-select" onchange="if(this.value) location.href=this.value" data-order-customer-select>
+            {% for item in registries %}<option value="{{ url_for('customer_orders.status', customer=item.id, date_from=date_from.isoformat(), date_to=date_to.isoformat()) }}" {{ 'selected' if registry and item.id == registry.id }}>{{ item.display_name or item.legal_name or item.source_code }}</option>{% endfor %}
+          </select>
+        </label>
+      {% endif %}
+      <a class="btn btn-light customer-order-status-link" href="{{ url_for('customer_orders.index', customer=registry.id) if registry else url_for('customer_orders.index') }}">
+        <i class="fa-solid fa-plus"></i>
+        Nuovo ordine
+      </a>
+    </div>
   </header>
 
   {% if not registry %}
@@ -26,18 +36,7 @@
     </div>
   {% else %}
     <form class="customer-order-panel customer-order-status-filters" method="get">
-      {% if memberships|length > 1 %}
-        <label>
-          <span>Cliente</span>
-          <select class="form-select" name="registry_id">
-            {% for membership in memberships %}
-              <option value="{{ membership.registry_id }}" {% if membership.registry_id == registry.id %}selected{% endif %}>
-                {{ membership.registry.display_name or membership.registry.legal_name or membership.registry.source_code }}
-              </option>
-            {% endfor %}
-          </select>
-        </label>
-      {% endif %}
+      <input type="hidden" name="customer" value="{{ registry.id }}">
       <label>
         <span>Dal</span>
         <input class="form-control" type="date" name="date_from" value="{{ date_from.isoformat() }}">
@@ -109,10 +108,25 @@
           <i class="fa-solid fa-basket-shopping"></i>
           <h3>Nessun ordine nel periodo selezionato</h3>
           <p>Prova ad ampliare l’intervallo oppure inserisci un nuovo ordine.</p>
-          <a class="btn btn-info" href="{{ url_for('customer_orders.index') }}">Inserisci ordine</a>
+          <a class="btn btn-info" href="{{ url_for('customer_orders.index', customer=registry.id) }}">Inserisci ordine</a>
         </div>
       {% endif %}
     </section>
   {% endif %}
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const customerFilter = document.querySelector("[data-order-customer-filter]");
+  const customerSelect = document.querySelector("[data-order-customer-select]");
+  if (!customerFilter || !customerSelect) return;
+  const options = Array.from(customerSelect.options);
+  customerFilter.addEventListener("input", () => {
+    const query = customerFilter.value.trim().toLocaleLowerCase("it");
+    options.forEach(option => { option.hidden = Boolean(query) && !option.text.toLocaleLowerCase("it").includes(query); });
+  });
+})();
+</script>
 {% endblock %}

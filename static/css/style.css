@@ -2184,6 +2184,31 @@ body.kiosk-body #flash-message,
     margin-bottom: 18px;
 }
 
+.customer-order-hero-actions {
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    gap: 12px;
+    min-width: min(420px, 48%);
+}
+
+.customer-order-customer-selector {
+    display: grid;
+    flex: 1 1 300px;
+    gap: 6px;
+    margin: 0;
+    color: rgba(255, 255, 255, .9);
+    font-weight: 700;
+}
+
+.customer-order-customer-selector .form-control,
+.customer-order-customer-selector .form-select {
+    min-height: 44px;
+    border-color: rgba(255, 255, 255, .25);
+    background-color: rgba(255, 255, 255, .96);
+    color: #1f2933;
+}
+
 .customer-order-status-link {
     display: inline-flex;
     align-items: center;
@@ -2405,7 +2430,7 @@ body.kiosk-body #flash-message,
 
 .customer-order-status-filters {
     display: grid;
-    grid-template-columns: minmax(180px, 1.5fr) repeat(2, minmax(145px, .8fr)) auto;
+    grid-template-columns: repeat(2, minmax(145px, 1fr)) auto;
     align-items: end;
     gap: 12px;
 }
@@ -3202,6 +3227,18 @@ body.kiosk-body #flash-message,
         flex-direction: column;
     }
 
+    .customer-order-hero-actions {
+        align-items: stretch;
+        flex-direction: column;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .customer-order-customer-selector {
+        flex-basis: auto;
+        width: 100%;
+    }
+
     .customer-order-status-link,
     .customer-order-status-heading .btn {
         width: 100%;
@@ -3873,6 +3910,18 @@ body.kiosk-body #flash-message,
     .customer-order-status-filters .form-select {
         min-height: 86px;
         font-size: 2rem;
+        border-radius: 14px;
+    }
+
+    .customer-order-customer-selector,
+    .customer-order-customer-selector .form-control,
+    .customer-order-customer-selector .form-select {
+        font-size: 2rem;
+    }
+
+    .customer-order-customer-selector .form-control,
+    .customer-order-customer-selector .form-select {
+        min-height: 86px;
         border-radius: 14px;
     }
 

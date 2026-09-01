@@ -4,7 +4,7 @@ from datetime import date, datetime, time, timedelta
 
 from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, load_only
 from werkzeug.utils import secure_filename
 
 from extensions import db
@@ -66,7 +66,11 @@ def _active_role_names():
 def _can_create_customer_order():
     if not current_user.is_authenticated:
         return False
-    return "customer_horeca" in _active_role_names() or (current_user.max_role_weight or 0) >= 30
+    return bool(_active_role_names().intersection({"customer_horeca", "dev"}))
+
+
+def _is_developer():
+    return "dev" in _active_role_names()
 
 
 def _customer_label(registry):
@@ -151,8 +155,38 @@ def _selected_delivery_option():
     return CustomerOrderDeliveryOption.query.filter_by(id=option_id, is_active=True).first()
 
 
-def _customer_registry():
-    return customer_registry_for_user(current_user)
+def _selectable_customer_registries(is_developer):
+    if is_developer:
+        return (
+            BusinessRegistry.query
+            .options(load_only(
+                BusinessRegistry.id,
+                BusinessRegistry.display_name,
+                BusinessRegistry.legal_name,
+                BusinessRegistry.source_code,
+            ))
+            .filter_by(kind="customer", is_active=True)
+            .order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc())
+            .all()
+        )
+    memberships = active_customer_memberships(current_user)
+    registries = [membership.registry for membership in memberships]
+    legacy_registry = customer_registry_for_user(current_user)
+    if not registries and legacy_registry is not None:
+        registries = [legacy_registry]
+    return registries
+
+
+def _customer_registry(registry_id=None, *, is_developer=None, registries=None):
+    is_developer = _is_developer() if is_developer is None else is_developer
+    if is_developer:
+        if registries is not None:
+            selected = next((item for item in registries if item.id == registry_id), None)
+            return selected or (registries[0] if registry_id is None and registries else None)
+        if registry_id is None:
+            return None
+        return BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first()
+    return customer_registry_for_user(current_user, registry_id)
 
 
 def _customer_order_status(code):
@@ -328,7 +362,7 @@ def _delivery_options():
 def _order_access(order):
     if (current_user.max_role_weight or 0) >= 30:
         return True
-    return order.user_id == current_user.id
+    return customer_registry_for_user(current_user, order.registry_id) is not None
 
 
 @customer_orders_bp.get("/")
@@ -337,7 +371,14 @@ def index():
     if not _can_create_customer_order():
         flash("Funzione disponibile per clienti Horeca.", "warning")
         return redirect(url_for("home"))
-    registry = _customer_registry()
+    is_developer = _is_developer()
+    registries = _selectable_customer_registries(is_developer)
+    requested_registry_id = request.args.get("customer", type=int)
+    registry = _customer_registry(
+        requested_registry_id,
+        is_developer=is_developer,
+        registries=registries,
+    )
     orders = []
     if registry:
         orders = (
@@ -355,19 +396,26 @@ def index():
         delivery_options=_delivery_options(),
         orders=orders,
         effective_order_status=_effective_customer_order_status,
+        is_developer=is_developer,
+        registries=registries,
     )
 
 
 @customer_orders_bp.get("/status")
 @login_required
 def status():
-    if "customer_horeca" not in _active_role_names():
+    if not _active_role_names().intersection({"customer_horeca", "dev"}):
         flash("Funzione disponibile per clienti Horeca.", "warning")
         return redirect(url_for("home"))
 
-    memberships = active_customer_memberships(current_user)
-    requested_registry_id = request.args.get("registry_id", type=int)
-    registry = customer_registry_for_user(current_user, requested_registry_id) if requested_registry_id else _customer_registry()
+    is_developer = _is_developer()
+    registries = _selectable_customer_registries(is_developer)
+    requested_registry_id = request.args.get("customer", type=int) or request.args.get("registry_id", type=int)
+    registry = _customer_registry(
+        requested_registry_id,
+        is_developer=is_developer,
+        registries=registries,
+    )
     today = date.today()
     date_from = _parse_date(request.args.get("date_from"), today - timedelta(days=180))
     date_to = _parse_date(request.args.get("date_to"), today)
@@ -378,7 +426,8 @@ def status():
     return render_template(
         "customer_orders/status.html",
         registry=registry,
-        memberships=memberships,
+        registries=registries,
+        is_developer=is_developer,
         rows=rows,
         date_from=date_from,
         date_to=date_to,
@@ -391,7 +440,9 @@ def create():
     if not _can_create_customer_order():
         flash("Funzione disponibile per clienti Horeca.", "warning")
         return redirect(url_for("home"))
-    registry = _customer_registry()
+    is_developer = _is_developer()
+    requested_registry_id = request.form.get("registry_id", type=int)
+    registry = _customer_registry(requested_registry_id, is_developer=is_developer)
     if not registry:
         flash("Il tuo account non e' ancora associato a un'anagrafica cliente.", "warning")
         return redirect(url_for("customer_orders.index"))
@@ -401,7 +452,7 @@ def create():
     attachments = _save_files()
     if not order_text and not attachments:
         flash("Inserisci un testo ordine o almeno un allegato.", "warning")
-        return redirect(url_for("customer_orders.index"))
+        return redirect(url_for("customer_orders.index", customer=registry.id))
 
     order = CustomerOrder(
         user_id=current_user.id,
@@ -432,9 +483,9 @@ def create():
         db.session.rollback()
         current_app.logger.exception("Pubblicazione ordine Horeca fallita")
         flash(f"Ordine non inviato alla bacheca: {exc}", "danger")
-        return redirect(url_for("customer_orders.index"))
+        return redirect(url_for("customer_orders.index", customer=registry.id))
     flash("Ordine inviato.", "success")
-    return redirect(url_for("customer_orders.index"))
+    return redirect(url_for("customer_orders.index", customer=registry.id))
 
 
 @customer_orders_bp.post("/<int:order_id>/revise")
@@ -452,7 +503,7 @@ def revise(order_id):
     attachments = _save_files()
     if not order_text and not attachments:
         flash("Inserisci una nota o un allegato.", "warning")
-        return redirect(url_for("customer_orders.index"))
+        return redirect(url_for("customer_orders.index", customer=order.registry_id))
 
     if change_type == "replacement":
         order.order_text = order_text or order.order_text
@@ -475,7 +526,7 @@ def revise(order_id):
     ))
     db.session.commit()
     flash("Modifica ordine registrata.", "success")
-    return redirect(url_for("customer_orders.index"))
+    return redirect(url_for("customer_orders.index", customer=order.registry_id))
 
 
 @customer_orders_bp.get("/manage")

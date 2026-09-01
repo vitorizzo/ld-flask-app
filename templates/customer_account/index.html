@@ -6,7 +6,7 @@
 <section class="customer-account-page">
   <header class="customer-account-hero">
     <div class="customer-account-title">
-      <div class="customer-account-eyebrow">{{ 'Anteprima Developer' if is_developer else 'Area cliente Horeca' }}</div>
+      <div class="customer-account-eyebrow">{{ 'Simulazione customer_horeca' if is_developer else 'Area cliente Horeca' }}</div>
       <h1>{{ 'Situazione contabile cliente' if is_developer else 'La mia situazione contabile' }}</h1>
       {% if registry %}<p>{{ registry.display_name or registry.legal_name }} · codice cliente {{ registry.source_code }}</p>{% endif %}
     </div>

@@ -1,12 +1,19 @@
 # PROJECT_MAP.md — v2.4
 
+## Simulazione funzioni per ruolo Developer (2026-09-01)
+
+- Convenzione applicativa: le funzioni riservate a un ruolo vengono raccolte per il collaudo sotto `Developer > Test > <nome_ruolo>`. La vista di test e' la stessa usata dall'utente finale, con un selettore iniziale dell'entita' da impersonare e senza assegnare temporaneamente il ruolo o modificare associazioni reali.
+- `migrations/versions/c0d1e2f3a5b7_add_customer_horeca_developer_tests.py` crea `Developer > Test > customer_horeca` con `Situazione contabile`, `Fai un ordine` e `I miei ordini`, tutte con peso `999`.
+- Le tre viste ammettono esplicitamente soltanto `customer_horeca` e `dev`: il cliente Horeca resta confinato alle proprie `CustomerRegistryMembership`, mentre `dev` puo' selezionare qualsiasi anagrafica cliente attiva. Gli ID ricevuti via query string o form vengono sempre rivalidati lato server.
+- Il selettore cliente e' filtrabile e dimensionato per desktop, smartphone standard e smartphone ad alta risoluzione. Le scorciatoie Horeca della home restano visibili soltanto ai clienti reali; il Developer entra dalle voci di test dedicate.
+
 ## Stato ordini clienti Horeca (2026-09-01)
 
-- `GET /customer-orders/status` espone al solo ruolo `customer_horeca` lo storico dell'anagrafica autorizzata tramite `CustomerRegistryMembership`; con più associazioni il cliente può scegliere esclusivamente tra le proprie membership attive.
+- `GET /customer-orders/status` espone a `customer_horeca` lo storico dell'anagrafica autorizzata tramite `CustomerRegistryMembership`; con più associazioni il cliente può scegliere esclusivamente tra le proprie membership attive. Il ruolo `dev` usa la stessa vista con selettore di un cliente attivo per il collaudo.
 - La vista unifica gli ordini inseriti da LDApp, le righe effettivamente inviate dalla console e gli ordini Slack con chiave gestionale esatta. Il collegamento a `SlackOrder` fornisce lo stato operativo reale (`acquisito`, `listato`, `preparato`, `controllato`, `in_consegna`, `evaso`) e deduplica le diverse rappresentazioni dello stesso ordine.
 - Per sicurezza non viene usato alcun matching parziale o fuzzy sul nome cliente e non vengono mostrate bozze console non inviate, eventi Slack o note interne dell'ufficio.
 - `templates/customer_orders/status.html` mostra filtri data, avanzamento, consegna prevista, dettaglio e allegati; `static/css/style.css` include layout touch per smartphone standard e ad alta risoluzione. La home Horeca espone `I miei ordini` e la pagina di inserimento mostra lo stato reale anche nel riepilogo recente.
-- Nessuna migrazione è necessaria: vengono riusati i collegamenti e le tabelle ordini esistenti.
+- Nessuna nuova tabella ordini è necessaria: vengono riusati i collegamenti e le tabelle esistenti; la sola migrazione aggiunge la gerarchia di menu per il test Developer.
 
 ## Collaudo XPay Pagamento Semplice con credenziali MAC (2026-08-31)
 
@@ -372,7 +379,8 @@ Regola permessi:
 Bozza DB-driven per consentire ai clienti Horeca di inviare ordini dalla home.
 
 Route:
-- `/customer-orders/` - pagina cliente per invio ordine, visibile a `customer_horeca` e staff+;
+- `/customer-orders/` - pagina cliente per invio ordine, visibile a `customer_horeca` e `dev`; il Developer seleziona il cliente da simulare;
+- `/customer-orders/status` - stato ordini della stessa anagrafica autorizzata o simulata;
 - `POST /customer-orders/` - creazione ordine cliente;
 - `POST /customer-orders/<id>/revise` - aggiunta o sostituzione su ordine gia' inviato;
 - `/customer-orders/manage` - ricezione staff degli ordini cliente;
@@ -388,7 +396,7 @@ Frontend:
 - `templates/settings/customer_order_options.html`
 - `templates/settings/customer_order_links.html`
 - stili in `static/css/style.css`
-- pulsanti home in `templates/home.html`: `Fai un ordine` solo per clienti Horeca, `Ordini Horeca` per staff+.
+- pulsanti home in `templates/home.html`: `Fai un ordine`, `I miei ordini` e `Situazione contabile` solo per clienti Horeca; `Ordini Horeca` per staff+. Il collaudo `dev` usa `Developer > Test > customer_horeca`.
 
 Modelli:
 - `CustomerOrderDeliveryOption`

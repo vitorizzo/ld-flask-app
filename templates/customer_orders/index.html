@@ -6,6 +6,7 @@
 <section class="customer-order-page">
   <header class="customer-order-hero">
     <div>
+      {% if is_developer %}<span class="customer-order-eyebrow">Simulazione customer_horeca</span>{% endif %}
       <h1>Fai un ordine</h1>
       {% if registry %}
         <p>{{ registry.display_name or registry.legal_name }}{% if route %} - giro {{ route.name }}{% endif %}</p>
@@ -13,12 +14,22 @@
         <p>Account non ancora collegato a un'anagrafica cliente.</p>
       {% endif %}
     </div>
-    {% if registry %}
-      <a class="btn btn-light customer-order-status-link" href="{{ url_for('customer_orders.status') }}">
-        <i class="fa-solid fa-clock-rotate-left"></i>
-        Stato dei miei ordini
-      </a>
-    {% endif %}
+    <div class="customer-order-hero-actions">
+      {% if is_developer or registries|length > 1 %}
+        <label class="customer-order-customer-selector">Cliente
+          {% if is_developer %}<input class="form-control" type="search" placeholder="Filtra clienti…" aria-label="Filtra clienti" data-order-customer-filter>{% endif %}
+          <select class="form-select" onchange="if(this.value) location.href=this.value" data-order-customer-select>
+            {% for item in registries %}<option value="{{ url_for('customer_orders.index', customer=item.id) }}" {{ 'selected' if registry and item.id == registry.id }}>{{ item.display_name or item.legal_name or item.source_code }}</option>{% endfor %}
+          </select>
+        </label>
+      {% endif %}
+      {% if registry %}
+        <a class="btn btn-light customer-order-status-link" href="{{ url_for('customer_orders.status', customer=registry.id) }}">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+          Stato dei miei ordini
+        </a>
+      {% endif %}
+    </div>
   </header>
 
   {% if not registry %}
@@ -30,6 +41,7 @@
   {% else %}
     <div class="customer-order-panel">
       <form method="post" action="{{ url_for('customer_orders.create') }}" enctype="multipart/form-data" class="customer-order-form">
+        <input type="hidden" name="registry_id" value="{{ registry.id }}">
         <label>
           <span>Ordine</span>
           <textarea class="form-control" name="order_text" rows="7" placeholder="Scrivi qui il tuo ordine"></textarea>
@@ -181,6 +193,15 @@
 {% block extra_js %}
 <script>
 (function () {
+  const customerFilter = document.querySelector("[data-order-customer-filter]");
+  const customerSelect = document.querySelector("[data-order-customer-select]");
+  if (customerFilter && customerSelect) {
+    const options = Array.from(customerSelect.options);
+    customerFilter.addEventListener("input", () => {
+      const query = customerFilter.value.trim().toLocaleLowerCase("it");
+      options.forEach(option => { option.hidden = Boolean(query) && !option.text.toLocaleLowerCase("it").includes(query); });
+    });
+  }
   const select = document.querySelector("[data-delivery-select]");
   const wrap = document.querySelector("[data-delivery-value-wrap]");
   const label = document.querySelector("[data-delivery-value-label]");
