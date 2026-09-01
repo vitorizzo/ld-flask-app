@@ -34,6 +34,7 @@
 - `AdministrationPaymentLink` conserva importo, descrizione, riferimenti/token Nexi cifrato, URL, scadenza e stato; `AdministrationPaymentLinkDelivery` traccia ogni consegna email accodata verso indirizzo libero, utente LDApp o recapito cliente.
 - `tools/nexi_xpay.py` implementa `POST /v2/orders/paybylink`; notifica S2S pubblica con verifica token, ordine, importo, valuta, canale ed evento idempotente. Nessun dato carta transita o viene salvato in LDApp.
 - `templates/administration/payment_links.html` e relativi asset offrono modale touch/mobile, ricerca destinatari lato server, storico, reinvio e copia con fallback; l'email viene sempre eseguita dal task Celery `send_administration_payment_link_task`.
+- La migration `b9c0d1e2f4a6` riconcilia anche gli ambienti nei quali `db.create_all` ha gia' creato le due tabelle mentre `alembic_version` e' rimasta alla revisione precedente: valida colonne, primary key e chiavi univoche, riusa indici equivalenti anche se hanno il nome automatico SQLAlchemy, crea soltanto gli indici mancanti e completa la voce menu senza cancellare dati.
 
 ## Comunicazione bonifici clienti Horeca (2026-08-26)
 

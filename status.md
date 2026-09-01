@@ -3028,6 +3028,7 @@ Performance apertura giornata Agenda 2026-06-13:
 - Le pagine ordini ora riconoscono esplicitamente i soli ruoli `customer_horeca` e `dev`. Il primo puo' selezionare soltanto clienti associati; il secondo dispone in alto del selettore filtrabile di tutte le anagrafiche cliente attive.
 - La selezione e' rivalidata anche nelle POST: un ID cliente alterato nel browser non consente a un Horeca di operare su altre anagrafiche. Le modifiche e gli ordini creati in simulazione continuano a conservare il vero `user_id` Developer per l'audit.
 - Rimosse dalla home del Developer le scorciatoie della vista cliente; restano disponibili ai veri `customer_horeca`, mentre il Developer utilizza il menu di collaudo dedicato.
+- Corretto il blocco dell'upgrade precedente: le tabelle PayByLink erano gia' state create da `db.create_all`, ma Alembic risultava ancora su `a8b9c0d1e3f5`. La migration `b9c0d1e2f4a6` e' ora idempotente rispetto a questo stato, valida lo schema esistente e completa menu/revisione senza ricreare o svuotare le tabelle. Verificate entrambe le migration pendenti sul database reale in una transazione interamente annullata.
 
 ## 2026-09-01 - Stato ordini per clienti Horeca
 
