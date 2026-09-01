@@ -5,7 +5,7 @@ from decimal import Decimal
 
 ACTIVE_ITEM_STATUSES = {
     "creating_checkout", "checkout_ready", "provider_authorized", "provider_uncertain",
-    "awaiting_accounting", "under_review", "partially_accounted", "accounted",
+    "awaiting_accounting", "under_review", "partially_accounted", "accounted", "failed",
 }
 
 

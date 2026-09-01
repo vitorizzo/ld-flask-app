@@ -53,11 +53,12 @@ CASE_STATUS_LABELS = {
     "accounted": "Contabilizzato",
     "rejected": "Rigettato",
     "cancelled": "Annullato",
-    "failed": "Errore",
+    "failed": "Pagamento non riuscito",
     "expired": "Scaduto",
 }
 TERMINAL_CASE_STATUSES = {"accounted", "rejected", "cancelled", "failed", "expired"}
 CUSTOMER_EDITABLE_CASE_STATUSES = {"awaiting_accounting", "under_review"}
+CUSTOMER_CANCELLABLE_CASE_STATUSES = {"checkout_ready", "failed", "awaiting_accounting", "under_review"}
 OFFICE_CASE_STATUSES = tuple(CASE_STATUS_LABELS)
 CASE_TYPE_LABELS = {
     "bank_transfer": "Comunicazione di pagamento",
@@ -104,6 +105,58 @@ def _nexi_classic_safe_diagnostics(values):
         if value:
             result[key] = value[:300]
     return result
+
+
+def _localized_nexi_failure_message(values, outcome):
+    """Converte gli esiti tecnici Nexi in indicazioni comprensibili per il cliente."""
+    raw_message = str(
+        values.get("messaggio") or values.get("message") or values.get("errore") or ""
+    ).strip()
+    normalized = re.sub(r"\s+", " ", raw_message).casefold()
+    provider_code = str(
+        values.get("codiceEsito") or values.get("codiceErrore") or values.get("codice") or ""
+    ).strip()[:40]
+    translations = (
+        (("insufficient funds", "fondi insufficienti", "disponibilità insufficiente", "saldo insufficiente"), "Fondi insufficienti sulla carta utilizzata."),
+        (("declined", "not authorized", "not authorised", "do not honor", "do not honour", "transazione negata", "operazione negata"), "Pagamento rifiutato dall'emittente della carta."),
+        (("expired card", "card expired", "carta scaduta"), "La carta utilizzata risulta scaduta."),
+        (("invalid card", "invalid pan", "incorrect card", "carta non valida"), "I dati della carta non risultano validi."),
+        (("lost card", "stolen card"), "La carta utilizzata non può essere accettata. Contatta l'emittente."),
+        (("authentication failed", "3ds failed", "3d secure", "autenticazione non riuscita"), "Autenticazione di sicurezza della carta non riuscita."),
+        (("cancelled", "canceled", "annull"), "Pagamento annullato prima del completamento."),
+        (("timeout", "time out", "timed out"), "Tempo disponibile per il pagamento scaduto."),
+        (("technical error", "system error", "service unavailable"), "Servizio di pagamento temporaneamente non disponibile."),
+    )
+    message = next(
+        (translation for needles, translation in translations if any(needle in normalized for needle in needles)),
+        None,
+    )
+    if message is None:
+        message = (
+            "Pagamento annullato prima del completamento."
+            if outcome == "ANNULLO"
+            else "Pagamento non autorizzato. Prova con un'altra carta o contatta la tua banca."
+        )
+    return f"{message} (codice Nexi {provider_code})" if provider_code else message
+
+
+def _customer_can_cancel_case(payment_case, is_developer):
+    if payment_case is None or payment_case.status not in CUSTOMER_CANCELLABLE_CASE_STATUSES:
+        return False
+    if not is_developer and payment_case.created_by_user_id != current_user.id:
+        return False
+    # Un pagamento con carta già confermato non può essere annullato dalla sola LDApp.
+    if payment_case.case_type == "online_payment" and payment_case.status == "awaiting_accounting":
+        return False
+    # Un checkout appena aperto può ancora ricevere una conferma positiva: diventa
+    # annullabile soltanto dopo che Nexi ha già notificato un esito negativo.
+    if (
+        payment_case.case_type == "online_payment"
+        and payment_case.status == "checkout_ready"
+        and not payment_case.provider_last_event_id
+    ):
+        return False
+    return True
 
 
 def _public_url(endpoint, **values):
@@ -240,6 +293,7 @@ def index():
         if entry_keys:
             active_states = (
                 CustomerAccountingItemState.query
+                .options(selectinload(CustomerAccountingItemState.payment_case))
                 .filter(
                     CustomerAccountingItemState.registry_id == registry.id,
                     CustomerAccountingItemState.source_item_key.in_(tuple(entry_keys.values())),
@@ -248,10 +302,7 @@ def index():
                 .all()
             )
             states_by_key = {state.source_item_key: state for state in active_states}
-            payable_entry_ids = {
-                entry_id for entry_id, source_key in entry_keys.items()
-                if source_key not in states_by_key
-            }
+            payable_entry_ids = set(entry_keys)
             entry_states = {
                 entry_id: states_by_key[source_key]
                 for entry_id, source_key in entry_keys.items()
@@ -290,6 +341,7 @@ def index():
         case_status_labels=CASE_STATUS_LABELS,
         case_type_labels=CASE_TYPE_LABELS,
         customer_editable_case_statuses=CUSTOMER_EDITABLE_CASE_STATUSES,
+        customer_can_cancel_case=_customer_can_cancel_case,
         nexi_configured=_nexi_is_configured(),
         nexi_environment=str(current_app.config.get("NEXI_XPAY_ENVIRONMENT") or "sandbox").strip().lower(),
     )
@@ -899,7 +951,7 @@ def create_online_payment_checkout():
             ))
             db.session.commit()
         logger.error("Esito checkout XPay incerto pratica=%s: %s", payment_case.id if payment_case else None, exc)
-        flash(str(exc) + " La pratica e' stata bloccata per una verifica tecnica.", "danger")
+        flash("Nexi non ha restituito un esito definitivo. Il pagamento è stato bloccato per una verifica tecnica.", "danger")
         return redirect(url_for("customer_account.index", customer=registry.id))
     except NexiXPayError as exc:
         db.session.rollback()
@@ -911,6 +963,7 @@ def create_online_payment_checkout():
             }, synchronize_session=False)
             payment_case.status = "failed"
             payment_case.resolved_at = datetime.now(timezone.utc)
+            payment_case.rejection_message = "Non è stato possibile aprire la pagina di pagamento Nexi. Riprova più tardi."
             db.session.add(CustomerPaymentEvent(
                 case_id=payment_case.id,
                 actor_user_id=current_user.id,
@@ -921,7 +974,7 @@ def create_online_payment_checkout():
             ))
             db.session.commit()
         logger.warning("Creazione checkout XPay fallita pratica=%s: %s", payment_case.id if payment_case else None, exc)
-        flash(str(exc), "danger")
+        flash("Non è stato possibile aprire la pagina di pagamento Nexi. Riprova più tardi.", "danger")
         return redirect(url_for("customer_account.index", customer=registry.id))
     except Exception:
         db.session.rollback()
@@ -944,7 +997,7 @@ def xpay_classic_launch(public_id, order_id):
     if _authorized_registry(payment_case.registry_id, is_developer) is None:
         abort(403)
     if payment_case.status != "checkout_ready":
-        flash("Questo checkout Nexi non e' piu' disponibile.", "warning")
+        flash("Questa sessione di pagamento Nexi non è più disponibile.", "warning")
         return redirect(url_for("customer_account.index", customer=payment_case.registry_id))
     amount_minor = str(int((Decimal(payment_case.declared_amount) * 100).quantize(Decimal("1"))))
     client = NexiXPayClassic.from_app()
@@ -1013,6 +1066,7 @@ def _apply_nexi_operation(payment_case, operation, *, event_id=None, source="not
     cancelled = result == "CANCELED"
 
     if confirmed and payment_case.status != "accounted":
+        payment_case.rejection_message = None
         payment_case.status = "awaiting_accounting"
         payment_case.provider_confirmed_at = datetime.now(timezone.utc)
         payment_case.submitted_at = payment_case.provider_confirmed_at
@@ -1022,9 +1076,19 @@ def _apply_nexi_operation(payment_case, operation, *, event_id=None, source="not
         payment_case.status = "provider_authorized"
         state_message = "Pagamento Nexi autorizzato"
     elif (failed or cancelled) and payment_case.status not in {"awaiting_accounting", "accounted"}:
-        payment_case.status = "cancelled" if cancelled else "failed"
+        payment_case.status = "failed"
         payment_case.resolved_at = datetime.now(timezone.utc)
-        state_message = "Pagamento Nexi annullato" if cancelled else "Pagamento Nexi non riuscito"
+        result_messages = {
+            "DECLINED": "Pagamento rifiutato dall'emittente della carta.",
+            "DENIED_BY_RISK": "Pagamento rifiutato dai controlli di sicurezza.",
+            "THREEDS_FAILED": "Autenticazione di sicurezza della carta non riuscita.",
+            "CANCELED": "Pagamento annullato prima del completamento.",
+        }
+        payment_case.rejection_message = result_messages.get(
+            result,
+            "Pagamento non autorizzato. Prova con un'altra carta o contatta la tua banca.",
+        )
+        state_message = payment_case.rejection_message
     else:
         state_message = None
 
@@ -1128,20 +1192,11 @@ def _apply_classic_nexi_notification(payment_case, values):
         payment_case.resolved_at = None
         state_message = "Pagamento Nexi confermato; in attesa di contabilizzazione"
     elif payment_case.status not in {"awaiting_accounting", "accounted"}:
-        payment_case.status = "cancelled" if outcome == "ANNULLO" else "failed"
+        # Anche l'annullamento sul portale Nexi resta associato alle partite finché
+        # l'utente non riprende il pagamento o annulla esplicitamente l'azione in LDApp.
+        payment_case.status = "failed"
         payment_case.resolved_at = datetime.now(timezone.utc)
-        provider_message = str(
-            values.get("messaggio") or values.get("message") or values.get("errore") or ""
-        ).strip()[:500]
-        provider_code = str(values.get("codiceEsito") or values.get("codiceErrore") or values.get("codice") or "").strip()[:40]
-        if provider_message and provider_code:
-            payment_case.rejection_message = f"{provider_message} (codice Nexi {provider_code})"
-        elif provider_message:
-            payment_case.rejection_message = provider_message
-        elif provider_code:
-            payment_case.rejection_message = f"Operazione non riuscita (codice Nexi {provider_code})"
-        else:
-            payment_case.rejection_message = "Pagamento annullato" if outcome == "ANNULLO" else "Pagamento non autorizzato da Nexi"
+        payment_case.rejection_message = _localized_nexi_failure_message(values, outcome)
         state_message = payment_case.rejection_message
     else:
         state_message = None
@@ -1189,7 +1244,10 @@ def retry_xpay_payment(case_id):
         abort(403)
     if not is_developer and payment_case.created_by_user_id != current_user.id:
         abort(403)
-    if payment_case.status not in {"failed", "cancelled"} or not payment_case.payment_url:
+    is_previous_attempt = payment_case.status == "failed" or (
+        payment_case.status == "checkout_ready" and bool(payment_case.provider_last_event_id)
+    )
+    if not is_previous_attempt:
         flash("Questo pagamento non può essere ritentato.", "warning")
         return redirect(url_for("customer_account.index", customer=payment_case.registry_id))
 
@@ -1198,10 +1256,7 @@ def retry_xpay_payment(case_id):
         CustomerAccountingItemState.registry_id == payment_case.registry_id,
         CustomerAccountingItemState.source_item_key.in_(tuple(source_keys)),
     ).with_for_update().all()
-    if len(states) != len(set(source_keys)) or any(
-        state.status in ACTIVE_ITEM_STATUSES and state.payment_case_id != payment_case.id
-        for state in states
-    ):
+    if len(states) != len(set(source_keys)) or any(state.payment_case_id != payment_case.id for state in states):
         db.session.rollback()
         flash("Una o più partite appartengono già a un'altra pratica.", "warning")
         return redirect(url_for("customer_account.index", customer=payment_case.registry_id))
@@ -1231,26 +1286,91 @@ def retry_xpay_payment(case_id):
         return redirect(url_for("customer_account.index", customer=payment_case.registry_id))
 
     old_status = payment_case.status
-    payment_case.status = "checkout_ready"
-    payment_case.resolved_at = None
-    payment_case.rejection_message = None
+    replacement_case = CustomerPaymentCase(
+        registry_id=payment_case.registry_id,
+        created_by_user_id=current_user.id,
+        case_type="online_payment",
+        status="creating_checkout",
+        currency=payment_case.currency,
+        declared_amount=current_amount,
+        provider="nexi_xpay_mac",
+    )
+    db.session.add(replacement_case)
+    db.session.flush()
+    replacement_case.provider_order_id = f"LD{_base36(replacement_case.id)}"
+    replacement_case.payment_url = url_for(
+        "customer_account.xpay_classic_launch",
+        public_id=replacement_case.public_id,
+        order_id=replacement_case.provider_order_id,
+    )
+    replacement_case.status = "checkout_ready"
+    for entry, source_key in zip(selected_entries, source_keys):
+        db.session.add(CustomerPaymentAllocation(
+            case_id=replacement_case.id,
+            source_customer_code=entry.source_customer_code,
+            source_item_key=source_key,
+            current_entry_id=entry.id,
+            allocated_amount=entry.signed_amount,
+            document_snapshot=account_entry_snapshot(entry),
+        ))
     states_by_key = {state.source_item_key: state for state in states}
     for source_key, entry in zip(source_keys, selected_entries):
         state = states_by_key[source_key]
         state.status = "checkout_ready"
-        state.payment_case_id = payment_case.id
+        state.payment_case_id = replacement_case.id
         state.last_seen_entry_id = entry.id
-        state.message = "Nuovo tentativo di pagamento Nexi"
+        state.message = "Nuovo pagamento Nexi pronto per essere completato"
+    payment_case.status = "cancelled"
+    payment_case.resolved_at = datetime.now(timezone.utc)
     db.session.add(CustomerPaymentEvent(
         case_id=payment_case.id,
         actor_user_id=current_user.id,
-        event_type="online_payment_retry",
+        event_type="online_payment_replaced",
         from_status=old_status,
+        to_status="cancelled",
+        message="Tentativo sostituito da un nuovo pagamento Nexi",
+        event_metadata={"replacement_case_id": replacement_case.id},
+    ))
+    db.session.add(CustomerPaymentEvent(
+        case_id=replacement_case.id,
+        actor_user_id=current_user.id,
+        event_type="online_payment_resumed",
+        from_status=None,
         to_status="checkout_ready",
-        message="Nuovo tentativo di pagamento richiesto",
+        message="Nuovo pagamento creato con gli stessi documenti",
+        event_metadata={"previous_case_id": payment_case.id, "document_count": len(selected_entries)},
     ))
     db.session.commit()
-    return redirect(payment_case.payment_url, code=303)
+    return redirect(replacement_case.payment_url, code=303)
+
+
+@customer_account_bp.post("/payments/<int:case_id>/cancel-action")
+@login_required
+def cancel_pending_action(case_id):
+    _, is_developer = _role_context()
+    payment_case = CustomerPaymentCase.query.filter_by(id=case_id).with_for_update().first_or_404()
+    registry = _authorized_registry(payment_case.registry_id, is_developer)
+    if registry is None:
+        abort(403)
+    if not _customer_can_cancel_case(payment_case, is_developer):
+        flash("Questa azione non può essere annullata dall'area cliente.", "warning")
+        return redirect(url_for("customer_account.index", customer=payment_case.registry_id))
+    old_status = payment_case.status
+    CustomerAccountingItemState.query.filter_by(payment_case_id=payment_case.id).delete(synchronize_session=False)
+    payment_case.status = "cancelled"
+    payment_case.resolved_at = datetime.now(timezone.utc)
+    payment_case.payment_url = None
+    db.session.add(CustomerPaymentEvent(
+        case_id=payment_case.id,
+        actor_user_id=current_user.id,
+        event_type="customer_action_cancelled",
+        from_status=old_status,
+        to_status="cancelled",
+        message="Azione annullata dal cliente; documenti nuovamente disponibili",
+    ))
+    db.session.commit()
+    flash("Azione annullata. I documenti sono nuovamente disponibili.", "success")
+    return redirect(url_for("customer_account.index", customer=registry.id))
 
 
 @customer_account_bp.get("/payments/xpay/result/<public_id>/<order_id>")
@@ -1278,7 +1398,7 @@ def xpay_checkout_result(public_id, order_id):
         reason = payment_case.rejection_message or "Il pagamento non è stato autorizzato da Nexi."
         flash(f"Pagamento non completato: {reason}", "warning")
     else:
-        flash("Pagamento in verifica. Lo stato verra' aggiornato automaticamente.", "info")
+        flash("Pagamento in verifica. Lo stato verrà aggiornato automaticamente.", "info")
     return redirect(url_for("customer_account.index", customer=payment_case.registry_id))
 
 
@@ -1311,7 +1431,7 @@ def xpay_checkout_cancelled_return(public_id, order_id):
         reason = payment_case.rejection_message or "Il pagamento è stato annullato o non autorizzato da Nexi."
         flash(f"Pagamento non completato: {reason}", "warning")
     elif operation is None:
-        flash("Checkout interrotto. Lo stato verra' verificato automaticamente; puoi riprendere il pagamento dalla pratica.", "info")
+        flash("Pagamento interrotto. Lo stato verrà verificato automaticamente; potrai riprenderlo dalla pratica.", "info")
     else:
         flash("Pagamento ancora in elaborazione. Attendi la conferma prima di riprovare.", "info")
     return redirect(url_for("customer_account.index", customer=payment_case.registry_id))
@@ -1407,6 +1527,8 @@ def _customer_owned_editable_case(case_id):
         abort(403)
     if not is_developer and payment_case.created_by_user_id != current_user.id:
         abort(403)
+    if payment_case.case_type not in {"bank_transfer", "payment_claim"}:
+        abort(409, description="I pagamenti con carta non possono essere modificati o eliminati come comunicazioni manuali.")
     if payment_case.status not in CUSTOMER_EDITABLE_CASE_STATUSES:
         abort(409, description="La pratica e' gia' in lavorazione e non puo' piu' essere modificata.")
     return payment_case

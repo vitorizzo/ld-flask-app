@@ -74,6 +74,10 @@
     const onlinePaymentTotal = document.querySelector("[data-online-payment-selection-total]");
     const onlinePaymentInputs = document.querySelector("[data-online-payment-entry-inputs]");
     const onlinePaymentFeedback = document.querySelector("[data-online-payment-feedback]");
+    const pendingActionAlert = document.querySelector("[data-pending-action-alert]");
+    const pendingActionMessage = document.querySelector("[data-pending-action-message]");
+    const pendingActionButtons = document.querySelector("[data-pending-action-buttons]");
+    const onlinePaymentConfigured = Boolean(onlinePaymentTrigger) && !onlinePaymentTrigger.disabled;
 
     function checkedInvoices() {
       return invoiceCheckboxes.filter(function (checkbox) { return checkbox.checked; });
@@ -84,6 +88,8 @@
       const total = selected.reduce(function (sum, checkbox) {
         return sum + parseAmount(checkbox.dataset.amount);
       }, 0);
+      const pending = selected.filter(function (checkbox) { return Boolean(checkbox.dataset.actionStatus); });
+      const hasPendingActions = pending.length > 0;
       const countLabel = selected.length + (selected.length === 1 ? " documento" : " documenti");
 
       if (selectionCount) selectionCount.textContent = countLabel;
@@ -105,11 +111,59 @@
       }
       if (selectionBar) selectionBar.hidden = selected.length === 0;
       if (communicateTrigger) {
-        communicateTrigger.disabled = selected.length === 0 || total <= 0;
-        communicateTrigger.title = total <= 0 ? "Il netto da bonificare deve essere maggiore di zero" : "";
+        communicateTrigger.disabled = selected.length === 0 || total <= 0 || hasPendingActions;
+        communicateTrigger.title = hasPendingActions
+          ? "Annulla o completa prima l'azione già associata ai documenti selezionati"
+          : (total <= 0 ? "Il netto da bonificare deve essere maggiore di zero" : "");
       }
-      if (contestTrigger) contestTrigger.disabled = selected.length === 0;
-      if (onlinePaymentTrigger && !onlinePaymentTrigger.title) onlinePaymentTrigger.disabled = selected.length === 0 || total <= 0;
+      if (contestTrigger) {
+        contestTrigger.disabled = selected.length === 0 || hasPendingActions;
+        contestTrigger.title = hasPendingActions ? "È già presente un'azione associata ai documenti selezionati" : "";
+      }
+      if (onlinePaymentTrigger) {
+        onlinePaymentTrigger.disabled = !onlinePaymentConfigured || selected.length === 0 || total <= 0 || hasPendingActions;
+        if (onlinePaymentConfigured) {
+          onlinePaymentTrigger.title = hasPendingActions
+            ? "Annulla o completa prima l'azione già associata ai documenti selezionati"
+            : (total <= 0 ? "Il totale netto da pagare deve essere maggiore di zero" : "");
+        }
+      }
+      if (pendingActionAlert && pendingActionMessage && pendingActionButtons) {
+        pendingActionAlert.hidden = !hasPendingActions;
+        pendingActionButtons.replaceChildren();
+        if (hasPendingActions) {
+          const labels = Array.from(new Set(pending.map(function (checkbox) {
+            return checkbox.dataset.actionLabel || "Azione in corso";
+          })));
+          const actions = new Map();
+          pending.forEach(function (checkbox) {
+            const url = checkbox.dataset.actionCancelUrl;
+            const caseId = checkbox.dataset.actionCaseId;
+            if (url && caseId && !actions.has(caseId)) actions.set(caseId, url);
+          });
+          pendingActionMessage.textContent = (
+            pending.length === 1 ? "Il documento selezionato ha un'azione in corso: " : "Alcuni documenti selezionati hanno azioni in corso: "
+          ) + labels.join(", ") + (
+            actions.size
+              ? ". Per avviare una nuova operazione devi prima completarla o annullarla."
+              : ". Questa azione deve essere completata o verificata prima di avviare una nuova operazione."
+          );
+          actions.forEach(function (url) {
+            const form = document.createElement("form");
+            form.method = "post";
+            form.action = url;
+            form.addEventListener("submit", function (event) {
+              if (!window.confirm("Annullare l'azione precedente e liberare i documenti associati?")) event.preventDefault();
+            });
+            const button = document.createElement("button");
+            button.type = "submit";
+            button.className = "btn btn-sm btn-outline-danger";
+            button.textContent = "Annulla azione precedente";
+            form.appendChild(button);
+            pendingActionButtons.appendChild(form);
+          });
+        }
+      }
       document.body.classList.toggle("customer-payment-selection-active", selected.length > 0);
       if (selectAll) {
         selectAll.checked = invoiceCheckboxes.length > 0 && selected.length === invoiceCheckboxes.length;

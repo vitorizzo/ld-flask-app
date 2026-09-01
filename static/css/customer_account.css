@@ -279,7 +279,7 @@
 }
 
 .customer-payment-check {
-  width: 58px;
+  width: 138px;
   text-align: center;
 }
 
@@ -288,6 +288,14 @@
   height: 1.25rem;
   margin: 0;
   cursor: pointer;
+}
+
+td.customer-payment-check .badge {
+  display: block;
+  margin: .35rem auto 0;
+  max-width: 128px;
+  white-space: normal;
+  line-height: 1.2;
 }
 
 .customer-invoice-selectable {
@@ -344,6 +352,47 @@
 .customer-payment-selection-actions {
   display: flex;
   gap: .55rem;
+}
+
+.customer-payment-pending-alert {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  flex: 1 1 28rem;
+  padding: .65rem .8rem;
+  border: 1px solid rgba(255, 193, 7, .55);
+  border-radius: .75rem;
+  background: rgba(255, 193, 7, .12);
+  color: var(--bs-body-color);
+}
+
+.customer-payment-pending-alert[hidden] {
+  display: none;
+}
+
+.customer-payment-pending-alert > span {
+  flex: 1 1 auto;
+  font-size: .9rem;
+}
+
+.customer-payment-pending-alert > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .4rem;
+}
+
+@media (max-width: 767.98px) {
+  .customer-payment-pending-alert {
+    align-items: flex-start;
+    flex-basis: 100%;
+    flex-wrap: wrap;
+  }
+
+  .customer-payment-pending-alert > div,
+  .customer-payment-pending-alert form,
+  .customer-payment-pending-alert .btn {
+    width: 100%;
+  }
 }
 
 .customer-payment-selection .is-net-invalid,
@@ -555,6 +604,11 @@ body > .modal-backdrop {
     display: flex;
     align-items: center;
     justify-content: space-between;
+  }
+
+  .customer-account-card td.customer-payment-check .badge {
+    margin: 0;
+    max-width: min(72%, 18rem);
   }
 
   .customer-payment-check .form-check-input {
