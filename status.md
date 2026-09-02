@@ -3037,3 +3037,10 @@ Performance apertura giornata Agenda 2026-06-13:
 - Lo storico comprende ordini LDApp e ordini effettivamente registrati/inviati dall'ufficio, deduplicati per ordine Slack e channel/timestamp. Gli ordini Slack isolati sono ammessi soltanto con codice cliente esatto; nessun confronto fuzzy sul nome viene usato nella vista cliente.
 - Disponibili intervallo date, selettore per utenti associati a più clienti, dettaglio dell'ordine, allegati e avanzamento visuale. Layout predisposto per desktop, touch standard e smartphone ad alta risoluzione.
 - Verificati compilazione Python/Jinja, registrazione della rotta, integrità patch e query read-only sui dati configurati: 11 righe reali restituite senza duplicati e con stato valido.
+
+## 2026-09-02 - Associazione cliente dalla bacheca ordini
+
+- Il menu contestuale delle card in Bacheca ordini espone `Associa a cliente`, compresi gli ordini arrivati da Slack e gli stati terminali.
+- La modale ricerca le anagrafiche attive per nome, codice gestionale, partita IVA, codice fiscale o città e usa l'endpoint di associazione già condiviso con la plancia.
+- Il salvataggio aggiorna la chiave cliente esatta letta da `I miei ordini`, conserva il testo Slack originale e registra l'evento di audit `customer_link`.
+- Per una card raggruppata l'associazione viene applicata a tutti gli ordini inclusi nel gruppo; ricerca e comandi sono utilizzabili anche da touch.

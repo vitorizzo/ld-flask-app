@@ -117,6 +117,37 @@
   </div>
 </div>
 
+<!-- Modal associazione cliente -->
+<div class="modal fade" id="orderCustomerModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Associa ordine a cliente</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <form id="orderCustomerForm">
+        <div class="modal-body">
+          <input type="hidden" id="orderCustomerOrderIds">
+          <div class="alert alert-light border mb-3" id="orderCustomerPreview"></div>
+          <label class="form-label" for="orderCustomerSearch">Cerca nell'anagrafica clienti</label>
+          <input class="form-control" id="orderCustomerSearch" type="search" autocomplete="off"
+                 placeholder="Nome, codice cliente, partita IVA o città">
+          <select class="form-select mt-2" id="orderCustomerSelect" size="7"
+                  aria-label="Risultati ricerca cliente"></select>
+          <div class="form-text" id="orderCustomerHelp">
+            Il nome originale ricevuto da Slack rimarrà nel testo dell'ordine.
+          </div>
+          <div class="text-danger small mt-2 d-none" id="orderCustomerError" role="alert"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-info" id="orderCustomerSave">Associa a cliente</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- Modal consegna card -->
 <div class="modal fade" id="orderDeliveryModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
@@ -319,5 +350,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/kiosk_overview.js', v=app_version ~ '-mobile-board16') }}"></script>
+<script src="{{ url_for('static', filename='js/kiosk_overview.js', v=app_version ~ '-customer-link1') }}"></script>
 {% endblock %}

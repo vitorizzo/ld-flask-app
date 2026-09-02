@@ -19,12 +19,16 @@ window.kioskState = {
   const API_DELIVERY_SCHEDULE = "/kiosk/api/delivery-schedule";
   const API_DELIVERY_ROUTES = "/kiosk/api/delivery-routes";
   const API_STATUSES = "/kiosk/api/statuses";
+  const API_CUSTOMERS = "/route-orders/api/customers";
+  const API_ORDER_CUSTOMER = (id) => `/route-orders/api/orders/${id}/customer`;
 
   let refreshTimer = null;
   let deliveryScheduleState = { routes: [], rules: [], weekdays: [], frequencies: [] };
   let activeCardDropdown = null;
   let lastRenderedCardsSignature = null;
   let pendingCardRender = false;
+  let customerSearchTimer = null;
+  let customerSearchRequest = 0;
 
   // Drag context (single dragged card at a time)
   let dragCtx = {
@@ -465,12 +469,11 @@ window.kioskState = {
     const { prev, next } = getPrevNextStatus(vm.status);
 
     const moveOpts = statusOptionsFor(vm.status);
-    const moveMenuHtml = moveOpts.length
-      ? `
+    const moveMenuHtml = `
         <div class="order-actions dropdown">
           <button class="btn btn-sm btn-dark dropdown-toggle" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false">⋯</button>
           <ul class="dropdown-menu">
-            <li class="dropdown-header">Sposta in</li>
+            ${moveOpts.length ? `<li class="dropdown-header">Sposta in</li>` : ``}
             ${moveOpts
               .map(
                 (s) =>
@@ -479,12 +482,13 @@ window.kioskState = {
                   )}</a></li>`
               )
               .join("")}
+            ${moveOpts.length ? `<li><hr class="dropdown-divider"></li>` : ``}
+            <li><a class="dropdown-item" href="#" data-associate-customer="1">Associa a cliente</a></li>
             <li><hr class="dropdown-divider"></li>
             <li><a class="dropdown-item text-danger" href="#" data-delete-order="1">Elimina ordine</a></li>
           </ul>
         </div>
-      `
-      : ``;
+      `;
 
     // Hot-zones laterali
     const edgeLeft = `
@@ -723,6 +727,15 @@ window.kioskState = {
         } finally {
           div.classList.remove("is-busy");
         }
+      });
+    });
+
+    div.querySelectorAll("[data-associate-customer]").forEach((btn) => {
+      btn.addEventListener("click", async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        closeActiveCardDropdown(null, false);
+        await openOrderCustomerModal(isGroup ? vm.orders : [primary]);
       });
     });
 
@@ -997,6 +1010,106 @@ window.kioskState = {
       if (body) body.innerHTML = parts.join("");
     } catch (err) {
       if (body) body.innerHTML = `<div class="alert alert-danger">Errore caricamento ordine: ${escapeHtml(String(err))}</div>`;
+    }
+  }
+
+  function setOrderCustomerError(message = "") {
+    const error = $("#orderCustomerError");
+    if (!error) return;
+    error.textContent = message;
+    error.classList.toggle("d-none", !message);
+  }
+
+  async function loadOrderCustomers(query = "") {
+    const select = $("#orderCustomerSelect");
+    const requestId = ++customerSearchRequest;
+    if (select) select.innerHTML = `<option value="" disabled>Ricerca in corso...</option>`;
+    setOrderCustomerError();
+
+    const res = await fetch(`${API_CUSTOMERS}?q=${encodeURIComponent(query)}`, {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const json = await res.json().catch(() => ({}));
+    if (requestId !== customerSearchRequest) return;
+    if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+
+    const customers = Array.isArray(json.customers) ? json.customers : [];
+    if (!select) return;
+    select.innerHTML = customers.length
+      ? customers.map((customer) => {
+          const details = [customer.source_code ? `cod. ${customer.source_code}` : "", customer.city || ""]
+            .filter(Boolean)
+            .join(" · ");
+          return `<option value="${escapeHtml(customer.id)}">${escapeHtml(customer.display || "Cliente")}${
+            details ? ` — ${escapeHtml(details)}` : ""
+          }</option>`;
+        }).join("")
+      : `<option value="" disabled>Nessun cliente trovato</option>`;
+  }
+
+  async function openOrderCustomerModal(orders) {
+    const list = Array.isArray(orders) ? orders.filter(Boolean) : [];
+    if (!list.length) return;
+
+    const primary = list[0];
+    $("#orderCustomerOrderIds").value = list.map((order) => order.id).join(",");
+    $("#orderCustomerPreview").textContent = list.length > 1
+      ? `${list.length} ordini raggruppati come “${primary.customer_display || "Cliente non riconosciuto"}”`
+      : (primary.raw_text || primary.preview || primary.customer_display || `Ordine #${primary.id}`);
+    $("#orderCustomerHelp").textContent = list.length > 1
+      ? "Il cliente scelto verrà associato a tutti gli ordini del gruppo. Il testo originale di Slack non sarà modificato."
+      : "Il nome originale ricevuto da Slack rimarrà nel testo dell'ordine.";
+    $("#orderCustomerSearch").value = primary.customer_display || "";
+    setOrderCustomerError();
+
+    const modalEl = $("#orderCustomerModal");
+    if (modalEl && window.bootstrap) window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+
+    try {
+      await loadOrderCustomers(primary.customer_display || "");
+      $("#orderCustomerSearch").focus();
+    } catch (err) {
+      setOrderCustomerError(`Ricerca clienti non disponibile: ${String(err.message || err)}`);
+    }
+  }
+
+  async function saveOrderCustomer(ev) {
+    ev.preventDefault();
+    const ids = ($("#orderCustomerOrderIds").value || "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
+    const registryId = $("#orderCustomerSelect").value;
+    if (!ids.length || !registryId) {
+      setOrderCustomerError("Seleziona il cliente da associare.");
+      return;
+    }
+
+    const saveButton = $("#orderCustomerSave");
+    saveButton.disabled = true;
+    saveButton.textContent = "Associazione...";
+    setOrderCustomerError();
+    try {
+      for (const id of ids) {
+        const res = await fetch(API_ORDER_CUSTOMER(id), {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ registry_id: registryId }),
+          cache: "no-store",
+        });
+        const json = await res.json().catch(() => ({}));
+        if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      }
+      const modalEl = $("#orderCustomerModal");
+      if (modalEl && window.bootstrap) window.bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+      await loadAndRender();
+    } catch (err) {
+      setOrderCustomerError(`Associazione non riuscita: ${String(err.message || err)}`);
+    } finally {
+      saveButton.disabled = false;
+      saveButton.textContent = "Associa a cliente";
     }
   }
 
@@ -1800,6 +1913,38 @@ window.kioskState = {
 
     const orderDeliveryForm = $("#orderDeliveryForm");
     if (orderDeliveryForm) orderDeliveryForm.addEventListener("submit", saveOrderDelivery);
+
+    const orderCustomerForm = $("#orderCustomerForm");
+    if (orderCustomerForm) orderCustomerForm.addEventListener("submit", saveOrderCustomer);
+
+    const orderCustomerModal = $("#orderCustomerModal");
+    if (orderCustomerModal) {
+      orderCustomerModal.addEventListener("shown.bs.modal", () => {
+        const saveButton = $("#orderCustomerSave");
+        if (saveButton) {
+          saveButton.disabled = false;
+          saveButton.textContent = "Associa a cliente";
+        }
+      });
+      orderCustomerModal.addEventListener("hidden.bs.modal", () => {
+        window.clearTimeout(customerSearchTimer);
+        customerSearchRequest += 1;
+        if (orderCustomerForm) orderCustomerForm.reset();
+        setOrderCustomerError();
+      });
+    }
+
+    const orderCustomerSearch = $("#orderCustomerSearch");
+    if (orderCustomerSearch) {
+      orderCustomerSearch.addEventListener("input", (ev) => {
+        window.clearTimeout(customerSearchTimer);
+        customerSearchTimer = window.setTimeout(() => {
+          loadOrderCustomers(ev.target.value).catch((err) => {
+            setOrderCustomerError(`Ricerca clienti non disponibile: ${String(err.message || err)}`);
+          });
+        }, 250);
+      });
+    }
 
     await loadStatuses();
     await loadAndRender();

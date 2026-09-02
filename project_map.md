@@ -772,6 +772,7 @@ Intervento 2026-06-11:
 - l'associazione aggiorna `SlackOrder.customer_display` e `SlackOrder.customer_key` usando label e `source_code`/ID del cliente;
 - l'operazione viene storicizzata in `SlackOrderEvent(type='customer_link')`;
 - la risoluzione ordini della plancia usa `_registry_for_order()` anche per match esatti su `display_name`/`legal_name`, non solo chiavi `source_code`/ID.
+- la bacheca ordini espone la stessa associazione nel menu contestuale di ogni card; la ricerca interroga l'anagrafica clienti e, per le card raggruppate, applica il cliente scelto a tutti gli ordini del gruppo senza modificare il testo Slack originale.
 
 ---
 
