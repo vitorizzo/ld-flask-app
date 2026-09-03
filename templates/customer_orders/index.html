@@ -42,6 +42,7 @@
     <div class="customer-order-panel">
       <form method="post" action="{{ url_for('customer_orders.create') }}" enctype="multipart/form-data" class="customer-order-form">
         <input type="hidden" name="registry_id" value="{{ registry.id }}">
+        {% if route %}<input type="hidden" name="route_id" value="{{ route.id }}">{% endif %}
         <label>
           <span>Ordine</span>
           <textarea class="form-control" name="order_text" rows="7" placeholder="Scrivi qui il tuo ordine"></textarea>
@@ -53,13 +54,13 @@
             <select class="form-select" name="delivery_option_id" data-delivery-select>
               <option value="">Nessuna preferenza</option>
               {% for option in delivery_options %}
-                <option value="{{ option.id }}" data-requires-value="{{ 1 if option.requires_value else 0 }}" data-value-label="{{ option.value_label or 'Specifica' }}">{{ option.label }}</option>
+                <option value="{{ option.id }}" data-requires-value="{{ 1 if option.requires_value else 0 }}" data-value-label="{{ option.value_label or 'Specifica' }}" {{ 'selected' if suggested_delivery_date and option.code == 'data_consegna' }}>{{ option.label }}</option>
               {% endfor %}
             </select>
           </label>
           <label data-delivery-value-wrap hidden>
             <span data-delivery-value-label>Specifica</span>
-            <input class="form-control" type="text" name="delivery_option_value" placeholder="es. sabato">
+            <input class="form-control" type="text" name="delivery_option_value" value="{{ suggested_delivery_date.isoformat() if suggested_delivery_date else '' }}" placeholder="es. sabato">
           </label>
         </div>
 

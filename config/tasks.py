@@ -223,6 +223,14 @@ def refresh_open_shipments_task(self, options=None):
 
 @celery.task(bind=True)
 @log_task(logger)
+def dispatch_customer_route_order_reminders_task(self):
+    from tools.customer_route_reminders import dispatch_customer_route_order_reminders
+
+    return dispatch_customer_route_order_reminders()
+
+
+@celery.task(bind=True)
+@log_task(logger)
 def create_weekly_events_social_post_task(self):
     from tools.social_events import create_social_event_post
     return {"post_id": create_social_event_post("week", auto=True).id}

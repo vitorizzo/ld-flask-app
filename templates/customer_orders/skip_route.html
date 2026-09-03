@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}Salta il giro - LD Enoteca{% endblock %}
+
+{% block content %}
+<section class="customer-order-page">
+  <header class="customer-order-hero">
+    <div>
+      <span class="customer-order-eyebrow">Promemoria ordine</span>
+      <h1>Vuoi saltare il giro?</h1>
+      <p>{{ customer_label }} - giro {{ reminder.route.name }} del {{ reminder.delivery_date.strftime('%d/%m/%Y') }}</p>
+    </div>
+  </header>
+
+  <div class="customer-order-panel">
+    {% if entry and entry.status == 'salta_giro' %}
+      <div class="alert alert-info">Hai gia' indicato di saltare questo giro.</div>
+      <a class="btn btn-info" href="{{ url_for('customer_orders.index', customer=reminder.registry_id) }}">Torna ai tuoi ordini</a>
+    {% elif entry and (entry.status == 'ordine_fatto' or entry.sent_at) %}
+      <div class="alert alert-warning">Per questo passaggio risulta gia' un ordine e non puo' essere impostato “Salta il giro”.</div>
+      <a class="btn btn-info" href="{{ url_for('customer_orders.index', customer=reminder.registry_id) }}">Apri i tuoi ordini</a>
+    {% else %}
+      <p>Confermando, nella bacheca ordini il cliente verra' impostato su <strong>Salta il giro</strong> per questa data.</p>
+      <div class="customer-order-actions">
+        <form method="post" action="{{ url_for('customer_orders.skip_route_reminder', public_id=reminder.public_id) }}">
+          <button class="btn btn-warning" type="submit"><i class="fa-solid fa-forward"></i> Conferma: salta il giro</button>
+        </form>
+        <a class="btn btn-outline-info" href="{{ url_for('customer_orders.open_route_reminder_order', public_id=reminder.public_id) }}">
+          <i class="fa-solid fa-cart-shopping"></i> Fai ordine adesso
+        </a>
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

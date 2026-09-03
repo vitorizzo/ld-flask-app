@@ -2949,6 +2949,60 @@ class DeliveryRouteCustomer(db.Model):
         }
 
 
+class CustomerRouteOrderReminder(db.Model):
+    """Promemoria push inviato a un cliente per uno specifico passaggio del giro."""
+
+    __tablename__ = "customer_route_order_reminders"
+    __table_args__ = (
+        db.UniqueConstraint(
+            "user_id",
+            "route_id",
+            "registry_id",
+            "delivery_date",
+            name="uq_customer_route_order_reminder_delivery",
+        ),
+        db.Index(
+            "ix_customer_route_order_reminders_delivery_status",
+            "delivery_date",
+            "status",
+        ),
+    )
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    public_id = db.Column(
+        db.String(48),
+        nullable=False,
+        unique=True,
+        index=True,
+        default=lambda: secrets.token_urlsafe(24),
+    )
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False, index=True)
+    route_id = db.Column(db.Integer, db.ForeignKey("delivery_routes.id", ondelete="CASCADE"), nullable=False, index=True)
+    registry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("business_registries.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    delivery_date = db.Column(db.Date, nullable=False, index=True)
+    status = db.Column(db.String(24), nullable=False, default="queued", index=True)
+    action = db.Column(db.String(24), nullable=True)
+    sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    acted_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    last_error = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    user = db.relationship("User")
+    route = db.relationship("DeliveryRoute")
+    registry = db.relationship("BusinessRegistry")
+
+
 class RouteOrderBoardEntry(db.Model):
     __tablename__ = "route_order_board_entries"
     __table_args__ = (

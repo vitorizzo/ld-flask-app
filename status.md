@@ -3044,3 +3044,11 @@ Performance apertura giornata Agenda 2026-06-13:
 - La modale ricerca le anagrafiche attive per nome, codice gestionale, partita IVA, codice fiscale o città e usa l'endpoint di associazione già condiviso con la plancia.
 - Il salvataggio aggiorna la chiave cliente esatta letta da `I miei ordini`, conserva il testo Slack originale e registra l'evento di audit `customer_link`.
 - Per una card raggruppata l'associazione viene applicata a tutti gli ordini inclusi nel gruppo; ricerca e comandi sono utilizzabili anche da touch.
+
+## 2026-09-03 - Promemoria ordine per i clienti del giro
+
+- Celery Beat controlla ogni 15 minuti i passaggi del giorno successivo e, dalle 10:00 Europe/Rome, invia un solo promemoria push per utente, cliente, giro e data. Ora e timezone sono configurabili con `CUSTOMER_ROUTE_REMINDER_HOUR` e `CUSTOMER_ROUTE_REMINDER_TIMEZONE`.
+- Il calcolo riusa calendario settimanale, bisettimanale, doppio passaggio, periodi e variazioni una tantum della plancia. Clienti senza giro, senza ruolo `customer_horeca`, senza push attive, con ordine gia' presente o con stato `salta_giro` vengono esclusi.
+- La notifica offre `Fai ordine adesso`, che apre il form cliente con la data del giro preselezionata, e `Salta il giro`, che apre una conferma autenticata prima di aggiornare `route_order_board_entries`.
+- Un controllo finale impedisce di saltare il giro se nel frattempo e' arrivato un ordine. Le scelte effettive vengono registrate nel promemoria; l'invio dell'ordine continua a pubblicare su Slack e porta la plancia a `ordine_fatto` tramite il flusso esistente.
+- Aggiunta la migration idempotente `d0e1f2a3b4c5`; verificati compilazione Python/Jinja, service worker, registrazione delle nuove route e singola head Alembic.

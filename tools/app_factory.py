@@ -203,6 +203,8 @@ def create_app():
         VAPID_PRIVATE_KEY=os.getenv("VAPID_PRIVATE_KEY"),
         VAPID_PRIVATE_KEY_FILE=os.getenv("VAPID_PRIVATE_KEY_FILE"),
         VAPID_SUBJECT=os.getenv("VAPID_SUBJECT", "mailto:admin@ldenoteca.it"),
+        CUSTOMER_ROUTE_REMINDER_HOUR=int(os.getenv("CUSTOMER_ROUTE_REMINDER_HOUR", "10")),
+        CUSTOMER_ROUTE_REMINDER_TIMEZONE=os.getenv("CUSTOMER_ROUTE_REMINDER_TIMEZONE", "Europe/Rome"),
         NEXI_XPAY_API_KEY=os.getenv("NEXI_XPAY_API_KEY"),
         NEXI_XPAY_TERMINAL_ID=os.getenv("NEXI_XPAY_TERMINAL_ID"),
         NEXI_XPAY_ALIAS=os.getenv("NEXI_XPAY_ALIAS"),

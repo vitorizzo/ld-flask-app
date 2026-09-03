@@ -1429,6 +1429,14 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `static/js/agenda.js`: il conteggio fondo cassa non salvato e' mantenuto in una bozza di sessione per giornata e viene ripristinato dopo refresh, se la versione salvata sul server non e' cambiata.
 - Il polling realtime continua ogni 5 secondi ma passa da un coordinatore che rinvia i soli aggiornamenti DOM durante un'interazione e consolida variazioni Agenda/vault concorrenti; pagina, pannelli e contenitori scrollabili interni mantengono la posizione.
 
+### Clienti Horeca - promemoria ordine del giro (2026-09-03)
+
+- `tools/customer_route_reminders.py`: individua i passaggi effettivi del giorno successivo, esclude ordini/stati gia' presenti, risolve tutti gli utenti `customer_horeca` associati e invia push idempotenti.
+- `models.py` + migration `d0e1f2a3b4c5`: `CustomerRouteOrderReminder` conserva destinatario, cliente, giro, data, invio e azione con vincolo univoco anti-duplicato.
+- `config/tasks.py` + `config/celeryconfig.py`: dispatcher in background ogni 15 minuti; invio predefinito dalle 10:00 Europe/Rome, configurabile da ambiente.
+- `routes/customer_orders.py` + `templates/customer_orders/skip_route.html`: apertura del form ordine sulla data suggerita e conferma autenticata di `Salta il giro`, con aggiornamento immediato della plancia.
+- `static/service-worker.js`: cache `v27` e destinazioni specifiche per ciascuna action della notifica, mantenendo il click principale come accesso a `Fai un ordine`.
+
 ### Magazzino - storico ordini (2026-08-19)
 
 - `routes/route_orders.py`: endpoint HTML `/route-orders/history` (ruolo 30) con filtri server-side per cliente, testo, date, giro e stato; vista unificata di console e ordini Slack non duplicati; endpoint JSON read-only `/route-orders/history/detail/<kind>/<id>` per il dettaglio completo.

@@ -55,6 +55,12 @@ beat_schedule = {
         'schedule': crontab(minute='*/30'),
         'args': ({'limit': 100},),
     },
+    'customer-route-order-reminders': {
+        'task': 'config.tasks.dispatch_customer_route_order_reminders_task',
+        # Controllo frequente e idempotente: l'orario effettivo e' configurabile.
+        'schedule': crontab(minute='*/15'),
+        'options': {'expires': 14 * 60},
+    },
     'events-social-weekly': {
         'task': 'config.tasks.create_weekly_events_social_post_task',
         'schedule': crontab(hour='9', minute='0', day_of_week='monday'),

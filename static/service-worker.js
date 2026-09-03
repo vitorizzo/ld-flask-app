@@ -1,4 +1,4 @@
-const CACHE_NAME = "ldapp-cache-v26";
+const CACHE_NAME = "ldapp-cache-v27";
 const MAX_PUSH_AGE_MS = 10 * 60 * 1000;
 
 function supportedNotificationActions(actions) {
@@ -180,6 +180,7 @@ self.addEventListener("push", (event) => {
       category: data.category || null,
       order_id: data.order_id || null,
       order_status: data.order_status || null,
+      action_urls: data.action_urls || null,
       badge: data.badge || null,
       icon: data.icon || null,
     },
@@ -204,6 +205,10 @@ self.addEventListener("notificationclick", (event) => {
   const data = event.notification.data || {};
   const targetUrl = notificationUrl(data);
   const action = event.action || "default";
+  const actionUrl =
+    data.action_urls && typeof data.action_urls === "object" && data.action_urls[action]
+      ? new URL(data.action_urls[action], self.location.origin).href
+      : targetUrl;
 
   if (action.startsWith("status:")) {
     const status = action.slice("status:".length);
@@ -215,5 +220,5 @@ self.addEventListener("notificationclick", (event) => {
     return;
   }
 
-  event.waitUntil(openOrFocusUrl(targetUrl));
+  event.waitUntil(openOrFocusUrl(actionUrl));
 });

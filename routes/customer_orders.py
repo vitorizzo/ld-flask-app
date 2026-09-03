@@ -13,6 +13,7 @@ from models import (
     CustomerOrder,
     CustomerOrderDeliveryOption,
     CustomerOrderRevision,
+    CustomerRouteOrderReminder,
     DeliveryRouteCustomer,
     RouteOrderBoardEntry,
     SlackOrder,
@@ -340,13 +341,14 @@ def _customer_order_rows(registry, date_from, date_to):
     return rows
 
 
-def _customer_route(registry):
-    link = (
+def _customer_route(registry, route_id=None):
+    query = (
         DeliveryRouteCustomer.query
         .filter_by(registry_id=registry.id, is_active=True)
-        .order_by(DeliveryRouteCustomer.sort_order.asc(), DeliveryRouteCustomer.id.asc())
-        .first()
     )
+    if route_id:
+        query = query.filter(DeliveryRouteCustomer.route_id == route_id)
+    link = query.order_by(DeliveryRouteCustomer.sort_order.asc(), DeliveryRouteCustomer.id.asc()).first()
     return link.route if link else None
 
 
@@ -379,6 +381,8 @@ def index():
         is_developer=is_developer,
         registries=registries,
     )
+    requested_route_id = request.args.get("route", type=int)
+    selected_route = _customer_route(registry, requested_route_id) if registry else None
     orders = []
     if registry:
         orders = (
@@ -392,12 +396,105 @@ def index():
     return render_template(
         "customer_orders/index.html",
         registry=registry,
-        route=_customer_route(registry) if registry else None,
+        route=selected_route,
         delivery_options=_delivery_options(),
         orders=orders,
         effective_order_status=_effective_customer_order_status,
         is_developer=is_developer,
         registries=registries,
+        suggested_delivery_date=_parse_date(request.args.get("delivery_date"), None),
+    )
+
+
+def _customer_reminder(public_id):
+    reminder = CustomerRouteOrderReminder.query.filter_by(public_id=public_id).first_or_404()
+    if reminder.user_id != current_user.id:
+        return None
+    registry = customer_registry_for_user(current_user, reminder.registry_id)
+    legacy_registry_id = getattr(current_user, "customer_registry_id", None)
+    if registry is None and legacy_registry_id != reminder.registry_id:
+        return None
+    return reminder
+
+
+@customer_orders_bp.get("/reminders/<public_id>/order")
+@login_required
+def open_route_reminder_order(public_id):
+    reminder = _customer_reminder(public_id)
+    if reminder is None:
+        flash("Promemoria non disponibile per questo account.", "danger")
+        return redirect(url_for("home"))
+    if reminder.action == "skipped":
+        flash("Per questo passaggio hai gia' scelto di saltare il giro.", "info")
+    return redirect(url_for(
+        "customer_orders.index",
+        customer=reminder.registry_id,
+        route=reminder.route_id,
+        delivery_date=reminder.delivery_date.isoformat(),
+    ))
+
+
+@customer_orders_bp.route("/reminders/<public_id>/skip", methods=["GET", "POST"])
+@login_required
+def skip_route_reminder(public_id):
+    reminder = _customer_reminder(public_id)
+    if reminder is None:
+        flash("Promemoria non disponibile per questo account.", "danger")
+        return redirect(url_for("home"))
+
+    link = DeliveryRouteCustomer.query.filter_by(
+        route_id=reminder.route_id,
+        registry_id=reminder.registry_id,
+        is_active=True,
+    ).first()
+    if link is None:
+        flash("Il cliente non appartiene piu' a questo giro.", "warning")
+        return redirect(url_for("customer_orders.index", customer=reminder.registry_id))
+
+    entry = RouteOrderBoardEntry.query.filter_by(
+        route_id=reminder.route_id,
+        registry_id=reminder.registry_id,
+        board_date=reminder.delivery_date,
+    ).first()
+    if request.method == "POST":
+        from tools.customer_route_reminders import _blocked_registries, _delivery_for_date
+
+        schedule_base = datetime.combine(reminder.delivery_date - timedelta(days=1), time.min)
+        planned_delivery_at = _delivery_for_date(
+            reminder.route,
+            reminder.delivery_date,
+            local_now=schedule_base,
+        ) or datetime.combine(reminder.delivery_date, reminder.route.default_time)
+        blocked = reminder.registry_id in _blocked_registries(
+            reminder.route,
+            [link],
+            planned_delivery_at,
+        )
+        if blocked and not (entry and entry.status == "salta_giro"):
+            flash("Il giro non puo' essere saltato: risulta gia' un ordine.", "warning")
+            return redirect(url_for("customer_orders.index", customer=reminder.registry_id))
+        if not entry:
+            entry = RouteOrderBoardEntry(
+                route_id=reminder.route_id,
+                registry_id=reminder.registry_id,
+                board_date=reminder.delivery_date,
+                planned_delivery_at=planned_delivery_at,
+            )
+            db.session.add(entry)
+        entry.status = "salta_giro"
+        entry.order_note = "Giro saltato dal cliente tramite promemoria LDApp."
+        reminder.status = "acted"
+        reminder.action = "skipped"
+        reminder.acted_at = datetime.now().astimezone()
+        db.session.commit()
+        flash("Giro saltato. La bacheca ordini e' stata aggiornata.", "success")
+        return redirect(url_for("customer_orders.index", customer=reminder.registry_id))
+
+    return render_template(
+        "customer_orders/skip_route.html",
+        reminder=reminder,
+        entry=entry,
+        customer_label=_customer_label(reminder.registry),
     )
 
 
@@ -446,7 +543,8 @@ def create():
     if not registry:
         flash("Il tuo account non e' ancora associato a un'anagrafica cliente.", "warning")
         return redirect(url_for("customer_orders.index"))
-    route = _customer_route(registry)
+    requested_route_id = request.form.get("route_id", type=int)
+    route = _customer_route(registry, requested_route_id)
     delivery_option = _selected_delivery_option()
     order_text = (request.form.get("order_text") or "").strip()
     attachments = _save_files()
@@ -478,6 +576,17 @@ def create():
     try:
         from routes.route_orders import publish_customer_order
         publish_customer_order(order)
+        if order.route_board_entry:
+            reminders = CustomerRouteOrderReminder.query.filter_by(
+                user_id=current_user.id,
+                registry_id=order.registry_id,
+                route_id=order.route_id,
+                delivery_date=order.route_board_entry.board_date,
+            ).all()
+            for reminder in reminders:
+                reminder.status = "acted"
+                reminder.action = "ordered"
+                reminder.acted_at = datetime.now().astimezone()
         db.session.commit()
     except Exception as exc:
         db.session.rollback()
