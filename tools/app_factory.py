@@ -20,6 +20,11 @@ from tools.log_utils import get_logger
 from models import CustomerPaymentCase, User, Menu, PasswordResetToken, SupportTicket
 from routes.tools import get_user_menu
 from tools.preferences import PREFERENCE_DEFINITIONS, load_preferences_into_app_config
+from tools.customer_memberships import (
+    ACCESS_ADMINISTRATION,
+    ACCESS_MANAGEMENT,
+    user_has_customer_capability,
+)
 
 # Determina la root del progetto (supponendo che questo file sia in tools/)
 project_root = os.path.dirname(os.path.dirname(__file__))
@@ -341,7 +346,16 @@ def create_app():
             getattr(current_user, "id", None),
             list(session.keys())
         )
-        return render_template("home.html")
+        can_manage_customers = False
+        can_administer_customers = False
+        if current_user.is_authenticated and current_user.has_active_role("customer_horeca"):
+            can_manage_customers = user_has_customer_capability(current_user, ACCESS_MANAGEMENT)
+            can_administer_customers = user_has_customer_capability(current_user, ACCESS_ADMINISTRATION)
+        return render_template(
+            "home.html",
+            customer_can_manage=can_manage_customers,
+            customer_can_administer=can_administer_customers,
+        )
 
     # --- CONTEXT PROCESSORS ---
     @app.context_processor

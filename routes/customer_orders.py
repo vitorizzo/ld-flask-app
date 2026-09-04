@@ -19,7 +19,12 @@ from models import (
     SlackOrder,
 )
 from tools.role_required import role_required
-from tools.customer_memberships import active_customer_memberships, customer_registry_for_user
+from tools.customer_memberships import (
+    ACCESS_MANAGEMENT,
+    active_customer_memberships,
+    customer_registry_for_user,
+    user_has_customer_capability,
+)
 
 
 customer_orders_bp = Blueprint("customer_orders", __name__)
@@ -67,7 +72,11 @@ def _active_role_names():
 def _can_create_customer_order():
     if not current_user.is_authenticated:
         return False
-    return bool(_active_role_names().intersection({"customer_horeca", "dev"}))
+    role_names = _active_role_names()
+    return "dev" in role_names or (
+        "customer_horeca" in role_names
+        and user_has_customer_capability(current_user, ACCESS_MANAGEMENT)
+    )
 
 
 def _is_developer():
@@ -170,9 +179,9 @@ def _selectable_customer_registries(is_developer):
             .order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc())
             .all()
         )
-    memberships = active_customer_memberships(current_user)
+    memberships = active_customer_memberships(current_user, capability=ACCESS_MANAGEMENT)
     registries = [membership.registry for membership in memberships]
-    legacy_registry = customer_registry_for_user(current_user)
+    legacy_registry = customer_registry_for_user(current_user, capability=ACCESS_MANAGEMENT)
     if not registries and legacy_registry is not None:
         registries = [legacy_registry]
     return registries
@@ -187,7 +196,7 @@ def _customer_registry(registry_id=None, *, is_developer=None, registries=None):
         if registry_id is None:
             return None
         return BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first()
-    return customer_registry_for_user(current_user, registry_id)
+    return customer_registry_for_user(current_user, registry_id, capability=ACCESS_MANAGEMENT)
 
 
 def _customer_order_status(code):
@@ -364,14 +373,18 @@ def _delivery_options():
 def _order_access(order):
     if (current_user.max_role_weight or 0) >= 30:
         return True
-    return customer_registry_for_user(current_user, order.registry_id) is not None
+    return customer_registry_for_user(
+        current_user,
+        order.registry_id,
+        capability=ACCESS_MANAGEMENT,
+    ) is not None
 
 
 @customer_orders_bp.get("/")
 @login_required
 def index():
     if not _can_create_customer_order():
-        flash("Funzione disponibile per clienti Horeca.", "warning")
+        flash("Account non abilitato alla gestione ordini dei clienti associati.", "warning")
         return redirect(url_for("home"))
     is_developer = _is_developer()
     registries = _selectable_customer_registries(is_developer)
@@ -410,9 +423,12 @@ def _customer_reminder(public_id):
     reminder = CustomerRouteOrderReminder.query.filter_by(public_id=public_id).first_or_404()
     if reminder.user_id != current_user.id:
         return None
-    registry = customer_registry_for_user(current_user, reminder.registry_id)
-    legacy_registry_id = getattr(current_user, "customer_registry_id", None)
-    if registry is None and legacy_registry_id != reminder.registry_id:
+    registry = customer_registry_for_user(
+        current_user,
+        reminder.registry_id,
+        capability=ACCESS_MANAGEMENT,
+    )
+    if registry is None:
         return None
     return reminder
 
@@ -501,8 +517,8 @@ def skip_route_reminder(public_id):
 @customer_orders_bp.get("/status")
 @login_required
 def status():
-    if not _active_role_names().intersection({"customer_horeca", "dev"}):
-        flash("Funzione disponibile per clienti Horeca.", "warning")
+    if not _can_create_customer_order():
+        flash("Account non abilitato alla gestione ordini dei clienti associati.", "warning")
         return redirect(url_for("home"))
 
     is_developer = _is_developer()
@@ -535,7 +551,7 @@ def status():
 @login_required
 def create():
     if not _can_create_customer_order():
-        flash("Funzione disponibile per clienti Horeca.", "warning")
+        flash("Account non abilitato alla gestione ordini dei clienti associati.", "warning")
         return redirect(url_for("home"))
     is_developer = _is_developer()
     requested_registry_id = request.form.get("registry_id", type=int)

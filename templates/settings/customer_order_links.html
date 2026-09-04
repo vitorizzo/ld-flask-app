@@ -1,22 +1,21 @@
 {% extends "base.html" %}
 
-{% block title %}Associazione Utente-Cliente - Impostazioni{% endblock %}
+{% block title %}Associazioni Utente-Cliente - Impostazioni{% endblock %}
 
 {% block extra_css %}
 <style>
-  .horeca-link-list { display: grid; gap: 10px; }
-  .horeca-link-card { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(260px, 2fr) 150px; gap: 12px; align-items: center; padding: 12px; border: 1px solid rgba(0,0,0,.08); border-radius: 8px; background: #fff; }
-  .horeca-link-user strong { color: #212529; }
-  @media (max-width: 820px), (hover: none) and (pointer: coarse) {
-    .horeca-link-card { grid-template-columns: 1fr; gap: 10px; }
-    .horeca-link-card .btn { min-height: 48px; }
+  .membership-grid { display:grid; gap:14px; }
+  .membership-row { display:grid; grid-template-columns:minmax(220px,1.4fr) minmax(220px,1fr) auto; gap:12px; align-items:center; }
+  .membership-actions { display:flex; flex-wrap:wrap; gap:8px; }
+  @media (max-width:820px), (hover:none) and (pointer:coarse) {
+    .membership-row { grid-template-columns:1fr; }
+    .membership-row .btn, .membership-row .form-select { min-height:48px; }
   }
-  @media (hover: none) and (pointer: coarse) and (min-width: 821px) {
-    .horeca-link-list { gap: 24px; }
-    .horeca-link-card { grid-template-columns: 1fr; gap: 20px; padding: 28px; border-radius: 14px; }
-    .horeca-link-card, .horeca-link-card .form-select, .horeca-link-card .btn { font-size: 2rem; }
-    .horeca-link-card .form-select, .horeca-link-card .btn { min-height: 92px; border-radius: 14px; }
-    .horeca-link-user .small { font-size: 1.7rem; }
+  @media (hover:none) and (pointer:coarse) and (min-width:821px) {
+    .membership-grid { gap:24px; }
+    .membership-row { grid-template-columns:1fr; gap:18px; }
+    .membership-row, .membership-row .btn, .membership-row .form-select { font-size:1.8rem; }
+    .membership-row .btn, .membership-row .form-select { min-height:84px; }
   }
 </style>
 {% endblock %}
@@ -24,42 +23,82 @@
 {% block content %}
 <section class="welcome-section page-shell">
   <div class="container-fluid">
-    <div class="d-flex align-items-start justify-content-between mb-4">
+    <div class="d-flex flex-wrap align-items-start justify-content-between gap-2 mb-4">
       <div>
-        <h1 class="mb-1">Associazione Utente-Cliente</h1>
-        <div class="text-muted">Collega gli account Horeca all'anagrafica cliente usata per giro e ordini.</div>
+        <h1 class="mb-1">Associazioni Utente-Cliente</h1>
+        <div class="text-muted">Ogni utente può gestire più clienti e ogni cliente può essere collegato a più utenti.</div>
       </div>
       <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">Impostazioni</a>
     </div>
 
-    <div class="card border-0 shadow-sm">
+    <div class="card border-0 shadow-sm mb-4">
       <div class="card-body">
-        <div class="horeca-link-list">
-          {% for user in users %}
-            <form method="post" class="horeca-link-card">
-              <input type="hidden" name="user_id" value="{{ user.id }}">
-              <div class="horeca-link-user">
-                <strong>{{ user.surname }} {{ user.name }}</strong>
-                <div class="text-muted small">{{ user.email }}</div>
-              </div>
-              <div>
-                <select class="form-select" name="registry_id" aria-label="Anagrafica cliente per {{ user.surname }} {{ user.name }}">
-                  <option value="">Nessuna anagrafica collegata</option>
-                  {% for registry in registries %}
-                    <option value="{{ registry.id }}" {% if user.customer_registry_id == registry.id %}selected{% endif %}>
-                      {{ registry.display_name or registry.legal_name }}{% if registry.source_code %} - {{ registry.source_code }}{% endif %}
-                    </option>
-                  {% endfor %}
-                </select>
-              </div>
-              <button class="btn btn-outline-info" type="submit">Collega</button>
-            </form>
-          {% else %}
-            <div class="text-muted">Nessun utente disponibile.</div>
-          {% endfor %}
-        </div>
+        <h2 class="h5">Nuova associazione</h2>
+        <form method="post" class="membership-row">
+          <input type="hidden" name="action" value="add">
+          <div>
+            <label class="form-label">Utente</label>
+            <select class="form-select" name="user_id" required>
+              <option value="">Seleziona utente</option>
+              {% for user in users %}<option value="{{ user.id }}">{{ user.surname }} {{ user.name }} — {{ user.email }}</option>{% endfor %}
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Cliente</label>
+            {% set lookup_id = 'new-membership-registry' %}
+            {% set selected_registry = none %}
+            {% set lookup_disabled = false %}
+            {% include 'settings/_customer_registry_lookup.html' %}
+          </div>
+          <div>
+            <label class="form-label">Permessi</label>
+            <select class="form-select" name="access_scope">
+              {% for value, label in access_options %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+            </select>
+            <div class="form-check mt-2"><input class="form-check-input" type="checkbox" name="is_primary" value="1" id="new-primary"><label class="form-check-label" for="new-primary">Cliente predefinito</label></div>
+            <button class="btn btn-info w-100 mt-2" type="submit">Aggiungi</button>
+          </div>
+        </form>
       </div>
+    </div>
+
+    <div class="membership-grid">
+      {% for user in users %}
+        {% set active_memberships = user.customer_memberships|selectattr('status', 'equalto', 'active')|list %}
+        {% if active_memberships %}
+          <article class="card border-0 shadow-sm">
+            <div class="card-body">
+              <h2 class="h5 mb-0">{{ user.surname }} {{ user.name }}</h2>
+              <div class="text-muted mb-3">{{ user.email }}</div>
+              {% for membership in active_memberships %}
+                <form method="post" class="membership-row border-top py-3">
+                  <input type="hidden" name="membership_id" value="{{ membership.id }}">
+                  <div>
+                    <strong>{{ membership.registry.display_name or membership.registry.legal_name }}</strong>
+                    {% if membership.registry.source_code %}<span class="text-muted">— {{ membership.registry.source_code }}</span>{% endif %}
+                    {% if membership.is_primary %}<span class="badge text-bg-info ms-1">Predefinito</span>{% endif %}
+                  </div>
+                  <select class="form-select" name="access_scope" aria-label="Permessi per {{ membership.registry.display_name or membership.registry.legal_name }}">
+                    {% for value, label in access_options %}<option value="{{ value }}" {% if membership.role == value or (membership.role == 'owner' and value == 'both') or (membership.role in ['payments', 'viewer'] and value == 'administration') %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                  </select>
+                  <div class="membership-actions">
+                    <button class="btn btn-outline-info" name="action" value="save" type="submit">Salva</button>
+                    {% if not membership.is_primary %}<button class="btn btn-outline-secondary" name="action" value="make_primary" type="submit">Predefinito</button>{% endif %}
+                    <button class="btn btn-outline-danger" name="action" value="remove" type="submit" onclick="return confirm('Rimuovere questa associazione?')">Rimuovi</button>
+                  </div>
+                </form>
+              {% endfor %}
+            </div>
+          </article>
+        {% endif %}
+      {% else %}
+        <div class="text-muted">Nessun utente disponibile.</div>
+      {% endfor %}
     </div>
   </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/customer_registry_lookup.js') }}"></script>
 {% endblock %}

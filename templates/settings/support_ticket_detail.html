@@ -81,6 +81,11 @@
                 {% set selected_registry = ticket.user.customer_registry if ticket.user else none %}
                 {% set lookup_disabled = false %}
                 {% include 'settings/_customer_registry_lookup.html' %}
+                <select class="form-select" name="access_scope">
+                  <option value="both">Amministrazione e gestione</option>
+                  <option value="administration">Solo amministrazione</option>
+                  <option value="management">Solo gestione ordini</option>
+                </select>
                 <textarea class="form-control" name="body" rows="4">La tua richiesta di attivazione Horeca e' stata approvata.
 Da questo momento puoi accedere ai servizi Horeca disponibili in LDApp.</textarea>
                 <button class="btn btn-info" type="submit">Associa e attiva</button>

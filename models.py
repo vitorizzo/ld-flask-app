@@ -2440,7 +2440,7 @@ class CustomerRegistryMembership(db.Model):
         db.ForeignKey("business_registries.id", ondelete="CASCADE"),
         nullable=False,
     )
-    role = db.Column(db.String(20), nullable=False, default="owner")  # owner|payments|viewer
+    role = db.Column(db.String(20), nullable=False, default="both")  # administration|management|both
     status = db.Column(db.String(20), nullable=False, default="active")
     is_primary = db.Column(db.Boolean, nullable=False, default=False)
     source = db.Column(db.String(40), nullable=False, default="manual")

@@ -46,6 +46,7 @@ from models import (
     SupportTicketMessage,
     SupportTicketAttachment,
     CustomerOrderDeliveryOption,
+    CustomerRegistryMembership,
     CustomerPaymentCase,
     CashBank,
     PosCircuit,
@@ -59,7 +60,14 @@ from models import (
     CashSalePaymentPosMove,
 )
 from tools.role_required import role_required
-from tools.customer_memberships import clear_primary_customer_membership, set_primary_customer_membership
+from tools.customer_memberships import (
+    ACCESS_ADMINISTRATION,
+    ACCESS_BOTH,
+    ACCESS_MANAGEMENT,
+    revoke_customer_membership,
+    set_customer_membership,
+    set_primary_customer_membership,
+)
 from tools.preferences import (
     build_preferences_sections,
     get_definition_map,
@@ -682,6 +690,7 @@ def activate_horeca(ticket_id):
         registry,
         approved_by_user_id=current_user.id,
         source="horeca_activation",
+        role=request.form.get("access_scope") or ACCESS_BOTH,
     )
     for user_role in user.roles or []:
         if user_role.role and user_role.role.name == "customer" and (user_role.valid_until is None or user_role.valid_until >= now):
@@ -781,31 +790,49 @@ def customer_order_options():
 @role_required(40)
 def customer_order_links():
     if request.method == "POST":
-        user = User.query.get_or_404(_parse_int(request.form.get("user_id")))
-        registry_id = _parse_int(request.form.get("registry_id"))
-        registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first() if registry_id else None
-        if registry:
-            set_primary_customer_membership(
+        action = (request.form.get("action") or "add").strip()
+        if action == "remove":
+            membership = CustomerRegistryMembership.query.get_or_404(_parse_int(request.form.get("membership_id")))
+            revoke_customer_membership(membership.user, membership)
+            message = "Associazione rimossa."
+        else:
+            membership_id = _parse_int(request.form.get("membership_id"))
+            existing = CustomerRegistryMembership.query.get(membership_id) if membership_id else None
+            user = existing.user if existing else User.query.get_or_404(_parse_int(request.form.get("user_id")))
+            registry_id = existing.registry_id if existing else _parse_int(request.form.get("registry_id"))
+            registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first()
+            if not registry:
+                flash("Seleziona un cliente valido.", "warning")
+                return redirect(url_for("settings.customer_order_links"))
+            set_customer_membership(
                 user,
                 registry,
+                access_scope=request.form.get("access_scope") or ACCESS_BOTH,
+                is_primary=action == "make_primary" or _form_bool(request.form, "is_primary"),
                 approved_by_user_id=current_user.id,
                 source="customer_order_links",
             )
-        else:
-            clear_primary_customer_membership(user)
+            message = "Associazione e permessi aggiornati."
         db.session.commit()
-        flash("Cliente principale dell'account aggiornato.", "success")
+        flash(message, "success")
         return redirect(url_for("settings.customer_order_links"))
 
-    users = User.query.order_by(User.surname.asc(), User.name.asc()).all()
-    registries = (
-        BusinessRegistry.query
-        .filter_by(kind="customer", is_active=True)
-        .order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc())
-        .limit(2000)
+    users = (
+        User.query
+        .options(selectinload(User.customer_memberships).selectinload(CustomerRegistryMembership.registry))
+        .order_by(User.surname.asc(), User.name.asc())
         .all()
     )
-    return render_template("settings/customer_order_links.html", users=users, registries=registries)
+    access_options = (
+        (ACCESS_BOTH, "Amministrazione e gestione"),
+        (ACCESS_ADMINISTRATION, "Solo amministrazione"),
+        (ACCESS_MANAGEMENT, "Solo gestione ordini"),
+    )
+    return render_template(
+        "settings/customer_order_links.html",
+        users=users,
+        access_options=access_options,
+    )
 
 
 @settings_bp.route("/users", methods=["GET"])

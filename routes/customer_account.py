@@ -26,7 +26,12 @@ from models import (
     CustomerPaymentInstructions,
     User,
 )
-from tools.customer_memberships import active_customer_memberships, customer_registry_for_user
+from tools.customer_memberships import (
+    ACCESS_ADMINISTRATION,
+    active_customer_memberships,
+    customer_registry_for_user,
+    user_has_customer_capability,
+)
 from tools.customer_payments import (
     ACTIVE_ITEM_STATUSES,
     account_entry_snapshot,
@@ -177,7 +182,10 @@ def _role_context():
     role_names = _active_role_names()
     if not role_names.intersection(ALLOWED_ROLE_NAMES):
         abort(403)
-    return role_names, "dev" in role_names
+    is_developer = "dev" in role_names
+    if not is_developer and not user_has_customer_capability(current_user, ACCESS_ADMINISTRATION):
+        abort(403)
+    return role_names, is_developer
 
 
 def _authorized_registry(registry_id, is_developer):
@@ -185,7 +193,7 @@ def _authorized_registry(registry_id, is_developer):
         return None
     if is_developer:
         return BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first()
-    return customer_registry_for_user(current_user, registry_id)
+    return customer_registry_for_user(current_user, registry_id, capability=ACCESS_ADMINISTRATION)
 
 
 def _latest_statement_import():
@@ -254,9 +262,13 @@ def index():
             registries[0] if registries else None,
         )
     else:
-        memberships = active_customer_memberships(current_user)
+        memberships = active_customer_memberships(current_user, capability=ACCESS_ADMINISTRATION)
         registries = [membership.registry for membership in memberships]
-        registry = customer_registry_for_user(current_user, requested_registry_id)
+        registry = customer_registry_for_user(
+            current_user,
+            requested_registry_id,
+            capability=ACCESS_ADMINISTRATION,
+        )
         if not registries and registry is not None:
             registries = [registry]
 

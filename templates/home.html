@@ -21,11 +21,11 @@
             <a class="quick-action" href="/wine-cards"><i class="fa-solid fa-wine-bottle"></i><span>Carte vini</span></a>
             <a class="quick-action" href="{{ url_for('customer_orders.manage') }}"><i class="fa-solid fa-inbox"></i><span>Ordini Horeca</span></a>
         {% endif %}
-        {% if current_user.is_authenticated and current_user.has_active_role('customer_horeca') %}
+        {% if customer_can_manage %}
             <a class="quick-action" href="{{ url_for('customer_orders.index') }}"><i class="fa-solid fa-basket-shopping"></i><span>Fai un ordine</span></a>
             <a class="quick-action" href="{{ url_for('customer_orders.status') }}"><i class="fa-solid fa-clock-rotate-left"></i><span>I miei ordini</span></a>
         {% endif %}
-        {% if current_user.is_authenticated and current_user.has_active_role('customer_horeca') %}
+        {% if customer_can_administer %}
             <a class="quick-action" href="{{ url_for('customer_account.index') }}"><i class="fa-solid fa-file-invoice-dollar"></i><span>Situazione contabile</span></a>
         {% endif %}
         <a class="quick-action" href="/search/ricerca_x_descrizione"><i class="fa-solid fa-magnifying-glass"></i><span>Informazioni articoli</span></a>

@@ -21,6 +21,7 @@ from models import (
 )
 from tools.log_utils import get_logger
 from tools.push_notifications import send_push_to_user
+from tools.customer_memberships import ACCESS_MANAGEMENT, membership_allows
 
 
 logger = get_logger("customer_route_reminders")
@@ -98,12 +99,20 @@ def _eligible_users_by_registry(registry_ids):
         )
         .all()
     )
+    users_with_explicit_memberships = {
+        row[0]
+        for row in db.session.query(CustomerRegistryMembership.user_id).filter(
+            CustomerRegistryMembership.user_id.in_(tuple(users_by_id)),
+            CustomerRegistryMembership.status == "active",
+        ).distinct().all()
+    }
     for membership in memberships:
-        result[membership.registry_id][membership.user_id] = users_by_id[membership.user_id]
+        if membership_allows(membership, ACCESS_MANAGEMENT):
+            result[membership.registry_id][membership.user_id] = users_by_id[membership.user_id]
 
     # Compatibilita' con la precedente associazione singola presente su User.
     for user in users_by_id.values():
-        if user.customer_registry_id in registry_ids:
+        if user.id not in users_with_explicit_memberships and user.customer_registry_id in registry_ids:
             result[user.customer_registry_id][user.id] = user
     return {registry_id: list(users.values()) for registry_id, users in result.items()}
 
