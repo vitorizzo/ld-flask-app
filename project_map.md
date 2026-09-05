@@ -1,5 +1,14 @@
 # PROJECT_MAP.md — v2.4
 
+## Richiesta collaboratori clienti Horeca (2026-09-05)
+
+- Un cliente `customer_horeca` con permesso `administration` o `both` dispone di `Collaboratori attività` nella home e nel menu profilo. Può indicare l'email di un utente LDApp già registrato, scegliere `Solo amministrazione`, `Solo gestione ordini` oppure `Amministrazione e ordini` e inviare la richiesta allo staff.
+- La richiesta non concede accessi immediati: crea un ticket `horeca_collaborator_activation`, una richiesta ruolo e il record applicativo `CustomerCollaboratorActivationRequest`, mantenendo lo stato in attesa fino alla verifica dell'ufficio.
+- Lo staff usa la stessa sezione delle attivazioni Horeca, dove vede richiedente, collaboratore, attività e permessi richiesti. L'approvazione crea una `CustomerRegistryMembership` non primaria con l'ambito scelto e assegna il ruolo `customer_horeca` quando necessario.
+- Il modello resta molti-a-molti: uno stesso utente può collaborare con più clienti e uno stesso cliente può avere più utenti. Le funzioni contabili richiedono il permesso amministrativo, mentre ordini e giro richiedono quello gestionale.
+- Il richiedente può annullare una richiesta ancora pendente e consultare sia lo storico sia i collaboratori attivi. L'interfaccia è touch-first per smartphone standard e ad alta risoluzione.
+- Migration: `f2a3b4c5d6e7_add_horeca_collaborator_requests.py`.
+
 ## Simulazione funzioni per ruolo Developer (2026-09-01)
 
 - Convenzione applicativa: le funzioni riservate a un ruolo vengono raccolte per il collaudo sotto `Developer > Test > <nome_ruolo>`. La vista di test e' la stessa usata dall'utente finale, con un selettore iniziale dell'entita' da impersonare e senza assegnare temporaneamente il ruolo o modificare associazioni reali.

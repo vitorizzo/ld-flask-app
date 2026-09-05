@@ -54,3 +54,6 @@ ld-flask-app/
 
 # === FOLDER DI SCAMBIO CON CODEX ===
 docs/transport/
+
+# === OUTPUT TEMPORANEI CODEX / BROWSER DI TEST ===
+.codex_tmp/

@@ -360,9 +360,15 @@ def create_app():
     # --- CONTEXT PROCESSORS ---
     @app.context_processor
     def inject_user_menu():
+        can_administer_customers = bool(
+            current_user.is_authenticated
+            and current_user.has_active_role("customer_horeca")
+            and user_has_customer_capability(current_user, ACCESS_ADMINISTRATION)
+        )
         return {
             "user_menu": get_user_menu(),
             "app_version": app.config.get("APP_VERSION", "dev"),
+            "customer_can_request_collaborators": can_administer_customers,
         }
 
     @app.route("/app-version.json")
@@ -437,7 +443,7 @@ def create_app():
         if current_user.is_authenticated and user_role_weight >= 40:
             try:
                 activation_badge_count = SupportTicket.query.filter(
-                    SupportTicket.ticket_type == "horeca_activation",
+                    SupportTicket.ticket_type.in_(("horeca_activation", "horeca_collaborator_activation")),
                     SupportTicket.status.notin_(["closed", "activated"]),
                 ).count()
             except SQLAlchemyError:
@@ -523,6 +529,7 @@ def create_app():
     from routes.developer import developer_bp
     from routes.mailing_list import mailing_list_bp
     from routes.administration import administration_bp
+    from routes.customer_collaborators import customer_collaborators_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(settings_bp, url_prefix="/settings")
@@ -554,6 +561,7 @@ def create_app():
     app.register_blueprint(developer_bp, url_prefix="/developer")
     app.register_blueprint(mailing_list_bp, url_prefix="/mailing-list")
     app.register_blueprint(administration_bp, url_prefix="/administration")
+    app.register_blueprint(customer_collaborators_bp, url_prefix="/customer-collaborators")
 
     @app.cli.command("cleanup-reset-tokens")
     @click.option("--retention-days", default=30, show_default=True, type=int,

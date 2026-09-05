@@ -72,22 +72,24 @@
       </div>
 
       <aside class="col-12 col-xl-4">
-        {% if ticket.ticket_type == 'horeca_activation' and ticket.status != 'activated' %}
+        {% if ticket.ticket_type in ['horeca_activation', 'horeca_collaborator_activation'] and ticket.status != 'activated' %}
           <div class="card border-0 shadow-sm mb-3">
             <div class="card-body">
-              <h2 class="h5">Attiva Horeca</h2>
+              <h2 class="h5">{{ 'Attiva collaboratore Horeca' if ticket.collaborator_activation_request else 'Attiva Horeca' }}</h2>
               <form method="post" action="{{ url_for('settings.activate_horeca', ticket_id=ticket.id) }}" class="d-grid gap-2">
                 {% set lookup_id = 'ticket-registry-' ~ ticket.id %}
-                {% set selected_registry = ticket.user.customer_registry if ticket.user else none %}
+                {% set collaborator_request = ticket.collaborator_activation_request %}
+                {% set selected_registry = collaborator_request.registry if collaborator_request else (ticket.user.customer_registry if ticket.user else none) %}
                 {% set lookup_disabled = false %}
                 {% include 'settings/_customer_registry_lookup.html' %}
                 <select class="form-select" name="access_scope">
-                  <option value="both">Amministrazione e gestione</option>
-                  <option value="administration">Solo amministrazione</option>
-                  <option value="management">Solo gestione ordini</option>
+                  <option value="both" {% if not collaborator_request or collaborator_request.access_scope == 'both' %}selected{% endif %}>Amministrazione e gestione</option>
+                  <option value="administration" {% if collaborator_request and collaborator_request.access_scope == 'administration' %}selected{% endif %}>Solo amministrazione</option>
+                  <option value="management" {% if collaborator_request and collaborator_request.access_scope == 'management' %}selected{% endif %}>Solo gestione ordini</option>
                 </select>
-                <textarea class="form-control" name="body" rows="4">La tua richiesta di attivazione Horeca e' stata approvata.
-Da questo momento puoi accedere ai servizi Horeca disponibili in LDApp.</textarea>
+                <textarea class="form-control" name="body" rows="4">{% if collaborator_request %}Il collegamento come collaboratore Horeca e' stato approvato.
+Da questo momento puoi operare per l'attivita' con i permessi assegnati.{% else %}La tua richiesta di attivazione Horeca e' stata approvata.
+Da questo momento puoi accedere ai servizi Horeca disponibili in LDApp.{% endif %}</textarea>
                 <button class="btn btn-info" type="submit">Associa e attiva</button>
               </form>
             </div>
@@ -104,9 +106,6 @@ Da questo momento puoi accedere ai servizi Horeca disponibili in LDApp.</textare
                 <option value="in_progress" {% if ticket.status == 'in_progress' %}selected{% endif %}>In lavorazione</option>
                 <option value="waiting_user" {% if ticket.status == 'waiting_user' %}selected{% endif %}>In attesa utente</option>
                 <option value="closed" {% if ticket.status == 'closed' %}selected{% endif %}>Chiuso</option>
-                {% if ticket.ticket_type == 'horeca_activation' %}
-                  <option value="activated" {% if ticket.status == 'activated' %}selected{% endif %}>Attivato</option>
-                {% endif %}
               </select>
               <button class="btn btn-outline-secondary" type="submit">Salva stato</button>
             </form>

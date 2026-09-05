@@ -27,6 +27,7 @@
         {% endif %}
         {% if customer_can_administer %}
             <a class="quick-action" href="{{ url_for('customer_account.index') }}"><i class="fa-solid fa-file-invoice-dollar"></i><span>Situazione contabile</span></a>
+            <a class="quick-action" href="{{ url_for('customer_collaborators.index') }}"><i class="fa-solid fa-user-group"></i><span>Collaboratori attività</span></a>
         {% endif %}
         <a class="quick-action" href="/search/ricerca_x_descrizione"><i class="fa-solid fa-magnifying-glass"></i><span>Informazioni articoli</span></a>
         <a class="quick-action" href="{{ url_for('events.index') }}"><i class="fa-regular fa-calendar-check"></i><span>Eventi</span></a>

@@ -47,6 +47,7 @@ from models import (
     SupportTicketAttachment,
     CustomerOrderDeliveryOption,
     CustomerRegistryMembership,
+    CustomerCollaboratorActivationRequest,
     CustomerPaymentCase,
     CashBank,
     PosCircuit,
@@ -507,7 +508,7 @@ def support_tickets():
 def support_tickets_unread_count():
     support_count = support_unread_count()
     activation_count = SupportTicket.query.filter(
-        SupportTicket.ticket_type == "horeca_activation",
+        SupportTicket.ticket_type.in_(("horeca_activation", "horeca_collaborator_activation")),
         SupportTicket.status.notin_(["closed", "activated"]),
     ).count()
     terminal_payment_statuses = ("accounted", "rejected", "cancelled", "failed", "expired")
@@ -559,6 +560,18 @@ def support_ticket_detail(ticket_id):
                 return redirect(url_for("settings.support_ticket_detail", ticket_id=ticket.id))
             ticket.status = new_status
             ticket.closed_at = datetime.now(timezone.utc) if new_status in {"closed", "activated"} else None
+            collaborator_request = ticket.collaborator_activation_request
+            if collaborator_request and collaborator_request.status not in {"approved", "cancelled"}:
+                if new_status == "closed":
+                    collaborator_request.status = "rejected"
+                    collaborator_request.reviewed_at = datetime.now(timezone.utc)
+                    collaborator_request.reviewed_by_user_id = current_user.id
+                    if ticket.role_activation_request:
+                        ticket.role_activation_request.status = "rejected"
+                        ticket.role_activation_request.reviewed_at = datetime.now(timezone.utc)
+                        ticket.role_activation_request.reviewed_by_user_id = current_user.id
+                elif new_status in {"open", "in_progress", "waiting_user"}:
+                    collaborator_request.status = "pending"
             db.session.commit()
             flash("Stato ticket aggiornato.", "success")
             return redirect(url_for("settings.support_ticket_detail", ticket_id=ticket.id))
@@ -656,8 +669,17 @@ def customer_registries_search():
 def horeca_activations():
     tickets = (
         SupportTicket.query
-        .options(selectinload(SupportTicket.user), selectinload(SupportTicket.role_activation_request))
-        .filter(SupportTicket.ticket_type == "horeca_activation")
+        .options(
+            selectinload(SupportTicket.user),
+            selectinload(SupportTicket.role_activation_request),
+            selectinload(SupportTicket.collaborator_activation_request).selectinload(
+                CustomerCollaboratorActivationRequest.requester
+            ),
+            selectinload(SupportTicket.collaborator_activation_request).selectinload(
+                CustomerCollaboratorActivationRequest.registry
+            ),
+        )
+        .filter(SupportTicket.ticket_type.in_(("horeca_activation", "horeca_collaborator_activation")))
         .order_by(SupportTicket.updated_at.desc(), SupportTicket.id.desc())
         .limit(200)
         .all()
@@ -670,9 +692,14 @@ def horeca_activations():
 @role_required(40)
 def activate_horeca(ticket_id):
     ticket = SupportTicket.query.get_or_404(ticket_id)
-    if ticket.ticket_type != "horeca_activation" or not ticket.user:
+    is_collaborator = ticket.ticket_type == "horeca_collaborator_activation"
+    collaborator_request = ticket.collaborator_activation_request if is_collaborator else None
+    if ticket.ticket_type not in {"horeca_activation", "horeca_collaborator_activation"} or not ticket.user:
         flash("Ticket attivazione non valido.", "warning")
         return redirect(url_for("settings.horeca_activations"))
+    if is_collaborator and collaborator_request is None:
+        flash("Dati della richiesta collaboratore non disponibili.", "warning")
+        return redirect(url_for("settings.support_ticket_detail", ticket_id=ticket.id))
     registry_id = _parse_int(request.form.get("registry_id"))
     registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first() if registry_id else None
     if not registry:
@@ -685,13 +712,31 @@ def activate_horeca(ticket_id):
 
     now = datetime.now()
     user = ticket.user
-    set_primary_customer_membership(
-        user,
-        registry,
-        approved_by_user_id=current_user.id,
-        source="horeca_activation",
-        role=request.form.get("access_scope") or ACCESS_BOTH,
+    access_scope = request.form.get("access_scope") or (
+        collaborator_request.access_scope if collaborator_request else ACCESS_BOTH
     )
+    if is_collaborator:
+        set_customer_membership(
+            user,
+            registry,
+            access_scope=access_scope,
+            is_primary=False,
+            approved_by_user_id=current_user.id,
+            source="horeca_collaborator_activation",
+        )
+        collaborator_request.registry_id = registry.id
+        collaborator_request.access_scope = access_scope
+        collaborator_request.status = "approved"
+        collaborator_request.reviewed_at = datetime.now(timezone.utc)
+        collaborator_request.reviewed_by_user_id = current_user.id
+    else:
+        set_primary_customer_membership(
+            user,
+            registry,
+            approved_by_user_id=current_user.id,
+            source="horeca_activation",
+            role=access_scope,
+        )
     for user_role in user.roles or []:
         if user_role.role and user_role.role.name == "customer" and (user_role.valid_until is None or user_role.valid_until >= now):
             user_role.valid_until = now
@@ -718,29 +763,36 @@ def activate_horeca(ticket_id):
         ticket.role_activation_request.reviewed_at = datetime.now(timezone.utc)
         ticket.role_activation_request.reviewed_by_user_id = current_user.id
 
-    body = (request.form.get("body") or "").strip() or (
+    default_body = (
+        "Il collegamento come collaboratore Horeca e' stato approvato.\n"
+        "Da questo momento puoi operare per l'attivita' con i permessi assegnati."
+        if is_collaborator else
         "La tua richiesta di attivazione Horeca e' stata approvata.\n"
         "Da questo momento puoi accedere ai servizi Horeca disponibili in LDApp."
     )
+    body = (request.form.get("body") or "").strip() or default_body
+    recipients = [ticket.reply_email]
+    if collaborator_request and collaborator_request.requester.email not in recipients:
+        recipients.append(collaborator_request.requester.email)
     db.session.add(SupportTicketMessage(
         ticket_id=ticket.id,
         sender_type="support",
         sender_user_id=current_user.id,
         body=body,
         email_from=ASSISTANCE_EMAIL,
-        email_to=ticket.reply_email,
+        email_to=", ".join(recipients),
     ))
     msg = Message(
         subject="Attivazione servizi Horeca completata",
         sender=assistance_mail_sender(),
-        recipients=[ticket.reply_email],
+        recipients=recipients,
         reply_to=ASSISTANCE_EMAIL,
         body=_ticket_email_body(ticket, body),
     )
     try:
         send_assistance_mail(msg)
         db.session.commit()
-        flash("Cliente Horeca attivato e email inviata.", "success")
+        flash("Collaboratore Horeca attivato e email inviata." if is_collaborator else "Cliente Horeca attivato e email inviata.", "success")
     except Exception as exc:
         db.session.rollback()
         logger.exception("Errore attivazione cliente horeca")

@@ -2459,6 +2459,54 @@ class CustomerRegistryMembership(db.Model):
     approved_by = db.relationship("User", foreign_keys=[approved_by_user_id])
 
 
+class CustomerCollaboratorActivationRequest(db.Model):
+    """Richiesta verificata dallo staff per collegare un collaboratore a un cliente."""
+
+    __tablename__ = "customer_collaborator_activation_requests"
+    __table_args__ = (
+        db.Index("ix_customer_collaborator_request_requester_status", "requester_user_id", "status"),
+        db.Index("ix_customer_collaborator_request_registry_status", "registry_id", "status"),
+        db.Index("ix_customer_collaborator_request_collaborator_status", "collaborator_user_id", "status"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    requester_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
+    collaborator_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
+    registry_id = db.Column(
+        db.Integer,
+        db.ForeignKey("business_registries.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    support_ticket_id = db.Column(
+        db.Integer,
+        db.ForeignKey("support_tickets.id", ondelete="SET NULL"),
+        nullable=True,
+        unique=True,
+    )
+    access_scope = db.Column(db.String(20), nullable=False, default="both")
+    status = db.Column(db.String(30), nullable=False, default="pending")
+    notes = db.Column(db.Text, nullable=True)
+    reviewed_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    reviewed_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+
+    requester = db.relationship("User", foreign_keys=[requester_user_id])
+    collaborator = db.relationship("User", foreign_keys=[collaborator_user_id])
+    registry = db.relationship("BusinessRegistry", foreign_keys=[registry_id])
+    support_ticket = db.relationship(
+        "SupportTicket",
+        foreign_keys=[support_ticket_id],
+        backref=db.backref("collaborator_activation_request", uselist=False),
+    )
+    reviewed_by = db.relationship("User", foreign_keys=[reviewed_by_user_id])
+
+
 class CustomerPaymentCase(db.Model):
     """Pratica LDApp per pagamento online, bonifico dichiarato o contestazione."""
 

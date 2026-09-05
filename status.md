@@ -1,6 +1,14 @@
 TEST_SYNC_CODEX_20260507_185518
 # STATUS.md — aggiornamento Agenda / Cassa
-Data aggiornamento: 2026-08-29
+Data aggiornamento: 2026-09-05
+
+## 2026-09-05 - Richiesta e attivazione collaboratori Horeca
+
+- Aggiunta l'area `Collaboratori attività`, accessibile soltanto ai clienti Horeca che amministrano l'anagrafica associata; il titolare può invitare per email un utente LDApp già registrato e scegliere permessi amministrativi, gestione ordini o entrambi.
+- La richiesta resta senza effetti operativi fino all'approvazione dello staff e viene gestita nella stessa coda `Attivazioni clienti Horeca`, con evidenza di richiedente, cliente e permessi richiesti.
+- L'approvazione crea una membership secondaria senza sovrascrivere il cliente principale o altri collegamenti; sono quindi supportati più utenti per cliente e più clienti per utente.
+- Richieste pendenti annullabili dal richiedente; storico e collaboratori attivi visibili nell'area dedicata. UI ottimizzata per desktop, smartphone standard e touch ad alta risoluzione.
+- Nuova migration head `f2a3b4c5d6e7`; dopo il deploy eseguire `python -m flask --app app.py db upgrade` prima del riavvio.
 
 ## 2026-08-29 - PayByLink autonomi da Amministrazione
 
