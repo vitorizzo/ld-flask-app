@@ -34,10 +34,12 @@
     const paymentModal = document.getElementById("communicatePaymentModal");
     const claimModal = document.getElementById("contestPaymentModal");
     const onlinePaymentModal = document.getElementById("onlinePaymentModal");
+    const bankTransferQrModal = document.getElementById("bankTransferQrModal");
     const bankModal = document.getElementById("bankDetailsModal");
     moveModalToBody(paymentModal);
     moveModalToBody(claimModal);
     moveModalToBody(onlinePaymentModal);
+    moveModalToBody(bankTransferQrModal);
     moveModalToBody(bankModal);
 
     const customerFilter = document.querySelector("[data-customer-filter]");
@@ -74,10 +76,29 @@
     const onlinePaymentTotal = document.querySelector("[data-online-payment-selection-total]");
     const onlinePaymentInputs = document.querySelector("[data-online-payment-entry-inputs]");
     const onlinePaymentFeedback = document.querySelector("[data-online-payment-feedback]");
+    const bankTransferTrigger = document.querySelector("[data-bank-transfer-trigger]");
+    const sepaAmount = bankTransferQrModal && bankTransferQrModal.querySelector("[data-sepa-amount]");
+    const sepaCount = bankTransferQrModal && bankTransferQrModal.querySelector("[data-sepa-count]");
+    const sepaLoading = bankTransferQrModal && bankTransferQrModal.querySelector("[data-sepa-loading]");
+    const sepaContent = bankTransferQrModal && bankTransferQrModal.querySelector("[data-sepa-content]");
+    const sepaDetails = bankTransferQrModal && bankTransferQrModal.querySelector("[data-sepa-details]");
+    const sepaQr = bankTransferQrModal && bankTransferQrModal.querySelector("[data-sepa-qr]");
+    const sepaDownload = bankTransferQrModal && bankTransferQrModal.querySelector("[data-sepa-download]");
+    const sepaBeneficiary = bankTransferQrModal && bankTransferQrModal.querySelector("[data-sepa-beneficiary]");
+    const sepaIban = bankTransferQrModal && bankTransferQrModal.querySelector("[data-sepa-iban]");
+    const sepaBic = bankTransferQrModal && bankTransferQrModal.querySelector("[data-sepa-bic]");
+    const sepaBicRow = bankTransferQrModal && bankTransferQrModal.querySelector("[data-sepa-bic-row]");
+    const sepaRemittance = bankTransferQrModal && bankTransferQrModal.querySelector("[data-sepa-remittance]");
+    const sepaFeedback = bankTransferQrModal && bankTransferQrModal.querySelector("[data-sepa-feedback]");
+    const sepaShare = bankTransferQrModal && bankTransferQrModal.querySelector("[data-share-sepa]");
+    const sepaCompleted = bankTransferQrModal && bankTransferQrModal.querySelector("[data-sepa-completed]");
     const pendingActionAlert = document.querySelector("[data-pending-action-alert]");
     const pendingActionMessage = document.querySelector("[data-pending-action-message]");
     const pendingActionButtons = document.querySelector("[data-pending-action-buttons]");
     const onlinePaymentConfigured = Boolean(onlinePaymentTrigger) && !onlinePaymentTrigger.disabled;
+    let sepaShareText = "";
+    let sepaSelectedEntryIds = [];
+    let sepaRequestNumber = 0;
 
     function checkedInvoices() {
       return invoiceCheckboxes.filter(function (checkbox) { return checkbox.checked; });
@@ -127,6 +148,12 @@
             ? "Annulla o completa prima l'azione già associata ai documenti selezionati"
             : (total <= 0 ? "Il totale netto da pagare deve essere maggiore di zero" : "");
         }
+      }
+      if (bankTransferTrigger) {
+        bankTransferTrigger.disabled = selected.length === 0 || total <= 0 || hasPendingActions;
+        bankTransferTrigger.title = hasPendingActions
+          ? "Annulla o completa prima l'azione già associata ai documenti selezionati"
+          : (total <= 0 ? "Il netto da bonificare deve essere maggiore di zero" : "");
       }
       if (pendingActionAlert && pendingActionMessage && pendingActionButtons) {
         pendingActionAlert.hidden = !hasPendingActions;
@@ -246,6 +273,137 @@
         if (onlinePaymentFeedback) onlinePaymentFeedback.textContent = "";
         window.bootstrap.Modal.getOrCreateInstance(onlinePaymentModal).show();
       });
+    }
+
+    async function copySepaValue(value, button, successLabel) {
+      if (!value) return;
+      const original = button ? button.innerHTML : "";
+      try {
+        if (navigator.clipboard && window.isSecureContext) await navigator.clipboard.writeText(value);
+        else fallbackCopy(value);
+        if (button) button.innerHTML = '<i class="fa-solid fa-check"></i> ' + successLabel;
+        if (sepaFeedback) sepaFeedback.textContent = "Dati copiati negli appunti.";
+        window.setTimeout(function () {
+          if (button) button.innerHTML = original;
+          if (sepaFeedback && sepaFeedback.textContent === "Dati copiati negli appunti.") sepaFeedback.textContent = "";
+        }, 1800);
+      } catch (_error) {
+        fallbackCopy(value);
+      }
+    }
+
+    if (bankTransferTrigger && bankTransferQrModal) {
+      bankTransferTrigger.addEventListener("click", async function () {
+        const selected = checkedInvoices();
+        const total = selected.reduce(function (sum, checkbox) {
+          return sum + parseAmount(checkbox.dataset.amount);
+        }, 0);
+        if (!selected.length || total <= 0 || bankTransferTrigger.disabled) return;
+
+        const currentRequest = ++sepaRequestNumber;
+        sepaShareText = "";
+        sepaSelectedEntryIds = selected.map(function (checkbox) { return checkbox.value; });
+        if (sepaAmount) sepaAmount.textContent = euro.format(total);
+        if (sepaCount) sepaCount.textContent = selected.length + (selected.length === 1 ? " documento selezionato" : " documenti selezionati");
+        if (sepaLoading) sepaLoading.hidden = false;
+        if (sepaContent) sepaContent.hidden = true;
+        if (sepaDetails) sepaDetails.hidden = true;
+        if (sepaFeedback) sepaFeedback.textContent = "";
+        if (sepaShare) sepaShare.hidden = true;
+        if (sepaCompleted) sepaCompleted.hidden = true;
+        window.bootstrap.Modal.getOrCreateInstance(bankTransferQrModal).show();
+
+        try {
+          const response = await window.fetch(bankTransferQrModal.dataset.qrUrl, {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Accept": "application/json", "Content-Type": "application/json" },
+            body: JSON.stringify({
+              registry_id: Number(bankTransferQrModal.dataset.registryId),
+              entry_ids: selected.map(function (checkbox) { return Number(checkbox.value); }),
+            }),
+          });
+          const result = await response.json().catch(function () { return {}; });
+          if (!response.ok || !result.ok) throw new Error(result.error || "Non è stato possibile preparare il bonifico.");
+          if (currentRequest !== sepaRequestNumber) return;
+
+          if (sepaAmount) sepaAmount.textContent = euro.format(parseAmount(result.amount));
+          if (sepaCount) sepaCount.textContent = result.document_count + (result.document_count === 1 ? " documento selezionato" : " documenti selezionati");
+          if (sepaQr) sepaQr.src = result.qr_data_url;
+          if (sepaDownload) sepaDownload.href = result.qr_data_url;
+          if (sepaBeneficiary) sepaBeneficiary.textContent = result.beneficiary;
+          if (sepaIban) {
+            sepaIban.textContent = result.formatted_iban;
+            sepaIban.dataset.copyValue = result.iban;
+          }
+          if (sepaBic) sepaBic.textContent = result.bic;
+          if (sepaBicRow) sepaBicRow.hidden = !result.bic;
+          if (sepaRemittance) {
+            sepaRemittance.textContent = result.remittance;
+            sepaRemittance.dataset.copyValue = result.remittance;
+          }
+          sepaShareText = [
+            "Bonifico SEPA",
+            "Beneficiario: " + result.beneficiary,
+            "IBAN: " + result.formatted_iban,
+            result.bic ? "BIC/SWIFT: " + result.bic : "",
+            "Importo: " + euro.format(parseAmount(result.amount)),
+            "Causale: " + result.remittance,
+          ].filter(Boolean).join("\n");
+          if (sepaLoading) sepaLoading.hidden = true;
+          if (sepaContent) sepaContent.hidden = false;
+          if (sepaDetails) sepaDetails.hidden = false;
+          if (sepaShare) sepaShare.hidden = false;
+          if (sepaCompleted) sepaCompleted.hidden = false;
+        } catch (error) {
+          if (currentRequest !== sepaRequestNumber) return;
+          if (sepaLoading) sepaLoading.hidden = true;
+          if (sepaContent) sepaContent.hidden = false;
+          if (sepaFeedback) sepaFeedback.textContent = error.message || "Non è stato possibile preparare il bonifico.";
+        }
+      });
+
+      bankTransferQrModal.querySelectorAll("[data-copy-sepa]").forEach(function (button) {
+        button.addEventListener("click", function () {
+          const key = button.dataset.copySepa;
+          const source = key === "iban" ? sepaIban : sepaRemittance;
+          copySepaValue(source ? (source.dataset.copyValue || source.textContent.trim()) : "", button, "Copiato");
+        });
+      });
+
+      if (sepaShare) {
+        sepaShare.addEventListener("click", async function () {
+          if (!sepaShareText) return;
+          if (navigator.share) {
+            try {
+              await navigator.share({ title: "Dati bonifico SEPA", text: sepaShareText });
+              return;
+            } catch (error) {
+              if (error && error.name === "AbortError") return;
+            }
+          }
+          await copySepaValue(sepaShareText, sepaShare, "Copiati");
+        });
+      }
+
+      if (sepaCompleted && paymentModal && selectedInputs) {
+        sepaCompleted.addEventListener("click", function () {
+          const selected = checkedInvoices();
+          if (!selected.length || !sepaSelectedEntryIds.length) return;
+          selectedInputs.replaceChildren.apply(selectedInputs, sepaSelectedEntryIds.map(function (entryId) {
+            const input = document.createElement("input");
+            input.type = "hidden";
+            input.name = "entry_ids";
+            input.value = entryId;
+            return input;
+          }));
+          if (paymentFeedback) paymentFeedback.textContent = "";
+          bankTransferQrModal.addEventListener("hidden.bs.modal", function showCommunicationModal() {
+            window.bootstrap.Modal.getOrCreateInstance(paymentModal).show();
+          }, { once: true });
+          window.bootstrap.Modal.getOrCreateInstance(bankTransferQrModal).hide();
+        });
+      }
     }
 
     const onlinePaymentForm = document.querySelector("[data-online-payment-form]");

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from pathlib import Path
 
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, send_file, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import and_, case, func, or_
 from sqlalchemy.orm import load_only, selectinload
@@ -43,6 +43,7 @@ from tools.customer_payments import (
 from tools.log_utils import get_logger
 from tools.nexi_xpay import NexiXPayClassic, NexiXPayClient, NexiXPayError, NexiXPayUncertainError
 from tools.role_required import role_required
+from tools.sepa_qr import build_epc_payload, epc_qr_data_url, normalize_epc_text
 
 
 customer_account_bp = Blueprint("customer_account", __name__)
@@ -349,6 +350,11 @@ def index():
         payable_entry_ids=payable_entry_ids,
         entry_states=entry_states,
         payment_instructions=payment_instructions,
+        bank_transfer_qr_available=bool(
+            payment_instructions
+            and payment_instructions.is_active
+            and is_valid_iban(payment_instructions.iban)
+        ),
         formatted_iban=format_iban(payment_instructions.iban) if payment_instructions else None,
         case_status_labels=CASE_STATUS_LABELS,
         case_type_labels=CASE_TYPE_LABELS,
@@ -402,6 +408,87 @@ def save_bank_details():
     db.session.commit()
     flash("Coordinate per i bonifici aggiornate.", "success")
     return redirect(url_for("customer_account.index", customer=request.form.get("registry_id")))
+
+
+@customer_account_bp.post("/payments/bank-transfer/qr")
+@login_required
+def create_bank_transfer_qr():
+    _, is_developer = _role_context()
+    payload = request.get_json(silent=True) or {}
+    registry = _authorized_registry(payload.get("registry_id"), is_developer)
+    if registry is None:
+        abort(403)
+
+    instructions = _payment_instructions()
+    if not instructions or not instructions.is_active or not is_valid_iban(instructions.iban):
+        return jsonify({"ok": False, "error": "Le coordinate bancarie non sono disponibili."}), 409
+
+    try:
+        entry_ids = list(dict.fromkeys(int(value) for value in payload.get("entry_ids", []) if str(value).strip()))
+    except (TypeError, ValueError):
+        entry_ids = []
+    if not entry_ids or len(entry_ids) > 50:
+        return jsonify({"ok": False, "error": "Seleziona da uno a 50 documenti."}), 400
+
+    current_import = _latest_statement_import()
+    if current_import is None:
+        return jsonify({"ok": False, "error": "La situazione contabile non è disponibile."}), 409
+    entries = CustomerAccountEntry.query.filter(
+        CustomerAccountEntry.import_id == current_import.id,
+        CustomerAccountEntry.id.in_(entry_ids),
+        _entry_ownership_filter(registry),
+    ).all()
+    entries_by_id = {entry.id: entry for entry in entries if is_selectable_settlement_item(entry)}
+    if len(entries_by_id) != len(entry_ids):
+        return jsonify({"ok": False, "error": "Uno o più documenti non sono selezionabili."}), 400
+    entries = [entries_by_id[entry_id] for entry_id in entry_ids]
+    source_keys = [account_entry_source_key(entry) for entry in entries]
+    if len(set(source_keys)) != len(source_keys):
+        return jsonify({"ok": False, "error": "La selezione contiene documenti duplicati."}), 409
+    active_state = CustomerAccountingItemState.query.filter(
+        CustomerAccountingItemState.registry_id == registry.id,
+        CustomerAccountingItemState.source_item_key.in_(tuple(source_keys)),
+        CustomerAccountingItemState.status.in_(tuple(ACTIVE_ITEM_STATUSES)),
+    ).first()
+    if active_state:
+        return jsonify({"ok": False, "error": "Almeno un documento ha già un'azione in corso."}), 409
+
+    amount = sum((Decimal(entry.signed_amount) for entry in entries), Decimal("0.00"))
+    if amount <= 0:
+        return jsonify({"ok": False, "error": "Il netto da bonificare deve essere maggiore di zero."}), 400
+
+    document_numbers = [str(entry.document_number or "").strip() for entry in entries]
+    document_numbers = [value for value in document_numbers if value]
+    base_reason = (instructions.payment_reason_template or "Saldo documenti").strip()
+    customer_reference = str(registry.source_code or registry.id)
+    reason_parts = [base_reason, f"cliente {customer_reference}"]
+    if document_numbers:
+        reason_parts.append("documenti " + ", ".join(document_numbers))
+    remittance = normalize_epc_text(" - ".join(reason_parts), 140)
+    try:
+        epc_payload = build_epc_payload(
+            beneficiary=instructions.account_holder,
+            iban=instructions.iban,
+            amount=amount,
+            remittance=remittance,
+            bic=instructions.bic_swift,
+        )
+        qr_data_url = epc_qr_data_url(epc_payload)
+    except Exception:
+        logger.exception("Errore generazione QR SEPA cliente=%s", registry.id)
+        return jsonify({"ok": False, "error": "Non è stato possibile generare il QR SEPA."}), 500
+
+    return jsonify({
+        "ok": True,
+        "amount": f"{amount:.2f}",
+        "beneficiary": instructions.account_holder,
+        "iban": "".join(str(instructions.iban or "").upper().split()),
+        "formatted_iban": format_iban(instructions.iban),
+        "bic": instructions.bic_swift or "",
+        "remittance": remittance,
+        "qr_data_url": qr_data_url,
+        "document_count": len(entries),
+    })
 
 
 @customer_account_bp.post("/payments/bank-transfer")

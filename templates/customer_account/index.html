@@ -100,7 +100,7 @@
 {% if registry and entries %}<div class="customer-payment-selection" data-payment-selection hidden>
   <div><span data-selection-count>0 documenti</span><strong data-selection-total>0,00 €</strong></div>
   <div class="customer-payment-pending-alert" data-pending-action-alert hidden><i class="fa-solid fa-circle-info"></i><span data-pending-action-message></span><div data-pending-action-buttons></div></div>
-  <div class="customer-payment-selection-actions"><button class="btn btn-success customer-online-payment-trigger" type="button" data-online-payment-trigger {{ 'disabled' if not nexi_configured }} title="{{ '' if nexi_configured else 'Nexi XPay non ancora configurato' }}"><i class="fa-solid fa-credit-card"></i> Paga ora</button><button class="btn btn-outline-warning" type="button" data-contest-payment-trigger><i class="fa-solid fa-triangle-exclamation"></i> Contesta partite</button><button class="btn btn-primary" type="button" data-communicate-payment-trigger><i class="fa-solid fa-upload"></i> Comunica bonifico</button></div>
+  <div class="customer-payment-selection-actions"><button class="btn btn-success customer-online-payment-trigger" type="button" data-online-payment-trigger {{ 'disabled' if not nexi_configured }} title="{{ '' if nexi_configured else 'Nexi XPay non ancora configurato' }}"><i class="fa-solid fa-credit-card"></i> Paga con carta</button>{% if bank_transfer_qr_available %}<button class="btn btn-primary customer-bank-transfer-trigger" type="button" data-bank-transfer-trigger><i class="fa-solid fa-building-columns"></i> Paga con bonifico</button>{% endif %}<button class="btn btn-outline-warning" type="button" data-contest-payment-trigger><i class="fa-solid fa-triangle-exclamation"></i> Contesta partite</button><button class="btn btn-outline-primary" type="button" data-communicate-payment-trigger><i class="fa-solid fa-upload"></i> Comunica bonifico</button></div>
 </div>{% endif %}
 
 {% if registry %}<div class="modal fade customer-payment-modal" id="onlinePaymentModal" tabindex="-1" aria-hidden="true">
@@ -117,6 +117,31 @@
       </div>
       <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button type="submit" class="btn btn-success"><i class="fa-solid fa-lock"></i> Continua su Nexi</button></div>
     </form>
+  </div></div>
+</div>{% endif %}
+
+{% if registry and bank_transfer_qr_available %}<div class="modal fade customer-payment-modal" id="bankTransferQrModal" tabindex="-1" aria-hidden="true" data-qr-url="{{ url_for('customer_account.create_bank_transfer_qr') }}" data-registry-id="{{ registry.id }}">
+  <div class="modal-dialog modal-dialog-centered modal-lg"><div class="modal-content">
+    <div class="modal-header"><div><div class="customer-account-eyebrow">Bonifico SEPA senza intermediari</div><h2 class="modal-title">Paga con la tua banca</h2></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body">
+      <div class="customer-payment-modal-total"><span>Importo netto da bonificare</span><strong data-sepa-amount>—</strong><small data-sepa-count></small></div>
+      <div class="customer-sepa-loading" data-sepa-loading><span class="spinner-border" aria-hidden="true"></span><span>Preparazione del bonifico…</span></div>
+      <div class="customer-sepa-content" data-sepa-content hidden>
+        <div data-sepa-details hidden><div class="customer-sepa-layout">
+          <div class="customer-sepa-qr-wrap"><img data-sepa-qr alt="QR SEPA con i dati del bonifico"><small>Scansiona il QR con un’app bancaria compatibile.</small><a class="btn btn-sm btn-outline-secondary" data-sepa-download download="bonifico-sepa.png"><i class="fa-solid fa-download"></i> Salva QR</a></div>
+          <dl class="customer-bank-details">
+            <div><dt>Beneficiario</dt><dd data-sepa-beneficiary></dd></div>
+            <div><dt>IBAN</dt><dd class="customer-bank-iban"><span data-sepa-iban></span><button class="btn btn-sm btn-outline-secondary" type="button" data-copy-sepa="iban"><i class="fa-regular fa-copy"></i> Copia</button></dd></div>
+            <div data-sepa-bic-row><dt>BIC/SWIFT</dt><dd data-sepa-bic></dd></div>
+            <div><dt>Causale</dt><dd><span data-sepa-remittance></span><button class="btn btn-sm btn-outline-secondary mt-2" type="button" data-copy-sepa="remittance"><i class="fa-regular fa-copy"></i> Copia causale</button></dd></div>
+          </dl>
+        </div>
+        <div class="alert alert-info mt-3 mb-0"><i class="fa-solid fa-shield-halved"></i> LDApp non accede al tuo conto e non applica commissioni. Controlla sempre i dati nella tua app bancaria prima di autorizzare.</div>
+        </div>
+        <div class="customer-payment-feedback" data-sepa-feedback aria-live="polite"></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button type="button" class="btn btn-outline-primary" data-share-sepa hidden><i class="fa-solid fa-share-nodes"></i> Condividi dati</button><button type="button" class="btn btn-primary" data-sepa-completed hidden><i class="fa-solid fa-check"></i> Ho effettuato il bonifico</button></div>
   </div></div>
 </div>{% endif %}
 
@@ -190,4 +215,4 @@
   </div></div>
 </div>{% endif %}
 {% endblock %}
-{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_account.js', v=app_version ~ '-payments7') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_account.js', v=app_version ~ '-payments8') }}"></script>{% endblock %}

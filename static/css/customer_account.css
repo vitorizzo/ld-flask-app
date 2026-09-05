@@ -318,7 +318,7 @@ td.customer-payment-check .badge {
   bottom: calc(var(--app-footer-height, 0px) + 58px);
   z-index: 2070;
   display: flex;
-  width: min(620px, calc(100vw - 32px));
+  width: min(1050px, calc(100vw - 32px));
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
@@ -479,6 +479,52 @@ body > .modal-backdrop {
   font-weight: 700;
 }
 
+.customer-sepa-loading {
+  display: flex;
+  min-height: 240px;
+  align-items: center;
+  justify-content: center;
+  gap: .85rem;
+  color: #52616e;
+  font-weight: 700;
+}
+
+.customer-sepa-loading[hidden],
+.customer-sepa-content[hidden],
+[data-sepa-details][hidden] {
+  display: none !important;
+}
+
+.customer-sepa-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+.customer-sepa-qr-wrap {
+  display: grid;
+  justify-items: center;
+  gap: .7rem;
+  padding: 1rem;
+  border: 1px solid #dce5ea;
+  border-radius: 16px;
+  background: #fff;
+  text-align: center;
+}
+
+.customer-sepa-qr-wrap img {
+  display: block;
+  width: min(100%, 260px);
+  height: auto;
+  aspect-ratio: 1;
+  image-rendering: pixelated;
+}
+
+.customer-sepa-qr-wrap small {
+  color: #64748b;
+}
+
 .customer-bank-details {
   display: grid;
   gap: .65rem;
@@ -636,10 +682,6 @@ body > .modal-backdrop {
     grid-template-columns: 1fr 1fr;
   }
 
-  .customer-payment-selection-actions .customer-online-payment-trigger {
-    grid-column: 1 / -1;
-  }
-
   .customer-payment-selection > div:first-child {
     display: flex;
     align-items: center;
@@ -720,6 +762,18 @@ body > .modal-backdrop {
     align-items: stretch;
     flex-direction: column;
   }
+
+  .customer-sepa-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .customer-sepa-qr-wrap img {
+    width: min(78vw, 320px);
+  }
+
+  #bankTransferQrModal [data-sepa-completed] {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (hover: none) and (pointer: coarse) and (min-width: 821px) {
@@ -763,7 +817,9 @@ body > .modal-backdrop {
   }
 
   .customer-payment-selection {
+    align-items: stretch;
     bottom: calc(var(--app-footer-height, 0px) + 88px);
+    flex-direction: column;
     width: min(920px, calc(100vw - 48px));
     padding: 18px 24px;
     border-radius: 22px;
@@ -781,6 +837,17 @@ body > .modal-backdrop {
     min-height: 66px;
     padding: 12px 24px;
     font-size: 1.3rem;
+  }
+
+  .customer-payment-selection > div:first-child {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .customer-payment-selection-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
   }
 
   .customer-payment-modal .modal-dialog {
@@ -820,6 +887,21 @@ body > .modal-backdrop {
     min-height: 62px;
     padding: 12px 22px;
     font-size: 1.25rem;
+  }
+
+  .customer-sepa-layout {
+    grid-template-columns: minmax(360px, 440px) minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .customer-sepa-qr-wrap {
+    gap: 16px;
+    padding: 22px;
+    border-radius: 24px;
+  }
+
+  .customer-sepa-qr-wrap img {
+    width: min(100%, 400px);
   }
 
   #bankDetailsModal [data-bank-edit-form] .form-label,
