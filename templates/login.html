@@ -3,7 +3,7 @@
 {% block title %}LD Enoteca - Login{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/auth_tutorial.css', v=app_version ~ '-dialog2') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth_tutorial.css', v=app_version ~ '-lady1') }}">
 <style>
   .login-page {
     width: min(560px, 100%);
@@ -190,15 +190,9 @@
     <div class="login-card__links">
       <a href="{{ url_for('auth.forgot_password') }}">Password dimenticata?</a>
       <a class="login-card__register-link" href="{{ url_for('auth.register') }}">Crea un nuovo account</a>
-      <button class="registration-tutorial-cta registration-tutorial-cta--compact"
-              type="button"
-              data-registration-tutorial-open>
-        <span class="registration-tutorial-cta__icon" aria-hidden="true"><i class="fa-solid fa-play"></i></span>
-        <span class="registration-tutorial-cta__copy">
-          <strong>Guarda come registrarti</strong>
-          <small>Scopri la registrazione Horeca</small>
-        </span>
-      </button>
+      {% with tutorial_context='registration', tutorial_aria_label='Guarda il tutorial sulla registrazione' %}
+        {% include 'partials/lady_tutorial_launcher.html' %}
+      {% endwith %}
     </div>
   </div>
 </section>

@@ -26,7 +26,7 @@
     const video = dialog?.querySelector("video");
     if (!dialog || !video) return;
 
-    document.querySelectorAll("[data-registration-tutorial-open]").forEach(button => {
+    document.querySelectorAll('[data-tutorial-context="registration"]').forEach(button => {
       button.addEventListener("click", () => {
         if (typeof dialog.showModal === "function") {
           dialog.showModal();

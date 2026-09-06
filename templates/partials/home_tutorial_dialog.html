@@ -1,0 +1,36 @@
+<dialog class="home-tutorial-dialog" id="homeTutorialDialog" aria-labelledby="homeTutorialTitle">
+  <div class="home-tutorial-dialog__header">
+    <div>
+      <div class="home-tutorial-dialog__eyebrow">Lady App ti accompagna</div>
+      <h2 id="homeTutorialTitle">Tutorial della home</h2>
+    </div>
+    <button class="home-tutorial-dialog__close" type="button" data-home-tutorial-close aria-label="Chiudi il tutorial">
+      <i class="fa-solid fa-xmark" aria-hidden="true"></i>
+    </button>
+  </div>
+
+  <div class="home-tutorial-dialog__body">
+    <div class="home-tutorial-dialog__lady" aria-hidden="true">
+      <img src="{{ url_for('static', filename='tutorials/assets/lady-app-bust-sheet-v2.png') }}" alt="">
+    </div>
+    <div class="home-tutorial-dialog__lesson">
+      <div class="home-tutorial-dialog__step-icon" data-home-tutorial-icon>
+        <i class="fa-solid fa-house" aria-hidden="true"></i>
+      </div>
+      <div class="home-tutorial-dialog__progress" data-home-tutorial-progress></div>
+      <h3 data-home-tutorial-step-title></h3>
+      <p data-home-tutorial-step-description></p>
+      <div class="home-tutorial-dialog__availability" data-home-tutorial-availability hidden></div>
+    </div>
+  </div>
+
+  <div class="home-tutorial-dialog__footer">
+    <button class="btn btn-outline-light" type="button" data-home-tutorial-previous>
+      <i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Indietro
+    </button>
+    <div class="home-tutorial-dialog__dots" data-home-tutorial-dots aria-hidden="true"></div>
+    <button class="btn btn-info fw-semibold" type="button" data-home-tutorial-next>
+      Avanti <i class="fa-solid fa-arrow-right" aria-hidden="true"></i>
+    </button>
+  </div>
+</dialog>

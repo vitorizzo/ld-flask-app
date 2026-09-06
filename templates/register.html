@@ -3,7 +3,7 @@
 {% block title %}LD Enoteca - Registrazione{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/auth_tutorial.css', v=app_version ~ '-dialog2') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth_tutorial.css', v=app_version ~ '-lady1') }}">
 <style>
   .register-page {
     width: min(860px, 100%);
@@ -180,15 +180,9 @@
     <div class="register-card__header">
       <h1>Registrati</h1>
       <p class="register-card__subtitle">Crea il tuo account LDApp.</p>
-      <button class="registration-tutorial-cta registration-tutorial-cta--primary"
-              type="button"
-              data-registration-tutorial-open>
-        <span class="registration-tutorial-cta__icon" aria-hidden="true"><i class="fa-solid fa-play"></i></span>
-        <span class="registration-tutorial-cta__copy">
-          <strong>Guarda come registrarti</strong>
-          <small>Una breve guida prima di iniziare</small>
-        </span>
-      </button>
+      {% with tutorial_context='registration', tutorial_aria_label='Guarda il tutorial sulla registrazione' %}
+        {% include 'partials/lady_tutorial_launcher.html' %}
+      {% endwith %}
     </div>
 
     <form method="POST" action="{{ url_for('auth.register') }}" novalidate>

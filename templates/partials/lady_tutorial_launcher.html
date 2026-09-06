@@ -1,0 +1,16 @@
+<button class="lady-tutorial-launcher"
+        type="button"
+        data-tutorial-context="{{ tutorial_context }}"
+        aria-label="{{ tutorial_aria_label|default('Guarda il tutorial relativo a questa pagina') }}">
+  <svg class="lady-tutorial-launcher__arc" viewBox="0 0 180 82" aria-hidden="true">
+    <defs>
+      <path id="ladyTutorialArc-{{ tutorial_context }}" d="M 12 72 Q 90 -4 168 72"></path>
+    </defs>
+    <text>
+      <textPath href="#ladyTutorialArc-{{ tutorial_context }}" startOffset="50%" text-anchor="middle">GUARDA IL TUTORIAL</textPath>
+    </text>
+  </svg>
+  <span class="lady-tutorial-launcher__portrait" aria-hidden="true">
+    <img src="{{ url_for('static', filename='tutorials/assets/lady-app-bust-sheet-v2.png') }}" alt="">
+  </span>
+</button>

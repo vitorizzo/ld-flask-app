@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/install_banner.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth_tutorial.css', v=app_version ~ '-lady1') }}">
 {% endblock %}
 
 
@@ -13,38 +14,44 @@
 <section class="welcome-section home-page">
     <h1>LDApp</h1>
     <p>Azioni rapide operative per il lavoro quotidiano dello staff.</p>
-    <div class="quick-actions">
+    {% with tutorial_context='home', tutorial_aria_label='Guarda il tutorial della home' %}
+        {% include 'partials/lady_tutorial_launcher.html' %}
+    {% endwith %}
+    <div class="quick-actions"
+         data-home-tutorial-role="{% if current_user.is_authenticated %}{{ (current_user.active_roles | map(attribute='name') | join(', ')) or 'utente autenticato' }}{% else %}visitatore{% endif %}">
         {% if current_user.is_authenticated and current_user.max_role_weight >= 30 %}
-            <a class="quick-action" href="/route-orders/board"><i class="fa-solid fa-plus"></i><span>Inserisci ordine</span></a>
-            <a class="quick-action" href="/registry/customers"><i class="fa-regular fa-address-book"></i><span>Rubrica clienti</span></a>
-            <a class="quick-action" href="/kiosk"><i class="fa-solid fa-table-columns"></i><span>Bacheca ordini</span></a>
-            <a class="quick-action" href="/wine-cards"><i class="fa-solid fa-wine-bottle"></i><span>Carte vini</span></a>
-            <a class="quick-action" href="{{ url_for('customer_orders.manage') }}"><i class="fa-solid fa-inbox"></i><span>Ordini Horeca</span></a>
+            <a class="quick-action" href="/route-orders/board" data-tutorial-description="Crea e gestisci un nuovo ordine operativo per un cliente."><i class="fa-solid fa-plus"></i><span>Inserisci ordine</span></a>
+            <a class="quick-action" href="/registry/customers" data-tutorial-description="Consulta le anagrafiche e i contatti della clientela."><i class="fa-regular fa-address-book"></i><span>Rubrica clienti</span></a>
+            <a class="quick-action" href="/kiosk" data-tutorial-description="Controlla a colpo d'occhio lo stato degli ordini in lavorazione."><i class="fa-solid fa-table-columns"></i><span>Bacheca ordini</span></a>
+            <a class="quick-action" href="/wine-cards" data-tutorial-description="Prepara e consulta le carte dei vini disponibili."><i class="fa-solid fa-wine-bottle"></i><span>Carte vini</span></a>
+            <a class="quick-action" href="{{ url_for('customer_orders.manage') }}" data-tutorial-description="Gestisci gli ordini inviati dai clienti Horeca."><i class="fa-solid fa-inbox"></i><span>Ordini Horeca</span></a>
         {% endif %}
         {% if customer_can_manage %}
-            <a class="quick-action" href="{{ url_for('customer_orders.index') }}"><i class="fa-solid fa-basket-shopping"></i><span>Fai un ordine</span></a>
-            <a class="quick-action" href="{{ url_for('customer_orders.status') }}"><i class="fa-solid fa-clock-rotate-left"></i><span>I miei ordini</span></a>
+            <a class="quick-action" href="{{ url_for('customer_orders.index') }}" data-tutorial-description="Componi e invia un nuovo ordine per la tua attività."><i class="fa-solid fa-basket-shopping"></i><span>Fai un ordine</span></a>
+            <a class="quick-action" href="{{ url_for('customer_orders.status') }}" data-tutorial-description="Segui lo stato e consulta lo storico dei tuoi ordini."><i class="fa-solid fa-clock-rotate-left"></i><span>I miei ordini</span></a>
         {% endif %}
         {% if customer_can_administer %}
-            <a class="quick-action" href="{{ url_for('customer_account.index') }}"><i class="fa-solid fa-file-invoice-dollar"></i><span>Situazione contabile</span></a>
-            <a class="quick-action" href="{{ url_for('customer_collaborators.index') }}"><i class="fa-solid fa-user-group"></i><span>Collaboratori attività</span></a>
+            <a class="quick-action" href="{{ url_for('customer_account.index') }}" data-tutorial-description="Consulta partite, documenti e pagamenti della tua attività."><i class="fa-solid fa-file-invoice-dollar"></i><span>Situazione contabile</span></a>
+            <a class="quick-action" href="{{ url_for('customer_collaborators.index') }}" data-tutorial-description="Invita e gestisci i collaboratori collegati alla tua attività."><i class="fa-solid fa-user-group"></i><span>Collaboratori attività</span></a>
         {% endif %}
-        <a class="quick-action" href="/search/ricerca_x_descrizione"><i class="fa-solid fa-magnifying-glass"></i><span>Informazioni articoli</span></a>
-        <a class="quick-action" href="{{ url_for('events.index') }}"><i class="fa-regular fa-calendar-check"></i><span>Eventi</span></a>
-        <button class="quick-action" type="button" data-app-qr-trigger>
+        <a class="quick-action" href="/search/ricerca_x_descrizione" data-tutorial-description="Cerca prodotti e consulta rapidamente le informazioni disponibili."><i class="fa-solid fa-magnifying-glass"></i><span>Informazioni articoli</span></a>
+        <a class="quick-action" href="{{ url_for('events.index') }}" data-tutorial-description="Scopri gli eventi pubblicati e i relativi dettagli."><i class="fa-regular fa-calendar-check"></i><span>Eventi</span></a>
+        <button class="quick-action" type="button" data-app-qr-trigger data-tutorial-description="Mostra il QR code per aprire o condividere LDApp.">
             <i class="fa-solid fa-qrcode"></i>
             <span>QR App</span>
         </button>
         {% if current_user.is_authenticated and current_user.max_role_weight >= 20 %}
-            <a class="quick-action" href="{{ url_for('documents.ld_selection') }}"><i class="fa-regular fa-file-pdf"></i><span>LD Selection</span></a>
+            <a class="quick-action" href="{{ url_for('documents.ld_selection') }}" data-tutorial-description="Consulta la selezione editoriale LD in formato digitale."><i class="fa-regular fa-file-pdf"></i><span>LD Selection</span></a>
         {% else %}
-            <span class="quick-action quick-action--disabled" aria-disabled="true"><i class="fa-regular fa-file-pdf"></i><span>LD Selection</span></span>
+            <span class="quick-action quick-action--disabled" aria-disabled="true" data-tutorial-description="La selezione editoriale LD è disponibile dopo l'accesso con un profilo abilitato."><i class="fa-regular fa-file-pdf"></i><span>LD Selection</span></span>
         {% endif %}
         {% if current_user.is_authenticated and current_user.max_role_weight >= 40 %}
-            <a class="quick-action" href="/cassa/agenda"><i class="fa-regular fa-calendar-days"></i><span>Agenda</span></a>
+            <a class="quick-action" href="/cassa/agenda" data-tutorial-description="Organizza appuntamenti, attività e scadenze operative."><i class="fa-regular fa-calendar-days"></i><span>Agenda</span></a>
         {% endif %}
     </div>
 </section>
+
+{% include 'partials/home_tutorial_dialog.html' %}
 
 <div class="modal fade app-qr-modal" id="appQrModal" tabindex="-1" aria-labelledby="appQrModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -79,6 +86,7 @@
 
 {% block extra_js %}
     <script src="{{ url_for('static', filename='js/install_banner.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/home_tutorial.js', v=app_version ~ '-lady1') }}"></script>
     <script>
     document.addEventListener("DOMContentLoaded", () => {
       const modal = document.getElementById("appQrModal");
