@@ -3,7 +3,7 @@
 {% block title %}LD Enoteca - Login{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/auth_tutorial.css', v=app_version) }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/auth_tutorial.css', v=app_version ~ '-dialog2') }}">
 <style>
   .login-page {
     width: min(560px, 100%);
@@ -192,8 +192,7 @@
       <a class="login-card__register-link" href="{{ url_for('auth.register') }}">Crea un nuovo account</a>
       <button class="registration-tutorial-cta registration-tutorial-cta--compact"
               type="button"
-              data-bs-toggle="modal"
-              data-bs-target="#registrationTutorialModal">
+              data-registration-tutorial-open>
         <span class="registration-tutorial-cta__icon" aria-hidden="true"><i class="fa-solid fa-play"></i></span>
         <span class="registration-tutorial-cta__copy">
           <strong>Guarda come registrarti</strong>
