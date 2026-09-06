@@ -1,0 +1,34 @@
+<div class="modal fade registration-tutorial-modal"
+     id="registrationTutorialModal"
+     tabindex="-1"
+     aria-labelledby="registrationTutorialTitle"
+     aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h2 class="modal-title fs-5" id="registrationTutorialTitle">Come registrarti su LDApp</h2>
+          <div class="small text-white-50">Guida alla registrazione e alla richiesta di accesso Horeca</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body p-0">
+        <video class="registration-tutorial-modal__video"
+               controls
+               playsinline
+               preload="metadata"
+               poster="{{ url_for('static', filename='tutorials/tutorial-registrazione-horeca-preview-v2-poster.jpg') }}">
+          <source src="{{ url_for('static', filename='tutorials/tutorial-registrazione-horeca-preview-v2.mp4') }}" type="video/mp4">
+          Il tuo browser non supporta la riproduzione video.
+        </video>
+        <p class="registration-tutorial-modal__note">Puoi chiudere il tutorial in qualsiasi momento e continuare la registrazione.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.getElementById("registrationTutorialModal")?.addEventListener("hidden.bs.modal", event => {
+    event.currentTarget.querySelector("video")?.pause();
+  });
+</script>
