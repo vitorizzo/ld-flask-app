@@ -6544,6 +6544,7 @@ def api_list_expenses(day_date):
                 "amount": float(p.amount or 0),
                 "flag": p.flag,
                 "description": p.description,
+                "bank_id": p.bank_id,
                 "pos_card_label": p.pos_card_label,
                 "pos_is_personal": bool(p.pos_is_personal),
                 "created_at": p.created_at.isoformat() if p.created_at else None,
