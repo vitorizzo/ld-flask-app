@@ -1,5 +1,49 @@
 (() => {
   "use strict";
+  const accountingStateForm = document.getElementById("customerAccountingStateForm");
+  if (accountingStateForm) {
+    const selectAll = accountingStateForm.querySelector("[data-credit-state-select-all]");
+    const checkboxes = Array.from(accountingStateForm.querySelectorAll("[data-credit-state-checkbox]:not(:disabled)"));
+    const submit = accountingStateForm.querySelector("[data-credit-state-submit]");
+    const count = accountingStateForm.querySelector("[data-credit-state-count]");
+    const status = accountingStateForm.querySelector("#accountingItemStatus");
+    const note = accountingStateForm.querySelector("#accountingItemNote");
+
+    const refreshSelection = () => {
+      const selected = checkboxes.filter((checkbox) => checkbox.checked).length;
+      if (count) count.textContent = String(selected);
+      if (submit) submit.disabled = selected === 0;
+      if (selectAll) {
+        selectAll.checked = checkboxes.length > 0 && selected === checkboxes.length;
+        selectAll.indeterminate = selected > 0 && selected < checkboxes.length;
+        selectAll.disabled = checkboxes.length === 0;
+      }
+    };
+    const refreshNoteHint = () => {
+      if (!note || !status) return;
+      note.placeholder = status.value === "cleared"
+        ? "Es. verifica conclusa: nessuna anomalia riscontrata"
+        : status.value === "under_review"
+          ? "Es. contestazione ricevuta allo sportello il 07/09/2026"
+          : "Es. contabile ricevuta via email il 07/09/2026";
+    };
+
+    selectAll?.addEventListener("change", () => {
+      checkboxes.forEach((checkbox) => { checkbox.checked = selectAll.checked; });
+      refreshSelection();
+    });
+    checkboxes.forEach((checkbox) => checkbox.addEventListener("change", refreshSelection));
+    status?.addEventListener("change", refreshNoteHint);
+    accountingStateForm.addEventListener("submit", (event) => {
+      if (!checkboxes.some((checkbox) => checkbox.checked)) {
+        event.preventDefault();
+        refreshSelection();
+      }
+    });
+    refreshNoteHint();
+    refreshSelection();
+  }
+
   const ns = "http://www.w3.org/2000/svg";
   const money = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
   const compact = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR", notation: "compact", maximumFractionDigits: 1 });

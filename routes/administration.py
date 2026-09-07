@@ -6,7 +6,7 @@ from html import escape
 import hmac
 import os
 
-from flask import Blueprint, abort, current_app, jsonify, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_mail import Message
 from flask_login import current_user, login_required
 from sqlalchemy import case, func
@@ -19,11 +19,13 @@ from models import (
     BusinessRegistryContact,
     CustomerAccountEntry,
     CustomerAccountStatementImport,
+    CustomerAccountingItemState,
     User,
 )
 from tools.log_utils import get_logger, log_task
 from tools.mail_accounts import account_sender, get_email_account, send_account_mail
 from tools.nexi_xpay import NexiXPayClient, NexiXPayError, NexiXPayUncertainError
+from tools.customer_payments import account_entry_source_key, is_selectable_settlement_item
 from tools.role_required import role_required
 
 
@@ -36,6 +38,23 @@ MONTH_LABELS = (
     "Gen", "Feb", "Mar", "Apr", "Mag", "Giu",
     "Lug", "Ago", "Set", "Ott", "Nov", "Dic",
 )
+MANUAL_ACCOUNTING_STATUS_LABELS = {
+    "awaiting_accounting": "In fase di contabilizzazione",
+    "under_review": "In fase di verifica",
+}
+ACCOUNTING_ITEM_STATUS_LABELS = {
+    "creating_checkout": "Preparazione pagamento in corso",
+    "checkout_ready": "Pagamento da completare",
+    "provider_authorized": "Pagamento autorizzato",
+    "provider_uncertain": "Pagamento in verifica tecnica",
+    **MANUAL_ACCOUNTING_STATUS_LABELS,
+    "partially_accounted": "Parzialmente contabilizzato",
+    "accounted": "Contabilizzato",
+    "rejected": "Rigettato",
+    "cancelled": "Annullato",
+    "failed": "Pagamento non riuscito",
+    "expired": "Scaduto",
+}
 
 
 def _base36(value):
@@ -499,6 +518,23 @@ def customer_credit_detail(source_customer_code):
         CustomerAccountEntry.document_date.desc().nullslast(),
         CustomerAccountEntry.row_number.desc(),
     ).paginate(page=max(1, request.args.get("page", type=int) or 1), per_page=100, error_out=False)
+    selectable_entries = [entry for entry in entries.items if is_selectable_settlement_item(entry)]
+    entry_source_keys = {
+        entry.id: account_entry_source_key(entry)
+        for entry in selectable_entries
+    }
+    states_by_key = {}
+    if entry_source_keys:
+        item_states = CustomerAccountingItemState.query.filter(
+            CustomerAccountingItemState.source_customer_code == source_customer_code,
+            CustomerAccountingItemState.source_item_key.in_(set(entry_source_keys.values())),
+        ).order_by(CustomerAccountingItemState.updated_at.desc()).all()
+        for item_state in item_states:
+            states_by_key.setdefault(item_state.source_item_key, item_state)
+    entry_states = {
+        entry_id: states_by_key.get(source_key)
+        for entry_id, source_key in entry_source_keys.items()
+    }
     totals = db.session.query(
         func.sum(case((CustomerAccountEntry.accounting_side == "D", CustomerAccountEntry.amount), else_=0)).label("debit"),
         func.sum(case((CustomerAccountEntry.accounting_side == "A", CustomerAccountEntry.amount), else_=0)).label("credit"),
@@ -544,7 +580,120 @@ def customer_credit_detail(source_customer_code):
         communication_contacts=communication_contacts,
         credit_mail_available=_credit_account_available("creditmanagement"),
         pec_mail_available=_credit_account_available("pec"),
+        selectable_entry_ids=set(entry_source_keys),
+        entry_states=entry_states,
+        manual_status_labels=MANUAL_ACCOUNTING_STATUS_LABELS,
+        accounting_status_labels=ACCOUNTING_ITEM_STATUS_LABELS,
     )
+
+
+@administration_bp.post("/customer-credit/<source_customer_code>/item-status")
+@login_required
+@role_required(40, roles=["office"])
+@log_task(logger)
+def update_customer_credit_item_status(source_customer_code):
+    requested_status = str(request.form.get("status") or "").strip()
+    note = str(request.form.get("note") or "").strip()
+    allowed_statuses = set(MANUAL_ACCOUNTING_STATUS_LABELS) | {"cleared"}
+    if requested_status not in allowed_statuses:
+        abort(400, description="Stato operativo non valido.")
+    if not note:
+        flash("Inserisci una nota per rendere tracciabile la segnalazione.", "warning")
+        return _redirect_customer_credit_detail(source_customer_code)
+    if len(note) > 2000:
+        flash("La nota non può superare 2.000 caratteri.", "warning")
+        return _redirect_customer_credit_detail(source_customer_code)
+
+    entry_ids = []
+    for raw_entry_id in request.form.getlist("entry_ids"):
+        try:
+            entry_id = int(raw_entry_id)
+        except (TypeError, ValueError):
+            abort(400, description="Movimento selezionato non valido.")
+        if entry_id > 0 and entry_id not in entry_ids:
+            entry_ids.append(entry_id)
+    if not entry_ids:
+        flash("Seleziona almeno una partita contabile.", "warning")
+        return _redirect_customer_credit_detail(source_customer_code)
+
+    current_import = _latest_statement_import()
+    if current_import is None:
+        abort(404)
+    selected_entries = CustomerAccountEntry.query.filter(
+        CustomerAccountEntry.import_id == current_import.id,
+        CustomerAccountEntry.source_customer_code == source_customer_code,
+        CustomerAccountEntry.id.in_(entry_ids),
+    ).all()
+    if len(selected_entries) != len(entry_ids) or any(
+        not is_selectable_settlement_item(entry) for entry in selected_entries
+    ):
+        abort(400, description="Una o più righe non possono essere segnalate.")
+
+    source_keys = {account_entry_source_key(entry) for entry in selected_entries}
+    existing_states = CustomerAccountingItemState.query.filter(
+        CustomerAccountingItemState.source_customer_code == source_customer_code,
+        CustomerAccountingItemState.source_item_key.in_(source_keys),
+    ).order_by(CustomerAccountingItemState.updated_at.desc()).all()
+    states_by_key = {}
+    for item_state in existing_states:
+        states_by_key.setdefault(item_state.source_item_key, item_state)
+    if any(item_state.payment_case_id is not None for item_state in states_by_key.values()):
+        flash(
+            "Una delle partite selezionate appartiene già a una pratica formale: gestiscila dalla pratica.",
+            "warning",
+        )
+        return _redirect_customer_credit_detail(source_customer_code)
+
+    now = datetime.now(timezone.utc)
+    changed = 0
+    for entry in selected_entries:
+        source_key = account_entry_source_key(entry)
+        item_state = states_by_key.get(source_key)
+        if item_state is None:
+            if requested_status == "cleared":
+                continue
+            item_state = CustomerAccountingItemState(
+                registry_id=entry.registry_id,
+                source_customer_code=source_customer_code,
+                source_item_key=source_key,
+                created_by_user_id=current_user.id,
+                created_at=now,
+            )
+            db.session.add(item_state)
+            states_by_key[source_key] = item_state
+        item_state.registry_id = entry.registry_id or item_state.registry_id
+        item_state.status = requested_status
+        item_state.message = note
+        item_state.source = "office_manual"
+        item_state.updated_by_user_id = current_user.id
+        item_state.updated_at = now
+        item_state.last_seen_entry_id = entry.id
+        changed += 1
+
+    db.session.commit()
+    if requested_status == "cleared":
+        message = f"Segnalazione rimossa da {changed} partit{'a' if changed == 1 else 'e'}."
+    else:
+        label = MANUAL_ACCOUNTING_STATUS_LABELS[requested_status]
+        message = f"{changed} partit{'a aggiornata' if changed == 1 else 'e aggiornate'}: {label}."
+    flash(message, "success")
+    logger.info(
+        "Stato operativo contabile aggiornato: cliente=%s stato=%s partite=%s utente=%s",
+        source_customer_code, requested_status, changed, current_user.id,
+    )
+    return _redirect_customer_credit_detail(source_customer_code)
+
+
+def _redirect_customer_credit_detail(source_customer_code):
+    values = {
+        "source_customer_code": source_customer_code,
+        "page": max(1, request.form.get("page", type=int) or 1),
+    }
+    for name in ("area", "zone", "origin"):
+        value = str(request.form.get(name) or "").strip()
+        if value:
+            values[name] = value
+    return redirect(url_for("administration.customer_credit_detail", **values))
 
 
 @administration_bp.post("/customer-credit/<source_customer_code>/communications")

@@ -53,7 +53,7 @@ CASE_STATUS_LABELS = {
     "checkout_ready": "Pagamento da completare",
     "provider_authorized": "Pagamento autorizzato",
     "provider_uncertain": "Pagamento in verifica tecnica",
-    "awaiting_accounting": "In attesa di contabilizzazione",
+    "awaiting_accounting": "In fase di contabilizzazione",
     "under_review": "In fase di verifica",
     "partially_accounted": "Parzialmente contabilizzato",
     "accounted": "Contabilizzato",

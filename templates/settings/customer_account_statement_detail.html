@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}LD Enoteca - Dettaglio situazione contabile{% endblock %}
 {% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
-{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_credit_detail.css', v=app_version ~ '-credit-modal-stack1') }}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_credit_detail.css', v=app_version ~ '-credit-item-states1') }}">{% endblock %}
 {% block content %}
 <section class="welcome-section page-shell"><div class="container-fluid">
   <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
@@ -44,18 +44,67 @@
     <div class="card-body p-3"><div class="credit-detail-chart-wrap"><svg id="customerAgingChart" class="credit-detail-chart" viewBox="0 0 900 310" role="img" aria-label="Istogramma anzianità scoperto"></svg></div></div>
   </div>
 
-  <div class="card border-0 shadow-sm"><div class="table-responsive"><table class="table table-hover align-middle mb-0">
-    <thead><tr><th>Data</th><th>Documento</th><th>Descrizione</th><th>Scadenza</th><th>Segno</th><th class="text-end">Importo</th></tr></thead>
-    <tbody>{% for entry in entries.items %}<tr>
-      <td class="text-nowrap">{{ entry.document_date.strftime("%d/%m/%Y") if entry.document_date else "—" }}</td><td>{{ entry.document_number or "—" }}</td>
-      <td>
-        <div>{{ entry.description or "—" }}{% if not entry.is_balance_relevant %}<span class="badge text-bg-secondary ms-1">riga tecnica esclusa dal saldo</span>{% endif %}</div>
-        {% if entry.additional_description %}<div class="small text-muted">{{ entry.additional_description }}</div>{% endif %}
-      </td>
-      <td class="text-nowrap">{{ entry.due_date.strftime("%d/%m/%Y") if entry.due_date else "—" }}</td>
-      <td><span class="badge {{ 'text-bg-danger' if entry.accounting_side == 'D' else 'text-bg-success' }}">{{ 'Dare' if entry.accounting_side == 'D' else 'Avere' }}</span></td><td class="text-end fw-semibold">{{ money(entry.amount) }}</td>
-    </tr>{% endfor %}</tbody>
-  </table></div></div>
+  <form id="customerAccountingStateForm" method="post" action="{{ url_for('administration.update_customer_credit_item_status', source_customer_code=customer.source_customer_code) }}">
+    <input type="hidden" name="page" value="{{ entries.page }}">
+    <input type="hidden" name="area" value="{{ area }}">
+    <input type="hidden" name="zone" value="{{ zone }}">
+    <input type="hidden" name="origin" value="{{ origin }}">
+    <div class="credit-item-state-panel shadow-sm mb-3">
+      <div class="credit-item-state-panel__intro">
+        <div class="fw-semibold"><i class="fa-solid fa-flag me-1"></i> Segnala partite in lavorazione</div>
+        <div class="small text-muted">Seleziona una o più partite aperte. Lo stato sarà visibile anche al cliente e ne sospenderà il pagamento online.</div>
+      </div>
+      <div class="credit-item-state-panel__controls">
+        <div>
+          <label class="form-label" for="accountingItemStatus">Stato</label>
+          <select class="form-select" id="accountingItemStatus" name="status" required>
+            <option value="awaiting_accounting">In fase di contabilizzazione</option>
+            <option value="under_review">In fase di verifica</option>
+            <option value="cleared">Rimuovi segnalazione</option>
+          </select>
+        </div>
+        <div class="credit-item-state-panel__note">
+          <label class="form-label" for="accountingItemNote">Nota interna e di tracciabilità</label>
+          <textarea class="form-control" id="accountingItemNote" name="note" rows="2" maxlength="2000" required placeholder="Es. contabile ricevuta via email il 07/09/2026"></textarea>
+        </div>
+        <button class="btn btn-primary align-self-end" type="submit" data-credit-state-submit disabled>Applica a <span data-credit-state-count>0</span> partite</button>
+      </div>
+    </div>
+
+    <div class="card border-0 shadow-sm"><div class="table-responsive"><table class="table table-hover align-middle mb-0 credit-items-table">
+      <thead><tr><th class="credit-items-table__check"><input class="form-check-input" type="checkbox" data-credit-state-select-all aria-label="Seleziona tutte le partite disponibili"></th><th>Data</th><th>Documento</th><th>Descrizione</th><th>Stato operativo</th><th>Scadenza</th><th>Segno</th><th class="text-end">Importo</th></tr></thead>
+      <tbody>{% for entry in entries.items %}{% set item_state = entry_states.get(entry.id) %}<tr class="{{ 'credit-item-row--pending' if item_state and item_state.status in manual_status_labels else '' }}">
+        <td class="credit-items-table__check">
+          {% if entry.id in selectable_entry_ids %}<input class="form-check-input" type="checkbox" name="entry_ids" value="{{ entry.id }}" data-credit-state-checkbox aria-label="Seleziona documento {{ entry.document_number or entry.id }}" {{ 'disabled' if item_state and item_state.payment_case_id else '' }}>{% endif %}
+        </td>
+        <td class="text-nowrap">{{ entry.document_date.strftime("%d/%m/%Y") if entry.document_date else "—" }}</td><td>{{ entry.document_number or "—" }}</td>
+        <td>
+          <div>{{ entry.description or "—" }}{% if not entry.is_balance_relevant %}<span class="badge text-bg-secondary ms-1">riga tecnica esclusa dal saldo</span>{% endif %}</div>
+          {% if entry.additional_description %}<div class="small text-muted">{{ entry.additional_description }}</div>{% endif %}
+        </td>
+        <td class="credit-items-table__status">
+          {% if item_state and item_state.status != 'cleared' %}
+            <span class="badge {{ 'text-bg-warning' if item_state.status in ['under_review', 'provider_uncertain'] else 'text-bg-info' }}">{{ accounting_status_labels.get(item_state.status, item_state.status) }}</span>
+            {% if item_state.payment_case_id %}
+              <div class="small mt-1"><a href="{{ url_for('customer_account.office_case_detail', case_id=item_state.payment_case_id) }}">Apri pratica</a></div>
+            {% else %}
+              {% if item_state.message %}<div class="small mt-1 credit-item-state-note">{{ item_state.message }}</div>{% endif %}
+              <div class="small text-muted mt-1">{{ item_state.updated_at.strftime("%d/%m/%Y %H:%M") if item_state.updated_at else '' }}{% if item_state.updated_by %} · {{ item_state.updated_by.name }} {{ item_state.updated_by.surname }}{% endif %}</div>
+            {% endif %}
+          {% elif item_state and item_state.status == 'cleared' %}
+            <span class="text-muted small">Nessuna segnalazione</span>
+            {% if item_state.updated_at %}<div class="small text-muted">Rimossa il {{ item_state.updated_at.strftime("%d/%m/%Y %H:%M") }}</div>{% endif %}
+          {% elif entry.id in selectable_entry_ids %}
+            <span class="text-muted small">Nessuna segnalazione</span>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td class="text-nowrap">{{ entry.due_date.strftime("%d/%m/%Y") if entry.due_date else "—" }}</td>
+        <td><span class="badge {{ 'text-bg-danger' if entry.accounting_side == 'D' else 'text-bg-success' }}">{{ 'Dare' if entry.accounting_side == 'D' else 'Avere' }}</span></td><td class="text-end fw-semibold">{{ money(entry.amount) }}</td>
+      </tr>{% endfor %}</tbody>
+    </table></div></div>
+  </form>
   {% if entries.pages > 1 %}<nav class="mt-3"><ul class="pagination justify-content-center">
     {% for page_number in entries.iter_pages() %}{% if page_number %}<li class="page-item {{ 'active' if page_number == entries.page }}"><a class="page-link" href="{{ url_for('administration.customer_credit_detail', source_customer_code=customer.source_customer_code, page=page_number, area=area, zone=zone, origin=origin) }}">{{ page_number }}</a></li>{% else %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}{% endfor %}
   </ul></nav>{% endif %}
@@ -116,4 +165,4 @@
   'contacts': communication_contacts
 }|tojson }}</script>
 {% endblock %}
-{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_credit_detail.js', v=app_version ~ '-credit-manual-recipient1') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_credit_detail.js', v=app_version ~ '-credit-item-states1') }}"></script>{% endblock %}

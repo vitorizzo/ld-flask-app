@@ -95,3 +95,54 @@
 .credit-send-modal:has(.credit-send-preview:not(.d-none)) .modal-dialog {
   max-width: min(920px, calc(100vw - 2rem));
 }
+
+.credit-item-state-panel {
+  padding: 1rem;
+  border: 1px solid rgba(13, 110, 253, 0.16);
+  border-radius: 0.8rem;
+  background: linear-gradient(135deg, #f7fbff, #fff);
+}
+
+.credit-item-state-panel__intro {
+  margin-bottom: 0.9rem;
+}
+
+.credit-item-state-panel__controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(320px, 1.8fr) auto;
+  gap: 0.9rem;
+  align-items: end;
+}
+
+.credit-item-state-panel__note textarea {
+  min-height: 62px;
+  resize: vertical;
+}
+
+.credit-items-table__check {
+  width: 3rem;
+  text-align: center;
+}
+
+.credit-items-table__status {
+  min-width: 210px;
+  max-width: 320px;
+}
+
+.credit-item-state-note {
+  overflow-wrap: anywhere;
+}
+
+.credit-item-row--pending > * {
+  background-color: rgba(255, 193, 7, 0.055) !important;
+}
+
+@media (max-width: 991.98px) {
+  .credit-item-state-panel__controls {
+    grid-template-columns: 1fr;
+  }
+
+  .credit-item-state-panel__controls .btn {
+    width: 100%;
+  }
+}

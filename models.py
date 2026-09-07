@@ -2715,13 +2715,19 @@ class CustomerAccountingItemState(db.Model):
     )
 
     id = db.Column(db.BigInteger, primary_key=True)
-    registry_id = db.Column(db.Integer, db.ForeignKey("business_registries.id", ondelete="CASCADE"), nullable=False)
+    registry_id = db.Column(db.Integer, db.ForeignKey("business_registries.id", ondelete="CASCADE"), nullable=True)
     source_customer_code = db.Column(db.String(64), nullable=False)
     source_item_key = db.Column(db.String(160), nullable=False)
     status = db.Column(db.String(32), nullable=False)
     payment_case_id = db.Column(db.BigInteger, db.ForeignKey("customer_payment_cases.id", ondelete="SET NULL"), nullable=True)
     last_seen_entry_id = db.Column(db.Integer, db.ForeignKey("customer_account_entries.id", ondelete="SET NULL"), nullable=True)
     message = db.Column(db.Text, nullable=True)
+    source = db.Column(db.String(32), nullable=False, default="customer_case")
+    created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    updated_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="SET NULL"), nullable=True)
+    created_at = db.Column(
+        db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc),
+    )
     updated_at = db.Column(
         db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
@@ -2730,6 +2736,8 @@ class CustomerAccountingItemState(db.Model):
     registry = db.relationship("BusinessRegistry")
     payment_case = db.relationship("CustomerPaymentCase")
     last_seen_entry = db.relationship("CustomerAccountEntry")
+    created_by = db.relationship("User", foreign_keys=[created_by_user_id])
+    updated_by = db.relationship("User", foreign_keys=[updated_by_user_id])
 
 
 class CashCustomerRegistryLink(db.Model):
