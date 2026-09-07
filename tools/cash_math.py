@@ -14,6 +14,7 @@ from models import (
     CashDeposit,
     CashDepositCheck,
     CashCheck,
+    CashSaleCheck,
 )
 
 AZIENDA_CASH_FLAGS = ["*", "**"]
@@ -122,6 +123,8 @@ def calculate_closure_pure(
     saldo_movimenti_cassa = _d(saldo_movimenti_cassa)
     incasso_consegnato = _d(incasso_consegnato)
     tolleranza = _d(tolleranza)
+    cash_day_date = db.session.query(CashDay.day_date).filter(CashDay.id == cash_day_id).scalar()
+    check_cutoff = next_banking_day(cash_day_date) if cash_day_date else date.today()
 
     delta_fondo = fondo_finale - opening_float
 
@@ -140,7 +143,6 @@ def calculate_closure_pure(
             CashSalePayment.direction == "in",
             CashSalePayment.method == "cash",
             CashSalePayment.flag.in_(AZIENDA_CASH_FLAGS),
-            CashSalePayment.off_cash.is_(False),
         )
     )
 
@@ -352,24 +354,22 @@ def calculate_closure_pure(
     # ASSEGNI
     # =========================
     assegni_odierni = _sum_amount(
-        db.session.query(func.coalesce(func.sum(CashSalePayment.amount), 0))
-        .join(CashSale, CashSale.id == CashSalePayment.sale_id)
+        db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
+        .join(CashSaleCheck, CashSaleCheck.check_id == CashCheck.id)
+        .join(CashSale, CashSale.id == CashSaleCheck.sale_id)
         .filter(
             CashSale.cash_day_id == cash_day_id,
-            CashSalePayment.method == "check",
-            CashSalePayment.direction == "in",
-            CashSalePayment.flag == "*",
+            CashCheck.due_date <= check_cutoff,
         )
     )
 
     assegni_postdatati = _sum_amount(
-        db.session.query(func.coalesce(func.sum(CashSalePayment.amount), 0))
-        .join(CashSale, CashSale.id == CashSalePayment.sale_id)
+        db.session.query(func.coalesce(func.sum(CashCheck.amount), 0))
+        .join(CashSaleCheck, CashSaleCheck.check_id == CashCheck.id)
+        .join(CashSale, CashSale.id == CashSaleCheck.sale_id)
         .filter(
             CashSale.cash_day_id == cash_day_id,
-            CashSalePayment.method == "check",
-            CashSalePayment.direction == "in",
-            CashSalePayment.flag == "**",
+            CashCheck.due_date > check_cutoff,
         )
     )
 

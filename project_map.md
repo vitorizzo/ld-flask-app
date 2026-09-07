@@ -1121,16 +1121,23 @@ incassi_cash
 
 ### Assegni odierni
 Assegni_odierni =
-Σ assegni flag `*`
+Σ assegni ricevuti nella giornata con `due_date <= next_banking_day(giornata)`
 
 ### Assegni postdatati
 Assegni_postdatati =
-Σ assegni flag `**`
+Σ assegni ricevuti nella giornata con `due_date > next_banking_day(giornata)`
+
+Il flag `**` resta compatibile con i dati storici, ma la maturazione nel versabile
+viene determinata dalla data di scadenza. Un incasso con assegno può quindi
+conservare il normale flag `*`.
 
 ### Versabile giornata
 Versabile_giornata =
 Contanti_fisici
 + Assegni_odierni
+
+Gli incassi aziendali cash con flag `*`/`**` concorrono al versabile anche quando
+sono marcati fuori cassa; `off_cash` continua invece a escluderli dal cassetto fisico.
 
 ### Totale versato oggi
 Totale_versato_oggi =

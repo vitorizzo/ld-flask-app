@@ -2094,7 +2094,6 @@ def _calculate_progressive_saldo_versabile_fast(target_date: date) -> tuple[Deci
                     WHEN p.direction = 'in'
                      AND p.method = 'cash'
                      AND p.flag IN ('*', '**')
-                     AND p.off_cash = FALSE
                     THEN p.amount ELSE 0 END), 0) AS incassi_cash_azienda,
                 COALESCE(SUM(CASE
                     WHEN p.direction = 'in'
@@ -2217,21 +2216,29 @@ def _calculate_closure_fast_from_db(
     fondo_finale: Decimal,
     saldo_versabile_precedente: Decimal,
     incasso_consegnato: Decimal,
+    check_cutoff: date,
     tolleranza: Decimal = Decimal("2.00"),
 ) -> dict:
     sql = text("""
         WITH sale_sums AS (
             SELECT
-                COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='cash' AND p.flag IN ('*','**') AND p.off_cash=FALSE THEN p.amount ELSE 0 END), 0) AS incassi_cash_azienda,
+                COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='cash' AND p.flag IN ('*','**') THEN p.amount ELSE 0 END), 0) AS incassi_cash_azienda,
                 COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='cash' AND p.off_cash=FALSE THEN p.amount ELSE 0 END), 0) AS incassi_cash,
                 COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='cash' AND p.flag IN ('*','**') AND p.off_cash=TRUE THEN p.amount ELSE 0 END), 0) AS incassi_fuori_cassa,
                 COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='bank' AND p.flag IN ('*','**') THEN p.amount ELSE 0 END), 0) AS incassi_bank,
                 COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='check' AND p.flag IN ('*','**') THEN p.amount ELSE 0 END), 0) AS incassi_check,
-                COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='pos' AND p.flag IN ('*','**') THEN p.amount ELSE 0 END), 0) AS pos_payment_in,
-                COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='check' AND p.flag='*' THEN p.amount ELSE 0 END), 0) AS assegni_odierni,
-                COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='check' AND p.flag='**' THEN p.amount ELSE 0 END), 0) AS assegni_postdatati
+                COALESCE(SUM(CASE WHEN p.direction='in' AND p.method='pos' AND p.flag IN ('*','**') THEN p.amount ELSE 0 END), 0) AS pos_payment_in
             FROM cash_sale_payments p
             JOIN cash_sales s ON s.id = p.sale_id
+            WHERE s.cash_day_id = :cash_day_id
+        ),
+        received_check_sums AS (
+            SELECT
+                COALESCE(SUM(CASE WHEN ch.due_date <= :check_cutoff THEN ch.amount ELSE 0 END), 0) AS assegni_odierni,
+                COALESCE(SUM(CASE WHEN ch.due_date > :check_cutoff THEN ch.amount ELSE 0 END), 0) AS assegni_postdatati
+            FROM cash_sale_checks sc
+            JOIN cash_sales s ON s.id = sc.sale_id
+            JOIN cash_checks ch ON ch.id = sc.check_id
             WHERE s.cash_day_id = :cash_day_id
         ),
         expense_sums AS (
@@ -2288,6 +2295,7 @@ def _calculate_closure_fast_from_db(
         )
         SELECT *
         FROM sale_sums
+        CROSS JOIN received_check_sums
         CROSS JOIN expense_sums
         CROSS JOIN pos_sums
         CROSS JOIN cash_move_sums
@@ -2295,7 +2303,10 @@ def _calculate_closure_fast_from_db(
         CROSS JOIN deposit_check_sums
         CROSS JOIN check_sums
     """)
-    row = db.session.execute(sql, {"cash_day_id": cash_day_id}).mappings().first() or {}
+    row = db.session.execute(
+        sql,
+        {"cash_day_id": cash_day_id, "check_cutoff": check_cutoff},
+    ).mappings().first() or {}
 
     def d(key):
         return _to_dec(row.get(key, 0))
@@ -2612,6 +2623,7 @@ def _build_cash_day_preview_payload(
         fondo_finale=fondo_finale,
         saldo_versabile_precedente=saldo_versabile_precedente,
         incasso_consegnato=totale_incasso_consegnato,
+        check_cutoff=cutoff,
     )
 
     result["incasso_consegnato"] = float(totale_incasso_consegnato)
@@ -2904,6 +2916,7 @@ def api_cash_day_preview(day_date):
         fondo_finale=fondo_finale,
         saldo_versabile_precedente=saldo_versabile_precedente,
         incasso_consegnato=totale_incasso_consegnato,
+        check_cutoff=cutoff,
     )
 
     result["incasso_consegnato"] = float(totale_incasso_consegnato)
@@ -3972,6 +3985,20 @@ def _parse_due_date(value):
         raise ValueError("Invalid due_date format (YYYY-MM-DD)")
 
 
+def _parse_issued_check_due_date(flag, value, *, row_idx=None):
+    """La postdatazione dipende dalla data; ``**`` resta compatibile coi dati storici."""
+    due_date_raw = str(value or "").strip()
+    suffix = f" at row {row_idx}" if row_idx is not None else ""
+    if due_date_raw:
+        try:
+            return date.fromisoformat(due_date_raw), "**"
+        except ValueError:
+            raise ValueError(f"Invalid due_date format{suffix}")
+    if flag == "**":
+        raise ValueError(f"Missing due_date{suffix}")
+    return None, "*"
+
+
 def _normalize_payments_payload(data):
     payments = data.get("payments")
     if not isinstance(payments, list) or not payments:
@@ -4186,21 +4213,18 @@ def _parse_issued_check_update_payload(data):
         raise ValueError("Numero assegno obbligatorio")
 
     amount = _to_decimal_amount(data.get("amount"), "amount")
-    due_date = None
-    due_date_raw = (data.get("due_date") or "").strip()
-    if flag == "**":
-        if not due_date_raw:
-            raise ValueError("Scadenza obbligatoria per assegno postdatato")
-        try:
-            due_date = date.fromisoformat(due_date_raw)
-        except Exception:
-            raise ValueError("Data scadenza non valida")
+    try:
+        due_date, effective_flag = _parse_issued_check_due_date(flag, data.get("due_date"))
+    except ValueError as exc:
+        if flag == "**" and not str(data.get("due_date") or "").strip():
+            raise ValueError("Scadenza obbligatoria per assegno postdatato") from exc
+        raise ValueError("Data scadenza non valida") from exc
 
     status = _normalize_issued_check_status(data.get("status"))
     note = (data.get("note") or "").strip() or None
 
     return {
-        "flag": flag,
+        "flag": effective_flag,
         "bank_id": bank_id,
         "check_number": check_number,
         "amount": amount,
@@ -6451,14 +6475,9 @@ def api_create_expense(day_date):
                 if not check_number:
                     raise ValueError(f"Missing check_number at row {idx}")
 
-                due_date = None
-                if flag == "**":
-                    if not due_date_raw:
-                        raise ValueError(f"Missing due_date at row {idx}")
-                    try:
-                        due_date = date.fromisoformat(due_date_raw)
-                    except Exception:
-                        raise ValueError(f"Invalid due_date format at row {idx}")
+                due_date, issued_check_flag = _parse_issued_check_due_date(
+                    flag, due_date_raw, row_idx=idx,
+                )
 
                 payment.bank_id = bank_id
 
@@ -6466,7 +6485,7 @@ def api_create_expense(day_date):
                     expense=exp,
                     bank_id=bank_id,
                     check_number=check_number,
-                    flag=flag if flag in {"*", "**"} else "*",
+                    flag=issued_check_flag,
                     due_date=due_date,
                     amount=amount,
                     status="emesso",
@@ -6842,14 +6861,9 @@ def api_update_expense(expense_id):
                         if not check_number:
                             raise ValueError(f"Missing check_number at row {idx_p}")
 
-                        due_date = None
-                        if flag == "**":
-                            if not due_date_raw:
-                                raise ValueError(f"Missing due_date at row {idx_p}")
-                            try:
-                                due_date = date.fromisoformat(due_date_raw)
-                            except Exception:
-                                raise ValueError(f"Invalid due_date format at row {idx_p}")
+                        due_date, issued_check_flag = _parse_issued_check_due_date(
+                            flag, due_date_raw, row_idx=idx_p,
+                        )
 
                         payment.bank_id = bank_id
 
@@ -6857,7 +6871,7 @@ def api_update_expense(expense_id):
                             expense=exp,
                             bank_id=bank_id,
                             check_number=check_number,
-                            flag=flag if flag in {"*", "**"} else "*",
+                            flag=issued_check_flag,
                             due_date=due_date,
                             amount=amount,
                             status="emesso",
@@ -7104,14 +7118,9 @@ def api_update_expense(expense_id):
                 if not check_number:
                     raise ValueError(f"Missing check_number at row {idx}")
 
-                due_date = None
-                if flag == "**":
-                    if not due_date_raw:
-                        raise ValueError(f"Missing due_date at row {idx}")
-                    try:
-                        due_date = date.fromisoformat(due_date_raw)
-                    except Exception:
-                        raise ValueError(f"Invalid due_date format at row {idx}")
+                due_date, issued_check_flag = _parse_issued_check_due_date(
+                    flag, due_date_raw, row_idx=idx,
+                )
 
                 payment.bank_id = bank_id
 
@@ -7119,7 +7128,7 @@ def api_update_expense(expense_id):
                     expense=expense,
                     bank_id=bank_id,
                     check_number=check_number,
-                    flag=flag if flag in {"*", "**"} else "*",
+                    flag=issued_check_flag,
                     due_date=due_date,
                     amount=amount,
                     status="emesso",

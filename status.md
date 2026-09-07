@@ -3063,3 +3063,11 @@ Performance apertura giornata Agenda 2026-06-13:
 - 2026-09-04: completata la gestione molti-a-molti utente/cliente con permessi per associazione (`Solo amministrazione`, `Solo gestione ordini`, `Amministrazione e gestione`). Situazione contabile, ordini, storico e promemoria applicano i relativi permessi lato server; la pagina impostazioni gestisce associazioni multiple e cliente predefinito. La migration `e1f2a3b4c5d6` converte i vecchi ruoli preservando l'accesso completo degli `owner`.
 - 2026-09-05: deploy e collaudo della gestione utenti-clienti completati con esito positivo. Associazioni multiple, scelta del cliente e separazione tra permessi amministrativi e gestione ordini risultano operative; il punto non e' piu' tra le attivita' sospese.
 - 2026-09-05: chiuso il task bonifico integrato senza PISP a pagamento. Dalla situazione contabile il cliente puo generare un QR EPC/SEPA con beneficiario, IBAN, importo netto e causale dei documenti selezionati, salvare o condividere i dati e poi comunicare il bonifico allegando la contabile. LDApp non accede al conto del cliente, non memorizza credenziali bancarie e non introduce commissioni; riconciliazione e stato restano nel flusso contabile gia esistente.
+
+## 2026-09-07 - Correzioni Agenda assegni e versabile
+
+- La scadenza degli assegni emessi viene salvata anche se l'operazione usa il flag `*`.
+- Riaprendo una spesa in variazione, anche con pagamenti multipli, banca, numero e data assegno vengono ripristinati.
+- Gli assegni emessi con scadenza compaiono nel riquadro `Assegni rientranti oggi` dalla data prevista.
+- Un incasso aziendale cash con flag `*` marcato fuori cassa aumenta il versabile senza aumentare il contante fisico.
+- Per gli assegni ricevuti la distinzione tra versabile e postdatato usa la data di scadenza rispetto al cutoff bancabile, senza richiedere il flag `**`.

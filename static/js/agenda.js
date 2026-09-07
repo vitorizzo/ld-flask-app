@@ -2404,7 +2404,7 @@ async function loadSpese(dayStr) {
     for (const e of expenses) {
       for (const p of (e.payments || [])) {
         let desc = [e.supplier, (p.description || e.notes || "")].filter(Boolean).join(" - ");
-        if (p.method === "check" && p.issued_check_flag === "**" && p.due_date) {
+        if (p.method === "check" && p.due_date) {
           desc = [desc, `scad. ${formatDateIT(p.due_date)}`].filter(Boolean).join(" - ");
         }
 
@@ -2446,7 +2446,7 @@ async function loadSpese(dayStr) {
       if (x.method === "pos") badges.push(`<span class="badge badge-soft badge-pos">POS</span>`);
       if (x.method === "bank") badges.push(`<span class="badge badge-soft badge-bank">BANCA</span>`);
       if (x.method === "check") badges.push(`<span class="badge badge-soft badge-bank">ASSEGNO</span>`);
-      if (x.method === "check" && x.issued_check_flag === "**" && x.due_date) {
+      if (x.method === "check" && x.due_date) {
         badges.push(`<span class="badge badge-soft badge-bank">SCAD. ${escapeHtml(formatDateIT(x.due_date))}</span>`);
       }
       if (x.off_cash) badges.push(`<span class="badge badge-soft badge-offcash">FUORI CASSA</span>`);
@@ -6354,6 +6354,14 @@ document.addEventListener("DOMContentLoaded", async function () {
             const rowBank = row.querySelector(".multi-bank-select");
             await loadBanks(rowBank);
             if (rowBank) rowBank.value = String(p.bank_id || "");
+          } else if (p.method === "check") {
+            const rowCheckBank = row.querySelector(".multi-check-expense-bank-select");
+            const checkNumber = row.querySelector(".multi-check-expense-number");
+            const dueDate = row.querySelector(".multi-check-expense-due-date");
+            await loadBanks(rowCheckBank);
+            if (rowCheckBank) rowCheckBank.value = String(p.bank_id || "");
+            if (checkNumber) checkNumber.value = p.check_number || "";
+            if (dueDate) dueDate.value = p.due_date || "";
           }
         }
 
