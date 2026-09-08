@@ -3072,3 +3072,10 @@ Performance apertura giornata Agenda 2026-06-13:
 - Un incasso aziendale cash con flag `*` marcato fuori cassa aumenta il versabile senza aumentare il contante fisico.
 - Per gli assegni ricevuti la distinzione tra versabile e postdatato usa la data di scadenza rispetto al cutoff bancabile, senza richiedere il flag `**`.
 - Riaprendo in variazione un pagamento bancario a fornitore, la banca salvata viene nuovamente selezionata sia nelle operazioni singole sia in quelle con pagamenti multipli.
+
+## 2026-09-08 - Inserimento rapido ordine dalla bacheca
+
+- Aggiunto il pulsante `+` nell'intestazione della bacheca ordini.
+- La nuova modale consente di scegliere `Diretto` o un giro, cercare il cliente, inserire ordine e allegati e modificare la consegna.
+- Selezionando un giro viene proposta la sua prossima data effettiva; selezionando `Diretto` viene proposta la data odierna.
+- L'ordine viene pubblicato sul canale Slack corretto, registrato in `SlackOrder`, auditato e mostrato subito nella bacheca.

@@ -783,6 +783,15 @@ Intervento 2026-06-11:
 - la risoluzione ordini della plancia usa `_registry_for_order()` anche per match esatti su `display_name`/`legal_name`, non solo chiavi `source_code`/ID.
 - la bacheca ordini espone la stessa associazione nel menu contestuale di ogni card; la ricerca interroga l'anagrafica clienti e, per le card raggruppate, applica il cliente scelto a tutti gli ordini del gruppo senza modificare il testo Slack originale.
 
+## Inserimento rapido dalla bacheca
+
+Intervento 2026-09-08:
+- il pulsante `+` nella bacheca apre l'inserimento ordine senza passare dalla plancia;
+- la destinazione può essere `Diretto` oppure uno dei giri attivi con canale Slack valido;
+- `Diretto` propone la data odierna, mentre un giro propone la prossima consegna calcolata applicando frequenza e variazioni attive;
+- la data resta modificabile prima dell'invio;
+- cliente, testo e allegati riusano il flusso di pubblicazione Slack e creazione `SlackOrder` già in uso.
+
 ---
 
 # MODULO AGENDA / CASSA

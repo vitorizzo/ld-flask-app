@@ -980,6 +980,7 @@ def order_history_page():
 
     source_labels = {
         "route_order_board_direct": "Ordine diretto",
+        "kiosk_manual_order": "Bacheca ordini",
         "customer_horeca_app": "Inserisci ordine",
         "route_order_board": "Console",
     }
@@ -1088,6 +1089,7 @@ def order_history_detail(kind, record_id):
     )
     source_labels = {
         "route_order_board_direct": "Ordine diretto",
+        "kiosk_manual_order": "Bacheca ordini",
         "customer_horeca_app": "Inserisci ordine",
         "route_order_board": "Console",
     }
@@ -1507,6 +1509,43 @@ def api_orders_bulk_status():
     return jsonify({"ok": True, "updated": len(orders)})
 
 
+@route_orders_bp.get("/api/manual-order-destinations")
+@login_required
+@role_required(30)
+def api_manual_order_destinations():
+    direct_route, _ = _direct_order_route()
+    routes = (
+        DeliveryRoute.query
+        .filter(DeliveryRoute.is_active.is_(True))
+        .order_by(DeliveryRoute.name.asc(), DeliveryRoute.id.asc())
+        .all()
+    )
+    destinations = []
+    for route in routes:
+        if direct_route and route.id == direct_route.id:
+            continue
+        channel_id = (route.slack_channel_id or "").strip()
+        if not channel_id or channel_id.startswith("manual-"):
+            continue
+        try:
+            next_delivery_at = _next_delivery_dt(route)
+        except Exception:
+            logger.exception("Calcolo prossimo giro fallito route_id=%s", route.id)
+            next_delivery_at = None
+        destinations.append({
+            "id": route.id,
+            "name": route.name,
+            "next_delivery_at": next_delivery_at.isoformat() if next_delivery_at else None,
+            "next_delivery_date": next_delivery_at.date().isoformat() if next_delivery_at else None,
+        })
+    return jsonify({
+        "ok": True,
+        "today": date.today().isoformat(),
+        "destinations": destinations,
+    })
+
+
+@route_orders_bp.post("/api/manual-orders")
 @route_orders_bp.post("/api/direct-orders")
 @login_required
 @role_required(30)
@@ -1517,10 +1556,38 @@ def api_direct_order_create():
     note = (request.form.get("order_note") or "").strip()
     if not note:
         return jsonify({"ok": False, "error": "Testo ordine mancante"}), 400
-    planned_delivery_at = _parse_datetime(request.form.get("planned_delivery_at"), time(9, 0))
-    direct_route, channel_id = _direct_order_route()
+    requested_route_id = request.form.get("route_id", type=int)
+    is_direct = not requested_route_id
+    if requested_route_id:
+        direct_route = DeliveryRoute.query.filter_by(id=requested_route_id, is_active=True).first()
+        if not direct_route:
+            return jsonify({"ok": False, "error": "Giro non valido"}), 404
+        channel_id = (direct_route.slack_channel_id or "").strip()
+        if not channel_id or channel_id.startswith("manual-"):
+            return jsonify({"ok": False, "error": "Il giro non ha un canale Slack valido associato"}), 400
+        try:
+            default_delivery_at = _next_delivery_dt(direct_route)
+        except Exception:
+            logger.exception("Calcolo prossimo giro fallito route_id=%s", direct_route.id)
+            return jsonify({"ok": False, "error": "Programmazione del giro non valida"}), 400
+    else:
+        direct_route, channel_id = _direct_order_route()
+        default_time = direct_route.default_time if direct_route and direct_route.default_time else time(9, 0)
+        default_delivery_at = datetime.combine(date.today(), default_time)
     if not channel_id:
         return jsonify({"ok": False, "error": "Canale diretto Carsoli non configurato"}), 400
+    try:
+        planned_delivery_at = (
+            _parse_datetime(
+                request.form.get("planned_delivery_at"),
+                direct_route.default_time if direct_route and direct_route.default_time else time(9, 0),
+            )
+            or default_delivery_at
+        )
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "Data consegna non valida"}), 400
+    if not planned_delivery_at:
+        return jsonify({"ok": False, "error": "Data del prossimo giro non determinabile"}), 400
     bot_token = current_app.config.get("SLACK_BOT_TOKEN", "") or ""
     if not bot_token:
         return jsonify({"ok": False, "error": "SLACK_BOT_TOKEN mancante"}), 503
@@ -1555,21 +1622,26 @@ def api_direct_order_create():
     )
     db.session.add(order)
     db.session.flush()
+    via = "route_order_board_direct" if is_direct else "kiosk_manual_order"
     _reset_documents_for_customer_orders(
         channel_id,
         order.customer_key,
         exclude_order_id=order.id,
-        via="route_order_board_direct",
-        reason="new_direct_order_same_customer",
+        via=via,
+        reason="new_manual_order_same_customer",
     )
     db.session.add(SlackOrderEvent(
         order_id=order.id,
         type="created",
-        payload={"ts": ts, "text": message_text, "attachments": attachments, "via": "route_order_board_direct"},
+        payload={"ts": ts, "text": message_text, "attachments": attachments, "via": via},
     ))
     db.session.commit()
     try:
-        send_order_push_to_staff(order, title="Nuovo ordine diretto", body=_label_registry(registry))
+        send_order_push_to_staff(
+            order,
+            title="Nuovo ordine diretto" if is_direct else "Nuovo ordine giro",
+            body=_label_registry(registry),
+        )
     except Exception:
         logger.exception("Invio push ordine diretto fallito")
     return jsonify({"ok": True, "order": _order_to_dict(order)})

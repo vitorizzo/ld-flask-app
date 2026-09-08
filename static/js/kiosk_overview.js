@@ -21,6 +21,8 @@ window.kioskState = {
   const API_STATUSES = "/kiosk/api/statuses";
   const API_CUSTOMERS = "/route-orders/api/customers";
   const API_ORDER_CUSTOMER = (id) => `/route-orders/api/orders/${id}/customer`;
+  const API_MANUAL_ORDER_DESTINATIONS = "/route-orders/api/manual-order-destinations";
+  const API_MANUAL_ORDERS = "/route-orders/api/manual-orders";
 
   let refreshTimer = null;
   let deliveryScheduleState = { routes: [], rules: [], weekdays: [], frequencies: [] };
@@ -29,6 +31,8 @@ window.kioskState = {
   let pendingCardRender = false;
   let customerSearchTimer = null;
   let customerSearchRequest = 0;
+  let newOrderCustomerSearchTimer = null;
+  let newOrderCustomerRequest = 0;
 
   // Drag context (single dragged card at a time)
   let dragCtx = {
@@ -1048,6 +1052,143 @@ window.kioskState = {
       : `<option value="" disabled>Nessun cliente trovato</option>`;
   }
 
+  function setNewOrderError(message = "") {
+    const error = $("#newOrderError");
+    if (!error) return;
+    error.textContent = message;
+    error.classList.toggle("d-none", !message);
+  }
+
+  function applyNewOrderDestinationDefault() {
+    const select = $("#newOrderDestination");
+    const dateInput = $("#newOrderDeliveryDate");
+    const help = $("#newOrderDestinationHelp");
+    const option = select && select.selectedOptions ? select.selectedOptions[0] : null;
+    if (!option) return;
+    if (dateInput) dateInput.value = option.dataset.deliveryDate || "";
+    if (help) {
+      help.textContent = option.value === "direct"
+        ? "Consegna diretta proposta per oggi; puoi modificare la data."
+        : "Data proposta in base al prossimo giro; puoi modificarla.";
+    }
+  }
+
+  async function loadNewOrderDestinations() {
+    const res = await fetch(API_MANUAL_ORDER_DESTINATIONS, {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+
+    const select = $("#newOrderDestination");
+    if (!select) return;
+    const routes = Array.isArray(json.destinations) ? json.destinations : [];
+    select.innerHTML = [
+      `<option value="direct" data-delivery-date="${escapeHtml(json.today || "")}">Diretto</option>`,
+      ...routes.map((route) => (
+        `<option value="route:${escapeHtml(route.id)}" data-route-id="${escapeHtml(route.id)}" ` +
+        `data-delivery-date="${escapeHtml(route.next_delivery_date || "")}">${escapeHtml(route.name || "Giro")}</option>`
+      )),
+    ].join("");
+    applyNewOrderDestinationDefault();
+  }
+
+  async function loadNewOrderCustomers(query = "") {
+    const select = $("#newOrderCustomerSelect");
+    const requestId = ++newOrderCustomerRequest;
+    if (select) select.innerHTML = `<option value="" disabled>Ricerca in corso...</option>`;
+
+    const res = await fetch(`${API_CUSTOMERS}?q=${encodeURIComponent(query)}`, {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    const json = await res.json().catch(() => ({}));
+    if (requestId !== newOrderCustomerRequest) return;
+    if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+
+    const customers = Array.isArray(json.customers) ? json.customers : [];
+    if (!select) return;
+    select.innerHTML = customers.length
+      ? customers.map((customer) => {
+          const details = [customer.source_code ? `cod. ${customer.source_code}` : "", customer.city || ""]
+            .filter(Boolean)
+            .join(" · ");
+          return `<option value="${escapeHtml(customer.id)}">${escapeHtml(customer.display || "Cliente")}${
+            details ? ` — ${escapeHtml(details)}` : ""
+          }</option>`;
+        }).join("")
+      : `<option value="" disabled>Nessun cliente trovato</option>`;
+  }
+
+  async function openNewOrderModal() {
+    const form = $("#newOrderForm");
+    if (form) form.reset();
+    window.clearTimeout(newOrderCustomerSearchTimer);
+    newOrderCustomerRequest += 1;
+    setNewOrderError();
+    const customerSelect = $("#newOrderCustomerSelect");
+    if (customerSelect) customerSelect.innerHTML = `<option value="" disabled>Caricamento clienti...</option>`;
+
+    const modalEl = $("#newOrderModal");
+    if (modalEl && window.bootstrap) window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+    try {
+      await Promise.all([loadNewOrderDestinations(), loadNewOrderCustomers()]);
+      const search = $("#newOrderCustomerSearch");
+      if (search) search.focus();
+    } catch (err) {
+      setNewOrderError(`Caricamento non riuscito: ${String(err.message || err)}`);
+    }
+  }
+
+  async function saveNewOrder(ev) {
+    ev.preventDefault();
+    const destination = $("#newOrderDestination");
+    const selectedOption = destination && destination.selectedOptions ? destination.selectedOptions[0] : null;
+    const registryId = $("#newOrderCustomerSelect") ? $("#newOrderCustomerSelect").value : "";
+    const note = $("#newOrderNote") ? $("#newOrderNote").value.trim() : "";
+    const deliveryDate = $("#newOrderDeliveryDate") ? $("#newOrderDeliveryDate").value : "";
+    if (!selectedOption) return setNewOrderError("Seleziona diretto oppure un giro.");
+    if (!registryId) return setNewOrderError("Seleziona un cliente.");
+    if (!note) return setNewOrderError("Inserisci il testo dell'ordine.");
+    if (!deliveryDate) return setNewOrderError("Inserisci la data di consegna.");
+
+    const form = new FormData();
+    form.append("registry_id", registryId);
+    form.append("order_note", note);
+    form.append("planned_delivery_at", deliveryDate);
+    if (selectedOption.dataset.routeId) form.append("route_id", selectedOption.dataset.routeId);
+    const files = $("#newOrderFiles");
+    Array.from(files && files.files ? files.files : []).forEach((file) => form.append("files", file));
+
+    const saveButton = $("#newOrderSave");
+    if (saveButton) {
+      saveButton.disabled = true;
+      saveButton.innerHTML = `<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Invio...`;
+    }
+    setNewOrderError();
+    try {
+      const res = await fetch(API_MANUAL_ORDERS, {
+        method: "POST",
+        credentials: "same-origin",
+        body: form,
+        cache: "no-store",
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok || !json.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      const modalEl = $("#newOrderModal");
+      if (modalEl && window.bootstrap) window.bootstrap.Modal.getOrCreateInstance(modalEl).hide();
+      await loadAndRender();
+    } catch (err) {
+      setNewOrderError(`Inserimento non riuscito: ${String(err.message || err)}`);
+    } finally {
+      if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.innerHTML = `<i class="fa-solid fa-paper-plane me-1" aria-hidden="true"></i> Inserisci ordine`;
+      }
+    }
+  }
+
   async function openOrderCustomerModal(orders) {
     const list = Array.isArray(orders) ? orders.filter(Boolean) : [];
     if (!list.length) return;
@@ -1877,6 +2018,36 @@ window.kioskState = {
 
     const btn = $("#btn-refresh");
     if (btn) btn.addEventListener("click", loadAndRender);
+
+    const newOrderButton = $("#btn-new-order");
+    if (newOrderButton) newOrderButton.addEventListener("click", openNewOrderModal);
+
+    const newOrderDestination = $("#newOrderDestination");
+    if (newOrderDestination) newOrderDestination.addEventListener("change", applyNewOrderDestinationDefault);
+
+    const newOrderForm = $("#newOrderForm");
+    if (newOrderForm) newOrderForm.addEventListener("submit", saveNewOrder);
+
+    const newOrderCustomerSearch = $("#newOrderCustomerSearch");
+    if (newOrderCustomerSearch) {
+      newOrderCustomerSearch.addEventListener("input", (ev) => {
+        window.clearTimeout(newOrderCustomerSearchTimer);
+        newOrderCustomerSearchTimer = window.setTimeout(() => {
+          loadNewOrderCustomers(ev.target.value).catch((err) => {
+            setNewOrderError(`Ricerca clienti non disponibile: ${String(err.message || err)}`);
+          });
+        }, 250);
+      });
+    }
+
+    const newOrderModal = $("#newOrderModal");
+    if (newOrderModal) {
+      newOrderModal.addEventListener("hidden.bs.modal", () => {
+        window.clearTimeout(newOrderCustomerSearchTimer);
+        newOrderCustomerRequest += 1;
+        setNewOrderError();
+      });
+    }
 
     const reparseBtn = $("#btn-reparse-deliveries");
     if (reparseBtn) reparseBtn.addEventListener("click", reparseDeliveries);
