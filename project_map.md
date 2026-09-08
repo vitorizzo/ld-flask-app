@@ -1485,6 +1485,12 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - Un errore di lettura del vault in vista full viene mostrato nei quadranti; frequenza e coordinamento del polling realtime non cambiano.
 - `GET /cassa/api/search/customer` usa la stessa vista esplicita: la sottostringa inserita viene cercata senza distinzione maiuscole/minuscole sia nei dati fiscali sia nei campi cliente/fornitore delle vendite e spese PRI comprese nell'intervallo selezionato.
 
+### Agenda - fornitore nei pagamenti singoli (2026-09-08)
+
+- `static/js/agenda.js` include `supplier` in tutti i payload di spesa con pagamento singolo, compreso il bonifico bancario.
+- `routes/cassa.py` normalizza il beneficiario da `supplier` e, per compatibilita' con client in cache, usa `customer_label` come fallback sia in creazione sia in variazione.
+- `templates/agenda.html` aggiorna la chiave di versione dello script Agenda per distribuire subito la correzione.
+
 ### Credito clienti - avvio rapido grafici (2026-08-02)
 
 - `templates/administration/customer_credit.html`: preload del renderer, esecuzione asincrona prima degli script globali e indicatori di elaborazione nei contenitori dei due SVG.

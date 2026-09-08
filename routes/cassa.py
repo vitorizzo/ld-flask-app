@@ -4006,6 +4006,13 @@ def _normalize_payments_payload(data):
     return payments
 
 
+def _expense_supplier_from_payload(data):
+    supplier = str(data.get("supplier") or "").strip()
+    if not supplier:
+        supplier = str(data.get("customer_label") or "").strip()
+    return supplier or None
+
+
 def _get_drawer_count_total_for_day(cash_day: CashDay) -> Decimal:
     if not cash_day or not getattr(cash_day, "drawer_count", None):
         return Decimal("0")
@@ -6342,7 +6349,7 @@ def api_create_expense(day_date):
 
     description = (data.get("description") or "").strip() or None
 
-    supplier = (data.get("supplier") or "").strip() or None
+    supplier = _expense_supplier_from_payload(data)
     description = (data.get("description") or "").strip() or None
 
     if not description and not supplier:
@@ -6722,7 +6729,7 @@ def api_update_expense(expense_id):
     if flag not in _ALLOWED_FLAGS:
         return jsonify({"ok": False, "error": f"Invalid flag (allowed: {sorted(_ALLOWED_FLAGS)})"}), 400
 
-    supplier = (data.get("supplier") or "").strip() or None
+    supplier = _expense_supplier_from_payload(data)
     description = (data.get("description") or "").strip() or None
 
     if not description and not supplier:

@@ -6961,6 +6961,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       return {
         ok: true,
         payload: {
+          supplier: base.opType === "expense" ? (base.customer_label || null) : undefined,
           description: base.description,
           flag: base.flag,
           customer_id: base.customer_id,
@@ -6992,6 +6993,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         return {
           ok: true,
           payload: {
+            supplier: base.customer_label || null,
             description: base.description,
             flag: base.flag,
             customer_id: base.customer_id,
@@ -7024,6 +7026,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       return {
         ok: true,
         payload: {
+          supplier: base.opType === "expense" ? (base.customer_label || null) : undefined,
           description: base.description,
           flag: base.flag,
           customer_id: base.customer_id,
@@ -7052,6 +7055,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       return {
         ok: true,
         payload: {
+          supplier: base.opType === "expense" ? (base.customer_label || null) : undefined,
           description: base.description,
           flag: base.flag,
           customer_id: base.customer_id,
