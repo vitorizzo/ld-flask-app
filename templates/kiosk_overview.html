@@ -144,11 +144,15 @@
               <input class="form-control" id="newOrderDeliveryDate" type="date" required>
             </div>
             <div class="col-12">
-              <label class="form-label" for="newOrderCustomerSearch">Cliente</label>
+              <label class="form-label" for="newOrderCustomerSearch">Cliente / nome libero</label>
               <input class="form-control" id="newOrderCustomerSearch" type="search" autocomplete="off"
-                     placeholder="Cerca per nome, codice, partita IVA o città">
+                     placeholder="Scrivi un nome oppure cerca un cliente">
               <select class="form-select mt-2" id="newOrderCustomerSelect" size="6"
-                      aria-label="Risultati ricerca cliente" required></select>
+                      aria-label="Risultati ricerca cliente"></select>
+              <div class="form-text">
+                Se non selezioni un'anagrafica useremo il nome scritto sopra. Per i clienti generici
+                90. TAL DEI TALI e 103. LD BEVERAGE useremo la prima riga dell'ordine.
+              </div>
             </div>
             <div class="col-12">
               <label class="form-label" for="newOrderNote">Ordine</label>
@@ -406,5 +410,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/kiosk_overview.js', v=app_version ~ '-quick-order1') }}"></script>
+<script src="{{ url_for('static', filename='js/kiosk_overview.js', v=app_version ~ '-quick-order2') }}"></script>
 {% endblock %}

@@ -315,10 +315,11 @@ def _ensure_slack_order(entry, status_code=None):
         return None
 
     registry = entry.registry
+    customer_display, _ = _manual_order_identity(registry, None, entry.order_note or "")
     order = SlackOrder(
         route_id=entry.route_id,
         slack_channel_id=entry.slack_channel_id,
-        customer_display=_label_registry(registry),
+        customer_display=customer_display,
         customer_key=registry.source_code or str(registry.id),
         order_date=(entry.sent_at or datetime.utcnow()).date(),
         planned_delivery_at=entry.planned_delivery_at,
@@ -383,13 +384,9 @@ def _entry_to_dict(entry):
 
 
 def _format_slack_message(registry, entry):
-    lines = [f"*{_label_registry(registry)}*"]
     note = (entry.order_note or "").strip()
-    if note:
-        lines.append(note)
-    if entry.planned_delivery_at:
-        lines.append(f"Consegna: {entry.planned_delivery_at.strftime('%d/%m/%Y')}")
-    return "\n".join(lines)
+    customer_display, message_note = _manual_order_identity(registry, None, note)
+    return _format_order_message(customer_display, message_note, entry.planned_delivery_at)
 
 
 def _upload_folder():
@@ -636,13 +633,51 @@ def _direct_order_route():
     return route, route.slack_channel_id if route else ""
 
 
-def _format_direct_message(registry, note, planned_delivery_at=None):
-    lines = [f"*{_label_registry(registry)}*"]
+def _format_order_message(customer_display, note, planned_delivery_at=None):
+    lines = [f"*{customer_display}*"]
     if note:
         lines.append(note.strip())
     if planned_delivery_at:
         lines.append(f"Consegna: {planned_delivery_at.strftime('%d/%m/%Y')}")
     return "\n".join(lines)
+
+
+def _format_direct_message(registry, note, planned_delivery_at=None):
+    return _format_order_message(_label_registry(registry), note, planned_delivery_at)
+
+
+def _uses_order_text_as_customer_name(registry):
+    if not registry:
+        return False
+    source_code = str(registry.source_code or "").strip()
+    try:
+        if source_code.isdigit() and int(source_code) in {90, 103}:
+            return True
+    except (TypeError, ValueError):
+        pass
+    label = _label_registry(registry).strip().upper()
+    return label.startswith(("90.", "90 ", "103.", "103 "))
+
+
+def _split_first_order_line(note):
+    lines = str(note or "").strip().splitlines()
+    for index, line in enumerate(lines):
+        customer_display = line.strip()
+        if customer_display:
+            remaining_note = "\n".join(lines[index + 1:]).strip()
+            return customer_display, remaining_note
+    return "", ""
+
+
+def _manual_order_identity(registry, customer_name, note):
+    if _uses_order_text_as_customer_name(registry):
+        customer_display, message_note = _split_first_order_line(note)
+        if customer_display:
+            return customer_display, message_note
+        return _label_registry(registry), note
+    if registry:
+        return _label_registry(registry), note
+    return str(customer_name or "").strip(), note
 
 
 def publish_customer_order(order):
@@ -675,7 +710,8 @@ def publish_customer_order(order):
             delivery_label = f"{delivery_label}: {option_value}"
         note_lines.append(f"Richiesta consegna: {delivery_label}")
     note = "\n".join(line for line in note_lines if line)
-    message_text = _format_direct_message(registry, note, planned_delivery_at)
+    customer_display, message_note = _manual_order_identity(registry, None, note)
+    message_text = _format_order_message(customer_display, message_note, planned_delivery_at)
 
     bot_token = current_app.config.get("SLACK_BOT_TOKEN", "") or ""
     if not bot_token:
@@ -696,7 +732,7 @@ def publish_customer_order(order):
     slack_order = SlackOrder(
         route_id=route.id,
         slack_channel_id=channel_id,
-        customer_display=_label_registry(registry),
+        customer_display=customer_display,
         customer_key=registry.source_code or str(registry.id),
         order_date=datetime.utcnow().date(),
         planned_delivery_at=planned_delivery_at,
@@ -1435,7 +1471,8 @@ def api_order_customer(order_id):
         "customer_key": order.customer_key,
         "route_id": order.route_id,
     }
-    order.customer_display = _label_registry(registry)
+    if not _uses_order_text_as_customer_name(registry):
+        order.customer_display = _label_registry(registry)
     order.customer_key = registry.source_code or str(registry.id)
     requested_route_id = data.get("route_id")
     if requested_route_id:
@@ -1550,12 +1587,19 @@ def api_manual_order_destinations():
 @login_required
 @role_required(30)
 def api_direct_order_create():
-    registry = BusinessRegistry.query.filter_by(id=request.form.get("registry_id", type=int), kind="customer", is_active=True).first()
-    if not registry:
+    registry_id = request.form.get("registry_id", type=int)
+    registry = None
+    if registry_id:
+        registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first()
+    if registry_id and not registry:
         return jsonify({"ok": False, "error": "Cliente non valido"}), 404
+    customer_name = (request.form.get("customer_name") or "").strip()
     note = (request.form.get("order_note") or "").strip()
     if not note:
         return jsonify({"ok": False, "error": "Testo ordine mancante"}), 400
+    customer_display, message_note = _manual_order_identity(registry, customer_name, note)
+    if not customer_display:
+        return jsonify({"ok": False, "error": "Nome cliente mancante"}), 400
     requested_route_id = request.form.get("route_id", type=int)
     is_direct = not requested_route_id
     if requested_route_id:
@@ -1592,7 +1636,7 @@ def api_direct_order_create():
     if not bot_token:
         return jsonify({"ok": False, "error": "SLACK_BOT_TOKEN mancante"}), 503
     attachments = _save_uploaded_files(_files_from_request())
-    message_text = _format_direct_message(registry, note, planned_delivery_at)
+    message_text = _format_order_message(customer_display, message_note, planned_delivery_at)
     api = SlackAPI(SlackAPIConfig(bot_token=bot_token))
     try:
         response = api.post_message(channel_id, message_text)
@@ -1610,8 +1654,8 @@ def api_direct_order_create():
     order = SlackOrder(
         route_id=direct_route.id if direct_route else None,
         slack_channel_id=channel_id,
-        customer_display=_label_registry(registry),
-        customer_key=registry.source_code or str(registry.id),
+        customer_display=customer_display,
+        customer_key=(registry.source_code or str(registry.id)) if registry else customer_display,
         order_date=datetime.utcnow().date(),
         planned_delivery_at=planned_delivery_at,
         status="acquisito",
@@ -1640,7 +1684,7 @@ def api_direct_order_create():
         send_order_push_to_staff(
             order,
             title="Nuovo ordine diretto" if is_direct else "Nuovo ordine giro",
-            body=_label_registry(registry),
+            body=customer_display,
         )
     except Exception:
         logger.exception("Invio push ordine diretto fallito")

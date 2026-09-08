@@ -3077,5 +3077,7 @@ Performance apertura giornata Agenda 2026-06-13:
 
 - Aggiunto il pulsante `+` nell'intestazione della bacheca ordini.
 - La nuova modale consente di scegliere `Diretto` o un giro, cercare il cliente, inserire ordine e allegati e modificare la consegna.
+- L'associazione a un'anagrafica e' facoltativa: senza selezione, il testo digitato nel campo cliente diventa il nome visualizzato dell'ordine.
+- Per le anagrafiche generiche `90. TAL DEI TALI` e `103. LD BEVERAGE`, il nome visualizzato viene preso dalla prima riga non vuota della descrizione; la riga viene usata come intestazione senza essere duplicata nel corpo del messaggio.
 - Selezionando un giro viene proposta la sua prossima data effettiva; selezionando `Diretto` viene proposta la data odierna.
 - L'ordine viene pubblicato sul canale Slack corretto, registrato in `SlackOrder`, auditato e mostrato subito nella bacheca.

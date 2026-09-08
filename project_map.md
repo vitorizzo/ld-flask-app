@@ -790,6 +790,8 @@ Intervento 2026-09-08:
 - la destinazione può essere `Diretto` oppure uno dei giri attivi con canale Slack valido;
 - `Diretto` propone la data odierna, mentre un giro propone la prossima consegna calcolata applicando frequenza e variazioni attive;
 - la data resta modificabile prima dell'invio;
+- il campo cliente accetta un nome libero quando non viene selezionata alcuna anagrafica; in questo caso `SlackOrder.customer_display` e `customer_key` conservano il nome digitato;
+- gli ordini associati alle anagrafiche generiche con codice `90` o `103` usano la prima riga non vuota della descrizione come nome cliente, mantenendo invece il codice dell'anagrafica in `customer_key`;
 - cliente, testo e allegati riusano il flusso di pubblicazione Slack e creazione `SlackOrder` già in uso.
 
 ---

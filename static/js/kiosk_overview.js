@@ -1097,7 +1097,7 @@ window.kioskState = {
   async function loadNewOrderCustomers(query = "") {
     const select = $("#newOrderCustomerSelect");
     const requestId = ++newOrderCustomerRequest;
-    if (select) select.innerHTML = `<option value="" disabled>Ricerca in corso...</option>`;
+    if (select) select.innerHTML = `<option value="" selected>Ricerca in corso...</option>`;
 
     const res = await fetch(`${API_CUSTOMERS}?q=${encodeURIComponent(query)}`, {
       credentials: "same-origin",
@@ -1109,7 +1109,11 @@ window.kioskState = {
 
     const customers = Array.isArray(json.customers) ? json.customers : [];
     if (!select) return;
-    select.innerHTML = customers.length
+    const freeName = String(query || "").trim();
+    const freeNameLabel = freeName
+      ? `Nessuna associazione — usa "${escapeHtml(freeName)}"`
+      : "Nessuna associazione — scrivi un nome sopra";
+    const customerOptions = customers.length
       ? customers.map((customer) => {
           const details = [customer.source_code ? `cod. ${customer.source_code}` : "", customer.city || ""]
             .filter(Boolean)
@@ -1119,6 +1123,7 @@ window.kioskState = {
           }</option>`;
         }).join("")
       : `<option value="" disabled>Nessun cliente trovato</option>`;
+    select.innerHTML = `<option value="" selected>${freeNameLabel}</option>${customerOptions}`;
   }
 
   async function openNewOrderModal() {
@@ -1146,15 +1151,17 @@ window.kioskState = {
     const destination = $("#newOrderDestination");
     const selectedOption = destination && destination.selectedOptions ? destination.selectedOptions[0] : null;
     const registryId = $("#newOrderCustomerSelect") ? $("#newOrderCustomerSelect").value : "";
+    const customerName = $("#newOrderCustomerSearch") ? $("#newOrderCustomerSearch").value.trim() : "";
     const note = $("#newOrderNote") ? $("#newOrderNote").value.trim() : "";
     const deliveryDate = $("#newOrderDeliveryDate") ? $("#newOrderDeliveryDate").value : "";
     if (!selectedOption) return setNewOrderError("Seleziona diretto oppure un giro.");
-    if (!registryId) return setNewOrderError("Seleziona un cliente.");
+    if (!registryId && !customerName) return setNewOrderError("Seleziona un cliente oppure scrivi un nome.");
     if (!note) return setNewOrderError("Inserisci il testo dell'ordine.");
     if (!deliveryDate) return setNewOrderError("Inserisci la data di consegna.");
 
     const form = new FormData();
-    form.append("registry_id", registryId);
+    if (registryId) form.append("registry_id", registryId);
+    form.append("customer_name", customerName);
     form.append("order_note", note);
     form.append("planned_delivery_at", deliveryDate);
     if (selectedOption.dataset.routeId) form.append("route_id", selectedOption.dataset.routeId);
