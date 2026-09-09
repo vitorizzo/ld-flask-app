@@ -82,6 +82,27 @@ def import_estratti_conto_clienti_task(self):
     return import_estratti_conto_clienti(task_id=self.request.id)
 
 
+def _matrixws_diagnostic_preview(value, limit=25):
+    """Limita le liste della risposta diagnostica senza alterare il dato importato."""
+    record_counts = []
+    truncated = False
+
+    def visit(nested):
+        nonlocal truncated
+        if isinstance(nested, list):
+            record_counts.append(len(nested))
+            if len(nested) > limit:
+                truncated = True
+            return [visit(item) for item in nested[:limit]]
+        if isinstance(nested, dict):
+            return {key: visit(item) for key, item in nested.items()}
+        return nested
+
+    preview = visit(value)
+    record_count = max(record_counts) if record_counts else None
+    return preview, record_count, truncated
+
+
 @celery.task(bind=True)
 @log_task(logger)
 def matrixws_test_poll_task(self, batch_uuid, request_meta=None):
@@ -113,20 +134,21 @@ def matrixws_test_poll_task(self, batch_uuid, request_meta=None):
         )
         response_body = result["json"] if result["json"] is not None else result["text"]
         response_truncated = bool(result["truncated"])
-        record_count = None
-        if isinstance(response_body, dict) and isinstance(response_body.get("dati"), list):
-            record_count = len(response_body["dati"])
-            if record_count > 25:
+        response_body, record_count, preview_truncated = _matrixws_diagnostic_preview(response_body)
+        response_truncated = response_truncated or preview_truncated
+        if preview_truncated:
+            diagnostic_meta = {
+                "record_totali": record_count,
+                "record_mostrati": 25,
+                "nota": "Anteprima asincrona limitata: nessun dato e' stato importato.",
+            }
+            if isinstance(response_body, dict):
+                response_body = {**response_body, "diagnostica_app": diagnostic_meta}
+            else:
                 response_body = {
-                    **response_body,
-                    "dati": response_body["dati"][:25],
-                    "diagnostica_app": {
-                        "record_totali": record_count,
-                        "record_mostrati": 25,
-                        "nota": "Anteprima asincrona limitata: nessun dato e' stato importato.",
-                    },
+                    "anteprima": response_body,
+                    "diagnostica_app": diagnostic_meta,
                 }
-                response_truncated = True
 
         update_task(self.request.id, task_name, 100, status_string["end"])
         clear_task_status(self.request.id)

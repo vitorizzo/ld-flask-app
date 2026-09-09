@@ -2232,27 +2232,36 @@ def matrixws_test():
 def matrixws_test_status(task_id):
     if not re.fullmatch(r"[a-fA-F0-9-]{20,64}", str(task_id or "")):
         return jsonify({"ok": False, "message": "Identificativo task non valido."}), 400
-    task = matrixws_test_poll_task.AsyncResult(task_id)
-    if not task.ready():
-        return jsonify({
-            "ok": True,
-            "pending": True,
-            "state": task.state,
-            "message": "Batch MATRIXWS ancora in elaborazione sul server TeamSystem.",
-        })
-    if task.failed():
-        logger.error("Task diagnostico MATRIXWS fallito task_id=%s result=%s", task_id, task.result)
+    try:
+        task = matrixws_test_poll_task.AsyncResult(task_id)
+        if not task.ready():
+            return jsonify({
+                "ok": True,
+                "pending": True,
+                "state": task.state,
+                "message": "Batch MATRIXWS ancora in elaborazione sul server TeamSystem.",
+            })
+        if task.failed():
+            logger.error("Task diagnostico MATRIXWS fallito task_id=%s result=%s", task_id, task.result)
+            return jsonify({
+                "ok": False,
+                "pending": False,
+                "state": task.state,
+                "message": "Il task diagnostico MATRIXWS e' terminato con un errore.",
+            }), 500
+        result = task.result if isinstance(task.result, dict) else {
+            "ok": False,
+            "message": "Il task MATRIXWS non ha restituito un risultato diagnostico valido.",
+        }
+        return jsonify({**result, "pending": False, "state": task.state})
+    except Exception:
+        logger.exception("Errore leggendo lo stato del test MATRIXWS task_id=%s", task_id)
         return jsonify({
             "ok": False,
             "pending": False,
-            "state": task.state,
-            "message": "Il task diagnostico MATRIXWS e' terminato con un errore.",
+            "state": "ERROR",
+            "message": "Impossibile leggere lo stato del task diagnostico MATRIXWS.",
         }), 500
-    result = task.result if isinstance(task.result, dict) else {
-        "ok": False,
-        "message": "Il task MATRIXWS non ha restituito un risultato diagnostico valido.",
-    }
-    return jsonify({**result, "pending": False, "state": task.state})
 
 
 @settings_bp.route("/roles-permissions", methods=["GET", "POST"])

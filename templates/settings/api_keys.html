@@ -633,6 +633,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  async function readMatrixwsJson(response) {
+    const responseText = await response.text();
+    try {
+      return JSON.parse(responseText);
+    } catch (_error) {
+      const contentType = response.headers.get("Content-Type") || "tipo sconosciuto";
+      const excerpt = responseText.replace(/\s+/g, " ").trim().slice(0, 300);
+      throw new Error(
+        `Risposta LDApp non JSON (HTTP ${response.status}, ${contentType})${excerpt ? `: ${excerpt}` : "."}`
+      );
+    }
+  }
+
   document.querySelectorAll(".matrixws-test-button").forEach((button) => {
     button.addEventListener("click", (event) => {
       event.preventDefault();
@@ -666,7 +679,7 @@ document.addEventListener("DOMContentLoaded", () => {
           headers: {"Accept": "application/json", "Content-Type": "application/json"},
           body: JSON.stringify({test_key: testProfile.value}),
         });
-        let data = await response.json();
+        let data = await readMatrixwsJson(response);
         renderMatrixwsResult(data);
         if (!response.ok || !data.pending || !data.status_url) return;
 
@@ -677,7 +690,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           await new Promise((resolve) => window.setTimeout(resolve, 2000));
           const pollResponse = await fetch(data.status_url, {headers: {"Accept": "application/json"}});
-          data = await pollResponse.json();
+          data = await readMatrixwsJson(pollResponse);
           renderMatrixwsResult(data);
           if (!pollResponse.ok && !data.pending) break;
         }
