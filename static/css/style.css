@@ -656,6 +656,16 @@ section {
     z-index: 12040;
 }
 
+.modal.manual-order-modal {
+    z-index: 12050;
+    pointer-events: auto;
+}
+
+.manual-order-modal .modal-dialog,
+.manual-order-modal .modal-content {
+    pointer-events: auto;
+}
+
 .welcome-section {
     text-align: center;
     padding: 50px 30px;
