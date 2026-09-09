@@ -17,7 +17,7 @@
     <div class="quick-actions"
          data-home-tutorial-role="{% if current_user.is_authenticated %}{{ (current_user.active_roles | map(attribute='name') | join(', ')) or 'utente autenticato' }}{% else %}visitatore{% endif %}">
         {% if current_user.is_authenticated and current_user.max_role_weight >= 30 %}
-            <a class="quick-action" href="/kiosk?new_order=1" data-tutorial-description="Apre direttamente l'inserimento rapido usato nella bacheca ordini."><i class="fa-solid fa-plus"></i><span>Inserisci ordine</span></a>
+            <a class="quick-action" href="/kiosk?new_order=1" data-tutorial-description="Apre direttamente la modale della bacheca per scegliere giro o ordine diretto, cliente e consegna."><i class="fa-solid fa-plus"></i><span>Inserisci ordine</span></a>
             <a class="quick-action" href="/registry/customers" data-tutorial-description="Consulta le anagrafiche e i contatti della clientela."><i class="fa-regular fa-address-book"></i><span>Rubrica clienti</span></a>
             <a class="quick-action" href="/kiosk" data-tutorial-description="Controlla a colpo d'occhio lo stato degli ordini in lavorazione."><i class="fa-solid fa-table-columns"></i><span>Bacheca ordini</span></a>
             <a class="quick-action" href="/wine-cards" data-tutorial-description="Prepara e consulta le carte dei vini disponibili."><i class="fa-solid fa-wine-bottle"></i><span>Carte vini</span></a>

@@ -2029,6 +2029,16 @@ window.kioskState = {
     const newOrderButton = $("#btn-new-order");
     if (newOrderButton) newOrderButton.addEventListener("click", openNewOrderModal);
 
+    const pageParams = new URLSearchParams(window.location.search);
+    if (pageParams.get("new_order") === "1") {
+      pageParams.delete("new_order");
+      const cleanQuery = pageParams.toString();
+      window.history.replaceState({}, "", `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ""}${window.location.hash}`);
+      // Usa la stessa funzione del pulsante "+" senza attendere il caricamento
+      // della bacheca, che puo richiedere diversi secondi o fallire separatamente.
+      void openNewOrderModal();
+    }
+
     const newOrderDestination = $("#newOrderDestination");
     if (newOrderDestination) newOrderDestination.addEventListener("change", applyNewOrderDestinationDefault);
 
@@ -2126,14 +2136,6 @@ window.kioskState = {
 
     await loadStatuses();
     await loadAndRender();
-
-    const pageParams = new URLSearchParams(window.location.search);
-    if (pageParams.get("new_order") === "1") {
-      pageParams.delete("new_order");
-      const cleanQuery = pageParams.toString();
-      window.history.replaceState({}, "", `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ""}${window.location.hash}`);
-      await openNewOrderModal();
-    }
 
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(loadAndRender, 10000);
