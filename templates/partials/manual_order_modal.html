@@ -1,0 +1,54 @@
+<div class="modal fade" id="newOrderModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Inserisci ordine</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <form id="newOrderForm">
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-7">
+              <label class="form-label" for="newOrderDestination">Destinazione</label>
+              <select class="form-select" id="newOrderDestination" required>
+                <option value="direct">Diretto</option>
+              </select>
+              <div class="form-text" id="newOrderDestinationHelp">Consegna diretta proposta per oggi.</div>
+            </div>
+            <div class="col-12 col-md-5">
+              <label class="form-label" for="newOrderDeliveryDate">Data consegna</label>
+              <input class="form-control" id="newOrderDeliveryDate" type="date" required>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="newOrderCustomerSearch">Cliente / nome libero</label>
+              <input class="form-control" id="newOrderCustomerSearch" type="search" autocomplete="off"
+                     placeholder="Scrivi un nome oppure cerca un cliente">
+              <select class="form-select mt-2" id="newOrderCustomerSelect" size="6"
+                      aria-label="Risultati ricerca cliente"></select>
+              <div class="form-text">
+                Se non selezioni un'anagrafica useremo il nome scritto sopra. Per i clienti generici
+                90. TAL DEI TALI e 103. LD BEVERAGE useremo la prima riga dell'ordine.
+              </div>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="newOrderNote">Ordine</label>
+              <textarea class="form-control" id="newOrderNote" rows="6" required
+                        placeholder="Scrivi qui il testo dell'ordine"></textarea>
+            </div>
+            <div class="col-12">
+              <label class="form-label" for="newOrderFiles">Allegati</label>
+              <input class="form-control" id="newOrderFiles" type="file" multiple>
+            </div>
+          </div>
+          <div class="alert alert-danger d-none mt-3 mb-0" id="newOrderError" role="alert"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button>
+          <button type="submit" class="btn btn-info" id="newOrderSave">
+            <i class="fa-solid fa-paper-plane me-1" aria-hidden="true"></i> Inserisci ordine
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

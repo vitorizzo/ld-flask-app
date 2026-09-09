@@ -17,7 +17,7 @@
     <div class="quick-actions"
          data-home-tutorial-role="{% if current_user.is_authenticated %}{{ (current_user.active_roles | map(attribute='name') | join(', ')) or 'utente autenticato' }}{% else %}visitatore{% endif %}">
         {% if current_user.is_authenticated and current_user.max_role_weight >= 30 %}
-            <a class="quick-action" href="/kiosk?new_order=1" data-tutorial-description="Apre direttamente la modale della bacheca per scegliere giro o ordine diretto, cliente e consegna."><i class="fa-solid fa-plus"></i><span>Inserisci ordine</span></a>
+            <button class="quick-action" type="button" data-manual-order-open data-tutorial-description="Apre direttamente la modale per scegliere giro o ordine diretto, cliente e consegna."><i class="fa-solid fa-plus"></i><span>Inserisci ordine</span></button>
             <a class="quick-action" href="/registry/customers" data-tutorial-description="Consulta le anagrafiche e i contatti della clientela."><i class="fa-regular fa-address-book"></i><span>Rubrica clienti</span></a>
             <a class="quick-action" href="/kiosk" data-tutorial-description="Controlla a colpo d'occhio lo stato degli ordini in lavorazione."><i class="fa-solid fa-table-columns"></i><span>Bacheca ordini</span></a>
             <a class="quick-action" href="/wine-cards" data-tutorial-description="Prepara e consulta le carte dei vini disponibili."><i class="fa-solid fa-wine-bottle"></i><span>Carte vini</span></a>
@@ -49,6 +49,7 @@
 </section>
 
 {% include 'partials/home_tutorial_dialog.html' %}
+{% include 'partials/manual_order_modal.html' %}
 
 <div class="modal fade app-qr-modal" id="appQrModal" tabindex="-1" aria-labelledby="appQrModalTitle" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -84,6 +85,7 @@
 {% block extra_js %}
     <script src="{{ url_for('static', filename='js/install_banner.js', v=app_version ~ '-persistent1') }}"></script>
     <script src="{{ url_for('static', filename='js/home_tutorial.js', v=app_version ~ '-menu1') }}"></script>
+    <script src="{{ url_for('static', filename='js/manual_order_modal.js', v=app_version ~ '-home1') }}"></script>
     <script>
     document.addEventListener("DOMContentLoaded", () => {
       const modal = document.getElementById("appQrModal");
