@@ -1595,6 +1595,7 @@ def api_direct_order_create():
         return jsonify({"ok": False, "error": "Cliente non valido"}), 404
     customer_name = (request.form.get("customer_name") or "").strip()
     note = (request.form.get("order_note") or "").strip()
+    list_done = str(request.form.get("list_done") or "").strip().lower() in {"1", "true", "on", "yes"}
     if not note:
         return jsonify({"ok": False, "error": "Testo ordine mancante"}), 400
     customer_display, message_note = _manual_order_identity(registry, customer_name, note)
@@ -1658,7 +1659,7 @@ def api_direct_order_create():
         customer_key=(registry.source_code or str(registry.id)) if registry else customer_display,
         order_date=datetime.utcnow().date(),
         planned_delivery_at=planned_delivery_at,
-        status="acquisito",
+        status="listato" if list_done else "acquisito",
         raw_text=message_text,
         slack_message_ts=ts,
         slack_thread_ts=ts,
@@ -1680,6 +1681,15 @@ def api_direct_order_create():
         payload={"ts": ts, "text": message_text, "attachments": attachments, "via": via},
     ))
     db.session.commit()
+    if list_done:
+        try:
+            SlackProcessor().sync_order_status_reactions(
+                order,
+                old_status_code=None,
+                new_status_code="listato",
+            )
+        except Exception:
+            logger.exception("Sync reaction lista fatta fallita per ordine manuale order_id=%s", order.id)
     try:
         send_order_push_to_staff(
             order,

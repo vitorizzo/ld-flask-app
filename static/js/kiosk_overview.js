@@ -936,6 +936,15 @@ window.kioskState = {
       const safeTitle = escapeHtml(data.customer_display || "Ordine");
       const safeRoute = escapeHtml(data.route_name || "");
       const safeStatus = escapeHtml(data.status || "");
+      const configuredStatuses = Array.isArray(kioskState.statusMeta) ? kioskState.statusMeta : [];
+      const statusChoices = [...configuredStatuses];
+      if (!statusChoices.some(status => String(status.code || "") === String(data.status || ""))) {
+        statusChoices.unshift({ code: data.status || "", label: data.status || "Stato" });
+      }
+      const statusOptions = statusChoices.map(status => {
+        const code = String(status.code || "");
+        return `<option value="${escapeHtml(code)}"${code === data.status ? " selected" : ""}>${escapeHtml(status.label || code)}</option>`;
+      }).join("");
       const deliveryText = data.planned_delivery_at
         ? new Date(data.planned_delivery_at).toLocaleString("it-IT", {
             day: "2-digit",
@@ -952,7 +961,13 @@ window.kioskState = {
         <div class="row g-2">
           <div class="col-12"><div class="fw-bold">Cliente</div><div>${safeTitle}</div></div>
           <div class="col-12"><div class="fw-bold">Giro</div><div>${safeRoute}</div></div>
-          <div class="col-12"><div class="fw-bold">Stato</div><div>${safeStatus}</div></div>
+          <div class="col-12 col-md-6">
+            <label class="fw-bold form-label" for="orderDetailStatus">Stato</label>
+            <select class="form-select" id="orderDetailStatus" data-detail-order-status data-order-id="${escapeHtml(data.id)}" data-original-status="${safeStatus}">
+              ${statusOptions}
+            </select>
+            <div class="form-text" data-detail-order-status-feedback></div>
+          </div>
           ${
             deliveryText
               ? `<div class="col-12"><div class="fw-bold">Consegna prevista</div><div>${escapeHtml(deliveryText)}${
@@ -1011,7 +1026,40 @@ window.kioskState = {
         `);
       }
 
-      if (body) body.innerHTML = parts.join("");
+      if (body) {
+        body.innerHTML = parts.join("");
+        const statusSelect = body.querySelector("[data-detail-order-status]");
+        const statusFeedback = body.querySelector("[data-detail-order-status-feedback]");
+        statusSelect?.addEventListener("change", async () => {
+          const previousStatus = statusSelect.dataset.originalStatus || data.status || "";
+          const nextStatus = statusSelect.value;
+          statusSelect.disabled = true;
+          if (statusFeedback) {
+            statusFeedback.className = "form-text text-muted";
+            statusFeedback.textContent = "Aggiornamento in corso...";
+          }
+          try {
+            await setOrderStatus(data.id, nextStatus);
+            statusSelect.dataset.originalStatus = nextStatus;
+            data.status = nextStatus;
+            const selectedLabel = statusSelect.selectedOptions[0]?.textContent || nextStatus;
+            if (title) title.textContent = `${data.customer_display || "Ordine"} — ${data.route_name || ""} (${selectedLabel})`;
+            if (statusFeedback) {
+              statusFeedback.className = "form-text text-success";
+              statusFeedback.textContent = "Stato aggiornato.";
+            }
+            await loadAndRender();
+          } catch (error) {
+            statusSelect.value = previousStatus;
+            if (statusFeedback) {
+              statusFeedback.className = "form-text text-danger";
+              statusFeedback.textContent = `Aggiornamento non riuscito: ${String(error.message || error)}`;
+            }
+          } finally {
+            statusSelect.disabled = false;
+          }
+        });
+      }
     } catch (err) {
       if (body) body.innerHTML = `<div class="alert alert-danger">Errore caricamento ordine: ${escapeHtml(String(err))}</div>`;
     }
@@ -1164,6 +1212,8 @@ window.kioskState = {
     form.append("customer_name", customerName);
     form.append("order_note", note);
     form.append("planned_delivery_at", deliveryDate);
+    const listDone = $("#newOrderListDone");
+    form.append("list_done", listDone && listDone.checked ? "1" : "0");
     if (selectedOption.dataset.routeId) form.append("route_id", selectedOption.dataset.routeId);
     const files = $("#newOrderFiles");
     Array.from(files && files.files ? files.files : []).forEach((file) => form.append("files", file));

@@ -12,6 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const customerSearch = document.getElementById("newOrderCustomerSearch");
   const customerSelect = document.getElementById("newOrderCustomerSelect");
   const note = document.getElementById("newOrderNote");
+  const listDone = document.getElementById("newOrderListDone");
   const files = document.getElementById("newOrderFiles");
   const feedback = document.getElementById("newOrderError");
   const saveButton = document.getElementById("newOrderSave");
@@ -118,6 +119,7 @@ document.addEventListener("DOMContentLoaded", () => {
     payload.append("customer_name", customerName);
     payload.append("order_note", orderNote);
     payload.append("planned_delivery_at", deliveryDate.value);
+    payload.append("list_done", listDone.checked ? "1" : "0");
     if (selectedDestination.dataset.routeId) payload.append("route_id", selectedDestination.dataset.routeId);
     Array.from(files.files || []).forEach(file => payload.append("files", file));
 
