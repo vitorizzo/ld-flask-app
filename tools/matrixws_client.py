@@ -287,11 +287,11 @@ def call_batch_response(
 
 
 def extract_batch_uuid(value: Any) -> str | None:
-    """Estrae il batch UUID anche quando TeamSystem lo annida nella risposta."""
+    """Estrae il batch UUID anche quando TeamSystem usa ``UUID`` o lo annida."""
     if isinstance(value, dict):
         for key, nested in value.items():
             normalized_key = str(key).strip().lower().replace("-", "_")
-            if normalized_key in {"batch_uuid", "batchuuid"} and isinstance(nested, str):
+            if normalized_key in {"batch_uuid", "batchuuid", "uuid"} and isinstance(nested, str):
                 candidate = nested.strip()
                 if candidate:
                     return candidate
