@@ -190,9 +190,6 @@
     <div class="login-card__links">
       <a href="{{ url_for('auth.forgot_password') }}">Password dimenticata?</a>
       <a class="login-card__register-link" href="{{ url_for('auth.register') }}">Crea un nuovo account</a>
-      {% with tutorial_context='registration', tutorial_aria_label='Guarda il tutorial sulla registrazione' %}
-        {% include 'partials/lady_tutorial_launcher.html' %}
-      {% endwith %}
     </div>
   </div>
 </section>

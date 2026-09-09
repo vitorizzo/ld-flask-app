@@ -180,9 +180,6 @@
     <div class="register-card__header">
       <h1>Registrati</h1>
       <p class="register-card__subtitle">Crea il tuo account LDApp.</p>
-      {% with tutorial_context='registration', tutorial_aria_label='Guarda il tutorial sulla registrazione' %}
-        {% include 'partials/lady_tutorial_launcher.html' %}
-      {% endwith %}
     </div>
 
     <form method="POST" action="{{ url_for('auth.register') }}" novalidate>

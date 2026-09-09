@@ -25,7 +25,7 @@
     { test: path => path === "/trello/connection/editor/new", label: "Nuova connessione Trello" },
     { test: path => path.startsWith("/trello/connection/editor/"), label: "Modifica connessione Trello" },
     { test: path => path.startsWith("/pwa/share/") || path === "/pwa/share_review", label: "Condivisione ordine" },
-    { test: path => path === "/app_installation", label: "Installazione app" },
+    { test: path => path === "/installation/app_installation", label: "Installazione app" },
     { test: path => path === "/upload_photo", label: "Gestione foto profilo" },
     { test: path => path === "/edit_profile", label: "Modifica profilo" },
     { test: path => path === "/ld-selection", label: "LD Selection" },

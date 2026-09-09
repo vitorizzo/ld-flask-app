@@ -48,12 +48,36 @@
                 {% endfor %}
             </ul>
             <ul class="navbar-nav align-items-center">
-                <li class="nav-item ld-contact-nav-item">
-                    <button class="nav-link-enabled ld-contact-trigger" type="button" data-bs-toggle="modal" data-bs-target="#ldHelpDeskModal">
+                <li class="nav-item dropdown ld-contact-nav-item">
+                    <button class="nav-link-enabled ld-contact-trigger dropdown-toggle" type="button" id="supportDropdown"
+                            data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fa-solid fa-headset"></i>
-                        <span>Help Desk</span>
+                        <span>Supporto</span>
                         {% if current_user.is_authenticated %}<span class="help-desk-unread-badge" id="helpDeskUnreadBadge" hidden>0</span>{% endif %}
                     </button>
+                    <ul class="dropdown-menu dropdown-menu-end support-dropdown-menu" aria-labelledby="supportDropdown">
+                        <li>
+                            <button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#ldHelpDeskModal">
+                                <i class="fa-solid fa-ticket me-2" aria-hidden="true"></i>Help Desk
+                            </button>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="{{ url_for('installation.installation') }}">
+                                <i class="fa-solid fa-mobile-screen-button me-2" aria-hidden="true"></i>Come installare l'app
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li class="support-guides-submenu">
+                            <button class="dropdown-item support-guides-toggle" type="button" data-support-guides-toggle aria-expanded="false">
+                                <span><i class="fa-solid fa-book-open me-2" aria-hidden="true"></i>Guide</span>
+                                <i class="fa-solid fa-chevron-down support-guides-chevron" aria-hidden="true"></i>
+                            </button>
+                            <ul class="support-guides-list" data-support-guides-list hidden>
+                                <li><a class="dropdown-item" href="{{ url_for('auth.register', tutorial='registration') }}">Registrazione e accesso Horeca</a></li>
+                                <li><a class="dropdown-item" href="{{ url_for('home', tutorial='home') }}">Home e funzioni per ruolo</a></li>
+                            </ul>
+                        </li>
+                    </ul>
                 </li>
                 <!-- Se l'utente è loggato -->
                 {% if current_user.is_authenticated %}

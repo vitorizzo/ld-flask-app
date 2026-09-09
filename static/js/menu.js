@@ -7,7 +7,23 @@ document.addEventListener("DOMContentLoaded", function () {
     var contactModal = document.getElementById("ldHelpDeskModal");
     var contactDefaultEmail = document.getElementById("contactReplyEmail")?.value || "";
     var contactTriggers = document.querySelectorAll("[data-bs-target='#ldHelpDeskModal']");
+    var supportGuidesToggle = document.querySelector("[data-support-guides-toggle]");
+    var supportGuidesList = document.querySelector("[data-support-guides-list]");
     var ticketsLoaded = false;
+
+    if (supportGuidesToggle && supportGuidesList) {
+        supportGuidesToggle.addEventListener("click", function (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            var expanded = supportGuidesToggle.getAttribute("aria-expanded") === "true";
+            supportGuidesToggle.setAttribute("aria-expanded", expanded ? "false" : "true");
+            supportGuidesList.hidden = expanded;
+        });
+        document.getElementById("supportDropdown")?.parentElement?.addEventListener("hidden.bs.dropdown", function () {
+            supportGuidesToggle.setAttribute("aria-expanded", "false");
+            supportGuidesList.hidden = true;
+        });
+    }
 
     function updateHelpDeskBadge(count) {
         var badge = document.getElementById("helpDeskUnreadBadge");

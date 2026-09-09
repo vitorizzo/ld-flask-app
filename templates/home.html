@@ -3,7 +3,7 @@
 {% block title %}LD Enoteca - Home{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/install_banner.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/install_banner.css', v=app_version ~ '-persistent1') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/auth_tutorial.css', v=app_version ~ '-lady1') }}">
 {% endblock %}
 
@@ -14,13 +14,10 @@
 <section class="welcome-section home-page">
     <h1>LDApp</h1>
     <p>Azioni rapide operative per il lavoro quotidiano dello staff.</p>
-    {% with tutorial_context='home', tutorial_aria_label='Guarda il tutorial della home' %}
-        {% include 'partials/lady_tutorial_launcher.html' %}
-    {% endwith %}
     <div class="quick-actions"
          data-home-tutorial-role="{% if current_user.is_authenticated %}{{ (current_user.active_roles | map(attribute='name') | join(', ')) or 'utente autenticato' }}{% else %}visitatore{% endif %}">
         {% if current_user.is_authenticated and current_user.max_role_weight >= 30 %}
-            <a class="quick-action" href="/route-orders/board" data-tutorial-description="Crea e gestisci un nuovo ordine operativo per un cliente."><i class="fa-solid fa-plus"></i><span>Inserisci ordine</span></a>
+            <a class="quick-action" href="/kiosk?new_order=1" data-tutorial-description="Apre direttamente l'inserimento rapido usato nella bacheca ordini."><i class="fa-solid fa-plus"></i><span>Inserisci ordine</span></a>
             <a class="quick-action" href="/registry/customers" data-tutorial-description="Consulta le anagrafiche e i contatti della clientela."><i class="fa-regular fa-address-book"></i><span>Rubrica clienti</span></a>
             <a class="quick-action" href="/kiosk" data-tutorial-description="Controlla a colpo d'occhio lo stato degli ordini in lavorazione."><i class="fa-solid fa-table-columns"></i><span>Bacheca ordini</span></a>
             <a class="quick-action" href="/wine-cards" data-tutorial-description="Prepara e consulta le carte dei vini disponibili."><i class="fa-solid fa-wine-bottle"></i><span>Carte vini</span></a>
@@ -85,8 +82,8 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="{{ url_for('static', filename='js/install_banner.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/home_tutorial.js', v=app_version ~ '-lady1') }}"></script>
+    <script src="{{ url_for('static', filename='js/install_banner.js', v=app_version ~ '-persistent1') }}"></script>
+    <script src="{{ url_for('static', filename='js/home_tutorial.js', v=app_version ~ '-menu1') }}"></script>
     <script>
     document.addEventListener("DOMContentLoaded", () => {
       const modal = document.getElementById("appQrModal");

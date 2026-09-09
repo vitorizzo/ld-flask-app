@@ -2127,6 +2127,14 @@ window.kioskState = {
     await loadStatuses();
     await loadAndRender();
 
+    const pageParams = new URLSearchParams(window.location.search);
+    if (pageParams.get("new_order") === "1") {
+      pageParams.delete("new_order");
+      const cleanQuery = pageParams.toString();
+      window.history.replaceState({}, "", `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ""}${window.location.hash}`);
+      await openNewOrderModal();
+    }
+
     if (refreshTimer) clearInterval(refreshTimer);
     refreshTimer = setInterval(loadAndRender, 10000);
   }

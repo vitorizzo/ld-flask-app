@@ -484,6 +484,47 @@ section {
     background: #0dcaf0;
 }
 
+.support-dropdown-menu {
+    min-width: 270px;
+}
+
+.support-dropdown-menu .dropdown-item i {
+    width: 18px;
+    text-align: center;
+}
+
+.support-guides-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.support-guides-chevron {
+    transition: transform .2s ease;
+}
+
+.support-guides-toggle[aria-expanded="true"] .support-guides-chevron {
+    transform: rotate(180deg);
+}
+
+.support-guides-list {
+    margin: 0 10px 6px 22px;
+    padding: 2px 0 2px 8px;
+    list-style: none;
+    border-left: 2px solid rgba(13, 202, 240, .45);
+}
+
+.support-guides-list[hidden] {
+    display: none !important;
+}
+
+.support-guides-list .dropdown-item {
+    padding-left: 10px;
+    white-space: normal;
+    font-size: .92rem;
+}
+
 .help-desk-unread-badge {
     display: inline-flex;
     align-items: center;

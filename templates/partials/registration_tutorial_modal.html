@@ -26,17 +26,19 @@
     const video = dialog?.querySelector("video");
     if (!dialog || !video) return;
 
-    document.querySelectorAll('[data-tutorial-context="registration"]').forEach(button => {
-      button.addEventListener("click", () => {
-        if (typeof dialog.showModal === "function") {
-          dialog.showModal();
-        } else {
-          dialog.setAttribute("open", "");
-        }
-        video.play().catch(() => {
-          // I controlli nativi restano disponibili se il browser blocca l'avvio automatico.
-        });
+    const openTutorial = () => {
+      if (typeof dialog.showModal === "function") {
+        dialog.showModal();
+      } else {
+        dialog.setAttribute("open", "");
+      }
+      video.play().catch(() => {
+        // I controlli nativi restano disponibili se il browser blocca l'avvio automatico.
       });
+    };
+
+    document.querySelectorAll('[data-tutorial-context="registration"]').forEach(button => {
+      button.addEventListener("click", openTutorial);
     });
 
     dialog.querySelector("[data-registration-tutorial-close]")?.addEventListener("click", () => {
@@ -49,5 +51,13 @@
 
     dialog.addEventListener("close", () => video.pause());
     dialog.addEventListener("cancel", () => video.pause());
+
+    const pageParams = new URLSearchParams(window.location.search);
+    if (pageParams.get("tutorial") === "registration") {
+      pageParams.delete("tutorial");
+      const cleanQuery = pageParams.toString();
+      window.history.replaceState({}, "", `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ""}${window.location.hash}`);
+      openTutorial();
+    }
   })();
 </script>

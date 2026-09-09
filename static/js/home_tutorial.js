@@ -2,7 +2,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const dialog = document.getElementById("homeTutorialDialog");
   const launcher = document.querySelector('[data-tutorial-context="home"]');
   const actionsRoot = document.querySelector("[data-home-tutorial-role]");
-  if (!dialog || !launcher || !actionsRoot) return;
+  if (!dialog || !actionsRoot) return;
 
   const title = dialog.querySelector("[data-home-tutorial-step-title]");
   const description = dialog.querySelector("[data-home-tutorial-step-description]");
@@ -71,13 +71,15 @@ document.addEventListener("DOMContentLoaded", () => {
     renderDots();
   };
 
-  launcher.addEventListener("click", () => {
+  const openTutorial = () => {
     steps = buildSteps();
     currentStep = 0;
     renderStep();
     if (typeof dialog.showModal === "function") dialog.showModal();
     else dialog.setAttribute("open", "");
-  });
+  };
+
+  launcher?.addEventListener("click", openTutorial);
 
   previous.addEventListener("click", () => {
     if (currentStep > 0) {
@@ -99,4 +101,12 @@ document.addEventListener("DOMContentLoaded", () => {
   dialog.addEventListener("click", event => {
     if (event.target === dialog) dialog.close();
   });
+
+  const pageParams = new URLSearchParams(window.location.search);
+  if (pageParams.get("tutorial") === "home") {
+    pageParams.delete("tutorial");
+    const cleanQuery = pageParams.toString();
+    window.history.replaceState({}, "", `${window.location.pathname}${cleanQuery ? `?${cleanQuery}` : ""}${window.location.hash}`);
+    openTutorial();
+  }
 });
