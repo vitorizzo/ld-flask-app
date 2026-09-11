@@ -111,6 +111,121 @@ def _route_next_scheduled_delivery(route: DeliveryRoute) -> datetime | None:
         return None
 
 
+_CLOSED_ORDER_STATUSES = {"evaso", "annullato", "annullata", "cancellato", "cancelled"}
+
+
+def _route_open_delivery_records(route_id: int):
+    today_start = datetime.combine(date.today(), time.min)
+    orders = (
+        SlackOrder.query
+        .filter(
+            SlackOrder.route_id == route_id,
+            SlackOrder.planned_delivery_at.isnot(None),
+            SlackOrder.planned_delivery_at >= today_start,
+        )
+        .all()
+    )
+    closed_message_keys = {
+        (row.slack_channel_id, row.slack_message_ts)
+        for row in orders
+        if (row.status or "").strip().lower() in _CLOSED_ORDER_STATUSES
+    }
+    orders = [row for row in orders if (row.status or "").strip().lower() not in _CLOSED_ORDER_STATUSES]
+    entries = (
+        RouteOrderBoardEntry.query
+        .filter(
+            RouteOrderBoardEntry.route_id == route_id,
+            RouteOrderBoardEntry.planned_delivery_at.isnot(None),
+            RouteOrderBoardEntry.planned_delivery_at >= today_start,
+        )
+        .all()
+    )
+    entries = [
+        row for row in entries
+        if not row.slack_channel_id
+        or not row.slack_message_ts
+        or (row.slack_channel_id, row.slack_message_ts) not in closed_message_keys
+    ]
+    return orders, entries
+
+
+def _delivery_dates_in_records(orders, entries, predicate):
+    values = {
+        row.planned_delivery_at.date()
+        for row in [*orders, *entries]
+        if row.planned_delivery_at and predicate(row.planned_delivery_at.date())
+    }
+    values.update(
+        row.board_date
+        for row in entries
+        if row.board_date and predicate(row.board_date)
+    )
+    return sorted(values)
+
+
+def _scheduled_delivery_for_source(route: DeliveryRoute, source_date: date, *, current_source=None, current_target=None):
+    if current_source == source_date and current_target is not None:
+        return current_target
+
+    week_start = source_date - timedelta(days=source_date.weekday())
+    base_dt = datetime.combine(week_start, time.min) - timedelta(microseconds=1)
+    target = SlackProcessor()._compute_next_delivery_dt(base_dt, route)
+    if source_date >= date.today() and target.date() < date.today():
+        target = SlackProcessor()._compute_next_delivery_dt(datetime.now(), route)
+    return target
+
+
+def _reschedule_route_records(route: DeliveryRoute, date_mapping: dict[date, datetime], *, mode: str) -> dict:
+    """Sposta ordini aperti e righe di bacheca dalle vecchie alle nuove consegne."""
+    if not date_mapping:
+        return {"orders": 0, "entries": 0}
+
+    orders, entries = _route_open_delivery_records(route.id)
+    changed_orders = 0
+    changed_entries = 0
+
+    for order in orders:
+        if not order.planned_delivery_at:
+            continue
+        target = date_mapping.get(order.planned_delivery_at.date())
+        if target is None or order.planned_delivery_at == target:
+            continue
+        old_value = order.planned_delivery_at
+        order.planned_delivery_at = target
+        db.session.add(SlackOrderEvent(
+            order_id=order.id,
+            type="route_delivery_rescheduled",
+            payload={
+                "mode": mode,
+                "old_planned_delivery_at": old_value.isoformat(),
+                "new_planned_delivery_at": target.isoformat(),
+                "via": "delivery_schedule",
+            },
+        ))
+        changed_orders += 1
+
+    occupied = {(row.registry_id, row.board_date): row.id for row in entries if row.board_date}
+    for entry in entries:
+        source_date = entry.planned_delivery_at.date() if entry.planned_delivery_at else entry.board_date
+        target = date_mapping.get(source_date) or date_mapping.get(entry.board_date)
+        if target is None:
+            continue
+
+        changed = entry.planned_delivery_at != target
+        entry.planned_delivery_at = target
+        target_key = (entry.registry_id, target.date())
+        occupying_id = occupied.get(target_key)
+        if entry.board_date != target.date() and (occupying_id is None or occupying_id == entry.id):
+            occupied.pop((entry.registry_id, entry.board_date), None)
+            entry.board_date = target.date()
+            occupied[target_key] = entry.id
+            changed = True
+        if changed:
+            changed_entries += 1
+
+    return {"orders": changed_orders, "entries": changed_entries}
+
+
 def _schedule_rule_to_dict(rule: DeliveryScheduleRule) -> dict:
     route = rule.route
     return {
@@ -510,6 +625,8 @@ def kiosk_api_save_delivery_schedule():
         return jsonify({"ok": False, "error": "Giro non trovato"}), 404
 
     try:
+        open_orders, open_entries = _route_open_delivery_records(route.id)
+        previous_next = _route_next_scheduled_delivery(route)
         note = (payload.get("note") or "").strip() or None
         frequency = _parse_frequency(payload.get("frequency"))
         second_weekday = None
@@ -531,8 +648,26 @@ def kiosk_api_save_delivery_schedule():
                 if frequency == "biweekly"
                 else None
             )
+            db.session.flush()
+            source_dates = _delivery_dates_in_records(
+                open_orders,
+                open_entries,
+                lambda value: value > date.today()
+                or bool(previous_next and value == previous_next.date()),
+            )
+            new_next = _route_next_scheduled_delivery(route)
+            date_mapping = {
+                source_date: _scheduled_delivery_for_source(
+                    route,
+                    source_date,
+                    current_source=previous_next.date() if previous_next else None,
+                    current_target=new_next,
+                )
+                for source_date in source_dates
+            }
+            rescheduled = _reschedule_route_records(route, date_mapping, mode=mode)
             db.session.commit()
-            return jsonify({"ok": True, "mode": mode, "route": _route_to_dict(route)})
+            return jsonify({"ok": True, "mode": mode, "route": _route_to_dict(route), "rescheduled": rescheduled})
 
         if mode == "once":
             source_date = _parse_iso_date(payload.get("source_date"), "data giro originale")
@@ -550,8 +685,9 @@ def kiosk_api_save_delivery_schedule():
                 note=note,
             )
             db.session.add(rule)
+            rescheduled = _reschedule_route_records(route, {source_date: datetime.combine(target_date, target_time)}, mode=mode)
             db.session.commit()
-            return jsonify({"ok": True, "mode": mode, "rule": _schedule_rule_to_dict(rule)}), 201
+            return jsonify({"ok": True, "mode": mode, "rule": _schedule_rule_to_dict(rule), "rescheduled": rescheduled}), 201
 
         if mode == "period":
             start_date = _parse_iso_date(payload.get("start_date"), "data inizio")
@@ -573,11 +709,37 @@ def kiosk_api_save_delivery_schedule():
                 note=note,
             )
             db.session.add(rule)
+            db.session.flush()
+            source_dates = _delivery_dates_in_records(
+                open_orders,
+                open_entries,
+                lambda value: start_date <= value <= end_date
+                and (
+                    value > date.today()
+                    or bool(previous_next and value == previous_next.date())
+                ),
+            )
+            new_next = _route_next_scheduled_delivery(route)
+            date_mapping = {
+                source_date: _scheduled_delivery_for_source(
+                    route,
+                    source_date,
+                    current_source=previous_next.date() if previous_next else None,
+                    current_target=new_next,
+                )
+                for source_date in source_dates
+            }
+            rescheduled = _reschedule_route_records(route, date_mapping, mode=mode)
             db.session.commit()
-            return jsonify({"ok": True, "mode": mode, "rule": _schedule_rule_to_dict(rule)}), 201
+            return jsonify({"ok": True, "mode": mode, "rule": _schedule_rule_to_dict(rule), "rescheduled": rescheduled}), 201
 
     except ValueError as exc:
+        db.session.rollback()
         return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception:
+        db.session.rollback()
+        logger.exception("[KIOSK] save delivery schedule failed route_id=%s mode=%s", route_id, mode)
+        return jsonify({"ok": False, "error": "Errore durante la riprogrammazione del giro"}), 500
 
     return jsonify({"ok": False, "error": "Modalità non valida"}), 400
 
@@ -628,6 +790,7 @@ def kiosk_api_create_delivery_route():
         db.session.commit()
         return jsonify({"ok": True, "route": _route_to_dict(route)}), 201
     except ValueError as exc:
+        db.session.rollback()
         return jsonify({"ok": False, "error": str(exc)}), 400
     except Exception:
         db.session.rollback()
@@ -644,10 +807,31 @@ def kiosk_api_update_delivery_route(route_id: int):
 
     payload = request.get_json(silent=True) or {}
     try:
+        open_orders, open_entries = _route_open_delivery_records(route.id)
+        previous_next = _route_next_scheduled_delivery(route)
         _route_payload_from_request(payload, route)
+        db.session.flush()
+        source_dates = _delivery_dates_in_records(
+            open_orders,
+            open_entries,
+            lambda value: value > date.today()
+            or bool(previous_next and value == previous_next.date()),
+        )
+        new_next = _route_next_scheduled_delivery(route)
+        date_mapping = {
+            source_date: _scheduled_delivery_for_source(
+                route,
+                source_date,
+                current_source=previous_next.date() if previous_next else None,
+                current_target=new_next,
+            )
+            for source_date in source_dates
+        }
+        rescheduled = _reschedule_route_records(route, date_mapping, mode="definitive")
         db.session.commit()
-        return jsonify({"ok": True, "route": _route_to_dict(route)})
+        return jsonify({"ok": True, "route": _route_to_dict(route), "rescheduled": rescheduled})
     except ValueError as exc:
+        db.session.rollback()
         return jsonify({"ok": False, "error": str(exc)}), 400
     except Exception:
         db.session.rollback()

@@ -1974,7 +1974,7 @@ window.kioskState = {
 
     ev.currentTarget.reset();
     await loadDeliverySchedule();
-    await reparseDeliveries({ applyDefaults: true, silent: true });
+    await loadAndRender();
     showDeliveryRoutesOverview();
   }
 
@@ -2039,7 +2039,7 @@ window.kioskState = {
     }
     resetDeliveryRouteForm();
     await loadDeliverySchedule();
-    await reparseDeliveries({ applyDefaults: true, silent: true });
+    await loadAndRender();
     showDeliveryRoutesOverview();
   }
 
