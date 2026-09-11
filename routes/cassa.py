@@ -4013,6 +4013,13 @@ def _expense_supplier_from_payload(data):
     return supplier or None
 
 
+def _operation_party_kind(data, default):
+    party_kind = str(data.get("party_kind") or default).strip().lower()
+    if party_kind not in {"customer", "supplier"}:
+        raise ValueError("Tipo controparte non valido")
+    return party_kind
+
+
 def _get_drawer_count_total_for_day(cash_day: CashDay) -> Decimal:
     if not cash_day or not getattr(cash_day, "drawer_count", None):
         return Decimal("0")
@@ -5225,6 +5232,11 @@ def api_create_sale(day_date):
 
     data = request.get_json(silent=True) or {}
 
+    try:
+        party_kind = _operation_party_kind(data, "customer")
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
     flag = (data.get("flag") or "*").strip()
     if flag not in _ALLOWED_FLAGS:
         return jsonify({"ok": False, "error": f"Invalid flag (allowed: {sorted(_ALLOWED_FLAGS)})"}), 400
@@ -5237,14 +5249,17 @@ def api_create_sale(day_date):
     if not description and not customer_id and not data.get("customer_registry_id") and not customer_label:
         return jsonify({
             "ok": False,
-            "error": "Inserisci almeno una descrizione o seleziona un cliente"
+            "error": f"Inserisci almeno una descrizione o seleziona un {'fornitore' if party_kind == 'supplier' else 'cliente'}"
         }), 400
     off_cash = bool(data.get("off_cash", False))
 
-    try:
-        customer_id, customer_label = _resolve_sale_customer(data, customer_id, customer_label)
-    except ValueError as e:
-        return jsonify({"ok": False, "error": str(e)}), 400
+    if party_kind == "supplier":
+        customer_id = None
+    else:
+        try:
+            customer_id, customer_label = _resolve_sale_customer(data, customer_id, customer_label)
+        except ValueError as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
 
     try:
         payments_data = _normalize_payments_payload(data)
@@ -5296,6 +5311,7 @@ def api_create_sale(day_date):
             "updated_at": datetime.now().isoformat(),
             "customer_id": None,
             "customer_label": customer_label,
+            "party_kind": party_kind,
             "description": description,
             "amount": float(amount),
             "method": "cash",
@@ -5330,6 +5346,7 @@ def api_create_sale(day_date):
         created_by_user_id=getattr(current_user, "id", None),
         customer_id=customer_id,
         customer_label=customer_label,
+        party_kind=party_kind,
         notes=description,
     )
 
@@ -5543,6 +5560,7 @@ def api_list_sales(day_date):
                 "created_at": s.created_at.isoformat() if s.created_at else None,
                 "customer_id": s.customer_id,
                 "customer_label": s.customer_label,
+                "party_kind": s.party_kind or "customer",
                 "doc_ref": s.doc_ref,
                 "notes": s.notes,
                 "payments": pay,
@@ -5565,6 +5583,7 @@ def api_list_sales(day_date):
                         "created_at": row.get("created_at"),
                         "customer_id": None,
                         "customer_label": row.get("customer_label"),
+                        "party_kind": row.get("party_kind") or "customer",
                         "doc_ref": None,
                         "notes": row.get("description"),
                         "storage": "pri",
@@ -5715,6 +5734,11 @@ def api_update_sale(sale_id):
 
     data = request.get_json(silent=True) or {}
 
+    try:
+        party_kind = _operation_party_kind(data, "customer")
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
     flag = (data.get("flag") or "*").strip()
     if flag not in _ALLOWED_FLAGS:
         return jsonify({"ok": False, "error": f"Invalid flag (allowed: {sorted(_ALLOWED_FLAGS)})"}), 400
@@ -5727,14 +5751,17 @@ def api_update_sale(sale_id):
     if not description and not customer_id and not data.get("customer_registry_id") and not customer_label:
         return jsonify({
             "ok": False,
-            "error": "Inserisci almeno una descrizione o seleziona un cliente"
+            "error": f"Inserisci almeno una descrizione o seleziona un {'fornitore' if party_kind == 'supplier' else 'cliente'}"
         }), 400
     off_cash = bool(data.get("off_cash", False))
 
-    try:
-        customer_id, customer_label = _resolve_sale_customer(data, customer_id, customer_label)
-    except ValueError as e:
-        return jsonify({"ok": False, "error": str(e)}), 400
+    if party_kind == "supplier":
+        customer_id = None
+    else:
+        try:
+            customer_id, customer_label = _resolve_sale_customer(data, customer_id, customer_label)
+        except ValueError as e:
+            return jsonify({"ok": False, "error": str(e)}), 400
 
     try:
         payments_data = _normalize_payments_payload(data)
@@ -5786,6 +5813,7 @@ def api_update_sale(sale_id):
                 created_by_user_id=getattr(current_user, "id", None),
                 customer_id=customer_id,
                 customer_label=customer_label,
+                party_kind=party_kind,
                 notes=description,
             )
 
@@ -5943,6 +5971,7 @@ def api_update_sale(sale_id):
         updated_row = _pri_update_sale(year, sale_id, {
             "customer_id": None,
             "customer_label": customer_label,
+            "party_kind": party_kind,
             "description": description,
             "amount": float(amount),
             "method": "cash",
@@ -6048,6 +6077,7 @@ def api_update_sale(sale_id):
             "updated_at": datetime.now().isoformat(),
             "customer_id": None,
             "customer_label": customer_label,
+            "party_kind": party_kind,
             "description": description,
             "amount": float(amount),
             "method": "cash",
@@ -6146,6 +6176,7 @@ def api_update_sale(sale_id):
         # 3) aggiorna testata incasso
         sale.customer_id = customer_id
         sale.customer_label = customer_label
+        sale.party_kind = party_kind
         sale.notes = description
 
         # 4) ricrea pagamenti
@@ -6343,6 +6374,11 @@ def api_create_expense(day_date):
 
     data = request.get_json(silent=True) or {}
 
+    try:
+        party_kind = _operation_party_kind(data, "supplier")
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
     flag = (data.get("flag") or "*").strip()
     if flag not in _ALLOWED_FLAGS:
         return jsonify({"ok": False, "error": f"Invalid flag (allowed: {sorted(_ALLOWED_FLAGS)})"}), 400
@@ -6355,7 +6391,7 @@ def api_create_expense(day_date):
     if not description and not supplier:
         return jsonify({
             "ok": False,
-            "error": "Inserisci almeno una descrizione o un fornitore/beneficiario"
+            "error": f"Inserisci almeno una descrizione o seleziona un {'cliente' if party_kind == 'customer' else 'fornitore'}"
         }), 400
 
     off_cash = bool(data.get("off_cash", False))
@@ -6400,6 +6436,7 @@ def api_create_expense(day_date):
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
             "supplier": supplier,
+            "party_kind": party_kind,
             "description": description,
             "amount": float(total_amount),
             "method": "cash",
@@ -6432,6 +6469,7 @@ def api_create_expense(day_date):
         cash_day_id=cash_day.id,
         created_by_user_id=getattr(current_user, "id", None),
         supplier=supplier,
+        party_kind=party_kind,
         notes=description,
     )
 
@@ -6576,6 +6614,7 @@ def api_list_expenses(day_date):
             "doc_ref": e.doc_ref,
             "notes": e.notes,
             "supplier": e.supplier,
+            "party_kind": e.party_kind or "supplier",
             "storage": "az",
             "payments": pay,
         })
@@ -6597,6 +6636,7 @@ def api_list_expenses(day_date):
                         "doc_ref": None,
                         "notes": row.get("description"),
                         "supplier": row.get("supplier"),
+                        "party_kind": row.get("party_kind") or "supplier",
                         "storage": "pri",
                         "is_checked": bool(row.get("is_checked", False)),
                         "payments": [
@@ -6725,6 +6765,11 @@ def api_delete_expense(expense_id):
 def api_update_expense(expense_id):
     data = request.get_json(silent=True) or {}
 
+    try:
+        party_kind = _operation_party_kind(data, "supplier")
+    except ValueError as e:
+        return jsonify({"ok": False, "error": str(e)}), 400
+
     flag = (data.get("flag") or "*").strip()
     if flag not in _ALLOWED_FLAGS:
         return jsonify({"ok": False, "error": f"Invalid flag (allowed: {sorted(_ALLOWED_FLAGS)})"}), 400
@@ -6735,7 +6780,7 @@ def api_update_expense(expense_id):
     if not description and not supplier:
         return jsonify({
             "ok": False,
-            "error": "Inserisci almeno una descrizione o un fornitore/beneficiario"
+            "error": f"Inserisci almeno una descrizione o seleziona un {'cliente' if party_kind == 'customer' else 'fornitore'}"
         }), 400
 
     off_cash = bool(data.get("off_cash", False))
@@ -6816,6 +6861,7 @@ def api_update_expense(expense_id):
                 cash_day_id=cash_day.id,
                 created_by_user_id=getattr(current_user, "id", None),
                 supplier=supplier,
+                party_kind=party_kind,
                 notes=description,
             )
 
@@ -6919,6 +6965,7 @@ def api_update_expense(expense_id):
 
         updated_row = _pri_update_expense(year, expense_id, {
             "supplier": supplier,
+            "party_kind": party_kind,
             "description": description,
             "amount": float(total_amount),
             "method": "cash",
@@ -7021,6 +7068,7 @@ def api_update_expense(expense_id):
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
             "supplier": supplier,
+            "party_kind": party_kind,
             "description": description,
             "amount": float(amount),
             "method": "cash",
@@ -7070,6 +7118,7 @@ def api_update_expense(expense_id):
             }), 500
 
     expense.supplier = supplier
+    expense.party_kind = party_kind
     expense.notes = description
 
     try:

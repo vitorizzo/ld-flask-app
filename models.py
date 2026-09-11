@@ -3683,6 +3683,7 @@ class CashSale(db.Model):
     # Cliente: o riferimento anagrafica, o label libero (fallback)
     customer_id = db.Column(db.Integer, db.ForeignKey("cash_customers.id"), nullable=True)
     customer_label = db.Column(db.String(120), nullable=True)
+    party_kind = db.Column(db.String(20), nullable=False, default="customer")
 
     # Per estensioni future (scontrino/fattura)
     doc_ref = db.Column(db.String(80), nullable=True)
@@ -3839,6 +3840,7 @@ class CashExpense(db.Model):
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
 
     supplier = db.Column(db.String(160), nullable=True)  # fornitore/beneficiario (testo libero)
+    party_kind = db.Column(db.String(20), nullable=False, default="supplier")
     category = db.Column(db.String(80), nullable=True)   # es. "spesa minuta", "fornitori"
     doc_ref = db.Column(db.String(80), nullable=True)    # fattura/scontrino
 

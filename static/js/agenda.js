@@ -376,7 +376,10 @@ function fetchActiveDays(year, month) {
 }
 
 function getCurrentRegistryKind() {
-  return (document.getElementById("opType")?.value || "sale") === "expense" ? "supplier" : "customer";
+  const operationType = document.getElementById("opType")?.value || "sale";
+  const useAlternateParty = !!document.getElementById("opAlternateParty")?.checked;
+  if (operationType === "expense") return useAlternateParty ? "customer" : "supplier";
+  return useAlternateParty ? "supplier" : "customer";
 }
 
 async function fetchCustomerSuggest(q, kind = "customer") {
@@ -2303,6 +2306,7 @@ async function loadIncassi(dayStr) {
           direction: p.direction || "in",
           method: p.method || "",
           off_cash: !!p.off_cash,
+          party_kind: s.party_kind || "customer",
         });
       }
     }
@@ -2321,6 +2325,7 @@ async function loadIncassi(dayStr) {
       const amt = `${sign}${x.amount.toFixed(2)}€`;
 
       const badges = [];
+      if (x.party_kind === "supplier") badges.push(`<span class="badge badge-soft">FORNITORE</span>`);
       if (x.method === "pos") badges.push(`<span class="badge badge-soft badge-pos">POS</span>`);
       if (x.method === "bank") badges.push(`<span class="badge badge-soft badge-bank">BANCA</span>`);
       if (x.method === "check") badges.push(`<span class="badge badge-soft badge-bank">ASSEGNO</span>`);
@@ -2419,6 +2424,7 @@ async function loadSpese(dayStr) {
           direction: p.direction || "out",
           method: p.method || "",
           off_cash: !!p.off_cash,
+          party_kind: e.party_kind || "supplier",
           issued_check_flag: p.issued_check_flag || "",
           due_date: p.due_date || "",
         });
@@ -2443,6 +2449,7 @@ async function loadSpese(dayStr) {
       const amt = `${x.amount.toFixed(2)}€`;
 
       const badges = [];
+      if (x.party_kind === "customer") badges.push(`<span class="badge badge-soft">CLIENTE</span>`);
       if (x.method === "pos") badges.push(`<span class="badge badge-soft badge-pos">POS</span>`);
       if (x.method === "bank") badges.push(`<span class="badge badge-soft badge-bank">BANCA</span>`);
       if (x.method === "check") badges.push(`<span class="badge badge-soft badge-bank">ASSEGNO</span>`);
@@ -6026,24 +6033,20 @@ document.addEventListener("DOMContentLoaded", async function () {
     const opCustomerId = document.getElementById("opCustomerId");
     const opCustomerRegistryId = document.getElementById("opCustomerRegistryId");
     const opCustomer = document.getElementById("opCustomer");
-    const opCustomerLabel = document.getElementById("opCustomerLabel");
-    const btnCustomerNew = document.getElementById("btnCustomerNew");
+    const opAlternateParty = document.getElementById("opAlternateParty");
     const opOffCash = document.getElementById("opOffCash");
     const opOffCashWho = document.getElementById("opOffCashWho");
     const opOffCashBox = document.getElementById("opOffCashBox");
 
     if (opType) opType.value = type;
-    if (opCustomerLabel) opCustomerLabel.textContent = type === "expense" ? "Fornitore" : "Cliente";
+    if (opAlternateParty) opAlternateParty.checked = false;
     if (opAmountInput) opAmountInput.value = "0,00";
     if (opDesc) opDesc.value = "";
     if (opFlag) opFlag.value = "*";
     if (opCustomerId) opCustomerId.value = "";
     if (opCustomerRegistryId) opCustomerRegistryId.value = "";
-    if (opCustomer) {
-      opCustomer.value = "";
-      opCustomer.placeholder = type === "expense" ? "Cerca fornitore..." : "Cerca cliente...";
-    }
-    if (btnCustomerNew) btnCustomerNew.classList.toggle("d-none", type === "expense");
+    if (opCustomer) opCustomer.value = "";
+    updateOperationPartyUi(false);
     if (opOffCash) opOffCash.checked = false;
     if (opOffCashWho) opOffCashWho.value = "";
     if (opOffCashBox) opOffCashBox.classList.add("d-none");
@@ -6056,6 +6059,34 @@ document.addEventListener("DOMContentLoaded", async function () {
     clearPaymentWarning();
 
     opModal.show();
+  }
+
+  function updateOperationPartyUi(clearSelection = true) {
+    const operationType = document.getElementById("opType")?.value || "sale";
+    const isSupplier = getCurrentRegistryKind() === "supplier";
+    const input = document.getElementById("opCustomer");
+    const hiddenId = document.getElementById("opCustomerId");
+    const hiddenRegistryId = document.getElementById("opCustomerRegistryId");
+    const datalist = document.getElementById("opCustomerList");
+    const mainLabel = document.getElementById("opCustomerLabel");
+    const alternateLabel = document.getElementById("opAlternatePartyLabel");
+    const newCustomerButton = document.getElementById("btnCustomerNew");
+
+    if (mainLabel) mainLabel.textContent = isSupplier ? "Fornitore" : "Cliente";
+    if (alternateLabel) {
+      alternateLabel.textContent = operationType === "expense"
+        ? "Seleziona un cliente"
+        : "Seleziona un fornitore";
+    }
+    if (input) input.placeholder = isSupplier ? "Cerca fornitore..." : "Cerca cliente...";
+    if (newCustomerButton) newCustomerButton.classList.toggle("d-none", isSupplier);
+
+    if (clearSelection) {
+      if (input) input.value = "";
+      if (hiddenId) hiddenId.value = "";
+      if (hiddenRegistryId) hiddenRegistryId.value = "";
+      if (datalist) datalist.innerHTML = "";
+    }
   }
 
   function handleOperationModalKeydown(event) {
@@ -6119,11 +6150,14 @@ document.addEventListener("DOMContentLoaded", async function () {
       const opCustomerId = document.getElementById("opCustomerId");
       const opCustomerRegistryId = document.getElementById("opCustomerRegistryId");
       const opCustomer = document.getElementById("opCustomer");
+      const opAlternateParty = document.getElementById("opAlternateParty");
       const opOffCash = document.getElementById("opOffCash");
       const opOffCashWho = document.getElementById("opOffCashWho");
       const opOffCashBox = document.getElementById("opOffCashBox");
 
       if (opDesc) opDesc.value = sale.notes || "";
+      if (opAlternateParty) opAlternateParty.checked = (sale.party_kind || "customer") === "supplier";
+      updateOperationPartyUi(false);
       if (opCustomerId) opCustomerId.value = sale.customer_id ? String(sale.customer_id) : "";
       if (opCustomerRegistryId) opCustomerRegistryId.value = "";
       if (opCustomer) opCustomer.value = sale.customer_label || "";
@@ -6272,11 +6306,14 @@ document.addEventListener("DOMContentLoaded", async function () {
       const opCustomer = document.getElementById("opCustomer");
       const opCustomerId = document.getElementById("opCustomerId");
       const opCustomerRegistryId = document.getElementById("opCustomerRegistryId");
+      const opAlternateParty = document.getElementById("opAlternateParty");
       const opOffCash = document.getElementById("opOffCash");
       const opOffCashWho = document.getElementById("opOffCashWho");
       const opOffCashBox = document.getElementById("opOffCashBox");
 
       if (opDesc) opDesc.value = expense.notes || "";
+      if (opAlternateParty) opAlternateParty.checked = (expense.party_kind || "supplier") === "customer";
+      updateOperationPartyUi(false);
       if (opCustomer) opCustomer.value = expense.supplier || "";
       if (opCustomerId) opCustomerId.value = "";
       if (opCustomerRegistryId) opCustomerRegistryId.value = "";
@@ -6393,13 +6430,16 @@ document.addEventListener("DOMContentLoaded", async function () {
     const opCustomerInput = document.getElementById("opCustomer");
     const opCustomerIdInput = document.getElementById("opCustomerId");
     const opCustomerRegistryIdInput = document.getElementById("opCustomerRegistryId");
-    const opType = document.getElementById("opType")?.value || "sale";
+    const partyKind = getCurrentRegistryKind();
+    const operationType = document.getElementById("opType")?.value || "sale";
 
     if (!opCustomerInput || !opCustomerIdInput) {
       return { ok: true, customer_id: null, customer_registry_id: null };
     }
 
-    if (opType === "expense") {
+    // Il riferimento CashCustomer e' necessario soltanto per gli incassi da cliente.
+    // Negli altri casi conserviamo il nome selezionato e il relativo party_kind.
+    if (partyKind === "supplier" || operationType === "expense") {
       return { ok: true, customer_id: null, customer_registry_id: null };
     }
 
@@ -6927,6 +6967,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     return {
       ok: true,
       opType,
+      party_kind: getCurrentRegistryKind(),
       flag,
       description,
       customer_id: ensuredCustomer.customer_id,
@@ -6942,6 +6983,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   function buildSinglePaymentPayload(base) {
     const mode = getPaymentMode();
     const amount = base.amount;
+    const partyLabel = base.party_kind === "supplier" ? "fornitore" : "cliente";
 
     if (amount <= 0) {
       return { ok: false, error: "Importo operazione non valido." };
@@ -6949,11 +6991,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     if (base.opType === "expense") {
       if (!base.description && !base.customer_label) {
-        return { ok: false, error: "Inserisci almeno una descrizione o un fornitore/beneficiario." };
+        return { ok: false, error: `Inserisci almeno una descrizione o seleziona un ${partyLabel}.` };
       }
     } else {
       if (!base.description && !base.customer_id && !base.customer_registry_id && !base.customer_label) {
-        return { ok: false, error: "Inserisci almeno una descrizione o seleziona un cliente." };
+        return { ok: false, error: `Inserisci almeno una descrizione o seleziona un ${partyLabel}.` };
       }
     }
 
@@ -7175,6 +7217,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   function buildMultiPaymentPayload(base) {
     const rows = Array.from(multiPaymentsList?.querySelectorAll(".multi-payment-row") || []);
     let effectiveAmount = base.amount;
+    const partyLabel = base.party_kind === "supplier" ? "fornitore" : "cliente";
 
     if (effectiveAmount <= 0) {
       effectiveAmount = getMultiPaymentsTotal();
@@ -7190,11 +7233,11 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     if (base.opType === "expense") {
       if (!base.description && !base.customer_label) {
-        return { ok: false, error: "Inserisci almeno una descrizione o un fornitore/beneficiario." };
+        return { ok: false, error: `Inserisci almeno una descrizione o seleziona un ${partyLabel}.` };
       }
     } else {
       if (!base.description && !base.customer_id && !base.customer_registry_id && !base.customer_label) {
-        return { ok: false, error: "Inserisci almeno una descrizione o seleziona un cliente." };
+        return { ok: false, error: `Inserisci almeno una descrizione o seleziona un ${partyLabel}.` };
       }
     }
 
@@ -7544,6 +7587,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       if (saveBtn) saveBtn.disabled = false;
       return;
     }
+    built.payload.party_kind = getCurrentRegistryKind();
     const pendingCheckScans = opType === "sale" ? collectPendingOperationCheckScans(built.payload) : [];
 
     try {
@@ -8657,6 +8701,10 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
     });
   })();
+
+  document.getElementById("opAlternateParty")?.addEventListener("change", () => {
+    updateOperationPartyUi(true);
+  });
 
   (function initCustomerSearchModal() {
     const btnOpen = document.getElementById("btnCustomerSearch");
