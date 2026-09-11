@@ -1726,6 +1726,20 @@
 
               </div>
 
+              <div class="col-12 col-md-5">
+                <label class="form-label mb-0" for="checkExpenseReceiptReceivedBy">Ricevuto da</label>
+                <input type="text" class="form-control" id="checkExpenseReceiptReceivedBy"
+                       maxlength="160" placeholder="Nome e cognome di chi ritira l'assegno">
+              </div>
+
+              <div class="col-12 col-md-7">
+                <label class="form-label mb-0" for="checkExpenseReceipt">Foto assegno firmato per ricevuta</label>
+                <input type="file" class="form-control" id="checkExpenseReceipt"
+                       accept="image/*" capture="environment">
+                <div class="form-text">Fotografa l'assegno dopo che chi lo riceve ha apposto una firma leggibile.</div>
+                <div id="checkExpenseReceiptCurrent" class="small mt-1 d-none"></div>
+              </div>
+
 
 
             </div>
@@ -2011,6 +2025,20 @@
 
                   <input type="date" class="form-control multi-check-expense-due-date">
 
+                </div>
+
+                <div class="col-12 col-md-5 multi-check-expense-fields d-none">
+                  <label class="form-label mb-0">Ricevuto da</label>
+                  <input type="text" class="form-control multi-check-expense-received-by" maxlength="160"
+                         placeholder="Nome e cognome">
+                </div>
+
+                <div class="col-12 col-md-7 multi-check-expense-fields d-none">
+                  <label class="form-label mb-0">Foto assegno firmato per ricevuta</label>
+                  <input type="file" class="form-control multi-check-expense-receipt"
+                         accept="image/*" capture="environment">
+                  <div class="form-text">La firma di chi ritira deve essere visibile nella foto.</div>
+                  <div class="multi-check-expense-receipt-current small mt-1 d-none"></div>
                 </div>
 
                 <div class="col-12 d-flex justify-content-end">
@@ -4702,6 +4730,8 @@
 
                 <th>Stato</th>
 
+                <th>Ricevuta</th>
+
                 <th class="text-end">Importo</th>
 
                 <th class="text-end">Azioni</th>
@@ -4712,7 +4742,7 @@
 
             <tbody id="issuedChecksManagementRows">
 
-              <tr><td colspan="8" class="text-center text-muted">Nessun caricamento eseguito</td></tr>
+              <tr><td colspan="9" class="text-center text-muted">Nessun caricamento eseguito</td></tr>
 
             </tbody>
 
@@ -4764,7 +4794,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-cross-party1') }}"></script>
+  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-issued-check-receipt1') }}"></script>
 
 {% endblock %}
 

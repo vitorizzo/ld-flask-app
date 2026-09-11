@@ -3997,7 +3997,7 @@ async function loadIssuedChecksManagement() {
   if (issuedChecksFilterFrom?.value) qs.set("from", issuedChecksFilterFrom.value);
   if (issuedChecksFilterTo?.value) qs.set("to", issuedChecksFilterTo.value);
 
-  issuedChecksManagementRows.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Caricamento...</td></tr>`;
+  issuedChecksManagementRows.innerHTML = `<tr><td colspan="9" class="text-center text-muted">Caricamento...</td></tr>`;
 
   try {
     const r = await fetch(`/cassa/api/issued-checks?${qs.toString()}`, {
@@ -4008,7 +4008,7 @@ async function loadIssuedChecksManagement() {
     const data = await readJsonResponse(r, "Errore caricamento assegni emessi");
 
     if (!r.ok || !data.ok) {
-      issuedChecksManagementRows.innerHTML = `<tr><td colspan="8" class="text-center text-danger">${escapeHtml(data.error || "Errore caricamento assegni emessi")}</td></tr>`;
+      issuedChecksManagementRows.innerHTML = `<tr><td colspan="9" class="text-center text-danger">${escapeHtml(data.error || "Errore caricamento assegni emessi")}</td></tr>`;
       return;
     }
 
@@ -4019,7 +4019,7 @@ async function loadIssuedChecksManagement() {
 
     const rows = data.checks || [];
     if (!rows.length) {
-      issuedChecksManagementRows.innerHTML = `<tr><td colspan="8" class="text-center text-muted">Nessun assegno emesso trovato</td></tr>`;
+      issuedChecksManagementRows.innerHTML = `<tr><td colspan="9" class="text-center text-muted">Nessun assegno emesso trovato</td></tr>`;
       return;
     }
 
@@ -4031,6 +4031,9 @@ async function loadIssuedChecksManagement() {
         <td>${escapeHtml(row.check_number || "")}</td>
         <td>${escapeHtml(formatDateIT(row.due_date))}</td>
         <td>${escapeHtml(row.status_label || row.status || "")}</td>
+        <td>${row.receipt_url
+          ? `<a class="btn btn-sm btn-outline-primary" href="${escapeHtml(row.receipt_url)}" target="_blank" rel="noopener">Apri</a><div class="small text-muted">${escapeHtml(row.receipt_received_by || "")}</div>`
+          : `<span class="text-muted">—</span>`}</td>
         <td class="text-end">${formatEuro2(row.amount || 0)}</td>
         <td class="text-end">
           <button type="button" class="btn btn-sm btn-outline-secondary btn-issued-check-edit" data-row='${escapeHtml(JSON.stringify(row))}'>Modifica</button>
@@ -4040,7 +4043,7 @@ async function loadIssuedChecksManagement() {
     `).join("");
   } catch (err) {
     console.error("loadIssuedChecksManagement error:", err);
-    issuedChecksManagementRows.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Errore di rete</td></tr>`;
+    issuedChecksManagementRows.innerHTML = `<tr><td colspan="9" class="text-center text-danger">Errore di rete</td></tr>`;
   }
 }
 
@@ -4761,7 +4764,9 @@ document.addEventListener("DOMContentLoaded", async function () {
       "checkBankSelect",
       "checkNumber",
       "checkDueDate",
-      "checkSaleScan"
+      "checkSaleScan",
+      "checkExpenseReceiptReceivedBy",
+      "checkExpenseReceipt"
     ];
 
     ids.forEach(id => {
@@ -4770,6 +4775,12 @@ document.addEventListener("DOMContentLoaded", async function () {
       el.value = "";
       if (el.type === "file") preparedCheckScanFiles.delete(el);
     });
+
+    const receiptCurrent = document.getElementById("checkExpenseReceiptCurrent");
+    if (receiptCurrent) {
+      receiptCurrent.innerHTML = "";
+      receiptCurrent.classList.add("d-none");
+    }
 
     if (posCircuitSelect) {
       posCircuitSelect.innerHTML = `<option value="">Seleziona...</option>`;
@@ -6355,10 +6366,19 @@ document.addEventListener("DOMContentLoaded", async function () {
           const checkNumber = document.getElementById("checkExpenseNumber");
           const checkDueDate = document.getElementById("checkExpenseDueDate");
           const checkAmount = document.getElementById("checkExpenseAmount");
+          const receivedBy = document.getElementById("checkExpenseReceiptReceivedBy");
+          const receiptCurrent = document.getElementById("checkExpenseReceiptCurrent");
 
           if (checkNumber) checkNumber.value = p.check_number || "";
           if (checkDueDate) checkDueDate.value = p.due_date || "";
           if (checkAmount) checkAmount.value = formatEuro2(p.amount || 0);
+          if (receivedBy) receivedBy.value = p.receipt_received_by || "";
+          if (receiptCurrent) {
+            receiptCurrent.innerHTML = p.receipt_url
+              ? `Ricevuta presente: <a href="${escapeHtml(p.receipt_url)}" target="_blank" rel="noopener">apri foto firmata</a>`
+              : "";
+            receiptCurrent.classList.toggle("d-none", !p.receipt_url);
+          }
         }
       } else {
         setPaymentMode("multi");
@@ -6395,10 +6415,19 @@ document.addEventListener("DOMContentLoaded", async function () {
             const rowCheckBank = row.querySelector(".multi-check-expense-bank-select");
             const checkNumber = row.querySelector(".multi-check-expense-number");
             const dueDate = row.querySelector(".multi-check-expense-due-date");
+            const receivedBy = row.querySelector(".multi-check-expense-received-by");
+            const receiptCurrent = row.querySelector(".multi-check-expense-receipt-current");
             await loadBanks(rowCheckBank);
             if (rowCheckBank) rowCheckBank.value = String(p.bank_id || "");
             if (checkNumber) checkNumber.value = p.check_number || "";
             if (dueDate) dueDate.value = p.due_date || "";
+            if (receivedBy) receivedBy.value = p.receipt_received_by || "";
+            if (receiptCurrent) {
+              receiptCurrent.innerHTML = p.receipt_url
+                ? `Ricevuta presente: <a href="${escapeHtml(p.receipt_url)}" target="_blank" rel="noopener">apri foto firmata</a>`
+                : "";
+              receiptCurrent.classList.toggle("d-none", !p.receipt_url);
+            }
           }
         }
 
@@ -7125,6 +7154,8 @@ document.addEventListener("DOMContentLoaded", async function () {
         const check_number = (document.getElementById("checkExpenseNumber")?.value || "").trim();
         const due_date = (document.getElementById("checkExpenseDueDate")?.value || "").trim();
         const checkAmount = parseEuroToNumber(document.getElementById("checkExpenseAmount")?.value || "0");
+        const receipt_received_by = (document.getElementById("checkExpenseReceiptReceivedBy")?.value || "").trim();
+        const receiptFile = document.getElementById("checkExpenseReceipt")?.files?.[0] || null;
 
         if (!bank_id) {
           return { ok: false, error: "Seleziona la banca emittente." };
@@ -7140,6 +7171,10 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         if (Math.abs(checkAmount - amount) > 0.009) {
           return { ok: false, error: "L'importo assegno non coincide con il totale dell'operazione." };
+        }
+
+        if (receiptFile && !receipt_received_by) {
+          return { ok: false, error: "Indica nome e cognome di chi ha ricevuto l'assegno." };
         }
 
         return {
@@ -7159,7 +7194,8 @@ document.addEventListener("DOMContentLoaded", async function () {
                 amount: amount,
                 bank_id,
                 check_number,
-                due_date
+                due_date,
+                receipt_received_by
               }
             ]
           }
@@ -7317,6 +7353,8 @@ document.addEventListener("DOMContentLoaded", async function () {
           const bank_id = Number(row.querySelector(".multi-check-expense-bank-select")?.value || 0);
           const check_number = (row.querySelector(".multi-check-expense-number")?.value || "").trim();
           const due_date = (row.querySelector(".multi-check-expense-due-date")?.value || "").trim();
+          const receipt_received_by = (row.querySelector(".multi-check-expense-received-by")?.value || "").trim();
+          const receiptFile = row.querySelector(".multi-check-expense-receipt")?.files?.[0] || null;
           if (!bank_id) {
             return { ok: false, error: "Ogni riga assegno spesa deve avere una banca selezionata." };
           }
@@ -7329,12 +7367,17 @@ document.addEventListener("DOMContentLoaded", async function () {
             return { ok: false, error: "Inserisci la scadenza per ogni riga assegno spesa postdatato." };
           }
 
+          if (receiptFile && !receipt_received_by) {
+            return { ok: false, error: "Indica chi ha ricevuto ogni assegno del pagamento." };
+          }
+
           payments.push({
             method: "check",
             amount,
             bank_id,
             check_number,
-            due_date
+            due_date,
+            receipt_received_by
           });
           continue;
         }
@@ -7420,6 +7463,54 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
     const file = selectedCheckScanFile(document.getElementById("checkSaleScan"));
     return file ? [{ordinal: 0, checkId: checkPayments[0]?.check_id || null, file}] : [];
+  }
+
+  function collectPendingIssuedCheckReceipts(payload) {
+    const checkPayments = (payload?.payments || []).filter(item => item.method === "check");
+    if (!checkPayments.length) return [];
+
+    if (getPaymentMode() === "multi") {
+      let ordinal = 0;
+      const receipts = [];
+      Array.from(multiPaymentsList?.querySelectorAll(".multi-payment-row") || []).forEach(row => {
+        if ((row.querySelector(".multi-method")?.value || "") !== "check") return;
+        const file = row.querySelector(".multi-check-expense-receipt")?.files?.[0] || null;
+        if (file) {
+          receipts.push({
+            ordinal,
+            file,
+            receivedBy: (row.querySelector(".multi-check-expense-received-by")?.value || "").trim(),
+          });
+        }
+        ordinal += 1;
+      });
+      return receipts;
+    }
+
+    const file = document.getElementById("checkExpenseReceipt")?.files?.[0] || null;
+    return file ? [{
+      ordinal: 0,
+      file,
+      receivedBy: (document.getElementById("checkExpenseReceiptReceivedBy")?.value || "").trim(),
+    }] : [];
+  }
+
+  async function uploadIssuedCheckReceipt(checkId, pendingReceipt) {
+    if (pendingReceipt.file.size > 25 * 1024 * 1024) {
+      throw new Error("La foto dell'assegno supera il limite di 25 MB.");
+    }
+    const formData = new FormData();
+    formData.append("receipt", pendingReceipt.file, pendingReceipt.file.name || "ricevuta-assegno.jpg");
+    formData.append("received_by", pendingReceipt.receivedBy);
+    const response = await fetch(`/cassa/api/issued-checks/${encodeURIComponent(checkId)}/receipt`, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {"Accept": "application/json"},
+      body: formData,
+    });
+    const data = await readJsonResponse(response, "Errore caricamento ricevuta assegno");
+    if (!response.ok || !data.ok) throw new Error(data.error || "Errore caricamento ricevuta assegno");
+    return data.check;
   }
 
   async function saveReceiptClosure() {
@@ -7589,6 +7680,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
     built.payload.party_kind = getCurrentRegistryKind();
     const pendingCheckScans = opType === "sale" ? collectPendingOperationCheckScans(built.payload) : [];
+    const pendingIssuedReceipts = opType === "expense" ? collectPendingIssuedCheckReceipts(built.payload) : [];
 
     try {
       if (saveBtn) saveBtn.disabled = true;
@@ -7613,6 +7705,12 @@ document.addEventListener("DOMContentLoaded", async function () {
         if (!targetCheckId) { scanErrors.push("assegno non identificato"); continue; }
         try { await uploadCheckScan(targetCheckId, pendingScan.file); }
         catch (scanError) { scanErrors.push(scanError.message || "caricamento non riuscito"); }
+      }
+      for (const pendingReceipt of pendingIssuedReceipts) {
+        const targetCheckId = (data.issued_check_ids || [])[pendingReceipt.ordinal];
+        if (!targetCheckId) { scanErrors.push("assegno emesso non identificato"); continue; }
+        try { await uploadIssuedCheckReceipt(targetCheckId, pendingReceipt); }
+        catch (receiptError) { scanErrors.push(receiptError.message || "ricevuta non caricata"); }
       }
       if (scanErrors.length) alert(`Operazione salvata, ma alcune scansioni non sono state caricate: ${scanErrors.join("; ")}`);
 

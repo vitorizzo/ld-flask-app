@@ -4632,6 +4632,14 @@ class CashIssuedCheck(db.Model):
 
     note = db.Column(db.String(255), nullable=True)
 
+    # Prova di consegna dell'assegno al beneficiario. L'immagine deve
+    # comprendere la firma per ricevuta di chi ritira materialmente il titolo.
+    receipt_scan_path = db.Column(db.String(500), nullable=True)
+    receipt_scan_mime = db.Column(db.String(100), nullable=True)
+    receipt_scan_original_name = db.Column(db.String(255), nullable=True)
+    receipt_received_by = db.Column(db.String(160), nullable=True)
+    receipt_uploaded_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
     expense = db.relationship(
         "CashExpense",
         backref=db.backref(

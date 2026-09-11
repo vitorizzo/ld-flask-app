@@ -4209,7 +4209,109 @@ def _serialize_issued_check_for_returning(row: CashIssuedCheck, ref_date: date):
         "is_registered_today": bool(registered_date == ref_date),
         "supplier": expense.supplier if expense else None,
         "description": expense.notes if expense else row.note,
+        "receipt_available": bool(row.receipt_scan_path),
+        "receipt_received_by": row.receipt_received_by,
+        "receipt_uploaded_at": row.receipt_uploaded_at.isoformat() if row.receipt_uploaded_at else None,
+        "receipt_url": url_for("cassa.api_get_issued_check_receipt", check_id=row.id)
+        if row.receipt_scan_path else None,
     }
+
+
+def _remove_issued_check_receipt_file(relative_path):
+    if not relative_path:
+        return
+    uploads_root = os.path.abspath(os.path.join(current_app.instance_path, "issued_check_receipts"))
+    target = os.path.abspath(os.path.join(uploads_root, relative_path.replace("/", os.sep)))
+    if os.path.commonpath([uploads_root, target]) == uploads_root and os.path.isfile(target):
+        try:
+            os.remove(target)
+        except OSError as exc:
+            logger.warning("Impossibile rimuovere la ricevuta assegno %s: %s", target, exc)
+
+
+@cassa_bp.post("/api/issued-checks/<int:check_id>/receipt")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_upload_issued_check_receipt(check_id):
+    row = CashIssuedCheck.query.filter_by(id=check_id).first()
+    if not row:
+        return jsonify({"ok": False, "error": "Assegno emesso non trovato"}), 404
+
+    received_by = (request.form.get("received_by") or "").strip()
+    if not received_by:
+        return jsonify({"ok": False, "error": "Indica chi ha ricevuto l'assegno"}), 400
+    if len(received_by) > 160:
+        return jsonify({"ok": False, "error": "Il nome del ricevente e' troppo lungo"}), 400
+
+    uploaded = request.files.get("receipt")
+    try:
+        content, extension, mime_type = _read_valid_check_scan(uploaded)
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    folder = os.path.join(current_app.instance_path, "issued_check_receipts", str(row.id))
+    os.makedirs(folder, exist_ok=True)
+    filename = f"receipt-{secrets.token_hex(12)}.{extension}"
+    absolute_path = os.path.join(folder, filename)
+    relative_path = f"{row.id}/{filename}"
+    old_path = row.receipt_scan_path
+    try:
+        with open(absolute_path, "wb") as destination:
+            destination.write(content)
+        row.receipt_scan_path = relative_path
+        row.receipt_scan_mime = mime_type
+        row.receipt_scan_original_name = secure_filename(uploaded.filename)[:255] or f"ricevuta-assegno.{extension}"
+        row.receipt_received_by = received_by
+        row.receipt_uploaded_at = datetime.now(timezone.utc)
+        db.session.commit()
+        if old_path and old_path != relative_path:
+            _remove_issued_check_receipt_file(old_path)
+        return jsonify({"ok": True, "check": _serialize_issued_check_for_returning(row, date.today())})
+    except Exception:
+        db.session.rollback()
+        if os.path.isfile(absolute_path):
+            os.remove(absolute_path)
+        logger.exception("api_upload_issued_check_receipt error check=%s", check_id)
+        return jsonify({"ok": False, "error": "Errore salvataggio ricevuta assegno"}), 500
+
+
+@cassa_bp.get("/api/issued-checks/<int:check_id>/receipt")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_get_issued_check_receipt(check_id):
+    row = CashIssuedCheck.query.filter_by(id=check_id).first()
+    if not row or not row.receipt_scan_path:
+        return jsonify({"ok": False, "error": "Ricevuta assegno non trovata"}), 404
+    root = os.path.abspath(os.path.join(current_app.instance_path, "issued_check_receipts"))
+    target = os.path.abspath(os.path.join(root, row.receipt_scan_path.replace("/", os.sep)))
+    if os.path.commonpath([root, target]) != root or not os.path.isfile(target):
+        return jsonify({"ok": False, "error": "File ricevuta assegno non disponibile"}), 404
+    response = send_file(
+        target,
+        mimetype=row.receipt_scan_mime or "application/octet-stream",
+        as_attachment=False,
+        download_name=row.receipt_scan_original_name or f"ricevuta-assegno-{row.id}",
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+@cassa_bp.delete("/api/issued-checks/<int:check_id>/receipt")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_delete_issued_check_receipt(check_id):
+    row = CashIssuedCheck.query.filter_by(id=check_id).first()
+    if not row:
+        return jsonify({"ok": False, "error": "Assegno emesso non trovato"}), 404
+    old_path = row.receipt_scan_path
+    row.receipt_scan_path = None
+    row.receipt_scan_mime = None
+    row.receipt_scan_original_name = None
+    row.receipt_received_by = None
+    row.receipt_uploaded_at = None
+    db.session.commit()
+    _remove_issued_check_receipt_file(old_path)
+    return jsonify({"ok": True, "check": _serialize_issued_check_for_returning(row, date.today())})
 
 
 def _parse_issued_check_update_payload(data):
@@ -4473,8 +4575,10 @@ def api_delete_issued_check(check_id):
 
     try:
         day_date = _issued_check_day_date(row)
+        receipt_path = row.receipt_scan_path
         db.session.delete(row)
         db.session.commit()
+        _remove_issued_check_receipt_file(receipt_path)
 
         if day_date:
             _bump_agenda_day_version(day_date.isoformat())
@@ -6472,6 +6576,7 @@ def api_create_expense(day_date):
         party_kind=party_kind,
         notes=description,
     )
+    created_issued_checks = []
 
     try:
         for idx, p in enumerate(payments_data, start=1):
@@ -6534,9 +6639,11 @@ def api_create_expense(day_date):
                     due_date=due_date,
                     amount=amount,
                     status="emesso",
+                    receipt_received_by=(p.get("receipt_received_by") or "").strip()[:160] or None,
                 )
 
                 db.session.add(issued_check)
+                created_issued_checks.append(issued_check)
 
             exp.payments.append(payment)
 
@@ -6552,7 +6659,11 @@ def api_create_expense(day_date):
         logger.exception("api_create_expense error: %s", e)
         return jsonify({"ok": False, "error": "Internal error while creating expense"}), 500
 
-    return jsonify({"ok": True, "expense_id": exp.id}), 201
+    return jsonify({
+        "ok": True,
+        "expense_id": exp.id,
+        "issued_check_ids": [row.id for row in created_issued_checks],
+    }), 201
 
 
 @cassa_bp.get("/api/day/<day_date>/expenses")
@@ -6606,6 +6717,10 @@ def api_list_expenses(day_date):
                         "due_date": issued.due_date.isoformat() if issued.due_date else None,
                         "issued_check_flag": issued.flag or ("**" if issued.due_date else "*"),
                         "issued_check_status": _normalize_issued_check_status(issued.status),
+                        "receipt_available": bool(issued.receipt_scan_path),
+                        "receipt_received_by": issued.receipt_received_by,
+                        "receipt_url": url_for("cassa.api_get_issued_check_receipt", check_id=issued.id)
+                        if issued.receipt_scan_path else None,
                     })
             pay.append(row)
         items.append({
@@ -6732,6 +6847,7 @@ def api_delete_expense(expense_id):
         return closed_response
 
     try:
+        receipt_paths = [row.receipt_scan_path for row in expense.issued_checks or [] if row.receipt_scan_path]
         CashRowCheck.query.filter_by(
             entity_type="expense",
             entity_id=expense.id
@@ -6742,6 +6858,8 @@ def api_delete_expense(expense_id):
 
         db.session.delete(expense)
         db.session.commit()
+        for receipt_path in receipt_paths:
+            _remove_issued_check_receipt_file(receipt_path)
         _bump_agenda_day_version(day_version_date)
 
         return jsonify({
@@ -6867,6 +6985,7 @@ def api_update_expense(expense_id):
 
             db.session.add(exp)
             db.session.flush()
+            created_issued_checks = []
 
             try:
                 for idx_p, p in enumerate(payments_data, start=1):
@@ -6929,8 +7048,10 @@ def api_update_expense(expense_id):
                             due_date=due_date,
                             amount=amount,
                             status="emesso",
+                            receipt_received_by=(p.get("receipt_received_by") or "").strip()[:160] or None,
                         )
                         db.session.add(issued_check)
+                        created_issued_checks.append(issued_check)
 
                     db.session.add(payment)
 
@@ -6950,6 +7071,7 @@ def api_update_expense(expense_id):
                     "expense_id": exp.id,
                     "storage": "az",
                     "migrated": "pri_to_az",
+                    "issued_check_ids": [row.id for row in created_issued_checks],
                 })
 
             except ValueError as e:
@@ -7092,6 +7214,17 @@ def api_update_expense(expense_id):
         if not saved:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
+        receipt_paths = [
+            value
+            for (value,) in (
+                db.session.query(CashIssuedCheck.receipt_scan_path)
+                .filter(
+                    CashIssuedCheck.expense_id == expense.id,
+                    CashIssuedCheck.receipt_scan_path.isnot(None),
+                )
+                .all()
+            )
+        ]
         try:
             CashRowCheck.query.filter_by(
                 entity_type="expense",
@@ -7100,6 +7233,8 @@ def api_update_expense(expense_id):
 
             db.session.delete(expense)
             db.session.commit()
+            for receipt_path in receipt_paths:
+                _remove_issued_check_receipt_file(receipt_path)
             _bump_agenda_day_version(cash_day.day_date.isoformat())
 
             return jsonify({
@@ -7122,6 +7257,29 @@ def api_update_expense(expense_id):
     expense.notes = description
 
     try:
+        existing_receipts = [
+            {
+                "path": row[0],
+                "mime": row[1],
+                "original_name": row[2],
+                "received_by": row[3],
+                "uploaded_at": row[4],
+            }
+            for row in (
+                db.session.query(
+                    CashIssuedCheck.receipt_scan_path,
+                    CashIssuedCheck.receipt_scan_mime,
+                    CashIssuedCheck.receipt_scan_original_name,
+                    CashIssuedCheck.receipt_received_by,
+                    CashIssuedCheck.receipt_uploaded_at,
+                )
+                .filter(CashIssuedCheck.expense_id == expense.id)
+                .order_by(CashIssuedCheck.id.asc())
+                .all()
+            )
+        ]
+        created_issued_checks = []
+        issued_check_index = 0
         CashExpensePayment.query.filter_by(expense_id=expense.id).delete()
         CashIssuedCheck.query.filter_by(expense_id=expense.id).delete()
         db.session.flush()
@@ -7181,6 +7339,13 @@ def api_update_expense(expense_id):
 
                 payment.bank_id = bank_id
 
+                prior_receipt = (
+                    existing_receipts[issued_check_index]
+                    if issued_check_index < len(existing_receipts)
+                    else {}
+                )
+                received_by = (p.get("receipt_received_by") or "").strip()[:160] or prior_receipt.get("received_by")
+
                 issued_check = CashIssuedCheck(
                     expense=expense,
                     bank_id=bank_id,
@@ -7189,13 +7354,23 @@ def api_update_expense(expense_id):
                     due_date=due_date,
                     amount=amount,
                     status="emesso",
+                    receipt_scan_path=prior_receipt.get("path"),
+                    receipt_scan_mime=prior_receipt.get("mime"),
+                    receipt_scan_original_name=prior_receipt.get("original_name"),
+                    receipt_received_by=received_by,
+                    receipt_uploaded_at=prior_receipt.get("uploaded_at"),
                 )
 
                 db.session.add(issued_check)
+                created_issued_checks.append(issued_check)
+                issued_check_index += 1
 
             db.session.add(payment)
 
         db.session.commit()
+
+        for stale_receipt in existing_receipts[issued_check_index:]:
+            _remove_issued_check_receipt_file(stale_receipt.get("path"))
 
         cash_day = CashDay.query.filter_by(id=expense.cash_day_id).first()
         if cash_day:
@@ -7205,6 +7380,7 @@ def api_update_expense(expense_id):
             "ok": True,
             "expense_id": expense.id,
             "storage": "az",
+            "issued_check_ids": [row.id for row in created_issued_checks],
         })
 
     except ValueError as e:
