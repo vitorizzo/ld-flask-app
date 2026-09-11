@@ -4032,7 +4032,10 @@ async function loadIssuedChecksManagement() {
         <td>${escapeHtml(formatDateIT(row.due_date))}</td>
         <td>${escapeHtml(row.status_label || row.status || "")}</td>
         <td>${row.receipt_url
-          ? `<a class="btn btn-sm btn-outline-primary" href="${escapeHtml(row.receipt_url)}" target="_blank" rel="noopener">Apri</a><div class="small text-muted">${escapeHtml(row.receipt_received_by || "")}</div>`
+          ? `<div class="d-flex flex-wrap gap-1">
+               <a class="btn btn-sm btn-outline-primary" href="${escapeHtml(row.receipt_url)}" target="_blank" rel="noopener">Apri</a>
+               <button type="button" class="btn btn-sm btn-outline-danger btn-issued-receipt-delete" data-id="${row.id}">Elimina allegato</button>
+             </div><div class="small text-muted">${escapeHtml(row.receipt_received_by || "")}</div>`
           : `<span class="text-muted">—</span>`}</td>
         <td class="text-end">${formatEuro2(row.amount || 0)}</td>
         <td class="text-end">
@@ -4125,6 +4128,24 @@ async function deleteIssuedCheck(checkId) {
     console.error("deleteIssuedCheck error:", err);
     alert("Errore di rete durante l'eliminazione assegno emesso");
   }
+}
+
+async function deleteIssuedCheckReceipt(checkId) {
+  if (!checkId) return false;
+  if (!window.confirm("Vuoi eliminare definitivamente la foto/scansione allegata a questo assegno?")) {
+    return false;
+  }
+
+  const response = await fetch(`/cassa/api/issued-checks/${encodeURIComponent(checkId)}/receipt`, {
+    method: "DELETE",
+    credentials: "same-origin",
+    headers: {"Accept": "application/json"},
+  });
+  const data = await readJsonResponse(response, "Errore eliminazione allegato assegno");
+  if (!response.ok || !data.ok) {
+    throw new Error(data.error || "Errore eliminazione allegato assegno");
+  }
+  return true;
 }
 
 async function openIssuedChecksManagementModal() {
@@ -4426,6 +4447,39 @@ document.addEventListener("DOMContentLoaded", async function () {
     opModalEl.addEventListener("keydown", handleOperationModalKeydown);
     opModalEl.addEventListener("hidden.bs.modal", () => {
       saveBtn?.removeAttribute("disabled");
+    });
+    opModalEl.addEventListener("click", async (event) => {
+      const deleteReceiptBtn = event.target.closest(".btn-issued-receipt-delete");
+      if (!deleteReceiptBtn) return;
+
+      try {
+        deleteReceiptBtn.disabled = true;
+        const deleted = await deleteIssuedCheckReceipt(deleteReceiptBtn.dataset.id);
+        if (!deleted) return;
+
+        const currentReceipt = deleteReceiptBtn.closest("#checkExpenseReceiptCurrent, .multi-check-expense-receipt-current");
+        if (currentReceipt) {
+          currentReceipt.innerHTML = "";
+          currentReceipt.classList.add("d-none");
+        }
+
+        const multiRow = deleteReceiptBtn.closest(".multi-payment-row");
+        const receivedBy = multiRow
+          ? multiRow.querySelector(".multi-check-expense-received-by")
+          : document.getElementById("checkExpenseReceiptReceivedBy");
+        const receiptInput = multiRow
+          ? multiRow.querySelector(".multi-check-expense-receipt")
+          : document.getElementById("checkExpenseReceipt");
+        if (receivedBy) receivedBy.value = "";
+        if (receiptInput) receiptInput.value = "";
+
+        alert("Allegato eliminato. Ora puoi caricare la foto o scansione corretta.");
+      } catch (err) {
+        console.error("delete issued check receipt error:", err);
+        alert(err.message || "Errore durante l'eliminazione dell'allegato");
+      } finally {
+        deleteReceiptBtn.disabled = false;
+      }
     });
   }
 
@@ -6377,7 +6431,10 @@ document.addEventListener("DOMContentLoaded", async function () {
             receiptCurrent.innerHTML = p.receipt_url
               ? `<div class="alert alert-success py-2 px-3 mb-0 d-flex flex-wrap align-items-center justify-content-between gap-2">
                    <span><strong>Allegato memorizzato</strong>${p.receipt_original_name ? ` · ${escapeHtml(p.receipt_original_name)}` : ""}${p.receipt_received_by ? ` · Ricevuto da ${escapeHtml(p.receipt_received_by)}` : ""}</span>
-                   <a class="btn btn-sm btn-outline-success" href="${escapeHtml(p.receipt_url)}" target="_blank" rel="noopener">Apri foto/scansione</a>
+                   <span class="d-flex flex-wrap gap-1">
+                     <a class="btn btn-sm btn-outline-success" href="${escapeHtml(p.receipt_url)}" target="_blank" rel="noopener">Apri foto/scansione</a>
+                     <button type="button" class="btn btn-sm btn-outline-danger btn-issued-receipt-delete" data-id="${p.issued_check_id || ""}">Elimina allegato</button>
+                   </span>
                  </div>`
               : "";
             receiptCurrent.classList.toggle("d-none", !p.receipt_url);
@@ -6429,7 +6486,10 @@ document.addEventListener("DOMContentLoaded", async function () {
               receiptCurrent.innerHTML = p.receipt_url
                 ? `<div class="alert alert-success py-2 px-3 mb-0 d-flex flex-wrap align-items-center justify-content-between gap-2">
                      <span><strong>Allegato memorizzato</strong>${p.receipt_original_name ? ` · ${escapeHtml(p.receipt_original_name)}` : ""}${p.receipt_received_by ? ` · Ricevuto da ${escapeHtml(p.receipt_received_by)}` : ""}</span>
-                     <a class="btn btn-sm btn-outline-success" href="${escapeHtml(p.receipt_url)}" target="_blank" rel="noopener">Apri foto/scansione</a>
+                     <span class="d-flex flex-wrap gap-1">
+                       <a class="btn btn-sm btn-outline-success" href="${escapeHtml(p.receipt_url)}" target="_blank" rel="noopener">Apri foto/scansione</a>
+                       <button type="button" class="btn btn-sm btn-outline-danger btn-issued-receipt-delete" data-id="${p.issued_check_id || ""}">Elimina allegato</button>
+                     </span>
                    </div>`
                 : "";
               receiptCurrent.classList.toggle("d-none", !p.receipt_url);
@@ -8585,6 +8645,21 @@ document.addEventListener("DOMContentLoaded", async function () {
   });
 
   issuedChecksManagementRows?.addEventListener("click", async (e) => {
+    const receiptDeleteBtn = e.target.closest(".btn-issued-receipt-delete");
+    if (receiptDeleteBtn) {
+      try {
+        receiptDeleteBtn.disabled = true;
+        const deleted = await deleteIssuedCheckReceipt(receiptDeleteBtn.dataset.id);
+        if (deleted) await loadIssuedChecksManagement();
+      } catch (err) {
+        console.error("delete issued check receipt error:", err);
+        alert(err.message || "Errore durante l'eliminazione dell'allegato");
+      } finally {
+        receiptDeleteBtn.disabled = false;
+      }
+      return;
+    }
+
     const editBtn = e.target.closest(".btn-issued-check-edit");
     if (editBtn) {
       try {
