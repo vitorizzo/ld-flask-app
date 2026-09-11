@@ -6375,7 +6375,10 @@ document.addEventListener("DOMContentLoaded", async function () {
           if (receivedBy) receivedBy.value = p.receipt_received_by || "";
           if (receiptCurrent) {
             receiptCurrent.innerHTML = p.receipt_url
-              ? `Ricevuta presente: <a href="${escapeHtml(p.receipt_url)}" target="_blank" rel="noopener">apri foto firmata</a>`
+              ? `<div class="alert alert-success py-2 px-3 mb-0 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                   <span><strong>Allegato memorizzato</strong>${p.receipt_original_name ? ` · ${escapeHtml(p.receipt_original_name)}` : ""}${p.receipt_received_by ? ` · Ricevuto da ${escapeHtml(p.receipt_received_by)}` : ""}</span>
+                   <a class="btn btn-sm btn-outline-success" href="${escapeHtml(p.receipt_url)}" target="_blank" rel="noopener">Apri foto/scansione</a>
+                 </div>`
               : "";
             receiptCurrent.classList.toggle("d-none", !p.receipt_url);
           }
@@ -6424,7 +6427,10 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (receivedBy) receivedBy.value = p.receipt_received_by || "";
             if (receiptCurrent) {
               receiptCurrent.innerHTML = p.receipt_url
-                ? `Ricevuta presente: <a href="${escapeHtml(p.receipt_url)}" target="_blank" rel="noopener">apri foto firmata</a>`
+                ? `<div class="alert alert-success py-2 px-3 mb-0 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                     <span><strong>Allegato memorizzato</strong>${p.receipt_original_name ? ` · ${escapeHtml(p.receipt_original_name)}` : ""}${p.receipt_received_by ? ` · Ricevuto da ${escapeHtml(p.receipt_received_by)}` : ""}</span>
+                     <a class="btn btn-sm btn-outline-success" href="${escapeHtml(p.receipt_url)}" target="_blank" rel="noopener">Apri foto/scansione</a>
+                   </div>`
                 : "";
               receiptCurrent.classList.toggle("d-none", !p.receipt_url);
             }
@@ -7155,7 +7161,6 @@ document.addEventListener("DOMContentLoaded", async function () {
         const due_date = (document.getElementById("checkExpenseDueDate")?.value || "").trim();
         const checkAmount = parseEuroToNumber(document.getElementById("checkExpenseAmount")?.value || "0");
         const receipt_received_by = (document.getElementById("checkExpenseReceiptReceivedBy")?.value || "").trim();
-        const receiptFile = document.getElementById("checkExpenseReceipt")?.files?.[0] || null;
 
         if (!bank_id) {
           return { ok: false, error: "Seleziona la banca emittente." };
@@ -7171,10 +7176,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         if (Math.abs(checkAmount - amount) > 0.009) {
           return { ok: false, error: "L'importo assegno non coincide con il totale dell'operazione." };
-        }
-
-        if (receiptFile && !receipt_received_by) {
-          return { ok: false, error: "Indica nome e cognome di chi ha ricevuto l'assegno." };
         }
 
         return {
@@ -7354,7 +7355,6 @@ document.addEventListener("DOMContentLoaded", async function () {
           const check_number = (row.querySelector(".multi-check-expense-number")?.value || "").trim();
           const due_date = (row.querySelector(".multi-check-expense-due-date")?.value || "").trim();
           const receipt_received_by = (row.querySelector(".multi-check-expense-received-by")?.value || "").trim();
-          const receiptFile = row.querySelector(".multi-check-expense-receipt")?.files?.[0] || null;
           if (!bank_id) {
             return { ok: false, error: "Ogni riga assegno spesa deve avere una banca selezionata." };
           }
@@ -7365,10 +7365,6 @@ document.addEventListener("DOMContentLoaded", async function () {
 
           if (base.flag === "**" && !due_date) {
             return { ok: false, error: "Inserisci la scadenza per ogni riga assegno spesa postdatato." };
-          }
-
-          if (receiptFile && !receipt_received_by) {
-            return { ok: false, error: "Indica chi ha ricevuto ogni assegno del pagamento." };
           }
 
           payments.push({
@@ -7706,13 +7702,21 @@ document.addEventListener("DOMContentLoaded", async function () {
         try { await uploadCheckScan(targetCheckId, pendingScan.file); }
         catch (scanError) { scanErrors.push(scanError.message || "caricamento non riuscito"); }
       }
+      let uploadedReceiptCount = 0;
       for (const pendingReceipt of pendingIssuedReceipts) {
         const targetCheckId = (data.issued_check_ids || [])[pendingReceipt.ordinal];
         if (!targetCheckId) { scanErrors.push("assegno emesso non identificato"); continue; }
-        try { await uploadIssuedCheckReceipt(targetCheckId, pendingReceipt); }
+        try {
+          const uploadedCheck = await uploadIssuedCheckReceipt(targetCheckId, pendingReceipt);
+          if (!uploadedCheck?.receipt_available) {
+            throw new Error("il server non ha confermato l'allegato");
+          }
+          uploadedReceiptCount += 1;
+        }
         catch (receiptError) { scanErrors.push(receiptError.message || "ricevuta non caricata"); }
       }
       if (scanErrors.length) alert(`Operazione salvata, ma alcune scansioni non sono state caricate: ${scanErrors.join("; ")}`);
+      else if (uploadedReceiptCount) alert("Pagamento e allegato dell'assegno salvati correttamente.");
 
       resetOperationEditState();
       opModal.hide();

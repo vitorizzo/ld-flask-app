@@ -4210,6 +4210,7 @@ def _serialize_issued_check_for_returning(row: CashIssuedCheck, ref_date: date):
         "supplier": expense.supplier if expense else None,
         "description": expense.notes if expense else row.note,
         "receipt_available": bool(row.receipt_scan_path),
+        "receipt_original_name": row.receipt_scan_original_name,
         "receipt_received_by": row.receipt_received_by,
         "receipt_uploaded_at": row.receipt_uploaded_at.isoformat() if row.receipt_uploaded_at else None,
         "receipt_url": url_for("cassa.api_get_issued_check_receipt", check_id=row.id)
@@ -4238,8 +4239,6 @@ def api_upload_issued_check_receipt(check_id):
         return jsonify({"ok": False, "error": "Assegno emesso non trovato"}), 404
 
     received_by = (request.form.get("received_by") or "").strip()
-    if not received_by:
-        return jsonify({"ok": False, "error": "Indica chi ha ricevuto l'assegno"}), 400
     if len(received_by) > 160:
         return jsonify({"ok": False, "error": "Il nome del ricevente e' troppo lungo"}), 400
 
@@ -4261,7 +4260,7 @@ def api_upload_issued_check_receipt(check_id):
         row.receipt_scan_path = relative_path
         row.receipt_scan_mime = mime_type
         row.receipt_scan_original_name = secure_filename(uploaded.filename)[:255] or f"ricevuta-assegno.{extension}"
-        row.receipt_received_by = received_by
+        row.receipt_received_by = received_by or None
         row.receipt_uploaded_at = datetime.now(timezone.utc)
         db.session.commit()
         if old_path and old_path != relative_path:
@@ -6718,6 +6717,7 @@ def api_list_expenses(day_date):
                         "issued_check_flag": issued.flag or ("**" if issued.due_date else "*"),
                         "issued_check_status": _normalize_issued_check_status(issued.status),
                         "receipt_available": bool(issued.receipt_scan_path),
+                        "receipt_original_name": issued.receipt_scan_original_name,
                         "receipt_received_by": issued.receipt_received_by,
                         "receipt_url": url_for("cassa.api_get_issued_check_receipt", check_id=issued.id)
                         if issued.receipt_scan_path else None,

@@ -1727,7 +1727,7 @@
               </div>
 
               <div class="col-12 col-md-5">
-                <label class="form-label mb-0" for="checkExpenseReceiptReceivedBy">Ricevuto da</label>
+                <label class="form-label mb-0" for="checkExpenseReceiptReceivedBy">Ricevuto da <span class="text-muted fw-normal">(facoltativo)</span></label>
                 <input type="text" class="form-control" id="checkExpenseReceiptReceivedBy"
                        maxlength="160" placeholder="Nome e cognome di chi ritira l'assegno">
               </div>
@@ -2028,7 +2028,7 @@
                 </div>
 
                 <div class="col-12 col-md-5 multi-check-expense-fields d-none">
-                  <label class="form-label mb-0">Ricevuto da</label>
+                  <label class="form-label mb-0">Ricevuto da <span class="text-muted fw-normal">(facoltativo)</span></label>
                   <input type="text" class="form-control multi-check-expense-received-by" maxlength="160"
                          placeholder="Nome e cognome">
                 </div>
@@ -4794,7 +4794,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
-  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-issued-check-receipt1') }}"></script>
+  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-issued-check-receipt2') }}"></script>
 
 {% endblock %}
 
