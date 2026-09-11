@@ -1076,10 +1076,6 @@
     min-height: 44px;
   }
 
-  .delivery-route-actions .btn:last-child {
-    grid-column: 1 / -1;
-  }
-
   .welcome-section.kiosk-overview-page {
     width: 100%;
     max-width: none;

@@ -1897,6 +1897,9 @@ window.kioskState = {
             <td class="text-end" data-label="Azioni"><div class="delivery-route-actions">
               <button class="btn btn-sm btn-outline-info" type="button" data-edit-route="${r.id}">Ridefinisci</button>
               <button class="btn btn-sm btn-outline-secondary" type="button" data-vary-route="${r.id}">Varia</button>
+              <a class="btn btn-sm btn-outline-primary" href="/registry/customer-routes?route_id=${encodeURIComponent(r.id)}">
+                Gestisci clienti
+              </a>
               <button class="btn btn-sm btn-outline-danger" type="button" data-delete-route="${r.id}">Elimina</button>
             </div></td>
           </tr>`).join("")

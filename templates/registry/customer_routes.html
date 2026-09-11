@@ -230,6 +230,7 @@
   const customerRouteSearch = document.getElementById("customerRouteSearch");
   const quickCustomerRows = document.getElementById("quickCustomerRows");
   const quickCustomerSearch = document.getElementById("quickCustomerSearch");
+  const requestedRouteId = Number(new URLSearchParams(window.location.search).get("route_id") || 0);
 
   document.querySelectorAll(".registry-tools-modal").forEach(modalEl => {
     if (modalEl.parentElement !== document.body) {
@@ -265,7 +266,7 @@
   }
 
   async function loadData(q = "") {
-    const keepRoute = selectedRouteId();
+    const keepRoute = selectedRouteId() || requestedRouteId;
     const res = await fetch(`/registry/api/routes/customers?q=${encodeURIComponent(q)}`, { credentials: "same-origin" });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || "Errore caricamento");
