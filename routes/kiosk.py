@@ -94,6 +94,23 @@ def _route_to_dict(route: DeliveryRoute) -> dict:
     }
 
 
+def _route_schedule_summary(route: DeliveryRoute) -> str:
+    frequency = getattr(route, "frequency", None) or "weekly"
+    first_slot = f"{_weekday_label(route.default_weekday)} {route.default_time.strftime('%H:%M')}"
+    if frequency == "twice_weekly" and route.second_weekday and route.second_time:
+        second_slot = f"{_weekday_label(route.second_weekday)} {route.second_time.strftime('%H:%M')}"
+        return f"{FREQUENCY_LABELS[frequency]} · {first_slot} / {second_slot}"
+    return f"{FREQUENCY_LABELS.get(frequency, 'Settimanale')} · {first_slot}"
+
+
+def _route_next_scheduled_delivery(route: DeliveryRoute) -> datetime | None:
+    try:
+        return SlackProcessor()._compute_next_delivery_dt(datetime.now(), route)
+    except Exception:
+        logger.exception("[KIOSK] next delivery calculation failed route_id=%s", route.id)
+        return None
+
+
 def _schedule_rule_to_dict(rule: DeliveryScheduleRule) -> dict:
     route = rule.route
     return {
@@ -446,6 +463,7 @@ def kiosk_api_routes():
 def kiosk_api_delivery_schedule():
     routes = (
         DeliveryRoute.query
+        .filter_by(is_active=True)
         .order_by(DeliveryRoute.is_active.desc(), DeliveryRoute.name.asc())
         .all()
     )
@@ -462,9 +480,17 @@ def kiosk_api_delivery_schedule():
         .all()
     )
 
+    route_rows = []
+    for route in routes:
+        row = _route_to_dict(route)
+        next_delivery = _route_next_scheduled_delivery(route)
+        row["frequency_summary"] = _route_schedule_summary(route)
+        row["next_delivery_at"] = next_delivery.isoformat() if next_delivery else None
+        route_rows.append(row)
+
     return jsonify(
         {
-            "routes": [_route_to_dict(r) for r in routes],
+            "routes": route_rows,
             "rules": [_schedule_rule_to_dict(r) for r in rules],
             "weekdays": [{"value": i + 1, "label": label} for i, label in enumerate(WEEKDAY_LABELS)],
             "frequencies": [{"value": value, "label": label} for value, label in FREQUENCY_LABELS.items()],

@@ -1750,31 +1750,121 @@ window.kioskState = {
     });
   }
 
-  function applySelectedRouteDefaults() {
+  function applySelectedRouteDefaults({ force = false } = {}) {
     const routeId = $("#scheduleRoute") ? Number($("#scheduleRoute").value) : null;
     const route = deliveryScheduleState.routes.find((r) => Number(r.id) === routeId);
     if (!route) return;
 
     const timeInput = $("#scheduleTargetTime");
-    if (timeInput && !timeInput.value) timeInput.value = route.default_time || "";
+    if (timeInput && (force || !timeInput.value)) timeInput.value = route.default_time || "";
 
     const weekdaySelect = $("#scheduleTargetWeekday");
-    if (weekdaySelect && weekdaySelect.value === "") {
+    if (weekdaySelect && (force || weekdaySelect.value === "")) {
       const weekday = Number(route.default_weekday || 1);
       weekdaySelect.value = String(weekday >= 1 && weekday <= 7 ? weekday : 1);
     }
 
     const frequencySelect = $("#scheduleFrequency");
-    if (frequencySelect && !frequencySelect.value) frequencySelect.value = route.frequency || "weekly";
+    if (frequencySelect && (force || !frequencySelect.value)) frequencySelect.value = route.frequency || "weekly";
 
     const secondWeekdaySelect = $("#scheduleSecondWeekday");
-    if (secondWeekdaySelect && route.second_weekday) secondWeekdaySelect.value = String(route.second_weekday);
+    if (secondWeekdaySelect && route.second_weekday && (force || !secondWeekdaySelect.value)) {
+      secondWeekdaySelect.value = String(route.second_weekday);
+    }
 
     const secondTimeInput = $("#scheduleSecondTime");
-    if (secondTimeInput && route.second_time && !secondTimeInput.value) secondTimeInput.value = route.second_time;
+    if (secondTimeInput && route.second_time && (force || !secondTimeInput.value)) secondTimeInput.value = route.second_time;
 
     const anchorInput = $("#scheduleFrequencyAnchorDate");
-    if (anchorInput && route.frequency_anchor_date && !anchorInput.value) anchorInput.value = route.frequency_anchor_date;
+    if (anchorInput && route.frequency_anchor_date && (force || !anchorInput.value)) anchorInput.value = route.frequency_anchor_date;
+
+    setScheduleModeVisibility();
+  }
+
+  function formatScheduledDelivery(value) {
+    if (!value) return "Non disponibile";
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return value;
+    return parsed.toLocaleString("it-IT", {
+      weekday: "short",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  }
+
+  function showDeliveryRoutesOverview() {
+    const overview = $("#deliveryRoutesOverview");
+    const routeEditor = $("#deliveryRouteEditor");
+    const variationEditor = $("#deliveryVariationEditor");
+    if (overview) overview.hidden = false;
+    if (routeEditor) routeEditor.hidden = true;
+    if (variationEditor) variationEditor.hidden = true;
+  }
+
+  function showDeliveryRouteEditor(title) {
+    const overview = $("#deliveryRoutesOverview");
+    const routeEditor = $("#deliveryRouteEditor");
+    const variationEditor = $("#deliveryVariationEditor");
+    if (overview) overview.hidden = true;
+    if (routeEditor) routeEditor.hidden = false;
+    if (variationEditor) variationEditor.hidden = true;
+    const titleEl = $("#deliveryRouteEditorTitle");
+    if (titleEl) titleEl.textContent = title;
+  }
+
+  function renderDeliveryRulesForRoute(routeId) {
+    const rulesBody = document.querySelector("#deliveryRulesTable tbody");
+    if (!rulesBody) return;
+    const routeRules = deliveryScheduleState.rules.filter((rule) => Number(rule.route_id) === Number(routeId));
+    rulesBody.innerHTML = routeRules.length
+      ? routeRules.map((r) => {
+          const typeLabel = r.scope === "once" ? "Una volta" : "Periodo";
+          const period = r.scope === "once"
+            ? `${escapeHtml(r.source_date || "")} → ${escapeHtml(r.target_date || "")}`
+            : `${escapeHtml(r.start_date || "")} → ${escapeHtml(r.end_date || "")}`;
+          const delivery = r.scope === "once"
+            ? `${escapeHtml(r.target_date || "")} ${escapeHtml(r.target_time || "")}`
+            : `${escapeHtml(r.target_weekday_label || "")} ${escapeHtml(r.target_time || "")}`;
+          const frequency = r.scope === "once"
+            ? "Singola"
+            : `${escapeHtml(r.frequency_label || "")}${r.frequency === "twice_weekly"
+                ? ` · ${escapeHtml(r.second_weekday_label || "")} ${escapeHtml(r.second_time || "")}`
+                : ""}`;
+          return `<tr>
+            <td data-label="Tipo">${typeLabel}</td>
+            <td data-label="Periodo / data">${period}</td>
+            <td data-label="Frequenza">${frequency}</td>
+            <td data-label="Nuova consegna">${delivery}</td>
+            <td data-label="Nota">${escapeHtml(r.note || "")}</td>
+            <td class="text-end" data-label="Azioni"><button class="btn btn-sm btn-outline-danger" type="button" data-delete-rule="${r.id}">Elimina</button></td>
+          </tr>`;
+        }).join("")
+      : `<tr><td colspan="6" class="text-muted">Nessuna variazione attiva per questo giro</td></tr>`;
+
+    rulesBody.querySelectorAll("[data-delete-rule]").forEach((btn) => {
+      btn.addEventListener("click", async () => deleteDeliveryScheduleRule(btn.getAttribute("data-delete-rule")));
+    });
+  }
+
+  function openDeliveryVariationEditor(routeId) {
+    const route = deliveryScheduleState.routes.find((item) => String(item.id) === String(routeId));
+    if (!route) return;
+    const form = $("#deliveryScheduleForm");
+    if (form) form.reset();
+    $("#scheduleRoute").value = String(route.id);
+    $("#scheduleMode").value = "once";
+    applySelectedRouteDefaults({ force: true });
+    const sourceDate = (route.next_delivery_at || "").slice(0, 10);
+    $("#scheduleSourceDate").value = sourceDate;
+    $("#scheduleTargetDate").value = sourceDate;
+    $("#deliveryVariationRouteName").textContent = route.name || "";
+    renderDeliveryRulesForRoute(route.id);
+    $("#deliveryRoutesOverview").hidden = true;
+    $("#deliveryRouteEditor").hidden = true;
+    $("#deliveryVariationEditor").hidden = false;
   }
 
   function renderDeliverySchedule(data) {
@@ -1785,130 +1875,38 @@ window.kioskState = {
       frequencies: Array.isArray(data.frequencies) ? data.frequencies : [],
     };
 
+    const optionsFor = (items) => items.map((item) => `<option value="${item.value}">${escapeHtml(item.label)}</option>`).join("");
     const routeSelect = $("#scheduleRoute");
-    if (routeSelect) {
-      routeSelect.innerHTML = deliveryScheduleState.routes
-        .map((r) => `<option value="${r.id}">${escapeHtml(r.name)}</option>`)
-        .join("");
-    }
-
-    const weekdaySelect = $("#scheduleTargetWeekday");
-    if (weekdaySelect) {
-      weekdaySelect.innerHTML = deliveryScheduleState.weekdays
-        .map((w) => `<option value="${w.value}">${escapeHtml(w.label)}</option>`)
-        .join("");
-    }
-
-    const secondWeekdaySelect = $("#scheduleSecondWeekday");
-    if (secondWeekdaySelect) {
-      secondWeekdaySelect.innerHTML = deliveryScheduleState.weekdays
-        .map((w) => `<option value="${w.value}">${escapeHtml(w.label)}</option>`)
-        .join("");
-    }
-    ["deliveryRouteWeekday", "deliveryRouteSecondWeekday"].forEach((id) => {
+    if (routeSelect) routeSelect.innerHTML = deliveryScheduleState.routes.map((r) => `<option value="${r.id}">${escapeHtml(r.name)}</option>`).join("");
+    ["scheduleTargetWeekday", "scheduleSecondWeekday", "deliveryRouteWeekday", "deliveryRouteSecondWeekday"].forEach((id) => {
       const select = document.getElementById(id);
-      if (select) {
-        select.innerHTML = deliveryScheduleState.weekdays
-          .map((w) => `<option value="${w.value}">${escapeHtml(w.label)}</option>`)
-          .join("");
-      }
+      if (select) select.innerHTML = optionsFor(deliveryScheduleState.weekdays);
     });
-
-    const frequencySelect = $("#scheduleFrequency");
-    if (frequencySelect) {
-      frequencySelect.innerHTML = deliveryScheduleState.frequencies
-        .map((f) => `<option value="${f.value}">${escapeHtml(f.label)}</option>`)
-        .join("");
-    }
-    const routeFrequencySelect = $("#deliveryRouteFrequency");
-    if (routeFrequencySelect) {
-      routeFrequencySelect.innerHTML = deliveryScheduleState.frequencies
-        .map((f) => `<option value="${f.value}">${escapeHtml(f.label)}</option>`)
-        .join("");
-    }
+    ["scheduleFrequency", "deliveryRouteFrequency"].forEach((id) => {
+      const select = document.getElementById(id);
+      if (select) select.innerHTML = optionsFor(deliveryScheduleState.frequencies);
+    });
 
     const routeBody = document.querySelector("#deliveryRoutesTable tbody");
     if (routeBody) {
       routeBody.innerHTML = deliveryScheduleState.routes.length
-        ? deliveryScheduleState.routes
-            .map(
-              (r) => `
-                <tr>
-                  <td>${escapeHtml(r.name)}</td>
-                  <td>${escapeHtml(r.default_weekday_label || "")}</td>
-                  <td>${escapeHtml(r.default_time || "")}</td>
-                  <td>${escapeHtml(r.frequency_label || "")}${
-                    r.frequency === "twice_weekly"
-                      ? ` · ${escapeHtml(r.second_weekday_label || "")} ${escapeHtml(r.second_time || "")}`
-                      : ``
-                  }</td>
-                  <td><code>${escapeHtml(r.slack_channel_id || "")}</code></td>
-                  <td class="text-end">
-                    <button class="btn btn-sm btn-outline-info" type="button" data-edit-route="${r.id}">Modifica</button>
-                    <button class="btn btn-sm btn-outline-danger" type="button" data-delete-route="${r.id}">Elimina</button>
-                  </td>
-                </tr>
-              `
-            )
-            .join("")
-        : `<tr><td colspan="6" class="text-muted">Nessun giro configurato</td></tr>`;
-
-      routeBody.querySelectorAll("[data-edit-route]").forEach((btn) => {
-        btn.addEventListener("click", () => editDeliveryRoute(btn.getAttribute("data-edit-route")));
-      });
-      routeBody.querySelectorAll("[data-delete-route]").forEach((btn) => {
-        btn.addEventListener("click", () => deleteDeliveryRoute(btn.getAttribute("data-delete-route")));
-      });
-    }
-
-    const rulesBody = document.querySelector("#deliveryRulesTable tbody");
-    if (rulesBody) {
-      rulesBody.innerHTML = deliveryScheduleState.rules.length
-        ? deliveryScheduleState.rules
-            .map((r) => {
-              const typeLabel = r.scope === "once" ? "Una volta" : "Periodo";
-              const period =
-                r.scope === "once"
-                  ? `${escapeHtml(r.source_date || "")} → ${escapeHtml(r.target_date || "")}`
-                  : `${escapeHtml(r.start_date || "")} → ${escapeHtml(r.end_date || "")}`;
-              const delivery =
-                r.scope === "once"
-                  ? `${escapeHtml(r.target_date || "")} ${escapeHtml(r.target_time || "")}`
-                  : `${escapeHtml(r.target_weekday_label || "")} ${escapeHtml(r.target_time || "")}`;
-              const frequency =
-                r.scope === "once"
-                  ? "Singola"
-                  : `${escapeHtml(r.frequency_label || "")}${
-                      r.frequency === "twice_weekly"
-                        ? ` · ${escapeHtml(r.second_weekday_label || "")} ${escapeHtml(r.second_time || "")}`
-                        : ``
-                    }`;
-              return `
-                <tr>
-                  <td>${escapeHtml(r.route_name || "")}</td>
-                  <td>${typeLabel}</td>
-                  <td>${period}</td>
-                  <td>${frequency}</td>
-                  <td>${delivery}</td>
-                  <td>${escapeHtml(r.note || "")}</td>
-                  <td class="text-end"><button class="btn btn-sm btn-outline-danger" type="button" data-delete-rule="${r.id}">Elimina</button></td>
-                </tr>
-              `;
-            })
-            .join("")
-        : `<tr><td colspan="7" class="text-muted">Nessuna variazione attiva</td></tr>`;
-
-      rulesBody.querySelectorAll("[data-delete-rule]").forEach((btn) => {
-        btn.addEventListener("click", async (ev) => {
-          const id = ev.currentTarget.getAttribute("data-delete-rule");
-          if (!id) return;
-          await deleteDeliveryScheduleRule(id);
-        });
-      });
+        ? deliveryScheduleState.routes.map((r) => `<tr>
+            <td data-label="Giro"><strong>${escapeHtml(r.name)}</strong></td>
+            <td data-label="Frequenza">${escapeHtml(r.frequency_summary || r.frequency_label || "")}</td>
+            <td data-label="Prossima consegna"><span class="delivery-next-date">${escapeHtml(formatScheduledDelivery(r.next_delivery_at))}</span></td>
+            <td class="text-end" data-label="Azioni"><div class="delivery-route-actions">
+              <button class="btn btn-sm btn-outline-info" type="button" data-edit-route="${r.id}">Ridefinisci</button>
+              <button class="btn btn-sm btn-outline-secondary" type="button" data-vary-route="${r.id}">Varia</button>
+              <button class="btn btn-sm btn-outline-danger" type="button" data-delete-route="${r.id}">Elimina</button>
+            </div></td>
+          </tr>`).join("")
+        : `<tr><td colspan="4" class="text-muted">Nessun giro configurato</td></tr>`;
+      routeBody.querySelectorAll("[data-edit-route]").forEach((btn) => btn.addEventListener("click", () => editDeliveryRoute(btn.dataset.editRoute)));
+      routeBody.querySelectorAll("[data-vary-route]").forEach((btn) => btn.addEventListener("click", () => openDeliveryVariationEditor(btn.dataset.varyRoute)));
+      routeBody.querySelectorAll("[data-delete-route]").forEach((btn) => btn.addEventListener("click", () => deleteDeliveryRoute(btn.dataset.deleteRoute)));
     }
 
     setScheduleModeVisibility();
-    applySelectedRouteDefaults();
     setRouteFormVisibility();
   }
 
@@ -1924,6 +1922,7 @@ window.kioskState = {
     if (modalEl && window.bootstrap) {
       window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
     }
+    showDeliveryRoutesOverview();
     await loadDeliverySchedule();
   }
 
@@ -1971,10 +1970,9 @@ window.kioskState = {
     }
 
     ev.currentTarget.reset();
-    setScheduleModeVisibility();
-    applySelectedRouteDefaults();
     await loadDeliverySchedule();
     await reparseDeliveries({ applyDefaults: true, silent: true });
+    showDeliveryRoutesOverview();
   }
 
   function resetDeliveryRouteForm() {
@@ -2001,6 +1999,7 @@ window.kioskState = {
     $("#deliveryRouteAnchorDate").value = route.frequency_anchor_date || "";
     $("#deliveryRouteActive").checked = Boolean(route.is_active);
     setRouteFormVisibility();
+    showDeliveryRouteEditor(`Ridefinisci giro: ${route.name || ""}`);
   }
 
   async function saveDeliveryRoute(ev) {
@@ -2038,10 +2037,13 @@ window.kioskState = {
     resetDeliveryRouteForm();
     await loadDeliverySchedule();
     await reparseDeliveries({ applyDefaults: true, silent: true });
+    showDeliveryRoutesOverview();
   }
 
   async function deleteDeliveryRoute(routeId) {
     if (!routeId) return;
+    const route = deliveryScheduleState.routes.find((item) => String(item.id) === String(routeId));
+    if (!window.confirm(`Eliminare il giro “${route ? route.name : "selezionato"}”?`)) return;
     const res = await fetch(`${API_DELIVERY_ROUTES}/${routeId}`, {
       method: "DELETE",
       cache: "no-store",
@@ -2057,6 +2059,8 @@ window.kioskState = {
   }
 
   async function deleteDeliveryScheduleRule(ruleId) {
+    const routeId = Number($("#scheduleRoute") ? $("#scheduleRoute").value : 0);
+    if (!window.confirm("Eliminare questa variazione?")) return;
     const res = await fetch(`${API_DELIVERY_SCHEDULE}/${ruleId}`, {
       method: "DELETE",
       cache: "no-store",
@@ -2068,6 +2072,7 @@ window.kioskState = {
     }
     await loadDeliverySchedule();
     await reparseDeliveries({ applyDefaults: true, silent: true });
+    if (routeId) openDeliveryVariationEditor(routeId);
   }
 
   async function start() {
@@ -2134,17 +2139,17 @@ window.kioskState = {
     const routeForm = $("#deliveryRouteForm");
     if (routeForm) routeForm.addEventListener("submit", saveDeliveryRoute);
 
-    const routeReset = $("#btnRouteReset");
-    if (routeReset) routeReset.addEventListener("click", resetDeliveryRouteForm);
-
-    const scheduleRoute = $("#scheduleRoute");
-    if (scheduleRoute) {
-      scheduleRoute.addEventListener("change", () => {
-        const timeInput = $("#scheduleTargetTime");
-        if (timeInput) timeInput.value = "";
-        applySelectedRouteDefaults();
+    const newRouteButton = $("#btnNewDeliveryRoute");
+    if (newRouteButton) {
+      newRouteButton.addEventListener("click", () => {
+        resetDeliveryRouteForm();
+        showDeliveryRouteEditor("Nuovo giro");
       });
     }
+
+    document.querySelectorAll("[data-close-delivery-panel]").forEach((button) => {
+      button.addEventListener("click", showDeliveryRoutesOverview);
+    });
 
     const scheduleForm = $("#deliveryScheduleForm");
     if (scheduleForm) scheduleForm.addEventListener("submit", saveDeliverySchedule);

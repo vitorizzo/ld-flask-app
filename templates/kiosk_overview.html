@@ -1,7 +1,7 @@
 {% extends "base_kiosk.html" %}
 
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css', v=app_version ~ '-quick-order1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css', v=app_version ~ '-delivery-routes1') }}">
 {% endblock %}
 
 {% block content %}
@@ -196,67 +196,100 @@
       </div>
       <div class="modal-body">
         <div class="delivery-schedule-layout">
-          <div class="fw-bold mb-2">Giri</div>
-          <form id="deliveryRouteForm" class="delivery-schedule-form mb-3">
+          <section id="deliveryRoutesOverview">
+            <div class="delivery-schedule-toolbar">
+              <div>
+                <div class="fw-bold">Programmazione giri</div>
+                <div class="text-muted small">Calendario ordinario e prossima consegna prevista.</div>
+              </div>
+              <button class="btn btn-info" id="btnNewDeliveryRoute" type="button">
+                <i class="fa-solid fa-plus me-1" aria-hidden="true"></i> Nuovo giro
+              </button>
+            </div>
+
+            <div class="table-responsive delivery-routes-table-wrap">
+              <table class="table align-middle mb-0" id="deliveryRoutesTable">
+                <thead>
+                  <tr>
+                    <th>Giro</th>
+                    <th>Frequenza</th>
+                    <th>Prossima consegna</th>
+                    <th class="text-end">Azioni</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="deliveryRouteEditor" class="delivery-schedule-panel" hidden>
+            <div class="delivery-schedule-panel__head">
+              <div>
+                <div class="fw-bold" id="deliveryRouteEditorTitle">Nuovo giro</div>
+                <div class="text-muted small">Definisci la programmazione ordinaria e il canale di destinazione.</div>
+              </div>
+              <button class="btn btn-sm btn-outline-secondary" data-close-delivery-panel type="button">Torna ai giri</button>
+            </div>
+            <form id="deliveryRouteForm" class="delivery-schedule-form">
             <input type="hidden" id="deliveryRouteId">
+            <input id="deliveryRouteActive" type="checkbox" checked hidden>
             <div class="row g-2">
-              <div class="col-md-3">
+              <div class="col-md-6">
                 <label class="form-label">Nome</label>
                 <input class="form-control" id="deliveryRouteName" type="text" required>
               </div>
-              <div class="col-md-3">
+              <div class="col-md-6">
                 <label class="form-label">Canale Slack</label>
                 <input class="form-control" id="deliveryRouteSlack" type="text" required>
               </div>
-              <div class="col-md-2">
+              <div class="col-md-4">
                 <label class="form-label">Giorno</label>
                 <select class="form-select" id="deliveryRouteWeekday" required></select>
               </div>
-              <div class="col-md-2">
+              <div class="col-md-4">
                 <label class="form-label">Orario</label>
                 <input class="form-control" id="deliveryRouteTime" type="time" required>
               </div>
-              <div class="col-md-2">
+              <div class="col-md-4">
                 <label class="form-label">Frequenza</label>
                 <select class="form-select" id="deliveryRouteFrequency"></select>
               </div>
-              <div class="col-md-3 route-second-field">
+              <div class="col-md-6 route-second-field">
                 <label class="form-label">Secondo giorno</label>
                 <select class="form-select" id="deliveryRouteSecondWeekday"></select>
               </div>
-              <div class="col-md-2 route-second-field">
+              <div class="col-md-6 route-second-field">
                 <label class="form-label">Secondo orario</label>
                 <input class="form-control" id="deliveryRouteSecondTime" type="time">
               </div>
-              <div class="col-md-3 route-anchor-field">
+              <div class="col-md-6 route-anchor-field">
                 <label class="form-label">Riferimento quindicinale</label>
                 <input class="form-control" id="deliveryRouteAnchorDate" type="date">
               </div>
-              <div class="col-md-2 d-flex align-items-end">
-                <div class="form-check">
-                  <input class="form-check-input" id="deliveryRouteActive" type="checkbox" checked>
-                  <label class="form-check-label" for="deliveryRouteActive">Attivo</label>
-                </div>
-              </div>
             </div>
             <div class="d-flex justify-content-end gap-2 mt-3">
-              <button class="btn btn-outline-secondary" id="btnRouteReset" type="button">Nuovo</button>
+              <button class="btn btn-outline-secondary" data-close-delivery-panel type="button">Annulla</button>
               <button class="btn btn-info" type="submit">Salva giro</button>
             </div>
           </form>
+          </section>
 
-          <form id="deliveryScheduleForm" class="delivery-schedule-form">
-            <div class="row g-2">
-              <div class="col-md-4">
-                <label class="form-label">Giro</label>
-                <select class="form-select" id="scheduleRoute" required></select>
+          <section id="deliveryVariationEditor" class="delivery-schedule-panel" hidden>
+            <div class="delivery-schedule-panel__head">
+              <div>
+                <div class="fw-bold">Varia programmazione: <span id="deliveryVariationRouteName"></span></div>
+                <div class="text-muted small">Inserisci un'eccezione senza cambiare la programmazione ordinaria.</div>
               </div>
+              <button class="btn btn-sm btn-outline-secondary" data-close-delivery-panel type="button">Torna ai giri</button>
+            </div>
+            <form id="deliveryScheduleForm" class="delivery-schedule-form">
+            <div class="row g-2">
+              <select id="scheduleRoute" required hidden></select>
               <div class="col-md-4">
                 <label class="form-label">Tipo variazione</label>
                 <select class="form-select" id="scheduleMode" required>
                   <option value="once">Una volta</option>
                   <option value="period">Periodo</option>
-                  <option value="definitive">Definitiva</option>
                 </select>
               </div>
               <div class="col-md-4">
@@ -309,35 +342,17 @@
             </div>
 
             <div class="d-flex justify-content-end gap-2 mt-3">
+              <button class="btn btn-outline-secondary" data-close-delivery-panel type="button">Annulla</button>
               <button class="btn btn-info" type="submit">Salva variazione</button>
             </div>
           </form>
 
-          <hr>
-
-          <div class="fw-bold mb-2">Programmazione attuale</div>
-          <div class="table-responsive">
-            <table class="table table-sm align-middle" id="deliveryRoutesTable">
-              <thead>
-                <tr>
-                  <th>Giro</th>
-                  <th>Giorno</th>
-                  <th>Orario</th>
-                  <th>Frequenza</th>
-                  <th>Slack</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-
-          <div class="fw-bold mb-2">Variazioni attive</div>
-          <div class="table-responsive">
+          <div class="delivery-active-rules mt-3">
+            <div class="fw-bold mb-2">Variazioni attive del giro</div>
+            <div class="table-responsive">
             <table class="table table-sm align-middle" id="deliveryRulesTable">
               <thead>
                 <tr>
-                  <th>Giro</th>
                   <th>Tipo</th>
                   <th>Periodo / data</th>
                   <th>Frequenza</th>
@@ -348,7 +363,9 @@
               </thead>
               <tbody></tbody>
             </table>
+            </div>
           </div>
+          </section>
         </div>
       </div>
     </div>
@@ -357,5 +374,5 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/kiosk_overview.js', v=app_version ~ '-quick-order5') }}"></script>
+<script src="{{ url_for('static', filename='js/kiosk_overview.js', v=app_version ~ '-delivery-routes1') }}"></script>
 {% endblock %}
