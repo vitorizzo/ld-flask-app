@@ -1,5 +1,12 @@
 # PROJECT_MAP.md — v2.4
 
+## Ricevute assegni fornitori - preparazione upload (2026-09-12)
+
+- `static/js/check_receipt.js`: preparazione browser delle immagini e della prima pagina PDF, foglio intero con proporzioni conservate, lato massimo 3200 px e compressione JPEG adattiva; PDF.js caricato su richiesta con la versione gia' usata dagli Eventi. Per PDF multipagina viene chiesta conferma della prima pagina.
+- `static/js/agenda.js`: prepara e verifica tutte le ricevute tramite `POST /cassa/api/checks/scan/crop-preview` con `source_only=1` prima della POST/PUT pagamento; se l'upload finale fallisce conserva il modulo e l'ID del pagamento per il retry in modifica.
+- `routes/cassa.py`: normalizzazione immagini con ridimensionamento e compressione; logging della preparazione e dell'upload ricevuta. Storage e route ricevute assegni emessi restano quelli esistenti. I formati non decodificabili dal browser usano il normalizzatore server con limite di trasporto 25 MB.
+- `templates/agenda.html`: carica il preparatore prima di Agenda e aggiorna la cache key `receipt-prepare1`. Nessuna migration.
+
 ## Richiesta collaboratori clienti Horeca (2026-09-05)
 
 - Un cliente `customer_horeca` con permesso `administration` o `both` dispone di `Collaboratori attività` nella home e nel menu profilo. Può indicare l'email di un utente LDApp già registrato, scegliere `Solo amministrazione`, `Solo gestione ordini` oppure `Amministrazione e ordini` e inviare la richiesta allo staff.

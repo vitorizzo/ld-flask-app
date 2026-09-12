@@ -4246,6 +4246,7 @@ def api_upload_issued_check_receipt(check_id):
     try:
         content, extension, mime_type = _read_valid_check_scan(uploaded)
     except ValueError as exc:
+        logger.warning("Ricevuta assegno rifiutata check=%s: %s", check_id, exc)
         return jsonify({"ok": False, "error": str(exc)}), 400
 
     folder = os.path.join(current_app.instance_path, "issued_check_receipts", str(row.id))
@@ -4263,6 +4264,7 @@ def api_upload_issued_check_receipt(check_id):
         row.receipt_received_by = received_by or None
         row.receipt_uploaded_at = datetime.now(timezone.utc)
         db.session.commit()
+        logger.info("Ricevuta assegno salvata check=%s bytes=%s", check_id, len(content))
         if old_path and old_path != relative_path:
             _remove_issued_check_receipt_file(old_path)
         return jsonify({"ok": True, "check": _serialize_issued_check_for_returning(row, date.today())})
@@ -4978,6 +4980,7 @@ def _check_scan_image_to_jpeg(image):
     image = ImageOps.exif_transpose(image)
     if image.width * image.height > CHECK_SCAN_MAX_PIXELS:
         raise ValueError("La scansione ha una risoluzione troppo elevata")
+    image.thumbnail((3200, 3200), Image.Resampling.LANCZOS)
     if image.mode in {"RGBA", "LA"} or (image.mode == "P" and "transparency" in image.info):
         rgba = image.convert("RGBA")
         background = Image.new("RGB", rgba.size, "white")
@@ -4986,7 +4989,12 @@ def _check_scan_image_to_jpeg(image):
     else:
         image = image.convert("RGB")
     output = BytesIO()
-    image.save(output, format="JPEG", quality=94, optimize=True)
+    for quality in (90, 82, 74, 66):
+        output.seek(0)
+        output.truncate()
+        image.save(output, format="JPEG", quality=quality, optimize=True)
+        if output.tell() <= 800 * 1024:
+            break
     return output.getvalue()
 
 
@@ -5231,6 +5239,7 @@ def api_crop_check_scan_preview():
     try:
         content, _, _ = _read_valid_check_scan(request.files.get("scan"))
         if request.form.get("source_only") == "1":
+            logger.info("Scansione preparata senza ritaglio bytes=%s", len(content))
             response = send_file(BytesIO(content), mimetype="image/jpeg", as_attachment=False,
                                  download_name="scansione-assegno.jpg")
             response.headers["Cache-Control"] = "no-store"

@@ -1,4 +1,12 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-12 - Preparazione ricevute assegni fornitori
+
+- Il foglio firmato viene preparato prima del salvataggio del pagamento: immagini decodificabili dal browser e PDF vengono convertiti in JPEG, ridimensionati mantenendo il foglio intero e compressi. Nessun ritaglio automatico dell'assegno sulla ricevuta.
+- La preparazione riusa poi `crop-preview` con `source_only=1` come verifica server preventiva. Un errore impedisce di salvare il pagamento; se fallisce il successivo upload, il modulo conserva il file e passa in modifica del pagamento salvato per consentire il tentativo successivo senza duplicarlo.
+- Gli errori HTTP non JSON riportano anche lo stato HTTP; normalizzazione e salvataggio scrivono nel logger `cassa` e in `main.log`. Asset Agenda versionati `receipt-prepare1`.
+- Verificati normalizzatore reale con A4 4960x7016 in PNG/PDF e immagine TIFF, proporzioni e segno nella zona firma preservati; test JavaScript con decoder/canvas simulati su input 30 MB, sintassi JS/Python e log duplicati. Il TIFF da 104 MB e' stato testato direttamente nel normalizzatore, non attraverso il trasporto: i formati non decodificabili dal browser conservano il limite server di 25 MB.
+- Lo screenshot riporta un errore generico, senza codice HTTP; manca il file originale per confermare la causa esatta e ripetere il caso reale. Modifica locale, non distribuita; prossimo riscontro: collaudo del foglio originale sul dispositivo dopo deploy.
+
 # STATUS.md — aggiornamento Agenda / Cassa
 Data aggiornamento: 2026-09-05
 

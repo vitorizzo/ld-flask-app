@@ -7564,7 +7564,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       headers: {"Accept": "application/json"},
       body: formData,
     });
-    const data = await readJsonResponse(response, "Errore caricamento ricevuta assegno");
+    const data = await readJsonResponse(response, `Caricamento ricevuta rifiutato dal server (HTTP ${response.status})${response.status === 413 ? ': file troppo grande per il server' : ''}.`);
     if (!response.ok || !data.ok) throw new Error(data.error || "Errore caricamento ricevuta assegno");
     return data.check;
   }
@@ -7741,6 +7741,21 @@ document.addEventListener("DOMContentLoaded", async function () {
     try {
       if (saveBtn) saveBtn.disabled = true;
 
+      for (const receipt of pendingIssuedReceipts) {
+        receipt.file = await window.prepareIssuedCheckReceipt(receipt.file);
+        const form = new FormData();
+        form.append("scan", receipt.file, receipt.file.name);
+        form.append("source_only", "1");
+        const validation = await fetch("/cassa/api/checks/scan/crop-preview", {
+          method: "POST", credentials: "same-origin", body: form,
+        });
+        if (!validation.ok) {
+          const failure = await readJsonResponse(validation, `Preparazione allegato rifiutata (HTTP ${validation.status}).`);
+          throw new Error(failure.error);
+        }
+        receipt.file = new File([await validation.blob()], receipt.file.name.replace(/\.[^.]+$/, "") + ".jpg", {type: "image/jpeg"});
+      }
+
       const r = await fetch(endpoint, {
         method,
         headers: { "Content-Type": "application/json" },
@@ -7775,7 +7790,16 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
         catch (receiptError) { scanErrors.push(receiptError.message || "ricevuta non caricata"); }
       }
-      if (scanErrors.length) alert(`Operazione salvata, ma alcune scansioni non sono state caricate: ${scanErrors.join("; ")}`);
+      if (scanErrors.length) {
+        if (opType === "expense" && data.expense_id != null) {
+          editingOperationId = data.expense_id;
+          editingOperationType = "expense";
+          if (saveBtn) saveBtn.textContent = "Riprova salvataggio e allegato";
+          alert(`Pagamento salvato. L'allegato non è stato confermato: ${scanErrors.join("; ")}. Il modulo resta aperto con il file selezionato: riprova senza creare un nuovo pagamento.`);
+          return;
+        }
+        alert(`Operazione salvata, ma alcune scansioni non sono state caricate: ${scanErrors.join("; ")}`);
+      }
       else if (uploadedReceiptCount) alert("Pagamento e allegato dell'assegno salvati correttamente.");
 
       resetOperationEditState();
@@ -7791,7 +7815,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
     } catch (err) {
       console.error("saveOperation error:", err);
-      alert("Errore di rete durante il salvataggio.");
+      alert(err.message || "Errore di rete durante il salvataggio.");
     } finally {
       operationSaving = false;
       if (saveBtn) saveBtn.disabled = false;
