@@ -1,5 +1,12 @@
 # PROJECT_MAP.md — v2.4
 
+## Agenda - interfaccia touch (2026-09-12)
+
+- `static/css/agenda_mobile.css`, incluso dopo `agenda.css`, centralizza la scala touch delle schermate e delle modali: breakpoint fino a 820 px oppure coarse/no-hover, scala maggiorata da 821 px sui touch. Calendario fluido, movimenti a schede, modali fullscreen con corpo scrollabile e footer sempre separato, campi impilati e metodi pagamento a griglia.
+- `bindAgendaMobileShell()` in `static/js/agenda.js` aggiorna le variabili CSS VisualViewport, etichetta le celle delle tabelle operative dai rispettivi header anche dopo caricamento e impedisce il salvataggio rapido tramite Invio su input mobile. Fondo cassa e report mantengono le rispettive strutture tabellari.
+- Il pannello mobile viene portato nel body a livello 11990; su mobile lo stack modali usa base 12050/backdrop 12040 e il menu contestuale 12150. Alla chiusura del pannello il contenuto torna nella posizione DOM originale e il focus al controllo di apertura.
+- Asset UI versionati `touch-agenda1`; nessuna variazione alle API o ai calcoli.
+
 ## Ricevute assegni fornitori - preparazione upload (2026-09-12)
 
 - `static/js/check_receipt.js`: preparazione browser delle immagini e della prima pagina PDF, foglio intero con proporzioni conservate, lato massimo 3200 px e compressione JPEG adattiva; PDF.js caricato su richiesta con la versione gia' usata dagli Eventi. Per PDF multipagina viene chiesta conferma della prima pagina.

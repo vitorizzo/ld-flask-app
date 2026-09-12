@@ -4185,7 +4185,8 @@ const agendaMobileSheetState = {
   node: null,
   parent: null,
   next: null,
-  title: ""
+  title: "",
+  trigger: null
 };
 
 function agendaIsMobile() {
@@ -4208,21 +4209,26 @@ function closeAgendaMobileSheet() {
     delete sheet.dataset.mode;
   }
   document.body.classList.remove("agenda-mobile-sheet-open");
+  if (agendaMobileSheetState.trigger?.isConnected) agendaMobileSheetState.trigger.focus({preventScroll: true});
+  agendaMobileSheetState.trigger = null;
 }
 
 function openAgendaMobileSheet(title, node, mode = "") {
   if (!agendaIsMobile() || !node) return;
+  const trigger = document.activeElement;
   closeAgendaMobileSheet();
 
   const sheet = document.getElementById("agendaMobileSheet");
   const body = document.getElementById("agendaMobileSheetBody");
   const titleEl = document.getElementById("agendaMobileSheetTitle");
   if (!sheet || !body) return;
+  if (sheet.parentNode !== document.body) document.body.appendChild(sheet);
 
   agendaMobileSheetState.node = node;
   agendaMobileSheetState.parent = node.parentNode;
   agendaMobileSheetState.next = node.nextSibling;
   agendaMobileSheetState.title = title;
+  agendaMobileSheetState.trigger = trigger;
 
   if (titleEl) titleEl.textContent = title;
   body.appendChild(node);
@@ -4230,9 +4236,50 @@ function openAgendaMobileSheet(title, node, mode = "") {
   sheet.classList.add("is-open");
   sheet.setAttribute("aria-hidden", "false");
   document.body.classList.add("agenda-mobile-sheet-open");
+  body.scrollTop = 0;
+  document.getElementById("agendaMobileSheetClose")?.focus({preventScroll: true});
 }
 
 function bindAgendaMobileShell() {
+  const updateViewport = () => {
+    const viewport = window.visualViewport;
+    document.documentElement.style.setProperty("--agenda-viewport-height", `${viewport?.height || window.innerHeight}px`);
+    document.documentElement.style.setProperty("--agenda-viewport-top", `${viewport?.offsetTop || 0}px`);
+  };
+  updateViewport();
+  window.visualViewport?.addEventListener("resize", updateViewport);
+  window.visualViewport?.addEventListener("scroll", updateViewport);
+  window.addEventListener("resize", updateViewport);
+
+  // Annotate real table headings once per changed row; keep the cash count matrix.
+  document.querySelectorAll(".agenda-modal table:not(#drawerCountTable)").forEach(table => {
+    if (table.closest("#dayReportModal")) return;
+    if (!table.querySelector("thead th")) return;
+    table.classList.add("agenda-touch-table");
+    const annotate = () => {
+      const headings = Array.from(table.querySelectorAll("thead th"), th => th.textContent.trim());
+      table.querySelectorAll("tbody tr").forEach(row => {
+        Array.from(row.cells).forEach((cell, index) => {
+          const label = cell.colSpan === 1 ? headings[index] || "" : "";
+          if (cell.dataset.label !== label) cell.dataset.label = label;
+        });
+      });
+    };
+    annotate();
+    new MutationObserver(annotate).observe(table, {childList: true, subtree: true});
+  });
+  document.querySelectorAll(".agenda-modal").forEach(modal => {
+    modal.addEventListener("shown.bs.modal", () => {
+      updateViewport();
+      if (agendaIsMobile()) modal.querySelector(".modal-body")?.scrollTo(0, 0);
+    });
+    // Phone keyboard Enter must not submit a financial operation implicitly.
+    modal.addEventListener("keydown", event => {
+      if (agendaIsMobile() && event.key === "Enter" && event.target.matches("input,select")) {
+        event.stopPropagation();
+      }
+    }, true);
+  });
   document.querySelectorAll("[data-agenda-mobile-action]").forEach(btn => {
     btn.addEventListener("click", (event) => {
       event.preventDefault();
@@ -4265,7 +4312,7 @@ function bindAgendaMobileShell() {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeAgendaMobileSheet();
+    if (event.key === "Escape" && !document.querySelector(".agenda-modal.show")) closeAgendaMobileSheet();
   });
 
   window.addEventListener("resize", () => {
@@ -4290,6 +4337,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     onChange: function (selectedDates) {
       if (selectedDates.length) {
         loadDay(toLocalYMD(selectedDates[0]));
+        if (agendaIsMobile()) closeAgendaMobileSheet();
       }
     }
   });
@@ -4444,9 +4492,16 @@ document.addEventListener("DOMContentLoaded", async function () {
   const paymentWarning = document.getElementById("paymentWarning");
 
   if (opModalEl) {
+    opModalEl.addEventListener("shown.bs.modal", () => {
+      if (saveBtn && !operationSaving) {
+        saveBtn.disabled = false;
+        saveBtn.textContent = editingOperationId != null ? "Salva modifica" : "Salva";
+      }
+    });
     opModalEl.addEventListener("keydown", handleOperationModalKeydown);
     opModalEl.addEventListener("hidden.bs.modal", () => {
       saveBtn?.removeAttribute("disabled");
+      if (saveBtn) saveBtn.textContent = "Salva";
     });
     opModalEl.addEventListener("click", async (event) => {
       const deleteReceiptBtn = event.target.closest(".btn-issued-receipt-delete");
@@ -4562,8 +4617,8 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   (function initModalStack3D() {
-    const BASE_MODAL_Z = 2100;
-    const BASE_BACKDROP_Z = 2090;
+    const BASE_MODAL_Z = agendaIsMobile() ? 12050 : 2100;
+    const BASE_BACKDROP_Z = agendaIsMobile() ? 12040 : 2090;
     const STEP = 20;
     const modalStack = [];
 
@@ -9827,6 +9882,7 @@ function buildContextMenuHtml(context) {
 function openContextMenu(x, y, context) {
   const menu = document.getElementById("contextMenu");
   if (!menu) return;
+  if (agendaIsMobile() && menu.parentNode !== document.body) document.body.appendChild(menu);
 
   currentContext = context;
   menu.innerHTML = buildContextMenuHtml(context);

@@ -1,0 +1,143 @@
+/* Shared touch scale also applies to dialogs moved outside the page shell. */
+.agenda-mobile-sheet:not(.is-open) { display: none; }
+@media (max-width: 820px), (hover: none) and (pointer: coarse) {
+  :root { --agenda-touch: 48px; --agenda-text: 16px; --agenda-gap: 12px; }
+  .agenda-mobile-sheet { z-index: 11990; }
+  .agenda-mobile-sheet__panel {
+    inset: 0; height: 100dvh;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .agenda-mobile-sheet__body { overflow: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+  .agenda-mobile-sheet__header { gap: var(--agenda-gap); }
+  .agenda-mobile-sheet__header h4 { font-size: calc(var(--agenda-text) * 1.35); }
+  .agenda-mobile-sheet__close { width: var(--agenda-touch); height: var(--agenda-touch); flex-shrink: 0; }
+  .agenda-mobile-sheet :is(.card, .card-body, .card-header) { min-width: 0; }
+  .agenda-mobile-sheet .card-header { flex-wrap: wrap; gap: var(--agenda-gap); }
+  .agenda-mobile-sheet__body .agenda-mobile-quadrant .card-header {
+    padding: var(--agenda-gap); min-height: 0;
+  }
+  .agenda-mobile-sheet__body .agenda-mobile-quadrant .card-header :is(.fw-semibold,.text-muted) {
+    font-size: var(--agenda-text);
+  }
+  .agenda-mobile-sheet__body .agenda-mobile-quadrant .card-body { padding: 0; }
+  .agenda-mobile-sheet :is(.btn,.form-control,.form-select) {
+    min-height: var(--agenda-touch); font-size: var(--agenda-text);
+  }
+  .agenda-mobile-sheet .pos-device-filter-wrap { width: 100%; max-width: 100%; }
+  .agenda-mobile-sheet .pos-device-filter { width: 100%; max-width: 100%; }
+  .agenda-mobile-sheet .table-row {
+    display: grid; grid-template-columns: var(--agenda-touch) minmax(0,1fr) var(--agenda-touch);
+    gap: 8px; align-items: start; padding: var(--agenda-gap) !important;
+    border: 1px solid #d6cbc5; border-radius: 12px; margin-bottom: 10px;
+    color: #212529; background: #fff;
+  }
+  .agenda-mobile-sheet .table-row.row-checked { background: #e6f3e8; }
+  .agenda-mobile-sheet .col-check { grid-column: 1; grid-row: 1; margin: 0 !important; min-height: var(--agenda-touch); align-items: center; }
+  .agenda-mobile-sheet .col-desc { grid-column: 2; grid-row: 1; gap: 4px; }
+  .agenda-mobile-sheet .col-desc .desc {
+    display: block; white-space: normal; overflow: visible; overflow-wrap: anywhere;
+    -webkit-line-clamp: unset; font-size: var(--agenda-text); line-height: 1.4;
+  }
+  .agenda-mobile-sheet .col-desc .flag { font-size: var(--agenda-text); }
+  .agenda-mobile-sheet .col-actions { grid-column: 3; grid-row: 1; }
+  .agenda-mobile-sheet .col-badges { grid-column: 2 / 4; grid-row: 2; flex-wrap: wrap; }
+  .agenda-mobile-sheet .badge-soft { font-size: calc(var(--agenda-text) * .85); white-space: normal; }
+  .agenda-mobile-sheet .col-amt { grid-column: 2 / 4; grid-row: 3; font-size: calc(var(--agenda-text) * 1.2); }
+  .agenda-mobile-sheet .btn-row-menu { width: var(--agenda-touch); height: var(--agenda-touch); font-size: var(--agenda-text); }
+  .agenda-mobile-sheet .form-check-input { width: calc(var(--agenda-text) * 1.5); height: calc(var(--agenda-text) * 1.5); }
+  .agenda-mobile-sheet #agendaMobileKpi > [class*="col-"] { width: 100%; flex: 0 0 100%; margin-bottom: var(--agenda-gap); }
+  .agenda-mobile-sheet .kpi-title { font-size: calc(var(--agenda-text) * 1.15); padding: var(--agenda-gap); }
+  .agenda-mobile-sheet .kpi-label { font-size: var(--agenda-text); }
+  .agenda-mobile-sheet :is(.kpi-num,.kpi-num-big) { font-size: calc(var(--agenda-text) * 1.35); overflow-wrap: anywhere; }
+  .agenda-mobile-sheet .kpi-split { display: flex; flex-wrap: wrap; gap: var(--agenda-gap); }
+  .agenda-mobile-sheet .kpi-side { min-width: 0; flex: 1 1 180px; }
+
+  #agendaCalendar { width: 100%; }
+  .agenda-mobile-sheet[data-mode="calendar"] .agenda-mobile-sheet__body,
+  .agenda-mobile-sheet[data-mode="calendar"] .card-body { padding: 4px; }
+  #agendaCalendar .flatpickr-calendar.inline,
+  #agendaCalendar :is(.flatpickr-rContainer,.flatpickr-days,.dayContainer) {
+    width: 100% !important; min-width: 0 !important; max-width: none !important; transform: none;
+  }
+  #agendaCalendar .flatpickr-innerContainer { width: 100%; }
+  #agendaCalendar .dayContainer { display: grid; grid-template-columns: repeat(7,minmax(0,1fr)); padding: 0; }
+  #agendaCalendar .flatpickr-day {
+    width: 100%; max-width: none; height: var(--agenda-touch); line-height: var(--agenda-touch);
+    margin: 0; font-size: var(--agenda-text); border-radius: 10px;
+  }
+  #agendaCalendar .flatpickr-months { min-height: calc(var(--agenda-touch) * 2); }
+  #agendaCalendar .flatpickr-month { height: calc(var(--agenda-touch) * 2); }
+  #agendaCalendar :is(.flatpickr-prev-month,.flatpickr-next-month) {
+    display: flex; align-items: center; justify-content: center;
+    width: var(--agenda-touch); height: var(--agenda-touch); padding: 8px;
+  }
+  #agendaCalendar .flatpickr-current-month {
+    left: var(--agenda-touch); width: calc(100% - var(--agenda-touch) * 2);
+    height: auto; padding: 4px 0; font-size: var(--agenda-text);
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+  }
+  #agendaCalendar .flatpickr-monthDropdown-months { max-width: 100%; min-height: calc(var(--agenda-touch) * .8); }
+  #agendaCalendar .numInputWrapper input { min-height: calc(var(--agenda-touch) * .8); }
+  #agendaCalendar .flatpickr-weekdays { height: var(--agenda-touch); }
+  #agendaCalendar .flatpickr-weekday { font-size: calc(var(--agenda-text) * .85); }
+  #agendaCalendar .numInputWrapper { width: 5.5em; }
+  .agenda-mobile-sheet :is(#assegniScadenzaList,#assegniRientrantiList) .list-group-item {
+    font-size: var(--agenda-text); padding: var(--agenda-gap); overflow-wrap: anywhere;
+  }
+
+  .agenda-modal.modal { z-index: 12050; top: var(--agenda-viewport-top,0px); height: var(--agenda-viewport-height,100dvh); padding: 0 !important; overflow: hidden; }
+  .agenda-modal .modal-dialog { width: 100%; max-width: 100%; height: 100%; max-height: 100%; min-height: 0; margin: 0; }
+  .agenda-modal.modal .modal-dialog { transform: none; }
+  .agenda-modal.modal.modal-underlay .modal-dialog { transform: none; }
+  .agenda-modal .modal-content { height: 100%; min-height: 0; max-height: 100%; border-radius: 0; overflow: hidden; }
+  .agenda-modal .modal-header {
+    flex-shrink: 0; padding: calc(var(--agenda-gap) + env(safe-area-inset-top)) var(--agenda-gap) var(--agenda-gap);
+  }
+  .agenda-modal .modal-title { font-size: calc(var(--agenda-text) * 1.25); }
+  .agenda-modal .btn-close { min-width: var(--agenda-touch); min-height: var(--agenda-touch); box-sizing: border-box; padding: 8px; margin: 0; background-size: calc(var(--agenda-text) * 1.1); }
+  .agenda-modal .modal-body {
+    flex: 1 1 auto; min-height: 0; padding: var(--agenda-gap); overflow: auto;
+    overscroll-behavior: contain; -webkit-overflow-scrolling: touch; font-size: var(--agenda-text);
+  }
+  .agenda-modal .modal-footer {
+    position: static; flex-shrink: 0; gap: 8px; flex-wrap: wrap;
+    padding: var(--agenda-gap) var(--agenda-gap) calc(var(--agenda-gap) + env(safe-area-inset-bottom));
+  }
+  .agenda-modal .modal-footer > .btn { flex: 1 1 130px; margin: 0; white-space: normal; }
+  .agenda-modal .row > [class*="col-"] { flex: 0 0 100%; width: 100%; max-width: 100%; min-width: 0; }
+  .agenda-modal :is(.form-label,.form-check-label,.form-text,.small,small) { font-size: var(--agenda-text); line-height: 1.4; }
+  .agenda-modal :is(.form-control,.form-select,.input-group-text,.btn),
+  .agenda-modal .input-group :is(.form-control,.input-group-text,.btn) {
+    min-height: var(--agenda-touch); height: auto; font-size: var(--agenda-text);
+  }
+  .agenda-modal :is(.input-group,.form-control,.form-select) { min-width: 0; max-width: 100%; }
+  .agenda-modal input[type="file"] { width: 100%; overflow: hidden; }
+  .agenda-modal textarea { min-height: calc(var(--agenda-touch) * 2); }
+  .agenda-modal .form-check { display: flex; align-items: center; gap: 12px; min-height: var(--agenda-touch); padding-left: 0; }
+  .agenda-modal .form-check .form-check-input { float: none; margin: 0; flex-shrink: 0; width: calc(var(--agenda-text) * 1.4); height: calc(var(--agenda-text) * 1.4); }
+  .agenda-modal .form-check-label { flex: 1; padding: 10px 0; }
+  #paymentModeGroup { display: grid !important; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px !important; }
+  #paymentModeGroup .form-check { border: 1px solid #cbbdb5; border-radius: 10px; padding: 0 10px; }
+  #paymentModeGroup .form-check:has(:checked) { border-color: #087e91; background: #dff6fa; }
+  .agenda-modal .multi-payment-row { padding: var(--agenda-gap); margin-bottom: var(--agenda-gap); }
+  .agenda-modal table { font-size: var(--agenda-text); }
+  .agenda-modal .agenda-touch-table, .agenda-modal .agenda-touch-table tbody { display: block; width: 100%; }
+  .agenda-modal .agenda-touch-table thead { display: none; }
+  .agenda-modal .agenda-touch-table tbody tr { display: block; border: 1px solid #d8cec8; border-radius: 10px; margin-bottom: 12px; padding: 8px; }
+  .agenda-modal .agenda-touch-table tbody td {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;
+    gap: 8px; width: 100% !important; white-space: normal !important; overflow-wrap: anywhere;
+  }
+  .agenda-modal .agenda-touch-table td[data-label]::before { content: attr(data-label); font-weight: 600; color: #5a4036; }
+  #drawerCountTable { table-layout: fixed; width: 100%; }
+  #drawerCountTable :is(th,td) { padding: 8px 4px; white-space: normal; }
+  #drawerCountTable input { width: 100%; min-width: 0; }
+  #contextMenu { z-index: 12150; max-height: calc(var(--agenda-viewport-height,100dvh) - 24px); overflow-y: auto; overscroll-behavior: contain; }
+  #contextMenu .context-menu-item { min-height: var(--agenda-touch); font-size: var(--agenda-text); white-space: normal; }
+}
+@media (hover: none) and (pointer: coarse) and (min-width: 821px) {
+  :root { --agenda-touch: 92px; --agenda-text: 30px; --agenda-gap: 24px; }
+  #agendaCalendar :is(.flatpickr-prev-month,.flatpickr-next-month) svg { width: 28px; height: 28px; }
+  #contextMenu { min-width: min(680px,calc(100vw - 24px)); max-width: calc(100vw - 24px); }
+}

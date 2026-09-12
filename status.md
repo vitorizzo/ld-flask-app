@@ -1,4 +1,12 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-12 - Agenda su smartphone e touch ad alta risoluzione
+
+- Aggiunto `static/css/agenda_mobile.css`, caricato dopo gli stili Agenda: calendario a larghezza disponibile, navigazione mese/anno touch, righe movimenti a schede con descrizione intera, badge e importo separati, KPI leggibili e menu azioni scrollabile.
+- Le 22 modali Agenda condividono layout fullscreen, campi impilati, controlli da 48 px (92 px sul profilo touch largo), footer separato dal corpo scrollabile e altezza legata alla VisualViewport per la tastiera. Pagamenti multipli, scelta metodo e input allegati rientrano nello stesso profilo.
+- Le tabelle operative con intestazioni diventano schede etichettate, aggiornate dopo i caricamenti; fondo cassa conserva la matrice compatta, report conserva la struttura tabellare. I pannelli mobili vivono nel body; le modali e i menu si aprono sopra di essi. Selezionando la data si torna alla giornata.
+- Invio dalla tastiera mobile non attiva gli handler di salvataggio rapido; la conferma resta sul pulsante. Il pulsante dell'operazione viene riallineato su apertura/chiusura.
+- Verificati sintassi JavaScript, rendering Jinja con 22 modali, apertura/chiusura ripetuta dei pannelli con ripristino posizione DOM e focus tramite test simulato, `git diff --check`. Controllo visivo non eseguibile: questa sessione non espone browser IAB/Edge. Da collaudare dopo deploy su smartphone standard e Galaxy S25, inclusa tastiera aperta. Modifiche locali, nessuna migration o modifica alle formule contabili.
+
 ## 2026-09-12 - Preparazione ricevute assegni fornitori
 
 - Il foglio firmato viene preparato prima del salvataggio del pagamento: immagini decodificabili dal browser e PDF vengono convertiti in JPEG, ridimensionati mantenendo il foglio intero e compressi. Nessun ritaglio automatico dell'assegno sulla ricevuta.
