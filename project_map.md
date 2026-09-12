@@ -1,5 +1,12 @@
 # PROJECT_MAP.md — v2.4
 
+## Verifiche contabili avviate dall'ufficio (2026-09-12)
+
+- `routes/administration.py`, `POST /customer-credit/<source_customer_code>/item-status`: la scelta `under_review` crea una `CustomerPaymentCase(case_type='payment_claim')` con allocazioni e audit `office_review_submitted`, collegando gli stati operativi. Riuso della coda/badge Contestazioni partite aperte; protezione delle partite gia' associate e lock delle righe selezionate.
+- Dopo il commit viene accodato il task esistente `notify_customer_payment_case_task`. `tools/customer_payment_notifications.py` riconosce l'origine amministrativa dall'audit, mantiene il destinatario `DISPUTES_APP_EMAIL` e l'account `assistance`, e conserva deduplica ed eventi di esito esistenti.
+- Il decorator del task usa il logger `customer_payment_notifications`, duplicato nel log aggregato. Un fallimento di accodamento registra `office_notification_queue_failed` e avvisa l'operatore senza perdere la pratica.
+- Nessun nuovo modello o migration; gli altri stati manuali non vengono trasformati in pratiche.
+
 ## Agenda - interfaccia touch (2026-09-12)
 
 - `static/css/agenda_mobile.css`, incluso dopo `agenda.css`, centralizza la scala touch delle schermate e delle modali: breakpoint fino a 820 px oppure coarse/no-hover, scala maggiorata da 821 px sui touch. Calendario fluido, movimenti a schede, modali fullscreen con corpo scrollabile e footer sempre separato, campi impilati e metodi pagamento a griglia.

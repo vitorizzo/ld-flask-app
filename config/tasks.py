@@ -13,6 +13,7 @@ from tools.log_utils import log_task, get_logger
 
 logger = get_logger('tasks')
 mailing_logger = get_logger('mailing_list')
+customer_payment_logger = get_logger('customer_payment_notifications')
 
 
 def _run_locked_import(import_name, task_id, task_name, callback):
@@ -192,7 +193,7 @@ def matrixws_test_poll_task(self, batch_uuid, request_meta=None):
 
 
 @celery.task(bind=True)
-@log_task(logger)
+@log_task(customer_payment_logger)
 def notify_customer_payment_case_task(self, case_id, notification_kind="created"):
     from tools.customer_payment_notifications import notify_customer_payment_case
 

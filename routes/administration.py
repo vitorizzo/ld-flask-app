@@ -20,12 +20,15 @@ from models import (
     CustomerAccountEntry,
     CustomerAccountStatementImport,
     CustomerAccountingItemState,
+    CustomerPaymentCase,
+    CustomerPaymentAllocation,
+    CustomerPaymentEvent,
     User,
 )
 from tools.log_utils import get_logger, log_task
 from tools.mail_accounts import account_sender, get_email_account, send_account_mail
 from tools.nexi_xpay import NexiXPayClient, NexiXPayError, NexiXPayUncertainError
-from tools.customer_payments import account_entry_source_key, is_selectable_settlement_item
+from tools.customer_payments import account_entry_source_key, account_entry_snapshot, is_selectable_settlement_item
 from tools.role_required import role_required
 
 
@@ -623,7 +626,7 @@ def update_customer_credit_item_status(source_customer_code):
         CustomerAccountEntry.import_id == current_import.id,
         CustomerAccountEntry.source_customer_code == source_customer_code,
         CustomerAccountEntry.id.in_(entry_ids),
-    ).all()
+    ).order_by(CustomerAccountEntry.id).with_for_update().all()
     if len(selected_entries) != len(entry_ids) or any(
         not is_selectable_settlement_item(entry) for entry in selected_entries
     ):
@@ -645,6 +648,41 @@ def update_customer_credit_item_status(source_customer_code):
         return _redirect_customer_credit_detail(source_customer_code)
 
     now = datetime.now(timezone.utc)
+    payment_case = None
+    if requested_status == "under_review":
+        registry_ids = {entry.registry_id for entry in selected_entries}
+        if None in registry_ids or len(registry_ids) != 1:
+            flash("Associa prima tutte le partite alla stessa anagrafica cliente per aprire la verifica nel Servizio clienti.", "warning")
+            return _redirect_customer_credit_detail(source_customer_code)
+        payment_case = CustomerPaymentCase(
+            registry_id=next(iter(registry_ids)),
+            created_by_user_id=current_user.id,
+            case_type="payment_claim",
+            status="under_review",
+            currency="EUR",
+            declared_amount=sum((Decimal(entry.signed_amount) for entry in selected_entries), Decimal("0.00")),
+            note=note,
+            submitted_at=now,
+        )
+        db.session.add(payment_case)
+        db.session.flush()
+        for entry in selected_entries:
+            db.session.add(CustomerPaymentAllocation(
+                case_id=payment_case.id,
+                source_customer_code=source_customer_code,
+                source_item_key=account_entry_source_key(entry),
+                current_entry_id=entry.id,
+                allocated_amount=entry.signed_amount,
+                document_snapshot=account_entry_snapshot(entry),
+            ))
+        db.session.add(CustomerPaymentEvent(
+            case_id=payment_case.id,
+            actor_user_id=current_user.id,
+            event_type="office_review_submitted",
+            to_status="under_review",
+            message="Verifica richiesta da Situazioni contabili clienti",
+            event_metadata={"source": "office_manual", "document_count": len(selected_entries)},
+        ))
     changed = 0
     for entry in selected_entries:
         source_key = account_entry_source_key(entry)
@@ -668,9 +706,27 @@ def update_customer_credit_item_status(source_customer_code):
         item_state.updated_by_user_id = current_user.id
         item_state.updated_at = now
         item_state.last_seen_entry_id = entry.id
+        if payment_case is not None:
+            item_state.payment_case_id = payment_case.id
         changed += 1
 
     db.session.commit()
+    if payment_case is not None:
+        try:
+            from config.tasks import notify_customer_payment_case_task
+
+            notify_customer_payment_case_task.delay(payment_case.id)
+            logger.info("Verifica ufficio accodata al Servizio clienti: pratica=%s cliente=%s", payment_case.id, source_customer_code)
+        except Exception:
+            logger.exception("Notifica verifica ufficio non accodata: pratica=%s", payment_case.id)
+            db.session.add(CustomerPaymentEvent(
+                case_id=payment_case.id,
+                actor_user_id=current_user.id,
+                event_type="office_notification_queue_failed",
+                message="Notifica email non accodata; verifica disponibile nel Servizio clienti.",
+            ))
+            db.session.commit()
+            flash("La verifica è nel Servizio clienti, ma non è stato possibile accodare la notifica email.", "warning")
     if requested_status == "cleared":
         message = f"Segnalazione rimossa da {changed} partit{'a' if changed == 1 else 'e'}."
     else:

@@ -38,6 +38,7 @@ def _absolute_office_url(case_id):
 
 
 def notify_customer_payment_case(case_id, notification_kind="created"):
+    logger.info("Avvio notifica pratica=%s tipo=%s", case_id, notification_kind)
     payment_case = (
         CustomerPaymentCase.query
         .options(
@@ -50,6 +51,7 @@ def notify_customer_payment_case(case_id, notification_kind="created"):
         .first()
     )
     if payment_case is None:
+        logger.warning("Notifica ignorata: pratica=%s non trovata", case_id)
         return {"success": False, "case_id": case_id, "reason": "case_not_found"}
 
     already_sent = None
@@ -58,6 +60,7 @@ def notify_customer_payment_case(case_id, notification_kind="created"):
             case_id=payment_case.id, event_type="office_email_sent",
         ).first()
     if already_sent is not None:
+        logger.info("Notifica gia inviata: pratica=%s", payment_case.id)
         return {"success": True, "case_id": payment_case.id, "skipped": True, "reason": "already_sent"}
 
     registry = payment_case.registry
@@ -75,6 +78,13 @@ def notify_customer_payment_case(case_id, notification_kind="created"):
     subject_action, body_action, success_event_type = notification_labels.get(
         notification_kind, notification_labels["created"]
     )
+    office_requested = CustomerPaymentEvent.query.filter_by(
+        case_id=payment_case.id, event_type="office_review_submitted",
+    ).first() is not None
+    if office_requested:
+        subject_prefix = "Verifica partita richiesta dall'ufficio"
+        if notification_kind == "created":
+            body_action = "inserita da Situazioni contabili clienti"
     customer_name = registry.display_name or registry.legal_name or registry.source_code
     document_lines = []
     for allocation in payment_case.allocations:
@@ -126,4 +136,5 @@ def notify_customer_payment_case(case_id, notification_kind="created"):
         event_metadata={"recipient": recipient},
     ))
     db.session.commit()
+    logger.info("Notifica inviata: pratica=%s tipo=%s destinatario=%s", payment_case.id, notification_kind, recipient)
     return {"success": True, "case_id": payment_case.id, "recipient": recipient, "mail": result}

@@ -1,4 +1,12 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-12 - Verifica partite dall'area amministrativa al Servizio clienti
+
+- Impostando `under_review` da Situazioni contabili clienti viene creata una pratica `payment_claim`, con documenti/snapshot, nota, operatore ed evento `office_review_submitted`; le partite vengono collegate nella stessa transazione. La pratica alimenta cosi' la coda Contestazioni partite aperte e i badge Servizio clienti gia' esistenti.
+- Dopo il commit viene accodato `notify_customer_payment_case_task`: destinatario configurato `DISPUTES_APP_EMAIL`, account SMTP `assistance`, oggetto/testo che distinguono la richiesta dell'ufficio da quella del cliente. Nessun invio SMTP nella richiesta web.
+- Le righe selezionate vengono bloccate durante la transazione; un nuovo invio su partite gia' collegate viene respinto dalla protezione esistente. Una verifica richiede partite collegate alla stessa anagrafica; in assenza dell'associazione viene richiesto di completarla prima di salvare.
+- Un errore di accodamento conserva la pratica nella coda, registra l'evento e mostra un warning. Gli altri stati manuali conservano il comportamento precedente. Nessun recupero retroattivo o invio di vecchie segnalazioni.
+- Test isolati con modelli reali su SQLite temporaneo e SMTP/Celery simulati: pratica, allocazioni, stato partite, audit, riinvio, accodamento fallito, destinatario configurato, origine ufficio, link privato e deduplica email. Verificati logger dedicato/aggregato, sintassi Python e diff. Modifica locale; deploy e riavvio web/worker necessari, nessuna migration.
+
 ## 2026-09-12 - Agenda su smartphone e touch ad alta risoluzione
 
 - Aggiunto `static/css/agenda_mobile.css`, caricato dopo gli stili Agenda: calendario a larghezza disponibile, navigazione mese/anno touch, righe movimenti a schede con descrizione intera, badge e importo separati, KPI leggibili e menu azioni scrollabile.
