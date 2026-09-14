@@ -13,7 +13,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
   <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda.css', v=app_version ~ '-pos-device-filter1') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda_mobile.css', v=app_version ~ '-touch-agenda1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda_mobile.css', v=app_version ~ '-card-receipt1') }}">
 
 {% endblock %}
 
@@ -1425,7 +1425,14 @@
 
                 </div>
 
+                <div class="col-12">
+                <label for="expensePosReceipt" class="form-label">Ricevuta del pagamento (facoltativa)</label>
+                <input type="file" id="expensePosReceipt" class="form-control" accept="image/*,application/pdf,.pdf,.heic,.heif,.tif,.tiff">
+                <div class="form-text">Foto o scansione, anche in PDF. Il file viene preparato automaticamente prima del salvataggio.</div>
+                <div id="expensePosReceiptCurrent" class="card-receipt-current mt-2 d-none"></div>
               </div>
+
+            </div>
 
 
 
@@ -1916,6 +1923,12 @@
                     <option value="Carta personale">Carta personale</option>
 
                   </select>
+
+                  <label class="form-label mt-2">Ricevuta del pagamento (facoltativa)
+                    <input type="file" class="form-control multi-pos-receipt" accept="image/*,application/pdf,.pdf,.heic,.heif,.tif,.tiff">
+                  </label>
+                  <div class="form-text">Foto o PDF, preparato automaticamente prima del salvataggio.</div>
+                  <div class="card-receipt-current mt-2 d-none"></div>
 
                 </div>
 
@@ -4796,7 +4809,7 @@
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
   <script src="{{ url_for('static', filename='js/check_receipt.js', v=app_version ~ '-receipt-prepare1') }}"></script>
-  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-touch-agenda1') }}"></script>
+  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-card-receipt1') }}"></script>
 
 {% endblock %}
 

@@ -1,5 +1,12 @@
 # PROJECT_MAP.md — v2.4
 
+## Ricevute pagamenti con carta (2026-09-14)
+
+- `models.py`, `CashExpensePayment`: metadati file privati (`receipt_scan_path`, MIME, nome originale, timestamp).
+- `routes/cassa.py`: endpoint protetti `/api/expense-payments/<id>/receipt` per upload, lettura e cancellazione; la lista spese espone URL e nome allegato per i POS. Gli aggiornamenti conservano gli allegati per ID pagamento e ripuliscono i file rimossi.
+- `static/js/agenda.js` e `templates/agenda.html`: campo ricevuta nei POS singoli e multipli, preparazione prima del salvataggio, upload dopo la creazione e gestione retry/eliminazione.
+- Migration `migrations/versions/d6e7f8a9b0c1_add_card_payment_receipts.py`.
+
 ## Verifiche contabili avviate dall'ufficio (2026-09-12)
 
 - `routes/administration.py`, `POST /customer-credit/<source_customer_code>/item-status`: la scelta `under_review` crea una `CustomerPaymentCase(case_type='payment_claim')` con allocazioni e audit `office_review_submitted`, collegando gli stati operativi. Riuso della coda/badge Contestazioni partite aperte; protezione delle partite gia' associate e lock delle righe selezionate.

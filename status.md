@@ -1,4 +1,10 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-14 - Ricevute pagamenti con carta
+
+- I pagamenti POS delle spese aziendali ora mostrano un allegato facoltativo sia nel pagamento singolo sia nelle righe multiple.
+- L'immagine/PDF viene preparato con lo stesso flusso di normalizzazione gia' usato per le ricevute assegni; il server valida il contenuto, lo salva in `instance/card_payment_receipts` e offre apertura/eliminazione protetta.
+- Le ricevute sono collegate al record `CashExpensePayment` e sopravvivono alle modifiche che ricreano le righe tramite `payment_id`; le righe rimosse e le spese eliminate puliscono i file privati.
+- Aggiunta migration `d6e7f8a9b0c1_add_card_payment_receipts.py`. Eseguiti `py_compile`, `node --check` e `git diff --check`; resta da applicare la migration nell'ambiente di deploy.
 ## 2026-09-12 - Verifica partite dall'area amministrativa al Servizio clienti
 
 - Impostando `under_review` da Situazioni contabili clienti viene creata una pratica `payment_claim`, con documenti/snapshot, nota, operatore ed evento `office_review_submitted`; le partite vengono collegate nella stessa transazione. La pratica alimenta cosi' la coda Contestazioni partite aperte e i badge Servizio clienti gia' esistenti.

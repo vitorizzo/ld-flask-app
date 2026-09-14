@@ -4315,6 +4315,137 @@ def api_delete_issued_check_receipt(check_id):
     return jsonify({"ok": True, "check": _serialize_issued_check_for_returning(row, date.today())})
 
 
+def _serialize_card_payment_receipt(row):
+    return {
+        "id": row.id,
+        "receipt_available": bool(row.receipt_scan_path),
+        "receipt_original_name": row.receipt_scan_original_name,
+        "receipt_url": url_for("cassa.api_get_card_payment_receipt", payment_id=row.id)
+        if row.receipt_scan_path else None,
+    }
+
+
+def _preserve_card_payment_receipts(expense_id, payments):
+    """Match by payment ID, never by position: rows may be removed or reordered."""
+    fields = ("receipt_scan_path", "receipt_scan_mime", "receipt_scan_original_name", "receipt_uploaded_at")
+    existing = {
+        row.id: {field: getattr(row, field) for field in fields}
+        for row in CashExpensePayment.query.filter_by(expense_id=expense_id, method="pos").all()
+    }
+    preserved = {}
+    seen = set()
+    for index, payment in enumerate(payments):
+        if payment.get("method") != "pos":
+            continue
+        if "payment_id" not in payment and any(item["receipt_scan_path"] for item in existing.values()):
+            raise ValueError("Ricarica l'agenda prima di modificare un pagamento con ricevuta")
+        payment_id = payment.get("payment_id")
+        if payment_id is None:
+            continue
+        try:
+            payment_id = int(payment_id)
+        except (ValueError, TypeError):
+            raise ValueError("Riferimento pagamento carta non valido")
+        if payment_id not in existing or payment_id in seen:
+            raise ValueError("Riferimento pagamento carta non valido o duplicato")
+        seen.add(payment_id)
+        preserved[index] = existing[payment_id]
+    stale_paths = [item["receipt_scan_path"] for key, item in existing.items()
+                   if key not in seen and item["receipt_scan_path"]]
+    return preserved, stale_paths
+
+
+def _remove_card_payment_receipt_file(relative_path):
+    if not relative_path:
+        return
+    uploads_root = os.path.abspath(os.path.join(current_app.instance_path, "card_payment_receipts"))
+    target = os.path.abspath(os.path.join(uploads_root, relative_path.replace("/", os.sep)))
+    if os.path.commonpath([uploads_root, target]) == uploads_root and os.path.isfile(target):
+        try:
+            os.remove(target)
+        except OSError as exc:
+            logger.warning("Impossibile rimuovere la ricevuta carta %s: %s", target, exc)
+
+
+@cassa_bp.post("/api/expense-payments/<int:payment_id>/receipt")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_upload_card_payment_receipt(payment_id):
+    row = CashExpensePayment.query.filter_by(id=payment_id, method="pos").first()
+    if not row:
+        return jsonify({"ok": False, "error": "Pagamento con carta non trovato"}), 404
+
+    uploaded = request.files.get("receipt")
+    try:
+        content, extension, mime_type = _read_valid_check_scan(uploaded)
+    except ValueError as exc:
+        logger.warning("Ricevuta carta rifiutata payment=%s: %s", payment_id, exc)
+        return jsonify({"ok": False, "error": str(exc)}), 400
+
+    folder = os.path.join(current_app.instance_path, "card_payment_receipts", str(row.id))
+    os.makedirs(folder, exist_ok=True)
+    filename = f"receipt-{secrets.token_hex(12)}.{extension}"
+    absolute_path = os.path.join(folder, filename)
+    relative_path = f"{row.id}/{filename}"
+    old_path = row.receipt_scan_path
+    try:
+        with open(absolute_path, "wb") as destination:
+            destination.write(content)
+        row.receipt_scan_path = relative_path
+        row.receipt_scan_mime = mime_type
+        row.receipt_scan_original_name = secure_filename(uploaded.filename)[:255] or f"ricevuta-carta.{extension}"
+        row.receipt_uploaded_at = datetime.now(timezone.utc)
+        db.session.commit()
+        logger.info("Ricevuta carta salvata payment=%s bytes=%s", payment_id, len(content))
+        if old_path and old_path != relative_path:
+            _remove_card_payment_receipt_file(old_path)
+        return jsonify({"ok": True, "payment": _serialize_card_payment_receipt(row)})
+    except Exception:
+        db.session.rollback()
+        if os.path.isfile(absolute_path):
+            os.remove(absolute_path)
+        logger.exception("api_upload_card_payment_receipt error payment=%s", payment_id)
+        return jsonify({"ok": False, "error": "Errore salvataggio ricevuta carta"}), 500
+
+
+@cassa_bp.get("/api/expense-payments/<int:payment_id>/receipt")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_get_card_payment_receipt(payment_id):
+    row = CashExpensePayment.query.filter_by(id=payment_id, method="pos").first()
+    if not row or not row.receipt_scan_path:
+        return jsonify({"ok": False, "error": "Ricevuta carta non trovata"}), 404
+    root = os.path.abspath(os.path.join(current_app.instance_path, "card_payment_receipts"))
+    target = os.path.abspath(os.path.join(root, row.receipt_scan_path.replace("/", os.sep)))
+    if os.path.commonpath([root, target]) != root or not os.path.isfile(target):
+        return jsonify({"ok": False, "error": "File ricevuta carta non disponibile"}), 404
+    response = send_file(
+        target,
+        mimetype=row.receipt_scan_mime or "application/octet-stream",
+        as_attachment=False,
+        download_name=row.receipt_scan_original_name or f"ricevuta-carta-{row.id}",
+    )
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
+@cassa_bp.delete("/api/expense-payments/<int:payment_id>/receipt")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_delete_card_payment_receipt(payment_id):
+    row = CashExpensePayment.query.filter_by(id=payment_id, method="pos").first()
+    if not row:
+        return jsonify({"ok": False, "error": "Pagamento con carta non trovato"}), 404
+    old_path = row.receipt_scan_path
+    row.receipt_scan_path = None
+    row.receipt_scan_mime = None
+    row.receipt_scan_original_name = None
+    row.receipt_uploaded_at = None
+    db.session.commit()
+    _remove_card_payment_receipt_file(old_path)
+    return jsonify({"ok": True, "payment": _serialize_card_payment_receipt(row)})
+
+
 def _parse_issued_check_update_payload(data):
     flag = (data.get("flag") or "*").strip()
     if flag not in {"*", "**"}:
@@ -6585,6 +6716,7 @@ def api_create_expense(day_date):
         notes=description,
     )
     created_issued_checks = []
+    created_card_payments = []
 
     try:
         for idx, p in enumerate(payments_data, start=1):
@@ -6612,6 +6744,7 @@ def api_create_expense(day_date):
 
                 payment.pos_card_label = pos_card_label
                 payment.pos_is_personal = pos_is_personal
+                created_card_payments.append(payment)
 
             elif method == "bank":
                 bank_id = p.get("bank_id")
@@ -6671,6 +6804,7 @@ def api_create_expense(day_date):
         "ok": True,
         "expense_id": exp.id,
         "issued_check_ids": [row.id for row in created_issued_checks],
+        "card_payment_ids": [row.id for row in created_card_payments],
     }), 201
 
 
@@ -6713,6 +6847,8 @@ def api_list_expenses(day_date):
                 "pos_is_personal": bool(p.pos_is_personal),
                 "created_at": p.created_at.isoformat() if p.created_at else None,
             }
+            if p.method == "pos":
+                row.update(_serialize_card_payment_receipt(p))
             if p.method == "check":
                 issued = issued_checks[issued_idx] if issued_idx < len(issued_checks) else None
                 issued_idx += 1
@@ -6856,6 +6992,7 @@ def api_delete_expense(expense_id):
         return closed_response
 
     try:
+        card_receipt_paths = [row.receipt_scan_path for row in expense.payments or [] if row.receipt_scan_path]
         receipt_paths = [row.receipt_scan_path for row in expense.issued_checks or [] if row.receipt_scan_path]
         CashRowCheck.query.filter_by(
             entity_type="expense",
@@ -6867,6 +7004,8 @@ def api_delete_expense(expense_id):
 
         db.session.delete(expense)
         db.session.commit()
+        for receipt_path in card_receipt_paths:
+            _remove_card_payment_receipt_file(receipt_path)
         for receipt_path in receipt_paths:
             _remove_issued_check_receipt_file(receipt_path)
         _bump_agenda_day_version(day_version_date)
@@ -6995,6 +7134,7 @@ def api_update_expense(expense_id):
             db.session.add(exp)
             db.session.flush()
             created_issued_checks = []
+            created_card_payments = []
 
             try:
                 for idx_p, p in enumerate(payments_data, start=1):
@@ -7023,6 +7163,7 @@ def api_update_expense(expense_id):
 
                         payment.pos_card_label = pos_card_label
                         payment.pos_is_personal = pos_is_personal
+                        created_card_payments.append(payment)
 
                     elif method == "bank":
                         bank_id = p.get("bank_id")
@@ -7081,6 +7222,7 @@ def api_update_expense(expense_id):
                     "storage": "az",
                     "migrated": "pri_to_az",
                     "issued_check_ids": [row.id for row in created_issued_checks],
+                    "card_payment_ids": [row.id for row in created_card_payments],
                 })
 
             except ValueError as e:
@@ -7223,6 +7365,7 @@ def api_update_expense(expense_id):
         if not saved:
             return jsonify({"ok": False, "error": "Vault privato non disponibile"}), 409
 
+        card_receipt_paths = [row.receipt_scan_path for row in expense.payments or [] if row.receipt_scan_path]
         receipt_paths = [
             value
             for (value,) in (
@@ -7242,6 +7385,8 @@ def api_update_expense(expense_id):
 
             db.session.delete(expense)
             db.session.commit()
+            for receipt_path in card_receipt_paths:
+                _remove_card_payment_receipt_file(receipt_path)
             for receipt_path in receipt_paths:
                 _remove_issued_check_receipt_file(receipt_path)
             _bump_agenda_day_version(cash_day.day_date.isoformat())
@@ -7266,6 +7411,7 @@ def api_update_expense(expense_id):
     expense.notes = description
 
     try:
+        card_receipts, stale_card_paths = _preserve_card_payment_receipts(expense.id, payments_data)
         existing_receipts = [
             {
                 "path": row[0],
@@ -7288,6 +7434,7 @@ def api_update_expense(expense_id):
             )
         ]
         created_issued_checks = []
+        created_card_payments = []
         issued_check_index = 0
         CashExpensePayment.query.filter_by(expense_id=expense.id).delete()
         CashIssuedCheck.query.filter_by(expense_id=expense.id).delete()
@@ -7321,6 +7468,7 @@ def api_update_expense(expense_id):
 
                 payment.pos_card_label = pos_card_label
                 payment.pos_is_personal = pos_is_personal
+                created_card_payments.append(payment)
 
             elif method == "bank":
                 bank_id = p.get("bank_id")
@@ -7374,9 +7522,15 @@ def api_update_expense(expense_id):
                 created_issued_checks.append(issued_check)
                 issued_check_index += 1
 
+            if method == "pos":
+                for field, value in card_receipts.get(idx - 1, {}).items():
+                    setattr(payment, field, value)
             db.session.add(payment)
 
         db.session.commit()
+
+        for path in stale_card_paths:
+            _remove_card_payment_receipt_file(path)
 
         for stale_receipt in existing_receipts[issued_check_index:]:
             _remove_issued_check_receipt_file(stale_receipt.get("path"))
@@ -7390,6 +7544,7 @@ def api_update_expense(expense_id):
             "expense_id": expense.id,
             "storage": "az",
             "issued_check_ids": [row.id for row in created_issued_checks],
+            "card_payment_ids": [row.id for row in created_card_payments],
         })
 
     except ValueError as e:

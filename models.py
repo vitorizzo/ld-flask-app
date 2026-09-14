@@ -3757,6 +3757,11 @@ class CashExpensePayment(db.Model):
     pos_card_label = db.Column(db.String(100), nullable=True)
     pos_is_personal = db.Column(db.Boolean, nullable=False, default=False)
 
+    receipt_scan_path = db.Column(db.String(500), nullable=True)
+    receipt_scan_mime = db.Column(db.String(100), nullable=True)
+    receipt_scan_original_name = db.Column(db.String(255), nullable=True)
+    receipt_uploaded_at = db.Column(db.DateTime(timezone=True), nullable=True)
+
     description = db.Column(db.String(255), nullable=True)
 
     bank = db.relationship("CashBank")

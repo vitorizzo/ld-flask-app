@@ -4875,7 +4875,8 @@ document.addEventListener("DOMContentLoaded", async function () {
       "checkDueDate",
       "checkSaleScan",
       "checkExpenseReceiptReceivedBy",
-      "checkExpenseReceipt"
+      "checkExpenseReceipt",
+      "expensePosReceipt"
     ];
 
     ids.forEach(id => {
@@ -4884,6 +4885,10 @@ document.addEventListener("DOMContentLoaded", async function () {
       el.value = "";
       if (el.type === "file") preparedCheckScanFiles.delete(el);
     });
+
+    const cardReceiptInput = document.getElementById("expensePosReceipt");
+    if (cardReceiptInput) delete cardReceiptInput.dataset.paymentId;
+    renderCardPaymentReceipt(document.getElementById("expensePosReceiptCurrent"), {});
 
     const receiptCurrent = document.getElementById("checkExpenseReceiptCurrent");
     if (receiptCurrent) {
@@ -6459,6 +6464,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
         if (p.method === "pos") {
           renderExpensePosOptions();
+          const receiptInput = document.getElementById("expensePosReceipt");
+          if (receiptInput) receiptInput.dataset.paymentId = p.id;
+          renderCardPaymentReceipt(document.getElementById("expensePosReceiptCurrent"), p);
           const expensePosCardSelect = document.getElementById("expensePosCardSelect");
           if (expensePosCardSelect) {
             expensePosCardSelect.value = p.pos_card_label || "";
@@ -6515,13 +6523,11 @@ document.addEventListener("DOMContentLoaded", async function () {
           if (amountInput) amountInput.value = formatEuro2(p.amount || 0);
 
           if (p.method === "pos") {
-            const rowPosDevice = row.querySelector(".multi-pos-device");
-            const rowPosCircuit = row.querySelector(".multi-pos-circuit");
-
-            await loadPosDevices(rowPosDevice, false, rowPosCircuit);
-            if (rowPosDevice) rowPosDevice.value = String(p.pos_device_id || "");
-            await loadPosCircuits(p.pos_device_id, rowPosCircuit);
-            if (rowPosCircuit) rowPosCircuit.value = String(p.pos_circuit_id || "");
+            const card = row.querySelector(".multi-pos-card-label");
+            if (card) card.value = p.pos_card_label || "";
+            const receiptInput = row.querySelector(".multi-pos-receipt");
+            if (receiptInput) receiptInput.dataset.paymentId = p.id;
+            renderCardPaymentReceipt(row.querySelector(".card-receipt-current"), p);
           } else if (p.method === "bank") {
             const rowBank = row.querySelector(".multi-bank-select");
             await loadBanks(rowBank);
@@ -7576,6 +7582,58 @@ document.addEventListener("DOMContentLoaded", async function () {
     return file ? [{ordinal: 0, checkId: checkPayments[0]?.check_id || null, file}] : [];
   }
 
+  function renderCardPaymentReceipt(container, payment) {
+    if (!container) return;
+    container.classList.toggle("d-none", !payment.receipt_url);
+    container.innerHTML = payment.receipt_url
+      ? `<div class="alert alert-success py-2 px-3 mb-0 d-flex flex-wrap align-items-center gap-2">
+           <span>Ricevuta allegata${payment.receipt_original_name ? `: ${escapeHtml(payment.receipt_original_name)}` : ""}</span>
+           <a class="btn btn-sm btn-outline-success" href="${escapeHtml(payment.receipt_url)}" target="_blank" rel="noopener">Apri ricevuta</a>
+           <button type="button" class="btn btn-sm btn-outline-danger">Elimina ricevuta</button>
+         </div>` : "";
+    container.querySelector("button")?.addEventListener("click", async event => {
+      if (operationSaving || !confirm("Eliminare la ricevuta allegata al pagamento con carta?")) return;
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        const response = await fetch(`/cassa/api/expense-payments/${encodeURIComponent(payment.id)}/receipt`, {
+          method: "DELETE", credentials: "same-origin",
+        });
+        const data = await readJsonResponse(response, "Errore eliminazione ricevuta carta.");
+        if (!response.ok || !data.ok) throw new Error(data.error);
+        renderCardPaymentReceipt(container, {});
+      } catch (error) { alert(error.message); }
+      finally { button.disabled = false; }
+    });
+  }
+
+  function collectCardPaymentReceipts(payload) {
+    const cards = (payload.payments || []).filter(payment => payment.method === "pos");
+    const inputs = getPaymentMode() === "multi"
+      ? Array.from(multiPaymentsList?.querySelectorAll(".multi-payment-row") || [])
+          .filter(row => row.querySelector(".multi-method")?.value === "pos")
+          .map(row => row.querySelector(".multi-pos-receipt"))
+      : [document.getElementById("expensePosReceipt")];
+    return cards.map((payment, ordinal) => {
+      const input = inputs[ordinal];
+      payment.payment_id = input?.dataset.paymentId ? Number(input.dataset.paymentId) : null;
+      return {ordinal, input, file: input?.files?.[0] || null};
+    });
+  }
+
+  async function uploadCardPaymentReceipt(paymentId, receipt) {
+    const form = new FormData();
+    form.append("receipt", receipt.file, receipt.file.name);
+    const response = await fetch(`/cassa/api/expense-payments/${encodeURIComponent(paymentId)}/receipt`, {
+      method: "POST", credentials: "same-origin", body: form,
+    });
+    const data = await readJsonResponse(response, `Caricamento ricevuta carta rifiutato (HTTP ${response.status}).`);
+    if (!response.ok || !data.ok || !data.payment?.receipt_available) {
+      throw new Error(data.error || "Il server non ha confermato la ricevuta carta.");
+    }
+    return data.payment;
+  }
+
   function collectPendingIssuedCheckReceipts(payload) {
     const checkPayments = (payload?.payments || []).filter(item => item.method === "check");
     if (!checkPayments.length) return [];
@@ -7608,7 +7666,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   async function uploadIssuedCheckReceipt(checkId, pendingReceipt) {
     if (pendingReceipt.file.size > 25 * 1024 * 1024) {
-      throw new Error("La foto dell'assegno supera il limite di 25 MB.");
+      throw new Error("La ricevuta del pagamento supera il limite di 25 MB.");
     }
     const formData = new FormData();
     formData.append("receipt", pendingReceipt.file, pendingReceipt.file.name || "ricevuta-assegno.jpg");
@@ -7791,12 +7849,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
     built.payload.party_kind = getCurrentRegistryKind();
     const pendingCheckScans = opType === "sale" ? collectPendingOperationCheckScans(built.payload) : [];
+    const cardReceipts = opType === "expense" ? collectCardPaymentReceipts(built.payload) : [];
+    const pendingCardReceipts = cardReceipts.filter(receipt => receipt.file);
     const pendingIssuedReceipts = opType === "expense" ? collectPendingIssuedCheckReceipts(built.payload) : [];
 
     try {
       if (saveBtn) saveBtn.disabled = true;
 
-      for (const receipt of pendingIssuedReceipts) {
+      for (const receipt of [...pendingIssuedReceipts, ...pendingCardReceipts]) {
         receipt.file = await window.prepareIssuedCheckReceipt(receipt.file);
         const form = new FormData();
         form.append("scan", receipt.file, receipt.file.name);
@@ -7825,6 +7885,18 @@ document.addEventListener("DOMContentLoaded", async function () {
         return;
       }
 
+      // Every expense update recreates payment rows: refresh IDs before any upload/retry.
+      cardReceipts.forEach(receipt => {
+        const id = (data.card_payment_ids || [])[receipt.ordinal];
+        if (receipt.input && id) {
+          receipt.input.dataset.paymentId = id;
+          const container = receipt.input.id === "expensePosReceipt"
+            ? document.getElementById("expensePosReceiptCurrent")
+            : receipt.input.closest(".multi-payment-row")?.querySelector(".card-receipt-current");
+          const link = container?.querySelector("a");
+          if (link) renderCardPaymentReceipt(container, {id, receipt_url: `/cassa/api/expense-payments/${id}/receipt`});
+        }
+      });
       const scanErrors = [];
       for (const pendingScan of pendingCheckScans) {
         const targetCheckId = pendingScan.checkId || (data.check_ids || [])[pendingScan.ordinal];
@@ -7845,6 +7917,19 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
         catch (receiptError) { scanErrors.push(receiptError.message || "ricevuta non caricata"); }
       }
+      for (const receipt of pendingCardReceipts) {
+        const paymentId = (data.card_payment_ids || [])[receipt.ordinal];
+        if (!paymentId) { scanErrors.push("pagamento con carta non identificato"); continue; }
+        try {
+          const payment = await uploadCardPaymentReceipt(paymentId, receipt);
+          const container = receipt.input.id === "expensePosReceipt"
+            ? document.getElementById("expensePosReceiptCurrent")
+            : receipt.input.closest(".multi-payment-row")?.querySelector(".card-receipt-current");
+          renderCardPaymentReceipt(container, payment);
+          receipt.input.value = "";
+          uploadedReceiptCount += 1;
+        } catch (error) { scanErrors.push(error.message || "ricevuta carta non caricata"); }
+      }
       if (scanErrors.length) {
         if (opType === "expense" && data.expense_id != null) {
           editingOperationId = data.expense_id;
@@ -7855,7 +7940,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         }
         alert(`Operazione salvata, ma alcune scansioni non sono state caricate: ${scanErrors.join("; ")}`);
       }
-      else if (uploadedReceiptCount) alert("Pagamento e allegato dell'assegno salvati correttamente.");
+      else if (uploadedReceiptCount) alert("Pagamento e ricevute salvati correttamente.");
 
       resetOperationEditState();
       opModal.hide();
