@@ -1,4 +1,10 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-15 - Prima bozza assegni e prospetto flusso di cassa
+
+- Aggiunta la struttura menu Amministrazione > Gestione assegni > Assegni emessi / Assegni clienti; entrambe aprono le schermate assegni gia' esistenti con il relativo filtro.
+- Aggiunta Amministrazione > Prospetti > Flusso di cassa, con intervallo date, selezione entrate/uscite, istogramma giornaliero e dettaglio cliccabile delle singole voci.
+- Il primo prospetto aggrega incassi, pagamenti spese, movimenti cassa e movimenti POS autonomi; depositi e chiusure restano da definire nella revisione successiva per evitare doppie contabilizzazioni.
+- Nuova migration `e7f8a9b0c1d2_add_administration_checks_reports_menu.py`.
 ## 2026-09-14 - Ricevute pagamenti con carta
 
 - I pagamenti POS delle spese aziendali ora mostrano un allegato facoltativo sia nel pagamento singolo sia nelle righe multiple.

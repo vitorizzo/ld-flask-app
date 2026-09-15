@@ -1,5 +1,12 @@
 # PROJECT_MAP.md — v2.4
 
+## Amministrazione - assegni e flusso di cassa (2026-09-15)
+
+- `migrations/versions/e7f8a9b0c1d2_add_administration_checks_reports_menu.py` crea i sottomenù `Gestione assegni` (Assegni emessi, Assegni clienti) e `Prospetti` (Flusso di cassa).
+- Le due voci assegni puntano alle route Agenda esistenti `/cassa/agenda/issued-checks` e `/cassa/agenda/checks`, che aprono rispettivamente le gestioni gia' implementate.
+- `routes/administration.py` espone `/administration/cash-flow` e `/administration/api/cash-flow`. Il payload giornaliero contiene entrate, uscite, saldo e singole voci; il limite della bozza e' 366 giorni.
+- `templates/administration/cash_flow.html` visualizza filtri, istogramma CSS senza dipendenze esterne e dettaglio del giorno selezionato. Depositi e chiusure non sono inclusi finche' non viene definito il loro trattamento nel saldo.
+
 ## Ricevute pagamenti con carta (2026-09-14)
 
 - `models.py`, `CashExpensePayment`: metadati file privati (`receipt_scan_path`, MIME, nome originale, timestamp).

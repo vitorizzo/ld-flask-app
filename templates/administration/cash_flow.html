@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Flusso di cassa{% endblock %}
+{% block extra_css %}
+<style>
+  .cash-flow-chart { display:flex; align-items:stretch; gap:.35rem; min-height:360px; overflow-x:auto; padding:1rem .5rem 0; border-bottom:1px solid var(--bs-border-color); }
+  .cash-flow-day { flex:0 0 42px; display:flex; flex-direction:column; justify-content:flex-end; position:relative; cursor:pointer; }
+  .cash-flow-bars { position:absolute; inset:0 0 1.35rem; }
+  .cash-flow-bar { position:absolute; width:18px; min-height:2px; border-radius:4px 4px 0 0; transition:filter .15s, transform .15s; left:50%; transform:translateX(-110%); }
+  .cash-flow-bar:hover, .cash-flow-day.is-selected .cash-flow-bar { filter:brightness(.8); }
+  .cash-flow-bar.entry { background:#198754; bottom:50%; }
+  .cash-flow-bar.expense { background:#dc3545; top:50%; transform:translateX(10%); border-radius:0 0 4px 4px; }
+  .cash-flow-zero { position:absolute; left:0; right:0; top:50%; border-top:1px dashed #adb5bd; pointer-events:none; }
+  .cash-flow-label { font-size:.68rem; text-align:center; white-space:nowrap; transform:rotate(-45deg) translate(-.55rem,.35rem); transform-origin:center; }
+  .cash-flow-legend { font-size:.85rem; }
+  .cash-flow-dot { display:inline-block; width:.75rem; height:.75rem; border-radius:50%; margin-right:.25rem; }
+</style>
+{% endblock %}
+{% block content %}
+<main class="container-fluid py-4">
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div><div class="text-uppercase text-muted small fw-semibold">Amministrazione · Prospetti</div><h1 class="h3 mb-1">Flusso di cassa</h1><p class="text-muted mb-0">Prima bozza: incassi e uscite giornaliere della cassa.</p></div>
+  </div>
+  <section class="card shadow-sm mb-3">
+    <div class="card-body">
+      <form id="cashFlowFilters" class="row g-3 align-items-end">
+        <div class="col-12 col-md-3"><label class="form-label" for="cashFlowFrom">Data inizio</label><input class="form-control" type="date" id="cashFlowFrom" required></div>
+        <div class="col-12 col-md-3"><label class="form-label" for="cashFlowTo">Data fine</label><input class="form-control" type="date" id="cashFlowTo" required></div>
+        <div class="col-6 col-md-2"><div class="form-check"><input class="form-check-input" type="checkbox" id="cashFlowEntries" checked><label class="form-check-label" for="cashFlowEntries">Entrate</label></div></div>
+        <div class="col-6 col-md-2"><div class="form-check"><input class="form-check-input" type="checkbox" id="cashFlowExpenses" checked><label class="form-check-label" for="cashFlowExpenses">Uscite</label></div></div>
+        <div class="col-12 col-md-2"><button class="btn btn-primary w-100" type="submit">Applica filtri</button></div>
+      </form>
+    </div>
+  </section>
+  <section class="card shadow-sm mb-3"><div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between gap-2"><div class="cash-flow-legend"><span class="cash-flow-dot bg-success"></span>Entrate <span class="cash-flow-dot bg-danger ms-3"></span>Uscite</div><strong id="cashFlowSummary"></strong></div>
+    <div id="cashFlowChart" class="cash-flow-chart" aria-label="Istogramma flusso di cassa"></div>
+    <div id="cashFlowMessage" class="text-muted small mt-3"></div>
+  </div></section>
+  <section class="card shadow-sm"><div class="card-body"><h2 class="h5" id="cashFlowDetailsTitle">Seleziona un giorno</h2><div id="cashFlowDetails" class="list-group"></div></div></section>
+</main>
+{% endblock %}
+{% block extra_js %}
+<script>
+(() => {
+  const form = document.getElementById('cashFlowFilters');
+  const from = document.getElementById('cashFlowFrom'); const to = document.getElementById('cashFlowTo');
+  const chart = document.getElementById('cashFlowChart'); const details = document.getElementById('cashFlowDetails');
+  const title = document.getElementById('cashFlowDetailsTitle'); const summary = document.getElementById('cashFlowSummary');
+  const message = document.getElementById('cashFlowMessage'); let days = [];
+  const iso = d => d.toISOString().slice(0,10);
+  const money = n => Number(n || 0).toLocaleString('it-IT',{style:'currency',currency:'EUR'});
+  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function selectDay(index) { document.querySelectorAll('.cash-flow-day').forEach((el,i)=>el.classList.toggle('is-selected',i===index)); const day=days[index]; if(!day)return; title.textContent=`Dettaglio ${new Date(day.date+'T12:00:00').toLocaleDateString('it-IT')}`; details.innerHTML=day.items.length ? day.items.map(item=>`<div class="list-group-item d-flex justify-content-between gap-3"><span><strong>${esc(item.source)}</strong><br><small class="text-muted">${esc(item.description||'')} · ${esc(item.reference||'')}</small></span><strong class="${item.amount>=0?'text-success':'text-danger'}">${money(item.amount)}</strong></div>`).join('') : '<div class="text-muted">Nessuna voce.</div>'; }
+  function render() { const max=Math.max(1,...days.flatMap(d=>[d.entries,Math.abs(d.expenses)])); chart.innerHTML=days.map((day,i)=>`<div class="cash-flow-day" data-index="${i}" title="${day.date} · ${money(day.total)}"><div class="cash-flow-zero"></div><div class="cash-flow-bars"><div class="cash-flow-bar entry" style="height:${day.entries/max*46}%" ${day.entries?'':'hidden'}></div><div class="cash-flow-bar expense" style="height:${Math.abs(day.expenses)/max*46}%" ${day.expenses?'':'hidden'}></div></div><div class="cash-flow-label">${new Date(day.date+'T12:00:00').toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit'})}</div></div>`).join(''); chart.querySelectorAll('.cash-flow-day').forEach(el=>el.addEventListener('click',()=>selectDay(Number(el.dataset.index)))); const total=days.reduce((s,d)=>s+d.total,0); summary.textContent=`Saldo periodo: ${money(total)}`; message.textContent=`${days.length} giorni visualizzati · clicca una barra per vedere le singole voci.`; if(days.length)selectDay(0); }
+  async function load() { message.textContent='Caricamento…'; const params=new URLSearchParams({from:from.value,to:to.value,entries:document.getElementById('cashFlowEntries').checked?'1':'0',expenses:document.getElementById('cashFlowExpenses').checked?'1':'0'}); const response=await fetch(`/administration/api/cash-flow?${params}`,{headers:{Accept:'application/json'}}); const data=await response.json(); if(!response.ok||!data.ok){message.textContent=data.error||'Errore caricamento';return;} days=data.days||[]; render(); }
+  const today=new Date(); const start=new Date(today); start.setDate(start.getDate()-30); from.value=iso(start); to.value=iso(today); form.addEventListener('submit',e=>{e.preventDefault();load();}); load();
+})();
+</script>
+{% endblock %}

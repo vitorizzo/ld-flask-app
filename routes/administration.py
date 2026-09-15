@@ -24,6 +24,11 @@ from models import (
     CustomerPaymentAllocation,
     CustomerPaymentEvent,
     User,
+    CashDay,
+    CashSalePayment,
+    CashExpensePayment,
+    CashMove,
+    PosMove,
 )
 from tools.log_utils import get_logger, log_task
 from tools.mail_accounts import account_sender, get_email_account, send_account_mail
@@ -34,6 +39,67 @@ from tools.role_required import role_required
 
 administration_bp = Blueprint("administration", __name__)
 logger = get_logger("administration")
+
+
+def _cash_flow_date(value, fallback):
+    try:
+        return datetime.strptime(str(value or ""), "%Y-%m-%d").date()
+    except ValueError:
+        return fallback
+
+
+def _cash_flow_item(day, amount, direction, source, description, reference):
+    numeric = float(Decimal(str(amount or 0)))
+    signed = numeric if direction == "in" else -numeric
+    return {
+        "date": day.isoformat(), "amount": round(signed, 2),
+        "direction": direction, "source": source,
+        "description": description or source, "reference": reference,
+    }
+
+
+def _cash_flow_payload(start_date, end_date, include_entries, include_expenses):
+    days = {}
+    cursor = start_date
+    while cursor <= end_date:
+        days[cursor.isoformat()] = {"date": cursor.isoformat(), "entries": 0.0, "expenses": 0.0, "total": 0.0, "items": []}
+        cursor += timedelta(days=1)
+
+    def add(item):
+        bucket = days.get(item["date"])
+        if not bucket:
+            return
+        bucket["items"].append(item)
+        if item["direction"] == "in":
+            bucket["entries"] = round(bucket["entries"] + item["amount"], 2)
+        else:
+            bucket["expenses"] = round(bucket["expenses"] + item["amount"], 2)
+        bucket["total"] = round(bucket["entries"] + bucket["expenses"], 2)
+
+    if include_entries:
+        for row in (CashSalePayment.query.join(CashSalePayment.sale).join(CashDay)
+                    .filter(CashDay.day_date >= start_date, CashDay.day_date <= end_date).all()):
+            sale = row.sale
+            add(_cash_flow_item(sale.cash_day.day_date, row.amount, "in", "Incasso", sale.notes or sale.customer_label, f"Incasso #{sale.id}"))
+        for row in (PosMove.query.join(CashDay)
+                    .filter(CashDay.day_date >= start_date, CashDay.day_date <= end_date, PosMove.direction == "in").all()):
+            add(_cash_flow_item(row.cash_day.day_date, row.amount, "in", "Movimento POS", row.notes, f"POS #{row.id}"))
+        for row in (CashMove.query.join(CashDay)
+                    .filter(CashDay.day_date >= start_date, CashDay.day_date <= end_date, CashMove.direction == "in").all()):
+            add(_cash_flow_item(row.cash_day.day_date, row.amount, "in", row.kind or "Entrata", row.notes, f"Movimento #{row.id}"))
+
+    if include_expenses:
+        for row in (CashExpensePayment.query.join(CashExpensePayment.expense).join(CashDay)
+                    .filter(CashDay.day_date >= start_date, CashDay.day_date <= end_date).all()):
+            expense = row.expense
+            add(_cash_flow_item(expense.cash_day.day_date, row.amount, "out", "Pagamento", expense.notes or expense.supplier, f"Pagamento #{expense.id}"))
+        for row in (CashMove.query.join(CashDay)
+                    .filter(CashDay.day_date >= start_date, CashDay.day_date <= end_date, CashMove.direction == "out").all()):
+            add(_cash_flow_item(row.cash_day.day_date, row.amount, "out", row.kind or "Uscita", row.notes, f"Movimento #{row.id}"))
+        for row in (PosMove.query.join(CashDay)
+                    .filter(CashDay.day_date >= start_date, CashDay.day_date <= end_date, PosMove.direction == "out").all()):
+            add(_cash_flow_item(row.cash_day.day_date, row.amount, "out", "Movimento POS", row.notes, f"POS #{row.id}"))
+    return list(days.values())
 
 UNKNOWN_AREA = "Provincia non definita"
 UNKNOWN_ZONE = "Comune non definito"
@@ -58,6 +124,37 @@ ACCOUNTING_ITEM_STATUS_LABELS = {
     "failed": "Pagamento non riuscito",
     "expired": "Scaduto",
 }
+
+
+@administration_bp.route("/cash-flow", methods=["GET"])
+@login_required
+@role_required(min_weight=40)
+def cash_flow():
+    return render_template("administration/cash_flow.html")
+
+
+@administration_bp.route("/api/cash-flow", methods=["GET"])
+@login_required
+@role_required(min_weight=40)
+def cash_flow_api():
+    today = date.today()
+    default_start = today - timedelta(days=30)
+    start_date = _cash_flow_date(request.args.get("from"), default_start)
+    end_date = _cash_flow_date(request.args.get("to"), today)
+    if end_date < start_date:
+        return jsonify({"ok": False, "error": "La data finale deve essere successiva alla data iniziale."}), 400
+    if (end_date - start_date).days > 366:
+        return jsonify({"ok": False, "error": "L'intervallo massimo consultabile è di 366 giorni."}), 400
+    include_entries = request.args.get("entries", "1") != "0"
+    include_expenses = request.args.get("expenses", "1") != "0"
+    return jsonify({
+        "ok": True,
+        "from": start_date.isoformat(),
+        "to": end_date.isoformat(),
+        "entries": include_entries,
+        "expenses": include_expenses,
+        "days": _cash_flow_payload(start_date, end_date, include_entries, include_expenses),
+    })
 
 
 def _base36(value):
