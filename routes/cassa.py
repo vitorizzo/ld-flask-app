@@ -4593,11 +4593,12 @@ def api_list_issued_checks():
                 selectinload(CashIssuedCheck.bank),
                 selectinload(CashIssuedCheck.expense),
             )
-            .join(CashExpense, CashExpense.id == CashIssuedCheck.expense_id)
-            .outerjoin(CashBank, CashBank.id == CashIssuedCheck.bank_id)
         )
 
         if q_text:
+            query = (query
+                     .join(CashExpense, CashExpense.id == CashIssuedCheck.expense_id)
+                     .outerjoin(CashBank, CashBank.id == CashIssuedCheck.bank_id))
             like = f"%{q_text}%"
             query = query.filter(or_(
                 CashIssuedCheck.check_number.ilike(like),

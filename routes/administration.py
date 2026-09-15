@@ -25,10 +25,8 @@ from models import (
     CustomerPaymentEvent,
     User,
     CashDay,
-    CashSalePayment,
-    CashExpensePayment,
-    CashMove,
-    PosMove,
+    CashCheck,
+    CashIssuedCheck,
 )
 from tools.log_utils import get_logger, log_task
 from tools.mail_accounts import account_sender, get_email_account, send_account_mail
@@ -77,28 +75,15 @@ def _cash_flow_payload(start_date, end_date, include_entries, include_expenses):
         bucket["total"] = round(bucket["entries"] + bucket["expenses"], 2)
 
     if include_entries:
-        for row in (CashSalePayment.query.join(CashSalePayment.sale).join(CashDay)
-                    .filter(CashDay.day_date >= start_date, CashDay.day_date <= end_date).all()):
-            sale = row.sale
-            add(_cash_flow_item(sale.cash_day.day_date, row.amount, "in", "Incasso", sale.notes or sale.customer_label, f"Incasso #{sale.id}"))
-        for row in (PosMove.query.join(CashDay)
-                    .filter(CashDay.day_date >= start_date, CashDay.day_date <= end_date, PosMove.direction == "in").all()):
-            add(_cash_flow_item(row.cash_day.day_date, row.amount, "in", "Movimento POS", row.notes, f"POS #{row.id}"))
-        for row in (CashMove.query.join(CashDay)
-                    .filter(CashDay.day_date >= start_date, CashDay.day_date <= end_date, CashMove.direction == "in").all()):
-            add(_cash_flow_item(row.cash_day.day_date, row.amount, "in", row.kind or "Entrata", row.notes, f"Movimento #{row.id}"))
+        for row in CashCheck.query.filter(CashCheck.received_date >= start_date, CashCheck.received_date <= end_date).all():
+            customer = row.customer.display_name if row.customer else None
+            add(_cash_flow_item(row.received_date, row.amount, "in", "Assegno cliente", customer, f"Assegno cliente #{row.id}"))
 
     if include_expenses:
-        for row in (CashExpensePayment.query.join(CashExpensePayment.expense).join(CashDay)
+        for row in (CashIssuedCheck.query.join(CashIssuedCheck.expense).join(CashDay)
                     .filter(CashDay.day_date >= start_date, CashDay.day_date <= end_date).all()):
             expense = row.expense
-            add(_cash_flow_item(expense.cash_day.day_date, row.amount, "out", "Pagamento", expense.notes or expense.supplier, f"Pagamento #{expense.id}"))
-        for row in (CashMove.query.join(CashDay)
-                    .filter(CashDay.day_date >= start_date, CashDay.day_date <= end_date, CashMove.direction == "out").all()):
-            add(_cash_flow_item(row.cash_day.day_date, row.amount, "out", row.kind or "Uscita", row.notes, f"Movimento #{row.id}"))
-        for row in (PosMove.query.join(CashDay)
-                    .filter(CashDay.day_date >= start_date, CashDay.day_date <= end_date, PosMove.direction == "out").all()):
-            add(_cash_flow_item(row.cash_day.day_date, row.amount, "out", "Movimento POS", row.notes, f"POS #{row.id}"))
+            add(_cash_flow_item(expense.cash_day.day_date, row.amount, "out", "Assegno emesso", expense.supplier or expense.notes, f"Assegno emesso #{row.id}"))
     return list(days.values())
 
 UNKNOWN_AREA = "Provincia non definita"
