@@ -1,4 +1,8 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-15 - Selezione filtri da archivio nel flusso assegni
+
+- I filtri Cliente e Fornitore del flusso di cassa ora usano la ricerca progressiva dell'archivio tramite `/cassa/api/customers/suggest`, con elenco selezionabile e aggiornamento dei dati filtrati.
+
 ## 2026-09-15 - Filtri cliente e fornitore nel flusso assegni
 
 - Il prospetto ora accetta filtri testuali separati per cliente (assegni ricevuti) e fornitore (assegni emessi); vengono inviati insieme a date e checkbox.

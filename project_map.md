@@ -1,4 +1,8 @@
 # PROJECT_MAP.md — v2.4
+## Selezione anagrafiche nei filtri flusso assegni (2026-09-15)
+
+- `templates/administration/cash_flow.html` collega i campi Cliente e Fornitore all'endpoint di suggerimento dell'archivio e presenta le ragioni sociali selezionabili come nell'agenda.
+
 ## Filtri anagrafici flusso assegni (2026-09-15)
 
 - `routes/administration.py` supporta i parametri `customer` e `supplier` sull'API del flusso, applicandoli alle rispettive categorie.
