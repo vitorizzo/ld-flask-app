@@ -2,9 +2,9 @@
 {% block title %}Flusso di cassa{% endblock %}
 {% block extra_css %}
 <style>
-  .cash-flow-chart { display:flex; align-items:stretch; gap:.5rem; min-height:390px; overflow-x:auto; padding:1rem .5rem 2.6rem; border-bottom:1px solid var(--bs-border-color); }
-  .cash-flow-day { flex:0 0 76px; height:100%; display:flex; flex-direction:column; justify-content:flex-end; position:relative; cursor:pointer; }
-  .cash-flow-bars { position:absolute; inset:0 0 2.1rem; }
+  .cash-flow-chart { display:flex; align-items:stretch; gap:.5rem; height:390px; overflow-x:auto; padding:1rem .5rem 2.6rem; box-sizing:border-box; border-bottom:1px solid var(--bs-border-color); }
+  .cash-flow-day { flex:0 0 76px; height:100%; min-height:0; display:flex; flex-direction:column; justify-content:flex-end; position:relative; cursor:pointer; }
+  .cash-flow-bars { position:absolute; top:0; left:0; right:0; height:calc(100% - 2.1rem); }
   .cash-flow-bar { position:absolute; width:22%; min-height:2px; border-radius:4px 4px 0 0; transition:filter .15s, transform .15s; }
   .cash-flow-bar:hover, .cash-flow-day.is-selected .cash-flow-bar { filter:brightness(.8); }
   .cash-flow-bar.entry-cashed { background:#198754; bottom:50%; left:2%; }
