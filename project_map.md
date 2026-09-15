@@ -2,6 +2,8 @@
 
 ## Amministrazione - assegni e flusso di cassa (2026-09-15)
 
+- Migration `f8a9b0c1d2e3_move_checks_under_administration.py` ricolloca anche eventuali voci legacy denominate `Gestione Assegni Clienti`/`Gestione Assegni Emessi`, evitando duplicati sulle route canoniche.
+
 - `migrations/versions/e7f8a9b0c1d2_add_administration_checks_reports_menu.py` crea i sottomenù `Gestione assegni` (Assegni emessi, Assegni clienti) e `Prospetti` (Flusso di cassa).
 - Le due voci assegni puntano alle route Agenda esistenti `/cassa/agenda/issued-checks` e `/cassa/agenda/checks`, che aprono rispettivamente le gestioni gia' implementate.
 - `routes/administration.py` espone `/administration/cash-flow` e `/administration/api/cash-flow`. Il payload giornaliero contiene solo assegni clienti entranti (data ricezione) e assegni emessi uscenti (data giornata contabile), con saldo e singole voci; il limite della bozza e' 366 giorni.

@@ -1,6 +1,8 @@
 TEST_SYNC_CODEX_20260507_185518
 ## 2026-09-15 - Prima bozza assegni e prospetto flusso di cassa
 
+- Corretto il posizionamento delle voci esistenti: `Gestione Assegni Clienti` e `Gestione Assegni Emessi` vengono ricollocate sotto `Amministrazione > Gestione assegni`, senza lasciarle sotto `Gestione Agenda`.
+
 - Aggiunta la struttura menu Amministrazione > Gestione assegni > Assegni emessi / Assegni clienti; entrambe aprono le schermate assegni gia' esistenti con il relativo filtro.
 - Aggiunta Amministrazione > Prospetti > Flusso di cassa, con intervallo date, selezione entrate/uscite, istogramma giornaliero e dettaglio cliccabile delle singole voci.
 - Il prospetto è stato ristretto agli assegni clienti (entrate, data ricezione) e agli assegni emessi (uscite, data della giornata contabile); il dettaglio segue la barra e quindi non mescola entrate e uscite.
