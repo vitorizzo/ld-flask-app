@@ -1,4 +1,8 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-15 - Correzione caricamento assegni emessi
+
+- Semplificata la query della lista assegni emessi: evita join obbligatori sulle relazioni opzionali e applica la ricerca tramite relazioni correlate, lasciando al serializer il caricamento dei dati collegati.
+- Verificati Python, JavaScript e diff.
 ## 2026-09-15 - Prima bozza assegni e prospetto flusso di cassa
 
 - Corretto il posizionamento delle voci esistenti: `Gestione Assegni Clienti` e `Gestione Assegni Emessi` vengono ricollocate sotto `Amministrazione > Gestione assegni`, senza lasciarle sotto `Gestione Agenda`.

@@ -1,5 +1,9 @@
 # PROJECT_MAP.md — v2.4
 
+## Correzione lista assegni emessi (2026-09-15)
+
+- `routes/cassa.py`, `GET /cassa/api/issued-checks`: query base senza join obbligatori; ricerca fornitore/banca tramite `.has()`, per evitare errori di caricamento nella modale su righe legacy o relazioni opzionali.
+
 ## Amministrazione - assegni e flusso di cassa (2026-09-15)
 
 - Migration `f8a9b0c1d2e3_move_checks_under_administration.py` ricolloca anche eventuali voci legacy denominate `Gestione Assegni Clienti`/`Gestione Assegni Emessi`, evitando duplicati sulle route canoniche.

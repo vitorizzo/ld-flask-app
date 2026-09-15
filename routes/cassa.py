@@ -4587,24 +4587,20 @@ def api_list_issued_checks():
         from_date = (request.args.get("from") or "").strip()
         to_date = (request.args.get("to") or "").strip()
 
-        query = (
-            CashIssuedCheck.query
-            .options(
-                selectinload(CashIssuedCheck.bank),
-                selectinload(CashIssuedCheck.expense),
-            )
-        )
+        # Keep the base query deliberately simple: the list must also work on
+        # installations containing legacy issued-check rows with incomplete
+        # optional relations. Related records are loaded by the serializer.
+        query = CashIssuedCheck.query
 
         if q_text:
-            query = (query
-                     .join(CashExpense, CashExpense.id == CashIssuedCheck.expense_id)
-                     .outerjoin(CashBank, CashBank.id == CashIssuedCheck.bank_id))
             like = f"%{q_text}%"
             query = query.filter(or_(
                 CashIssuedCheck.check_number.ilike(like),
-                CashBank.name.ilike(like),
-                CashExpense.supplier.ilike(like),
-                CashExpense.notes.ilike(like),
+                CashIssuedCheck.bank.has(CashBank.name.ilike(like)),
+                CashIssuedCheck.expense.has(or_(
+                    CashExpense.supplier.ilike(like),
+                    CashExpense.notes.ilike(like),
+                )),
             ))
 
         if status:
