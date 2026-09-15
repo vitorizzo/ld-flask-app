@@ -1,4 +1,10 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-15 - Filtri cliente e fornitore nel flusso assegni
+
+- Il prospetto ora accetta filtri testuali separati per cliente (assegni ricevuti) e fornitore (assegni emessi); vengono inviati insieme a date e checkbox.
+## 2026-09-15 - Raggruppamento asse X flusso assegni
+
+- Aggiunta tendina Giorno/Mese/Trimestre/Quadrimestre/Semestre; il raggruppamento avviene sul dataset giornaliero senza nuove query e il dettaglio conserva tutte le voci del periodo/categoria selezionati.
 ## 2026-09-15 - Flusso assegni: stati previsti e chiusi
 
 - Il prospetto distingue quattro categorie: assegni clienti incassati, assegni clienti da incassare, assegni emessi rientrati/pagati e assegni emessi da pagare.

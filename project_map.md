@@ -1,4 +1,11 @@
 # PROJECT_MAP.md — v2.4
+## Filtri anagrafici flusso assegni (2026-09-15)
+
+- `routes/administration.py` supporta i parametri `customer` e `supplier` sull'API del flusso, applicandoli alle rispettive categorie.
+- `templates/administration/cash_flow.html` espone i due campi di ricerca nel form filtri.
+## Raggruppamenti flusso assegni (2026-09-15)
+
+- `templates/administration/cash_flow.html` raggruppa lato client i dati giornalieri per giorno, mese, trimestre, quadrimestre o semestre; il cambio tendina ridisegna subito grafico e dettaglio.
 ## Stati nel prospetto flusso assegni (2026-09-15)
 
 - `routes/administration.py` assegna ai movimenti le categorie `entry_cashed`, `entry_pending`, `expense_returned`, `expense_pending`, usando date di incasso/rientro quando presenti e, per i pendenti, la scadenza prevista.

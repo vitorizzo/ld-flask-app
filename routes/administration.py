@@ -56,7 +56,7 @@ def _cash_flow_item(day, amount, direction, source, description, reference):
     }
 
 
-def _cash_flow_payload(start_date, end_date, include_entries, include_expenses):
+def _cash_flow_payload(start_date, end_date, include_entries, include_expenses, customer_filter="", supplier_filter=""):
     days = {}
     cursor = start_date
     while cursor <= end_date:
@@ -78,6 +78,8 @@ def _cash_flow_payload(start_date, end_date, include_entries, include_expenses):
     if include_entries:
         for row in CashCheck.query.all():
             customer = row.customer.display_name if row.customer else None
+            if customer_filter and customer_filter.casefold() not in (customer or "").casefold():
+                continue
             settled = row.status == "cashed"
             flow_date = (row.updated_at.date() if settled and row.updated_at else None) or row.due_date or row.received_date
             item = _cash_flow_item(flow_date, row.amount, "in", "Assegno cliente incassato" if settled else "Assegno cliente da incassare", customer, f"Assegno cliente #{row.id}")
@@ -87,6 +89,9 @@ def _cash_flow_payload(start_date, end_date, include_entries, include_expenses):
     if include_expenses:
         for row in CashIssuedCheck.query.join(CashIssuedCheck.expense).join(CashDay).all():
             expense = row.expense
+            supplier = expense.supplier or expense.notes or ""
+            if supplier_filter and supplier_filter.casefold() not in supplier.casefold():
+                continue
             settled = row.status == "rientrato"
             flow_date = (row.registered_at.date() if settled and row.registered_at else None) or row.due_date or expense.cash_day.day_date
             item = _cash_flow_item(flow_date, row.amount, "out", "Assegno emesso rientrato" if settled else "Assegno emesso da pagare", expense.supplier or expense.notes, f"Assegno emesso #{row.id}")
@@ -140,13 +145,17 @@ def cash_flow_api():
         return jsonify({"ok": False, "error": "L'intervallo massimo consultabile è di 366 giorni."}), 400
     include_entries = request.args.get("entries", "1") != "0"
     include_expenses = request.args.get("expenses", "1") != "0"
+    customer_filter = (request.args.get("customer") or "").strip()
+    supplier_filter = (request.args.get("supplier") or "").strip()
     return jsonify({
         "ok": True,
         "from": start_date.isoformat(),
         "to": end_date.isoformat(),
         "entries": include_entries,
         "expenses": include_expenses,
-        "days": _cash_flow_payload(start_date, end_date, include_entries, include_expenses),
+        "customer": customer_filter,
+        "supplier": supplier_filter,
+        "days": _cash_flow_payload(start_date, end_date, include_entries, include_expenses, customer_filter, supplier_filter),
     })
 
 
