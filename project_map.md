@@ -1,4 +1,7 @@
 # PROJECT_MAP.md — v2.4
+## Test e compatibilità lista assegni emessi (2026-09-15)
+
+- `GET /cassa/api/issued-checks` verifica le colonne opzionali delle ricevute e usa una proiezione compatibile quando la migration non è ancora presente, evitando che l'assenza dei metadati blocchi l'elenco.
 
 ## Correzione lista assegni emessi (2026-09-15)
 

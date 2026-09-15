@@ -1,4 +1,9 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-15 - Test caricamento assegni emessi
+
+- I log locali non contengono una richiesta recente a `api_list_issued_checks`; l'ultima anomalia di schema registrata riguarda colonne/migration non applicate (`CashCheck.settlement_amount`).
+- Aggiunta gestione compatibile con database che non hanno ancora le colonne opzionali delle ricevute assegni: la lista proietta solo le colonne disponibili e continua a restituire i titoli.
+- Test isolato della route con schema legacy simulato superato; verificati anche Python, JavaScript e diff.
 ## 2026-09-15 - Correzione caricamento assegni emessi
 
 - Semplificata la query della lista assegni emessi: evita join obbligatori sulle relazioni opzionali e applica la ricerca tramite relazioni correlate, lasciando al serializer il caricamento dei dati collegati.

@@ -4188,7 +4188,7 @@ def _normalize_issued_check_status(status):
     return value
 
 
-def _serialize_issued_check_for_returning(row: CashIssuedCheck, ref_date: date):
+def _serialize_issued_check_for_returning(row: CashIssuedCheck, ref_date: date, *, include_receipt=True):
     registered_date = row.registered_at.date() if row.registered_at else None
     expense = row.expense
     try:
@@ -4209,12 +4209,12 @@ def _serialize_issued_check_for_returning(row: CashIssuedCheck, ref_date: date):
         "is_registered_today": bool(registered_date == ref_date),
         "supplier": expense.supplier if expense else None,
         "description": expense.notes if expense else row.note,
-        "receipt_available": bool(row.receipt_scan_path),
-        "receipt_original_name": row.receipt_scan_original_name,
-        "receipt_received_by": row.receipt_received_by,
-        "receipt_uploaded_at": row.receipt_uploaded_at.isoformat() if row.receipt_uploaded_at else None,
+        "receipt_available": bool(getattr(row, "receipt_scan_path", None)) if include_receipt else False,
+        "receipt_original_name": getattr(row, "receipt_scan_original_name", None) if include_receipt else None,
+        "receipt_received_by": getattr(row, "receipt_received_by", None) if include_receipt else None,
+        "receipt_uploaded_at": getattr(row, "receipt_uploaded_at", None).isoformat() if include_receipt and getattr(row, "receipt_uploaded_at", None) else None,
         "receipt_url": url_for("cassa.api_get_issued_check_receipt", check_id=row.id)
-        if row.receipt_scan_path else None,
+        if include_receipt and getattr(row, "receipt_scan_path", None) else None,
     }
 
 
@@ -4590,7 +4590,24 @@ def api_list_issued_checks():
         # Keep the base query deliberately simple: the list must also work on
         # installations containing legacy issued-check rows with incomplete
         # optional relations. Related records are loaded by the serializer.
-        query = CashIssuedCheck.query
+        receipt_columns_available = False
+        try:
+            existing_columns = {column["name"] for column in inspect(db.engine).get_columns("cash_issued_checks")}
+            receipt_columns_available = {"receipt_scan_path", "receipt_scan_mime", "receipt_scan_original_name", "receipt_received_by", "receipt_uploaded_at"}.issubset(existing_columns)
+        except Exception:
+            logger.warning("Impossibile verificare le colonne ricevuta assegni emessi", exc_info=True)
+        projection = [
+            CashIssuedCheck.id, CashIssuedCheck.expense_id, CashIssuedCheck.created_at,
+            CashIssuedCheck.bank_id, CashIssuedCheck.check_number, CashIssuedCheck.flag,
+            CashIssuedCheck.due_date, CashIssuedCheck.amount, CashIssuedCheck.registered_at,
+            CashIssuedCheck.status, CashIssuedCheck.note,
+        ]
+        if receipt_columns_available:
+            projection.extend([
+                CashIssuedCheck.receipt_scan_path, CashIssuedCheck.receipt_scan_original_name,
+                CashIssuedCheck.receipt_received_by, CashIssuedCheck.receipt_uploaded_at,
+            ])
+        query = CashIssuedCheck.query.options(load_only(*projection))
 
         if q_text:
             like = f"%{q_text}%"
@@ -4645,7 +4662,7 @@ def api_list_issued_checks():
         return jsonify({
             "ok": True,
             "statuses": [{"value": key, "label": ISSUED_CHECK_STATUS_LABELS[key]} for key in ISSUED_CHECK_STATUSES],
-            "checks": [_serialize_issued_check_for_returning(row, ref_date) for row in rows],
+            "checks": [_serialize_issued_check_for_returning(row, ref_date, include_receipt=receipt_columns_available) for row in rows],
         })
     except Exception as e:
         logger.exception("api_list_issued_checks error: %s", e)

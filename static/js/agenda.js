@@ -4168,7 +4168,11 @@ async function openIssuedChecksManagementModal() {
   issuedChecksManagementModal.show();
 
   try {
-    await loadBanks(issuedCheckBankSelect);
+    // Il caricamento della lista non deve dipendere dal catalogo banche:
+    // anche se l'endpoint banche è temporaneamente indisponibile, gli assegni
+    // emessi devono comunque essere consultabili.
+    try { await loadBanks(issuedCheckBankSelect); }
+    catch (bankError) { console.warn("loadBanks issued checks skipped:", bankError); }
     await loadIssuedChecksManagement();
   } catch (err) {
     console.error("openIssuedChecksManagementModal error:", err);
