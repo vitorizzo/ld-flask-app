@@ -60,7 +60,7 @@ def _cash_flow_payload(start_date, end_date, include_entries, include_expenses):
     days = {}
     cursor = start_date
     while cursor <= end_date:
-        days[cursor.isoformat()] = {"date": cursor.isoformat(), "entries": 0.0, "expenses": 0.0, "total": 0.0, "items": []}
+        days[cursor.isoformat()] = {"date": cursor.isoformat(), "entries": 0.0, "expenses": 0.0, "total": 0.0, "categories": {"entry_cashed": 0.0, "entry_pending": 0.0, "expense_returned": 0.0, "expense_pending": 0.0}, "items": []}
         cursor += timedelta(days=1)
 
     def add(item):
@@ -72,18 +72,26 @@ def _cash_flow_payload(start_date, end_date, include_entries, include_expenses):
             bucket["entries"] = round(bucket["entries"] + item["amount"], 2)
         else:
             bucket["expenses"] = round(bucket["expenses"] + item["amount"], 2)
+        bucket["categories"][item["category"]] = round(bucket["categories"][item["category"]] + abs(item["amount"]), 2)
         bucket["total"] = round(bucket["entries"] + bucket["expenses"], 2)
 
     if include_entries:
-        for row in CashCheck.query.filter(CashCheck.received_date >= start_date, CashCheck.received_date <= end_date).all():
+        for row in CashCheck.query.all():
             customer = row.customer.display_name if row.customer else None
-            add(_cash_flow_item(row.received_date, row.amount, "in", "Assegno cliente", customer, f"Assegno cliente #{row.id}"))
+            settled = row.status == "cashed"
+            flow_date = (row.updated_at.date() if settled and row.updated_at else None) or row.due_date or row.received_date
+            item = _cash_flow_item(flow_date, row.amount, "in", "Assegno cliente incassato" if settled else "Assegno cliente da incassare", customer, f"Assegno cliente #{row.id}")
+            item["category"] = "entry_cashed" if settled else "entry_pending"
+            add(item)
 
     if include_expenses:
-        for row in (CashIssuedCheck.query.join(CashIssuedCheck.expense).join(CashDay)
-                    .filter(CashDay.day_date >= start_date, CashDay.day_date <= end_date).all()):
+        for row in CashIssuedCheck.query.join(CashIssuedCheck.expense).join(CashDay).all():
             expense = row.expense
-            add(_cash_flow_item(expense.cash_day.day_date, row.amount, "out", "Assegno emesso", expense.supplier or expense.notes, f"Assegno emesso #{row.id}"))
+            settled = row.status == "rientrato"
+            flow_date = (row.registered_at.date() if settled and row.registered_at else None) or row.due_date or expense.cash_day.day_date
+            item = _cash_flow_item(flow_date, row.amount, "out", "Assegno emesso rientrato" if settled else "Assegno emesso da pagare", expense.supplier or expense.notes, f"Assegno emesso #{row.id}")
+            item["category"] = "expense_returned" if settled else "expense_pending"
+            add(item)
     return list(days.values())
 
 UNKNOWN_AREA = "Provincia non definita"

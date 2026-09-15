@@ -1,4 +1,8 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-15 - Flusso assegni: stati previsti e chiusi
+
+- Il prospetto distingue quattro categorie: assegni clienti incassati, assegni clienti da incassare, assegni emessi rientrati/pagati e assegni emessi da pagare.
+- Le categorie pendenti sono rappresentate con colore chiaro e pattern diagonale; le categorie chiuse restano con colore pieno. Il dettaglio del click è limitato alla categoria della barra.
 ## 2026-09-15 - Test caricamento assegni emessi
 
 - I log locali non contengono una richiesta recente a `api_list_issued_checks`; l'ultima anomalia di schema registrata riguarda colonne/migration non applicate (`CashCheck.settlement_amount`).

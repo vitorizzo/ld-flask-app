@@ -1,4 +1,8 @@
 # PROJECT_MAP.md — v2.4
+## Stati nel prospetto flusso assegni (2026-09-15)
+
+- `routes/administration.py` assegna ai movimenti le categorie `entry_cashed`, `entry_pending`, `expense_returned`, `expense_pending`, usando date di incasso/rientro quando presenti e, per i pendenti, la scadenza prevista.
+- `templates/administration/cash_flow.html` visualizza barre piene per i movimenti chiusi e barre chiare a righe oblique per quelli pendenti; il dettaglio filtra per categoria.
 ## Test e compatibilità lista assegni emessi (2026-09-15)
 
 - `GET /cassa/api/issued-checks` verifica le colonne opzionali delle ricevute e usa una proiezione compatibile quando la migration non è ancora presente, evitando che l'assenza dei metadati blocchi l'elenco.
