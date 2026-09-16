@@ -1,4 +1,6 @@
 .payment-links-page { max-width: 1500px; margin: 0 auto; }
+.payment-link-modal { z-index: 12050 !important; }
+.payment-link-modal .modal-dialog { position: relative; z-index: 12051; }
 .payment-links-table thead th { white-space: nowrap; font-size: .78rem; text-transform: uppercase; letter-spacing: .035em; color: #64748b; }
 .payment-link-modal .modal-content { border: 0; border-radius: 18px; box-shadow: 0 24px 70px rgba(15, 23, 42, .28); }
 .payment-link-modal .modal-header, .payment-link-modal .modal-footer { padding: 1.15rem 1.35rem; }

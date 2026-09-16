@@ -6,6 +6,7 @@
 - Il controllo gestisce anche righe legacy con valore in `value_text` e indica chiaramente che Alias/Terminal ID/MAC non sostituiscono la API key richiesta dal PayByLink.
 - `tools/nexi_xpay.py` costruisce il link classico `OffLineServlet` con Alias, importo, EUR, URL di ritorno e MAC; la route amministrativa lo preferisce quando Alias/MAC sono configurati e valida le notifiche classiche.
 - `templates/administration/payment_links.html` lascia sempre apribile la modale di generazione; eventuali credenziali mancanti sono segnalate dalla risposta della route senza bloccare l'inserimento.
+- `static/js/administration_payment_links.js` e `static/css/administration_payment_links.css` applicano il pattern modali del progetto: nodo nel `body`, backdrop sotto (`12040`) e modale sopra (`12050`).
 
 ## Selezione anagrafiche nei filtri flusso assegni (2026-09-15)
 

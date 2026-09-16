@@ -6,6 +6,7 @@ TEST_SYNC_CODEX_20260507_185518
 - Aggiunta compatibilità per eventuali preferenze storiche con il valore in `value_text`; il messaggio distingue la API key XPay v2 dalle credenziali Alias/Terminal ID/MAC del flusso classico.
 - Allineato il generatore al Pay-by-Link classico documentato da Nexi: quando Alias e chiave MAC sono presenti, crea il link firmato verso `OffLineServlet` e gestisce la notifica form/GET verificando il MAC; l'API REST v2 resta disponibile come fallback.
 - La modale Nuovo link non viene più disabilitata lato interfaccia quando la configurazione non è rilevata: resta compilabile e la verifica avviene al submit sul server.
+- Corretto lo stacking della modale: viene garantita nel `body` anche all'apertura e usa `z-index: 12050`, sopra il backdrop globale a `12040`.
 
 ## 2026-09-15 - Selezione filtri da archivio nel flusso assegni
 

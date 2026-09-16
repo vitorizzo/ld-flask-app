@@ -6,7 +6,10 @@
   if (!page || !modalNode) return;
 
   // Le modali dentro app-shell ereditano uno stacking context che le rende inattive.
-  document.body.appendChild(modalNode);
+  function moveModalToBody() {
+    if (modalNode.parentElement !== document.body) document.body.appendChild(modalNode);
+  }
+  moveModalToBody();
   const modal = bootstrap.Modal.getOrCreateInstance(modalNode);
   const form = document.getElementById("paymentLinkForm");
   const coreFields = document.getElementById("paymentLinkCoreFields");
@@ -92,6 +95,7 @@
   }
 
   document.getElementById("newPaymentLinkButton")?.addEventListener("click", resetModal);
+  modalNode.addEventListener("show.bs.modal", moveModalToBody);
   form.querySelectorAll('input[name="paymentLinkRecipientType"]').forEach(input => input.addEventListener("change", updateRecipientFields));
 
   function escapeHtml(value) {
