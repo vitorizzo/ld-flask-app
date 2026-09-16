@@ -31,7 +31,7 @@ from models import (
 )
 from tools.log_utils import get_logger, log_task
 from tools.mail_accounts import account_sender, get_email_account, send_account_mail
-from tools.nexi_xpay import NexiXPayClassic, NexiXPayClient, NexiXPayError, NexiXPayUncertainError
+from tools.nexi_xpay import NexiXPayClassic, NexiXPayClient, NexiXPayError, NexiXPayUncertainError, _normalize_environment
 from tools.customer_payments import account_entry_source_key, account_entry_snapshot, is_selectable_settlement_item
 from tools.role_required import role_required
 
@@ -1134,7 +1134,7 @@ def payment_links():
         "administration/payment_links.html",
         links=links,
         xpay_configured=bool(_nexi_api_key()) or _nexi_classic_configured(),
-        xpay_environment=current_app.config.get("NEXI_XPAY_ENVIRONMENT", "sandbox"),
+        xpay_environment=_normalize_environment(current_app.config.get("NEXI_XPAY_ENVIRONMENT", "sandbox")),
     )
 
 

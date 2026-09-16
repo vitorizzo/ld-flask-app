@@ -1,4 +1,7 @@
 # PROJECT_MAP.md — v2.4
+## Ambiente XPay PayByLink (2026-09-16)
+
+- `tools/nexi_xpay.py` normalizza i valori dell'ambiente inclusi i sinonimi italiani e seleziona `OffLineServlet` sandbox/produzione in modo deterministico; `templates/settings/api_keys.html` presenta una tendina per evitare valori ambigui.
 ## PayByLink: fallback API key da preferenze (2026-09-16)
 
 - `routes/administration.py` usa la preferenza cifrata `nexi_xpay.api_key` quando il valore non è ancora presente nella configurazione runtime, evitando che la pagina mostri erroneamente "In attesa delle credenziali".

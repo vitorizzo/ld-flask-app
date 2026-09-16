@@ -19,6 +19,11 @@ CLASSIC_PAYBYLINK_SANDBOX_URL = "https://int-ecommerce.nexi.it/ecomm/ecomm/OffLi
 CLASSIC_PAYBYLINK_PRODUCTION_URL = "https://ecommerce.nexi.it/ecomm/ecomm/OffLineServlet"
 
 
+def _normalize_environment(value: str | None) -> str:
+    normalized = str(value or "sandbox").strip().lower()
+    return "production" if normalized in {"production", "prod", "produzione", "live", "pro"} else "sandbox"
+
+
 class NexiXPayError(RuntimeError):
     """Errore sicuro da mostrare all'utente senza esporre credenziali o payload sensibili."""
 
@@ -48,8 +53,7 @@ class NexiXPayClassic:
     def __init__(self, alias: str, mac_key: str, environment: str = "sandbox"):
         self.alias = str(alias or "").strip()
         self.mac_key = str(mac_key or "").strip()
-        normalized_environment = str(environment or "sandbox").strip().lower()
-        self.environment = "production" if normalized_environment in {"production", "prod"} else "sandbox"
+        self.environment = _normalize_environment(environment)
         self.endpoint = CLASSIC_PRODUCTION_URL if self.environment == "production" else CLASSIC_SANDBOX_URL
         if not self.alias or not self.mac_key:
             raise NexiXPayError("Nexi XPay non e' configurato: mancano Alias o chiave MAC.")
@@ -132,8 +136,7 @@ class NexiXPayClassic:
 class NexiXPayClient:
     def __init__(self, api_key: str, environment: str = "sandbox", timeout: tuple[int, int] = (8, 25), session=None):
         self.api_key = str(api_key or "").strip()
-        normalized_environment = str(environment or "sandbox").strip().lower()
-        self.environment = "production" if normalized_environment in {"production", "prod"} else "sandbox"
+        self.environment = _normalize_environment(environment)
         self.base_url = PRODUCTION_BASE_URL if self.environment == "production" else SANDBOX_BASE_URL
         self.timeout = timeout
         self.session = session or requests.Session()

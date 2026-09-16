@@ -347,6 +347,11 @@
                       <input class="form-check-input" type="checkbox" id="{{ field_id }}" name="{{ item.key }}" value="1" {% if item.form_value in [true, '1', 1, 'true', 'True'] %}checked{% endif %}>
                       <label class="form-check-label" for="{{ field_id }}">Abilitato</label>
                     </div>
+                  {% elif item.key == 'nexi_xpay.environment' %}
+                    <select class="form-select" id="{{ field_id }}" name="{{ item.key }}">
+                      <option value="sandbox" {% if (item.form_value or 'sandbox')|lower not in ['production', 'prod', 'produzione', 'live', 'pro'] %}selected{% endif %}>Sandbox</option>
+                      <option value="production" {% if (item.form_value or '')|lower in ['production', 'prod', 'produzione', 'live', 'pro'] %}selected{% endif %}>Produzione</option>
+                    </select>
                   {% else %}
                     <input class="form-control" type="{{ item.input_type }}" id="{{ field_id }}" name="{{ item.key }}" value="{{ item.form_value }}" {% if item.step %}step="{{ item.step }}"{% endif %}>
                   {% endif %}

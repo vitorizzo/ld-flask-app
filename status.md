@@ -1,4 +1,7 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-16 - Ambiente XPay PayByLink
+
+- La normalizzazione dell'ambiente riconosce anche `produzione`, `live` e `pro`; la pagina Chiavi API usa una tendina vincolata a Sandbox/Produzione e il link classico punta all'endpoint coerente con il valore salvato.
 ## 2026-09-16 - PayByLink: lettura affidabile API key XPay
 
 - La pagina e la route di generazione PayByLink recuperano la API key Nexi dalle preferenze cifrate anche se il refresh runtime del worker non è ancora avvenuto; il valore viene allineato solo nella configurazione in memoria e non viene scritto nei log.
