@@ -1,4 +1,9 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-16 - PayByLink: lettura affidabile API key XPay
+
+- La pagina e la route di generazione PayByLink recuperano la API key Nexi dalle preferenze cifrate anche se il refresh runtime del worker non è ancora avvenuto; il valore viene allineato solo nella configurazione in memoria e non viene scritto nei log.
+- La pagina PayByLink usa ora il contenitore standard `welcome-section page-shell`, così testo e contenuti ereditano colori, spaziatura e scorrimento corretti.
+
 ## 2026-09-15 - Selezione filtri da archivio nel flusso assegni
 
 - I filtri Cliente e Fornitore del flusso di cassa ora usano la ricerca progressiva dell'archivio tramite `/cassa/api/customers/suggest`, con elenco selezionabile e aggiornamento dei dati filtrati.

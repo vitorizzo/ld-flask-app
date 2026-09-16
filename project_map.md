@@ -1,4 +1,9 @@
 # PROJECT_MAP.md — v2.4
+## PayByLink: fallback API key da preferenze (2026-09-16)
+
+- `routes/administration.py` usa la preferenza cifrata `nexi_xpay.api_key` quando il valore non è ancora presente nella configurazione runtime, evitando che la pagina mostri erroneamente "In attesa delle credenziali".
+- `templates/administration/payment_links.html` è stato ricondotto al layout standard `welcome-section page-shell` per rendere visibili correttamente i testi della pagina.
+
 ## Selezione anagrafiche nei filtri flusso assegni (2026-09-15)
 
 - `templates/administration/cash_flow.html` collega i campi Cliente e Fornitore all'endpoint di suggerimento dell'archivio e presenta le ragioni sociali selezionabili come nell'agenda.

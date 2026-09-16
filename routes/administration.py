@@ -15,6 +15,7 @@ from extensions import db
 from models import (
     AdministrationPaymentLink,
     AdministrationPaymentLinkDelivery,
+    AppPreference,
     BusinessRegistry,
     BusinessRegistryContact,
     CustomerAccountEntry,
@@ -37,6 +38,22 @@ from tools.role_required import role_required
 
 administration_bp = Blueprint("administration", __name__)
 logger = get_logger("administration")
+
+
+def _nexi_api_key():
+    """Restituisce la API key XPay anche quando il refresh runtime non è ancora avvenuto."""
+    configured = str(current_app.config.get("NEXI_XPAY_API_KEY") or "").strip()
+    if configured:
+        return configured
+    try:
+        preference = AppPreference.query.filter_by(key="nexi_xpay.api_key").first()
+        value = str(preference.python_value() or "").strip() if preference else ""
+        if value:
+            current_app.config["NEXI_XPAY_API_KEY"] = value
+        return value
+    except Exception:
+        logger.debug("Impossibile leggere la API key Nexi dalle preferenze", exc_info=True)
+        return ""
 
 
 def _cash_flow_date(value, fallback):
@@ -1089,7 +1106,7 @@ def payment_links():
     return render_template(
         "administration/payment_links.html",
         links=links,
-        xpay_configured=bool(current_app.config.get("NEXI_XPAY_API_KEY")),
+        xpay_configured=bool(_nexi_api_key()),
         xpay_environment=current_app.config.get("NEXI_XPAY_ENVIRONMENT", "sandbox"),
     )
 
@@ -1154,7 +1171,7 @@ def payment_link_recipients():
 @role_required(40, roles=["office"])
 @log_task(logger)
 def create_payment_link():
-    if not current_app.config.get("NEXI_XPAY_API_KEY"):
+    if not _nexi_api_key():
         return jsonify({"ok": False, "error": "Configura prima la API key Nexi XPay nelle impostazioni."}), 409
     payload_in = request.get_json(silent=True) or {}
     amount = _parse_positive_amount(payload_in.get("amount"))
