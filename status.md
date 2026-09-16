@@ -5,6 +5,7 @@ TEST_SYNC_CODEX_20260507_185518
 - La pagina PayByLink usa ora il contenitore standard `welcome-section page-shell`, così testo e contenuti ereditano colori, spaziatura e scorrimento corretti.
 - Aggiunta compatibilità per eventuali preferenze storiche con il valore in `value_text`; il messaggio distingue la API key XPay v2 dalle credenziali Alias/Terminal ID/MAC del flusso classico.
 - Allineato il generatore al Pay-by-Link classico documentato da Nexi: quando Alias e chiave MAC sono presenti, crea il link firmato verso `OffLineServlet` e gestisce la notifica form/GET verificando il MAC; l'API REST v2 resta disponibile come fallback.
+- La modale Nuovo link non viene più disabilitata lato interfaccia quando la configurazione non è rilevata: resta compilabile e la verifica avviene al submit sul server.
 
 ## 2026-09-15 - Selezione filtri da archivio nel flusso assegni
 

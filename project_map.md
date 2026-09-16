@@ -5,6 +5,7 @@
 - `templates/administration/payment_links.html` è stato ricondotto al layout standard `welcome-section page-shell` per rendere visibili correttamente i testi della pagina.
 - Il controllo gestisce anche righe legacy con valore in `value_text` e indica chiaramente che Alias/Terminal ID/MAC non sostituiscono la API key richiesta dal PayByLink.
 - `tools/nexi_xpay.py` costruisce il link classico `OffLineServlet` con Alias, importo, EUR, URL di ritorno e MAC; la route amministrativa lo preferisce quando Alias/MAC sono configurati e valida le notifiche classiche.
+- `templates/administration/payment_links.html` lascia sempre apribile la modale di generazione; eventuali credenziali mancanti sono segnalate dalla risposta della route senza bloccare l'inserimento.
 
 ## Selezione anagrafiche nei filtri flusso assegni (2026-09-15)
 
