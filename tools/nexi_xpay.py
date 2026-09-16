@@ -17,6 +17,8 @@ CLASSIC_SANDBOX_URL = "https://int-ecommerce.nexi.it/ecomm/ecomm/DispatcherServl
 CLASSIC_PRODUCTION_URL = "https://ecommerce.nexi.it/ecomm/ecomm/DispatcherServlet"
 CLASSIC_PAYBYLINK_SANDBOX_URL = "https://int-ecommerce.nexi.it/ecomm/ecomm/OffLineServlet"
 CLASSIC_PAYBYLINK_PRODUCTION_URL = "https://ecommerce.nexi.it/ecomm/ecomm/OffLineServlet"
+PAYMAIL_SANDBOX_URL = "https://int-ecommerce.nexi.it/ecomm/api/bo/richiestaPayMail"
+PAYMAIL_PRODUCTION_URL = "https://ecommerce.nexi.it/ecomm/api/bo/richiestaPayMail"
 
 
 def _normalize_environment(value: str | None) -> str:
@@ -45,6 +47,13 @@ class PayByLinkResult:
     security_token: str
     expiration_date: str | None
     status: str | None
+
+
+@dataclass(frozen=True)
+class ClassicPayMailResult:
+    operation_id: str
+    payment_url: str
+    timestamp: str
 
 
 class NexiXPayClassic:
@@ -90,6 +99,49 @@ class NexiXPayClassic:
     def verify_response(self, values: dict[str, Any]) -> bool:
         supplied = str(values.get("mac") or "").strip().lower()
         return bool(supplied) and hmac.compare_digest(supplied, self.response_mac(values).lower())
+
+    def request_paymail(self, *, order_id: str, amount: str, result_url: str,
+                        timeout_hours: int = 24, additional_params: dict[str, str] | None = None,
+                        session=None) -> ClassicPayMailResult:
+        """Richiede un link Pay-by-Link tramite l'API Back Office PayMail."""
+        import time
+
+        timestamp = str(int(time.time() * 1000))
+        mac = self._sha1(
+            f"apiKey={self.alias}codiceTransazione={order_id}"
+            f"importo={amount}timeStamp={timestamp}{self.mac_key}"
+        )
+        payload = {
+            "apiKey": self.alias,
+            "codiceTransazione": str(order_id),
+            "importo": str(amount),
+            "timeStamp": timestamp,
+            "mac": mac,
+            "timeout": int(timeout_hours),
+            "url": str(result_url),
+        }
+        if additional_params:
+            payload["parametriAggiuntivi"] = {str(k): str(v) for k, v in additional_params.items()}
+        endpoint = PAYMAIL_PRODUCTION_URL if self.environment == "production" else PAYMAIL_SANDBOX_URL
+        client = session or requests.Session()
+        try:
+            response = client.post(endpoint, json=payload, headers={"Accept": "application/json", "Content-Type": "application/json"}, timeout=(8, 25))
+        except requests.RequestException as exc:
+            raise NexiXPayUncertainError("Nexi PayMail non e' raggiungibile e l'esito non e' certo.") from exc
+        try:
+            body = response.json()
+        except (TypeError, ValueError) as exc:
+            raise NexiXPayError(f"Nexi PayMail ha restituito una risposta non valida (HTTP {response.status_code}).") from exc
+        if response.status_code < 200 or response.status_code >= 300 or str(body.get("esito") or "").upper() != "OK":
+            detail = body.get("errore") if isinstance(body, dict) else None
+            raise NexiXPayError(f"Nexi PayMail ha rifiutato la richiesta (HTTP {response.status_code}): {detail or body.get('esito') if isinstance(body, dict) else body}")
+        try:
+            result = ClassicPayMailResult(str(body["idOperazione"]), str(body["payMailUrl"]), timestamp)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise NexiXPayUncertainError("Nexi PayMail ha restituito una risposta incompleta.") from exc
+        if not result.payment_url.startswith("https://"):
+            raise NexiXPayUncertainError("Nexi PayMail ha restituito un link non valido.")
+        return result
 
     def payment_form(self, *, order_id: str, amount: str, result_url: str, cancel_url: str,
                      notification_url: str, email: str | None = None, description: str | None = None):

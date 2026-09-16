@@ -1,7 +1,7 @@
 # PROJECT_MAP.md — v2.4
 ## Ambiente XPay PayByLink (2026-09-16)
 
-- Il tracciato classico Pay-by-Link usa Alias, chiave MAC, User ID e Password Nexi; `tools/nexi_xpay.py` include tutti i parametri obbligatori e normalizza l'ambiente per scegliere l'endpoint corretto.
+- Il Pay-by-Link amministrativo usa l'API Back Office Nexi `POST /ecomm/api/bo/richiestaPayMail`, con Alias nel campo `apiKey`, MAC SHA1 e timestamp; `tools/nexi_xpay.py` seleziona l'endpoint sandbox/produzione.
 
 - `tools/nexi_xpay.py` normalizza i valori dell'ambiente inclusi i sinonimi italiani e seleziona `OffLineServlet` sandbox/produzione in modo deterministico; `templates/settings/api_keys.html` presenta una tendina per evitare valori ambigui.
 ## PayByLink: fallback API key da preferenze (2026-09-16)

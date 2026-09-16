@@ -86,10 +86,7 @@ def _nexi_classic_configured():
 
 
 def _nexi_paybylink_classic_configured():
-    return _nexi_classic_configured() and bool(
-        str(current_app.config.get("NEXI_XPAY_USERID") or "").strip()
-        and str(current_app.config.get("NEXI_XPAY_PASSWORD") or "").strip()
-    )
+    return _nexi_classic_configured()
 
 
 def _cash_flow_date(value, fallback):
@@ -1209,10 +1206,8 @@ def payment_link_recipients():
 @log_task(logger)
 def create_payment_link():
     classic_configured = _nexi_classic_configured()
-    use_classic = _nexi_paybylink_classic_configured()
+    use_classic = classic_configured
     api_key = _nexi_api_key()
-    if classic_configured and not use_classic and not api_key:
-        return jsonify({"ok": False, "error": "Per il Pay-by-Link classico configura anche User ID e Password Nexi."}), 409
     if not use_classic and not api_key:
         return jsonify({"ok": False, "error": "Configura Alias e chiave MAC Nexi XPay nelle impostazioni."}), 409
     payload_in = request.get_json(silent=True) or {}
@@ -1267,20 +1262,18 @@ def create_payment_link():
     try:
         if use_classic:
             classic = NexiXPayClassic.from_app()
-            payment_link.provider = "nexi_xpay_classic"
-            payment_link.provider_reference = payment_link.provider_order_id
-            payment_link.provider_security_token = None
-            payment_link.payment_url = classic.paybylink_url(
+            result = classic.request_paymail(
                 order_id=payment_link.provider_order_id,
                 amount=amount_minor,
                 result_url=_public_url("administration.payment_link_result"),
-                cancel_url=_public_url("administration.payment_link_cancelled"),
-                notification_url=_public_url("administration.payment_link_nexi_notification"),
-                email=recipient.get("email") if recipient else None,
-                description=description,
-                userid=current_app.config.get("NEXI_XPAY_USERID"),
-                password=current_app.config.get("NEXI_XPAY_PASSWORD"),
+                timeout_hours=24,
+                additional_params={"ldapp_payment_link": payment_link.public_id},
             )
+            payment_link.provider = "nexi_xpay_classic"
+            payment_link.provider_reference = payment_link.provider_order_id
+            payment_link.provider_security_token = None
+            payment_link.provider_reference = result.operation_id
+            payment_link.payment_url = result.payment_url
         else:
             result = NexiXPayClient.from_app().create_paybylink(provider_payload)
             payment_link.provider_reference = result.link_id
