@@ -112,7 +112,8 @@ class NexiXPayClassic:
 
     def paybylink_url(self, *, order_id: str, amount: str, result_url: str, cancel_url: str,
                       notification_url: str, email: str | None = None,
-                      description: str | None = None) -> str:
+                      description: str | None = None, userid: str | None = None,
+                      password: str | None = None) -> str:
         """Costruisce il link Pay-by-Link classico tramite OffLineServlet."""
         fields = {
             "alias": self.alias,
@@ -128,6 +129,10 @@ class NexiXPayClassic:
             fields["mail"] = str(email)[:150]
         if description:
             fields["descrizione"] = str(description)[:2000]
+        if userid:
+            fields["userid"] = str(userid)[:11]
+        if password:
+            fields["Password"] = str(password)[:8]
         fields["mac"] = self.request_mac(fields["codTrans"], fields["divisa"], fields["importo"])
         endpoint = CLASSIC_PAYBYLINK_PRODUCTION_URL if self.environment == "production" else CLASSIC_PAYBYLINK_SANDBOX_URL
         return f"{endpoint}?{urlencode(fields)}"

@@ -21,6 +21,11 @@
     <i class="fa-solid fa-key mt-1"></i>
     <div><strong>API key XPay v2 non rilevata.</strong><br>Per il PayByLink serve la API key Nexi abilitata al servizio; Alias, Terminal ID e chiave MAC del flusso classico non sono sufficienti.</div>
   </div>
+  {% elif not xpay_paybylink_ready %}
+  <div class="alert alert-warning d-flex gap-3 align-items-start" role="alert">
+    <i class="fa-solid fa-key mt-1"></i>
+    <div><strong>Configurazione Pay-by-Link incompleta.</strong><br>Per il tracciato classico servono anche User ID e Password forniti da Nexi.</div>
+  </div>
   {% else %}
   <div class="alert {{ 'alert-danger' if xpay_environment == 'production' else 'alert-info' }} py-2" role="status">
     Ambiente Nexi attivo: <strong>{{ 'Produzione' if xpay_environment == 'production' else 'Sandbox' }}</strong>

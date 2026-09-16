@@ -214,6 +214,8 @@ def create_app():
         NEXI_XPAY_TERMINAL_ID=os.getenv("NEXI_XPAY_TERMINAL_ID"),
         NEXI_XPAY_ALIAS=os.getenv("NEXI_XPAY_ALIAS"),
         NEXI_XPAY_MAC_KEY=os.getenv("NEXI_XPAY_MAC_KEY"),
+        NEXI_XPAY_USERID=os.getenv("NEXI_XPAY_USERID"),
+        NEXI_XPAY_PASSWORD=os.getenv("NEXI_XPAY_PASSWORD"),
         NEXI_XPAY_ENVIRONMENT=os.getenv("NEXI_XPAY_ENVIRONMENT", "sandbox"),
         POLEEPO_URL=os.getenv("POLEEPO_URL"),
         POLEEPO_PKEY=os.getenv("POLEEPO_PKEY"),

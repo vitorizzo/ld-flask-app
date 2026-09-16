@@ -1,6 +1,8 @@
 TEST_SYNC_CODEX_20260507_185518
 ## 2026-09-16 - Ambiente XPay PayByLink
 
+- Il link classico `OffLineServlet` richiede anche i parametri `userid` e `Password`, oltre ad Alias/MAC: sono stati aggiunti alle impostazioni Nexi XPay e vengono inclusi nel link firmato. L'endpoint viene scelto in modo coerente con Sandbox/Produzione anche quando l'impostazione è salvata come `produzione`.
+
 - La normalizzazione dell'ambiente riconosce anche `produzione`, `live` e `pro`; la pagina Chiavi API usa una tendina vincolata a Sandbox/Produzione e il link classico punta all'endpoint coerente con il valore salvato.
 ## 2026-09-16 - PayByLink: lettura affidabile API key XPay
 

@@ -64,6 +64,8 @@ def _nexi_classic_configured():
     values = {
         "NEXI_XPAY_ALIAS": "nexi_xpay.alias",
         "NEXI_XPAY_MAC_KEY": "nexi_xpay.mac_key",
+        "NEXI_XPAY_USERID": "nexi_xpay.userid",
+        "NEXI_XPAY_PASSWORD": "nexi_xpay.password",
     }
     try:
         for config_key, preference_key in values.items():
@@ -80,6 +82,13 @@ def _nexi_classic_configured():
     return bool(
         str(current_app.config.get("NEXI_XPAY_ALIAS") or "").strip()
         and str(current_app.config.get("NEXI_XPAY_MAC_KEY") or "").strip()
+    )
+
+
+def _nexi_paybylink_classic_configured():
+    return _nexi_classic_configured() and bool(
+        str(current_app.config.get("NEXI_XPAY_USERID") or "").strip()
+        and str(current_app.config.get("NEXI_XPAY_PASSWORD") or "").strip()
     )
 
 
@@ -1134,6 +1143,7 @@ def payment_links():
         "administration/payment_links.html",
         links=links,
         xpay_configured=bool(_nexi_api_key()) or _nexi_classic_configured(),
+        xpay_paybylink_ready=bool(_nexi_api_key()) or _nexi_paybylink_classic_configured(),
         xpay_environment=_normalize_environment(current_app.config.get("NEXI_XPAY_ENVIRONMENT", "sandbox")),
     )
 
@@ -1198,8 +1208,12 @@ def payment_link_recipients():
 @role_required(40, roles=["office"])
 @log_task(logger)
 def create_payment_link():
-    use_classic = _nexi_classic_configured()
-    if not use_classic and not _nexi_api_key():
+    classic_configured = _nexi_classic_configured()
+    use_classic = _nexi_paybylink_classic_configured()
+    api_key = _nexi_api_key()
+    if classic_configured and not use_classic and not api_key:
+        return jsonify({"ok": False, "error": "Per il Pay-by-Link classico configura anche User ID e Password Nexi."}), 409
+    if not use_classic and not api_key:
         return jsonify({"ok": False, "error": "Configura Alias e chiave MAC Nexi XPay nelle impostazioni."}), 409
     payload_in = request.get_json(silent=True) or {}
     amount = _parse_positive_amount(payload_in.get("amount"))
@@ -1264,6 +1278,8 @@ def create_payment_link():
                 notification_url=_public_url("administration.payment_link_nexi_notification"),
                 email=recipient.get("email") if recipient else None,
                 description=description,
+                userid=current_app.config.get("NEXI_XPAY_USERID"),
+                password=current_app.config.get("NEXI_XPAY_PASSWORD"),
             )
         else:
             result = NexiXPayClient.from_app().create_paybylink(provider_payload)
