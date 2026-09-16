@@ -19,7 +19,7 @@
   {% if not xpay_configured %}
   <div class="alert alert-warning d-flex gap-3 align-items-start" role="alert">
     <i class="fa-solid fa-key mt-1"></i>
-    <div><strong>In attesa delle credenziali Nexi.</strong><br>La pagina e lo storico sono pronti; il pulsante si abiliterà dopo aver salvato la API key XPay nelle impostazioni.</div>
+    <div><strong>API key XPay v2 non rilevata.</strong><br>Per il PayByLink serve la API key Nexi abilitata al servizio; Alias, Terminal ID e chiave MAC del flusso classico non sono sufficienti.</div>
   </div>
   {% else %}
   <div class="alert {{ 'alert-danger' if xpay_environment == 'production' else 'alert-info' }} py-2" role="status">

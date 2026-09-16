@@ -4,7 +4,7 @@ from dataclasses import dataclass
 import hashlib
 import hmac
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 from uuid import uuid4
 
 import requests
@@ -15,6 +15,8 @@ SANDBOX_BASE_URL = "https://xpaysandbox.nexigroup.com/api/phoenix-0.0/psp/api"
 PRODUCTION_BASE_URL = "https://xpay.nexigroup.com/api/phoenix-0.0/psp/api"
 CLASSIC_SANDBOX_URL = "https://int-ecommerce.nexi.it/ecomm/ecomm/DispatcherServlet"
 CLASSIC_PRODUCTION_URL = "https://ecommerce.nexi.it/ecomm/ecomm/DispatcherServlet"
+CLASSIC_PAYBYLINK_SANDBOX_URL = "https://int-ecommerce.nexi.it/ecomm/ecomm/OffLineServlet"
+CLASSIC_PAYBYLINK_PRODUCTION_URL = "https://ecommerce.nexi.it/ecomm/ecomm/OffLineServlet"
 
 
 class NexiXPayError(RuntimeError):
@@ -103,6 +105,28 @@ class NexiXPayClassic:
             fields["descrizione"] = str(description)[:2000]
         fields["mac"] = self.request_mac(fields["codTrans"], fields["divisa"], fields["importo"])
         return self.endpoint, fields
+
+    def paybylink_url(self, *, order_id: str, amount: str, result_url: str, cancel_url: str,
+                      notification_url: str, email: str | None = None,
+                      description: str | None = None) -> str:
+        """Costruisce il link Pay-by-Link classico tramite OffLineServlet."""
+        fields = {
+            "alias": self.alias,
+            "importo": str(amount),
+            "divisa": "EUR",
+            "codTrans": str(order_id),
+            "url": str(result_url),
+            "url_back": str(cancel_url),
+            "urlpost": str(notification_url),
+            "languageId": "ITA",
+        }
+        if email:
+            fields["mail"] = str(email)[:150]
+        if description:
+            fields["descrizione"] = str(description)[:2000]
+        fields["mac"] = self.request_mac(fields["codTrans"], fields["divisa"], fields["importo"])
+        endpoint = CLASSIC_PAYBYLINK_PRODUCTION_URL if self.environment == "production" else CLASSIC_PAYBYLINK_SANDBOX_URL
+        return f"{endpoint}?{urlencode(fields)}"
 
 
 class NexiXPayClient:

@@ -31,7 +31,7 @@ from models import (
 )
 from tools.log_utils import get_logger, log_task
 from tools.mail_accounts import account_sender, get_email_account, send_account_mail
-from tools.nexi_xpay import NexiXPayClient, NexiXPayError, NexiXPayUncertainError
+from tools.nexi_xpay import NexiXPayClassic, NexiXPayClient, NexiXPayError, NexiXPayUncertainError
 from tools.customer_payments import account_entry_source_key, account_entry_snapshot, is_selectable_settlement_item
 from tools.role_required import role_required
 
@@ -48,12 +48,39 @@ def _nexi_api_key():
     try:
         preference = AppPreference.query.filter_by(key="nexi_xpay.api_key").first()
         value = str(preference.python_value() or "").strip() if preference else ""
+        # Compatibilità con eventuali righe create prima che il campo fosse marcato
+        # come secret: in quel caso il valore storico può essere ancora in value_text.
+        if not value and preference is not None:
+            value = str(preference.value_text or "").strip()
         if value:
             current_app.config["NEXI_XPAY_API_KEY"] = value
         return value
     except Exception:
         logger.debug("Impossibile leggere la API key Nexi dalle preferenze", exc_info=True)
         return ""
+
+
+def _nexi_classic_configured():
+    values = {
+        "NEXI_XPAY_ALIAS": "nexi_xpay.alias",
+        "NEXI_XPAY_MAC_KEY": "nexi_xpay.mac_key",
+    }
+    try:
+        for config_key, preference_key in values.items():
+            if str(current_app.config.get(config_key) or "").strip():
+                continue
+            preference = AppPreference.query.filter_by(key=preference_key).first()
+            value = str(preference.python_value() or "").strip() if preference else ""
+            if not value and preference is not None:
+                value = str(preference.value_text or "").strip()
+            if value:
+                current_app.config[config_key] = value
+    except Exception:
+        logger.debug("Impossibile leggere le credenziali classiche Nexi dalle preferenze", exc_info=True)
+    return bool(
+        str(current_app.config.get("NEXI_XPAY_ALIAS") or "").strip()
+        and str(current_app.config.get("NEXI_XPAY_MAC_KEY") or "").strip()
+    )
 
 
 def _cash_flow_date(value, fallback):
@@ -1106,7 +1133,7 @@ def payment_links():
     return render_template(
         "administration/payment_links.html",
         links=links,
-        xpay_configured=bool(_nexi_api_key()),
+        xpay_configured=bool(_nexi_api_key()) or _nexi_classic_configured(),
         xpay_environment=current_app.config.get("NEXI_XPAY_ENVIRONMENT", "sandbox"),
     )
 
@@ -1171,8 +1198,9 @@ def payment_link_recipients():
 @role_required(40, roles=["office"])
 @log_task(logger)
 def create_payment_link():
-    if not _nexi_api_key():
-        return jsonify({"ok": False, "error": "Configura prima la API key Nexi XPay nelle impostazioni."}), 409
+    use_classic = _nexi_classic_configured()
+    if not use_classic and not _nexi_api_key():
+        return jsonify({"ok": False, "error": "Configura Alias e chiave MAC Nexi XPay nelle impostazioni."}), 409
     payload_in = request.get_json(silent=True) or {}
     amount = _parse_positive_amount(payload_in.get("amount"))
     description = str(payload_in.get("description") or "").strip()
@@ -1223,10 +1251,25 @@ def create_payment_link():
     if recipient and recipient.get("email"):
         provider_payload["customerInfo"] = {"cardHolderEmail": recipient["email"]}
     try:
-        result = NexiXPayClient.from_app().create_paybylink(provider_payload)
-        payment_link.provider_reference = result.link_id
-        payment_link.provider_security_token = result.security_token
-        payment_link.payment_url = result.payment_url
+        if use_classic:
+            classic = NexiXPayClassic.from_app()
+            payment_link.provider = "nexi_xpay_classic"
+            payment_link.provider_reference = payment_link.provider_order_id
+            payment_link.provider_security_token = None
+            payment_link.payment_url = classic.paybylink_url(
+                order_id=payment_link.provider_order_id,
+                amount=amount_minor,
+                result_url=_public_url("administration.payment_link_result"),
+                cancel_url=_public_url("administration.payment_link_cancelled"),
+                notification_url=_public_url("administration.payment_link_nexi_notification"),
+                email=recipient.get("email") if recipient else None,
+                description=description,
+            )
+        else:
+            result = NexiXPayClient.from_app().create_paybylink(provider_payload)
+            payment_link.provider_reference = result.link_id
+            payment_link.provider_security_token = result.security_token
+            payment_link.payment_url = result.payment_url
         payment_link.status = "active"
         payment_link.last_error = None
         db.session.commit()
@@ -1296,6 +1339,38 @@ def send_payment_link(payment_link_id):
 def payment_link_nexi_notification():
     if request.content_length is not None and request.content_length > 128 * 1024:
         abort(413)
+    if not request.is_json:
+        values = request.form.to_dict(flat=True) or request.args.to_dict(flat=True)
+        order_id = str(values.get("codTrans") or "").strip()
+        payment_link = AdministrationPaymentLink.query.filter_by(
+            provider="nexi_xpay_classic", provider_order_id=order_id,
+        ).first()
+        if payment_link is None:
+            abort(404)
+        expected_alias = str(current_app.config.get("NEXI_XPAY_ALIAS") or "").strip()
+        if str(values.get("alias") or "").strip() != expected_alias:
+            abort(400)
+        try:
+            expected_amount = int((Decimal(payment_link.amount) * 100).quantize(Decimal("1")))
+            if int(str(values.get("importo") or "")) != expected_amount:
+                abort(400)
+        except (TypeError, ValueError, ArithmeticError):
+            abort(400)
+        if str(values.get("divisa") or "").upper() != payment_link.currency:
+            abort(400)
+        try:
+            if not NexiXPayClassic.from_app().verify_response(values):
+                abort(400)
+        except NexiXPayError:
+            abort(400)
+        result = str(values.get("esito") or "").upper()
+        if result == "OK":
+            payment_link.status = "paid"
+            payment_link.provider_confirmed_at = datetime.now(timezone.utc)
+        elif result in {"KO", "ANNULLO", "ERRORE"}:
+            payment_link.status = "cancelled" if result == "ANNULLO" else "failed"
+        db.session.commit()
+        return ("", 200)
     payload = request.get_json(silent=True)
     operation = payload.get("operation") if isinstance(payload, dict) else None
     if not isinstance(operation, dict):

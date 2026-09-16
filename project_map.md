@@ -3,6 +3,8 @@
 
 - `routes/administration.py` usa la preferenza cifrata `nexi_xpay.api_key` quando il valore non è ancora presente nella configurazione runtime, evitando che la pagina mostri erroneamente "In attesa delle credenziali".
 - `templates/administration/payment_links.html` è stato ricondotto al layout standard `welcome-section page-shell` per rendere visibili correttamente i testi della pagina.
+- Il controllo gestisce anche righe legacy con valore in `value_text` e indica chiaramente che Alias/Terminal ID/MAC non sostituiscono la API key richiesta dal PayByLink.
+- `tools/nexi_xpay.py` costruisce il link classico `OffLineServlet` con Alias, importo, EUR, URL di ritorno e MAC; la route amministrativa lo preferisce quando Alias/MAC sono configurati e valida le notifiche classiche.
 
 ## Selezione anagrafiche nei filtri flusso assegni (2026-09-15)
 
