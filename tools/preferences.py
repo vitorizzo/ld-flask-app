@@ -79,23 +79,6 @@ PREFERENCE_DEFINITIONS: list[PreferenceDefinition] = [
         sort_order=13,
     ),
     PreferenceDefinition(
-        key="nexi_xpay.userid",
-        category="Nexi XPay",
-        label="User ID Pay-by-Link classico",
-        description="User ID fornito da Nexi per il tracciato Pay-by-Link classico.",
-        config_key="NEXI_XPAY_USERID",
-        sort_order=14,
-    ),
-    PreferenceDefinition(
-        key="nexi_xpay.password",
-        category="Nexi XPay",
-        label="Password Pay-by-Link classico",
-        value_type="secret",
-        description="Password fornita da Nexi per il tracciato Pay-by-Link classico.",
-        config_key="NEXI_XPAY_PASSWORD",
-        sort_order=15,
-    ),
-    PreferenceDefinition(
         key="nexi_xpay.environment",
         category="Nexi XPay",
         label="Ambiente",

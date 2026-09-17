@@ -34,6 +34,7 @@
   const submitLabel = submitButton.querySelector(".button-label");
   const spinner = submitButton.querySelector(".spinner-border");
   const modalTitle = document.getElementById("paymentLinkModalLabel");
+  const refreshMs = Math.max(5000, Number(page.dataset.refreshMs || 15000));
   let searchTimer = null;
   let searchController = null;
   let selectedRecipient = null;
@@ -262,6 +263,10 @@
     amount.value = button.dataset.amount || "";
     modal.show();
   }));
+
+  window.setInterval(() => {
+    if (!document.body.classList.contains("modal-open")) window.location.reload();
+  }, refreshMs);
 
   modalNode.addEventListener("hidden.bs.modal", function () {
     form.classList.remove("d-none");

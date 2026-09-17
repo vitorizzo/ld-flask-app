@@ -3,6 +3,14 @@
 .payment-link-modal .modal-dialog { position: relative; z-index: 12051; }
 .payment-links-table thead th { white-space: nowrap; font-size: .78rem; text-transform: uppercase; letter-spacing: .035em; color: #64748b; }
 .payment-link-modal .modal-content { border: 0; border-radius: 18px; box-shadow: 0 24px 70px rgba(15, 23, 42, .28); }
+.payment-link-modal .modal-header { background: #6b3f36; color: #fff; border-bottom: 0; }
+.payment-link-modal .modal-kicker { color: rgba(255, 255, 255, .78) !important; }
+.payment-link-modal .modal-title { color: #fff; }
+.payment-link-modal .btn-close { filter: invert(1); opacity: .9; }
+.payment-link-modal .modal-body { background: #fff; color: #212529; }
+.payment-link-modal .modal-footer { background: #fff; border-top: 1px solid rgba(74, 44, 42, .12); }
+.payment-link-modal .form-label, .payment-link-modal legend { color: #4a2c2a; font-weight: 600; }
+.payment-link-modal .form-text, .payment-link-modal .text-muted { color: #687789 !important; }
 .payment-link-modal .modal-header, .payment-link-modal .modal-footer { padding: 1.15rem 1.35rem; }
 .payment-link-modal .modal-body { padding: 1.35rem; }
 .recipient-types { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .65rem; }

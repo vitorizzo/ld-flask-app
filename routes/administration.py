@@ -64,8 +64,6 @@ def _nexi_classic_configured():
     values = {
         "NEXI_XPAY_ALIAS": "nexi_xpay.alias",
         "NEXI_XPAY_MAC_KEY": "nexi_xpay.mac_key",
-        "NEXI_XPAY_USERID": "nexi_xpay.userid",
-        "NEXI_XPAY_PASSWORD": "nexi_xpay.password",
     }
     try:
         for config_key, preference_key in values.items():
@@ -1133,7 +1131,13 @@ def payment_links():
     if expired_count:
         db.session.commit()
     page = request.args.get("page", 1, type=int)
-    links = AdministrationPaymentLink.query.order_by(
+    show_archive = request.args.get("archived", "0") == "1"
+    link_query = AdministrationPaymentLink.query
+    if show_archive:
+        link_query = link_query.filter(AdministrationPaymentLink.status.notin_(["active", "creating", "provider_uncertain"]))
+    else:
+        link_query = link_query.filter(AdministrationPaymentLink.status.in_(["active", "creating", "provider_uncertain"]))
+    links = link_query.order_by(
         AdministrationPaymentLink.created_at.desc(), AdministrationPaymentLink.id.desc(),
     ).paginate(page=max(1, page), per_page=30, error_out=False)
     return render_template(
@@ -1142,6 +1146,7 @@ def payment_links():
         xpay_configured=bool(_nexi_api_key()) or _nexi_classic_configured(),
         xpay_paybylink_ready=bool(_nexi_api_key()) or _nexi_paybylink_classic_configured(),
         xpay_environment=_normalize_environment(current_app.config.get("NEXI_XPAY_ENVIRONMENT", "sandbox")),
+        show_archive=show_archive,
     )
 
 

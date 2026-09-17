@@ -4,6 +4,7 @@
 - Il Pay-by-Link amministrativo usa l'API Back Office Nexi `POST /ecomm/api/bo/richiestaPayMail`, con Alias nel campo `apiKey`, MAC SHA1 e timestamp; `tools/nexi_xpay.py` seleziona l'endpoint sandbox/produzione.
 
 - `tools/nexi_xpay.py` normalizza i valori dell'ambiente inclusi i sinonimi italiani e seleziona `OffLineServlet` sandbox/produzione in modo deterministico; `templates/settings/api_keys.html` presenta una tendina per evitare valori ambigui.
+- `templates/administration/payment_links.html` e `static/js/administration_payment_links.js` aggiornano periodicamente lo storico, separano link attivi e conclusi/scaduti e mantengono la modale leggibile sopra il backdrop globale.
 ## PayByLink: fallback API key da preferenze (2026-09-16)
 
 - `routes/administration.py` usa la preferenza cifrata `nexi_xpay.api_key` quando il valore non è ancora presente nella configurazione runtime, evitando che la pagina mostri erroneamente "In attesa delle credenziali".
