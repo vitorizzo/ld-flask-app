@@ -1391,9 +1391,8 @@
 
                   <option value="">Seleziona...</option>
 
-                  <option value="Carta aziendale 1">Carta aziendale 1</option>
+                  {% for company_card in company_cards|default([]) %}<option value="{{ company_card.name }}">{{ company_card.name }}</option>{% endfor %}
 
-                  <option value="Carta aziendale 2">Carta aziendale 2</option>
 
                   <option value="Carta personale">Carta personale</option>
 
@@ -1916,9 +1915,8 @@
 
                     <option value="">Seleziona...</option>
 
-                    <option value="Carta aziendale 1">Carta aziendale 1</option>
+                    {% for company_card in company_cards|default([]) %}<option value="{{ company_card.name }}">{{ company_card.name }}</option>{% endfor %}
 
-                    <option value="Carta aziendale 2">Carta aziendale 2</option>
 
                     <option value="Carta personale">Carta personale</option>
 

@@ -4,6 +4,11 @@ TEST_SYNC_CODEX_20260507_185518
 - Il Pay-by-Link amministrativo usa l'API Back Office `POST /ecomm/api/bo/richiestaPayMail`: il payload contiene `apiKey` (Alias), codice transazione, importo in centesimi, timestamp, MAC SHA1, timeout e URL di ritorno. L'endpoint viene scelto in modo coerente con Sandbox/Produzione.
 
 - La normalizzazione dell'ambiente riconosce anche `produzione`, `live` e `pro`; la pagina Chiavi API usa una tendina vincolata a Sandbox/Produzione e il link classico punta all'endpoint coerente con il valore salvato.
+
+## 2026-09-19 - Gestione carte aziendali
+
+- Aggiunta la tabella `company_credit_cards`, il tile Impostazioni e la pagina per aggiungere, modificare, attivare/disattivare ed eliminare le carte.
+- La cancellazione viene rifiutata se esistono movimenti in `cash_expense_payments` che conservano quel nome carta; le carte disattivate restano disponibili nello storico ma non vengono proposte in Agenda.
 - La lista dei PayByLink si aggiorna automaticamente ogni 15 secondi quando la modale è chiusa; la vista principale mostra i link attivi e il pulsante storico espone quelli conclusi o scaduti. La modale usa colori espliciti coerenti con il tema applicativo.
 ## 2026-09-16 - PayByLink: lettura affidabile API key XPay
 

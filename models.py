@@ -3767,6 +3767,17 @@ class CashExpensePayment(db.Model):
     bank = db.relationship("CashBank")
 
 
+class CompanyCreditCard(db.Model):
+    """Carta aziendale selezionabile nei pagamenti POS delle spese."""
+
+    __tablename__ = "company_credit_cards"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False, unique=True)
+    is_active = db.Column(db.Boolean, nullable=False, default=True, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
 class CashMove(db.Model):
     __tablename__ = "cash_moves"
     id = db.Column(db.Integer, primary_key=True)

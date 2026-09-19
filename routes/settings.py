@@ -50,11 +50,13 @@ from models import (
     CustomerCollaboratorActivationRequest,
     CustomerPaymentCase,
     CashBank,
+    CompanyCreditCard,
     PosCircuit,
     PosDevice,
     CashDeposit,
     CashIssuedCheck,
     CashSalePayment,
+    CashExpensePayment,
     PosMove,
     CashClosurePos,
     pos_device_circuits,
@@ -361,6 +363,14 @@ def settings_index():
             "route": url_for("settings.pos_circuits_index"),
             "icon": "fa-solid fa-credit-card",
             "icon_class": "text-bg-info",
+            "min_weight": 40,
+        },
+        {
+            "title": "Carte aziendali",
+            "description": "Carte utilizzabili per registrare le spese POS aziendali.",
+            "route": url_for("settings.company_cards_index"),
+            "icon": "fa-solid fa-credit-card",
+            "icon_class": "text-bg-primary",
             "min_weight": 40,
         },
         {
@@ -1103,6 +1113,60 @@ def user_reset_password(user_id):
         logger.exception("Errore invio reset password admin")
         flash(f"Impossibile inviare il reset password: {exc}", "danger")
     return redirect(url_for("settings.users_index"))
+
+
+@settings_bp.route("/company-cards", methods=["GET", "POST"])
+@login_required
+@role_required(40)
+@log_task(logger)
+def company_cards_index():
+    if request.method == "POST":
+        card_id = _parse_int(request.form.get("card_id"))
+        name = (request.form.get("name") or "").strip()
+        if not name:
+            flash("Il nome della carta è obbligatorio.", "warning")
+            return redirect(url_for("settings.company_cards_index"))
+        card = CompanyCreditCard.query.get(card_id) if card_id else CompanyCreditCard()
+        if card_id and card is None:
+            flash("Carta aziendale non trovata.", "warning")
+            return redirect(url_for("settings.company_cards_index"))
+        duplicate = CompanyCreditCard.query.filter(
+            db.func.lower(CompanyCreditCard.name) == name.lower(),
+            CompanyCreditCard.id != (card.id if card.id else -1),
+        ).first()
+        if duplicate:
+            flash("Esiste già una carta aziendale con questo nome.", "warning")
+            return redirect(url_for("settings.company_cards_index"))
+        if card.id and card.name != name:
+            usage_count = CashExpensePayment.query.filter_by(pos_card_label=card.name).count()
+            if usage_count:
+                flash("Il nome non può essere modificato: esistono movimenti storici collegati a questa carta.", "warning")
+                return redirect(url_for("settings.company_cards_index"))
+        card.name = name
+        active_values = {str(value).strip().lower() for value in request.form.getlist("is_active")}
+        card.is_active = bool(active_values & {"1", "true", "on", "yes"})
+        db.session.add(card)
+        db.session.commit()
+        flash("Carta aziendale salvata.", "success")
+        return redirect(url_for("settings.company_cards_index"))
+    cards = CompanyCreditCard.query.order_by(CompanyCreditCard.is_active.desc(), CompanyCreditCard.name.asc()).all()
+    return render_template("settings/company_cards.html", cards=cards)
+
+
+@settings_bp.post("/company-cards/<int:card_id>/delete")
+@login_required
+@role_required(40)
+@log_task(logger)
+def company_card_delete(card_id):
+    card = CompanyCreditCard.query.get_or_404(card_id)
+    usage_count = CashExpensePayment.query.filter_by(pos_card_label=card.name).count()
+    if usage_count:
+        flash("Impossibile eliminare la carta: esistono registrazioni di movimenti che la utilizzano. Disattivala invece di eliminarla.", "warning")
+        return redirect(url_for("settings.company_cards_index"))
+    db.session.delete(card)
+    db.session.commit()
+    flash("Carta aziendale eliminata.", "success")
+    return redirect(url_for("settings.company_cards_index"))
 
 
 @settings_bp.route("/banks", methods=["GET", "POST"])

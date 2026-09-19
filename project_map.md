@@ -5,6 +5,11 @@
 
 - `tools/nexi_xpay.py` normalizza i valori dell'ambiente inclusi i sinonimi italiani e seleziona `OffLineServlet` sandbox/produzione in modo deterministico; `templates/settings/api_keys.html` presenta una tendina per evitare valori ambigui.
 - `templates/administration/payment_links.html` e `static/js/administration_payment_links.js` aggiornano periodicamente lo storico, separano link attivi e conclusi/scaduti e mantengono la modale leggibile sopra il backdrop globale.
+
+## Carte aziendali (2026-09-19)
+
+- `CompanyCreditCard`/`company_credit_cards` alimenta la configurazione delle carte usate nelle spese POS; `settings.company_cards_index` gestisce CRUD e stato attivo.
+- La cancellazione controlla i riferimenti storici tramite `CashExpensePayment.pos_card_label` e impedisce record orfani; Agenda propone soltanto le carte attive.
 ## PayByLink: fallback API key da preferenze (2026-09-16)
 
 - `routes/administration.py` usa la preferenza cifrata `nexi_xpay.api_key` quando il valore non è ancora presente nella configurazione runtime, evitando che la pagina mostri erroneamente "In attesa delle credenziali".

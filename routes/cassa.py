@@ -28,7 +28,7 @@ from extensions import db
 from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck, CashSalePayment, CashExpensePayment, \
     PosDevice, PosCircuit, pos_device_circuits, CashCustomer, CashCustomerAlias, CashBank, CashSaleCheck, \
     CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashCheckPayment, CashOwnerTake, CashOwnerTakeCheck, \
-    CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck, CashIssuedCheck, CashDepositCheck, BusinessRegistry, \
+    CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck, CashIssuedCheck, CashDepositCheck, CompanyCreditCard, BusinessRegistry, \
     BusinessRegistryContact, CashCustomerRegistryLink, CashClosure, CashDeposit, CashDayAuditEvent
 from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
 
@@ -1448,7 +1448,7 @@ def api_delete_deposit(deposit_id):
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)
 def agenda():
-    return render_template("agenda.html")
+    return render_template("agenda.html", company_cards=CompanyCreditCard.query.filter_by(is_active=True).order_by(CompanyCreditCard.name.asc()).all())
 
 
 @cassa_bp.route("/agenda/search/customer", methods=["GET"])
