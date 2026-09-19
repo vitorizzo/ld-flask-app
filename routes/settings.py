@@ -1137,11 +1137,6 @@ def company_cards_index():
         if duplicate:
             flash("Esiste già una carta aziendale con questo nome.", "warning")
             return redirect(url_for("settings.company_cards_index"))
-        if card.id and card.name != name:
-            usage_count = CashExpensePayment.query.filter_by(pos_card_label=card.name).count()
-            if usage_count:
-                flash("Il nome non può essere modificato: esistono movimenti storici collegati a questa carta.", "warning")
-                return redirect(url_for("settings.company_cards_index"))
         card.name = name
         active_values = {str(value).strip().lower() for value in request.form.getlist("is_active")}
         card.is_active = bool(active_values & {"1", "true", "on", "yes"})
@@ -1159,7 +1154,10 @@ def company_cards_index():
 @log_task(logger)
 def company_card_delete(card_id):
     card = CompanyCreditCard.query.get_or_404(card_id)
-    usage_count = CashExpensePayment.query.filter_by(pos_card_label=card.name).count()
+    usage_count = (
+        CashExpensePayment.query.filter_by(pos_card_id=card.id).count()
+        + CashExpensePayment.query.filter_by(pos_card_label=card.name).count()
+    )
     if usage_count:
         flash("Impossibile eliminare la carta: esistono registrazioni di movimenti che la utilizzano. Disattivala invece di eliminarla.", "warning")
         return redirect(url_for("settings.company_cards_index"))

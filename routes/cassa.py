@@ -52,6 +52,24 @@ logger = get_logger("cassa", level=logging.INFO)
 
 MIN_AGENDA_WEIGHT = 40
 
+
+def _resolve_company_card_payment(payload):
+    """Restituisce (id, descrizione, personale) per una spesa POS."""
+    label = str(payload.get("pos_card_label") or "").strip()
+    raw_id = payload.get("pos_card_id")
+    if label == "Carta personale":
+        return None, label, True
+    try:
+        card_id = int(raw_id) if raw_id not in (None, "") else None
+    except (TypeError, ValueError):
+        card_id = None
+    card = CompanyCreditCard.query.filter_by(id=card_id, is_active=True).first() if card_id else None
+    if card is None and label:
+        card = CompanyCreditCard.query.filter_by(name=label, is_active=True).first()
+    if card is None:
+        raise ValueError("Seleziona una carta aziendale valida.")
+    return card.id, card.name, False
+
 CHECK_IN_PANCIA_STATUSES = ("received", "moved", "spostato", "anticipato")
 CHECK_STATUSES = ("received", "moved", "spostato", "anticipato", "deposited", "cashed", "bounced", "protested", "withdrawn")
 CHECK_STATUS_LABELS = {
@@ -6750,12 +6768,8 @@ def api_create_expense(day_date):
             )
 
             if method == "pos":
-                pos_card_label = (p.get("pos_card_label") or "").strip()
-                pos_is_personal = bool(p.get("pos_is_personal", False))
-
-                if not pos_card_label:
-                    raise ValueError(f"Missing pos_card_label at row {idx}")
-
+                pos_card_id, pos_card_label, pos_is_personal = _resolve_company_card_payment(p)
+                payment.pos_card_id = pos_card_id
                 payment.pos_card_label = pos_card_label
                 payment.pos_is_personal = pos_is_personal
                 created_card_payments.append(payment)
@@ -6857,7 +6871,8 @@ def api_list_expenses(day_date):
                 "flag": p.flag,
                 "description": p.description,
                 "bank_id": p.bank_id,
-                "pos_card_label": p.pos_card_label,
+                "pos_card_id": p.pos_card_id,
+                "pos_card_label": p.company_card.name if p.company_card else p.pos_card_label,
                 "pos_is_personal": bool(p.pos_is_personal),
                 "created_at": p.created_at.isoformat() if p.created_at else None,
             }
@@ -7169,12 +7184,8 @@ def api_update_expense(expense_id):
                     )
 
                     if method == "pos":
-                        pos_card_label = (p.get("pos_card_label") or "").strip()
-                        pos_is_personal = bool(p.get("pos_is_personal", False))
-
-                        if not pos_card_label:
-                            raise ValueError(f"Missing pos_card_label at row {idx_p}")
-
+                        pos_card_id, pos_card_label, pos_is_personal = _resolve_company_card_payment(p)
+                        payment.pos_card_id = pos_card_id
                         payment.pos_card_label = pos_card_label
                         payment.pos_is_personal = pos_is_personal
                         created_card_payments.append(payment)
@@ -7474,12 +7485,8 @@ def api_update_expense(expense_id):
             )
 
             if method == "pos":
-                pos_card_label = (p.get("pos_card_label") or "").strip()
-                pos_is_personal = bool(p.get("pos_is_personal", False))
-
-                if not pos_card_label:
-                    raise ValueError(f"Missing pos_card_label at row {idx}")
-
+                pos_card_id, pos_card_label, pos_is_personal = _resolve_company_card_payment(p)
+                payment.pos_card_id = pos_card_id
                 payment.pos_card_label = pos_card_label
                 payment.pos_is_personal = pos_is_personal
                 created_card_payments.append(payment)

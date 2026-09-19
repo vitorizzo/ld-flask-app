@@ -3755,6 +3755,7 @@ class CashExpensePayment(db.Model):
     bank_id = db.Column(db.Integer, db.ForeignKey("cash_banks.id"), nullable=True)
 
     pos_card_label = db.Column(db.String(100), nullable=True)
+    pos_card_id = db.Column(db.Integer, db.ForeignKey("company_credit_cards.id", ondelete="RESTRICT"), nullable=True, index=True)
     pos_is_personal = db.Column(db.Boolean, nullable=False, default=False)
 
     receipt_scan_path = db.Column(db.String(500), nullable=True)
@@ -3765,6 +3766,7 @@ class CashExpensePayment(db.Model):
     description = db.Column(db.String(255), nullable=True)
 
     bank = db.relationship("CashBank")
+    company_card = db.relationship("CompanyCreditCard")
 
 
 class CompanyCreditCard(db.Model):

@@ -1,4 +1,8 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-19 - Riferimento stabile carte aziendali
+
+- I pagamenti POS spesa salvano `pos_card_id`; la migration `i3c4d5e6f7a8` collega lo storico esistente tramite il vecchio nome e Agenda mostra la descrizione corrente della carta.
+
 ## 2026-09-16 - Ambiente XPay PayByLink
 
 - Il Pay-by-Link amministrativo usa l'API Back Office `POST /ecomm/api/bo/richiestaPayMail`: il payload contiene `apiKey` (Alias), codice transazione, importo in centesimi, timestamp, MAC SHA1, timeout e URL di ritorno. L'endpoint viene scelto in modo coerente con Sandbox/Produzione.

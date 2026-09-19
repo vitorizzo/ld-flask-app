@@ -6473,7 +6473,7 @@ document.addEventListener("DOMContentLoaded", async function () {
           renderCardPaymentReceipt(document.getElementById("expensePosReceiptCurrent"), p);
           const expensePosCardSelect = document.getElementById("expensePosCardSelect");
           if (expensePosCardSelect) {
-            expensePosCardSelect.value = p.pos_card_label || "";
+            expensePosCardSelect.value = p.pos_card_id || p.pos_card_label || "";
           }
         } else if (p.method === "bank") {
           await loadBanks(bankSelect);
@@ -6528,7 +6528,7 @@ document.addEventListener("DOMContentLoaded", async function () {
 
           if (p.method === "pos") {
             const card = row.querySelector(".multi-pos-card-label");
-            if (card) card.value = p.pos_card_label || "";
+            if (card) card.value = p.pos_card_id || p.pos_card_label || "";
             const receiptInput = row.querySelector(".multi-pos-receipt");
             if (receiptInput) receiptInput.dataset.paymentId = p.id;
             renderCardPaymentReceipt(row.querySelector(".card-receipt-current"), p);
@@ -7184,13 +7184,15 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (mode === "pos") {
       if (base.opType === "expense") {
         const expensePosCardSelect = document.getElementById("expensePosCardSelect");
-        const pos_card_label = (expensePosCardSelect?.value || "").trim();
+        const pos_card_value = (expensePosCardSelect?.value || "").trim();
 
-        if (!pos_card_label) {
+        if (!pos_card_value) {
           return { ok: false, error: "Seleziona la carta utilizzata." };
         }
 
-        const pos_is_personal = pos_card_label === "Carta personale";
+        const pos_is_personal = pos_card_value === "Carta personale";
+        const pos_card_id = pos_is_personal ? null : Number(pos_card_value);
+        const pos_card_label = expensePosCardSelect.selectedOptions[0]?.textContent.trim() || pos_card_value;
 
         return {
           ok: true,
@@ -7207,6 +7209,7 @@ document.addEventListener("DOMContentLoaded", async function () {
               {
                 method: "pos",
                 amount: amount,
+                pos_card_id,
                 pos_card_label,
                 pos_is_personal
               }
@@ -7424,17 +7427,21 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       if (method === "pos") {
         if (base.opType === "expense") {
-          const pos_card_label = (row.querySelector(".multi-pos-card-label")?.value || "").trim();
+          const cardSelect = row.querySelector(".multi-pos-card-label");
+          const pos_card_value = (cardSelect?.value || "").trim();
 
-          if (!pos_card_label) {
+          if (!pos_card_value) {
             return { ok: false, error: "Ogni riga POS spesa deve avere una carta selezionata." };
           }
 
-          const pos_is_personal = pos_card_label === "Carta personale";
+          const pos_is_personal = pos_card_value === "Carta personale";
+          const pos_card_id = pos_is_personal ? null : Number(pos_card_value);
+          const pos_card_label = cardSelect.selectedOptions[0]?.textContent.trim() || pos_card_value;
 
           payments.push({
             method: "pos",
             amount,
+            pos_card_id,
             pos_card_label,
             pos_is_personal
           });

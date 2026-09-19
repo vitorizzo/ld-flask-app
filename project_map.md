@@ -1,4 +1,8 @@
 # PROJECT_MAP.md — v2.4
+## Riferimento carte aziendali (2026-09-19)
+
+- `CashExpensePayment.pos_card_id` collega i pagamenti POS a `company_credit_cards`; `i3c4d5e6f7a8` migra i movimenti esistenti e Agenda visualizza il nome corrente.
+
 ## Ambiente XPay PayByLink (2026-09-16)
 
 - Il Pay-by-Link amministrativo usa l'API Back Office Nexi `POST /ecomm/api/bo/richiestaPayMail`, con Alias nel campo `apiKey`, MAC SHA1 e timestamp; `tools/nexi_xpay.py` seleziona l'endpoint sandbox/produzione.
