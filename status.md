@@ -1,4 +1,10 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-21 - Adapter import MATRIXWS barcode e giacenze
+
+- Il mapping reale è confermato: `1006/1` usa `AM-CODMAGFOR2` + `WKC-BAR-COD|100237|`; `1002/1` usa `M-CODMAGPR`, `M-DEP` e `M-GIACATT`.
+- Aggiunti i task separati `import_barcode_matrixws_task` e `import_giacenze_matrixws_task`, con recupero asincrono completo, validazione, snapshot/deduplicazione e aggiornamento dei riferimenti agli articoli.
+- Le route `POST /settings/import_barcode_matrixws` e `POST /settings/import_giacenze_matrixws` avviano i nuovi task; i task schedulati/file-based esistenti non sono ancora sostituiti.
+
 ## 2026-09-21 - Contratti MATRIXWS barcode e giacenze
 
 - L'esportazione `docs/transport/CONFWS-000.xlsx` conferma i servizi read-only `1006/1` (Estrazione codici a barre) e `1002/1` (Estrazione giacenze), entrambi attivi e con versione `20260001`.

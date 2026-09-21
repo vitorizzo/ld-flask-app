@@ -94,6 +94,8 @@ from config.tasks import (
     import_anagrafiche_task,
     import_articoli_task,
     preview_matrixws_articoli_task,
+    import_barcode_matrixws_task,
+    import_giacenze_matrixws_task,
     import_barcode_task,
     import_estratti_conto_clienti_task,
     import_giacenze_task,
@@ -2612,6 +2614,28 @@ def lancia_verifica_articoli_matrixws():
     task = preview_matrixws_articoli_task.delay()
     from tools.redis_utils import update_task, status_string
     update_task(task.id, "Verifica articoli MATRIXWS", 0, status_string['attached'])
+    return jsonify({"ok": True, "task_id": task.id}), 202
+
+
+@settings_bp.route('/import_barcode_matrixws', methods=['POST'])
+@login_required
+@role_required(100)
+@log_task(logger)
+def lancia_import_barcode_matrixws():
+    task = import_barcode_matrixws_task.delay()
+    from tools.redis_utils import update_task, status_string
+    update_task(task.id, "Importazione codici a barre MATRIXWS", 0, status_string['attached'])
+    return jsonify({"ok": True, "task_id": task.id}), 202
+
+
+@settings_bp.route('/import_giacenze_matrixws', methods=['POST'])
+@login_required
+@role_required(100)
+@log_task(logger)
+def lancia_import_giacenze_matrixws():
+    task = import_giacenze_matrixws_task.delay()
+    from tools.redis_utils import update_task, status_string
+    update_task(task.id, "Importazione giacenze MATRIXWS", 0, status_string['attached'])
     return jsonify({"ok": True, "task_id": task.id}), 202
 
 

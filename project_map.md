@@ -1,4 +1,9 @@
 # PROJECT_MAP.md — v2.4
+## Adapter import MATRIXWS barcode e giacenze (2026-09-21)
+
+- `tools/importazioni.py` importa barcode da `1006/1` (`AM-CODMAGFOR2`, `WKC-BAR-COD|100237|`) e giacenze da `1002/1` (`M-CODMAGPR`, `M-DEP`, `M-GIACATT`) tramite batch asincroni.
+- `config/tasks.py` e `routes/settings.py` espongono task e route separati per la prova operativa; la schedulazione e le route storiche restano file-based fino alla validazione dei conteggi.
+
 ## Contratti MATRIXWS barcode e giacenze (2026-09-21)
 
 - `docs/transport/CONFWS-000.xlsx` conferma `1006/1` Estrazione codici a barre e `1002/1` Estrazione giacenze, entrambi attivi in `GALASSIA` con versione `20260001`.

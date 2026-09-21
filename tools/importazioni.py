@@ -995,6 +995,280 @@ def _fetch_matrixws_article_rows():
     return rows, secret_renewed
 
 
+def _fetch_matrixws_service_rows(service_code):
+    payload = {
+        "CodiceWS": str(service_code),
+        "Schema": "1",
+        "Versione": "20260001",
+        "Operazione": "read",
+        "Ditta": "1",
+        "TabellaCampi": [],
+    }
+    config = MatrixWSConfig.from_app_config(current_app.config)
+    try:
+        result = wait_for_matrixws_async_result(config, payload, poll_timeout=(5, 60), poll_interval=2, max_wait=15 * 60)
+        secret_renewed = False
+    except MatrixWSError as exc:
+        if exc.kind != "unauthorized":
+            raise
+        renewed_secret = renew_matrixws_secret(config)
+        _save_renewed_matrixws_secret(renewed_secret)
+        config = MatrixWSConfig.from_app_config(current_app.config)
+        result = wait_for_matrixws_async_result(config, payload, poll_timeout=(5, 60), poll_interval=2, max_wait=15 * 60)
+        secret_renewed = True
+    rows = _matrixws_response_rows(result)
+    if not rows:
+        raise MatrixWSError(f"MATRIXWS non ha restituito dati dal servizio {service_code}/1.", kind="empty_response")
+    return rows, secret_renewed
+
+
+def _matrixws_stock_quantity(value):
+    quantity = _parse_matrixws_article_decimal(value)
+    if quantity != quantity.to_integral_value():
+        raise ValueError(f"Quantità giacenza frazionaria non supportata dal modello: {value!r}")
+    return int(quantity)
+
+
+def import_barcode_matrixws(task_id=None):
+    """Importa i barcode da MATRIXWS 1006/1 ricostruendo lo snapshot Barcode."""
+    from tools.redis_utils import clear_task_status, status_string, update_task
+    task_name = "Importazione codici a barre MATRIXWS"
+    update_task(task_id, task_name, 0, status_string["start"])
+    counters = {"total_rows": 0, "inserted": 0, "duplicates": 0, "missing_article": 0, "skipped": 0}
+    try:
+        rows, secret_renewed = _fetch_matrixws_service_rows("1006")
+        counters["total_rows"] = len(rows)
+        barcode_rows = []
+        seen = set()
+        for row in rows:
+            cod_art = _clean_registry_text(row.get("AM-CODMAGFOR2"))
+            cod_bar = _clean_registry_text(row.get("WKC-BAR-COD|100237|"))
+            if not cod_art or not cod_bar:
+                counters["skipped"] += 1
+                continue
+            key = (cod_bar, cod_art)
+            if key in seen:
+                counters["duplicates"] += 1
+                continue
+            seen.add(key)
+            barcode_rows.append({"cod_bar": cod_bar, "cod_art": cod_art})
+        db.session.query(Barcode).delete()
+        if barcode_rows:
+            db.session.execute(Barcode.__table__.insert(), barcode_rows)
+            counters["missing_article"] = db.session.execute(db.text(
+                """SELECT COUNT(*) FROM barcode b LEFT JOIN articoli a ON a.cod_art = b.cod_art WHERE a.cod_art IS NULL"""
+            )).scalar() or 0
+            db.session.execute(db.text(
+                """UPDATE barcode b SET id_art = a.id_art FROM articoli a WHERE a.cod_art = b.cod_art"""
+            ))
+        counters["inserted"] = len(barcode_rows)
+        counters["secret_renewed"] = secret_renewed
+        db.session.commit()
+        update_task(task_id, task_name, 100, status_string["end"])
+        clear_task_status(task_id)
+        registra_importazione("barcode", esito=True, messaggio="MATRIXWS 1006/1")
+        return {"success": True, "message": "Codici a barre MATRIXWS importati.", "summary": counters}
+    except Exception as exc:
+        db.session.rollback()
+        update_task(task_id, task_name, 0, status_string["error"], exc)
+        registra_importazione("barcode", esito=False, messaggio=str(exc))
+        logger.exception("Errore importazione barcode MATRIXWS")
+        return {"success": False, "error": str(exc), "summary": counters}
+
+
+def import_giacenze_matrixws(task_id=None):
+    """Importa lo snapshot giacenze da MATRIXWS 1002/1 per depositi 0 e 400."""
+    from tools.redis_utils import clear_task_status, status_string, update_task
+    task_name = "Importazione giacenze MATRIXWS"
+    update_task(task_id, task_name, 0, status_string["start"])
+    counters = {"total_rows": 0, "accepted_rows": 0, "invalid_rows": 0, "unsupported_depot_rows": 0}
+    try:
+        rows, secret_renewed = _fetch_matrixws_service_rows("1002")
+        counters["total_rows"] = len(rows)
+        aggregate = {}
+        for row in rows:
+            code = _clean_registry_text(row.get("M-CODMAGPR"))
+            depot = _clean_registry_text(row.get("M-DEP"))
+            if not code:
+                counters["invalid_rows"] += 1
+                continue
+            field = {"0": "giac_neg", "400": "giac_www"}.get(depot)
+            if field is None:
+                counters["unsupported_depot_rows"] += 1
+                continue
+            try:
+                quantity = _matrixws_stock_quantity(row.get("M-GIACATT"))
+            except ValueError:
+                counters["invalid_rows"] += 1
+                continue
+            aggregate.setdefault(code, {"giac_neg": 0, "giac_www": 0})[field] += quantity
+            counters["accepted_rows"] += 1
+        stock_rows = [
+            {"cod_art": code, **values}
+            for code, values in aggregate.items()
+            if values["giac_neg"] != 0 or values["giac_www"] != 0
+        ]
+        existing_rows = db.session.query(Giacenza.cod_art, Giacenza.giac_neg, Giacenza.giac_www).all()
+        if len(existing_rows) >= 100 and len(stock_rows) < int(len(existing_rows) * 0.80):
+            raise RuntimeError(f"Snapshot MATRIXWS anomalo: {len(stock_rows)} articoli contro {len(existing_rows)} correnti")
+        created, changed, removed, unchanged = _diff_stock_rows(stock_rows, existing_rows)
+        counters.update({"created": len(created), "updated": len(changed), "removed": len(removed), "unchanged": unchanged,
+                         "secret_renewed": secret_renewed})
+        if created:
+            db.session.execute(Giacenza.__table__.insert(), created)
+        if changed:
+            db.session.bulk_update_mappings(Giacenza, changed)
+        for offset in range(0, len(removed), 500):
+            Giacenza.query.filter(Giacenza.cod_art.in_(removed[offset:offset + 500])).delete(synchronize_session=False)
+        db.session.execute(db.text("""UPDATE giacenza AS g SET id_art = a.id_art FROM articoli AS a WHERE a.cod_art = g.cod_art AND g.id_art IS NULL"""))
+        counters["missing_articles"] = db.session.execute(db.text("SELECT COUNT(*) FROM giacenza WHERE id_art IS NULL")).scalar() or 0
+        db.session.commit()
+        update_task(task_id, task_name, 100, status_string["end"])
+        clear_task_status(task_id)
+        registra_importazione("giacenze", esito=True, messaggio="MATRIXWS 1002/1")
+        return {"success": True, "message": "Giacenze MATRIXWS importate.", "summary": counters}
+    except Exception as exc:
+        db.session.rollback()
+        update_task(task_id, task_name, 0, status_string["error"], exc)
+        registra_importazione("giacenze", esito=False, messaggio=str(exc))
+        logger.exception("Errore importazione giacenze MATRIXWS")
+        return {"success": False, "error": str(exc), "summary": counters}
+
+
+def _compare_keyed_snapshots(file_rows, matrix_rows, *, fields, sample_limit=25):
+    file_map = {row["key"]: row for row in file_rows}
+    matrix_map = {row["key"]: row for row in matrix_rows}
+    missing = sorted(set(file_map) - set(matrix_map), key=str)
+    extra = sorted(set(matrix_map) - set(file_map), key=str)
+    changed = []
+    for key in sorted(set(file_map) & set(matrix_map), key=str):
+        differences = {
+            field: {"file": file_map[key].get(field), "matrixws": matrix_map[key].get(field)}
+            for field in fields
+            if file_map[key].get(field) != matrix_map[key].get(field)
+        }
+        if differences and len(changed) < sample_limit:
+            changed.append({"key": key, "differences": differences})
+    return {
+        "file_count": len(file_map),
+        "matrixws_count": len(matrix_map),
+        "missing_in_matrixws": len(missing),
+        "extra_in_matrixws": len(extra),
+        "changed_count": sum(
+            1 for key in set(file_map) & set(matrix_map)
+            if any(file_map[key].get(field) != matrix_map[key].get(field) for field in fields)
+        ),
+        "missing_sample": missing[:sample_limit],
+        "extra_sample": extra[:sample_limit],
+        "changed_sample": changed,
+    }
+
+
+def compare_file_matrixws_sources(task_id=None):
+    """Confronta file e MATRIXWS in memoria senza modificare il database operativo."""
+    from routes.esportazioni_teamsystem import serve_risorsa
+    from tools.redis_utils import clear_task_status, status_string, update_task
+
+    task_name = "Confronto import file e MATRIXWS"
+    update_task(task_id, task_name, 0, status_string["start"])
+    temp_files = []
+    try:
+        db.session.rollback()
+        articles_file = serve_risorsa(configured_source_file("articles"))
+        barcode_file = serve_risorsa(configured_source_file("barcodes"))
+        stock_file = serve_risorsa(configured_source_file("stock"))
+        temp_files = [articles_file, barcode_file, stock_file]
+
+        article_file_rows = []
+        with open(articles_file, "r", encoding="utf-8", errors="ignore") as handle:
+            for index, row in enumerate(csv.reader(handle, delimiter="\t")):
+                if index == 0 or len(row) < 4:
+                    continue
+                code = clean_text(row[0])
+                description = clean_text(row[1])
+                if not code or not description:
+                    continue
+                raw_price = (row[3] or "").strip()
+                price = Decimal("0") if not raw_price else Decimal(raw_price[:-2] + "." + raw_price[-2:])
+                article_file_rows.append({
+                    "key": code,
+                    "descrizione": description,
+                    "descrizione_aggiuntiva": clean_text(row[2]),
+                    "prezzo": price,
+                })
+        article_matrix_rows, _ = _fetch_matrixws_article_rows()
+        article_matrix_rows = [
+            {"key": parsed["cod_art"], "descrizione": parsed["descrizione"],
+             "descrizione_aggiuntiva": parsed["descrizione_aggiuntiva"], "prezzo": parsed["prezzo"]}
+            for row in article_matrix_rows
+            if (parsed := _parse_matrixws_article_row(row)) is not None
+        ]
+
+        barcode_file_rows = []
+        with open(barcode_file, "r", encoding="utf-8", errors="ignore") as handle:
+            for index, row in enumerate(csv.reader(handle, delimiter="\t")):
+                if index == 0 or len(row) < 4:
+                    continue
+                cod_art, cod_bar = clean_text(row[0]).strip(), clean_text(row[3]).strip()
+                if cod_art and cod_bar:
+                    barcode_file_rows.append({"key": (cod_bar, cod_art), "cod_bar": cod_bar, "cod_art": cod_art})
+        barcode_matrix_rows, _ = _fetch_matrixws_service_rows("1006")
+        barcode_matrix_rows = [
+            {"key": (cod_bar, cod_art), "cod_bar": cod_bar, "cod_art": cod_art}
+            for row in barcode_matrix_rows
+            if (cod_art := _clean_registry_text(row.get("AM-CODMAGFOR2")))
+            and (cod_bar := _clean_registry_text(row.get("WKC-BAR-COD|100237|")))
+        ]
+
+        with open(stock_file, "r", encoding="utf-8", errors="ignore") as handle:
+            stock_file_rows, stock_file_counters = _collect_stock_rows(csv.reader(handle, delimiter="\t"))
+        stock_matrix_rows, _ = _fetch_matrixws_service_rows("1002")
+        stock_aggregate = {}
+        for row in stock_matrix_rows:
+            code = _clean_registry_text(row.get("M-CODMAGPR"))
+            field = {"0": "giac_neg", "400": "giac_www"}.get(_clean_registry_text(row.get("M-DEP")))
+            if not code or field is None:
+                continue
+            try:
+                quantity = _matrixws_stock_quantity(row.get("M-GIACATT"))
+            except ValueError:
+                continue
+            stock_aggregate.setdefault(code, {"giac_neg": 0, "giac_www": 0})[field] += quantity
+        stock_matrix_rows = [
+            {"key": code, **values} for code, values in stock_aggregate.items()
+            if values["giac_neg"] != 0 or values["giac_www"] != 0
+        ]
+        result = {
+            "success": True,
+            "message": "Confronto completato senza modificare il database.",
+            "summary": {
+                "articles": _compare_keyed_snapshots(article_file_rows, article_matrix_rows,
+                    fields=("descrizione", "descrizione_aggiuntiva", "prezzo")),
+                "barcodes": _compare_keyed_snapshots(barcode_file_rows, barcode_matrix_rows,
+                    fields=("cod_art",)),
+                "stock": _compare_keyed_snapshots(stock_file_rows, stock_matrix_rows,
+                    fields=("giac_neg", "giac_www")),
+                "stock_file_counters": stock_file_counters,
+            },
+        }
+        db.session.rollback()
+        update_task(task_id, task_name, 100, status_string["end"])
+        clear_task_status(task_id)
+        return result
+    except Exception as exc:
+        db.session.rollback()
+        update_task(task_id, task_name, 0, status_string["error"], exc)
+        logger.exception("Errore nel confronto file/MATRIXWS")
+        return {"success": False, "error": str(exc)}
+    finally:
+        for path in temp_files:
+            if path and os.path.exists(path) and os.path.basename(path).lower() != os.path.basename(configured_source_file("articles")).lower():
+                try:
+                    os.unlink(path)
+                except OSError:
+                    logger.warning("Impossibile rimuovere il file temporaneo di confronto: %s", path)
+
+
 def preview_matrixws_articoli(task_id=None):
     """Verifica l'intero batch articoli MATRIXWS senza scrivere nel database."""
     from tools.redis_utils import clear_task_status, status_string, update_task

@@ -4,6 +4,8 @@ from tools.importazioni import (
     import_anagrafiche,
     import_articoli,
     preview_matrixws_articoli,
+    import_barcode_matrixws,
+    import_giacenze_matrixws,
     import_estratti_conto_clienti,
     import_giacenze,
     import_poleepo_products,
@@ -49,6 +51,18 @@ def import_articoli_task(self):
 @log_task(logger)
 def preview_matrixws_articoli_task(self):
     return preview_matrixws_articoli(task_id=self.request.id)
+
+
+@celery.task(bind=True)
+@log_task(logger)
+def import_barcode_matrixws_task(self):
+    return import_barcode_matrixws(task_id=self.request.id)
+
+
+@celery.task(bind=True)
+@log_task(logger)
+def import_giacenze_matrixws_task(self):
+    return import_giacenze_matrixws(task_id=self.request.id)
 
 
 @celery.task(bind=True)
