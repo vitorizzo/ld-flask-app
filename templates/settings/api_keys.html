@@ -702,6 +702,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   compareSourcesButton?.addEventListener("click", async () => {
     const status = document.getElementById("matrixwsTestStatus");
+    const responseBody = document.getElementById("matrixwsTestResponse");
     compareSourcesButton.disabled = true;
     status.className = "alert alert-info mb-3";
     status.textContent = "Confronto file/MATRIXWS avviato nel worker; nessun dato verrà scritto...";
@@ -712,7 +713,25 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       const data = await readMatrixwsJson(response);
       if (!response.ok || !data.ok) throw new Error(data.message || "Avvio confronto non riuscito.");
-      status.textContent = `Confronto avviato. Task: ${data.task_id}. Il riepilogo sarà disponibile nel monitor dei task.`;
+      status.textContent = `Confronto avviato. Task: ${data.task_id}. Attendo il risultato...`;
+      const deadline = Date.now() + (16 * 60 * 1000);
+      let completed = false;
+      while (Date.now() < deadline) {
+        await new Promise((resolve) => window.setTimeout(resolve, 2000));
+        const taskResponse = await fetch(`/task_manage/status/${encodeURIComponent(data.task_id)}`, {
+          headers: {"Accept": "application/json"},
+        });
+        const taskData = await readMatrixwsJson(taskResponse);
+        if (!taskData.ready) continue;
+        completed = true;
+        responseBody.textContent = taskData.result || "Il task è terminato senza riepilogo.";
+        status.className = `alert ${taskData.successful ? "alert-success" : "alert-danger"} mb-3`;
+        status.textContent = taskData.successful
+          ? "Confronto completato: nessun dato è stato modificato."
+          : "Confronto terminato con errore.";
+        break;
+      }
+      if (!completed) throw new Error("Il confronto non si è concluso entro 16 minuti. Controlla i log del worker.");
     } catch (error) {
       status.className = "alert alert-danger mb-3";
       status.textContent = String(error);
