@@ -679,6 +679,7 @@ document.addEventListener("DOMContentLoaded", () => {
       responseBody.textContent = "In attesa del batch_uuid...";
       runTestButton.disabled = true;
       let diagnosticData = null;
+      let pollingUrl = "";
       try {
         const response = await fetch(matrixwsTestUrl, {
           method: "POST",
@@ -687,6 +688,7 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         let data = await readMatrixwsJson(response);
         diagnosticData = data;
+        pollingUrl = typeof data.status_url === "string" ? data.status_url : "";
         renderMatrixwsResult(data);
         if (!response.ok || !data.pending || !data.status_url) return;
 
@@ -696,9 +698,10 @@ document.addEventListener("DOMContentLoaded", () => {
             throw new Error("Il test non si e' concluso entro 16 minuti. Controlla il worker e il monitor dei processi.");
           }
           await new Promise((resolve) => window.setTimeout(resolve, 2000));
-          let pollResponse = await fetch(data.status_url, {headers: {"Accept": "application/json"}});
-          if (!pollResponse.ok && pollResponse.status === 404 && typeof data.status_url === "string" && data.status_url.includes("/matrixws/test-status/")) {
-            const legacyStatusUrl = data.status_url.replace("/matrixws/test-status/", "/matrixws/test/");
+          if (!pollingUrl) throw new Error("LDApp non ha restituito l'URL di polling del task.");
+          let pollResponse = await fetch(pollingUrl, {headers: {"Accept": "application/json"}});
+          if (!pollResponse.ok && pollResponse.status === 404 && pollingUrl.includes("/matrixws/test-status/")) {
+            const legacyStatusUrl = pollingUrl.replace("/matrixws/test-status/", "/matrixws/test/");
             pollResponse = await fetch(legacyStatusUrl, {headers: {"Accept": "application/json"}});
           }
           data = await readMatrixwsJson(pollResponse);
@@ -709,7 +712,7 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch (error) {
         status.className = "alert alert-danger mb-3";
         status.textContent = "Impossibile completare il test dall'applicazione.";
-        const diagnosticUrl = diagnosticData?.status_url || "URL di polling non restituito";
+        const diagnosticUrl = pollingUrl || diagnosticData?.status_url || "URL di polling non restituito";
         responseBody.textContent = `${String(error)}\n\nPolling: ${diagnosticUrl}`;
       } finally {
         runTestButton.disabled = false;
