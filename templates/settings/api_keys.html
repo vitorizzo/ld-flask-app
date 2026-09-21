@@ -678,6 +678,7 @@ document.addEventListener("DOMContentLoaded", () => {
       meta.classList.add("d-none");
       responseBody.textContent = "In attesa del batch_uuid...";
       runTestButton.disabled = true;
+      let diagnosticData = null;
       try {
         const response = await fetch(matrixwsTestUrl, {
           method: "POST",
@@ -685,6 +686,7 @@ document.addEventListener("DOMContentLoaded", () => {
           body: JSON.stringify({test_key: testProfile.value}),
         });
         let data = await readMatrixwsJson(response);
+        diagnosticData = data;
         renderMatrixwsResult(data);
         if (!response.ok || !data.pending || !data.status_url) return;
 
@@ -700,13 +702,15 @@ document.addEventListener("DOMContentLoaded", () => {
             pollResponse = await fetch(legacyStatusUrl, {headers: {"Accept": "application/json"}});
           }
           data = await readMatrixwsJson(pollResponse);
+          diagnosticData = data;
           renderMatrixwsResult(data);
           if (!pollResponse.ok && !data.pending) break;
         }
       } catch (error) {
         status.className = "alert alert-danger mb-3";
         status.textContent = "Impossibile completare il test dall'applicazione.";
-        responseBody.textContent = String(error);
+        const diagnosticUrl = diagnosticData?.status_url || "URL di polling non restituito";
+        responseBody.textContent = `${String(error)}\n\nPolling: ${diagnosticUrl}`;
       } finally {
         runTestButton.disabled = false;
       }
