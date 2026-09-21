@@ -695,7 +695,7 @@ document.addEventListener("DOMContentLoaded", () => {
           }
           await new Promise((resolve) => window.setTimeout(resolve, 2000));
           let pollResponse = await fetch(data.status_url, {headers: {"Accept": "application/json"}});
-          if (!pollResponse.ok && pollResponse.status === 404 && data.status_url.includes("/matrixws/test-status/")) {
+          if (!pollResponse.ok && pollResponse.status === 404 && typeof data.status_url === "string" && data.status_url.includes("/matrixws/test-status/")) {
             const legacyStatusUrl = data.status_url.replace("/matrixws/test-status/", "/matrixws/test/");
             pollResponse = await fetch(legacyStatusUrl, {headers: {"Accept": "application/json"}});
           }
