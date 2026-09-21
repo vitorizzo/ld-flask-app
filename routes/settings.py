@@ -2178,11 +2178,16 @@ def api_keys():
     )
 
 
-@settings_bp.route("/api-keys/matrixws/test", methods=["POST"])
+@settings_bp.route("/api-keys/matrixws/test", methods=["GET", "POST"])
 @login_required
 @role_required(900)
 @log_task(logger)
 def matrixws_test():
+    if request.method == "GET":
+        task_id = str(request.args.get("task_id") or "").strip()
+        if task_id:
+            return matrixws_test_status(task_id)
+        return jsonify({"ok": False, "message": "Identificativo task MATRIXWS mancante."}), 400
     body = request.get_json(silent=True) or {}
     test_key = str(body.get("test_key") or "").strip().lower()
     profile = MATRIXWS_TEST_PROFILES.get(test_key)
@@ -2284,7 +2289,7 @@ def matrixws_test():
         "secret_renewed": secret_renewed,
         "message": message,
         "request": request_meta,
-        "status_url": url_for("settings.matrixws_test_status_alias", task_id=task.id),
+        "status_url": url_for("settings.matrixws_test", task_id=task.id),
     }), 202
 
 

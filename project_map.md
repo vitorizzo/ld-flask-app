@@ -2,6 +2,7 @@
 ## Polling test MATRIXWS (2026-09-21)
 
 - `routes/settings.py` espone l'alias `/api-keys/matrixws/test-status/<task_id>` per il polling Celery della diagnostica; `templates/settings/api_keys.html` usa l'alias e ricade sulla route storica se necessario.
+- Il polling corrente passa tramite `GET /api-keys/matrixws/test?task_id=...` per evitare problemi di routing sul parametro dinamico; le route dedicate rimangono disponibili per compatibilità.
 
 ## Riferimento carte aziendali (2026-09-19)
 

@@ -3,6 +3,7 @@ TEST_SYNC_CODEX_20260507_185518
 
 - Il test asincrono MATRIXWS ora restituisce un endpoint di polling esplicito `/settings/api-keys/matrixws/test-status/<task_id>`, mantenendo compatibile la route precedente `/test/<task_id>`.
 - Il frontend ritenta la route legacy se l'alias restituisce 404 e mostra l'URL effettivamente interrogato; questo separa gli errori di routing LDApp dalla risposta del servizio TeamSystem.
+- Per evitare il 404 riscontrato sul percorso dinamico, il polling usa ora `GET /settings/api-keys/matrixws/test?task_id=<task_id>`, sulla stessa route di avvio già raggiungibile; i due endpoint dinamici restano compatibili.
 
 ## 2026-09-19 - Riferimento stabile carte aziendali
 
