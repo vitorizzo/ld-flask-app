@@ -1226,6 +1226,10 @@ def compare_file_matrixws_sources(task_id=None):
 
         with open(stock_file, "r", encoding="utf-8", errors="ignore") as handle:
             stock_file_rows, stock_file_counters = _collect_stock_rows(csv.reader(handle, delimiter="\t"))
+        stock_file_rows = [
+            {"key": row["cod_art"], **row}
+            for row in stock_file_rows
+        ]
         stock_matrix_rows, _ = _fetch_matrixws_service_rows("1002", renew_secret=False)
         stock_aggregate = {}
         for row in stock_matrix_rows:
