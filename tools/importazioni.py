@@ -34,6 +34,7 @@ from tools.matrixws_client import (
     MatrixWSError,
     call_sync as call_matrixws_sync,
     renew_secret as renew_matrixws_secret,
+    wait_for_async_result as wait_for_matrixws_async_result,
 )
 from tools.preferences import get_definition_map, load_preferences_into_app_config
 
@@ -920,6 +921,150 @@ def _matrixws_response_rows(result):
             details=error,
         )
     return [row for row in rows if isinstance(row, dict)]
+
+
+def _parse_matrixws_article_decimal(value):
+    """Converte i decimali MATRIXWS (virgola italiana) senza perdita silenziosa."""
+    raw = str(value or "").strip().replace(" ", "")
+    if not raw:
+        return Decimal("0.00")
+    if "," in raw and "." in raw:
+        raw = raw.replace(".", "").replace(",", ".")
+    else:
+        raw = raw.replace(",", ".")
+    try:
+        return Decimal(raw)
+    except (InvalidOperation, ValueError) as exc:
+        raise ValueError(f"Valore decimale MATRIXWS non valido: {value!r}") from exc
+
+
+def _parse_matrixws_article_row(row):
+    """Mappa il tracciato reale 500004/1 sui soli campi oggi presenti in Articoli."""
+    code = _clean_registry_text(row.get("M-CODMAG"))
+    description = _clean_registry_text(row.get("M-DESCRIZIONE"))
+    additional = _clean_registry_text(row.get("M-DESCRAGG"))
+    if not code or not description:
+        return None
+    return {
+        "cod_art": code,
+        "descrizione": description,
+        "descrizione_aggiuntiva": additional,
+        "prezzo": _parse_matrixws_article_decimal(row.get("M-PREZZO(1)")),
+    }
+
+
+def _fetch_matrixws_article_rows():
+    payload = {
+        "CodiceWS": "500004",
+        "Schema": "1",
+        "Versione": "20260001",
+        "Operazione": "read",
+        "Ditta": "1",
+        "TabellaCampi": [],
+    }
+    config = MatrixWSConfig.from_app_config(current_app.config)
+    try:
+        result = wait_for_matrixws_async_result(
+            config,
+            payload,
+            poll_timeout=(5, 60),
+            poll_interval=2,
+            max_wait=15 * 60,
+        )
+        secret_renewed = False
+    except MatrixWSError as exc:
+        if exc.kind != "unauthorized":
+            raise
+        renewed_secret = renew_matrixws_secret(config)
+        _save_renewed_matrixws_secret(renewed_secret)
+        config = MatrixWSConfig.from_app_config(current_app.config)
+        result = wait_for_matrixws_async_result(
+            config,
+            payload,
+            poll_timeout=(5, 60),
+            poll_interval=2,
+            max_wait=15 * 60,
+        )
+        secret_renewed = True
+    rows = _matrixws_response_rows(result)
+    if not rows:
+        raise MatrixWSError(
+            "MATRIXWS non ha restituito articoli dal servizio 500004/1.",
+            kind="empty_response",
+        )
+    return rows, secret_renewed
+
+
+def preview_matrixws_articoli(task_id=None):
+    """Verifica l'intero batch articoli MATRIXWS senza scrivere nel database."""
+    from tools.redis_utils import clear_task_status, status_string, update_task
+
+    task_name = "Verifica articoli MATRIXWS"
+    update_task(task_id, task_name, 0, status_string["start"])
+    counters = {
+        "source": "matrixws:500004/1",
+        "total_rows": 0,
+        "valid_rows": 0,
+        "new_rows": 0,
+        "existing_rows": 0,
+        "unchanged_rows": 0,
+        "updated_rows": 0,
+        "skipped": 0,
+        "duplicate_codes": 0,
+        "invalid_decimal": 0,
+        "secret_renewed": False,
+    }
+    try:
+        rows, secret_renewed = _fetch_matrixws_article_rows()
+        counters["secret_renewed"] = secret_renewed
+        counters["total_rows"] = len(rows)
+        seen = set()
+        duplicate_codes = set()
+        for index, row in enumerate(rows, 1):
+            if index % 250 == 0:
+                update_task(task_id, task_name, min(95, int(index / max(len(rows), 1) * 95)), status_string["update"])
+            try:
+                parsed = _parse_matrixws_article_row(row)
+            except ValueError:
+                counters["invalid_decimal"] += 1
+                counters["skipped"] += 1
+                continue
+            if parsed is None:
+                counters["skipped"] += 1
+                continue
+            code = parsed["cod_art"]
+            if code in seen:
+                duplicate_codes.add(code)
+                continue
+            seen.add(code)
+            article = Articoli.query.filter_by(cod_art=code).first()
+            if article is None:
+                counters["new_rows"] += 1
+            else:
+                counters["existing_rows"] += 1
+                same = (
+                    article.descrizione == parsed["descrizione"]
+                    and (article.descrizione_aggiuntiva or "") == parsed["descrizione_aggiuntiva"]
+                    and _parse_matrixws_article_decimal(article.prezzo) == parsed["prezzo"]
+                )
+                counters["unchanged_rows" if same else "updated_rows"] += 1
+        counters["duplicate_codes"] = len(duplicate_codes)
+        counters["valid_rows"] = len(seen)
+        counters["fields_ignored"] = [
+            "M-ALIVA", "M-UM", "M-COSTOULA", "M-CMAGIMP", "M-CMAGPER",
+            "M-CSCIM", "M-COMERCIA", "M-COMERCIV", "M-RIC(1)",
+            "M-SCIMP(1)", "M-SCONTO1(1)", "M-CSCONTO(1)",
+        ]
+        db.session.rollback()
+        update_task(task_id, task_name, 100, status_string["end"])
+        clear_task_status(task_id)
+        logger.info("Verifica articoli MATRIXWS completata: %s", counters)
+        return {"success": True, "message": "Verifica completata: nessun dato importato.", "summary": counters}
+    except Exception as exc:
+        db.session.rollback()
+        update_task(task_id, task_name, 0, status_string["error"], exc)
+        logger.exception("Errore nella verifica articoli MATRIXWS")
+        return {"success": False, "error": str(exc), "summary": counters}
 
 
 def _validate_matrixws_registry_state():

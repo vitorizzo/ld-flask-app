@@ -1,4 +1,16 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-21 - Contratti MATRIXWS barcode e giacenze
+
+- L'esportazione `docs/transport/CONFWS-000.xlsx` conferma i servizi read-only `1006/1` (Estrazione codici a barre) e `1002/1` (Estrazione giacenze), entrambi attivi e con versione `20260001`.
+- Aggiunti i due profili diagnostici al tile MATRIXWS. La prossima verifica deve leggere le risposte reali per fissare i nomi dei campi e il mapping verso `Barcode` e `Giacenza`; nessun import file-based è stato modificato.
+
+## 2026-09-21 - Verifica importazione articoli MATRIXWS
+
+- Il servizio `500004/1` ha restituito il batch completo di 11.928 record; la diagnostica web continua a mostrare soltanto 25 righe come anteprima.
+- Aggiunta la funzione worker `preview_matrixws_articoli()` e la route `POST /settings/preview_matrixws_articoli`: recupera l'intero batch asincrono, mappa codice, descrizione, descrizione aggiuntiva e prezzo, confronta i record con `Articoli` e non esegue scritture.
+- La verifica conta record validi, nuovi, esistenti, invariati, aggiornabili, scartati, duplicati e decimali non validi; i campi MATRIXWS senza colonne nel modello vengono dichiarati nel riepilogo.
+- La modale diagnostica abilita il comando "Verifica importazione articoli" soltanto per `500004/1` e avvia il task senza modificare l'archivio.
+
 ## 2026-09-21 - Polling diagnostica MATRIXWS
 
 - Il test asincrono MATRIXWS ora restituisce un endpoint di polling esplicito `/settings/api-keys/matrixws/test-status/<task_id>`, mantenendo compatibile la route precedente `/test/<task_id>`.

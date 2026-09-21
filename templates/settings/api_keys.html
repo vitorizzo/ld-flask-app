@@ -509,6 +509,10 @@
         <pre id="matrixwsTestResponse" class="settings-code p-3 mb-0" style="max-height: 360px; overflow: auto; white-space: pre-wrap;">In attesa...</pre>
       </div>
       <div class="modal-footer">
+        <button type="button" class="btn btn-outline-success me-auto" id="matrixwsPreviewArticlesButton"
+                data-preview-url="{{ url_for('settings.lancia_verifica_articoli_matrixws') }}" disabled>
+          <i class="fa-solid fa-list-check me-1"></i>Verifica importazione articoli
+        </button>
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
       </div>
     </div>
@@ -612,6 +616,7 @@ document.addEventListener("DOMContentLoaded", () => {
     : null;
   const runTestButton = document.getElementById("matrixwsRunTestButton");
   const testProfile = document.getElementById("matrixwsTestProfile");
+  const previewArticlesButton = document.getElementById("matrixwsPreviewArticlesButton");
   let matrixwsTestUrl = "";
 
   function renderMatrixwsResult(data) {
@@ -664,8 +669,30 @@ document.addEventListener("DOMContentLoaded", () => {
       status.textContent = "Seleziona una diagnostica e premi Esegui test.";
       meta.classList.add("d-none");
       responseBody.textContent = "Nessun test eseguito.";
+      if (previewArticlesButton) previewArticlesButton.disabled = testProfile.value !== "articles";
       testModal.show();
     });
+  });
+
+  previewArticlesButton?.addEventListener("click", async () => {
+    const status = document.getElementById("matrixwsTestStatus");
+    const previewUrl = previewArticlesButton.dataset.previewUrl;
+    previewArticlesButton.disabled = true;
+    status.className = "alert alert-info mb-3";
+    status.textContent = "Verifica completa degli articoli MATRIXWS avviata nel worker...";
+    try {
+      const response = await fetch(previewUrl, {
+        method: "POST",
+        headers: {"Accept": "application/json", "Content-Type": "application/json"},
+      });
+      const data = await readMatrixwsJson(response);
+      if (!response.ok || !data.ok) throw new Error(data.message || "Avvio verifica non riuscito.");
+      status.textContent = `Verifica avviata. Task: ${data.task_id}. Il risultato sarà disponibile nel monitor dei task.`;
+    } catch (error) {
+      status.className = "alert alert-danger mb-3";
+      status.textContent = String(error);
+      previewArticlesButton.disabled = false;
+    }
   });
 
   runTestButton?.addEventListener("click", async () => {

@@ -1,4 +1,16 @@
 # PROJECT_MAP.md — v2.4
+## Contratti MATRIXWS barcode e giacenze (2026-09-21)
+
+- `docs/transport/CONFWS-000.xlsx` conferma `1006/1` Estrazione codici a barre e `1002/1` Estrazione giacenze, entrambi attivi in `GALASSIA` con versione `20260001`.
+- `routes/settings.py` espone i profili diagnostici `barcodes` e `stock`; le risposte devono ancora essere analizzate prima di sostituire gli import da file.
+
+## Verifica importazione articoli MATRIXWS (2026-09-21)
+
+- `tools/importazioni.py` contiene il parser reale `500004/1`, il recupero asincrono completo e `preview_matrixws_articoli()`, che esegue esclusivamente confronti in lettura con `Articoli`.
+- `config/tasks.py` espone `preview_matrixws_articoli_task`; `routes/settings.py` espone `POST /settings/preview_matrixws_articoli` per avviare la verifica nel worker.
+- `templates/settings/api_keys.html` abilita il comando di verifica nella modale MATRIXWS quando è selezionato il test articoli.
+- Il mapping attuale è `M-CODMAG` → `cod_art`, `M-DESCRIZIONE` → `descrizione`, `M-DESCRAGG` → `descrizione_aggiuntiva`, `M-PREZZO(1)` → `prezzo`; IVA, unità di misura, costi e codici commerciali restano non persistiti finché il modello non verrà esteso.
+
 ## Polling test MATRIXWS (2026-09-21)
 
 - `routes/settings.py` espone l'alias `/api-keys/matrixws/test-status/<task_id>` per il polling Celery della diagnostica; `templates/settings/api_keys.html` usa l'alias e ricade sulla route storica se necessario.

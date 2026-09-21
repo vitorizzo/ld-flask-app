@@ -3,6 +3,7 @@ from config.celery_app import celery
 from tools.importazioni import (
     import_anagrafiche,
     import_articoli,
+    preview_matrixws_articoli,
     import_estratti_conto_clienti,
     import_giacenze,
     import_poleepo_products,
@@ -42,6 +43,12 @@ def import_articoli_task(self):
         "articles", self.request.id, "Importazione articoli",
         lambda: import_articoli(task_id=self.request.id),
     )
+
+
+@celery.task(bind=True)
+@log_task(logger)
+def preview_matrixws_articoli_task(self):
+    return preview_matrixws_articoli(task_id=self.request.id)
 
 
 @celery.task(bind=True)

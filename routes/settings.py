@@ -93,6 +93,7 @@ from tools.import_transfer_config import (
 from config.tasks import (
     import_anagrafiche_task,
     import_articoli_task,
+    preview_matrixws_articoli_task,
     import_barcode_task,
     import_estratti_conto_clienti_task,
     import_giacenze_task,
@@ -130,6 +131,20 @@ MATRIXWS_TEST_PROFILES = {
         "label": "Articoli",
         "description": "Estrazione articoli personalizzata in corso di configurazione",
         "service_code": "500004",
+        "schema": "1",
+        "version": "20260001",
+    },
+    "barcodes": {
+        "label": "Codici a barre",
+        "description": "Estrazione codici a barre articoli da CONFWS",
+        "service_code": "1006",
+        "schema": "1",
+        "version": "20260001",
+    },
+    "stock": {
+        "label": "Giacenze",
+        "description": "Estrazione giacenze da CONFWS",
+        "service_code": "1002",
         "schema": "1",
         "version": "20260001",
     },
@@ -2585,6 +2600,19 @@ def lancia_import_articoli():
     from tools.redis_utils import update_task, status_string
     update_task(task.id, "Importazione articoli", 0, status_string['attached'])
     return '', 204
+
+
+@settings_bp.route('/preview_matrixws_articoli', methods=['POST'])
+@login_required
+@role_required(100)
+@log_task(logger)
+def lancia_verifica_articoli_matrixws():
+    """Avvia la verifica completa 500004/1 senza persistere articoli."""
+    logger.info("Verifica articoli MATRIXWS richiesta.")
+    task = preview_matrixws_articoli_task.delay()
+    from tools.redis_utils import update_task, status_string
+    update_task(task.id, "Verifica articoli MATRIXWS", 0, status_string['attached'])
+    return jsonify({"ok": True, "task_id": task.id}), 202
 
 
 @settings_bp.route('/import_ps_data', methods=['GET', 'POST'])
