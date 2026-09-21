@@ -513,6 +513,10 @@
                 data-preview-url="{{ url_for('settings.lancia_verifica_articoli_matrixws') }}" disabled>
           <i class="fa-solid fa-list-check me-1"></i>Verifica importazione articoli
         </button>
+        <button type="button" class="btn btn-outline-primary" id="matrixwsCompareSourcesButton"
+                data-compare-url="{{ url_for('settings.lancia_confronto_import_matrixws') }}">
+          <i class="fa-solid fa-code-compare me-1"></i>Confronta file e MATRIXWS
+        </button>
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button>
       </div>
     </div>
@@ -617,6 +621,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const runTestButton = document.getElementById("matrixwsRunTestButton");
   const testProfile = document.getElementById("matrixwsTestProfile");
   const previewArticlesButton = document.getElementById("matrixwsPreviewArticlesButton");
+  const compareSourcesButton = document.getElementById("matrixwsCompareSourcesButton");
   let matrixwsTestUrl = "";
 
   function renderMatrixwsResult(data) {
@@ -692,6 +697,26 @@ document.addEventListener("DOMContentLoaded", () => {
       status.className = "alert alert-danger mb-3";
       status.textContent = String(error);
       previewArticlesButton.disabled = false;
+    }
+  });
+
+  compareSourcesButton?.addEventListener("click", async () => {
+    const status = document.getElementById("matrixwsTestStatus");
+    compareSourcesButton.disabled = true;
+    status.className = "alert alert-info mb-3";
+    status.textContent = "Confronto file/MATRIXWS avviato nel worker; nessun dato verrà scritto...";
+    try {
+      const response = await fetch(compareSourcesButton.dataset.compareUrl, {
+        method: "POST",
+        headers: {"Accept": "application/json", "Content-Type": "application/json"},
+      });
+      const data = await readMatrixwsJson(response);
+      if (!response.ok || !data.ok) throw new Error(data.message || "Avvio confronto non riuscito.");
+      status.textContent = `Confronto avviato. Task: ${data.task_id}. Il riepilogo sarà disponibile nel monitor dei task.`;
+    } catch (error) {
+      status.className = "alert alert-danger mb-3";
+      status.textContent = String(error);
+      compareSourcesButton.disabled = false;
     }
   });
 

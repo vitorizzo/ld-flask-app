@@ -6,6 +6,7 @@ from tools.importazioni import (
     preview_matrixws_articoli,
     import_barcode_matrixws,
     import_giacenze_matrixws,
+    compare_file_matrixws_sources,
     import_estratti_conto_clienti,
     import_giacenze,
     import_poleepo_products,
@@ -63,6 +64,12 @@ def import_barcode_matrixws_task(self):
 @log_task(logger)
 def import_giacenze_matrixws_task(self):
     return import_giacenze_matrixws(task_id=self.request.id)
+
+
+@celery.task(bind=True)
+@log_task(logger)
+def compare_file_matrixws_sources_task(self):
+    return compare_file_matrixws_sources(task_id=self.request.id)
 
 
 @celery.task(bind=True)

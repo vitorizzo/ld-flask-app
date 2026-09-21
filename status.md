@@ -1,4 +1,10 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-21 - Confronto incrociato file/MATRIXWS
+
+- Aggiunto `compare_file_matrixws_sources()`, che legge i file configurati e i batch `500004/1`, `1006/1`, `1002/1` in memoria e confronta articoli, barcode e giacenze.
+- Il confronto restituisce conteggi, record mancanti, record aggiuntivi e campioni delle differenze senza scrivere nelle tabelle operative; la route è `POST /settings/compare_import_sources_matrixws`.
+- La modale MATRIXWS espone il comando per avviare il confronto nel worker. La sostituzione dei task schedulati resta sospesa fino alla certificazione dei risultati.
+
 ## 2026-09-21 - Adapter import MATRIXWS barcode e giacenze
 
 - Il mapping reale è confermato: `1006/1` usa `AM-CODMAGFOR2` + `WKC-BAR-COD|100237|`; `1002/1` usa `M-CODMAGPR`, `M-DEP` e `M-GIACATT`.

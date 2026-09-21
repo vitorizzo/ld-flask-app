@@ -953,7 +953,7 @@ def _parse_matrixws_article_row(row):
     }
 
 
-def _fetch_matrixws_article_rows():
+def _fetch_matrixws_article_rows(*, renew_secret=True):
     payload = {
         "CodiceWS": "500004",
         "Schema": "1",
@@ -973,7 +973,7 @@ def _fetch_matrixws_article_rows():
         )
         secret_renewed = False
     except MatrixWSError as exc:
-        if exc.kind != "unauthorized":
+        if exc.kind != "unauthorized" or not renew_secret:
             raise
         renewed_secret = renew_matrixws_secret(config)
         _save_renewed_matrixws_secret(renewed_secret)
@@ -995,7 +995,7 @@ def _fetch_matrixws_article_rows():
     return rows, secret_renewed
 
 
-def _fetch_matrixws_service_rows(service_code):
+def _fetch_matrixws_service_rows(service_code, *, renew_secret=True):
     payload = {
         "CodiceWS": str(service_code),
         "Schema": "1",
@@ -1009,7 +1009,7 @@ def _fetch_matrixws_service_rows(service_code):
         result = wait_for_matrixws_async_result(config, payload, poll_timeout=(5, 60), poll_interval=2, max_wait=15 * 60)
         secret_renewed = False
     except MatrixWSError as exc:
-        if exc.kind != "unauthorized":
+        if exc.kind != "unauthorized" or not renew_secret:
             raise
         renewed_secret = renew_matrixws_secret(config)
         _save_renewed_matrixws_secret(renewed_secret)
@@ -1174,9 +1174,13 @@ def compare_file_matrixws_sources(task_id=None):
     temp_files = []
     try:
         db.session.rollback()
-        articles_file = serve_risorsa(configured_source_file("articles"))
-        barcode_file = serve_risorsa(configured_source_file("barcodes"))
-        stock_file = serve_risorsa(configured_source_file("stock"))
+        source_files = {
+            kind: configured_source_file(kind)
+            for kind in ("articles", "barcodes", "stock")
+        }
+        articles_file = serve_risorsa(source_files["articles"])
+        barcode_file = serve_risorsa(source_files["barcodes"])
+        stock_file = serve_risorsa(source_files["stock"])
         temp_files = [articles_file, barcode_file, stock_file]
 
         article_file_rows = []
@@ -1196,7 +1200,7 @@ def compare_file_matrixws_sources(task_id=None):
                     "descrizione_aggiuntiva": clean_text(row[2]),
                     "prezzo": price,
                 })
-        article_matrix_rows, _ = _fetch_matrixws_article_rows()
+        article_matrix_rows, _ = _fetch_matrixws_article_rows(renew_secret=False)
         article_matrix_rows = [
             {"key": parsed["cod_art"], "descrizione": parsed["descrizione"],
              "descrizione_aggiuntiva": parsed["descrizione_aggiuntiva"], "prezzo": parsed["prezzo"]}
@@ -1212,7 +1216,7 @@ def compare_file_matrixws_sources(task_id=None):
                 cod_art, cod_bar = clean_text(row[0]).strip(), clean_text(row[3]).strip()
                 if cod_art and cod_bar:
                     barcode_file_rows.append({"key": (cod_bar, cod_art), "cod_bar": cod_bar, "cod_art": cod_art})
-        barcode_matrix_rows, _ = _fetch_matrixws_service_rows("1006")
+        barcode_matrix_rows, _ = _fetch_matrixws_service_rows("1006", renew_secret=False)
         barcode_matrix_rows = [
             {"key": (cod_bar, cod_art), "cod_bar": cod_bar, "cod_art": cod_art}
             for row in barcode_matrix_rows
@@ -1222,7 +1226,7 @@ def compare_file_matrixws_sources(task_id=None):
 
         with open(stock_file, "r", encoding="utf-8", errors="ignore") as handle:
             stock_file_rows, stock_file_counters = _collect_stock_rows(csv.reader(handle, delimiter="\t"))
-        stock_matrix_rows, _ = _fetch_matrixws_service_rows("1002")
+        stock_matrix_rows, _ = _fetch_matrixws_service_rows("1002", renew_secret=False)
         stock_aggregate = {}
         for row in stock_matrix_rows:
             code = _clean_registry_text(row.get("M-CODMAGPR"))
@@ -1261,8 +1265,9 @@ def compare_file_matrixws_sources(task_id=None):
         logger.exception("Errore nel confronto file/MATRIXWS")
         return {"success": False, "error": str(exc)}
     finally:
+        source_basenames = {os.path.basename(path).lower() for path in source_files.values()} if 'source_files' in locals() else set()
         for path in temp_files:
-            if path and os.path.exists(path) and os.path.basename(path).lower() != os.path.basename(configured_source_file("articles")).lower():
+            if path and os.path.exists(path) and os.path.basename(path).lower() not in source_basenames:
                 try:
                     os.unlink(path)
                 except OSError:

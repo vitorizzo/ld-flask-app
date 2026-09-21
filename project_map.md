@@ -3,6 +3,7 @@
 
 - `tools/importazioni.py` importa barcode da `1006/1` (`AM-CODMAGFOR2`, `WKC-BAR-COD|100237|`) e giacenze da `1002/1` (`M-CODMAGPR`, `M-DEP`, `M-GIACATT`) tramite batch asincroni.
 - `config/tasks.py` e `routes/settings.py` espongono task e route separati per la prova operativa; la schedulazione e le route storiche restano file-based fino alla validazione dei conteggi.
+- `compare_file_matrixws_sources_task` confronta i tre snapshot in memoria tramite `POST /settings/compare_import_sources_matrixws`; non esegue scritture operative.
 
 ## Contratti MATRIXWS barcode e giacenze (2026-09-21)
 
