@@ -2284,7 +2284,7 @@ def matrixws_test():
         "secret_renewed": secret_renewed,
         "message": message,
         "request": request_meta,
-        "status_url": url_for("settings.matrixws_test_status", task_id=task.id),
+        "status_url": url_for("settings.matrixws_test_status_alias", task_id=task.id),
     }), 202
 
 
@@ -2324,6 +2324,14 @@ def matrixws_test_status(task_id):
             "state": "ERROR",
             "message": "Impossibile leggere lo stato del task diagnostico MATRIXWS.",
         }), 500
+
+
+@settings_bp.route("/api-keys/matrixws/test-status/<task_id>", methods=["GET"])
+@login_required
+@role_required(900)
+def matrixws_test_status_alias(task_id):
+    """Alias esplicito per il polling, separato dalla route di avvio del test."""
+    return matrixws_test_status(task_id)
 
 
 @settings_bp.route("/roles-permissions", methods=["GET", "POST"])

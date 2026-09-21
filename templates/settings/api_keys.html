@@ -694,7 +694,11 @@ document.addEventListener("DOMContentLoaded", () => {
             throw new Error("Il test non si e' concluso entro 16 minuti. Controlla il worker e il monitor dei processi.");
           }
           await new Promise((resolve) => window.setTimeout(resolve, 2000));
-          const pollResponse = await fetch(data.status_url, {headers: {"Accept": "application/json"}});
+          let pollResponse = await fetch(data.status_url, {headers: {"Accept": "application/json"}});
+          if (!pollResponse.ok && pollResponse.status === 404 && data.status_url.includes("/matrixws/test-status/")) {
+            const legacyStatusUrl = data.status_url.replace("/matrixws/test-status/", "/matrixws/test/");
+            pollResponse = await fetch(legacyStatusUrl, {headers: {"Accept": "application/json"}});
+          }
           data = await readMatrixwsJson(pollResponse);
           renderMatrixwsResult(data);
           if (!pollResponse.ok && !data.pending) break;

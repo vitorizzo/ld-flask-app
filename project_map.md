@@ -1,4 +1,8 @@
 # PROJECT_MAP.md — v2.4
+## Polling test MATRIXWS (2026-09-21)
+
+- `routes/settings.py` espone l'alias `/api-keys/matrixws/test-status/<task_id>` per il polling Celery della diagnostica; `templates/settings/api_keys.html` usa l'alias e ricade sulla route storica se necessario.
+
 ## Riferimento carte aziendali (2026-09-19)
 
 - `CashExpensePayment.pos_card_id` collega i pagamenti POS a `company_credit_cards`; `i3c4d5e6f7a8` migra i movimenti esistenti e Agenda visualizza il nome corrente.

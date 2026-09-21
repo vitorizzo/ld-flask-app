@@ -1,4 +1,9 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-21 - Polling diagnostica MATRIXWS
+
+- Il test asincrono MATRIXWS ora restituisce un endpoint di polling esplicito `/settings/api-keys/matrixws/test-status/<task_id>`, mantenendo compatibile la route precedente `/test/<task_id>`.
+- Il frontend ritenta la route legacy se l'alias restituisce 404 e mostra l'URL effettivamente interrogato; questo separa gli errori di routing LDApp dalla risposta del servizio TeamSystem.
+
 ## 2026-09-19 - Riferimento stabile carte aziendali
 
 - I pagamenti POS spesa salvano `pos_card_id`; la migration `i3c4d5e6f7a8` collega lo storico esistente tramite il vecchio nome e Agenda mostra la descrizione corrente della carta.
