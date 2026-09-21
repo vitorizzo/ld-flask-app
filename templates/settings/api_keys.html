@@ -729,6 +729,7 @@ document.addEventListener("DOMContentLoaded", () => {
         status.textContent = taskData.successful
           ? "Confronto completato: nessun dato è stato modificato."
           : "Confronto terminato con errore.";
+        window.alert(responseBody.textContent);
         break;
       }
       if (!completed) throw new Error("Il confronto non si è concluso entro 16 minuti. Controlla i log del worker.");
