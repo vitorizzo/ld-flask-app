@@ -3204,3 +3204,10 @@ Performance apertura giornata Agenda 2026-06-13:
 - Per le anagrafiche generiche `90. TAL DEI TALI` e `103. LD BEVERAGE`, il nome visualizzato viene preso dalla prima riga non vuota della descrizione; la riga viene usata come intestazione senza essere duplicata nel corpo del messaggio.
 - Selezionando un giro viene proposta la sua prossima data effettiva; selezionando `Diretto` viene proposta la data odierna.
 - L'ordine viene pubblicato sul canale Slack corretto, registrato in `SlackOrder`, auditato e mostrato subito nella bacheca.
+## 2026-09-22 - Attivazione importazioni operative MATRIXWS e listino cliente
+
+- I task ordinari e schedulati di articoli, barcode e giacenze ora usano MATRIXWS (`500004/1`, `1006/1`, `1002/1`); anche le anagrafiche vengono importate via `500001/1`.
+- L'import articoli aggiorna prezzo 1, prezzo 3, costo e aliquota IVA quando restituiti; se manca `M-PREZZO(3)`, mantiene il prezzo legacy. Il batch diagnostico disponibile non conteneva ancora quel campo.
+- L'import clienti mappa `CF-PRLIST|100002|`: codice 1 -> prezzo 1; codice 3 -> prezzo 3; vuoto/altro -> prezzo 3. Se il campo è assente dalla risposta complessiva, non sovrascrive le preferenze già presenti.
+- Gli snapshot articoli/barcode vuoti o inferiori all'80% dei dati correnti (quando il catalogo contiene almeno 100 righe) vengono bloccati prima della scrittura.
+- Il database operativo non è stato modificato da questo intervento; occorre deploy del codice. La migration `j4d5e6f7a8b9` deve essere presente nell'ambiente.

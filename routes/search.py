@@ -2022,10 +2022,6 @@ def dati_articolo(cod_art):
         'descrizione_aggiuntiva': articolo.descrizione_aggiuntiva,
         'prezzo': visible_price,
         'prezzo_listino': price_list,
-        'prezzo_1': articolo.prezzo_1,
-        'prezzo_3': articolo.prezzo_3,
-        'costo': articolo.costo,
-        'aliquota_iva': articolo.aliquota_iva,
         'immagini': immagini,
         'giacenza': {
             'inStore': giacenze.giac_neg if giacenze else 0,

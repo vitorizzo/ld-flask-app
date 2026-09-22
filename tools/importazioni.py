@@ -714,6 +714,7 @@ def _upsert_registry_rows(
                 "statistical_description_4",
                 "statistical_code_5",
                 "statistical_description_5",
+                "listino_prezzo",
                 "source_payload",
             ):
                 if field not in parsed:
@@ -831,7 +832,7 @@ def _parse_matrixws_registry_row(row, kind):
     )
     country_code = _matrixws_value(row, "ANPAESE|100003|")
 
-    return {
+    parsed = {
         "kind": kind,
         "source": "teamsystem",
         "source_record_type": _matrixws_value(row, "CF-TIPO|100002|"),
@@ -868,6 +869,10 @@ def _parse_matrixws_registry_row(row, kind):
             (_normalize_email(row.get("ANEMAIL|100003|")), "email principale", "ANEMAIL", True),
         ],
     }
+    if kind == "customer" and "CF-PRLIST|100002|" in row:
+        raw_price_list = _clean_zero_value(row.get("CF-PRLIST|100002|"))
+        parsed["listino_prezzo"] = "prezzo1" if raw_price_list == "1" else "prezzo3"
+    return parsed
 
 
 def _parse_matrixws_customer_row(row):
@@ -961,7 +966,11 @@ def _parse_matrixws_article_row(row):
         "costo": costo,
         "aliquota_iva": aliquota_iva,
         # Compatibilità con i consumatori esistenti: il vecchio prezzo era il prezzo 3.
-        "prezzo": prezzo_3 if prezzo_3 is not None else prezzo_1,
+        "prezzo": prezzo_3,
+        "has_prezzo_1": "M-PREZZO(1)" in row,
+        "has_prezzo_3": "M-PREZZO(3)" in row,
+        "has_costo": "M-COSTOULA" in row,
+        "has_aliquota_iva": "M-ALIVA" in row,
     }
 
 
@@ -1064,6 +1073,14 @@ def import_barcode_matrixws(task_id=None):
                 continue
             seen.add(key)
             barcode_rows.append({"cod_bar": cod_bar, "cod_art": cod_art})
+        current_barcode_count = Barcode.query.count()
+        if not barcode_rows:
+            raise MatrixWSError("Import barcode bloccato: nessun codice valido ricevuto.", kind="empty_barcodes")
+        if current_barcode_count >= 100 and len(barcode_rows) < int(current_barcode_count * 0.80):
+            raise MatrixWSError(
+                f"Snapshot barcode MATRIXWS anomalo: {len(barcode_rows)} codici contro {current_barcode_count} presenti.",
+                kind="anomalous_barcode_snapshot",
+            )
         db.session.query(Barcode).delete()
         if barcode_rows:
             db.session.execute(Barcode.__table__.insert(), barcode_rows)
@@ -1346,7 +1363,7 @@ def preview_matrixws_articoli(task_id=None):
         counters["duplicate_codes"] = len(duplicate_codes)
         counters["valid_rows"] = len(seen)
         counters["fields_ignored"] = [
-            "M-PREZZO(3)", "M-UM", "M-CMAGIMP", "M-CMAGPER",
+            "M-UM", "M-CMAGIMP", "M-CMAGPER",
             "M-CSCIM", "M-COMERCIA", "M-COMERCIV", "M-RIC(1)",
             "M-SCIMP(1)", "M-SCONTO1(1)", "M-CSCONTO(1)",
         ]
@@ -1359,6 +1376,107 @@ def preview_matrixws_articoli(task_id=None):
         db.session.rollback()
         update_task(task_id, task_name, 0, status_string["error"], exc)
         logger.exception("Errore nella verifica articoli MATRIXWS")
+        return {"success": False, "error": str(exc), "summary": counters}
+
+
+@log_task(logger)
+def import_articoli_matrixws(task_id=None):
+    """Importa articoli e campi prezzo dal servizio MATRIXWS 500004/1."""
+    from tools.redis_utils import clear_task_status, status_string, update_task
+
+    task_name = "Importazione articoli MATRIXWS"
+    update_task(task_id, task_name, 0, status_string["start"])
+    counters = {"source": "matrixws:500004/1", "total_rows": 0, "created": 0,
+                "updated": 0, "unchanged": 0, "conflicts": 0, "skipped": 0,
+                "duplicate_codes": 0, "invalid_rows": 0}
+    try:
+        db.create_all()
+        rows, secret_renewed = _fetch_matrixws_article_rows()
+        counters["total_rows"] = len(rows)
+        parsed_rows = {}
+        duplicates = set()
+        for row in rows:
+            try:
+                parsed = _parse_matrixws_article_row(row)
+            except ValueError:
+                counters["invalid_rows"] += 1
+                continue
+            if parsed is None:
+                counters["skipped"] += 1
+                continue
+            code = parsed["cod_art"]
+            if code in parsed_rows:
+                duplicates.add(code)
+                continue
+            parsed_rows[code] = parsed
+        counters["duplicate_codes"] = len(duplicates)
+        if duplicates:
+            raise MatrixWSError(
+                f"Import articoli bloccato: MATRIXWS ha restituito {len(duplicates)} codici duplicati.",
+                kind="duplicate_article_codes", details={"codes": sorted(duplicates)[:25]},
+            )
+        if not parsed_rows:
+            raise MatrixWSError("Import articoli bloccato: nessun articolo valido ricevuto.", kind="empty_articles")
+
+        current_count = Articoli.query.count()
+        if current_count >= 100 and len(parsed_rows) < int(current_count * 0.80):
+            raise MatrixWSError(
+                f"Snapshot MATRIXWS anomalo: {len(parsed_rows)} articoli validi contro {current_count} presenti.",
+                kind="anomalous_article_snapshot",
+            )
+        existing = {item.cod_art: item for item in Articoli.query.filter(
+            Articoli.cod_art.in_(list(parsed_rows))).all()}
+        p3_present = any(parsed["has_prezzo_3"] for parsed in parsed_rows.values())
+        counters.update({"secret_renewed": secret_renewed, "prezzo_3_returned": p3_present})
+        if not p3_present:
+            counters["warning"] = "M-PREZZO(3) assente: prezzo legacy preservato; importati gli altri campi disponibili."
+
+        for index, (code, parsed) in enumerate(parsed_rows.items(), 1):
+            item = existing.get(code)
+            created = item is None
+            changed = False
+            if item is None:
+                item = Articoli(cod_art=code, descrizione=parsed["descrizione"],
+                                descrizione_aggiuntiva=parsed["descrizione_aggiuntiva"])
+                db.session.add(item)
+                counters["created"] += 1
+            elif ((item.descrizione or "") != parsed["descrizione"]
+                  or (item.descrizione_aggiuntiva or "") != parsed["descrizione_aggiuntiva"]):
+                counters["conflicts"] += 1
+                continue
+            else:
+                pass
+
+            for flag, field, value in (
+                ("has_prezzo_1", "prezzo_1", parsed["prezzo_1"]),
+                ("has_prezzo_3", "prezzo_3", parsed["prezzo_3"]),
+                ("has_costo", "costo", parsed["costo"]),
+                ("has_aliquota_iva", "aliquota_iva", parsed["aliquota_iva"]),
+            ):
+                if parsed[flag]:
+                    old_value = getattr(item, field)
+                    if old_value != value:
+                        changed = True
+                    setattr(item, field, value)
+            if parsed["has_prezzo_3"] and parsed["prezzo_3"] is not None:
+                if item.prezzo != parsed["prezzo_3"]:
+                    changed = True
+                item.prezzo = parsed["prezzo_3"]
+            if not created:
+                counters["updated" if changed else "unchanged"] += 1
+            if index % 250 == 0:
+                update_task(task_id, task_name, min(95, int(index / len(parsed_rows) * 95)), status_string["update"])
+
+        db.session.commit()
+        update_task(task_id, task_name, 100, status_string["end"])
+        clear_task_status(task_id)
+        registra_importazione("articoli", esito=True, messaggio="MATRIXWS 500004/1")
+        return {"success": True, "message": "Articoli MATRIXWS importati.", "summary": counters}
+    except Exception as exc:
+        db.session.rollback()
+        update_task(task_id, task_name, 0, status_string["error"], exc)
+        registra_importazione("articoli", esito=False, messaggio=str(exc))
+        logger.exception("Errore importazione articoli MATRIXWS")
         return {"success": False, "error": str(exc), "summary": counters}
 
 
@@ -1494,6 +1612,7 @@ def _import_registry_matrixws_rows(
     response_keys = {key for row in rows for key in row}
     required_keys = {
         "CF-TIPO|100002|",
+        "CF-PRLIST|100002|",
         "CFCOD",
         "ANRASO|100003|",
         "ANPIVA|100003|",
@@ -1517,6 +1636,7 @@ def _import_registry_matrixws_rows(
         "descrizione categoria",
         "descrizione sottocategoria",
         "descrizioni codici statistici 1-5",
+        "codice listino cliente (CF-PRLIST|100002|)",
         "cellulare",
         "fax",
         "PEC/email alternativa",

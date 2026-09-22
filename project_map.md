@@ -1,4 +1,11 @@
 # PROJECT_MAP.md — v2.4
+## Importazioni operative MATRIXWS e listini (2026-09-22)
+
+- `config/tasks.py`: i task già usati dai comandi manuali e da Celery Beat puntano agli import operativi MatrixWS per articoli (`500004/1`), barcode (`1006/1`) e giacenze (`1002/1`). L'import anagrafiche continua a usare `500001/1`.
+- `tools/importazioni.py`: `import_articoli_matrixws()` persiste prezzo 1, prezzo 3, costo e aliquota IVA; non sostituisce il prezzo legacy se Matrix omette prezzo 3. Snapshot vuoti/duplicati/anomali sono respinti. Barcode valida il batch prima di rimpiazzare lo snapshot.
+- `CF-PRLIST|100002|` valorizza `BusinessRegistry.listino_prezzo` sui clienti: codice 1 -> `prezzo1`, altrimenti -> `prezzo3`; la chiave non presente nella risposta non cancella il dato esistente.
+- `tools/product_pricing.py` mantiene la policy di visualizzazione; listino assente o vuoto usa `prezzo3`.
+
 ## Prezzi MATRIXWS e listini (2026-09-21)
 
 - `Articoli` aggiunge `prezzo_1`, `prezzo_3`, `costo` e `aliquota_iva`; `j4d5e6f7a8b9` aggiunge inoltre `listino_prezzo` a `BusinessRegistry` e `User`.
@@ -1630,3 +1637,9 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `/settings/customer-order-links` consente di aggiungere piu' associazioni, modificarne l'ambito, scegliere il cliente predefinito e revocarle.
 - Funzionalita' distribuita e collaudata sul server il 2026-09-05.
 - `tools/sepa_qr.py` genera il payload EPC069-12 e il relativo QR PNG usando OpenCV gia presente nel progetto. `POST /customer-account/payments/bank-transfer/qr` rivalida cliente, documenti, azioni pendenti e importo prima di restituire il QR; la situazione contabile offre copia, condivisione, download e passaggio alla comunicazione del bonifico con contabile. Il flusso non crea una pratica di pagamento fino alla comunicazione effettiva e non richiede migration o servizi esterni.
+## Importazioni operative MATRIXWS e listini (2026-09-22)
+
+- `config/tasks.py`: i task già usati dai comandi manuali e da Celery Beat puntano agli import operativi MatrixWS per articoli (`500004/1`), barcode (`1006/1`) e giacenze (`1002/1`). L'import anagrafiche continua a usare `500001/1`.
+- `tools/importazioni.py`: `import_articoli_matrixws()` persiste prezzo 1, prezzo 3, costo e aliquota IVA; non sostituisce il prezzo legacy se Matrix omette prezzo 3. Snapshot vuoti/duplicati/anomali sono respinti. Barcode valida il batch prima di rimpiazzare lo snapshot.
+- `CF-PRLIST|100002|` valorizza `BusinessRegistry.listino_prezzo` sui clienti: 1 -> `prezzo1`, altrimenti -> `prezzo3`; la chiave non presente nella risposta non cancella il dato esistente.
+- Il parser prezzi e la policy di visualizzazione restano in `tools/product_pricing.py`; il campo cliente assente/vuoto ricade su `prezzo3`.

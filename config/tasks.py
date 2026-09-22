@@ -3,6 +3,7 @@ from config.celery_app import celery
 from tools.importazioni import (
     import_anagrafiche,
     import_articoli,
+    import_articoli_matrixws,
     preview_matrixws_articoli,
     import_barcode_matrixws,
     import_giacenze_matrixws,
@@ -44,7 +45,7 @@ def _run_locked_import(import_name, task_id, task_name, callback):
 def import_articoli_task(self):
     return _run_locked_import(
         "articles", self.request.id, "Importazione articoli",
-        lambda: import_articoli(task_id=self.request.id),
+        lambda: import_articoli_matrixws(task_id=self.request.id),
     )
 
 
@@ -57,13 +58,19 @@ def preview_matrixws_articoli_task(self):
 @celery.task(bind=True)
 @log_task(logger)
 def import_barcode_matrixws_task(self):
-    return import_barcode_matrixws(task_id=self.request.id)
+    return _run_locked_import(
+        "barcodes", self.request.id, "Importazione codici a barre",
+        lambda: import_barcode_matrixws(task_id=self.request.id),
+    )
 
 
 @celery.task(bind=True)
 @log_task(logger)
 def import_giacenze_matrixws_task(self):
-    return import_giacenze_matrixws(task_id=self.request.id)
+    return _run_locked_import(
+        "stock", self.request.id, "Importazione giacenze",
+        lambda: import_giacenze_matrixws(task_id=self.request.id),
+    )
 
 
 @celery.task(bind=True)
@@ -89,14 +96,17 @@ def import_poleepo_products_task(self, options=None):
 def import_giacenze_task(self):
     return _run_locked_import(
         "stock", self.request.id, "Importazione giacenze",
-        lambda: import_giacenze(task_id=self.request.id),
+        lambda: import_giacenze_matrixws(task_id=self.request.id),
     )
 
 
 @celery.task(bind=True)
 @log_task(logger)
 def import_barcode_task(self):
-    return run_import_barcode(task_id=self.request.id)
+    return _run_locked_import(
+        "barcodes", self.request.id, "Importazione codici a barre",
+        lambda: import_barcode_matrixws(task_id=self.request.id),
+    )
 
 
 @celery.task(bind=True)
