@@ -1,4 +1,11 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-21 - Prezzi MATRIXWS e politica listini
+
+- Preparata la migration `j4d5e6f7a8b9`: `Articoli` conserva prezzo 1 imponibile, prezzo 3 IVA compresa, costo e aliquota IVA; `BusinessRegistry` e `User` hanno il listino selezionato.
+- Il parser MATRIXWS 500004 riconosce `M-PREZZO(1)`, `M-PREZZO(3)`, `M-COSTOULA` e `M-ALIVA`; `prezzo` resta un alias compatibile del prezzo 3, con fallback temporaneo al prezzo 1 finché il servizio non espone il prezzo 3.
+- Aggiunto il resolver centralizzato della visibilità prezzi: anonimo nessun prezzo, customer prezzo 3, customer_horeca listino dell'anagrafica, staff prezzo 1/3 e office+ prezzo 1/3/costo.
+- La visualizzazione è stata collegata alle risposte della ricerca e della scheda articolo; l'importazione MATRIXWS non è ancora stata resa operativa.
+
 ## 2026-09-21 - Confronto incrociato file/MATRIXWS
 
 - Aggiunto `compare_file_matrixws_sources()`, che legge i file configurati e i batch `500004/1`, `1006/1`, `1002/1` in memoria e confronta articoli, barcode e giacenze.

@@ -939,17 +939,29 @@ def _parse_matrixws_article_decimal(value):
 
 
 def _parse_matrixws_article_row(row):
-    """Mappa il tracciato reale 500004/1 sui soli campi oggi presenti in Articoli."""
+    """Mappa il tracciato reale 500004/1 sui campi prezzo separati."""
     code = _clean_registry_text(row.get("M-CODMAG"))
     description = _clean_registry_text(row.get("M-DESCRIZIONE"))
     additional = _clean_registry_text(row.get("M-DESCRAGG"))
     if not code or not description:
         return None
+    prezzo_1 = _parse_matrixws_article_decimal(row.get("M-PREZZO(1)"))
+    prezzo_3_raw = row.get("M-PREZZO(3)")
+    prezzo_3 = _parse_matrixws_article_decimal(prezzo_3_raw) if str(prezzo_3_raw or "").strip() else None
+    costo_raw = row.get("M-COSTOULA")
+    costo = _parse_matrixws_article_decimal(costo_raw) if str(costo_raw or "").strip() else None
+    iva_raw = row.get("M-ALIVA")
+    aliquota_iva = _parse_matrixws_article_decimal(iva_raw) if str(iva_raw or "").strip() else None
     return {
         "cod_art": code,
         "descrizione": description,
         "descrizione_aggiuntiva": additional,
-        "prezzo": _parse_matrixws_article_decimal(row.get("M-PREZZO(1)")),
+        "prezzo_1": prezzo_1,
+        "prezzo_3": prezzo_3,
+        "costo": costo,
+        "aliquota_iva": aliquota_iva,
+        # Compatibilità con i consumatori esistenti: il vecchio prezzo era il prezzo 3.
+        "prezzo": prezzo_3 if prezzo_3 is not None else prezzo_1,
     }
 
 
@@ -1334,7 +1346,7 @@ def preview_matrixws_articoli(task_id=None):
         counters["duplicate_codes"] = len(duplicate_codes)
         counters["valid_rows"] = len(seen)
         counters["fields_ignored"] = [
-            "M-ALIVA", "M-UM", "M-COSTOULA", "M-CMAGIMP", "M-CMAGPER",
+            "M-PREZZO(3)", "M-UM", "M-CMAGIMP", "M-CMAGPER",
             "M-CSCIM", "M-COMERCIA", "M-COMERCIV", "M-RIC(1)",
             "M-SCIMP(1)", "M-SCONTO1(1)", "M-CSCONTO(1)",
         ]
@@ -2114,7 +2126,8 @@ def import_articoli(task_id=None):
                                 cod_art=cod_art,
                                 descrizione=descrizione,
                                 descrizione_aggiuntiva=descrizione_aggiuntiva,
-                                prezzo=prezzo
+                                prezzo=prezzo,
+                                prezzo_3=prezzo,
                             )
                             db.session.add(nuovo_articolo)
                             counters["created"] += 1
@@ -2177,6 +2190,7 @@ def import_articoli(task_id=None):
                             prezzo_db = float(articolo_by_code.prezzo) if articolo_by_code.prezzo is not None else 0.0
                             if prezzo_db != prezzo:
                                 articolo_by_code.prezzo = prezzo
+                                articolo_by_code.prezzo_3 = prezzo
                                 counters["updated"] += 1
                             else:
                                 counters["unchanged"] += 1

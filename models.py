@@ -473,6 +473,10 @@ class Articoli(db.Model):
     cod_art = db.Column(db.String(255), primary_key=True)
     descrizione = db.Column(db.String(255))
     descrizione_aggiuntiva = db.Column(db.Text)
+    prezzo_1 = db.Column(db.Numeric(12, 4), nullable=True)
+    prezzo_3 = db.Column(db.Numeric(12, 4), nullable=True)
+    costo = db.Column(db.Numeric(12, 4), nullable=True)
+    aliquota_iva = db.Column(db.Numeric(6, 3), nullable=True)
     prezzo = db.Column(db.Numeric)
 
     # ⚙️ Nuove colonne
@@ -484,6 +488,10 @@ class Articoli(db.Model):
             'cod_art': self.cod_art,
             'descrizione': self.descrizione,
             'descrizione_aggiuntiva': self.descrizione_aggiuntiva,
+            'prezzo_1': self.prezzo_1,
+            'prezzo_3': self.prezzo_3,
+            'costo': self.costo,
+            'aliquota_iva': self.aliquota_iva,
             'prezzo': self.prezzo,
             'ppc': self.pezzi_per_collo,
             'cpp': self.colli_per_pedana
@@ -953,6 +961,7 @@ class User(db.Model, UserMixin):
     foto_profilo = db.Column(db.String(255), nullable=True)
     notes = db.Column(db.Text)
     customer_registry_id = db.Column(db.Integer, db.ForeignKey("business_registries.id"), nullable=True, index=True)
+    listino_prezzo = db.Column(db.String(20), nullable=False, default="prezzo3", server_default="prezzo3")
     created_at = db.Column(db.DateTime, default=datetime.now())
     updated_at = db.Column(db.DateTime, default=datetime.now(), onupdate=datetime.now())
 
@@ -2253,6 +2262,7 @@ class BusinessRegistry(db.Model):
     source_company_code = db.Column(db.String(16), nullable=True)
     source_record_type = db.Column(db.String(8), nullable=True)
     source_code = db.Column(db.String(64), nullable=False, index=True)
+    listino_prezzo = db.Column(db.String(20), nullable=False, default="prezzo3", server_default="prezzo3")
 
     display_name = db.Column(db.String(255), nullable=False, index=True)
     legal_name = db.Column(db.String(255), nullable=True, index=True)

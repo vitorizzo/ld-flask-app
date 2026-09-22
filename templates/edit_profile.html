@@ -35,6 +35,18 @@
             {{ form.sex.label(class="form-label") }}
             {{ form.sex(class="form-select") }}
         </div>
+        {% if current_user.max_role_weight >= 30 %}
+        <div class="mb-3">
+            <label class="form-label" for="listino_prezzo">Listino prezzi da visualizzare</label>
+            <select class="form-select" id="listino_prezzo" name="listino_prezzo">
+                <option value="prezzo1" {% if current_user.listino_prezzo == 'prezzo1' %}selected{% endif %}>Prezzo 1 (imponibile)</option>
+                <option value="prezzo3" {% if current_user.listino_prezzo == 'prezzo3' or not current_user.listino_prezzo %}selected{% endif %}>Prezzo 3 (IVA compresa)</option>
+                {% if current_user.max_role_weight >= 40 %}
+                <option value="costo" {% if current_user.listino_prezzo == 'costo' %}selected{% endif %}>Costo</option>
+                {% endif %}
+            </select>
+        </div>
+        {% endif %}
         <div class="d-fle justify-content-between">
             {{ form.submit(class="btn btn-enabled-custom") }}
             <a href="{{ url_for('home') }}" class="btn-enabled-custom ml-2">Annulla</a>

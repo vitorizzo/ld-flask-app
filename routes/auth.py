@@ -488,6 +488,12 @@ def edit_profile():
         user.city = form.city.data
         user.province = form.province.data
         user.sex = int(form.sex.data)
+        selected_price_list = str(request.form.get("listino_prezzo") or "").strip().lower()
+        allowed_price_lists = {"prezzo1", "prezzo3"}
+        if (user.max_role_weight or 0) >= 40:
+            allowed_price_lists.add("costo")
+        if selected_price_list in allowed_price_lists:
+            user.listino_prezzo = selected_price_list
         db.session.commit()
         flash('Profilo aggiornato con successo!', 'success')
         return redirect(url_for('home'))

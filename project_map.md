@@ -1,4 +1,10 @@
 # PROJECT_MAP.md — v2.4
+## Prezzi MATRIXWS e listini (2026-09-21)
+
+- `Articoli` aggiunge `prezzo_1`, `prezzo_3`, `costo` e `aliquota_iva`; `j4d5e6f7a8b9` aggiunge inoltre `listino_prezzo` a `BusinessRegistry` e `User`.
+- `tools/product_pricing.py` centralizza la policy: anonimo senza prezzo, customer prezzo 3, customer_horeca listino del cliente, staff prezzo 1/3, office+ prezzo 1/3/costo.
+- `routes/search.py` applica la selezione alle risposte di scheda, dettaglio e lista articoli. L'import Matrix resta in preparazione finché il servizio 500004 non restituisce anche `M-PREZZO(3)`.
+
 ## Adapter import MATRIXWS barcode e giacenze (2026-09-21)
 
 - `tools/importazioni.py` importa barcode da `1006/1` (`AM-CODMAGFOR2`, `WKC-BAR-COD|100237|`) e giacenze da `1002/1` (`M-CODMAGPR`, `M-DEP`, `M-GIACATT`) tramite batch asincroni.

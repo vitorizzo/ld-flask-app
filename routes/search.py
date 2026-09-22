@@ -35,6 +35,7 @@ from tools.ps_util import (
 )
 from tools.shipping_connectors import PoleepoConnector, ShippingConnectorError, ShippingConnectorNotConfigured
 from tools.log_utils import log_task, get_logger
+from tools.product_pricing import visible_product_price
 from sqlalchemy import or_
 
 
@@ -1176,6 +1177,7 @@ def get_product_by_code(cod_art):
     giacenze = Giacenza.query.filter_by(cod_art=cod_art).first()
 
     if prod:
+        visible_price, price_list = visible_product_price(prod, current_user)
         scheda = SchedeProdotti.query.filter_by(cod_art=cod_art).first()
         scheda_art = clean_text(scheda.descrizione) if scheda else "---"
         barcode_rows = Barcode.query.filter_by(cod_art=cod_art).order_by(Barcode.cod_bar.asc()).all()
@@ -1208,7 +1210,8 @@ def get_product_by_code(cod_art):
             "can_publish_products": _can_manage_product_images(),
             "descrizione": prod.descrizione,
             "descrizione_aggiuntiva": prod.descrizione_aggiuntiva,
-            "prezzo": prod.prezzo,
+            "prezzo": visible_price,
+            "prezzo_listino": price_list,
             "immagini": immagini,
             "inStore": giacenze.giac_neg if giacenze else 0,
             "www": giacenze.giac_www if giacenze else 0,
@@ -2010,13 +2013,19 @@ def dati_articolo(cod_art):
     immagini = [img.file_img for img in Immagini.query.filter_by(cod_art=cod_art).all()]
     giacenze = Giacenza.query.filter_by(cod_art=cod_art).first()
     scheda = SchedeProdotti.query.filter_by(cod_art=cod_art).first()
+    visible_price, price_list = visible_product_price(articolo, current_user)
 
     return jsonify({
         'success': True,
         'cod_art': articolo.cod_art,
         'descrizione': articolo.descrizione,
         'descrizione_aggiuntiva': articolo.descrizione_aggiuntiva,
-        'prezzo': articolo.prezzo,
+        'prezzo': visible_price,
+        'prezzo_listino': price_list,
+        'prezzo_1': articolo.prezzo_1,
+        'prezzo_3': articolo.prezzo_3,
+        'costo': articolo.costo,
+        'aliquota_iva': articolo.aliquota_iva,
         'immagini': immagini,
         'giacenza': {
             'inStore': giacenze.giac_neg if giacenze else 0,
@@ -2102,11 +2111,13 @@ def lista_articoli():
 
     for p in paginated.items:
         giacenza = Giacenza.query.filter_by(cod_art=p.cod_art).first()
+        visible_price, price_list = visible_product_price(p, current_user)
         prodotti_json.append({
             'cod_art': p.cod_art,
             'descrizione': p.descrizione,
             'descrizione_aggiuntiva': p.descrizione_aggiuntiva,
-            'prezzo': p.prezzo,
+            'prezzo': visible_price,
+            'prezzo_listino': price_list,
             'giacenza': {
                 'instore': giacenza.giac_neg if giacenza else 0,
                 'online': giacenza.giac_www if giacenza else 0,

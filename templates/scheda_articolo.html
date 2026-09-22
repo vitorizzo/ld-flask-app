@@ -852,7 +852,7 @@
             </div>
             <div class="product-sheet-meta__item">
               <span class="product-sheet-meta__label">Prezzo</span>
-              <span class="product-sheet-meta__value">{{ product.prezzo }} EUR</span>
+              <span class="product-sheet-meta__value">{% if product.prezzo is not none %}{{ product.prezzo }} EUR{% else %}Non disponibile{% endif %}</span>
             </div>
             <div class="product-sheet-meta__item">
               <span class="product-sheet-meta__label">Negozio</span>
