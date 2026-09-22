@@ -851,7 +851,20 @@
               <span class="product-sheet-meta__value">{{ product.cod_art }}</span>
             </div>
             <div class="product-sheet-meta__item">
-              <span class="product-sheet-meta__label">Prezzo</span>
+              {% if price_list_options %}
+                <label class="product-sheet-meta__label" for="productPriceList">Listino da visualizzare</label>
+                <form method="post" action="{{ url_for('search.aggiorna_listino_scheda_articolo', cod_art=product.cod_art) }}" class="product-price-list-form">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <select class="form-select form-select-sm" id="productPriceList" name="listino_prezzo" onchange="this.form.requestSubmit()">
+                    {% for key, label in price_list_options %}
+                      <option value="{{ key }}" {% if product.prezzo_listino == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                  </select>
+                  <button class="btn btn-sm btn-outline-light mt-2" type="submit">Applica</button>
+                </form>
+              {% else %}
+                <span class="product-sheet-meta__label">Prezzo</span>
+              {% endif %}
               <span class="product-sheet-meta__value">{% if product.prezzo is not none %}{{ product.prezzo }} EUR{% else %}Non disponibile{% endif %}</span>
             </div>
             <div class="product-sheet-meta__item">

@@ -2,55 +2,75 @@
 
 {% block title %}LD Enoteca - Modifica Profilo{% endblock %}
 
+{% block extra_css %}
+<style>
+  .profile-page { min-height: 0; }
+  .profile-page > .container-fluid { padding: 0; overflow: hidden; }
+  .profile-page__scroll { min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; padding: 4px 6px 14px; }
+  .profile-page__header { flex: 0 0 auto; }
+  .profile-page__form { max-width: 980px; margin: 0 auto; }
+  .profile-page__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+  .profile-page__field { min-width: 0; margin: 0 !important; }
+  .profile-page__field .form-control,
+  .profile-page__field .form-select { min-height: 44px; }
+  .profile-page__actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 18px; }
+  @media (max-width: 700px) {
+    .welcome-section.page-shell.profile-page { padding: 14px 12px; border-radius: 10px; }
+    .profile-page__scroll { padding: 0 1px 12px; }
+    .profile-page__header h1 { font-size: 1.45rem; }
+    .profile-page__fields { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+    .profile-page__actions { display: grid; grid-template-columns: 1fr 1fr; }
+    .profile-page__actions .btn { min-height: 44px; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<section class="welcome-section">
-    <h1>Modifica il tuo Profilo</h1>
-    <form method="POST">
+<section class="welcome-section page-shell profile-page">
+  <div class="container-fluid d-flex flex-column h-100">
+    <header class="profile-page__header mb-3">
+      <h1 class="h3 mb-1">Modifica il tuo profilo</h1>
+      <p class="mb-0 text-white-50">Aggiorna le tue informazioni personali.</p>
+    </header>
+    <div class="profile-page__scroll page-scroll">
+      <form class="profile-page__form" method="POST">
         {{ form.hidden_tag() }}
-        <div class="mb-3">
+        <div class="profile-page__fields">
+          <div class="profile-page__field">
             {{ form.name.label(class="form-label") }}
-            {{ form.name(class="form-control") }}
-        </div>
-        <div class="mb-3">
+            {{ form.name(class="form-control", autocomplete="given-name") }}
+          </div>
+          <div class="profile-page__field">
             {{ form.surname.label(class="form-label") }}
-            {{ form.surname(class="form-control") }}
-        </div>
-        <div class="mb-3">
+            {{ form.surname(class="form-control", autocomplete="family-name") }}
+          </div>
+          <div class="profile-page__field">
             {{ form.phone.label(class="form-label") }}
-            {{ form.phone(class="form-control") }}
-        </div>
-        <div class="mb-3">
+            {{ form.phone(class="form-control", autocomplete="tel", inputmode="tel") }}
+          </div>
+          <div class="profile-page__field">
             {{ form.birth_date.label(class="form-label") }}
-            {{ form.birth_date(class="form-control") }}
-        </div>
-        <div class="mb-3">
+            {{ form.birth_date(class="form-control", autocomplete="bday") }}
+          </div>
+          <div class="profile-page__field">
             {{ form.city.label(class="form-label") }}
-            {{ form.city(class="form-control") }}
-        </div>
-        <div class="mb-3">
+            {{ form.city(class="form-control", autocomplete="address-level2") }}
+          </div>
+          <div class="profile-page__field">
             {{ form.province.label(class="form-label") }}
-            {{ form.province(class="form-control") }}
-        </div>
-        <div class="mb-3">
+            {{ form.province(class="form-control", autocomplete="address-level1") }}
+          </div>
+          <div class="profile-page__field">
             {{ form.sex.label(class="form-label") }}
             {{ form.sex(class="form-select") }}
+          </div>
         </div>
-        {% if current_user.max_role_weight >= 30 %}
-        <div class="mb-3">
-            <label class="form-label" for="listino_prezzo">Listino prezzi da visualizzare</label>
-            <select class="form-select" id="listino_prezzo" name="listino_prezzo">
-                <option value="prezzo1" {% if current_user.listino_prezzo == 'prezzo1' %}selected{% endif %}>Prezzo 1 (imponibile)</option>
-                <option value="prezzo3" {% if current_user.listino_prezzo == 'prezzo3' or not current_user.listino_prezzo %}selected{% endif %}>Prezzo 3 (IVA compresa)</option>
-                {% if current_user.max_role_weight >= 40 %}
-                <option value="costo" {% if current_user.listino_prezzo == 'costo' %}selected{% endif %}>Costo</option>
-                {% endif %}
-            </select>
+        <div class="profile-page__actions">
+          <a href="{{ url_for('home') }}" class="btn btn-outline-light">Annulla</a>
+          {{ form.submit(class="btn btn-primary") }}
         </div>
-        {% endif %}
-        <div class="d-fle justify-content-between">
-            {{ form.submit(class="btn btn-enabled-custom") }}
-            <a href="{{ url_for('home') }}" class="btn-enabled-custom ml-2">Annulla</a>
-        </div>
-    </form>
+      </form>
+    </div>
+  </div>
 </section>
 {% endblock %}

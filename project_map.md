@@ -5,6 +5,7 @@
 - `tools/importazioni.py`: `import_articoli_matrixws()` persiste prezzo 1, prezzo 3, costo e aliquota IVA; non sostituisce il prezzo legacy se Matrix omette prezzo 3. Snapshot vuoti/duplicati/anomali sono respinti. Barcode valida il batch prima di rimpiazzare lo snapshot.
 - `CF-PRLIST|100002|` valorizza `BusinessRegistry.listino_prezzo` sui clienti: codice 1 -> `prezzo1`, altrimenti -> `prezzo3`; la chiave non presente nella risposta non cancella il dato esistente.
 - `tools/product_pricing.py` mantiene la policy di visualizzazione; listino assente o vuoto usa `prezzo3`.
+- `routes/search.py` espone la scelta listino nello sheet articolo e la salva su `User.listino_prezzo`; `templates/edit_profile.html` non contiene piu' questa preferenza ed e' una page-shell mobile scrollabile.
 
 ## Prezzi MATRIXWS e listini (2026-09-21)
 

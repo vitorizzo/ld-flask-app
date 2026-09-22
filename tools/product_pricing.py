@@ -9,6 +9,21 @@ PRICE_LIST_LABELS = {
 }
 
 
+def selectable_price_lists(user):
+    """Listini selezionabili dal personale; clienti e Horeca restano automatici."""
+    if not user or not getattr(user, "is_authenticated", True):
+        return []
+    if getattr(user, "has_active_role", lambda *_: False)("customer", "customer_horeca"):
+        return []
+    weight = int(getattr(user, "max_role_weight", 0) or 0)
+    if weight < 30:
+        return []
+    keys = ["prezzo1", "prezzo3"]
+    if weight >= 40:
+        keys.append("costo")
+    return [(key, PRICE_LIST_LABELS[key]) for key in keys]
+
+
 def normalize_price_list(value, *, allow_cost=False, default="prezzo3"):
     value = str(value or "").strip().lower().replace("_", "")
     allowed = {"prezzo1", "prezzo3"}

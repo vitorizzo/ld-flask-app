@@ -35,7 +35,7 @@ from tools.ps_util import (
 )
 from tools.shipping_connectors import PoleepoConnector, ShippingConnectorError, ShippingConnectorNotConfigured
 from tools.log_utils import log_task, get_logger
-from tools.product_pricing import visible_product_price
+from tools.product_pricing import selectable_price_lists, visible_product_price
 from sqlalchemy import or_
 
 
@@ -1229,7 +1229,24 @@ def scheda_articolo(cod_art):
     if product is None:
         logger.warning(f"Articolo {cod_art} non trovato - abort 404")
         abort(404)
-    return render_template('scheda_articolo.html', product=product)
+    return render_template(
+        'scheda_articolo.html',
+        product=product,
+        price_list_options=selectable_price_lists(current_user),
+    )
+
+
+@search_bp.post('/scheda_articolo/<cod_art>/listino')
+@login_required
+def aggiorna_listino_scheda_articolo(cod_art):
+    article = Articoli.query.filter_by(cod_art=cod_art).first_or_404()
+    options = dict(selectable_price_lists(current_user))
+    selected = str(request.form.get('listino_prezzo') or '').strip().lower()
+    if selected not in options:
+        abort(403)
+    current_user.listino_prezzo = selected
+    db.session.commit()
+    return redirect(url_for('search.scheda_articolo', cod_art=article.cod_art))
 
 
 @search_bp.get('/scheda_articolo/<cod_art>/publish/<platform_key>/draft')

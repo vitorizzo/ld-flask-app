@@ -1,4 +1,10 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-22 - Scelta listino scheda articolo e profilo responsive
+
+- La preferenza listino staff e' stata rimossa dalla pagina Modifica Informazioni e viene aggiornata dalla tendina nella scheda articolo. L'impostazione e' salvata su `User.listino_prezzo`; staff seleziona prezzi 1/3, office+ anche costo.
+- Client e customer_horeca mantengono la selezione automatica e non ricevono la tendina listino.
+- `templates/edit_profile.html` usa `welcome-section page-shell` con campi a griglia e area interna scorrevole, adattata al touch/mobile.
+
 ## 2026-09-21 - Prezzi MATRIXWS e politica listini
 
 - Preparata la migration `j4d5e6f7a8b9`: `Articoli` conserva prezzo 1 imponibile, prezzo 3 IVA compresa, costo e aliquota IVA; `BusinessRegistry` e `User` hanno il listino selezionato.
