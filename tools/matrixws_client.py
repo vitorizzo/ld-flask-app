@@ -377,7 +377,19 @@ def wait_for_batch_result(
         progress_callback(batch_uuid, 0.0)
 
     while True:
-        result = call_batch_response(config, batch_uuid, timeout=poll_timeout)
+        try:
+            result = call_batch_response(config, batch_uuid, timeout=poll_timeout)
+        except MatrixWSError as exc:
+            # Per batch molto grandi TeamSystem può tenere aperta la risposta
+            # mentre prepara il JSON. Un read timeout del singolo polling è
+            # transitorio: continua a interrogare finché non scade max_wait.
+            if exc.kind != "timeout" or monotonic() >= deadline:
+                raise
+            elapsed = max(monotonic() - started_at, 0.0)
+            if progress_callback:
+                progress_callback(batch_uuid, elapsed)
+            sleep(interval)
+            continue
         elapsed = max(monotonic() - started_at, 0.0)
         if is_batch_not_finished(result):
             if progress_callback:

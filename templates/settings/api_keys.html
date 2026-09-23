@@ -764,7 +764,8 @@ document.addEventListener("DOMContentLoaded", () => {
         renderMatrixwsResult(data);
         if (!response.ok || !data.pending || !data.status_url) return;
 
-        const pollingDeadline = Date.now() + (16 * 60 * 1000);
+        const pollingMinutes = Math.max(16, Number(data.request?.poll_timeout_minutes || 15) + 5);
+        const pollingDeadline = Date.now() + (pollingMinutes * 60 * 1000);
         while (data.pending) {
           if (Date.now() >= pollingDeadline) {
             throw new Error("Il test non si e' concluso entro 16 minuti. Controlla il worker e il monitor dei processi.");

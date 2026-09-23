@@ -157,6 +157,8 @@ MATRIXWS_TEST_PROFILES = {
         "service_code": "1011",
         "schema": "1",
         "version": "20260100",
+        "poll_timeout_minutes": 60,
+        "poll_read_timeout_seconds": 180,
     },
 }
 
@@ -2301,6 +2303,7 @@ def matrixws_test():
         "schema": schema,
         "version": version,
         "operation": payload["Operazione"],
+        "poll_timeout_minutes": int(profile.get("poll_timeout_minutes") or 15),
     }
     task = matrixws_test_poll_task.delay(batch_uuid, request_meta)
     message = f"Batch MATRIXWS {batch_uuid} avviato; il polling prosegue in background."
