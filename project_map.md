@@ -7,6 +7,10 @@
 - `tools/product_pricing.py` mantiene la policy di visualizzazione; listino assente o vuoto usa `prezzo3`.
 - `routes/search.py` espone la scelta listino nello sheet articolo e la salva su `User.listino_prezzo`; `templates/edit_profile.html` non contiene piu' questa preferenza ed e' una page-shell mobile scrollabile.
 
+## Correzione rendering scheda articolo (2026-09-23)
+
+- `templates/scheda_articolo.html` non deve chiamare `csrf_token()`: l'app non registra quel context processor e la chiamata causava HTTP 500 quando la tendina listino era visibile.
+
 ## Prezzi MATRIXWS e listini (2026-09-21)
 
 - `Articoli` aggiunge `prezzo_1`, `prezzo_3`, `costo` e `aliquota_iva`; `j4d5e6f7a8b9` aggiunge inoltre `listino_prezzo` a `BusinessRegistry` e `User`.

@@ -5,6 +5,10 @@ TEST_SYNC_CODEX_20260507_185518
 - Client e customer_horeca mantengono la selezione automatica e non ricevono la tendina listino.
 - `templates/edit_profile.html` usa `welcome-section page-shell` con campi a griglia e area interna scorrevole, adattata al touch/mobile.
 
+## 2026-09-23 - Correzione 500 scheda articolo
+
+- La scheda articolo chiamava `csrf_token()` nel template, ma l'applicazione non espone quel context processor: il rendering falliva con HTTP 500 per i ruoli che vedevano la tendina listino. Rimosso il campo nascosto non utilizzato; il form segue il modello CSRF già adottato dalle altre route applicative.
+
 ## 2026-09-21 - Prezzi MATRIXWS e politica listini
 
 - Preparata la migration `j4d5e6f7a8b9`: `Articoli` conserva prezzo 1 imponibile, prezzo 3 IVA compresa, costo e aliquota IVA; `BusinessRegistry` e `User` hanno il listino selezionato.
