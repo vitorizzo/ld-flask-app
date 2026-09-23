@@ -149,7 +149,14 @@ def matrixws_test_poll_task(self, batch_uuid, request_meta=None):
     """Completa in background un test MATRIXWS asincrono senza importare alcun dato."""
     from flask import current_app
 
-    from tools.matrixws_client import MatrixWSConfig, MatrixWSError, wait_for_batch_result
+    from tools.matrixws_client import (
+        MatrixWSConfig,
+        MatrixWSError,
+        call_async,
+        extract_batch_uuid,
+        renew_secret,
+        wait_for_batch_result,
+    )
     from tools.redis_utils import clear_task_status, status_string, update_task
 
     request_meta = dict(request_meta or {})
@@ -164,6 +171,64 @@ def matrixws_test_poll_task(self, batch_uuid, request_meta=None):
 
     try:
         config = MatrixWSConfig.from_app_config(current_app.config)
+        # Anche l'avvio puo' richiedere diversi minuti sul server MATRIXWS.
+        # Deve rimanere nel worker: tenerlo nella richiesta HTTP fa scadere
+        # il proxy web prima che il batch restituisca il proprio UUID.
+        if not batch_uuid:
+            start_result = call_async(
+                config,
+                request_meta.get("payload") or {},
+                method="POST",
+                timeout=(5, 300),
+            )
+            secret_renewed = False
+            if start_result.get("status_code") == 401:
+                renewed_secret = renew_secret(config)
+                from extensions import db
+                from models import AppPreference
+                preference = AppPreference.query.filter_by(key="matrixws.secret").first()
+                if preference is None:
+                    raise MatrixWSError(
+                        "Secret MATRIXWS rinnovato ma la preferenza non e' disponibile per il salvataggio.",
+                        kind="renewal_storage",
+                    )
+                preference.secret_value = renewed_secret
+                preference.value_text = None
+                preference.value_json = None
+                db.session.commit()
+                current_app.config["MATRIXWS_SECRET"] = renewed_secret
+                config = MatrixWSConfig.from_app_config(current_app.config)
+                start_result = call_async(
+                    config,
+                    request_meta.get("payload") or {},
+                    method="POST",
+                    timeout=(5, 300),
+                )
+                secret_renewed = True
+            if not start_result.get("ok"):
+                raise MatrixWSError(
+                    f"Avvio batch MATRIXWS fallito (HTTP {start_result.get('status_code')}).",
+                    kind="response",
+                    details={
+                        "status_code": start_result.get("status_code"),
+                        "body": start_result.get("json")
+                        if start_result.get("json") is not None
+                        else start_result.get("text"),
+                    },
+                )
+            batch_uuid = extract_batch_uuid(start_result.get("json"))
+            if not batch_uuid:
+                raise MatrixWSError(
+                    "MATRIXWS ha accettato la richiesta ma non ha restituito il batch_uuid.",
+                    kind="response",
+                    details={"body": start_result.get("json")},
+                )
+            request_meta.update({
+                "url": start_result.get("url"),
+                "method": start_result.get("method", "POST"),
+                "batch_uuid": batch_uuid,
+                "secret_renewed": secret_renewed,
+            })
         result = wait_for_batch_result(
             config,
             batch_uuid,

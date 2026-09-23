@@ -77,13 +77,6 @@ from tools.preferences import (
     load_preferences_into_app_config,
     save_preferences_from_form,
 )
-from tools.matrixws_client import (
-    MatrixWSConfig,
-    MatrixWSError,
-    call_async as call_matrixws_async,
-    extract_batch_uuid as extract_matrixws_batch_uuid,
-    renew_secret as renew_matrixws_secret,
-)
 from tools.import_transfer_config import (
     available_export_files,
     available_trace_files,
@@ -2234,72 +2227,9 @@ def matrixws_test():
         "TabellaCampi": [],
     }
 
-    try:
-        config = MatrixWSConfig.from_app_config(current_app.config)
-        # La richiesta asincrona puo' restare in coda sul server MATRIXWS prima
-        # di restituire il batch UUID. Non interromperla dopo i 30 secondi:
-        # quel limite faceva fallire il test di connessione mentre il server
-        # continuava a elaborare la richiesta.
-        result = call_matrixws_async(config, payload, method="POST", timeout=(5, 300))
-        secret_renewed = False
-        if result["status_code"] == 401:
-            renewed_secret = renew_matrixws_secret(config)
-            secret_definition = get_definition_map()["matrixws.secret"]
-            _upsert_api_preference(
-                secret_definition,
-                renewed_secret,
-                keep_empty_secret=False,
-            )
-            db.session.commit()
-            load_preferences_into_app_config(current_app._get_current_object())
-            config = MatrixWSConfig.from_app_config(current_app.config)
-            result = call_matrixws_async(config, payload, method="POST", timeout=(5, 300))
-            secret_renewed = True
-    except MatrixWSError as exc:
-        db.session.rollback()
-        return jsonify({
-            "ok": False,
-            "kind": exc.kind,
-            "message": str(exc),
-            "details": exc.details,
-        }), 400
-    except Exception:
-        db.session.rollback()
-        logger.exception("Errore salvando il rinnovo secret MATRIXWS")
-        return jsonify({
-            "ok": False,
-            "kind": "renewal_storage",
-            "message": "Il secret e' stato rinnovato ma non e' stato possibile salvarlo in modo sicuro.",
-        }), 500
-
-    status_code = result["status_code"]
-    if status_code in {401, 403}:
-        message = "Secret MATRIXWS non accettato o non autorizzato per il servizio richiesto."
-    elif status_code == 404:
-        message = "Endpoint MATRIXWS non trovato: verifica ambiente, start e applicativo."
-    elif not result["ok"]:
-        message = f"MATRIXWS ha risposto con stato HTTP {status_code}."
-    if not result["ok"]:
-        return jsonify({
-            "ok": False,
-            "message": message,
-            "response": {
-                "status_code": status_code,
-                "body": result["json"] if result["json"] is not None else result["text"],
-            },
-        }), 502
-
-    batch_uuid = extract_matrixws_batch_uuid(result.get("json"))
-    if not batch_uuid:
-        return jsonify({
-            "ok": False,
-            "message": "MATRIXWS ha accettato la richiesta ma non ha restituito il batch_uuid.",
-            "response": {"status_code": status_code, "body": result.get("json")},
-        }), 502
-
     request_meta = {
-        "url": result["url"],
-        "method": result["method"],
+        "url": "",
+        "method": "POST",
         "service_code": service_code,
         "service_description": service_description,
         "test_key": test_key,
@@ -2309,18 +2239,22 @@ def matrixws_test():
         "operation": payload["Operazione"],
         "poll_timeout_minutes": int(profile.get("poll_timeout_minutes") or 15),
         "poll_read_timeout_seconds": int(profile.get("poll_read_timeout_seconds") or 60),
+        "payload": payload,
     }
-    task = matrixws_test_poll_task.delay(batch_uuid, request_meta)
-    message = f"Batch MATRIXWS {batch_uuid} avviato; il polling prosegue in background."
-    if secret_renewed:
-        message += " Il secret scaduto e' stato rinnovato e salvato automaticamente."
+    try:
+        task = matrixws_test_poll_task.delay(None, request_meta)
+    except Exception:
+        logger.exception("Errore accodando il test MATRIXWS")
+        return jsonify({
+            "ok": False,
+            "kind": "queue",
+            "message": "Impossibile accodare il test MATRIXWS al worker.",
+        }), 503
     return jsonify({
         "ok": True,
         "pending": True,
         "task_id": task.id,
-        "batch_uuid": batch_uuid,
-        "secret_renewed": secret_renewed,
-        "message": message,
+        "message": "Test MATRIXWS accodato; l'avvio e il polling proseguono in background.",
         "request": request_meta,
         "status_url": url_for("settings.matrixws_test", task_id=task.id),
     }), 202

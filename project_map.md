@@ -1671,3 +1671,4 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `tools/importazioni.py`: `import_articoli_matrixws()` persiste prezzo 1, prezzo 3, costo e aliquota IVA; non sostituisce il prezzo legacy se Matrix omette prezzo 3. Snapshot vuoti/duplicati/anomali sono respinti. Barcode valida il batch prima di rimpiazzare lo snapshot.
 - `CF-PRLIST|100002|` valorizza `BusinessRegistry.listino_prezzo` sui clienti: 1 -> `prezzo1`, altrimenti -> `prezzo3`; la chiave non presente nella risposta non cancella il dato esistente.
 - Il parser prezzi e la policy di visualizzazione restano in `tools/product_pricing.py`; il campo cliente assente/vuoto ricade su `prezzo3`.
+- `routes/settings.py` / `config/tasks.py`: test MATRIXWS avviati e completati in background; il worker gestisce anche la chiamata EVWSASYNC iniziale prima del polling per evitare 500 da timeout del proxy.

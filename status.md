@@ -3247,3 +3247,4 @@ Performance apertura giornata Agenda 2026-06-13:
 - Il confronto è diagnostico e non modifica database o importazioni operative.
 - Il primo test ha superato il limite generico di 15 minuti: `1011/1` elabora un archivio molto più grande. Il profilo usa ora 60 minuti di polling worker e la UI attende altri 5 minuti oltre quel limite.
 - Il timeout osservato dopo circa un minuto era invece il read timeout della singola chiamata `/batch/response`. Il read timeout dedicato a `1011/1` viene ora passato esplicitamente al worker; il client globale mantiene il comportamento originale per gli altri test, incluso `1000`.
+- MATRIXWS diagnostica 1011: l'avvio asincrono del batch viene accodato al worker insieme al polling, così le richieste HTTP non scadono mentre TeamSystem prepara il batch. Il confronto EC_CLI resta read-only.
