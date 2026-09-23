@@ -864,7 +864,14 @@
               {% else %}
                 <span class="product-sheet-meta__label">Prezzo</span>
               {% endif %}
-              <span class="product-sheet-meta__value">{% if product.prezzo is not none %}{{ product.prezzo }} EUR{% else %}Non disponibile{% endif %}</span>
+              <span class="product-sheet-meta__value">
+                {% if product.prezzo_formattato %}
+                  {{ product.prezzo_formattato }}
+                  {% if product.prezzo_listino == 'prezzo1' and product.prezzo_iva_compresa_formattato %}
+                    <small class="d-block text-white-50">({{ product.prezzo_iva_compresa_formattato }} IVA compresa)</small>
+                  {% endif %}
+                {% else %}Non disponibile{% endif %}
+              </span>
             </div>
             <div class="product-sheet-meta__item">
               <span class="product-sheet-meta__label">Negozio</span>

@@ -1,5 +1,5 @@
 """Centralized product-price visibility and price-list selection."""
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
 
 PRICE_LIST_LABELS = {
@@ -7,6 +7,36 @@ PRICE_LIST_LABELS = {
     "prezzo3": "Prezzo 3 (IVA compresa)",
     "costo": "Costo",
 }
+
+
+def format_euro(value):
+    """Formatta un importo nel formato applicativo ``€. 1.000,000``."""
+    if value is None:
+        return None
+    try:
+        amount = Decimal(str(value)).quantize(Decimal("0.001"), rounding=ROUND_HALF_UP)
+    except (InvalidOperation, ValueError, TypeError):
+        return None
+    sign = "-" if amount < 0 else ""
+    integer, decimals = format(abs(amount), ",.3f").split(".")
+    return f"{sign}€. {integer.replace(',', '.')},{decimals}"
+
+
+def iva_compresa_price(article, selected, value=None):
+    """Restituisce il prezzo IVA compresa per il listino imponibile."""
+    if selected != "prezzo1":
+        return None
+    prezzo3 = getattr(article, "prezzo_3", None)
+    if prezzo3 is not None:
+        return prezzo3
+    imponibile = value if value is not None else getattr(article, "prezzo_1", None)
+    aliquota = getattr(article, "aliquota_iva", None)
+    if imponibile is None or aliquota is None:
+        return None
+    try:
+        return Decimal(str(imponibile)) * (Decimal("1") + Decimal(str(aliquota)) / Decimal("100"))
+    except (InvalidOperation, ValueError, TypeError):
+        return None
 
 
 def selectable_price_lists(user):

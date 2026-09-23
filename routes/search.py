@@ -35,7 +35,12 @@ from tools.ps_util import (
 )
 from tools.shipping_connectors import PoleepoConnector, ShippingConnectorError, ShippingConnectorNotConfigured
 from tools.log_utils import log_task, get_logger
-from tools.product_pricing import selectable_price_lists, visible_product_price
+from tools.product_pricing import (
+    format_euro,
+    iva_compresa_price,
+    selectable_price_lists,
+    visible_product_price,
+)
 from sqlalchemy import or_
 
 
@@ -1212,6 +1217,11 @@ def get_product_by_code(cod_art):
             "descrizione_aggiuntiva": prod.descrizione_aggiuntiva,
             "prezzo": visible_price,
             "prezzo_listino": price_list,
+            "prezzo_formattato": format_euro(visible_price),
+            "prezzo_iva_compresa": iva_compresa_price(prod, price_list, visible_price),
+            "prezzo_iva_compresa_formattato": format_euro(
+                iva_compresa_price(prod, price_list, visible_price)
+            ),
             "immagini": immagini,
             "inStore": giacenze.giac_neg if giacenze else 0,
             "www": giacenze.giac_www if giacenze else 0,

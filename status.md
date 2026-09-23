@@ -10,6 +10,11 @@ TEST_SYNC_CODEX_20260507_185518
 - La scheda articolo chiamava `csrf_token()` nel template, ma l'applicazione non espone quel context processor: il rendering falliva con HTTP 500 per i ruoli che vedevano la tendina listino. Rimosso il campo nascosto non utilizzato; il form segue il modello CSRF già adottato dalle altre route applicative.
 - La POST del selettore listino usava `redirect()` senza importarlo in `routes/search.py`: dopo il salvataggio il browser riceveva HTTP 500. Aggiunto l'import esplicito.
 
+## 2026-09-23 - Formato prezzi scheda articolo
+
+- La scheda usa il formato italiano a tre decimali `€. 1.000,000`.
+- Quando il listino selezionato e' il Prezzo 1 imponibile, mostra anche tra parentesi il Prezzo 3 IVA compresa; usa il valore MatrixWS se disponibile, altrimenti calcola l'IVA dall'aliquota importata.
+
 ## 2026-09-21 - Prezzi MATRIXWS e politica listini
 
 - Preparata la migration `j4d5e6f7a8b9`: `Articoli` conserva prezzo 1 imponibile, prezzo 3 IVA compresa, costo e aliquota IVA; `BusinessRegistry` e `User` hanno il listino selezionato.

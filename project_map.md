@@ -11,6 +11,7 @@
 
 - `templates/scheda_articolo.html` non deve chiamare `csrf_token()`: l'app non registra quel context processor e la chiamata causava HTTP 500 quando la tendina listino era visibile.
 - `routes/search.py` importa esplicitamente `redirect`, necessario alla POST che salva il listino selezionato e ricarica la scheda.
+- `tools/product_pricing.py` espone `format_euro()` e `iva_compresa_price()`; la scheda articolo mostra tre decimali e il corrispondente valore IVA compresa per il listino imponibile.
 
 ## Prezzi MATRIXWS e listini (2026-09-21)
 
