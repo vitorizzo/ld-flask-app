@@ -928,6 +928,54 @@ def _matrixws_response_rows(result):
     return [row for row in rows if isinstance(row, dict)]
 
 
+def compare_matrixws_customer_statements(response_body):
+    """Confronta la struttura del batch 1011 con il tracciato/file EC_CLI senza scrivere dati."""
+    from routes.esportazioni_teamsystem import serve_risorsa
+
+    file_name = configured_source_file("customer_statements")
+    trace_path = configured_trace_path("customer_statements")
+    if trace_path is None or not trace_path.is_file():
+        raise ValueError("Nessun tracciato EC_CLI configurato per il confronto")
+    file_path = serve_risorsa(file_name)
+    source_data = file_path and open(file_path, "rb").read()
+    if not source_data:
+        raise ValueError(f"Il file {file_name} è vuoto")
+    fields = _read_teamsystem_trace(trace_path)
+    rows = response_body.get("dati") if isinstance(response_body, dict) else None
+    rows = [row for row in (rows or []) if isinstance(row, dict)]
+    expected = {
+        "ECS-CODICE": "WKSCADWS-CODCF",
+        "ECS-SCADE": "WKSCADWS-DTSCAD",
+        "ECS-DATDOC": "WKSCADWS-DTDOC",
+        "ECS-NUMDOC": "WKSCADWS-NRDOC",
+        "ECS-IMPORTO-EUR": "WKSCADWS-IMPEFF",
+        "ECS-TIPO-EFF": "WKSCADWS-TEFF",
+        "ECS-STATO-EFF": "WKSCADWS-STATO-EFF",
+    }
+    file_fields = set(fields)
+    matrix_fields = {key for row in rows for key in row}
+    mapped = {file_key: matrix_key for file_key, matrix_key in expected.items() if matrix_key in matrix_fields}
+    missing_in_matrix = sorted(file_fields - set(mapped))
+    missing_in_file = sorted(matrix_fields - set(expected.values()))
+    return {
+        "file": {"name": file_name, "record_count": len(source_data.splitlines()), "field_count": len(file_fields)},
+        "matrixws": {"service": "1011/1", "record_count": len(rows), "field_count": len(matrix_fields)},
+        "field_mapping": mapped,
+        "file_fields_missing_in_matrixws": missing_in_matrix,
+        "matrixws_fields_without_file_equivalent": missing_in_file,
+        "required_import_fields": {
+            name: (name in file_fields and name in mapped)
+            for name in (
+                "ECS-CODICE", "ECS-RAGSOC", "ECS-SCADE", "ECS-DATAREG",
+                "ECS-NUMDOC", "ECS-DATDOC", "ECS-IMPORTO-EUR", "ECS-DESCRIZIONE",
+                "ECS-DESCRIAGG", "ECS-SEGNO", "ECS-TIPO", "ECS-NUMDOC-BIS",
+                "ECS-NUMRATA", "ECS-CAUSALE", "ECS-NUMRIF",
+            )
+        },
+        "note": "Confronto strutturale e conteggi; nessun dato operativo è stato modificato.",
+    }
+
+
 def _parse_matrixws_article_decimal(value):
     """Converte i decimali MATRIXWS (virgola italiana) senza perdita silenziosa."""
     raw = str(value or "").strip().replace(" ", "")

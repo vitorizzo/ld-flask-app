@@ -3227,3 +3227,8 @@ Performance apertura giornata Agenda 2026-06-13:
 - L'import clienti mappa `CF-PRLIST|100002|`: codice 1 -> prezzo 1; codice 3 -> prezzo 3; vuoto/altro -> prezzo 3. Se il campo è assente dalla risposta complessiva, non sovrascrive le preferenze già presenti.
 - Gli snapshot articoli/barcode vuoti o inferiori all'80% dei dati correnti (quando il catalogo contiene almeno 100 righe) vengono bloccati prima della scrittura.
 - Il database operativo non è stato modificato da questo intervento; occorre deploy del codice. La migration `j4d5e6f7a8b9` deve essere presente nell'ambiente.
+## 2026-09-23 - Diagnostica 1011 e confronto EC_CLI
+
+- Aggiunto al pannello MATRIXWS il test read-only `1011/1 - Situazioni contabili clienti`, con versione `20260100` coerente con il servizio verificato.
+- Il worker confronta la risposta completa del batch con `EC_CLI.CSV` e con il relativo tracciato: conteggi, campi mancanti nel batch, campi senza equivalente nel file e presenza dei campi necessari all'import attuale.
+- Il confronto è diagnostico e non modifica database o importazioni operative.

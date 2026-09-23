@@ -151,6 +151,13 @@ MATRIXWS_TEST_PROFILES = {
         "schema": "1",
         "version": "20260001",
     },
+    "customer_statements": {
+        "label": "Situazioni contabili clienti",
+        "description": "Test read-only scadenze 1011/1 e confronto con EC_CLI.CSV",
+        "service_code": "1011",
+        "schema": "1",
+        "version": "20260100",
+    },
 }
 
 

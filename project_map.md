@@ -1,4 +1,10 @@
 # PROJECT_MAP.md — v2.4
+## Diagnostica situazione contabile MATRIXWS (2026-09-23)
+
+- `routes/settings.py` espone il profilo `customer_statements` per `1011/1`, versione `20260100`.
+- `config/tasks.py` richiama `compare_matrixws_customer_statements()` al termine del polling; `tools/importazioni.py` confronta la struttura completa del batch con il tracciato/file `EC_CLI.CSV` senza scritture.
+- Il risultato compare nella risposta diagnostica sotto `confronto_ec_cli`; la UI del pannello usa automaticamente il profilo aggiunto.
+
 ## Importazioni operative MATRIXWS e listini (2026-09-22)
 
 - `config/tasks.py`: i task già usati dai comandi manuali e da Celery Beat puntano agli import operativi MatrixWS per articoli (`500004/1`), barcode (`1006/1`) e giacenze (`1002/1`). L'import anagrafiche continua a usare `500001/1`.

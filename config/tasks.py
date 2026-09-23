@@ -9,6 +9,7 @@ from tools.importazioni import (
     import_giacenze_matrixws,
     compare_file_matrixws_sources,
     import_estratti_conto_clienti,
+    compare_matrixws_customer_statements,
     import_giacenze,
     import_poleepo_products,
     import_ps,
@@ -172,6 +173,13 @@ def matrixws_test_poll_task(self, batch_uuid, request_meta=None):
             progress_callback=report_progress,
         )
         response_body = result["json"] if result["json"] is not None else result["text"]
+        comparison = None
+        if request_meta.get("test_key") == "customer_statements" and isinstance(response_body, dict):
+            try:
+                comparison = compare_matrixws_customer_statements(response_body)
+            except Exception as comparison_exc:
+                logger.exception("Confronto 1011/EC_CLI non completato")
+                comparison = {"error": str(comparison_exc)}
         response_truncated = bool(result["truncated"])
         response_body, record_count, preview_truncated = _matrixws_diagnostic_preview(response_body)
         response_truncated = response_truncated or preview_truncated
@@ -188,6 +196,8 @@ def matrixws_test_poll_task(self, batch_uuid, request_meta=None):
                     "anteprima": response_body,
                     "diagnostica_app": diagnostic_meta,
                 }
+        if comparison is not None and isinstance(response_body, dict):
+            response_body = {**response_body, "confronto_ec_cli": comparison}
 
         update_task(self.request.id, task_name, 100, status_string["end"])
         clear_task_status(self.request.id)
