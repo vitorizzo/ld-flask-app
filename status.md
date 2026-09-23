@@ -1,4 +1,10 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-23 - Confronto effettivo 1011/EC_CLI
+
+- Il confronto diagnostico del test `1011/1` non si limita piu' a conteggi e nomi dei campi: legge tutte le righe valide di `EC_CLI.CSV`, normalizza codici, numeri documento, date, importi e testo, quindi confronta le chiavi record con il batch MATRIXWS completo.
+- Il report distingue corrispondenza completa, identita' senza importo, codice/data documento e solo codice; per ogni campo mostra valori distinti, valori comuni e campioni delle righe MATRIXWS senza corrispondenza completa.
+- Sono indicati anche candidati di campo alternativi quando MATRIXWS usa un nome diverso da quello atteso. Il confronto resta read-only e non altera importazioni o tabelle operative.
+
 ## 2026-09-23 - Timeout MATRIXWS in produzione
 
 - Letti direttamente il database e il `tasks.log` dell'ambiente di produzione: i fallimenti di articoli/giacenze iniziano esattamente 30 secondi dopo l'avvio della chiamata e riportano `Il server MATRIXWS non ha risposto entro il tempo previsto.`; non sono errori di connessione al database applicativo.

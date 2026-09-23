@@ -2,6 +2,8 @@ import csv
 import hashlib
 import os
 import re
+import unicodedata
+from collections import Counter
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
@@ -929,7 +931,13 @@ def _matrixws_response_rows(result):
 
 
 def compare_matrixws_customer_statements(response_body):
-    """Confronta la struttura del batch 1011 con il tracciato/file EC_CLI senza scrivere dati."""
+    """Confronta i record 1011 con EC_CLI dopo la normalizzazione dei tracciati.
+
+    Il servizio 1011 restituisce la vista completa delle scadenze, mentre EC_CLI
+    e' uno snapshot gia' filtrato dall'esportazione. Il confronto quindi non
+    assume che i conteggi coincidano: misura sovrapposizioni con chiavi via via
+    meno restrittive e mostra i campi che condividono davvero gli stessi valori.
+    """
     from routes.esportazioni_teamsystem import serve_risorsa
 
     file_name = configured_source_file("customer_statements")
@@ -939,7 +947,7 @@ def compare_matrixws_customer_statements(response_body):
     file_path = serve_risorsa(file_name)
     source_data = file_path and open(file_path, "rb").read()
     if not source_data:
-        raise ValueError(f"Il file {file_name} è vuoto")
+        raise ValueError(f"Il file {file_name} e' vuoto")
     fields = _read_teamsystem_trace(trace_path)
     rows = response_body.get("dati") if isinstance(response_body, dict) else None
     rows = [row for row in (rows or []) if isinstance(row, dict)]
@@ -955,14 +963,151 @@ def compare_matrixws_customer_statements(response_body):
     file_fields = set(fields)
     matrix_fields = {key for row in rows for key in row}
     mapped = {file_key: matrix_key for file_key, matrix_key in expected.items() if matrix_key in matrix_fields}
+    field_aliases = {
+        "ECS-CODICE": ("CODCF", "CODICE", "CFCOD"),
+        "ECS-SCADE": ("DTSCAD", "SCADE"),
+        "ECS-DATDOC": ("DTDOC", "DATDOC"),
+        "ECS-NUMDOC": ("NRDOC", "NUMDOC"),
+        "ECS-IMPORTO-EUR": ("IMPEFF", "IMPORTO", "IMP"),
+        "ECS-TIPO-EFF": ("TEFF", "TIPOEFF"),
+        "ECS-STATO-EFF": ("STATOEFF", "STATO"),
+    }
+    alternate_field_candidates = {}
+    for file_key, matrix_key in expected.items():
+        if matrix_key in matrix_fields:
+            continue
+        aliases = field_aliases.get(file_key, ())
+        candidates = sorted(
+            field
+            for field in matrix_fields
+            if any(alias in re.sub(r"[^A-Z0-9]", "", field.upper()) for alias in aliases)
+        )
+        if candidates:
+            alternate_field_candidates[file_key] = candidates
+    record_length = max(item["end"] for item in fields.values())
+    all_file_rows = source_data.splitlines()
+    file_rows = [row for row in all_file_rows if len(row) == record_length]
+
+    def normalize_text(value):
+        value = unicodedata.normalize("NFKD", str(value or ""))
+        value = "".join(char for char in value if not unicodedata.combining(char))
+        return " ".join(value.upper().strip().split())
+
+    def normalize_code(value):
+        raw = normalize_text(value)
+        return str(int(raw or "0")) if raw.isdigit() else (raw.lstrip("0") or "0")
+
+    def normalize_date(value):
+        raw = normalize_text(value).replace("-", "").replace("/", "").replace(".", "")
+        if not raw or set(raw) == {"0"}:
+            return ""
+        for fmt in ("%Y%m%d", "%d%m%Y", "%y%m%d"):
+            try:
+                return datetime.strptime(raw, fmt).date().isoformat()
+            except ValueError:
+                continue
+        return raw
+
+    def normalize_amount(value, *, file_value=False):
+        raw = str(value or "").strip().replace(" ", "")
+        if not raw:
+            return "0.00"
+        if file_value:
+            return f"{_teamsystem_decimal(raw):.2f}"
+        if "," in raw and "." in raw:
+            raw = raw.replace(".", "").replace(",", ".")
+        else:
+            raw = raw.replace(",", ".")
+        try:
+            return f"{Decimal(raw):.2f}"
+        except (InvalidOperation, ValueError):
+            return normalize_text(value)
+
+    def normalize_field(file_key, value, *, file_value=False):
+        if file_key == "ECS-CODICE":
+            return normalize_code(value)
+        if file_key in {"ECS-SCADE", "ECS-DATDOC"}:
+            return normalize_date(value)
+        if file_key == "ECS-IMPORTO-EUR":
+            return normalize_amount(value, file_value=file_value)
+        if file_key == "ECS-NUMDOC":
+            raw = normalize_text(value)
+            return raw.lstrip("0") or "0" if raw.isdigit() else raw
+        return normalize_text(value)
+
+    def file_projection(row):
+        return {
+            key: normalize_field(key, _teamsystem_text(row, fields[key]), file_value=True)
+            for key in mapped
+            if key in fields
+        }
+
+    def matrix_projection(row):
+        return {
+            file_key: normalize_field(file_key, row.get(matrix_key))
+            for file_key, matrix_key in mapped.items()
+        }
+
+    file_projections = [file_projection(row) for row in file_rows]
+    matrix_projections = [matrix_projection(row) for row in rows]
+
+    def projection_key(projection, names):
+        return tuple(projection.get(name, "") for name in names)
+
+    full_key_fields = [name for name in ("ECS-CODICE", "ECS-DATDOC", "ECS-NUMDOC", "ECS-IMPORTO-EUR") if name in mapped]
+    identity_fields = [name for name in ("ECS-CODICE", "ECS-DATDOC", "ECS-NUMDOC") if name in mapped]
+    code_date_fields = [name for name in ("ECS-CODICE", "ECS-DATDOC") if name in mapped]
+    code_fields = ["ECS-CODICE"] if "ECS-CODICE" in mapped else []
+
+    def overlap(names):
+        if not names:
+            return {"fields": [], "matched_rows": 0, "file_keys": 0, "matrix_keys": 0}
+        file_counts = Counter(projection_key(row, names) for row in file_projections)
+        matrix_counts = Counter(projection_key(row, names) for row in matrix_projections)
+        matched = sum(min(count, matrix_counts[item]) for item, count in file_counts.items())
+        return {"fields": names, "matched_rows": matched, "file_keys": len(file_counts), "matrix_keys": len(matrix_counts)}
+
+    field_overlap = {}
+    for file_key, matrix_key in mapped.items():
+        file_values = Counter(row.get(file_key, "") for row in file_projections)
+        matrix_values = Counter(row.get(file_key, "") for row in matrix_projections)
+        common = set(file_values) & set(matrix_values)
+        field_overlap[file_key] = {
+            "matrixws_field": matrix_key,
+            "file_distinct_values": len(file_values),
+            "matrixws_distinct_values": len(matrix_values),
+            "common_distinct_values": len(common),
+            "common_rows_file": sum(file_values[value] for value in common),
+            "common_rows_matrixws": sum(matrix_values[value] for value in common),
+            "examples_common": sorted(common)[:5],
+        }
+
+    file_full = Counter(projection_key(row, full_key_fields) for row in file_projections) if full_key_fields else Counter()
+    matrix_full = Counter(projection_key(row, full_key_fields) for row in matrix_projections) if full_key_fields else Counter()
+    unmatched_matrix = []
+    for index, projection in enumerate(matrix_projections):
+        current_key = projection_key(projection, full_key_fields)
+        if matrix_full[current_key] > file_full.get(current_key, 0) and len(unmatched_matrix) < 20:
+            unmatched_matrix.append({"row": index + 1, "values": projection})
+            matrix_full[current_key] -= 1
+
     missing_in_matrix = sorted(file_fields - set(mapped))
     missing_in_file = sorted(matrix_fields - set(expected.values()))
     return {
-        "file": {"name": file_name, "record_count": len(source_data.splitlines()), "field_count": len(file_fields)},
+        "file": {"name": file_name, "record_count": len(file_rows), "invalid_record_count": len(all_file_rows) - len(file_rows), "field_count": len(file_fields)},
         "matrixws": {"service": "1011/1", "record_count": len(rows), "field_count": len(matrix_fields)},
         "field_mapping": mapped,
+        "alternate_field_candidates": alternate_field_candidates,
         "file_fields_missing_in_matrixws": missing_in_matrix,
         "matrixws_fields_without_file_equivalent": missing_in_file,
+        "record_overlap": {
+            "full_key": overlap(full_key_fields),
+            "identity_without_amount": overlap(identity_fields),
+            "code_and_document_date": overlap(code_date_fields),
+            "code_only": overlap(code_fields),
+        },
+        "field_value_overlap": field_overlap,
+        "matrixws_rows_without_full_file_match_sample": unmatched_matrix,
         "required_import_fields": {
             name: (name in file_fields and name in mapped)
             for name in (
@@ -972,9 +1117,9 @@ def compare_matrixws_customer_statements(response_body):
                 "ECS-NUMRATA", "ECS-CAUSALE", "ECS-NUMRIF",
             )
         },
-        "note": "Confronto strutturale e conteggi; nessun dato operativo è stato modificato.",
+        "normalization": "codici e numeri documento senza zeri iniziali; date convertite in ISO; importi convertiti in euro con due decimali; testo maiuscolo e senza accenti.",
+        "note": "Confronto record e valori dopo normalizzazione; nessun dato operativo e' stato modificato.",
     }
-
 
 def _parse_matrixws_article_decimal(value):
     """Converte i decimali MATRIXWS (virgola italiana) senza perdita silenziosa."""

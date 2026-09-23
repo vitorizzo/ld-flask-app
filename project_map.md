@@ -5,6 +5,12 @@
 - `tools/importazioni.py` applica gli stessi limiti agli import operativi di articoli, barcode e giacenze; `routes/settings.py` li applica ai test diagnostici.
 - L'analisi dei log di produzione ha distinto il timeout di lettura HTTP dalla connessione: `EVWSSYNC` risponde regolarmente, mentre `EVWSASYNC` supera il vecchio limite di 30 secondi.
 
+## Confronto dati 1011/EC_CLI (2026-09-23)
+
+- `compare_matrixws_customer_statements()` legge le righe valide del file fixed-width usando il tracciato `tracciato_ec_cli.csv` e le confronta con tutte le righe del batch `1011/1`.
+- Il confronto normalizza codice cliente, numero documento, date, importi e testo e restituisce sovrapposizioni progressive (chiave completa, identita', codice/data, codice) oltre alla sovrapposizione dei valori per singolo campo.
+- Il report conserva solo un campione di 20 righe senza corrispondenza per non gonfiare la risposta diagnostica; non esegue scritture.
+
 ## Diagnostica situazione contabile MATRIXWS (2026-09-23)
 
 - `routes/settings.py` espone il profilo `customer_statements` per `1011/1`, versione `20260100`.
