@@ -10,6 +10,7 @@
 - `compare_matrixws_customer_statements()` legge le righe valide del file fixed-width usando il tracciato `tracciato_ec_cli.csv` e le confronta con tutte le righe del batch `1011/1`.
 - Il confronto normalizza codice cliente, numero documento, date, importi e testo e restituisce sovrapposizioni progressive (chiave completa, identita', codice/data, codice) oltre alla sovrapposizione dei valori per singolo campo.
 - Il report conserva solo un campione di 20 righe senza corrispondenza per non gonfiare la risposta diagnostica; non esegue scritture.
+- La risposta reale `1011/1` usa etichette descrittive (`CodCli`, `Data Doc.`, `Importo`, ecc.) invece dei nomi tecnici; gli alias univoci vengono risolti nel mapping prima del confronto.
 
 ## Diagnostica situazione contabile MATRIXWS (2026-09-23)
 

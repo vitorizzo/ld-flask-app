@@ -964,9 +964,9 @@ def compare_matrixws_customer_statements(response_body):
     matrix_fields = {key for row in rows for key in row}
     mapped = {file_key: matrix_key for file_key, matrix_key in expected.items() if matrix_key in matrix_fields}
     field_aliases = {
-        "ECS-CODICE": ("CODCF", "CODICE", "CFCOD"),
-        "ECS-SCADE": ("DTSCAD", "SCADE"),
-        "ECS-DATDOC": ("DTDOC", "DATDOC"),
+        "ECS-CODICE": ("CODCF", "CODICE", "CFCOD", "CODCLI"),
+        "ECS-SCADE": ("DTSCAD", "SCADE", "DATASCADENZA"),
+        "ECS-DATDOC": ("DTDOC", "DATDOC", "DATADOC"),
         "ECS-NUMDOC": ("NRDOC", "NUMDOC"),
         "ECS-IMPORTO-EUR": ("IMPEFF", "IMPORTO", "IMP"),
         "ECS-TIPO-EFF": ("TEFF", "TIPOEFF"),
@@ -984,6 +984,11 @@ def compare_matrixws_customer_statements(response_body):
         )
         if candidates:
             alternate_field_candidates[file_key] = candidates
+            # Le etichette descrittive sono sufficienti quando il candidato e'
+            # unico: in questo modo il confronto verifica i dati reali anche
+            # se l'export non espone i nomi tecnici WKSCADWS-*.
+            if len(candidates) == 1:
+                mapped[file_key] = candidates[0]
     record_length = max(item["end"] for item in fields.values())
     all_file_rows = source_data.splitlines()
     file_rows = [row for row in all_file_rows if len(row) == record_length]
@@ -1092,7 +1097,7 @@ def compare_matrixws_customer_statements(response_body):
             matrix_full[current_key] -= 1
 
     missing_in_matrix = sorted(file_fields - set(mapped))
-    missing_in_file = sorted(matrix_fields - set(expected.values()))
+    missing_in_file = sorted(matrix_fields - set(mapped.values()))
     return {
         "file": {"name": file_name, "record_count": len(file_rows), "invalid_record_count": len(all_file_rows) - len(file_rows), "field_count": len(file_fields)},
         "matrixws": {"service": "1011/1", "record_count": len(rows), "field_count": len(matrix_fields)},

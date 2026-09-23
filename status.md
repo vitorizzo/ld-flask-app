@@ -4,6 +4,7 @@ TEST_SYNC_CODEX_20260507_185518
 - Il confronto diagnostico del test `1011/1` non si limita piu' a conteggi e nomi dei campi: legge tutte le righe valide di `EC_CLI.CSV`, normalizza codici, numeri documento, date, importi e testo, quindi confronta le chiavi record con il batch MATRIXWS completo.
 - Il report distingue corrispondenza completa, identita' senza importo, codice/data documento e solo codice; per ogni campo mostra valori distinti, valori comuni e campioni delle righe MATRIXWS senza corrispondenza completa.
 - Sono indicati anche candidati di campo alternativi quando MATRIXWS usa un nome diverso da quello atteso. Il confronto resta read-only e non altera importazioni o tabelle operative.
+- Verificata la risposta reale: i sette valori arrivano come `CodCli`, `Data Doc.`, `Data Scadenza`, `Importo`, `NrDoc`, `Stato effetto` e `Tipo Effetto`; i candidati univoci vengono ora risolti automaticamente e inclusi nel confronto.
 
 ## 2026-09-23 - Timeout MATRIXWS in produzione
 
