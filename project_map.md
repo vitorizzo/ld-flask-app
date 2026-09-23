@@ -5,7 +5,7 @@
 - `config/tasks.py` richiama `compare_matrixws_customer_statements()` al termine del polling; `tools/importazioni.py` confronta la struttura completa del batch con il tracciato/file `EC_CLI.CSV` senza scritture.
 - Il risultato compare nella risposta diagnostica sotto `confronto_ec_cli`; la UI del pannello usa automaticamente il profilo aggiunto.
 - Il profilo `1011/1` usa un timeout massimo dedicato di 60 minuti, invece del limite generico di 15 minuti, e il polling browser resta aperto fino a cinque minuti oltre il limite worker.
-- Il client tratta un read timeout del singolo polling come transitorio; il profilo contabile usa 180 secondi di attesa per risposta, evitando di interrompere il batch dopo circa un minuto mentre TeamSystem prepara il JSON.
+- Il profilo contabile passa al worker un read timeout dedicato di 180 secondi; il client globale non altera il comportamento del test di connessione `1000`.
 
 ## Importazioni operative MATRIXWS e listini (2026-09-22)
 

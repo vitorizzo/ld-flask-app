@@ -3233,4 +3233,4 @@ Performance apertura giornata Agenda 2026-06-13:
 - Il worker confronta la risposta completa del batch con `EC_CLI.CSV` e con il relativo tracciato: conteggi, campi mancanti nel batch, campi senza equivalente nel file e presenza dei campi necessari all'import attuale.
 - Il confronto è diagnostico e non modifica database o importazioni operative.
 - Il primo test ha superato il limite generico di 15 minuti: `1011/1` elabora un archivio molto più grande. Il profilo usa ora 60 minuti di polling worker e la UI attende altri 5 minuti oltre quel limite.
-- Il timeout osservato dopo circa un minuto era invece il read timeout della singola chiamata `/batch/response`. Per `1011/1` il read timeout è ora 180 secondi; i timeout di lettura transitori vengono ritentati fino alla scadenza complessiva del test.
+- Il timeout osservato dopo circa un minuto era invece il read timeout della singola chiamata `/batch/response`. Il read timeout dedicato a `1011/1` viene ora passato esplicitamente al worker; il client globale mantiene il comportamento originale per gli altri test, incluso `1000`.
