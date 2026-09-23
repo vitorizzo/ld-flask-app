@@ -10,6 +10,7 @@
 ## Correzione rendering scheda articolo (2026-09-23)
 
 - `templates/scheda_articolo.html` non deve chiamare `csrf_token()`: l'app non registra quel context processor e la chiamata causava HTTP 500 quando la tendina listino era visibile.
+- `routes/search.py` importa esplicitamente `redirect`, necessario alla POST che salva il listino selezionato e ricarica la scheda.
 
 ## Prezzi MATRIXWS e listini (2026-09-21)
 

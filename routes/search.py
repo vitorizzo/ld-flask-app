@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
-from flask import Blueprint, current_app, render_template, jsonify, request, abort, url_for, Response
+from flask import Blueprint, current_app, render_template, jsonify, request, abort, url_for, redirect, Response
 from flask_login import current_user, login_required
 from werkzeug.utils import secure_filename
 import requests
