@@ -167,7 +167,7 @@ def matrixws_test_poll_task(self, batch_uuid, request_meta=None):
         result = wait_for_batch_result(
             config,
             batch_uuid,
-            poll_timeout=(5, max(60, int(request_meta.get("poll_read_timeout_seconds") or 60))),
+            poll_timeout=(5, max(180, int(request_meta.get("poll_read_timeout_seconds") or 180))),
             poll_interval=2,
             max_wait=max(15, int(request_meta.get("poll_timeout_minutes") or 15)) * 60,
             progress_callback=report_progress,

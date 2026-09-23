@@ -1036,7 +1036,8 @@ def _fetch_matrixws_article_rows(*, renew_secret=True):
         result = wait_for_matrixws_async_result(
             config,
             payload,
-            poll_timeout=(5, 60),
+            start_timeout=(5, 300),
+            poll_timeout=(5, 180),
             poll_interval=2,
             max_wait=15 * 60,
         )
@@ -1050,7 +1051,8 @@ def _fetch_matrixws_article_rows(*, renew_secret=True):
         result = wait_for_matrixws_async_result(
             config,
             payload,
-            poll_timeout=(5, 60),
+            start_timeout=(5, 300),
+            poll_timeout=(5, 180),
             poll_interval=2,
             max_wait=15 * 60,
         )
@@ -1075,7 +1077,14 @@ def _fetch_matrixws_service_rows(service_code, *, renew_secret=True):
     }
     config = MatrixWSConfig.from_app_config(current_app.config)
     try:
-        result = wait_for_matrixws_async_result(config, payload, poll_timeout=(5, 60), poll_interval=2, max_wait=15 * 60)
+        result = wait_for_matrixws_async_result(
+            config,
+            payload,
+            start_timeout=(5, 300),
+            poll_timeout=(5, 180),
+            poll_interval=2,
+            max_wait=15 * 60,
+        )
         secret_renewed = False
     except MatrixWSError as exc:
         if exc.kind != "unauthorized" or not renew_secret:
@@ -1083,7 +1092,14 @@ def _fetch_matrixws_service_rows(service_code, *, renew_secret=True):
         renewed_secret = renew_matrixws_secret(config)
         _save_renewed_matrixws_secret(renewed_secret)
         config = MatrixWSConfig.from_app_config(current_app.config)
-        result = wait_for_matrixws_async_result(config, payload, poll_timeout=(5, 60), poll_interval=2, max_wait=15 * 60)
+        result = wait_for_matrixws_async_result(
+            config,
+            payload,
+            start_timeout=(5, 300),
+            poll_timeout=(5, 180),
+            poll_interval=2,
+            max_wait=15 * 60,
+        )
         secret_renewed = True
     rows = _matrixws_response_rows(result)
     if not rows:

@@ -1,4 +1,10 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-23 - Timeout MATRIXWS in produzione
+
+- Letti direttamente il database e il `tasks.log` dell'ambiente di produzione: i fallimenti di articoli/giacenze iniziano esattamente 30 secondi dopo l'avvio della chiamata e riportano `Il server MATRIXWS non ha risposto entro il tempo previsto.`; non sono errori di connessione al database applicativo.
+- Una verifica read-only diretta ha confermato che `EVWSSYNC` risponde HTTP 200, mentre `EVWSASYNC` puo' impiegare oltre 70 secondi prima di restituire il batch UUID. Il timeout di avvio asincrono di 30 secondi era quindi troppo basso.
+- Portato a 300 secondi il timeout di avvio asincrono (test e import) e a 180 secondi il timeout di lettura del batch; non vengono modificati dati operativi da queste diagnostiche.
+
 ## 2026-09-22 - Scelta listino scheda articolo e profilo responsive
 
 - La preferenza listino staff e' stata rimossa dalla pagina Modifica Informazioni e viene aggiornata dalla tendina nella scheda articolo. L'impostazione e' salvata su `User.listino_prezzo`; staff seleziona prezzi 1/3, office+ anche costo.

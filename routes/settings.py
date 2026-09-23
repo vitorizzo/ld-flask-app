@@ -2236,7 +2236,11 @@ def matrixws_test():
 
     try:
         config = MatrixWSConfig.from_app_config(current_app.config)
-        result = call_matrixws_async(config, payload, method="POST", timeout=(5, 30))
+        # La richiesta asincrona puo' restare in coda sul server MATRIXWS prima
+        # di restituire il batch UUID. Non interromperla dopo i 30 secondi:
+        # quel limite faceva fallire il test di connessione mentre il server
+        # continuava a elaborare la richiesta.
+        result = call_matrixws_async(config, payload, method="POST", timeout=(5, 300))
         secret_renewed = False
         if result["status_code"] == 401:
             renewed_secret = renew_matrixws_secret(config)
@@ -2249,7 +2253,7 @@ def matrixws_test():
             db.session.commit()
             load_preferences_into_app_config(current_app._get_current_object())
             config = MatrixWSConfig.from_app_config(current_app.config)
-            result = call_matrixws_async(config, payload, method="POST", timeout=(5, 30))
+            result = call_matrixws_async(config, payload, method="POST", timeout=(5, 300))
             secret_renewed = True
     except MatrixWSError as exc:
         db.session.rollback()

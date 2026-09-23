@@ -1,4 +1,10 @@
 # PROJECT_MAP.md — v2.4
+## Timeout MATRIXWS asincrono (2026-09-23)
+
+- `tools/matrixws_client.py` usa fino a 300 secondi per l'avvio `EVWSASYNC` e fino a 180 secondi per la lettura del batch; il server puo' accodare la richiesta prima di restituire il batch UUID.
+- `tools/importazioni.py` applica gli stessi limiti agli import operativi di articoli, barcode e giacenze; `routes/settings.py` li applica ai test diagnostici.
+- L'analisi dei log di produzione ha distinto il timeout di lettura HTTP dalla connessione: `EVWSSYNC` risponde regolarmente, mentre `EVWSASYNC` supera il vecchio limite di 30 secondi.
+
 ## Diagnostica situazione contabile MATRIXWS (2026-09-23)
 
 - `routes/settings.py` espone il profilo `customer_statements` per `1011/1`, versione `20260100`.

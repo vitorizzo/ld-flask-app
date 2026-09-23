@@ -254,7 +254,7 @@ def call_async(
     payload: dict[str, Any],
     *,
     method: str = "POST",
-    timeout=(5, 25),
+    timeout=(5, 300),
 ) -> dict[str, Any]:
     """Avvia un'elaborazione MATRIXWS e restituisce la risposta con il batch UUID."""
     return _call_json(
@@ -271,7 +271,7 @@ def call_batch_response(
     batch_uuid: str,
     *,
     method: str = "GET",
-    timeout=(5, 60),
+    timeout=(5, 180),
 ) -> dict[str, Any]:
     """Legge lo stato o il risultato di un batch MATRIXWS gia' avviato."""
     normalized_uuid = str(batch_uuid or "").strip()
@@ -319,8 +319,8 @@ def wait_for_async_result(
     payload: dict[str, Any],
     *,
     method: str = "POST",
-    start_timeout=(5, 30),
-    poll_timeout=(5, 60),
+    start_timeout=(5, 300),
+    poll_timeout=(5, 180),
     poll_interval: float = 2.0,
     max_wait: float = 15 * 60,
     progress_callback: Callable[[str, float], None] | None = None,
@@ -358,7 +358,7 @@ def wait_for_batch_result(
     config: MatrixWSConfig,
     batch_uuid: str,
     *,
-    poll_timeout=(5, 60),
+    poll_timeout=(5, 180),
     poll_interval: float = 2.0,
     max_wait: float = 15 * 60,
     progress_callback: Callable[[str, float], None] | None = None,
