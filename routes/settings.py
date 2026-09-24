@@ -146,8 +146,8 @@ MATRIXWS_TEST_PROFILES = {
     },
     "customer_statements": {
         "label": "Situazioni contabili clienti",
-        "description": "Test read-only scadenze 1011/1 e confronto con EC_CLI.CSV",
-        "service_code": "1011",
+        "description": "Test read-only scadenze 500005/1 con causali portafoglio e contabili",
+        "service_code": "500005",
         "schema": "1",
         "version": "20260100",
         "poll_timeout_minutes": 60,

@@ -931,9 +931,9 @@ def _matrixws_response_rows(result):
 
 
 def compare_matrixws_customer_statements(response_body):
-    """Confronta i record 1011 con EC_CLI dopo la normalizzazione dei tracciati.
+    """Confronta i record 500005 con EC_CLI dopo la normalizzazione dei tracciati.
 
-    Il servizio 1011 restituisce la vista completa delle scadenze, mentre EC_CLI
+    Il servizio 500005 restituisce la vista completa delle scadenze e delle causali, mentre EC_CLI
     e' uno snapshot gia' filtrato dall'esportazione. Il confronto quindi non
     assume che i conteggi coincidano: misura sovrapposizioni con chiavi via via
     meno restrittive e mostra i campi che condividono davvero gli stessi valori.
@@ -959,6 +959,7 @@ def compare_matrixws_customer_statements(response_body):
         "ECS-IMPORTO-EUR": "WKSCADWS-IMPEFF",
         "ECS-TIPO-EFF": "WKSCADWS-TEFF",
         "ECS-STATO-EFF": "WKSCADWS-STATO-EFF",
+        "ECS-CAUSALE": "WKSCADWS-CAUSALE",
     }
     file_fields = set(fields)
     matrix_fields = {key for row in rows for key in row}
@@ -971,6 +972,7 @@ def compare_matrixws_customer_statements(response_body):
         "ECS-IMPORTO-EUR": ("IMPEFF", "IMPORTO", "IMP"),
         "ECS-TIPO-EFF": ("TEFF", "TIPOEFF"),
         "ECS-STATO-EFF": ("STATOEFF", "STATO"),
+        "ECS-CAUSALE": ("CAUSALE", "CAUSPORT", "CAUSCONT", "CAUS"),
     }
     alternate_field_candidates = {}
     for file_key, matrix_key in expected.items():
@@ -1100,7 +1102,7 @@ def compare_matrixws_customer_statements(response_body):
     missing_in_file = sorted(matrix_fields - set(mapped.values()))
     return {
         "file": {"name": file_name, "record_count": len(file_rows), "invalid_record_count": len(all_file_rows) - len(file_rows), "field_count": len(file_fields)},
-        "matrixws": {"service": "1011/1", "record_count": len(rows), "field_count": len(matrix_fields)},
+        "matrixws": {"service": "500005/1", "record_count": len(rows), "field_count": len(matrix_fields)},
         "field_mapping": mapped,
         "alternate_field_candidates": alternate_field_candidates,
         "file_fields_missing_in_matrixws": missing_in_matrix,
