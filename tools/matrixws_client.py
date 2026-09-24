@@ -70,7 +70,7 @@ class MatrixWSConfig:
 
     def service_url(self, dispatcher: str) -> str:
         parts = (
-            self.environment,
+            self.environment.lower(),
             self.start.lower(),
             self.application.upper(),
             "service_mws",
