@@ -148,6 +148,7 @@ def _matrixws_diagnostic_preview(value, limit=25):
 def matrixws_test_poll_task(self, batch_uuid, request_meta=None):
     """Completa in background un test MATRIXWS asincrono senza importare alcun dato."""
     from flask import current_app
+    from tools.preferences import load_preferences_into_app_config
 
     from tools.matrixws_client import (
         MatrixWSConfig,
@@ -170,6 +171,10 @@ def matrixws_test_poll_task(self, batch_uuid, request_meta=None):
         update_task(self.request.id, task_name, progress, status_string["update"])
 
     try:
+        # Il secret puo' essere stato aggiornato dal pannello web mentre il
+        # worker era gia' avviato: ricarica le preferenze cifrate dal DB prima
+        # di ogni chiamata, evitando di usare il token precedente in memoria.
+        load_preferences_into_app_config(current_app._get_current_object())
         config = MatrixWSConfig.from_app_config(current_app.config)
         # Anche l'avvio puo' richiedere diversi minuti sul server MATRIXWS.
         # Deve rimanere nel worker: tenerlo nella richiesta HTTP fa scadere
