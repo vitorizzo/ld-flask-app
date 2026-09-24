@@ -130,6 +130,15 @@ MATRIXWS_TEST_PROFILES = {
         "schema": "1",
         "version": "20260001",
     },
+    "product_images": {
+        "label": "Immagini prodotti",
+        "description": "Verifica read-only immagini prodotti tramite MATRIXWS",
+        "service_code": "101001",
+        "schema": "1",
+        "version": "20260001",
+        "poll_timeout_minutes": 60,
+        "poll_read_timeout_seconds": 180,
+    },
     "barcodes": {
         "label": "Codici a barre",
         "description": "Estrazione codici a barre articoli da CONFWS",
