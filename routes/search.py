@@ -41,6 +41,7 @@ from tools.product_pricing import (
     selectable_price_lists,
     visible_product_price,
 )
+from tools.role_required import role_required
 from sqlalchemy import or_
 
 
@@ -2170,6 +2171,7 @@ def _warehouse_price_columns():
 
 @search_bp.get('/elenco-prodotti')
 @login_required
+@role_required(30)
 def elenco_prodotti():
     return render_template(
         'search/elenco_prodotti.html',
@@ -2180,6 +2182,7 @@ def elenco_prodotti():
 
 @search_bp.get('/elenco-prodotti/dati')
 @login_required
+@role_required(30)
 def elenco_prodotti_dati():
     """Filtered warehouse product list used by the Elenco prodotti view."""
     filtro = (request.args.get('filter') or '').strip()

@@ -7,10 +7,21 @@
   .warehouse-page .table-wrap { overflow-x: auto; }
   .warehouse-page table { min-width: 980px; }
   .warehouse-page th { white-space: nowrap; }
+  .warehouse-page tbody tr { cursor: pointer; }
+  .warehouse-page tbody tr:focus { outline: 2px solid var(--bs-primary); outline-offset: -2px; }
   .warehouse-page td.description { min-width: 280px; }
   .warehouse-page .filters { background: rgba(255,255,255,.08); border-radius: .65rem; }
   @media (max-width: 768px) {
     .warehouse-page { padding: 12px 8px; }
+    .warehouse-page .table-wrap { overflow: visible; }
+    .warehouse-page table, .warehouse-page tbody, .warehouse-page tr, .warehouse-page td { display: block; width: 100%; }
+    .warehouse-page table { min-width: 0; margin: 0; }
+    .warehouse-page thead { display: none; }
+    .warehouse-page tbody tr { margin-bottom: 12px; padding: 9px 10px; border: 1px solid rgba(255,255,255,.25); border-radius: 9px; background: rgba(255,255,255,.94); color: #212529; }
+    .warehouse-page tbody td { display: grid; grid-template-columns: minmax(112px, 42%) 1fr; gap: 8px; padding: 5px 0; border: 0; text-align: left !important; }
+    .warehouse-page tbody td::before { content: attr(data-label); font-weight: 600; color: #495057; }
+    .warehouse-page tbody td.description { min-width: 0; }
+    .warehouse-page tbody td.description::before { content: 'Descrizione'; }
     .warehouse-page .filters .form-control,
     .warehouse-page .filters .form-select,
     .warehouse-page .filters .btn { min-height: 44px; }
@@ -103,12 +114,19 @@
           const prices = columns.map(key => `<td class="text-end text-nowrap">${esc((product.prezzi[key] || {}).formatted || '—')}` +
             ((key === 'prezzo1' && product.prezzi[key] && product.prezzi[key].iva_compresa) ? `<br><small class="text-muted">IVA comp. ${esc(product.prezzi[key].iva_compresa)}</small>` : '') + '</td>').join('');
           const iva = product.aliquota_iva == null ? '—' : `${Number(product.aliquota_iva).toLocaleString('it-IT', {minimumFractionDigits: 0, maximumFractionDigits: 3})}%`;
-          return `<tr><td class="text-nowrap">${esc(product.cod_art)}</td><td class="description">${esc(description)}</td><td class="text-end">${esc(product.giacenza_negozio)}</td><td class="text-end">${esc(product.giacenza_online)}</td>${prices}<td class="text-end">${esc(iva)}</td></tr>`;
+          const priceCells = columns.map(key => `<td class="text-end text-nowrap" data-label="${esc(labels[key] || key)}">${esc((product.prezzi[key] || {}).formatted || '—')}` +
+            ((key === 'prezzo1' && product.prezzi[key] && product.prezzi[key].iva_compresa) ? `<br><small class="text-muted">IVA comp. ${esc(product.prezzi[key].iva_compresa)}</small>` : '') + '</td>').join('');
+          return `<tr tabindex="0" data-href="${esc('{{ url_for('search.scheda_articolo', cod_art='__CODE__') }}'.replace('__CODE__', encodeURIComponent(product.cod_art)))}"><td class="text-nowrap" data-label="Codice">${esc(product.cod_art)}</td><td class="description" data-label="Descrizione">${esc(description)}</td><td class="text-end" data-label="Giacenza negozio">${esc(product.giacenza_negozio)}</td><td class="text-end" data-label="Giacenza online">${esc(product.giacenza_online)}</td>${priceCells}<td class="text-end" data-label="IVA">${esc(iva)}</td></tr>`;
         }).join('');
         total.textContent = `${data.totale_prodotti || 0} prodotti`;
         pageInfo.textContent = `Pagina ${data.pagina_corrente || 1} di ${data.pagine_totali || 1}`;
         document.getElementById('warehouse-prev').disabled = (data.pagina_corrente || 1) <= 1;
         document.getElementById('warehouse-next').disabled = (data.pagina_corrente || 1) >= (data.pagine_totali || 1);
+        body.querySelectorAll('tr[data-href]').forEach(row => {
+          const open = () => { window.location.href = row.dataset.href; };
+          row.addEventListener('click', open);
+          row.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
+        });
       })
       .catch(error => showError(error.message || 'Impossibile caricare i prodotti.'));
   }
