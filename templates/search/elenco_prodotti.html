@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% block title %}Elenco prodotti{% endblock %}
+
+{% block extra_css %}
+<style>
+  .warehouse-page { max-width: 1600px; margin: 0 auto; }
+  .warehouse-page .table-wrap { overflow-x: auto; }
+  .warehouse-page table { min-width: 980px; }
+  .warehouse-page th { white-space: nowrap; }
+  .warehouse-page td.description { min-width: 280px; }
+  .warehouse-page .filters { background: rgba(255,255,255,.08); border-radius: .65rem; }
+  @media (max-width: 768px) {
+    .warehouse-page { padding: 12px 8px; }
+    .warehouse-page .filters .form-control,
+    .warehouse-page .filters .form-select,
+    .warehouse-page .filters .btn { min-height: 44px; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="welcome-section page-shell warehouse-page">
+  <div class="container-fluid">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3">
+      <div>
+        <h1 class="h3 mb-1">Elenco prodotti</h1>
+        <p class="text-muted mb-0">Ricerca di magazzino con giacenze, prezzi e aliquota IVA.</p>
+      </div>
+      <span class="badge text-bg-secondary align-self-center" id="warehouse-total">0 prodotti</span>
+    </div>
+
+    <form id="warehouse-filters" class="filters p-3 mb-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-lg-6">
+          <label for="warehouse-filter" class="form-label">Codice o descrizione</label>
+          <input id="warehouse-filter" class="form-control" type="search" autocomplete="off"
+                 placeholder="Cerca codice, descrizione o descrizione aggiuntiva">
+        </div>
+        <div class="col-12 col-sm-5 col-lg-3">
+          <label for="warehouse-stock" class="form-label">Giacenza</label>
+          <select id="warehouse-stock" class="form-select">
+            <option value="all">Tutti i prodotti</option>
+            <option value="any">Con giacenza</option>
+            <option value="store">Con giacenza negozio</option>
+            <option value="online">Con giacenza online</option>
+          </select>
+        </div>
+        <div class="col-12 col-sm-7 col-lg-3 d-flex gap-2">
+          <button class="btn btn-primary flex-grow-1" type="submit"><i class="bi bi-search"></i> Cerca</button>
+          <button class="btn btn-outline-secondary" type="button" id="warehouse-reset">Reset</button>
+        </div>
+      </div>
+    </form>
+
+    <div id="warehouse-feedback" class="alert d-none" role="status"></div>
+    <div class="table-wrap">
+      <table class="table table-sm table-striped table-hover align-middle" id="warehouse-table">
+        <thead class="table-light"><tr id="warehouse-head"></tr></thead>
+        <tbody id="warehouse-body"></tbody>
+      </table>
+    </div>
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
+      <small class="text-muted" id="warehouse-page-info"></small>
+      <div class="btn-group" role="group" aria-label="Paginazione">
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="warehouse-prev">Precedente</button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="warehouse-next">Successiva</button>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+  const form = document.getElementById('warehouse-filters');
+  const filter = document.getElementById('warehouse-filter');
+  const stock = document.getElementById('warehouse-stock');
+  const head = document.getElementById('warehouse-head');
+  const body = document.getElementById('warehouse-body');
+  const feedback = document.getElementById('warehouse-feedback');
+  const total = document.getElementById('warehouse-total');
+  const pageInfo = document.getElementById('warehouse-page-info');
+  let page = 1;
+  let timer;
+
+  const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  const showError = (message) => { feedback.textContent = message; feedback.className = 'alert alert-danger'; };
+  const clearError = () => { feedback.textContent = ''; feedback.className = 'alert d-none'; };
+
+  function load() {
+    clearError();
+    const params = new URLSearchParams({filter: filter.value.trim(), stock_scope: stock.value, page, per_page: 50});
+    fetch('{{ url_for("search.elenco_prodotti_dati") }}?' + params.toString(), {headers: {'Accept': 'application/json'}})
+      .then(response => response.ok ? response.json() : response.json().then(data => Promise.reject(new Error(data.error || 'Errore di caricamento'))))
+      .then(data => {
+        const columns = data.price_columns || [];
+        const labels = data.price_labels || {};
+        head.innerHTML = '<th>Codice</th><th>Descrizione</th><th class="text-end">Negozio</th><th class="text-end">Online</th>' +
+          columns.map(key => `<th class="text-end">${esc(labels[key] || key)}</th>`).join('') + '<th class="text-end">IVA</th>';
+        body.innerHTML = (data.prodotti || []).map(product => {
+          const description = [product.descrizione, product.descrizione_aggiuntiva].filter(Boolean).join(' — ');
+          const prices = columns.map(key => `<td class="text-end text-nowrap">${esc((product.prezzi[key] || {}).formatted || '—')}` +
+            ((key === 'prezzo1' && product.prezzi[key] && product.prezzi[key].iva_compresa) ? `<br><small class="text-muted">IVA comp. ${esc(product.prezzi[key].iva_compresa)}</small>` : '') + '</td>').join('');
+          const iva = product.aliquota_iva == null ? '—' : `${Number(product.aliquota_iva).toLocaleString('it-IT', {minimumFractionDigits: 0, maximumFractionDigits: 3})}%`;
+          return `<tr><td class="text-nowrap">${esc(product.cod_art)}</td><td class="description">${esc(description)}</td><td class="text-end">${esc(product.giacenza_negozio)}</td><td class="text-end">${esc(product.giacenza_online)}</td>${prices}<td class="text-end">${esc(iva)}</td></tr>`;
+        }).join('');
+        total.textContent = `${data.totale_prodotti || 0} prodotti`;
+        pageInfo.textContent = `Pagina ${data.pagina_corrente || 1} di ${data.pagine_totali || 1}`;
+        document.getElementById('warehouse-prev').disabled = (data.pagina_corrente || 1) <= 1;
+        document.getElementById('warehouse-next').disabled = (data.pagina_corrente || 1) >= (data.pagine_totali || 1);
+      })
+      .catch(error => showError(error.message || 'Impossibile caricare i prodotti.'));
+  }
+  form.addEventListener('submit', event => { event.preventDefault(); page = 1; load(); });
+  stock.addEventListener('change', () => { page = 1; load(); });
+  document.getElementById('warehouse-reset').addEventListener('click', () => { filter.value = ''; stock.value = 'all'; page = 1; load(); });
+  document.getElementById('warehouse-prev').addEventListener('click', () => { if (page > 1) { page--; load(); } });
+  document.getElementById('warehouse-next').addEventListener('click', () => { page++; load(); });
+  filter.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { page = 1; load(); }, 350); });
+  load();
+})();
+</script>
+{% endblock %}

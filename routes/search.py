@@ -2159,6 +2159,101 @@ def lista_articoli():
     })
 
 
+def _warehouse_price_columns():
+    """Return the price columns visible to the current user."""
+    options = selectable_price_lists(current_user)
+    if options:
+        return [key for key, _label in options]
+    _value, selected = visible_product_price(Articoli.query.first(), current_user)
+    return [selected] if selected else []
+
+
+@search_bp.get('/elenco-prodotti')
+@login_required
+def elenco_prodotti():
+    return render_template(
+        'search/elenco_prodotti.html',
+        price_columns=_warehouse_price_columns(),
+        price_labels={key: label for key, label in selectable_price_lists(current_user)},
+    )
+
+
+@search_bp.get('/elenco-prodotti/dati')
+@login_required
+def elenco_prodotti_dati():
+    """Filtered warehouse product list used by the Elenco prodotti view."""
+    filtro = (request.args.get('filter') or '').strip()
+    stock_scope = (request.args.get('stock_scope') or 'all').strip().lower()
+    page = max(1, request.args.get('page', 1, type=int) or 1)
+    per_page = max(1, min(request.args.get('per_page', 50, type=int) or 50, 200))
+
+    query = Articoli.query
+    if filtro:
+        pattern = f"%{filtro}%"
+        query = query.filter(
+            (Articoli.cod_art.ilike(pattern)) |
+            (Articoli.descrizione.ilike(pattern)) |
+            (Articoli.descrizione_aggiuntiva.ilike(pattern))
+        )
+    if stock_scope in {'store', 'online', 'any'}:
+        query = query.join(Giacenza, Giacenza.cod_art == Articoli.cod_art)
+        if stock_scope == 'store':
+            query = query.filter(Giacenza.giac_neg > 0)
+        elif stock_scope == 'online':
+            query = query.filter(Giacenza.giac_www > 0)
+        else:
+            query = query.filter((Giacenza.giac_neg > 0) | (Giacenza.giac_www > 0))
+
+    paginated = query.order_by(
+        Articoli.descrizione.asc(),
+        Articoli.descrizione_aggiuntiva.asc(),
+        Articoli.cod_art.asc(),
+    ).paginate(page=page, per_page=per_page, error_out=False)
+
+    price_columns = _warehouse_price_columns()
+    products = []
+    for article in paginated.items:
+        stock = Giacenza.query.filter_by(cod_art=article.cod_art).first()
+        prices = {}
+        for key in price_columns:
+            value = {
+                'prezzo1': article.prezzo_1,
+                'prezzo3': article.prezzo_3 if article.prezzo_3 is not None else article.prezzo,
+                'costo': article.costo,
+            }.get(key)
+            prices[key] = {
+                'value': float(value) if value is not None else None,
+                'formatted': format_euro(value),
+                'iva_compresa': format_euro(iva_compresa_price(article, key, value)),
+            }
+        products.append({
+            'cod_art': article.cod_art,
+            'descrizione': article.descrizione or '',
+            'descrizione_aggiuntiva': article.descrizione_aggiuntiva or '',
+            'giacenza_negozio': stock.giac_neg if stock else 0,
+            'giacenza_online': stock.giac_www if stock else 0,
+            'aliquota_iva': float(article.aliquota_iva) if article.aliquota_iva is not None else None,
+            'prezzi': prices,
+        })
+
+    labels = dict(selectable_price_lists(current_user))
+    for key in price_columns:
+        labels.setdefault(key, {
+            'prezzo1': 'Prezzo 1 (imponibile)',
+            'prezzo3': 'Prezzo 3 (IVA compresa)',
+            'costo': 'Costo',
+        }.get(key, key))
+    return jsonify({
+        'prodotti': products,
+        'price_columns': price_columns,
+        'price_labels': labels,
+        'pagina_corrente': paginated.page,
+        'pagine_totali': paginated.pages,
+        'totale_prodotti': paginated.total,
+        'per_page': per_page,
+    })
+
+
 @search_bp.route('/barcode_by_codart/<cod_art>')
 @login_required
 def barcode_by_codart(cod_art):
