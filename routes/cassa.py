@@ -5897,6 +5897,67 @@ def api_list_sales(day_date):
     })
 
 
+@cassa_bp.get("/api/day/<day_date>/versabile-detail")
+@login_required
+@role_required(min_weight=MIN_AGENDA_WEIGHT)
+def api_versabile_detail(day_date):
+    """Return the individual entries composing the day's versable amount."""
+    try:
+        d = datetime.strptime(day_date, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+    cash_day = (CashDay.query
+                .options(selectinload(CashDay.sales).selectinload(CashSale.payments),
+                         selectinload(CashDay.expenses).selectinload(CashExpense.payments),
+                         selectinload(CashDay.pos_moves))
+                .filter(CashDay.day_date == d).first())
+    if not cash_day:
+        return jsonify({"ok": True, "day_date": d.isoformat(), "entries": [], "total": 0})
+
+    entries = []
+    def add(label, description, amount, source, operation_id=None):
+        value = _to_dec(amount)
+        if value:
+            entries.append({"label": label, "description": description or "", "amount": float(value),
+                            "source": source, "operation_id": operation_id})
+
+    for sale in cash_day.sales:
+        for payment in sale.payments:
+            flag = (payment.flag or "*").strip()
+            amount = _to_dec(payment.amount)
+            if payment.direction == "in" and payment.method == "cash" and not payment.off_cash and flag in {"*", "**"}:
+                add("Incasso contanti", payment.description or sale.customer_label, amount, "incasso", payment.id)
+            elif payment.direction == "in" and payment.method == "check" and flag == "*":
+                add("Assegno odierno", payment.description or sale.customer_label, amount, "assegno", payment.id)
+
+    for closure in (CashReceiptClosure.query.filter_by(cash_day_id=cash_day.id)
+                    .order_by(CashReceiptClosure.created_at.asc(), CashReceiptClosure.id.asc()).all()):
+        add("Corrispettivo", closure.description or "Chiusura corrispettivi", closure.amount, "corrispettivo", closure.id)
+
+    for expense in cash_day.expenses:
+        for payment in expense.payments:
+            flag = (payment.flag or "*").strip()
+            amount = _to_dec(payment.amount)
+            if payment.direction == "out" and payment.method == "cash" and not payment.off_cash and flag in {"*", "**"}:
+                add("Spesa contanti", payment.description or expense.supplier, -amount, "spesa", payment.id)
+            if payment.method == "pos" and payment.pos_is_personal:
+                add("POS personale", payment.description or expense.supplier, -amount, "spesa_pos", payment.id)
+
+    # La formula storica compensa il totale POS netto: mostriamo le singole
+    # componenti così il dettaglio spiega anche perché non alterano il totale.
+    pos_net = Decimal("0")
+    for move in cash_day.pos_moves:
+        amount = _to_dec(move.amount)
+        signed = amount if move.direction == "in" else -amount
+        pos_net += signed
+        add("Movimento POS", move.notes or "Movimento POS", signed, "pos", move.id)
+    if pos_net:
+        add("Compensazione POS", "Compensazione prevista dal calcolo versabile", -pos_net, "pos_compensazione")
+
+    return jsonify({"ok": True, "day_date": d.isoformat(), "entries": entries,
+                    "total": float(sum((_to_dec(x["amount"]) for x in entries), Decimal("0")))})
+
+
 @cassa_bp.delete("/api/sales/<sale_id>")
 @login_required
 @role_required(min_weight=MIN_AGENDA_WEIGHT)

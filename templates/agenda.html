@@ -307,7 +307,7 @@
 
                   <div class="kpi-side kpi-side-right">
 
-                    <div class="kpi-metric">
+                    <div class="kpi-metric kpi-versabile-detail-trigger" id="kpiVersabileGiornataCard" role="button" tabindex="0" aria-label="Apri dettaglio totale versabile" title="Clicca per vedere il dettaglio">
 
                       <div class="kpi-label">odierno</div>
 
@@ -2799,6 +2799,27 @@
 
 <!-- MODALE CORRISPETTIVI -->
 
+<div class="modal fade agenda-modal" id="versabileDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Dettaglio totale versabile</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <div id="versabileDetailFeedback" class="alert alert-danger d-none"></div>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead><tr><th>Voce</th><th>Descrizione</th><th class="text-end">Importo</th></tr></thead>
+            <tbody id="versabileDetailRows"><tr><td colspan="3" class="text-center text-muted">Caricamento...</td></tr></tbody>
+            <tfoot><tr class="fw-bold"><td colspan="2">Totale versabile</td><td class="text-end" id="versabileDetailTotal">€ 0,00</td></tr></tfoot>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal fade agenda-modal" id="receiptModal" tabindex="-1">
 
   <div class="modal-dialog modal-lg">
@@ -4414,7 +4435,7 @@
           <div class="col-6 col-md-4"><label class="form-label" for="checkReceivedDate">Ricezione</label><input type="date" class="form-control" id="checkReceivedDate"></div>
           <div class="col-6 col-md-4"><label class="form-label" for="checkDueDate">Scadenza</label><input type="date" class="form-control" id="checkDueDate"></div>
           <div class="col-12"><label class="form-label" for="checkNote">Note</label><textarea class="form-control" id="checkNote" rows="3"></textarea></div>
-          <div class="col-12"><label class="form-label" for="checkScanInput">Scansione assegno</label><input type="file" class="form-control" id="checkScanInput" accept="image/*,application/pdf,.pdf,.tif,.tiff,.bmp,.gif,.webp,.png,.jpg,.jpeg,.ico"><div class="form-text">Scatta una foto oppure scegli PDF, JPG, PNG, WebP, TIFF, BMP, GIF o un altro formato immagine leggibile (massimo 25 MB). Per PDF e immagini multipagina viene acquisita la prima pagina.</div><div class="mt-2 d-none" id="checkScanPreviewWrap"><img id="checkScanPreview" class="img-fluid rounded border" alt="Anteprima assegno"><button type="button" class="btn btn-sm btn-outline-danger mt-2" id="checkScanRemoveBtn">Rimuovi scansione</button></div></div>
+                  <div class="col-12"><label class="form-label" for="checkScanInput">Scansione assegno</label><input type="file" class="form-control" id="checkScanInput" accept="image/*,application/pdf,.pdf,.tif,.tiff,.bmp,.gif,.webp,.png,.jpg,.jpeg,.ico"><div class="form-text">Scatta una foto oppure scegli PDF, JPG, PNG, WebP, TIFF, BMP, GIF o un altro formato immagine leggibile (massimo 25 MB). Per PDF e immagini multipagina viene acquisita la prima pagina.</div><div class="mt-2 d-none" id="checkScanPreviewWrap"><img id="checkScanPreview" class="img-fluid rounded border" alt="Anteprima assegno"><div class="small mt-1" id="checkScanCurrentName"></div><a id="checkScanOpenLink" class="btn btn-sm btn-outline-info mt-2" target="_blank" rel="noopener">Apri scansione</a><button type="button" class="btn btn-sm btn-outline-danger mt-2" id="checkScanRemoveBtn">Rimuovi scansione</button></div></div>
         </div>
       </div>
       <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal" id="checkCancelBtn">Annulla</button><button type="button" class="btn btn-success" id="checkSaveBtn">Salva assegno</button></div>

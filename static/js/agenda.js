@@ -1060,6 +1060,8 @@ const checkNote = document.getElementById("checkNote");
 const checkScanInput = document.getElementById("checkScanInput");
 const checkScanPreviewWrap = document.getElementById("checkScanPreviewWrap");
 const checkScanPreview = document.getElementById("checkScanPreview");
+const checkScanCurrentName = document.getElementById("checkScanCurrentName");
+const checkScanOpenLink = document.getElementById("checkScanOpenLink");
 const checkScanRemoveBtn = document.getElementById("checkScanRemoveBtn");
 const checkScanCropModalEl = document.getElementById("checkScanCropModal");
 const checkScanCropStatus = document.getElementById("checkScanCropStatus");
@@ -1373,6 +1375,38 @@ async function loadPreview(dateStr) {
     console.error("loadPreview error:", err);
   }
 }
+
+async function openVersabileDetail() {
+  const modalEl = document.getElementById("versabileDetailModal");
+  const rowsEl = document.getElementById("versabileDetailRows");
+  const totalEl = document.getElementById("versabileDetailTotal");
+  const feedbackEl = document.getElementById("versabileDetailFeedback");
+  if (!modalEl || !rowsEl) return;
+  feedbackEl?.classList.add("d-none");
+  rowsEl.innerHTML = `<tr><td colspan="3" class="text-center text-muted">Caricamento...</td></tr>`;
+  bootstrap.Modal.getOrCreateInstance(modalEl).show();
+  try {
+    const response = await fetch(`/cassa/api/day/${currentDay}/versabile-detail`, {
+      credentials: "same-origin", headers: {"Accept": "application/json"}, cache: "no-store"
+    });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "Impossibile caricare il dettaglio");
+    const entries = Array.isArray(data.entries) ? data.entries : [];
+    rowsEl.innerHTML = entries.length ? entries.map(entry => `
+      <tr><td>${escapeHtml(entry.label || "")}</td><td>${escapeHtml(entry.description || "")}</td>
+      <td class="text-end ${Number(entry.amount) < 0 ? "text-danger" : "text-success"}">${formatEuro2(entry.amount)}</td></tr>
+    `).join("") : `<tr><td colspan="3" class="text-center text-muted">Nessuna voce disponibile</td></tr>`;
+    if (totalEl) totalEl.textContent = formatEuro2(data.total || 0);
+  } catch (error) {
+    rowsEl.innerHTML = `<tr><td colspan="3" class="text-center text-danger">Errore nel caricamento</td></tr>`;
+    if (feedbackEl) { feedbackEl.textContent = error.message || "Errore nel caricamento"; feedbackEl.classList.remove("d-none"); }
+  }
+}
+
+document.getElementById("kpiVersabileGiornataCard")?.addEventListener("click", openVersabileDetail);
+document.getElementById("kpiVersabileGiornataCard")?.addEventListener("keydown", event => {
+  if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openVersabileDetail(); }
+});
 
 async function refreshAgendaSections(sections = []) {
   if (!currentDay) return;
@@ -3160,6 +3194,8 @@ function resetCheckForm() {
   if (checkScanInput) checkScanInput.value = "";
   if (checkScanInput) preparedCheckScanFiles.delete(checkScanInput);
   if (checkScanPreview) checkScanPreview.removeAttribute("src");
+  if (checkScanOpenLink) { checkScanOpenLink.removeAttribute("href"); checkScanOpenLink.classList.add("d-none"); }
+  if (checkScanCurrentName) checkScanCurrentName.textContent = "";
   checkScanPreviewWrap?.classList.add("d-none");
   if (checkSaveBtn) checkSaveBtn.textContent = "Salva assegno";
 }
@@ -3252,9 +3288,15 @@ function startEditCheck(row) {
   if (checkNote) checkNote.value = row.note || "";
   if (checkScanInput) checkScanInput.value = "";
   if (row.scan_url && checkScanPreview) {
-    checkScanPreview.src = row.scan_url;
+    const scanUrl = `${row.scan_url}${row.scan_url.includes("?") ? "&" : "?"}v=${encodeURIComponent(row.updated_at || Date.now())}`;
+    checkScanPreview.src = scanUrl;
+    if (checkScanOpenLink) { checkScanOpenLink.href = scanUrl; checkScanOpenLink.classList.remove("d-none"); }
+    if (checkScanCurrentName) checkScanCurrentName.textContent = row.scan_original_name ? `File associato: ${row.scan_original_name}` : "Scansione associata";
     checkScanPreviewWrap?.classList.remove("d-none");
   } else {
+    if (checkScanPreview) checkScanPreview.removeAttribute("src");
+    if (checkScanOpenLink) { checkScanOpenLink.removeAttribute("href"); checkScanOpenLink.classList.add("d-none"); }
+    if (checkScanCurrentName) checkScanCurrentName.textContent = "";
     checkScanPreviewWrap?.classList.add("d-none");
   }
   if (checkSaveBtn) checkSaveBtn.textContent = "Salva modifica";

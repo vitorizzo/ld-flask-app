@@ -320,6 +320,19 @@
   background: #0f766e;
 }
 
+.kpi-versabile-detail-trigger {
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background-color .15s ease, box-shadow .15s ease;
+}
+
+.kpi-versabile-detail-trigger:hover,
+.kpi-versabile-detail-trigger:focus-visible {
+  background: rgba(15, 118, 110, .12);
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, .35);
+  outline: none;
+}
+
 .kpi-title-fondo {
   background: #b45309;
 }
