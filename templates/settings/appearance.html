@@ -8,7 +8,8 @@
       <div><h1 class="mb-1">Aspetto grafico</h1><div class="text-muted">Parametri condivisi per pagine, modali e componenti responsive.</div></div>
       <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}"><i class="fa-solid fa-arrow-left me-1"></i>Impostazioni</a>
     </div>
-    <form method="post" class="appearance-form">
+    <form method="post" enctype="multipart/form-data" class="appearance-form">
+      <input type="hidden" name="navbar_divider_image" value="{{ theme.navbar_divider_image }}"><input type="hidden" name="footer_divider_image" value="{{ theme.footer_divider_image }}">
       <div class="card appearance-card mb-3"><div class="card-body">
         <h2 class="h5">Tema</h2>
         <p class="text-muted small">I preset valorizzano i token comuni; i campi personalizzati possono essere rifiniti in seguito.</p>
@@ -16,6 +17,7 @@
         <select class="form-select" id="themePreset" name="preset">
           {% for key, preset in presets.items() %}<option value="{{ key }}" {% if theme.preset == key %}selected{% endif %}>{{ preset.label }}</option>{% endfor %}
         </select>
+        <div class="row g-2 mt-2 align-items-end"><div class="col-12 col-md-7"><label class="form-label" for="saved_theme">Temi personalizzati salvati</label><select class="form-select" id="saved_theme" name="saved_theme"><option value="">Seleziona un tema da attivare...</option>{% for name in custom_themes %}<option value="{{ name }}">{{ name }}</option>{% endfor %}</select></div><div class="col-12 col-md-5"><button class="btn btn-outline-primary w-100" type="submit" name="theme_action" value="activate">Attiva tema selezionato</button></div></div>
       </div></div>
       <div class="card appearance-card mb-3"><div class="card-body">
         <h2 class="h5">Colori</h2>
@@ -43,6 +45,12 @@
           <div class="col-12 col-sm-6"><label class="form-label" for="divider_width">Spessore divisorio</label><div class="input-group"><input class="form-control" id="divider_width" name="divider_width" type="number" min="1" max="6" value="{{ theme.divider_width }}"><span class="input-group-text">px</span></div></div>
         </div>
       </div></div>
+      <div class="card appearance-card mb-3"><div class="card-body">
+        <h2 class="h5">Divisorio grafico personalizzato</h2>
+        <p class="text-muted small">Carica un’immagine da usare come pennellata per navbar o footer. Il file viene salvato nell’area privata dell’applicazione.</p>
+        <div class="row g-3 align-items-end"><div class="col-12 col-md-5"><label class="form-label" for="divider_file_target">Elemento</label><select class="form-select" id="divider_file_target" name="divider_file_target"><option value="navbar">Navbar</option><option value="footer">Footer</option></select></div><div class="col-12 col-md-7"><label class="form-label" for="divider_file">File grafico</label><input class="form-control" id="divider_file" name="divider_file" type="file" accept=".png,.jpg,.jpeg,.webp,.gif,.svg"></div></div>
+      </div></div>
+      <div class="card appearance-card mb-3"><div class="card-body"><h2 class="h5">Salva combinazione con nome</h2><div class="row g-2 align-items-end"><div class="col-12 col-md-8"><label class="form-label" for="save_as_name">Nome tema</label><input class="form-control" id="save_as_name" name="save_as_name" maxlength="80" placeholder="Es. Pincopal Soft"></div><div class="col-12 col-md-4"><button class="btn btn-outline-success w-100" type="submit" name="theme_action" value="save_as">Salva come nuovo tema</button></div></div></div></div>
       <button class="btn btn-primary btn-lg" type="submit"><i class="fa-solid fa-floppy-disk me-1"></i>Salva aspetto</button>
     </form>
     <div class="theme-preview mt-4" id="themePreview" aria-live="polite">
@@ -62,4 +70,4 @@
   </div>
 </section>
 {% endblock %}
-{% block extra_js %}<script type="application/json" id="themePresetData">{{ presets|tojson }}</script><script src="{{ url_for('static', filename='js/ui_theme_preview.js', v=app_version ~ '-preview1') }}"></script>{% endblock %}
+{% block extra_js %}<script type="application/json" id="themePresetData">{{ presets|tojson }}</script><script type="application/json" id="customThemeData">{{ custom_themes|tojson }}</script><script src="{{ url_for('static', filename='js/ui_theme_preview.js', v=app_version ~ '-preview2') }}"></script>{% endblock %}

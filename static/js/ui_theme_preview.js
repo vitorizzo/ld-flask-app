@@ -4,7 +4,9 @@
   const form = document.querySelector(".appearance-form");
   const presetData = document.getElementById("themePresetData");
   let presets = {};
+  let customThemes = {};
   try { presets = JSON.parse(presetData?.textContent || "{}"); } catch (_) { presets = {}; }
+  try { customThemes = JSON.parse(document.getElementById("customThemeData")?.textContent || "{}"); } catch (_) { customThemes = {}; }
   const colorKeys = ["brand_primary", "brand_accent", "surface", "surface_muted", "text", "text_muted"];
   const numberKeys = ["radius", "page_padding", "base_font_size", "touch_size", "modal_width", "modal_radius", "divider_width"];
   function update() {
@@ -24,6 +26,17 @@
   form?.elements.preset?.addEventListener("change", event => {
     const values = presets[event.target.value]?.values || {};
     Object.entries(values).forEach(([key, value]) => { if (form.elements[key]) form.elements[key].value = value; });
+    update();
+  });
+  form?.elements.saved_theme?.addEventListener("change", event => {
+    const values = customThemes[event.target.value];
+    if (!values) return;
+    Object.entries(values).forEach(([key, value]) => {
+      const field = form.elements[key];
+      if (!field) return;
+      if (field.type === "checkbox") field.checked = Boolean(value);
+      else field.value = value;
+    });
     update();
   });
   update();

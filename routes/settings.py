@@ -99,7 +99,7 @@ from config.tasks import (
 )
 from tools.ps_util import get_product_by_code
 from tools.log_utils import log_task, get_logger
-from tools.ui_theme import DEFAULT_THEME, THEME_PRESETS, load_theme, save_theme
+from tools.ui_theme import DEFAULT_THEME, THEME_PRESETS, load_theme, load_theme_store, save_theme, activate_saved_theme
 import hashlib
 from datetime import datetime, date, time, timedelta, timezone
 
@@ -503,6 +503,14 @@ def settings_index():
 @log_task(logger)
 def appearance():
     if request.method == "POST":
+        action = (request.form.get("theme_action") or "save").strip()
+        if action == "activate":
+            try:
+                activate_saved_theme((request.form.get("saved_theme") or "").strip())
+                flash("Tema personalizzato attivato.", "success")
+            except KeyError:
+                flash("Tema personalizzato non trovato.", "warning")
+            return redirect(url_for("settings.appearance"))
         theme = load_theme()
         preset = (request.form.get("preset") or "default").strip()
         if preset in THEME_PRESETS:
@@ -521,15 +529,41 @@ def appearance():
                 theme[key] = request.form.get(key)
         if "divider_color" in request.form:
             theme["divider_color"] = request.form.get("divider_color")
+        for key in ("navbar_divider_image", "footer_divider_image"):
+            if key in request.form:
+                theme[key] = request.form.get(key) or ""
+        upload = request.files.get("divider_file")
+        upload_target = request.form.get("divider_file_target")
+        if upload and upload.filename and upload_target in {"navbar", "footer"}:
+            filename = secure_filename(upload.filename)
+            extension = os.path.splitext(filename)[1].lower()
+            if extension not in {".png", ".jpg", ".jpeg", ".webp", ".gif", ".svg"}:
+                flash("Formato divisorio non supportato. Usa PNG, JPG, WebP, GIF o SVG.", "warning")
+                return redirect(url_for("settings.appearance"))
+            folder = os.path.join(current_app.instance_path, "ui_theme_dividers")
+            os.makedirs(folder, exist_ok=True)
+            stored_name = f"{upload_target}-{uuid.uuid4().hex}{extension}"
+            upload.save(os.path.join(folder, stored_name))
+            theme[f"{upload_target}_divider_image"] = url_for("settings.appearance_divider_image", filename=stored_name)
+            theme[f"{upload_target}_divider_style"] = "brush"
         try:
-            save_theme(theme)
-            flash("Aspetto grafico aggiornato.", "success")
+            save_theme(theme, name=(request.form.get("save_as_name") or "").strip() if action == "save_as" else None)
+            flash("Tema personalizzato salvato." if action == "save_as" else "Aspetto grafico aggiornato.", "success")
         except Exception as exc:
             db.session.rollback()
             logger.exception("Errore aggiornando aspetto grafico")
             flash(f"Impossibile aggiornare l'aspetto grafico: {exc}", "danger")
         return redirect(url_for("settings.appearance"))
-    return render_template("settings/appearance.html", theme=load_theme(), presets=THEME_PRESETS)
+    theme, custom_themes = load_theme_store()
+    return render_template("settings/appearance.html", theme=theme, custom_themes=custom_themes, presets=THEME_PRESETS)
+
+
+@settings_bp.get("/appearance/divider-image/<path:filename>")
+@login_required
+@role_required(40)
+def appearance_divider_image(filename):
+    folder = os.path.join(current_app.instance_path, "ui_theme_dividers")
+    return send_from_directory(folder, filename, conditional=True, max_age=0)
 
 
 @settings_bp.route("/import-transfer-definitions", methods=["GET", "POST"])

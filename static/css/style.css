@@ -194,6 +194,8 @@ body.app-shell[data-theme-navbar-divider-style="line"] .navbar { background-imag
 body.app-shell[data-theme-navbar-divider-style="none"] .navbar { background-image: none; border-bottom: 0; }
 body.app-shell[data-theme-footer-divider-style="line"] .footer { background-image: none; border-top: var(--ld-divider-width) solid var(--ld-divider-color); }
 body.app-shell[data-theme-footer-divider-style="none"] .footer { background-image: none; border-top: 0; }
+body.app-shell[data-theme-navbar-divider-style="brush"] .navbar { background-image: var(--ld-navbar-divider-image); }
+body.app-shell[data-theme-footer-divider-style="brush"] .footer { background-image: var(--ld-footer-divider-image); }
 
 .navbar-brand {
   position: relative;

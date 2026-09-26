@@ -31,6 +31,8 @@ DEFAULT_THEME = {
     "footer_divider_style": "brush",
     "divider_color": "#b18b77",
     "divider_width": 1,
+    "navbar_divider_image": "",
+    "footer_divider_image": "",
 }
 
 THEME_PRESETS = {
@@ -84,11 +86,27 @@ def _clean_theme(value):
 
 def load_theme():
     row = AppPreference.query.filter_by(key=THEME_KEY).first()
-    return _clean_theme(row.value_json if row else None)
+    raw = row.value_json if row else None
+    return _clean_theme(raw.get("active") if isinstance(raw, dict) and "active" in raw else raw)
 
 
-def save_theme(value):
+def load_theme_store():
+    row = AppPreference.query.filter_by(key=THEME_KEY).first()
+    raw = row.value_json if row else None
+    if isinstance(raw, dict) and "active" in raw:
+        active = _clean_theme(raw.get("active"))
+        custom = {str(name): _clean_theme(value) for name, value in (raw.get("custom_themes") or {}).items()}
+    else:
+        active = _clean_theme(raw)
+        custom = {}
+    return active, custom
+
+
+def save_theme(value, *, name=None):
     theme = _clean_theme(value)
+    active, custom = load_theme_store()
+    if name:
+        custom[str(name).strip()[:80]] = theme
     row = AppPreference.query.filter_by(key=THEME_KEY).first()
     if row is None:
         row = AppPreference(key=THEME_KEY, category="Aspetto grafico", label="Tema applicativo", value_type="json", sort_order=10)
@@ -97,15 +115,24 @@ def save_theme(value):
     row.label = "Tema applicativo"
     row.description = "Token grafici condivisi da pagine, modali e componenti responsive."
     row.value_type = "json"
-    row.value_json = theme
+    row.value_json = {"active": theme, "custom_themes": custom}
     row.value_text = None
     row.secret_value = None
     db.session.commit()
     return theme
 
 
+def activate_saved_theme(name):
+    active, custom = load_theme_store()
+    if name not in custom:
+        raise KeyError(name)
+    return save_theme(custom[name])
+
+
 def theme_css_vars(theme=None):
     theme = _clean_theme(theme or load_theme())
+    navbar_image = f"url('{theme['navbar_divider_image']}')" if theme.get("navbar_divider_image") else "url('/static/images/backgrounds/bg-bottom-pattern.png')"
+    footer_image = f"url('{theme['footer_divider_image']}')" if theme.get("footer_divider_image") else "url('/static/images/backgrounds/bg-top-pattern.png')"
     return "; ".join([
         f"--ld-brand-primary: {theme['brand_primary']}",
         f"--ld-brand-accent: {theme['brand_accent']}",
@@ -121,4 +148,6 @@ def theme_css_vars(theme=None):
         f"--ld-modal-radius: {theme['modal_radius']}px",
         f"--ld-divider-color: {theme['divider_color']}",
         f"--ld-divider-width: {theme['divider_width']}px",
+        f"--ld-navbar-divider-image: {navbar_image}",
+        f"--ld-footer-divider-image: {footer_image}",
     ])
