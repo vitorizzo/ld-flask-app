@@ -51,6 +51,9 @@ cassa_bp = Blueprint("cassa", __name__, url_prefix="/cassa")
 logger = get_logger("cassa", level=logging.INFO)
 
 MIN_AGENDA_WEIGHT = 40
+# Incrementare quando cambia la logica del totale versabile: gli snapshot
+# precedenti non devono nascondere il nuovo calcolo nella preview.
+VERSABILE_SNAPSHOT_VERSION = 2
 
 
 def _resolve_company_card_payment(payload):
@@ -1990,6 +1993,7 @@ def _latest_fiscal_snapshot_before(target_date: date):
             CashDay.day_date < target_date,
             CashDay.status == "closed",
             CashClosure.fiscal_snapshot_stale.is_(False),
+            CashClosure.fiscal_snapshot_version >= VERSABILE_SNAPSHOT_VERSION,
             CashClosure.saldo_versabile_finale.isnot(None),
         )
         .order_by(CashDay.day_date.desc(), CashClosure.created_at.desc())
@@ -2097,6 +2101,7 @@ def _calculate_progressive_saldo_versabile_fast(target_date: date) -> tuple[Deci
             WHERE cd.day_date < :target_date
               AND cd.status = 'closed'
               AND cc.fiscal_snapshot_stale = FALSE
+              AND COALESCE(cc.fiscal_snapshot_version, 0) >= :snapshot_version
               AND cc.saldo_versabile_finale IS NOT NULL
             ORDER BY cd.day_date DESC, cc.created_at DESC
             LIMIT 1
@@ -2218,7 +2223,7 @@ def _calculate_progressive_saldo_versabile_fast(target_date: date) -> tuple[Deci
         CROSS JOIN receipt_sums rs
         CROSS JOIN deposit_sums ds
     """)
-    row = db.session.execute(sql, {"target_date": target_date}).mappings().first()
+    row = db.session.execute(sql, {"target_date": target_date, "snapshot_version": VERSABILE_SNAPSHOT_VERSION}).mappings().first()
     snapshot_day = row["snapshot_day"] if row else None
     return _to_dec(row["saldo"] if row else 0), {
         "source": "snapshot_plus_aggregate" if snapshot_day else "aggregate_from_start",
@@ -2804,7 +2809,9 @@ def api_cash_day_preview(day_date):
         return jsonify({"ok": False, "error": "CashDay not found"}), 404
 
     closure = getattr(cash_day, "closure", None)
-    if cash_day.status == "closed" and closure and closure.fiscal_snapshot and not closure.fiscal_snapshot_stale:
+    if (cash_day.status == "closed" and closure and closure.fiscal_snapshot
+            and not closure.fiscal_snapshot_stale
+            and int(closure.fiscal_snapshot_version or 0) >= VERSABILE_SNAPSHOT_VERSION):
         if view == "complete" and session.get("pri_vault_unlocked"):
             try:
                 vault_report_payload = _load_private_vault_day_closure_snapshot(d.year, d)
@@ -3113,7 +3120,10 @@ def _save_fiscal_closure_snapshot(cash_day: CashDay, closure: CashClosure, now: 
     preview_payload = _json_safe(_build_cash_day_preview_payload(cash_day, view="fiscal"))
     report_snapshot_payload = _build_cash_day_report_snapshot_payload(cash_day.day_date, "fiscal", preview_payload, None)
     totals = preview_payload.get("totals") or {}
-    next_snapshot_version = int(closure.fiscal_snapshot_version or 0) + 1 if closure.fiscal_snapshot else 1
+    next_snapshot_version = max(
+        VERSABILE_SNAPSHOT_VERSION,
+        int(closure.fiscal_snapshot_version or 0) + 1 if closure.fiscal_snapshot else 1,
+    )
 
     closure.created_at = closure.created_at or now
     closure.closed_by_user_id = user_id
@@ -5826,6 +5836,9 @@ def api_list_sales(day_date):
                         "cab": linked_check.cab if linked_check else None,
                         "check_number": linked_check.check_number if linked_check else None,
                         "due_date": linked_check.due_date.isoformat() if linked_check and linked_check.due_date else None,
+                        "scan_url": url_for("cassa.api_get_check_scan", check_id=linked_check.id) if linked_check and linked_check.scan_path else None,
+                        "scan_original_name": linked_check.scan_original_name if linked_check else None,
+                        "scan_mime": linked_check.scan_mime if linked_check else None,
                     })
 
                 pay.append(row)

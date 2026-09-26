@@ -1635,6 +1635,7 @@
                 <label class="form-label mb-0" for="checkSaleScan">Scansione assegno</label>
                 <input type="file" class="form-control" id="checkSaleScan" accept="image/*,application/pdf,.pdf,.tif,.tiff,.bmp,.gif,.webp,.png,.jpg,.jpeg,.ico">
                 <div class="form-text">Scatta una foto oppure scegli un'immagine JPG, PNG o WebP (massimo 8 MB).</div>
+                <div class="mt-2 d-none" id="checkSaleCurrentScanWrap"><img id="checkSaleCurrentScanPreview" class="img-fluid rounded border d-none" alt="Anteprima scansione assegno"><div class="small" id="checkSaleCurrentScanName"></div><a id="checkSaleCurrentScanLink" class="btn btn-sm btn-outline-info mt-1" target="_blank" rel="noopener">Apri scansione</a><button type="button" class="btn btn-sm btn-outline-danger mt-1" id="checkSaleCurrentScanRemove">Rimuovi scansione</button></div>
               </div>
 
 
@@ -2001,6 +2002,7 @@
                 <div class="col-12 multi-check-sale-fields d-none">
                   <label class="form-label mb-0">Scansione assegno</label>
                   <input type="file" class="form-control multi-check-scan" accept="image/*,application/pdf,.pdf,.tif,.tiff,.bmp,.gif,.webp,.png,.jpg,.jpeg,.ico">
+                  <div class="mt-1 d-none multi-check-scan-current"><img class="img-fluid rounded border d-none multi-check-scan-current-preview" alt="Anteprima scansione assegno"><div class="small multi-check-scan-current-name"></div><a class="btn btn-sm btn-outline-info mt-1 multi-check-scan-current-link" target="_blank" rel="noopener">Apri scansione</a><button type="button" class="btn btn-sm btn-outline-danger mt-1 multi-check-scan-current-remove">Rimuovi scansione</button></div>
                 </div>
 
 

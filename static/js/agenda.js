@@ -3625,6 +3625,30 @@ async function deleteCheckScan(checkId) {
   return data.check;
 }
 
+function renderOperationCheckScan(container, payment) {
+  if (!container) return;
+  const wrap = container.querySelector(".multi-check-scan-current");
+  if (!wrap) return;
+  const name = container.querySelector(".multi-check-scan-current-name");
+  const preview = container.querySelector(".multi-check-scan-current-preview");
+  const link = container.querySelector(".multi-check-scan-current-link");
+  const remove = container.querySelector(".multi-check-scan-current-remove");
+  const url = payment?.scan_url;
+  if (url) {
+    const cacheUrl = `${url}${url.includes("?") ? "&" : "?"}v=${encodeURIComponent(payment.check_id || Date.now())}`;
+    if (name) name.textContent = payment.scan_original_name ? `File associato: ${payment.scan_original_name}` : "Scansione associata";
+    if (preview) { preview.src = cacheUrl; preview.classList.toggle("d-none", !/^image\//i.test(payment.scan_mime || "")); }
+    if (link) { link.href = cacheUrl; link.classList.remove("d-none"); }
+    if (remove) remove.dataset.checkId = payment.check_id || "";
+    wrap.classList.remove("d-none");
+  } else {
+    if (name) name.textContent = "";
+    if (preview) { preview.removeAttribute("src"); preview.classList.add("d-none"); }
+    if (link) { link.removeAttribute("href"); link.classList.add("d-none"); }
+    wrap.classList.add("d-none");
+  }
+}
+
 async function saveManagedCheck() {
   const id = (checkEditId?.value || "").trim();
   const payload = {
@@ -6195,6 +6219,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     if (!opModal) return;
 
     resetOperationEditState();
+    document.getElementById("checkSaleCurrentScanWrap")?.classList.add("d-none");
 
     setText("opModalTitle", type === "sale" ? "Nuovo incasso" : "Nuova spesa");
 
@@ -6309,6 +6334,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       }
 
       openOpModal("sale");
+      document.getElementById("checkSaleCurrentScanWrap")?.classList.add("d-none");
 
       editingOperationType = "sale";
       editingOperationId = sale.id;
@@ -6376,6 +6402,18 @@ document.addEventListener("DOMContentLoaded", async function () {
           if (checkNumber) checkNumber.value = p.check_number || "";
           if (checkDueDate) checkDueDate.value = p.due_date || "";
           if (checkAmount) checkAmount.value = formatEuro2(p.amount || 0);
+          const current = document.getElementById("checkSaleCurrentScanWrap");
+          if (current) {
+            current.classList.toggle("d-none", !p.scan_url);
+            const name = document.getElementById("checkSaleCurrentScanName");
+            const preview = document.getElementById("checkSaleCurrentScanPreview");
+            const link = document.getElementById("checkSaleCurrentScanLink");
+            const remove = document.getElementById("checkSaleCurrentScanRemove");
+            if (name) name.textContent = p.scan_original_name ? `File associato: ${p.scan_original_name}` : "Scansione associata";
+            if (preview) { preview.src = p.scan_url ? `${p.scan_url}?v=${encodeURIComponent(p.check_id || Date.now())}` : ""; preview.classList.toggle("d-none", !/^image\//i.test(p.scan_mime || "")); }
+            if (link) { link.href = p.scan_url ? `${p.scan_url}?v=${encodeURIComponent(p.check_id || Date.now())}` : "#"; link.classList.toggle("d-none", !p.scan_url); }
+            if (remove) remove.dataset.checkId = p.check_id || "";
+          }
         }
       } else {
         setPaymentMode("multi");
@@ -6420,6 +6458,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             if (cab) cab.value = p.cab || "";
             if (checkNumber) checkNumber.value = p.check_number || "";
             if (dueDate) dueDate.value = p.due_date || "";
+            renderOperationCheckScan(row, p);
           }
         }
 
@@ -8698,6 +8737,20 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
     if (checkScanPreview) checkScanPreview.removeAttribute("src");
     checkScanPreviewWrap?.classList.add("d-none");
+  });
+
+  document.addEventListener("click", async (event) => {
+    const remove = event.target.closest(".multi-check-scan-current-remove, #checkSaleCurrentScanRemove");
+    if (!remove) return;
+    const checkId = Number(remove.dataset.checkId || 0);
+    if (!checkId || !window.confirm("Rimuovere la scansione associata all'assegno?")) return;
+    try {
+      await deleteCheckScan(checkId);
+      const wrap = remove.closest(".multi-check-scan-current") || document.getElementById("checkSaleCurrentScanWrap");
+      wrap?.classList.add("d-none");
+    } catch (error) {
+      alert(error.message || "Errore rimozione scansione");
+    }
   });
 
   checksManagementRows?.addEventListener("click", async (e) => {
