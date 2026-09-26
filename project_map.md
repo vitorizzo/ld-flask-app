@@ -11,6 +11,7 @@
 - `tools/ui_theme.py` conserva ora il tema attivo e i temi nominati in un unico JSON compatibile con il formato precedente; `routes/settings.py` salva gli upload in `instance/ui_theme_dividers` e li serve autenticati.
 - `templates/home.html` usa `.ld-page`, `.ld-panel`, `.ld-action`/stili tokenizzati per la Home e `.ld-modal` per QR; le regole finali in `static/css/style.css` collegano colori, raggi, padding e touch target.
 - Le regole specifiche del collegamento tema Home sono in `static/css/home.css`; il comportamento QR è in `static/js/home.js`, lasciando `style.css` e `base.html` ai componenti condivisi.
+- `static/css/home.css` contiene breakpoint Home dedicati per desktop, touch e smartphone stretti, con precedenza sulle regole legacy generiche.
 
 ## Timeout MATRIXWS asincrono (2026-09-23)
 
