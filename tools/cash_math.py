@@ -124,7 +124,7 @@ def calculate_closure_pure(
     incasso_consegnato = _d(incasso_consegnato)
     tolleranza = _d(tolleranza)
     cash_day_date = db.session.query(CashDay.day_date).filter(CashDay.id == cash_day_id).scalar()
-    check_cutoff = next_banking_day(cash_day_date) if cash_day_date else date.today()
+    check_cutoff = cash_day_date if cash_day_date else date.today()
 
     delta_fondo = fondo_finale - opening_float
 

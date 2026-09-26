@@ -2535,7 +2535,7 @@ def _build_cash_day_preview_payload(
     fondo_finale_override: Decimal | None = None,
 ) -> dict:
     d = cash_day.day_date
-    cutoff = next_banking_day(d)
+    cutoff = d
 
     checks_debug_row = (
         db.session.query(
@@ -2823,7 +2823,7 @@ def api_cash_day_preview(day_date):
             if isinstance(snapshot_payload, dict):
                 return jsonify(snapshot_payload)
 
-    cutoff = next_banking_day(d)
+    cutoff = d
 
     checks_debug_row = (
         db.session.query(
@@ -4143,7 +4143,7 @@ def api_checks_due():
     else:
         ref_date = date.today()
 
-    cutoff = next_banking_day(ref_date)
+    cutoff = ref_date
 
     include_today_received = (request.args.get("include_today_received") or "1").strip().lower() in ("1", "true", "yes")
 
@@ -5906,7 +5906,7 @@ def api_versabile_detail(day_date):
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
     except ValueError:
         return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
-    cutoff = next_banking_day(d)
+    cutoff = d
     cash_day = (CashDay.query
                 .options(selectinload(CashDay.sales).selectinload(CashSale.payments),
                          selectinload(CashDay.sales).selectinload(CashSale.checks).selectinload(CashSaleCheck.check),
@@ -8793,7 +8793,7 @@ def api_available_checks_for_deposit(day_date):
 
     # versamento incasso:
     # assegni già in mano da prima di oggi, con stato ricevuto o spostato, versabili oggi
-    cutoff = next_banking_day(d)
+    cutoff = d
 
     incasso_checks = (
         CashCheck.query
@@ -8919,7 +8919,7 @@ def api_create_deposit(day_date):
     # --- VALIDAZIONE ---
     for c in checks:
         if deposit_type == "versamento_incasso":
-            cutoff = next_banking_day(d)
+            cutoff = d
             if not (
                     c.status in ["received", "moved"]
                     and c.received_date < d
@@ -9102,7 +9102,7 @@ def api_update_deposit(deposit_id):
         return jsonify({"ok": False, "error": "Banca non valida"}), 400
 
     day_date = deposit.deposit_date
-    cutoff = next_banking_day(day_date)
+    cutoff = day_date
 
     checks = []
     if check_ids:
