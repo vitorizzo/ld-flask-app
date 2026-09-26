@@ -25,6 +25,10 @@ DEFAULT_THEME = {
     "touch_size": 48,
     "modal_width": 720,
     "modal_radius": 10,
+    "navbar_divider": 0,
+    "footer_divider": 0,
+    "divider_color": "#b18b77",
+    "divider_width": 1,
 }
 
 THEME_PRESETS = {
@@ -50,7 +54,7 @@ THEME_PRESETS = {
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 _NUMBER_RANGES = {
     "radius": (0, 32), "page_padding": (0, 48), "base_font_size": (14, 22),
-    "touch_size": (44, 72), "modal_width": (320, 1400), "modal_radius": (0, 32),
+    "touch_size": (44, 72), "modal_width": (320, 1400), "modal_radius": (0, 32), "divider_width": (1, 6),
 }
 
 
@@ -58,7 +62,7 @@ def _clean_theme(value):
     result = copy.deepcopy(DEFAULT_THEME)
     if isinstance(value, dict):
         result.update({key: value[key] for key in result if key in value})
-    for key in ("brand_primary", "brand_accent", "surface", "surface_muted", "text", "text_muted"):
+    for key in ("brand_primary", "brand_accent", "surface", "surface_muted", "text", "text_muted", "divider_color"):
         if not _HEX.match(str(result[key])):
             result[key] = DEFAULT_THEME[key]
     for key, (low, high) in _NUMBER_RANGES.items():
@@ -66,6 +70,8 @@ def _clean_theme(value):
             result[key] = max(low, min(high, int(result[key])))
         except (TypeError, ValueError):
             result[key] = DEFAULT_THEME[key]
+    for key in ("navbar_divider", "footer_divider"):
+        result[key] = 1 if str(result.get(key)).lower() in {"1", "true", "yes", "on"} else 0
     if result.get("preset") not in THEME_PRESETS:
         result["preset"] = "default"
     return result
@@ -108,4 +114,6 @@ def theme_css_vars(theme=None):
         f"--ld-touch-size: {theme['touch_size']}px",
         f"--ld-modal-width: {theme['modal_width']}px",
         f"--ld-modal-radius: {theme['modal_radius']}px",
+        f"--ld-divider-color: {theme['divider_color']}",
+        f"--ld-divider-width: {theme['divider_width']}px",
     ])

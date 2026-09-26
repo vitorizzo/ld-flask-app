@@ -6,6 +6,7 @@
 - `tools/app_factory.py` inietta il tema nel contesto Jinja; `templates/base.html` lo applica al guscio globale.
 - `static/css/style.css` contiene le classi riutilizzabili `.ld-page`, `.ld-panel` e `.ld-modal`; Home e modale QR sono il primo caso pilota.
 - `templates/settings/appearance.html`, `static/css/ui_theme_preview.css` e `static/js/ui_theme_preview.js` espongono anteprime live dello schema pagina e della modale prima del collegamento alle sezioni operative.
+- Il tema supporta `navbar_divider`, `footer_divider`, `divider_color` e `divider_width`; `templates/base.html` applica i due divisori al guscio globale tramite attributi data.
 
 ## Timeout MATRIXWS asincrono (2026-09-23)
 

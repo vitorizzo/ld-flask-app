@@ -50,7 +50,7 @@
     {% block extra_css %}{% endblock %}
 
 </head>
-<body class="app-shell" style="{{ ui_theme_css_vars|default('') }}">
+<body class="app-shell" data-theme-navbar-divider="{{ ui_theme.navbar_divider|default(0) }}" data-theme-footer-divider="{{ ui_theme.footer_divider|default(0) }}" style="{{ ui_theme_css_vars|default('') }}">
     <!-- Navbar -->
     {% if not kiosk_mode %}
         {% include "partials/navbar.html" %}

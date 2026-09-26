@@ -33,6 +33,16 @@
           {% endfor %}
         </div>
       </div></div>
+      <div class="card appearance-card mb-3"><div class="card-body">
+        <h2 class="h5">Divisori della struttura</h2>
+        <p class="text-muted small">Scegli se distinguere visivamente navbar e footer dal corpo della finestra.</p>
+        <div class="row g-3 align-items-end">
+          <div class="col-12 col-sm-6"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="navbar_divider" name="navbar_divider" value="1" {% if theme.navbar_divider %}checked{% endif %}><label class="form-check-label" for="navbar_divider">Divisorio sotto la navbar</label></div></div>
+          <div class="col-12 col-sm-6"><div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="footer_divider" name="footer_divider" value="1" {% if theme.footer_divider %}checked{% endif %}><label class="form-check-label" for="footer_divider">Divisorio sopra il footer</label></div></div>
+          <div class="col-12 col-sm-6"><label class="form-label" for="divider_color">Colore divisorio</label><input class="form-control form-control-color w-100" id="divider_color" name="divider_color" type="color" value="{{ theme.divider_color }}"></div>
+          <div class="col-12 col-sm-6"><label class="form-label" for="divider_width">Spessore divisorio</label><div class="input-group"><input class="form-control" id="divider_width" name="divider_width" type="number" min="1" max="6" value="{{ theme.divider_width }}"><span class="input-group-text">px</span></div></div>
+        </div>
+      </div></div>
       <button class="btn btn-primary btn-lg" type="submit"><i class="fa-solid fa-floppy-disk me-1"></i>Salva aspetto</button>
     </form>
     <div class="theme-preview mt-4" id="themePreview" aria-live="polite">
@@ -42,8 +52,8 @@
       </div>
       <div class="theme-preview-grid">
         <article class="theme-preview-page">
-          <div class="theme-preview-page-head"><span class="theme-preview-logo">LD</span><div><strong>Schema pagina</strong><small>Header, contenuto e spazio di lavoro</small></div><button class="theme-preview-icon" type="button" aria-label="Menu"><i class="fa-solid fa-bars"></i></button></div>
-          <div class="theme-preview-page-body"><h3>Pagina applicativa</h3><p>Questo pannello rappresenta la struttura base delle pagine.</p><div class="theme-preview-panels"><div class="theme-preview-panel"><strong>Pannello</strong><span>Superficie e raggio condivisi</span></div><div class="theme-preview-panel"><strong>Secondo pannello</strong><span>Spaziatura e testo secondario</span></div></div></div>
+          <div class="theme-preview-page-head"><span class="theme-preview-logo">LD</span><div><strong>Schema pagina</strong><small>Header, contenuto e spazio di lavoro</small></div><button class="theme-preview-icon" type="button" aria-label="Menu"><i class="fa-solid fa-bars"></i></button></div><div class="theme-preview-navbar-divider"></div>
+          <div class="theme-preview-page-body"><h3>Pagina applicativa</h3><p>Questo pannello rappresenta la struttura base delle pagine.</p><div class="theme-preview-panels"><div class="theme-preview-panel"><strong>Pannello</strong><span>Superficie e raggio condivisi</span></div><div class="theme-preview-panel"><strong>Secondo pannello</strong><span>Spaziatura e testo secondario</span></div></div></div><div class="theme-preview-footer-divider"></div><div class="theme-preview-page-foot">Footer applicativo</div>
         </article>
         <article class="theme-preview-card"><h3>Tipografia e comandi</h3><p class="theme-preview-muted">Testo secondario e descrizione del componente.</p><div class="d-flex flex-wrap gap-2"><button class="btn btn-primary theme-preview-button" type="button">Azione principale</button><button class="btn btn-outline-secondary theme-preview-button" type="button">Secondaria</button></div><div class="theme-preview-touch mt-3"><i class="fa-solid fa-hand-pointer"></i><span>Area touch minima: <strong data-preview-value="touch_size"></strong></span></div></article>
         <article class="theme-preview-card theme-preview-modal-card"><h3>Finestra modale</h3><div class="theme-preview-modal-window"><div class="theme-preview-modal-head"><strong>Modale dimostrativa</strong><button class="theme-preview-icon" type="button" aria-label="Chiudi"><i class="fa-solid fa-xmark"></i></button></div><div class="theme-preview-modal-body"><label>Campo di esempio</label><input class="form-control" value="Contenuto leggibile" readonly><p class="theme-preview-muted mb-0">La finestra eredita larghezza, raggio, padding e dimensione dei comandi.</p></div><div class="theme-preview-modal-foot"><button class="btn btn-primary theme-preview-button" type="button">Conferma</button></div><span class="theme-preview-resize" aria-hidden="true"></span></div></article>

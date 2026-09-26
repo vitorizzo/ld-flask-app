@@ -511,9 +511,13 @@ def appearance():
         for key in ("brand_primary", "brand_accent", "surface", "surface_muted", "text", "text_muted"):
             if key in request.form:
                 theme[key] = request.form.get(key)
-        for key in ("radius", "page_padding", "base_font_size", "touch_size", "modal_width", "modal_radius"):
+        for key in ("radius", "page_padding", "base_font_size", "touch_size", "modal_width", "modal_radius", "divider_width"):
             if key in request.form:
                 theme[key] = request.form.get(key)
+        theme["navbar_divider"] = 1 if request.form.get("navbar_divider") == "1" else 0
+        theme["footer_divider"] = 1 if request.form.get("footer_divider") == "1" else 0
+        if "divider_color" in request.form:
+            theme["divider_color"] = request.form.get("divider_color")
         try:
             save_theme(theme)
             flash("Aspetto grafico aggiornato.", "success")
