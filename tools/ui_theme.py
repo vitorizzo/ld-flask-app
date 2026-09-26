@@ -25,6 +25,10 @@ DEFAULT_THEME = {
     "touch_size": 48,
     "modal_width": 720,
     "modal_radius": 10,
+    "page_max_width": 1440,
+    "action_min_height": 64,
+    "action_gap": 14,
+    "mobile_action_columns": 2,
     "navbar_divider": 1,
     "footer_divider": 1,
     "navbar_divider_style": "brush",
@@ -58,7 +62,7 @@ THEME_PRESETS = {
 _HEX = re.compile(r"^#[0-9a-fA-F]{6}$")
 _NUMBER_RANGES = {
     "radius": (0, 32), "page_padding": (0, 48), "base_font_size": (14, 22),
-    "touch_size": (44, 72), "modal_width": (320, 1400), "modal_radius": (0, 32), "divider_width": (1, 6),
+    "touch_size": (44, 72), "modal_width": (320, 1400), "modal_radius": (0, 32), "divider_width": (1, 6), "page_max_width": (800, 2200), "action_min_height": (48, 180), "action_gap": (4, 40), "mobile_action_columns": (1, 3),
 }
 
 
@@ -146,6 +150,10 @@ def theme_css_vars(theme=None):
         f"--ld-touch-size: {theme['touch_size']}px",
         f"--ld-modal-width: {theme['modal_width']}px",
         f"--ld-modal-radius: {theme['modal_radius']}px",
+        f"--ld-page-max-width: {theme['page_max_width']}px",
+        f"--ld-action-min-height: {theme['action_min_height']}px",
+        f"--ld-action-gap: {theme['action_gap']}px",
+        f"--ld-mobile-action-columns: {theme['mobile_action_columns']}",
         f"--ld-divider-color: {theme['divider_color']}",
         f"--ld-divider-width: {theme['divider_width']}px",
         f"--ld-navbar-divider-image: {navbar_image}",

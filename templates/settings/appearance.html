@@ -25,6 +25,9 @@
           {% for key, label in [('brand_primary','Colore primario'),('brand_accent','Colore accento'),('surface','Superficie'),('surface_muted','Superficie secondaria'),('text','Testo'),('text_muted','Testo secondario')] %}
           <div class="col-12 col-sm-6 col-lg-4"><label class="form-label" for="{{ key }}">{{ label }}</label><input class="form-control form-control-color w-100" id="{{ key }}" name="{{ key }}" type="color" value="{{ theme[key] }}"></div>
           {% endfor %}
+          {% for key, label, min, max, unit in [('page_max_width','Larghezza massima pagina',800,2200,'px'),('action_min_height','Altezza minima azioni',48,180,'px'),('action_gap','Spazio tra azioni',4,40,'px'),('mobile_action_columns','Colonne azioni su mobile',1,3,'col')] %}
+          <div class="col-12 col-sm-6 col-lg-4"><label class="form-label" for="{{ key }}">{{ label }}</label><div class="input-group"><input class="form-control" id="{{ key }}" name="{{ key }}" type="number" min="{{ min }}" max="{{ max }}" value="{{ theme[key] }}"><span class="input-group-text">{{ unit }}</span></div></div>
+          {% endfor %}
         </div>
       </div></div>
       <div class="card appearance-card mb-3"><div class="card-body">

@@ -519,7 +519,7 @@ def appearance():
         for key in ("brand_primary", "brand_accent", "surface", "surface_muted", "text", "text_muted"):
             if key in request.form:
                 theme[key] = request.form.get(key)
-        for key in ("radius", "page_padding", "base_font_size", "touch_size", "modal_width", "modal_radius", "divider_width"):
+        for key in ("radius", "page_padding", "base_font_size", "touch_size", "modal_width", "modal_radius", "divider_width", "page_max_width", "action_min_height", "action_gap", "mobile_action_columns"):
             if key in request.form:
                 theme[key] = request.form.get(key)
         theme["navbar_divider"] = 1 if request.form.get("navbar_divider") == "1" else 0

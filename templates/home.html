@@ -12,10 +12,10 @@
 {% block content %}
 {% include 'partials/install_banner.html' %}
 
-<section class="welcome-section home-page ld-page">
+<section class="welcome-section home-page ld-page ld-page-standard">
     <h1>LDApp</h1>
     <p>Azioni rapide operative per il lavoro quotidiano dello staff.</p>
-    <div class="quick-actions ld-panel"
+    <div class="quick-actions ld-panel ld-action-grid"
          data-home-tutorial-role="{% if current_user.is_authenticated %}{{ (current_user.active_roles | map(attribute='name') | join(', ')) or 'utente autenticato' }}{% else %}visitatore{% endif %}">
         {% if current_user.is_authenticated and current_user.max_role_weight >= 30 %}
             <button class="quick-action ld-action" type="button" data-manual-order-open data-tutorial-description="Apre direttamente la modale per scegliere giro o ordine diretto, cliente e consegna."><i class="fa-solid fa-plus"></i><span>Inserisci ordine</span></button>

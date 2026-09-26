@@ -12,6 +12,7 @@
 - `templates/home.html` usa `.ld-page`, `.ld-panel`, `.ld-action`/stili tokenizzati per la Home e `.ld-modal` per QR; le regole finali in `static/css/style.css` collegano colori, raggi, padding e touch target.
 - Le regole specifiche del collegamento tema Home sono in `static/css/home.css`; il comportamento QR è in `static/js/home.js`, lasciando `style.css` e `base.html` ai componenti condivisi.
 - `static/css/home.css` contiene breakpoint Home dedicati per desktop, touch e smartphone stretti, con precedenza sulle regole legacy generiche.
+- Le dimensioni comuni di pagina e griglia azioni sono in `style.css` tramite `.ld-page-standard` e `.ld-action-grid`; Home li compone senza definire valori unici.
 
 ## Timeout MATRIXWS asincrono (2026-09-23)
 
