@@ -9,6 +9,8 @@
 - Il tema supporta `navbar_divider`, `footer_divider`, `divider_color` e `divider_width`; `templates/base.html` applica i due divisori al guscio globale tramite attributi data.
 - `navbar_divider_style` e `footer_divider_style` selezionano `brush`, `line` o `none`; `brush` usa `bg-bottom-pattern.png` e `bg-top-pattern.png` già presenti nel tema storico.
 - `tools/ui_theme.py` conserva ora il tema attivo e i temi nominati in un unico JSON compatibile con il formato precedente; `routes/settings.py` salva gli upload in `instance/ui_theme_dividers` e li serve autenticati.
+- `templates/home.html` usa `.ld-page`, `.ld-panel`, `.ld-action`/stili tokenizzati per la Home e `.ld-modal` per QR; le regole finali in `static/css/style.css` collegano colori, raggi, padding e touch target.
+- Le regole specifiche del collegamento tema Home sono in `static/css/home.css`; il comportamento QR è in `static/js/home.js`, lasciando `style.css` e `base.html` ai componenti condivisi.
 
 ## Timeout MATRIXWS asincrono (2026-09-23)
 

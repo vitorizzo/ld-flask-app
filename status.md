@@ -10,6 +10,8 @@ TEST_SYNC_CODEX_20260507_185518
 - Aggiunti i token per i divisori indipendenti navbar/corpo e corpo/footer, con colore e spessore configurabili e anteprima immediata.
 - I divisori ora espongono tre modalità reali: `pennellata` con le immagini storiche, `linea` oppure `nessun divisorio`; il preset LDApp mantiene la pennellata attuale.
 - Il tile consente anche upload di immagini personalizzate per navbar/footer e salvataggio di combinazioni nominate in `AppPreference` (es. `Pincopal Soft`).
+- La Home è il primo collegamento operativo ai token: contenitore pagina, griglia azioni e modale QR reagiscono ai parametri del tema mantenendo i fallback storici.
+- La Home rispetta ora la separazione di sezione: `templates/home.html`, `static/css/home.css` e `static/js/home.js`; rimossi gli stili e lo script specifici aggiunti nel file globale/template.
 ## 2026-09-23 - Confronto effettivo 1011/EC_CLI
 
 - Il confronto diagnostico del test `1011/1` non si limita piu' a conteggi e nomi dei campi: legge tutte le righe valide di `EC_CLI.CSV`, normalizza codici, numeri documento, date, importi e testo, quindi confronta le chiavi record con il batch MATRIXWS completo.

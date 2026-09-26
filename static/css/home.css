@@ -1,0 +1,12 @@
+/* Home: collegamento ai token grafici condivisi. */
+.welcome-section.home-page.ld-page { background-color: color-mix(in srgb, var(--ld-brand-primary) 80%, transparent); color: var(--ld-text); border-radius: var(--ld-radius); padding: var(--ld-page-padding); }
+.home-page.ld-page .quick-actions { padding: var(--ld-page-padding); border-radius: var(--ld-radius); background: color-mix(in srgb, var(--ld-surface) 12%, transparent); }
+.home-page.ld-page .quick-actions > .quick-action { min-height: var(--ld-touch-size); border-radius: var(--ld-radius); background: color-mix(in srgb, var(--ld-brand-primary) 72%, transparent); color: var(--ld-text); border-color: color-mix(in srgb, var(--ld-text) 22%, transparent); }
+.home-page.ld-page .quick-actions > .quick-action:hover { background: var(--ld-brand-accent); color: var(--ld-brand-primary); }
+.app-qr-modal.ld-modal .modal-content { background: var(--ld-surface); color: var(--ld-text); border-radius: var(--ld-modal-radius); }
+.app-qr-modal.ld-modal .modal-header, .app-qr-modal.ld-modal .modal-footer { border-color: color-mix(in srgb, var(--ld-text-muted) 30%, transparent); }
+.app-qr-modal.ld-modal .modal-footer .btn { min-height: var(--ld-touch-size); border-radius: var(--ld-radius); }
+@media (max-width: 820px), (hover: none) and (pointer: coarse) {
+    .home-page.ld-page .quick-actions { gap: max(10px, calc(var(--ld-page-padding) / 2)); }
+    .home-page.ld-page .quick-actions > .quick-action { min-height: var(--ld-touch-size); padding: calc(var(--ld-page-padding) / 1.5); font-size: var(--ld-base-font-size); }
+}

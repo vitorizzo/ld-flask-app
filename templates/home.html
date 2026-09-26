@@ -5,6 +5,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/install_banner.css', v=app_version ~ '-persistent1') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/auth_tutorial.css', v=app_version ~ '-lady1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/home.css', v=app_version ~ '-theme1') }}">
 {% endblock %}
 
 
@@ -14,10 +15,10 @@
 <section class="welcome-section home-page ld-page">
     <h1>LDApp</h1>
     <p>Azioni rapide operative per il lavoro quotidiano dello staff.</p>
-    <div class="quick-actions"
+    <div class="quick-actions ld-panel"
          data-home-tutorial-role="{% if current_user.is_authenticated %}{{ (current_user.active_roles | map(attribute='name') | join(', ')) or 'utente autenticato' }}{% else %}visitatore{% endif %}">
         {% if current_user.is_authenticated and current_user.max_role_weight >= 30 %}
-            <button class="quick-action" type="button" data-manual-order-open data-tutorial-description="Apre direttamente la modale per scegliere giro o ordine diretto, cliente e consegna."><i class="fa-solid fa-plus"></i><span>Inserisci ordine</span></button>
+            <button class="quick-action ld-action" type="button" data-manual-order-open data-tutorial-description="Apre direttamente la modale per scegliere giro o ordine diretto, cliente e consegna."><i class="fa-solid fa-plus"></i><span>Inserisci ordine</span></button>
             <a class="quick-action" href="/registry/customers" data-tutorial-description="Consulta le anagrafiche e i contatti della clientela."><i class="fa-regular fa-address-book"></i><span>Rubrica clienti</span></a>
             <a class="quick-action" href="/kiosk" data-tutorial-description="Controlla a colpo d'occhio lo stato degli ordini in lavorazione."><i class="fa-solid fa-table-columns"></i><span>Bacheca ordini</span></a>
             <a class="quick-action" href="/wine-cards" data-tutorial-description="Prepara e consulta le carte dei vini disponibili."><i class="fa-solid fa-wine-bottle"></i><span>Carte vini</span></a>
@@ -86,29 +87,5 @@
     <script src="{{ url_for('static', filename='js/install_banner.js', v=app_version ~ '-persistent1') }}"></script>
     <script src="{{ url_for('static', filename='js/home_tutorial.js', v=app_version ~ '-menu1') }}"></script>
     <script src="{{ url_for('static', filename='js/manual_order_modal.js', v=app_version ~ '-home2') }}"></script>
-    <script>
-    document.addEventListener("DOMContentLoaded", () => {
-      const modal = document.getElementById("appQrModal");
-      if (!modal) return;
-      if (modal.parentElement !== document.body) document.body.appendChild(modal);
-      const qrModal = window.bootstrap ? bootstrap.Modal.getOrCreateInstance(modal) : null;
-      document.querySelector('[data-app-qr-trigger]')?.addEventListener("click", (event) => {
-        event.preventDefault();
-        qrModal?.show();
-      });
-      document.querySelector("[data-copy-app-link]")?.addEventListener("click", async () => {
-        const url = "https://ldapp.ldenoteca.it";
-        try {
-          await navigator.clipboard.writeText(url);
-        } catch (err) {
-          const input = document.createElement("input");
-          input.value = url;
-          document.body.appendChild(input);
-          input.select();
-          document.execCommand("copy");
-          input.remove();
-        }
-      });
-    });
-    </script>
+    <script src="{{ url_for('static', filename='js/home.js', v=app_version ~ '-theme1') }}"></script>
 {% endblock %}
