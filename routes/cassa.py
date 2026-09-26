@@ -5906,8 +5906,10 @@ def api_versabile_detail(day_date):
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
     except ValueError:
         return jsonify({"ok": False, "error": "Invalid day_date format (YYYY-MM-DD)"}), 400
+    cutoff = next_banking_day(d)
     cash_day = (CashDay.query
                 .options(selectinload(CashDay.sales).selectinload(CashSale.payments),
+                         selectinload(CashDay.sales).selectinload(CashSale.checks).selectinload(CashSaleCheck.check),
                          selectinload(CashDay.expenses).selectinload(CashExpense.payments),
                          selectinload(CashDay.pos_moves))
                 .filter(CashDay.day_date == d).first())
@@ -5922,13 +5924,23 @@ def api_versabile_detail(day_date):
                             "source": source, "operation_id": operation_id})
 
     for sale in cash_day.sales:
+        sale_checks = sorted(sale.checks or [], key=lambda item: item.id or 0)
+        check_idx = 0
         for payment in sale.payments:
             flag = (payment.flag or "*").strip()
             amount = _to_dec(payment.amount)
-            if payment.direction == "in" and payment.method == "cash" and not payment.off_cash and flag in {"*", "**"}:
+            if payment.direction == "in" and payment.method == "cash" and flag in {"*", "**"}:
                 add("Incasso contanti", payment.description or sale.customer_label, amount, "incasso", payment.id)
-            elif payment.direction == "in" and payment.method == "check" and flag == "*":
-                add("Assegno odierno", payment.description or sale.customer_label, amount, "assegno", payment.id)
+            elif payment.direction == "in" and payment.method == "pos" and flag in {"*", "**"}:
+                add("Incasso POS", payment.description or sale.customer_label, amount, "pos_incasso", payment.id)
+            elif payment.direction == "in" and payment.method == "check":
+                linked = sale_checks[check_idx] if check_idx < len(sale_checks) else None
+                check_idx += 1
+                check = linked.check if linked else None
+                # La data di scadenza, non il flag, stabilisce se l'assegno è
+                # versabile nella giornata corrente.
+                if check and check.due_date and check.due_date <= cutoff:
+                    add("Assegno versabile", payment.description or sale.customer_label, check.amount, "assegno", check.id)
 
     for closure in (CashReceiptClosure.query.filter_by(cash_day_id=cash_day.id)
                     .order_by(CashReceiptClosure.created_at.asc(), CashReceiptClosure.id.asc()).all()):
@@ -5945,14 +5957,15 @@ def api_versabile_detail(day_date):
 
     # La formula storica compensa il totale POS netto: mostriamo le singole
     # componenti così il dettaglio spiega anche perché non alterano il totale.
-    pos_net = Decimal("0")
     for move in cash_day.pos_moves:
         amount = _to_dec(move.amount)
-        signed = amount if move.direction == "in" else -amount
-        pos_net += signed
-        add("Movimento POS", move.notes or "Movimento POS", signed, "pos", move.id)
-    if pos_net:
-        add("Compensazione POS", "Compensazione prevista dal calcolo versabile", -pos_net, "pos_compensazione")
+        if move.direction == "in":
+            add("Movimento POS", move.notes or "Movimento POS", -amount, "pos", move.id)
+        else:
+            # Nel calcolo KPI uno storno POS è sottratto e poi compensato
+            # dentro il POS netto: le due righe rendono esplicita la formula.
+            add("Storno POS", move.notes or "Storno POS", -amount, "pos", move.id)
+            add("Compensazione storno POS", "Compensazione nel POS netto", amount, "pos_compensazione", move.id)
 
     return jsonify({"ok": True, "day_date": d.isoformat(), "entries": entries,
                     "total": float(sum((_to_dec(x["amount"]) for x in entries), Decimal("0")))})
