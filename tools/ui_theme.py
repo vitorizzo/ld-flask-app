@@ -25,8 +25,10 @@ DEFAULT_THEME = {
     "touch_size": 48,
     "modal_width": 720,
     "modal_radius": 10,
-    "navbar_divider": 0,
-    "footer_divider": 0,
+    "navbar_divider": 1,
+    "footer_divider": 1,
+    "navbar_divider_style": "brush",
+    "footer_divider_style": "brush",
     "divider_color": "#b18b77",
     "divider_width": 1,
 }
@@ -72,6 +74,9 @@ def _clean_theme(value):
             result[key] = DEFAULT_THEME[key]
     for key in ("navbar_divider", "footer_divider"):
         result[key] = 1 if str(result.get(key)).lower() in {"1", "true", "yes", "on"} else 0
+    for key in ("navbar_divider_style", "footer_divider_style"):
+        if result.get(key) not in {"brush", "line", "none"}:
+            result[key] = "brush" if result.get(key.replace("_style", "")) else "none"
     if result.get("preset") not in THEME_PRESETS:
         result["preset"] = "default"
     return result

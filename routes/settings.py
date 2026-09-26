@@ -516,6 +516,9 @@ def appearance():
                 theme[key] = request.form.get(key)
         theme["navbar_divider"] = 1 if request.form.get("navbar_divider") == "1" else 0
         theme["footer_divider"] = 1 if request.form.get("footer_divider") == "1" else 0
+        for key in ("navbar_divider_style", "footer_divider_style"):
+            if request.form.get(key) in {"brush", "line", "none"}:
+                theme[key] = request.form.get(key)
         if "divider_color" in request.form:
             theme["divider_color"] = request.form.get("divider_color")
         try:

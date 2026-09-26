@@ -8,6 +8,7 @@ TEST_SYNC_CODEX_20260507_185518
 - Il preset `LDApp (attuale)` è stato riallineato ai valori cromatici già presenti nel CSS storico: marrone `#4a2c2a`, accento ciano `#0dcaf0`, testo chiaro e raggi da 10px.
 - La pagina Aspetto grafico ora include anteprime live di pagina, pannello, tipografia/comandi touch e finestra modale; i campi aggiornano la sola preview in tempo reale prima del salvataggio.
 - Aggiunti i token per i divisori indipendenti navbar/corpo e corpo/footer, con colore e spessore configurabili e anteprima immediata.
+- I divisori ora espongono tre modalità reali: `pennellata` con le immagini storiche, `linea` oppure `nessun divisorio`; il preset LDApp mantiene la pennellata attuale.
 ## 2026-09-23 - Confronto effettivo 1011/EC_CLI
 
 - Il confronto diagnostico del test `1011/1` non si limita piu' a conteggi e nomi dei campi: legge tutte le righe valide di `EC_CLI.CSV`, normalizza codici, numeri documento, date, importi e testo, quindi confronta le chiavi record con il batch MATRIXWS completo.

@@ -190,8 +190,10 @@ section {
   background: transparent;
 }
 
-body.app-shell[data-theme-navbar-divider="1"] .navbar { border-bottom: var(--ld-divider-width) solid var(--ld-divider-color); }
-body.app-shell[data-theme-footer-divider="1"] .footer { border-top: var(--ld-divider-width) solid var(--ld-divider-color); }
+body.app-shell[data-theme-navbar-divider-style="line"] .navbar { background-image: none; border-bottom: var(--ld-divider-width) solid var(--ld-divider-color); }
+body.app-shell[data-theme-navbar-divider-style="none"] .navbar { background-image: none; border-bottom: 0; }
+body.app-shell[data-theme-footer-divider-style="line"] .footer { background-image: none; border-top: var(--ld-divider-width) solid var(--ld-divider-color); }
+body.app-shell[data-theme-footer-divider-style="none"] .footer { background-image: none; border-top: 0; }
 
 .navbar-brand {
   position: relative;

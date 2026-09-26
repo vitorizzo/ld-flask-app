@@ -7,6 +7,7 @@
 - `static/css/style.css` contiene le classi riutilizzabili `.ld-page`, `.ld-panel` e `.ld-modal`; Home e modale QR sono il primo caso pilota.
 - `templates/settings/appearance.html`, `static/css/ui_theme_preview.css` e `static/js/ui_theme_preview.js` espongono anteprime live dello schema pagina e della modale prima del collegamento alle sezioni operative.
 - Il tema supporta `navbar_divider`, `footer_divider`, `divider_color` e `divider_width`; `templates/base.html` applica i due divisori al guscio globale tramite attributi data.
+- `navbar_divider_style` e `footer_divider_style` selezionano `brush`, `line` o `none`; `brush` usa `bg-bottom-pattern.png` e `bg-top-pattern.png` già presenti nel tema storico.
 
 ## Timeout MATRIXWS asincrono (2026-09-23)
 
