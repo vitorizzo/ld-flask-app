@@ -86,6 +86,18 @@ CHECK_STATUS_LABELS = {
     "protested": "Protestato",
     "withdrawn": "Ritirato",
 }
+
+
+def _match_sale_check_for_payment(payment, sale_checks, used_check_ids=None):
+    """Abbina un pagamento assegno al relativo assegno anche dopo riordinamenti."""
+    used_check_ids = used_check_ids if used_check_ids is not None else set()
+    candidates = [item for item in (sale_checks or []) if item and item.check and item.check.id not in used_check_ids]
+    payment_amount = _to_dec(getattr(payment, "amount", 0))
+    same_amount = [item for item in candidates if _to_dec(item.check.amount) == payment_amount]
+    linked = same_amount[0] if len(same_amount) == 1 else (candidates[0] if candidates else None)
+    if linked and linked.check:
+        used_check_ids.add(linked.check.id)
+    return linked
 CHECK_STATUS_TRANSITIONS = {
     "received": ("moved", "spostato", "anticipato", "deposited", "withdrawn"),
     "moved": ("received", "anticipato", "deposited", "withdrawn"),
@@ -5795,7 +5807,7 @@ def api_list_sales(day_date):
     if cash_day:
         for s in cash_day.sales:
             sale_checks = sorted(s.checks or [], key=lambda item: item.id or 0)
-            check_idx = 0
+            used_check_ids = set()
 
             pay = []
             for p in (s.payments or []):
@@ -5825,9 +5837,8 @@ def api_list_sales(day_date):
                     })
 
                 elif p.method == "check":
-                    linked_sale_check = sale_checks[check_idx] if check_idx < len(sale_checks) else None
+                    linked_sale_check = _match_sale_check_for_payment(p, sale_checks, used_check_ids)
                     linked_check = linked_sale_check.check if linked_sale_check and linked_sale_check.check else None
-                    check_idx += 1
 
                     row.update({
                         "check_id": linked_check.id if linked_check else None,
@@ -5938,7 +5949,7 @@ def api_versabile_detail(day_date):
 
     for sale in cash_day.sales:
         sale_checks = sorted(sale.checks or [], key=lambda item: item.id or 0)
-        check_idx = 0
+        used_check_ids = set()
         for payment in sale.payments:
             flag = (payment.flag or "*").strip()
             amount = _to_dec(payment.amount)
@@ -5947,8 +5958,7 @@ def api_versabile_detail(day_date):
             elif payment.direction == "in" and payment.method == "pos" and flag in {"*", "**"}:
                 add("Incasso POS", payment.description or sale.customer_label, amount, "pos_incasso", payment.id)
             elif payment.direction == "in" and payment.method == "check":
-                linked = sale_checks[check_idx] if check_idx < len(sale_checks) else None
-                check_idx += 1
+                linked = _match_sale_check_for_payment(payment, sale_checks, used_check_ids)
                 check = linked.check if linked else None
                 # La data di scadenza, non il flag, stabilisce se l'assegno è
                 # versabile nella giornata corrente.
