@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}LD Enoteca - Aspetto grafico{% endblock %}
+{% block content %}
+<section class="welcome-section page-shell appearance-page">
+  <div class="container-fluid">
+    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+      <div><h1 class="mb-1">Aspetto grafico</h1><div class="text-muted">Parametri condivisi per pagine, modali e componenti responsive.</div></div>
+      <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}"><i class="fa-solid fa-arrow-left me-1"></i>Impostazioni</a>
+    </div>
+    <form method="post" class="appearance-form">
+      <div class="card appearance-card mb-3"><div class="card-body">
+        <h2 class="h5">Tema</h2>
+        <p class="text-muted small">I preset valorizzano i token comuni; i campi personalizzati possono essere rifiniti in seguito.</p>
+        <label class="form-label" for="themePreset">Preset</label>
+        <select class="form-select" id="themePreset" name="preset">
+          {% for key, preset in presets.items() %}<option value="{{ key }}" {% if theme.preset == key %}selected{% endif %}>{{ preset.label }}</option>{% endfor %}
+        </select>
+      </div></div>
+      <div class="card appearance-card mb-3"><div class="card-body">
+        <h2 class="h5">Colori</h2>
+        <div class="row g-3">
+          {% for key, label in [('brand_primary','Colore primario'),('brand_accent','Colore accento'),('surface','Superficie'),('surface_muted','Superficie secondaria'),('text','Testo'),('text_muted','Testo secondario')] %}
+          <div class="col-12 col-sm-6 col-lg-4"><label class="form-label" for="{{ key }}">{{ label }}</label><input class="form-control form-control-color w-100" id="{{ key }}" name="{{ key }}" type="color" value="{{ theme[key] }}"></div>
+          {% endfor %}
+        </div>
+      </div></div>
+      <div class="card appearance-card mb-3"><div class="card-body">
+        <h2 class="h5">Dimensioni condivise</h2>
+        <div class="row g-3">
+          {% for key, label, min, max, unit in [('base_font_size','Testo base',14,22,'px'),('touch_size','Dimensione minima touch',44,72,'px'),('page_padding','Padding pagina',0,48,'px'),('radius','Raggio componenti',0,32,'px'),('modal_width','Larghezza modale',320,1400,'px'),('modal_radius','Raggio modale',0,32,'px')] %}
+          <div class="col-12 col-sm-6 col-lg-4"><label class="form-label" for="{{ key }}">{{ label }}</label><div class="input-group"><input class="form-control" id="{{ key }}" name="{{ key }}" type="number" min="{{ min }}" max="{{ max }}" value="{{ theme[key] }}"><span class="input-group-text">{{ unit }}</span></div></div>
+          {% endfor %}
+        </div>
+      </div></div>
+      <button class="btn btn-primary btn-lg" type="submit"><i class="fa-solid fa-floppy-disk me-1"></i>Salva aspetto</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

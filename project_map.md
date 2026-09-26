@@ -1,4 +1,11 @@
 # PROJECT_MAP.md — v2.4
+## Aspetto grafico condiviso (2026-09-26)
+
+- `tools/ui_theme.py` definisce token, preset, validazione e persistenza del tema applicativo in `AppPreference` (`ui.theme`).
+- `routes/settings.py` espone `GET/POST /settings/appearance` e il tile `Aspetto grafico` nella dashboard Impostazioni.
+- `tools/app_factory.py` inietta il tema nel contesto Jinja; `templates/base.html` lo applica al guscio globale.
+- `static/css/style.css` contiene le classi riutilizzabili `.ld-page`, `.ld-panel` e `.ld-modal`; Home e modale QR sono il primo caso pilota.
+
 ## Timeout MATRIXWS asincrono (2026-09-23)
 
 - `tools/matrixws_client.py` usa fino a 300 secondi per l'avvio `EVWSASYNC` e fino a 180 secondi per la lettura del batch; il server puo' accodare la richiesta prima di restituire il batch UUID.

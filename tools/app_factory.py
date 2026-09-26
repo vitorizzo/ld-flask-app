@@ -20,6 +20,7 @@ from tools.log_utils import get_logger
 from models import CustomerPaymentCase, User, Menu, PasswordResetToken, SupportTicket
 from routes.tools import get_user_menu
 from tools.preferences import PREFERENCE_DEFINITIONS, load_preferences_into_app_config
+from tools.ui_theme import load_theme, theme_css_vars
 from tools.customer_memberships import (
     ACCESS_ADMINISTRATION,
     ACCESS_MANAGEMENT,
@@ -370,6 +371,15 @@ def create_app():
             "app_version": app.config.get("APP_VERSION", "dev"),
             "customer_can_request_collaborators": can_administer_customers,
         }
+
+    @app.context_processor
+    def inject_ui_theme():
+        try:
+            theme = load_theme()
+            return {"ui_theme": theme, "ui_theme_css_vars": theme_css_vars(theme)}
+        except Exception:
+            logger.exception("Impossibile caricare il tema applicativo")
+            return {"ui_theme": {}, "ui_theme_css_vars": ""}
 
     @app.route("/app-version.json")
     def app_version():

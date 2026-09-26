@@ -50,7 +50,7 @@
     {% block extra_css %}{% endblock %}
 
 </head>
-<body class="app-shell">
+<body class="app-shell" style="{{ ui_theme_css_vars|default('') }}">
     <!-- Navbar -->
     {% if not kiosk_mode %}
         {% include "partials/navbar.html" %}

@@ -1,4 +1,10 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-09-26 - Fondazione aspetto grafico condiviso
+
+- Aggiunto il tile Impostazioni -> Aspetto grafico con preset e token modificabili per colori, tipografia, spaziature, touch target e modali.
+- I valori vengono salvati in `AppPreference` nella chiave `ui.theme` e iniettati globalmente come variabili CSS.
+- Aggiunte le classi base `.ld-page`, `.ld-panel` e `.ld-modal`; la Home e la modale QR le usano come primo caso pilota.
+- Verifica successiva: applicare progressivamente lo standard alle modali e alle pagine responsive senza duplicare parametri locali.
 ## 2026-09-23 - Confronto effettivo 1011/EC_CLI
 
 - Il confronto diagnostico del test `1011/1` non si limita piu' a conteggi e nomi dei campi: legge tutte le righe valide di `EC_CLI.CSV`, normalizza codici, numeri documento, date, importi e testo, quindi confronta le chiavi record con il batch MATRIXWS completo.

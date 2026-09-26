@@ -99,6 +99,7 @@ from config.tasks import (
 )
 from tools.ps_util import get_product_by_code
 from tools.log_utils import log_task, get_logger
+from tools.ui_theme import DEFAULT_THEME, THEME_PRESETS, load_theme, save_theme
 import hashlib
 from datetime import datetime, date, time, timedelta, timezone
 
@@ -379,6 +380,14 @@ def settings_index():
             "min_weight": 40,
         },
         {
+            "title": "Aspetto grafico",
+            "description": "Tema, dimensioni, spaziature e componenti grafici condivisi.",
+            "route": url_for("settings.appearance"),
+            "icon": "fa-solid fa-palette",
+            "icon_class": "text-bg-primary",
+            "min_weight": 40,
+        },
+        {
             "title": "Banche",
             "description": "Conti e istituti usati nei versamenti e negli incassi.",
             "route": url_for("settings.banks_index"),
@@ -486,6 +495,34 @@ def settings_index():
     max_weight = current_user.max_role_weight or 0
     entries = [entry for entry in all_entries if max_weight >= entry["min_weight"]]
     return render_template("settings/index.html", entries=entries)
+
+
+@settings_bp.route("/appearance", methods=["GET", "POST"])
+@login_required
+@role_required(40)
+@log_task(logger)
+def appearance():
+    if request.method == "POST":
+        theme = load_theme()
+        preset = (request.form.get("preset") or "default").strip()
+        if preset in THEME_PRESETS:
+            theme.update(THEME_PRESETS[preset].get("values", {}))
+            theme["preset"] = preset
+        for key in ("brand_primary", "brand_accent", "surface", "surface_muted", "text", "text_muted"):
+            if key in request.form:
+                theme[key] = request.form.get(key)
+        for key in ("radius", "page_padding", "base_font_size", "touch_size", "modal_width", "modal_radius"):
+            if key in request.form:
+                theme[key] = request.form.get(key)
+        try:
+            save_theme(theme)
+            flash("Aspetto grafico aggiornato.", "success")
+        except Exception as exc:
+            db.session.rollback()
+            logger.exception("Errore aggiornando aspetto grafico")
+            flash(f"Impossibile aggiornare l'aspetto grafico: {exc}", "danger")
+        return redirect(url_for("settings.appearance"))
+    return render_template("settings/appearance.html", theme=load_theme(), presets=THEME_PRESETS)
 
 
 @settings_bp.route("/import-transfer-definitions", methods=["GET", "POST"])
