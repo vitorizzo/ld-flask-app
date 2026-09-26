@@ -47,6 +47,52 @@
     .warehouse-page .badge { font-size: .95rem; }
     .warehouse-page .form-check-label, .warehouse-page small { font-size: .95rem; }
   }
+  /* Scala mobile esplicita: evita che le regole globali dell'app riducano il testo. */
+  @media screen and (max-width: 900px) {
+    .warehouse-page,
+    .warehouse-page input,
+    .warehouse-page select,
+    .warehouse-page button,
+    .warehouse-page table {
+      -webkit-text-size-adjust: 100%;
+    }
+    .warehouse-page { font-size: 18px !important; }
+    .warehouse-page h1 { font-size: 2rem !important; }
+    .warehouse-page p,
+    .warehouse-page label,
+    .warehouse-page .form-label,
+    .warehouse-page .form-control,
+    .warehouse-page .form-select,
+    .warehouse-page .btn { font-size: 1.05rem !important; }
+    .warehouse-page .form-control,
+    .warehouse-page .form-select,
+    .warehouse-page .btn { min-height: 52px !important; }
+    .warehouse-page tbody td { font-size: 1.08rem !important; line-height: 1.45 !important; }
+    .warehouse-page tbody td::before { font-size: 1.02rem !important; }
+    .warehouse-page .badge,
+    .warehouse-page small { font-size: 1rem !important; }
+  }
+  /* Seconda scala touch già adottata dall'app per viewport mobili ampie / alta risoluzione. */
+  @media (hover: none) and (pointer: coarse) and (min-width: 821px) {
+    :root { --warehouse-touch: 92px; --warehouse-text: 30px; --warehouse-gap: 24px; }
+    .warehouse-page { font-size: var(--warehouse-text) !important; padding: 28px 32px; }
+    .warehouse-page h1 { font-size: 2.4rem !important; }
+    .warehouse-page p,
+    .warehouse-page label,
+    .warehouse-page .form-label,
+    .warehouse-page .form-control,
+    .warehouse-page .form-select,
+    .warehouse-page .btn { font-size: var(--warehouse-text) !important; }
+    .warehouse-page .form-control,
+    .warehouse-page .form-select,
+    .warehouse-page .btn { min-height: var(--warehouse-touch) !important; padding: 20px 24px; }
+    .warehouse-page .filters { padding: var(--warehouse-gap) !important; }
+    .warehouse-page tbody td { font-size: var(--warehouse-text) !important; line-height: 1.4 !important; padding: 16px 0; }
+    .warehouse-page tbody td::before { font-size: var(--warehouse-text) !important; }
+    .warehouse-page .badge,
+    .warehouse-page small { font-size: 1.35rem !important; }
+    .warehouse-page .btn-group .btn { min-height: var(--warehouse-touch) !important; }
+  }
 </style>
 {% endblock %}
 
