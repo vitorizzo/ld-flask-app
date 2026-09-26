@@ -1247,6 +1247,9 @@ def _parse_check_payload(data, existing_check: CashCheck | None = None):
     except (TypeError, ValueError):
         raise ValueError("Data scadenza non valida")
 
+    if due_date.year < 1900 or due_date.year > 2100:
+        raise ValueError("Data scadenza non valida")
+
     customer_id = data.get("customer_id")
     customer_label = (data.get("customer_label") or "").strip()
 
@@ -4020,7 +4023,10 @@ def _validate_bank(bank_id):
 
 def _parse_due_date(value):
     try:
-        return datetime.strptime(str(value), "%Y-%m-%d").date()
+        parsed = datetime.strptime(str(value), "%Y-%m-%d").date()
+        if parsed.year < 1900 or parsed.year > 2100:
+            raise ValueError
+        return parsed
     except ValueError:
         raise ValueError("Invalid due_date format (YYYY-MM-DD)")
 
