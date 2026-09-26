@@ -13,22 +13,22 @@ THEME_KEY = "ui.theme"
 
 DEFAULT_THEME = {
     "preset": "default",
-    "brand_primary": "#2c3e51",
-    "brand_accent": "#b8894b",
+    "brand_primary": "#4a2c2a",
+    "brand_accent": "#0dcaf0",
     "surface": "#ffffff",
-    "surface_muted": "#f4f6f8",
-    "text": "#172033",
-    "text_muted": "#64748b",
-    "radius": 14,
+    "surface_muted": "#4a2c2a",
+    "text": "#ffffff",
+    "text_muted": "#f1d9d0",
+    "radius": 10,
     "page_padding": 18,
     "base_font_size": 16,
     "touch_size": 48,
     "modal_width": 720,
-    "modal_radius": 16,
+    "modal_radius": 10,
 }
 
 THEME_PRESETS = {
-    "default": {"label": "LDApp", "values": {}},
+    "default": {"label": "LDApp (attuale)", "values": {}},
     "high_contrast": {
         "label": "Alto contrasto",
         "values": {

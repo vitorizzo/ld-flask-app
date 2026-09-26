@@ -70,18 +70,18 @@ body.app-shell #flash-message {
 
 /* Token grafici condivisi: le pagine possono usarli senza ridefinire valori locali. */
 body.app-shell {
-    --ld-brand-primary: #2c3e51;
-    --ld-brand-accent: #b8894b;
+    --ld-brand-primary: #4a2c2a;
+    --ld-brand-accent: #0dcaf0;
     --ld-surface: #fff;
-    --ld-surface-muted: #f4f6f8;
-    --ld-text: #172033;
-    --ld-text-muted: #64748b;
-    --ld-radius: 14px;
+    --ld-surface-muted: #4a2c2a;
+    --ld-text: #fff;
+    --ld-text-muted: #f1d9d0;
+    --ld-radius: 10px;
     --ld-page-padding: 18px;
     --ld-base-font-size: 16px;
     --ld-touch-size: 48px;
     --ld-modal-width: 720px;
-    --ld-modal-radius: 16px;
+    --ld-modal-radius: 10px;
     font-size: var(--ld-base-font-size);
 }
 
