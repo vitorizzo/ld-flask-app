@@ -4331,3 +4331,13 @@ body.kiosk-body #flash-message,
     .ld-action-grid > .quick-action i,
     .ld-action-grid > .ld-action i { font-size: calc(var(--ld-mobile-font-size) * 1.25); }
 }
+
+/* La vecchia Home distingueva il mobile stretto dai dispositivi touch con viewport ampia. */
+@media (hover: none) and (pointer: coarse) and (min-width: 821px) {
+    body.app-shell {
+        --ld-mobile-font-size: clamp(28px, 4vw, 45px);
+        --ld-mobile-touch-size: clamp(120px, 17vw, 190px);
+        --ld-mobile-page-padding: clamp(28px, 5vw, 50px);
+    }
+    .ld-page-standard h1 { font-size: clamp(3rem, 8vw, 6.2rem); }
+}
