@@ -4341,3 +4341,27 @@ body.kiosk-body #flash-message,
     }
     .ld-page-standard h1 { font-size: clamp(3rem, 8vw, 6.2rem); }
 }
+
+/* Scala standard maggiorata: agisce anche sui temi già salvati nel database. */
+.ld-action-grid > .quick-action,
+.ld-action-grid > .ld-action {
+    min-height: calc(var(--ld-action-min-height) * 2) !important;
+    padding: calc(var(--ld-page-padding) * 1.5) !important;
+    font-size: calc(var(--ld-base-font-size) * 2) !important;
+}
+.ld-action-grid > .quick-action i,
+.ld-action-grid > .ld-action i {
+    font-size: calc(var(--ld-base-font-size) * 2.2) !important;
+}
+@media (max-width: 820px), (hover: none) and (pointer: coarse) {
+    .ld-page-standard { font-size: calc(var(--ld-mobile-font-size) * 2) !important; }
+    .ld-page-standard h1 { font-size: clamp(3rem, 12vw, 6.8rem) !important; }
+    .ld-action-grid > .quick-action,
+    .ld-action-grid > .ld-action {
+        min-height: calc(var(--ld-mobile-touch-size) * 2) !important;
+        padding: calc(var(--ld-mobile-page-padding) * 1.5) !important;
+        font-size: calc(var(--ld-mobile-font-size) * 2) !important;
+    }
+    .ld-action-grid > .quick-action i,
+    .ld-action-grid > .ld-action i { font-size: calc(var(--ld-mobile-font-size) * 2.2) !important; }
+}
