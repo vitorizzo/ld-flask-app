@@ -113,10 +113,12 @@ body.app-shell {
 .ld-action-grid > .ld-action, .ld-action-grid > .quick-action { min-height: var(--ld-action-min-height); }
 
 @media (max-width: 820px), (hover: none) and (pointer: coarse) {
-    .ld-page { padding: max(12px, var(--ld-page-padding)); border-radius: max(10px, var(--ld-radius)); }
+    .ld-page { padding: var(--ld-mobile-page-padding); border-radius: max(10px, var(--ld-radius)); font-size: var(--ld-mobile-font-size); }
     .ld-modal .modal-dialog { width: 100%; max-width: 100%; margin: 0; min-height: 100%; }
     .ld-modal .modal-content { min-height: 100dvh; max-height: 100dvh; border-radius: 0; }
-    .ld-action-grid { grid-template-columns: repeat(var(--ld-mobile-action-columns), minmax(0, 1fr)); }
+    .ld-action-grid { grid-template-columns: repeat(var(--ld-mobile-action-columns), minmax(0, 1fr)); gap: var(--ld-action-gap); }
+    .ld-action-grid > .ld-action, .ld-action-grid > .quick-action { min-height: var(--ld-mobile-touch-size); font-size: var(--ld-mobile-font-size); }
+    .ld-page-standard h1 { font-size: clamp(2.2rem, 9vw, 3.4rem); }
 }
 @media (hover: none) and (pointer: coarse) and (max-width: 520px) { .ld-action-grid { grid-template-columns: 1fr; } }
 
@@ -4318,4 +4320,14 @@ body.kiosk-body #flash-message,
     .developer-kpi-card {
         padding: 15px;
     }
+}
+
+/* Scala mobile standard: viene dopo le regole legacy per avere effetto anche sulle pagine storiche. */
+@media (max-width: 820px), (hover: none) and (pointer: coarse) {
+    .ld-page-standard { padding: var(--ld-mobile-page-padding); font-size: var(--ld-mobile-font-size); }
+    .ld-page-standard h1 { font-size: clamp(2.2rem, 9vw, 3.4rem); }
+    .ld-action-grid > .quick-action,
+    .ld-action-grid > .ld-action { min-height: var(--ld-mobile-touch-size); padding: var(--ld-mobile-page-padding); font-size: var(--ld-mobile-font-size); }
+    .ld-action-grid > .quick-action i,
+    .ld-action-grid > .ld-action i { font-size: calc(var(--ld-mobile-font-size) * 1.25); }
 }

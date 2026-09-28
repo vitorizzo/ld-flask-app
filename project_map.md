@@ -13,6 +13,7 @@
 - Le regole specifiche del collegamento tema Home sono in `static/css/home.css`; il comportamento QR è in `static/js/home.js`, lasciando `style.css` e `base.html` ai componenti condivisi.
 - `static/css/home.css` contiene breakpoint Home dedicati per desktop, touch e smartphone stretti, con precedenza sulle regole legacy generiche.
 - Le dimensioni comuni di pagina e griglia azioni sono in `style.css` tramite `.ld-page-standard` e `.ld-action-grid`; Home li compone senza definire valori unici.
+- La scala mobile condivisa usa i token `mobile_font_size`, `mobile_touch_size` e `mobile_page_padding`, modificabili da Aspetto grafico e applicabili a tutte le pagine che adottano le classi standard.
 
 ## Timeout MATRIXWS asincrono (2026-09-23)
 

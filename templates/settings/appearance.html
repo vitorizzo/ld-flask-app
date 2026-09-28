@@ -28,6 +28,9 @@
           {% for key, label, min, max, unit in [('page_max_width','Larghezza massima pagina',800,2200,'px'),('action_min_height','Altezza minima azioni',48,180,'px'),('action_gap','Spazio tra azioni',4,40,'px'),('mobile_action_columns','Colonne azioni su mobile',1,3,'col')] %}
           <div class="col-12 col-sm-6 col-lg-4"><label class="form-label" for="{{ key }}">{{ label }}</label><div class="input-group"><input class="form-control" id="{{ key }}" name="{{ key }}" type="number" min="{{ min }}" max="{{ max }}" value="{{ theme[key] }}"><span class="input-group-text">{{ unit }}</span></div></div>
           {% endfor %}
+          {% for key, label, min, max, unit in [('mobile_font_size','Testo mobile',16,28,'px'),('mobile_touch_size','Dimensione touch mobile',52,96,'px'),('mobile_page_padding','Padding pagina mobile',10,32,'px')] %}
+          <div class="col-12 col-sm-6 col-lg-4"><label class="form-label" for="{{ key }}">{{ label }}</label><div class="input-group"><input class="form-control" id="{{ key }}" name="{{ key }}" type="number" min="{{ min }}" max="{{ max }}" step="1" value="{{ theme[key] }}"><span class="input-group-text">{{ unit }}</span></div></div>
+          {% endfor %}
         </div>
       </div></div>
       <div class="card appearance-card mb-3"><div class="card-body">
