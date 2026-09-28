@@ -16,6 +16,7 @@ TEST_SYNC_CODEX_20260507_185518
 - I valori responsive della Home sono stati ricondotti a token standard (`page_max_width`, `action_min_height`, `action_gap`, `mobile_action_columns`, `mobile_font_size`, `mobile_touch_size`, `mobile_page_padding`) esposti nel tema e riutilizzabili da componenti analoghi.
 - La scala delle classi standard `ld-action-grid`/`quick-action` viene applicata anche ai temi già persistiti, con dimensioni maggiorate per mantenere leggibilità su desktop e smartphone.
 - La Home usa il testo neutro “Azioni rapide operative della Web App”; la griglia standard allarga i pulsanti su desktop e aumenta ulteriormente testo e icone sui dispositivi touch mobili.
+- Sui dispositivi touch la griglia standard usa una sola colonna a tutta larghezza, indipendentemente dalla viewport CSS riportata dal browser.
 ## 2026-09-23 - Confronto effettivo 1011/EC_CLI
 
 - Il confronto diagnostico del test `1011/1` non si limita piu' a conteggi e nomi dei campi: legge tutte le righe valide di `EC_CLI.CSV`, normalizza codici, numeri documento, date, importi e testo, quindi confronta le chiavi record con il batch MATRIXWS completo.
