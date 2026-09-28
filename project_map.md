@@ -15,6 +15,7 @@
 - Le dimensioni comuni di pagina e griglia azioni sono in `style.css` tramite `.ld-page-standard` e `.ld-action-grid`; Home li compone senza definire valori unici.
 - La scala mobile condivisa usa i token `mobile_font_size`, `mobile_touch_size` e `mobile_page_padding`, modificabili da Aspetto grafico e applicabili a tutte le pagine che adottano le classi standard.
 - Le regole finali delle classi standard raddoppiano la scala dei pulsanti e delle icone anche quando il tema attivo proviene da una configurazione precedente salvata nel database.
+- La stessa scala standard definisce anche larghezza minima dei pulsanti desktop e una maggiorazione ulteriore del 50% per testo e icone su smartphone touch.
 
 ## Timeout MATRIXWS asincrono (2026-09-23)
 

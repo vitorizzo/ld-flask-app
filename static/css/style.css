@@ -113,6 +113,7 @@ body.app-shell {
 .ld-action-grid > .ld-action, .ld-action-grid > .quick-action { min-height: var(--ld-action-min-height); }
 
 @media (max-width: 820px), (hover: none) and (pointer: coarse) {
+    .ld-action-grid { grid-template-columns: repeat(var(--ld-mobile-action-columns), minmax(0, 1fr)) !important; }
     .ld-page { padding: var(--ld-mobile-page-padding); border-radius: max(10px, var(--ld-radius)); font-size: var(--ld-mobile-font-size); }
     .ld-modal .modal-dialog { width: 100%; max-width: 100%; margin: 0; min-height: 100%; }
     .ld-modal .modal-content { min-height: 100dvh; max-height: 100dvh; border-radius: 0; }
@@ -4353,6 +4354,9 @@ body.kiosk-body #flash-message,
 .ld-action-grid > .ld-action i {
     font-size: calc(var(--ld-base-font-size) * 2.2) !important;
 }
+.ld-page-standard h1 { font-size: clamp(3rem, 4vw, 5rem) !important; }
+.ld-page-standard > p { font-size: clamp(1.4rem, 2vw, 2.2rem) !important; }
+.ld-action-grid { max-width: var(--ld-page-max-width) !important; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important; }
 @media (max-width: 820px), (hover: none) and (pointer: coarse) {
     .ld-page-standard { font-size: calc(var(--ld-mobile-font-size) * 2) !important; }
     .ld-page-standard h1 { font-size: clamp(3rem, 12vw, 6.8rem) !important; }
@@ -4360,8 +4364,13 @@ body.kiosk-body #flash-message,
     .ld-action-grid > .ld-action {
         min-height: calc(var(--ld-mobile-touch-size) * 2) !important;
         padding: calc(var(--ld-mobile-page-padding) * 1.5) !important;
-        font-size: calc(var(--ld-mobile-font-size) * 2) !important;
+        font-size: calc(var(--ld-mobile-font-size) * 3) !important;
     }
     .ld-action-grid > .quick-action i,
-    .ld-action-grid > .ld-action i { font-size: calc(var(--ld-mobile-font-size) * 2.2) !important; }
+    .ld-action-grid > .ld-action i { font-size: calc(var(--ld-mobile-font-size) * 3.3) !important; }
+    .ld-page-standard h1 { font-size: clamp(4.5rem, 15vw, 10rem) !important; }
+    .ld-page-standard > p { font-size: calc(var(--ld-mobile-font-size) * 2.5) !important; }
+}
+@media (hover: none) and (pointer: coarse) and (max-width: 520px) {
+    .ld-action-grid { grid-template-columns: 1fr !important; }
 }

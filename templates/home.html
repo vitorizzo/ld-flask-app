@@ -14,7 +14,7 @@
 
 <section class="welcome-section home-page ld-page ld-page-standard">
     <h1>LDApp</h1>
-    <p>Azioni rapide operative per il lavoro quotidiano dello staff.</p>
+    <p>Azioni rapide operative della Web App.</p>
     <div class="quick-actions ld-panel ld-action-grid"
          data-home-tutorial-role="{% if current_user.is_authenticated %}{{ (current_user.active_roles | map(attribute='name') | join(', ')) or 'utente autenticato' }}{% else %}visitatore{% endif %}">
         {% if current_user.is_authenticated and current_user.max_role_weight >= 30 %}
