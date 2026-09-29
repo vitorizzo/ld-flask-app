@@ -4392,3 +4392,16 @@ body.kiosk-body #flash-message,
     .ld-action-grid > .quick-action i,
     .ld-action-grid > .ld-action i { font-size: calc(var(--ld-mobile-font-size) * 1.65) !important; }
 }
+
+/* Rilevazione JS per modelli Android low resolution non esposti correttamente dalle media query. */
+body.ld-low-resolution-mobile .ld-page-standard { font-size: var(--ld-mobile-font-size) !important; }
+body.ld-low-resolution-mobile .ld-page-standard h1 { font-size: 2.4rem !important; }
+body.ld-low-resolution-mobile .ld-page-standard > p { font-size: calc(var(--ld-mobile-font-size) * 1.1) !important; }
+body.ld-low-resolution-mobile .ld-action-grid > .quick-action,
+body.ld-low-resolution-mobile .ld-action-grid > .ld-action {
+    min-height: var(--ld-mobile-touch-size) !important;
+    padding: calc(var(--ld-mobile-page-padding) * .75) !important;
+    font-size: calc(var(--ld-mobile-font-size) * 1.25) !important;
+}
+body.ld-low-resolution-mobile .ld-action-grid > .quick-action i,
+body.ld-low-resolution-mobile .ld-action-grid > .ld-action i { font-size: calc(var(--ld-mobile-font-size) * 1.35) !important; }
