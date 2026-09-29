@@ -4376,3 +4376,19 @@ body.kiosk-body #flash-message,
 @media (hover: none) and (pointer: coarse) and (max-width: 520px) {
     .ld-action-grid { grid-template-columns: 1fr !important; }
 }
+
+/* Smartphone Android a bassa densità: riduce la scala maggiorata usata dagli schermi ad alta densità. */
+@media (hover: none) and (pointer: coarse) and (max-width: 480px) and (max-resolution: 2.75dppx),
+       (hover: none) and (pointer: coarse) and (max-width: 480px) and (-webkit-max-device-pixel-ratio: 2.75) {
+    .ld-page-standard { font-size: var(--ld-mobile-font-size) !important; }
+    .ld-page-standard h1 { font-size: clamp(2.2rem, 9vw, 3.4rem) !important; }
+    .ld-page-standard > p { font-size: calc(var(--ld-mobile-font-size) * 1.25) !important; }
+    .ld-action-grid > .quick-action,
+    .ld-action-grid > .ld-action {
+        min-height: var(--ld-mobile-touch-size) !important;
+        padding: var(--ld-mobile-page-padding) !important;
+        font-size: calc(var(--ld-mobile-font-size) * 1.5) !important;
+    }
+    .ld-action-grid > .quick-action i,
+    .ld-action-grid > .ld-action i { font-size: calc(var(--ld-mobile-font-size) * 1.65) !important; }
+}

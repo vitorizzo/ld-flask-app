@@ -17,6 +17,7 @@
 - Le regole finali delle classi standard raddoppiano la scala dei pulsanti e delle icone anche quando il tema attivo proviene da una configurazione precedente salvata nel database.
 - La stessa scala standard definisce anche larghezza minima dei pulsanti desktop e una maggiorazione ulteriore del 50% per testo e icone su smartphone touch.
 - Sui dispositivi touch `.ld-action-grid` forza una colonna a tutta larghezza per mantenere i pulsanti fruibili anche su viewport mobili anomale o ampie.
+- Una media query dedicata a viewport strette e bassa densità riduce la scala di testo, icone e touch target sui dispositivi Android low resolution.
 
 ## Timeout MATRIXWS asincrono (2026-09-23)
 
