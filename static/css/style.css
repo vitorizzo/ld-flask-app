@@ -108,6 +108,14 @@ body.app-shell {
 .ld-modal .modal-content { max-height: calc(100dvh - 2rem); border-radius: var(--ld-modal-radius); color: var(--ld-text); background: var(--ld-surface); }
 .ld-modal .modal-body { min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
 .ld-modal .form-control, .ld-modal .form-select, .ld-modal .btn { min-height: var(--ld-touch-size); }
+.ld-modal-standard .modal-dialog { position: fixed; left: 50%; top: 50%; margin: 0; transform: translate(-50%, -50%); }
+.ld-modal-standard .modal-content { position: relative; overflow: hidden; }
+.ld-modal-standard .modal-header { cursor: move; user-select: none; }
+.ld-modal-standard .ld-modal-resize-handle { position: absolute; right: 4px; bottom: 4px; width: 18px; height: 18px; cursor: nwse-resize; opacity: .7; border-right: 3px solid var(--ld-brand-accent); border-bottom: 3px solid var(--ld-brand-accent); z-index: 3; }
+@media (hover: none) and (pointer: coarse) {
+    .ld-modal-standard .modal-header { cursor: default; }
+    .ld-modal-standard .ld-modal-resize-handle { display: none; }
+}
 .ld-page-standard { width: min(100%, var(--ld-page-max-width)); margin-inline: auto; }
 .ld-action-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--ld-action-gap); }
 .ld-action-grid > .ld-action, .ld-action-grid > .quick-action { min-height: var(--ld-action-min-height); }

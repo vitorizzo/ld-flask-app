@@ -18,6 +18,7 @@
 - La stessa scala standard definisce anche larghezza minima dei pulsanti desktop e una maggiorazione ulteriore del 50% per testo e icone su smartphone touch.
 - Sui dispositivi touch `.ld-action-grid` forza una colonna a tutta larghezza per mantenere i pulsanti fruibili anche su viewport mobili anomale o ampie.
 - Una media query dedicata a viewport strette e bassa densità riduce la scala di testo, icone e touch target sui dispositivi Android low resolution.
+- `static/js/ld_modal.js` e le regole `.ld-modal-standard` in `style.css` definiscono il comportamento comune delle modali spostabili e ridimensionabili; la modale QR Home è il primo componente pilota.
 
 ## Timeout MATRIXWS asincrono (2026-09-23)
 
