@@ -19,6 +19,7 @@ TEST_SYNC_CODEX_20260507_185518
 - Sui dispositivi touch la griglia standard usa una sola colonna a tutta larghezza, indipendentemente dalla viewport CSS riportata dal browser.
 - Per smartphone Android stretti a bassa densità è prevista una scala ridotta, così la maggiorazione pensata per S25 non produce testi sproporzionati.
 - È stata introdotta la classe modale condivisa `ld-modal-standard`: eredita i token del tema, consente trascinamento tramite intestazione e ridimensionamento dal bordo inferiore destro su desktop; sui touch mantiene il comportamento a schermo pieno.
+- L'intestazione della modale standard usa ora il contrasto del tema; su mobile la finestra è ancorata a viewport intera per evitare il centramento parzialmente fuori schermo.
 ## 2026-09-23 - Confronto effettivo 1011/EC_CLI
 
 - Il confronto diagnostico del test `1011/1` non si limita piu' a conteggi e nomi dei campi: legge tutte le righe valide di `EC_CLI.CSV`, normalizza codici, numeri documento, date, importi e testo, quindi confronta le chiavi record con il batch MATRIXWS completo.
