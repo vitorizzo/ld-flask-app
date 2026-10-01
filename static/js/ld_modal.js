@@ -51,6 +51,9 @@
       const startY = event.clientY;
       const startWidth = rect.width;
       const startHeight = rect.height;
+      dialog.style.left = `${rect.left}px`;
+      dialog.style.top = `${rect.top}px`;
+      dialog.style.transform = "none";
       resizeHandle.setPointerCapture?.(event.pointerId);
       const move = (moveEvent) => {
         const width = clamp(startWidth + moveEvent.clientX - startX, 320, window.innerWidth - rect.left - 8);

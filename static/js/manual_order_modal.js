@@ -103,7 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 250);
   });
 
-  form.addEventListener("submit", async event => {
+  async function submitOrder(event) {
     event.preventDefault();
     const selectedDestination = destination.selectedOptions[0];
     const registryId = customerSelect.value;
@@ -136,9 +136,19 @@ document.addEventListener("DOMContentLoaded", () => {
       saveButton.disabled = false;
       saveButton.innerHTML = '<i class="fa-solid fa-paper-plane me-1" aria-hidden="true"></i> Inserisci ordine';
     }
-  });
+  }
 
+  function resetSubmitButton() {
+    saveButton.disabled = false;
+    saveButton.innerHTML = '<i class="fa-solid fa-paper-plane me-1" aria-hidden="true"></i> Inserisci ordine';
+  }
+  modalElement.addEventListener("shown.bs.modal", () => {
+    resetSubmitButton();
+    form.onsubmit = submitOrder;
+  });
   modalElement.addEventListener("hidden.bs.modal", () => {
+    form.onsubmit = null;
+    resetSubmitButton();
     clearTimeout(searchTimer);
     customerRequest += 1;
     setFeedback();

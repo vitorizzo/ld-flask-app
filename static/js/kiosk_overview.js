@@ -2101,7 +2101,6 @@ window.kioskState = {
     if (newOrderDestination) newOrderDestination.addEventListener("change", applyNewOrderDestinationDefault);
 
     const newOrderForm = $("#newOrderForm");
-    if (newOrderForm) newOrderForm.addEventListener("submit", saveNewOrder);
 
     const newOrderCustomerSearch = $("#newOrderCustomerSearch");
     if (newOrderCustomerSearch) {
@@ -2117,7 +2116,20 @@ window.kioskState = {
 
     const newOrderModal = $("#newOrderModal");
     if (newOrderModal) {
+      if (newOrderModal.parentElement !== document.body) document.body.appendChild(newOrderModal);
+      const resetNewOrderSave = () => {
+        const button = $("#newOrderSave");
+        if (!button) return;
+        button.disabled = false;
+        button.innerHTML = '<i class="fa-solid fa-paper-plane me-1" aria-hidden="true"></i> Inserisci ordine';
+      };
+      newOrderModal.addEventListener("shown.bs.modal", () => {
+        resetNewOrderSave();
+        if (newOrderForm) newOrderForm.onsubmit = saveNewOrder;
+      });
       newOrderModal.addEventListener("hidden.bs.modal", () => {
+        if (newOrderForm) newOrderForm.onsubmit = null;
+        resetNewOrderSave();
         window.clearTimeout(newOrderCustomerSearchTimer);
         newOrderCustomerRequest += 1;
         setNewOrderError();

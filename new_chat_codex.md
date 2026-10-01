@@ -45,6 +45,12 @@ hai pushato un nuovo commit, oppure
 
 stai lavorando localmente senza push.
 
+Regola operativa concordata 2026-10-01:
+
+- al termine di ogni modifica completata, Codex deve creare il commit e fare push su `main` senza attendere una richiesta esplicita;
+- prima del commit deve eseguire le verifiche proporzionate alla modifica e aggiornare i file di coordinamento previsti;
+- se commit o push non riescono, Codex deve segnalarlo chiaramente e lasciare indicato che il lavoro e' ancora locale.
+
 Quando scrivi "rileggi" significa:
 -> ho pushato su main
 -> devi ricaricare i file dal repo aggiornato

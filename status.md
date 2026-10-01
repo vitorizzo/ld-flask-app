@@ -1,4 +1,12 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-01 - Modale standard Inserisci ordine della Home staff
+
+- `partials/manual_order_modal.html`, condiviso da Home staff e Bacheca, adotta `ld-modal ld-modal-standard`: larghezza/raggi/colori dal tema, trascinamento e ridimensionamento desktop, fullscreen touch e corpo scrollabile con footer separato.
+- Le regole comuni sono state estratte da `style.css` in `static/css/ld_modal.css`, caricato anche dalla Bacheca con gli stessi token e script. Il form interno usa flex per conservare lo scorrimento durante il ridimensionamento; campi e azioni adottano i token touch.
+- Corretto il centramento standard rispetto al selettore Bootstrap `.modal.show .modal-dialog`; il ridimensionamento fissa l'angolo superiore sinistro. Il fullscreen touch prevale sulle dimensioni desktop impostate inline.
+- Home e Bacheca inizializzano testo/stato/handler di invio su `shown.bs.modal` e li ripuliscono su `hidden.bs.modal`. Il flusso ordini resta quello esistente; la modale distinta della Plancia non e' stata modificata.
+- Verificati sintassi dei tre JavaScript, parsing dei quattro template modificati e `git diff --check`. Collaudo visivo su browser/dispositivo ancora da eseguire, nessun ordine inviato durante le verifiche. Modifica pronta per il deploy.
+
 ## 2026-10-01 - Ripristino customer dopo l'ultima associazione
 
 - Rimuovendo l'ultima associazione attiva dal tile Utente-Cliente, la stessa transazione chiude i ruoli `customer_horeca` ancora validi o futuri e assegna `customer` se non gia' attivo. Altri ruoli e storico restano conservati; con altre associazioni attive il ruolo Horeca non cambia.

@@ -1,4 +1,10 @@
 # PROJECT_MAP.md — v2.4
+## Modale standard ordine manuale (2026-10-01)
+
+- `templates/partials/manual_order_modal.html` e' il componente unico di inserimento ordine usato dalla Home staff e dalla Bacheca; entrambe le aperture usano ora `ld-modal ld-modal-standard`.
+- `static/css/ld_modal.css` contiene gli stili standard estratti da `style.css`, il supporto al form interno scrollabile e il collegamento dei campi ordine ai token tema. `base.html` lo carica globalmente; `kiosk_overview.html` lo carica nel layout Kiosk insieme ai token tema e a `static/js/ld_modal.js`.
+- `static/js/manual_order_modal.js` (Home) e `static/js/kiosk_overview.js` (Bacheca) gestiscono il lifecycle esplicito del pulsante/handler di invio; le API ordini restano invariate.
+
 ## Ruolo Horeca nelle associazioni utente-cliente (2026-10-01)
 
 - `routes/settings.py`, POST `/settings/customer-order-links`: aggiunta/salvataggio/predefinito allineano `UserRole` insieme a `CustomerRegistryMembership` nello stesso commit, chiudendo `customer` e assegnando `customer_horeca` soltanto se non gia' attivo. Gli altri ruoli restano invariati.
@@ -24,7 +30,7 @@
 - La stessa scala standard definisce anche larghezza minima dei pulsanti desktop e una maggiorazione ulteriore del 50% per testo e icone su smartphone touch.
 - Sui dispositivi touch `.ld-action-grid` forza una colonna a tutta larghezza per mantenere i pulsanti fruibili anche su viewport mobili anomale o ampie.
 - Una media query dedicata a viewport strette e bassa densità riduce la scala di testo, icone e touch target sui dispositivi Android low resolution.
-- `static/js/ld_modal.js` e le regole `.ld-modal-standard` in `style.css` definiscono il comportamento comune delle modali spostabili e ridimensionabili; la modale QR Home è il primo componente pilota.
+- `static/js/ld_modal.js` e le regole `.ld-modal-standard`, ora estratte in `static/css/ld_modal.css`, definiscono il comportamento comune delle modali spostabili e ridimensionabili; la modale QR Home è il primo componente pilota.
 - La modale standard assegna sfondo e testo contrastati alla testata e annulla posizione/trasformazione desktop sui touch per mantenerla interamente visibile.
 
 ## Timeout MATRIXWS asincrono (2026-09-23)

@@ -2,6 +2,8 @@
 
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css', v=app_version ~ '-delivery-routes2') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-order1') }}">
+<style>body { {{ ui_theme_css_vars|default('')|safe }} }</style>
 {% endblock %}
 
 {% block content %}
@@ -374,5 +376,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/kiosk_overview.js', v=app_version ~ '-delivery-reschedule1') }}"></script>
+<script src="{{ url_for('static', filename='js/ld_modal.js', v=app_version ~ '-order1') }}"></script>
+<script src="{{ url_for('static', filename='js/kiosk_overview.js', v=app_version ~ '-standard-order1') }}"></script>
 {% endblock %}
