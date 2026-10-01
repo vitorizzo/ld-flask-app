@@ -1,4 +1,11 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-01 - Correzione token della modale Inserisci ordine
+
+- Individuati due override locali: la modale ordine impostava `surface_muted` come sfondo, producendo il marrone, e applicava `mobile_font_size` soltanto a corpo/campi/pulsanti, lasciando titolo e testi Bootstrap fuori dalla scala comune.
+- `static/css/ld_modal.css` ora definisce centralmente superficie bianca, testo leggibile derivato dal colore primario, testo secondario, bordi, focus, campi, pulsanti e tipografia dell'intera modale. `manual-order-modal` conserva solo struttura e z-index.
+- Su touch la modale usa la stessa scala maggiorata della Home (`mobile_font_size * 2`), con riduzione coerente per dispositivi a bassa densita'; titolo, etichette, aiuti, campi e pulsanti sono tutti espressi rispetto alla scala comune.
+- L'anteprima Aspetto grafico rappresenta ora corpo e footer della modale sulla superficie principale e usa gli stessi contrasti. Cache key CSS aggiornata. Nessuna modifica alle API o al flusso ordini.
+
 ## 2026-10-01 - Modale standard Inserisci ordine della Home staff
 
 - `partials/manual_order_modal.html`, condiviso da Home staff e Bacheca, adotta `ld-modal ld-modal-standard`: larghezza/raggi/colori dal tema, trascinamento e ridimensionamento desktop, fullscreen touch e corpo scrollabile con footer separato.

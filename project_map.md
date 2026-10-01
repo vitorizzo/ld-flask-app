@@ -4,6 +4,8 @@
 - `templates/partials/manual_order_modal.html` e' il componente unico di inserimento ordine usato dalla Home staff e dalla Bacheca; entrambe le aperture usano ora `ld-modal ld-modal-standard`.
 - `static/css/ld_modal.css` contiene gli stili standard estratti da `style.css`, il supporto al form interno scrollabile e il collegamento dei campi ordine ai token tema. `base.html` lo carica globalmente; `kiosk_overview.html` lo carica nel layout Kiosk insieme ai token tema e a `static/js/ld_modal.js`.
 - `static/js/manual_order_modal.js` (Home) e `static/js/kiosk_overview.js` (Bacheca) gestiscono il lifecycle esplicito del pulsante/handler di invio; le API ordini restano invariate.
+- La palette e la tipografia non sono piu' definite nella variante ordine: `.ld-modal` usa `surface` per corpo/footer, `brand_primary` per il testo sulle superfici chiare, `text` sulla testata primaria e la scala `base_font_size`/`mobile_font_size`. La scala touch segue la Home e include la riduzione low-resolution.
+- `static/css/ui_theme_preview.css` riproduce lo stesso contratto cromatico della modale reale.
 
 ## Ruolo Horeca nelle associazioni utente-cliente (2026-10-01)
 
