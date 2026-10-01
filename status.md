@@ -3305,3 +3305,9 @@ Performance apertura giornata Agenda 2026-06-13:
 - Il primo test ha superato il limite generico di 15 minuti: `1011/1` elabora un archivio molto più grande. Il profilo usa ora 60 minuti di polling worker e la UI attende altri 5 minuti oltre quel limite.
 - Il timeout osservato dopo circa un minuto era invece il read timeout della singola chiamata `/batch/response`. Il read timeout dedicato a `1011/1` viene ora passato esplicitamente al worker; il client globale mantiene il comportamento originale per gli altri test, incluso `1000`.
 - MATRIXWS diagnostica 1011: l'avvio asincrono del batch viene accodato al worker insieme al polling, così le richieste HTTP non scadono mentre TeamSystem prepara il batch. Il confronto EC_CLI resta read-only.
+
+## 2026-10-01 - Rubrica clienti nel contesto grafico condiviso
+
+- `templates/registry/registry_book.html` e `templates/registry/contact_import_review.html` usano le classi pagina standard e la cache CSS aggiornata.
+- `static/css/registry_tools.css` adotta i token `--ld-*` per superfici, testo, bordi, accenti, dimensioni touch e tipografia della rubrica, delle schede cliente e del flusso di importazione contatti.
+- La modale di associazione contatto usa la modale standard spostabile/ridimensionabile; su touch mantiene controlli e pulsanti a larghezza piena e palette coerente con il tema.

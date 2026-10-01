@@ -3,11 +3,11 @@
 {% block title %}Associa contatto{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css', v=app_version ~ '-vcard-share2') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css', v=app_version ~ '-vcard-share3') }}">
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section page-shell contact-import-page" data-intent-id="{{ intent.id }}"{% if clean_url %} data-clean-url="{{ clean_url }}"{% endif %}>
+<section class="welcome-section page-shell ld-page ld-page-standard contact-import-page" data-intent-id="{{ intent.id }}"{% if clean_url %} data-clean-url="{{ clean_url }}"{% endif %}>
   <div class="container contact-import-shell">
     <header class="contact-import-header">
       <a class="btn btn-outline-secondary" href="{{ url_for('registry.customers_book_page') }}" aria-label="Annulla">

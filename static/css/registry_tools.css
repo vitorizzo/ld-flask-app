@@ -1478,3 +1478,247 @@ body.registry-tools-modal-open .modal-backdrop.show {
     font-size: 2rem;
   }
 }
+
+/* Contesto grafico condiviso: rubrica clienti e importazione contatti. */
+.registry-book-page.ld-page,
+.contact-import-page.ld-page {
+  color: var(--ld-text);
+  background: color-mix(in srgb, var(--ld-brand-primary) 80%, transparent);
+  border-color: color-mix(in srgb, var(--ld-text) 26%, transparent);
+  border-radius: var(--ld-radius);
+}
+
+.registry-book-page .registry-book-header h1,
+.registry-book-page .registry-tools-section h1,
+.registry-book-page .registry-tools-section h2,
+.registry-book-page .registry-tools-section h3,
+.registry-book-page .registry-tools-section h4 {
+  color: var(--ld-text);
+}
+
+.registry-book-page .text-muted,
+.contact-import-page .contact-import-header p,
+.contact-import-page .text-muted {
+  color: var(--ld-text-muted) !important;
+}
+
+.registry-book-page .registry-book-search .form-control,
+.registry-book-page .registry-book-tools .btn {
+  min-height: var(--ld-touch-size);
+  border-radius: var(--ld-radius);
+}
+
+.registry-book-page .registry-book-search .form-control {
+  color: var(--ld-brand-primary);
+  background: var(--ld-surface);
+  border-color: color-mix(in srgb, var(--ld-brand-primary) 40%, var(--ld-surface));
+}
+
+.registry-book-page .registry-book-search .btn-info,
+.registry-book-page .registry-card__actions .btn-info,
+.contact-import-page .btn-info {
+  color: var(--ld-brand-primary);
+  background: var(--ld-brand-accent);
+  border-color: var(--ld-brand-accent);
+}
+
+.registry-book-page .registry-book-index__item {
+  min-width: var(--ld-touch-size);
+  min-height: var(--ld-touch-size);
+  border-radius: var(--ld-radius);
+  color: var(--ld-text);
+  background: color-mix(in srgb, var(--ld-brand-primary) 84%, transparent);
+  border-color: color-mix(in srgb, var(--ld-text) 28%, transparent);
+}
+
+.registry-book-page .registry-book-index__item:hover,
+.registry-book-page .registry-book-index__item.is-active {
+  color: var(--ld-brand-primary);
+  background: var(--ld-brand-accent);
+  border-color: var(--ld-brand-accent);
+}
+
+.registry-book-page .registry-letter-group__head {
+  color: var(--ld-text);
+  background: color-mix(in srgb, var(--ld-brand-primary) 86%, transparent);
+  border-color: color-mix(in srgb, var(--ld-text) 22%, transparent);
+}
+
+.registry-book-page .registry-card {
+  color: var(--ld-brand-primary);
+  background: var(--ld-surface);
+  border-color: color-mix(in srgb, var(--ld-brand-primary) 22%, var(--ld-surface));
+  border-radius: var(--ld-radius);
+}
+
+.registry-book-page .registry-card__head,
+.registry-book-page .registry-card__body {
+  color: var(--ld-brand-primary);
+  background: var(--ld-surface);
+}
+
+.registry-book-page .registry-card__head:hover,
+.registry-book-page .registry-card__head:focus-visible {
+  background: color-mix(in srgb, var(--ld-brand-accent) 12%, var(--ld-surface));
+}
+
+.registry-book-page .registry-card__meta,
+.registry-book-page .registry-data-grid span,
+.registry-book-page .registry-contact-point__label {
+  color: color-mix(in srgb, var(--ld-brand-primary) 64%, var(--ld-surface));
+}
+
+.registry-book-page .registry-card__section,
+.registry-book-page .registry-contact-row,
+.registry-book-page .registry-legacy-item {
+  border-color: color-mix(in srgb, var(--ld-brand-primary) 16%, var(--ld-surface));
+  background: color-mix(in srgb, var(--ld-brand-primary) 4%, var(--ld-surface));
+}
+
+.registry-book-page .registry-card__section-title {
+  color: var(--ld-brand-primary);
+}
+
+.registry-book-page .registry-contact-avatar {
+  color: var(--ld-brand-primary);
+  background: color-mix(in srgb, var(--ld-brand-accent) 22%, var(--ld-surface));
+  border-color: color-mix(in srgb, var(--ld-brand-accent) 65%, var(--ld-surface));
+}
+
+.registry-book-page .registry-contact-role {
+  color: var(--ld-brand-primary);
+  background: color-mix(in srgb, var(--ld-brand-accent) 18%, var(--ld-surface));
+}
+
+.registry-book-page .registry-contact-notes {
+  color: color-mix(in srgb, var(--ld-brand-primary) 78%, var(--ld-surface));
+  background: color-mix(in srgb, var(--ld-brand-accent) 8%, var(--ld-surface));
+  border-left-color: var(--ld-brand-accent);
+}
+
+.registry-book-page .registry-contact-point__value,
+.registry-book-page .registry-contact-point__value a,
+.registry-book-page .registry-contact-point__value span,
+.registry-book-page .registry-card__section strong,
+.registry-book-page .registry-contact-name {
+  color: var(--ld-brand-primary);
+}
+
+.contact-import-page .contact-import-card {
+  color: var(--ld-brand-primary);
+  background: var(--ld-surface);
+  border-color: color-mix(in srgb, var(--ld-brand-primary) 20%, var(--ld-surface));
+  border-radius: var(--ld-radius);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--ld-brand-primary) 12%, transparent);
+}
+
+.contact-import-page .contact-import-card h2,
+.contact-import-page .form-label,
+.contact-import-page .contact-import-selected strong {
+  color: var(--ld-brand-primary);
+}
+
+.contact-import-page .contact-import-avatar {
+  color: var(--ld-brand-primary);
+  background: color-mix(in srgb, var(--ld-brand-accent) 20%, var(--ld-surface));
+  border-color: color-mix(in srgb, var(--ld-brand-accent) 60%, var(--ld-surface));
+}
+
+.contact-import-page .contact-import-point,
+.contact-import-page .contact-import-selected {
+  border-color: color-mix(in srgb, var(--ld-brand-primary) 20%, var(--ld-surface));
+  background: color-mix(in srgb, var(--ld-brand-primary) 4%, var(--ld-surface));
+}
+
+.contact-import-page .contact-import-selected {
+  border-color: var(--ld-brand-accent);
+}
+
+.contact-import-page .contact-import-point strong,
+.contact-import-page .contact-import-selected span,
+.contact-import-page .contact-import-results button span {
+  color: color-mix(in srgb, var(--ld-brand-primary) 64%, var(--ld-surface));
+}
+
+.contact-import-page .contact-import-footer {
+  background: linear-gradient(to bottom, color-mix(in srgb, var(--ld-surface) 0%, transparent), var(--ld-surface) 18%);
+}
+
+.contact-import-page .contact-import-feedback { color: color-mix(in srgb, var(--ld-brand-primary) 78%, #198754); }
+.contact-import-page .contact-import-feedback.is-error { color: #b91c1c; }
+
+.registry-tools-modal.ld-modal-standard {
+  z-index: 12050;
+}
+
+.registry-tools-modal.ld-modal-standard .modal-dialog {
+  z-index: auto;
+}
+
+.registry-tools-modal.ld-modal-standard .modal-content,
+.registry-tools-modal.ld-modal-standard .modal-body,
+.registry-tools-modal.ld-modal-standard .modal-footer {
+  color: var(--ld-brand-primary);
+  background: var(--ld-surface);
+}
+
+.registry-tools-modal.ld-modal-standard .modal-content {
+  border-color: color-mix(in srgb, var(--ld-brand-primary) 24%, var(--ld-surface));
+}
+
+.registry-tools-modal.ld-modal-standard .modal-header {
+  color: var(--ld-text);
+  background: var(--ld-brand-primary);
+  border-bottom-color: color-mix(in srgb, var(--ld-text-muted) 35%, transparent);
+}
+
+.registry-tools-modal.ld-modal-standard .modal-title {
+  color: var(--ld-text);
+}
+
+.registry-tools-modal.ld-modal-standard .form-label {
+  color: var(--ld-brand-primary);
+}
+
+.registry-tools-modal.ld-modal-standard .form-control,
+.registry-tools-modal.ld-modal-standard .form-select {
+  color: var(--ld-brand-primary);
+  background: var(--ld-surface);
+  border-color: color-mix(in srgb, var(--ld-brand-primary) 42%, var(--ld-surface));
+  border-radius: var(--ld-radius);
+}
+
+.registry-tools-modal.ld-modal-standard .contact-picker-panel,
+.registry-tools-modal.ld-modal-standard .contact-vcard-panel,
+.registry-tools-modal.ld-modal-standard .contact-picker-unavailable {
+  color: var(--ld-brand-primary);
+  background: color-mix(in srgb, var(--ld-brand-accent) 8%, var(--ld-surface));
+  border-color: color-mix(in srgb, var(--ld-brand-accent) 28%, var(--ld-surface));
+}
+
+.registry-tools-modal.ld-modal-standard .contact-picker-help {
+  color: color-mix(in srgb, var(--ld-brand-primary) 68%, var(--ld-surface));
+}
+
+.registry-tools-modal.ld-modal-standard .contact-form-feedback { color: #198754; }
+.registry-tools-modal.ld-modal-standard .contact-form-feedback.is-error { color: #b91c1c; }
+
+@media (hover: none) and (pointer: coarse) {
+  .registry-book-page .registry-book-tools,
+  .registry-book-page .registry-book-search {
+    width: 100%;
+  }
+
+  .registry-book-page .registry-book-tools .btn,
+  .registry-book-page .registry-book-search .btn,
+  .contact-import-page .contact-import-footer .btn {
+    width: 100%;
+  }
+
+  .contact-import-page .contact-import-footer .btn,
+  .contact-import-page .contact-import-card .btn,
+  .contact-import-page .contact-import-card .form-control,
+  .contact-import-page .contact-import-card .input-group .btn {
+    min-height: var(--ld-mobile-touch-size);
+  }
+}

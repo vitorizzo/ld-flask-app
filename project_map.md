@@ -1709,3 +1709,9 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `CF-PRLIST|100002|` valorizza `BusinessRegistry.listino_prezzo` sui clienti: 1 -> `prezzo1`, altrimenti -> `prezzo3`; la chiave non presente nella risposta non cancella il dato esistente.
 - Il parser prezzi e la policy di visualizzazione restano in `tools/product_pricing.py`; il campo cliente assente/vuoto ricade su `prezzo3`.
 - `routes/settings.py` / `config/tasks.py`: test MATRIXWS avviati e completati in background; il worker gestisce anche la chiamata EVWSASYNC iniziale prima del polling per evitare 500 da timeout del proxy.
+
+## Rubrica clienti e contesto grafico
+
+- `templates/registry/registry_book.html`: pagina rubrica, schede cliente e modale contatto condivisa con il contesto `ld-page`/`ld-modal-standard`.
+- `templates/registry/contact_import_review.html`: revisione vCard e associazione cliente allineate alla pagina standard.
+- `static/css/registry_tools.css`: token grafici centralizzati per superfici, testo, accent color, bordi, font e dimensioni touch degli elementi rubrica.
