@@ -1715,3 +1715,7 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `templates/registry/registry_book.html`: pagina rubrica, schede cliente e modale contatto condivisa con il contesto `ld-page`/`ld-modal-standard`.
 - `templates/registry/contact_import_review.html`: revisione vCard e associazione cliente allineate alla pagina standard.
 - `static/css/registry_tools.css`: token grafici centralizzati per superfici, testo, accent color, bordi, font e dimensioni touch degli elementi rubrica.
+
+## Bacheca ordini e contesto grafico
+
+- `templates/route_orders/board.html`: plancia giri/diretti, schede ordine, pannelli, controlli e modali allineati al contesto `ld-page`/`ld-modal-standard` e ai token tema.

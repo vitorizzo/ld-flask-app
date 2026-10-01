@@ -3,7 +3,7 @@
 {% block title %}Plancia ordini giri{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css', v=app_version ~ '-direct-order-mobile1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css', v=app_version ~ '-direct-order-mobile2') }}">
 <style>
   .route-board-section {
     text-align: left;
@@ -556,11 +556,211 @@
       font-size: 1.8rem;
     }
   }
+
+  /* Bacheca ordini: usa il contesto grafico condiviso della pagina e delle modali. */
+  .route-board-section.ld-page {
+    color: var(--ld-text);
+    background: color-mix(in srgb, var(--ld-brand-primary) 80%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ld-text) 26%, transparent);
+    border-radius: var(--ld-radius);
+    box-shadow: 0 18px 42px color-mix(in srgb, var(--ld-brand-primary) 22%, transparent);
+  }
+
+  .route-board-section h1,
+  .route-board-section > .d-flex .text-muted,
+  .direct-board > .d-flex:first-child > .text-muted,
+  .route-board-top .form-label,
+  .route-board-top .form-check-label {
+    color: var(--ld-text) !important;
+  }
+
+  .route-board-section .route-board-mode {
+    padding: calc(var(--ld-action-gap) / 3);
+    border: 1px solid color-mix(in srgb, var(--ld-text) 22%, transparent);
+    border-radius: var(--ld-radius);
+    background: color-mix(in srgb, var(--ld-text) 10%, transparent);
+  }
+
+  .route-board-section .route-board-mode button {
+    min-height: var(--ld-touch-size);
+    border-radius: var(--ld-radius);
+    color: var(--ld-text);
+  }
+
+  .route-board-section .route-board-mode button.active,
+  .route-board-section .btn-info {
+    color: var(--ld-brand-primary);
+    background: var(--ld-brand-accent);
+    border-color: var(--ld-brand-accent);
+  }
+
+  .route-board-section .route-board-panel {
+    color: var(--ld-brand-primary);
+    background: var(--ld-surface);
+    border-color: color-mix(in srgb, var(--ld-brand-primary) 22%, var(--ld-surface));
+    border-radius: var(--ld-radius);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--ld-brand-primary) 10%, transparent);
+  }
+
+  .route-board-section .route-board-panel .table,
+  .route-board-section .route-board-panel td,
+  .route-board-section .route-board-panel th,
+  .route-board-section .route-board-panel label,
+  .route-board-section .route-board-panel .form-check-label,
+  .route-board-section .route-board-panel .route-board-order__note,
+  .route-board-section .route-board-panel .route-board-direct-customer {
+    color: var(--ld-brand-primary);
+  }
+
+  .route-board-section .route-board-panel .text-muted,
+  .route-board-section .route-board-order__meta,
+  .route-board-section .route-board-empty {
+    color: color-mix(in srgb, var(--ld-brand-primary) 64%, var(--ld-surface)) !important;
+  }
+
+  .route-board-section .route-board-order,
+  .route-board-section .route-board-unmatched__item {
+    color: var(--ld-brand-primary);
+    background: color-mix(in srgb, var(--ld-brand-primary) 5%, var(--ld-surface));
+    border-color: color-mix(in srgb, var(--ld-brand-primary) 18%, var(--ld-surface));
+    border-radius: var(--ld-radius);
+  }
+
+  .route-board-section .route-board-unmatched__title,
+  .route-board-section .route-board-customer,
+  .route-board-section .route-board-direct-customer {
+    color: var(--ld-brand-primary);
+  }
+
+  .route-board-section .route-board-phone-label {
+    color: color-mix(in srgb, var(--ld-brand-primary) 68%, var(--ld-surface));
+  }
+
+  .route-board-section .route-board-phone-row a {
+    color: color-mix(in srgb, var(--ld-brand-accent) 82%, var(--ld-brand-primary));
+  }
+
+  .route-board-section .route-board-status-stamp {
+    color: var(--ld-brand-primary);
+    background: var(--ld-surface);
+    border-color: var(--ld-brand-primary);
+  }
+
+  .route-board-section .form-control,
+  .route-board-section .form-select {
+    color: var(--ld-brand-primary);
+    background: var(--ld-surface);
+    border-color: color-mix(in srgb, var(--ld-brand-primary) 42%, var(--ld-surface));
+    border-radius: var(--ld-radius);
+  }
+
+  .route-board-section .form-control:focus,
+  .route-board-section .form-select:focus {
+    border-color: var(--ld-brand-accent);
+    box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--ld-brand-accent) 24%, transparent);
+  }
+
+  .route-board-section .btn {
+    min-height: var(--ld-touch-size);
+    border-radius: var(--ld-radius);
+  }
+
+  .route-board-section .route-board-bulk .btn-success {
+    color: var(--ld-text);
+    background: color-mix(in srgb, #198754 86%, var(--ld-brand-primary));
+    border-color: #198754;
+  }
+
+  .registry-tools-modal.ld-modal-standard {
+    z-index: 12050;
+  }
+
+  .registry-tools-modal.ld-modal-standard .modal-dialog {
+    z-index: auto;
+  }
+
+  #routeBoardDetailModal.ld-modal-standard .modal-dialog {
+    width: 100vw;
+    max-width: none;
+    height: 100vh;
+    margin: 0;
+  }
+
+  #routeBoardDetailModal.ld-modal-standard .modal-content {
+    min-height: 100vh;
+    border-radius: 0;
+  }
+
+  .registry-tools-modal.ld-modal-standard .modal-content,
+  .registry-tools-modal.ld-modal-standard .modal-body,
+  .registry-tools-modal.ld-modal-standard .modal-footer {
+    color: var(--ld-brand-primary);
+    background: var(--ld-surface);
+  }
+
+  .registry-tools-modal.ld-modal-standard .modal-content {
+    border-color: color-mix(in srgb, var(--ld-brand-primary) 24%, var(--ld-surface));
+    border-radius: var(--ld-modal-radius);
+  }
+
+  .registry-tools-modal.ld-modal-standard .modal-header {
+    color: var(--ld-text);
+    background: var(--ld-brand-primary);
+    border-bottom-color: color-mix(in srgb, var(--ld-text-muted) 35%, transparent);
+  }
+
+  .registry-tools-modal.ld-modal-standard .modal-title { color: var(--ld-text); }
+
+  .registry-tools-modal.ld-modal-standard .form-label,
+  .registry-tools-modal.ld-modal-standard .form-check-label {
+    color: var(--ld-brand-primary);
+  }
+
+  .registry-tools-modal.ld-modal-standard .form-control,
+  .registry-tools-modal.ld-modal-standard .form-select {
+    color: var(--ld-brand-primary);
+    background: var(--ld-surface);
+    border-color: color-mix(in srgb, var(--ld-brand-primary) 42%, var(--ld-surface));
+    border-radius: var(--ld-radius);
+  }
+
+  .registry-tools-modal.ld-modal-standard .form-text,
+  .registry-tools-modal.ld-modal-standard .text-muted {
+    color: color-mix(in srgb, var(--ld-brand-primary) 64%, var(--ld-surface)) !important;
+  }
+
+  .registry-tools-modal.ld-modal-standard .btn-info {
+    color: var(--ld-brand-primary);
+    background: var(--ld-brand-accent);
+    border-color: var(--ld-brand-accent);
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    .route-board-section .route-board-bulk,
+    .route-board-section .route-board-bulk .btn,
+    .direct-board > .d-flex:first-child .route-board-bulk,
+    .direct-board > .d-flex:first-child .route-board-bulk .btn {
+      width: 100%;
+    }
+
+    .route-board-section .route-board-bulk {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .registry-tools-modal.ld-modal-standard .modal-footer {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .registry-tools-modal.ld-modal-standard .modal-footer .btn {
+      width: 100%;
+    }
+  }
 </style>
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section registry-tools-section route-board-section page-shell">
+<section class="welcome-section ld-page ld-page-standard registry-tools-section route-board-section page-shell">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
       <h1 class="h4 mb-1">Plancia ordini</h1>
@@ -656,7 +856,7 @@
   </div>
 </section>
 
-<div class="modal fade registry-tools-modal" id="noteModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard registry-tools-modal" id="noteModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Ordine cliente</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">
@@ -671,7 +871,7 @@
   </div></div>
 </div>
 
-<div class="modal fade registry-tools-modal" id="directModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard registry-tools-modal" id="directModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Inserisci ordine</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">
@@ -701,7 +901,7 @@
   </div></div>
 </div>
 
-<div class="modal fade registry-tools-modal" id="associateOrderModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard registry-tools-modal" id="associateOrderModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Associa ordine a cliente</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">
@@ -716,7 +916,7 @@
   </div></div>
 </div>
 
-<div class="modal fade registry-tools-modal" id="deliveryDateModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard registry-tools-modal" id="deliveryDateModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Data consegna</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">
@@ -730,7 +930,7 @@
   </div></div>
 </div>
 
-<div class="modal fade registry-tools-modal" id="alertsModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard registry-tools-modal" id="alertsModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Avvisi cliente</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">
@@ -747,7 +947,7 @@
   </div></div>
 </div>
 
-<div class="modal fade registry-tools-modal" id="contactsModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard registry-tools-modal" id="contactsModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Contatti cliente</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">
@@ -763,7 +963,7 @@
   </div></div>
 </div>
 
-<div class="modal fade registry-tools-modal" id="routeBoardDetailModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard registry-tools-modal" id="routeBoardDetailModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-fullscreen"><div class="modal-content">
     <div class="modal-header">
       <div>

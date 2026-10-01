@@ -3311,3 +3311,8 @@ Performance apertura giornata Agenda 2026-06-13:
 - `templates/registry/registry_book.html` e `templates/registry/contact_import_review.html` usano le classi pagina standard e la cache CSS aggiornata.
 - `static/css/registry_tools.css` adotta i token `--ld-*` per superfici, testo, bordi, accenti, dimensioni touch e tipografia della rubrica, delle schede cliente e del flusso di importazione contatti.
 - La modale di associazione contatto usa la modale standard spostabile/ridimensionabile; su touch mantiene controlli e pulsanti a larghezza piena e palette coerente con il tema.
+
+## 2026-10-01 - Bacheca ordini nel contesto grafico condiviso
+
+- `templates/route_orders/board.html` usa `ld-page`/`ld-page-standard` e sostituisce la palette hardcoded di plancia, pannelli, tabelle, ordini, stati e controlli con i token `--ld-*`.
+- Le modali della bacheca usano `ld-modal-standard`, con superfici e tipografia coerenti e azioni a larghezza piena su touch; il dettaglio cliente mantiene la vista fullscreen.
