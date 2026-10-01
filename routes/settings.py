@@ -960,6 +960,7 @@ def customer_order_options():
 def customer_order_links():
     if request.method == "POST":
         action = (request.form.get("action") or "add").strip()
+        logger.info("Avvio associazione utente-cliente: action=%s operator_id=%s", action, current_user.id)
         if action == "remove":
             membership = CustomerRegistryMembership.query.get_or_404(_parse_int(request.form.get("membership_id")))
             revoke_customer_membership(membership.user, membership)
@@ -971,9 +972,15 @@ def customer_order_links():
             registry_id = existing.registry_id if existing else _parse_int(request.form.get("registry_id"))
             registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first()
             if not registry:
+                logger.warning("Associazione cliente interrotta: cliente non valido; user_id=%s registry_id=%s", user.id, registry_id)
                 flash("Seleziona un cliente valido.", "warning")
                 return redirect(url_for("settings.customer_order_links"))
-            set_customer_membership(
+            horeca_role = Role.query.filter_by(name="customer_horeca").first()
+            if not horeca_role:
+                logger.error("Associazione cliente interrotta: ruolo customer_horeca non configurato; user_id=%s", user.id)
+                flash("Ruolo customer_horeca non configurato.", "danger")
+                return redirect(url_for("settings.customer_order_links"))
+            membership = set_customer_membership(
                 user,
                 registry,
                 access_scope=request.form.get("access_scope") or ACCESS_BOTH,
@@ -981,8 +988,35 @@ def customer_order_links():
                 approved_by_user_id=current_user.id,
                 source="customer_order_links",
             )
+            now = datetime.now()
+            for user_role in user.roles or []:
+                if user_role.role and user_role.role.name == "customer" and (user_role.valid_until is None or user_role.valid_until >= now):
+                    user_role.valid_until = now
+                    if user_role.type == "lifetime":
+                        user_role.type = "until"
+            if not any(
+                user_role.role and user_role.role.name == "customer_horeca" and user_role.is_active
+                for user_role in user.roles or []
+            ):
+                db.session.add(UserRole(
+                    user_id=user.id,
+                    role_id=horeca_role.id,
+                    type="lifetime",
+                    valid_from=now,
+                    valid_until=None,
+                    notes="Attivazione Horeca da associazione utente-cliente",
+                ))
             message = "Associazione e permessi aggiornati."
-        db.session.commit()
+        try:
+            db.session.commit()
+        except SQLAlchemyError:
+            db.session.rollback()
+            logger.exception("Errore salvataggio associazione utente-cliente: action=%s operator_id=%s", action, current_user.id)
+            raise
+        logger.info(
+            "Associazione utente-cliente salvata: action=%s membership_id=%s user_id=%s registry_id=%s operator_id=%s",
+            action, membership.id, membership.user_id, membership.registry_id, current_user.id,
+        )
         flash(message, "success")
         return redirect(url_for("settings.customer_order_links"))
 

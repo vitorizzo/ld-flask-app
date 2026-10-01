@@ -1,4 +1,12 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-01 - Ruolo Horeca dal tile Associazioni Utente-Cliente
+
+- La POST `/settings/customer-order-links` ora allinea anche i ruoli durante aggiunta, salvataggio e scelta del cliente predefinito: chiude `customer` e assegna `customer_horeca` se non gia' attivo, seguendo il flusso di attivazione da ticket. Gli altri ruoli vengono conservati.
+- Associazione e ruolo vengono salvati nello stesso commit; se il ruolo Horeca non e' configurato, l'operazione viene interrotta prima delle modifiche. La rimozione di un'associazione mantiene il comportamento precedente.
+- Per correggere utenti gia' associati basta premere `Salva` sulla relativa associazione dopo il deploy. Nessuna modifica retroattiva al database e nessuna migration.
+- Test della route con modelli reali e SQLite temporaneo superati: passaggio customer/Horeca, salvataggi ripetuti, associazioni multiple, ruolo scaduto, conservazione office, revoca e ruolo non configurato. Verificato logging sia in `settings.log` sia in `main.log`, sintassi Python e integrita' diff.
+- Correzione verificata e pronta per il deploy; prossimo riscontro: verifica dal tile con un utente precedentemente associato dopo l'aggiornamento del server.
+
 ## 2026-09-26 - Fondazione aspetto grafico condiviso
 
 - Aggiunto il tile Impostazioni -> Aspetto grafico con preset e token modificabili per colori, tipografia, spaziature, touch target e modali.
