@@ -1,8 +1,15 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-01 - Ripristino customer dopo l'ultima associazione
+
+- Rimuovendo l'ultima associazione attiva dal tile Utente-Cliente, la stessa transazione chiude i ruoli `customer_horeca` ancora validi o futuri e assegna `customer` se non gia' attivo. Altri ruoli e storico restano conservati; con altre associazioni attive il ruolo Horeca non cambia.
+- Se `customer` non e' configurato, la rimozione viene bloccata prima di modificare associazione o ruoli. Rimozioni ripetute non duplicano il ruolo base; una nuova associazione riattiva normalmente Horeca.
+- Test sulla route con SQLite temporaneo superati per rimozione parziale/ultima, ripetizione, ruolo Horeca futuro, conservazione office, ruolo base mancante e nuova associazione. Confermati i test precedenti di attivazione e il logging nei due file; diff verificato. Nessuna migration.
+- Prossimo riscontro: dopo deploy rimuovere l'ultima associazione di un utente di prova e verificare il ritorno alla vista customer.
+
 ## 2026-10-01 - Ruolo Horeca dal tile Associazioni Utente-Cliente
 
 - La POST `/settings/customer-order-links` ora allinea anche i ruoli durante aggiunta, salvataggio e scelta del cliente predefinito: chiude `customer` e assegna `customer_horeca` se non gia' attivo, seguendo il flusso di attivazione da ticket. Gli altri ruoli vengono conservati.
-- Associazione e ruolo vengono salvati nello stesso commit; se il ruolo Horeca non e' configurato, l'operazione viene interrotta prima delle modifiche. La rimozione di un'associazione mantiene il comportamento precedente.
+- Associazione e ruolo vengono salvati nello stesso commit; se il ruolo Horeca non e' configurato, l'operazione viene interrotta prima delle modifiche. La gestione della rimozione e' completata dall'aggiornamento successivo riportato sopra.
 - Per correggere utenti gia' associati basta premere `Salva` sulla relativa associazione dopo il deploy. Nessuna modifica retroattiva al database e nessuna migration.
 - Test della route con modelli reali e SQLite temporaneo superati: passaggio customer/Horeca, salvataggi ripetuti, associazioni multiple, ruolo scaduto, conservazione office, revoca e ruolo non configurato. Verificato logging sia in `settings.log` sia in `main.log`, sintassi Python e integrita' diff.
 - Correzione verificata e pronta per il deploy; prossimo riscontro: verifica dal tile con un utente precedentemente associato dopo l'aggiornamento del server.

@@ -963,7 +963,39 @@ def customer_order_links():
         logger.info("Avvio associazione utente-cliente: action=%s operator_id=%s", action, current_user.id)
         if action == "remove":
             membership = CustomerRegistryMembership.query.get_or_404(_parse_int(request.form.get("membership_id")))
-            revoke_customer_membership(membership.user, membership)
+            user = membership.user
+            remaining_membership = CustomerRegistryMembership.query.filter(
+                CustomerRegistryMembership.user_id == user.id,
+                CustomerRegistryMembership.status == "active",
+                CustomerRegistryMembership.id != membership.id,
+            ).first()
+            if remaining_membership is None:
+                customer_role = Role.query.filter_by(name="customer").first()
+                if not customer_role:
+                    logger.error("Rimozione associazione interrotta: ruolo customer non configurato; user_id=%s", user.id)
+                    flash("Ruolo customer non configurato.", "danger")
+                    return redirect(url_for("settings.customer_order_links"))
+                now = datetime.now()
+                for user_role in user.roles or []:
+                    if user_role.role and user_role.role.name == "customer_horeca" and (
+                        user_role.type == "lifetime" or user_role.valid_until is None or user_role.valid_until >= now
+                    ):
+                        user_role.valid_until = now
+                        if user_role.type == "lifetime":
+                            user_role.type = "until"
+                if not any(
+                    user_role.role and user_role.role.name == "customer" and user_role.is_active
+                    for user_role in user.roles or []
+                ):
+                    db.session.add(UserRole(
+                        user_id=user.id,
+                        role_id=customer_role.id,
+                        type="lifetime",
+                        valid_from=now,
+                        valid_until=None,
+                        notes="Ripristino customer dopo rimozione ultima associazione cliente",
+                    ))
+            revoke_customer_membership(user, membership)
             message = "Associazione rimossa."
         else:
             membership_id = _parse_int(request.form.get("membership_id"))

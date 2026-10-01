@@ -2,7 +2,7 @@
 ## Ruolo Horeca nelle associazioni utente-cliente (2026-10-01)
 
 - `routes/settings.py`, POST `/settings/customer-order-links`: aggiunta/salvataggio/predefinito allineano `UserRole` insieme a `CustomerRegistryMembership` nello stesso commit, chiudendo `customer` e assegnando `customer_horeca` soltanto se non gia' attivo. Gli altri ruoli restano invariati.
-- Il ruolo Horeca deve essere configurato prima del salvataggio; anche le associazioni precedenti possono essere corrette con `Salva`. La revoca dell'associazione non modifica i ruoli.
+- Il ruolo Horeca deve essere configurato prima del salvataggio; anche le associazioni precedenti possono essere corrette con `Salva`. La revoca dell'ultima associazione attiva chiude i ruoli Horeca validi/futuri e ripristina `customer` senza duplicati, nello stesso commit; se restano associazioni attive conserva Horeca. Gli altri ruoli non cambiano e il ruolo base mancante blocca la rimozione prima delle modifiche.
 - Lifecycle ed esito sono registrati tramite il logger centralizzato `settings`, anche in `main.log`; nessuna nuova tabella o migration.
 
 ## Aspetto grafico condiviso (2026-09-26)
