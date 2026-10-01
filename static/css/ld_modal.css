@@ -32,6 +32,8 @@
     .ld-modal { font-size: calc(var(--ld-mobile-font-size) * 2); }
     .ld-modal .modal-body { padding: var(--ld-mobile-page-padding); }
     .ld-modal .form-control, .ld-modal .form-select, .ld-modal .btn { min-height: var(--ld-mobile-touch-size); }
+    .ld-modal-standard .modal-footer { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ld-action-gap); }
+    .ld-modal-standard .modal-footer .btn { width: 100%; min-width: 0; }
     .manual-order-modal.ld-modal .row > [class*="col-"] { width: 100%; }
     .manual-order-modal.ld-modal .modal-footer { padding-bottom: max(var(--ld-mobile-page-padding), env(safe-area-inset-bottom)); }
     .ld-modal .modal-dialog { width: 100%; max-width: 100%; margin: 0; min-height: 100%; }

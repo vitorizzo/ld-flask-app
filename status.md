@@ -1,4 +1,10 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-01 - Pulsanti modali standard a tutta larghezza su smartphone
+
+- Le modali `.ld-modal-standard` su touch usano ora un footer a una colonna; ogni pulsante occupa tutta la larghezza disponibile e mantiene l'altezza `mobile_touch_size` del tema.
+- La regola vale anche per `Inserisci ordine` e QR Home, senza cambiare il layout desktop. Nessuna API o logica di salvataggio modificata.
+- Verificato il contratto CSS, sintassi JavaScript, parsing Jinja e `git diff --check`. Modifica pronta per il deploy.
+
 ## 2026-10-01 - Correzione token della modale Inserisci ordine
 
 - Individuati due override locali: la modale ordine impostava `surface_muted` come sfondo, producendo il marrone, e applicava `mobile_font_size` soltanto a corpo/campi/pulsanti, lasciando titolo e testi Bootstrap fuori dalla scala comune.
