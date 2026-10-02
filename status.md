@@ -3329,3 +3329,9 @@ Performance apertura giornata Agenda 2026-06-13:
 - Eliminata la divisione `vw` usata per ricavare un numero CSS: i browser Samsung ricevono ora fasce esplicite (`0.92`, `1`, `1.08`, `1.12`) in base alla viewport.
 - Le vecchie regole touch ad alta risoluzione della Home vengono neutralizzate con selettori piu' specifici e con i token condivisi, evitando che padding, font e icone restino giganti su viewport CSS ampie.
 - Versioning CSS aggiornato a `responsive-scale2`.
+
+## 2026-10-02 - Home uniforme tra iPhone e Samsung S25
+
+- Rimossa dalla scala globale la variante touch ad alta risoluzione che applicava una seconda interfaccia gigante ai telefoni con viewport CSS ampia.
+- I dispositivi touch seguono ora lo stesso profilo mobile dell'iPhone; l'unica differenza resta il fattore `--ld-ui-scale` definito nel blocco responsive comune.
+- Aggiornato il versioning a `responsive-scale3`.

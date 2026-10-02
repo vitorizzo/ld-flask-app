@@ -1730,3 +1730,8 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 
 - `static/css/style.css`: il moltiplicatore responsive usa fasce CSS esplicite e neutralizza le regole legacy touch della Home con i token comuni.
 - `templates/base.html`: versioning `responsive-scale2` per distribuire la correzione anche sui dispositivi con cache PWA.
+
+## Profilo mobile uniforme
+
+- `static/css/style.css`: rimossa la vecchia variante ad alta risoluzione con dimensioni hardcoded; tutte le viewport touch usano il profilo mobile comune e il solo `--ld-ui-scale`.
+- `templates/base.html`: versioning `responsive-scale3`.
