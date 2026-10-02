@@ -4317,85 +4317,37 @@ body.kiosk-body #flash-message,
     }
 }
 
-/* Scala mobile standard: viene dopo le regole legacy per avere effetto anche sulle pagine storiche. */
+/* Scala responsive condivisa: il fattore dipende dalla viewport CSS, non dal pixel ratio. */
 @media (max-width: 820px), (hover: none) and (pointer: coarse) {
-    .ld-page-standard { padding: var(--ld-mobile-page-padding); font-size: var(--ld-mobile-font-size); }
-    .ld-page-standard h1 { font-size: clamp(2.2rem, 9vw, 3.4rem); }
+    body.app-shell { --ld-ui-scale: clamp(.9, calc(100vw / 390), 1.12); }
+    .ld-page-standard { padding: calc(var(--ld-mobile-page-padding) * var(--ld-ui-scale)); font-size: calc(var(--ld-mobile-font-size) * var(--ld-ui-scale)) !important; }
+    .ld-page-standard h1 { font-size: clamp(2.1rem, calc(8vw * var(--ld-ui-scale)), 3.8rem) !important; }
+    .ld-page-standard > p { font-size: calc(var(--ld-mobile-font-size) * var(--ld-ui-scale) * 1.2) !important; }
+    .ld-action-grid { width: 100% !important; max-width: var(--ld-page-max-width) !important; grid-template-columns: 1fr !important; gap: calc(var(--ld-action-gap) * var(--ld-ui-scale)); }
     .ld-action-grid > .quick-action,
-    .ld-action-grid > .ld-action { min-height: var(--ld-mobile-touch-size); padding: var(--ld-mobile-page-padding); font-size: var(--ld-mobile-font-size); }
+    .ld-action-grid > .ld-action {
+        min-height: calc(var(--ld-mobile-touch-size) * var(--ld-ui-scale)) !important;
+        padding: calc(var(--ld-mobile-page-padding) * var(--ld-ui-scale)) !important;
+        font-size: calc(var(--ld-mobile-font-size) * var(--ld-ui-scale)) !important;
+    }
     .ld-action-grid > .quick-action i,
-    .ld-action-grid > .ld-action i { font-size: calc(var(--ld-mobile-font-size) * 1.25); }
+    .ld-action-grid > .ld-action i { font-size: calc(var(--ld-mobile-font-size) * var(--ld-ui-scale) * 1.25) !important; }
 }
 
-/* La vecchia Home distingueva il mobile stretto dai dispositivi touch con viewport ampia. */
 @media (hover: none) and (pointer: coarse) and (min-width: 821px) {
-    body.app-shell {
-        --ld-mobile-font-size: clamp(28px, 4vw, 45px);
-        --ld-mobile-touch-size: clamp(120px, 17vw, 190px);
-        --ld-mobile-page-padding: clamp(28px, 5vw, 50px);
-    }
-    .ld-page-standard h1 { font-size: clamp(3rem, 8vw, 6.2rem); }
+    body.app-shell { --ld-ui-scale: clamp(1, calc(100vw / 820), 1.18); }
+    .ld-page-standard { font-size: calc(var(--ld-mobile-font-size) * var(--ld-ui-scale)) !important; }
+    .ld-page-standard h1 { font-size: calc(var(--ld-mobile-font-size) * var(--ld-ui-scale) * 2.2) !important; }
     .ld-action-grid { grid-template-columns: 1fr !important; width: 100% !important; }
-}
-
-/* Scala standard maggiorata: agisce anche sui temi già salvati nel database. */
-.ld-action-grid > .quick-action,
-.ld-action-grid > .ld-action {
-    min-height: calc(var(--ld-action-min-height) * 2) !important;
-    padding: calc(var(--ld-page-padding) * 1.5) !important;
-    font-size: calc(var(--ld-base-font-size) * 2) !important;
-}
-.ld-action-grid > .quick-action i,
-.ld-action-grid > .ld-action i {
-    font-size: calc(var(--ld-base-font-size) * 2.2) !important;
-}
-.ld-page-standard h1 { font-size: clamp(3rem, 4vw, 5rem) !important; }
-.ld-page-standard > p { font-size: clamp(1.4rem, 2vw, 2.2rem) !important; }
-.ld-action-grid { max-width: var(--ld-page-max-width) !important; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)) !important; }
-@media (max-width: 820px), (hover: none) and (pointer: coarse) {
-    .ld-action-grid { grid-template-columns: 1fr !important; width: 100% !important; }
-    .ld-page-standard { font-size: calc(var(--ld-mobile-font-size) * 2) !important; }
-    .ld-page-standard h1 { font-size: clamp(3rem, 12vw, 6.8rem) !important; }
     .ld-action-grid > .quick-action,
     .ld-action-grid > .ld-action {
-        min-height: calc(var(--ld-mobile-touch-size) * 2) !important;
-        padding: calc(var(--ld-mobile-page-padding) * 1.5) !important;
-        font-size: calc(var(--ld-mobile-font-size) * 3) !important;
+        min-height: calc(var(--ld-mobile-touch-size) * var(--ld-ui-scale)) !important;
+        padding: calc(var(--ld-mobile-page-padding) * var(--ld-ui-scale)) !important;
+        font-size: calc(var(--ld-mobile-font-size) * var(--ld-ui-scale)) !important;
     }
     .ld-action-grid > .quick-action i,
-    .ld-action-grid > .ld-action i { font-size: calc(var(--ld-mobile-font-size) * 3.3) !important; }
-    .ld-page-standard h1 { font-size: clamp(4.5rem, 15vw, 10rem) !important; }
-    .ld-page-standard > p { font-size: calc(var(--ld-mobile-font-size) * 2.5) !important; }
-}
-@media (hover: none) and (pointer: coarse) and (max-width: 520px) {
-    .ld-action-grid { grid-template-columns: 1fr !important; }
+    .ld-action-grid > .ld-action i { font-size: calc(var(--ld-mobile-font-size) * var(--ld-ui-scale) * 1.25) !important; }
 }
 
-/* Smartphone Android a bassa densità: riduce la scala maggiorata usata dagli schermi ad alta densità. */
-@media (hover: none) and (pointer: coarse) and (max-width: 480px) and (max-resolution: 2.75dppx),
-       (hover: none) and (pointer: coarse) and (max-width: 480px) and (-webkit-max-device-pixel-ratio: 2.75) {
-    .ld-page-standard { font-size: var(--ld-mobile-font-size) !important; }
-    .ld-page-standard h1 { font-size: clamp(2.2rem, 9vw, 3.4rem) !important; }
-    .ld-page-standard > p { font-size: calc(var(--ld-mobile-font-size) * 1.25) !important; }
-    .ld-action-grid > .quick-action,
-    .ld-action-grid > .ld-action {
-        min-height: var(--ld-mobile-touch-size) !important;
-        padding: var(--ld-mobile-page-padding) !important;
-        font-size: calc(var(--ld-mobile-font-size) * 1.5) !important;
-    }
-    .ld-action-grid > .quick-action i,
-    .ld-action-grid > .ld-action i { font-size: calc(var(--ld-mobile-font-size) * 1.65) !important; }
-}
-
-/* Rilevazione JS per modelli Android low resolution non esposti correttamente dalle media query. */
-body.ld-low-resolution-mobile .ld-page-standard { font-size: var(--ld-mobile-font-size) !important; }
-body.ld-low-resolution-mobile .ld-page-standard h1 { font-size: 2.4rem !important; }
-body.ld-low-resolution-mobile .ld-page-standard > p { font-size: calc(var(--ld-mobile-font-size) * 1.1) !important; }
-body.ld-low-resolution-mobile .ld-action-grid > .quick-action,
-body.ld-low-resolution-mobile .ld-action-grid > .ld-action {
-    min-height: var(--ld-mobile-touch-size) !important;
-    padding: calc(var(--ld-mobile-page-padding) * .75) !important;
-    font-size: calc(var(--ld-mobile-font-size) * 1.25) !important;
-}
-body.ld-low-resolution-mobile .ld-action-grid > .quick-action i,
-body.ld-low-resolution-mobile .ld-action-grid > .ld-action i { font-size: calc(var(--ld-mobile-font-size) * 1.35) !important; }
+/* La classe resta compatibile con il rilevamento JS dei dispositivi Android anomali. */
+body.ld-low-resolution-mobile { --ld-ui-scale: clamp(.9, calc(100vw / 390), 1); }

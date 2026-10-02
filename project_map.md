@@ -1719,3 +1719,9 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 ## Bacheca ordini e contesto grafico
 
 - `templates/route_orders/board.html`: plancia giri/diretti, schede ordine, pannelli, controlli e modali allineati al contesto `ld-page`/`ld-modal-standard` e ai token tema.
+
+## Scala responsive condivisa
+
+- `static/css/style.css`: `--ld-ui-scale` e' il moltiplicatore unico per le pagine standard e le azioni Home; la scala usa la viewport CSS, mentre il pixel ratio non amplifica piu' la UI.
+- `static/css/ld_modal.css`: la tipografia mobile delle modali standard segue `--ld-ui-scale`.
+- `templates/base.html`: versioning CSS `responsive-scale1` per distribuire la correzione senza cache stale.

@@ -3316,3 +3316,10 @@ Performance apertura giornata Agenda 2026-06-13:
 
 - `templates/route_orders/board.html` usa `ld-page`/`ld-page-standard` e sostituisce la palette hardcoded di plancia, pannelli, tabelle, ordini, stati e controlli con i token `--ld-*`.
 - Le modali della bacheca usano `ld-modal-standard`, con superfici e tipografia coerenti e azioni a larghezza piena su touch; il dettaglio cliente mantiene la vista fullscreen.
+
+## 2026-10-02 - Scala responsive uniforme per Home e modali
+
+- Rimosse le moltiplicazioni cumulative che portavano i pulsanti della Home a font enormi sui dispositivi touch ad alta densita', causando sovrapposizioni con le icone.
+- `static/css/style.css` usa ora un solo fattore `--ld-ui-scale`, calcolato dalla viewport CSS e limitato con `clamp`; font, padding, gap, icone e touch target vengono scalati proporzionalmente senza usare il device pixel ratio.
+- `static/css/ld_modal.css` riusa lo stesso fattore per la tipografia mobile; le varianti low-resolution restano compatibili senza un secondo percorso di moltiplicazione.
+- Aggiornati i versioning CSS in `templates/base.html` per invalidare la cache sui dispositivi gia' installati.
