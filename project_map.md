@@ -1725,3 +1725,8 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - `static/css/style.css`: `--ld-ui-scale` e' il moltiplicatore unico per le pagine standard e le azioni Home; la scala usa la viewport CSS, mentre il pixel ratio non amplifica piu' la UI.
 - `static/css/ld_modal.css`: la tipografia mobile delle modali standard segue `--ld-ui-scale`.
 - `templates/base.html`: versioning CSS `responsive-scale1` per distribuire la correzione senza cache stale.
+
+## Compatibilita' scala Home Samsung
+
+- `static/css/style.css`: il moltiplicatore responsive usa fasce CSS esplicite e neutralizza le regole legacy touch della Home con i token comuni.
+- `templates/base.html`: versioning `responsive-scale2` per distribuire la correzione anche sui dispositivi con cache PWA.

@@ -3323,3 +3323,9 @@ Performance apertura giornata Agenda 2026-06-13:
 - `static/css/style.css` usa ora un solo fattore `--ld-ui-scale`, calcolato dalla viewport CSS e limitato con `clamp`; font, padding, gap, icone e touch target vengono scalati proporzionalmente senza usare il device pixel ratio.
 - `static/css/ld_modal.css` riusa lo stesso fattore per la tipografia mobile; le varianti low-resolution restano compatibili senza un secondo percorso di moltiplicazione.
 - Aggiornati i versioning CSS in `templates/base.html` per invalidare la cache sui dispositivi gia' installati.
+
+## 2026-10-02 - Correzione compatibilita' Samsung della scala Home
+
+- Eliminata la divisione `vw` usata per ricavare un numero CSS: i browser Samsung ricevono ora fasce esplicite (`0.92`, `1`, `1.08`, `1.12`) in base alla viewport.
+- Le vecchie regole touch ad alta risoluzione della Home vengono neutralizzate con selettori piu' specifici e con i token condivisi, evitando che padding, font e icone restino giganti su viewport CSS ampie.
+- Versioning CSS aggiornato a `responsive-scale2`.

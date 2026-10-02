@@ -4319,7 +4319,7 @@ body.kiosk-body #flash-message,
 
 /* Scala responsive condivisa: il fattore dipende dalla viewport CSS, non dal pixel ratio. */
 @media (max-width: 820px), (hover: none) and (pointer: coarse) {
-    body.app-shell { --ld-ui-scale: clamp(.9, calc(100vw / 390), 1.12); }
+    body.app-shell { --ld-ui-scale: 1; }
     .ld-page-standard { padding: calc(var(--ld-mobile-page-padding) * var(--ld-ui-scale)); font-size: calc(var(--ld-mobile-font-size) * var(--ld-ui-scale)) !important; }
     .ld-page-standard h1 { font-size: clamp(2.1rem, calc(8vw * var(--ld-ui-scale)), 3.8rem) !important; }
     .ld-page-standard > p { font-size: calc(var(--ld-mobile-font-size) * var(--ld-ui-scale) * 1.2) !important; }
@@ -4335,7 +4335,7 @@ body.kiosk-body #flash-message,
 }
 
 @media (hover: none) and (pointer: coarse) and (min-width: 821px) {
-    body.app-shell { --ld-ui-scale: clamp(1, calc(100vw / 820), 1.18); }
+    body.app-shell { --ld-ui-scale: 1; }
     .ld-page-standard { font-size: calc(var(--ld-mobile-font-size) * var(--ld-ui-scale)) !important; }
     .ld-page-standard h1 { font-size: calc(var(--ld-mobile-font-size) * var(--ld-ui-scale) * 2.2) !important; }
     .ld-action-grid { grid-template-columns: 1fr !important; width: 100% !important; }
@@ -4350,4 +4350,54 @@ body.kiosk-body #flash-message,
 }
 
 /* La classe resta compatibile con il rilevamento JS dei dispositivi Android anomali. */
-body.ld-low-resolution-mobile { --ld-ui-scale: clamp(.9, calc(100vw / 390), 1); }
+body.ld-low-resolution-mobile { --ld-ui-scale: .92; }
+
+/* Neutralizza le vecchie regole touch della Home con gli stessi token, anche
+   quando il browser espone una viewport CSS ampia. */
+.welcome-section.home-page.ld-page-standard {
+    padding: calc(var(--ld-page-padding) * var(--ld-ui-scale, 1)) !important;
+}
+
+.home-page.ld-page-standard > h1 {
+    font-size: calc(var(--ld-base-font-size) * 2.5 * var(--ld-ui-scale, 1)) !important;
+    line-height: 1.1;
+}
+
+.home-page.ld-page-standard > p {
+    font-size: calc(var(--ld-base-font-size) * 1.1 * var(--ld-ui-scale, 1)) !important;
+}
+
+.home-page.ld-page-standard .quick-actions {
+    margin-top: var(--ld-action-gap) !important;
+    gap: calc(var(--ld-action-gap) * var(--ld-ui-scale, 1)) !important;
+}
+
+.home-page.ld-page-standard .quick-actions > .quick-action {
+    min-height: calc(var(--ld-action-min-height) * var(--ld-ui-scale, 1)) !important;
+    padding: calc(var(--ld-page-padding) * var(--ld-ui-scale, 1)) !important;
+    border-radius: var(--ld-radius);
+    font-size: calc(var(--ld-base-font-size) * var(--ld-ui-scale, 1)) !important;
+    gap: calc(var(--ld-action-gap) * var(--ld-ui-scale, 1)) !important;
+}
+
+.home-page.ld-page-standard .quick-actions > .quick-action i {
+    width: 1.35em;
+    min-width: 1.35em;
+    font-size: calc(var(--ld-base-font-size) * 1.35 * var(--ld-ui-scale, 1)) !important;
+}
+
+/* Fasce esplicite: evitano la divisione di un'unita' viewport in un numero CSS,
+   non interpretata allo stesso modo dai browser Samsung meno recenti. */
+@media (max-width: 360px) and (hover: none), (max-width: 360px) and (pointer: coarse) {
+    body.app-shell { --ld-ui-scale: .92; }
+}
+
+@media (min-width: 391px) and (max-width: 430px) and (hover: none),
+       (min-width: 391px) and (max-width: 430px) and (pointer: coarse) {
+    body.app-shell { --ld-ui-scale: 1.08; }
+}
+
+@media (min-width: 431px) and (max-width: 820px) and (hover: none),
+       (min-width: 431px) and (max-width: 820px) and (pointer: coarse) {
+    body.app-shell { --ld-ui-scale: 1.12; }
+}
