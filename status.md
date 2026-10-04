@@ -1,4 +1,11 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-04 - Informazioni articoli: ritorno alla ricerca e tema condiviso
+
+- La ricerca per descrizione conserva nell'URL filtro, opzione `Tutti i prodotti` e pagina corrente; tornando dalla scheda articolo con `Chiudi` o con il comando Indietro, lo script rilegge questi valori e ricarica lo stesso insieme di risultati invece dell'elenco completo.
+- `templates/articoli_description.html` e `templates/scheda_articolo.html` adottano `ld-page`, `ld-page-standard`, `ld-panel`, `ld-modal` e `ld-modal-standard` nei rispettivi contenitori, pannelli e modali.
+- `static/css/article_information.css` collega ricerca, risultati, scheda e modali ai token `--ld-*`; la scala touch usa i parametri condivisi e non mantiene la precedente variante gigante per viewport touch ampie.
+- Verificati sintassi JavaScript, ripristino automatico di filtro/opzione/pagina con test DOM simulato, parsing Jinja dei due template e integrita' della patch con `git diff --check`.
+
 ## 2026-10-01 - Pulsanti modali standard a tutta larghezza su smartphone
 
 - Le modali `.ld-modal-standard` su touch usano ora un footer a una colonna; ogni pulsante occupa tutta la larghezza disponibile e mantiene l'altezza `mobile_touch_size` del tema.

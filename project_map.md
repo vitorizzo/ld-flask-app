@@ -1,4 +1,10 @@
 # PROJECT_MAP.md — v2.4
+## Informazioni articoli nel contesto grafico condiviso (2026-10-04)
+
+- `/search/ricerca_x_descrizione` usa `templates/articoli_description.html`, `static/js/search_by_description.js` e `static/css/article_information.css`; la pagina adotta `ld-page`, `ld-page-standard` e `ld-panel`.
+- Lo stato navigabile della ricerca e' rappresentato dai parametri URL `filter`, `show_all` e `page`. Ogni caricamento li aggiorna con `history.replaceState`; l'inizializzazione li rilegge prima di chiamare `/search/lista_articoli`, cosi' ritorno dalla scheda, reload e cronologia mostrano filtro e risultati coerenti.
+- `/search/scheda_articolo/<cod_art>` resta la scheda unica esistente; pagina, pannelli e modali usano le classi grafiche condivise e i token tema definiti in `static/css/article_information.css`. Endpoint, permessi e logica prodotto non cambiano.
+
 ## Modale standard ordine manuale (2026-10-01)
 
 - `templates/partials/manual_order_modal.html` e' il componente unico di inserimento ordine usato dalla Home staff e dalla Bacheca; entrambe le aperture usano ora `ld-modal ld-modal-standard`.

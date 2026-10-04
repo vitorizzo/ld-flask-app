@@ -13,9 +13,43 @@ window.initSearchByDescription = function (config) {
   let currentPage = 1;
   const perPage = 10;
 
+  function readStateFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const requestedPage = Number.parseInt(params.get("page") || "1", 10);
+
+    if (params.has("filter")) {
+      input.value = params.get("filter") || "";
+    }
+    if (checkbox && params.has("show_all")) {
+      checkbox.checked = params.get("show_all") === "1";
+    }
+    currentPage = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  }
+
+  function writeStateToUrl(query, page) {
+    const params = new URLSearchParams();
+    const normalizedQuery = String(query || "").trim();
+
+    if (normalizedQuery) {
+      params.set("filter", normalizedQuery);
+    }
+    if (checkbox && checkbox.checked) {
+      params.set("show_all", "1");
+    }
+    if (page > 1) {
+      params.set("page", String(page));
+    }
+
+    const queryString = params.toString();
+    const nextUrl = window.location.pathname + (queryString ? `?${queryString}` : "") + window.location.hash;
+    window.history.replaceState(window.history.state, "", nextUrl);
+  }
+
   function caricaProdotti(query = "", page = 1) {
     const showAll = checkbox ? checkbox.checked : false;
     const stockOnly = showAll ? "0" : "1";
+
+    writeStateToUrl(query, page);
 
     fetch(`/search/lista_articoli?filter=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}&stock_only=${stockOnly}`)
       .then(res => res.json())
@@ -126,5 +160,6 @@ window.initSearchByDescription = function (config) {
     }
   });
 
-  caricaProdotti();
+  readStateFromUrl();
+  caricaProdotti(input.value, currentPage);
 };

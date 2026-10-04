@@ -723,10 +723,11 @@
     }
   }
 </style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/article_information.css', v=app_version ~ '-theme1') }}">
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section page-shell product-sheet-page" data-product-code="{{ product.cod_art }}">
+<section class="welcome-section page-shell product-sheet-page ld-page ld-page-standard" data-product-code="{{ product.cod_art }}">
   <div class="container-fluid h-100 d-flex flex-column">
     <div class="product-sheet-title mb-3">
       <div class="product-sheet-title__text">
@@ -746,7 +747,7 @@
 
     <div class="row g-3 flex-grow-1 min-h-0">
       <div class="col-12 col-lg-7">
-        <div class="product-sheet-card h-100">
+        <div class="product-sheet-card ld-panel h-100">
           {% if product.can_manage_images %}
             <div class="product-image-tools">
               <div class="product-image-slots" aria-label="Immagini per piattaforma">
@@ -844,7 +845,7 @@
       </div>
 
       <div class="col-12 col-lg-5">
-        <div class="product-sheet-card h-100 d-flex flex-column gap-3">
+        <div class="product-sheet-card ld-panel h-100 d-flex flex-column gap-3">
           <div class="product-sheet-meta">
             <div class="product-sheet-meta__item">
               <span class="product-sheet-meta__label">Codice articolo</span>
@@ -955,7 +956,7 @@
   </div>
 </section>
 
-<div class="modal fade product-image-modal" id="fullscreen-carousel-modal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal product-image-modal" id="fullscreen-carousel-modal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-fullscreen">
     <div class="modal-content">
       <div class="modal-header">
@@ -1011,7 +1012,7 @@
     {% endfor %}
   </div>
 
-  <div class="modal fade product-image-delete-modal" id="productImageDeleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard product-image-delete-modal" id="productImageDeleteModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
@@ -1033,7 +1034,7 @@
     </div>
   </div>
 
-  <div class="modal fade product-publication-modal" id="productPublicationModal" tabindex="-1" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard product-publication-modal" id="productPublicationModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
@@ -1083,7 +1084,7 @@
     </div>
   </div>
 
-  <div class="modal fade product-image-copy-modal" id="productImageCopyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard product-image-copy-modal" id="productImageCopyModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
       <div class="modal-content">
         <div class="modal-header">
