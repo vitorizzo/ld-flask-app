@@ -4,6 +4,7 @@ TEST_SYNC_CODEX_20260507_185518
 - Individuata la causa residua con misure browser: il fattore globale era definito in `style.css`, ma `home.css` e gli altri CSS caricati in `extra_css` arrivavano dopo e potevano reimpostare dimensioni non scalate. Navbar e footer usavano inoltre valori fissi indipendenti da `--ld-ui-scale`.
 - Aggiunto `static/css/responsive_profile.css`, caricato da `base.html` dopo `extra_css`: il profilo `high-density` scala shell, navbar, logo, hamburger, drawer, footer, pagine standard, azioni, campi e modali con lo stesso fattore `1.5`.
 - Test Edge headless su viewport 432x900: navbar 86->129 px, logo 46->69, hamburger 44->66, voci menu 18.4/52->27.6/78, input 13.3/15->27/96, pulsanti modali 64->96 e footer 48->72. Screenshot prima/dopo controllati; sintassi e integrita' patch verificate.
+- Commit applicativo pushato su `main`; al controllo successivo produzione rispondeva ancora 404 per `static/css/responsive_profile.css`, quindi il deploy manuale non era ancora stato eseguito e il collaudo sul telefono non puo' mostrare questa versione fino al deploy.
 
 ## 2026-10-04 - Follow-up scala S25 con user-agent ridotto
 
