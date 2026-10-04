@@ -3540,3 +3540,8 @@ body.ld-low-resolution-mobile { --ld-ui-scale: .92; }
        (min-width: 431px) and (max-width: 820px) and (pointer: coarse) {
     body.app-shell { --ld-ui-scale: 1.12; }
 }
+
+/* Profilo touch ad alta densita' (Galaxy S25 e dispositivi equivalenti).
+   Viene applicato dopo le fasce viewport, cosi' una viewport CSS da 360px non
+   viene scambiata per uno smartphone low-resolution. */
+body.app-shell.ld-high-density-mobile { --ld-ui-scale: 1.5; }

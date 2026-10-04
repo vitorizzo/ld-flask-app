@@ -32,8 +32,8 @@
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=app_version ~ '-responsive-scale3') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-responsive-scale3') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css', v=app_version ~ '-responsive-scale4') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-responsive-scale4') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/context_tabs.css', v=app_version ~ '-mobile10') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/task_status.css', v=app_version ~ '-monitor11') }}">
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
@@ -96,7 +96,7 @@
         {% if current_user.is_authenticated %}
             <script src="{{ url_for('static', filename='js/task_status.js', v=app_version ~ '-monitor11') }}"></script>
         {% endif %}
-        <script src="{{ url_for('static', filename='js/base.js', v=app_version ~ '-flash1') }}"></script>
+        <script src="{{ url_for('static', filename='js/base.js', v=app_version ~ '-device-scale1') }}"></script>
         <script src="{{ url_for('static', filename='js/ld_modal.js', v=app_version ~ '-order1') }}"></script>
         <script src="{{ url_for('static', filename='js/pwa_push.js', v=app_version) }}"></script>
         <script src="{{ url_for('static', filename='js/app_update.js', v=app_version ~ '-safe-refresh1') }}"></script>

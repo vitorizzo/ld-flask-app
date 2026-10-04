@@ -1,4 +1,11 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-04 - Correzione fattore di scala Galaxy S25
+
+- Il Galaxy S25 con viewport CSS stretta e DPR circa 3 veniva classificato come dispositivo low-resolution e riceveva `--ld-ui-scale: .92`, rendendo Home, pagine standard e modali troppo piccole.
+- Il rilevamento e' ora globale in `static/js/base.js`: famiglia S25 (`SM-S931/936/937/938`) e Android touch stretti con DPR superiore a 2.75 usano la classe `ld-high-density-mobile`; SM-A16 e dispositivi con DPR fino a 2.75 conservano `ld-low-resolution-mobile`.
+- `static/css/style.css` applica al profilo alta densita' il fattore condiviso `1.5`, dopo le fasce viewport: con i default equivale a testo mobile 27 px e target touch 96 px. Home, modali e pagine tematizzate consumano lo stesso fattore senza override specifici.
+- Aggiornate le cache key di CSS, `base.js` e `home.js`. Verificati sintassi JavaScript, classificazione simulata S25/A16/Android alta densita', parsing Jinja e `git diff --check`.
+
 ## 2026-10-04 - Informazioni articoli: ritorno alla ricerca e tema condiviso
 
 - La ricerca per descrizione conserva nell'URL filtro, opzione `Tutti i prodotti` e pagina corrente; tornando dalla scheda articolo con `Chiudi` o con il comando Indietro, lo script rilegge questi valori e ricarica lo stesso insieme di risultati invece dell'elenco completo.

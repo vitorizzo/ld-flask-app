@@ -1,9 +1,4 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const ua = navigator.userAgent || "";
-  const dpr = Number(window.devicePixelRatio || 1);
-  const lowResolutionMobile = /SM-A16/i.test(ua) ||
-    (/Android/i.test(ua) && window.innerWidth <= 480 && window.screen.width <= 400 && dpr <= 3.25);
-  if (lowResolutionMobile) document.body.classList.add("ld-low-resolution-mobile");
   const modal = document.getElementById("appQrModal");
   if (!modal) return;
   if (modal.parentElement !== document.body) document.body.appendChild(modal);

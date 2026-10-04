@@ -1,4 +1,10 @@
 # PROJECT_MAP.md — v2.4
+## Profilo responsive Galaxy S25 (2026-10-04)
+
+- `static/js/base.js` assegna globalmente `ld-high-density-mobile` alla famiglia Galaxy S25 (`SM-S931`, `SM-S936`, `SM-S937`, `SM-S938`) e Android touch stretti con DPR maggiore di 2.75; il profilo non dipende dalla sola viewport CSS del browser.
+- `static/css/style.css` applica `--ld-ui-scale: 1.5` al profilo alta densita' dopo tutte le fasce viewport. Le classi standard, `static/css/ld_modal.css` e gli asset tematici riusano lo stesso token.
+- `ld-low-resolution-mobile` resta riservato a SM-A16 e Android touch stretti con DPR fino a 2.75. Il rilevamento e' stato rimosso da `static/js/home.js`, per evitare che la scala fosse disponibile soltanto sulla Home.
+
 ## Informazioni articoli nel contesto grafico condiviso (2026-10-04)
 
 - `/search/ricerca_x_descrizione` usa `templates/articoli_description.html`, `static/js/search_by_description.js` e `static/css/article_information.css`; la pagina adotta `ld-page`, `ld-page-standard` e `ld-panel`.
