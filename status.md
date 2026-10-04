@@ -5,6 +5,7 @@ TEST_SYNC_CODEX_20260507_185518
 - Il primo rilevamento restava pero' dipendente dal modello nel normale `navigator.userAgent` o da una soglia DPR troppo restrittiva. Con user-agent Chromium ridotto la classe alta densita' poteva quindi non essere assegnata.
 - `static/js/base.js` usa ora anche `navigator.userAgentData.getHighEntropyValues(['model', 'platform'])`, considera touch tramite `maxTouchPoints` e assegna il profilo alto agli Android touch entro 480 px salvo modelli low-resolution espliciti. Non dipende piu' da una soglia DPR e applica direttamente sul `body` il valore inline `--ld-ui-scale: 1.5`.
 - `data-responsive-profile` espone nel DOM `high-density`, `low-resolution` o `standard`; la classe CSS resta come fallback. Test simulati superati su viewport da 432 px per Android con user-agent ridotto, S25 riconosciuto tramite Client Hints e A16 esplicitamente low-resolution.
+- Il follow-up e' stato pushato su `main`, ma al controllo immediatamente successivo produzione serviva ancora il precedente `base.js` (Last-Modified 07:03). `.github/workflows/deploy_production.yml` usa solo `workflow_dispatch`: il push non esegue automaticamente il deploy, che resta da avviare prima del collaudo reale sul telefono.
 
 ## 2026-10-04 - Correzione fattore di scala Galaxy S25
 
