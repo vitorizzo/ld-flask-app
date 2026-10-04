@@ -1,4 +1,10 @@
 # PROJECT_MAP.md — v2.4
+## Livello finale responsive alta densita' (2026-10-04)
+
+- `templates/base.html` carica `static/css/responsive_profile.css` dopo il blocco `extra_css`, quindi il profilo dispositivo prevale sui CSS specifici di Home e delle singole funzioni.
+- Per `body[data-responsive-profile="high-density"]` il foglio applica `--ld-ui-scale` a shell, navbar, logo, hamburger, drawer menu, footer, `.ld-page-standard`, `.ld-action-grid`, controlli form e `.ld-modal`.
+- Il profilo mantiene un unico fattore `1.5`; non ripristina le vecchie media query S25 hardcoded. Le dimensioni calcolate vengono collaudate con fixture Edge headless a viewport 432x900.
+
 ## Profilo responsive Galaxy S25 (2026-10-04)
 
 - `static/js/base.js` assegna globalmente `ld-high-density-mobile` alla famiglia Galaxy S25 (`SM-S931`, `SM-S936`, `SM-S937`, `SM-S938`) e Android touch stretti ad alta densita'; interroga anche `navigator.userAgentData.getHighEntropyValues(['model', 'platform'])` per i browser Chromium con user-agent ridotto.
