@@ -1,22 +1,39 @@
 (() => {
-  function applyResponsiveDeviceProfile() {
+  function applyResponsiveDeviceProfile(clientHints = {}) {
     const ua = navigator.userAgent || "";
-    const dpr = Number(window.devicePixelRatio || 1);
     const screenWidth = Number(window.screen?.width || window.innerWidth || 0);
-    const isAndroid = /Android/i.test(ua);
-    const isGalaxyS25 = /SM-S93[1678]/i.test(ua);
-    const isTouch = window.matchMedia?.("(hover: none), (pointer: coarse)").matches ?? false;
-    const isNarrowTouchViewport = isTouch && window.innerWidth <= 480 && screenWidth <= 430;
-    const highDensityMobile = isGalaxyS25 || (isAndroid && isNarrowTouchViewport && dpr > 2.75);
-    const lowResolutionMobile = !highDensityMobile && (
-      /SM-A16/i.test(ua) || (isAndroid && isNarrowTouchViewport && dpr <= 2.75)
+    const identity = `${ua} ${clientHints.model || ""}`;
+    const platform = `${navigator.userAgentData?.platform || ""} ${clientHints.platform || ""}`;
+    const isAndroid = /Android/i.test(`${ua} ${platform}`);
+    const isGalaxyS25 = /SM-S93[1678]/i.test(identity);
+    const isKnownLowResolution = /SM-A16/i.test(identity);
+    const isTouch = Number(navigator.maxTouchPoints || 0) > 0 ||
+      (window.matchMedia?.("(hover: none), (pointer: coarse)").matches ?? false);
+    const isNarrowTouchViewport = isTouch && window.innerWidth <= 480 && screenWidth <= 480;
+    const highDensityMobile = !isKnownLowResolution && (
+      isGalaxyS25 || (isAndroid && isNarrowTouchViewport)
     );
+    const lowResolutionMobile = isKnownLowResolution;
+    const profile = highDensityMobile ? "high-density" : (lowResolutionMobile ? "low-resolution" : "standard");
 
     document.body.classList.toggle("ld-high-density-mobile", highDensityMobile);
     document.body.classList.toggle("ld-low-resolution-mobile", lowResolutionMobile);
+    document.body.dataset.responsiveProfile = profile;
+    if (highDensityMobile) {
+      document.body.style.setProperty("--ld-ui-scale", "1.5");
+    } else if (lowResolutionMobile) {
+      document.body.style.setProperty("--ld-ui-scale", ".92");
+    } else {
+      document.body.style.removeProperty("--ld-ui-scale");
+    }
   }
 
   applyResponsiveDeviceProfile();
+  if (typeof navigator.userAgentData?.getHighEntropyValues === "function") {
+    navigator.userAgentData.getHighEntropyValues(["model", "platform"])
+      .then(applyResponsiveDeviceProfile)
+      .catch(() => {});
+  }
 
   const STORAGE_KEY = "ldapp.page_tabs.v1";
   const LAST_FIXED_KEY = "ldapp.page_tabs.last_fixed.v1";

@@ -1,4 +1,11 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-04 - Follow-up scala S25 con user-agent ridotto
+
+- Verificato direttamente che produzione serviva gia' il CSS con fattore `1.5` e il JavaScript del primo fix: l'assenza di variazioni non dipendeva da push, deploy o service worker.
+- Il primo rilevamento restava pero' dipendente dal modello nel normale `navigator.userAgent` o da una soglia DPR troppo restrittiva. Con user-agent Chromium ridotto la classe alta densita' poteva quindi non essere assegnata.
+- `static/js/base.js` usa ora anche `navigator.userAgentData.getHighEntropyValues(['model', 'platform'])`, considera touch tramite `maxTouchPoints` e assegna il profilo alto agli Android touch entro 480 px salvo modelli low-resolution espliciti. Non dipende piu' da una soglia DPR e applica direttamente sul `body` il valore inline `--ld-ui-scale: 1.5`.
+- `data-responsive-profile` espone nel DOM `high-density`, `low-resolution` o `standard`; la classe CSS resta come fallback. Test simulati superati su viewport da 432 px per Android con user-agent ridotto, S25 riconosciuto tramite Client Hints e A16 esplicitamente low-resolution.
+
 ## 2026-10-04 - Correzione fattore di scala Galaxy S25
 
 - Il Galaxy S25 con viewport CSS stretta e DPR circa 3 veniva classificato come dispositivo low-resolution e riceveva `--ld-ui-scale: .92`, rendendo Home, pagine standard e modali troppo piccole.
