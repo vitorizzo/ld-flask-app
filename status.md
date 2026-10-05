@@ -1,4 +1,12 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-05 - Audit responsive e diagnostica dei dispositivi reali
+
+- Riscontro utente dopo `ad98eed`: iPhone corretto, S25 peggiorato, complessivamente 3 dispositivi su 4 corretti. Obiettivo confermato: criterio generale indipendente dal modello e isolamento delle classi nuove dalle dimensioni legacy, con migrazione progressiva delle pagine.
+- Audit in `docs/responsive_engine_audit.md`: bootstrap e runtime duplicano la classificazione; componenti nuovi convivono con regole legacy e override Home; `responsive_profile.css` impone il contratto finale soltanto a high-density; modali standard scalano il font ma non tutti gli spazi/controlli.
+- Aggiunta diagnostica locale alla Home Developer con `/?responsive_debug=1`: overlay apribile che non altera il layout, misure reali viewport/zoom/DPR/input/Client Hints, profilo, scale, token tema e dimensioni calcolate di shell/Home/azioni. Copia esplicita con fallback selezione testo; nessun invio o salvataggio dei dati diagnostici.
+- Verificati sintassi JS, parsing Jinja Home, rapporto/copia/fallback/aggiornamento/API assenti con test simulato, classificazione corrente e `git diff --check`. Nessun collaudo dei telefoni fisici e nessuna nuova modifica alle dimensioni o al criterio.
+- Ripartenza: dopo deploy raccogliere i rapporti dai quattro dispositivi nello stesso browser/PWA usato normalmente, poi scegliere il criterio sulla differenza misurata e consolidare il contratto delle classi nuove. La correzione definitiva e il consolidamento restano aperti; non usare altre soglie o whitelist speculative.
+
 ## 2026-10-05 - Correzione scala iPhone e Motorola G15
 
 - Individuata nel bootstrap inline e in `base.js` la condizione `DPR >= 2.5 && (Android || touch)`: applicava anche a iPhone e altri Android il profilo S25 a scala `2.3`, ingrandendo shell, controlli e modali.

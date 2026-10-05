@@ -1,4 +1,9 @@
 # PROJECT_MAP.md — v2.4
+## Diagnostica e audit motore responsive (2026-10-05)
+
+- `templates/home.html` espone il pannello locale `responsiveDiagnostics` soltanto a Developer (peso >= 999) con query `responsive_debug=1`; `static/js/responsive_diagnostics.js` raccoglie misure browser e dimensioni effettive della Home/shell, con copia esplicita. Overlay fuori dal flusso, nessun endpoint o persistenza aggiuntivi.
+- `docs/responsive_engine_audit.md` documenta le interferenze legacy/classi nuove e il contratto da consolidare dopo le misure dei quattro dispositivi. La policy attuale resta temporanea: il criterio generale e' ancora da individuare sulla discriminante reale, senza usare il modello come soluzione definitiva.
+
 ## Scala S25 riservata al modello riconosciuto (2026-10-05)
 
 - Il bootstrap inline di `templates/base.html` e `static/js/base.js` applicano il profilo `high-density` a scala `2.3` soltanto alla famiglia Galaxy S25 (`SM-S931/936/937/938`), anche tramite `userAgentData` Client Hints. Il solo DPR alto o la presenza touch non abilita piu' questo profilo: iPhone e Motorola G15 usano `standard` con le fasce viewport CSS esistenti.

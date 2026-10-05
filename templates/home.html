@@ -12,6 +12,18 @@
 {% block content %}
 {% include 'partials/install_banner.html' %}
 
+{% if current_user.is_authenticated and current_user.max_role_weight >= 999 and request.args.get('responsive_debug') == '1' %}
+<details id="responsiveDiagnostics" style="position: fixed; bottom: 8px; left: 8px; z-index: 13000; box-sizing: border-box; width: calc(100% - 16px); max-width: 640px; max-height: 70dvh; overflow: auto; padding: 12px; background: white; color: #222; font: 16px/1.4 sans-serif;">
+    <summary>Diagnostica responsive</summary>
+    <p>Apri questa Home nello stesso browser o PWA usato normalmente, senza zoom. Aggiorna le misure dopo aver chiuso la tastiera.</p>
+    <button type="button" data-diagnostics-refresh style="min-height: 44px;">Aggiorna misure</button>
+    <button type="button" data-diagnostics-copy style="min-height: 44px;">Copia rapporto</button>
+    <p data-diagnostics-status role="status"></p>
+    <textarea readonly aria-label="Rapporto responsive" style="width: 100%; height: 160px; font: 14px/1.4 monospace;"></textarea>
+</details>
+<script defer src="{{ url_for('static', filename='js/responsive_diagnostics.js', v=app_version ~ '-diagnostics1') }}"></script>
+{% endif %}
+
 <section class="welcome-section home-page ld-page ld-page-standard">
     <h1>LDApp</h1>
     <p>Azioni rapide operative della Web App.</p>
