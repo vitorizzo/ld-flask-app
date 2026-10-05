@@ -1,4 +1,4 @@
-const CACHE_NAME = "ldapp-cache-v27";
+const CACHE_NAME = "ldapp-cache-v28";
 const MAX_PUSH_AGE_MS = 10 * 60 * 1000;
 
 function supportedNotificationActions(actions) {

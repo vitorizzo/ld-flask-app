@@ -22,6 +22,26 @@
         }
       })();
     </script>
+    <script>
+      (function () {
+        const root = document.documentElement;
+        const ua = navigator.userAgent || "";
+        const platform = navigator.userAgentData?.platform || "";
+        const identity = `${ua} ${platform}`;
+        const pixelRatio = Number(window.devicePixelRatio || 1);
+        const isAndroid = /Android/i.test(identity);
+        const isKnownLowResolution = /SM-A16/i.test(identity);
+        const isTouch = Number(navigator.maxTouchPoints || 0) > 0 ||
+          (window.matchMedia?.("(hover: none), (pointer: coarse)").matches ?? false);
+        const highDensity = !isKnownLowResolution && (isAndroid || (isTouch && pixelRatio >= 2.5));
+        const profile = highDensity ? "high-density" : (isKnownLowResolution ? "low-resolution" : "standard");
+        root.dataset.responsiveProfile = profile;
+        root.dataset.responsiveViewport = String(Math.round(window.innerWidth || 0));
+        root.dataset.responsivePixelRatio = String(pixelRatio);
+        if (highDensity) root.style.setProperty("--ld-ui-scale", "1.5");
+        else if (isKnownLowResolution) root.style.setProperty("--ld-ui-scale", ".92");
+      })();
+    </script>
     <!-- Font Awesome 5 -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/v5-font-face.min.css" rel="stylesheet">
@@ -49,7 +69,7 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-512.png') }}">
     {% block extra_css %}{% endblock %}
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive_profile.css', v=app_version ~ '-high-density2') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive_profile.css', v=app_version ~ '-high-density4') }}">
 
 </head>
 <body class="app-shell" data-theme-navbar-divider="{{ ui_theme.navbar_divider|default(1) }}" data-theme-footer-divider="{{ ui_theme.footer_divider|default(1) }}" data-theme-navbar-divider-style="{{ ui_theme.navbar_divider_style|default('brush') }}" data-theme-footer-divider-style="{{ ui_theme.footer_divider_style|default('brush') }}" style="{{ ui_theme_css_vars|default('') }}">
@@ -97,7 +117,7 @@
         {% if current_user.is_authenticated %}
             <script src="{{ url_for('static', filename='js/task_status.js', v=app_version ~ '-monitor11') }}"></script>
         {% endif %}
-        <script src="{{ url_for('static', filename='js/base.js', v=app_version ~ '-device-scale3') }}"></script>
+        <script src="{{ url_for('static', filename='js/base.js', v=app_version ~ '-device-scale5') }}"></script>
         <script src="{{ url_for('static', filename='js/ld_modal.js', v=app_version ~ '-order1') }}"></script>
         <script src="{{ url_for('static', filename='js/pwa_push.js', v=app_version) }}"></script>
         <script src="{{ url_for('static', filename='js/app_update.js', v=app_version ~ '-safe-refresh1') }}"></script>

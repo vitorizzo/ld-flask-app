@@ -6,27 +6,34 @@
     const isAndroid = /Android/i.test(`${ua} ${platform}`);
     const isGalaxyS25 = /SM-S93[1678]/i.test(identity);
     const isKnownLowResolution = /SM-A16/i.test(identity);
+    const pixelRatio = Number(window.devicePixelRatio || 1);
     const isTouch = Number(navigator.maxTouchPoints || 0) > 0 ||
       (window.matchMedia?.("(hover: none), (pointer: coarse)").matches ?? false);
-    // Alcuni browser/PWA Android espongono screen.width in pixel fisici
-    // (es. 1080 sul Galaxy S25) mentre innerWidth resta la viewport CSS.
-    // Il profilo grafico deve basarsi sulla viewport realmente disponibile.
-    const isNarrowTouchViewport = isTouch && window.innerWidth <= 600;
-    const isWideAndroidTouchViewport = isAndroid && isTouch && window.innerWidth >= 821;
+    // Il browser installato puo' nascondere modello, touch capability e viewport
+    // reale. Android e' quindi il fallback stabile; il DPR copre WebView/PWA con
+    // user-agent ulteriormente ridotto. I modelli low-resolution hanno precedenza.
     const highDensityMobile = !isKnownLowResolution && (
-      isGalaxyS25 || (isAndroid && (isNarrowTouchViewport || isWideAndroidTouchViewport))
+      isGalaxyS25 || isAndroid || (isTouch && pixelRatio >= 2.5)
     );
     const lowResolutionMobile = isKnownLowResolution;
     const profile = highDensityMobile ? "high-density" : (lowResolutionMobile ? "low-resolution" : "standard");
 
+    document.documentElement.dataset.responsiveProfile = profile;
+    document.documentElement.dataset.responsiveViewport = String(Math.round(window.innerWidth || 0));
+    document.documentElement.dataset.responsivePixelRatio = String(pixelRatio);
     document.body.classList.toggle("ld-high-density-mobile", highDensityMobile);
     document.body.classList.toggle("ld-low-resolution-mobile", lowResolutionMobile);
     document.body.dataset.responsiveProfile = profile;
+    document.body.dataset.responsiveViewport = String(Math.round(window.innerWidth || 0));
+    document.body.dataset.responsivePixelRatio = String(pixelRatio);
     if (highDensityMobile) {
+      document.documentElement.style.setProperty("--ld-ui-scale", "1.5");
       document.body.style.setProperty("--ld-ui-scale", "1.5");
     } else if (lowResolutionMobile) {
+      document.documentElement.style.setProperty("--ld-ui-scale", ".92");
       document.body.style.setProperty("--ld-ui-scale", ".92");
     } else {
+      document.documentElement.style.removeProperty("--ld-ui-scale");
       document.body.style.removeProperty("--ld-ui-scale");
     }
   }

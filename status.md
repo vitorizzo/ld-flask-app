@@ -1,4 +1,11 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-05 - Fail-safe profilo grande Android/S25
+
+- Dopo il deploy della correzione precedente, produzione serviva regolarmente la nuova versione ma il dispositivo continuava a non mostrare variazioni: esclusi definitivamente deploy, cache, ordine dei CSS e rimozioni successive della classe dal codice.
+- Rimossa la fascia scoperta 601-820 px e la dipendenza dalla segnalazione touch/viewport: ogni client Android riceve il profilo `high-density`; anche un WebView con user-agent nascosto viene riconosciuto tramite touch e DPR >= 2.5. Il riconoscimento esplicito SM-A16 ha precedenza e conserva la scala `.92`.
+- La classificazione iniziale avviene inline nel `<head>` e viene applicata a `<html>` prima dei CSS; `responsive_profile.css` non dipende quindi piu' dal caricamento tardivo di `base.js`, che successivamente conferma/raffina il profilo con i Client Hints. Profilo, viewport e DPR letti sono esposti nel DOM per una verifica oggettiva.
+- Cache key degli asset aggiornata e cache del service worker portata da `v27` a `v28`, cosi' all'attivazione vengono eliminate anche le vecchie risposte PWA.
+
 ## 2026-10-05 - Correzione rilevamento viewport Galaxy S25 in produzione
 
 - Verificato direttamente l'ambiente live dopo il deploy: produzione serve sia `responsive_profile.css` sia la versione aggiornata di `base.js`, e l'HTML renderizzato li include nell'ordine corretto. Il mancato ridimensionamento non era quindi causato da deploy, cache o service worker.
