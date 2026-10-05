@@ -1,15 +1,25 @@
 from datetime import datetime
 
-from flask import Blueprint, render_template
+from flask import Blueprint, current_app, render_template
 from flask_login import login_required
 from sqlalchemy import and_, func, or_
 
 from extensions import db
 from models import AppVisitor, Role, User, UserRole
 from tools.role_required import role_required
+from tools.log_utils import get_logger
 
 
 developer_bp = Blueprint("developer", __name__)
+logger = get_logger("developer")
+
+
+@developer_bp.get("/responsive")
+@login_required
+@role_required(999)
+def responsive():
+    logger.info("Apertura diagnostica responsive sulla Home")
+    return current_app.view_functions["home"]()
 
 
 def _active_user_role_condition(now):

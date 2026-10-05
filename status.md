@@ -1,4 +1,12 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-05 - Comando Developer Diagnostica responsive
+
+- Riscontro S25: Chrome mostra Home piccola, Samsung Internet gigantesca; diagnostica precedente non individuata dall'utente. Queste osservazioni non sostituiscono le misure; il rapporto precedente era soltanto locale, non presente nei log produzione.
+- Nuova route protetta `/developer/responsive`: riusa la funzione Home reale e apre automaticamente il pannello diagnostico. Migration idempotente `l7a8b9c0d1e2` (parent `k6f7a8b9c0d1`) aggiunge `Developer > Diagnostica responsive`; collegamento disponibile anche in Dashboard Developer. Dopo deploy applicare `flask db upgrade` per la voce DB-driven.
+- Raccolta Client Hints limitata a 2 secondi per evitare un rapporto bloccato; copia con fallback selezione testo. Nessuna modifica alle regole responsive. Apertura registrata con logger `developer` dedicato e aggregato; misure browser restano copiabili localmente.
+- Verificati menu/migration su SQLite temporaneo (ripetizione e downgrade), accesso anonimo/non Developer, riuso Home, logging in `developer.log` e `main.log`, rapporto/copia/fallback/refresh, sintassi Python/JS, parsing Jinja, singola head Alembic e diff.
+- Ripartenza: aprire il comando con account Developer sullo stesso S25 prima da Chrome poi da Samsung Internet e incollare entrambi i rapporti; poi confrontare gli altri dispositivi. Deploy e collaudo reale ancora da eseguire.
+
 ## 2026-10-05 - Audit responsive e diagnostica dei dispositivi reali
 
 - Riscontro utente dopo `ad98eed`: iPhone corretto, S25 peggiorato, complessivamente 3 dispositivi su 4 corretti. Obiettivo confermato: criterio generale indipendente dal modello e isolamento delle classi nuove dalle dimensioni legacy, con migrazione progressiva delle pagine.

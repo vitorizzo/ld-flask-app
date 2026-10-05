@@ -1,4 +1,9 @@
 # PROJECT_MAP.md — v2.4
+## Comando diagnostica responsive Developer (2026-10-05)
+
+- `routes/developer.py` espone `/developer/responsive`, autenticata e riservata al peso 999; riusa `current_app.view_functions['home']` per misurare la Home reale senza duplicarne i dati. `templates/home.html` apre il pannello sulla route dedicata; resta compatibile la query `responsive_debug=1`.
+- Migration `l7a8b9c0d1e2` aggiunge la voce DB-driven `Developer > Diagnostica responsive`; `templates/developer/dashboard.html` offre lo stesso collegamento. Client Hints con timeout massimo di 2 secondi; misure non inviate al server. Logger aperture: `developer`/`main`.
+
 ## Diagnostica e audit motore responsive (2026-10-05)
 
 - `templates/home.html` espone il pannello locale `responsiveDiagnostics` soltanto a Developer (peso >= 999) con query `responsive_debug=1`; `static/js/responsive_diagnostics.js` raccoglie misure browser e dimensioni effettive della Home/shell, con copia esplicita. Overlay fuori dal flusso, nessun endpoint o persistenza aggiuntivi.

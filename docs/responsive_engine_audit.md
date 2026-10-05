@@ -25,4 +25,6 @@ Raccogliere nello stesso contesto d'uso (browser/PWA, orientamento verticale, zo
 
 ## Stato
 
+Aggiornamento accessibilita': il comando `Developer > Diagnostica responsive` porta a `/developer/responsive` (migration `l7a8b9c0d1e2`), riusa la Home e apre il pannello automaticamente. Disponibile anche nella Dashboard Developer. Sullo stesso S25 l'utente osserva Chrome piccolo e Samsung Internet gigantesco: prima raccolta da effettuare in entrambi i browser, con account Developer autenticato. Il solo log di apertura non contiene le misure browser; occorre copiare il rapporto.
+
 Audit e raccolta misure predisposti. Nessuna modifica al criterio/alle dimensioni in questa fase, per non alterare i tre dispositivi corretti prima di conoscere la differenza effettiva dell'S25. Il consolidamento e la correzione restano da eseguire dopo la raccolta.

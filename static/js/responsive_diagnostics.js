@@ -18,9 +18,13 @@
     };
   }
   async function collect() {
+    status.textContent = 'Raccolta misure in corso...';
     let hints = {};
     try {
-      hints = await navigator.userAgentData?.getHighEntropyValues(['model', 'platform']) || {};
+      hints = await Promise.race([
+        navigator.userAgentData?.getHighEntropyValues(['model', 'platform']),
+        new Promise(resolve => setTimeout(() => resolve({unavailable: 'timeout'}), 2000)),
+      ]) || {};
     } catch (_) { /* Il browser puo' non esporre questi dati. */ }
     const root = document.documentElement, bodyCss = getComputedStyle(document.body);
     const viewport = window.visualViewport;
