@@ -1,4 +1,10 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-05 - Drawer menu S25 a larghezza piena
+
+- Con scala `2.3` il drawer mobile storico restava limitato a `min(76vw, 360px)`, lasciando troppo poco spazio alle etichette ingrandite.
+- Nel solo profilo `high-density` il menu aperto usa ora tutta la viewport, include padding e bordi nella larghezza e consente alle etichette lunghe di andare a capo senza troncamento. Gli altri profili conservano la larghezza precedente.
+- Aggiornata la cache key di `responsive_profile.css`; test Edge con drawer forzato a 432 px: larghezza client/scroll entrambe 432 px, etichetta lunga client/scroll entrambe 404 px, `white-space: normal` e `overflow-wrap: anywhere`, quindi nessun troncamento orizzontale.
+
 ## 2026-10-05 - Scala S25/high-density portata a 2.3
 
 - Su richiesta il fattore del solo profilo `high-density` passa da `1.8` a `2.3`; profilo `standard` e SM-A16 `low-resolution` a `.92` non cambiano.
