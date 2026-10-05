@@ -40,6 +40,7 @@
         coarse: matchMedia('(pointer: coarse)').matches,
         noHover: matchMedia('(hover: none)').matches},
       profile: root.dataset.responsiveProfile,
+      mode: root.dataset.responsiveMode,
       rootInlineScale: root.style.getPropertyValue('--ld-ui-scale'),
       bodyInlineScale: document.body.style.getPropertyValue('--ld-ui-scale'),
       theme: Object.fromEntries(['base-font-size', 'mobile-font-size', 'page-padding',

@@ -21,17 +21,18 @@
 .manual-order-modal.ld-modal .modal-body { text-align: left; }
 .ld-modal-standard .modal-header .btn-close { filter: invert(1) grayscale(1) brightness(2); opacity: .9; }
 .ld-modal-standard .ld-modal-resize-handle { position: absolute; right: 4px; bottom: 4px; width: 18px; height: 18px; cursor: nwse-resize; opacity: .7; border-right: 3px solid var(--ld-brand-accent); border-bottom: 3px solid var(--ld-brand-accent); z-index: 3; }
-@media (hover: none) and (pointer: coarse) {
+@media (pointer: coarse) {
     .ld-modal-standard.modal .modal-dialog { left: 0 !important; top: 0 !important; inset: 0; width: 100% !important; max-width: 100% !important; height: 100%; min-height: 100%; margin: 0; transform: none !important; }
     .ld-modal-standard .modal-content { height: 100dvh !important; max-height: 100dvh !important; }
     .ld-modal-standard .modal-header { cursor: default; }
     .ld-modal-standard .ld-modal-resize-handle { display: none; }
 }
 
-@media (max-width: 820px), (hover: none) and (pointer: coarse) {
+@media (max-width: 820px), (pointer: coarse) {
+    /* Fallback per i layout che caricano il componente senza la shell standard. */
     .ld-modal { font-size: calc(var(--ld-mobile-font-size) * var(--ld-ui-scale, 1)); }
-    .ld-modal .modal-body { padding: var(--ld-mobile-page-padding); }
-    .ld-modal .form-control, .ld-modal .form-select, .ld-modal .btn { min-height: var(--ld-mobile-touch-size); }
+    .ld-modal .modal-body { padding: calc(var(--ld-mobile-page-padding) * var(--ld-ui-scale, 1)); }
+    .ld-modal .form-control, .ld-modal .form-select, .ld-modal .btn { min-height: calc(var(--ld-mobile-touch-size) * var(--ld-ui-scale, 1)); }
     .ld-modal-standard .modal-footer { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--ld-action-gap); }
     .ld-modal-standard .modal-footer .btn { width: 100%; min-width: 0; }
     .manual-order-modal.ld-modal .row > [class*="col-"] { width: 100%; }
@@ -39,9 +40,3 @@
     .ld-modal .modal-dialog { width: 100%; max-width: 100%; margin: 0; min-height: 100%; }
     .ld-modal .modal-content { min-height: 100dvh; max-height: 100dvh; border-radius: 0; }
 }
-
-@media (hover: none) and (pointer: coarse) and (max-width: 480px) and (max-resolution: 2.75dppx),
-       (hover: none) and (pointer: coarse) and (max-width: 480px) and (-webkit-max-device-pixel-ratio: 2.75) {
-    .ld-modal { font-size: var(--ld-mobile-font-size); }
-}
-body.ld-low-resolution-mobile .ld-modal { font-size: var(--ld-mobile-font-size); }

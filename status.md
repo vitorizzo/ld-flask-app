@@ -1,3 +1,11 @@
+## Motore responsive unico per viewport CSS (2026-10-05)
+
+- Le misure reali S25 distinguono sito desktop (viewport 980, scala visuale .367) da mobile (viewport 360, scala visuale 1). Disattivato sito desktop, anche Chrome/PWA mostrano il problema: il vecchio moltiplicatore 2.3 applicato al modello era la causa delle dimensioni gigantesche.
+- `static/js/responsive_profile.js`, sincrono prima dei CSS, e' l'unico proprietario della scala: viewport CSS <=360: .92; <=390: 1; <=430: 1.08; <=820: 1.12; oltre: 1. Modalita' mobile per viewport <=820 oppure pointer coarse. Nessuna decisione per user-agent, modello, Client Hints o DPR. Resize aggiorna root/body; zoom visuale e altezza tastiera non aggiungono compensazioni.
+- `responsive_profile.css` caricato dopo i CSS pagina definisce il contratto comune di `.ld-page-standard`, `.ld-action-grid`, controlli e modali, oltre alla shell mobile. Rimossi bootstrap duplicato, override alta densita'/bassa risoluzione e dimensioni Home duplicate; Home legacy esclusa dalle classi migrate. Kiosk conserva i propri ingombri shell e il fallback mobile delle modali.
+- Diagnostica Developer disponibile e include `mode`; aggiornate cache key degli asset modificati. Le sezioni precedenti sui profili per modello sono storiche e superate da questa policy.
+- Verifica: 64 combinazioni viewport/DPR/puntatore con lifecycle e resize; diagnostica copia/refresh/fallback; Edge headless con CSS reali a 320/360/390/412/430/768/980/1440 px, font e dimensioni attese senza overflow orizzontale pagina. A 360 px azione 58.875 px, font 14.72 px, navbar 79.109 px, font modale 16.56 px. Verifica fisica sui quattro telefoni ancora da effettuare dopo deploy manuale.
+
 TEST_SYNC_CODEX_20260507_185518
 ## 2026-10-05 - Comando Developer Diagnostica responsive
 
