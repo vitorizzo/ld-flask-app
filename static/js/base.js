@@ -10,10 +10,10 @@
     const isTouch = Number(navigator.maxTouchPoints || 0) > 0 ||
       (window.matchMedia?.("(hover: none), (pointer: coarse)").matches ?? false);
     // Il browser installato puo' nascondere modello, touch capability e viewport
-    // reale. Android e' quindi il fallback stabile; il DPR copre WebView/PWA con
-    // user-agent ulteriormente ridotto. I modelli low-resolution hanno precedenza.
+    // reale. Il DPR separa i dispositivi ad alta densita' dagli Android ordinari;
+    // i modelli low-resolution espliciti hanno sempre precedenza.
     const highDensityMobile = !isKnownLowResolution && (
-      isGalaxyS25 || isAndroid || (isTouch && pixelRatio >= 2.5)
+      isGalaxyS25 || (pixelRatio >= 2.5 && (isAndroid || isTouch))
     );
     const lowResolutionMobile = isKnownLowResolution;
     const profile = highDensityMobile ? "high-density" : (lowResolutionMobile ? "low-resolution" : "standard");
@@ -27,8 +27,8 @@
     document.body.dataset.responsiveViewport = String(Math.round(window.innerWidth || 0));
     document.body.dataset.responsivePixelRatio = String(pixelRatio);
     if (highDensityMobile) {
-      document.documentElement.style.setProperty("--ld-ui-scale", "1.5");
-      document.body.style.setProperty("--ld-ui-scale", "1.5");
+      document.documentElement.style.setProperty("--ld-ui-scale", "1.8");
+      document.body.style.setProperty("--ld-ui-scale", "1.8");
     } else if (lowResolutionMobile) {
       document.documentElement.style.setProperty("--ld-ui-scale", ".92");
       document.body.style.setProperty("--ld-ui-scale", ".92");

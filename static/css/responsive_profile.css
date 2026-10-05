@@ -1,9 +1,9 @@
 /* Profilo finale per dispositivi touch ad alta densita'.
    Questo foglio viene caricato dopo i CSS specifici delle pagine. */
 html[data-responsive-profile="high-density"] body.app-shell {
-  --app-header-height: calc(86px * var(--ld-ui-scale, 1.5));
-  --app-footer-height: calc(48px * var(--ld-ui-scale, 1.5));
-  --app-content-gap: calc(10px * var(--ld-ui-scale, 1.5));
+  --app-header-height: calc(86px * var(--ld-ui-scale, 1.8));
+  --app-footer-height: calc(48px * var(--ld-ui-scale, 1.8));
+  --app-content-gap: calc(10px * var(--ld-ui-scale, 1.8));
 }
 
 html[data-responsive-profile="high-density"] body.app-shell .navbar {

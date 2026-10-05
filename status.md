@@ -1,4 +1,10 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-05 - Scala alta densita' aumentata senza alterare gli altri profili
+
+- Il fattore del profilo `high-density` passa da `1.5` a `1.8` per rendere piu' leggibili corpo, controlli e shell sui Galaxy S25 e dispositivi realmente ad alta densita'.
+- Rimosso il fail-safe troppo ampio che classificava qualsiasi Android come alta densita': ora servono famiglia S25 esplicita oppure DPR >= 2.5 insieme a piattaforma Android/touch. Desktop e Android ordinari restano `standard`; SM-A16 conserva la precedenza `low-resolution` con scala `.92`.
+- Aggiornate le cache key di `style.css`, `responsive_profile.css` e `base.js`. Test Edge superato: S25/DPR 3 usa `1.8` (navbar 154.8 px, campo 115.2 px, testo 32.4 px), Android/DPR 2 resta `standard`, A16/DPR 3 resta `low-resolution` a `.92`.
+
 ## 2026-10-05 - Fail-safe profilo grande Android/S25
 
 - Dopo il deploy della correzione precedente, produzione serviva regolarmente la nuova versione ma il dispositivo continuava a non mostrare variazioni: esclusi definitivamente deploy, cache, ordine dei CSS e rimozioni successive della classe dal codice.
