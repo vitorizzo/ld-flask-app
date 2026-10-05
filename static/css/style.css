@@ -3545,4 +3545,4 @@ body.ld-low-resolution-mobile { --ld-ui-scale: .92; }
    Viene applicato dopo le fasce viewport, cosi' una viewport CSS da 360px non
    viene scambiata per uno smartphone low-resolution. */
 body.app-shell.ld-high-density-mobile,
-body.app-shell[data-responsive-profile="high-density"] { --ld-ui-scale: 1.8; }
+body.app-shell[data-responsive-profile="high-density"] { --ld-ui-scale: 2.3; }

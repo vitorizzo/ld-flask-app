@@ -3,13 +3,13 @@
 
 - `templates/base.html` carica `static/css/responsive_profile.css` dopo il blocco `extra_css`, quindi il profilo dispositivo prevale sui CSS specifici di Home e delle singole funzioni.
 - Per `html[data-responsive-profile="high-density"] body.app-shell` il foglio applica `--ld-ui-scale` a shell, navbar, logo, hamburger, drawer menu, footer, `.ld-page-standard`, `.ld-action-grid`, controlli form e `.ld-modal`.
-- Il profilo alta densita' usa il fattore `1.8`; non ripristina le vecchie media query S25 hardcoded. Le dimensioni calcolate vengono collaudate con fixture Edge headless a viewport mobile.
+- Il profilo alta densita' usa il fattore `2.3`; non ripristina le vecchie media query S25 hardcoded. Le dimensioni calcolate vengono collaudate con fixture Edge headless a viewport mobile.
 
 ## Profilo responsive Galaxy S25 (2026-10-04)
 
 - `static/js/base.js` assegna globalmente `ld-high-density-mobile` alla famiglia Galaxy S25 (`SM-S931`, `SM-S936`, `SM-S937`, `SM-S938`) oppure a dispositivi Android/touch con DPR >= 2.5; non classifica indiscriminatamente tutti gli Android. Interroga inoltre `navigator.userAgentData.getHighEntropyValues(['model', 'platform'])` per i browser Chromium con user-agent ridotto. La classificazione espone nel DOM profilo, viewport e DPR letti dal browser.
 - `templates/base.html` applica lo stesso profilo inline a `<html>` prima del caricamento dei fogli di stile; `responsive_profile.css` seleziona questo attributo root, evitando flash o mancate applicazioni se lo script esterno e' differito/cached. `base.js` aggiorna sia root sia body quando arrivano i Client Hints.
-- Il profilo scelto e' leggibile in `html[data-responsive-profile]` e `body[data-responsive-profile]`. Per `high-density` lo script imposta inline `--ld-ui-scale: 1.8`, impedendo ai breakpoint successivi di annullarlo; `static/css/style.css` mantiene lo stesso valore come fallback. Classi standard, `static/css/ld_modal.css` e asset tematici riusano il token.
+- Il profilo scelto e' leggibile in `html[data-responsive-profile]` e `body[data-responsive-profile]`. Per `high-density` lo script imposta inline `--ld-ui-scale: 2.3`, impedendo ai breakpoint successivi di annullarlo; `static/css/style.css` mantiene lo stesso valore come fallback. Classi standard, `static/css/ld_modal.css` e asset tematici riusano il token.
 - `ld-low-resolution-mobile` resta riservato ai modelli esplicitamente riconosciuti, attualmente SM-A16; gli Android non S25 sotto DPR 2.5 restano nel profilo standard. Il rilevamento e' stato rimosso da `static/js/home.js`, per evitare che la scala fosse disponibile soltanto sulla Home.
 
 ## Informazioni articoli nel contesto grafico condiviso (2026-10-04)

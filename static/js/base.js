@@ -27,8 +27,8 @@
     document.body.dataset.responsiveViewport = String(Math.round(window.innerWidth || 0));
     document.body.dataset.responsivePixelRatio = String(pixelRatio);
     if (highDensityMobile) {
-      document.documentElement.style.setProperty("--ld-ui-scale", "1.8");
-      document.body.style.setProperty("--ld-ui-scale", "1.8");
+      document.documentElement.style.setProperty("--ld-ui-scale", "2.3");
+      document.body.style.setProperty("--ld-ui-scale", "2.3");
     } else if (lowResolutionMobile) {
       document.documentElement.style.setProperty("--ld-ui-scale", ".92");
       document.body.style.setProperty("--ld-ui-scale", ".92");

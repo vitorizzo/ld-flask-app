@@ -1,4 +1,9 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-05 - Scala S25/high-density portata a 2.3
+
+- Su richiesta il fattore del solo profilo `high-density` passa da `1.8` a `2.3`; profilo `standard` e SM-A16 `low-resolution` a `.92` non cambiano.
+- Aggiornate le cache key di `style.css`, `responsive_profile.css` e `base.js`; Edge a viewport mobile misura navbar 197.8 px, campo 147.2 px e testo 41.4 px con scala effettiva `2.3`.
+
 ## 2026-10-05 - Scala alta densita' aumentata senza alterare gli altri profili
 
 - Il fattore del profilo `high-density` passa da `1.5` a `1.8` per rendere piu' leggibili corpo, controlli e shell sui Galaxy S25 e dispositivi realmente ad alta densita'.
