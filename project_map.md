@@ -7,9 +7,9 @@
 
 ## Profilo responsive Galaxy S25 (2026-10-04)
 
-- `static/js/base.js` assegna globalmente `ld-high-density-mobile` alla famiglia Galaxy S25 (`SM-S931`, `SM-S936`, `SM-S937`, `SM-S938`) e Android touch stretti ad alta densita'; interroga anche `navigator.userAgentData.getHighEntropyValues(['model', 'platform'])` per i browser Chromium con user-agent ridotto.
+- `static/js/base.js` assegna globalmente `ld-high-density-mobile` alla famiglia Galaxy S25 (`SM-S931`, `SM-S936`, `SM-S937`, `SM-S938`) e agli Android touch con viewport CSS fino a 600 px o con la viewport anomala ampia da 821 px; interroga anche `navigator.userAgentData.getHighEntropyValues(['model', 'platform'])` per i browser Chromium con user-agent ridotto. Il criterio usa `innerWidth` e non `screen.width`, che su alcune PWA Android espone la risoluzione fisica e impediva l'attivazione sul S25.
 - Il profilo scelto e' leggibile in `body[data-responsive-profile]`. Per `high-density` lo script imposta inline `--ld-ui-scale: 1.5`, impedendo ai breakpoint successivi di annullarlo; `static/css/style.css` mantiene lo stesso valore come fallback. Classi standard, `static/css/ld_modal.css` e asset tematici riusano il token.
-- `ld-low-resolution-mobile` resta riservato ai modelli esplicitamente riconosciuti, attualmente SM-A16; gli Android touch entro 480 px usano per default il profilo alta densita'. Il rilevamento e' stato rimosso da `static/js/home.js`, per evitare che la scala fosse disponibile soltanto sulla Home.
+- `ld-low-resolution-mobile` resta riservato ai modelli esplicitamente riconosciuti, attualmente SM-A16; gli Android touch nelle fasce mobili supportate usano per default il profilo alta densita'. Il rilevamento e' stato rimosso da `static/js/home.js`, per evitare che la scala fosse disponibile soltanto sulla Home.
 
 ## Informazioni articoli nel contesto grafico condiviso (2026-10-04)
 

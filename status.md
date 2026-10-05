@@ -1,4 +1,11 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-05 - Correzione rilevamento viewport Galaxy S25 in produzione
+
+- Verificato direttamente l'ambiente live dopo il deploy: produzione serve sia `responsive_profile.css` sia la versione aggiornata di `base.js`, e l'HTML renderizzato li include nell'ordine corretto. Il mancato ridimensionamento non era quindi causato da deploy, cache o service worker.
+- Individuata la condizione errata: il profilo alta densita' richiedeva contemporaneamente `innerWidth <= 480` e `screen.width <= 480`; alcuni browser/PWA Android espongono `screen.width` in pixel fisici (per esempio 1080 sul Galaxy S25), lasciando il dispositivo sul profilo `standard`.
+- `static/js/base.js` usa ora la viewport CSS effettiva (`innerWidth`) fino a 600 px e copre anche le viewport touch Android anomale da 821 px in su; il riconoscimento esplicito S25 e l'override low-resolution per SM-A16 restano attivi. Aggiornate le cache key in `base.html`.
+- Test di classificazione superati per S25 con viewport 432/screen 1080, Android touch con viewport ampia, S25 da Client Hints, A16 low-resolution e desktop non touch; verificata anche la sintassi JavaScript.
+
 ## 2026-10-04 - Profilo S25 applicato dopo i CSS di pagina
 
 - Individuata la causa residua con misure browser: il fattore globale era definito in `style.css`, ma `home.css` e gli altri CSS caricati in `extra_css` arrivavano dopo e potevano reimpostare dimensioni non scalate. Navbar e footer usavano inoltre valori fissi indipendenti da `--ld-ui-scale`.

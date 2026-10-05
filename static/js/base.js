@@ -1,7 +1,6 @@
 (() => {
   function applyResponsiveDeviceProfile(clientHints = {}) {
     const ua = navigator.userAgent || "";
-    const screenWidth = Number(window.screen?.width || window.innerWidth || 0);
     const identity = `${ua} ${clientHints.model || ""}`;
     const platform = `${navigator.userAgentData?.platform || ""} ${clientHints.platform || ""}`;
     const isAndroid = /Android/i.test(`${ua} ${platform}`);
@@ -9,9 +8,13 @@
     const isKnownLowResolution = /SM-A16/i.test(identity);
     const isTouch = Number(navigator.maxTouchPoints || 0) > 0 ||
       (window.matchMedia?.("(hover: none), (pointer: coarse)").matches ?? false);
-    const isNarrowTouchViewport = isTouch && window.innerWidth <= 480 && screenWidth <= 480;
+    // Alcuni browser/PWA Android espongono screen.width in pixel fisici
+    // (es. 1080 sul Galaxy S25) mentre innerWidth resta la viewport CSS.
+    // Il profilo grafico deve basarsi sulla viewport realmente disponibile.
+    const isNarrowTouchViewport = isTouch && window.innerWidth <= 600;
+    const isWideAndroidTouchViewport = isAndroid && isTouch && window.innerWidth >= 821;
     const highDensityMobile = !isKnownLowResolution && (
-      isGalaxyS25 || (isAndroid && isNarrowTouchViewport)
+      isGalaxyS25 || (isAndroid && (isNarrowTouchViewport || isWideAndroidTouchViewport))
     );
     const lowResolutionMobile = isKnownLowResolution;
     const profile = highDensityMobile ? "high-density" : (lowResolutionMobile ? "low-resolution" : "standard");
