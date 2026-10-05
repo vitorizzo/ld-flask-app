@@ -1,4 +1,10 @@
 # PROJECT_MAP.md — v2.4
+## Finestra operativa MatrixWS (2026-10-05)
+
+- `config/celeryconfig.py` limita gli avvii automatici MatrixWS alla fascia 06:00-22:59: articoli restano sfalsati ai minuti `2,7,...,57`, giacenze ogni cinque minuti e anagrafiche ai minuti `0,30`; il barcode giornaliero viene eseguito alle 06:20.
+- La sospensione riguarda soltanto articoli, giacenze, barcode e anagrafiche. `import-customer-account-statements-half-hourly` resta attivo anche di notte perche' usa il flusso file e non MatrixWS.
+- `POST /task_manage/clear_errors` rimuove dal monitor Redis gli stati terminali (`ERROR`/revocati) senza toccare i processi attivi o lo storico persistente delle importazioni, usato per misurare il tasso di errore dopo la modifica.
+
 ## Livello finale responsive alta densita' (2026-10-04)
 
 - `templates/base.html` carica `static/css/responsive_profile.css` dopo il blocco `extra_css`, quindi il profilo dispositivo prevale sui CSS specifici di Home e delle singole funzioni.

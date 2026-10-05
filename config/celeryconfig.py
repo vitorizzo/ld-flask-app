@@ -18,21 +18,26 @@ beat_schedule = {
     'import-articoli': {
         'task': 'config.tasks.import_articoli_task',
         # Ogni 5 minuti, sfalsato di due minuti rispetto alle giacenze.
-        'schedule': crontab(minute='2,7,12,17,22,27,32,37,42,47,52,57'),
+        # Gli import MatrixWS restano sospesi dalle 23:00 alle 05:59,
+        # durante la finestra di manutenzione dei server.
+        'schedule': crontab(
+            minute='2,7,12,17,22,27,32,37,42,47,52,57',
+            hour='6-22',
+        ),
         'options': {'expires': 4 * 60},
     },
     'import-giacenze': {
         'task': 'config.tasks.import_giacenze_task',
-        'schedule': crontab(minute='*/5'),
+        'schedule': crontab(minute='*/5', hour='6-22'),
         'options': {'expires': 4 * 60},
     },
     'import-barcode': {
         'task': 'config.tasks.import_barcode_task',
-        'schedule': crontab(hour='4', minute='20'),
+        'schedule': crontab(hour='6', minute='20'),
     },
     'import-anagrafiche': {
         'task': 'config.tasks.import_anagrafiche_task',
-        'schedule': crontab(minute='0,30'),
+        'schedule': crontab(minute='0,30', hour='6-22'),
         'options': {'expires': 25 * 60},
     },
     'import-customer-account-statements-half-hourly': {

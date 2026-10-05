@@ -1,4 +1,10 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-05 - Finestra notturna import MatrixWS
+
+- L'analisi dei 414 errori conservati nel monitor Celery ha rilevato soprattutto risposte MatrixWS HTTP 500/502 e alcuni rifiuti di connessione in corrispondenza dei riavvii; gli ultimi import risultavano nuovamente completati con successo.
+- Celery Beat non avvia piu' gli import MatrixWS di articoli, giacenze e anagrafiche dalle 23:00 alle 05:59. Le esecuzioni periodiche riprendono dalle 06:00; il barcode giornaliero passa dalle 04:20 alle 06:20.
+- L'import degli estratti conto clienti resta invariato perche' legge il flusso file e non interroga MatrixWS. Gli errori terminali pregressi possono essere rimossi dal monitor Redis senza cancellare lo storico `Importazione` nel database, che resta disponibile per il confronto del tasso di errore nella settimana successiva.
+
 ## 2026-10-05 - Drawer menu S25 a larghezza piena
 
 - Con scala `2.3` il drawer mobile storico restava limitato a `min(76vw, 360px)`, lasciando troppo poco spazio alle etichette ingrandite.
