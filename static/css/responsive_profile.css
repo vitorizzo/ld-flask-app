@@ -5,14 +5,15 @@ body.app-shell .ld-page-standard h1 { font-size: calc(var(--ld-base-font-size) *
 body.app-shell .ld-page-standard > p { font-size: calc(var(--ld-base-font-size) * 1.1 * var(--ld-ui-scale, 1)) !important; }
 body.app-shell .ld-action-grid { display: grid; width: 100% !important; max-width: var(--ld-page-max-width); grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); margin-top: calc(var(--ld-action-gap) * var(--ld-ui-scale, 1)) !important; gap: calc(var(--ld-action-gap) * var(--ld-ui-scale, 1)) !important; }
 body.app-shell .ld-action-grid > .quick-action,
-body.app-shell .ld-action-grid > .ld-action { min-width: 0; min-height: calc(var(--ld-action-min-height) * var(--ld-ui-scale, 1)) !important; padding: calc(var(--ld-page-padding) * var(--ld-ui-scale, 1)) !important; font-size: calc(var(--ld-base-font-size) * var(--ld-ui-scale, 1)) !important; gap: calc(var(--ld-action-gap) * var(--ld-ui-scale, 1)) !important; border-radius: var(--ld-radius); }
+body.app-shell .ld-action-grid > .ld-action { display: flex; align-items: center; justify-content: flex-start; text-align: left; min-width: 0; min-height: calc(var(--ld-action-min-height) * var(--ld-ui-scale, 1)) !important; padding: calc(var(--ld-page-padding) * var(--ld-ui-scale, 1)) !important; font-size: calc(var(--ld-base-font-size) * var(--ld-ui-scale, 1)) !important; gap: calc(var(--ld-action-gap) * var(--ld-ui-scale, 1)) !important; border-radius: var(--ld-radius); }
 body.app-shell .ld-action-grid > .quick-action i,
 body.app-shell .ld-action-grid > .ld-action i { width: 1.35em; min-width: 1.35em; font-size: calc(var(--ld-base-font-size) * 1.35 * var(--ld-ui-scale, 1)) !important; }
 body.app-shell .ld-action-grid > .quick-action span,
 body.app-shell .ld-action-grid > .ld-action span { min-width: 0; overflow-wrap: anywhere; }
 
 html[data-responsive-mode="mobile"] body.app-shell:not(.kiosk-body) {
-  --app-header-height: calc(86px * var(--ld-ui-scale, 1));
+  --ld-navbar-logo-height: calc(46px * var(--ld-ui-scale, 1));
+  --app-header-height: calc(var(--ld-navbar-logo-height) + 40px * var(--ld-ui-scale, 1));
   --app-footer-height: calc(48px * var(--ld-ui-scale, 1));
   --app-content-gap: calc(10px * var(--ld-ui-scale, 1));
   --mobile-menu-shift: min(76vw, calc(360px * var(--ld-ui-scale, 1)));
@@ -20,16 +21,28 @@ html[data-responsive-mode="mobile"] body.app-shell:not(.kiosk-body) {
 
 html[data-responsive-mode="mobile"] body.app-shell .navbar {
   height: var(--app-header-height) !important;
+  padding-block: 0;
 }
 
 html[data-responsive-mode="mobile"] body.app-shell .navbar .container-fluid {
-  min-height: var(--app-header-height) !important;
+  height: 100%;
+  min-height: 0 !important;
+  align-items: center;
+  padding-block: 0;
   gap: calc(18px * var(--ld-ui-scale, 1));
   padding-inline: calc(14px * var(--ld-ui-scale, 1));
 }
 
+html[data-responsive-mode="mobile"] body.app-shell .navbar-brand {
+  display: flex;
+  align-items: center;
+  padding-block: 0;
+}
+
 html[data-responsive-mode="mobile"] body.app-shell .navbar-brand img {
-  height: calc(46px * var(--ld-ui-scale, 1)) !important;
+  height: var(--ld-navbar-logo-height) !important;
+  width: auto;
+  display: block;
 }
 
 html[data-responsive-mode="mobile"] body.app-shell .navbar-toggler {

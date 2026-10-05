@@ -1,3 +1,9 @@
+## Allineamento azioni e contenimento logo (2026-10-05)
+
+- Utente conferma che il motore responsive funziona su tutti e quattro i dispositivi.
+- `responsive_profile.css`: azioni condivise allineano icona e testo a sinistra. La navbar mobile deriva l'altezza dal logo piu' spazio verticale; container alto quanto la navbar, senza min-height e padding aggiuntivi, brand centrato e immagine a larghezza automatica. Ingombro header sincronizzato con app-content. Cache key `viewport2`.
+- Verifica Edge con logo reale e CSS applicativi a otto larghezze: logo interamente dentro la navbar, azioni flex-start/text-align left, dimensioni responsive e assenza overflow confermate.
+
 ## Motore responsive unico per viewport CSS (2026-10-05)
 
 - Le misure reali S25 distinguono sito desktop (viewport 980, scala visuale .367) da mobile (viewport 360, scala visuale 1). Disattivato sito desktop, anche Chrome/PWA mostrano il problema: il vecchio moltiplicatore 2.3 applicato al modello era la causa delle dimensioni gigantesche.
