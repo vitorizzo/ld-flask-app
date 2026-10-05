@@ -13,7 +13,7 @@ body.app-shell .ld-action-grid > .ld-action span { min-width: 0; overflow-wrap: 
 
 html[data-responsive-mode="mobile"] body.app-shell:not(.kiosk-body) {
   --ld-navbar-logo-height: calc(46px * var(--ld-ui-scale, 1));
-  --app-header-height: calc(var(--ld-navbar-logo-height) + 40px * var(--ld-ui-scale, 1));
+  --app-header-height: calc(var(--ld-navbar-logo-height) + 64px * var(--ld-ui-scale, 1));
   --app-footer-height: calc(48px * var(--ld-ui-scale, 1));
   --app-content-gap: calc(10px * var(--ld-ui-scale, 1));
   --mobile-menu-shift: min(76vw, calc(360px * var(--ld-ui-scale, 1)));
@@ -22,6 +22,7 @@ html[data-responsive-mode="mobile"] body.app-shell:not(.kiosk-body) {
 html[data-responsive-mode="mobile"] body.app-shell .navbar {
   height: var(--app-header-height) !important;
   padding-block: 0;
+  background-size: auto calc(20px * var(--ld-ui-scale, 1));
 }
 
 html[data-responsive-mode="mobile"] body.app-shell .navbar .container-fluid {
@@ -35,8 +36,17 @@ html[data-responsive-mode="mobile"] body.app-shell .navbar .container-fluid {
 
 html[data-responsive-mode="mobile"] body.app-shell .navbar-brand {
   display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: calc(4px * var(--ld-ui-scale, 1));
   padding-block: 0;
+}
+
+html[data-responsive-mode="mobile"] body.app-shell .navbar-brand-home-hint {
+  position: static;
+  transform: none;
+  font-size: calc(.72rem * var(--ld-ui-scale, 1));
+  padding: calc(2px * var(--ld-ui-scale, 1)) calc(8px * var(--ld-ui-scale, 1));
 }
 
 html[data-responsive-mode="mobile"] body.app-shell .navbar-brand img {

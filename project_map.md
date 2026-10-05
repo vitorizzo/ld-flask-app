@@ -1,3 +1,9 @@
+## Navbar mobile: fascia marrone sopra il separatore (2026-10-05)
+
+- Screenshot reale `docs/transport/WhatsApp Image 2026-10-05 at 18.23.33.jpeg`: il separatore brush bianco a dimensione naturale copriva visivamente la meta' inferiore di logo/Home, anche con geometria dentro navbar.
+- `responsive_profile.css`: separatore confinato agli ultimi 20px moltiplicati per scala; Home in flusso sotto il logo, header 110px moltiplicati per scala, condiviso con offset contenuto. Cache key `viewport3`. Nessuna modifica al criterio responsive.
+- Verificata geometria Edge a otto larghezze: su mobile Home termina prima della fascia separatore; logo contenuto e azioni a sinistra. La precedente verifica del solo rettangolo logo non copriva il difetto dello sfondo.
+
 ## Allineamento azioni e contenimento logo (2026-10-05)
 
 - Utente conferma che il motore responsive funziona su tutti e quattro i dispositivi.
