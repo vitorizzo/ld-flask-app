@@ -29,14 +29,10 @@
         const platform = navigator.userAgentData?.platform || "";
         const identity = `${ua} ${platform}`;
         const pixelRatio = Number(window.devicePixelRatio || 1);
-        const isAndroid = /Android/i.test(identity);
         const isKnownLowResolution = /SM-A16/i.test(identity);
-        const isTouch = Number(navigator.maxTouchPoints || 0) > 0 ||
-          (window.matchMedia?.("(hover: none), (pointer: coarse)").matches ?? false);
         const isGalaxyS25 = /SM-S93[1678]/i.test(identity);
-        const highDensity = !isKnownLowResolution && (
-          isGalaxyS25 || (pixelRatio >= 2.5 && (isAndroid || isTouch))
-        );
+        // Stessa policy di base.js: il DPR da solo non abilita la scala S25.
+        const highDensity = !isKnownLowResolution && isGalaxyS25;
         const profile = highDensity ? "high-density" : (isKnownLowResolution ? "low-resolution" : "standard");
         root.dataset.responsiveProfile = profile;
         root.dataset.responsiveViewport = String(Math.round(window.innerWidth || 0));
@@ -120,7 +116,7 @@
         {% if current_user.is_authenticated %}
             <script src="{{ url_for('static', filename='js/task_status.js', v=app_version ~ '-monitor11') }}"></script>
         {% endif %}
-        <script src="{{ url_for('static', filename='js/base.js', v=app_version ~ '-device-scale7') }}"></script>
+        <script src="{{ url_for('static', filename='js/base.js', v=app_version ~ '-device-scale8') }}"></script>
         <script src="{{ url_for('static', filename='js/ld_modal.js', v=app_version ~ '-order1') }}"></script>
         <script src="{{ url_for('static', filename='js/pwa_push.js', v=app_version) }}"></script>
         <script src="{{ url_for('static', filename='js/app_update.js', v=app_version ~ '-safe-refresh1') }}"></script>

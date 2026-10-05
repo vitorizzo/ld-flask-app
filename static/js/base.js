@@ -2,19 +2,13 @@
   function applyResponsiveDeviceProfile(clientHints = {}) {
     const ua = navigator.userAgent || "";
     const identity = `${ua} ${clientHints.model || ""}`;
-    const platform = `${navigator.userAgentData?.platform || ""} ${clientHints.platform || ""}`;
-    const isAndroid = /Android/i.test(`${ua} ${platform}`);
     const isGalaxyS25 = /SM-S93[1678]/i.test(identity);
     const isKnownLowResolution = /SM-A16/i.test(identity);
     const pixelRatio = Number(window.devicePixelRatio || 1);
-    const isTouch = Number(navigator.maxTouchPoints || 0) > 0 ||
-      (window.matchMedia?.("(hover: none), (pointer: coarse)").matches ?? false);
-    // Il browser installato puo' nascondere modello, touch capability e viewport
-    // reale. Il DPR separa i dispositivi ad alta densita' dagli Android ordinari;
-    // i modelli low-resolution espliciti hanno sempre precedenza.
-    const highDensityMobile = !isKnownLowResolution && (
-      isGalaxyS25 || (pixelRatio >= 2.5 && (isAndroid || isTouch))
-    );
+    // Il DPR non misura lo spazio CSS disponibile: iPhone e altri Android
+    // devono mantenere la scala standard. La scala 2.3 e' riservata agli S25,
+    // riconosciuti anche dal modello nei Client Hints con user-agent ridotto.
+    const highDensityMobile = !isKnownLowResolution && isGalaxyS25;
     const lowResolutionMobile = isKnownLowResolution;
     const profile = highDensityMobile ? "high-density" : (lowResolutionMobile ? "low-resolution" : "standard");
 

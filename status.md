@@ -1,4 +1,11 @@
 TEST_SYNC_CODEX_20260507_185518
+## 2026-10-05 - Correzione scala iPhone e Motorola G15
+
+- Individuata nel bootstrap inline e in `base.js` la condizione `DPR >= 2.5 && (Android || touch)`: applicava anche a iPhone e altri Android il profilo S25 a scala `2.3`, ingrandendo shell, controlli e modali.
+- Il profilo `high-density` e' ora riservato ai modelli Galaxy S25 riconosciuti da user-agent o Client Hints. iPhone, Motorola G15 e Android non identificati usano le fasce responsive standard; S25 conserva `2.3` e SM-A16 conserva `.92`. Aggiornata la cache key JavaScript a `device-scale8`.
+- Verificati con test VM il bootstrap head e il runtime: iPhone/Safari DPR 3, G15 DPR 2.625, Android con UA ridotto, quattro modelli S25, S25/A16 da Client Hints, A16 e desktop; verificata anche la rimozione di una scala inline precedente passando a standard. Sintassi JavaScript, parsing Jinja e `git diff --check` superati.
+- Prossimo riscontro: deploy manuale e collaudo reale su iPhone 16 Plus/Motorola G15, con controprova S25 e Android low resolution. Le verifiche della sessione sono simulate e non costituiscono collaudo sui telefoni fisici.
+
 ## 2026-10-05 - Finestra notturna import MatrixWS
 
 - L'analisi dei 414 errori conservati nel monitor Celery ha rilevato soprattutto risposte MatrixWS HTTP 500/502 e alcuni rifiuti di connessione in corrispondenza dei riavvii; gli ultimi import risultavano nuovamente completati con successo.

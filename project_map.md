@@ -1,4 +1,9 @@
 # PROJECT_MAP.md — v2.4
+## Scala S25 riservata al modello riconosciuto (2026-10-05)
+
+- Il bootstrap inline di `templates/base.html` e `static/js/base.js` applicano il profilo `high-density` a scala `2.3` soltanto alla famiglia Galaxy S25 (`SM-S931/936/937/938`), anche tramite `userAgentData` Client Hints. Il solo DPR alto o la presenza touch non abilita piu' questo profilo: iPhone e Motorola G15 usano `standard` con le fasce viewport CSS esistenti.
+- Il profilo esplicito SM-A16 resta `low-resolution` a `.92`. Un Android con user-agent ridotto resta inizialmente standard; se i Client Hints identificano S25/A16 il profilo viene aggiornato. Cache key `base.js`: `device-scale8`.
+
 ## Finestra operativa MatrixWS (2026-10-05)
 
 - `config/celeryconfig.py` limita gli avvii automatici MatrixWS alla fascia 06:00-22:59: articoli restano sfalsati ai minuti `2,7,...,57`, giacenze ogni cinque minuti e anagrafiche ai minuti `0,30`; il barcode giornaliero viene eseguito alle 06:20.
@@ -13,11 +18,11 @@
 
 ## Profilo responsive Galaxy S25 (2026-10-04)
 
-- `static/js/base.js` assegna globalmente `ld-high-density-mobile` alla famiglia Galaxy S25 (`SM-S931`, `SM-S936`, `SM-S937`, `SM-S938`) oppure a dispositivi Android/touch con DPR >= 2.5; non classifica indiscriminatamente tutti gli Android. Interroga inoltre `navigator.userAgentData.getHighEntropyValues(['model', 'platform'])` per i browser Chromium con user-agent ridotto. La classificazione espone nel DOM profilo, viewport e DPR letti dal browser.
+- `static/js/base.js` assegna globalmente `ld-high-density-mobile` soltanto alla famiglia Galaxy S25 (`SM-S931`, `SM-S936`, `SM-S937`, `SM-S938`). Interroga inoltre `navigator.userAgentData.getHighEntropyValues(['model', 'platform'])` per i browser Chromium con user-agent ridotto. La classificazione espone nel DOM profilo, viewport e DPR letti dal browser; il DPR e' diagnostico, non decide la scala.
 - `templates/base.html` applica lo stesso profilo inline a `<html>` prima del caricamento dei fogli di stile; `responsive_profile.css` seleziona questo attributo root, evitando flash o mancate applicazioni se lo script esterno e' differito/cached. `base.js` aggiorna sia root sia body quando arrivano i Client Hints.
 - Nel profilo `high-density` il drawer `.navbar-collapse` usa `--mobile-menu-shift: 100vw`; i link ammettono wrapping e `overflow-wrap`, necessario con la tipografia a scala `2.3`. Standard e low-resolution mantengono il drawer storico `min(76vw, 360px)`.
 - Il profilo scelto e' leggibile in `html[data-responsive-profile]` e `body[data-responsive-profile]`. Per `high-density` lo script imposta inline `--ld-ui-scale: 2.3`, impedendo ai breakpoint successivi di annullarlo; `static/css/style.css` mantiene lo stesso valore come fallback. Classi standard, `static/css/ld_modal.css` e asset tematici riusano il token.
-- `ld-low-resolution-mobile` resta riservato ai modelli esplicitamente riconosciuti, attualmente SM-A16; gli Android non S25 sotto DPR 2.5 restano nel profilo standard. Il rilevamento e' stato rimosso da `static/js/home.js`, per evitare che la scala fosse disponibile soltanto sulla Home.
+- `ld-low-resolution-mobile` resta riservato ai modelli esplicitamente riconosciuti, attualmente SM-A16; tutti gli altri dispositivi non S25 restano nel profilo standard indipendentemente dal DPR. Il rilevamento e' stato rimosso da `static/js/home.js`, per evitare che la scala fosse disponibile soltanto sulla Home.
 
 ## Informazioni articoli nel contesto grafico condiviso (2026-10-04)
 
