@@ -1,3 +1,11 @@
+## Bacheca ordini migrata al motore grafico condiviso (2026-10-06)
+
+- `templates/route_orders/board.html`: pagina `.ld-page-standard`, pannelli `.ld-panel`, sette modali `.ld-modal-standard`. Rimossi `welcome-section`, `page-shell`, contesto `registry-tools` e import del CSS anagrafica; nuovo asset `static/css/route_order_board.css` con cache key `engine1`.
+- Eliminati circa 750 righe di CSS inline e il vecchio ingrandimento touch oltre 820px. Il foglio bacheca conserva struttura tabella desktop/schede mobile e colori semantici degli stati; font, spaziature, controlli e pannelli derivano dai token tema e da `--ld-ui-scale`, senza profili per dispositivo. La struttura mobile legge `data-responsive-mode` del motore comune; JS dettaglio usa viewport <=820 oppure pointer coarse anche con hover disponibile.
+- Dettaglio cliente e nuovo ordine usano la modale comune; Home/navbar e criterio di scala invariati. Note e nomi lunghi vanno a capo; status puo' scendere sotto il nome; azioni nel dettaglio si distribuiscono secondo lo spazio, contatti separano etichetta e numero. Scorrimento pagina affidato ad app-content.
+- Logica operativa JS verificata identica salvo selettori delle nuove classi e criterio input; nessuna modifica a API, autorizzazioni, ordini o invio Slack.
+- Verifiche: parsing Jinja e sintassi JS; Edge headless con Bootstrap reale e risposte API simulate a 320/360/390/412/430/768/980/1440px piu' viewport 980 con puntatore coarse. Passano rendering Giro/Diretti, selezione ordini, dettaglio con sei sezioni, nuovo ordine/caricamento clienti, cleanup modali e assenza overflow con testi lunghi. Anteprime desktop/mobile ispezionate. Verifica fisica dei telefoni dopo deploy ancora da effettuare.
+
 ## Navbar mobile: fascia marrone sopra il separatore (2026-10-05)
 
 - Screenshot reale `docs/transport/WhatsApp Image 2026-10-05 at 18.23.33.jpeg`: il separatore brush bianco a dimensione naturale copriva visivamente la meta' inferiore di logo/Home, anche con geometria dentro navbar.

@@ -3,764 +3,12 @@
 {% block title %}Plancia ordini giri{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css', v=app_version ~ '-direct-order-mobile2') }}">
-<style>
-  .route-board-section {
-    text-align: left;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-    min-height: 0;
-  }
-  .route-board-section.page-shell {
-    padding: 18px;
-    height: 100%;
-    min-height: 0;
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-  .route-board-top { display: grid; grid-template-columns: minmax(220px, 1fr) auto auto auto; gap: .75rem; align-items: end; }
-  .route-board-mode { display: inline-flex; gap: .25rem; padding: .25rem; background: #f1f3f5; border-radius: 8px; }
-  .route-board-mode button { border: 0; border-radius: 6px; padding: .45rem .75rem; background: transparent; color: #495057; }
-  .route-board-mode button.active { background: #4A2C2A; color: #fff; }
-  .route-board-panel { background: #fff; color: #212529; border-radius: 8px; border: 1px solid #dee2e6; }
-  .route-board-section.page-shell > .route-board.active,
-  .route-board-section.page-shell > .direct-board.active {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex !important;
-    flex-direction: column;
-    gap: 12px;
-    overflow: visible;
-  }
-  .route-board-section.page-shell .route-board-panel {
-    flex: 0 0 auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-  }
-  .route-board-section.page-shell .route-board-panel .table-responsive {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: auto;
-    max-height: none;
-  }
-  .route-board-section .route-board-panel,
-  .route-board-section .route-board-panel td,
-  .route-board-section .route-board-panel th,
-  .route-board-section .route-board-panel label,
-  .route-board-section .route-board-panel .form-check-label,
-  .route-board-section .route-board-panel .route-board-order__note,
-  .route-board-section .route-board-panel .route-board-direct-customer,
-  .route-board-section .modal-body,
-  .route-board-section input,
-  .route-board-section textarea,
-  .route-board-section select { color: #212529; }
-  .route-board-section > .d-flex .text-muted { color: rgba(255,255,255,.78) !important; }
-  .route-board-section .form-control,
-  .route-board-section .form-select { background: #fff; color: #212529; }
-  .route-board-section .route-board-panel .text-muted,
-  .route-board-section .route-board-panel .route-board-empty,
-  .route-board-section .route-board-order__meta { color: #6c757d !important; }
-  .route-board-panel .table { width: 100%; margin: 0; color: #212529; }
-  .route-board-panel tr[data-board-tone] { border-left: 5px solid #dee2e6; }
-  .route-board-panel tr[data-board-tone="neutral"] { border-left-color: #adb5bd; }
-  .route-board-panel tr[data-board-tone="success"] { border-left-color: #198754; }
-  .route-board-panel tr[data-board-tone="danger"] { border-left-color: #dc3545; }
-  .route-board-panel tr[data-board-tone="warning"] { border-left-color: #ffc107; }
-  .route-board-panel tr[data-board-tone="info"] { border-left-color: #0dcaf0; }
-  .route-board-mobile-summary { display: none; }
-  .route-board-customer { font-weight: 700; color: #212529; }
-  .route-board-phone-row { display: grid; grid-template-columns: minmax(82px, auto) minmax(118px, 1fr) auto; gap: .35rem; align-items: center; margin-bottom: .25rem; }
-  .route-board-phone-label { color: #495057; font-size: .78rem; }
-  .route-board-phone-row a { color: #0dcaf0; white-space: nowrap; }
-  .route-board-orders { display: grid; gap: .45rem; min-width: 320px; }
-  .route-board-order { border: 1px solid #dee2e6; border-radius: 8px; padding: .55rem; background: #f8f9fa; }
-  .route-board-order.is-evaded { opacity: .58; }
-  .route-board-order__head { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .35rem; }
-  .route-board-order__note { color: #212529; white-space: pre-wrap; font-size: .9rem; }
-  .route-board-order__meta { color: #6c757d; font-size: .78rem; }
-  .route-board-status-stamp {
-    display: inline-block;
-    margin-left: .35rem;
-    padding: .12rem .4rem;
-    border: 1px solid #4A2C2A;
-    border-radius: 4px;
-    color: #4A2C2A;
-    background: #fff;
-    font-size: .72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    transform: rotate(-2deg);
-  }
-  .route-board-status-stamp.is-evaded {
-    border-color: #198754;
-    color: #198754;
-  }
-  .route-board-direct-customer { font-weight: 700; color: #212529; }
-  .route-board-actions { display: flex; gap: .35rem; justify-content: flex-end; flex-wrap: wrap; }
-  .route-board-actions .btn { min-width: 2.1rem; }
-  .route-board-empty { color: #6c757d; padding: .75rem; }
-  .route-board-bulk { display: flex; gap: .5rem; align-items: center; flex-wrap: wrap; }
-  #unmatchedOrdersPanel { flex: 0 0 auto; width: 100%; max-width: 100%; max-height: min(42vh, 420px); overflow: auto; }
-  .route-board-unmatched { display: grid; gap: .5rem; width: 100%; max-width: 100%; min-width: 0; overflow: visible; }
-  .route-board-unmatched__item { border: 1px solid #f0c36d; border-radius: 8px; background: #fff8e5; padding: .65rem; display: flex; flex-direction: column; gap: .65rem; align-items: stretch; width: 100%; max-width: 100%; min-width: 0; overflow: hidden; box-sizing: border-box; }
-  .route-board-unmatched__body { width: 100%; max-width: 100%; min-width: 0; overflow: visible; }
-  .route-board-unmatched__title { font-weight: 700; color: #5c3d00; }
-  .route-board-unmatched .route-board-order__note,
-  .route-board-unmatched .route-board-order__meta { max-width: 100%; overflow: hidden; overflow-wrap: anywhere; word-break: break-all; white-space: pre-wrap; }
-  .route-board-unmatched__actions { display: flex; justify-content: flex-start; max-width: 100%; }
-  .route-board-unmatched__actions .btn { max-width: 100%; }
-  #routeBoard, .direct-board { display: none; }
-  #routeBoard.active, .direct-board.active { display: flex !important; }
-  .direct-board.active { flex-direction: column; gap: 12px; }
-  @media (max-width: 1100px) {
-    .route-board-top { grid-template-columns: 1fr; }
-  }
-  @media (max-width: 820px), (hover: none) and (pointer: coarse) {
-    .route-board-section.page-shell {
-      width: 100%;
-      max-width: none;
-      min-height: 100%;
-      margin: 0;
-      padding: 16px 12px;
-      border-radius: 8px;
-      background: rgba(74, 44, 42, .88);
-      border: 1px solid rgba(255, 255, 255, .26);
-      box-shadow: 0 18px 42px rgba(0, 0, 0, .22);
-      overflow-x: hidden;
-      overflow-y: auto;
-      -webkit-overflow-scrolling: touch;
-    }
-    #unmatchedOrdersPanel {
-      max-height: 36vh;
-      -webkit-overflow-scrolling: touch;
-    }
-    .route-board-section.page-shell > .route-board.active,
-    .route-board-section.page-shell > .direct-board.active,
-    .route-board-section.page-shell .route-board-panel,
-    .route-board-panel .table,
-    .route-board-panel tbody,
-    .route-board-panel tr,
-    .route-board-panel td {
-      width: 100%;
-      max-width: 100%;
-      min-width: 0;
-      box-sizing: border-box;
-    }
-    .route-board-section > .d-flex:first-child {
-      align-items: stretch !important;
-      flex-direction: column;
-      gap: 12px;
-      margin-bottom: 10px !important;
-    }
-    .route-board-section h1 {
-      color: #fff;
-      font-size: 2rem;
-      line-height: 1.05;
-      margin: 0 0 4px;
-    }
-    .route-board-section > .d-flex .text-muted {
-      font-size: .96rem;
-      line-height: 1.35;
-    }
-    .route-board-mode {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      width: 100%;
-      background: rgba(255, 255, 255, .12);
-      border: 1px solid rgba(255, 255, 255, .22);
-      border-radius: 8px;
-      padding: 4px;
-    }
-    .route-board-mode button {
-      min-height: 46px;
-      color: rgba(255, 255, 255, .86);
-      font-size: 1rem;
-      font-weight: 800;
-    }
-    .route-board-mode button.active {
-      background: #0dcaf0;
-      color: #212529;
-    }
-    .route-board-top {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 10px;
-      margin-bottom: 10px !important;
-    }
-    .route-board-top .form-label,
-    .route-board-top .form-check-label {
-      color: rgba(255, 255, 255, .9);
-      font-size: 1rem;
-    }
-    .route-board-section .form-control,
-    .route-board-section .form-select,
-    .route-board-section .btn {
-      min-height: 46px;
-      font-size: 1rem;
-      border-radius: 8px;
-    }
-    .route-board-bulk {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-      width: 100%;
-    }
-    .route-board-bulk .btn {
-      width: 100%;
-    }
-    .direct-board > .d-flex:first-child {
-      align-items: stretch !important;
-      flex-direction: column;
-      gap: 10px;
-      margin-bottom: 10px !important;
-    }
-    .direct-board > .d-flex:first-child > .text-muted {
-      color: rgba(255, 255, 255, .8) !important;
-      font-size: .96rem;
-    }
-    .direct-board .route-board-bulk {
-      grid-template-columns: 1fr;
-    }
-    .route-board-panel {
-      background: rgba(255, 255, 255, .10);
-      border: 1px solid rgba(255, 255, 255, .22);
-      color: #fff;
-      padding: 12px !important;
-      overflow: hidden;
-    }
-    .route-board-panel h2 {
-      color: #fff;
-      font-size: 1.1rem;
-    }
-    .route-board-section.page-shell .route-board-panel .table-responsive {
-      width: 100%;
-      max-width: 100%;
-      min-height: 0;
-      overflow-y: auto;
-      overflow-x: hidden;
-      -webkit-overflow-scrolling: touch;
-    }
-    .route-board-panel .table {
-      display: block;
-      color: #212529;
-    }
-    .route-board-panel thead {
-      display: none;
-    }
-    .route-board-panel tbody {
-      display: grid;
-      gap: 12px;
-      padding-right: 2px;
-    }
-    .route-board-panel tr {
-      display: block;
-      border: 1px solid rgba(255, 255, 255, .26);
-      border-left-width: 0;
-      border-radius: 8px;
-      background: #fff;
-      padding: 0;
-      box-shadow: 0 8px 18px rgba(0, 0, 0, .16);
-      cursor: pointer;
-      min-height: 58px;
-      position: relative;
-      touch-action: manipulation;
-    }
-    .route-board-panel tr::before {
-      content: "";
-      position: absolute;
-      inset: 0 auto 0 0;
-      width: 12px;
-      border-radius: 8px 0 0 8px;
-      background: #adb5bd;
-      pointer-events: none;
-    }
-    .route-board-panel tr[data-board-tone="neutral"]::before { background: #adb5bd; }
-    .route-board-panel tr[data-board-tone="success"]::before { background: #198754; }
-    .route-board-panel tr[data-board-tone="danger"]::before { background: #dc3545; }
-    .route-board-panel tr[data-board-tone="warning"]::before { background: #ffc107; }
-    .route-board-panel tr[data-board-tone="info"]::before { background: #0dcaf0; }
-    .route-board-mobile-summary {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      justify-content: space-between;
-      min-height: 58px;
-      padding: 12px 12px 12px 26px;
-    }
-    .route-board-mobile-summary__name {
-      color: #212529;
-      font-size: 1.12rem;
-      font-weight: 900;
-      line-height: 1.15;
-      overflow-wrap: anywhere;
-    }
-    .route-board-mobile-summary__status {
-      flex: 0 0 auto;
-      border: 1px solid rgba(0, 0, 0, .12);
-      border-radius: 999px;
-      background: rgba(0, 0, 0, .06);
-      color: #212529;
-      font-size: .78rem;
-      font-weight: 900;
-      line-height: 1.1;
-      max-width: 40vw;
-      padding: 7px 10px;
-      text-align: center;
-      text-transform: uppercase;
-    }
-    .route-board-panel tr > td {
-      display: none;
-    }
-    .route-board-panel tr > td:first-of-type {
-      display: block;
-      padding: 0;
-    }
-    .route-board-panel tr > td:first-of-type::before,
-    .route-board-panel tr > td:first-of-type > :not(.route-board-mobile-summary) {
-      display: none;
-    }
-    .route-board-panel td {
-      display: block;
-      border: 0;
-      padding: 8px 0;
-      overflow-wrap: anywhere;
-    }
-    .route-board-panel td::before {
-      display: block;
-      margin-bottom: 4px;
-      color: #6c757d;
-      font-size: .78rem;
-      font-weight: 800;
-      text-transform: uppercase;
-    }
-    .route-board-panel td:nth-child(1)::before { content: "Cliente"; }
-    .route-board-panel td:nth-child(2)::before { content: "Contatti"; }
-    .route-board-panel td:nth-child(3)::before { content: "Stato"; }
-    .route-board-panel td:nth-child(4)::before { content: "Lista"; }
-    .route-board-panel td:nth-child(5)::before { content: "Ordini"; }
-    .route-board-panel td:nth-child(6)::before { content: "Azioni"; }
-    .route-board-detail-grid {
-      display: grid;
-      gap: 14px;
-    }
-    .route-board-detail-section {
-      border: 1px solid rgba(255, 255, 255, .22);
-      border-radius: 8px;
-      background: rgba(255, 255, 255, .96);
-      color: #212529;
-      padding: 12px;
-    }
-    .route-board-detail-section__label {
-      color: #6c757d;
-      font-size: .78rem;
-      font-weight: 900;
-      margin-bottom: 8px;
-      text-transform: uppercase;
-    }
-    .route-board-detail-section .route-board-mobile-summary,
-    .route-board-detail-section td::before {
-      display: none;
-    }
-    .route-board-detail-section td {
-      display: block;
-      padding: 0;
-    }
-    .route-board-panel td.text-center {
-      text-align: left !important;
-    }
-    .route-board-panel td.text-end {
-      text-align: left !important;
-    }
-    .route-board-customer,
-    .route-board-direct-customer {
-      display: block;
-      font-size: 1.12rem;
-      line-height: 1.18;
-    }
-    .route-board-phone-row {
-      grid-template-columns: minmax(78px, auto) minmax(0, 1fr) auto;
-      gap: 6px;
-      padding: 6px 0;
-    }
-    .route-board-phone-label {
-      font-size: .86rem;
-    }
-    .route-board-phone-row a {
-      font-size: 1.05rem;
-      overflow-wrap: anywhere;
-    }
-    .route-board-orders {
-      min-width: 0;
-      gap: 10px;
-    }
-    .route-board-order {
-      padding: 12px;
-      border-radius: 8px;
-      background: #fff;
-    }
-    .route-board-order__head {
-      align-items: stretch;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .route-board-order__head .form-select {
-      width: 100% !important;
-    }
-    .route-board-order__note {
-      font-size: 1.05rem;
-      line-height: 1.4;
-    }
-    .route-board-order__meta {
-      font-size: .92rem;
-    }
-    .route-board-actions {
-      display: grid;
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-      gap: 8px;
-      justify-content: stretch;
-    }
-    .route-board-actions .btn {
-      min-width: 0;
-      width: 100%;
-      min-height: 44px;
-    }
-    .route-board-unmatched__item {
-      padding: 12px;
-      border-radius: 8px;
-    }
-    .route-board-unmatched__title {
-      font-size: 1.08rem;
-    }
-    .registry-tools-modal .modal-dialog {
-      margin: 0;
-      max-width: none;
-      width: 100vw;
-      height: 100vh;
-    }
-    .registry-tools-modal .modal-content {
-      min-height: 100vh;
-      border-radius: 0;
-    }
-    .registry-tools-modal .modal-title {
-      font-size: 1.45rem;
-    }
-    .registry-tools-modal .modal-body {
-      font-size: 1.08rem;
-      line-height: 1.45;
-    }
-  }
-  @media (hover: none) and (pointer: coarse) and (min-width: 821px) {
-    .route-board-section.page-shell {
-      padding: 42px;
-      border-radius: 14px;
-    }
-    .route-board-section h1 {
-      font-size: 4.6rem;
-    }
-    .route-board-section > .d-flex .text-muted,
-    .direct-board > .d-flex:first-child > .text-muted {
-      font-size: 1.9rem;
-    }
-    .route-board-mode button,
-    .route-board-section .form-control,
-    .route-board-section .form-select,
-    .route-board-section .btn {
-      min-height: 78px;
-      font-size: 1.65rem;
-      border-radius: 14px;
-    }
-    .route-board-top .form-label,
-    .route-board-top .form-check-label {
-      font-size: 1.55rem;
-    }
-    .route-board-panel {
-      padding: 24px !important;
-      border-radius: 14px;
-    }
-    .route-board-panel h2 {
-      font-size: 2rem;
-    }
-    .route-board-panel tbody {
-      gap: 22px;
-    }
-    .route-board-panel tr {
-      padding: 0;
-      border-radius: 14px;
-      min-height: 112px;
-    }
-    .route-board-panel tr::before {
-      width: 22px;
-      border-radius: 14px 0 0 14px;
-    }
-    .route-board-mobile-summary {
-      min-height: 112px;
-      padding: 24px 24px 24px 46px;
-    }
-    .route-board-mobile-summary__name {
-      font-size: 2.25rem;
-    }
-    .route-board-mobile-summary__status {
-      font-size: 1.2rem;
-      padding: 12px 16px;
-    }
-    .route-board-panel td {
-      padding: 14px 0;
-      font-size: 1.65rem;
-    }
-    .route-board-panel td::before {
-      font-size: 1.2rem;
-    }
-    .route-board-customer,
-    .route-board-direct-customer {
-      font-size: 2.25rem;
-    }
-    .route-board-phone-label {
-      font-size: 1.35rem;
-    }
-    .route-board-phone-row a {
-      font-size: 1.7rem;
-    }
-    .route-board-order {
-      padding: 22px;
-      border-radius: 14px;
-    }
-    .route-board-order__note {
-      font-size: 1.75rem;
-    }
-    .route-board-order__meta {
-      font-size: 1.35rem;
-    }
-    .route-board-actions {
-      gap: 14px;
-    }
-    .route-board-actions .btn {
-      min-height: 76px;
-    }
-    .route-board-detail-grid {
-      gap: 22px;
-    }
-    .route-board-detail-section {
-      padding: 22px;
-      border-radius: 14px;
-    }
-    .route-board-detail-section__label {
-      font-size: 1.2rem;
-    }
-    .registry-tools-modal .modal-title {
-      font-size: 2.35rem;
-    }
-    .registry-tools-modal .modal-body {
-      padding: 30px;
-      font-size: 1.8rem;
-    }
-  }
+<link rel="stylesheet" href="{{ url_for('static', filename='css/route_order_board.css', v=app_version ~ '-engine1') }}">
 
-  /* Bacheca ordini: usa il contesto grafico condiviso della pagina e delle modali. */
-  .route-board-section.ld-page {
-    color: var(--ld-text);
-    background: color-mix(in srgb, var(--ld-brand-primary) 80%, transparent);
-    border: 1px solid color-mix(in srgb, var(--ld-text) 26%, transparent);
-    border-radius: var(--ld-radius);
-    box-shadow: 0 18px 42px color-mix(in srgb, var(--ld-brand-primary) 22%, transparent);
-  }
-
-  .route-board-section h1,
-  .route-board-section > .d-flex .text-muted,
-  .direct-board > .d-flex:first-child > .text-muted,
-  .route-board-top .form-label,
-  .route-board-top .form-check-label {
-    color: var(--ld-text) !important;
-  }
-
-  .route-board-section .route-board-mode {
-    padding: calc(var(--ld-action-gap) / 3);
-    border: 1px solid color-mix(in srgb, var(--ld-text) 22%, transparent);
-    border-radius: var(--ld-radius);
-    background: color-mix(in srgb, var(--ld-text) 10%, transparent);
-  }
-
-  .route-board-section .route-board-mode button {
-    min-height: var(--ld-touch-size);
-    border-radius: var(--ld-radius);
-    color: var(--ld-text);
-  }
-
-  .route-board-section .route-board-mode button.active,
-  .route-board-section .btn-info {
-    color: var(--ld-brand-primary);
-    background: var(--ld-brand-accent);
-    border-color: var(--ld-brand-accent);
-  }
-
-  .route-board-section .route-board-panel {
-    color: var(--ld-brand-primary);
-    background: var(--ld-surface);
-    border-color: color-mix(in srgb, var(--ld-brand-primary) 22%, var(--ld-surface));
-    border-radius: var(--ld-radius);
-    box-shadow: 0 8px 24px color-mix(in srgb, var(--ld-brand-primary) 10%, transparent);
-  }
-
-  .route-board-section .route-board-panel .table,
-  .route-board-section .route-board-panel td,
-  .route-board-section .route-board-panel th,
-  .route-board-section .route-board-panel label,
-  .route-board-section .route-board-panel .form-check-label,
-  .route-board-section .route-board-panel .route-board-order__note,
-  .route-board-section .route-board-panel .route-board-direct-customer {
-    color: var(--ld-brand-primary);
-  }
-
-  .route-board-section .route-board-panel .text-muted,
-  .route-board-section .route-board-order__meta,
-  .route-board-section .route-board-empty {
-    color: color-mix(in srgb, var(--ld-brand-primary) 64%, var(--ld-surface)) !important;
-  }
-
-  .route-board-section .route-board-order,
-  .route-board-section .route-board-unmatched__item {
-    color: var(--ld-brand-primary);
-    background: color-mix(in srgb, var(--ld-brand-primary) 5%, var(--ld-surface));
-    border-color: color-mix(in srgb, var(--ld-brand-primary) 18%, var(--ld-surface));
-    border-radius: var(--ld-radius);
-  }
-
-  .route-board-section .route-board-unmatched__title,
-  .route-board-section .route-board-customer,
-  .route-board-section .route-board-direct-customer {
-    color: var(--ld-brand-primary);
-  }
-
-  .route-board-section .route-board-phone-label {
-    color: color-mix(in srgb, var(--ld-brand-primary) 68%, var(--ld-surface));
-  }
-
-  .route-board-section .route-board-phone-row a {
-    color: color-mix(in srgb, var(--ld-brand-accent) 82%, var(--ld-brand-primary));
-  }
-
-  .route-board-section .route-board-status-stamp {
-    color: var(--ld-brand-primary);
-    background: var(--ld-surface);
-    border-color: var(--ld-brand-primary);
-  }
-
-  .route-board-section .form-control,
-  .route-board-section .form-select {
-    color: var(--ld-brand-primary);
-    background: var(--ld-surface);
-    border-color: color-mix(in srgb, var(--ld-brand-primary) 42%, var(--ld-surface));
-    border-radius: var(--ld-radius);
-  }
-
-  .route-board-section .form-control:focus,
-  .route-board-section .form-select:focus {
-    border-color: var(--ld-brand-accent);
-    box-shadow: 0 0 0 .2rem color-mix(in srgb, var(--ld-brand-accent) 24%, transparent);
-  }
-
-  .route-board-section .btn {
-    min-height: var(--ld-touch-size);
-    border-radius: var(--ld-radius);
-  }
-
-  .route-board-section .route-board-bulk .btn-success {
-    color: var(--ld-text);
-    background: color-mix(in srgb, #198754 86%, var(--ld-brand-primary));
-    border-color: #198754;
-  }
-
-  .registry-tools-modal.ld-modal-standard {
-    z-index: 12050;
-  }
-
-  .registry-tools-modal.ld-modal-standard .modal-dialog {
-    z-index: auto;
-  }
-
-  #routeBoardDetailModal.ld-modal-standard .modal-dialog {
-    width: 100vw;
-    max-width: none;
-    height: 100vh;
-    margin: 0;
-  }
-
-  #routeBoardDetailModal.ld-modal-standard .modal-content {
-    min-height: 100vh;
-    border-radius: 0;
-  }
-
-  .registry-tools-modal.ld-modal-standard .modal-content,
-  .registry-tools-modal.ld-modal-standard .modal-body,
-  .registry-tools-modal.ld-modal-standard .modal-footer {
-    color: var(--ld-brand-primary);
-    background: var(--ld-surface);
-  }
-
-  .registry-tools-modal.ld-modal-standard .modal-content {
-    border-color: color-mix(in srgb, var(--ld-brand-primary) 24%, var(--ld-surface));
-    border-radius: var(--ld-modal-radius);
-  }
-
-  .registry-tools-modal.ld-modal-standard .modal-header {
-    color: var(--ld-text);
-    background: var(--ld-brand-primary);
-    border-bottom-color: color-mix(in srgb, var(--ld-text-muted) 35%, transparent);
-  }
-
-  .registry-tools-modal.ld-modal-standard .modal-title { color: var(--ld-text); }
-
-  .registry-tools-modal.ld-modal-standard .form-label,
-  .registry-tools-modal.ld-modal-standard .form-check-label {
-    color: var(--ld-brand-primary);
-  }
-
-  .registry-tools-modal.ld-modal-standard .form-control,
-  .registry-tools-modal.ld-modal-standard .form-select {
-    color: var(--ld-brand-primary);
-    background: var(--ld-surface);
-    border-color: color-mix(in srgb, var(--ld-brand-primary) 42%, var(--ld-surface));
-    border-radius: var(--ld-radius);
-  }
-
-  .registry-tools-modal.ld-modal-standard .form-text,
-  .registry-tools-modal.ld-modal-standard .text-muted {
-    color: color-mix(in srgb, var(--ld-brand-primary) 64%, var(--ld-surface)) !important;
-  }
-
-  .registry-tools-modal.ld-modal-standard .btn-info {
-    color: var(--ld-brand-primary);
-    background: var(--ld-brand-accent);
-    border-color: var(--ld-brand-accent);
-  }
-
-  @media (hover: none) and (pointer: coarse) {
-    .route-board-section .route-board-bulk,
-    .route-board-section .route-board-bulk .btn,
-    .direct-board > .d-flex:first-child .route-board-bulk,
-    .direct-board > .d-flex:first-child .route-board-bulk .btn {
-      width: 100%;
-    }
-
-    .route-board-section .route-board-bulk {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    .registry-tools-modal.ld-modal-standard .modal-footer {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr);
-    }
-
-    .registry-tools-modal.ld-modal-standard .modal-footer .btn {
-      width: 100%;
-    }
-  }
-</style>
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section ld-page ld-page-standard registry-tools-section route-board-section page-shell">
+<section class="ld-page ld-page-standard route-board-section">
   <div class="d-flex justify-content-between align-items-center mb-3">
     <div>
       <h1 class="h4 mb-1">Plancia ordini</h1>
@@ -792,7 +40,7 @@
       </div>
     </div>
 
-    <div class="route-board-panel p-3" id="unmatchedOrdersPanel" style="display:none;">
+    <div class="route-board-panel ld-panel" id="unmatchedOrdersPanel" style="display:none;">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <h2 class="h6 mb-0">Ordini da associare</h2>
         <span class="badge text-bg-warning" id="unmatchedOrdersCount">0</span>
@@ -800,7 +48,7 @@
       <div class="route-board-unmatched" id="unmatchedOrdersList"></div>
     </div>
 
-    <div class="route-board-panel p-3">
+    <div class="route-board-panel ld-panel">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <h2 class="h6 mb-0">Clienti del giro</h2>
         <span class="badge text-bg-secondary" id="customerCount">0</span>
@@ -832,7 +80,7 @@
           <button class="btn btn-info" id="newDirectOrderBtn" type="button"><i class="fa-solid fa-plus"></i> Inserisci ordine</button>
         </div>
       </div>
-    <div class="route-board-panel p-3">
+    <div class="route-board-panel ld-panel">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <h2 class="h6 mb-0">Clienti fuori giro</h2>
         <span class="badge text-bg-secondary" id="directCount">0</span>
@@ -856,7 +104,7 @@
   </div>
 </section>
 
-<div class="modal fade ld-modal ld-modal-standard registry-tools-modal" id="noteModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard route-board-modal" id="noteModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Ordine cliente</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">
@@ -871,7 +119,7 @@
   </div></div>
 </div>
 
-<div class="modal fade ld-modal ld-modal-standard registry-tools-modal" id="directModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard route-board-modal" id="directModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Inserisci ordine</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">
@@ -901,7 +149,7 @@
   </div></div>
 </div>
 
-<div class="modal fade ld-modal ld-modal-standard registry-tools-modal" id="associateOrderModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard route-board-modal" id="associateOrderModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Associa ordine a cliente</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">
@@ -916,7 +164,7 @@
   </div></div>
 </div>
 
-<div class="modal fade ld-modal ld-modal-standard registry-tools-modal" id="deliveryDateModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard route-board-modal" id="deliveryDateModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Data consegna</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">
@@ -930,7 +178,7 @@
   </div></div>
 </div>
 
-<div class="modal fade ld-modal ld-modal-standard registry-tools-modal" id="alertsModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard route-board-modal" id="alertsModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Avvisi cliente</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">
@@ -947,7 +195,7 @@
   </div></div>
 </div>
 
-<div class="modal fade ld-modal ld-modal-standard registry-tools-modal" id="contactsModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard route-board-modal" id="contactsModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title">Contatti cliente</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">
@@ -963,7 +211,7 @@
   </div></div>
 </div>
 
-<div class="modal fade ld-modal ld-modal-standard registry-tools-modal" id="routeBoardDetailModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard route-board-modal" id="routeBoardDetailModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-fullscreen"><div class="modal-content">
     <div class="modal-header">
       <div>
@@ -991,16 +239,16 @@
   const unmatchedOrdersList = document.getElementById("unmatchedOrdersList");
   const unmatchedOrdersCount = document.getElementById("unmatchedOrdersCount");
 
-  document.querySelectorAll(".registry-tools-modal").forEach(modalEl => {
+  document.querySelectorAll(".route-board-modal").forEach(modalEl => {
     if (modalEl.parentElement !== document.body) {
       document.body.appendChild(modalEl);
     }
     modalEl.addEventListener("show.bs.modal", () => {
-      document.body.classList.add("registry-tools-modal-open");
+      document.body.classList.add("route-board-modal-open");
     });
     modalEl.addEventListener("hidden.bs.modal", () => {
-      if (!document.querySelector(".registry-tools-modal.show")) {
-        document.body.classList.remove("registry-tools-modal-open");
+      if (!document.querySelector(".route-board-modal.show")) {
+        document.body.classList.remove("route-board-modal-open");
       }
     });
   });
@@ -1029,7 +277,7 @@
     { code: "annullato", label: "Ordine annullato" },
   ];
   const boardStatusLabels = () => new Map([...(state.statuses || []), ...directStatuses].map(status => [status.code, status.label]));
-  const mobileBoardQuery = window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)");
+  const mobileBoardQuery = window.matchMedia("(max-width: 820px), (pointer: coarse)");
 
   function statusTone(statusCode, orders = []) {
     const code = (statusCode || "").trim();
