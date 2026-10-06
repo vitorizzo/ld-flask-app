@@ -4260,7 +4260,7 @@ const agendaMobileSheetState = {
 };
 
 function agendaIsMobile() {
-  return window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)").matches;
+  return window.matchMedia("(max-width: 820px), (pointer: coarse)").matches;
 }
 
 function closeAgendaMobileSheet() {
@@ -4400,6 +4400,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   bindAgendaMobileShell();
   calendarInstance = flatpickr("#agendaCalendar", {
     inline: true,
+    appendTo: document.getElementById("agendaCalendar"),
     defaultDate: new Date(),
     onMonthChange: function (selectedDates, dateStr, instance) {
       decorateMonth(instance.currentYear, instance.currentMonth);

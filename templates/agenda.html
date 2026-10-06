@@ -12,8 +12,8 @@
 
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda.css', v=app_version ~ '-pos-device-filter1') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda_mobile.css', v=app_version ~ '-card-receipt1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda.css', v=app_version ~ '-engine1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/agenda_mobile.css', v=app_version ~ '-engine1') }}">
 
 {% endblock %}
 
@@ -21,7 +21,7 @@
 
 {% block content %}
 
-<section class="welcome-section agenda-page page-shell">
+<section class="ld-page ld-page-standard ld-page-viewport agenda-page">
 
   <div class="container-fluid py-3">
 
@@ -959,7 +959,7 @@
 
 
 
-<div class="modal fade agenda-modal" id="opModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="opModal" tabindex="-1" aria-hidden="true">
 
   <div class="modal-dialog modal-dialog-centered modal-lg">
 
@@ -2097,7 +2097,7 @@
 
 
 
-<div class="modal fade agenda-modal" id="customerSearchModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="customerSearchModal" tabindex="-1" aria-hidden="true">
 
   <div class="modal-dialog modal-dialog-centered modal-lg">
 
@@ -2201,7 +2201,7 @@
 
 
 
-<div class="modal fade agenda-modal" id="customerNewModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="customerNewModal" tabindex="-1" aria-hidden="true">
 
   <div class="modal-dialog modal-dialog-centered modal-lg">
 
@@ -2297,7 +2297,7 @@
 
 
 
-<div class="modal fade agenda-modal" id="drawerCountModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="drawerCountModal" tabindex="-1" aria-hidden="true">
 
   <div class="modal-dialog modal-dialog-centered modal-lg">
 
@@ -2403,7 +2403,7 @@
 
 <!-- MODALE E-COMMERCE -->
 
-<div class="modal fade agenda-modal" id="ecommerceModal" tabindex="-1">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="ecommerceModal" tabindex="-1">
 
   <div class="modal-dialog modal-lg modal-dialog-centered">
 
@@ -2509,7 +2509,7 @@
 
 <!-- MODALE VERSAMENTI -->
 
-<div class="modal fade agenda-modal" id="depositModal" tabindex="-1">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="depositModal" tabindex="-1">
 
   <div class="modal-dialog modal-xl modal-dialog-centered">
 
@@ -2801,7 +2801,7 @@
 
 <!-- MODALE CORRISPETTIVI -->
 
-<div class="modal fade agenda-modal" id="versabileDetailModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="versabileDetailModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
@@ -2822,7 +2822,7 @@
   </div>
 </div>
 
-<div class="modal fade agenda-modal" id="receiptModal" tabindex="-1">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="receiptModal" tabindex="-1">
 
   <div class="modal-dialog modal-lg">
 
@@ -2964,7 +2964,7 @@
 
 <!-- MODALE CASSETTO / PRELIEVI TITOLARE -->
 
-<div class="modal fade agenda-modal" id="ownerTakeModal" tabindex="-1">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="ownerTakeModal" tabindex="-1">
 
   <div class="modal-dialog modal-xl modal-dialog-centered">
 
@@ -3216,7 +3216,7 @@
 
 <!-- MODALE POS -->
 
-<div class="modal fade agenda-modal" id="posModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="posModal" tabindex="-1" aria-hidden="true">
 
   <div class="modal-dialog modal-lg modal-dialog-centered">
 
@@ -3402,7 +3402,7 @@
 
 <!-- MODALE MOVIMENTI DI CASSA -->
 
-<div class="modal fade agenda-modal" id="cashMoveModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="cashMoveModal" tabindex="-1" aria-hidden="true">
 
   <div class="modal-dialog modal-lg modal-dialog-centered">
 
@@ -3564,7 +3564,7 @@
 
 <!-- MODALE SPICCI -->
 
-<div class="modal fade agenda-modal" id="spicciModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="spicciModal" tabindex="-1" aria-hidden="true">
 
   <div class="modal-dialog modal-xl modal-dialog-centered">
 
@@ -3762,7 +3762,7 @@
 
 <!-- MODALE REPORT GIORNATA -->
 
-<div class="modal fade agenda-modal" id="dayReportModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="dayReportModal" tabindex="-1" aria-hidden="true">
 
   <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
 
@@ -4058,7 +4058,7 @@
 
 
 
-<div class="modal fade agenda-modal" id="movementSearchCustomerModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="movementSearchCustomerModal" tabindex="-1" aria-hidden="true">
 
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
 
@@ -4156,7 +4156,7 @@
 
 
 
-<div class="modal fade agenda-modal" id="movementSearchAmountModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="movementSearchAmountModal" tabindex="-1" aria-hidden="true">
 
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
 
@@ -4282,7 +4282,7 @@
 
 
 
-<div class="modal fade agenda-modal" id="checksManagementModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="checksManagementModal" tabindex="-1" aria-hidden="true">
 
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
 
@@ -4417,7 +4417,7 @@
 
 
 
-<div class="modal fade agenda-modal" id="checkEditModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="checkEditModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
@@ -4445,7 +4445,7 @@
   </div>
 </div>
 
-<div class="modal fade agenda-modal" id="checkScanCropModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="checkScanCropModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header"><div><h5 class="modal-title">Acquisizione immagine assegno</h5><div class="small text-white" id="checkScanCropStatus">Analisi dei bordi in corso...</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body check-scan-editor">
@@ -4479,7 +4479,7 @@
 </div>
 
 
-<div class="modal fade agenda-modal" id="checkHistoryModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="checkHistoryModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
@@ -4549,7 +4549,7 @@
 
 
 
-<div class="modal fade agenda-modal" id="checkEventModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="checkEventModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title" id="checkEventModalTitle">Inserisci cambio di stato</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body" id="checkEventModalBody"></div>
@@ -4557,7 +4557,7 @@
   </div></div>
 </div>
 
-<div class="modal fade agenda-modal" id="checkPaymentModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="checkPaymentModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog"><div class="modal-content">
     <div class="modal-header"><h5 class="modal-title" id="checkPaymentModalTitle">Inserisci pagamento</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body"><input type="hidden" id="checkPaymentEditId"><div class="row g-3">
@@ -4570,7 +4570,7 @@
   </div></div>
 </div>
 
-<div class="modal fade agenda-modal" id="checkCostModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="checkCostModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header"><div><h5 class="modal-title">Calcolo costo assegno</h5><div class="small text-white" id="checkCostSubtitle"></div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body" id="checkCostModalBody"></div>
@@ -4579,7 +4579,7 @@
 </div>
 
 
-<div class="modal fade agenda-modal" id="issuedChecksManagementModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade agenda-modal ld-modal ld-modal-standard" id="issuedChecksManagementModal" tabindex="-1" aria-hidden="true">
 
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
 
@@ -4830,7 +4830,7 @@
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
   <script src="{{ url_for('static', filename='js/check_receipt.js', v=app_version ~ '-receipt-prepare1') }}"></script>
-  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-card-receipt2') }}"></script>
+  <script src="{{ url_for('static', filename='js/agenda.js', v=app_version ~ '-engine1') }}"></script>
 
 {% endblock %}
 

@@ -1,3 +1,11 @@
+## Agenda migrata alla gestione grafica condivisa (2026-10-06)
+
+- Percorso effettivo `/cassa/agenda`, template `agenda.html` con base.html: pagina `.ld-page-standard.ld-page-viewport`, 23 modali `.ld-modal.ld-modal-standard`. Cache CSS/JS Agenda `engine1`.
+- `agenda.css`/`agenda_mobile.css`: eliminati ingrandimenti touch oltre 820px e override della shell; colori decorativi collegati a superficie/superficie secondaria, primario, accento e testo del tema. Dimensioni derivate da `--ld-ui-scale` e token comuni; layout mobile legge `data-responsive-mode`. Restano struttura dei movimenti, pannelli mobile calendario/KPI/assegni, conteggio fondo e significati degli indicatori operativi.
+- Conservati stack modali e adattamento visualViewport alla tastiera: rimosse trasformazioni legacy dei dialog e z-index !important che bloccavano il controller dello stack. Ritaglio assegni con slider/toolbar contenuti anche a 360px. Calendario Flatpickr ora montato esplicitamente dentro agendaCalendar, quindi riceve correttamente layout e tema.
+- Confronto JS con HEAD: sole differenze nel criterio pointer coarse e appendTo del calendario. Nessuna modifica a operazioni contabili, API, autorizzazioni, importi, salvataggi o report.
+- Verifiche: parsing template completo Agenda/base, Bootstrap e Flatpickr reali, due temi a 360/430/1920 px; ingombro pagina senza limite massimo e overflow orizzontale, temi di pagina/card/calendario e header/body delle 23 modali, aperture/chiusure, stack con z-index reale, visualViewport ridotta per tastiera, portal calendario con ripristino del DOM. Sintassi JS e test Node di focus/ripristino pannelli passati. Anteprime mobile/desktop ispezionate; verifica fisica dopo deploy ancora da effettuare.
+
 ## Bacheca: contenitore /kiosk e iframe /kiosk/board/all (2026-10-06)
 
 - Nuovo riscontro utente: viewport ridotta e tema non applicato. Ricostruito il percorso completo: `kiosk_ordini_embed.html` su `/kiosk` estende base.html e contiene un iframe verso `kiosk_overview.html` su `/kiosk/board/all`. Il collaudo precedente riguardava solo il documento interno, non il contenitore effettivamente aperto dal pulsante Home.
