@@ -1,3 +1,10 @@
+## Navbar collegata ai colori del tema (2026-10-06)
+
+- Riscontro utente su Agenda: la navbar conservava il marrone fisso di style.css. Il problema riguardava la shell condivisa, non il caricamento dei token nella pagina Agenda.
+- `responsive_profile.css`: contratto cromatico unico per navbar, drawer, dropdown/sottomenu, link abilitati/disabilitati, focus/hover, pulsante Home, badge ruolo e hamburger. Primario per gli sfondi di navigazione, testo del tema per link/icona, accento per Home/stati interattivi/indicatori. Icona hamburger tramite mask e currentColor, bordo collegato al testo; geometria e divisori invariati.
+- Cache key `viewport5` in base.html/base_kiosk.html. Nessuna modifica alla logica di navigazione, all'altezza della navbar o agli altri componenti delle pagine.
+- Verificato template navbar reale con menu/sottomenu, Bootstrap e CSS applicativi su 360/430/1440px, con tema default e personalizzato: sfondo navbar/drawer/sottomenu, testi, Home, focus desktop e hamburger seguono i token. Test separato geometria Home/navbar su otto larghezze passato.
+
 ## Agenda migrata alla gestione grafica condivisa (2026-10-06)
 
 - Percorso effettivo `/cassa/agenda`, template `agenda.html` con base.html: pagina `.ld-page-standard.ld-page-viewport`, 23 modali `.ld-modal.ld-modal-standard`. Cache CSS/JS Agenda `engine1`.

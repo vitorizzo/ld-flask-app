@@ -1,5 +1,35 @@
 /* Motore dimensionale condiviso. Caricato dopo i CSS di pagina.
    Le classi migrate ricevono lo stesso contratto su ogni dispositivo. */
+/* Colori della navigazione: un solo contratto per desktop e drawer mobile. */
+body.app-shell .navbar,
+body.app-shell .navbar .navbar-collapse,
+body.app-shell .navbar .dropdown,
+body.app-shell .navbar .dropdown-menu { background-color: var(--ld-brand-primary); color: var(--ld-text); }
+body.app-shell .navbar .nav-link-enabled,
+body.app-shell .navbar .dropdown-item,
+body.app-shell .navbar .ld-contact-trigger { color: var(--ld-text); background-color: transparent; }
+body.app-shell .navbar .nav-link-disabled,
+body.app-shell .navbar .dropdown-item.disabled { color: color-mix(in srgb, var(--ld-text) 45%, transparent); background-color: transparent; }
+body.app-shell .navbar .nav-link-enabled:hover,
+body.app-shell .navbar .nav-link-enabled:focus-visible,
+body.app-shell .navbar .dropdown-item:not(.disabled):hover,
+body.app-shell .navbar .dropdown-item:not(.disabled):focus,
+body.app-shell .navbar .ld-contact-trigger:hover { background-color: var(--ld-brand-accent); color: var(--ld-text) !important; }
+body.app-shell .navbar .navbar-brand-home-hint { color: var(--ld-brand-primary); background: var(--ld-brand-accent); }
+body.app-shell .navbar .navbar-brand:hover .navbar-brand-home-hint,
+body.app-shell .navbar .navbar-brand:focus .navbar-brand-home-hint { background: var(--ld-surface); }
+body.app-shell .navbar .navbar-collapse > .navbar-nav:last-child .nav-item span,
+body.app-shell .navbar .navbar-collapse > .navbar-nav:last-child > .nav-item.d-flex .nav-link-enabled { color: var(--ld-text) !important; }
+body.app-shell .navbar .ld-role-badge { color: var(--ld-brand-primary); background: var(--ld-brand-accent); }
+body.app-shell .navbar .navbar-toggler { color: var(--ld-text); border-color: color-mix(in srgb, var(--ld-text) 75%, transparent) !important; }
+body.app-shell .navbar .menu-item-inactive { color: color-mix(in srgb, var(--ld-text) 45%, transparent) !important; }
+body.app-shell .navbar .nav-link-enabled::before,
+body.app-shell .navbar .nav-link-enabled::after { background-color: var(--ld-brand-accent); }
+body.app-shell .navbar .navbar-toggler-icon {
+  background-image: none !important;
+  background-color: currentColor;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3E%3Cpath stroke='black' stroke-width='2' stroke-linecap='round' d='M4 7h22M4 15h22M4 23h22'/%3E%3C/svg%3E") center / contain no-repeat;
+}
 body.app-shell .ld-page-standard { width: min(100%, var(--ld-page-max-width)); max-width: 100%; max-height: none; min-height: auto; flex-shrink: 0; margin: 0 auto; padding: calc(var(--ld-page-padding) * var(--ld-ui-scale, 1)) !important; }
 /* Pagine operative che occupano tutto lo spazio di lavoro disponibile. */
 body.app-shell .ld-page-standard.ld-page-viewport { width: 100%; max-width: none; height: 100%; min-height: 0; margin: 0; }
