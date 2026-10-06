@@ -1,3 +1,11 @@
+## Correzione destinazione: Bacheca ordini reale /kiosk (2026-10-06)
+
+- La richiesta Bacheca ordini indicava il pulsante Home verso `/kiosk`, template `kiosk_overview.html`. L'intervento precedente aveva migrato erroneamente `/route-orders/board` (Plancia ordini): la voce precedente descrive quella pagina e non certifica la Bacheca richiesta. Riscontro utente: il cambio tema non modificava `/kiosk`, ancora con colori fissi.
+- `base_kiosk.html` carica ora il profilo responsive comune prima dei CSS e `responsive_profile.css` alla fine; token tema inline sul body. `kiosk_overview.html` usa `.ld-page-standard` e le modali ordine/cliente/consegna/giri `.ld-modal-standard`, incluso l'inserimento manuale condiviso gia' migrato.
+- `kiosk_overview.css`: colori decorativi collegati ai token attivi, superficie secondaria per pagina, superficie per schede/modali, testo/primario/accento per titoli e controlli; rimossi due blocchi di ingrandimento touch oltre 820px. Dimensioni derivano dalla stessa scala; struttura mobile legge il profilo comune. Giri conservano i colori DB `--route-bg`, indicatori di ritardo/problemi mantengono i significati operativi. Nessuna modifica alla shell Home/PC.
+- JS operativo invariato salvo uniformare i controlli pointer coarse al motore comune, anche con hover presente. Cache key kiosk CSS/JS `engine1`.
+- Verifica corretta: template Jinja effettivo `/kiosk`, JS effettivo, Bootstrap reale e API simulate; temi default e personalizzato con tutti i sei colori diversi a 360/430/1440px. Confermati colori computati pagina/scheda/titolo/accento/modali, colore giro distinto, rendering, apertura dettaglio e nuovo ordine, assenza overflow. Il precedente collaudo aveva verificato la pagina sbagliata e non il cambio tema.
+
 ## Bacheca ordini migrata al motore grafico condiviso (2026-10-06)
 
 - `templates/route_orders/board.html`: pagina `.ld-page-standard`, pannelli `.ld-panel`, sette modali `.ld-modal-standard`. Rimossi `welcome-section`, `page-shell`, contesto `registry-tools` e import del CSS anagrafica; nuovo asset `static/css/route_order_board.css` con cache key `engine1`.

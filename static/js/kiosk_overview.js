@@ -800,7 +800,7 @@ window.kioskState = {
         if (!ddMenu) return;
         document.body.appendChild(ddMenu);
         ddMenu.classList.add("kiosk-floating-menu");
-        const isTouchMenu = window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)").matches;
+        const isTouchMenu = window.matchMedia("(max-width: 820px), (pointer: coarse)").matches;
         ddMenu.classList.toggle("is-touch-menu", isTouchMenu);
         const viewport = window.visualViewport;
         const viewportLeft = viewport ? viewport.offsetLeft : 0;
@@ -862,7 +862,7 @@ window.kioskState = {
     div.dataset.orderIds = JSON.stringify(orderIds);
     div.dataset.fromStatus = String(vm.status || "");
 
-    const coarsePointer = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+    const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
     div.draggable = !coarsePointer;
 
     div.addEventListener("dragstart", (ev) => {

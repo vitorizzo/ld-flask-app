@@ -1,13 +1,12 @@
 {% extends "base_kiosk.html" %}
 
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css', v=app_version ~ '-delivery-routes2') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-order2') }}">
-<style>body { {{ ui_theme_css_vars|default('')|safe }} }</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css', v=app_version ~ '-engine1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-responsive-scale6') }}">
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section page-shell kiosk-overview kiosk-overview-page kiosk-full">
+<section class="ld-page ld-page-standard kiosk-overview kiosk-overview-page kiosk-full">
   <div class="container-fluid">
 
     <!-- Header -->
@@ -109,7 +108,7 @@
 </section>
 
 <!-- Modal ordine -->
-<div class="modal fade" id="orderModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard kiosk-theme-modal" id="orderModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content" id="orderModalContent">
       <div class="modal-header">
@@ -127,7 +126,7 @@
 {% include 'partials/manual_order_modal.html' %}
 
 <!-- Modal associazione cliente -->
-<div class="modal fade" id="orderCustomerModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard kiosk-theme-modal" id="orderCustomerModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
@@ -158,7 +157,7 @@
 </div>
 
 <!-- Modal consegna card -->
-<div class="modal fade" id="orderDeliveryModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard kiosk-theme-modal" id="orderDeliveryModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
@@ -189,7 +188,7 @@
 </div>
 
 <!-- Modal gestione giri -->
-<div class="modal fade" id="deliveryScheduleModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard kiosk-theme-modal" id="deliveryScheduleModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">
@@ -377,5 +376,5 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/ld_modal.js', v=app_version ~ '-order1') }}"></script>
-<script src="{{ url_for('static', filename='js/kiosk_overview.js', v=app_version ~ '-standard-order1') }}"></script>
+<script src="{{ url_for('static', filename='js/kiosk_overview.js', v=app_version ~ '-engine1') }}"></script>
 {% endblock %}
