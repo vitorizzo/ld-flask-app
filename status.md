@@ -1,3 +1,10 @@
+## Bacheca: contenitore /kiosk e iframe /kiosk/board/all (2026-10-06)
+
+- Nuovo riscontro utente: viewport ridotta e tema non applicato. Ricostruito il percorso completo: `kiosk_ordini_embed.html` su `/kiosk` estende base.html e contiene un iframe verso `kiosk_overview.html` su `/kiosk/board/all`. Il collaudo precedente riguardava solo il documento interno, non il contenitore effettivamente aperto dal pulsante Home.
+- Il contenitore aveva ancora sfondo marrone hardcoded, classi legacy welcome-section/page-shell e padding duplicato. Ora usa classi migrate e `static/css/kiosk_embed.css`, senza colori fissi e con padding zero per lasciare al documento interno tutta l'area disponibile. Rimossa la lazy loading dell'iframe principale.
+- Aggiunta variante generale `.ld-page-viewport` al motore condiviso per pagine operative a piena area: larghezza 100%, nessun page_max_width, altezza 100%, min-height zero. Applicata al contenitore e alla pagina interna; le pagine standard normali mantengono il loro limite di larghezza. Cache key motore `viewport4`, contenitore `engine1`.
+- Verificato il percorso completo con entrambi i template Jinja reali, navbar/footer/base CSS, iframe e JS bacheca, Bootstrap reale e API simulate. Due temi a 360/430/1920/2560 px: rettangoli contenitore/iframe/pagina interna combaciano con lo spazio di main.app-content (esclusi gli ingombri shell); colori del contenitore e della bacheca seguono il tema; dettaglio ordine e inserimento manuale funzionano. A 1920 il documento interno misura 1854px, a 2560 misura 2494px, senza il precedente tetto 1440px. Verifiche Home/shell separate per assenza regressioni.
+
 ## Correzione destinazione: Bacheca ordini reale /kiosk (2026-10-06)
 
 - La richiesta Bacheca ordini indicava il pulsante Home verso `/kiosk`, template `kiosk_overview.html`. L'intervento precedente aveva migrato erroneamente `/route-orders/board` (Plancia ordini): la voce precedente descrive quella pagina e non certifica la Bacheca richiesta. Riscontro utente: il cambio tema non modificava `/kiosk`, ancora con colori fissi.
