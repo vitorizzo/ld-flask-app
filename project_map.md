@@ -1,3 +1,9 @@
+## Bacheca smartphone: testata e comandi compatti (2026-10-06)
+
+- Riscontro utente: la parte fissa sottraeva troppo spazio alle schede. `kiosk_overview.css` dispone ora i quattro comandi su una sola riga (nuovo ordine, Giri, Riprogr., Aggiorna); misura compatta basata su touch_size/scalar comune, superando il min-height dei controlli di pagina soltanto per toolbar e filtri.
+- Titolo/data sulla stessa riga; informazioni estese disponibili nel title e visibili su desktop. Ridotti gap, padding pagina/filtri, font della testata e ingombro header colonna; filtri/stati mantengono swipe senza scrollbar visibile. Etichetta Riprogr. su mobile, Riprogramma e nome accessibile completi. Nessuna modifica JS/API; layout desktop preservato. Cache CSS `compact2`.
+- Verificato percorso completo /kiosk + iframe con due temi, viewport smartphone alte 660px a 320/360/390/430px: quattro pulsanti con stesso top, testi contenuti, toolbar sotto 70px, almeno 45% della viewport interna riservata alle schede. Passano temi, pagina a piena area e aperture modali; regressione desktop a 1920/2560px passata. Anteprima mobile ispezionata.
+
 ## Navbar collegata ai colori del tema (2026-10-06)
 
 - Riscontro utente su Agenda: la navbar conservava il marrone fisso di style.css. Il problema riguardava la shell condivisa, non il caricamento dei token nella pagina Agenda.

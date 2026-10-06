@@ -1,7 +1,7 @@
 {% extends "base_kiosk.html" %}
 
 {% block head %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css', v=app_version ~ '-engine1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css', v=app_version ~ '-compact2') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-responsive-scale6') }}">
 {% endblock %}
 
@@ -13,9 +13,9 @@
     <div class="kiosk-head">
       <div class="kiosk-head__left">
         <div class="kiosk-title">Bacheca ordini</div>
-        <div class="kiosk-subtitle">
-          Aggiornamento: <span id="ui-now">{{ now_local.strftime('%d/%m/%Y %H:%M') }}</span>
-          · mostra “evaso” solo oggi
+        <div class="kiosk-subtitle" title="Ultimo aggiornamento; gli ordini evasi sono mostrati solo per oggi">
+          <span class="kiosk-updated-label">Aggiornamento: </span><span id="ui-now">{{ now_local.strftime('%d/%m/%Y %H:%M') }}</span>
+          <span class="kiosk-closed-hint">· mostra “evaso” solo oggi</span>
         </div>
       </div>
 
@@ -27,8 +27,8 @@
         <button class="btn btn-sm btn-outline-dark" id="btn-delivery-schedule" type="button">
           Giri
         </button>
-        <button class="btn btn-sm btn-outline-info" id="btn-reparse-deliveries" type="button">
-          Riprogramma
+        <button class="btn btn-sm btn-outline-info" id="btn-reparse-deliveries" type="button" title="Riprogramma" aria-label="Riprogramma">
+          <span class="kiosk-action-label">Riprogramma</span><span class="kiosk-action-mobile-label" aria-hidden="true">Riprogr.</span>
         </button>
         <button class="btn btn-sm btn-outline-secondary" id="btn-refresh" type="button">
           Aggiorna

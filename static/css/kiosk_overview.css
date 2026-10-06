@@ -1067,24 +1067,28 @@ html[data-responsive-mode="mobile"] .kiosk-overview-page > .container-fluid {
 html[data-responsive-mode="mobile"] .kiosk-head {
     align-items: stretch;
     flex-direction: column;
-    gap: calc(10px * var(--ld-ui-scale, 1));
+    gap: calc(var(--ld-action-gap) * .35 * var(--ld-ui-scale, 1));
   }
 html[data-responsive-mode="mobile"] .kiosk-title {
-    font-size: calc(var(--ld-kiosk-font-size) * 2);
+    font-size: calc(var(--ld-kiosk-font-size) * 1.1);
   }
 html[data-responsive-mode="mobile"] .kiosk-subtitle {
-    font-size: calc(var(--ld-kiosk-font-size) * .96);
-    line-height: 1.35;
+    font-size: calc(var(--ld-kiosk-font-size) * .65);
+    line-height: 1.2;
+    white-space: nowrap;
   }
 html[data-responsive-mode="mobile"] .kiosk-head__right {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: calc(var(--ld-touch-size) * var(--ld-ui-scale, 1)) repeat(3, minmax(0, 1fr));
+    gap: calc(var(--ld-action-gap) * .35 * var(--ld-ui-scale, 1));
     width: 100%;
   }
 html[data-responsive-mode="mobile"] .kiosk-head__right .btn {
-    min-height: calc(46px * var(--ld-ui-scale, 1));
     width: 100%;
-    font-size: calc(var(--ld-kiosk-font-size) * .95);
+    min-width: 0;
+    height: auto;
+    padding: calc(4px * var(--ld-ui-scale, 1));
+    font-size: calc(var(--ld-kiosk-font-size) * .78);
   }
 html[data-responsive-mode="mobile"] .kiosk-board {
     margin: 2px -10px 0;
@@ -1100,8 +1104,8 @@ html[data-responsive-mode="mobile"] .kiosk-col {
     border-radius: var(--ld-radius);
   }
 html[data-responsive-mode="mobile"] .kiosk-col__head {
-    min-height: calc(54px * var(--ld-ui-scale, 1));
-    padding: calc(12px * var(--ld-ui-scale, 1));
+    min-height: calc(var(--ld-touch-size) * var(--ld-ui-scale, 1));
+    padding: calc(6px * var(--ld-ui-scale, 1));
   }
 html[data-responsive-mode="mobile"] .kiosk-col__title {
     font-size: calc(var(--ld-kiosk-font-size) * 1.1);
@@ -1204,9 +1208,9 @@ html[data-responsive-mode="mobile"] .dropdown-menu.kiosk-floating-menu .dropdown
 html[data-responsive-mode="mobile"] .kiosk-status-tabs {
     display: flex;
     flex: 0 0 auto;
-    gap: calc(8px * var(--ld-ui-scale, 1));
+    gap: calc(var(--ld-action-gap) * .35 * var(--ld-ui-scale, 1));
     overflow-x: auto;
-    padding: 2px 0 calc(8px * var(--ld-ui-scale, 1));
+    padding: 0;
     scroll-snap-type: x proximity;
   }
 html[data-responsive-mode="mobile"] .kiosk-status-tab {
@@ -1214,12 +1218,12 @@ html[data-responsive-mode="mobile"] .kiosk-status-tab {
     display: inline-flex;
     align-items: center;
     gap: calc(7px * var(--ld-ui-scale, 1));
-    min-height: calc(42px * var(--ld-ui-scale, 1));
+    min-height: calc(var(--ld-touch-size) * var(--ld-ui-scale, 1));
     border: 1px solid color-mix(in srgb, var(--ld-text) 24%, transparent);
     border-radius: 999px;
     background: color-mix(in srgb, var(--ld-text) 12%, transparent);
     color: var(--ld-text);
-    padding: calc(8px * var(--ld-ui-scale, 1)) calc(13px * var(--ld-ui-scale, 1));
+    padding: calc(4px * var(--ld-ui-scale, 1)) calc(8px * var(--ld-ui-scale, 1));
     font-weight: 800;
     scroll-snap-align: start;
   }
@@ -1351,8 +1355,23 @@ body.kiosk-body { --ld-kiosk-font-size: calc(var(--ld-base-font-size) * var(--ld
 .order-card, .order-card:hover, .order-card.delivery-overdue { background: var(--ld-surface) !important; color: var(--ld-brand-primary); }
 .order-pre, .kiosk-pre, .kiosk-attachment { background: var(--ld-surface); color: var(--ld-brand-primary); }
 html[data-responsive-mode="mobile"] body.kiosk-body { --ld-kiosk-font-size: calc(var(--ld-mobile-font-size) * var(--ld-ui-scale, 1)); }
-html[data-responsive-mode="mobile"] .kiosk-head .btn, html[data-responsive-mode="mobile"] .route-pill { min-height: calc(var(--ld-mobile-touch-size) * var(--ld-ui-scale, 1)); }
+html[data-responsive-mode="mobile"] .kiosk-head .btn, html[data-responsive-mode="mobile"] .route-pill { min-height: calc(var(--ld-touch-size) * var(--ld-ui-scale, 1)); }
 html[data-responsive-mode="mobile"] .kiosk-col__head { background: var(--ld-surface-muted); }
 html[data-responsive-mode="mobile"] .kiosk-theme-modal { --ld-kiosk-font-size: calc(var(--ld-mobile-font-size) * var(--ld-ui-scale, 1)); }
-html[data-responsive-mode="mobile"] .kiosk-head__right { grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(120px * var(--ld-ui-scale, 1))), 1fr)); }
 .kiosk-head__right .btn { white-space: normal; overflow-wrap: anywhere; }
+.kiosk-action-mobile-label { display: none; }
+html[data-responsive-mode="mobile"] .kiosk-action-label { display: none; }
+html[data-responsive-mode="mobile"] .kiosk-action-mobile-label { display: inline; }
+html[data-responsive-mode="mobile"] body.kiosk-body .ld-page-standard.kiosk-overview-page { padding: calc(var(--ld-mobile-page-padding) * .5 * var(--ld-ui-scale, 1)) !important; }
+html[data-responsive-mode="mobile"] .kiosk-overview-page > .container-fluid { gap: calc(var(--ld-action-gap) * .45 * var(--ld-ui-scale, 1)); }
+html[data-responsive-mode="mobile"] .route-pill { padding: calc(4px * var(--ld-ui-scale, 1)) calc(8px * var(--ld-ui-scale, 1)); }
+html[data-responsive-mode="mobile"] body.kiosk-body .kiosk-overview-page .kiosk-head__right .btn,
+html[data-responsive-mode="mobile"] body.kiosk-body .ld-page-standard.kiosk-overview-page .route-pill { min-height: calc(var(--ld-touch-size) * var(--ld-ui-scale, 1)) !important; font-size: calc(var(--ld-kiosk-font-size) * .78) !important; }
+html[data-responsive-mode="mobile"] .kiosk-filters { margin: 0; padding: 0; }
+html[data-responsive-mode="mobile"] .kiosk-updated-label,
+html[data-responsive-mode="mobile"] .kiosk-closed-hint { display: none; }
+html[data-responsive-mode="mobile"] .kiosk-head__left { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--ld-action-gap) * .35 * var(--ld-ui-scale, 1)); }
+html[data-responsive-mode="mobile"] .kiosk-status-tabs,
+html[data-responsive-mode="mobile"] .route-filters { scrollbar-width: none; }
+html[data-responsive-mode="mobile"] .kiosk-status-tabs::-webkit-scrollbar,
+html[data-responsive-mode="mobile"] .route-filters::-webkit-scrollbar { display: none; }
