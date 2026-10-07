@@ -4,6 +4,12 @@
 - Titolo/data sulla stessa riga; informazioni estese disponibili nel title e visibili su desktop. Ridotti gap, padding pagina/filtri, font della testata e ingombro header colonna; filtri/stati mantengono swipe senza scrollbar visibile. Etichetta Riprogr. su mobile, Riprogramma e nome accessibile completi. Nessuna modifica JS/API; layout desktop preservato. Cache CSS `compact2`.
 - Verificato percorso completo /kiosk + iframe con due temi, viewport smartphone alte 660px a 320/360/390/430px: quattro pulsanti con stesso top, testi contenuti, toolbar sotto 70px, almeno 45% della viewport interna riservata alle schede. Passano temi, pagina a piena area e aperture modali; regressione desktop a 1920/2560px passata. Anteprima mobile ispezionata.
 
+## Allegati ordini: origine locale e messaggio principale Slack (2026-10-07)
+
+- `tools/order_attachments.py`: recupero locale condiviso per upload ordini manuali/Plancia, clienti e PWA; `post_order_message` sceglie chat_postMessage senza file o pubblicazione root con file. Usato da `routes/route_orders.py`, `routes/pwa.py` e dal download allegati `routes/kiosk.py`.
+- `tools/slack_api.py`, `post_message_with_files`: upload multiplo con initial_comment, metadati files.info e timestamp della share, senza risposta nel thread. ID locali mantenuti, slack_file_id e URL remoti come fallback; kiosk riconcilia allegati e conteggi degli eventi webhook.
+- Inserimenti nuovi con allegato sul root; aggiunte successive sul thread esistente. Nessuna migration o modifica dei messaggi Slack storici. Test ripetibile: `python -B -m unittest discover -s tests -p test_order_attachments.py -v`.
+
 ## Storico aggiornamenti e log: motore grafico condiviso (2026-10-07)
 
 - `templates/storico_importazioni.html` e `templates/logs_display.html`: ld-page-standard/ld-page-viewport, layout comune `static/css/monitor_pages.css`; fogli specifici `imports_history.css` e `logs_display.css` (engine1). Token tema/scala e layout mobile da data-responsive-mode.

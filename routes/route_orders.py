@@ -27,6 +27,7 @@ from models import (
 )
 from tools.role_required import role_required
 from tools.slack_api import SlackAPI, SlackAPIConfig
+from tools.order_attachments import local_order_attachment_path, post_order_message
 from tools.slack_processor import SlackProcessor
 from tools.push_notifications import send_order_push_to_staff
 from tools.log_utils import get_logger
@@ -437,20 +438,7 @@ def _files_from_request():
 
 
 def _attachment_abs_path(file_info):
-    rel = (file_info.get("static_path") or "").strip().replace("\\", "/")
-    if not rel and (file_info.get("url") or "").startswith("/static/"):
-        rel = file_info["url"][len("/static/"):]
-    if (
-        not rel.startswith("uploads/route_orders/")
-        and not rel.startswith("uploads/shared_orders/")
-        and not rel.startswith("uploads/customer_orders/")
-    ):
-        return None
-    candidate = os.path.abspath(os.path.join(current_app.static_folder, rel))
-    static_root = os.path.abspath(current_app.static_folder)
-    if not candidate.startswith(static_root + os.sep) or not os.path.exists(candidate):
-        return None
-    return candidate
+    return local_order_attachment_path(file_info)
 
 
 def _upload_attachments_to_slack(api, channel_id, thread_ts, attachments):
@@ -717,17 +705,19 @@ def publish_customer_order(order):
     if not bot_token:
         raise RuntimeError("SLACK_BOT_TOKEN mancante")
     api = SlackAPI(SlackAPIConfig(bot_token=bot_token))
-    response = api.post_message(
+    attachments = [dict(attachment) for attachment in order.attachments or []]
+    response = post_order_message(
+        api,
         channel_id,
         message_text,
+        attachments,
         client_msg_id=f"ldapp-customer-order-{order.id}",
     )
     ts = response.get("ts") or (response.get("message") or {}).get("ts")
     if not ts:
         raise RuntimeError("Slack non ha restituito il timestamp del messaggio")
 
-    attachments = order.attachments or []
-    _upload_attachments_to_slack(api, channel_id, ts, attachments)
+    order.attachments = attachments
 
     slack_order = SlackOrder(
         route_id=route.id,
@@ -1640,18 +1630,13 @@ def api_direct_order_create():
     message_text = _format_order_message(customer_display, message_note, planned_delivery_at)
     api = SlackAPI(SlackAPIConfig(bot_token=bot_token))
     try:
-        response = api.post_message(channel_id, message_text)
+        response = post_order_message(api, channel_id, message_text, attachments)
     except Exception as exc:
         logger.exception("Invio Slack ordine diretto fallito")
         return jsonify({"ok": False, "error": f"Invio Slack fallito: {exc}"}), 502
     ts = response.get("ts") or (response.get("message") or {}).get("ts")
     if not ts:
         return jsonify({"ok": False, "error": f"Slack non ha restituito il timestamp del messaggio: {response}"}), 502
-    try:
-        _upload_attachments_to_slack(api, channel_id, ts, attachments)
-    except Exception as exc:
-        db.session.rollback()
-        return jsonify({"ok": False, "error": f"Ordine inviato, ma allegati non caricati su Slack: {exc}"}), 502
     order = SlackOrder(
         route_id=direct_route.id if direct_route else None,
         slack_channel_id=channel_id,
@@ -1813,18 +1798,15 @@ def api_send_slack(entry_id):
 
     api = SlackAPI(SlackAPIConfig(bot_token=bot_token))
     try:
-        response = api.post_message(route.slack_channel_id, _format_slack_message(registry, entry))
+        attachments = [dict(attachment) for attachment in entry.order_attachments or []]
+        response = post_order_message(api, route.slack_channel_id, _format_slack_message(registry, entry), attachments)
     except Exception as exc:
         logger.exception("Invio Slack ordine giro fallito entry_id=%s", entry.id)
         return jsonify({"ok": False, "error": f"Invio Slack fallito: {exc}"}), 502
     ts = response.get("ts") or (response.get("message") or {}).get("ts")
     if not ts:
         return jsonify({"ok": False, "error": f"Slack non ha restituito il timestamp del messaggio: {response}"}), 502
-    try:
-        _upload_attachments_to_slack(api, route.slack_channel_id, ts, entry.order_attachments or [])
-    except Exception as exc:
-        db.session.rollback()
-        return jsonify({"ok": False, "error": f"Ordine inviato, ma allegati non caricati su Slack: {exc}"}), 502
+    entry.order_attachments = attachments
     entry.slack_channel_id = route.slack_channel_id
     entry.slack_message_ts = ts
     entry.slack_thread_ts = ts

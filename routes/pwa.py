@@ -4,6 +4,7 @@ import os
 import mimetypes
 from datetime import datetime
 import logging
+from tools.order_attachments import post_order_message
 
 from flask import Blueprint, current_app, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -91,6 +92,7 @@ def _shared_attachments(intent):
             "is_image": content_type.startswith("image/"),
             "url": file_info.get("url") or "",
             "static_path": file_info.get("static_path") or "",
+            **{key: file_info[key] for key in ('slack_file_id', 'url_private', 'url_private_download', 'permalink', 'thumb_360', 'thumb_480', 'thumb_720', 'thumb_1024') if file_info.get(key)},
         })
     return out
 
@@ -460,17 +462,27 @@ def share_send_order(intent_id):
         db.session.flush()
         message_text = _format_slack_message(registry, entry)
 
-    response = api.post_message(channel_id, message_text)
+    attachments = _shared_attachments(intent)
+    try:
+        response = post_order_message(api, channel_id, message_text, attachments)
+    except Exception as exc:
+        db.session.rollback()
+        return jsonify({"ok": False, "error": f"Invio Slack fallito: {exc}"}), 502
     ts = response.get("ts") or (response.get("message") or {}).get("ts")
     if not ts:
         db.session.rollback()
         return jsonify({"ok": False, "error": f"Slack non ha restituito il timestamp del messaggio: {response}"}), 502
 
-    try:
-        _upload_shared_files_to_slack(api, channel_id, ts, intent)
-    except Exception as exc:
-        db.session.rollback()
-        return jsonify({"ok": False, "error": f"Ordine inviato, ma allegati non caricati su Slack: {exc}"}), 502
+    shared_files = [dict(file) for file in intent.files or []]
+    metadata = iter(attachments)
+    for file in shared_files:
+        if file.get('diagnostic'):
+            continue
+        attachment = next(metadata)
+        for key in ('slack_file_id', 'url_private', 'url_private_download', 'permalink', 'thumb_360', 'thumb_480', 'thumb_720', 'thumb_1024'):
+            if attachment.get(key):
+                file[key] = attachment[key]
+    intent.files = shared_files
 
     target_status = "acquisito"
     if entry:

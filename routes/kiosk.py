@@ -12,6 +12,7 @@ from extensions import db
 from tools.log_utils import get_logger
 from tools.slack_processor import SlackProcessor
 from tools.slack_api import SlackAPI, SlackAPIConfig
+from tools.order_attachments import local_order_attachment_path
 from models import SlackOrder, SlackOrderEvent, DeliveryRoute, DeliveryScheduleRule, OrderStatus, RouteOrderBoardEntry
 
 kiosk_bp = Blueprint("kiosk", __name__, url_prefix="/kiosk")
@@ -394,14 +395,19 @@ def _order_attachments(order_id: int) -> list[dict]:
     )
 
     out = []
-    seen = set()
+    seen = {}
     for ev in events:
         for attachment in _event_attachments(ev.payload):
-            file_id = str(attachment.get("id") or "")
-            if not file_id or file_id in seen:
+            file_id = str(attachment.get("slack_file_id") or attachment.get("id") or "")
+            if not file_id:
                 continue
-            seen.add(file_id)
-            out.append(attachment)
+            if file_id in seen:
+                existing = seen[file_id]
+                existing.update({key: value for key, value in attachment.items() if value and key != "id"})
+                continue
+            merged = dict(attachment)
+            seen[file_id] = merged
+            out.append(merged)
     return out
 
 
@@ -419,7 +425,7 @@ def _attachment_counts_for_order_ids(order_ids: list[int]) -> dict[int, int]:
     seen = set()
     for ev in events:
         for attachment in _event_attachments(ev.payload):
-            key = (int(ev.order_id), str(attachment.get("id") or ""))
+            key = (int(ev.order_id), str(attachment.get("slack_file_id") or attachment.get("id") or ""))
             if not key[1] or key in seen:
                 continue
             seen.add(key)
@@ -493,18 +499,7 @@ def _pick_slack_attachment_url(attachment: dict, variant: str) -> str:
 
 
 def _local_attachment_path(attachment: dict) -> str | None:
-    if attachment.get("source") != "pwa_share":
-        return None
-    rel = (attachment.get("static_path") or "").strip().replace("\\", "/").lstrip("/")
-    if not rel.startswith("uploads/shared_orders/"):
-        return None
-    candidate = os.path.abspath(os.path.join(current_app.static_folder, rel))
-    static_root = os.path.abspath(current_app.static_folder)
-    if not candidate.startswith(static_root + os.sep):
-        return None
-    if not os.path.exists(candidate):
-        return None
-    return candidate
+    return local_order_attachment_path(attachment)
 
 
 @kiosk_bp.get("/test")

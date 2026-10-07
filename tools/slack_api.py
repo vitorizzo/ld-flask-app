@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 from typing import Any, Dict, Optional
 
@@ -136,6 +137,34 @@ class SlackAPI:
         except Exception:
             logger.exception("Errore inatteso in SlackAPI.upload_file")
             raise
+
+    def post_message_with_files(self, channel: str, text: str, file_uploads: list[dict]) -> Dict[str, Any]:
+        """Pubblica i file insieme al testo sul root, senza creare una risposta nel thread."""
+        response = self.client.files_upload_v2(
+            channel=channel, initial_comment=text, file_uploads=file_uploads,
+        )
+        data = response.data if hasattr(response, 'data') else dict(response)
+        files = data.get('files') or ([data['file']] if data.get('file') else [])
+        if not files:
+            raise RuntimeError("Slack non ha restituito gli allegati pubblicati.")
+        # Il timestamp del file non e' il timestamp del messaggio. Serve la share
+        # nel canale per collegare ordine, reaction e successive note al root corretto.
+        for attempt in range(4):
+            metadata = []
+            timestamp = None
+            for file in files:
+                info = self.client.files_info(file=file['id'])
+                remote = info.get('file') or {}
+                metadata.append(remote)
+                for visibility in ('public', 'private'):
+                    for share in (remote.get('shares') or {}).get(visibility, {}).get(channel, []):
+                        if share.get('ts') and share.get('thread_ts') in (None, '', share['ts']):
+                            timestamp = share['ts']
+            if timestamp:
+                return {'ok': True, 'ts': timestamp, 'files': metadata}
+            if attempt < 3:
+                time.sleep(.25 * (attempt + 1))
+        raise RuntimeError("Allegati pubblicati su Slack, ma il timestamp del messaggio principale non e' ancora disponibile. Verificare Slack prima di ripetere l'invio.")
 
     def add_reaction(self, channel: str, timestamp: str, name: str) -> Dict[str, Any]:
         """
