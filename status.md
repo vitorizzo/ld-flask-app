@@ -1,3 +1,11 @@
+## Errori task: esito applicativo e diagnostica MatrixWS (2026-10-07)
+
+- Analisi read-only di Redis e log produzione tramite SSH tecno: 129 stati errore reali (82 giacenze, 46 articoli, 1 anagrafiche), senza residui legacy; 120 HTTP 500, 8 HTTP 502, 1 batch oltre 900 secondi. I 128 segnalati sono saliti a 129 con il fallimento giacenze delle 07:35 del 7 ottobre. Storico DB dal 5 ottobre a mezzanotte piu' ampio del monitor, quindi non equivalente al conteggio dopo reset.
+- `tools/log_utils.py`: il decorator comune registra ERROR/Task fallito per risultati con success=False oppure ok=False, INFO/Task non eseguito per skipped=True senza fallimento, successo negli altri casi. Conservati valori di ritorno ed eccezioni: nessuna modifica al contratto dei consumer Celery/API o alla persistenza Redis.
+- `MatrixWSError.log_diagnostics` espone kind, status HTTP, batch UUID/elapsed e messaggi d'errore selezionati; titoli HTML dei proxy, rimozione secret configurato/Bearer/URL/credenziali. Non attraversa record dati ne' riversa il corpo completo. `tools/importazioni.py` registra questi dettagli per articoli, giacenze, barcode e anagrafiche; la risposta HTTP anagrafiche e' conservata nei details dell'eccezione.
+- Sei test unittest passati: classificazione risultati e skip, propagazione eccezioni, filtro diagnostica, proxy 502, HTTP 500 BATCH_NOT_FINISHED seguito da successo, HTTP 500 definitivo. Nessun errore cancellato, nessun retry o timeout cambiato.
+- Ripartenza: dopo deploy manuale e riavvio worker, leggere il prossimo errore MatrixWS con la nuova diagnostica per individuare la causa lato servizio. Gli errori precedenti non acquisiscono retroattivamente dettagli mancanti.
+
 ## Bacheca smartphone: testata e comandi compatti (2026-10-06)
 
 - Riscontro utente: la parte fissa sottraeva troppo spazio alle schede. `kiosk_overview.css` dispone ora i quattro comandi su una sola riga (nuovo ordine, Giri, Riprogr., Aggiorna); misura compatta basata su touch_size/scalar comune, superando il min-height dei controlli di pagina soltanto per toolbar e filtri.

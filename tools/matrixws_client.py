@@ -17,6 +17,51 @@ class MatrixWSError(RuntimeError):
         self.kind = kind
         self.details = details
 
+    def log_diagnostics(self, *, secrets=()):
+        """Espone metadati e messaggi d'errore, senza riversare record o credenziali nei log."""
+        details = self.details if isinstance(self.details, dict) else {}
+        result = {"kind": self.kind}
+        for key in ("status_code", "batch_uuid", "elapsed"):
+            if key in details:
+                result[key] = details[key]
+        messages = []
+
+        def clean(value):
+            text = str(value)
+            for secret in secrets:
+                if secret:
+                    text = text.replace(str(secret), "[redacted]")
+            text = re.sub(r"https?://\S+", "[url]", text, flags=re.I)
+            text = re.sub(r"\bBearer\s+\S+", "Bearer [redacted]", text, flags=re.I)
+            text = re.sub(
+                r"(?i)\b(secret|token|password|authorization|api[_-]?key)\b\s*[:=]\s*[^\s,;]+",
+                r"\1=[redacted]", text,
+            )
+            return " ".join(text.split())[:600]
+
+        def visit(value, depth=0):
+            if depth > 5 or len(messages) >= 8:
+                return
+            if isinstance(value, dict):
+                for key, nested in value.items():
+                    if str(key).lower() in {"exception", "description", "message", "error", "code"} and isinstance(nested, (str, int)):
+                        messages.append({"field": str(key), "value": clean(nested)})
+                    elif str(key).lower() in {"error", "errors", "exception"} and isinstance(nested, dict):
+                        visit(nested, depth + 1)
+
+        response = details.get("response", details.get("body", details))
+        if isinstance(response, dict):
+            visit(response)
+        elif isinstance(response, str):
+            # Per pagine proxy HTML bastano titolo e intestazione; niente body/record.
+            headings = re.findall(r"<(?:title|h1)\b[^>]*>(.*?)</(?:title|h1)>", response, re.I | re.S)
+            if headings:
+                messages = [{"field": "proxy_message", "value": clean(re.sub(r"<[^>]+>", " ", item))} for item in headings[:2]]
+            else:
+                result["response_format"] = "text" if "<" not in response else "html"
+        result["messages"] = messages[:8]
+        return result
+
 
 @dataclass(frozen=True)
 class MatrixWSConfig:

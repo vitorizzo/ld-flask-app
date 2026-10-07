@@ -1,5 +1,6 @@
 import csv
 import hashlib
+import json
 import os
 import re
 import unicodedata
@@ -912,6 +913,10 @@ def _matrixws_response_rows(result):
         raise MatrixWSError(
             f"MATRIXWS ha risposto con stato HTTP {result['status_code']} durante l'importazione anagrafiche.",
             kind="response",
+            details={
+                "status_code": result["status_code"],
+                "response": result.get("json") if result.get("json") is not None else result.get("text"),
+            },
         )
 
     body = result["json"]
@@ -1259,6 +1264,13 @@ def _fetch_matrixws_service_rows(service_code, *, renew_secret=True):
     return rows, secret_renewed
 
 
+def _log_matrixws_import_error(label, exc):
+    if isinstance(exc, MatrixWSError):
+        diagnostics = exc.log_diagnostics(secrets=(current_app.config.get("MATRIXWS_SECRET"),))
+        logger.error("Diagnostica MATRIXWS %s: %s", label, json.dumps(diagnostics, ensure_ascii=False))
+    logger.exception("Errore importazione %s MATRIXWS", label)
+
+
 def _matrixws_stock_quantity(value):
     quantity = _parse_matrixws_article_decimal(value)
     if quantity != quantity.to_integral_value():
@@ -1317,7 +1329,7 @@ def import_barcode_matrixws(task_id=None):
         db.session.rollback()
         update_task(task_id, task_name, 0, status_string["error"], exc)
         registra_importazione("barcode", esito=False, messaggio=str(exc))
-        logger.exception("Errore importazione barcode MATRIXWS")
+        _log_matrixws_import_error("barcode", exc)
         return {"success": False, "error": str(exc), "summary": counters}
 
 
@@ -1376,7 +1388,7 @@ def import_giacenze_matrixws(task_id=None):
         db.session.rollback()
         update_task(task_id, task_name, 0, status_string["error"], exc)
         registra_importazione("giacenze", esito=False, messaggio=str(exc))
-        logger.exception("Errore importazione giacenze MATRIXWS")
+        _log_matrixws_import_error("giacenze", exc)
         return {"success": False, "error": str(exc), "summary": counters}
 
 
@@ -1692,7 +1704,7 @@ def import_articoli_matrixws(task_id=None):
         db.session.rollback()
         update_task(task_id, task_name, 0, status_string["error"], exc)
         registra_importazione("articoli", esito=False, messaggio=str(exc))
-        logger.exception("Errore importazione articoli MATRIXWS")
+        _log_matrixws_import_error("articoli", exc)
         return {"success": False, "error": str(exc), "summary": counters}
 
 
@@ -1938,7 +1950,7 @@ def import_anagrafiche(task_id=None):
         registra_importazione("anagrafiche", esito=True)
         return {"success": True, "message": "Anagrafiche importate con successo", "summary": summary}
     except Exception as e:
-        logger.exception("Errore durante l'importazione anagrafiche:")
+        _log_matrixws_import_error("anagrafiche", e)
         db.session.rollback()
         update_task(task_id, task_name, 0, status_string["error"], e)
         registra_importazione("anagrafiche", esito=False, messaggio=str(e))

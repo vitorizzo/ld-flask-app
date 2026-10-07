@@ -20,7 +20,15 @@ def log_task(logger):
                 except Exception:
                     loggable_result = "<Non serializzabile>"
 
-                logger.info(f"✅ Task completato: {task_func.__name__} - Risultato: {loggable_result}")
+                failed = isinstance(result, dict) and (
+                    result.get("success") is False or result.get("ok") is False
+                )
+                if failed:
+                    logger.error(f"Task fallito: {task_func.__name__} - Risultato: {loggable_result}")
+                elif isinstance(result, dict) and result.get("skipped") is True:
+                    logger.info(f"Task non eseguito: {task_func.__name__} - Risultato: {loggable_result}")
+                else:
+                    logger.info(f"✅ Task completato: {task_func.__name__} - Risultato: {loggable_result}")
                 return result
             except Exception as e:
                 logger.exception(f"❌ Errore nel task {task_func.__name__}: {e}")

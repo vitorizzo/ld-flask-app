@@ -4,6 +4,12 @@
 - Titolo/data sulla stessa riga; informazioni estese disponibili nel title e visibili su desktop. Ridotti gap, padding pagina/filtri, font della testata e ingombro header colonna; filtri/stati mantengono swipe senza scrollbar visibile. Etichetta Riprogr. su mobile, Riprogramma e nome accessibile completi. Nessuna modifica JS/API; layout desktop preservato. Cache CSS `compact2`.
 - Verificato percorso completo /kiosk + iframe con due temi, viewport smartphone alte 660px a 320/360/390/430px: quattro pulsanti con stesso top, testi contenuti, toolbar sotto 70px, almeno 45% della viewport interna riservata alle schede. Passano temi, pagina a piena area e aperture modali; regressione desktop a 1920/2560px passata. Anteprima mobile ispezionata.
 
+## Esito task e diagnostica errori MatrixWS (2026-10-07)
+
+- `tools/log_utils.py`, `log_task`: ERROR quando il risultato applicativo contiene success=False/ok=False; INFO distinto per skip e completamento. Restituzione del risultato invariata, eccezioni propagate.
+- `tools/matrixws_client.py`, `MatrixWSError.log_diagnostics`: metadati e messaggi d'errore filtrati, senza record importati, secret configurato, Bearer o URL. Richiamato da `tools/importazioni.py` nei fallimenti articoli/giacenze/barcode/anagrafiche. Il polling BATCH_NOT_FINISHED resta transitorio; nessuna modifica a monitor Redis, pianificazione o timeout.
+- Verifica ripetibile: `python -B -m unittest discover -s tests -p test_task_error_reporting.py -v`.
+
 ## Navbar collegata ai colori del tema (2026-10-06)
 
 - Riscontro utente su Agenda: la navbar conservava il marrone fisso di style.css. Il problema riguardava la shell condivisa, non il caricamento dei token nella pagina Agenda.
