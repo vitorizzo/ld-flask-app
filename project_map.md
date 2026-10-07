@@ -4,6 +4,11 @@
 - Titolo/data sulla stessa riga; informazioni estese disponibili nel title e visibili su desktop. Ridotti gap, padding pagina/filtri, font della testata e ingombro header colonna; filtri/stati mantengono swipe senza scrollbar visibile. Etichetta Riprogr. su mobile, Riprogramma e nome accessibile completi. Nessuna modifica JS/API; layout desktop preservato. Cache CSS `compact2`.
 - Verificato percorso completo /kiosk + iframe con due temi, viewport smartphone alte 660px a 320/360/390/430px: quattro pulsanti con stesso top, testi contenuti, toolbar sotto 70px, almeno 45% della viewport interna riservata alle schede. Passano temi, pagina a piena area e aperture modali; regressione desktop a 1920/2560px passata. Anteprima mobile ispezionata.
 
+## Eventi: motore grafico condiviso (2026-10-07)
+
+- `templates/events/index.html`, `manage.html`, `social_posts.html` usano `ld-page-standard` e `static/css/events.css` (engine1). La pagina pubblica riusa index.html e riceve lo stesso contratto.
+- Le regole Eventi sono rimosse dal CSS globale: foglio dedicato con token tema/scala comune e selettori data-responsive-mode per il layout mobile. Moduli su una colonna, controlli touch condivisi, locandine e anteprime social adattabili. Nessun CSS per modello di dispositivo; nessun cambiamento a route, form, JS o generazione backend delle immagini social.
+
 ## Esito task e diagnostica errori MatrixWS (2026-10-07)
 
 - `tools/log_utils.py`, `log_task`: ERROR quando il risultato applicativo contiene success=False/ok=False; INFO distinto per skip e completamento. Restituzione del risultato invariata, eccezioni propagate.

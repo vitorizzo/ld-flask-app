@@ -2,6 +2,10 @@
 
 {% block title %}Eventi - LD Enoteca{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/events.css', v=app_version ~ '-engine1') }}">
+{% endblock %}
+
 {% block content %}
 {% macro render_event_posters(posters, event, carousel_id) -%}
     {% if posters %}
@@ -31,7 +35,7 @@
     {% endif %}
 {%- endmacro %}
 
-<section class="events-page">
+<section class="events-page ld-page-standard">
     <header class="events-hero">
         <div>
             <h1>Eventi</h1>

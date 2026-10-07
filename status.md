@@ -1,3 +1,10 @@
+## Eventi migrati al motore grafico condiviso (2026-10-07)
+
+- Migrati i tre template della sezione: elenco Eventi (anche pubblico), Gestione eventi e Post social. Classe `ld-page-standard`, larghezza dal token page_max_width, font/spazi/controlli dalla scala comune; nessuna discriminante locale per modello o DPR. Non sono presenti modali.
+- Estratte 123 regole Eventi da `style.css` in `static/css/events.css`, caricato soltanto dai tre template con cache key engine1. Rimossi colori decorativi fissi, collegati pannelli, campi, pulsanti, badge, date, controlli locandine e anteprime social ai token attivi. Indicatori di eliminazione mantengono il significato danger. Layout smartphone usa data-responsive-mode, editor/anteprime su una colonna e pulsanti allineati a sinistra.
+- Route, autorizzazioni, form, upload/conversione PDF, pubblicazione e JS operativo invariati. Le immagini social generate dal backend non vengono modificate da questa migrazione.
+- Verificati template/base/Bootstrap reali in Edge: 40 casi con due temi e viewport 320/360/430/1440px, inclusi pagina pubblica, elenco vuoto, editor aperti, carousel locandine e copia bozza. Campi upload collegati al tema dopo riscontro del test. Anteprime Eventi mobile/desktop e Gestione mobile ispezionate. Regressione Home/navbar a otto larghezze passata; confronto CSS conferma che sono state rimosse soltanto regole Eventi. Verifica fisica dopo deploy ancora da effettuare.
+
 ## Errori task: esito applicativo e diagnostica MatrixWS (2026-10-07)
 
 - Analisi read-only di Redis e log produzione tramite SSH tecno: 129 stati errore reali (82 giacenze, 46 articoli, 1 anagrafiche), senza residui legacy; 120 HTTP 500, 8 HTTP 502, 1 batch oltre 900 secondi. I 128 segnalati sono saliti a 129 con il fallimento giacenze delle 07:35 del 7 ottobre. Storico DB dal 5 ottobre a mezzanotte piu' ampio del monitor, quindi non equivalente al conteggio dopo reset.
