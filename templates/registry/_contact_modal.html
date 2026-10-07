@@ -1,0 +1,66 @@
+<div class="modal fade ld-modal ld-modal-standard registry-contact-modal" id="registryContactModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="registryContactModalTitle">Contatto</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="contactRegistryId">
+        <input type="hidden" id="contactId">
+        <div class="contact-picker-panel" id="contactPickerPanel" hidden>
+          <button class="btn btn-outline-info contact-picker-button" type="button" id="contactPickerBtn">
+            <i class="fa-solid fa-address-book" aria-hidden="true"></i>
+            Importa dalla rubrica del telefono
+          </button>
+          <div class="contact-picker-help">Scegli tu il contatto e quali dati condividere con LDApp.</div>
+        </div>
+        <div class="contact-vcard-panel">
+          <button class="btn btn-outline-info contact-picker-button" type="button" id="contactVcardBtn">
+            <i class="fa-solid fa-file-arrow-up" aria-hidden="true"></i>
+            Importa file vCard (.vcf)
+          </button>
+          <input id="contactVcardInput" class="visually-hidden" type="file" accept=".vcf,text/vcard,text/x-vcard" tabindex="-1">
+          <div class="contact-picker-help">Su iPhone: condividi o esporta il contatto come vCard, salvalo in File e selezionalo qui.</div>
+        </div>
+        <div class="contact-picker-unavailable" id="contactPickerUnavailable" hidden>
+          L'apertura diretta della rubrica non e' disponibile in questo browser. Puoi usare una vCard oppure inserire il contatto manualmente.
+        </div>
+        <div class="row g-2">
+          <div class="col-12 col-md-6">
+            <label class="form-label" for="contactDisplayName">Nome contatto</label>
+            <input class="form-control" id="contactDisplayName" autocomplete="off">
+          </div>
+          <div class="col-12 col-md-6">
+            <label class="form-label" id="contactRoleLabel" for="contactRole">Ruolo</label>
+            <input class="form-control" id="contactRole" autocomplete="off" placeholder="Agente, socio, amministrazione...">
+          </div>
+        </div>
+        <div class="row g-2 mt-1">
+          <div class="col-12 col-md-4">
+            <label class="form-label" for="contactPointType">Tipo</label>
+            <select class="form-select" id="contactPointType">
+              <option value="phone">Telefono</option>
+              <option value="mobile">Cellulare</option>
+              <option value="email">Email</option>
+              <option value="pec">PEC</option>
+            </select>
+          </div>
+          <div class="col-12 col-md-8">
+            <label class="form-label" for="contactPointValue">Valore</label>
+            <input class="form-control" id="contactPointValue" type="tel" inputmode="tel" autocomplete="tel">
+          </div>
+        </div>
+        <div class="mt-2" id="contactNotesGroup">
+          <label class="form-label" for="contactNotes">Note</label>
+          <textarea class="form-control" id="contactNotes" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="contact-form-feedback" id="contactFormFeedback" role="status" aria-live="polite"></div>
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Annulla</button>
+        <button class="btn btn-info" type="button" id="contactSaveBtn">Salva</button>
+      </div>
+    </div>
+  </div>
+</div>

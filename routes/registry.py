@@ -215,9 +215,8 @@ def api_contact_import_create():
     if suggested_registry_id:
         registry = BusinessRegistry.query.filter_by(
             id=suggested_registry_id,
-            kind="customer",
             is_active=True,
-        ).first()
+        ).filter(BusinessRegistry.kind.in_(("customer", "supplier"))).first()
         suggested_registry_id = registry.id if registry else None
     try:
         intent = create_contact_import_intent(upload, current_user.id, suggested_registry_id)
@@ -248,7 +247,8 @@ def contact_import_review(intent_id):
     elif intent.user_id != current_user.id and (current_user.max_role_weight or 0) < 100:
         return "Accesso negato", 403
     if intent.status == "completed":
-        return redirect(url_for("registry.customers_book_page"))
+        supplier = intent.suggested_registry and intent.suggested_registry.kind == "supplier"
+        return redirect(url_for("registry.suppliers_book_page" if supplier else "registry.customers_book_page"))
     response = render_template(
         "registry/contact_import_review.html",
         intent=intent,
@@ -295,9 +295,11 @@ def api_contact_import_confirm(intent_id):
         return jsonify({"ok": False, "error": "Questa importazione e' gia' stata completata"}), 409
     data = request.get_json(silent=True) or {}
     registry_id = data.get("registry_id")
-    registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first()
+    registry = BusinessRegistry.query.filter_by(id=registry_id, is_active=True).filter(
+        BusinessRegistry.kind.in_(("customer", "supplier"))
+    ).first()
     if not registry:
-        return jsonify({"ok": False, "error": "Seleziona un cliente valido"}), 400
+        return jsonify({"ok": False, "error": "Seleziona un cliente o fornitore valido"}), 400
     display_name = (data.get("display_name") or intent.display_name or "").strip()
     if not display_name:
         return jsonify({"ok": False, "error": "Il nome del contatto e' obbligatorio"}), 400
@@ -324,7 +326,7 @@ def api_contact_import_confirm(intent_id):
         "contact": contact.to_dict(),
         "reused": reused,
         "registry": _registry_to_dict(registry, include_contacts=True),
-        "redirect_url": url_for("registry.customers_book_page"),
+        "redirect_url": url_for("registry.suppliers_book_page" if registry.kind == "supplier" else "registry.customers_book_page"),
     })
 
 

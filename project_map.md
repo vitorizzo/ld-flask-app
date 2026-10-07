@@ -1873,3 +1873,8 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 
 - `static/css/style.css`: rimossa la vecchia variante ad alta risoluzione con dimensioni hardcoded; tutte le viewport touch usano il profilo mobile comune e il solo `--ld-ui-scale`.
 - `templates/base.html`: versioning `responsive-scale3`.
+## Modale contatti condivisa Rubrica/Plancia (2026-10-07)
+
+- `templates/registry/_contact_modal.html`, `static/css/registry_contact_modal.css`, `static/js/registry_contact_modal.js`: componente unico con API `LDRegistryContactModal.open({registryId, contact, onSaved})`, import vCard e Contact Picker condizionale. Usato da registry_book e route_orders/board, anche per ordini diretti.
+- Creazione via API Registry; opzioni save/phoneOnly per adattare l'editing telefonico legacy della Plancia senza modificare altri recapiti. Chiusura/riapertura annulla il contesto asincrono precedente.
+- `routes/registry.py` e contact_import_review: vCard per clienti e fornitori, ricerca/ritorno coerenti con la destinazione. Test ripetibile `python -B -m unittest discover -s tests -p test_contact_import_registry_targets.py -v`.

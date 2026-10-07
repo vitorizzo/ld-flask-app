@@ -3533,3 +3533,9 @@ Performance apertura giornata Agenda 2026-06-13:
 - Rimossa dalla scala globale la variante touch ad alta risoluzione che applicava una seconda interfaccia gigante ai telefoni con viewport CSS ampia.
 - I dispositivi touch seguono ora lo stesso profilo mobile dell'iPhone; l'unica differenza resta il fattore `--ld-ui-scale` definito nel blocco responsive comune.
 - Aggiornato il versioning a `responsive-scale3`.
+## Contatti: modale unica Rubrica e Plancia (2026-10-07)
+
+- Rubrica clienti/fornitori e Plancia ordini (giro e diretti) includono la stessa modale e lo stesso controller per inserimento manuale, importazione vCard e rubrica dispositivo quando supportata dal browser. Tema e scala comuni; modale sopra navbar e backdrop, contenuto scorrevole su smartphone.
+- Nuovi contatti salvati tramite API Registry condivisa. Modifica dei telefoni legacy della Plancia conserva endpoint e altri recapiti tramite adattatore. Riapertura e recupero dagli errori ripristinano correttamente campi e pulsanti.
+- Importazione vCard accetta anche fornitori: conserva destinazione, ricerca nella rubrica corretta e ritorna alla relativa rubrica dopo conferma. Nessuna migration.
+- Verifiche: 24 casi browser su template/controller reali, due temi, mobile/desktop, picker disponibile/non disponibile, VCF, salvataggio, riapertura, errori e adattatore legacy; due test API per destinazioni cliente/fornitore. Rubrica nativa resta subordinata alle capacita' del browser; su iPhone disponibile il flusso vCard. Verifica sui dispositivi fisici dopo deploy.

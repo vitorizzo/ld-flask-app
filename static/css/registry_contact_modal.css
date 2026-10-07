@@ -1,0 +1,17 @@
+/* Un solo componente per Rubrica clienti/fornitori e Plancia ordini. */
+.modal.registry-contact-modal { z-index: 12050; }
+.registry-contact-modal [hidden] { display: none !important; }
+.registry-contact-modal .modal-content { color: var(--ld-brand-primary); background: var(--ld-surface); border-color: color-mix(in srgb, var(--ld-brand-primary) 25%, var(--ld-surface)); }
+.registry-contact-modal .modal-header { background: var(--ld-brand-primary); color: var(--ld-text); }
+.registry-contact-modal .modal-title { color: var(--ld-text); font-size: 1.3em; }
+.registry-contact-modal .form-label { color: var(--ld-brand-primary); }
+.registry-contact-modal :is(.form-control, .form-select) { color: var(--ld-brand-primary); background-color: var(--ld-surface); border-color: color-mix(in srgb, var(--ld-brand-primary) 40%, var(--ld-surface)); }
+.registry-contact-modal :is(.contact-picker-panel, .contact-vcard-panel, .contact-picker-unavailable) { padding: calc(12px * var(--ld-ui-scale, 1)); margin-bottom: calc(14px * var(--ld-ui-scale, 1)); border: 1px solid color-mix(in srgb, var(--ld-brand-accent) 35%, var(--ld-surface)); border-radius: var(--ld-radius); background: color-mix(in srgb, var(--ld-brand-accent) 8%, var(--ld-surface)); }
+.registry-contact-modal .contact-picker-help, .registry-contact-modal .contact-picker-unavailable { font-size: .9em; color: color-mix(in srgb, var(--ld-brand-primary) 80%, var(--ld-surface)); }
+.registry-contact-modal .contact-picker-help { margin-top: .6em; }
+.registry-contact-modal .btn { display: inline-flex; align-items: center; justify-content: flex-start; gap: .6em; white-space: normal; text-align: left; }
+.registry-contact-modal .contact-picker-button { width: 100%; }
+.registry-contact-modal :is(.btn-info, .btn-outline-info, .btn-outline-secondary) { --bs-btn-color: var(--ld-brand-primary); --bs-btn-bg: var(--ld-surface); --bs-btn-border-color: var(--ld-brand-accent); --bs-btn-hover-color: var(--ld-brand-primary); --bs-btn-hover-bg: var(--ld-brand-accent); --bs-btn-hover-border-color: var(--ld-brand-accent); --bs-btn-active-bg: var(--ld-brand-accent); --bs-btn-active-color: var(--ld-brand-primary); }
+.registry-contact-modal .btn-info { --bs-btn-bg: var(--ld-brand-accent); }
+.registry-contact-modal .contact-form-feedback { flex-basis: 100%; color: var(--ld-brand-primary); overflow-wrap: anywhere; }
+.registry-contact-modal .contact-form-feedback.is-error { color: var(--bs-danger); }

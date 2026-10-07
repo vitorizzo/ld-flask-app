@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set registry_kind = suggested_registry.kind if suggested_registry else 'customer' %}
 
 {% block title %}Associa contatto{% endblock %}
 
@@ -7,15 +8,15 @@
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section page-shell ld-page ld-page-standard contact-import-page" data-intent-id="{{ intent.id }}"{% if clean_url %} data-clean-url="{{ clean_url }}"{% endif %}>
+<section class="welcome-section page-shell ld-page ld-page-standard contact-import-page" data-kind="{{ registry_kind }}" data-intent-id="{{ intent.id }}"{% if clean_url %} data-clean-url="{{ clean_url }}"{% endif %}>
   <div class="container contact-import-shell">
     <header class="contact-import-header">
-      <a class="btn btn-outline-secondary" href="{{ url_for('registry.customers_book_page') }}" aria-label="Annulla">
+      <a class="btn btn-outline-secondary" href="{{ url_for('registry.suppliers_book_page' if registry_kind == 'supplier' else 'registry.customers_book_page') }}" aria-label="Annulla">
         <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
       </a>
       <div>
         <h1>Associa contatto</h1>
-        <p>Controlla i dati ricevuti e scegli il cliente.</p>
+        <p>Controlla i dati ricevuti e scegli l'anagrafica.</p>
       </div>
     </header>
 
@@ -66,7 +67,7 @@
       </article>
 
       <article class="contact-import-card">
-        <h2>Cliente da associare</h2>
+        <h2>{{ 'Fornitore' if registry_kind == 'supplier' else 'Cliente' }} da associare</h2>
         <div class="contact-import-selected" id="selectedCustomer" {% if not suggested_registry %}hidden{% endif %}>
           <i class="fa-solid fa-building" aria-hidden="true"></i>
           <div><strong id="selectedCustomerName">{{ suggested_registry.display_name or suggested_registry.legal_name if suggested_registry else '' }}</strong><span id="selectedCustomerMeta">{{ suggested_registry.source_code if suggested_registry else '' }}</span></div>
@@ -98,6 +99,7 @@
 (() => {
   const page = document.querySelector(".contact-import-page");
   const intentId = page.dataset.intentId;
+  const registryKind = page.dataset.kind || "customer";
   const searchPanel = document.getElementById("customerSearchPanel");
   const selectedPanel = document.getElementById("selectedCustomer");
   const selectedId = document.getElementById("selectedCustomerId");
@@ -115,7 +117,7 @@
 
   function renderCustomers(customers) {
     if (!customers.length) {
-      results.innerHTML = '<div class="list-group-item text-muted">Nessun cliente trovato.</div>';
+      results.innerHTML = '<div class="list-group-item text-muted">Nessuna anagrafica trovata.</div>';
       return;
     }
     results.innerHTML = customers.map(customer => `
@@ -141,7 +143,7 @@
 
   async function searchCustomers() {
     const query = searchInput.value.trim();
-    if (query.length < 2) return setFeedback("Inserisci almeno 2 caratteri per cercare il cliente.", true);
+    if (query.length < 2) return setFeedback("Inserisci almeno 2 caratteri per cercare l'anagrafica.", true);
     const cacheKey = query.toLocaleLowerCase("it-IT");
     if (searchCache.has(cacheKey)) {
       renderCustomers(searchCache.get(cacheKey));
@@ -153,7 +155,7 @@
     results.innerHTML = '<div class="list-group-item text-muted">Ricerca...</div>';
     setFeedback();
     try {
-      const response = await fetch(`/registry/api/registries?kind=customer&compact=1&q=${encodeURIComponent(query)}`, {
+      const response = await fetch(`/registry/api/registries?kind=${registryKind}&compact=1&q=${encodeURIComponent(query)}`, {
         credentials: "same-origin",
         signal: searchController.signal,
       });
@@ -186,7 +188,7 @@
   confirmBtn.addEventListener("click", async () => {
     const displayName = document.getElementById("importContactName").value.trim();
     if (!displayName) return setFeedback("Inserisci il nome del contatto.", true);
-    if (!selectedId.value) return setFeedback("Seleziona il cliente da associare.", true);
+    if (!selectedId.value) return setFeedback("Seleziona l'anagrafica da associare.", true);
     confirmBtn.disabled = true;
     setFeedback("Associazione in corso...");
     try {
