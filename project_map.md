@@ -4,6 +4,11 @@
 - Titolo/data sulla stessa riga; informazioni estese disponibili nel title e visibili su desktop. Ridotti gap, padding pagina/filtri, font della testata e ingombro header colonna; filtri/stati mantengono swipe senza scrollbar visibile. Etichetta Riprogr. su mobile, Riprogramma e nome accessibile completi. Nessuna modifica JS/API; layout desktop preservato. Cache CSS `compact2`.
 - Verificato percorso completo /kiosk + iframe con due temi, viewport smartphone alte 660px a 320/360/390/430px: quattro pulsanti con stesso top, testi contenuti, toolbar sotto 70px, almeno 45% della viewport interna riservata alle schede. Passano temi, pagina a piena area e aperture modali; regressione desktop a 1920/2560px passata. Anteprima mobile ispezionata.
 
+## Dashboard Developer: motore grafico condiviso (2026-10-07)
+
+- `templates/developer/dashboard.html` usa ld-page-standard e `static/css/developer_dashboard.css` (engine1). Rimossi CSS mobile legacy dal foglio globale; KPI/ruoli/diagnostica seguono tema e scala comune, con layout mobile tramite data-responsive-mode.
+- `/developer/dashboard` e `/developer/responsive`, query e autorizzazioni restano invariati. Stato vuoto gestito nel template; nessun JS aggiuntivo.
+
 ## Elaborazione sconti: UI e validazione calcoli (2026-10-07)
 
 - `templates/functions/elaborazione_sconti.html` usa ld-page-standard, `static/css/elaborazione_sconti.css` e `static/js/elaborazione_sconti.js` (engine1). Quattro strumenti con esempi, righe dinamiche, totali merce e spiegazione del risultato; tema/scala e profilo mobile condivisi.

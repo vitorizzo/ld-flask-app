@@ -2,19 +2,22 @@
 
 {% block title %}Dashboard Developer{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/developer_dashboard.css', v=app_version ~ '-engine1') }}">
+{% endblock %}
+
 {% block content %}
-<section class="welcome-section page-shell developer-dashboard">
-  <div class="container-fluid">
-    <header class="developer-dashboard__header mb-4">
+<section class="developer-dashboard ld-page-standard">
+    <header class="developer-dashboard__header">
       <div>
-        <h1 class="mb-1">Dashboard Developer</h1>
-        <p class="mb-0 text-white-50">Statistiche aggregate della webapp dal momento di attivazione del monitoraggio.</p>
+        <h1>Dashboard Developer</h1>
+        <p>Statistiche aggregate della webapp dal momento di attivazione del monitoraggio.</p>
       </div>
     </header>
 
-    <a class="btn btn-info mb-3" href="{{ url_for('developer.responsive') }}">Diagnostica responsive</a>
+    <a class="btn developer-diagnostics" href="{{ url_for('developer.responsive') }}"><i class="fa-solid fa-mobile-screen-button" aria-hidden="true"></i> Diagnostica responsive</a>
 
-    <div class="developer-kpi-grid mb-4">
+    <div class="developer-kpi-grid">
       <article class="developer-kpi-card">
         <i class="fa-regular fa-eye" aria-hidden="true"></i>
         <div><span>Visitatori unici</span><strong>{{ unique_visitors }}</strong></div>
@@ -29,12 +32,11 @@
       </article>
     </div>
 
-    <article class="card border-0 shadow-sm">
-      <div class="card-body">
-        <div class="d-flex align-items-center justify-content-between gap-3 mb-3">
+    <article class="developer-roles" aria-labelledby="developer-roles-title">
+        <div class="developer-roles__header">
           <div>
-            <h2 class="h4 mb-1">Registrati per ruolo</h2>
-            <p class="text-muted mb-0">Sono considerati esclusivamente i ruoli attivi. Un utente con piu' ruoli compare in ogni ruolo assegnato.</p>
+            <h2 id="developer-roles-title">Registrati per ruolo</h2>
+            <p>Sono considerati esclusivamente i ruoli attivi. Un utente con più ruoli compare in ogni ruolo assegnato.</p>
           </div>
         </div>
         <div class="developer-role-list">
@@ -47,6 +49,9 @@
               <span class="developer-role-count">{{ role.user_count }}</span>
             </div>
           {% endfor %}
+          {% if not role_counts and not users_without_active_role %}
+            <p class="developer-empty">Nessun ruolo disponibile.</p>
+          {% endif %}
           {% if users_without_active_role %}
             <div class="developer-role-row developer-role-row--warning">
               <div><strong>Senza ruolo attivo</strong></div>
@@ -54,8 +59,6 @@
             </div>
           {% endif %}
         </div>
-      </div>
     </article>
-  </div>
 </section>
 {% endblock %}

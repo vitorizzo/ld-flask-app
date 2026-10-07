@@ -1,3 +1,10 @@
+## Dashboard Developer migrata al motore grafico condiviso (2026-10-07)
+
+- `/developer/dashboard`, `templates/developer/dashboard.html`: ld-page-standard al posto di welcome-section/page-shell, rimossi container/padding duplicati e colori Bootstrap fissi. Foglio dedicato `static/css/developer_dashboard.css` con cache engine1; eliminato il vecchio blocco mobile Developer da style.css.
+- Token condivisi per pagina, schede KPI, testo secondario, ruoli, badge numerici e azione Diagnostica responsive; spazi/font derivati dalla scala comune. Tre KPI in riga desktop e colonna mobile via data-responsive-mode. Descrizioni lunghe contenute, utenti senza ruolo attivo distinti e stato vuoto esplicito.
+- Query, conteggi, autorizzazione peso 999 e destinazione diagnostica invariati; nessuna modifica a routes/developer.py.
+- Verificati template/base/Bootstrap reali in Edge: 24 casi con due temi, sei viewport 320/360/430/768/1440/2560px, valori grandi, descrizioni lunghe e dati vuoti; overflow, colori, valori e link passati. Anteprime smartphone/desktop ispezionate; diff check passato. Verifica fisica dopo deploy ancora da effettuare.
+
 ## Elaborazione sconti: migrazione grafica e chiarezza del flusso (2026-10-07)
 
 - Percorso Amministrazione `/sconti/elaborazione-sconti`, template `functions/elaborazione_sconti.html`: eliminata welcome-section e il JavaScript inline. Pagina ld-page-standard, CSS e JS dedicati con cache engine1, colori e misure dal tema/scala comune. Nessuna modale o discriminante per modello/DPR; mobile usa data-responsive-mode.
