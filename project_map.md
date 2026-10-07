@@ -4,6 +4,12 @@
 - Titolo/data sulla stessa riga; informazioni estese disponibili nel title e visibili su desktop. Ridotti gap, padding pagina/filtri, font della testata e ingombro header colonna; filtri/stati mantengono swipe senza scrollbar visibile. Etichetta Riprogr. su mobile, Riprogramma e nome accessibile completi. Nessuna modifica JS/API; layout desktop preservato. Cache CSS `compact2`.
 - Verificato percorso completo /kiosk + iframe con due temi, viewport smartphone alte 660px a 320/360/390/430px: quattro pulsanti con stesso top, testi contenuti, toolbar sotto 70px, almeno 45% della viewport interna riservata alle schede. Passano temi, pagina a piena area e aperture modali; regressione desktop a 1920/2560px passata. Anteprima mobile ispezionata.
 
+## Elaborazione sconti: UI e validazione calcoli (2026-10-07)
+
+- `templates/functions/elaborazione_sconti.html` usa ld-page-standard, `static/css/elaborazione_sconti.css` e `static/js/elaborazione_sconti.js` (engine1). Quattro strumenti con esempi, righe dinamiche, totali merce e spiegazione del risultato; tema/scala e profilo mobile condivisi.
+- `routes/elaborazioni_sconti.py` mantiene formule ed endpoint/chiavi JSON, aggiunge validazione numerica e risposte 400 leggibili. Il risultato negativo del complemento resta matematicamente invariato e viene spiegato dalla UI come maggiorazione. I calcoli non scrivono dati operativi.
+- Test API ripetibile: `python -B -m unittest discover -s tests -p test_discount_calculators.py -v`.
+
 ## Eventi: motore grafico condiviso (2026-10-07)
 
 - `templates/events/index.html`, `manage.html`, `social_posts.html` usano `ld-page-standard` e `static/css/events.css` (engine1). La pagina pubblica riusa index.html e riceve lo stesso contratto.

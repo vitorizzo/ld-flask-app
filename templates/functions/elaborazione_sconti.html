@@ -1,201 +1,72 @@
 {% extends 'base.html' %}
-
-{% block title %}Elaborazioni Sconti{% endblock %}
-
-{% block content %}
-<section class="welcome-section">
-    <h1>Elaborazione Sconti</h1>
-    <!-- Combo Box -->
-    <label for="funzione">Seleziona la funzione:</label><br>
-    <select id="funzione" onchange="mostraSezione()">
-        <option value="">-- Seleziona --</option>
-        <option value="sconto-equivalente">Calcolo Sconto Equivalente</option>
-        <option value="sconto-complementare">Calcolo Sconto Complementare</option>
-        <option value="sconto-combinazioni">Calcolo Sconto Combinazioni</option>
-        <option value="sconto-merce">Imputazione Sconto in Merce</option>
-    </select>
-
-    <!-- Moduli -->
-    <div id="sconto-combinazioni" class="form-section">
-        <h3>Sconto Combinazioni</h3>
-        <h4>Casi comuni</h4>
-        <table border="1" style="width: 50%; text-align: center; margin-top: 20px;">
-            <thead>
-                <tr>
-                    <th>Pezzi Acquistati</th>
-                    <th>Pezzi Omaggio</th>
-                    <th>Sconto (%)</th>
-                </tr>
-            </thead>
-            <tbody id="tabella-casi-comuni">
-                <!-- Le righe saranno generate dinamicamente -->
-            </tbody>
-        </table>
-        <h4>Combinazione Personalizzata</h4>
-        <label for="acquistati">Inserisci i pezzi acquistati:</label><br>
-        <input type="text" id="acquistati"><br><br>
-        <label for="omaggio">Inserisci i pezzi in omaggio:</label><br>
-        <input type="text" id="omaggio"><br>
-        <button onclick="calcolaScontoCombinazione()">Calcola</button>
-        <br><h2>Risultato: <span id="risultato-combinazione"></span></h2>
-    </div>
-
-    <div id="sconto-merce" class="form-section">
-        <h3>Imputazione Sconto in Merce</h3>
-        <label for="merce_acquistata">Inserisci la merce acquistata: (Qta1:Val1; Qta2:Val2; ...)</label><br>
-        <input type="text" id="merce_acquistata" placeholder="es: 10:1.00; 2:2.00"><br><br>
-        <label for="merce_omaggio">Inserisci la merce omaggio: (Qta1:Val1; Qta2:Val2; ...)</label><br>
-        <input type="text" id="merce_omaggio" placeholder="es: 10:1.00; 2:2.00"><br>
-        <button onclick="calcolaScontoMerce()">Calcola</button>
-        <br><h2>Risultato: <span id="risultato-sconto-merce"></span></h2>
-    </div>
-
-    <div id="sconto-equivalente" class="form-section">
-        <h3>Sconto Equivalente</h3>
-        <label for="sconti-equivalente">Inserisci gli sconti separati da virgola:</label><br>
-        <input type="text" id="sconti-equivalente" placeholder="Es: 11,3">
-        <button onclick="calcolaScontoEquivalente()">Calcola</button>
-        <br><h2>Risultato: <span id="risultato-equivalente"></span></h2>
-    </div>
-
-    <div id="sconto-complementare" class="form-section">
-        <h3>Sconto Complementare</h3>
-        <label for="sconto-finale">Sconto Finale (%):</label><br>
-        <input type="number" id="sconto-finale"><br><br>
-        <label for="sconti-fissi">Inserisci gli sconti fissi separati da virgola:</label><br>
-        <input type="text" id="sconti-fissi" placeholder="Es: 3,5">
-        <button onclick="calcolaScontoComplementare()">Calcola</button>
-        <br><h2>Risultato: <span id="risultato-complementare"></span></h2>
-    </div>
-
-    <script>
-
-        // Casi comuni (array di oggetti)
-        const casiComuni = [
-            { acquistati: 1, omaggio: 1, sconto: '50.00%' },
-            { acquistati: 2, omaggio: 1, sconto: '33.33%' },
-            { acquistati: 3, omaggio: 1, sconto: '25.00%' },
-            { acquistati: 10, omaggio: 3, sconto: '23.08%' },
-            { acquistati: 4, omaggio: 1, sconto: '20.00%' },
-            { acquistati: 5, omaggio: 1, sconto: '16.67%' },
-            { acquistati: 10, omaggio: 1, sconto: '9.09%' },
-            { acquistati: 11, omaggio: 1, sconto: '8.33%' }
-        ];
-
-        // Funzione per generare dinamicamente la tabella
-        function popolaTabellaCasiComuni() {
-            const tbody = document.getElementById('tabella-casi-comuni'); // Trova il corpo della tabella
-            tbody.innerHTML = ''; // Pulisci la tabella esistente
-
-            // Genera le righe della tabella
-            casiComuni.forEach(caso => {
-                const row = document.createElement('tr');
-
-                // Crea celle per ogni proprietà
-                const cellAcquistati = document.createElement('td');
-                cellAcquistati.textContent = caso.acquistati;
-
-                const cellOmaggio = document.createElement('td');
-                cellOmaggio.textContent = caso.omaggio;
-
-                const cellSconto = document.createElement('td');
-                cellSconto.textContent = caso.sconto;
-
-                // Aggiungi le celle alla riga
-                row.appendChild(cellAcquistati);
-                row.appendChild(cellOmaggio);
-                row.appendChild(cellSconto);
-
-                // Aggiungi la riga al corpo della tabella
-                tbody.appendChild(row);
-            });
-        }
-
-        function mostraSezione() {
-            // Nasconde tutte le sezioni
-            document.querySelectorAll('.form-section').forEach(section => {
-                section.style.display = 'none';
-            });
-            // Mostra la sezione selezionata
-            const selezione = document.getElementById('funzione').value;
-            if (selezione) {
-                document.getElementById(selezione).style.display = 'block';
-            }
-        }
-
-        async function calcolaScontoCombinazione() {
-            const acquistati = document.getElementById('acquistati').value;
-            const omaggio = document.getElementById('omaggio').value;
-            try {
-                const response = await fetch('/sconti/calcola-sconto-combinazioni', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ acquistati: Number(acquistati), omaggio: Number(omaggio) }) // Converti in numeri
-                });
-
-                if (!response.ok) {
-                    throw new Error('Errore nella risposta del server');
-                }
-
-                const data = await response.json();
-                document.getElementById('risultato-combinazione').textContent = data.sconto_combinazione + '%';
-            } catch (error) {
-                console.error('Errore:', error);
-            }
-        }
-
-        async function calcolaScontoMerce() {
-            const merce_acquistata = document.getElementById('merce_acquistata').value.split(';');
-            const merce_omaggio = document.getElementById('merce_omaggio').value.split(';');
-            const val_acquisto = calcolaValore(merce_acquistata);
-            const val_omaggio = calcolaValore(merce_omaggio);
-            response = await fetch('/sconti/calcola-sconto-merce', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ val_acquisto: val_acquisto, val_omaggio: val_omaggio })
-            });
-            const data = await response.json();
-            document.getElementById('risultato-sconto-merce').textContent = data.sconto_merce + '%';
-
-        }
-
-        function calcolaValore(valori) {
-            let val_totale = 0.0; // Valore totale
-            for (let val of valori) { // Itera sui valori
-                if (val.trim() === '') continue; // Salta valori vuoti
-                const [qta_x, val_x] = val.split(':').map(Number); // Dividi e converte in numeri
-                val_totale += qta_x * val_x;
-            }
-            return val_totale;
-        }
-
-
-        async function calcolaScontoEquivalente() {
-            const sconti = document.getElementById('sconti-equivalente').value.split(',').map(Number);
-            const response = await fetch('/sconti/calcola-sconto-equivalente', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sconti })
-            });
-            const data = await response.json();
-            document.getElementById('risultato-equivalente').textContent = data.sconto_equivalente + '%';
-        }
-
-        async function calcolaScontoComplementare() {
-            const scontoFinale = Number(document.getElementById('sconto-finale').value);
-            const scontiFissi = document.getElementById('sconti-fissi').value.split(',').map(Number);
-            const response = await fetch('/sconti/calcola-sconto-complementare', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sconto_finale: scontoFinale, sconti_fissi: scontiFissi })
-            });
-            const data = await response.json();
-            document.getElementById('risultato-complementare').textContent = data.sconto_complementare + '%';
-        }
-
-        // Popola la tabella al caricamento della pagina
-        document.addEventListener('DOMContentLoaded', popolaTabellaCasiComuni);
-
-    </script>
-</section>
+{% block title %}Elaborazione sconti{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/elaborazione_sconti.css', v=app_version ~ '-engine1') }}">
 {% endblock %}
+
+{% macro discount_rows(group, title) %}
+<div class="discount-entry">
+  <h3>{{ title }}</h3>
+  <p class="discount-help">Ogni sconto si applica al prezzo rimasto dopo il precedente.</p>
+  <div data-rows="{{ group }}" data-row-type="discount"></div>
+  <button class="btn discount-secondary" type="button" data-add-row="{{ group }}"><i class="fa-solid fa-plus" aria-hidden="true"></i> Aggiungi sconto</button>
+</div>
+{% endmacro %}
+{% macro goods_rows(group, title, note) %}
+<div class="discount-entry">
+  <h3>{{ title }}</h3><p class="discount-help">{{ note }}</p>
+  <div data-rows="{{ group }}" data-row-type="goods"></div>
+  <div class="discount-row-footer">
+    <button class="btn discount-secondary" type="button" data-add-row="{{ group }}"><i class="fa-solid fa-plus" aria-hidden="true"></i> Aggiungi articolo</button>
+    <span data-total="{{ group }}" aria-live="polite">Totale: —</span>
+  </div>
+</div>
+{% endmacro %}
+{% macro actions() %}
+<div class="discount-actions">
+  <button class="btn discount-primary" type="submit"><i class="fa-solid fa-calculator" aria-hidden="true"></i> Calcola sconto</button>
+  <button class="btn discount-secondary" type="button" data-example><i class="fa-regular fa-lightbulb" aria-hidden="true"></i> Carica un esempio</button>
+</div>
+<p class="discount-error" role="alert" hidden></p>
+<div class="discount-result" aria-live="polite" aria-atomic="true" hidden>
+  <span data-result-label>Sconto effettivo</span><strong data-result-value></strong><p data-result-explanation></p>
+</div>
+{% endmacro %}
+{% block content %}
+<section class="discount-page ld-page-standard">
+  <header class="discount-header"><h1>Elaborazione sconti</h1><p>Confronta le offerte e scopri quanto risparmi davvero.</p></header>
+  <nav class="discount-tools" aria-label="Scegli il calcolo">
+    <button type="button" class="discount-tool" data-tool="equivalente" aria-pressed="true" aria-controls="discount-equivalente"><i class="fa-solid fa-percent" aria-hidden="true"></i><span><strong>Unisci più sconti</strong><small>Trova lo sconto totale effettivo</small></span></button>
+    <button type="button" class="discount-tool" data-tool="complementare" aria-pressed="false" aria-controls="discount-complementare"><i class="fa-solid fa-bullseye" aria-hidden="true"></i><span><strong>Raggiungi uno sconto</strong><small>Trova quanto aggiungere agli sconti attuali</small></span></button>
+    <button type="button" class="discount-tool" data-tool="combinazioni" aria-pressed="false" aria-controls="discount-combinazioni"><i class="fa-solid fa-gift" aria-hidden="true"></i><span><strong>Pezzi in omaggio</strong><small>Valuta un'offerta come 3 pagati + 1 gratis</small></span></button>
+    <button type="button" class="discount-tool" data-tool="merce" aria-pressed="false" aria-controls="discount-merce"><i class="fa-solid fa-boxes-stacked" aria-hidden="true"></i><span><strong>Omaggi di valore diverso</strong><small>Confronta merce pagata e merce gratuita</small></span></button>
+  </nav>
+  <form id="discount-equivalente" class="discount-calculator" data-calculator="equivalente" data-url="{{ url_for('sconti.calcola_sconto_equivalente_endpoint') }}" novalidate>
+    <header><span class="discount-eyebrow">Sconto equivalente</span><h2>Quanto valgono insieme gli sconti?</h2><p>Gli sconti successivi non si sommano: 20% e poi 10% corrispondono al 28%, non al 30%.</p></header>
+    {{ discount_rows('equivalente', 'Sconti da applicare') }}
+    {{ actions() }}
+  </form>
+  <form id="discount-complementare" class="discount-calculator" data-calculator="complementare" data-url="{{ url_for('sconti.calcola_sconto_complementare_endpoint') }}" novalidate hidden>
+    <header><span class="discount-eyebrow">Sconto complementare</span><h2>Quale sconto devi aggiungere?</h2><p>Parti dagli sconti attuali e indica lo sconto totale che vuoi raggiungere.</p></header>
+    <label class="discount-target"><span>Sconto totale desiderato (%)</span><input class="form-control" name="target" type="text" inputmode="decimal" placeholder="Es. 30" required></label>
+    {{ discount_rows("complementare", "Sconti già applicati") }}
+    <p class="discount-help">Lo sconto aggiuntivo si applica al prezzo già scontato. Se il totale desiderato è inferiore a quello attuale, il risultato indica la maggiorazione necessaria.</p>
+    {{ actions() }}
+  </form>
+  <form id="discount-combinazioni" class="discount-calculator" data-calculator="combinazioni" data-url="{{ url_for('sconti.calcola_sconto_combinazione_endpoint') }}" novalidate hidden>
+    <header><span class="discount-eyebrow">Sconto sulle quantità</span><h2>Quanto risparmi con i pezzi omaggio?</h2><p>Usa questo calcolo quando tutti i pezzi hanno lo stesso valore unitario.</p></header>
+    <div class="discount-fields"><label><span>Pezzi pagati</span><input class="form-control" name="paid" type="text" inputmode="numeric" placeholder="Es. 3" required></label><label><span>Pezzi in omaggio</span><input class="form-control" name="gift" type="text" inputmode="numeric" placeholder="Es. 1" required></label></div>
+    {{ actions() }}
+    <details class="discount-examples"><summary>Offerte frequenti</summary><div class="discount-table-wrap"><table><thead><tr><th>Paghi</th><th>Ricevi gratis</th><th>Sconto</th></tr></thead><tbody>{% for paid, gift, rate in [(1,1,'50,00'),(2,1,'33,33'),(3,1,'25,00'),(4,1,'20,00'),(5,1,'16,67'),(10,3,'23,08'),(10,1,'9,09'),(11,1,'8,33')] %}<tr><td>{{ paid }}</td><td>{{ gift }}</td><td>{{ rate }}%</td></tr>{% endfor %}</tbody></table></div></details>
+  </form>
+  <form id="discount-merce" class="discount-calculator" data-calculator="merce" data-url="{{ url_for('sconti.calcola_sconto_merce_endpoint') }}" novalidate hidden>
+    <header><span class="discount-eyebrow">Sconto in merce</span><h2>Quanto valgono gli omaggi rispetto alla merce pagata?</h2><p>Inserisci quantità e valore unitario per ogni articolo. Usa lo stesso criterio di prezzo per merce pagata e omaggi.</p></header>
+    <div class="discount-goods-groups">{{ goods_rows('paid-goods', 'Merce pagata', 'Articoli per cui sostieni il costo.') }}{{ goods_rows('gift-goods', 'Merce in omaggio', 'Articoli che ricevi gratuitamente, valorizzati con lo stesso criterio.') }}</div>
+    {{ actions() }}
+  </form>
+  <p class="discount-footnote">Puoi usare la virgola o il punto per i decimali. I risultati sono arrotondati a due decimali; il calcolo non modifica listini o documenti.</p>
+</section>
+<template id="discount-row-template"><div class="discount-input-row"><label><span>Sconto (%)</span><input class="form-control" type="text" inputmode="decimal" data-value="discount" placeholder="Es. 10" required></label><button class="btn discount-secondary discount-remove" type="button" data-remove-row aria-label="Rimuovi sconto"><i class="fa-solid fa-trash" aria-hidden="true"></i><span>Rimuovi</span></button></div></template>
+<template id="goods-row-template"><div class="discount-input-row discount-goods-row"><label><span>Quantità</span><input class="form-control" type="text" inputmode="decimal" data-value="quantity" placeholder="Es. 10" required></label><label><span>Valore unitario (€)</span><input class="form-control" type="text" inputmode="decimal" data-value="price" placeholder="Es. 12,50" required></label><button class="btn discount-secondary discount-remove" type="button" data-remove-row aria-label="Rimuovi articolo"><i class="fa-solid fa-trash" aria-hidden="true"></i><span>Rimuovi</span></button></div></template>
+{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/elaborazione_sconti.js', v=app_version ~ '-engine1') }}"></script>{% endblock %}
