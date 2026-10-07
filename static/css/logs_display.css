@@ -1,75 +1,33 @@
-/* logs_display.css */
+.logs-filters { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.logs-content { display: flex; flex-direction: column; flex: 1 1 auto; min-height: calc(240px * var(--ld-ui-scale, 1)); }
 .log-viewer {
-  height: 100%;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: auto;
-  font-family: 'Courier New', monospace;
-  font-size: 0.9rem;
-  white-space: pre-wrap;
-  line-height: 1.4;
-  text-align: left;
-  background-color: black;
-  color: #ccc;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-}
-
-.logs-page.welcome-section {
-  overflow: hidden;
-}
-
-.logs-page .container-fluid {
-  min-height: 0;
-  height: 100%;
-  overflow: hidden !important;
-}
-
-.logs-page .logs-content {
-  min-height: 0;
   flex: 1 1 auto;
-  overflow: hidden;
-}
-
-.logs-page form {
-  flex-shrink: 0;
-}
-
-.logs-page .log-viewer {
   min-height: 0;
-  flex: 1 1 auto;
+  overflow: auto;
   display: flex;
   flex-direction: column;
-  max-height: none;
-}
-
-.log-line {
-  display: grid;
-  grid-template-columns: 170px 140px 100px auto;
-  gap: 8px;
-  padding: 2px 0;
-  align-items: center;
-  min-width: 0;
-}
-
-.log-line:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-.text-muted {
-  margin-left: 10px;
-  font-style: italic;
-  color: #aaa !important; /* più chiaro e leggibile su sfondo scuro */
+  gap: .5em;
+  font-family: 'Courier New', monospace;
+  font-size: calc(var(--ld-base-font-size) * .9 * var(--ld-ui-scale, 1));
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+  text-align: left;
+  background: var(--ld-surface-muted);
+  color: var(--ld-text);
+  border: 1px solid color-mix(in srgb, var(--ld-text) 25%, transparent);
+  border-radius: var(--ld-radius);
+  padding: calc(var(--ld-page-padding) * var(--ld-ui-scale, 1));
 }
-
-.log-viewer div:empty {
-  display: none;
-}
-
-.log-viewer .text-muted {
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
+.log-line { display: grid; grid-template-columns: max-content minmax(0, .7fr) max-content minmax(0, 3fr); gap: .6em; align-items: start; min-width: 0; padding: .3em 0; flex: 0 0 auto; }
+.log-line > span { min-width: 0; }
+.log-line:hover { background: color-mix(in srgb, var(--ld-surface) 8%, transparent); }
+.log-timestamp, .log-raw { color: var(--ld-text-muted); }
+.log-module { color: var(--ld-brand-accent); }
+.log-line .badge { font-family: inherit; font-size: .85em; justify-self: start; }
+.log-raw { margin: 0; padding: 0; font-style: italic; flex: 0 0 auto; }
+.log-viewer div:empty { display: none; }
+html[data-responsive-mode="mobile"] .logs-content { flex: 0 0 auto; height: max(calc(240px * var(--ld-ui-scale, 1)), 55dvh); }
+html[data-responsive-mode="mobile"] .log-viewer { font-size: calc(var(--ld-mobile-font-size) * .9 * var(--ld-ui-scale, 1)); }
+html[data-responsive-mode="mobile"] .log-line { grid-template-columns: minmax(0, 1fr) auto; border-bottom: 1px solid color-mix(in srgb, var(--ld-text) 20%, transparent); padding: .6em 0; }
+html[data-responsive-mode="mobile"] :is(.log-timestamp, .log-message) { grid-column: 1 / -1; }

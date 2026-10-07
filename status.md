@@ -1,3 +1,11 @@
+## Storico aggiornamenti e log migrati al motore grafico condiviso (2026-10-07)
+
+- Percorsi reali `/importazioni/storico` e `/logs/view`: template `storico_importazioni.html`/`logs_display.html` usano ld-page-standard + ld-page-viewport. Rimossi welcome-section/page-shell, wrapper/padding duplicati e CSS inline storico. Contratto condiviso `static/css/monitor_pages.css`, fogli specifici `imports_history.css` e `logs_display.css`, cache engine1.
+- Tema/scala comune su pagina, filtri, campi, azione Filtra, intestazione tabella, messaggi e metadati log. Conservati colori semantici dei badge successo/errore e DEBUG/INFO/WARNING/ERROR. Storico tabellare desktop, schede con etichette mobile; log su colonne adattabili desktop e dettagli su piu' righe mobile, senza colonne fisse o overflow di messaggi lunghi.
+- Desktop a piena area con scorrimento contenuti; mobile pagina ad altezza naturale, filtri scorrevoli con la pagina, storico senza gabbia interna e viewer log alto almeno 240px/scalato o 55dvh. Il contenuto resta raggiungibile anche quando i filtri superano lo spazio visibile. Auto-scroll log all'ultima riga mantenuto; pulizia righe vuote limitata a .log-viewer .log-raw, senza effetti su testo muted di altri componenti.
+- Route, query storico, scelta file/livello, parsing log e autorizzazione Developer invariati. Filtri GET e auto-submit del viewer conservati; stati vuoti espliciti. Nessuna modifica a dati, log archiviati o processi.
+- Verifiche Edge su template/base/CSS/JS reali: 48 casi, due temi e 320/360/430/768/1440/2560px con altezza 660px; filtri selezionati, 50 aggiornamenti e 80 righe log, messaggi lunghi, traceback, escape HTML, stati vuoti, piena larghezza, ultima riga raggiungibile e auto-scroll passati. Anteprime di entrambe le pagine su smartphone/desktop ispezionate; corretto anche l'override dei colori globali th dopo il controllo visivo. Sintassi JS/diff check passati. Verifica fisica dopo deploy ancora da effettuare.
+
 ## Dashboard Developer migrata al motore grafico condiviso (2026-10-07)
 
 - `/developer/dashboard`, `templates/developer/dashboard.html`: ld-page-standard al posto di welcome-section/page-shell, rimossi container/padding duplicati e colori Bootstrap fissi. Foglio dedicato `static/css/developer_dashboard.css` con cache engine1; eliminato il vecchio blocco mobile Developer da style.css.

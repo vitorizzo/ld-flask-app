@@ -4,6 +4,11 @@
 - Titolo/data sulla stessa riga; informazioni estese disponibili nel title e visibili su desktop. Ridotti gap, padding pagina/filtri, font della testata e ingombro header colonna; filtri/stati mantengono swipe senza scrollbar visibile. Etichetta Riprogr. su mobile, Riprogramma e nome accessibile completi. Nessuna modifica JS/API; layout desktop preservato. Cache CSS `compact2`.
 - Verificato percorso completo /kiosk + iframe con due temi, viewport smartphone alte 660px a 320/360/390/430px: quattro pulsanti con stesso top, testi contenuti, toolbar sotto 70px, almeno 45% della viewport interna riservata alle schede. Passano temi, pagina a piena area e aperture modali; regressione desktop a 1920/2560px passata. Anteprima mobile ispezionata.
 
+## Storico aggiornamenti e log: motore grafico condiviso (2026-10-07)
+
+- `templates/storico_importazioni.html` e `templates/logs_display.html`: ld-page-standard/ld-page-viewport, layout comune `static/css/monitor_pages.css`; fogli specifici `imports_history.css` e `logs_display.css` (engine1). Token tema/scala e layout mobile da data-responsive-mode.
+- Storico desktop tabellare e mobile per schede; viewer log adattabile con traceback e badge semantici. Filtri/GET, parsing e route invariati. `static/js/logs_display.js` conserva lo scroll all'ultima riga e limita la pulizia ai raw log. Contenuto raggiungibile su smartphone anche con filtri alti; nessuna gabbia di larghezza fissa.
+
 ## Dashboard Developer: motore grafico condiviso (2026-10-07)
 
 - `templates/developer/dashboard.html` usa ld-page-standard e `static/css/developer_dashboard.css` (engine1). Rimossi CSS mobile legacy dal foglio globale; KPI/ruoli/diagnostica seguono tema e scala comune, con layout mobile tramite data-responsive-mode.

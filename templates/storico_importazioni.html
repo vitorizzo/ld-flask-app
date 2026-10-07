@@ -1,48 +1,19 @@
 {% extends "base.html" %}
+{% block title %}Storico aggiornamenti archivi{% endblock %}
 
 {% block extra_css %}
-<style>
-  .imports-history-page {
-    overflow: hidden;
-  }
-  .imports-history-page .imports-history-header,
-  .imports-history-page .imports-history-filters {
-    flex: 0 0 auto;
-  }
-  .imports-history-table-wrap {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: auto;
-    background: rgba(255, 255, 255, 0.96);
-    border-radius: 6px;
-  }
-  .imports-history-table {
-    width: 100%;
-    min-width: 860px;
-    margin: 0;
-    color: #212529;
-  }
-  .imports-history-table th,
-  .imports-history-table td {
-    vertical-align: top;
-  }
-  .imports-history-table .message-cell {
-    max-width: 520px;
-    white-space: normal;
-    overflow-wrap: anywhere;
-  }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/monitor_pages.css', v=app_version ~ '-engine1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/imports_history.css', v=app_version ~ '-engine1') }}">
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section page-shell imports-history-page">
-  <div class="container-fluid h-100 d-flex flex-column">
+<section class="imports-history-page monitor-page ld-page-standard ld-page-viewport">
     <div class="imports-history-header">
-      <h2 class="h4 mb-3">Storico aggiornamenti archivi</h2>
+      <h1>Storico aggiornamenti archivi</h1>
     </div>
 
-    <form method="get" class="row g-3 mb-4 imports-history-filters">
-      <div class="col-md-3">
+    <form method="get" class="imports-history-filters monitor-filters">
+      <div>
         <label for="modulo" class="form-label">Modulo</label>
         <select name="modulo" id="modulo" class="form-select">
           <option value="">Tutti</option>
@@ -51,7 +22,7 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-2">
+      <div>
         <label for="esito" class="form-label">Esito</label>
         <select name="esito" id="esito" class="form-select">
           <option value="">Tutti</option>
@@ -59,7 +30,7 @@
           <option value="errore" {% if request.args.get('esito') == 'errore' %}selected{% endif %}>Errore</option>
         </select>
       </div>
-      <div class="col-md-2">
+      <div>
         <label for="ultimi" class="form-label">Ultimi</label>
         <select name="ultimi" id="ultimi" class="form-select">
           <option value="">Tutti</option>
@@ -68,41 +39,42 @@
           <option value="100" {% if request.args.get('ultimi') == '100' %}selected{% endif %}>Ultimi 100</option>
         </select>
       </div>
-      <div class="col-md-2">
+      <div>
         <label for="da_data" class="form-label">Da data</label>
         <input type="date" name="da_data" id="da_data" class="form-control" value="{{ request.args.get('da_data', '') }}">
       </div>
-      <div class="col-md-2">
+      <div>
         <label for="a_data" class="form-label">A data</label>
         <input type="date" name="a_data" id="a_data" class="form-control" value="{{ request.args.get('a_data', '') }}">
       </div>
-      <div class="col-md-1 d-flex align-items-end">
-        <button type="submit" class="btn btn-info w-100">Filtra</button>
+      <div class="imports-history-filter-action">
+        <button type="submit" class="btn imports-history-filter-button"><i class="fa-solid fa-filter" aria-hidden="true"></i> Filtra</button>
       </div>
     </form>
 
     <div class="imports-history-table-wrap">
-      <table class="table table-bordered table-striped table-hover imports-history-table">
-        <thead class="table-dark">
+      <table class="imports-history-table">
+        <thead>
           <tr>
-            <th>Archivio</th>
-            <th>Data</th>
-            <th>Esito</th>
-            <th>Messaggio</th>
+            <th scope="col">Archivio</th>
+            <th scope="col">Data</th>
+            <th scope="col">Esito</th>
+            <th scope="col">Messaggio</th>
           </tr>
         </thead>
         <tbody>
           {% for r in storico %}
-            <tr class="{{ 'table-success' if r.esito else 'table-danger' }}">
-              <td>{{ r.modulo }}</td>
-              <td>{{ r.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}</td>
-              <td>{{ 'Successo' if r.esito else 'Errore' }}</td>
-              <td class="message-cell">{{ r.messaggio or '-' }}</td>
+            <tr class="{{ 'import-success' if r.esito else 'import-error' }}">
+              <td data-label="Archivio">{{ r.modulo }}</td>
+              <td data-label="Data">{{ r.timestamp.strftime('%d/%m/%Y %H:%M:%S') }}</td>
+              <td data-label="Esito"><span class="badge {{ 'bg-success' if r.esito else 'bg-danger' }}">{{ 'Successo' if r.esito else 'Errore' }}</span></td>
+              <td data-label="Messaggio" class="message-cell">{{ r.messaggio or '-' }}</td>
             </tr>
+          {% else %}
+            <tr class="imports-history-empty-row"><td colspan="4">Nessun aggiornamento corrisponde ai filtri selezionati.</td></tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
-  </div>
 </section>
 {% endblock %}

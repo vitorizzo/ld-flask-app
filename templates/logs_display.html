@@ -1,14 +1,13 @@
 {% extends "base.html" %}
 
-{% block title %}Log Viewer{% endblock %}
+{% block title %}Visualizzazione log{% endblock %}
 
 {% block content %}
-<section class="welcome-section page-shell logs-page">
-  <div class="container-fluid h-100 d-flex flex-column">
-    <h2 class="mb-3">📝 Visualizzazione Log</h2>
+<section class="logs-page monitor-page ld-page-standard ld-page-viewport">
+    <h1>Visualizzazione log</h1>
 
-    <form method="get" class="row g-3 mb-3 align-items-end flex-shrink-0">
-      <div class="col-md-4">
+    <form method="get" class="logs-filters monitor-filters">
+      <div>
         <label for="file" class="form-label">Seleziona log</label>
         <select name="file" id="file" class="form-select" onchange="this.form.submit()">
           {% for f in files %}
@@ -16,7 +15,7 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-2">
+      <div>
         <label for="level" class="form-label">Livello</label>
         <select name="level" id="level" class="form-select" onchange="this.form.submit()">
           <option value="">Tutti</option>
@@ -27,14 +26,14 @@
       </div>
     </form>
 
-    <div class="logs-content flex-grow-1 min-h-0 d-flex flex-column">
+    <div class="logs-content">
       {% if log_content %}
         <div class="log-viewer">
           {% for log in log_content %}
             {% if log.match %}
               <div class="log-line">
-                <span class="text-secondary">{{ log.timestamp }}</span>
-                <span class="text-info">{{ log.module }}</span>
+                <span class="log-timestamp">{{ log.timestamp }}</span>
+                <span class="log-module">{{ log.module }}</span>
                 {% if log.level == 'INFO' %}
                   <span class="badge bg-success">{{ log.level }}</span>
                 {% elif log.level == 'DEBUG' %}
@@ -46,28 +45,28 @@
                 {% else %}
                   <span class="badge bg-secondary">{{ log.level }}</span>
                 {% endif %}
-                <span>{{ log.message }}</span>
+                <span class="log-message">{{ log.message }}</span>
               </div>
             {% else %}
               {% set text = log.raw.strip() %}
               {% if text %}
-                <div class="text-muted">{{ text }}</div>
+                <div class="log-raw">{{ text }}</div>
               {% endif %}
             {% endif %}
           {% endfor %}
         </div>
       {% else %}
-        <div class="alert alert-warning">Nessun contenuto disponibile per il file selezionato.</div>
+        <p class="logs-empty">Nessun contenuto disponibile per il file e il livello selezionati.</p>
       {% endif %}
     </div>
-  </div>
 </section>
 {% endblock %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/logs_display.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/monitor_pages.css', v=app_version ~ '-engine1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/logs_display.css', v=app_version ~ '-engine1') }}">
 {% endblock %}
 
 {% block extra_js %}
-  <script src="{{ url_for('static', filename='js/logs_display.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/logs_display.js', v=app_version ~ '-engine1') }}"></script>
 {% endblock %}

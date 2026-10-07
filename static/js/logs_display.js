@@ -14,7 +14,7 @@ function scrollLogToBottom() {
 }*/
 
 function cleanEmptyLogLines() {
-  document.querySelectorAll('.text-muted').forEach(line => {
+  document.querySelectorAll('.log-viewer .log-raw').forEach(line => {
     if (!line.textContent.trim()) line.remove();
   });
 }

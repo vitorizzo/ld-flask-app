@@ -1,0 +1,20 @@
+.imports-history-filters { grid-template-columns: minmax(0, 1.4fr) repeat(4, minmax(0, 1fr)) auto; }
+.imports-history-table-wrap { flex: 1 1 auto; min-height: calc(240px * var(--ld-ui-scale, 1)); overflow: auto; border: 1px solid color-mix(in srgb, var(--ld-text) 22%, transparent); border-radius: var(--ld-radius); }
+.imports-history-table { width: 100%; margin: 0; color: var(--ld-text); border-collapse: collapse; font-size: 1em; }
+.imports-history-table thead { position: sticky; top: 0; z-index: 1; background: var(--ld-brand-primary); }
+.imports-history-table th { background: var(--ld-brand-primary); color: var(--ld-text); }
+.imports-history-table :is(th, td) { padding: .75em; vertical-align: top; text-align: left; border: 1px solid color-mix(in srgb, var(--ld-text) 20%, transparent); }
+.imports-history-table td { background: var(--ld-surface-muted); }
+.imports-history-table td:nth-child(2) { white-space: nowrap; }
+.imports-history-table .message-cell { width: 50%; white-space: pre-wrap; overflow-wrap: anywhere; }
+.imports-history-table tbody tr:hover td { background: color-mix(in srgb, var(--ld-surface) 10%, var(--ld-surface-muted)); }
+.imports-history-table .badge { font-size: .85em; }
+html[data-responsive-mode="mobile"] .imports-history-table-wrap { flex: 0 0 auto; overflow: visible; min-height: 0; border: 0; }
+html[data-responsive-mode="mobile"] .imports-history-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+html[data-responsive-mode="mobile"] .imports-history-table tbody { display: grid; gap: var(--monitor-gap); }
+html[data-responsive-mode="mobile"] .imports-history-table tr { display: grid; border: 1px solid color-mix(in srgb, var(--ld-text) 25%, transparent); border-radius: var(--ld-radius); padding: .4em; }
+html[data-responsive-mode="mobile"] .imports-history-table td { display: grid; min-width: 0; gap: .3em; padding: .6em; border: 0; white-space: normal; }
+html[data-responsive-mode="mobile"] .imports-history-table td::before { content: attr(data-label); font-size: .8em; font-weight: 700; color: var(--ld-text-muted); }
+html[data-responsive-mode="mobile"] .imports-history-table .message-cell { width: auto; }
+html[data-responsive-mode="mobile"] .imports-history-table .badge { justify-self: start; }
+html[data-responsive-mode="mobile"] .imports-history-empty-row td::before { display: none; }

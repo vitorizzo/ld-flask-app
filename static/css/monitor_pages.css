@@ -1,0 +1,52 @@
+/* Contratto condiviso per storico aggiornamenti e visualizzazione log. */
+.monitor-page {
+  --monitor-gap: calc(var(--ld-action-gap) * var(--ld-ui-scale, 1));
+  display: flex;
+  flex-direction: column;
+  gap: var(--monitor-gap);
+  font-size: calc(var(--ld-base-font-size) * var(--ld-ui-scale, 1));
+  color: var(--ld-text);
+  background: var(--ld-surface-muted);
+  border-radius: var(--ld-radius);
+  overflow-wrap: anywhere;
+}
+.monitor-page h1 { margin: 0; text-align: left; }
+.monitor-page > h1, .imports-history-header, .monitor-filters { flex: 0 0 auto; }
+.monitor-filters { display: grid; gap: var(--monitor-gap); align-items: end; }
+.monitor-filters > div { min-width: 0; }
+.monitor-filters .form-label { margin-bottom: .4em; }
+.monitor-filters :is(.form-control, .form-select) {
+  min-width: 0;
+  width: 100%;
+  font-size: 1em;
+  min-height: calc(var(--ld-touch-size) * var(--ld-ui-scale, 1));
+  border-radius: var(--ld-radius);
+  color: var(--ld-brand-primary);
+  background-color: var(--ld-surface);
+  border-color: color-mix(in srgb, var(--ld-text) 25%, transparent);
+}
+.monitor-filters :is(.form-control, .form-select):focus { border-color: var(--ld-brand-accent); box-shadow: 0 0 0 .2em color-mix(in srgb, var(--ld-brand-accent) 25%, transparent); }
+.monitor-filters .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: .6em;
+  text-align: left;
+  white-space: normal;
+  min-height: calc(var(--ld-touch-size) * var(--ld-ui-scale, 1));
+  font-size: 1em;
+  padding: .6em .9em;
+  border-radius: var(--ld-radius);
+  --bs-btn-color: var(--ld-brand-primary);
+  --bs-btn-bg: var(--ld-brand-accent);
+  --bs-btn-border-color: var(--ld-brand-accent);
+  --bs-btn-hover-color: var(--ld-text);
+  --bs-btn-hover-bg: var(--ld-brand-primary);
+  --bs-btn-hover-border-color: var(--ld-brand-accent);
+  --bs-btn-active-color: var(--ld-text);
+  --bs-btn-active-bg: var(--ld-brand-primary);
+  --bs-btn-active-border-color: var(--ld-brand-accent);
+}
+.monitor-page :is(.imports-history-empty, .logs-empty) { margin: 0; padding: 1em; color: var(--ld-text-muted); border: 1px solid color-mix(in srgb, var(--ld-text) 20%, transparent); border-radius: var(--ld-radius); }
+html[data-responsive-mode="mobile"] body.app-shell .monitor-page.ld-page-standard.ld-page-viewport { height: auto; min-height: 100%; }
+html[data-responsive-mode="mobile"] .monitor-filters { grid-template-columns: minmax(0, 1fr); }
