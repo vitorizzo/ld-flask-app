@@ -1,3 +1,8 @@
+## Ordini fornitori: giacenze correnti (2026-10-08)
+
+- `routes/supplier_orders.py`, _stock_map: fonte Giacenza per cod_art, totale giac_neg + giac_www. InventarioExport non e' la fonte della disponibilita' corrente. Raggruppamento/espansione varianti invariato.
+- Test ripetibile: `python -B -m unittest discover -s tests -p test_supplier_stock.py -v`. Nessuna migration.
+
 ## Ordini fornitori: motore grafico gruppi/giacenze (2026-10-08)
 
 - `templates/supplier_orders/index.html`: ld-page-standard, modali ld-modal-standard e foglio ld_modal.css. `static/css/supplier_orders.css`: token condivisi per colori/misure e profilo data-responsive-mode; tabella desktop, schede gruppo mobile, gestione prodotti mobile in colonna. Cache engine1.

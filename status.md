@@ -1,3 +1,9 @@
+## Ordini fornitori: fonte giacenze corretta (2026-10-08)
+
+- La consultazione gruppi leggeva InventarioExport (export degli inventari), invece di Giacenza (snapshot corrente importato dal gestionale). Controllo produzione in sola lettura: Cialde/Capsule Caffe', 37 varianti, nessuna riga export inventario, 34 righe Giacenza, 221 pezzi negozio e zero online; la vecchia pagina mostrava zero.
+- _stock_map ora usa Giacenza.cod_art e somma giac_neg + giac_www per articolo. Totali matrici continuano ad aggregare le varianti; articoli senza giacenza restano zero. Nessuna modifica ai dati/import o migration.
+- Due test DB isolato passati: recupero senza tabella inventario_export, somma depositi/quantita' negative/codici mancanti e totali varianti espanse. Diff check passato. Dopo deploy verificare il gruppo con le giacenze correnti (possono cambiare con gli import).
+
 ## Ordini fornitori: migrazione grafica gruppi e giacenze (2026-10-08)
 
 - Bacheca fornitori gia' nel motore condiviso; migrata la pagina gruppi/giacenze `supplier_orders/index.html` da welcome-section/page-shell a ld-page-standard, rimosso container duplicato. Colori, font/spazi e controlli di supplier_orders.css seguono token tema/scala; responsive da data-responsive-mode, senza discriminanti locali dispositivo.

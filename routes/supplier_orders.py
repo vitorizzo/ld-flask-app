@@ -6,7 +6,7 @@ from flask_login import current_user
 from sqlalchemy import func, or_
 
 from extensions import db
-from models import Articoli, InventarioExport, SupplierOrderGroup, SupplierOrderGroupItem, SupplierOrderMatrixName
+from models import Articoli, Giacenza, SupplierOrderGroup, SupplierOrderGroupItem, SupplierOrderMatrixName
 from tools.role_required import role_required
 from models import SupplierBoardColumn, SupplierBoardCard, BusinessRegistry
 
@@ -129,9 +129,8 @@ def _stock_map(codes: list[str]) -> dict[str, int]:
     if not codes:
         return {}
     rows = (
-        db.session.query(InventarioExport.articolo_id, func.coalesce(func.sum(InventarioExport.giacenza), 0))
-        .filter(InventarioExport.articolo_id.in_(codes))
-        .group_by(InventarioExport.articolo_id)
+        db.session.query(Giacenza.cod_art, func.coalesce(Giacenza.giac_neg, 0) + func.coalesce(Giacenza.giac_www, 0))
+        .filter(Giacenza.cod_art.in_(codes))
         .all()
     )
     return {str(code): int(qty or 0) for code, qty in rows if code}
