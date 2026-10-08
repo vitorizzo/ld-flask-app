@@ -1,3 +1,7 @@
+## Ordini fornitori: freccia fisarmonica (2026-10-08)
+
+- `supplier_orders.css`: chevron dei summary disegnato in CSS, rotazione tramite details[open]; cache engine2 nel template. Nessuna dipendenza Font Awesome per l'indicatore.
+
 ## Ordini fornitori: giacenze correnti (2026-10-08)
 
 - `routes/supplier_orders.py`, _stock_map: fonte Giacenza per cod_art, totale giac_neg + giac_www. InventarioExport non e' la fonte della disponibilita' corrente. Raggruppamento/espansione varianti invariato.

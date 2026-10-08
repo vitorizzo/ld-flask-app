@@ -1,3 +1,7 @@
+## Ordini fornitori: indicatore fisarmonica (2026-10-08)
+
+- La freccia usava un escape CSS con doppio backslash, mostrando il codice letterale. Sostituita con chevron disegnato con bordi CSS, senza dipendenza dal font icone; ruota da basso ad alto all'apertura e segue il colore accent. Cache CSS engine2. Verifica browser dei gruppi/modali e diff check; nessuna migration.
+
 ## Ordini fornitori: fonte giacenze corretta (2026-10-08)
 
 - La consultazione gruppi leggeva InventarioExport (export degli inventari), invece di Giacenza (snapshot corrente importato dal gestionale). Controllo produzione in sola lettura: Cialde/Capsule Caffe', 37 varianti, nessuna riga export inventario, 34 righe Giacenza, 221 pezzi negozio e zero online; la vecchia pagina mostrava zero.

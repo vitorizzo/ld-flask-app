@@ -401,15 +401,20 @@ body.supplier-orders-modal-open .modal-backdrop.show {
 }
 
 .supplier-operational-row::after {
-  content: "\\f078";
+  content: "";
+  display: block;
+  flex: 0 0 auto;
+  width: .6em;
+  height: .6em;
+  border-right: .15em solid currentColor;
+  border-bottom: .15em solid currentColor;
+  transform: rotate(45deg);
   color: var(--ld-brand-accent);
-  font-family: "Font Awesome 6 Free";
-  font-weight: 900;
   transition: transform .16s ease;
 }
 
 .supplier-operational-group[open] .supplier-operational-row::after {
-  transform: rotate(180deg);
+  transform: rotate(225deg);
 }
 
 .supplier-variant-list {
