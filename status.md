@@ -1,3 +1,9 @@
+## Bacheca fornitori: diagnosi HTTP 500 e migrazioni compatibili (2026-10-08)
+
+- Produzione aaf8726: API board fallisce con UndefinedColumn supplier_board_cards.order_pdf_filename, confermato nei log main.log e con handler reale in transazione read-only. Alembic fermo a m8b9c0d1e2f3; tabelle sottogruppi e righe gia' presenti, ma colonne PDF mancanti. Gli import legacy chiamano db.create_all(), creando tabelle nuove senza aggiornare Alembic o aggiungere colonne a tabelle esistenti.
+- Migrazioni n9/o0/p1 rese compatibili con schema gia' materializzato: helper tools/supplier_migration_compat.py valida tipi/nullabilita'/PK/chiavi univoche/FK prima di riusare tabelle, assicura indici equivalenti e aggiunge soltanto colonne mancanti. Schema incompatibile -> stop, nessuno stamp forzato. SQL offline conserva creazione completa.
+- Passati 4 test migrazioni (tabelle da modelli con dati conservati, schema nuovo/parziale, rifiuto schema incompatibile e SQL offline), 7 regressioni ordini. Simulazione read-only sul DB reale: schema compatibile, sole azioni DDL necessarie order_pdf e order_pdf_filename. Riparazione produzione pronta, ancora da applicare/verificare al momento di questa annotazione.
+
 ## Bacheca fornitori: modale Nuova scheda cliccabile (2026-10-08)
 
 - Riprodotto il blocco con elementFromPoint: sopra Titolo risultava modal-backdrop su tutti i viewport testati. Il controller ora sposta supplierCardModal direttamente sotto body prima dell'apertura, come gli altri componenti modali; livelli espliciti modale12110/backdrop12100 attivi soltanto durante la sua apertura. Classe body ripulita su hidden, handler e pulsanti continuano a essere reimpostati su shown.

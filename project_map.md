@@ -1,3 +1,8 @@
+## Migrazioni fornitori: compatibilita' con db.create_all (2026-10-08)
+
+- tools/supplier_migration_compat.py usato dalle revisioni n9c0d1e2f3a4/o0d1e2f3a4b5/p1e2f3a4b5c6: riuso di tabelle solo dopo validazione schema, indici equivalenti e colonne additive se mancanti. Gestisce lo schema materializzato dagli import prima dell'upgrade Alembic, senza perdere dati o stamp manuali.
+- Test ripetibile: python -B -m unittest discover -s tests -p test_supplier_migration_compat.py -v. Nessuna nuova revisione: corrette le tre upgrade esistenti, DDL offline invariato.
+
 ## Bacheca fornitori: stacking modale scheda (2026-10-08)
 
 - supplier_board.js monta supplierCardModal in body, classe supplier-card-modal-open da show a hidden. supplier_board.css: modale12110/backdrop12100, fuori dai contesti di stacking della pagina. Cache modal2 nel template. Verifiche browser includono hit-test reali su campo e pulsante.
