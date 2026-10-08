@@ -90,12 +90,15 @@
   finally{saving=false;$('supplierCardSave').disabled=false;$('supplierCardArchive').disabled=false;}
  }
  document.addEventListener('DOMContentLoaded',()=>{
+  const cardModal = $('supplierCardModal');
+  if (cardModal.parentElement !== document.body) document.body.appendChild(cardModal);
+  cardModal.addEventListener('show.bs.modal',()=>document.body.classList.add('supplier-card-modal-open'));
   $('supplierNew').onclick=()=>openCard();$('supplierRefresh').onclick=reload;$('supplierFilter').oninput=render;$('supplierArchived').onchange=reload;
   $('supplierSearch').oninput=()=>{clearTimeout(searchTimer);searchGeneration++;searchTimer=setTimeout(searchSuppliers,250);};
   $('supplierRegistry').onchange=()=>{if(!$('supplierCardName').value && $('supplierRegistry').value)$('supplierCardName').value=$('supplierRegistry').selectedOptions[0].textContent;};
   $('supplierCardModal').addEventListener('shown.bs.modal',()=>{$('supplierCardSave').disabled=false;$('supplierCardSave').textContent='Salva scheda';$('supplierCardSave').onclick=()=>saveCard();$('supplierCardArchive').disabled=false;$('supplierCardArchive').onclick=()=>saveCard(true);});
   $('supplierCardModal').addEventListener('hide.bs.modal',event=>{if(saving)event.preventDefault();});
-  $('supplierCardModal').addEventListener('hidden.bs.modal',()=>{editing=null;clearTimeout(searchTimer);searchGeneration++;$('supplierCardSave').onclick=null;$('supplierCardArchive').onclick=null;$('supplierCardError').textContent='';});
+  $('supplierCardModal').addEventListener('hidden.bs.modal',()=>{document.body.classList.remove('supplier-card-modal-open');editing=null;clearTimeout(searchTimer);searchGeneration++;$('supplierCardSave').onclick=null;$('supplierCardArchive').onclick=null;$('supplierCardError').textContent='';});
   reload();
  });
 })();

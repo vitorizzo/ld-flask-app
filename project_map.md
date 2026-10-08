@@ -1,3 +1,7 @@
+## Bacheca fornitori: stacking modale scheda (2026-10-08)
+
+- supplier_board.js monta supplierCardModal in body, classe supplier-card-modal-open da show a hidden. supplier_board.css: modale12110/backdrop12100, fuori dai contesti di stacking della pagina. Cache modal2 nel template. Verifiche browser includono hit-test reali su campo e pulsante.
+
 ## Ordini fornitori: allegato PDF ordine (2026-10-08)
 
 - `tools/supplier_order_pdf.py`: ReportLab, A4 orizzontale/two-column, gruppi configurati, codici matrice e quantita', totale e data; prodotti non ordinati con quantita' vuota. Reference in docs/transport, nessuna categoria/codice fornitore hardcoded.

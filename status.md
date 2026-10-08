@@ -1,3 +1,8 @@
+## Bacheca fornitori: modale Nuova scheda cliccabile (2026-10-08)
+
+- Riprodotto il blocco con elementFromPoint: sopra Titolo risultava modal-backdrop su tutti i viewport testati. Il controller ora sposta supplierCardModal direttamente sotto body prima dell'apertura, come gli altri componenti modali; livelli espliciti modale12110/backdrop12100 attivi soltanto durante la sua apertura. Classe body ripulita su hidden, handler e pulsanti continuano a essere reimpostati su shown.
+- Cache CSS/JS modal2. Nessuna modifica a dati/API/migration. Verificati 10 casi browser due temi a 320/360/430/768/1440px: campo Titolo e Salva ricevono i click, creazione/modifica, errore e retry, allegato PDF, archiviazione/ripristino e ricerca. Sintassi JS/diff check passati. Dopo deploy verificare Nuova scheda e riapertura sui dispositivi reali.
+
 ## Ordini fornitori: PDF generato e allegato alla conferma (2026-10-08)
 
 - Letto e renderizzato `docs/transport/Modello Ordine Caffe' 2026-10-01.pdf`: modello A4 orizzontale, due colonne Descrizione/Codice/Quantita', barre blu per sistema, totale confezioni e data. `tools/supplier_order_pdf.py` riproduce questa struttura con sottogruppi dell'app e codici matrice, includendo i prodotti del gruppo non ordinati con quantita' vuota, come nel modello; righe lunghe a capo e intestazioni ripetute su colonne/pagine successive.

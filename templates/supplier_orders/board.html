@@ -3,7 +3,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css', v=app_version ~ '-supplier1') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-supplier1') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_board.css', v=app_version ~ '-pdf1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_board.css', v=app_version ~ '-modal2') }}">
 {% endblock %}
 {% block content %}
 <section class="ld-page ld-page-standard ld-page-viewport supplier-board-page">
@@ -34,5 +34,5 @@
 {% endblock %}
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/ld_modal.js', v=app_version ~ '-supplier1') }}"></script>
-<script src="{{ url_for('static', filename='js/supplier_board.js', v=app_version ~ '-pdf1') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_board.js', v=app_version ~ '-modal2') }}"></script>
 {% endblock %}

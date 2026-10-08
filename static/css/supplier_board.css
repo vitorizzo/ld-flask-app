@@ -24,6 +24,8 @@
 .supplier-column-tabs { scrollbar-width: none; }
 .supplier-column-tabs::-webkit-scrollbar { display: none; }
 #supplierCardArchive[hidden] { display: none !important; }
+#supplierCardModal.modal { z-index: 12110 !important; }
+body.supplier-card-modal-open .modal-backdrop.show { z-index: 12100 !important; }
 .supplier-order-lines { margin-bottom: 1em; color: var(--ld-brand-primary); }
 .supplier-card-pdf { margin-bottom: 1em; color: var(--ld-brand-primary); }
 .supplier-card-pdf h6 { color: var(--ld-brand-primary); }
