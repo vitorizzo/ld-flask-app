@@ -1,0 +1,26 @@
+.kiosk-title-row { display: flex; align-items: center; gap: .5rem; }
+.kiosk-title-row .kiosk-title { flex: 1; }
+.kiosk-overview-page .kiosk-title-row .btn { color: var(--ld-text); border-color: var(--ld-text); }
+.kiosk-overview-page .kiosk-title-row .btn:hover,
+.kiosk-overview-page .kiosk-title-row .btn[aria-pressed="true"] { background: var(--ld-brand-accent); color: var(--ld-brand-primary); border-color: var(--ld-brand-accent); }
+.kiosk-overview-page .kiosk-title-row .btn { min-height: calc(36px * var(--ld-ui-scale, 1)); font-size: .85em; padding: .3em .55em; white-space: nowrap; }
+.kiosk-bulk-bar { display: flex; align-items: center; flex-wrap: wrap; gap: .5em; padding: .4em; border: 1px solid var(--ld-brand-accent); border-radius: var(--ld-radius); background: var(--ld-surface); color: var(--ld-brand-primary); }
+.kiosk-bulk-bar[hidden], [data-bulk-fields][hidden] { display: none !important; }
+.kiosk-bulk-bar .btn { min-height: calc(36px * var(--ld-ui-scale, 1)); font-size: .85em; padding: .3em .6em; }
+.order-card.is-selected { outline: 3px solid var(--ld-brand-accent); outline-offset: -3px; }
+.kiosk-card-select { display: flex; align-items: center; gap: .5em; margin-bottom: .4em; cursor: pointer; }
+.kiosk-card-select input { width: 1.3em; height: 1.3em; accent-color: var(--ld-brand-accent); }
+.kiosk-card-select[hidden] { display: none !important; }
+.status-config-row { padding: .75em; margin-bottom: .75em; border: 1px solid var(--ld-brand-accent); border-radius: var(--ld-radius); }
+.status-config-fields { display: grid; grid-template-columns: 1fr 1fr; gap: .5em; }
+.status-config-checks, .status-config-actions { display: flex; align-items: center; gap: .75em; flex-wrap: wrap; margin-top: .5em; }
+.board-tools-feedback { flex-basis: 100%; white-space: pre-line; overflow-wrap: anywhere; }
+#statusConfigModal { --ld-modal-width: 850px; }
+html[data-responsive-mode="mobile"] .status-config-fields { grid-template-columns: 1fr; }
+html[data-responsive-mode="mobile"] .kiosk-title-row .tools-label { display: none; }
+html[data-responsive-mode="mobile"] .kiosk-title-row .btn { flex: 0 0 auto; min-width: calc(32px * var(--ld-ui-scale, 1)); }
+html[data-responsive-mode="mobile"] .kiosk-title-row { gap: .3em; }
+html[data-responsive-mode="mobile"] .kiosk-overview-page .kiosk-title-row .btn { padding: .15em .35em; }
+html[data-responsive-mode="mobile"] .kiosk-title-row .kiosk-title { font-size: calc(var(--ld-kiosk-font-size) * 1.05); white-space: nowrap; }
+html[data-responsive-mode="mobile"] body.kiosk-body .ld-page-standard.kiosk-overview-page .kiosk-title-row .btn,
+html[data-responsive-mode="mobile"] body.kiosk-body .ld-page-standard.kiosk-overview-page .kiosk-bulk-bar .btn { min-height: calc(28px * var(--ld-ui-scale, 1)) !important; font-size: calc(var(--ld-kiosk-font-size) * .78) !important; }

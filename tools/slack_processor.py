@@ -565,7 +565,8 @@ class SlackProcessor:
                 SlackOrder.slack_channel_id == channel_id,
                 SlackOrder.customer_key == customer_key,
                 SlackOrder.order_date == order_date,
-                SlackOrder.status.notin_(["evaso", "annullato", "annullata", "cancellato", "cancelled"]),
+                SlackOrder.status.notin_(db.session.query(OrderStatus.code).filter(OrderStatus.is_terminal.is_(True))),
+                SlackOrder.status.notin_(["annullato", "annullata", "cancellato", "cancelled"]),
             )
             .order_by(SlackOrder.id.desc())
             .first()
@@ -710,7 +711,7 @@ class SlackProcessor:
         new_rx = (new_meta["reaction"] if new_meta else "") or ""
         old_rx = (old_meta["reaction"] if old_meta else "") or ""
 
-        if not new_rx:
+        if not new_rx and new_rank >= old_rank:
             logger.info(
                 "[SLACK][SYNC] skipped (new status has no reaction) order_id=%s new_status=%s",
                 getattr(order, "id", None),
@@ -743,7 +744,8 @@ class SlackProcessor:
 
         # promote (Δ=+1): add solo target
         if delta == 1:
-            api.add_reaction(channel=channel_id, timestamp=ts, name=new_rx)
+            if new_rx:
+                api.add_reaction(channel=channel_id, timestamp=ts, name=new_rx)
             return
 
         # demote (Δ=-1): remove current + remove tutte > target + ensure target
@@ -751,7 +753,8 @@ class SlackProcessor:
             if old_rx:
                 api.remove_reaction(channel=channel_id, timestamp=ts, name=old_rx)
             remove_higher_than(new_rank)
-            api.add_reaction(channel=channel_id, timestamp=ts, name=new_rx)
+            if new_rx:
+                api.add_reaction(channel=channel_id, timestamp=ts, name=new_rx)
             return
 
         # jump forward (Δ>1): add solo target (non assumere intermedi)
@@ -762,7 +765,8 @@ class SlackProcessor:
         # jump backward (Δ<-1): remove tutte > target + ensure target
         if delta < -1:
             remove_higher_than(new_rank)
-            api.add_reaction(channel=channel_id, timestamp=ts, name=new_rx)
+            if new_rx:
+                api.add_reaction(channel=channel_id, timestamp=ts, name=new_rx)
             return
 
         # delta == 0 (stesso rank) o caso non mappabile: best effort -> ensure target
@@ -916,6 +920,8 @@ class SlackProcessor:
                         entry.status = "da_chiamare"
                 elif bool(getattr(target_status, "is_terminal", False)) and not order.closed_at:
                     order.closed_at = datetime.utcnow()
+                elif not bool(getattr(target_status, "is_terminal", False)):
+                    order.closed_at = None
 
                 db.session.add(
                     SlackOrderEvent(

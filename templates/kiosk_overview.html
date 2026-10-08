@@ -3,6 +3,7 @@
 {% block head %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css', v=app_version ~ '-compact2') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-responsive-scale6') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_board_tools.css', v=app_version ~ '-tools1') }}">
 {% endblock %}
 
 {% block content %}
@@ -12,10 +13,10 @@
     <!-- Header -->
     <div class="kiosk-head">
       <div class="kiosk-head__left">
-        <div class="kiosk-title">Bacheca ordini</div>
-        <div class="kiosk-subtitle" title="Ultimo aggiornamento; gli ordini evasi sono mostrati solo per oggi">
+        <div class="kiosk-title-row"><div class="kiosk-title">Bacheca ordini</div><button class="btn btn-sm btn-outline-secondary" id="btn-status-config" type="button" title="Configura stati e reaction" aria-label="Configura stati e reaction"><span aria-hidden="true">⚙</span><span class="tools-label"> Stati</span></button><button class="btn btn-sm btn-outline-secondary" id="btn-select-orders" type="button" aria-label="Seleziona schede" aria-pressed="false"><span aria-hidden="true">☑</span><span class="tools-label"> Seleziona</span></button></div>
+        <div class="kiosk-subtitle" title="Ultimo aggiornamento; gli stati finali sono mostrati solo per oggi">
           <span class="kiosk-updated-label">Aggiornamento: </span><span id="ui-now">{{ now_local.strftime('%d/%m/%Y %H:%M') }}</span>
-          <span class="kiosk-closed-hint">· mostra “evaso” solo oggi</span>
+          <span class="kiosk-closed-hint">· stati finali solo oggi</span>
         </div>
       </div>
 
@@ -36,6 +37,7 @@
       </div>
     </div>
 
+    <div class="kiosk-bulk-bar" id="kioskBulkBar" hidden><span id="kioskSelectionCount">0 ordini selezionati</span><button class="btn btn-outline-secondary" id="bulkSelectVisible" type="button">Seleziona visibili</button><button class="btn btn-outline-secondary" id="bulkClear" type="button">Svuota</button><button class="btn btn-info" id="bulkOpen" type="button" disabled>Operazioni</button></div>
     <!-- Board grid (sempre visibile) -->
     <div class="kiosk-board">
       <div class="kiosk-cols">
@@ -375,6 +377,8 @@
 {% endblock %}
 
 {% block scripts %}
+{% include '_kiosk_board_tools.html' %}
 <script src="{{ url_for('static', filename='js/ld_modal.js', v=app_version ~ '-order1') }}"></script>
-<script src="{{ url_for('static', filename='js/kiosk_overview.js', v=app_version ~ '-engine1') }}"></script>
+<script src="{{ url_for('static', filename='js/kiosk_board_tools.js', v=app_version ~ '-tools1') }}"></script>
+<script src="{{ url_for('static', filename='js/kiosk_overview.js', v=app_version ~ '-tools1') }}"></script>
 {% endblock %}

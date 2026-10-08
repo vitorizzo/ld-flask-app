@@ -1,0 +1,23 @@
+<div class="modal fade manual-order-modal ld-modal ld-modal-standard" id="statusConfigModal" tabindex="-1" aria-labelledby="statusConfigTitle" aria-hidden="true">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="statusConfigTitle">Stati della bacheca</h5><button class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body">
+      <p>Le righe definiscono le colonne e il loro ordine. La reaction usa il nome Slack (ad esempio <strong>truck</strong> o <strong>:truck:</strong>), anche per emoji personalizzate.</p>
+      <p class="small">Gli stati finali restano visibili solo nel giorno di chiusura. Il codice degli stati esistenti resta fisso; puoi cambiare il nome. Una colonna con ordini non puo' essere nascosta. Acquisito resta lo stato iniziale, visibile e non finale. Le modifiche alle reaction valgono per i prossimi cambi di stato, senza riscrivere i messaggi precedenti.</p>
+      <div id="statusConfigRows"></div>
+      <button class="btn btn-outline-secondary" id="statusConfigAdd" type="button">Aggiungi stato</button>
+    </div>
+    <div class="modal-footer"><div id="statusConfigError" class="board-tools-feedback" role="alert"></div><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button class="btn btn-info" id="statusConfigSave" type="button">Salva configurazione</button></div>
+  </div></div>
+</div>
+<div class="modal fade manual-order-modal ld-modal ld-modal-standard" id="bulkOrdersModal" tabindex="-1" aria-labelledby="bulkOrdersTitle" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+  <div class="modal-dialog"><div class="modal-content">
+    <div class="modal-header"><h5 class="modal-title" id="bulkOrdersTitle">Operazione sulle schede selezionate</h5><button class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body">
+      <p id="bulkOrdersSummary"></p>
+      <label class="form-label" for="bulkOrdersStatus">Stato destinazione</label><select class="form-select" id="bulkOrdersStatus"></select>
+      <div id="bulkOrdersResults" class="board-tools-feedback mt-3" role="status" aria-live="polite"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button><button class="btn btn-info" id="bulkOrdersApply" type="button">Applica agli ordini selezionati</button></div>
+  </div></div>
+</div>

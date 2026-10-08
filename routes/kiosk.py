@@ -4,7 +4,7 @@ import os
 from datetime import date, datetime, time, timezone, timedelta
 
 import requests
-from flask import Blueprint, request, make_response, jsonify, render_template, current_app, Response, send_file
+from flask import Blueprint, request, make_response, jsonify, render_template, current_app, Response, send_file, g
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
@@ -13,6 +13,8 @@ from tools.log_utils import get_logger
 from tools.slack_processor import SlackProcessor
 from tools.slack_api import SlackAPI, SlackAPIConfig
 from tools.order_attachments import local_order_attachment_path
+from tools.order_status_config import validate_status_config
+from tools.role_required import role_required
 from models import SlackOrder, SlackOrderEvent, DeliveryRoute, DeliveryScheduleRule, OrderStatus, RouteOrderBoardEntry
 
 kiosk_bp = Blueprint("kiosk", __name__, url_prefix="/kiosk")
@@ -112,10 +114,14 @@ def _route_next_scheduled_delivery(route: DeliveryRoute) -> datetime | None:
         return None
 
 
-_CLOSED_ORDER_STATUSES = {"evaso", "annullato", "annullata", "cancellato", "cancelled"}
+def _terminal_status_codes():
+    if not hasattr(g, "order_terminal_codes"):
+        g.order_terminal_codes = {s.code for s in OrderStatus.query.filter_by(is_terminal=True).all()}
+    return g.order_terminal_codes
 
 
 def _route_open_delivery_records(route_id: int):
+    closed_codes = _terminal_status_codes() | {"annullato", "annullata", "cancellato", "cancelled"}
     today_start = datetime.combine(date.today(), time.min)
     orders = (
         SlackOrder.query
@@ -129,9 +135,9 @@ def _route_open_delivery_records(route_id: int):
     closed_message_keys = {
         (row.slack_channel_id, row.slack_message_ts)
         for row in orders
-        if (row.status or "").strip().lower() in _CLOSED_ORDER_STATUSES
+        if (row.status or "").strip().lower() in closed_codes
     }
-    orders = [row for row in orders if (row.status or "").strip().lower() not in _CLOSED_ORDER_STATUSES]
+    orders = [row for row in orders if (row.status or "").strip().lower() not in closed_codes]
     entries = (
         RouteOrderBoardEntry.query
         .filter(
@@ -322,6 +328,8 @@ def _is_today_local(dt: datetime | None) -> bool:
     if not dt:
         return False
     try:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
         local = dt.astimezone()
     except Exception:
         local = dt
@@ -360,12 +368,12 @@ def _status_changed_today_by_event(order_id: int, target_statuses: set[str]) -> 
 
 
 def _hide_closed_or_cancelled_order(order: SlackOrder, show_closed_today: bool = True) -> bool:
-    if order.status == "evaso":
+    if order.status in _terminal_status_codes():
         if not show_closed_today:
             return True
         if order.closed_at:
             return not _is_today_local(order.closed_at)
-        return not _status_changed_today_by_event(order.id, {"evaso"})
+        return not _status_changed_today_by_event(order.id, {order.status})
 
     if _is_cancelled_status(order.status):
         if order.closed_at:
@@ -1350,7 +1358,7 @@ def kiosk_api_reparse_deliveries():
     route_id = request.args.get("route_id", type=int)
 
     q = SlackOrder.query.filter(
-        SlackOrder.status != "evaso",
+        SlackOrder.status.notin_(_terminal_status_codes()),
         SlackOrder.status.notin_(["annullato", "annullata", "cancellato", "cancelled"]),
     )
     if route_id:
@@ -1476,12 +1484,46 @@ def kiosk_api_statuses():
                     "label": s.label,
                     "order_index": s.order_index,
                     "is_terminal": s.is_terminal,
+                    "slack_reaction": s.slack_reaction,
                 }
                 for s in statuses
             ]
         ),
         200,
     )
+
+
+@kiosk_bp.route("/api/status-config", methods=["GET", "PUT"])
+@login_required
+@role_required(30)
+def kiosk_status_config():
+    statuses = OrderStatus.query.order_by(OrderStatus.order_index.asc(), OrderStatus.id.asc()).all()
+    existing = {s.code: s for s in statuses}
+    counts = dict(db.session.query(SlackOrder.status, func.count(SlackOrder.id)).group_by(SlackOrder.status).all())
+    if request.method == "GET":
+        return jsonify(statuses=[dict(code=s.code, label=s.label, slack_reaction=s.slack_reaction,
+                                     order_index=s.order_index, is_visible=s.is_visible,
+                                     is_terminal=s.is_terminal, order_count=counts.get(s.code, 0)) for s in statuses])
+    try:
+        rows = validate_status_config(request.get_json(silent=True),
+                                      set(existing), {code for code, count in counts.items()
+                                                      if count and (code not in existing or existing[code].is_visible)})
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+    try:
+        for row in rows:
+            status = existing.get(row["code"])
+            if status is None:
+                status = OrderStatus(code=row["code"])
+                db.session.add(status)
+            for key, value in row.items():
+                setattr(status, key, value)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("[KIOSK] status configuration save failed")
+        return jsonify(ok=False, error="Configurazione non salvata. Ricarica e riprova."), 500
+    return jsonify(ok=True)
 
 
 def _normalize_reaction_name(s: str | None) -> str:
@@ -1524,6 +1566,8 @@ def set_order_status(order_id):
         order.closed_at = datetime.utcnow()
     elif target_status.is_terminal and not order.closed_at:
         order.closed_at = datetime.utcnow()
+    elif not target_status.is_terminal:
+        order.closed_at = None
 
     db.session.add(
         SlackOrderEvent(
@@ -1532,6 +1576,7 @@ def set_order_status(order_id):
             payload={
                 "from": old_status,
                 "to": new_status,
+                "to_status": new_status,
                 "via": "kiosk",
                 "client_ip": _best_effort_client_ip(),
             },
@@ -1554,6 +1599,7 @@ def set_order_status(order_id):
             old_status,
             new_status,
         )
+        return jsonify(ok=True, status=new_status, warning="Stato salvato nell'app; sincronizzazione delle reaction Slack non riuscita.")
 
     return jsonify({"ok": True, "status": new_status})
 

@@ -25,6 +25,7 @@ window.kioskState = {
   const API_MANUAL_ORDERS = "/route-orders/api/manual-orders";
 
   let refreshTimer = null;
+  let statusesLoaded = false;
   let deliveryScheduleState = { routes: [], rules: [], weekdays: [], frequencies: [] };
   let activeCardDropdown = null;
   let lastRenderedCardsSignature = null;
@@ -52,11 +53,11 @@ window.kioskState = {
 
   function escapeHtml(s) {
     return String(s)
-      .replaceAll("&", "&")
-      .replaceAll("<", "<")
-      .replaceAll(">", ">")
-      .replaceAll('"', '"')
-      .replaceAll("'", "'");
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", "&#39;");
   }
 
   function setNowText() {
@@ -188,6 +189,10 @@ window.kioskState = {
       const meta = Array.isArray(data) ? data : [];
 
       meta.sort((a, b) => (a.order_index ?? 1e9) - (b.order_index ?? 1e9));
+      if (statusesLoaded && JSON.stringify(meta) === JSON.stringify(kioskState.statusMeta)) return;
+      statusesLoaded = true;
+      closeActiveCardDropdown();
+      lastRenderedCardsSignature = null;
 
       kioskState.statusMeta = meta;
       kioskState.statusList = meta.map((s) => s.code);
@@ -200,7 +205,7 @@ window.kioskState = {
     } catch (e) {
       console.error("[kiosk_overview] loadStatuses error", e);
       const wrap = document.querySelector(".kiosk-cols");
-      if (wrap) wrap.innerHTML = `<div class="alert alert-danger">Errore caricamento stati</div>`;
+      if (wrap && !statusesLoaded) wrap.innerHTML = `<div class="alert alert-danger">Errore caricamento stati</div>`;
       return;
     }
   }
@@ -322,7 +327,7 @@ window.kioskState = {
   function deliveryStateFor(order, status) {
     if (!order || !order.planned_delivery_at) return "";
     const statusNorm = String(status || "").toLowerCase();
-    if (["evaso", "annullato", "annullata", "cancellato", "cancelled"].includes(statusNorm)) return "";
+    if ((kioskState.statusMeta || []).some(s => s.code === status && s.is_terminal) || ["annullato", "annullata", "cancellato", "cancelled"].includes(statusNorm)) return "";
 
     const due = new Date(order.planned_delivery_at);
     if (Number.isNaN(due.getTime())) return "";
@@ -861,11 +866,13 @@ window.kioskState = {
     const orderIds = isGroup ? vm.orders.map((o) => o.id) : [primary.id];
     div.dataset.orderIds = JSON.stringify(orderIds);
     div.dataset.fromStatus = String(vm.status || "");
+    window.KioskBoardTools?.attachCard(div, vm);
 
     const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
     div.draggable = !coarsePointer;
 
     div.addEventListener("dragstart", (ev) => {
+      if (window.KioskBoardTools?.isSelecting()) { ev.preventDefault(); return; }
       if (ev.target && ev.target.closest && ev.target.closest(".order-actions")) {
         ev.preventDefault();
         return;
@@ -1481,9 +1488,10 @@ window.kioskState = {
 
     const pillTotal = document.getElementById("pill-total");
     if (pillTotal) pillTotal.textContent = String(filtered.length);
-    return true;
     syncMobileStatusTabs();
     applyMobileStatusFilter();
+    window.KioskBoardTools?.syncSelection(kioskState.lastCards);
+    return true;
   }
 
   function hookFilters() {
@@ -1661,6 +1669,7 @@ window.kioskState = {
       const flat = flattenBoardsToOrders(json);
       kioskState.lastCards = buildCardViewModels(flat);
       applyFilterAndRender();
+      window.KioskBoardTools?.syncSelection(kioskState.lastCards);
       recountColumnsFromDOM();
     } catch (err) {
       console.error("[kiosk_overview] load error", err);
@@ -2204,11 +2213,12 @@ window.kioskState = {
       });
     }
 
+    window.KioskBoardTools?.init({reloadStatuses: loadStatuses, reloadOrders: loadAndRender, setStatus: setOrderStatus});
     await loadStatuses();
     await loadAndRender();
 
     if (refreshTimer) clearInterval(refreshTimer);
-    refreshTimer = setInterval(loadAndRender, 10000);
+    refreshTimer = setInterval(async () => { await loadStatuses(); await loadAndRender(); }, 10000);
   }
 
   document.addEventListener("DOMContentLoaded", () => {
