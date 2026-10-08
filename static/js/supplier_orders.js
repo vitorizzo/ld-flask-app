@@ -35,7 +35,10 @@
     definitionModal.show();
   }
 
-  definitionModalNode.addEventListener("shown.bs.modal", () => groupNameInput.focus());
+  definitionModalNode.addEventListener("shown.bs.modal", () => {
+    definitionSubmit.disabled = false;
+    groupNameInput.focus();
+  });
   definitionModalNode.addEventListener("hidden.bs.modal", () => {
     definitionForm.reset();
     definitionSubmit.disabled = false;

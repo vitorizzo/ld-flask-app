@@ -3,12 +3,12 @@
 {% block title %}Ordini fornitori{% endblock %}
 
 {% block extra_css %}
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_orders.css', v=app_version ~ '-draft7') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-engine1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_orders.css', v=app_version ~ '-engine1') }}">
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section page-shell supplier-orders-page" data-active-group-id="{{ active_group_id or '' }}" data-modal-action="{{ modal_action }}">
-  <div class="container-fluid">
+<section class="ld-page ld-page-standard supplier-orders-page" data-active-group-id="{{ active_group_id or '' }}" data-modal-action="{{ modal_action }}">
     <div class="supplier-orders-header">
       <div>
         <h1>Ordini fornitori</h1>
@@ -32,10 +32,10 @@
           {% for card in group_cards %}
             {% set group = card.group %}
             <tr class="supplier-group-row" data-consult-target="#supplierStockModal{{ group.id }}" tabindex="0">
-              <td><strong>{{ group.name }}</strong>{% if not group.is_active %}<span class="badge text-bg-secondary ms-2">Disattivo</span>{% endif %}</td>
-              <td class="text-muted">{{ group.notes or '—' }}</td>
-              <td>{{ group.items|length }} articoli · {{ card.operational_rows|length }} matrici</td>
-              <td>
+              <td data-label="Gruppo"><strong>{{ group.name }}</strong>{% if not group.is_active %}<span class="badge text-bg-secondary ms-2">Disattivo</span>{% endif %}</td>
+              <td data-label="Note" class="text-muted">{{ group.notes or '—' }}</td>
+              <td data-label="Prodotti">{{ group.items|length }} articoli · {{ card.operational_rows|length }} matrici</td>
+              <td data-label="Azioni">
                 <div class="supplier-row-actions" role="group" aria-label="Azioni {{ group.name }}">
                   <button class="btn btn-sm btn-outline-info" type="button" data-consult-target="#supplierStockModal{{ group.id }}" title="Consulta"><i class="fa-solid fa-magnifying-glass"></i><span>Consulta</span></button>
                   <button class="btn btn-sm btn-outline-primary" type="button" data-group-manage data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" title="Gestisci prodotti"><i class="fa-solid fa-boxes-stacked"></i><span>Prodotti</span></button>
@@ -53,11 +53,10 @@
         </table>
       </div>
     </div>
-  </div>
 </section>
 
-<div class="modal fade supplier-orders-modal" id="supplierGroupModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
+<div class="modal fade supplier-orders-modal ld-modal ld-modal-standard" id="supplierGroupModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header"><h5 class="modal-title">Definisci nuovo gruppo</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
       <form id="supplierGroupForm" method="post" action="{{ url_for('supplier_orders.create_group') }}">
@@ -72,10 +71,10 @@
   </div>
 </div>
 
-<div class="modal fade supplier-orders-modal" id="supplierProductsModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade supplier-orders-modal ld-modal ld-modal-standard" id="supplierProductsModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-xl modal-dialog-scrollable">
     <div class="modal-content">
-      <div class="modal-header"><div><h5 class="modal-title">Gestisci prodotti</h5><div class="small text-white-50" id="supplierProductsGroupName"></div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+      <div class="modal-header"><div><h5 class="modal-title">Gestisci prodotti</h5><div class="small text-muted" id="supplierProductsGroupName"></div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
       <div class="modal-body supplier-products-manager">
         <section class="supplier-product-panel">
           <div class="supplier-product-panel-header"><h6>Catalogo prodotti</h6><span id="supplierCatalogCount">0 risultati</span></div>
@@ -102,7 +101,7 @@
 
 {% for card in group_cards %}
   {% set group = card.group %}
-  <div class="modal fade supplier-orders-modal" id="supplierStockModal{{ group.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal fade supplier-orders-modal ld-modal ld-modal-standard" id="supplierStockModal{{ group.id }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
       <div class="modal-header"><div><h5 class="modal-title">{{ group.name }}</h5><div class="text-muted small">Prodotti raggruppati per codice matrice e relative giacenze.</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
       <div class="modal-body"><div class="supplier-operational-list">
@@ -117,4 +116,4 @@
 {% endfor %}
 {% endblock %}
 
-{% block extra_js %}<script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-draft7') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-engine1') }}"></script>{% endblock %}

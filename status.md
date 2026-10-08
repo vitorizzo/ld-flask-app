@@ -1,3 +1,10 @@
+## Ordini fornitori: migrazione grafica gruppi e giacenze (2026-10-08)
+
+- Bacheca fornitori gia' nel motore condiviso; migrata la pagina gruppi/giacenze `supplier_orders/index.html` da welcome-section/page-shell a ld-page-standard, rimosso container duplicato. Colori, font/spazi e controlli di supplier_orders.css seguono token tema/scala; responsive da data-responsive-mode, senza discriminanti locali dispositivo.
+- Modali definizione gruppo, gestione prodotti e giacenze passate a ld-modal-standard con CSS condiviso. Header/body/azioni e selezione prodotti seguono il tema; lista catalogo e assegnati in colonna su smartphone, comandi senza rotazione del contenitore. Submit definizione ripristinato anche su shown.bs.modal. Desktop tabellare; mobile gruppi in schede con etichette e azioni visibili.
+- API, gruppi, associazioni, stock e rinomina matrici invariati. Cache CSS/JS engine1. Nessuna migration.
+- Verifiche: 20 casi browser con template/base/CSS/JS reali, due temi e 320/360/430/768/1440px, stato vuoto/pieno, testi lunghi, modali stock/creazione/prodotti, ricerca catalogo simulata, riapertura submit e contenimento. Anteprime mobile/desktop ispezionate; sintassi JS e diff check. Da verificare sui dispositivi dopo deploy.
+
 ## Versamenti intermedi: cassetto e riepilogo finale (2026-10-08)
 
 - L'utente registra gli intermedi solo in Versamenti. Contanti e assegni intermedi vengono sottratti una sola volta dal cassetto atteso e dalla quadratura, tramite helper comune ai calcoli ORM e SQL. Saldo progressivo e versabile residuo conservano le formule esistenti, gia' comprensive dei depositi.

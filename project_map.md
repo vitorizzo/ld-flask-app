@@ -1,3 +1,8 @@
+## Ordini fornitori: motore grafico gruppi/giacenze (2026-10-08)
+
+- `templates/supplier_orders/index.html`: ld-page-standard, modali ld-modal-standard e foglio ld_modal.css. `static/css/supplier_orders.css`: token condivisi per colori/misure e profilo data-responsive-mode; tabella desktop, schede gruppo mobile, gestione prodotti mobile in colonna. Cache engine1.
+- `static/js/supplier_orders.js`: ripristino submit definizione all'apertura della modale. Route/API e dati invariati. Bacheca fornitori gia' migrata nella bozza precedente; nessuna nuova migration.
+
 ## Cassa: versamenti intermedi e riepilogo (2026-10-08)
 
 - `tools/cash_math.py`: apply_intermediate_drawer_totals sottrae gli intermedi dal cassetto atteso e corregge la quadratura; usato da calculate_closure_pure e dal calcolo SQL in `routes/cassa.py`. Saldo progressivo/versabile residuo gia' sottraggono i depositi.
