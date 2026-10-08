@@ -4,11 +4,11 @@
 
 {% block extra_css %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-engine1') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_orders.css', v=app_version ~ '-pdf1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_orders.css', v=app_version ~ '-draft1') }}">
 {% endblock %}
 
 {% block content %}
-<section class="ld-page ld-page-standard supplier-orders-page" data-active-group-id="{{ active_group_id or '' }}" data-modal-action="{{ modal_action }}">
+<section class="ld-page ld-page-standard supplier-orders-page" data-active-group-id="{{ active_group_id or '' }}" data-modal-action="{{ modal_action }}" data-active-order-id="{{ active_order_id or '' }}" data-user-id="{{ current_user.id if current_user.is_authenticated else 0 }}">
     <div class="supplier-orders-header">
       <div>
         <h1>Ordini fornitori</h1>
@@ -109,7 +109,7 @@
 
 {% for card in group_cards %}
   {% set group = card.group %}
-  <div class="modal fade supplier-orders-modal ld-modal ld-modal-standard" id="supplierStockModal{{ group.id }}" data-create-order-group="{{ group.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal fade supplier-orders-modal ld-modal ld-modal-standard" id="supplierStockModal{{ group.id }}" data-create-order-group="{{ group.id }}" data-default-title="Ordine - {{ group.name }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
       <div class="modal-header"><div><h5 class="modal-title">Crea ordine: {{ group.name }}</h5><div class="text-muted small">Inserisci le quantita' accanto alle giacenze. Le varianti sono ordinate insieme per codice matrice.</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
       <div class="modal-body">
@@ -117,7 +117,7 @@
           <div><label class="form-label" for="supplierOrderTitle{{ group.id }}">Titolo ordine</label><input class="form-control" id="supplierOrderTitle{{ group.id }}" data-order-title maxlength="200" value="Ordine - {{ group.name }}"></div>
           <div><label class="form-label" for="supplierOrderColumn{{ group.id }}">Colonna della bacheca</label><select class="form-select" id="supplierOrderColumn{{ group.id }}" data-order-column>{% for column in order_columns %}<option value="{{ column.id }}">{{ column.name }}</option>{% endfor %}</select></div>
         </div>
-        <div class="supplier-operational-list">
+        <p class="form-text">Apri un prodotto per impostare codice fornitore e descrizione breve del PDF. I codici interni non vengono stampati.</p><button class="btn btn-sm btn-outline-secondary mb-2" type="button" data-order-reload>Ricarica versione salvata</button><div class="supplier-operational-list">
         {% for section in card.stock_sections %}
           {% if section.name %}<h6 class="supplier-subgroup-heading">{{ section.name }} <span>{{ section.stock }} pezzi</span></h6>{% endif %}
         {% for groupage in section.rows %}
@@ -127,10 +127,10 @@
         {% endfor %}
         {% else %}<div class="text-muted">Nessun articolo da visualizzare.</div>{% endfor %}
       </div></div>
-      <div class="modal-footer"><div data-order-status role="status" aria-live="polite"></div><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Chiudi</button><button class="btn btn-info" type="button" data-order-save>Conferma ordine e genera PDF</button></div>
+      <div class="modal-footer"><div data-order-status role="status" aria-live="polite"></div><button class="btn btn-outline-secondary" type="button" data-order-draft-close>Salva bozza e chiudi</button><button class="btn btn-info" type="button" data-order-save>Conferma ordine e genera PDF</button></div>
     </div></div>
   </div>
 {% endfor %}
 {% endblock %}
 
-{% block extra_js %}<script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-pdf1') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/supplier_order_editor.js', v=app_version ~ '-draft1') }}"></script><script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-draft1') }}"></script>{% endblock %}

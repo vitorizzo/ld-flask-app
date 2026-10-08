@@ -1114,6 +1114,7 @@ class SupplierBoardColumn(db.Model):
 
 class SupplierBoardCard(db.Model):
     __tablename__ = "supplier_board_cards"
+    __table_args__ = (db.UniqueConstraint('order_key',name='uq_supplier_card_order_key'),)
     id = db.Column(db.Integer, primary_key=True)
     column_id = db.Column(db.Integer, db.ForeignKey("supplier_board_columns.id", ondelete="RESTRICT"), nullable=False, index=True)
     supplier_id = db.Column(db.Integer, db.ForeignKey("business_registries.id", ondelete="RESTRICT"), nullable=True, index=True)
@@ -1121,6 +1122,11 @@ class SupplierBoardCard(db.Model):
     notes = db.Column(db.Text, nullable=True)
     order_pdf = db.deferred(db.Column(db.LargeBinary, nullable=True))
     order_pdf_filename = db.Column(db.String(200), nullable=True)
+    order_group_id = db.Column(db.Integer, db.ForeignKey('supplier_order_groups.id', ondelete='SET NULL',name='fk_supplier_card_order_group'), nullable=True)
+    is_draft = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    order_revision = db.Column(db.Integer, nullable=False, default=1, server_default='1')
+    order_key = db.Column(db.String(64), nullable=True)
+    order_confirmed_at = db.Column(db.DateTime, nullable=True)
     reference = db.Column(db.String(160), nullable=True)
     expected_date = db.Column(db.Date, nullable=True)
     is_archived = db.Column(db.Boolean, nullable=False, default=False)
@@ -1137,6 +1143,8 @@ class SupplierBoardOrderLine(db.Model):
     card_id = db.Column(db.Integer, db.ForeignKey("supplier_board_cards.id", ondelete="CASCADE"), nullable=False, index=True)
     matrix_code = db.Column(db.String(255), nullable=False)
     description = db.Column(db.Text, nullable=False)
+    supplier_code = db.Column(db.String(80), nullable=True)
+    order_description = db.Column(db.String(200), nullable=True)
     subgroup_name = db.Column(db.String(160), nullable=True)
     quantity = db.Column(db.Integer, nullable=False)
     stock_at_order = db.Column(db.Integer, nullable=False)
@@ -1194,6 +1202,17 @@ class SupplierOrderSubgroupMatrix(db.Model):
     matrix_code = db.Column(db.String(255), nullable=False)
     group = db.relationship("SupplierOrderGroup", backref=db.backref("subgroup_matrices", cascade="all, delete-orphan"))
     subgroup = db.relationship("SupplierOrderSubgroup", back_populates="assignments")
+
+
+class SupplierOrderProductSettings(db.Model):
+    __tablename__ = 'supplier_order_product_settings'
+    __table_args__ = (db.UniqueConstraint('group_id', 'matrix_code', name='uq_supplier_product_settings'),)
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey('supplier_order_groups.id', ondelete='CASCADE'), nullable=False, index=True)
+    matrix_code = db.Column(db.String(255), nullable=False)
+    supplier_code = db.Column(db.String(80), nullable=False, default='')
+    order_description = db.Column(db.String(200), nullable=False, default='')
+    group = db.relationship('SupplierOrderGroup', backref=db.backref('product_settings', cascade='all, delete-orphan'))
 
 
 class SupplierOrderGroupItem(db.Model):

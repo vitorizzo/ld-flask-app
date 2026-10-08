@@ -24,15 +24,16 @@
    <label class="form-label" for="supplierSearch">Collega un fornitore della Rubrica</label><input class="form-control mb-2" id="supplierSearch" type="search" placeholder="Cerca fornitore"><select id="supplierRegistry" class="form-select mb-3"><option value="">Senza collegamento alla Rubrica</option></select>
    <div class="supplier-card-fields"><div><label class="form-label" for="supplierCardColumn">Colonna</label><select id="supplierCardColumn" class="form-select"></select></div><div><label class="form-label" for="supplierCardDate">Arrivo previsto</label><input class="form-control" type="date" id="supplierCardDate"></div></div>
    <label class="form-label mt-3" for="supplierCardReference">Riferimento ordine / documento</label><input class="form-control mb-3" id="supplierCardReference" maxlength="160">
+   <a id="supplierCardEditOrder" class="btn btn-info mb-3" hidden>Modifica ordine e PDF</a>
    <div id="supplierCardOrderLines" class="supplier-order-lines" hidden></div>
    <div id="supplierCardPdf" class="supplier-card-pdf" hidden><h6>PDF ordine allegato</h6><a id="supplierCardPdfOpen" class="btn btn-outline-secondary" target="_blank" rel="noopener">Apri PDF</a> <a id="supplierCardPdfDownload" class="btn btn-info">Scarica PDF</a></div>
    <label class="form-label" for="supplierCardNotes">Note e anomalie</label><textarea id="supplierCardNotes" class="form-control" rows="6" maxlength="40000"></textarea>
   </div>
-  <div class="modal-footer"><div id="supplierCardError" class="supplier-card-error" role="alert"></div><button class="btn btn-outline-secondary" id="supplierCardArchive" type="button" hidden>Archivia</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button id="supplierCardSave" class="btn btn-info" type="button">Salva scheda</button></div>
+  <div class="modal-footer"><div id="supplierCardError" class="supplier-card-error" role="alert"></div><button class="btn btn-outline-danger" id="supplierCardDelete" type="button" hidden>Elimina scheda</button><button class="btn btn-outline-secondary" id="supplierCardArchive" type="button" hidden>Archivia</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button id="supplierCardSave" class="btn btn-info" type="button">Salva scheda</button></div>
  </div></div>
 </div>
 {% endblock %}
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/ld_modal.js', v=app_version ~ '-supplier1') }}"></script>
-<script src="{{ url_for('static', filename='js/supplier_board.js', v=app_version ~ '-modal2') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_board.js', v=app_version ~ '-draft1') }}"></script>
 {% endblock %}

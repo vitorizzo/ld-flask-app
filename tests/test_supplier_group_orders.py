@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, text, inspect
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from extensions import db
-from models import SupplierBoardColumn, SupplierBoardCard, SupplierBoardOrderLine, Giacenza
+from models import SupplierBoardColumn, SupplierBoardCard, SupplierBoardOrderLine, Giacenza, SupplierOrderProductSettings
 import test_supplier_subgroups as subgroup_tests
 
 
@@ -19,6 +19,7 @@ class SupplierGroupOrderTests(unittest.TestCase):
         subgroup_tests.SupplierSubgroupTests.setUp(self)
         db.metadata.create_all(db.engine,tables=[SupplierBoardCard.__table__,SupplierBoardOrderLine.__table__])
         db.session.add(SupplierBoardColumn(id=1,name='In Arrivo',order_index=0,is_terminal=False));db.session.commit()
+        db.session.add_all([SupplierOrderProductSettings(group_id=1,matrix_code=code,supplier_code='V-'+code,order_description=code) for code in ['COFFEE','POD']]);db.session.commit()
 
     def test_create_order_freezes_quantities_stock_names_and_survives_board_edit(self):
         subgroup=self.create('Nespresso')
@@ -28,7 +29,7 @@ class SupplierGroupOrderTests(unittest.TestCase):
         self.assertEqual([(line['matrix_code'],line['quantity'],line['stock_at_order'],line['subgroup_name']) for line in card['order_lines']],[('COFFEE',20,11,'Nespresso'),('POD',4,0,'')])
         self.assertEqual(Giacenza.query.filter_by(cod_art='COFFEE-24').first().giac_neg,4)
         db.session.execute(Giacenza.__table__.update().values(giac_neg=99));db.session.commit()
-        response=self.client.put(f"/supplier-orders/api/board/cards/{card['id']}",json=dict(title='Titolo modificato',notes='Note aggiornate'))
+        response=self.client.put(f"/supplier-orders/api/board/cards/{card['id']}",json=dict(notes='Note aggiornate'))
         self.assertEqual(response.status_code,200);self.assertEqual(response.json['card']['order_lines'],card['order_lines'])
         self.assertEqual(self.client.get('/supplier-orders/api/board').json['cards'][0]['order_lines'],card['order_lines'])
 
@@ -53,7 +54,7 @@ class SupplierGroupOrderTests(unittest.TestCase):
         pdf=self.client.get(url);self.assertEqual(pdf.status_code,200);self.assertEqual(pdf.mimetype,'application/pdf');self.assertTrue(pdf.data.startswith(b'%PDF-'))
         self.assertTrue(pdf.headers['Content-Disposition'].startswith('inline'))
         self.assertTrue(self.client.get(url+'?download=1').headers['Content-Disposition'].startswith('attachment'))
-        self.client.put(f"/supplier-orders/api/board/cards/{card['id']}",json={'title':'Nuovo titolo'})
+        self.assertEqual(self.client.put(f"/supplier-orders/api/board/cards/{card['id']}",json={'title':'Nuovo titolo'}).status_code,400)
         self.assertEqual(self.client.get(url).data,pdf.data)
         self.assertNotIn('order_pdf',self.client.get('/supplier-orders/api/board').json['cards'][0])
         with patch('tools.role_required.get_current_user',return_value=SimpleNamespace(active_roles=[],max_role_weight=0)):

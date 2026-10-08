@@ -3,7 +3,6 @@ from __future__ import annotations
 from flask import Blueprint, jsonify, redirect, render_template, request, url_for, send_file, current_app
 from io import BytesIO
 from datetime import date
-from zoneinfo import ZoneInfo
 from flask_login import current_user
 from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload
@@ -30,10 +29,13 @@ def _supplier_card_dict(card, supplier_names=None):
                 title=card.title, notes=card.notes or "", reference=card.reference or "",
                 expected_date=card.expected_date.isoformat() if card.expected_date else "",
                 is_archived=card.is_archived,
-                order_pdf_url=url_for('supplier_orders.order_pdf', card_id=card.id) if card.order_pdf_filename else None,
-                order_pdf_filename=card.order_pdf_filename,
+                order_group_id=card.order_group_id,is_draft=card.is_draft,order_revision=card.order_revision,
+                order_edit_url=url_for('supplier_orders.index',group_id=card.order_group_id,order_id=card.id,modal='order') if card.order_group_id else None,
+                order_pdf_url=url_for('supplier_orders.order_pdf', card_id=card.id) if card.order_pdf_filename and not card.is_draft else None,
+                order_pdf_filename=card.order_pdf_filename if not card.is_draft else None,
                 order_lines=[dict(matrix_code=line.matrix_code, description=line.description,
                                   subgroup_name=line.subgroup_name or "", quantity=line.quantity,
+                                  supplier_code=line.supplier_code or '',order_description=line.order_description or '',
                                   stock_at_order=line.stock_at_order) for line in card.order_lines])
 
 
@@ -64,7 +66,7 @@ def board_save_card(card_id=None):
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
         return jsonify(ok=False, error="Dati scheda non validi"), 400
-    card = db.session.get(SupplierBoardCard, card_id) if card_id else SupplierBoardCard()
+    card = SupplierBoardCard.query.filter_by(id=card_id).with_for_update().first() if card_id else SupplierBoardCard()
     if card_id and card is None:
         return jsonify(ok=False, error="Scheda non trovata"), 404
     try:
@@ -86,10 +88,14 @@ def board_save_card(card_id=None):
         archived = payload.get("is_archived", card.is_archived or False)
         if type(archived) is not bool:
             raise ValueError("Archiviazione non valida.")
+        if card.order_group_id and card.title != title.strip():
+            raise ValueError('Usa Modifica ordine per cambiare il titolo e aggiornare il PDF.')
     except (ValueError, TypeError) as exc:
         return jsonify(ok=False, error=str(exc) if isinstance(exc, ValueError) else "Dati scheda non validi"), 400
     card.title = title.strip(); card.notes = notes.strip(); card.reference = reference.strip()
     card.column_id = column_id; card.supplier_id = supplier_id; card.expected_date = expected_date; card.is_archived = archived
+    if card_id and card.order_group_id:
+        card.order_revision += 1
     db.session.add(card)
     db.session.commit()
     return jsonify(ok=True, card=_supplier_card_dict(card)), 200 if card_id else 201
@@ -99,11 +105,13 @@ def board_save_card(card_id=None):
 @role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
 def order_pdf(card_id):
     card = SupplierBoardCard.query.get_or_404(card_id)
-    if not card.order_pdf_filename or not card.order_pdf:
+    if card.is_draft or not card.order_pdf_filename or not card.order_pdf:
         return jsonify(ok=False, error='PDF ordine non disponibile.'), 404
-    return send_file(BytesIO(card.order_pdf), mimetype='application/pdf',
+    response = send_file(BytesIO(card.order_pdf), mimetype='application/pdf',
                      download_name=card.order_pdf_filename, as_attachment=request.args.get('download') == '1',
                      max_age=0)
+    response.headers['Cache-Control']='private, no-store'
+    return response
 
 
 def _variant_root(cod_art: str) -> str:
@@ -178,6 +186,7 @@ def _expanded_articles_for_group(group: SupplierOrderGroup) -> list[dict]:
     selected_roots = {_variant_root(code) for code in selected_codes}
 
     custom_names = {item.matrix_code: item.display_name for item in group.matrix_names}
+    product_settings = {item.matrix_code:item for item in getattr(group,'product_settings',[])}
     subgroup_map = {item.matrix_code: item.subgroup_id for item in getattr(group, "subgroup_matrices", [])}
     grouped: dict[str, dict] = {}
     for article in articles:
@@ -187,6 +196,8 @@ def _expanded_articles_for_group(group: SupplierOrderGroup) -> list[dict]:
             grouped[root] = {
                 "root": root,
                 "subgroup_id": subgroup_map.get(root),
+                "supplier_code": product_settings[root].supplier_code if root in product_settings else '',
+                "order_description": product_settings[root].order_description if root in product_settings else '',
                 "description": "",
                 "default_description": "",
                 "custom_description": custom_names.get(root),
@@ -243,6 +254,7 @@ def index():
         group_cards=group_cards,
         active_group_id=active_group_id,
         modal_action=modal_action,
+        active_order_id=request.args.get('order_id',type=int),
         order_columns=SupplierBoardColumn.query.order_by(SupplierBoardColumn.is_terminal, SupplierBoardColumn.order_index, SupplierBoardColumn.id).all(),
     )
 
@@ -250,51 +262,51 @@ def index():
 @supplier_orders_bp.post("/groups/<int:group_id>/orders")
 @role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
 def create_group_order(group_id):
+    from tools.supplier_order_workflow import save_order,OrderConflict
     group = SupplierOrderGroup.query.get_or_404(group_id)
     payload = request.get_json(silent=True)
-    if not isinstance(payload, dict):
-        return jsonify(ok=False, error="Dati ordine non validi."), 400
-    lines = payload.get("lines")
-    if not isinstance(lines, list) or not lines:
-        return jsonify(ok=False, error="Inserisci almeno una quantita' da ordinare."), 400
-    rows = {row["root"]: row for row in _expanded_articles_for_group(group)}
-    seen = set()
-    for line in lines:
-        if not isinstance(line, dict):
-            return jsonify(ok=False, error="Riga ordine non valida."), 400
-        code = line.get("matrix_code")
-        quantity = line.get("quantity")
-        if not isinstance(code, str) or code not in rows or code in seen:
-            return jsonify(ok=False, error="Prodotto non valido o duplicato per questo gruppo."), 400
-        if type(quantity) is not int or not 1 <= quantity <= 1000000:
-            return jsonify(ok=False, error="Le quantita' devono essere intere, da 1 a 1000000."), 400
-        seen.add(code)
-    column_id = payload.get("column_id")
-    if type(column_id) is not int or db.session.get(SupplierBoardColumn, column_id) is None:
-        return jsonify(ok=False, error="Seleziona una colonna della bacheca."), 400
-    title = payload.get("title", "Ordine - " + group.name)
-    if not isinstance(title, str) or not title.strip() or len(title.strip()) > 200:
-        return jsonify(ok=False, error="Inserisci un titolo di massimo 200 caratteri."), 400
-    subgroup_names = {row.id: row.name for row in group.subgroups}
-    card = SupplierBoardCard(title=title.strip(), column_id=column_id, notes="Creato dal gruppo: " + group.name)
-    for line in lines:
-        row = rows[line["matrix_code"]]
-        card.order_lines.append(SupplierBoardOrderLine(matrix_code=row["root"], description=row["description"],
-            subgroup_name=subgroup_names.get(row["subgroup_id"]), quantity=line["quantity"], stock_at_order=row["stock"]))
+    if not isinstance(payload,dict):return jsonify(ok=False,error="Dati ordine non validi."),400
     try:
-        from tools.supplier_order_pdf import generate_supplier_order_pdf
-        db.session.add(card); db.session.flush()
-        order_date = card.created_at.replace(tzinfo=ZoneInfo('UTC')).astimezone(ZoneInfo('Europe/Rome')).date()
-        card.order_pdf = generate_supplier_order_pdf(order_id=card.id, title=card.title,
-            order_date=order_date, rows=list(rows.values()), subgroup_names=subgroup_names,
-            quantities={line['matrix_code']: line['quantity'] for line in lines})
-        card.order_pdf_filename = f'ordine-fornitore-{card.id}-{order_date:%Y%m%d}.pdf'
+        card,replayed=save_order(group,payload,_expanded_articles_for_group(group))
         db.session.commit()
+        return jsonify(ok=True,card=_supplier_card_dict(card),replayed=replayed),200 if payload.get('card_id') or replayed else 201
+    except OrderConflict as error:
+        db.session.rollback()
+        return jsonify(ok=False,error=str(error),conflict=True),409
+    except ValueError as error:
+        db.session.rollback()
+        return jsonify(ok=False,error=str(error)),400
     except Exception:
         db.session.rollback()
-        current_app.logger.exception('Generazione PDF ordine fornitore non riuscita')
-        return jsonify(ok=False, error='Non riesco a generare il PDF. Ordine non salvato: riprova.'), 500
-    return jsonify(ok=True, card=_supplier_card_dict(card)), 201
+        current_app.logger.exception('Salvataggio ordine fornitore non riuscito')
+        return jsonify(ok=False,error='Non riesco a salvare l\'ordine. La versione precedente resta disponibile: riprova.'),500
+
+
+@supplier_orders_bp.get('/groups/<int:group_id>/order-editor')
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def group_order_editor(group_id):
+    from tools.supplier_order_workflow import order_rows
+    from models import Importazione
+    group=SupplierOrderGroup.query.get_or_404(group_id)
+    card_id=request.args.get('card_id',type=int)
+    if card_id:
+        card=SupplierBoardCard.query.get_or_404(card_id)
+        if card.order_group_id!=group.id:return jsonify(ok=False,error='Ordine appartenente a un altro gruppo.'),400
+    else:
+        card=SupplierBoardCard.query.filter_by(order_group_id=group.id,is_draft=True,is_archived=False).order_by(SupplierBoardCard.updated_at.desc(),SupplierBoardCard.id.desc()).first()
+    rows=order_rows(group,_expanded_articles_for_group(group),card)
+    latest=Importazione.query.filter_by(modulo='giacenze',esito=True).order_by(Importazione.timestamp.desc()).first()
+    return jsonify(ok=True,card=_supplier_card_dict(card) if card else None,rows=list(rows.values()),
+        group=dict(id=group.id,name=group.name),subgroups=[dict(id=row.id,name=row.name) for row in group.subgroups],
+        stock_updated_at=latest.timestamp.isoformat() if latest else None)
+
+
+@supplier_orders_bp.delete('/api/board/cards/<int:card_id>')
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def board_delete_card(card_id):
+    card=SupplierBoardCard.query.get_or_404(card_id)
+    db.session.delete(card);db.session.commit()
+    return jsonify(ok=True)
 
 
 @supplier_orders_bp.post("/groups")

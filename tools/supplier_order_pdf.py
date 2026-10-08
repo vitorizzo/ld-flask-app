@@ -10,7 +10,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate, Paragraph, Table, TableStyle, Spacer
 
 
-def generate_supplier_order_pdf(*, order_id, title, order_date, rows, subgroup_names, quantities):
+def generate_supplier_order_pdf(*, order_id, title, order_date, rows, subgroup_names, quantities, single_page=False, _font_size=9):
     """Return immutable PDF bytes; unselected products keep an empty quantity."""
     output = BytesIO()
     page_width, page_height = landscape(A4)
@@ -18,7 +18,7 @@ def generate_supplier_order_pdf(*, order_id, title, order_date, rows, subgroup_n
     width = (page_width - 2 * margin - gap) / 2
     navy = colors.HexColor('#082664')
     blue = colors.HexColor('#245c8c')
-    text = ParagraphStyle('order_text', fontName='Helvetica', fontSize=9, leading=10, spaceAfter=0)
+    text = ParagraphStyle('order_text', fontName='Helvetica', fontSize=_font_size, leading=_font_size+1, spaceAfter=0)
     code_style = ParagraphStyle('order_code', parent=text, alignment=TA_RIGHT)
     qty_style = ParagraphStyle('order_qty', parent=code_style, fontName='Helvetica-Bold', textColor=blue)
     header_style = ParagraphStyle('order_header', parent=text, fontName='Helvetica-BoldOblique')
@@ -65,7 +65,7 @@ def generate_supplier_order_pdf(*, order_id, title, order_date, rows, subgroup_n
                 [paragraph('Descrizione', header_style), paragraph('Codice', header_style), paragraph('Quantità', header_style)]]
         for row in products:
             quantity = quantities.get(row['root'])
-            data.append([paragraph(row['description']), paragraph(row['root'], code_style), paragraph(quantity if quantity is not None else '', qty_style)])
+            data.append([paragraph(row.get('order_description') or row['description']), paragraph(row.get('supplier_code') or '', code_style), paragraph(quantity if quantity is not None else '', qty_style)])
         table = Table(data, colWidths=[width * .65, width * .20, width * .15], repeatRows=2, hAlign='LEFT')
         table.setStyle(TableStyle([
             ('SPAN', (0, 0), (-1, 0)), ('BACKGROUND', (0, 0), (-1, 0), navy),
@@ -77,4 +77,9 @@ def generate_supplier_order_pdf(*, order_id, title, order_date, rows, subgroup_n
         ]))
         story.extend([table, Spacer(1, 12)])
     document.build(story)
+    if single_page and document.page > 1:
+        if _font_size <= 7:
+            raise ValueError('Il modulo supera una pagina: accorcia le descrizioni per il PDF.')
+        return generate_supplier_order_pdf(order_id=order_id,title=title,order_date=order_date,
+            rows=rows,subgroup_names=subgroup_names,quantities=quantities,single_page=True,_font_size=_font_size-.5)
     return output.getvalue()

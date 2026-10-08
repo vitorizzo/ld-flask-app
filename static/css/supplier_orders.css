@@ -515,6 +515,9 @@ html[data-responsive-mode="mobile"] .supplier-stock { min-width: 4em; }
 .supplier-subgroup-controls { display: grid; gap: .5em; }
 .supplier-order-fields { display: grid; grid-template-columns: 2fr 1fr; gap: .8em; margin-bottom: 1em; }
 .supplier-order-fields > div { min-width: 0; }
+.supplier-order-product-settings { display: grid; grid-template-columns: 1fr 2fr; gap: .8em; padding: .8em; }
+.supplier-order-product-settings label { min-width: 0; }
+html[data-responsive-mode="mobile"] .supplier-order-product-settings { grid-template-columns: minmax(0,1fr); }
 .supplier-order-amounts { display: flex; align-items: center; gap: .8em; flex: 0 0 auto; }
 .supplier-order-quantity { width: 7em; }
 .supplier-order-quantity label { display: block; font-size: .85em; margin-bottom: .25em; }

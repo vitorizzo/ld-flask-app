@@ -18,6 +18,7 @@
     <h2>${esc(card.title)}</h2>${card.supplier_name?`<div class="supplier-card-meta">${esc(card.supplier_name)}</div>`:''}
     ${card.expected_date?`<div class="supplier-card-meta">Arrivo: ${esc(card.expected_date.split('-').reverse().join('/'))}</div>`:''}${card.reference?`<div class="supplier-card-meta">Rif. ${esc(card.reference)}</div>`:''}
     ${card.notes?`<p>${esc(card.notes.slice(0,180))}${card.notes.length>180?'…':''}</p>`:''}${card.is_archived?'<span class="badge bg-secondary">Archiviata</span>':''}
+    ${card.is_draft?'<span class="badge bg-warning text-dark">Bozza ordine</span>':''}
     ${card.order_pdf_url?`<a class="supplier-card-pdf-link" href="${esc(card.order_pdf_url)}" target="_blank" rel="noopener">PDF ordine allegato</a>`:''}
     <div class="supplier-card-footer"><label class="visually-hidden" for="supplierMove${card.id}">Sposta ${esc(card.title)}</label><select class="form-select" id="supplierMove${card.id}" data-move="${card.id}">${options(card.column_id)}</select></div>
    </article>`).join('') || '<div class="kiosk-empty">Nessuna scheda</div>'}</div></div>`).join('');
@@ -49,6 +50,11 @@
  }
  function openCard(card=null) {
   editing = card;
+  $('supplierCardDelete').hidden = !card;
+  $('supplierCardEditOrder').hidden = !card?.order_edit_url || card.is_archived;
+  if (card?.order_edit_url) $('supplierCardEditOrder').href = card.order_edit_url;
+  else $('supplierCardEditOrder').removeAttribute('href');
+  $('supplierCardName').readOnly = Boolean(card?.order_group_id);
   $('supplierCardPdf').hidden = !card?.order_pdf_url;
   if (card?.order_pdf_url) {
    $('supplierCardPdfOpen').href = card.order_pdf_url;
@@ -89,6 +95,16 @@
   } catch(error){$('supplierCardError').textContent=error.message;}
   finally{saving=false;$('supplierCardSave').disabled=false;$('supplierCardArchive').disabled=false;}
  }
+ async function deleteCard() {
+  if (saving || !editing) return;
+  if (!window.confirm(`Eliminare definitivamente la scheda «${editing.title}», le righe e il PDF allegato?`)) return;
+  saving=true; $('supplierCardDelete').disabled=true; $('supplierCardSave').disabled=true; $('supplierCardArchive').disabled=true;
+  try {
+   await api(`/supplier-orders/api/board/cards/${editing.id}`,{method:'DELETE'});
+   saving=false;bootstrap.Modal.getInstance($('supplierCardModal')).hide();await reload();
+  } catch(error) {$('supplierCardError').textContent=error.message;}
+  finally {saving=false;$('supplierCardDelete').disabled=false;$('supplierCardSave').disabled=false;$('supplierCardArchive').disabled=false;}
+ }
  document.addEventListener('DOMContentLoaded',()=>{
   const cardModal = $('supplierCardModal');
   if (cardModal.parentElement !== document.body) document.body.appendChild(cardModal);
@@ -96,9 +112,9 @@
   $('supplierNew').onclick=()=>openCard();$('supplierRefresh').onclick=reload;$('supplierFilter').oninput=render;$('supplierArchived').onchange=reload;
   $('supplierSearch').oninput=()=>{clearTimeout(searchTimer);searchGeneration++;searchTimer=setTimeout(searchSuppliers,250);};
   $('supplierRegistry').onchange=()=>{if(!$('supplierCardName').value && $('supplierRegistry').value)$('supplierCardName').value=$('supplierRegistry').selectedOptions[0].textContent;};
-  $('supplierCardModal').addEventListener('shown.bs.modal',()=>{$('supplierCardSave').disabled=false;$('supplierCardSave').textContent='Salva scheda';$('supplierCardSave').onclick=()=>saveCard();$('supplierCardArchive').disabled=false;$('supplierCardArchive').onclick=()=>saveCard(true);});
+  $('supplierCardModal').addEventListener('shown.bs.modal',()=>{$('supplierCardSave').disabled=false;$('supplierCardSave').textContent='Salva scheda';$('supplierCardSave').onclick=()=>saveCard();$('supplierCardArchive').disabled=false;$('supplierCardArchive').onclick=()=>saveCard(true);$('supplierCardDelete').disabled=false;$('supplierCardDelete').onclick=deleteCard;});
   $('supplierCardModal').addEventListener('hide.bs.modal',event=>{if(saving)event.preventDefault();});
-  $('supplierCardModal').addEventListener('hidden.bs.modal',()=>{document.body.classList.remove('supplier-card-modal-open');editing=null;clearTimeout(searchTimer);searchGeneration++;$('supplierCardSave').onclick=null;$('supplierCardArchive').onclick=null;$('supplierCardError').textContent='';});
+  $('supplierCardModal').addEventListener('hidden.bs.modal',()=>{document.body.classList.remove('supplier-card-modal-open');editing=null;clearTimeout(searchTimer);searchGeneration++;$('supplierCardSave').onclick=null;$('supplierCardArchive').onclick=null;$('supplierCardDelete').onclick=null;$('supplierCardError').textContent='';});
   reload();
  });
 })();

@@ -1342,29 +1342,9 @@ def import_giacenze_matrixws(task_id=None):
     try:
         rows, secret_renewed = _fetch_matrixws_service_rows("1002")
         counters["total_rows"] = len(rows)
-        aggregate = {}
-        for row in rows:
-            code = _clean_registry_text(row.get("M-CODMAGPR"))
-            depot = _clean_registry_text(row.get("M-DEP"))
-            if not code:
-                counters["invalid_rows"] += 1
-                continue
-            field = {"0": "giac_neg", "400": "giac_www"}.get(depot)
-            if field is None:
-                counters["unsupported_depot_rows"] += 1
-                continue
-            try:
-                quantity = _matrixws_stock_quantity(row.get("M-GIACATT"))
-            except ValueError:
-                counters["invalid_rows"] += 1
-                continue
-            aggregate.setdefault(code, {"giac_neg": 0, "giac_www": 0})[field] += quantity
-            counters["accepted_rows"] += 1
-        stock_rows = [
-            {"cod_art": code, **values}
-            for code, values in aggregate.items()
-            if values["giac_neg"] != 0 or values["giac_www"] != 0
-        ]
+        from tools.matrixws_stock_snapshot import collect_matrixws_stock
+        stock_rows, snapshot_counters = collect_matrixws_stock(rows)
+        counters.update(snapshot_counters)
         existing_rows = db.session.query(Giacenza.cod_art, Giacenza.giac_neg, Giacenza.giac_www).all()
         if len(existing_rows) >= 100 and len(stock_rows) < int(len(existing_rows) * 0.80):
             raise RuntimeError(f"Snapshot MATRIXWS anomalo: {len(stock_rows)} articoli contro {len(existing_rows)} correnti")
@@ -1488,21 +1468,9 @@ def compare_file_matrixws_sources(task_id=None):
             for row in stock_file_rows
         ]
         stock_matrix_rows, _ = _fetch_matrixws_service_rows("1002", renew_secret=False)
-        stock_aggregate = {}
-        for row in stock_matrix_rows:
-            code = _clean_registry_text(row.get("M-CODMAGPR"))
-            field = {"0": "giac_neg", "400": "giac_www"}.get(_clean_registry_text(row.get("M-DEP")))
-            if not code or field is None:
-                continue
-            try:
-                quantity = _matrixws_stock_quantity(row.get("M-GIACATT"))
-            except ValueError:
-                continue
-            stock_aggregate.setdefault(code, {"giac_neg": 0, "giac_www": 0})[field] += quantity
-        stock_matrix_rows = [
-            {"key": code, **values} for code, values in stock_aggregate.items()
-            if values["giac_neg"] != 0 or values["giac_www"] != 0
-        ]
+        from tools.matrixws_stock_snapshot import collect_matrixws_stock
+        stock_matrix_rows, stock_matrix_counters = collect_matrixws_stock(stock_matrix_rows)
+        stock_matrix_rows = [{"key": row["cod_art"], **row} for row in stock_matrix_rows]
         result = {
             "success": True,
             "message": "Confronto completato senza modificare il database.",
@@ -1514,6 +1482,7 @@ def compare_file_matrixws_sources(task_id=None):
                 "stock": _compare_keyed_snapshots(stock_file_rows, stock_matrix_rows,
                     fields=("giac_neg", "giac_www")),
                 "stock_file_counters": stock_file_counters,
+                "stock_matrix_counters": stock_matrix_counters,
             },
         }
         db.session.rollback()
