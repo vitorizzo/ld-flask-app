@@ -1,7 +1,9 @@
 from __future__ import annotations
 
-from flask import Blueprint, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, jsonify, redirect, render_template, request, url_for, send_file, current_app
+from io import BytesIO
 from datetime import date
+from zoneinfo import ZoneInfo
 from flask_login import current_user
 from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload
@@ -28,6 +30,8 @@ def _supplier_card_dict(card, supplier_names=None):
                 title=card.title, notes=card.notes or "", reference=card.reference or "",
                 expected_date=card.expected_date.isoformat() if card.expected_date else "",
                 is_archived=card.is_archived,
+                order_pdf_url=url_for('supplier_orders.order_pdf', card_id=card.id) if card.order_pdf_filename else None,
+                order_pdf_filename=card.order_pdf_filename,
                 order_lines=[dict(matrix_code=line.matrix_code, description=line.description,
                                   subgroup_name=line.subgroup_name or "", quantity=line.quantity,
                                   stock_at_order=line.stock_at_order) for line in card.order_lines])
@@ -89,6 +93,17 @@ def board_save_card(card_id=None):
     db.session.add(card)
     db.session.commit()
     return jsonify(ok=True, card=_supplier_card_dict(card)), 200 if card_id else 201
+
+
+@supplier_orders_bp.get('/api/board/cards/<int:card_id>/order-pdf')
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def order_pdf(card_id):
+    card = SupplierBoardCard.query.get_or_404(card_id)
+    if not card.order_pdf_filename or not card.order_pdf:
+        return jsonify(ok=False, error='PDF ordine non disponibile.'), 404
+    return send_file(BytesIO(card.order_pdf), mimetype='application/pdf',
+                     download_name=card.order_pdf_filename, as_attachment=request.args.get('download') == '1',
+                     max_age=0)
 
 
 def _variant_root(cod_art: str) -> str:
@@ -266,7 +281,19 @@ def create_group_order(group_id):
         row = rows[line["matrix_code"]]
         card.order_lines.append(SupplierBoardOrderLine(matrix_code=row["root"], description=row["description"],
             subgroup_name=subgroup_names.get(row["subgroup_id"]), quantity=line["quantity"], stock_at_order=row["stock"]))
-    db.session.add(card); db.session.commit()
+    try:
+        from tools.supplier_order_pdf import generate_supplier_order_pdf
+        db.session.add(card); db.session.flush()
+        order_date = card.created_at.replace(tzinfo=ZoneInfo('UTC')).astimezone(ZoneInfo('Europe/Rome')).date()
+        card.order_pdf = generate_supplier_order_pdf(order_id=card.id, title=card.title,
+            order_date=order_date, rows=list(rows.values()), subgroup_names=subgroup_names,
+            quantities={line['matrix_code']: line['quantity'] for line in lines})
+        card.order_pdf_filename = f'ordine-fornitore-{card.id}-{order_date:%Y%m%d}.pdf'
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception('Generazione PDF ordine fornitore non riuscita')
+        return jsonify(ok=False, error='Non riesco a generare il PDF. Ordine non salvato: riprova.'), 500
     return jsonify(ok=True, card=_supplier_card_dict(card)), 201
 
 

@@ -38,7 +38,7 @@
       if (!lines.length) { status.textContent = "Inserisci almeno una quantita' da ordinare."; return; }
       const title = node.querySelector('[data-order-title]').value.trim();
       if (!title) { status.textContent = 'Inserisci il titolo ordine.'; return; }
-      saving = true; save.disabled = true; status.textContent = 'Salvataggio...';
+      saving = true; save.disabled = true; status.textContent = 'Generazione PDF e salvataggio...';
       const fields = [...node.querySelectorAll('input, select')];
       fields.forEach(field => { field.disabled = true; });
       try {
@@ -52,6 +52,11 @@
         status.textContent = `Ordine salvato in bacheca: ${payload.card.title}.`;
         const link = document.createElement('a');
         link.href = '/supplier-orders/board'; link.textContent = ' Apri bacheca'; status.append(link);
+        if (payload.card.order_pdf_url) {
+          const pdf = document.createElement('a');
+          pdf.href = payload.card.order_pdf_url+'?download=1'; pdf.textContent = ' Scarica PDF ordine';
+          status.append(document.createElement('br'), pdf);
+        }
       } catch (error) {
         status.textContent = error.message;
       } finally {
@@ -60,7 +65,7 @@
       }
     }
     node.addEventListener('shown.bs.modal', () => {
-      save.disabled = false; save.textContent = 'Salva ordine in bacheca'; save.onclick = saveOrder;
+      save.disabled = false; save.textContent = 'Conferma ordine e genera PDF'; save.onclick = saveOrder;
     });
     node.addEventListener('hide.bs.modal', event => { if (saving) event.preventDefault(); });
     node.addEventListener('hidden.bs.modal', () => {

@@ -45,6 +45,37 @@ class SupplierGroupOrderTests(unittest.TestCase):
         with patch('tools.role_required.get_current_user',return_value=SimpleNamespace(active_roles=[],max_role_weight=0)):
             self.assertEqual(self.client.post('/supplier-orders/groups/1/orders',json={}).status_code,403)
 
+    def test_pdf_attachment_open_download_and_immutable_after_edit(self):
+        response=self.client.post('/supplier-orders/groups/1/orders',json=dict(column_id=1,lines=[dict(matrix_code='COFFEE',quantity=12)]))
+        self.assertEqual(response.status_code,201)
+        card=response.json['card'];url=card['order_pdf_url']
+        self.assertTrue(url.endswith('/order-pdf'));self.assertTrue(card['order_pdf_filename'].endswith('.pdf'))
+        pdf=self.client.get(url);self.assertEqual(pdf.status_code,200);self.assertEqual(pdf.mimetype,'application/pdf');self.assertTrue(pdf.data.startswith(b'%PDF-'))
+        self.assertTrue(pdf.headers['Content-Disposition'].startswith('inline'))
+        self.assertTrue(self.client.get(url+'?download=1').headers['Content-Disposition'].startswith('attachment'))
+        self.client.put(f"/supplier-orders/api/board/cards/{card['id']}",json={'title':'Nuovo titolo'})
+        self.assertEqual(self.client.get(url).data,pdf.data)
+        self.assertNotIn('order_pdf',self.client.get('/supplier-orders/api/board').json['cards'][0])
+        with patch('tools.role_required.get_current_user',return_value=SimpleNamespace(active_roles=[],max_role_weight=0)):
+            self.assertEqual(self.client.get(url,headers={'Content-Type':'application/json'}).status_code,403)
+        manual=self.client.post('/supplier-orders/api/board/cards',json={'title':'Manuale','column_id':1}).json['card']
+        self.assertIsNone(manual['order_pdf_url']);self.assertEqual(self.client.get(f"/supplier-orders/api/board/cards/{manual['id']}/order-pdf").status_code,404)
+
+    def test_pdf_failure_rolls_back_order_and_lines(self):
+        with patch('tools.supplier_order_pdf.generate_supplier_order_pdf',side_effect=RuntimeError('PDF failure')):
+            with self.assertLogs(level='ERROR'):
+                response=self.client.post('/supplier-orders/groups/1/orders',json=dict(column_id=1,lines=[dict(matrix_code='COFFEE',quantity=12)]))
+        self.assertEqual(response.status_code,500);self.assertEqual(SupplierBoardCard.query.count(),0);self.assertEqual(SupplierBoardOrderLine.query.count(),0)
+
+    def test_pdf_migration_preserves_existing_cards(self):
+        spec=importlib.util.spec_from_file_location('pdf_migration',Path('migrations/versions/p1e2f3a4b5c6_supplier_order_pdf.py'));module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+        with create_engine('sqlite://').begin() as connection:
+            connection.execute(text('CREATE TABLE supplier_board_cards (id INTEGER PRIMARY KEY, title TEXT)'))
+            connection.execute(text("INSERT INTO supplier_board_cards VALUES (1,'Ordine esistente')"))
+            with Operations.context(MigrationContext.configure(connection)):
+                module.upgrade();self.assertIn('order_pdf',{c['name'] for c in inspect(connection).get_columns('supplier_board_cards')});module.downgrade()
+            self.assertEqual(connection.execute(text('SELECT title FROM supplier_board_cards')).scalar(),'Ordine esistente')
+
     def test_order_lines_migration(self):
         spec=importlib.util.spec_from_file_location('order_migration',Path('migrations/versions/o0d1e2f3a4b5_supplier_order_lines.py'));module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
         with create_engine('sqlite://').begin() as connection:

@@ -1119,6 +1119,8 @@ class SupplierBoardCard(db.Model):
     supplier_id = db.Column(db.Integer, db.ForeignKey("business_registries.id", ondelete="RESTRICT"), nullable=True, index=True)
     title = db.Column(db.String(200), nullable=False)
     notes = db.Column(db.Text, nullable=True)
+    order_pdf = db.deferred(db.Column(db.LargeBinary, nullable=True))
+    order_pdf_filename = db.Column(db.String(200), nullable=True)
     reference = db.Column(db.String(160), nullable=True)
     expected_date = db.Column(db.Date, nullable=True)
     is_archived = db.Column(db.Boolean, nullable=False, default=False)

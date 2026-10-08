@@ -1,3 +1,10 @@
+## Ordini fornitori: allegato PDF ordine (2026-10-08)
+
+- `tools/supplier_order_pdf.py`: ReportLab, A4 orizzontale/two-column, gruppi configurati, codici matrice e quantita', totale e data; prodotti non ordinati con quantita' vuota. Reference in docs/transport, nessuna categoria/codice fornitore hardcoded.
+- SupplierBoardCard.order_pdf (LargeBinary deferred) / order_pdf_filename. Migration p1e2f3a4b5c6 dopo o0d1e2f3a4b5, compatibile con schede preesistenti. PDF generato in create_group_order prima del commit, errore rollback. Blob caricato solo sul download.
+- GET /supplier-orders/api/board/cards/<id>/order-pdf protetto da ruolo40; download=1 per allegato, default inline. API card espone URL/filename, non blob. Controller/template bacheca mostrano allegato e comandi; conferma gruppo offre download (cache pdf1). Dipendenza reportlab==4.4.4.
+- Test: test_supplier_group_orders.py e test_supplier_order_pdf.py; verifiche PDF con pypdfium2 gia' presente. Deploy richiede pip install -r requirements.txt e flask db upgrade prima del riavvio.
+
 ## Ordini fornitori: creazione ordine da gruppo (2026-10-08)
 
 - SupplierBoardOrderLine in models.py; migration o0d1e2f3a4b5 dopo n9c0d1e2f3a4. Riga storica con matrix_code, description, subgroup_name, quantity e stock_at_order, dipendente dalla scheda e indipendente dalla Rubrica articoli/gruppi.

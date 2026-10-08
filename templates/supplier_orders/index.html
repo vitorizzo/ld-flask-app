@@ -4,7 +4,7 @@
 
 {% block extra_css %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-engine1') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_orders.css', v=app_version ~ '-order1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_orders.css', v=app_version ~ '-pdf1') }}">
 {% endblock %}
 
 {% block content %}
@@ -127,10 +127,10 @@
         {% endfor %}
         {% else %}<div class="text-muted">Nessun articolo da visualizzare.</div>{% endfor %}
       </div></div>
-      <div class="modal-footer"><div data-order-status role="status" aria-live="polite"></div><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Chiudi</button><button class="btn btn-info" type="button" data-order-save>Salva ordine in bacheca</button></div>
+      <div class="modal-footer"><div data-order-status role="status" aria-live="polite"></div><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Chiudi</button><button class="btn btn-info" type="button" data-order-save>Conferma ordine e genera PDF</button></div>
     </div></div>
   </div>
 {% endfor %}
 {% endblock %}
 
-{% block extra_js %}<script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-order1') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-pdf1') }}"></script>{% endblock %}

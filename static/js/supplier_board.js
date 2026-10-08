@@ -18,6 +18,7 @@
     <h2>${esc(card.title)}</h2>${card.supplier_name?`<div class="supplier-card-meta">${esc(card.supplier_name)}</div>`:''}
     ${card.expected_date?`<div class="supplier-card-meta">Arrivo: ${esc(card.expected_date.split('-').reverse().join('/'))}</div>`:''}${card.reference?`<div class="supplier-card-meta">Rif. ${esc(card.reference)}</div>`:''}
     ${card.notes?`<p>${esc(card.notes.slice(0,180))}${card.notes.length>180?'…':''}</p>`:''}${card.is_archived?'<span class="badge bg-secondary">Archiviata</span>':''}
+    ${card.order_pdf_url?`<a class="supplier-card-pdf-link" href="${esc(card.order_pdf_url)}" target="_blank" rel="noopener">PDF ordine allegato</a>`:''}
     <div class="supplier-card-footer"><label class="visually-hidden" for="supplierMove${card.id}">Sposta ${esc(card.title)}</label><select class="form-select" id="supplierMove${card.id}" data-move="${card.id}">${options(card.column_id)}</select></div>
    </article>`).join('') || '<div class="kiosk-empty">Nessuna scheda</div>'}</div></div>`).join('');
   $('supplierColumnTabs').querySelectorAll('button').forEach(button=>button.onclick=()=>{
@@ -26,7 +27,7 @@
   });
   $('supplierColumns').querySelectorAll('[data-card]').forEach(element=>{
    const card = data.cards.find(c=>c.id===Number(element.dataset.card));
-   element.onclick = event=>{if(!event.target.closest('select,label'))openCard(card);};
+   element.onclick = event=>{if(!event.target.closest('select,label,a'))openCard(card);};
    element.onkeydown = event=>{if(event.target===element && ['Enter',' '].includes(event.key)){event.preventDefault();openCard(card);}};
    element.ondragstart = event=>{if(event.target.closest('select')){event.preventDefault();return;}dragId=card.id;event.dataTransfer.setData('text/plain',String(card.id));};
    element.ondragend = ()=>dragId=null;
@@ -48,6 +49,13 @@
  }
  function openCard(card=null) {
   editing = card;
+  $('supplierCardPdf').hidden = !card?.order_pdf_url;
+  if (card?.order_pdf_url) {
+   $('supplierCardPdfOpen').href = card.order_pdf_url;
+   $('supplierCardPdfDownload').href = card.order_pdf_url+'?download=1';
+  } else {
+   $('supplierCardPdfOpen').removeAttribute('href'); $('supplierCardPdfDownload').removeAttribute('href');
+  }
   const lines = card?.order_lines || [];
   $('supplierCardOrderLines').hidden = !lines.length;
   $('supplierCardOrderLines').innerHTML = lines.length ? '<h6>Prodotti ordinati</h6>' + lines.map(line => `<p><strong>${esc(line.description)}</strong><br>${esc(line.matrix_code)}${line.subgroup_name ? ' · '+esc(line.subgroup_name) : ''}<br>Da ordinare: <strong>${esc(line.quantity)}</strong> · Giacenza alla creazione: ${esc(line.stock_at_order)}</p>`).join('') : '';

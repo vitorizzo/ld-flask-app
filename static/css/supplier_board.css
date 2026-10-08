@@ -25,6 +25,9 @@
 .supplier-column-tabs::-webkit-scrollbar { display: none; }
 #supplierCardArchive[hidden] { display: none !important; }
 .supplier-order-lines { margin-bottom: 1em; color: var(--ld-brand-primary); }
+.supplier-card-pdf { margin-bottom: 1em; color: var(--ld-brand-primary); }
+.supplier-card-pdf h6 { color: var(--ld-brand-primary); }
+.supplier-card-pdf-link { display: inline-block; margin-top: .5em; color: var(--ld-brand-primary); font-weight: 700; text-decoration: underline; }
 .supplier-order-lines h6 { color: var(--ld-brand-primary); font-size: 1.1em; }
 .supplier-order-lines p { padding: .6em 0; border-bottom: 1px solid color-mix(in srgb, var(--ld-brand-primary) 25%, transparent); overflow-wrap: anywhere; }
 html[data-responsive-mode="mobile"] .supplier-board-head { align-items: stretch; flex-direction: column; gap: .5em; }

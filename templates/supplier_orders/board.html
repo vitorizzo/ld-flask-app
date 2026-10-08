@@ -3,7 +3,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css', v=app_version ~ '-supplier1') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-supplier1') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_board.css', v=app_version ~ '-order1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_board.css', v=app_version ~ '-pdf1') }}">
 {% endblock %}
 {% block content %}
 <section class="ld-page ld-page-standard ld-page-viewport supplier-board-page">
@@ -25,6 +25,7 @@
    <div class="supplier-card-fields"><div><label class="form-label" for="supplierCardColumn">Colonna</label><select id="supplierCardColumn" class="form-select"></select></div><div><label class="form-label" for="supplierCardDate">Arrivo previsto</label><input class="form-control" type="date" id="supplierCardDate"></div></div>
    <label class="form-label mt-3" for="supplierCardReference">Riferimento ordine / documento</label><input class="form-control mb-3" id="supplierCardReference" maxlength="160">
    <div id="supplierCardOrderLines" class="supplier-order-lines" hidden></div>
+   <div id="supplierCardPdf" class="supplier-card-pdf" hidden><h6>PDF ordine allegato</h6><a id="supplierCardPdfOpen" class="btn btn-outline-secondary" target="_blank" rel="noopener">Apri PDF</a> <a id="supplierCardPdfDownload" class="btn btn-info">Scarica PDF</a></div>
    <label class="form-label" for="supplierCardNotes">Note e anomalie</label><textarea id="supplierCardNotes" class="form-control" rows="6" maxlength="40000"></textarea>
   </div>
   <div class="modal-footer"><div id="supplierCardError" class="supplier-card-error" role="alert"></div><button class="btn btn-outline-secondary" id="supplierCardArchive" type="button" hidden>Archivia</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button id="supplierCardSave" class="btn btn-info" type="button">Salva scheda</button></div>
@@ -33,5 +34,5 @@
 {% endblock %}
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/ld_modal.js', v=app_version ~ '-supplier1') }}"></script>
-<script src="{{ url_for('static', filename='js/supplier_board.js', v=app_version ~ '-order1') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_board.js', v=app_version ~ '-pdf1') }}"></script>
 {% endblock %}
