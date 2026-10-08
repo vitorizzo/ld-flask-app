@@ -4,6 +4,7 @@
   const html = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let hooks, selecting = false, busy = false, rows = [], selected = new Set(), snapshot = [];
   let configRequest = 0, configSaving = false;
+  let deletedCodes = [];
   const modal = id => bootstrap.Modal.getOrCreateInstance($(id));
 
   async function jsonRequest(url, options = {}) {
@@ -67,7 +68,8 @@
         <label>Reaction Slack<input class="form-control" data-field="slack_reaction" maxlength="66" placeholder="truck" value="${html(row.slack_reaction)}"></label>
       </div>
       <div class="status-config-checks"><label><input type="checkbox" data-field="is_visible" ${row.is_visible ? 'checked' : ''}> Colonna visibile</label><label><input type="checkbox" data-field="is_terminal" ${row.is_terminal ? 'checked' : ''}> Stato finale</label><span class="small">${Number(row.order_count || 0)} ordini</span></div>
-      <div class="status-config-actions"><button type="button" class="btn btn-sm btn-outline-secondary" data-direction="-1" ${index === 0 ? 'disabled' : ''}>Sposta su</button><button type="button" class="btn btn-sm btn-outline-secondary" data-direction="1" ${index === rows.length-1 ? 'disabled' : ''}>Sposta giu'</button>${row.existing ? '' : '<button type="button" class="btn btn-sm btn-outline-danger" data-remove>Rimuovi</button>'}</div>
+      <div class="status-config-actions"><button type="button" class="btn btn-sm btn-outline-secondary" data-direction="-1" ${index === 0 ? 'disabled' : ''}>Sposta su</button><button type="button" class="btn btn-sm btn-outline-secondary" data-direction="1" ${index === rows.length-1 ? 'disabled' : ''}>Sposta giu'</button><button type="button" class="btn btn-sm btn-outline-danger" data-remove ${row.is_protected || row.order_count > 0 ? 'disabled' : ''}>Elimina colonna</button></div>
+      ${row.is_protected ? '<p class="small mb-0 mt-2">Stato usato dai flussi dell\'app: non eliminabile.</p>' : row.order_count > 0 ? '<p class="small mb-0 mt-2">Sposta gli ordini con il cambio stato massivo, poi elimina la colonna.</p>' : ''}
     </section>`).join('');
     $('statusConfigRows').querySelectorAll('[data-field]').forEach(input => input.addEventListener('input', () => {
       const row = rows[Number(input.closest('[data-row]').dataset.row)];
@@ -75,7 +77,11 @@
     }));
     $('statusConfigRows').querySelectorAll('[data-direction],[data-remove]').forEach(button => button.addEventListener('click', () => {
       const index = Number(button.closest('[data-row]').dataset.row);
-      if (button.hasAttribute('data-remove')) rows.splice(index, 1);
+      if (button.hasAttribute('data-remove')) {
+        if (rows[index].existing) deletedCodes.push(rows[index].code);
+        rows.splice(index, 1);
+        $('statusConfigError').textContent = 'Colonna rimossa dalla configurazione. Premi Salva per confermare, oppure Annulla per ripristinarla.';
+      }
       else { const target = index + Number(button.dataset.direction); [rows[index], rows[target]] = [rows[target], rows[index]]; }
       renderConfig();
     }));
@@ -83,6 +89,7 @@
   async function openConfig() {
     const generation = ++configRequest;
     rows = [];
+    deletedCodes = [];
     $('statusConfigRows').textContent = 'Caricamento...';
     $('statusConfigError').textContent = '';
     modal('statusConfigModal').show();
@@ -106,7 +113,7 @@
     $('statusConfigRows').querySelectorAll('input,button').forEach(input => input.disabled = true);
     $('statusConfigAdd').disabled = true;
     try {
-      await jsonRequest('/kiosk/api/status-config', {method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({statuses: rows})});
+      await jsonRequest('/kiosk/api/status-config', {method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({statuses: rows, deleted_codes: deletedCodes})});
       await hooks.reloadStatuses();
       await hooks.reloadOrders();
       configSaving = false;
@@ -172,10 +179,14 @@
     $('bulkClear').addEventListener('click', () => { selected.clear(); updateSelection(); });
     $('bulkSelectVisible').addEventListener('click', () => { visibleCards().forEach(card => JSON.parse(card.dataset.selectionIds).forEach(id => selected.add(id))); updateSelection(); });
     $('bulkOpen').addEventListener('click', openBulk);
-    $('statusConfigAdd').addEventListener('click', () => { rows.push({code:'',label:'',slack_reaction:'',is_visible:true,is_terminal:false}); renderConfig(); });
+    $('statusConfigAdd').addEventListener('click', () => {
+      rows.push({code:'',label:'',slack_reaction:'',is_visible:true,is_terminal:false}); renderConfig();
+      const input = $('statusConfigRows').lastElementChild.querySelector('[data-field="label"]');
+      input.scrollIntoView({block:'center'}); input.focus();
+    });
     $('statusConfigModal').addEventListener('shown.bs.modal', () => { $('statusConfigSave').textContent = 'Salva configurazione'; $('statusConfigSave').disabled = !rows.length; $('statusConfigSave').onclick = saveConfig; });
     $('statusConfigModal').addEventListener('hide.bs.modal', event => { if (configSaving) event.preventDefault(); });
-    $('statusConfigModal').addEventListener('hidden.bs.modal', () => { configRequest++; rows = []; $('statusConfigSave').onclick = null; $('statusConfigError').textContent = ''; });
+    $('statusConfigModal').addEventListener('hidden.bs.modal', () => { configRequest++; rows = []; deletedCodes = []; $('statusConfigSave').onclick = null; $('statusConfigError').textContent = ''; });
     $('bulkOrdersModal').addEventListener('shown.bs.modal', () => { $('bulkOrdersApply').disabled = false; $('bulkOrdersApply').textContent = 'Applica agli ordini selezionati'; $('bulkOrdersApply').onclick = applyBulk; });
     $('bulkOrdersModal').addEventListener('hide.bs.modal', event => { if (busy) event.preventDefault(); });
     $('bulkOrdersModal').addEventListener('hidden.bs.modal', () => { snapshot = []; $('bulkOrdersApply').onclick = null; $('bulkOrdersResults').textContent = ''; });

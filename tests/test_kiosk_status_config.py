@@ -84,6 +84,25 @@ class KioskStatusTests(unittest.TestCase):
             response = self.client.put('/kiosk/api/status-config', json={'statuses': initial_rows()})
             self.assertEqual(response.status_code, 403)
 
+    def test_empty_custom_column_can_be_deleted_without_deleting_orders(self):
+        custom = dict(code='preparazione', label='Preparazione', slack_reaction='package', is_visible=True, is_terminal=False)
+        self.client.put('/kiosk/api/status-config', json={'statuses': initial_rows() + [custom]})
+        response = self.client.put('/kiosk/api/status-config', json={'statuses': initial_rows(), 'deleted_codes':['preparazione']})
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(OrderStatus.query.filter_by(code='preparazione').first())
+        self.assertEqual(SlackOrder.query.count(), 1)
+
+    def test_occupied_and_protected_columns_cannot_be_deleted(self):
+        custom = dict(code='preparazione', label='Preparazione', slack_reaction='package', is_visible=True, is_terminal=False)
+        self.client.put('/kiosk/api/status-config', json={'statuses': initial_rows() + [custom]})
+        self.order.status = 'preparazione'; db.session.commit()
+        response = self.client.put('/kiosk/api/status-config', json={'statuses': initial_rows(), 'deleted_codes':['preparazione']})
+        self.assertEqual(response.status_code, 400)
+        self.assertIsNotNone(OrderStatus.query.filter_by(code='preparazione').first())
+        response = self.client.put('/kiosk/api/status-config', json={'statuses': [initial_rows()[0], custom], 'deleted_codes':['evaso']})
+        self.assertEqual(response.status_code, 400)
+        self.assertIsNotNone(OrderStatus.query.filter_by(code='evaso').first())
+
     def test_custom_terminal_closes_and_reopening_clears_timestamp(self):
         db.session.add(OrderStatus(code='completato', label='Completato', order_index=2,
                                    slack_reaction='checkered_flag', is_terminal=True, is_visible=True))

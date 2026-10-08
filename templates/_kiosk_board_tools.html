@@ -3,11 +3,10 @@
     <div class="modal-header"><h5 class="modal-title" id="statusConfigTitle">Stati della bacheca</h5><button class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">
       <p>Le righe definiscono le colonne e il loro ordine. La reaction usa il nome Slack (ad esempio <strong>truck</strong> o <strong>:truck:</strong>), anche per emoji personalizzate.</p>
-      <p class="small">Gli stati finali restano visibili solo nel giorno di chiusura. Il codice degli stati esistenti resta fisso; puoi cambiare il nome. Una colonna con ordini non puo' essere nascosta. Acquisito resta lo stato iniziale, visibile e non finale. Le modifiche alle reaction valgono per i prossimi cambi di stato, senza riscrivere i messaggi precedenti.</p>
+      <p class="small">Gli stati finali restano visibili solo nel giorno di chiusura. Puoi creare colonne ed eliminare quelle personalizzate dopo aver spostato tutti gli ordini. Gli stati usati dai flussi dell'app sono protetti: puoi rinominarli e riordinarli. Acquisito resta iniziale, visibile e non finale. Le modifiche vengono applicate con Salva configurazione; le reaction valgono per i prossimi cambi di stato.</p>
       <div id="statusConfigRows"></div>
-      <button class="btn btn-outline-secondary" id="statusConfigAdd" type="button">Aggiungi stato</button>
     </div>
-    <div class="modal-footer"><div id="statusConfigError" class="board-tools-feedback" role="alert"></div><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button class="btn btn-info" id="statusConfigSave" type="button">Salva configurazione</button></div>
+    <div class="modal-footer"><div id="statusConfigError" class="board-tools-feedback" role="alert"></div><button class="btn btn-outline-secondary" id="statusConfigAdd" type="button">Nuova colonna</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button class="btn btn-info" id="statusConfigSave" type="button">Salva configurazione</button></div>
   </div></div>
 </div>
 <div class="modal fade manual-order-modal ld-modal ld-modal-standard" id="bulkOrdersModal" tabindex="-1" aria-labelledby="bulkOrdersTitle" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">

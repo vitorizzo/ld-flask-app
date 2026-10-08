@@ -13,7 +13,7 @@ from tools.log_utils import get_logger
 from tools.slack_processor import SlackProcessor
 from tools.slack_api import SlackAPI, SlackAPIConfig
 from tools.order_attachments import local_order_attachment_path
-from tools.order_status_config import validate_status_config
+from tools.order_status_config import validate_status_config, PROTECTED_ORDER_STATUSES
 from tools.role_required import role_required
 from models import SlackOrder, SlackOrderEvent, DeliveryRoute, DeliveryScheduleRule, OrderStatus, RouteOrderBoardEntry
 
@@ -1503,14 +1503,19 @@ def kiosk_status_config():
     if request.method == "GET":
         return jsonify(statuses=[dict(code=s.code, label=s.label, slack_reaction=s.slack_reaction,
                                      order_index=s.order_index, is_visible=s.is_visible,
-                                     is_terminal=s.is_terminal, order_count=counts.get(s.code, 0)) for s in statuses])
+                                     is_terminal=s.is_terminal, order_count=counts.get(s.code, 0),
+                                     is_protected=s.code in PROTECTED_ORDER_STATUSES) for s in statuses])
+    payload = request.get_json(silent=True)
     try:
-        rows = validate_status_config(request.get_json(silent=True),
+        rows = validate_status_config(payload,
                                       set(existing), {code for code, count in counts.items()
-                                                      if count and (code not in existing or existing[code].is_visible)})
+                                                      if count and (code not in existing or existing[code].is_visible)},
+                                      {code for code, count in counts.items() if count})
     except ValueError as exc:
         return jsonify(ok=False, error=str(exc)), 400
     try:
+        for code in payload.get("deleted_codes", []):
+            db.session.delete(existing[code])
         for row in rows:
             status = existing.get(row["code"])
             if status is None:
