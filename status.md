@@ -1,3 +1,9 @@
+## Elenco prodotti: filtri prezzo minimo e massimo (2026-10-08)
+
+- Ricerca articoli ad elenco /search/elenco-prodotti: aggiunti Prezzo minimo (€), Prezzo massimo (€) e selettore del listino tra le colonne consentite dal ruolo, con default al listino utente. Campi facoltativi, zero valido, decimali con punto/virgola, limiti inclusivi. Reset ripristina filtri e listino iniziale; cambi filtri ripartono da pagina1.
+- API /search/elenco-prodotti/dati applica il range SQL prima della paginazione, insieme a testo/giacenza. Prezzo3 usa lo stesso fallback prezzo_3 -> prezzo mostrato nelle celle; prezzo1/costo rispettano permessi esistenti. Prezzi mancanti esclusi solo quando un limite e' attivo. Validazione client/server per valori invalidi o minimo maggiore del massimo; risposte obsolete non sovrascrivono ricerche successive.
+- Verifiche:4 test API/DB SQLite isolato (estremi, zero, fallback/null, listini/permessi, combinazioni e totale paginato, validation);8 casi browser su template reale,2 temi,320/360/430/1440px (range/listino/giacenza/reset/pagina e risposta tardiva), anteprime mobile/desktop ispezionate e diff check passato. Nessuna migration o modifica dati; da attivare col deploy.
+
 ## Ordini fornitori: giacenze corrette, bozze, modifica e PDF fornitore (2026-10-08)
 
 - Upgrade q2f3a4b5c6d7 applicato in produzione prima del deploy, da copia temporanea Alembic: 2 schede/6 righe,5 gruppi/5 sottogruppi/39 assegnazioni invariati; configurazioni prodotto39, codici fornitore31. Primo seed non trovava descrizioni perche' separate in due campi: corretto match identico alla label applicativa e ripetuta upgrade idempotente, senza overwrite. Handler bacheca del codice attualmente deployato verificato200. Nessun deploy/riavvio eseguito; necessario deploy main e nuova importazione giacenze.

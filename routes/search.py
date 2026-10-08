@@ -2,6 +2,8 @@ import hashlib
 import mimetypes
 import os
 from datetime import datetime
+from decimal import Decimal, InvalidOperation
+import re
 
 from sqlalchemy.exc import SQLAlchemyError
 from flask import Blueprint, current_app, render_template, jsonify, request, abort, url_for, redirect, Response
@@ -42,7 +44,7 @@ from tools.product_pricing import (
     visible_product_price,
 )
 from tools.role_required import role_required
-from sqlalchemy import or_
+from sqlalchemy import or_, func
 
 
 logger = get_logger('search')
@@ -2173,11 +2175,36 @@ def _warehouse_price_columns():
 @login_required
 @role_required(30)
 def elenco_prodotti():
+    price_columns = _warehouse_price_columns()
+    _value, selected_price = visible_product_price(None, current_user)
     return render_template(
         'search/elenco_prodotti.html',
-        price_columns=_warehouse_price_columns(),
+        price_columns=price_columns,
+        filter_price_list=selected_price if selected_price in price_columns else next(iter(price_columns), ''),
         price_labels={key: label for key, label in selectable_price_lists(current_user)},
     )
+
+
+def _warehouse_price_limits():
+    values = []
+    for name, label in [('price_min', 'minimo'), ('price_max', 'massimo')]:
+        raw = (request.args.get(name) or '').strip()
+        if not raw:
+            values.append(None)
+            continue
+        try:
+            if len(raw) > 20 or not re.fullmatch(r'(?:\d+(?:[.,]\d*)?|[.,]\d+)', raw):
+                raise ValueError()
+            value = Decimal(raw.replace(',', '.'))
+            if not value.is_finite() or value < 0:
+                raise ValueError()
+        except (InvalidOperation, ValueError):
+            raise ValueError(f'Inserisci un prezzo {label} valido, maggiore o uguale a zero.')
+        values.append(value)
+    minimum, maximum = values
+    if minimum is not None and maximum is not None and minimum > maximum:
+        raise ValueError('Il prezzo minimo non può superare il prezzo massimo.')
+    return minimum, maximum
 
 
 @search_bp.get('/elenco-prodotti/dati')
@@ -2189,6 +2216,15 @@ def elenco_prodotti_dati():
     stock_scope = (request.args.get('stock_scope') or 'all').strip().lower()
     page = max(1, request.args.get('page', 1, type=int) or 1)
     per_page = max(1, min(request.args.get('per_page', 50, type=int) or 50, 200))
+    price_columns = _warehouse_price_columns()
+    _value, selected_price = visible_product_price(None, current_user)
+    price_list = (request.args.get('price_list') or selected_price or next(iter(price_columns), '')).strip()
+    try:
+        minimum, maximum = _warehouse_price_limits()
+        if price_list not in price_columns:
+            raise ValueError('Seleziona un listino disponibile per il tuo ruolo.')
+    except ValueError as error:
+        return jsonify(error=str(error)), 400
 
     query = Articoli.query
     if filtro:
@@ -2207,13 +2243,22 @@ def elenco_prodotti_dati():
         else:
             query = query.filter((Giacenza.giac_neg > 0) | (Giacenza.giac_www > 0))
 
+    price_expression = {
+        'prezzo1': Articoli.prezzo_1,
+        'prezzo3': func.coalesce(Articoli.prezzo_3, Articoli.prezzo),
+        'costo': Articoli.costo,
+    }[price_list]
+    if minimum is not None:
+        query = query.filter(price_expression >= minimum)
+    if maximum is not None:
+        query = query.filter(price_expression <= maximum)
+
     paginated = query.order_by(
         Articoli.descrizione.asc(),
         Articoli.descrizione_aggiuntiva.asc(),
         Articoli.cod_art.asc(),
     ).paginate(page=page, per_page=per_page, error_out=False)
 
-    price_columns = _warehouse_price_columns()
     products = []
     for article in paginated.items:
         stock = Giacenza.query.filter_by(cod_art=article.cod_art).first()

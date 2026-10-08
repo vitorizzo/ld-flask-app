@@ -1,3 +1,8 @@
+## Elenco prodotti: range prezzi (2026-10-08)
+
+- routes/search.py: _warehouse_price_limits valida price_min/price_max; elenco_prodotti_dati filtra il listino autorizzato price_list (prezzo1/prezzo3/costo) prima di paginate, con coalesce prezzo3 uguale al fallback visualizzato. Default listino derivato da visible_product_price; nessun nuovo modello/schema.
+- templates/search/elenco_prodotti.html: campi min/max e listino, combinati con filtri esistenti; debounce, reset e invalidazione risposte obsolete. tests/test_warehouse_price_filters.py verifica range inclusivi, fallback/zero/null, permessi e paginazione.
+
 ## Workflow ordini fornitori e parser snapshot MATRIXWS (2026-10-08)
 
 - Produzione gia' a q2f3a4b5c6d7,39 configurazioni/31 SKU iniziali. Match seed usa descrizione+descrizione_aggiuntiva come _article_label; schema e conteggi ordini verificati senza deploy applicativo.

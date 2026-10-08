@@ -127,6 +127,20 @@
           <button class="btn btn-primary flex-grow-1" type="submit"><i class="bi bi-search"></i> Cerca</button>
           <button class="btn btn-outline-secondary" type="button" id="warehouse-reset">Reset</button>
         </div>
+        <div class="col-12 col-sm-4 col-lg-4">
+          <label for="warehouse-price-list" class="form-label">Prezzo da filtrare</label>
+          <select id="warehouse-price-list" class="form-select" data-default="{{ filter_price_list }}">
+            {% for key in price_columns %}<option value="{{ key }}" {% if key == filter_price_list %}selected{% endif %}>{{ price_labels.get(key, key) }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-sm-4 col-lg-4">
+          <label for="warehouse-price-min" class="form-label">Prezzo minimo (€)</label>
+          <input id="warehouse-price-min" class="form-control" type="text" inputmode="decimal" maxlength="20" placeholder="Nessun minimo" autocomplete="off">
+        </div>
+        <div class="col-12 col-sm-4 col-lg-4">
+          <label for="warehouse-price-max" class="form-label">Prezzo massimo (€)</label>
+          <input id="warehouse-price-max" class="form-control" type="text" inputmode="decimal" maxlength="20" placeholder="Nessun massimo" autocomplete="off">
+        </div>
       </div>
     </form>
 
@@ -154,6 +168,9 @@
   const form = document.getElementById('warehouse-filters');
   const filter = document.getElementById('warehouse-filter');
   const stock = document.getElementById('warehouse-stock');
+  const priceList = document.getElementById('warehouse-price-list');
+  const priceMin = document.getElementById('warehouse-price-min');
+  const priceMax = document.getElementById('warehouse-price-max');
   const head = document.getElementById('warehouse-head');
   const body = document.getElementById('warehouse-body');
   const feedback = document.getElementById('warehouse-feedback');
@@ -161,17 +178,33 @@
   const pageInfo = document.getElementById('warehouse-page-info');
   let page = 1;
   let timer;
+  let requestId = 0;
 
   const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const showError = (message) => { feedback.textContent = message; feedback.className = 'alert alert-danger'; };
   const clearError = () => { feedback.textContent = ''; feedback.className = 'alert d-none'; };
 
   function load() {
+    const currentRequest = ++requestId;
+    clearTimeout(timer);
     clearError();
+    const limits = [priceMin, priceMax].map(input => input.value.trim());
+    for (const [index, value] of limits.entries()) {
+      if (value && (!/^(?:\d+(?:[.,]\d*)?|[.,]\d+)$/.test(value) || !Number.isFinite(Number(value.replace(',', '.'))))) {
+        showError(`Inserisci un prezzo ${index === 0 ? 'minimo' : 'massimo'} valido, maggiore o uguale a zero.`); return;
+      }
+    }
+    if (limits[0] && limits[1] && Number(limits[0].replace(',', '.')) > Number(limits[1].replace(',', '.'))) {
+      showError('Il prezzo minimo non può superare il prezzo massimo.'); return;
+    }
     const params = new URLSearchParams({filter: filter.value.trim(), stock_scope: stock.value, page, per_page: 50});
+    params.set('price_list', priceList.value);
+    if (limits[0]) params.set('price_min', limits[0]);
+    if (limits[1]) params.set('price_max', limits[1]);
     fetch('{{ url_for("search.elenco_prodotti_dati") }}?' + params.toString(), {headers: {'Accept': 'application/json'}})
       .then(response => response.ok ? response.json() : response.json().then(data => Promise.reject(new Error(data.error || 'Errore di caricamento'))))
       .then(data => {
+        if (currentRequest !== requestId) return;
         const columns = data.price_columns || [];
         const labels = data.price_labels || {};
         head.innerHTML = '<th>Codice</th><th>Descrizione</th><th class="text-end">Negozio</th><th class="text-end">Online</th>' +
@@ -195,14 +228,15 @@
           row.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
         });
       })
-      .catch(error => showError(error.message || 'Impossibile caricare i prodotti.'));
+      .catch(error => { if (currentRequest === requestId) showError(error.message || 'Impossibile caricare i prodotti.'); });
   }
   form.addEventListener('submit', event => { event.preventDefault(); page = 1; load(); });
   stock.addEventListener('change', () => { page = 1; load(); });
-  document.getElementById('warehouse-reset').addEventListener('click', () => { filter.value = ''; stock.value = 'all'; page = 1; load(); });
+  priceList.addEventListener('change', () => { page = 1; load(); });
+  document.getElementById('warehouse-reset').addEventListener('click', () => { filter.value = ''; stock.value = 'all'; priceMin.value = ''; priceMax.value = ''; priceList.value = priceList.dataset.default; page = 1; load(); });
   document.getElementById('warehouse-prev').addEventListener('click', () => { if (page > 1) { page--; load(); } });
   document.getElementById('warehouse-next').addEventListener('click', () => { page++; load(); });
-  filter.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => { page = 1; load(); }, 350); });
+  [filter, priceMin, priceMax].forEach(input => input.addEventListener('input', () => { requestId++; clearTimeout(timer); timer = setTimeout(() => { page = 1; load(); }, 350); }));
   load();
 })();
 </script>
