@@ -1887,3 +1887,10 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 
 - Configurazione /kiosk/api/status-config estesa con deleted_codes espliciti: cancellazione di OrderStatus personalizzati senza ordini nella transazione di salvataggio. Validazione protegge codici dei flussi applicativi e stati occupati, senza cancellare ordini/eventi.
 - _kiosk_board_tools.html: Nuova colonna nel footer fisso; kiosk_board_tools.js tools2: focus/scroll nuova riga, Elimina colonna, rimozioni differite fino a Salva e ripristino con Annulla. GET config espone is_protected e conteggio ordini per spiegare i vincoli.
+## Bacheca fornitori indipendente (2026-10-08)
+
+- /supplier-orders/board estende routes/supplier_orders.py; GET /api/board, POST /api/board/cards e PUT /api/board/cards/<id> per lettura/creazione/modifica/spostamento/archiviazione. Ruolo minimo 40. Sezione gruppi e giacenze preesistente conservata.
+- SupplierBoardColumn e SupplierBoardCard in models.py; migration m8b9c0d1e2f3 dopo l7a8b9c0d1e2 crea tabelle/indici, otto colonne ispirate a Trello Scarichi - Ufficio e menu. Nessun riferimento agli stati clienti, messaggi Slack o automazioni Trello.
+- templates/supplier_orders/board.html, static/css/supplier_board.css e static/js/supplier_board.js: pagina ld-page-standard/viewport, layout bacheca condiviso via kiosk_overview.css, ricerca, modale ld-modal-standard, archivio recuperabile, selettore colonna e drag desktop. Fonte dati locale; import Trello e regole operative non implementati nella bozza.
+- Test ripetibile: python -B -m unittest discover -s tests -p test_supplier_board.py -v. Deploy richiede flask db upgrade.
+- Plancia: mobileSummary in templates/route_orders/board.html include customer.phones con link tel: visibili; static/css/route_order_board.css phones2 gestisce contenimento/contrasto. API contatti invariata.

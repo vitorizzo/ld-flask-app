@@ -1,17 +1,88 @@
 from __future__ import annotations
 
 from flask import Blueprint, jsonify, redirect, render_template, request, url_for
+from datetime import date
 from flask_login import current_user
 from sqlalchemy import func, or_
 
 from extensions import db
 from models import Articoli, InventarioExport, SupplierOrderGroup, SupplierOrderGroupItem, SupplierOrderMatrixName
 from tools.role_required import role_required
+from models import SupplierBoardColumn, SupplierBoardCard, BusinessRegistry
 
 
 supplier_orders_bp = Blueprint("supplier_orders", __name__, template_folder="../templates")
 
 MIN_SUPPLIER_ORDERS_WEIGHT = 40
+
+
+def _supplier_card_dict(card, supplier_names=None):
+    if supplier_names is None:
+        row = db.session.query(BusinessRegistry.display_name).filter_by(id=card.supplier_id).first() if card.supplier_id else None
+        supplier_names = {card.supplier_id: row[0]} if row else {}
+    return dict(id=card.id, column_id=card.column_id, supplier_id=card.supplier_id,
+                supplier_name=supplier_names.get(card.supplier_id),
+                title=card.title, notes=card.notes or "", reference=card.reference or "",
+                expected_date=card.expected_date.isoformat() if card.expected_date else "",
+                is_archived=card.is_archived)
+
+
+@supplier_orders_bp.get("/board")
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def board():
+    return render_template("supplier_orders/board.html")
+
+
+@supplier_orders_bp.get("/api/board")
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def board_data():
+    columns = SupplierBoardColumn.query.order_by(SupplierBoardColumn.order_index, SupplierBoardColumn.id).all()
+    query = SupplierBoardCard.query
+    if request.args.get("archived") != "1":
+        query = query.filter_by(is_archived=False)
+    cards = query.order_by(SupplierBoardCard.expected_date.asc().nullslast(), SupplierBoardCard.id.desc()).all()
+    supplier_ids = {card.supplier_id for card in cards if card.supplier_id}
+    supplier_names = dict(db.session.query(BusinessRegistry.id, BusinessRegistry.display_name).filter(BusinessRegistry.id.in_(supplier_ids)).all()) if supplier_ids else {}
+    return jsonify(ok=True, columns=[dict(id=c.id, name=c.name, is_terminal=c.is_terminal) for c in columns],
+                   cards=[_supplier_card_dict(card, supplier_names) for card in cards])
+
+
+@supplier_orders_bp.route("/api/board/cards", methods=["POST"])
+@supplier_orders_bp.route("/api/board/cards/<int:card_id>", methods=["PUT"])
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def board_save_card(card_id=None):
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify(ok=False, error="Dati scheda non validi"), 400
+    card = db.session.get(SupplierBoardCard, card_id) if card_id else SupplierBoardCard()
+    if card_id and card is None:
+        return jsonify(ok=False, error="Scheda non trovata"), 404
+    try:
+        title = payload.get("title", card.title or "")
+        notes = payload.get("notes", card.notes or "")
+        reference = payload.get("reference", card.reference or "")
+        if not isinstance(title, str) or not title.strip() or len(title.strip()) > 200:
+            raise ValueError("Inserisci un titolo (massimo 200 caratteri).")
+        if not isinstance(notes, str) or len(notes) > 40000 or not isinstance(reference, str) or len(reference) > 160:
+            raise ValueError("Note o riferimento troppo lunghi.")
+        column_id = payload.get("column_id", card.column_id)
+        if type(column_id) is not int or db.session.get(SupplierBoardColumn, column_id) is None:
+            raise ValueError("Seleziona una colonna valida.")
+        supplier_id = payload.get("supplier_id", card.supplier_id)
+        if supplier_id is not None and (type(supplier_id) is not int or db.session.query(BusinessRegistry.id).filter_by(id=supplier_id, kind="supplier", is_active=True).first() is None):
+            raise ValueError("Seleziona un fornitore attivo della Rubrica.")
+        expected = payload.get("expected_date", card.expected_date.isoformat() if card.expected_date else "")
+        expected_date = date.fromisoformat(expected) if expected else None
+        archived = payload.get("is_archived", card.is_archived or False)
+        if type(archived) is not bool:
+            raise ValueError("Archiviazione non valida.")
+    except (ValueError, TypeError) as exc:
+        return jsonify(ok=False, error=str(exc) if isinstance(exc, ValueError) else "Dati scheda non validi"), 400
+    card.title = title.strip(); card.notes = notes.strip(); card.reference = reference.strip()
+    card.column_id = column_id; card.supplier_id = supplier_id; card.expected_date = expected_date; card.is_archived = archived
+    db.session.add(card)
+    db.session.commit()
+    return jsonify(ok=True, card=_supplier_card_dict(card)), 200 if card_id else 201
 
 
 def _variant_root(cod_art: str) -> str:

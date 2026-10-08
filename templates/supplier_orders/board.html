@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Bacheca fornitori{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css', v=app_version ~ '-supplier1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-supplier1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_board.css', v=app_version ~ '-draft1') }}">
+{% endblock %}
+{% block content %}
+<section class="ld-page ld-page-standard ld-page-viewport supplier-board-page">
+  <header class="supplier-board-head">
+    <div><h1>Bacheca fornitori</h1><p>Arrivi, caricamento e anomalie degli ordini fornitori.</p></div>
+    <div class="supplier-board-actions"><button class="btn btn-info" id="supplierNew" type="button">Nuova scheda</button><button class="btn btn-outline-secondary" id="supplierRefresh" type="button">Aggiorna</button><a class="btn btn-outline-secondary" href="{{ url_for('supplier_orders.index') }}">Gruppi e giacenze</a></div>
+  </header>
+  <div class="supplier-board-filters"><label for="supplierFilter" class="visually-hidden">Cerca nelle schede</label><input id="supplierFilter" class="form-control" type="search" placeholder="Cerca fornitore, titolo o riferimento"><label><input id="supplierArchived" type="checkbox"> Mostra archiviate</label></div>
+  <div id="supplierFeedback" role="status" aria-live="polite"></div>
+  <div class="supplier-column-tabs" id="supplierColumnTabs" aria-label="Colonne"></div>
+  <div class="kiosk-cols supplier-board-cols" id="supplierColumns"></div>
+</section>
+<div class="modal fade manual-order-modal ld-modal ld-modal-standard" id="supplierCardModal" tabindex="-1" aria-labelledby="supplierCardTitle" aria-hidden="true">
+ <div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 id="supplierCardTitle" class="modal-title">Scheda fornitore</h5><button class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+  <div class="modal-body">
+   <label class="form-label" for="supplierCardName">Titolo</label><input class="form-control mb-3" id="supplierCardName" maxlength="200" placeholder="Fornitore e descrizione dell'arrivo">
+   <label class="form-label" for="supplierSearch">Collega un fornitore della Rubrica</label><input class="form-control mb-2" id="supplierSearch" type="search" placeholder="Cerca fornitore"><select id="supplierRegistry" class="form-select mb-3"><option value="">Senza collegamento alla Rubrica</option></select>
+   <div class="supplier-card-fields"><div><label class="form-label" for="supplierCardColumn">Colonna</label><select id="supplierCardColumn" class="form-select"></select></div><div><label class="form-label" for="supplierCardDate">Arrivo previsto</label><input class="form-control" type="date" id="supplierCardDate"></div></div>
+   <label class="form-label mt-3" for="supplierCardReference">Riferimento ordine / documento</label><input class="form-control mb-3" id="supplierCardReference" maxlength="160">
+   <label class="form-label" for="supplierCardNotes">Note e anomalie</label><textarea id="supplierCardNotes" class="form-control" rows="6" maxlength="40000"></textarea>
+  </div>
+  <div class="modal-footer"><div id="supplierCardError" class="supplier-card-error" role="alert"></div><button class="btn btn-outline-secondary" id="supplierCardArchive" type="button" hidden>Archivia</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button id="supplierCardSave" class="btn btn-info" type="button">Salva scheda</button></div>
+ </div></div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/ld_modal.js', v=app_version ~ '-supplier1') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_board.js', v=app_version ~ '-draft1') }}"></script>
+{% endblock %}

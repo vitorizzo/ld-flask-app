@@ -4,7 +4,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/registry_contact_modal.css', v=app_version ~ '-shared1') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/route_order_board.css', v=app_version ~ '-engine1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/route_order_board.css', v=app_version ~ '-phones2') }}">
 
 {% endblock %}
 
@@ -279,10 +279,11 @@
     return boardStatusLabels().get(statusCode) || fallback || statusCode || "Da chiamare";
   }
 
-  function mobileSummary(name, statusText) {
-    return `<div class="route-board-mobile-summary" aria-hidden="true">
+  function mobileSummary(name, statusText, phones = []) {
+    return `<div class="route-board-mobile-summary">
       <div class="route-board-mobile-summary__name">${esc(name)}</div>
       <div class="route-board-mobile-summary__status">${esc(statusText)}</div>
+      ${phones.length ? `<div class="route-board-mobile-summary__phones">${phones.map(phone => `<a href="tel:${esc(phone.value)}" title="${esc(phone.full_label || phone.label || 'Telefono')}">${esc(phone.value)}</a>`).join('')}</div>` : ''}
     </div>`;
   }
 
@@ -468,7 +469,7 @@
         : "";
       return `
         <tr data-customer-id="${customer.id}" data-board-tone="${esc(rowTone)}" data-board-status-label="${esc(rowStatusLabel)}">
-          <td>${mobileSummary(customer.display, rowStatusLabel)}<span class="route-board-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span>${documentBadge}<div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div></td>
+          <td>${mobileSummary(customer.display, rowStatusLabel, customer.phones || [])}<span class="route-board-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span>${documentBadge}<div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div></td>
           <td>${phones}<button class="btn btn-outline-info btn-sm mt-1" type="button" data-action="contact-add"><i class="fa-solid fa-plus"></i> Contatto</button></td>
           <td><select class="form-select form-select-sm" data-action="status">${statusOptions}</select></td>
           <td class="text-center"><input class="form-check-input" type="checkbox" data-action="listDone" ${entry.list_done ? "checked" : ""}></td>
@@ -566,7 +567,7 @@
       const alertBadge = customer.alerts && customer.alerts.length ? `<span title="${esc(alertsTitle(customer.alerts))}" class="ms-1">⚠</span>` : "";
       return `
         <tr data-direct-customer-id="${esc(customer.id || "")}" data-board-tone="${esc(rowTone)}" data-board-status-label="${esc(rowStatusLabel)}">
-          <td>${mobileSummary(customer.display, rowStatusLabel)}<span class="route-board-direct-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span>${orders.length ? documentBadge : ""}<div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div></td>
+          <td>${mobileSummary(customer.display, rowStatusLabel, customer.phones || [])}<span class="route-board-direct-customer" title="${esc(alertsTitle(customer.alerts || []))}">${esc(customer.display)}${alertBadge}</span>${orders.length ? documentBadge : ""}<div class="text-muted small">${esc(customer.source_code || "")} ${esc(customer.city || "")}</div></td>
           <td>${phones}<button class="btn btn-outline-info btn-sm mt-1" type="button" data-action="direct-contact-add" ${customer.id ? "" : "disabled title='Cliente non collegato a una anagrafica'"}><i class="fa-solid fa-plus"></i> Contatto</button></td>
           <td>${latest.id ? `<select class="form-select form-select-sm" data-action="direct-latest-status" data-order-id="${latest.id}">${statusOptions}</select>` : '<span class="text-muted small">-</span>'}</td>
           <td class="text-center"><input class="form-check-input" type="checkbox" data-direct-list-done ${latest.status === "listato" ? "checked" : ""} ${latest.id ? "" : "disabled"}></td>

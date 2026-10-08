@@ -241,6 +241,9 @@ html[data-responsive-mode="mobile"] .route-board-mobile-summary__name {
       line-height: 1.15;
       overflow-wrap: anywhere;
     }
+html[data-responsive-mode="mobile"] .route-board-mobile-summary { flex-wrap: wrap; }
+html[data-responsive-mode="mobile"] .route-board-mobile-summary__phones { flex: 0 0 100%; display: flex; flex-wrap: wrap; gap: .5em 1em; min-width: 0; }
+html[data-responsive-mode="mobile"] .route-board-mobile-summary__phones a { color: var(--ld-brand-primary); font-weight: 600; text-decoration: underline; overflow-wrap: anywhere; max-width: 100%; }
 html[data-responsive-mode="mobile"] .route-board-mobile-summary__status {
       flex: 0 0 auto;
 

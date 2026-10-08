@@ -1104,6 +1104,30 @@ class SocialEventPost(db.Model):
     created_by = db.relationship("User", backref="created_social_event_posts")
 
 
+class SupplierBoardColumn(db.Model):
+    __tablename__ = "supplier_board_columns"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(64), nullable=False)
+    order_index = db.Column(db.Integer, nullable=False)
+    is_terminal = db.Column(db.Boolean, nullable=False, default=False)
+
+
+class SupplierBoardCard(db.Model):
+    __tablename__ = "supplier_board_cards"
+    id = db.Column(db.Integer, primary_key=True)
+    column_id = db.Column(db.Integer, db.ForeignKey("supplier_board_columns.id", ondelete="RESTRICT"), nullable=False, index=True)
+    supplier_id = db.Column(db.Integer, db.ForeignKey("business_registries.id", ondelete="RESTRICT"), nullable=True, index=True)
+    title = db.Column(db.String(200), nullable=False)
+    notes = db.Column(db.Text, nullable=True)
+    reference = db.Column(db.String(160), nullable=True)
+    expected_date = db.Column(db.Date, nullable=True)
+    is_archived = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
+    column = db.relationship("SupplierBoardColumn")
+    supplier = db.relationship("BusinessRegistry")
+
+
 class SupplierOrderGroup(db.Model):
     __tablename__ = "supplier_order_groups"
     __table_args__ = (
