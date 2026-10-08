@@ -48,6 +48,9 @@
  }
  function openCard(card=null) {
   editing = card;
+  const lines = card?.order_lines || [];
+  $('supplierCardOrderLines').hidden = !lines.length;
+  $('supplierCardOrderLines').innerHTML = lines.length ? '<h6>Prodotti ordinati</h6>' + lines.map(line => `<p><strong>${esc(line.description)}</strong><br>${esc(line.matrix_code)}${line.subgroup_name ? ' · '+esc(line.subgroup_name) : ''}<br>Da ordinare: <strong>${esc(line.quantity)}</strong> · Giacenza alla creazione: ${esc(line.stock_at_order)}</p>`).join('') : '';
   $('supplierCardTitle').textContent=card?'Modifica scheda':'Nuova scheda fornitore';
   $('supplierCardName').value=card?.title||'';$('supplierCardNotes').value=card?.notes||'';$('supplierCardReference').value=card?.reference||'';$('supplierCardDate').value=card?.expected_date||'';
   $('supplierCardColumn').innerHTML=options(card?.column_id||data.columns[0]?.id);

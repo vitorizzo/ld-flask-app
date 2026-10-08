@@ -13,6 +13,7 @@ from extensions import db
 from models import (Articoli, Giacenza, SupplierOrderGroup, SupplierOrderGroupItem,
                     SupplierOrderMatrixName, SupplierOrderSubgroup, SupplierOrderSubgroupMatrix)
 from routes.supplier_orders import supplier_orders_bp, _expanded_articles_for_group
+from models import SupplierBoardColumn
 
 
 @compiles(JSONB, 'sqlite')
@@ -28,7 +29,7 @@ class SupplierSubgroupTests(unittest.TestCase):
         default=Articoli.__table__.c.id_art.server_default
         try:
             Articoli.__table__.c.id_art.server_default=None
-            db.metadata.create_all(db.engine,tables=[m.__table__ for m in [Articoli,Giacenza,SupplierOrderGroup,SupplierOrderGroupItem,SupplierOrderMatrixName,SupplierOrderSubgroup,SupplierOrderSubgroupMatrix]])
+            db.metadata.create_all(db.engine,tables=[m.__table__ for m in [Articoli,Giacenza,SupplierOrderGroup,SupplierOrderGroupItem,SupplierOrderMatrixName,SupplierOrderSubgroup,SupplierOrderSubgroupMatrix,SupplierBoardColumn]])
         finally: Articoli.__table__.c.id_art.server_default=default
         db.session.execute(Articoli.__table__.insert(),[dict(id_art=i,cod_art=code,descrizione=code) for i,code in enumerate(['COFFEE','COFFEE-24','COFFEE-25','POD'],1)])
         db.session.add_all([SupplierOrderGroup(id=1,name='Caffe'),SupplierOrderGroup(id=2,name='Altro')]);db.session.flush()

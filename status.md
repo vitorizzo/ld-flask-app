@@ -1,3 +1,11 @@
+## Ordini fornitori: Crea ordine dai gruppi (2026-10-08)
+
+- Consulta rinominato Crea ordine. Modale del gruppo conserva sottogruppi, giacenza totale per matrice e fisarmonica varianti; aggiunto campo Da ordinare sulla riga principale, accanto alla giacenza. Quantita' intere 0/vuoto ignorate, positive incluse; titolo e colonna bacheca selezionabili, prima colonna non finale come default. Footer mobile compatto.
+- POST /supplier-orders/groups/<id>/orders valida tutte le righe prima della scrittura (matrice appartenente al gruppo, no duplicati, quantita' 1..1000000, titolo/colonna). Crea scheda e righe in transazione unica. Non invia al fornitore/Slack/Trello e non modifica giacenze. Scheda conserva descrizione, sottogruppo e giacenza al momento della creazione, indipendenti dai successivi aggiornamenti stock/gruppi.
+- SupplierBoardOrderLine e migration o0d1e2f3a4b5 (parent n9c0d1e2f3a4), tabella supplier_board_order_lines con FK alla scheda e unicita' matrice/scheda. Le API bacheca espongono order_lines con caricamento aggregato; modale scheda mostra Prodotti ordinati. Modifiche note/titolo/stato non alterano le righe salvate. Cache CSS/JS order1.
+- Durante salvataggio chiusura bloccata e campi disabilitati, pulsante riassegnato su shown e ripulito su hidden; errore conserva quantita', chiusura/riapertura mantiene la compilazione non salvata, successo azzera quantita' e offre link bacheca.
+- Verifiche: 4 test API/DB/migration isolati e 5 regressioni bacheca; 8 casi browser Crea ordine e 10 bacheca, due temi e smartphone/desktop, validazione, errore/riapertura, righe salvate/escape, modale sopra backdrop. Anteprime ispezionate, sintassi JS/diff check e singolo Alembic head confermati. Deploy richiede flask db upgrade prima del riavvio; nessuna migration o ordine di prova eseguiti in produzione.
+
 ## Ordini fornitori: sottogruppi prodotti (2026-10-08)
 
 - Aggiunti sottogruppi definiti dall'utente dentro ciascun gruppo, senza categorie preimpostate. In Gestisci prodotti: creazione, scelta destinazione, Assegna selezionati, rinomina ed eliminazione con conferma. Eliminazione conserva tutti i prodotti, riportandoli a Senza sottogruppo. Nomi e intestazioni renderizzati con escape/textContent.

@@ -1,3 +1,9 @@
+## Ordini fornitori: creazione ordine da gruppo (2026-10-08)
+
+- SupplierBoardOrderLine in models.py; migration o0d1e2f3a4b5 dopo n9c0d1e2f3a4. Riga storica con matrix_code, description, subgroup_name, quantity e stock_at_order, dipendente dalla scheda e indipendente dalla Rubrica articoli/gruppi.
+- `routes/supplier_orders.py`: POST /groups/<id>/orders crea scheda+righe atomicamente, giacenze rilette dal DB. Index espone colonne; API bacheca espone order_lines con selectinload. Nessuna uscita stock o integrazione esterna.
+- Template/controller/CSS supplier_orders: Crea ordine, quantita' per matrice a fianco della giacenza, titolo/colonna, validazione e salvataggio; supplier_board mostra righe nella modale scheda. Cache order1. Test: python -B -m unittest discover -s tests -p test_supplier_group_orders.py -v.
+
 ## Ordini fornitori: sottogruppi configurabili (2026-10-08)
 
 - SupplierOrderSubgroup (nome/gruppo) e SupplierOrderSubgroupMatrix (matrice/gruppo/destinazione) in models.py. Migration n9c0d1e2f3a4, parent m8b9c0d1e2f3. Assegnazione unica per matrice dentro un gruppo; cancellazione sottogruppo elimina le classificazioni, non gli articoli.

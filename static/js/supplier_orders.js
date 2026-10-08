@@ -14,6 +14,60 @@
     });
   });
 
+  document.querySelectorAll('[data-create-order-group]').forEach(node => {
+    let saving = false;
+    const save = node.querySelector('[data-order-save]');
+    const status = node.querySelector('[data-order-status]');
+    const quantities = [...node.querySelectorAll('[data-order-quantity]')];
+    quantities.forEach(input => {
+      input.addEventListener('click', event => event.stopPropagation());
+      input.addEventListener('keydown', event => event.stopPropagation());
+    });
+    async function saveOrder() {
+      if (saving) return;
+      const lines = [];
+      for (const input of quantities) {
+        const value = input.value.trim();
+        if ((value === '' && !input.validity.badInput) || (input.validity.valid && Number(value) === 0)) continue;
+        const quantity = Number(value);
+        if (!input.validity.valid || !Number.isInteger(quantity) || quantity < 0 || quantity > 1000000) {
+          status.textContent = "Inserisci quantita' intere, da 0 a 1000000."; input.focus(); return;
+        }
+        lines.push({matrix_code: input.dataset.matrixCode, quantity});
+      }
+      if (!lines.length) { status.textContent = "Inserisci almeno una quantita' da ordinare."; return; }
+      const title = node.querySelector('[data-order-title]').value.trim();
+      if (!title) { status.textContent = 'Inserisci il titolo ordine.'; return; }
+      saving = true; save.disabled = true; status.textContent = 'Salvataggio...';
+      const fields = [...node.querySelectorAll('input, select')];
+      fields.forEach(field => { field.disabled = true; });
+      try {
+        const response = await fetch(`/supplier-orders/groups/${node.dataset.createOrderGroup}/orders`, {
+          method: 'POST', headers: {'Content-Type': 'application/json', Accept: 'application/json'},
+          body: JSON.stringify({title, column_id: Number(node.querySelector('[data-order-column]').value), lines}),
+        });
+        const payload = await response.json();
+        if (!response.ok || !payload.ok) throw new Error(payload.error || 'Salvataggio non riuscito.');
+        quantities.forEach(input => { input.value = ''; });
+        status.textContent = `Ordine salvato in bacheca: ${payload.card.title}.`;
+        const link = document.createElement('a');
+        link.href = '/supplier-orders/board'; link.textContent = ' Apri bacheca'; status.append(link);
+      } catch (error) {
+        status.textContent = error.message;
+      } finally {
+        saving = false; save.disabled = false;
+        fields.forEach(field => { field.disabled = false; });
+      }
+    }
+    node.addEventListener('shown.bs.modal', () => {
+      save.disabled = false; save.textContent = 'Salva ordine in bacheca'; save.onclick = saveOrder;
+    });
+    node.addEventListener('hide.bs.modal', event => { if (saving) event.preventDefault(); });
+    node.addEventListener('hidden.bs.modal', () => {
+      save.onclick = null; save.disabled = false; status.textContent = '';
+    });
+  });
+
   const definitionModalNode = document.getElementById("supplierGroupModal");
   const definitionModal = modals.get("#supplierGroupModal");
   const definitionForm = document.getElementById("supplierGroupForm");

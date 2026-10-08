@@ -14,6 +14,7 @@ from extensions import db
 from models import (SupplierBoardColumn, SupplierBoardCard, BusinessRegistry, BusinessRegistryContact,
                     RegistryContact, RegistryContactPoint, BusinessRegistryContactLink)
 from routes.supplier_orders import supplier_orders_bp
+from models import SupplierBoardOrderLine
 
 
 @compiles(JSONB, 'sqlite')
@@ -27,7 +28,7 @@ class SupplierBoardTests(unittest.TestCase):
         db.init_app(self.app);self.app.register_blueprint(supplier_orders_bp,url_prefix='/supplier-orders')
         self.ctx=self.app.app_context();self.ctx.push()
         tables=[BusinessRegistry, BusinessRegistryContact, RegistryContact, RegistryContactPoint,
-                BusinessRegistryContactLink, SupplierBoardColumn, SupplierBoardCard]
+                BusinessRegistryContactLink, SupplierBoardColumn, SupplierBoardCard, SupplierBoardOrderLine]
         db.metadata.create_all(db.engine,tables=[model.__table__ for model in tables])
         db.session.add_all([SupplierBoardColumn(id=1,name='In Arrivo',order_index=0),SupplierBoardColumn(id=2,name='Ultimate',order_index=1,is_terminal=True)])
         db.session.add_all([BusinessRegistry(id=1,kind='supplier',source='manual',source_code='S1',display_name='Fornitore prova'),BusinessRegistry(id=2,kind='customer',source='manual',source_code='C1',display_name='Cliente prova')])

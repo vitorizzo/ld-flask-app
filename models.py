@@ -1128,6 +1128,19 @@ class SupplierBoardCard(db.Model):
     supplier = db.relationship("BusinessRegistry")
 
 
+class SupplierBoardOrderLine(db.Model):
+    __tablename__ = "supplier_board_order_lines"
+    __table_args__ = (db.UniqueConstraint("card_id", "matrix_code", name="uq_supplier_board_order_matrix"),)
+    id = db.Column(db.Integer, primary_key=True)
+    card_id = db.Column(db.Integer, db.ForeignKey("supplier_board_cards.id", ondelete="CASCADE"), nullable=False, index=True)
+    matrix_code = db.Column(db.String(255), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    subgroup_name = db.Column(db.String(160), nullable=True)
+    quantity = db.Column(db.Integer, nullable=False)
+    stock_at_order = db.Column(db.Integer, nullable=False)
+    card = db.relationship("SupplierBoardCard", backref=db.backref("order_lines", cascade="all, delete-orphan", order_by="SupplierBoardOrderLine.id"))
+
+
 class SupplierOrderGroup(db.Model):
     __tablename__ = "supplier_order_groups"
     __table_args__ = (

@@ -4,12 +4,14 @@ from flask import Blueprint, jsonify, redirect, render_template, request, url_fo
 from datetime import date
 from flask_login import current_user
 from sqlalchemy import func, or_
+from sqlalchemy.orm import selectinload
 
 from extensions import db
 from models import Articoli, Giacenza, SupplierOrderGroup, SupplierOrderGroupItem, SupplierOrderMatrixName
 from tools.role_required import role_required
 from models import SupplierBoardColumn, SupplierBoardCard, BusinessRegistry
 from models import SupplierOrderSubgroup, SupplierOrderSubgroupMatrix
+from models import SupplierBoardOrderLine
 
 
 supplier_orders_bp = Blueprint("supplier_orders", __name__, template_folder="../templates")
@@ -25,7 +27,10 @@ def _supplier_card_dict(card, supplier_names=None):
                 supplier_name=supplier_names.get(card.supplier_id),
                 title=card.title, notes=card.notes or "", reference=card.reference or "",
                 expected_date=card.expected_date.isoformat() if card.expected_date else "",
-                is_archived=card.is_archived)
+                is_archived=card.is_archived,
+                order_lines=[dict(matrix_code=line.matrix_code, description=line.description,
+                                  subgroup_name=line.subgroup_name or "", quantity=line.quantity,
+                                  stock_at_order=line.stock_at_order) for line in card.order_lines])
 
 
 @supplier_orders_bp.get("/board")
@@ -38,7 +43,7 @@ def board():
 @role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
 def board_data():
     columns = SupplierBoardColumn.query.order_by(SupplierBoardColumn.order_index, SupplierBoardColumn.id).all()
-    query = SupplierBoardCard.query
+    query = SupplierBoardCard.query.options(selectinload(SupplierBoardCard.order_lines))
     if request.args.get("archived") != "1":
         query = query.filter_by(is_archived=False)
     cards = query.order_by(SupplierBoardCard.expected_date.asc().nullslast(), SupplierBoardCard.id.desc()).all()
@@ -223,7 +228,46 @@ def index():
         group_cards=group_cards,
         active_group_id=active_group_id,
         modal_action=modal_action,
+        order_columns=SupplierBoardColumn.query.order_by(SupplierBoardColumn.is_terminal, SupplierBoardColumn.order_index, SupplierBoardColumn.id).all(),
     )
+
+
+@supplier_orders_bp.post("/groups/<int:group_id>/orders")
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def create_group_order(group_id):
+    group = SupplierOrderGroup.query.get_or_404(group_id)
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify(ok=False, error="Dati ordine non validi."), 400
+    lines = payload.get("lines")
+    if not isinstance(lines, list) or not lines:
+        return jsonify(ok=False, error="Inserisci almeno una quantita' da ordinare."), 400
+    rows = {row["root"]: row for row in _expanded_articles_for_group(group)}
+    seen = set()
+    for line in lines:
+        if not isinstance(line, dict):
+            return jsonify(ok=False, error="Riga ordine non valida."), 400
+        code = line.get("matrix_code")
+        quantity = line.get("quantity")
+        if not isinstance(code, str) or code not in rows or code in seen:
+            return jsonify(ok=False, error="Prodotto non valido o duplicato per questo gruppo."), 400
+        if type(quantity) is not int or not 1 <= quantity <= 1000000:
+            return jsonify(ok=False, error="Le quantita' devono essere intere, da 1 a 1000000."), 400
+        seen.add(code)
+    column_id = payload.get("column_id")
+    if type(column_id) is not int or db.session.get(SupplierBoardColumn, column_id) is None:
+        return jsonify(ok=False, error="Seleziona una colonna della bacheca."), 400
+    title = payload.get("title", "Ordine - " + group.name)
+    if not isinstance(title, str) or not title.strip() or len(title.strip()) > 200:
+        return jsonify(ok=False, error="Inserisci un titolo di massimo 200 caratteri."), 400
+    subgroup_names = {row.id: row.name for row in group.subgroups}
+    card = SupplierBoardCard(title=title.strip(), column_id=column_id, notes="Creato dal gruppo: " + group.name)
+    for line in lines:
+        row = rows[line["matrix_code"]]
+        card.order_lines.append(SupplierBoardOrderLine(matrix_code=row["root"], description=row["description"],
+            subgroup_name=subgroup_names.get(row["subgroup_id"]), quantity=line["quantity"], stock_at_order=row["stock"]))
+    db.session.add(card); db.session.commit()
+    return jsonify(ok=True, card=_supplier_card_dict(card)), 201
 
 
 @supplier_orders_bp.post("/groups")
