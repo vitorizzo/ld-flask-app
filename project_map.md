@@ -1,5 +1,6 @@
 ## Workflow ordini fornitori e parser snapshot MATRIXWS (2026-10-08)
 
+- Produzione gia' a q2f3a4b5c6d7,39 configurazioni/31 SKU iniziali. Match seed usa descrizione+descrizione_aggiuntiva come _article_label; schema e conteggi ordini verificati senza deploy applicativo.
 - tools/supplier_order_workflow.py: validazione, bozze persistenti, optimistic revision con lock, chiave idempotente, aggiornamento righe e sostituzione atomica PDF. SupplierBoardCard.order_group_id/is_draft/order_revision/order_key/order_confirmed_at; SupplierBoardOrderLine.supplier_code/order_description; SupplierOrderProductSettings(group_id,matrix_code) per impostazioni prodotto. Migrazione q2f3a4b5c6d7 dopo p1, compatibile con db.create_all e seed di riferimento non distruttivo.
 - routes/supplier_orders.py: POST /groups/<id>/orders esteso a draft/card_id/revision/client_key/product_details, GET /groups/<id>/order-editor per bozza o ordine esplicito con giacenze aggiornate; DELETE /api/board/cards/<id>. Tutti ruolo40. order_edit_url nella API bacheca; PDF protetto con cache no-store, nascosto per bozze.
 - static/js/supplier_order_editor.js controller dedicato, supplier_orders.js mantiene gruppi/configurazione/rename; template index e supplier_orders.css campi SKU/descrizione PDF, Salva bozza e chiudi. supplier_board.js/template comandi edit/elimina e badge bozza. Cache draft1.

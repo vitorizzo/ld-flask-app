@@ -183,7 +183,11 @@ def upgrade():
                     SELECT DISTINCT g.id,:code,:supplier_code,:description FROM supplier_order_groups g
                     JOIN supplier_order_group_items i ON i.group_id=g.id
                     JOIN articoli a ON a.cod_art=i.cod_art
-                    WHERE g.name=:group_name AND a.cod_art=:code AND a.descrizione=:expected
+                    WHERE g.name=:group_name AND a.cod_art=:code AND
+                    (CASE WHEN TRIM(COALESCE(a.descrizione_aggiuntiva,''))=''
+                      THEN TRIM(COALESCE(a.descrizione,''))
+                      WHEN TRIM(COALESCE(a.descrizione,''))='' THEN TRIM(a.descrizione_aggiuntiva)
+                      ELSE TRIM(a.descrizione) || ' - ' || TRIM(a.descrizione_aggiuntiva) END)=:expected
                     AND NOT EXISTS (SELECT 1 FROM supplier_order_product_settings p
                                     WHERE p.group_id=g.id AND p.matrix_code=:code)"""),
                     dict(code=code,expected=expected,supplier_code=supplier_code,description=description,group_name=COFFEE_REFERENCE_GROUP))

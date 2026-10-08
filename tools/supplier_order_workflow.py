@@ -87,7 +87,7 @@ def save_order(group,payload,current_rows):
     if not isinstance(details,list):raise ValueError('Codici fornitore non validi.')
     changes={}
     for detail in details:
-        if not isinstance(detail,dict) or detail.get('matrix_code') not in rows or detail['matrix_code'] in changes:raise ValueError('Prodotto non valido nei codici fornitore.')
+        if not isinstance(detail,dict) or not isinstance(detail.get('matrix_code'),str) or detail['matrix_code'] not in rows or detail['matrix_code'] in changes:raise ValueError('Prodotto non valido nei codici fornitore.')
         code=detail.get('supplier_code','');description=detail.get('order_description','')
         if not isinstance(code,str) or len(code.strip())>80 or not isinstance(description,str) or len(description.strip())>200:
             raise ValueError('Codice fornitore massimo 80 caratteri; descrizione ordine massimo 200.')

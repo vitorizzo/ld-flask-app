@@ -73,7 +73,8 @@ class SupplierWorkflowTests(unittest.TestCase):
         spec=importlib.util.spec_from_file_location('draft_seed',Path('migrations/versions/q2f3a4b5c6d7_supplier_order_drafts.py'));module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
         db.session.add(SupplierOrderGroup(id=3,name=module.COFFEE_REFERENCE_GROUP));db.session.flush()
         for index,(code,description,_,_) in enumerate(module.COFFEE_REFERENCE[:2],100):
-            db.session.execute(Articoli.__table__.insert().values(id_art=index,cod_art=code,descrizione=description))
+            primary,additional=description.split(' - ',1)
+            db.session.execute(Articoli.__table__.insert().values(id_art=index,cod_art=code,descrizione=primary,descrizione_aggiuntiva=additional))
             db.session.add(SupplierOrderGroupItem(group_id=3,cod_art=code))
         preserved=module.COFFEE_REFERENCE[0][0]
         db.session.add(SupplierOrderProductSettings(group_id=3,matrix_code=preserved,supplier_code='CUSTOM',order_description='Custom label'))
