@@ -79,6 +79,66 @@
   let currentGroup = null;
   let catalogItems = [];
   let groupItems = [];
+  let subgroups = [];
+  let subgroupBusy = false;
+  const subgroupTarget = document.getElementById("supplierSubgroupTarget");
+  const subgroupName = document.getElementById("supplierSubgroupName");
+  const subgroupCreate = document.getElementById("supplierSubgroupCreate");
+  const subgroupAssign = document.getElementById("supplierSubgroupAssign");
+  const subgroupRename = document.getElementById("supplierSubgroupRename");
+  const subgroupDelete = document.getElementById("supplierSubgroupDelete");
+
+  function updateSubgroupActions() {
+    subgroupCreate.disabled = subgroupBusy;
+    subgroupAssign.disabled = subgroupBusy;
+    subgroupRename.disabled = subgroupBusy || !subgroupTarget.value;
+    subgroupDelete.disabled = subgroupBusy || !subgroupTarget.value;
+  }
+  subgroupTarget.addEventListener("change", updateSubgroupActions);
+
+  async function subgroupRequest(path, method, data) {
+    if (subgroupBusy || !currentGroup) return false;
+    subgroupBusy = true; updateSubgroupActions();
+    managerStatus.textContent = "Salvataggio...";
+    try {
+      const response = await fetch(`/supplier-orders/groups/${currentGroup.id}/${path}`, {
+        method, headers: {"Content-Type": "application/json", Accept: "application/json"},
+        ...(data ? {body: JSON.stringify(data)} : {}),
+      });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok) throw new Error(payload.error || "Salvataggio non riuscito.");
+      managerDirty = true;
+      await loadGroupItems();
+      managerStatus.textContent = "Modifiche salvate.";
+      return true;
+    } catch (error) {
+      managerStatus.textContent = error.message;
+      return false;
+    } finally {
+      subgroupBusy = false; updateSubgroupActions();
+    }
+  }
+  subgroupCreate.addEventListener("click", async () => {
+    const name = subgroupName.value.trim();
+    if (!name) { managerStatus.textContent = "Inserisci il nome del sottogruppo."; subgroupName.focus(); return; }
+    if (await subgroupRequest("subgroups", "POST", {name})) subgroupName.value = "";
+  });
+  subgroupAssign.addEventListener("click", () => {
+    const codes = selectedCodes(selectedList);
+    if (!codes.length) { managerStatus.textContent = "Seleziona i prodotti nella lista del gruppo."; return; }
+    subgroupRequest("subgroup-assignment", "POST", {codes, subgroup_id: subgroupTarget.value ? Number(subgroupTarget.value) : null});
+  });
+  subgroupRename.addEventListener("click", () => {
+    const row = subgroups.find(s => String(s.id) === subgroupTarget.value);
+    if (!row) return;
+    const name = window.prompt("Nome del sottogruppo", row.name);
+    if (name !== null) subgroupRequest(`subgroups/${row.id}`, "PUT", {name});
+  });
+  subgroupDelete.addEventListener("click", () => {
+    const row = subgroups.find(s => String(s.id) === subgroupTarget.value);
+    if (row && window.confirm(`Eliminare il sottogruppo “${row.name}”? I prodotti rimangono nel gruppo, senza sottogruppo.`)) subgroupRequest(`subgroups/${row.id}`, "DELETE");
+  });
+  managerModalNode.addEventListener("hide.bs.modal", event => { if (subgroupBusy) event.preventDefault(); });
   let searchTimer = null;
   let searchSequence = 0;
   let managerDirty = false;
@@ -116,7 +176,19 @@
     const assigned = new Set(groupItems.map((item) => item.cod_art));
     const available = sortItems(catalogItems.filter((item) => !assigned.has(item.cod_art)));
     catalogList.replaceChildren(...available.map((item) => productOption(item, false)));
-    selectedList.replaceChildren(...sortItems(groupItems).map((item) => productOption(item, false)));
+    selectedList.replaceChildren();
+    for (const subgroup of [...subgroups, {id: null, name: "Senza sottogruppo"}]) {
+      const items = sortItems(groupItems.filter(item => (item.subgroup_id ?? null) === subgroup.id));
+      if (!items.length) continue;
+      if (subgroups.length) {
+        const heading = document.createElement("div");
+        heading.className = "supplier-subgroup-heading";
+        heading.setAttribute("role", "presentation");
+        heading.textContent = subgroup.name;
+        selectedList.append(heading);
+      }
+      selectedList.append(...items.map(item => productOption(item, false)));
+    }
     if (!available.length) catalogList.innerHTML = '<div class="supplier-product-empty">Nessun prodotto disponibile per il filtro.</div>';
     if (!groupItems.length) selectedList.innerHTML = '<div class="supplier-product-empty">Nessun prodotto associato.</div>';
     catalogCount.textContent = `${available.length} risultati`;
@@ -128,6 +200,11 @@
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const payload = await response.json();
     groupItems = payload.items || [];
+    subgroups = payload.subgroups || [];
+    const selected = subgroupTarget.value;
+    subgroupTarget.replaceChildren(new Option("Senza sottogruppo", ""), ...subgroups.map(row => new Option(row.name, String(row.id))));
+    if (subgroups.some(row => String(row.id) === selected)) subgroupTarget.value = selected;
+    updateSubgroupActions();
     renderManager();
   }
 
@@ -182,6 +259,10 @@
     filterInput.value = "";
     catalogItems = [];
     groupItems = [];
+    subgroups = [];
+    subgroupName.value = "";
+    subgroupTarget.replaceChildren(new Option("Senza sottogruppo", ""));
+    updateSubgroupActions();
     managerStatus.textContent = "";
     managerDirty = false;
     renderManager();
@@ -189,7 +270,7 @@
     try { await loadGroupItems(); } catch (error) { managerStatus.textContent = "Impossibile caricare i prodotti del gruppo."; console.error(error); }
   }
 
-  managerModalNode.addEventListener("shown.bs.modal", () => filterInput.focus());
+  managerModalNode.addEventListener("shown.bs.modal", () => { updateSubgroupActions(); filterInput.focus(); });
   managerModalNode.addEventListener("hidden.bs.modal", () => {
     if (managerDirty) window.location.reload();
   });

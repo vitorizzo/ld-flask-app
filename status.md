@@ -1,3 +1,11 @@
+## Ordini fornitori: sottogruppi prodotti (2026-10-08)
+
+- Aggiunti sottogruppi definiti dall'utente dentro ciascun gruppo, senza categorie preimpostate. In Gestisci prodotti: creazione, scelta destinazione, Assegna selezionati, rinomina ed eliminazione con conferma. Eliminazione conserva tutti i prodotti, riportandoli a Senza sottogruppo. Nomi e intestazioni renderizzati con escape/textContent.
+- Assegnazione a livello di codice matrice: tutte le varianti esplicite o espanse ereditano lo stesso sottogruppo. Esclusivita' per matrice/gruppo, classificazione indipendente fra gruppi. Consultazione giacenze separata per sottogruppo, con totale pezzi della sezione e righe matrice/varianti esistenti; giacenze correnti invariate. Prodotti pregressi inizialmente senza sottogruppo.
+- Modelli SupplierOrderSubgroup e SupplierOrderSubgroupMatrix, API CRUD sottogruppi e assegnazione multipla con validazione atomica/ruolo >=40/appartenenza al gruppo. Migration n9c0d1e2f3a4 dopo m8b9c0d1e2f3: due tabelle e indici, nessuna riscrittura prodotti. Richiede flask db upgrade al deploy; non eseguito in produzione.
+- Controller modale: reset all'apertura, errori recuperabili, blocco chiusura durante salvataggio, liste aggiornate dopo risposta e refresh pagina alla chiusura se modificata. CSS/JS subgroups1. Pannelli prodotti sul token surface per contrasto e righe grid mobile ad altezza naturale per scorrimento senza sovrapposizioni.
+- Verifiche: 6 test API/DB isolato (CRUD, assegnazione multipla/unassign, varianti, sezioni e totali, permessi/validazione, upgrade/downgrade senza perdita prodotti), 2 regressioni giacenze; 20 casi browser pagina/modali e 8 casi sottogruppi con due temi e smartphone/desktop, errori, nomi HTML, classificazione e cancellazione. Anteprime modale ispezionate, sintassi JS/diff check e singolo Alembic head confermati. Dopo deploy+upgrade creare i sistemi del gruppo Caffe' e verificare sui dispositivi reali.
+
 ## Ordini fornitori: indicatore fisarmonica (2026-10-08)
 
 - La freccia usava un escape CSS con doppio backslash, mostrando il codice letterale. Sostituita con chevron disegnato con bordi CSS, senza dipendenza dal font icone; ruota da basso ad alto all'apertura e segue il colore accent. Cache CSS engine2. Verifica browser dei gruppi/modali e diff check; nessuna migration.

@@ -4,7 +4,7 @@
 
 {% block extra_css %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-engine1') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_orders.css', v=app_version ~ '-engine2') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_orders.css', v=app_version ~ '-subgroups1') }}">
 {% endblock %}
 
 {% block content %}
@@ -91,6 +91,14 @@
         </div>
         <section class="supplier-product-panel">
           <div class="supplier-product-panel-header"><h6>Prodotti nel gruppo</h6><span id="supplierSelectedCount">0 prodotti</span></div>
+          <div class="supplier-subgroup-controls">
+            <label class="form-label" for="supplierSubgroupName">Nuovo sottogruppo</label>
+            <div class="supplier-subgroup-new"><input class="form-control" id="supplierSubgroupName" maxlength="160" placeholder="Es. Nespresso"><button class="btn btn-info" id="supplierSubgroupCreate" type="button">Crea</button></div>
+            <label class="form-label" for="supplierSubgroupTarget">Organizza i prodotti selezionati</label>
+            <select class="form-select" id="supplierSubgroupTarget"><option value="">Senza sottogruppo</option></select>
+            <div class="supplier-subgroup-actions"><button class="btn btn-info" id="supplierSubgroupAssign" type="button">Assegna selezionati</button><button class="btn btn-outline-secondary" id="supplierSubgroupRename" type="button">Rinomina</button><button class="btn btn-outline-danger" id="supplierSubgroupDelete" type="button">Elimina sottogruppo</button></div>
+            <p class="form-text mb-0">Le varianti dello stesso codice matrice vengono organizzate insieme. Eliminare un sottogruppo conserva i prodotti.</p>
+          </div>
           <div class="supplier-product-list" id="supplierSelectedList" role="listbox" aria-multiselectable="true"></div>
         </section>
       </div>
@@ -105,10 +113,13 @@
     <div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
       <div class="modal-header"><div><h5 class="modal-title">{{ group.name }}</h5><div class="text-muted small">Prodotti raggruppati per codice matrice e relative giacenze.</div></div><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
       <div class="modal-body"><div class="supplier-operational-list">
-        {% for groupage in card.operational_rows %}
+        {% for section in card.stock_sections %}
+          {% if section.name %}<h6 class="supplier-subgroup-heading">{{ section.name }} <span>{{ section.stock }} pezzi</span></h6>{% endif %}
+        {% for groupage in section.rows %}
           <details class="supplier-operational-group {% if groupage.stock <= 0 %}is-empty{% endif %}"><summary class="supplier-operational-row"><div class="supplier-product-main"><div class="supplier-matrix-heading"><strong data-matrix-title>{{ groupage.description }}</strong><button class="btn btn-sm btn-link" type="button" data-matrix-rename data-group-id="{{ group.id }}" data-matrix-code="{{ groupage.root }}" data-current-name="{{ groupage.description }}" data-default-name="{{ groupage.default_description }}" title="Rinomina raggruppamento" aria-label="Rinomina {{ groupage.root }}"><i class="fa-regular fa-pen-to-square"></i></button></div><span>Codice matrice {{ groupage.root }} · {{ groupage.variants|length }} varianti</span></div><div class="supplier-stock"><span>{{ groupage.stock }}</span><small>giacenza</small></div></summary>
             <div class="supplier-variant-list">{% for variant in groupage.variants %}<div class="supplier-variant-row {% if variant.stock <= 0 %}is-empty{% endif %}"><div class="supplier-product-main"><strong>{{ variant.description }}</strong><span>{{ variant.cod_art }}</span>{% if variant.expanded_from_group %}<em>variante rilevata automaticamente</em>{% endif %}</div><div class="supplier-stock supplier-stock--small"><span>{{ variant.stock }}</span><small>giacenza</small></div></div>{% endfor %}</div>
           </details>
+        {% endfor %}
         {% else %}<div class="text-muted">Nessun articolo da visualizzare.</div>{% endfor %}
       </div></div>
     </div></div>
@@ -116,4 +127,4 @@
 {% endfor %}
 {% endblock %}
 
-{% block extra_js %}<script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-engine1') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-subgroups1') }}"></script>{% endblock %}

@@ -1,3 +1,9 @@
+## Ordini fornitori: sottogruppi configurabili (2026-10-08)
+
+- SupplierOrderSubgroup (nome/gruppo) e SupplierOrderSubgroupMatrix (matrice/gruppo/destinazione) in models.py. Migration n9c0d1e2f3a4, parent m8b9c0d1e2f3. Assegnazione unica per matrice dentro un gruppo; cancellazione sottogruppo elimina le classificazioni, non gli articoli.
+- `routes/supplier_orders.py`: POST /groups/<id>/subgroups, PUT/DELETE /groups/<id>/subgroups/<id>, POST /groups/<id>/subgroup-assignment con codes e subgroup_id nullable. GET items espone subgroups e subgroup_id; espansione varianti eredita classificazione della matrice. Index prepara stock_sections per consultazione.
+- Template/controller/CSS supplier_orders: comandi sottogruppi nella modale prodotti, selezione multipla e sezioni in consultazione (cache subgroups1). Nomi non hardcoded; giacenze da Giacenza invariate. Test: python -B -m unittest discover -s tests -p test_supplier_subgroups.py -v.
+
 ## Ordini fornitori: freccia fisarmonica (2026-10-08)
 
 - `supplier_orders.css`: chevron dei summary disegnato in CSS, rotazione tramite details[open]; cache engine2 nel template. Nessuna dipendenza Font Awesome per l'indicatore.

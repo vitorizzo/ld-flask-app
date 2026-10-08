@@ -512,6 +512,13 @@ html[data-responsive-mode="mobile"] .supplier-stock { min-width: 4em; }
   border-color: var(--ld-brand-accent);
 }
 .supplier-orders-modal .btn-info { background: var(--ld-brand-accent); }
+.supplier-subgroup-controls { display: grid; gap: .5em; }
+.supplier-product-panel { background: var(--ld-surface); }
+.supplier-subgroup-new { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: .5em; }
+.supplier-subgroup-actions { display: flex; flex-wrap: wrap; gap: .4em; }
+.supplier-subgroup-actions .btn { flex: 1 1 auto; }
+.supplier-subgroup-heading { margin: 0; padding: .6em; background: var(--ld-brand-primary); color: var(--ld-text); font-size: 1em; font-weight: 700; overflow-wrap: anywhere; }
+.supplier-subgroup-heading span { display: block; font-size: .85em; font-weight: 400; }
 .supplier-group-table { --bs-table-color: var(--ld-brand-primary); --bs-table-bg: var(--ld-surface); --bs-table-border-color: color-mix(in srgb, var(--ld-brand-primary) 20%, var(--ld-surface)); }
 .supplier-group-table thead th { background: var(--ld-brand-primary); color: var(--ld-text); }
 .supplier-product-option { overflow-wrap: anywhere; }
@@ -522,7 +529,7 @@ html[data-responsive-mode="mobile"] .supplier-group-table :is(tbody, tr, td) { d
 html[data-responsive-mode="mobile"] .supplier-group-table tr { margin-bottom: 1em; border: 1px solid var(--ld-brand-accent); border-radius: var(--ld-radius); overflow: hidden; }
 html[data-responsive-mode="mobile"] .supplier-group-table td[data-label]::before { content: attr(data-label); display: block; font-weight: 700; margin-bottom: .3em; }
 html[data-responsive-mode="mobile"] .supplier-row-actions { flex-wrap: wrap; justify-content: flex-start; white-space: normal; }
-html[data-responsive-mode="mobile"] .supplier-products-manager { min-height: 0; }
+html[data-responsive-mode="mobile"] .supplier-products-manager { min-height: 0; grid-auto-rows: max-content; align-content: start; }
 html[data-responsive-mode="mobile"] .supplier-product-list { min-height: 10em; max-height: 30dvh; flex: 0 0 auto; }
 html[data-responsive-mode="mobile"] .supplier-product-panel-header { flex-wrap: wrap; }
 html[data-responsive-mode="mobile"] .supplier-operational-row, html[data-responsive-mode="mobile"] .supplier-variant-row { gap: .6em; }

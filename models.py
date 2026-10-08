@@ -1160,6 +1160,27 @@ class SupplierOrderGroup(db.Model):
         return f"<SupplierOrderGroup {self.name}>"
 
 
+class SupplierOrderSubgroup(db.Model):
+    __tablename__ = "supplier_order_subgroups"
+    __table_args__ = (db.UniqueConstraint("group_id", "name", name="uq_supplier_subgroup_name"),)
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey("supplier_order_groups.id", ondelete="CASCADE"), nullable=False, index=True)
+    name = db.Column(db.String(160), nullable=False)
+    group = db.relationship("SupplierOrderGroup", backref=db.backref("subgroups", cascade="all, delete-orphan", order_by="SupplierOrderSubgroup.name"))
+    assignments = db.relationship("SupplierOrderSubgroupMatrix", back_populates="subgroup", cascade="all, delete-orphan")
+
+
+class SupplierOrderSubgroupMatrix(db.Model):
+    __tablename__ = "supplier_order_subgroup_matrices"
+    __table_args__ = (db.UniqueConstraint("group_id", "matrix_code", name="uq_supplier_subgroup_matrix"),)
+    id = db.Column(db.Integer, primary_key=True)
+    group_id = db.Column(db.Integer, db.ForeignKey("supplier_order_groups.id", ondelete="CASCADE"), nullable=False, index=True)
+    subgroup_id = db.Column(db.Integer, db.ForeignKey("supplier_order_subgroups.id", ondelete="CASCADE"), nullable=False, index=True)
+    matrix_code = db.Column(db.String(255), nullable=False)
+    group = db.relationship("SupplierOrderGroup", backref=db.backref("subgroup_matrices", cascade="all, delete-orphan"))
+    subgroup = db.relationship("SupplierOrderSubgroup", back_populates="assignments")
+
+
 class SupplierOrderGroupItem(db.Model):
     __tablename__ = "supplier_order_group_items"
     __table_args__ = (

@@ -9,6 +9,7 @@ from extensions import db
 from models import Articoli, Giacenza, SupplierOrderGroup, SupplierOrderGroupItem, SupplierOrderMatrixName
 from tools.role_required import role_required
 from models import SupplierBoardColumn, SupplierBoardCard, BusinessRegistry
+from models import SupplierOrderSubgroup, SupplierOrderSubgroupMatrix
 
 
 supplier_orders_bp = Blueprint("supplier_orders", __name__, template_folder="../templates")
@@ -157,6 +158,7 @@ def _expanded_articles_for_group(group: SupplierOrderGroup) -> list[dict]:
     selected_roots = {_variant_root(code) for code in selected_codes}
 
     custom_names = {item.matrix_code: item.display_name for item in group.matrix_names}
+    subgroup_map = {item.matrix_code: item.subgroup_id for item in getattr(group, "subgroup_matrices", [])}
     grouped: dict[str, dict] = {}
     for article in articles:
         root = _variant_root(article.cod_art)
@@ -164,6 +166,7 @@ def _expanded_articles_for_group(group: SupplierOrderGroup) -> list[dict]:
         if root not in grouped:
             grouped[root] = {
                 "root": root,
+                "subgroup_id": subgroup_map.get(root),
                 "description": "",
                 "default_description": "",
                 "custom_description": custom_names.get(root),
@@ -208,6 +211,13 @@ def index():
         }
         for group in groups
     ]
+    for card in group_cards:
+        rows = card["operational_rows"]
+        sections = [dict(name=subgroup.name, rows=[row for row in rows if row["subgroup_id"] == subgroup.id]) for subgroup in card["group"].subgroups]
+        unassigned = [row for row in rows if row["subgroup_id"] is None]
+        if unassigned:
+            sections.append(dict(name="Senza sottogruppo" if card["group"].subgroups else "", rows=unassigned))
+        card["stock_sections"] = [dict(section, stock=sum(row["stock"] for row in section["rows"])) for section in sections if section["rows"]]
     return render_template(
         "supplier_orders/index.html",
         group_cards=group_cards,
@@ -265,18 +275,76 @@ def delete_group(group_id):
 @role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
 def group_items(group_id):
     group = SupplierOrderGroup.query.get_or_404(group_id)
+    subgroup_map = {row.matrix_code: row.subgroup_id for row in group.subgroup_matrices}
     items = sorted(
         (
             {
                 "cod_art": item.cod_art,
                 "description": _article_label(item.article, item.cod_art),
                 "root": _variant_root(item.cod_art),
+                "subgroup_id": subgroup_map.get(_variant_root(item.cod_art)),
             }
             for item in group.items
         ),
         key=lambda item: ((item["description"] or "").lower(), item["cod_art"].lower()),
     )
-    return jsonify({"ok": True, "group": {"id": group.id, "name": group.name}, "items": items})
+    return jsonify({"ok": True, "group": {"id": group.id, "name": group.name}, "items": items,
+                    "subgroups": [dict(id=row.id, name=row.name) for row in group.subgroups]})
+
+
+@supplier_orders_bp.route("/groups/<int:group_id>/subgroups", methods=["POST"])
+@supplier_orders_bp.route("/groups/<int:group_id>/subgroups/<int:subgroup_id>", methods=["PUT", "DELETE"])
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def save_subgroup(group_id, subgroup_id=None):
+    group = SupplierOrderGroup.query.get_or_404(group_id)
+    subgroup = SupplierOrderSubgroup.query.filter_by(group_id=group.id, id=subgroup_id).first_or_404() if subgroup_id else None
+    if request.method == "DELETE":
+        db.session.delete(subgroup)
+        db.session.commit()
+        return jsonify(ok=True)
+    payload = request.get_json(silent=True)
+    name = payload.get("name") if isinstance(payload, dict) else None
+    if not isinstance(name, str) or not name.strip() or len(name.strip()) > 160:
+        return jsonify(ok=False, error="Inserisci un nome di massimo 160 caratteri."), 400
+    name = name.strip()
+    existing = SupplierOrderSubgroup.query.filter_by(group_id=group.id).filter(func.lower(SupplierOrderSubgroup.name) == name.lower()).first()
+    if existing and (not subgroup or existing.id != subgroup.id):
+        return jsonify(ok=False, error="Questo sottogruppo esiste gia'."), 400
+    if subgroup is None:
+        subgroup = SupplierOrderSubgroup(group_id=group.id)
+    subgroup.name = name
+    db.session.add(subgroup); db.session.commit()
+    return jsonify(ok=True, subgroup=dict(id=subgroup.id, name=subgroup.name))
+
+
+@supplier_orders_bp.post("/groups/<int:group_id>/subgroup-assignment")
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def assign_subgroup(group_id):
+    group = SupplierOrderGroup.query.get_or_404(group_id)
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify(ok=False, error="Dati non validi."), 400
+    codes = payload.get("codes")
+    if not isinstance(codes, list) or not codes or any(not isinstance(code, str) for code in codes):
+        return jsonify(ok=False, error="Seleziona i prodotti del gruppo."), 400
+    selected = {item.cod_art for item in group.items}
+    if not set(codes).issubset(selected):
+        return jsonify(ok=False, error="Alcuni prodotti non appartengono al gruppo."), 400
+    subgroup_id = payload.get("subgroup_id")
+    if subgroup_id is not None and (type(subgroup_id) is not int or SupplierOrderSubgroup.query.filter_by(id=subgroup_id, group_id=group.id).first() is None):
+        return jsonify(ok=False, error="Sottogruppo non valido per questo gruppo."), 400
+    roots = {_variant_root(code) for code in codes}
+    assignments = {row.matrix_code: row for row in group.subgroup_matrices}
+    for root in roots:
+        row = assignments.get(root)
+        if subgroup_id is None:
+            if row: db.session.delete(row)
+        elif row:
+            row.subgroup_id = subgroup_id
+        else:
+            db.session.add(SupplierOrderSubgroupMatrix(group_id=group.id, subgroup_id=subgroup_id, matrix_code=root))
+    db.session.commit()
+    return jsonify(ok=True, assigned=len(roots))
 
 
 @supplier_orders_bp.post("/groups/<int:group_id>/items/batch")
