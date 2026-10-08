@@ -30,7 +30,7 @@ from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck,
     CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashCheckPayment, CashOwnerTake, CashOwnerTakeCheck, \
     CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck, CashIssuedCheck, CashDepositCheck, CompanyCreditCard, BusinessRegistry, \
     BusinessRegistryContact, CashCustomerRegistryLink, CashClosure, CashDeposit, CashDayAuditEvent
-from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount
+from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount, apply_intermediate_drawer_totals, current_drawer_preview_payload
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
 
@@ -2476,7 +2476,7 @@ def _calculate_closure_fast_from_db(
         has_corrispettivi and has_fondo_iniziale and has_fondo_finale
     )
 
-    return {
+    return apply_intermediate_drawer_totals({
         "fondo_iniziale": opening_float,
         "fondo_finale": fondo_finale,
         "delta_fondo": delta_fondo,
@@ -2545,7 +2545,7 @@ def _calculate_closure_fast_from_db(
             "Assegni fisicamente presenti nel cassetto. "
             "Movimenti di cassa e spicci separati."
         ),
-    }
+    }, tolleranza=tolleranza)
 
 
 def _build_cash_day_preview_payload(
@@ -2839,11 +2839,11 @@ def api_cash_day_preview(day_date):
                 else None
             )
             if isinstance(vault_preview_payload, dict):
-                return jsonify(vault_preview_payload)
+                return jsonify(current_drawer_preview_payload(vault_preview_payload))
         else:
             snapshot_payload = closure.fiscal_snapshot.get("payload") if isinstance(closure.fiscal_snapshot, dict) else None
             if isinstance(snapshot_payload, dict):
-                return jsonify(snapshot_payload)
+                return jsonify(current_drawer_preview_payload(snapshot_payload))
 
     cutoff = d
 
@@ -3352,21 +3352,21 @@ def api_day_closure_snapshot(day_date):
 
     if view == "complete":
         if isinstance(vault_payload, dict):
-            return jsonify({"ok": True, "snapshot": vault_payload, "source": "vault"})
+            return jsonify({"ok": True, "snapshot": current_drawer_preview_payload(vault_payload), "source": "vault"})
         return jsonify({"ok": False, "error": "Snapshot completo non disponibile"}), 404
 
     if isinstance(vault_payload, dict):
         combined = dict(vault_payload)
         if isinstance(fiscal_payload, dict):
             combined["preview"] = fiscal_payload
-        return jsonify({"ok": True, "snapshot": combined, "source": "vault+db"})
+        return jsonify({"ok": True, "snapshot": current_drawer_preview_payload(combined), "source": "vault+db"})
 
     if isinstance(fiscal_report_payload, dict):
-        return jsonify({"ok": True, "snapshot": fiscal_report_payload, "source": "db"})
+        return jsonify({"ok": True, "snapshot": current_drawer_preview_payload(fiscal_report_payload), "source": "db"})
 
     if isinstance(fiscal_payload, dict):
         rebuilt = _build_cash_day_report_snapshot_payload(d, "fiscal", fiscal_payload, None)
-        return jsonify({"ok": True, "snapshot": rebuilt, "source": "db-rebuilt"})
+        return jsonify({"ok": True, "snapshot": current_drawer_preview_payload(rebuilt), "source": "db-rebuilt"})
 
     return jsonify({"ok": False, "error": "Snapshot non disponibile"}), 404
 

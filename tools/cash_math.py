@@ -94,6 +94,52 @@ def _sum_amount(query) -> Decimal:
     return _d(val)
 
 
+INTERMEDIATE_DRAWER_CALCULATION_VERSION = 1
+
+
+def apply_intermediate_drawer_totals(totals, tolleranza=Decimal("2.00")):
+    """Sottrae una sola volta il denaro gia' uscito per versamenti intermedi.
+
+    Copia anche gli snapshot precedenti, senza modificarli. Saldo progressivo
+    e versabile residuo includono gia' i depositi e restano invariati.
+    """
+    result = dict(totals)
+    if result.get("intermediate_drawer_calculation_version") == INTERMEDIATE_DRAWER_CALCULATION_VERSION:
+        return result
+    withdrawn = _d(result.get("totale_versato_intermedio"))
+    def store(key, amount):
+        result[key] = amount if isinstance(result.get(key), Decimal) else float(amount)
+    for key in ("contanti_fisici", "atteso_cassetto_operativo", "incasso_calcolato",
+                "valore_atteso_cassetto", "incasso_calcolato_fiscal", "valore_atteso_cassetto_fiscal"):
+        if key in result:
+            store(key, _d(result[key]) - withdrawn)
+    for key in ("delta_quadratura", "delta_quadratura_fiscal"):
+        if key in result:
+            store(key, _d(result[key]) + withdrawn)
+    result["incasso_consegnato_complessivo"] = _d(result.get("incasso_consegnato")) + withdrawn
+    if "delta_quadratura" in result:
+        delta = _d(result["delta_quadratura"])
+        result["anomalia"] = abs(delta) > _d(tolleranza)
+        if "quadratura_led" in result:
+            result["quadratura_led"] = ("off" if not result.get("quadratura_available") else
+                "red_low" if delta < -5 else "yellow_low" if delta < -2 else
+                "green" if delta <= 2 else "yellow_high" if delta <= 5 else "red_high")
+    result["intermediate_drawer_calculation_version"] = INTERMEDIATE_DRAWER_CALCULATION_VERSION
+    return result
+
+
+def current_drawer_preview_payload(payload):
+    """Compatibilita' di preview/report archiviati, senza riscrivere DB/vault."""
+    if not isinstance(payload, dict):
+        return payload
+    result = dict(payload)
+    if isinstance(payload.get("totals"), dict):
+        result["totals"] = apply_intermediate_drawer_totals(payload["totals"])
+    if isinstance(payload.get("preview"), dict):
+        result["preview"] = current_drawer_preview_payload(payload["preview"])
+    return result
+
+
 def calculate_closure_pure(
     cash_day_id: int,
     opening_float: Decimal,
@@ -526,7 +572,7 @@ def calculate_closure_pure(
         has_corrispettivi and has_fondo_iniziale and has_fondo_finale
     )
 
-    return {
+    return apply_intermediate_drawer_totals({
         "fondo_iniziale": opening_float,
         "fondo_finale": fondo_finale,
         "delta_fondo": delta_fondo,
@@ -613,4 +659,4 @@ def calculate_closure_pure(
             "Assegni fisicamente presenti nel cassetto. "
             "Movimenti di cassa e spicci separati."
         ),
-    }
+    }, tolleranza=tolleranza)

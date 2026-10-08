@@ -10737,18 +10737,25 @@ function buildReportBodyHtml(payload) {
   const ownerTakeAmount = row => Number(
     row.total_amount ?? (Number(row.cash_amount || 0) + Number(row.check_amount || 0))
   );
-  const totalTaken = sumRows(ownerTakes, ownerTakeAmount);
+  const totalIntermediate = Number(totals.totale_versato_intermedio ?? sumRows(
+    (payload.deposits?.deposits || []).filter(row => row.deposit_type === 'versamento_intermedio'),
+    row => row.total_amount ?? (Number(row.cash_amount || 0) + Number(row.check_amount || 0)),
+  ));
+  const totalTaken = sumRows(ownerTakes, ownerTakeAmount) + totalIntermediate;
+  const totalPayable = Number(totals.versabile_giornata || 0);
+  const remainingPayable = Number(totals.versabile_residuo ?? (totalPayable - totalIntermediate - Number(totals.debito_contanti_incasso || 0)));
   const eveningTaken = sumRows(
     ownerTakes.filter(row => String(row.take_type || '').toLowerCase() === 'serale'),
     ownerTakeAmount,
   );
   const deliveredLabel = `Totale consegnato (totale prelevato ${signedReportMoney(totalTaken)})`;
+  const payableLabel = `Totale versabile (totale ${signedReportMoney(totalPayable)})`;
   const closingRows = [
     [reportText("Totale di giornata"), signedReportMoney(totalGiornata)],
     [reportText("Totale pagamenti elettronici"), signedReportMoney(totals.totale_incassi_elettronici)],
     [reportText("Totale atteso nel cassetto"), signedReportMoney(totals.valore_atteso_cassetto)],
     [reportText(deliveredLabel), signedReportMoney(eveningTaken)],
-    [reportText("Totale Versabile"), signedReportMoney(totals.versabile_giornata)],
+    [reportText(payableLabel), signedReportMoney(remainingPayable)],
   ];
   if (priVaultUnlocked) {
     closingRows.push(

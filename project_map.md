@@ -1,3 +1,9 @@
+## Cassa: versamenti intermedi e riepilogo (2026-10-08)
+
+- `tools/cash_math.py`: apply_intermediate_drawer_totals sottrae gli intermedi dal cassetto atteso e corregge la quadratura; usato da calculate_closure_pure e dal calcolo SQL in `routes/cassa.py`. Saldo progressivo/versabile residuo gia' sottraggono i depositi.
+- current_drawer_preview_payload adatta copie dei vecchi snapshot restituiti dalle API preview/closure-snapshot, senza persistenza o doppia sottrazione. `static/js/agenda.js`: versabile residuo e consegnato serale nelle righe, totali completi tra parentesi. Cache intermediates1 in `templates/agenda.html`.
+- Test: `python -B -m unittest discover -s tests -p test_cash_intermediate_deposits.py -v` e `node tests/test_cash_report.mjs`. Nessuna nuova migration.
+
 ## Bacheca smartphone: testata e comandi compatti (2026-10-06)
 
 - Riscontro utente: la parte fissa sottraeva troppo spazio alle schede. `kiosk_overview.css` dispone ora i quattro comandi su una sola riga (nuovo ordine, Giri, Riprogr., Aggiorna); misura compatta basata su touch_size/scalar comune, superando il min-height dei controlli di pagina soltanto per toolbar e filtri.

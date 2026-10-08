@@ -1,3 +1,10 @@
+## Versamenti intermedi: cassetto e riepilogo finale (2026-10-08)
+
+- L'utente registra gli intermedi solo in Versamenti. Contanti e assegni intermedi vengono sottratti una sola volta dal cassetto atteso e dalla quadratura, tramite helper comune ai calcoli ORM e SQL. Saldo progressivo e versabile residuo conservano le formule esistenti, gia' comprensive dei depositi.
+- Nel riepilogo Totale versabile mostra il residuo finale e il totale della giornata tra parentesi. Totale consegnato mostra il prelievo serale, con il totale completo di prelievi parziali, serali e versamenti intermedi tra parentesi. Versamenti di incassi precedenti distinti.
+- Preview/report archiviati adattati su copie in lettura con marcatore idempotente; nessuna riscrittura DB/vault o nuova migration. Cache Agenda aggiornata.
+- Verifiche: 9 test su DB SQLite isolato con entrambi i calcoli reali (contanti, assegni depositati, intermedi multipli, fondo finale, centesimi, postdatati e snapshot pregressi); 8 casi del renderer reale del report fiscale/completo e fallback storico. Sintassi JS e diff check passati. Verifica dopo deploy ancora da effettuare; nessun dato di produzione modificato.
+
 ## Allegati ordini: apertura in app e pubblicazione Slack sul messaggio principale (2026-10-07)
 
 - Causa attachment_url_missing: kiosk riconosceva come locali soltanto gli allegati source=pwa_share, mentre i file salvati da ordini manuali/Plancia e clienti hanno source=route_board/customer_order e static_path, senza url_private Slack. `tools/order_attachments.py` centralizza il recupero dei file nelle tre cartelle uploads/route_orders, shared_orders e customer_orders, con percorso risolto e contenimento nella cartella upload. Kiosk e Plancia usano lo stesso helper; gli allegati gia' archiviati tornano apribili se il file e' presente, senza riscrivere lo storico.
