@@ -34,6 +34,7 @@ from tools.mail_accounts import account_sender, get_email_account, send_account_
 from tools.nexi_xpay import NexiXPayClassic, NexiXPayClient, NexiXPayError, NexiXPayUncertainError, _normalize_environment
 from tools.customer_payments import account_entry_source_key, account_entry_snapshot, is_selectable_settlement_item
 from tools.role_required import role_required
+from tools.customer_account_rows import open_account_entries
 
 
 administration_bp = Blueprint("administration", __name__)
@@ -432,6 +433,7 @@ def _credit_money(value):
 
 
 def _credit_message_html(kind, customer, entries, totals):
+    entries = open_account_entries(entries)
     balance = Decimal(totals.balance or 0)
     rows = []
     for entry in entries:
@@ -664,7 +666,8 @@ def customer_credit_detail(source_customer_code):
     )
     customer = base_query.order_by(CustomerAccountEntry.row_number.asc()).first_or_404()
     all_entries = base_query.all()
-    entries = base_query.order_by(
+    visible_ids = [entry.id for entry in open_account_entries(all_entries)]
+    entries = base_query.filter(CustomerAccountEntry.id.in_(visible_ids)).order_by(
         CustomerAccountEntry.document_date.desc().nullslast(),
         CustomerAccountEntry.row_number.desc(),
     ).paginate(page=max(1, request.args.get("page", type=int) or 1), per_page=100, error_out=False)
@@ -774,8 +777,11 @@ def update_customer_credit_item_status(source_customer_code):
         CustomerAccountEntry.source_customer_code == source_customer_code,
         CustomerAccountEntry.id.in_(entry_ids),
     ).order_by(CustomerAccountEntry.id).with_for_update().all()
+    open_ids = {entry.id for entry in open_account_entries(CustomerAccountEntry.query.filter_by(
+        import_id=current_import.id, source_customer_code=source_customer_code,
+    ).all())}
     if len(selected_entries) != len(entry_ids) or any(
-        not is_selectable_settlement_item(entry) for entry in selected_entries
+        entry.id not in open_ids or not is_selectable_settlement_item(entry) for entry in selected_entries
     ):
         abort(400, description="Una o più righe non possono essere segnalate.")
 
@@ -972,10 +978,10 @@ def send_customer_credit_communication(source_customer_code):
         label = "PEC" if account_code == "pec" else "CreditManagement"
         return jsonify({"ok": False, "error": f"Account {label} non ancora configurato o disattivato."}), 409
 
-    entries = base_query.filter(CustomerAccountEntry.is_balance_relevant.is_(True)).order_by(
+    entries = open_account_entries(base_query.order_by(
         CustomerAccountEntry.document_date.asc().nullsfirst(),
         CustomerAccountEntry.row_number.asc(),
-    ).all()
+    ).all())
     totals = db.session.query(
         func.sum(case((CustomerAccountEntry.accounting_side == "D", CustomerAccountEntry.amount), else_=0)).label("debit"),
         func.sum(case((CustomerAccountEntry.accounting_side == "A", CustomerAccountEntry.amount), else_=0)).label("credit"),

@@ -1,3 +1,9 @@
+## Contabilita' clienti: proiezione partite aperte (2026-10-09)
+
+- tools/customer_account_rows.py/open_account_entries: helper puro condiviso, esclude tecniche e interi documenti a saldo zero con identita' (import,cliente,data,numero,suffisso); preserva importi, parziali, crediti e identita' incomplete. Nessuna modifica schema/dati.
+- routes/administration.py: dettaglio, anteprime/comunicazioni e validazione stati; routes/customer_account.py: elenco cliente, validazione pagamenti/bonifici/contestazioni ed edit/retry sullo stesso criterio. Saldi e storico restano sulle righe rilevanti originali.
+- tests/test_customer_account_rows.py e test_customer_account_open_api.py: equivalenza saldo, chiusi/tecnici/parziali/identita', paginazione, comunicazioni e blocco selezioni obsolete. Audit read-only in .codex_tmp/kiwi_account_audit.json.
+
 ## Situazioni contabili clienti: contratto grafico comune (2026-10-09)
 
 - templates/administration/customer_credit.html, customer_credit_customers.html e templates/settings/customer_account_statement_detail.html: ld-page-standard/customer-credit-page, pannelli ld-panel, tabelle credit-mobile-table con data-label e contenuto cella separato, navigazione/azioni comuni. Nessuna modifica a route o modello contabile.

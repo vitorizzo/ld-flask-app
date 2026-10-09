@@ -32,6 +32,7 @@ from tools.customer_memberships import (
     customer_registry_for_user,
     user_has_customer_capability,
 )
+from tools.customer_account_rows import open_account_entries
 from tools.customer_payments import (
     ACTIVE_ITEM_STATUSES,
     account_entry_snapshot,
@@ -285,7 +286,8 @@ def index():
             CustomerAccountEntry.import_id == current_import.id,
             ownership_filter,
         )
-        entries = base_query.order_by(
+        visible_ids = [entry.id for entry in open_account_entries(base_query.all())]
+        entries = base_query.filter(CustomerAccountEntry.id.in_(visible_ids)).order_by(
             CustomerAccountEntry.document_date.desc().nullslast(),
             CustomerAccountEntry.row_number.desc(),
         ).paginate(page=max(1, request.args.get("page", type=int) or 1), per_page=50, error_out=False)
@@ -433,12 +435,11 @@ def create_bank_transfer_qr():
     current_import = _latest_statement_import()
     if current_import is None:
         return jsonify({"ok": False, "error": "La situazione contabile non è disponibile."}), 409
-    entries = CustomerAccountEntry.query.filter(
+    entries = open_account_entries(CustomerAccountEntry.query.filter(
         CustomerAccountEntry.import_id == current_import.id,
-        CustomerAccountEntry.id.in_(entry_ids),
         _entry_ownership_filter(registry),
-    ).all()
-    entries_by_id = {entry.id: entry for entry in entries if is_selectable_settlement_item(entry)}
+    ).all())
+    entries_by_id = {entry.id: entry for entry in entries if entry.id in entry_ids and is_selectable_settlement_item(entry)}
     if len(entries_by_id) != len(entry_ids):
         return jsonify({"ok": False, "error": "Uno o più documenti non sono selezionabili."}), 400
     entries = [entries_by_id[entry_id] for entry_id in entry_ids]
@@ -514,16 +515,15 @@ def communicate_bank_transfer():
         flash("La situazione contabile non e' disponibile.", "warning")
         return redirect(url_for("customer_account.index", customer=registry.id))
 
-    entries = (
+    entries = open_account_entries(
         CustomerAccountEntry.query
         .filter(
             CustomerAccountEntry.import_id == current_import.id,
-            CustomerAccountEntry.id.in_(entry_ids),
             _entry_ownership_filter(registry),
         )
         .all()
     )
-    entries_by_id = {entry.id: entry for entry in entries if is_selectable_settlement_item(entry)}
+    entries_by_id = {entry.id: entry for entry in entries if entry.id in entry_ids and is_selectable_settlement_item(entry)}
     if len(entries_by_id) != len(entry_ids):
         abort(400, description="Uno o piu' documenti non sono selezionabili nell'ultimo aggiornamento.")
     entries = [entries_by_id[entry_id] for entry_id in entry_ids]
@@ -705,12 +705,11 @@ def submit_payment_claim():
     if current_import is None:
         flash("La situazione contabile non e' disponibile.", "warning")
         return redirect(url_for("customer_account.index", customer=registry.id))
-    entries = CustomerAccountEntry.query.filter(
+    entries = open_account_entries(CustomerAccountEntry.query.filter(
         CustomerAccountEntry.import_id == current_import.id,
-        CustomerAccountEntry.id.in_(entry_ids),
         _entry_ownership_filter(registry),
-    ).all()
-    entries_by_id = {entry.id: entry for entry in entries if is_selectable_settlement_item(entry)}
+    ).all())
+    entries_by_id = {entry.id: entry for entry in entries if entry.id in entry_ids and is_selectable_settlement_item(entry)}
     if len(entries_by_id) != len(entry_ids):
         abort(400, description="Uno o piu' documenti non sono contestabili nell'ultimo aggiornamento.")
     entries = [entries_by_id[entry_id] for entry_id in entry_ids]
@@ -864,12 +863,11 @@ def create_online_payment_checkout():
     if current_import is None:
         flash("La situazione contabile non e' disponibile.", "warning")
         return redirect(url_for("customer_account.index", customer=registry.id))
-    entries = CustomerAccountEntry.query.filter(
+    entries = open_account_entries(CustomerAccountEntry.query.filter(
         CustomerAccountEntry.import_id == current_import.id,
-        CustomerAccountEntry.id.in_(entry_ids),
         _entry_ownership_filter(registry),
-    ).all()
-    entries_by_id = {entry.id: entry for entry in entries if is_selectable_settlement_item(entry)}
+    ).all())
+    entries_by_id = {entry.id: entry for entry in entries if entry.id in entry_ids and is_selectable_settlement_item(entry)}
     if len(entries_by_id) != len(entry_ids):
         abort(400, description="Uno o piu' documenti non sono pagabili nell'ultimo aggiornamento.")
     entries = [entries_by_id[entry_id] for entry_id in entry_ids]
@@ -1365,10 +1363,10 @@ def retry_xpay_payment(case_id):
         db.session.rollback()
         flash("La situazione contabile non è disponibile.", "warning")
         return redirect(url_for("customer_account.index", customer=payment_case.registry_id))
-    current_entries = CustomerAccountEntry.query.filter(
+    current_entries = open_account_entries(CustomerAccountEntry.query.filter(
         CustomerAccountEntry.import_id == current_import.id,
         _entry_ownership_filter(registry),
-    ).all()
+    ).all())
     entries_by_key = {
         account_entry_source_key(entry): entry
         for entry in current_entries
@@ -1659,7 +1657,7 @@ def edit_payment_case(case_id):
         .order_by(CustomerAccountEntry.document_date.desc().nullslast(), CustomerAccountEntry.row_number.desc())
         .all()
     )
-    selectable_entries = [entry for entry in all_entries if is_selectable_settlement_item(entry)]
+    selectable_entries = [entry for entry in open_account_entries(all_entries) if is_selectable_settlement_item(entry)]
     entry_keys = {entry.id: account_entry_source_key(entry) for entry in selectable_entries}
     selected_keys = {allocation.source_item_key for allocation in payment_case.allocations}
     states = CustomerAccountingItemState.query.filter(

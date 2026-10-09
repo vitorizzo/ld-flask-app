@@ -72,7 +72,7 @@
       </div>
     </div>
 
-    <div class="card ld-panel border-0 shadow-sm"><div class="table-responsive credit-table-wrap"><table class="table table-hover credit-mobile-table align-middle mb-0 credit-items-table">
+    <div class="card ld-panel border-0 shadow-sm"><div class="card-header"><h2 class="h5 mb-1">Partite aperte</h2><div class="small text-muted">Documenti non interamente saldati. Le partite chiuse non vengono incluse nelle comunicazioni.</div></div><div class="table-responsive credit-table-wrap"><table class="table table-hover credit-mobile-table align-middle mb-0 credit-items-table">
       <thead><tr><th class="credit-items-table__check">Selezione</th><th>Data</th><th>Documento</th><th>Descrizione</th><th>Stato operativo</th><th>Scadenza</th><th>Segno</th><th class="text-end">Importo</th></tr></thead>
       <tbody>{% for entry in entries.items %}{% set item_state = entry_states.get(entry.id) %}<tr class="{{ 'credit-item-row--pending' if item_state and item_state.status in manual_status_labels else '' }}">
         <td class="credit-items-table__check" data-label="Selezione"><div class="credit-cell-content">
@@ -103,7 +103,7 @@
         </div></td>
         <td class="text-nowrap" data-label="Scadenza"><div class="credit-cell-content">{{ entry.due_date.strftime("%d/%m/%Y") if entry.due_date else "—" }}</div></td>
         <td data-label="Segno"><div class="credit-cell-content"><span class="badge {{ 'text-bg-danger' if entry.accounting_side == 'D' else 'text-bg-success' }}">{{ 'Dare' if entry.accounting_side == 'D' else 'Avere' }}</span></div></td><td class="text-end fw-semibold" data-label="Importo"><div class="credit-cell-content">{{ money(entry.amount) }}</div></td>
-      </tr>{% endfor %}</tbody>
+      </tr>{% else %}<tr><td colspan="8" class="text-muted text-center py-4">Nessuna partita aperta.</td></tr>{% endfor %}</tbody>
     </table></div></div>
   </form>
   {% if entries.pages > 1 %}<nav class="mt-3"><ul class="pagination justify-content-center">

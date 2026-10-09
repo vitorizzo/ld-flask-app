@@ -1,3 +1,10 @@
+## Contabilita' clienti: tecniche e documenti saldati esclusi (2026-10-09)
+
+- Audit produzione read-only BAR KIWI SAS, codice0001066, snapshot213 del08/10/2026 17:32:74 righe,9 tecniche causale096/riferimento00000,9 fatture2016-2019 compensate dai relativi incassi. Fattura890 del14/05/2016:341,38 Dare +341,38 Avere; tecnica gia' esclusa dal saldo. Le comunicazioni escludevano tecniche ma includevano ancora coppie saldate.
+- tools/customer_account_rows.py: elenco aperto senza modificare dati; esclude tecniche e interi documenti con somma rilevante esattamente zero, identificati da importazione/cliente/data/numero/suffisso. Causale, riferimento incasso e rata differiscono tra header e incassi e non definiscono l'intero documento. Identita' incomplete/numeri tuttozero, annate/suffissi diversi, crediti non allocati e documenti parzialmente saldati conservati; nessuna imputazione a fatture diverse.
+- Criterio comune prima della paginazione nel dettaglio amministrativo e vista cliente, nelle anteprime e generatore comunicazioni. Selezioni obsolete rifiutate da stati amministrativi, QR/bonifici/contestazioni/pagamenti e edit/retry pratiche. Dati, totali contabili e storico originali invariati.
+- Verifica snapshot reale:74 ->47 righe visibili,9 tecniche+18 righe di documenti saldati escluse; saldo prima/dopo identico14.110,77EUR. Sette test isolati: equivalenza saldo, parziali/crediti/identita'/annate, paginazione, preview statement/reminder pulita senza invio reale e blocco selezioni obsolete. Nessuna migration o scrittura produzione; attivazione dopo deploy/riavvio.
+
 ## Situazioni contabili clienti: motore grafico condiviso (2026-10-09)
 
 - Migrate le tre viste amministrative: Situazione Zone (aree/zone/clienti), Situazione Clienti e dettaglio estratto conto. Shell ld-page/ld-page-standard e pannelli ld-panel, tema/scala comuni, navigazione e pulsanti allineati a sinistra. Un solo customer_credit_engine.css sostituisce i due fogli legacy; eliminati sfondi/font/layout locali estranei al contratto grafico. Cache credit-engine1.
