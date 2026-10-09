@@ -1,5 +1,7 @@
 (() => {
   "use strict";
+  const namespace = "http://www.w3.org/2000/svg";
+  const money = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
 
   const finishLoading = (id, message = "") => {
     const node = document.getElementById(id);
@@ -17,7 +19,7 @@
   const legend = document.getElementById("customerCreditLegend");
   if (!dataNode || !svg || !legend) {
     finishLoading("customerCreditPieLoading", "Grafico non disponibile.");
-    finishLoading("customerCreditTrendLoading", "Andamento non disponibile.");
+    renderTrend();
     return;
   }
 
@@ -26,18 +28,16 @@
     items = JSON.parse(dataNode.textContent || "[]").filter((item) => Number(item.value) > 0);
   } catch (_error) {
     finishLoading("customerCreditPieLoading", "Impossibile leggere i dati del grafico.");
-    finishLoading("customerCreditTrendLoading", "Impossibile leggere i dati dell'andamento.");
+    renderTrend();
     return;
   }
   if (!items.length) {
     finishLoading("customerCreditPieLoading", "Nessun dato da rappresentare.");
-    finishLoading("customerCreditTrendLoading", "Nessun dato da rappresentare.");
+    renderTrend();
     return;
   }
 
-  const namespace = "http://www.w3.org/2000/svg";
   const total = items.reduce((sum, item) => sum + Number(item.value), 0);
-  const money = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" });
   const point = (angle) => {
     const radians = (angle - 90) * Math.PI / 180;
     return { x: 120 + 105 * Math.cos(radians), y: 120 + 105 * Math.sin(radians) };

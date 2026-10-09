@@ -1,0 +1,148 @@
+/* Shared page/theme/scale contract for all office customer credit views. */
+.customer-credit-page {
+  --credit-border: color-mix(in srgb, var(--ld-brand-primary) 22%, var(--ld-surface));
+  --credit-muted: color-mix(in srgb, var(--ld-brand-primary) 72%, var(--ld-surface));
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.customer-credit-page > .container-fluid { padding: 0; min-width: 0; }
+.customer-credit-page h1 { color: var(--ld-text); text-align: left; }
+.customer-credit-page :is(h2, .h5) { text-align: left; }
+.customer-credit-page > .container-fluid > .credit-page-heading .text-muted { color: var(--ld-text-muted) !important; }
+.customer-credit-page .credit-page-heading > div { min-width: 0; }
+.customer-credit-page .credit-page-actions { display: flex; flex-wrap: wrap; gap: .5em; }
+.customer-credit-page .credit-nav { display: flex; flex-wrap: wrap; gap: .5em; }
+.customer-credit-page .credit-nav > .btn { border-radius: var(--ld-radius) !important; margin: 0 !important; }
+.customer-credit-page :is(.card, .credit-item-state-panel, .credit-snapshot) {
+  color: var(--ld-brand-primary);
+  background: var(--ld-surface);
+  border-color: var(--credit-border) !important;
+  border-radius: var(--ld-radius);
+}
+.customer-credit-page .card { overflow: hidden; min-width: 0; }
+.customer-credit-page .card-header { color: var(--ld-brand-primary); background: var(--ld-surface) !important; }
+.customer-credit-page .card :is(h2, .h5), .customer-credit-page .credit-item-state-panel { color: var(--ld-brand-primary); }
+.customer-credit-page :is(.card, .credit-item-state-panel, .credit-snapshot) .text-muted { color: var(--credit-muted) !important; }
+.customer-credit-page .text-body { color: var(--ld-brand-primary) !important; }
+.customer-credit-page .card :is(a:not(.btn), .credit-legend-item) { color: var(--ld-brand-primary); }
+.customer-credit-page .credit-snapshot-total { min-width: 0; white-space: normal; }
+.customer-credit-page .credit-snapshot-total strong { display: block; }
+.customer-credit-page .badge { white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.customer-credit-page .credit-snapshot > div { min-width: 0; }
+.customer-credit-page :is(.card-body, .card-header) { padding: calc(var(--ld-page-padding) * var(--ld-ui-scale, 1)) !important; }
+.customer-credit-page :is(.fs-4, .fs-5) { font-size: 1.4em !important; }
+.customer-credit-page .h5 { font-size: 1.15em; }
+.customer-credit-page :is(.form-label, .form-check-label) { color: inherit; }
+.customer-credit-page :is(.form-control, .form-select) { color: var(--ld-brand-primary); background-color: var(--ld-surface); border-color: var(--credit-border); font-size: 1em; }
+.customer-credit-page :is(.form-control, .form-select):focus { border-color: var(--ld-brand-accent); box-shadow: 0 0 0 .2em color-mix(in srgb, var(--ld-brand-accent) 25%, transparent); }
+.customer-credit-page .btn, .credit-send-modal .btn { text-align: left; white-space: normal; font-size: 1em; border-radius: var(--ld-radius); }
+.customer-credit-page :is(.btn, .form-control, .form-select) { min-height: calc(var(--ld-touch-size) * var(--ld-ui-scale, 1)); }
+.customer-credit-page :is(.btn-primary, .btn-outline-primary), .credit-send-modal :is(.btn-primary, .btn-outline-primary) {
+  --bs-btn-color: var(--ld-brand-primary);
+  --bs-btn-bg: var(--ld-brand-accent);
+  --bs-btn-border-color: var(--ld-brand-accent);
+  --bs-btn-hover-color: var(--ld-brand-primary);
+  --bs-btn-hover-bg: color-mix(in srgb, var(--ld-brand-accent) 85%, var(--ld-surface));
+  --bs-btn-hover-border-color: var(--ld-brand-accent);
+  --bs-btn-active-color: var(--ld-brand-primary);
+  --bs-btn-active-bg: var(--ld-brand-accent);
+  --bs-btn-active-border-color: var(--ld-brand-accent);
+  --bs-btn-disabled-color: var(--ld-brand-primary);
+  --bs-btn-disabled-bg: var(--ld-brand-accent);
+  --bs-btn-disabled-border-color: var(--ld-brand-accent);
+}
+.customer-credit-page .btn-primary, .credit-send-modal .btn-primary { color: var(--ld-brand-primary); background-color: var(--ld-brand-accent); border-color: var(--ld-brand-accent); }
+.customer-credit-page .btn-primary:hover, .credit-send-modal .btn-primary:hover { color: var(--ld-brand-primary); background-color: color-mix(in srgb, var(--ld-brand-accent) 85%, var(--ld-surface)); border-color: var(--ld-brand-accent); }
+.customer-credit-page .btn-outline-primary, .credit-send-modal .btn-outline-primary { color: var(--ld-brand-primary); background-color: transparent; border-color: var(--ld-brand-accent); }
+.customer-credit-page .btn-outline-primary:hover, .credit-send-modal .btn-outline-primary:hover { color: var(--ld-brand-primary); background-color: var(--ld-brand-accent); border-color: var(--ld-brand-accent); }
+.customer-credit-page .btn-outline-primary, .credit-send-modal .btn-outline-primary { --bs-btn-bg: transparent; }
+.customer-credit-page .credit-page-heading :is(.btn-outline-primary, .btn-outline-secondary, .btn-outline-danger) { color: var(--ld-text); border-color: var(--ld-text-muted); }
+.customer-credit-page .btn-outline-secondary { --bs-btn-hover-bg: var(--ld-brand-accent); --bs-btn-hover-color: var(--ld-brand-primary); }
+.customer-credit-page .breadcrumb { color: var(--ld-text); --bs-breadcrumb-divider-color: var(--ld-text-muted); }
+.customer-credit-page .breadcrumb :is(a, .active) { color: var(--ld-text-muted); }
+.customer-credit-page .table { --bs-table-color: var(--ld-brand-primary); --bs-table-bg: var(--ld-surface); --bs-table-border-color: var(--credit-border); --bs-table-hover-bg: color-mix(in srgb, var(--ld-brand-accent) 12%, var(--ld-surface)); --bs-table-hover-color: var(--ld-brand-primary); }
+.customer-credit-page .table thead th { color: var(--ld-text); background: var(--ld-brand-primary); }
+.customer-credit-page .table td { vertical-align: top; }
+.customer-credit-page .page-link { color: var(--ld-brand-primary); background: var(--ld-surface); border-color: var(--credit-border); }
+.customer-credit-page .page-item.active .page-link { color: var(--ld-brand-primary); background: var(--ld-brand-accent); border-color: var(--ld-brand-accent); }
+.customer-credit-page .pagination { flex-wrap: wrap; gap: .25em; }
+.customer-credit-page .credit-customers-search { padding: calc(var(--ld-page-padding) * var(--ld-ui-scale, 1)); border-radius: var(--ld-radius); background: var(--ld-surface); color: var(--ld-brand-primary); }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-page-heading { flex-direction: column; }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-page-actions { width: 100%; }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-page-actions :is(form, .btn) { flex: 1 1 auto; }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-nav { width: 100%; }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-nav .btn { flex: 1 1 auto; }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-snapshot { align-items: stretch !important; }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-snapshot-total { margin-left: 0 !important; width: 100%; }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-table-wrap { overflow: visible; }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-mobile-table :is(tbody, tr, td) { display: block; width: 100%; }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-mobile-table { width: 100%; }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-mobile-table thead { display: none; }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-mobile-table tbody tr { padding: .7em; border-bottom: 1px solid var(--credit-border); }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-mobile-table td { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.3fr); gap: .7em; padding: .35em 0; border: 0; text-align: left !important; white-space: normal !important; overflow-wrap: anywhere; min-width: 0; max-width: none; }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-mobile-table td::before { content: attr(data-label); font-weight: 600; color: var(--credit-muted); }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-mobile-table td[colspan] { display: block; }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-mobile-table td[colspan]::before { display: none; }
+html[data-responsive-mode="mobile"] .customer-credit-page .credit-mobile-table .credit-cell-content { min-width: 0; }
+
+/* Graphs scroll in their panels; their axes remain readable on narrow viewports. */
+.credit-chart-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: calc(20px * var(--ld-ui-scale, 1)); align-items: center; }
+.credit-pie-wrap, .credit-trend-wrap { position: relative; min-width: 0; }
+.credit-chart-loading { position: absolute; inset: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: .5em; min-height: 7em; padding: .7em; border-radius: var(--ld-radius); background: var(--ld-surface); color: var(--ld-brand-primary); text-align: center; }
+.credit-chart-loading.is-error { color: var(--bs-danger); }
+.credit-pie-wrap { width: 100%; max-width: calc(430px * var(--ld-ui-scale, 1)); margin: 0 auto; }
+.credit-pie { display: block; width: 100%; height: auto; }
+.credit-pie-slice { stroke: var(--ld-surface); stroke-width: 1.3; transition: opacity 150ms ease, transform 150ms ease; transform-origin: 120px 120px; cursor: pointer; }
+.credit-pie a:is(:hover, :focus) .credit-pie-slice { opacity: .82; transform: scale(1.025); }
+.credit-legend { max-height: calc(440px * var(--ld-ui-scale, 1)); overflow-y: auto; min-width: 0; }
+.credit-legend-item { display: grid; grid-template-columns: .8em minmax(0, 1fr); align-items: center; gap: .4em .65em; padding: .65em .4em; color: var(--ld-brand-primary); text-decoration: none; border-bottom: 1px solid var(--credit-border); }
+.credit-legend-item strong { grid-column: 2; }
+.credit-legend-item small { grid-column: 2; color: var(--credit-muted); }
+.credit-legend-item:is(:hover, :focus) { background: color-mix(in srgb, var(--ld-brand-accent) 15%, var(--ld-surface)); }
+.credit-legend-color { width: .8em; height: .8em; border-radius: 50%; }
+.credit-legend-label { overflow-wrap: anywhere; }
+.credit-history-filter { width: 100%; }
+.credit-trend-wrap { width: 100%; overflow-x: auto; }
+.credit-trend { display: block; width: 100%; min-width: calc(680px * var(--ld-ui-scale, 1)); height: auto; }
+.credit-trend-wrap-compact .credit-trend { min-width: calc(600px * var(--ld-ui-scale, 1)); }
+.credit-snapshot-total { margin-left: auto; }
+.credit-trend-grid { stroke: var(--credit-border); stroke-width: 1; }
+.credit-trend-line { fill: none; stroke: var(--ld-brand-accent); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.credit-trend-point { fill: var(--ld-surface); stroke: var(--ld-brand-accent); stroke-width: 4; }
+.credit-trend-axis { fill: var(--credit-muted); font-size: 18px; }
+@media (max-width: 1199.98px) { .credit-chart-layout { grid-template-columns: minmax(0, 1fr); } }
+html[data-responsive-mode="mobile"] .credit-chart-layout { grid-template-columns: minmax(0, 1fr); }
+html[data-responsive-mode="mobile"] .credit-legend { max-height: 45dvh; }
+.credit-detail-chart-wrap { width: 100%; overflow-x: auto; }
+.credit-detail-chart { display: block; width: 100%; min-width: calc(720px * var(--ld-ui-scale, 1)); height: auto; }
+.credit-detail-grid { stroke: var(--credit-border); stroke-width: 1; }
+.credit-detail-axis { fill: var(--credit-muted); font-size: 16px; }
+.credit-detail-line { fill: none; stroke: var(--ld-brand-accent); stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; }
+.credit-detail-point { fill: var(--ld-surface); stroke: var(--ld-brand-accent); stroke-width: 4; }
+.credit-detail-bar { fill: var(--ld-brand-accent); opacity: .85; }
+.credit-detail-bar-negative { fill: var(--bs-success); }
+
+.credit-send-modal { --ld-modal-width: 920px; z-index: 12050; pointer-events: auto; }
+body.credit-send-modal-open .modal-backdrop.show { z-index: 12040 !important; }
+.credit-send-modal .modal-content { border: 0; }
+.credit-send-modal .modal-body { text-align: left; }
+.credit-send-modal .credit-send-help { min-height: 1.25em; }
+.credit-send-modal .alert-light { background: var(--ld-surface); color: var(--ld-brand-primary); border-color: color-mix(in srgb, var(--ld-brand-primary) 24%, var(--ld-surface)) !important; }
+.credit-send-envelope { padding: .8em; border: 1px solid color-mix(in srgb, var(--ld-brand-primary) 24%, var(--ld-surface)); border-radius: var(--ld-radius); background: var(--ld-surface); color: var(--ld-brand-primary); overflow-wrap: anywhere; }
+.credit-send-editor { min-height: 12em; max-height: 45dvh; overflow: auto; padding: 1em; border: 1px solid color-mix(in srgb, var(--ld-brand-primary) 24%, var(--ld-surface)); border-radius: var(--ld-radius); background: var(--ld-surface); color: var(--ld-brand-primary); overflow-wrap: anywhere; }
+.credit-send-editor:focus { border-color: var(--ld-brand-accent); outline: 0; box-shadow: 0 0 0 .2em color-mix(in srgb, var(--ld-brand-accent) 25%, transparent); }
+.credit-send-editor :is(table,img) { max-width: 100%; }
+.credit-send-modal .modal-footer .btn-secondary { background: var(--ld-brand-primary); color: var(--ld-text); border-color: var(--ld-brand-primary); }
+.credit-item-state-panel { padding: calc(var(--ld-page-padding) * var(--ld-ui-scale, 1)); border: 1px solid var(--credit-border); }
+.credit-item-state-panel__intro { margin-bottom: .9em; }
+.credit-item-state-panel__controls { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.5fr) minmax(0, .9fr); gap: .9em; align-items: end; }
+.credit-item-state-panel__note textarea { min-height: 4em; resize: vertical; }
+.credit-items-table__check { width: 3em; text-align: center; }
+.credit-items-table__status { min-width: 13em; max-width: 20em; }
+.credit-item-state-note { overflow-wrap: anywhere; }
+.credit-item-row--pending > * { --bs-table-bg: color-mix(in srgb, var(--bs-warning) 10%, var(--ld-surface)); }
+.credit-item-select-all { display: flex; align-items: center; gap: .5em; margin-top: .7em; }
+.credit-entry-choice { display: inline-flex; align-items: center; justify-content: center; min-width: calc(var(--ld-touch-size) * var(--ld-ui-scale, 1)); min-height: calc(var(--ld-touch-size) * var(--ld-ui-scale, 1)); }
+@media (max-width: 991.98px) { .credit-item-state-panel__controls { grid-template-columns: minmax(0, 1fr); } }
+html[data-responsive-mode="mobile"] .credit-item-state-panel__controls { grid-template-columns: minmax(0, 1fr); }
+html[data-responsive-mode="mobile"] .credit-items-table__check { min-width: 0; }

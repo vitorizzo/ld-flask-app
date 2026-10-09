@@ -132,7 +132,7 @@
   }
 
   const updateCommunicationModal = (modal) => {
-    if (!modal || !communicationData) return;
+    if (!modal || !communicationData || modal.dataset.creditBusy === "1") return;
     const channelSelect = modal.querySelector(".credit-send-channel");
     const recipientSelect = modal.querySelector(".credit-send-recipient");
     const help = modal.querySelector(".credit-send-help");
@@ -228,7 +228,17 @@
     if (window.bootstrap?.Modal) {
       window.bootstrap.Modal.getOrCreateInstance(modal);
     }
+    let busy = false;
+    const setBusy = (value) => {
+      busy = value;
+      modal.dataset.creditBusy = value ? "1" : "0";
+      modal.querySelectorAll("input, select").forEach(field => { field.disabled = value; });
+      const editor = modal.querySelector(".credit-send-editor");
+      if (editor) editor.contentEditable = value ? "false" : "true";
+      if (value) modal.querySelectorAll(".credit-send-preview-btn, .credit-send-confirm").forEach(button => { button.disabled = true; });
+    };
     modal.addEventListener("show.bs.modal", () => {
+      document.body.classList.add("credit-send-modal-open");
       const channelSelect = modal.querySelector(".credit-send-channel");
       const readyOption = Array.from(channelSelect?.options || []).find((option) => option.dataset.accountReady === "1");
       if (readyOption) channelSelect.value = readyOption.value;
@@ -240,7 +250,11 @@
       resetCommunicationPreview(modal);
       updateCommunicationModal(modal);
     });
+    modal.addEventListener("hide.bs.modal", event => { if (busy) event.preventDefault(); });
     modal.addEventListener("hidden.bs.modal", () => {
+      if (!document.querySelector(".credit-send-modal.show")) document.body.classList.remove("credit-send-modal-open");
+      modal.querySelector(".credit-send-preview-btn").onclick = null;
+      modal.querySelector(".credit-send-confirm").onclick = null;
       resetCommunicationPreview(modal);
       const active = document.activeElement;
       if (active && modal.contains(active)) active.blur();
@@ -266,8 +280,10 @@
       updateCommunicationModal(modal);
     });
 
-    modal.querySelector(".credit-send-preview-btn")?.addEventListener("click", async (event) => {
+    const previewCommunication = async (event) => {
+      if (busy || !communicationData?.endpoint) return;
       const button = event.currentTarget;
+      setBusy(true);
       button.disabled = true;
       const originalHtml = button.innerHTML;
       button.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span> Preparazione...';
@@ -287,17 +303,20 @@
         modal.querySelector(".credit-send-subject").value = preview.subject || "";
         modal.querySelector(".credit-send-editor").innerHTML = preview.html || "";
         modal.querySelector(".credit-send-preview")?.classList.remove("d-none");
+        modal.querySelector(".credit-send-confirm").textContent = "Invia ora";
         modal.querySelector(".credit-send-confirm")?.classList.remove("d-none");
         button.classList.add("d-none");
       } catch (error) {
         showCommunicationFeedback(modal, false, error.message || "Errore durante la preparazione dell'anteprima.");
       } finally {
         button.innerHTML = originalHtml;
+        setBusy(false);
         updateCommunicationModal(modal);
       }
-    });
+    };
 
-    modal.querySelector(".credit-send-confirm")?.addEventListener("click", async (event) => {
+    const sendCommunication = async (event) => {
+      if (busy || !communicationData?.endpoint) return;
       const button = event.currentTarget;
       const channel = modal.querySelector(".credit-send-channel")?.value || "";
       const contactId = modal.querySelector(".credit-send-recipient")?.value || "";
@@ -306,6 +325,7 @@
       const manualMode = contactId === "__manual__";
       if (!channel || (!testMode && !manualMode && !contactId) || !communicationData?.endpoint) return;
 
+      setBusy(true);
       button.disabled = true;
       let sent = false;
       const originalHtml = button.innerHTML;
@@ -334,12 +354,23 @@
         feedback?.replaceChildren(alert);
       } finally {
         button.innerHTML = originalHtml;
+        setBusy(false);
         updateCommunicationModal(modal);
         if (sent) {
           button.disabled = true;
           button.textContent = "Inviato";
         }
       }
+    };
+    modal.addEventListener("shown.bs.modal", () => {
+      setBusy(false);
+      const previewButton = modal.querySelector(".credit-send-preview-btn");
+      const confirmButton = modal.querySelector(".credit-send-confirm");
+      previewButton.textContent = "Mostra anteprima";
+      confirmButton.textContent = "Invia ora";
+      previewButton.onclick = previewCommunication;
+      confirmButton.onclick = sendCommunication;
+      updateCommunicationModal(modal);
     });
   });
 })();

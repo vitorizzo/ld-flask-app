@@ -1,3 +1,10 @@
+## Situazioni contabili clienti: contratto grafico comune (2026-10-09)
+
+- templates/administration/customer_credit.html, customer_credit_customers.html e templates/settings/customer_account_statement_detail.html: ld-page-standard/customer-credit-page, pannelli ld-panel, tabelle credit-mobile-table con data-label e contenuto cella separato, navigazione/azioni comuni. Nessuna modifica a route o modello contabile.
+- static/css/customer_credit_engine.css unico per riepiloghi, dettaglio, grafici, selezione e modali; sostituisce customer_credit.css/customer_credit_detail.css rimossi. Token tema ld-brand-primary/accent/surface/text/radius e sola ld-ui-scale. Cache credit-engine1.
+- static/js/customer_credit.js: storico indipendente dalla torta vuota; customer_credit_detail.js: selezione esistente conservata, modali standard con rebind shown/cleanup hidden, busy su richiesta e backdrop body dedicato. Comunicazioni via endpoint esistente, nessun cambiamento al payload.
+- Verifica ripetibile browser locale in .codex_tmp/test_customer_credit_engine.py (46 casi,2 temi,mobile/desktop e API di comunicazione simulate). Nessuna migration o operazione sul DB per la migrazione grafica.
+
 ## Elenco prodotti: range prezzi (2026-10-08)
 
 - routes/search.py: _warehouse_price_limits valida price_min/price_max; elenco_prodotti_dati filtra il listino autorizzato price_list (prezzo1/prezzo3/costo) prima di paginate, con coalesce prezzo3 uguale al fallback visualizzato. Default listino derivato da visible_product_price; nessun nuovo modello/schema.
