@@ -1,3 +1,10 @@
+## Comunicazioni contabili: template e allegati PDF (2026-10-09)
+
+- tools/customer_credit_templates.py: CRUD data/validazione campi di testo, persistenza AppPreference.value_json customer_credit.template.<uuid>. routes/administration.py: GET/POST /customer-credit/templates, DELETE /customer-credit/templates/<id>, stessi login/ruoli della comunicazione; modelli condivisi, separati statement/reminder, nessun nuovo schema.
+- tools/customer_credit_pdf.py: documento A4 ReportLab da testo con campi automatici e tabella partite aperte aggiornata, multipagina con intestazioni ripetute/footer. POST communications genera preview PDF e token itsdangerous15min vincolato ai dati di invio/snapshot; send verifica token e allega byte identici, corpo mail solo testo accompagnamento.
+- templates/settings/customer_account_statement_detail.html e static/js/customer_credit_detail.js: gestione Template nel dettaglio, selettore nell'invio, anteprima PDF/Apri/Scarica e testo mail editabile; body-mounted modali/new-engine, busy/retry/scadenza, handlers shown/hidden e lifecycle blob URL. Cache credit-template1.
+- tests/test_customer_credit_templates.py e test_customer_credit_pdf.py + test_customer_account_open_api.py: CRUD/permessi/validation, allegato identico, snapshot/envelope/expiry, generazione failure e multipagina. requirements-dev.txt aggiunge pypdf soltanto per QA; preview browser/PDF intermedi ignorati in .codex_tmp.
+
 ## Contabilita' clienti: proiezione partite aperte (2026-10-09)
 
 - tools/customer_account_rows.py/open_account_entries: helper puro condiviso, esclude tecniche e interi documenti a saldo zero con identita' (import,cliente,data,numero,suffisso); preserva importi, parziali, crediti e identita' incomplete. Nessuna modifica schema/dati.

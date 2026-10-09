@@ -15,6 +15,7 @@
     <div class="credit-page-actions">
       <button class="btn btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#creditStatementSendModal"><i class="fa-solid fa-file-invoice me-1"></i> Invia estratto conto</button>
       <button class="btn btn-outline-danger" type="button" data-bs-toggle="modal" data-bs-target="#creditReminderSendModal"><i class="fa-solid fa-bell me-1"></i> Invia sollecito</button>
+      <button class="btn btn-outline-primary" type="button" data-bs-toggle="modal" data-bs-target="#creditTemplateModal"><i class="fa-solid fa-pen-to-square me-1"></i> Template</button>
       <a class="btn btn-outline-secondary" href="{{ back_url or url_for('administration.customer_credit_customers') }}"><i class="fa-solid fa-arrow-left me-1"></i> Riepilogo</a>
     </div>
   </div>
@@ -116,6 +117,8 @@
     <div class="modal-header"><h2 class="modal-title fs-5">{{ title }}</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">
       <div class="alert alert-light border small"><strong>{{ customer.customer_name }}</strong><br>Saldo attuale: <span class="text-danger fw-semibold">{{ money(totals.balance) }}</span></div>
+      <label class="form-label" for="{{ modal_id }}Template">Template email</label>
+      <select class="form-select credit-send-template mb-3" id="{{ modal_id }}Template"><option value="">Modello standard</option></select>
       <label class="form-label" for="{{ modal_id }}Channel">Canale di invio</label>
       <select class="form-select credit-send-channel" id="{{ modal_id }}Channel" data-kind="{{ kind }}">
         <option value="email" data-account-ready="{{ 1 if credit_mail_available else 0 }}">Email ordinaria — CreditManagement{{ '' if credit_mail_available else ' (account non configurato)' }}</option>
@@ -146,9 +149,11 @@
         </div>
         <label class="form-label" for="{{ modal_id }}Subject">Oggetto</label>
         <input class="form-control credit-send-subject" id="{{ modal_id }}Subject" maxlength="255">
-        <label class="form-label mt-3">Contenuto del messaggio</label>
-        <div class="credit-send-editor" contenteditable="true" role="textbox" aria-multiline="true"></div>
-        <div class="form-text">Puoi correggere oggetto e contenuto prima dell'invio.</div>
+        <div class="mt-3 mb-2"><strong>Comunicazione allegata in PDF</strong> <a class="btn btn-outline-primary credit-send-pdf-link ms-2" target="_blank" rel="noopener">Apri PDF</a> <a class="btn btn-outline-secondary credit-send-pdf-download">Scarica</a></div>
+        <iframe class="credit-send-pdf" title="Anteprima comunicazione PDF" style="width:100%;height:45dvh;border:1px solid var(--bs-border-color)"></iframe>
+        <label class="form-label mt-3" for="{{ modal_id }}EmailBody">Testo di accompagnamento della mail</label>
+        <textarea class="form-control credit-send-email-body" id="{{ modal_id }}EmailBody" rows="5" maxlength="20000"></textarea>
+        <div class="form-text">Puoi correggere oggetto e testo della mail. Per modificare la comunicazione PDF, aggiorna il template e genera una nuova anteprima.</div>
       </div>
       <div class="credit-send-feedback mt-3" aria-live="polite"></div>
       <div class="small text-muted mt-3">Prima dell'invio verranno mostrati mittente, destinatario, oggetto e contenuto completo.</div>
@@ -159,11 +164,40 @@
 {% endmacro %}
 {{ communication_modal('creditStatementSendModal', 'Invia estratto conto', 'statement') }}
 {{ communication_modal('creditReminderSendModal', 'Invia sollecito', 'reminder', true) }}
+<div class="modal fade credit-send-modal ld-modal ld-modal-standard" id="creditTemplateModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable"><div class="modal-content">
+    <div class="modal-header"><h2 class="modal-title fs-5">Template delle comunicazioni</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+    <div class="modal-body">
+      <p class="text-muted">I modelli generano la comunicazione PDF allegata alla mail. Sono disponibili per tutti i clienti e per gli operatori che gestiscono le comunicazioni.</p>
+      <label class="form-label" for="creditTemplateList">Modello da modificare</label>
+      <select class="form-select mb-3" id="creditTemplateList"><option value="">Crea nuovo template</option></select>
+      <label class="form-label" for="creditTemplateKind">Comunicazione</label>
+      <select class="form-select mb-3" id="creditTemplateKind"><option value="statement">Estratto conto</option><option value="reminder">Sollecito</option></select>
+      <label class="form-label" for="creditTemplateName">Nome del template</label>
+      <input class="form-control mb-3" id="creditTemplateName" maxlength="160" placeholder="Es. Sollecito cordiale">
+      <label class="form-label" for="creditTemplateSubject">Oggetto</label>
+      <input class="form-control mb-3" id="creditTemplateSubject" maxlength="255">
+      <label class="form-label" for="creditTemplateBody">Testo della comunicazione PDF</label>
+      <textarea class="form-control" id="creditTemplateBody" rows="12" maxlength="20000"></textarea>
+      <div class="form-text">Scrivi il testo e usa i campi automatici qui sotto. Inserisci Partite aperte una sola volta: i documenti saranno aggiornati per ogni cliente.</div>
+      <div class="d-flex flex-wrap gap-2 mt-2" id="creditTemplateFields">
+        <button type="button" class="btn btn-sm btn-outline-primary" data-field="cliente">Cliente</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-field="codice_cliente">Codice cliente</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-field="saldo">Saldo</button>
+        <button type="button" class="btn btn-sm btn-outline-primary" data-field="partite">Partite aperte</button>
+      </div>
+      <div id="creditTemplateFeedback" class="mt-3" aria-live="polite"></div>
+      <div id="creditTemplateDeleteConfirm" class="d-none alert alert-warning mt-3">Eliminare questo template? <button type="button" class="btn btn-danger" id="creditTemplateDeleteYes">Elimina definitivamente</button><button type="button" class="btn btn-secondary ms-2" id="creditTemplateDeleteNo">Annulla</button></div>
+    </div>
+    <div class="modal-footer"><button type="button" class="btn btn-outline-danger" id="creditTemplateDelete">Elimina</button><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Chiudi</button><button type="button" class="btn btn-primary" id="creditTemplateSave">Salva template</button></div>
+  </div></div>
+</div>
 <script id="customerExposureHistoryData" type="application/json">{{ customer_history_payload|tojson }}</script>
 <script id="customerAgingData" type="application/json">{{ aging_payload|tojson }}</script>
 <script id="customerCreditCommunicationData" type="application/json">{{ {
   'endpoint': url_for('administration.send_customer_credit_communication', source_customer_code=customer.source_customer_code),
+  'templatesEndpoint': url_for('administration.customer_credit_templates'),
   'contacts': communication_contacts
 }|tojson }}</script>
 {% endblock %}
-{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_credit_detail.js', v=app_version ~ '-credit-engine1') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static', filename='js/customer_credit_detail.js', v=app_version ~ '-credit-template1') }}"></script>{% endblock %}

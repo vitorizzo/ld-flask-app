@@ -8,7 +8,9 @@ from flask_login import LoginManager
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.dialects.postgresql import JSONB
 from extensions import db
-from models import CustomerAccountEntry, CustomerAccountingItemState
+from models import CustomerAccountEntry, CustomerAccountingItemState, AppPreference
+from io import BytesIO
+from pypdf import PdfReader
 from routes.administration import administration_bp
 from routes.customer_account import customer_account_bp
 
@@ -37,7 +39,7 @@ class OpenAccountApiTests(unittest.TestCase):
         mock('routes.administration.get_email_account',return_value={'is_enabled':True,'default_sender':'office@example.com'})
         self.send=mock('routes.administration.send_account_mail')
         mock('routes.administration.render_template',side_effect=lambda name,**ctx:jsonify(ids=[row.id for row in ctx['entries'].items],count=ctx['entries'].total,balance=str(ctx['totals'].balance)))
-        db.metadata.create_all(db.engine,tables=[CustomerAccountEntry.__table__,CustomerAccountingItemState.__table__])
+        db.metadata.create_all(db.engine,tables=[CustomerAccountEntry.__table__,CustomerAccountingItemState.__table__,AppPreference.__table__])
         for id,amount,reason,relevant,number in [(1,'341.38','001',True,'890'),(2,'341.38','096',False,'890'),(3,'-341.38','096',True,'890'),(4,'100','001',True,'OPEN')]:
             db.session.add(CustomerAccountEntry(id=id,import_id=1,row_number=id,source_customer_code='1066',customer_name='Cliente prova',
                 document_number=number,document_date=date(2016,5,14),accounting_reason=reason,is_balance_relevant=relevant,
@@ -57,7 +59,9 @@ class OpenAccountApiTests(unittest.TestCase):
         for kind in ['statement','reminder']:
             response=self.client.post('/admin/customer-credit/1066/communications',json=dict(action='preview',kind=kind,channel='email',test_mode=True,test_email='test@example.com'))
             self.assertEqual(response.status_code,200,response.json)
-            content=response.json['preview']['html'];self.assertNotIn('DOCUMENTO 890',content);self.assertIn('DOCUMENTO OPEN',content);self.assertIn('100,00',content)
+            import base64
+            content=''.join(page.extract_text() for page in PdfReader(BytesIO(base64.b64decode(response.json['preview']['pdf_base64']))).pages)
+            self.assertNotIn('DOCUMENTO 890',content);self.assertIn('DOCUMENTO OPEN',content);self.assertIn('100,00',content)
         self.send.assert_not_called()
 
     def test_status_change_and_payment_qr_reject_closed_invoice_from_stale_page(self):

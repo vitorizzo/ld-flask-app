@@ -131,6 +131,123 @@
     communicationData = null;
   }
 
+  let creditTemplates = [];
+  const refreshTemplateOptions = () => {
+    document.querySelectorAll('.credit-send-template').forEach(select => {
+      const selected = select.value;
+      const kind = select.closest('.modal').querySelector('[data-kind]').dataset.kind;
+      select.replaceChildren(new Option('Modello standard', ''));
+      creditTemplates.filter(template => template.kind === kind).forEach(template => select.add(new Option(template.name, template.id)));
+      if (Array.from(select.options).some(option => option.value === selected)) select.value = selected;
+    });
+  };
+  const loadTemplates = async () => {
+    if (!communicationData?.templatesEndpoint) return;
+    const response = await fetch(communicationData.templatesEndpoint, {credentials: 'same-origin'});
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || 'Impossibile caricare i template.');
+    creditTemplates = result.templates;
+    refreshTemplateOptions();
+  };
+  document.querySelectorAll('.credit-send-modal:not(#creditTemplateModal)').forEach(modal => {
+    modal.addEventListener('show.bs.modal', () => {
+      loadTemplates().catch(error => showCommunicationFeedback(modal, false, error.message));
+    });
+  });
+
+  const templateModal = document.getElementById('creditTemplateModal');
+  if (templateModal && communicationData?.templatesEndpoint) {
+    document.body.appendChild(templateModal);
+    const field = id => document.getElementById('creditTemplate' + id);
+    let busy = false;
+    const feedback = (ok, message) => {
+      const alert = document.createElement('div');
+      alert.className = `alert ${ok ? 'alert-success' : 'alert-danger'} mb-0`;
+      alert.textContent = message;
+      field('Feedback').replaceChildren(alert);
+    };
+    const setBusy = value => {
+      busy = value;
+      templateModal.querySelectorAll('input, textarea, select, button').forEach(node => {node.disabled = value;});
+      if (!value) field('Delete').disabled = !field('List').value;
+    };
+    const defaultText = () => {
+      const reminder = field('Kind').value === 'reminder';
+      field('Subject').value = (reminder ? 'Sollecito di pagamento' : 'Estratto conto aggiornato') + ' - {{cliente}}';
+      field('Body').value = 'Spett.le {{cliente}},\n\n' + (reminder ? 'Vi chiediamo cortesemente di provvedere al saldo delle partite aperte o di segnalarci eventuali difformità.' : 'Trasmettiamo la situazione contabile aggiornata.') + '\n\nSaldo attuale: {{saldo}}\n\n{{partite}}\n\nPer chiarimenti potete rispondere a questa comunicazione.\n\nCordiali saluti\nLD Enoteca';
+    };
+    const populate = () => {
+      const template = creditTemplates.find(item => item.id === field('List').value);
+      field('DeleteConfirm').classList.add('d-none');
+      field('Feedback').replaceChildren();
+      field('Name').value = template?.name || '';
+      field('Kind').value = template?.kind || 'statement';
+      if (template) { field('Subject').value = template.subject; field('Body').value = template.body; }
+      else defaultText();
+      field('Delete').disabled = !template;
+    };
+    const list = selected => {
+      field('List').replaceChildren(new Option('Crea nuovo template', ''));
+      creditTemplates.forEach(item => field('List').add(new Option(`${item.name} — ${item.kind === 'statement' ? 'Estratto conto' : 'Sollecito'}`, item.id)));
+      field('List').value = selected || '';
+      populate();
+    };
+    const save = async () => {
+      if (busy) return;
+      const data = {id: field('List').value, name: field('Name').value, kind: field('Kind').value, subject: field('Subject').value, body: field('Body').value};
+      setBusy(true);
+      try {
+        const response = await fetch(communicationData.templatesEndpoint, {method: 'POST', credentials: 'same-origin', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)});
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.error || 'Salvataggio non riuscito.');
+        const index = creditTemplates.findIndex(item => item.id === result.template.id);
+        if (index < 0) creditTemplates.push(result.template); else creditTemplates[index] = result.template;
+        list(result.template.id); refreshTemplateOptions(); feedback(true, 'Template salvato e disponibile nelle comunicazioni.');
+      } catch (error) {feedback(false, error.message || 'Errore di rete.');}
+      finally {setBusy(false);}
+    };
+    const remove = async () => {
+      const id = field('List').value;
+      if (busy || !id) return;
+      setBusy(true);
+      try {
+        const response = await fetch(`${communicationData.templatesEndpoint}/${encodeURIComponent(id)}`, {method: 'DELETE', credentials: 'same-origin'});
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.error || 'Eliminazione non riuscita.');
+        creditTemplates = creditTemplates.filter(item => item.id !== id);
+        list(''); refreshTemplateOptions(); feedback(true, 'Template eliminato.');
+      } catch (error) {feedback(false, error.message || 'Errore di rete.');}
+      finally {setBusy(false);}
+    };
+    field('List').addEventListener('change', populate);
+    field('Kind').addEventListener('change', () => {if (!field('List').value) defaultText();});
+    let focused = field('Body');
+    [field('Subject'), field('Body')].forEach(node => node.addEventListener('focus', () => {focused = node;}));
+    field('Fields').addEventListener('click', event => {
+      const button = event.target.closest('[data-field]');
+      if (!button || busy) return;
+      const target = button.dataset.field === 'partite' ? field('Body') : focused;
+      target.setRangeText('{{' + button.dataset.field + '}}', target.selectionStart, target.selectionEnd, 'end');
+      target.focus();
+    });
+    templateModal.addEventListener('show.bs.modal', () => document.body.classList.add('credit-send-modal-open'));
+    templateModal.addEventListener('shown.bs.modal', async () => {
+      field('Save').textContent = 'Salva template'; field('Save').onclick = save;
+      field('Delete').onclick = () => field('DeleteConfirm').classList.remove('d-none');
+      field('DeleteYes').onclick = remove;
+      field('DeleteNo').onclick = () => field('DeleteConfirm').classList.add('d-none');
+      list(''); setBusy(true);
+      try {await loadTemplates(); list('');} catch (error) {feedback(false, error.message);}
+      finally {setBusy(false);}
+    });
+    templateModal.addEventListener('hide.bs.modal', event => {if (busy) event.preventDefault();});
+    templateModal.addEventListener('hidden.bs.modal', () => {
+      ['Save', 'Delete', 'DeleteYes', 'DeleteNo'].forEach(id => {field(id).onclick = null;});
+      document.body.classList.remove('credit-send-modal-open');
+      field('Feedback').replaceChildren(); field('DeleteConfirm').classList.add('d-none');
+    });
+  }
+
   const updateCommunicationModal = (modal) => {
     if (!modal || !communicationData || modal.dataset.creditBusy === "1") return;
     const channelSelect = modal.querySelector(".credit-send-channel");
@@ -193,6 +310,11 @@
   };
 
   const resetCommunicationPreview = (modal) => {
+    if (modal.dataset.pdfUrl) URL.revokeObjectURL(modal.dataset.pdfUrl);
+    delete modal.dataset.pdfUrl;
+    delete modal.dataset.pdfToken;
+    modal.querySelector('.credit-send-pdf')?.removeAttribute('src');
+    modal.querySelectorAll('.credit-send-pdf-link, .credit-send-pdf-download').forEach(link => link.removeAttribute('href'));
     modal.querySelector(".credit-send-preview")?.classList.add("d-none");
     modal.querySelector(".credit-send-confirm")?.classList.add("d-none");
     modal.querySelector(".credit-send-preview-btn")?.classList.remove("d-none");
@@ -201,6 +323,7 @@
 
   const communicationPayload = (modal, action, button) => ({
     action,
+    template_id: modal.querySelector('.credit-send-template')?.value || '',
     kind: button.dataset.kind,
     channel: modal.querySelector(".credit-send-channel")?.value || "",
     contact_id: modal.querySelector(".credit-send-recipient")?.value || "",
@@ -209,7 +332,8 @@
     manual_recipient: modal.querySelector(".credit-send-recipient")?.value === "__manual__",
     manual_email: modal.querySelector(".credit-send-manual-email")?.value.trim() || "",
     subject: action === "send" ? modal.querySelector(".credit-send-subject")?.value.trim() : undefined,
-    html: action === "send" ? modal.querySelector(".credit-send-editor")?.innerHTML : undefined
+    pdf_token: action === 'send' ? modal.dataset.pdfToken : undefined,
+    email_body: action === 'send' ? modal.querySelector('.credit-send-email-body')?.value.trim() : undefined
   });
 
   const showCommunicationFeedback = (modal, ok, message) => {
@@ -219,7 +343,7 @@
     modal.querySelector(".credit-send-feedback")?.replaceChildren(alert);
   };
 
-  document.querySelectorAll(".credit-send-modal").forEach((modal) => {
+  document.querySelectorAll(".credit-send-modal:not(#creditTemplateModal)").forEach((modal) => {
     // Le modali definite dentro page-shell restano intrappolate nel suo
     // stacking context: vanno portate nel body prima che Bootstrap le apra.
     if (modal.parentElement !== document.body) {
@@ -232,7 +356,7 @@
     const setBusy = (value) => {
       busy = value;
       modal.dataset.creditBusy = value ? "1" : "0";
-      modal.querySelectorAll("input, select").forEach(field => { field.disabled = value; });
+      modal.querySelectorAll("input, select, textarea").forEach(field => { field.disabled = value; });
       const editor = modal.querySelector(".credit-send-editor");
       if (editor) editor.contentEditable = value ? "false" : "true";
       if (value) modal.querySelectorAll(".credit-send-preview-btn, .credit-send-confirm").forEach(button => { button.disabled = true; });
@@ -263,6 +387,7 @@
       resetCommunicationPreview(modal);
       updateCommunicationModal(modal);
     });
+    modal.querySelector('.credit-send-template')?.addEventListener('change', () => resetCommunicationPreview(modal));
     modal.querySelector(".credit-send-recipient")?.addEventListener("change", () => {
       resetCommunicationPreview(modal);
       updateCommunicationModal(modal);
@@ -301,7 +426,16 @@
         modal.querySelector("[data-preview-recipient]").textContent = preview.recipient || "—";
         modal.querySelector("[data-preview-account]").textContent = preview.account || "—";
         modal.querySelector(".credit-send-subject").value = preview.subject || "";
-        modal.querySelector(".credit-send-editor").innerHTML = preview.html || "";
+        const bytes = Uint8Array.from(atob(preview.pdf_base64), char => char.charCodeAt(0));
+        if (modal.dataset.pdfUrl) URL.revokeObjectURL(modal.dataset.pdfUrl);
+        const pdfUrl = URL.createObjectURL(new Blob([bytes], {type: 'application/pdf'}));
+        modal.dataset.pdfUrl = pdfUrl;
+        modal.dataset.pdfToken = preview.pdf_token;
+        modal.querySelector('.credit-send-pdf').src = pdfUrl;
+        modal.querySelector('.credit-send-pdf-link').href = pdfUrl;
+        const download = modal.querySelector('.credit-send-pdf-download');
+        download.href = pdfUrl; download.download = preview.filename;
+        modal.querySelector('.credit-send-email-body').value = preview.email_body || '';
         modal.querySelector(".credit-send-preview")?.classList.remove("d-none");
         modal.querySelector(".credit-send-confirm").textContent = "Invia ora";
         modal.querySelector(".credit-send-confirm")?.classList.remove("d-none");
@@ -340,6 +474,7 @@
         });
         const result = await response.json().catch(() => ({}));
         const alert = document.createElement("div");
+        if (response.status === 409) resetCommunicationPreview(modal);
         alert.className = `alert ${response.ok && result.ok ? "alert-success" : "alert-danger"} mb-0`;
         alert.textContent = result.message || result.error || "Invio non riuscito.";
         feedback?.replaceChildren(alert);

@@ -2,9 +2,10 @@ from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from email.utils import parseaddr
-from html import escape
 import hmac
 import os
+import base64
+from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 
 from flask import Blueprint, abort, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_mail import Message
@@ -35,6 +36,8 @@ from tools.nexi_xpay import NexiXPayClassic, NexiXPayClient, NexiXPayError, Nexi
 from tools.customer_payments import account_entry_source_key, account_entry_snapshot, is_selectable_settlement_item
 from tools.role_required import role_required
 from tools.customer_account_rows import open_account_entries
+from tools.customer_credit_templates import PREFIX as CREDIT_TEMPLATE_PREFIX, template_rows, template_data, validate_template, new_template
+from tools.customer_credit_pdf import communication_pdf
 
 
 administration_bp = Blueprint("administration", __name__)
@@ -426,46 +429,6 @@ def _credit_communication_contacts(customer):
 def _credit_account_available(code):
     account = get_email_account(code, include_password=False, legacy_fallback=False)
     return bool(account and account.get("is_enabled"))
-
-
-def _credit_money(value):
-    return f"{Decimal(value or 0):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
-
-
-def _credit_message_html(kind, customer, entries, totals):
-    entries = open_account_entries(entries)
-    balance = Decimal(totals.balance or 0)
-    rows = []
-    for entry in entries:
-        reference_date = entry.document_date or entry.registration_date or entry.due_date
-        rows.append(
-            "<tr>"
-            f"<td>{escape(reference_date.strftime('%d/%m/%Y') if reference_date else '—')}</td>"
-            f"<td>{escape(entry.document_number or '—')}</td>"
-            f"<td>{escape(entry.description or '—')}</td>"
-            f"<td style='text-align:right'>{escape(_credit_money(entry.signed_amount))} €</td>"
-            "</tr>"
-        )
-    table = (
-        "<table style='width:100%;border-collapse:collapse' border='1' cellpadding='7'>"
-        "<thead><tr><th>Data</th><th>Documento</th><th>Descrizione</th><th>Importo</th></tr></thead>"
-        f"<tbody>{''.join(rows)}</tbody></table>"
-    )
-    heading = "Estratto conto aggiornato" if kind == "statement" else "Sollecito di pagamento"
-    intro = (
-        "trasmettiamo di seguito la situazione contabile aggiornata risultante dai nostri archivi."
-        if kind == "statement"
-        else "dai nostri archivi risulta un saldo ancora dovuto. Vi chiediamo cortesemente di provvedere al saldo delle partite aperte o di segnalarci eventuali difformità."
-    )
-    return (
-        f"<h2>{heading}</h2>"
-        f"<p>Spett.le {escape(customer.customer_name)},</p>"
-        f"<p>{intro}</p>"
-        f"<p><strong>Saldo attuale: {_credit_money(balance)} €</strong></p>"
-        f"{table}"
-        "<p>Per chiarimenti potete rispondere direttamente a questa comunicazione.</p>"
-        "<p>Cordiali saluti<br>LD Enoteca</p>"
-    )
 
 
 @administration_bp.route("/customer-credit", methods=["GET"])
@@ -905,6 +868,41 @@ def _redirect_customer_credit_detail(source_customer_code):
     return redirect(url_for("administration.customer_credit_detail", **values))
 
 
+@administration_bp.route('/customer-credit/templates', methods=['GET', 'POST'])
+@login_required
+@role_required(40, roles=['office'])
+def customer_credit_templates():
+    if request.method == 'GET':
+        return jsonify(ok=True, templates=[template_data(row) for row in template_rows().all()])
+    payload = request.get_json(silent=True) or {}
+    try:
+        data = validate_template(payload)
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+    template_id = str(payload.get('id') or '')
+    if template_id:
+        row = AppPreference.query.filter_by(key=CREDIT_TEMPLATE_PREFIX + template_id).first()
+        if row is None:
+            return jsonify(ok=False, error='Template non trovato. Ricarica la lista.'), 404
+        row.label = data['name']
+        row.value_json = data
+    else:
+        row = new_template(data)
+        db.session.add(row)
+    db.session.commit()
+    return jsonify(ok=True, template=template_data(row))
+
+
+@administration_bp.delete('/customer-credit/templates/<template_id>')
+@login_required
+@role_required(40, roles=['office'])
+def delete_customer_credit_template(template_id):
+    row = AppPreference.query.filter_by(key=CREDIT_TEMPLATE_PREFIX + template_id).first_or_404()
+    db.session.delete(row)
+    db.session.commit()
+    return jsonify(ok=True)
+
+
 @administration_bp.post("/customer-credit/<source_customer_code>/communications")
 @login_required
 @role_required(40, roles=["office"])
@@ -999,27 +997,53 @@ def send_customer_credit_communication(source_customer_code):
         if kind == "statement"
         else f"Sollecito di pagamento - {customer.customer_name}"
     )
-    default_html = _credit_message_html(kind, customer, entries, totals)
+    template_id = str(payload.get('template_id') or '').strip()
+    if template_id:
+        row = AppPreference.query.filter_by(key=CREDIT_TEMPLATE_PREFIX + template_id).first()
+        if row is None or (row.value_json or {}).get('kind') != kind:
+            return jsonify(ok=False, error='Template non disponibile per questa comunicazione. Ricarica la lista.'), 400
+    chosen_template = template_data(row) if template_id else None
     sender = account.get("default_sender") or account.get("username") or account_sender(account_code)
+    signer = URLSafeTimedSerializer(current_app.config['SECRET_KEY'], salt='customer-credit-pdf')
 
     if action == "preview":
+        try:
+            default_subject, pdf = communication_pdf(kind, customer, entries, totals.balance, chosen_template)
+        except Exception:
+            logger.exception('Generazione PDF credito fallita customer=%s kind=%s', source_customer_code, kind)
+            return jsonify(ok=False, error='Impossibile generare il PDF. Controlla il template e riprova.'), 502
+        filename = f"{'estratto-conto' if kind == 'statement' else 'sollecito'}-{customer.source_customer_code}.pdf"
+        pdf_base64 = base64.b64encode(pdf).decode('ascii')
+        pdf_token = signer.dumps(dict(pdf=pdf_base64, filename=filename, customer=source_customer_code,
+                                     import_id=current_import.id, kind=kind, channel=channel, recipient=recipient, template_id=template_id, test_mode=test_mode))
         return jsonify({
             "ok": True,
             "preview": {
                 "sender": sender,
                 "recipient": recipient,
                 "subject": f"[TEST] {default_subject}" if test_mode else default_subject,
-                "html": default_html,
+                "pdf_base64": pdf_base64,
+                "pdf_token": pdf_token,
+                "filename": filename,
+                "email_body": "Spett.le " + (customer.customer_name or '') + ",\n\nin allegato trovate " + ('la situazione contabile aggiornata.' if kind == 'statement' else 'il sollecito di pagamento.') + "\n\nCordiali saluti\nLD Enoteca",
                 "test_mode": test_mode,
                 "account": "PEC" if account_code == "pec" else "CreditManagement",
             },
         })
 
     subject = str(payload.get("subject") or default_subject).strip()[:255]
-    html_body = str(payload.get("html") or default_html).strip()
-    if not subject:
+    email_body = str(payload.get('email_body') or '').strip()
+    try:
+        document = signer.loads(str(payload.get('pdf_token') or ''), max_age=900)
+        expected = dict(customer=source_customer_code, import_id=current_import.id, kind=kind, channel=channel, recipient=recipient, template_id=template_id, test_mode=test_mode)
+        if any(document.get(key) != value for key, value in expected.items()):
+            raise BadSignature('Communication changed')
+        pdf = base64.b64decode(document['pdf'], validate=True)
+    except (BadSignature, SignatureExpired, ValueError, KeyError):
+        return jsonify(ok=False, error='Anteprima scaduta o dati modificati. Genera nuovamente il PDF prima di inviare.'), 409
+    if not subject or '\n' in subject or '\r' in subject:
         return jsonify({"ok": False, "error": "L'oggetto non può essere vuoto."}), 400
-    if not html_body or len(html_body.encode("utf-8")) > 500_000:
+    if not email_body or len(email_body.encode("utf-8")) > 20_000:
         return jsonify({"ok": False, "error": "Il contenuto del messaggio non è valido o è troppo grande."}), 400
     if test_mode and not subject.startswith("[TEST]"):
         subject = f"[TEST] {subject}"
@@ -1028,8 +1052,9 @@ def send_customer_credit_communication(source_customer_code):
         subject=subject,
         recipients=[recipient],
         sender=sender,
-        html=html_body,
+        body=email_body,
     )
+    message.attach(document['filename'], 'application/pdf', pdf)
     try:
         result = send_account_mail(account_code, message)
     except Exception:

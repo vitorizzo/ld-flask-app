@@ -1,0 +1,3 @@
+-r requirements.txt
+# PDF text assertions in the customer communication tests.
+pypdf==6.19.0
