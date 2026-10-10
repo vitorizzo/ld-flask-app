@@ -16,7 +16,8 @@ class FlaskContextTask(celery.Task):
     def __call__(self, *args, **kwargs):
         from tools.import_pause import task_paused
 
-        if task_paused(self.name):
+        app = getattr(celery, "flask_app", None)
+        if app is None and task_paused(self.name):
             from tools.redis_utils import clear_task_status
 
             clear_task_status(self.request.id)
@@ -27,7 +28,6 @@ class FlaskContextTask(celery.Task):
                 "reason": "imports_paused",
                 "message": "Importazioni MATRIX e file temporaneamente sospese.",
             }
-        app = getattr(celery, "flask_app", None)
         if app is None:
             # fallback: esegui senza contesto (meglio di crashare)
             logger.warning(f"Celery task senza flask_app inizializzata: {self.name}")
@@ -35,6 +35,17 @@ class FlaskContextTask(celery.Task):
 
         logger.info(f"Esecuzione task Celery: {self.name}")
         with app.app_context():
+            from tools.celery_schedule_settings import controlled_task, pause_reason, read_document
+
+            if controlled_task(self.name):
+                reason = pause_reason(self.name, read_document())
+                if reason:
+                    from tools.redis_utils import clear_task_status
+
+                    clear_task_status(self.request.id)
+                    logger.info("Task %s non eseguito: %s", self.name, reason)
+                    return {"success": True, "skipped": True, "reason": reason,
+                            "message": "Task sospesa dalle impostazioni Celery."}
             result = super().__call__(*args, **kwargs)
             logger.info(f"Task completato: {self.name}")
             return result

@@ -1,0 +1,38 @@
+.celery-settings { color: var(--ld-text); font-size: calc(var(--ld-base-font-size) * var(--ld-ui-scale, 1)); overflow-wrap: anywhere; }
+.celery-settings h1, .celery-settings h2 { text-align: left; }
+.celery-settings p { margin: .8em 0; }
+.celery-secondary, .celery-task-code { color: var(--ld-text-muted); }
+.celery-toolbar, .celery-row-actions { display: flex; flex-wrap: wrap; gap: calc(var(--ld-action-gap) * var(--ld-ui-scale, 1)); align-items: center; }
+.celery-settings .btn, #celeryConfirmModal .btn { background: var(--ld-brand-accent); color: var(--ld-brand-primary); border: 1px solid var(--ld-brand-accent); border-radius: var(--ld-radius); font-size: 1em; min-height: calc(var(--ld-touch-size) * var(--ld-ui-scale, 1)); padding: .55em .8em; white-space: normal; text-align: left; }
+.celery-settings .btn:hover, #celeryConfirmModal .btn:hover { background: var(--ld-brand-primary); color: var(--ld-text); }
+.celery-settings .btn:disabled { opacity: .55; }
+.celery-deleted-filter { display: flex; align-items: center; gap: .5em; min-height: calc(var(--ld-touch-size) * var(--ld-ui-scale, 1)); }
+.celery-settings input[type=checkbox] { width: 1.3em; height: 1.3em; accent-color: var(--ld-brand-accent); }
+.celery-table-wrap { margin-top: 1em; padding: .8em; overflow-x: auto; }
+.celery-table { width: 100%; border-collapse: collapse; }
+.celery-table tr[hidden] { display: none !important; }
+.celery-table th, .celery-table td { padding: .8em; text-align: left; vertical-align: top; border-bottom: 1px solid color-mix(in srgb, var(--ld-brand-primary) 20%, transparent); background: var(--ld-surface); color: var(--ld-brand-primary); }
+.celery-table th { background: var(--ld-brand-primary); color: var(--ld-text); }
+.celery-table .celery-task-code, .celery-table .celery-frequency small { color: color-mix(in srgb, var(--ld-brand-primary) 82%, var(--ld-surface)); }
+.celery-table td:first-child { min-width: 12em; }
+.celery-task-code { display: block; font-size: .8em; margin-top: .45em; overflow-wrap: anywhere; }
+.celery-frequency { display: grid; gap: .5em; min-width: 18em; }
+.celery-frequency-summary { display: block; margin-bottom: .6em; }
+.celery-frequency-editor summary { cursor: pointer; min-height: calc(var(--ld-touch-size) * var(--ld-ui-scale, 1)); padding: .55em 0; color: var(--ld-brand-primary); font-weight: 700; }
+.celery-frequency label { display: grid; gap: .25em; }
+.celery-frequency select, .celery-frequency input { width: 100%; min-width: 0; background: var(--ld-surface-muted); color: var(--ld-text); border: 1px solid color-mix(in srgb, var(--ld-text) 30%, transparent); border-radius: var(--ld-radius); font: inherit; padding: .5em; min-height: calc(var(--ld-touch-size) * var(--ld-ui-scale, 1)); }
+.celery-interval, .celery-cron { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .5em; }
+.celery-frequency [hidden] { display: none; }
+.celery-frequency small { color: var(--ld-text-muted); }
+.celery-state { font-weight: 700; }
+#celeryFeedback[data-error=true], #celeryConfirmError { color: var(--ld-text); border-left: .25em solid var(--ld-brand-accent); padding-left: .65em; }
+#celeryConfirmError:empty { display: none; }
+body.celery-confirm-open .modal-backdrop { z-index: 12100 !important; }
+#celeryConfirmModal { z-index: 12110 !important; }
+html[data-responsive-mode="mobile"] .celery-table-wrap { overflow: visible; padding: .6em; }
+html[data-responsive-mode="mobile"] .celery-table, html[data-responsive-mode="mobile"] .celery-table tbody, html[data-responsive-mode="mobile"] .celery-table tr, html[data-responsive-mode="mobile"] .celery-table td { display: block; width: 100%; min-width: 0; }
+html[data-responsive-mode="mobile"] .celery-table thead { display: none; }
+html[data-responsive-mode="mobile"] .celery-table tr { margin-bottom: 1em; border: 1px solid color-mix(in srgb, var(--ld-text) 25%, transparent); border-radius: var(--ld-radius); overflow: hidden; }
+html[data-responsive-mode="mobile"] .celery-table td::before { content: attr(data-label); display: block; font-weight: 700; color: var(--ld-brand-primary); margin-bottom: .45em; }
+html[data-responsive-mode="mobile"] .celery-frequency { min-width: 0; }
+html[data-responsive-mode="mobile"] .celery-toolbar .btn, html[data-responsive-mode="mobile"] .celery-row-actions .btn { flex: 1 1 auto; }

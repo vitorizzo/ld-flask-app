@@ -372,6 +372,14 @@ def _promote_default_device():
 def settings_index():
     all_entries = [
         {
+            "title": "Task Celery",
+            "description": "Frequenze, play/pausa e gestione delle task periodiche.",
+            "route": url_for("settings.celery_tasks_settings"),
+            "icon": "fa-solid fa-clock",
+            "icon_class": "text-bg-primary",
+            "min_weight": 999,
+        },
+        {
             "title": "Utenti",
             "description": "Anagrafiche, ruoli e stato degli account.",
             "route": url_for("settings.users_index"),
@@ -495,6 +503,54 @@ def settings_index():
     max_weight = current_user.max_role_weight or 0
     entries = [entry for entry in all_entries if max_weight >= entry["min_weight"]]
     return render_template("settings/index.html", entries=entries)
+
+
+@settings_bp.route("/celery-tasks", methods=["GET"])
+@login_required
+@role_required(999)
+def celery_tasks_settings():
+    return render_template("settings/celery_tasks.html")
+
+
+@settings_bp.route("/celery-tasks/data", methods=["GET"])
+@login_required
+@role_required(999)
+def celery_tasks_data():
+    from tools.celery_schedule_settings import read_document, document_rows, beat_status
+    try:
+        document = read_document()
+        return jsonify(revision=document["revision"], tasks=document_rows(document),
+                       imports_paused=document["imports_paused"], beat=beat_status())
+    except (SQLAlchemyError, ValueError):
+        db.session.rollback()
+        logger.exception("Lettura configurazione Celery fallita")
+        return jsonify(error="Configurazione non disponibile. Riprova senza modificare le task."), 503
+
+
+@settings_bp.route("/celery-tasks/<name>", methods=["POST"])
+@login_required
+@role_required(999)
+def celery_tasks_update(name):
+    from tools.celery_schedule_settings import update_document, document_rows, beat_status, ScheduleConflict
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify(error="Richiesta JSON non valida."), 400
+    try:
+        document = update_document(name, payload.get("action"), payload, current_user.id)
+        logger.info("Configurazione Celery: utente=%s task=%s azione=%s revisione=%s",
+                    current_user.id, name, payload.get("action"), document["revision"])
+        return jsonify(revision=document["revision"], tasks=document_rows(document),
+                       imports_paused=document["imports_paused"], beat=beat_status())
+    except ScheduleConflict as exc:
+        db.session.rollback()
+        return jsonify(error=str(exc)), 409
+    except (ValueError, TypeError) as exc:
+        db.session.rollback()
+        return jsonify(error=str(exc)), 400
+    except SQLAlchemyError:
+        db.session.rollback()
+        logger.exception("Salvataggio configurazione Celery fallito")
+        return jsonify(error="Salvataggio non riuscito. La configurazione precedente e' conservata."), 503
 
 
 @settings_bp.route("/appearance", methods=["GET", "POST"])

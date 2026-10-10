@@ -10,7 +10,7 @@ broker_connection_retry_on_startup = True
 
 logger.info(f"Configurazione Celery: broker_url={broker_url}, result_backend={result_backend}")
 
-beat_schedule = {
+DEFAULT_BEAT_SCHEDULE = {
     'dispatch-due-mailing-schedules-every-minute': {
         'task': 'config.tasks.dispatch_due_mailing_schedules_task',
         'schedule': crontab(minute='*'),
@@ -84,9 +84,11 @@ beat_schedule = {
 from tools.import_pause import task_paused
 
 beat_schedule = {
-    name: entry for name, entry in beat_schedule.items()
+    name: entry for name, entry in DEFAULT_BEAT_SCHEDULE.items()
     if not task_paused(entry['task'])
 }
 
 timezone = 'Europe/Rome'
+beat_scheduler = 'tools.celery_scheduler.PreferenceScheduler'
+beat_max_loop_interval = 5
 logger.info("Scheduler Celery (beat) configurato con task giornalieri e sync spedizioni/Poleepo periodici.")
