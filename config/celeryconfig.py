@@ -81,5 +81,12 @@ beat_schedule = {
     },
 }
 
+from tools.import_pause import task_paused
+
+beat_schedule = {
+    name: entry for name, entry in beat_schedule.items()
+    if not task_paused(entry['task'])
+}
+
 timezone = 'Europe/Rome'
 logger.info("Scheduler Celery (beat) configurato con task giornalieri e sync spedizioni/Poleepo periodici.")

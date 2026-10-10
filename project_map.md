@@ -1,3 +1,9 @@
+## Interruttore pausa import MATRIX/file (2026-10-10)
+
+- tools/import_pause.py: MATRIX_FILE_IMPORTS_PAUSED (true/1/yes/on), elenco esplicito di task di import articoli/giacenze/barcode/anagrafiche/estratti conto e preview/confronto/test MATRIX. Default disattivato; esclusi gli import Poleepo/Prestashop e tutte le altre funzioni Celery.
+- config/celeryconfig.py filtra le cinque schedulazioni MATRIX/file quando la pausa e' attiva; config/celery_app.py/FlaskContextTask verifica il flag prima dell'esecuzione, saltando anche task manuali o in coda e ripulendo task_status. Nessuna modifica delle frequenze o dei dati.
+- Produzione: flag true in .env.local dal10/10/2026 11:51 Europe/Rome, Beat/worker riavviati e verificati. Ripristino esplicito con flag false e riavvio dei due servizi. tests/test_import_pause.py verifica scheduler, scope, skip e ripristino; dettagli operativi/backup in status.md.
+
 ## Comunicazioni contabili: template e allegati PDF (2026-10-09)
 
 - tools/customer_credit_templates.py: CRUD data/validazione campi di testo, persistenza AppPreference.value_json customer_credit.template.<uuid>. routes/administration.py: GET/POST /customer-credit/templates, DELETE /customer-credit/templates/<id>, stessi login/ruoli della comunicazione; modelli condivisi, separati statement/reminder, nessun nuovo schema.

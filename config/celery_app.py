@@ -14,6 +14,19 @@ class FlaskContextTask(celery.Task):
     abstract = True
 
     def __call__(self, *args, **kwargs):
+        from tools.import_pause import task_paused
+
+        if task_paused(self.name):
+            from tools.redis_utils import clear_task_status
+
+            clear_task_status(self.request.id)
+            logger.info("Task %s sospeso temporaneamente: MATRIX/file import in pausa", self.name)
+            return {
+                "success": True,
+                "skipped": True,
+                "reason": "imports_paused",
+                "message": "Importazioni MATRIX e file temporaneamente sospese.",
+            }
         app = getattr(celery, "flask_app", None)
         if app is None:
             # fallback: esegui senza contesto (meglio di crashare)
