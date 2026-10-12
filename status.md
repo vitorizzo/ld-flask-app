@@ -1,3 +1,10 @@
+## Produzione: rimosso blocco Git al deploy Celery (2026-10-12)
+
+- Il pull 39d7f0f -> a8834e3 era bloccato dai due file config/celery_app.py e config/celeryconfig.py modificati direttamente per la pausa operativa del10/10 e da tools/import_pause.py ancora untracked. Confrontati tutti e tre byte per byte con il commit c4ce0ff: nessuna modifica ulteriore da preservare oltre alla pausa gia' versionata.
+- Backup dei tre file in /home/tecno/ld-flask-app-working/.codex_tmp/deploy_unblock_20261012T100110Z; ripristinati soltanto i due file tracciati, spostato soltanto il terzo nel backup, completato git merge --ff-only a8834e3. Verificati HEAD e contenuti dei tre file contro HEAD; git status dei percorsi ora vuoto. Gli altri file locali, allegati e immagini di produzione non sono stati toccati.
+- .env.local verificato invariato tramite hash; MATRIX_FILE_IMPORTS_PAUSED=true conservato. Nessuna modifica DB, riavvio o import eseguito. Il checkout server contiene ora il pannello Celery, ma i processi ancora avviati usano il codice precedente.
+- Ripartenza: l'utente puo' riprendere il deploy normale e riavviare web/worker/Beat per attivare il pannello; controllare poi l'heartbeat del nuovo scheduler. Il commit di questo aggiornamento stato e' solo documentale; il successivo pull non ha piu' i conflitti dei tre file Celery.
+
 ## Impostazioni Developer: gestione task periodiche Celery (2026-10-10)
 
 - Nuovo tile Task Celery nelle Impostazioni, visibile soltanto con peso ruolo999. Pagina /settings/celery-tasks; GET /settings/celery-tasks/data e POST /settings/celery-tasks/<name> con gli stessi controlli login/Developer. Tabella delle13 schedulazioni esistenti: nome, tipologia, frequenza leggibile, stato e Play/Pausa/Elimina; editor inline espandibile per intervalli da1minuto a31giorni o calendario cron con fasce/giorni/mesi, timezone Europe/Rome.
