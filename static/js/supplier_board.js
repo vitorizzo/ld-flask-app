@@ -1,7 +1,7 @@
 (() => {
  const $ = id => document.getElementById(id);
  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- let data = {columns:[],cards:[]}, editing = null, saving = false, generation = 0, searchTimer, searchGeneration = 0, dragId = null;
+ let data = {columns:[],cards:[],sections:[]}, editing = null, saving = false, generation = 0, searchTimer, searchGeneration = 0, dragId = null, sectionUi;
  async function api(url, options={}) {
   const res = await fetch(url, {credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},...options});
   const json = await res.json().catch(()=>({}));
@@ -10,8 +10,9 @@
  }
  const options = current => data.columns.map(c=>`<option value="${c.id}" ${c.id===current?'selected':''}>${esc(c.name)}</option>`).join('');
  function render() {
+  SupplierBoardSections.disposeHints();
   const query = $('supplierFilter').value.trim().toLocaleLowerCase();
-  const cards = data.cards.filter(card=>[card.title,card.supplier_name,card.reference,card.notes].some(value=>String(value||'').toLocaleLowerCase().includes(query)));
+  const cards = data.cards.filter(card=>[card.title,card.supplier_name,card.reference,card.notes,...(card.sections||[]).flatMap(section=>[section.name,section.text])].some(value=>String(value||'').toLocaleLowerCase().includes(query)));
   $('supplierColumnTabs').innerHTML = data.columns.map(column=>`<button type="button" data-column-tab="${column.id}">${esc(column.name)} (${cards.filter(card=>card.column_id===column.id).length})</button>`).join('');
   $('supplierColumns').innerHTML = data.columns.map(column=>`<div class="kiosk-col" data-supplier-column="${column.id}"><div class="kiosk-col__head"><div class="kiosk-col__title">${esc(column.name)}</div><span class="kiosk-col__count">${cards.filter(card=>card.column_id===column.id).length}</span></div><div class="kiosk-col__body">${cards.filter(card=>card.column_id===column.id).map(card=>`
    <article class="order-card supplier-card" data-card="${card.id}" tabindex="0" aria-label="Apri ${esc(card.title)}" draggable="${!matchMedia('(pointer: coarse)').matches}">
@@ -19,6 +20,7 @@
     ${card.expected_date?`<div class="supplier-card-meta">Arrivo: ${esc(card.expected_date.split('-').reverse().join('/'))}</div>`:''}${card.reference?`<div class="supplier-card-meta">Rif. ${esc(card.reference)}</div>`:''}
     ${card.notes?`<p>${esc(card.notes.slice(0,180))}${card.notes.length>180?'…':''}</p>`:''}${card.is_archived?'<span class="badge bg-secondary">Archiviata</span>':''}
     ${card.is_draft?'<span class="badge bg-warning text-dark">Bozza ordine</span>':''}
+    <div class="supplier-section-badges">${SupplierBoardSections.badges(card)}</div>
     ${card.order_pdf_url?`<a class="supplier-card-pdf-link" href="${esc(card.order_pdf_url)}" target="_blank" rel="noopener">PDF ordine allegato</a>`:''}
     <div class="supplier-card-footer"><label class="visually-hidden" for="supplierMove${card.id}">Sposta ${esc(card.title)}</label><select class="form-select" id="supplierMove${card.id}" data-move="${card.id}">${options(card.column_id)}</select></div>
    </article>`).join('') || '<div class="kiosk-empty">Nessuna scheda</div>'}</div></div>`).join('');
@@ -28,7 +30,7 @@
   });
   $('supplierColumns').querySelectorAll('[data-card]').forEach(element=>{
    const card = data.cards.find(c=>c.id===Number(element.dataset.card));
-   element.onclick = event=>{if(!event.target.closest('select,label,a'))openCard(card);};
+   element.onclick = event=>{if(!event.target.closest('select,label,a,button'))openCard(card);};
    element.onkeydown = event=>{if(event.target===element && ['Enter',' '].includes(event.key)){event.preventDefault();openCard(card);}};
    element.ondragstart = event=>{if(event.target.closest('select')){event.preventDefault();return;}dragId=card.id;event.dataTransfer.setData('text/plain',String(card.id));};
    element.ondragend = ()=>dragId=null;
@@ -38,6 +40,7 @@
    column.ondragover = event=>{if(dragId)event.preventDefault();};
    column.ondrop = event=>{event.preventDefault();if(dragId)moveCard(dragId,Number(column.dataset.supplierColumn));dragId=null;};
   });
+  SupplierBoardSections.bindHints(cards);
  }
  async function reload() {
   const request = ++generation;
@@ -49,6 +52,7 @@
   catch(error){$('supplierFeedback').textContent=error.message;render();}
  }
  function openCard(card=null) {
+  SupplierBoardSections.hideHints();
   editing = card;
   $('supplierCardDelete').hidden = !card;
   $('supplierCardEditOrder').hidden = !card?.order_edit_url || card.is_archived;
@@ -71,6 +75,7 @@
   $('supplierSearch').value='';$('supplierRegistry').innerHTML='<option value="">Senza collegamento alla Rubrica</option>'+(card?.supplier_id?`<option value="${card.supplier_id}" selected>${esc(card.supplier_name)}</option>`:'');
   $('supplierCardError').textContent='';$('supplierCardArchive').hidden=!card;
   $('supplierCardArchive').textContent=card?.is_archived?'Ripristina scheda':'Archivia scheda';
+  sectionUi.reset(card);
   bootstrap.Modal.getOrCreateInstance($('supplierCardModal')).show();
  }
  async function searchSuppliers() {
@@ -85,10 +90,10 @@
   } catch(error){if(request===searchGeneration)$('supplierCardError').textContent=error.message;}
  }
  async function saveCard(archive=false) {
-  if(saving)return;
+  if(saving || sectionUi.editing())return;
   if(!$('supplierCardName').value.trim()){$('supplierCardError').textContent='Inserisci il titolo della scheda.';return;}
   saving=true;$('supplierCardSave').disabled=true;$('supplierCardArchive').disabled=true;$('supplierCardError').textContent='';
-  const payload={title:$('supplierCardName').value,notes:$('supplierCardNotes').value,reference:$('supplierCardReference').value,expected_date:$('supplierCardDate').value,column_id:Number($('supplierCardColumn').value),supplier_id:$('supplierRegistry').value?Number($('supplierRegistry').value):null,is_archived:archive?!editing?.is_archived:editing?.is_archived||false};
+  const payload={title:$('supplierCardName').value,notes:$('supplierCardNotes').value,reference:$('supplierCardReference').value,expected_date:$('supplierCardDate').value,column_id:Number($('supplierCardColumn').value),supplier_id:$('supplierRegistry').value?Number($('supplierRegistry').value):null,is_archived:archive?!editing?.is_archived:editing?.is_archived||false,sections:sectionUi.payload(),...(editing?{revision:editing.order_revision}:{})};
   try {
    await api('/supplier-orders/api/board/cards'+(editing?`/${editing.id}`:''),{method:editing?'PUT':'POST',body:JSON.stringify(payload)});
    saving=false;bootstrap.Modal.getInstance($('supplierCardModal')).hide();await reload();
@@ -106,15 +111,16 @@
   finally {saving=false;$('supplierCardDelete').disabled=false;$('supplierCardSave').disabled=false;$('supplierCardArchive').disabled=false;}
  }
  document.addEventListener('DOMContentLoaded',()=>{
+  sectionUi=SupplierBoardSections.create({api,getData:()=>data,reload});
   const cardModal = $('supplierCardModal');
   if (cardModal.parentElement !== document.body) document.body.appendChild(cardModal);
   cardModal.addEventListener('show.bs.modal',()=>document.body.classList.add('supplier-card-modal-open'));
   $('supplierNew').onclick=()=>openCard();$('supplierRefresh').onclick=reload;$('supplierFilter').oninput=render;$('supplierArchived').onchange=reload;
   $('supplierSearch').oninput=()=>{clearTimeout(searchTimer);searchGeneration++;searchTimer=setTimeout(searchSuppliers,250);};
   $('supplierRegistry').onchange=()=>{if(!$('supplierCardName').value && $('supplierRegistry').value)$('supplierCardName').value=$('supplierRegistry').selectedOptions[0].textContent;};
-  $('supplierCardModal').addEventListener('shown.bs.modal',()=>{$('supplierCardSave').disabled=false;$('supplierCardSave').textContent='Salva scheda';$('supplierCardSave').onclick=()=>saveCard();$('supplierCardArchive').disabled=false;$('supplierCardArchive').onclick=()=>saveCard(true);$('supplierCardDelete').disabled=false;$('supplierCardDelete').onclick=deleteCard;});
+  $('supplierCardModal').addEventListener('shown.bs.modal',()=>{$('supplierCardSave').disabled=sectionUi.editing();$('supplierCardSave').textContent='Salva scheda';$('supplierCardSave').onclick=()=>saveCard();$('supplierCardArchive').disabled=sectionUi.editing();$('supplierCardArchive').onclick=()=>saveCard(true);$('supplierCardDelete').disabled=false;$('supplierCardDelete').onclick=deleteCard;if(sectionUi.editing())$('supplierSectionEditor').focus();});
   $('supplierCardModal').addEventListener('hide.bs.modal',event=>{if(saving)event.preventDefault();});
-  $('supplierCardModal').addEventListener('hidden.bs.modal',()=>{document.body.classList.remove('supplier-card-modal-open');editing=null;clearTimeout(searchTimer);searchGeneration++;$('supplierCardSave').onclick=null;$('supplierCardArchive').onclick=null;$('supplierCardDelete').onclick=null;$('supplierCardError').textContent='';});
+  $('supplierCardModal').addEventListener('hidden.bs.modal',()=>{document.body.classList.remove('supplier-card-modal-open');sectionUi.closeEditor();editing=null;clearTimeout(searchTimer);searchGeneration++;$('supplierCardSave').onclick=null;$('supplierCardArchive').onclick=null;$('supplierCardDelete').onclick=null;$('supplierCardError').textContent='';});
   reload();
  });
 })();

@@ -6,6 +6,7 @@ from datetime import date
 from flask_login import current_user
 from sqlalchemy import func, or_
 from sqlalchemy.orm import selectinload
+from sqlalchemy.exc import IntegrityError
 
 from extensions import db
 from models import Articoli, Giacenza, SupplierOrderGroup, SupplierOrderGroupItem, SupplierOrderMatrixName
@@ -13,11 +14,18 @@ from tools.role_required import role_required
 from models import SupplierBoardColumn, SupplierBoardCard, BusinessRegistry
 from models import SupplierOrderSubgroup, SupplierOrderSubgroupMatrix
 from models import SupplierBoardOrderLine
+from models import SupplierBoardSection, SupplierBoardCardSection
+from tools.supplier_board_sections import rich_text, validate_section
 
 
 supplier_orders_bp = Blueprint("supplier_orders", __name__, template_folder="../templates")
 
 MIN_SUPPLIER_ORDERS_WEIGHT = 40
+
+
+def _supplier_section_dict(item):
+    content, plain = rich_text(item.content_html)
+    return dict(section_id=item.section_id, name=item.section.name, content_html=content, text=plain)
 
 
 def _supplier_card_dict(card, supplier_names=None):
@@ -30,6 +38,8 @@ def _supplier_card_dict(card, supplier_names=None):
                 expected_date=card.expected_date.isoformat() if card.expected_date else "",
                 is_archived=card.is_archived,
                 order_group_id=card.order_group_id,is_draft=card.is_draft,order_revision=card.order_revision,
+                sections=[_supplier_section_dict(item)
+                          for item in sorted(card.sections, key=lambda item: (item.section.order_index, item.section_id))],
                 order_edit_url=url_for('supplier_orders.index',group_id=card.order_group_id,order_id=card.id,modal='order') if card.order_group_id else None,
                 order_pdf_url=url_for('supplier_orders.order_pdf', card_id=card.id) if card.order_pdf_filename and not card.is_draft else None,
                 order_pdf_filename=card.order_pdf_filename if not card.is_draft else None,
@@ -49,14 +59,82 @@ def board():
 @role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
 def board_data():
     columns = SupplierBoardColumn.query.order_by(SupplierBoardColumn.order_index, SupplierBoardColumn.id).all()
-    query = SupplierBoardCard.query.options(selectinload(SupplierBoardCard.order_lines))
+    query = SupplierBoardCard.query.options(selectinload(SupplierBoardCard.order_lines),
+        selectinload(SupplierBoardCard.sections).selectinload(SupplierBoardCardSection.section))
     if request.args.get("archived") != "1":
         query = query.filter_by(is_archived=False)
     cards = query.order_by(SupplierBoardCard.expected_date.asc().nullslast(), SupplierBoardCard.id.desc()).all()
     supplier_ids = {card.supplier_id for card in cards if card.supplier_id}
     supplier_names = dict(db.session.query(BusinessRegistry.id, BusinessRegistry.display_name).filter(BusinessRegistry.id.in_(supplier_ids)).all()) if supplier_ids else {}
     return jsonify(ok=True, columns=[dict(id=c.id, name=c.name, is_terminal=c.is_terminal) for c in columns],
-                   cards=[_supplier_card_dict(card, supplier_names) for card in cards])
+                   cards=[_supplier_card_dict(card, supplier_names) for card in cards], sections=_section_definitions())
+
+
+def _section_definitions():
+    counts = dict(db.session.query(SupplierBoardCardSection.section_id, func.count(SupplierBoardCardSection.id))
+                  .group_by(SupplierBoardCardSection.section_id).all())
+    return [dict(id=row.id, name=row.name, order_index=row.order_index, revision=row.revision,
+                 card_count=counts.get(row.id, 0)) for row in SupplierBoardSection.query
+            .order_by(SupplierBoardSection.order_index, SupplierBoardSection.id).all()]
+
+
+@supplier_orders_bp.route('/api/board/sections', methods=['GET', 'POST'])
+@supplier_orders_bp.route('/api/board/sections/<int:section_id>', methods=['PUT', 'DELETE'])
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def board_sections(section_id=None):
+    if request.method == 'GET': return jsonify(ok=True, sections=_section_definitions())
+    payload = request.get_json(silent=True)
+    row = SupplierBoardSection.query.filter_by(id=section_id).with_for_update().first() if section_id else None
+    if section_id and row is None: return jsonify(ok=False, error='Sezione non trovata.'), 404
+    if row and (not isinstance(payload, dict) or type(payload.get('revision')) is not int
+                or payload['revision'] != row.revision):
+        return jsonify(ok=False, error='La sezione e\' stata modificata. Aggiorna la configurazione.'), 409
+    if request.method == 'DELETE':
+        ids = db.session.query(SupplierBoardCardSection.card_id).filter_by(section_id=section_id)
+        SupplierBoardCard.query.filter(SupplierBoardCard.id.in_(ids)).order_by(SupplierBoardCard.id).with_for_update().all()
+        count = SupplierBoardCardSection.query.filter_by(section_id=row.id).count()
+        if (not isinstance(payload, dict) or payload.get('confirm') is not True
+                or type(payload.get('card_count')) is not int or payload['card_count'] != count):
+            return jsonify(ok=False, error='Conferma la cancellazione e il numero aggiornato di schede coinvolte.'), 409
+        affected = db.session.query(SupplierBoardCardSection.card_id).filter_by(section_id=row.id)
+        SupplierBoardCard.query.filter(SupplierBoardCard.id.in_(affected)).update(
+            {SupplierBoardCard.order_revision: SupplierBoardCard.order_revision + 1}, synchronize_session=False)
+        db.session.delete(row); db.session.commit()
+        return jsonify(ok=True, sections=_section_definitions())
+    try:
+        name, position = validate_section(payload)
+        duplicate = SupplierBoardSection.query.filter(func.lower(SupplierBoardSection.name) == name.lower())
+        if row: duplicate = duplicate.filter(SupplierBoardSection.id != row.id)
+        if duplicate.first(): raise ValueError('Esiste gia\' una sezione con questo nome.')
+        if row is None:
+            if SupplierBoardSection.query.count() >= 100: raise ValueError('Sono consentite al massimo 100 sezioni.')
+            row = SupplierBoardSection(revision=1); db.session.add(row)
+        else: row.revision += 1
+        row.name = name; row.order_index = position
+        db.session.commit()
+    except ValueError as exc:
+        db.session.rollback(); return jsonify(ok=False, error=str(exc)), 400
+    except IntegrityError:
+        db.session.rollback(); return jsonify(ok=False, error='Nome sezione gia\' presente. Aggiorna la configurazione.'), 409
+    return jsonify(ok=True, sections=_section_definitions()), 201 if not section_id else 200
+
+
+def _validated_card_sections(payload):
+    if 'sections' not in payload: return None
+    if not isinstance(payload['sections'], dict) or len(payload['sections']) > 100:
+        raise ValueError('Sezioni della scheda non valide.')
+    texts = {}
+    for key, value in payload['sections'].items():
+        if (not isinstance(key, str) or len(key) > 10 or not key.isascii() or not key.isdecimal()
+                or not 0 < int(key) <= 2147483647 or str(int(key)) != key):
+            raise ValueError('Sezione non valida.')
+        texts[int(key)] = rich_text(value)[0]
+    # All section mutations lock definitions before cards, in stable ID order.
+    # Deletion cannot race a save or invert the FK lock acquisition order.
+    valid = {row.id for row in SupplierBoardSection.query.filter(
+        SupplierBoardSection.id.in_(texts)).order_by(SupplierBoardSection.id).with_for_update().all()} if texts else set()
+    if valid != set(texts): raise ValueError('Una sezione non e\' piu\' disponibile. Aggiorna la bacheca.')
+    return texts
 
 
 @supplier_orders_bp.route("/api/board/cards", methods=["POST"])
@@ -66,9 +144,15 @@ def board_save_card(card_id=None):
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
         return jsonify(ok=False, error="Dati scheda non validi"), 400
+    try:
+        section_texts = _validated_card_sections(payload)
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
     card = SupplierBoardCard.query.filter_by(id=card_id).with_for_update().first() if card_id else SupplierBoardCard()
     if card_id and card is None:
         return jsonify(ok=False, error="Scheda non trovata"), 404
+    if card_id and 'revision' in payload and (type(payload['revision']) is not int or payload['revision'] != card.order_revision):
+        return jsonify(ok=False, error='La scheda e\' stata modificata. Riaprila dalla bacheca aggiornata.'), 409
     try:
         title = payload.get("title", card.title or "")
         notes = payload.get("notes", card.notes or "")
@@ -94,10 +178,22 @@ def board_save_card(card_id=None):
         return jsonify(ok=False, error=str(exc) if isinstance(exc, ValueError) else "Dati scheda non validi"), 400
     card.title = title.strip(); card.notes = notes.strip(); card.reference = reference.strip()
     card.column_id = column_id; card.supplier_id = supplier_id; card.expected_date = expected_date; card.is_archived = archived
-    if card_id and card.order_group_id:
+    if section_texts is not None:
+        existing = {item.section_id: item for item in card.sections}
+        for section_id, content in section_texts.items():
+            item = existing.get(section_id)
+            if not content:
+                if item: card.sections.remove(item)
+            elif item: item.content_html = content
+            else: card.sections.append(SupplierBoardCardSection(section_id=section_id, content_html=content))
+    if card_id:
         card.order_revision += 1
     db.session.add(card)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return jsonify(ok=False, error='Le sezioni sono cambiate durante il salvataggio. Aggiorna la bacheca.'), 409
     return jsonify(ok=True, card=_supplier_card_dict(card)), 200 if card_id else 201
 
 

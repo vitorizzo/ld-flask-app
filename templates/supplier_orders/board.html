@@ -3,13 +3,13 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css', v=app_version ~ '-supplier1') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-supplier1') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_board.css', v=app_version ~ '-modal2') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_board.css', v=app_version ~ '-sections1') }}">
 {% endblock %}
 {% block content %}
 <section class="ld-page ld-page-standard ld-page-viewport supplier-board-page">
   <header class="supplier-board-head">
     <div><h1>Bacheca fornitori</h1><p>Arrivi, caricamento e anomalie degli ordini fornitori.</p></div>
-    <div class="supplier-board-actions"><button class="btn btn-info" id="supplierNew" type="button">Nuova scheda</button><button class="btn btn-outline-secondary" id="supplierRefresh" type="button">Aggiorna</button><a class="btn btn-outline-secondary" href="{{ url_for('supplier_orders.index') }}">Gruppi e giacenze</a></div>
+    <div class="supplier-board-actions"><button class="btn btn-info" id="supplierNew" type="button">Nuova scheda</button><button class="btn btn-outline-secondary" id="supplierSectionsConfigure" type="button">Configura sezioni</button><button class="btn btn-outline-secondary" id="supplierRefresh" type="button">Aggiorna</button><a class="btn btn-outline-secondary" href="{{ url_for('supplier_orders.index') }}">Gruppi e giacenze</a></div>
   </header>
   <div class="supplier-board-filters"><label for="supplierFilter" class="visually-hidden">Cerca nelle schede</label><input id="supplierFilter" class="form-control" type="search" placeholder="Cerca fornitore, titolo o riferimento"><label><input id="supplierArchived" type="checkbox"> Mostra archiviate</label></div>
   <div id="supplierFeedback" role="status" aria-live="polite"></div>
@@ -20,6 +20,7 @@
  <div class="modal-dialog"><div class="modal-content">
   <div class="modal-header"><h5 id="supplierCardTitle" class="modal-title">Scheda fornitore</h5><button class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
   <div class="modal-body">
+   <div id="supplierCardDetails">
    <label class="form-label" for="supplierCardName">Titolo</label><input class="form-control mb-3" id="supplierCardName" maxlength="200" placeholder="Fornitore e descrizione dell'arrivo">
    <label class="form-label" for="supplierSearch">Collega un fornitore della Rubrica</label><input class="form-control mb-2" id="supplierSearch" type="search" placeholder="Cerca fornitore"><select id="supplierRegistry" class="form-select mb-3"><option value="">Senza collegamento alla Rubrica</option></select>
    <div class="supplier-card-fields"><div><label class="form-label" for="supplierCardColumn">Colonna</label><select id="supplierCardColumn" class="form-select"></select></div><div><label class="form-label" for="supplierCardDate">Arrivo previsto</label><input class="form-control" type="date" id="supplierCardDate"></div></div>
@@ -27,13 +28,54 @@
    <a id="supplierCardEditOrder" class="btn btn-info mb-3" hidden>Modifica ordine e PDF</a>
    <div id="supplierCardOrderLines" class="supplier-order-lines" hidden></div>
    <div id="supplierCardPdf" class="supplier-card-pdf" hidden><h6>PDF ordine allegato</h6><a id="supplierCardPdfOpen" class="btn btn-outline-secondary" target="_blank" rel="noopener">Apri PDF</a> <a id="supplierCardPdfDownload" class="btn btn-info">Scarica PDF</a></div>
-   <label class="form-label" for="supplierCardNotes">Note e anomalie</label><textarea id="supplierCardNotes" class="form-control" rows="6" maxlength="40000"></textarea>
+   <label class="form-label" for="supplierCardNotes">Note generali</label><textarea id="supplierCardNotes" class="form-control" rows="6" maxlength="40000"></textarea>
+   </div>
+   <section class="supplier-card-sections" aria-labelledby="supplierCardSectionsTitle">
+    <h6 id="supplierCardSectionsTitle">Sezioni della scheda</h6>
+    <p class="supplier-section-help">Scegli una sezione per aggiungere o modificare il testo. Le modifiche si salvano con la scheda.</p>
+    <div id="supplierCardSectionButtons" class="supplier-section-buttons"></div>
+    <div id="supplierSectionEditorPanel" class="supplier-section-editor-panel" hidden>
+     <h6 id="supplierSectionEditorTitle"></h6>
+     <div id="supplierSectionToolbar" class="supplier-rich-toolbar" role="toolbar" aria-label="Formatta il testo">
+      <button type="button" class="btn btn-outline-secondary" data-rich-command="bold" aria-label="Grassetto"><strong>B</strong></button>
+      <button type="button" class="btn btn-outline-secondary" data-rich-command="italic" aria-label="Corsivo"><em>I</em></button>
+      <button type="button" class="btn btn-outline-secondary" data-rich-command="underline" aria-label="Sottolineato"><u>U</u></button>
+      <button type="button" class="btn btn-outline-secondary" data-rich-command="insertUnorderedList">Elenco puntato</button>
+      <button type="button" class="btn btn-outline-secondary" data-rich-command="insertOrderedList">Elenco numerato</button>
+      <button type="button" class="btn btn-outline-secondary" data-rich-command="indent">Aumenta rientro</button>
+      <button type="button" class="btn btn-outline-secondary" data-rich-command="outdent">Riduci rientro</button>
+      <button type="button" class="btn btn-outline-secondary" data-rich-command="removeFormat">Rimuovi formato</button>
+     </div>
+     <div id="supplierSectionEditor" class="supplier-rich-text supplier-rich-editor" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="supplierSectionEditorTitle" data-placeholder="Scrivi qui il contenuto della sezione…"></div>
+     <p class="supplier-section-help">Applica il testo, poi salva la scheda per memorizzarlo. Negli elenchi, Tab crea un sottoelenco; Maiusc + Tab riduce il rientro. Massimo 20.000 caratteri.</p>
+     <div id="supplierSectionEditorError" class="supplier-card-error" role="alert"></div>
+     <div class="supplier-section-editor-actions"><button id="supplierSectionApply" class="btn btn-info" type="button">Applica testo</button><button id="supplierSectionCancel" class="btn btn-outline-secondary" type="button">Annulla testo</button><button id="supplierSectionClear" class="btn btn-outline-danger" type="button">Svuota sezione</button></div>
+    </div>
+    <div id="supplierCardSectionContents"></div>
+   </section>
   </div>
   <div class="modal-footer"><div id="supplierCardError" class="supplier-card-error" role="alert"></div><button class="btn btn-outline-danger" id="supplierCardDelete" type="button" hidden>Elimina scheda</button><button class="btn btn-outline-secondary" id="supplierCardArchive" type="button" hidden>Archivia</button><button class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button id="supplierCardSave" class="btn btn-info" type="button">Salva scheda</button></div>
+ </div></div>
+</div>
+<div class="modal fade manual-order-modal ld-modal ld-modal-standard" id="supplierSectionsModal" tabindex="-1" aria-labelledby="supplierSectionsTitle" aria-hidden="true">
+ <div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 id="supplierSectionsTitle" class="modal-title">Configura sezioni</h5><button class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+  <div class="modal-body">
+   <p class="supplier-section-help">Le sezioni sono condivise da tutte le schede. La posizione determina l'ordine dei pulsanti e dei contenuti.</p>
+   <div id="supplierSectionDefinitions"></div>
+   <form id="supplierSectionDefinitionForm" class="supplier-section-definition-form">
+    <h6 id="supplierSectionDefinitionTitle">Nuova sezione</h6>
+    <div class="supplier-card-fields"><div><label class="form-label" for="supplierSectionName">Nome</label><input id="supplierSectionName" class="form-control" required maxlength="80"></div><div><label class="form-label" for="supplierSectionPosition">Posizione</label><input id="supplierSectionPosition" class="form-control" type="number" required min="0" max="10000" value="0"></div></div>
+    <div class="supplier-section-editor-actions"><button id="supplierSectionDefinitionSave" type="submit" class="btn btn-info">Crea sezione</button><button id="supplierSectionDefinitionCancel" type="button" class="btn btn-outline-secondary" hidden>Annulla modifica</button></div>
+   </form>
+   <div id="supplierSectionsError" class="supplier-card-error" role="alert"></div>
+  </div>
+  <div class="modal-footer"><button id="supplierSectionsReload" type="button" class="btn btn-outline-secondary">Aggiorna configurazione</button><button class="btn btn-info" data-bs-dismiss="modal" type="button">Chiudi</button></div>
  </div></div>
 </div>
 {% endblock %}
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/ld_modal.js', v=app_version ~ '-supplier1') }}"></script>
-<script src="{{ url_for('static', filename='js/supplier_board.js', v=app_version ~ '-draft1') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_board_sections.js', v=app_version ~ '-sections1') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_board.js', v=app_version ~ '-sections1') }}"></script>
 {% endblock %}

@@ -1,5 +1,26 @@
 # LD-Flask-App — Deployment & System Services
 
+## Bacheca fornitori: migrazione sezioni (2026-10-13)
+
+Il deploy delle sezioni configurabili richiede la migrazione `r3a4b5c6d7e8`
+(successiva a `q2f3a4b5c6d7`). Dopo il pull, prima di riavviare la web app,
+dalla directory del progetto in produzione:
+
+```bash
+venv/bin/flask --app app db upgrade
+```
+
+La migrazione aggiunge `supplier_board_sections` e
+`supplier_board_card_sections`, con indici/vincoli e le undici sezioni iniziali.
+Riconosce anche le tabelle eventualmente precreate dagli import tramite
+`db.create_all`. Non richiede pacchetti nuovi. Il riavvio web ricarica modelli,
+route e asset; le modifiche successive alle sezioni dalla bacheca sono immediate
+e non richiedono altre migrazioni o riavvii.
+
+L'eliminazione dal configuratore cancella una definizione e i relativi testi
+anche nelle schede archiviate: la UI mostra il numero di schede coinvolte e
+chiede conferma. Note generali, righe d'ordine e PDF esistenti vengono conservati.
+
 Questo documento descrive come è deployata la web app **LD-Flask-App** in produzione
 e quali servizi di sistema sono necessari per il suo funzionamento.
 

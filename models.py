@@ -1136,6 +1136,25 @@ class SupplierBoardCard(db.Model):
     supplier = db.relationship("BusinessRegistry")
 
 
+class SupplierBoardSection(db.Model):
+    __tablename__ = "supplier_board_sections"
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(80), nullable=False, unique=True)
+    order_index = db.Column(db.Integer, nullable=False, default=0)
+    revision = db.Column(db.Integer, nullable=False, default=1)
+
+
+class SupplierBoardCardSection(db.Model):
+    __tablename__ = "supplier_board_card_sections"
+    __table_args__ = (db.UniqueConstraint("card_id", "section_id", name="uq_supplier_card_section"),)
+    id = db.Column(db.Integer, primary_key=True)
+    card_id = db.Column(db.Integer, db.ForeignKey("supplier_board_cards.id", ondelete="CASCADE"), nullable=False, index=True)
+    section_id = db.Column(db.Integer, db.ForeignKey("supplier_board_sections.id", ondelete="CASCADE"), nullable=False, index=True)
+    content_html = db.Column(db.Text, nullable=False)
+    section = db.relationship("SupplierBoardSection", backref=db.backref("contents", cascade="all, delete-orphan"))
+    card = db.relationship("SupplierBoardCard", backref=db.backref("sections", cascade="all, delete-orphan"))
+
+
 class SupplierBoardOrderLine(db.Model):
     __tablename__ = "supplier_board_order_lines"
     __table_args__ = (db.UniqueConstraint("card_id", "matrix_code", name="uq_supplier_board_order_matrix"),)

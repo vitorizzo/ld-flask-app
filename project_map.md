@@ -1,3 +1,10 @@
+## Bacheca fornitori: sezioni delle schede (2026-10-13)
+
+- models.py/SupplierBoardSection: catalogo globale nome/ordine/revisione; SupplierBoardCardSection: testo HTML per scheda/sezione, vincolo univoco e cascata. Migrazione r3a4b5c6d7e8 crea supplier_board_sections/supplier_board_card_sections e undici definizioni iniziali; stessa compatibilita' create_all delle migrazioni fornitori precedenti.
+- tools/supplier_board_sections.py: whitelist HTML senza attributi, testo semplice per ricerca, validazione/limiti. routes/supplier_orders.py espone GET/POST /api/board/sections e PUT/DELETE /api/board/sections/<id>, catalogo/conteggi nel board, sections nelle schede e salva contenuti con controllo revisione. Permessi40, eliminazione confermata anche dei contenuti archiviati, nessuna modifica PDF.
+- static/js/supplier_board_sections.js: editor contenteditable con toolbar e sottoelenchi, bozza locale fino a Salva scheda, configuratore CRUD, popover badge hover/focus/touch e sanitizzazione client. supplier_board.js integra controller, payload, badge e ricerca nei testi; board.html e supplier_board.css usano modali/tema esistenti e vista editor dedicata, cache sections1.
+- tests/test_supplier_board_sections.py:8 casi API/sanitizzazione/migrazione; fixture board/group estesi alle nuove tabelle. QA browser .codex_tmp/test_supplier_board_ui.py e anteprime .codex_tmp/screenshot_supplier_sections.py. Attivazione richiede db upgrade, dettagli in docs/deploy.md/status.md.
+
 ## Agenda: caricamento versamenti (2026-10-13)
 
 - routes/cassa.py: GET /api/day/<day_date>/deposit-available-checks riusa _calculate_progressive_saldo_versabile_fast per saldo antecedente alla data, senza ricorsione ORM; GET /api/day/<day_date>/deposits carica solo relazioni pertinenti. Stesso helper saldo della preview Agenda, snapshot/aggregati esistenti, nessuna migration.
