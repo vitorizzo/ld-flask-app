@@ -15,7 +15,7 @@ from models import SupplierBoardColumn, SupplierBoardCard, BusinessRegistry
 from models import SupplierOrderSubgroup, SupplierOrderSubgroupMatrix
 from models import SupplierBoardOrderLine
 from models import SupplierBoardSection, SupplierBoardCardSection
-from tools.supplier_board_sections import rich_text, validate_section
+from tools.supplier_board_sections import rich_text, validate_section, section_colors
 
 
 supplier_orders_bp = Blueprint("supplier_orders", __name__, template_folder="../templates")
@@ -25,7 +25,8 @@ MIN_SUPPLIER_ORDERS_WEIGHT = 40
 
 def _supplier_section_dict(item):
     content, plain = rich_text(item.content_html)
-    return dict(section_id=item.section_id, name=item.section.name, content_html=content, text=plain)
+    return dict(section_id=item.section_id, name=item.section.name, content_html=content, text=plain,
+                **section_colors({}, item.section))
 
 
 def _supplier_card_dict(card, supplier_names=None):
@@ -74,7 +75,7 @@ def _section_definitions():
     counts = dict(db.session.query(SupplierBoardCardSection.section_id, func.count(SupplierBoardCardSection.id))
                   .group_by(SupplierBoardCardSection.section_id).all())
     return [dict(id=row.id, name=row.name, order_index=row.order_index, revision=row.revision,
-                 card_count=counts.get(row.id, 0)) for row in SupplierBoardSection.query
+                 card_count=counts.get(row.id, 0), **section_colors({}, row)) for row in SupplierBoardSection.query
             .order_by(SupplierBoardSection.order_index, SupplierBoardSection.id).all()]
 
 
@@ -103,6 +104,7 @@ def board_sections(section_id=None):
         return jsonify(ok=True, sections=_section_definitions())
     try:
         name, position = validate_section(payload)
+        colors = section_colors(payload, row)
         duplicate = SupplierBoardSection.query.filter(func.lower(SupplierBoardSection.name) == name.lower())
         if row: duplicate = duplicate.filter(SupplierBoardSection.id != row.id)
         if duplicate.first(): raise ValueError('Esiste gia\' una sezione con questo nome.')
@@ -111,6 +113,7 @@ def board_sections(section_id=None):
             row = SupplierBoardSection(revision=1); db.session.add(row)
         else: row.revision += 1
         row.name = name; row.order_index = position
+        for key, value in colors.items(): setattr(row, key, value)
         db.session.commit()
     except ValueError as exc:
         db.session.rollback(); return jsonify(ok=False, error=str(exc)), 400

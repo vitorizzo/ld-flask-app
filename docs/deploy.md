@@ -3,7 +3,8 @@
 ## Bacheca fornitori: migrazione sezioni (2026-10-13)
 
 Il deploy delle sezioni configurabili richiede la migrazione `r3a4b5c6d7e8`
-(successiva a `q2f3a4b5c6d7`). Dopo il pull, prima di riavviare la web app,
+(successiva a `q2f3a4b5c6d7`) e, per i colori dei badge, la successiva
+`s4b5c6d7e8f9`. Dopo il pull, prima di riavviare la web app,
 dalla directory del progetto in produzione:
 
 ```bash
@@ -12,6 +13,8 @@ venv/bin/flask --app app db upgrade
 
 La migrazione aggiunge `supplier_board_sections` e
 `supplier_board_card_sections`, con indici/vincoli e le undici sezioni iniziali.
+La migrazione dei colori aggiunge tre colonne nullable: le sezioni esistenti
+continuano a usare il tema finche' non si scelgono colori personalizzati.
 Riconosce anche le tabelle eventualmente precreate dagli import tramite
 `db.create_all`. Non richiede pacchetti nuovi. Il riavvio web ricarica modelli,
 route e asset; le modifiche successive alle sezioni dalla bacheca sono immediate

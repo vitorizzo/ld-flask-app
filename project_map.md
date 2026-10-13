@@ -1,3 +1,8 @@
+## Bacheca fornitori: colori badge (2026-10-13)
+
+- SupplierBoardSection aggiunge badge_fill/badge_text/badge_border nullable String7; migrazione s4b5c6d7e8f9, valori null = tema corrente. tools/supplier_board_sections.py/section_colors valida/normalizza tre colori indipendenti, preserva campi omessi; routes/supplier_orders.py li espone nel catalogo e nelle sezioni delle schede.
+- Configuratore board.html/supplier_board_sections.js: tre color picker, anteprima e reset ai colori del tema; supplier_board.css usa --supplier-badge-fill/text/border con fallback tema. Colori applicati ai badge in bacheca e anteprime del configuratore; cache sections2. test_supplier_board_sections.py aggiunge3 casi, QA browser estesa ai colori.
+
 ## Bacheca fornitori: sezioni delle schede (2026-10-13)
 
 - models.py/SupplierBoardSection: catalogo globale nome/ordine/revisione; SupplierBoardCardSection: testo HTML per scheda/sezione, vincolo univoco e cascata. Migrazione r3a4b5c6d7e8 crea supplier_board_sections/supplier_board_card_sections e undici definizioni iniziali; stessa compatibilita' create_all delle migrazioni fornitori precedenti.

@@ -43,7 +43,11 @@ html[data-responsive-mode="mobile"] .supplier-board-filters { font-size: .85em; 
 
 .supplier-section-buttons, .supplier-section-badges, .supplier-rich-toolbar, .supplier-section-editor-actions { display: flex; flex-wrap: wrap; gap: .5em; }
 .supplier-section-badges { margin-top: .7em; }
-.supplier-section-badge { border: 1px solid var(--ld-brand-primary); border-radius: 1em; background: var(--ld-brand-primary); color: var(--ld-brand-accent); font-size: .75em; font-weight: 600; padding: .35em .65em; max-width: 100%; overflow-wrap: anywhere; }
+.supplier-section-badge { border: 1px solid var(--supplier-badge-border, var(--ld-brand-primary)); border-radius: 1em; background: var(--supplier-badge-fill, var(--ld-brand-primary)); color: var(--supplier-badge-text, var(--ld-brand-accent)); font-size: .75em; font-weight: 600; padding: .35em .65em; max-width: 100%; overflow-wrap: anywhere; }
+.supplier-badge-colors { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: .8em; margin-top: 1em; }
+.supplier-badge-colors .form-control-color { width: 100%; cursor: pointer; }
+.supplier-badge-preview { display: flex; align-items: center; flex-wrap: wrap; gap: .8em; margin-top: .8em; }
+@media (max-width: 480px) { .supplier-badge-colors { grid-template-columns: 1fr; } }
 .supplier-section-badge:focus-visible { outline: 3px solid var(--ld-brand-accent); outline-offset: 2px; }
 .supplier-section-hint.popover { z-index: 12140; max-width: min(420px, calc(100vw - 24px)); border-color: var(--ld-brand-primary); background: var(--ld-surface); }
 .supplier-section-hint .popover-header { background: var(--ld-brand-primary); color: var(--ld-brand-accent); overflow-wrap: anywhere; }

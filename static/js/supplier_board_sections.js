@@ -4,6 +4,10 @@
  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const allowed = new Set(['P','DIV','BR','STRONG','B','EM','I','U','S','UL','OL','LI','BLOCKQUOTE','H3','H4']);
  const dropped = new Set(['SCRIPT','STYLE','IFRAME','OBJECT','SVG','MATH','TEMPLATE']);
+ const colorFields = {badge_fill:'supplierBadgeFill',badge_text:'supplierBadgeText',badge_border:'supplierBadgeBorder'};
+ const colorProperties = {badge_fill:'fill',badge_text:'text',badge_border:'border'};
+ const badgeStyle = section => Object.entries(colorProperties).filter(([key])=>/^#[0-9a-f]{6}$/i.test(section[key]||''))
+  .map(([key,property])=>`--supplier-badge-${property}:${section[key]}`).join(';');
  function clean(value) {
   const template = document.createElement('template'); template.innerHTML = String(value || '');
   const walk = parent => [...parent.childNodes].forEach(node => {
@@ -28,7 +32,7 @@
  }));
  function badges(card) {
   return (card.sections || []).filter(section=>section.text || clean(section.content_html)).map(section =>
-   `<button type="button" class="supplier-section-badge" data-section-hint="${card.id}:${section.section_id}" aria-label="Leggi ${esc(section.name)}">${esc(section.name)}</button>`).join('');
+   `<button type="button" class="supplier-section-badge" style="${badgeStyle(section)}" data-section-hint="${card.id}:${section.section_id}" aria-label="Leggi ${esc(section.name)}">${esc(section.name)}</button>`).join('');
  }
  function bindHints(cards) {
   document.querySelectorAll('[data-section-hint]').forEach(button => {
@@ -62,7 +66,7 @@
   });
  }
  function create({api, getData, reload}) {
-  let texts = {}, activeSection = null, definition = null, configBusy = false;
+  let texts = {}, activeSection = null, definition = null, configBusy = false, colors = {};
   const definitions = () => getData().sections || [];
   function setEditorOpen(open) {
    $('supplierCardModal').classList.toggle('supplier-section-editing',open);
@@ -124,10 +128,30 @@
   $('supplierSectionApply').onclick=applyText;$('supplierSectionCancel').onclick=closeEditor;
   $('supplierSectionClear').onclick=()=>{$('supplierSectionEditor').innerHTML='';applyText();};
 
+  function previewColors() {
+   $('supplierBadgePreview').setAttribute('style',badgeStyle(colors));
+   $('supplierBadgePreview').textContent=$('supplierSectionName').value.trim()||'Anteprima badge';
+  }
+  function loadColors(section={}) {
+   const toHex=value=>{
+    if(/^#[0-9a-f]{6}$/i.test(value))return value;
+    const parts=value.match(/[\d.]+/g);return parts?.length>=3?'#'+parts.slice(0,3).map(v=>Math.round(Number(v)).toString(16).padStart(2,'0')).join(''):'#4a2c2a';
+   };
+   colors=Object.fromEntries(Object.keys(colorFields).map(key=>[key,section[key]||null]));
+   // Resolve theme colors in the browser, without freezing them in the DB.
+   $('supplierBadgePreview').removeAttribute('style');
+   const style=getComputedStyle($('supplierBadgePreview'));
+   const defaults={badge_fill:toHex(style.backgroundColor),badge_text:toHex(style.color),badge_border:toHex(style.borderTopColor)};
+   Object.entries(colorFields).forEach(([key,id])=>$(id).value=colors[key]||defaults[key]);previewColors();
+  }
+  Object.entries(colorFields).forEach(([key,id])=>$(id).oninput=()=>{colors[key]=$(id).value;previewColors();});
+  $('supplierSectionName').addEventListener('input',previewColors);
+  $('supplierBadgeTheme').onclick=()=>loadColors();
   function resetDefinition() {
    definition=null;$('supplierSectionDefinitionTitle').textContent='Nuova sezione';$('supplierSectionName').value='';
    $('supplierSectionPosition').value=String(Math.max(-1,...definitions().map(row=>row.order_index))+1);
    $('supplierSectionDefinitionSave').textContent='Crea sezione';$('supplierSectionDefinitionCancel').hidden=true;
+   loadColors();
   }
   function setBusy(value) {
    configBusy=value;
@@ -135,10 +159,11 @@
   }
   function renderDefinitions() {
    $('supplierSectionDefinitions').innerHTML=definitions().map(section=>
-    `<div class="supplier-section-definition-row"><div><strong>${esc(section.name)}</strong><small>Posizione ${section.order_index} · ${section.card_count||0} schede con testo</small></div><div class="supplier-section-editor-actions"><button type="button" class="btn btn-outline-secondary btn-sm" data-edit-definition="${section.id}">Modifica</button><button type="button" class="btn btn-outline-danger btn-sm" data-delete-definition="${section.id}">Elimina</button></div></div>`).join('') || '<p>Nessuna sezione. Crea la prima qui sotto.</p>';
+    `<div class="supplier-section-definition-row"><div><span class="supplier-section-badge" style="${badgeStyle(section)}">${esc(section.name)}</span><small>Posizione ${section.order_index} · ${section.card_count||0} schede con testo</small></div><div class="supplier-section-editor-actions"><button type="button" class="btn btn-outline-secondary btn-sm" data-edit-definition="${section.id}">Modifica</button><button type="button" class="btn btn-outline-danger btn-sm" data-delete-definition="${section.id}">Elimina</button></div></div>`).join('') || '<p>Nessuna sezione. Crea la prima qui sotto.</p>';
    $('supplierSectionDefinitions').querySelectorAll('[data-edit-definition]').forEach(button=>button.onclick=()=>{
     if(configBusy)return;definition=definitions().find(row=>row.id===Number(button.dataset.editDefinition));
     $('supplierSectionName').value=definition.name;$('supplierSectionPosition').value=definition.order_index;
+    loadColors(definition);
     $('supplierSectionDefinitionTitle').textContent='Modifica sezione';$('supplierSectionDefinitionSave').textContent='Salva modifica';$('supplierSectionDefinitionCancel').hidden=false;
     $('supplierSectionDefinitionForm').scrollIntoView({block:'nearest',behavior:'smooth'});$('supplierSectionName').focus();
    });
@@ -146,7 +171,7 @@
   }
   async function saveDefinition(event) {
    event.preventDefault();if(configBusy)return;
-   const payload={name:$('supplierSectionName').value,order_index:Number($('supplierSectionPosition').value),...(definition?{revision:definition.revision}:{})};
+   const payload={name:$('supplierSectionName').value,order_index:Number($('supplierSectionPosition').value),...colors,...(definition?{revision:definition.revision}:{})};
    setBusy(true);$('supplierSectionsError').textContent='';
    try {const result=await api('/supplier-orders/api/board/sections'+(definition?'/'+definition.id:''),{method:definition?'PUT':'POST',body:JSON.stringify(payload)});
     getData().sections=result.sections;renderDefinitions();resetDefinition();await reload();

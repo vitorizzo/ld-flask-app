@@ -1142,6 +1142,9 @@ class SupplierBoardSection(db.Model):
     name = db.Column(db.String(80), nullable=False, unique=True)
     order_index = db.Column(db.Integer, nullable=False, default=0)
     revision = db.Column(db.Integer, nullable=False, default=1)
+    badge_fill = db.Column(db.String(7), nullable=True)
+    badge_text = db.Column(db.String(7), nullable=True)
+    badge_border = db.Column(db.String(7), nullable=True)
 
 
 class SupplierBoardCardSection(db.Model):

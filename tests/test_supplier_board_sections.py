@@ -127,3 +127,49 @@ class SupplierSectionTests(unittest.TestCase):
             with Operations.context(MigrationContext.configure(conn)):
                 migration.upgrade()
             self.assertEqual(conn.execute(text('SELECT count(*) FROM supplier_board_sections')).scalar(),11)
+
+    def test_badge_colors_roundtrip_preserved_by_rename_and_theme_reset(self):
+        result=self.client.post('/supplier-orders/api/board/sections',json=dict(name='Colori',order_index=0,
+            badge_fill='#FF8800',badge_text='#142536',badge_border='#554433'))
+        self.assertEqual(result.status_code,201)
+        section=result.json['sections'][0]
+        self.assertEqual(section['badge_fill'],'#ff8800')
+        card=self.create_card({str(section['id']):'<p>Info</p>'})
+        self.assertEqual(card['sections'][0]['badge_text'],'#142536')
+        endpoint='/supplier-orders/api/board/sections/'+str(section['id'])
+        renamed=self.client.put(endpoint,json=dict(name='Rinominata',order_index=0,revision=section['revision']))
+        self.assertEqual(renamed.json['sections'][0]['badge_border'],'#554433')
+        revision=renamed.json['sections'][0]['revision']
+        reset=self.client.put(endpoint,json=dict(name='Rinominata',order_index=0,revision=revision,
+            badge_fill=None,badge_text=None,badge_border=None))
+        self.assertEqual(reset.status_code,200)
+        saved=self.client.get('/supplier-orders/api/board').json['cards'][0]['sections'][0]
+        self.assertIsNone(saved['badge_fill']);self.assertIsNone(saved['badge_text']);self.assertIsNone(saved['badge_border'])
+        self.assertEqual(saved['text'],'Info')
+
+    def test_badge_colors_reject_invalid_values_without_changes(self):
+        section=self.create_section()
+        endpoint='/supplier-orders/api/board/sections/'+str(section['id'])
+        for key in ('badge_fill','badge_text','badge_border'):
+            for value in ['red','#fff','#12345678','#12345g',';background:url(x)',True,{},42]:
+                result=self.client.put(endpoint,json=dict(name='Should not change',order_index=0,revision=1,**{key:value}))
+                self.assertEqual(result.status_code,400,(key,value))
+        row=db.session.get(SupplierBoardSection,section['id'])
+        self.assertEqual(row.name,'Anomalia');self.assertEqual(row.revision,1);self.assertIsNone(row.badge_fill)
+
+    def test_badge_color_migration_upgrade_repeat_and_downgrade(self):
+        path=Path(__file__).resolve().parents[1]/'migrations/versions/s4b5c6d7e8f9_supplier_section_badge_colors.py'
+        spec=importlib.util.spec_from_file_location('supplier_badge_colors',path)
+        migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(migration)
+        engine=create_engine('sqlite://')
+        with engine.begin() as conn:
+            conn.execute(text('CREATE TABLE supplier_board_sections (id INTEGER PRIMARY KEY,name VARCHAR(80) NOT NULL,order_index INTEGER NOT NULL,revision INTEGER NOT NULL)'))
+            conn.execute(text("INSERT INTO supplier_board_sections VALUES (1,'Keep',0,1)"))
+            with Operations.context(MigrationContext.configure(conn)):
+                migration.upgrade()
+                conn.execute(text("UPDATE supplier_board_sections SET badge_fill='#ff8800' WHERE id=1"))
+                migration.upgrade()
+                self.assertEqual(conn.execute(text('SELECT badge_fill FROM supplier_board_sections')).scalar(),'#ff8800')
+                migration.downgrade()
+            self.assertEqual(conn.execute(text('SELECT name FROM supplier_board_sections')).scalar(),'Keep')
+            self.assertNotIn('badge_fill',{column['name'] for column in inspect(conn).get_columns('supplier_board_sections')})

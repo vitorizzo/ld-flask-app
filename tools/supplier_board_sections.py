@@ -1,6 +1,21 @@
 """Small attribute-free rich text format for supplier card sections."""
 from html import escape
 from html.parser import HTMLParser
+import re
+
+BADGE_COLORS = ('badge_fill', 'badge_text', 'badge_border')
+
+
+def section_colors(payload, existing=None):
+    colors = {}
+    for key in BADGE_COLORS:
+        value = payload.get(key, getattr(existing, key, None))
+        if value is not None:
+            if not isinstance(value, str) or not re.fullmatch(r'#[0-9a-fA-F]{6}', value):
+                raise ValueError('Scegli un colore valido per riempimento, testo e cornice (formato #RRGGBB).')
+            value = value.lower()
+        colors[key] = value
+    return colors
 
 DEFAULT_SECTIONS = (
     'Nuove annate', 'Nuovi prodotti', 'Omaggi', 'Anomalia',

@@ -1,3 +1,9 @@
+## Bacheca fornitori: colori badge per sezione (2026-10-13)
+
+- SupplierBoardSection: badge_fill/badge_text/badge_border nullable, migrazione s4b5c6d7e8f9 dopo r3a4b5c6d7e8. I valori null mantengono i colori del tema delle sezioni esistenti; modifiche successive immediate sulle schede, nessuna modifica dei testi.
+- Configura sezioni: tre selettori colore indipendenti con anteprima dal vivo e Usa colori del tema; badge colorati anche nell'elenco configurazione. API serializzano i colori nelle definizioni e nei contenuti delle schede, validano #RRGGBB, normalizzano minuscolo e preservano valori omessi nei client precedenti. CSS usa variabili per riempimento/testo/cornice, frontend applica soltanto valori esadecimali validi; cache sections2.
+- Verifiche:44 test supplier passati (3 nuovi per colori/validazione/migrazione ripetuta e downgrade);10 casi browser su2 temi e320/360/430/768/1440px con anteprima, persistenza sul badge, riapertura e ripristino tema. Sintassi JS e diff check. Produzione non aggiornata: dopo il pull, venv/bin/flask --app app db upgrade e normale riavvio web; nuova head s4b5c6d7e8f9.
+
 ## Bacheca fornitori: sezioni configurabili e testo formattato (2026-10-13)
 
 - models.py: nuove SupplierBoardSection e SupplierBoardCardSection, relazione contenuti per scheda con vincolo univoco e cascata su scheda/sezione. Migrazione r3a4b5c6d7e8 dopo q2f3a4b5c6d7: due tabelle, indici e undici sezioni richieste (nuove annate/prodotti, omaggi, anomalie, prezzi, contributi, fine anno, interventi, anomalia sistemata, consegna parziale). Compatibile con tabelle precreate da db.create_all; dati/note/ordini esistenti conservati.
