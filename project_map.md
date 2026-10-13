@@ -1,3 +1,9 @@
+## Agenda: caricamento versamenti (2026-10-13)
+
+- routes/cassa.py: GET /api/day/<day_date>/deposit-available-checks riusa _calculate_progressive_saldo_versabile_fast per saldo antecedente alla data, senza ricorsione ORM; GET /api/day/<day_date>/deposits carica solo relazioni pertinenti. Stesso helper saldo della preview Agenda, snapshot/aggregati esistenti, nessuna migration.
+- static/js/agenda.js/openDepositModal: show immediato, letture banche/assegni/storico parallele, depositLoadGeneration per risposte obsolete, depositLoading/depositReady e ciclo shown/hidden per controlli di conferma. templates/agenda.html aggiorna cache deposit-speed1.
+- tests/test_deposit_performance.py: query costanti su storico esteso, dati contabili/confini/snapshot e caricamenti selettivi; tests/test_deposit_modal.mjs verifica asincronia e chiusura/riapertura con risposte controllate.
+
 ## Celery per contesti e runtime osservabile (2026-10-13)
 
 - tools/celery_contexts.py: routing statico gestionale/notifiche/spedizioni/background, code ld_gestionale/ld_notifiche/ld_spedizioni/celery; CELERY_CONTEXT_QUEUES_ENABLED default false per transizione. Canonicalizzazione alias import, singleton per import/periodiche e identita' specifica per notifiche/campagne. config/celeryconfig.py task_routes e worker_prefetch_multiplier1; nessuna modifica schema DB.

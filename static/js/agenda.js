@@ -1011,6 +1011,9 @@ const depositAddBtn = document.getElementById("depositAddBtn");
 const depositBankSelect = document.getElementById("depositBank");
 
 let depositModal = null;
+let depositLoadGeneration = 0;
+let depositLoading = false;
+let depositReady = false;
 let editingDepositId = null;
 
 /* =========================
@@ -4672,9 +4675,16 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   if (depositModalEl) {
     depositModal = new bootstrap.Modal(depositModalEl);
-    depositModalEl.addEventListener("shown.bs.modal", focusDepositAmountInput);
+    depositModalEl.addEventListener("shown.bs.modal", () => {
+      if (depositAddBtn) depositAddBtn.disabled = !depositReady;
+      focusDepositAmountInput();
+    });
     depositModalEl.addEventListener("keydown", handleDepositModalKeydown);
     depositModalEl.addEventListener("hidden.bs.modal", () => {
+      depositLoadGeneration += 1;
+      depositLoading = false;
+      depositReady = false;
+      if (depositTypeSelect) depositTypeSelect.disabled = false;
       depositAddBtn?.removeAttribute("disabled");
     });
   }
@@ -6032,13 +6042,14 @@ document.addEventListener("DOMContentLoaded", async function () {
     }
   }
 
-  async function loadDepositBanks(selectedBankId = null) {
+  async function loadDepositBanks(selectedBankId = null, isCurrent = () => true) {
     if (!depositBankSelect) return;
 
     depositBankSelect.innerHTML = `<option value="">Seleziona...</option>`;
 
     try {
       const banks = await fetchBanksRaw();
+      if (!isCurrent()) return false;
       let defaultId = null;
 
       banks.forEach(b => {
@@ -6060,11 +6071,11 @@ document.addEventListener("DOMContentLoaded", async function () {
         depositBankSelect.value = finalValue;
       }
 
-      console.log("depositBank options:", banks);
-      console.log("depositBank selected:", depositBankSelect.value);
+      return banks.length > 0;
 
     } catch (err) {
       console.error("loadDepositBanks error:", err);
+      return false;
     }
   }
 
@@ -6759,7 +6770,7 @@ document.addEventListener("DOMContentLoaded", async function () {
     };
   }
 
-  async function loadAvailableDepositChecks(dayStr) {
+  async function loadAvailableDepositChecks(dayStr, isCurrent = () => true) {
     if (!depositChecksTableBody || !depositTypeSelect) return;
 
     depositChecksTableBody.innerHTML = `
@@ -6775,6 +6786,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       });
 
       const data = await r.json();
+      if (!isCurrent()) return false;
 
       if (!data.ok) {
         depositChecksTableBody.innerHTML = `
@@ -6784,7 +6796,7 @@ document.addEventListener("DOMContentLoaded", async function () {
             </td>
           </tr>
         `;
-        return;
+        return false;
       }
 
       const mode = depositTypeSelect.value || "versamento_incasso";
@@ -6800,7 +6812,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         `;
         updateDepositCashUi();
         configureDepositTabOrder();
-        return;
+        return true;
       }
 
       depositChecksTableBody.innerHTML = checks.map(c => `
@@ -6819,7 +6831,9 @@ document.addEventListener("DOMContentLoaded", async function () {
 
       updateDepositCashUi();
       configureDepositTabOrder();
+      return true;
     } catch (err) {
+      if (!isCurrent()) return false;
       console.error("loadAvailableDepositChecks error:", err);
       depositChecksTableBody.innerHTML = `
         <tr>
@@ -6828,10 +6842,11 @@ document.addEventListener("DOMContentLoaded", async function () {
       `;
       updateDepositCashUi();
       configureDepositTabOrder();
+      return false;
     }
   }
 
-  async function loadDeposits(dayStr) {
+  async function loadDeposits(dayStr, isCurrent = () => true) {
     if (!depositTableBody) return;
 
     depositTableBody.innerHTML = `
@@ -6847,6 +6862,7 @@ document.addEventListener("DOMContentLoaded", async function () {
       });
 
       const data = await r.json();
+      if (!isCurrent()) return;
 
       if (!data.ok) {
         depositTableBody.innerHTML = `
@@ -6896,6 +6912,7 @@ document.addEventListener("DOMContentLoaded", async function () {
         </tr>
       `).join("");
     } catch (err) {
+      if (!isCurrent()) return;
       console.error("loadDeposits error:", err);
       depositTableBody.innerHTML = `
         <tr>
@@ -6911,21 +6928,35 @@ document.addEventListener("DOMContentLoaded", async function () {
       return;
     }
 
-    resetDepositForm();
-
-    await loadDepositBanks();
-    await loadAvailableDepositChecks(currentDay);
-    await loadDeposits(currentDay);
-
-    updateDepositTotal();
-    updateDepositCashUi();
-
     if (!depositModal) {
       alert("Modale versamenti non disponibile.");
       return;
     }
-
+    if (depositLoading) return;
+    const day = currentDay;
+    const generation = ++depositLoadGeneration;
+    const isCurrent = () => generation === depositLoadGeneration && day === currentDay;
+    resetDepositForm();
+    // Clear the previous day's selections before showing the loading state.
+    if (depositChecksTableBody) depositChecksTableBody.innerHTML = "";
+    updateDepositTotal();
+    depositLoading = true;
+    depositReady = false;
+    if (depositAddBtn) depositAddBtn.disabled = true;
+    if (depositTypeSelect) depositTypeSelect.disabled = true;
     depositModal.show();
+    const [banksReady, checksReady] = await Promise.all([
+      loadDepositBanks(null, isCurrent),
+      loadAvailableDepositChecks(day, isCurrent),
+      loadDeposits(day, isCurrent),
+    ]);
+    if (!isCurrent()) return;
+    depositLoading = false;
+    depositReady = Boolean(banksReady && checksReady);
+    if (depositTypeSelect) depositTypeSelect.disabled = false;
+    if (depositAddBtn) depositAddBtn.disabled = !depositReady;
+    updateDepositTotal();
+    updateDepositCashUi();
   }
 
   function depositOrderedFocusTargets() {
@@ -6984,6 +7015,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   }
 
   async function saveDeposit() {
+    if (depositLoading || depositAddBtn?.disabled) return;
     if (!currentDay) {
       alert("Nessuna giornata selezionata.");
       return;
@@ -9337,6 +9369,7 @@ document.addEventListener("DOMContentLoaded", async function () {
   });
 
   depositTableBody?.addEventListener("click", async (e) => {
+    if (depositLoading) return;
     const editBtn = e.target.closest(".btn-edit-deposit");
     if (editBtn) {
       const depositId = editBtn.dataset.id;

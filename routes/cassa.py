@@ -8871,16 +8871,9 @@ def api_available_checks_for_deposit(day_date):
 
     saldo_assegni_in_pancia = Decimal(str(saldo_assegni_in_pancia or 0))
 
-    prev_day = (
-        CashDay.query
-        .filter(CashDay.day_date < d)
-        .order_by(CashDay.day_date.desc())
-        .first()
-    )
-
-    saldo_versabile_precedente = (
-        _calculate_progressive_saldo_versabile(prev_day) if prev_day else Decimal("0")
-    )
+    # Same historical boundary as the preview: aggregate before d, without
+    # recursively loading every prior day and its movements.
+    saldo_versabile_precedente, _ = _calculate_progressive_saldo_versabile_fast(d)
 
     contanti_massimi_incasso = saldo_versabile_precedente - saldo_assegni_in_pancia
     if contanti_massimi_incasso < 0:
@@ -9011,6 +9004,10 @@ def api_list_deposits(day_date):
     cash_day = (
         CashDay.query
         .options(
+            noload(CashDay.sales),
+            noload(CashDay.expenses),
+            noload(CashDay.cash_moves),
+            noload(CashDay.pos_moves),
             selectinload(CashDay.deposits).selectinload(CashDeposit.bank),
             selectinload(CashDay.deposits)
             .selectinload(CashDeposit.checks)

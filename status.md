@@ -1,3 +1,10 @@
+## Agenda: apertura rapida modale versamenti (2026-10-13)
+
+- Individuati due colli di bottiglia: openDepositModal attendeva banche/assegni/versamenti in sequenza prima di show; deposit-available-checks ricostruiva ricorsivamente tutte le giornate precedenti con caricamenti ORM dei movimenti.
+- routes/cassa.py riusa _calculate_progressive_saldo_versabile_fast(d), gia' usato dalla preview, con snapshot valido e aggregazione SQL precedente alla data scelta. api_list_deposits esclude caricamenti di vendite/spese/movimenti cassa/POS non usati. Nessuna modifica schema o scrittura dati contabili.
+- static/js/agenda.js mostra subito la modale e avvia tre letture in parallelo; selezioni precedenti pulite, salvataggio bloccato finche' banche/assegni non sono disponibili. Generazione/data scartano risposte obsolete dopo chiusura/riapertura; doppio clic non duplica richieste, shown/hidden configurano lo stato del pulsante. Cache agenda deposit-speed1.
+- Verifiche: test_deposit_performance.py 13 casi (9 regressioni contabili + 4 specifici), numero query invariato su 1/181 giornate, confine data/centesimi/snapshot validi e stale, nessun caricamento movimenti estranei; test_deposit_modal.mjs apertura immediata, parallelismo, doppio clic, risposte obsolete, errore/ripresa. Browser Agenda esistente 6 casi su 2 temi e 360/430/1920px; sintassi JS e diff check. Tempi effettivi in produzione non misurati; applicare il normale deploy web e verificare il KPI. Produzione non modificata da questo intervento.
+
 ## Celery: code per contesto, deduplicazione e contatori skip (2026-10-13)
 
 - Implementati quattro contesti: gestionale (MATRIX/file/diagnostica), notifiche (push, notifiche contabili, link pagamento), spedizioni (Poleepo/tracking), background (mailing/mailbox/social/altre task). tools/celery_contexts.py e task_routes instradano producer automatici/manuali; prefetch1, worker solo e hostname distinti nei template deploy/systemd. CELERY_CONTEXT_QUEUES_ENABLED default false mantiene compatibilita' con l'installazione seriale finche' non sono attivati i nuovi consumer.
