@@ -34,6 +34,7 @@
     } finally { clearTimeout(timeout); }
   }
   function beatStatus(data) {
+    document.getElementById('celeryContextStatus').textContent = data.contexts_enabled ? 'Instradamento su code separate attivo: gestionale, notifiche, spedizioni e background.' : 'Instradamento seriale su coda celery. I worker dedicati devono essere attivati sul server per abilitare il multitasking.';
     if (!data.beat) beatLabel.textContent = 'In attesa di Celery Beat. Le modifiche richiedono lo scheduler aggiornato e attivo.';
     else if (data.beat.error) beatLabel.textContent = 'Celery Beat non riesce a leggere le configurazioni: gli avvii periodici sono sospesi fino al recupero.';
     else if (data.beat.revision === data.revision) beatLabel.textContent = `Configurazione applicata da Celery Beat · revisione ${data.revision}`;
@@ -45,6 +46,11 @@
     tr.querySelector('.celery-task-name').textContent = task.name;
     tr.querySelector('.celery-task-code').textContent = task.task;
     tr.querySelector('.celery-type').textContent = task.type;
+    const queue = document.createElement('small'); queue.className = 'celery-task-code';
+    queue.textContent = `${task.context || 'background'} · coda ${task.queue || 'celery'}`;
+    tr.querySelector('.celery-type').append(queue);
+    const metrics = document.createElement('td'); metrics.dataset.label = 'Metriche / skip';
+    metrics.className = 'celery-metrics'; tr.insertBefore(metrics, tr.lastElementChild);
     const editor = tr.querySelector('.celery-frequency');
     const details = document.createElement('details'); details.className = 'celery-frequency-editor';
     const toggle = document.createElement('summary'); toggle.textContent = 'Modifica frequenza';
@@ -98,6 +104,7 @@
   function updateState(tr, task) {
     tr.hidden = task.deleted && !showDeleted.checked;
     tr.querySelector('.celery-state').textContent = task.deleted ? 'Eliminata' : task.enabled ? 'Attiva' : 'In pausa';
+    updateMetrics(tr, task);
     tr.querySelectorAll('.celery-frequency input, .celery-frequency select, .celery-frequency button').forEach(el => {
       el.disabled = task.deleted || busy; el.dataset.locked = String(task.deleted);
     });
@@ -109,6 +116,38 @@
       button.append(glyph, document.createTextNode(' ' + text)); button.disabled = busy;
       button.setAttribute('aria-label', text + ': ' + task.name); actions.append(button);
     });
+    const reset = document.createElement('button'); reset.type = 'button'; reset.className = 'btn';
+    reset.dataset.action = 'metrics_reset'; reset.textContent = 'Azzera totali';
+    reset.disabled = busy || !task.runtime?.available; reset.dataset.locked = String(!task.runtime?.available);
+    actions.append(reset);
+  }
+  function updateMetrics(tr, task) {
+    const cell = tr.querySelector('.celery-metrics'); if (!cell) return;
+    cell.replaceChildren();
+    const data = task.runtime;
+    const queue = tr.querySelector('.celery-type .celery-task-code');
+    if (queue) queue.textContent = `${task.context || 'background'} · coda ${task.queue || 'celery'}`;
+    const reset = tr.querySelector('[data-action=metrics_reset]');
+    if (reset) { reset.disabled = busy || !data?.available; reset.dataset.locked = String(!data?.available); }
+    const line = text => { const node = document.createElement('span'); node.textContent = text; cell.append(node); };
+    if (!data?.available) { line('Metriche non disponibili'); return; }
+    const recent = data.recent || {}, total = data.total || {};
+    const states = data.states || [];
+    const status = states.includes('running') ? 'In esecuzione' : states.includes('queued') ? 'In coda' : 'In attesa';
+    line(status);
+    const skipped = (recent.skip_queued || 0) + (recent.skip_running || 0) + (recent.expired || 0);
+    const cumulative = (total.skip_queued || 0) + (total.skip_running || 0) + (total.expired || 0);
+    line(`Skip 24h: ${skipped} · ${data.skip_percent || 0}%`);
+    line(`Già in coda: ${recent.skip_queued || 0} · già in esecuzione: ${recent.skip_running || 0}`);
+    line(`Scadute: ${recent.expired || 0} · totali skip: ${cumulative}`);
+    const seconds = value => value == null ? '—' : `${Number(value).toFixed(1)} s`;
+    line(`Ultima durata: ${seconds(data.last_duration)} · media 24h: ${seconds(data.average_duration)}`);
+    const starts = Math.max(0, (recent.started || 0) - (recent.skipped_after_start || 0));
+    line(`Avvii 24h: ${starts} · errori: ${(recent.failed || 0) + (recent.publish_failed || 0)} · lease scadute: ${recent.lost_worker || 0}`);
+    line(`Avvii bloccati dalla pausa: ${recent.paused || 0} (esclusi dagli skip)`);
+    if (recent.skipped_other) line(`Altri salti applicativi: ${recent.skipped_other}`);
+    const evaluated = skipped + starts;
+    if (evaluated >= 5 && data.skip_percent >= 25) line('Frequenza o congestione della coda da verificare.');
   }
   function render(data) {
     state = data; rows.replaceChildren(...data.tasks.map(fillRow));
@@ -132,7 +171,7 @@
       }
       data.tasks.forEach(task => { const row = [...rows.children].find(item => item.dataset.id === task.id); if (row) updateState(row, task); });
       document.getElementById('celeryEmpty').hidden = data.tasks.some(task => !task.deleted || showDeleted.checked);
-      beatStatus(data); say('Salvato. Le modifiche saranno applicate da Celery Beat entro circa 5 secondi.');
+      beatStatus(data); say(action === 'metrics_reset' ? 'Totali azzerati. Storico 24h e durate conservati.' : 'Salvato. Le modifiche saranno applicate da Celery Beat entro circa 5 secondi.');
       return true;
     } catch (error) { say(error.message, true); confirmError.textContent = error.message; return false; }
     finally { setBusy(false); }
@@ -143,6 +182,11 @@
     if (action === 'delete') {
       pending = {name, action};
       document.getElementById('celeryConfirmText').textContent = `Eliminare la schedulazione di “${state.tasks.find(task => task.id === name).name}”? Potrai ripristinarla da Mostra eliminate.`;
+      bootstrap.Modal.getOrCreateInstance(modalNode).show(); return;
+    }
+    if (action === 'metrics_reset') {
+      pending = {name, action};
+      document.getElementById('celeryConfirmText').textContent = 'Azzerare i contatori cumulativi? Lo storico delle ultime 24 ore e le durate resteranno disponibili.';
       bootstrap.Modal.getOrCreateInstance(modalNode).show(); return;
     }
     if (action === 'frequency') {
@@ -158,7 +202,10 @@
   });
   modalNode.addEventListener('show.bs.modal', () => { document.body.classList.add('celery-confirm-open'); });
   modalNode.addEventListener('shown.bs.modal', () => {
-    confirmError.textContent = ''; confirmButton.disabled = !pending || busy; confirmButton.textContent = 'Elimina';
+    confirmError.textContent = ''; confirmButton.disabled = !pending || busy;
+    const reset = pending?.action === 'metrics_reset';
+    confirmButton.textContent = reset ? 'Azzera totali' : 'Elimina';
+    document.getElementById('celeryConfirmTitle').textContent = reset ? 'Azzera contatori' : 'Elimina schedulazione';
     confirmButton.onclick = async () => { if (pending && await change(pending.name, pending.action)) bootstrap.Modal.getInstance(modalNode).hide(); };
   });
   modalNode.addEventListener('hide.bs.modal', event => { if (busy) event.preventDefault(); });
@@ -170,7 +217,7 @@
   const poll = setInterval(async () => {
     if (busy || !state || document.hidden) return;
     const revision = state.revision;
-    try { const data = await request(root.dataset.api); if (busy || state.revision !== revision) return; beatStatus(data); if (data.revision !== state.revision) say('Configurazione modificata in un’altra sessione. Premi Aggiorna prima di salvare.', true); }
+    try { const data = await request(root.dataset.api); if (busy || state.revision !== revision) return; beatStatus(data); data.tasks.forEach(task => { const row = [...rows.children].find(item => item.dataset.id === task.id); if (row) updateMetrics(row, task); }); if (data.revision !== state.revision) say('Configurazione modificata in un’altra sessione. Premi Aggiorna prima di salvare.', true); }
     catch (_) { beatLabel.textContent = 'Verifica di Celery Beat non disponibile. Premi Aggiorna per riprovare.'; }
   }, 10000);
   window.addEventListener('pagehide', () => clearInterval(poll), {once: true});

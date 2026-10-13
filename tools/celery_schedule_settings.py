@@ -120,10 +120,18 @@ def read_document():
 
 
 def document_rows(document):
+    from tools.celery_contexts import task_context, destination, canonical_task
+    from tools.celery_runtime import runtime_snapshot
+    try:
+        runtime = runtime_snapshot([entry['task'] for entry in catalog().values()])
+    except Exception:
+        runtime = {}
     rows = []
     for name, entry in catalog().items():
         label, kind = LABELS.get(name, (name, "Altro"))
-        rows.append(dict(document["schedules"][name], id=name, name=label, type=kind, task=entry["task"]))
+        rows.append(dict(document["schedules"][name], id=name, name=label, type=kind, task=entry["task"],
+                         context=task_context(entry['task']), queue=destination(entry['task']),
+                         runtime=runtime.get(canonical_task(entry['task']), {'available': False})))
     return rows
 
 

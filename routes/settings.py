@@ -4,6 +4,7 @@ from flask_mail import Message
 from flask_socketio import SocketIO
 from sqlalchemy import and_, asc, inspect, or_, text
 from sqlalchemy.exc import SQLAlchemyError
+from redis.exceptions import RedisError
 from sqlalchemy.orm import selectinload, load_only
 from werkzeug.utils import secure_filename
 import os
@@ -517,10 +518,11 @@ def celery_tasks_settings():
 @role_required(999)
 def celery_tasks_data():
     from tools.celery_schedule_settings import read_document, document_rows, beat_status
+    from tools.celery_contexts import contexts_enabled
     try:
         document = read_document()
         return jsonify(revision=document["revision"], tasks=document_rows(document),
-                       imports_paused=document["imports_paused"], beat=beat_status())
+                       imports_paused=document["imports_paused"], beat=beat_status(), contexts_enabled=contexts_enabled())
     except (SQLAlchemyError, ValueError):
         db.session.rollback()
         logger.exception("Lettura configurazione Celery fallita")
@@ -532,22 +534,35 @@ def celery_tasks_data():
 @role_required(999)
 def celery_tasks_update(name):
     from tools.celery_schedule_settings import update_document, document_rows, beat_status, ScheduleConflict
+    from tools.celery_contexts import contexts_enabled
     payload = request.get_json(silent=True)
     if not isinstance(payload, dict):
         return jsonify(error="Richiesta JSON non valida."), 400
     try:
-        document = update_document(name, payload.get("action"), payload, current_user.id)
+        if payload.get('action') == 'metrics_reset':
+            from tools.celery_schedule_settings import catalog, read_document
+            from tools.celery_runtime import reset_totals
+            if name not in catalog():
+                raise ValueError('Task sconosciuta.')
+            document = read_document()
+            if type(payload.get('revision')) is not int:
+                raise ValueError('Ricarica la configurazione prima di azzerare.')
+            if payload['revision'] != document['revision']:
+                raise ScheduleConflict('Configurazione cambiata. Ricarica prima di azzerare.')
+            reset_totals(catalog()[name]['task'])
+        else:
+            document = update_document(name, payload.get("action"), payload, current_user.id)
         logger.info("Configurazione Celery: utente=%s task=%s azione=%s revisione=%s",
                     current_user.id, name, payload.get("action"), document["revision"])
         return jsonify(revision=document["revision"], tasks=document_rows(document),
-                       imports_paused=document["imports_paused"], beat=beat_status())
+                       imports_paused=document["imports_paused"], beat=beat_status(), contexts_enabled=contexts_enabled())
     except ScheduleConflict as exc:
         db.session.rollback()
         return jsonify(error=str(exc)), 409
     except (ValueError, TypeError) as exc:
         db.session.rollback()
         return jsonify(error=str(exc)), 400
-    except SQLAlchemyError:
+    except (SQLAlchemyError, RedisError):
         db.session.rollback()
         logger.exception("Salvataggio configurazione Celery fallito")
         return jsonify(error="Salvataggio non riuscito. La configurazione precedente e' conservata."), 503

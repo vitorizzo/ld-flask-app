@@ -44,6 +44,8 @@ class CelerySettingsTests(unittest.TestCase):
         with self.client.session_transaction() as session:
             session['_user_id'] = '12'
         self.mocks = [patch('tools.role_required.get_current_user', return_value=self.user),
+                      patch('tools.celery_runtime.runtime_snapshot', return_value={}),
+                      patch('tools.celery_runtime.reap_expired'),
                       patch('tools.celery_schedule_settings.beat_status', return_value=None),
                       patch.dict(os.environ, {PAUSE_ENV: 'false'})]
         for mock in self.mocks: mock.start()
@@ -124,6 +126,18 @@ class CelerySettingsTests(unittest.TestCase):
     def test_database_failure_is_visible_without_mutating_configuration(self):
         with patch('tools.celery_schedule_settings.read_document', side_effect=SQLAlchemyError('offline')):
             self.assertEqual(self.client.get('/settings/celery-tasks/data').status_code, 503)
+
+    def test_metrics_reset_has_developer_permission_and_preserves_settings(self):
+        self.mutate()
+        before = deepcopy(read_document())
+        with patch('tools.celery_runtime.reset_totals') as reset:
+            response=self.mutate(action='metrics_reset')
+            self.assertEqual(response.status_code,200,response.json)
+            reset.assert_called_once_with('config.tasks.import_articoli_task')
+            self.assertEqual(read_document(),before)
+            self.assertEqual(self.mutate(action='metrics_reset',revision=0).status_code,409)
+            self.user.max_role_weight=40;self.user.active_roles=[NS(name='office',weight=40)]
+            self.assertEqual(self.mutate(action='metrics_reset').status_code,403)
 
     def new_scheduler(self, directory):
         app = Celery('settings-tests', broker='memory://', backend='cache+memory://')

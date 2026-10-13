@@ -71,4 +71,10 @@ class PreferenceScheduler(PersistentScheduler):
     def tick(self, *args, **kwargs):
         if not self.reload_preferences():
             return self.max_interval
+        from tools.celery_runtime import reap_expired
+        try:
+            reap_expired()
+        except Exception:
+            logger.exception('Coordinamento Redis indisponibile; dispatch Celery sospesi')
+            return self.max_interval
         return super().tick(*args, **kwargs)

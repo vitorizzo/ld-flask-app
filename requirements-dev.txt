@@ -1,3 +1,5 @@
 -r requirements.txt
 # PDF text assertions in the customer communication tests.
 pypdf==6.19.0
+# Isolated Redis/Lua coordination tests, never connected to production.
+fakeredis[lua]==2.39.0

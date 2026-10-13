@@ -25,6 +25,9 @@
 .celery-frequency [hidden] { display: none; }
 .celery-frequency small { color: var(--ld-text-muted); }
 .celery-state { font-weight: 700; }
+.celery-metrics { min-width: 15em; }
+.celery-metrics span { display: block; margin-bottom: .4em; font-size: .85em; }
+html[data-responsive-mode="mobile"] .celery-metrics { min-width: 0; }
 #celeryFeedback[data-error=true], #celeryConfirmError { color: var(--ld-text); border-left: .25em solid var(--ld-brand-accent); padding-left: .65em; }
 #celeryConfirmError:empty { display: none; }
 body.celery-confirm-open .modal-backdrop { z-index: 12100 !important; }

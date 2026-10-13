@@ -58,6 +58,8 @@ def update_task(task_id, descrizione, progress, status, exception=None):
 
 def set_task_status(task_id, status_dict):
     r = get_redis()
+    if status_dict.get('stato') == status_string['attached'] and r.exists(f'celery:runtime:skipped:{task_id}'):
+        return
     if "name" not in status_dict:
         status_dict["name"] = task_id
     stato = str(status_dict.get("stato") or "").strip().lower()

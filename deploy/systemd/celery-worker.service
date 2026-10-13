@@ -1,0 +1,18 @@
+[Unit]
+Description=LDApp Celery worker (background)
+After=network.target redis.service
+
+[Service]
+User=tecno
+Group=tecno
+WorkingDirectory=/home/tecno/ld-flask-app-working
+Environment="PATH=/home/tecno/ld-flask-app-working/venv/bin"
+Environment="PYTHONPATH=/home/tecno/ld-flask-app-working"
+ExecStart=/home/tecno/ld-flask-app-working/venv/bin/celery -A celery_worker.celery worker --loglevel=info --pool=solo --prefetch-multiplier=1 --queues=celery --hostname=background@%H
+Restart=always
+RestartSec=10
+TimeoutStopSec=infinity
+KillSignal=SIGTERM
+
+[Install]
+WantedBy=multi-user.target

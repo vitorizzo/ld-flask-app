@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Task Celery{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/celery_tasks.css', v=app_version ~ '-celery1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/celery_tasks.css', v=app_version ~ '-celery2') }}">
 {% endblock %}
 {% block content %}
 <section class="ld-page ld-page-standard celery-settings" id="celerySettings" data-api="{{ url_for('settings.celery_tasks_data') }}" data-update="{{ url_for('settings.celery_tasks_update', name='__task__') }}">
@@ -15,9 +15,13 @@
   </div>
   <p id="celeryFeedback" role="status" aria-live="polite"></p>
   <p id="celeryBeatStatus" class="celery-secondary"></p>
+  <p id="celeryContextStatus" class="celery-secondary"></p>
+  <details class="celery-help"><summary>Guida ai controlli e alle metriche</summary>
+  <p class="celery-secondary">Le metriche coprono le ultime 24 ore. La percentuale confronta gli skip con gli avvii e gli skip registrati; le richieste bloccate dalla pausa sono separate. Azzera totali conserva lo storico 24h e le durate. La frequenza non viene modificata automaticamente.</p>
   <p class="celery-secondary">Play abilita le prossime esecuzioni secondo la frequenza impostata. Pausa blocca i nuovi avvii, anche da coda; una task già in corso termina. Elimina rimuove la schedulazione, con possibilità di ripristino.</p>
+  </details>
   <div class="ld-panel celery-table-wrap">
-    <table class="celery-table"><thead><tr><th>Nome</th><th>Tipologia</th><th>Frequenza</th><th>Stato</th><th>Azioni</th></tr></thead><tbody id="celeryTaskRows"></tbody></table>
+    <table class="celery-table"><thead><tr><th>Nome</th><th>Tipologia / coda</th><th>Frequenza</th><th>Stato</th><th>Metriche / skip</th><th>Azioni</th></tr></thead><tbody id="celeryTaskRows"></tbody></table>
     <p id="celeryEmpty" hidden>Nessuna schedulazione da mostrare.</p>
   </div>
 </section>
@@ -30,5 +34,5 @@
 </div>
 {% endblock %}
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/celery_tasks.js', v=app_version ~ '-celery1') }}"></script>
+<script src="{{ url_for('static', filename='js/celery_tasks.js', v=app_version ~ '-celery2') }}"></script>
 {% endblock %}

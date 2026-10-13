@@ -7,6 +7,8 @@ logger = get_logger('celeryconfig')
 broker_url = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
 result_backend = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
 broker_connection_retry_on_startup = True
+task_routes = ('tools.celery_contexts.task_route',)
+worker_prefetch_multiplier = 1
 
 logger.info(f"Configurazione Celery: broker_url={broker_url}, result_backend={result_backend}")
 
