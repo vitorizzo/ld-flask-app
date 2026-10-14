@@ -550,3 +550,4 @@ html[data-responsive-mode="mobile"] .supplier-products-manager { min-height: 0; 
 html[data-responsive-mode="mobile"] .supplier-product-list { min-height: 10em; max-height: 30dvh; flex: 0 0 auto; }
 html[data-responsive-mode="mobile"] .supplier-product-panel-header { flex-wrap: wrap; }
 html[data-responsive-mode="mobile"] .supplier-operational-row, html[data-responsive-mode="mobile"] .supplier-variant-row { gap: .6em; }
+.supplier-group-row[hidden] { display: none !important; }

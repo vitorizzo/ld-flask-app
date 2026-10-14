@@ -1,0 +1,15 @@
+<label class="form-label mt-3" for="{{ field_prefix }}OrderText">Ordine (facoltativo)</label>
+<textarea id="{{ field_prefix }}OrderText" class="form-control mb-3" rows="4" maxlength="40000"></textarea>
+<label class="form-label" for="{{ field_prefix }}TransmissionNotes">Note da trasmettere</label>
+<textarea id="{{ field_prefix }}TransmissionNotes" class="form-control mb-3" rows="3" maxlength="40000"></textarea>
+<label class="form-label"><input type="checkbox" id="{{ field_prefix }}Cash"> Contrassegno</label>
+<div class="row g-2 mb-3">
+ <div class="col-12 col-sm-6"><label class="form-label" for="{{ field_prefix }}Terms">Termine di pagamento</label>
+ <select id="{{ field_prefix }}Terms" class="form-select"><option value="">Non specificato</option><option value="sight">A vista</option><option value="month_end">Fine mese</option><option value="30">30 giorni</option><option value="60">60 giorni</option><option value="90">90 giorni</option><option value="other">Altro</option></select></div>
+ <div class="col-12 col-sm-6"><label class="form-label" for="{{ field_prefix }}PaymentDate">Data pagamento (facoltativa)</label><input id="{{ field_prefix }}PaymentDate" type="date" class="form-control"></div>
+</div>
+<div id="{{ field_prefix }}OtherWrap" hidden><label class="form-label" for="{{ field_prefix }}Other">Specifica il termine Altro</label><input id="{{ field_prefix }}Other" class="form-control mb-3" maxlength="500"></div>
+<label class="form-label" for="{{ field_prefix }}Files">Allegati</label>
+<input id="{{ field_prefix }}Files" type="file" multiple class="form-control" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.xls,.xlsx">
+<p class="form-text">PDF, immagini, Word ed Excel. Massimo 10 file, 10 MB ciascuno e 50 MB per scheda. Per sostituire un allegato, rimuovilo e aggiungi il nuovo file prima di salvare.</p>
+<div id="{{ field_prefix }}Attachments" class="mb-3"></div>

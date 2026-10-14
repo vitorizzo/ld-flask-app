@@ -23,20 +23,24 @@
     <div class="supplier-orders-panel supplier-groups-board">
       <div class="supplier-section-title">
         <h2>Gruppi esistenti</h2>
-        <span class="text-muted">{{ group_cards|length }} gruppi configurati</span>
+        <span class="text-muted" id="supplierGroupCount" role="status" aria-live="polite">{{ group_cards|length }} gruppi configurati</span>
       </div>
       <div class="supplier-group-table-wrap">
+        <label for="supplierGroupFilter" class="visually-hidden">Cerca gruppi per nome e note</label>
+        <input id="supplierGroupFilter" type="search" class="form-control mb-3" placeholder="Cerca gruppi per nome e note">
+        <p id="supplierGroupEmpty" role="status" hidden>Nessun gruppo corrisponde alla ricerca.</p>
         <table class="table supplier-group-table align-middle mb-0">
           <thead><tr><th>Gruppo</th><th>Note</th><th>Prodotti</th><th class="text-end">Azioni</th></tr></thead>
           <tbody>
           {% for card in group_cards %}
             {% set group = card.group %}
-            <tr class="supplier-group-row" data-consult-target="#supplierStockModal{{ group.id }}" tabindex="0">
+            <tr class="supplier-group-row" data-group-search="{{ group.name }} {{ group.notes or '' }}" data-consult-target="#supplierStockModal{{ group.id }}" tabindex="0">
               <td data-label="Gruppo"><strong>{{ group.name }}</strong>{% if not group.is_active %}<span class="badge text-bg-secondary ms-2">Disattivo</span>{% endif %}</td>
               <td data-label="Note" class="text-muted">{{ group.notes or '—' }}</td>
               <td data-label="Prodotti">{{ group.items|length }} articoli · {{ card.operational_rows|length }} matrici</td>
               <td data-label="Azioni">
                 <div class="supplier-row-actions" role="group" aria-label="Azioni {{ group.name }}">
+                  <button class="btn btn-sm btn-outline-info" type="button" data-external-order data-group-id="{{ group.id }}" data-group-name="{{ group.name }}">Allega ordine</button>
                   <button class="btn btn-sm btn-outline-info" type="button" data-consult-target="#supplierStockModal{{ group.id }}" title="Crea ordine"><i class="fa-solid fa-magnifying-glass"></i><span>Crea ordine</span></button>
                   <button class="btn btn-sm btn-outline-primary" type="button" data-group-manage data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" title="Gestisci prodotti"><i class="fa-solid fa-boxes-stacked"></i><span>Prodotti</span></button>
                   <button class="btn btn-sm btn-outline-secondary" type="button" data-group-edit data-group-id="{{ group.id }}" data-group-name="{{ group.name }}" data-group-notes="{{ group.notes or '' }}" data-group-active="{{ 1 if group.is_active else 0 }}" title="Modifica"><i class="fa-regular fa-pen-to-square"></i><span>Modifica</span></button>
@@ -54,6 +58,21 @@
       </div>
     </div>
 </section>
+
+<div class="modal fade supplier-orders-modal ld-modal ld-modal-standard" id="supplierExternalModal" tabindex="-1" aria-labelledby="supplierExternalTitle" aria-hidden="true">
+ <div class="modal-dialog modal-lg modal-dialog-scrollable"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="supplierExternalTitle">Allega ordine</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+  <form id="supplierExternalForm"><div class="modal-body">
+   <label class="form-label" for="externalName">Titolo</label><input id="externalName" class="form-control mb-3" maxlength="200" required>
+   <label class="form-label" for="externalReference">Riferimento</label><input id="externalReference" class="form-control mb-3" maxlength="160">
+   <label class="form-label" for="externalColumn">Colonna di destinazione</label><select id="externalColumn" class="form-select mb-3" required><option value="">Seleziona una colonna</option>{% for column in order_columns %}<option value="{{ column.id }}">{{ column.name }}</option>{% endfor %}</select>
+   <label class="form-label" for="externalSupplierSearch">Fornitore della Rubrica (facoltativo)</label><input id="externalSupplierSearch" class="form-control mb-2" type="search" placeholder="Cerca fornitore"><select id="externalSupplier" class="form-select mb-3"><option value="">Senza collegamento alla Rubrica</option></select>
+   {% set field_prefix = 'external' %}{% include 'supplier_orders/card_extra_fields.html' %}
+   <div id="supplierExternalResult" role="status" aria-live="polite"></div>
+   <div id="supplierExternalError" class="text-danger" role="alert"></div>
+  </div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Chiudi</button><button id="supplierExternalSave" type="submit" class="btn btn-info">Salva ordine nella bacheca</button></div></form>
+ </div></div>
+</div>
 
 <div class="modal fade supplier-orders-modal ld-modal ld-modal-standard" id="supplierGroupModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
@@ -133,4 +152,9 @@
 {% endfor %}
 {% endblock %}
 
-{% block extra_js %}<script src="{{ url_for('static', filename='js/supplier_order_editor.js', v=app_version ~ '-draft1') }}"></script><script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-draft1') }}"></script>{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/supplier_card_fields.js', v=app_version ~ '-external1') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_order_editor.js', v=app_version ~ '-external1') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-external1') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_external_orders.js', v=app_version ~ '-external1') }}"></script>
+{% endblock %}

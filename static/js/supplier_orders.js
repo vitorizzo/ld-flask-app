@@ -3,6 +3,20 @@
 
   const page = document.querySelector(".supplier-orders-page");
   if (!page || typeof bootstrap === "undefined") return;
+  // Read once from the rendered page; remove opening parameters before any reload.
+  if(page.dataset.modalAction){const url=new URL(location.href);['modal','group_id','order_id'].forEach(key=>url.searchParams.delete(key));history.replaceState(history.state,'',url);}
+  const groupFilter=document.getElementById('supplierGroupFilter');
+  const groupRows=[...document.querySelectorAll('[data-group-search]')];
+  const filterKey='supplier-group-filter-'+page.dataset.userId;
+  try{groupFilter.value=sessionStorage.getItem(filterKey)||'';}catch{}
+  function filterGroups(){
+    const query=groupFilter.value.trim().toLocaleLowerCase();let count=0;
+    groupRows.forEach(row=>{row.hidden=!row.dataset.groupSearch.toLocaleLowerCase().includes(query);if(!row.hidden)count++;});
+    document.getElementById('supplierGroupCount').textContent=`${count} di ${groupRows.length} gruppi`;
+    document.getElementById('supplierGroupEmpty').hidden=count!==0||!query;
+    try{sessionStorage.setItem(filterKey,groupFilter.value);}catch{}
+  }
+  groupFilter.oninput=filterGroups;filterGroups();
 
   const modals = new Map();
   document.querySelectorAll(".supplier-orders-modal").forEach((node) => {

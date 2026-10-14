@@ -2,9 +2,11 @@
  const $ = id => document.getElementById(id);
  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  let data = {columns:[],cards:[],sections:[]}, editing = null, saving = false, generation = 0, searchTimer, searchGeneration = 0, dragId = null, sectionUi;
+ let fields;
  let initialCard=Number(new URLSearchParams(location.search).get('card_id'))||null;
+ if(initialCard){const url=new URL(location.href);url.searchParams.delete('card_id');history.replaceState(history.state,'',url);}
  async function api(url, options={}) {
-  const res = await fetch(url, {credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},...options});
+  const res = await fetch(url, {credentials:'same-origin',cache:'no-store',headers:options.body instanceof FormData?{}:{'Content-Type':'application/json'},...options});
   const json = await res.json().catch(()=>({}));
   if (!res.ok || json.ok === false) throw Error(json.error || `HTTP ${res.status}`);
   return json;
@@ -49,7 +51,7 @@
   catch(error){if(request===generation)$('supplierFeedback').textContent=error.message;}
  }
  async function moveCard(id,columnId) {
-  try {await api(`/supplier-orders/api/board/cards/${id}`,{method:'PUT',body:JSON.stringify({column_id:columnId})});await reload();}
+  try {await api(`/supplier-orders/api/board/cards/${id}`,{method:'PUT',body:JSON.stringify({column_id:columnId,revision:data.cards.find(c=>c.id===id).order_revision})});await reload();}
   catch(error){$('supplierFeedback').textContent=error.message;render();}
  }
  function openCard(card=null) {
@@ -61,7 +63,7 @@
   $('supplierCardEditOrder').hidden = !card?.order_edit_url || card.is_archived;
   if (card?.order_edit_url) $('supplierCardEditOrder').href = card.order_edit_url;
   else $('supplierCardEditOrder').removeAttribute('href');
-  $('supplierCardName').readOnly = Boolean(card?.order_group_id);
+  $('supplierCardName').readOnly = card?.order_kind === 'generated';
   $('supplierCardPdf').hidden = !card?.order_pdf_url;
   if (card?.order_pdf_url) {
    $('supplierCardPdfOpen').href = card.order_pdf_url;
@@ -79,6 +81,7 @@
   $('supplierCardError').textContent='';$('supplierCardArchive').hidden=!card;
   $('supplierCardArchive').textContent=card?.is_archived?'Ripristina scheda':'Archivia scheda';
   sectionUi.reset(card);
+  fields.reset(card);
   bootstrap.Modal.getOrCreateInstance($('supplierCardModal')).show();
  }
  async function searchSuppliers() {
@@ -98,7 +101,7 @@
   saving=true;$('supplierCardSave').disabled=true;$('supplierCardArchive').disabled=true;$('supplierCardError').textContent='';
   const payload={title:$('supplierCardName').value,notes:$('supplierCardNotes').value,reference:$('supplierCardReference').value,expected_date:$('supplierCardDate').value,column_id:Number($('supplierCardColumn').value),supplier_id:$('supplierRegistry').value?Number($('supplierRegistry').value):null,is_archived:archive?!editing?.is_archived:editing?.is_archived||false,sections:sectionUi.payload(),...(editing?{revision:editing.order_revision}:{})};
   try {
-   await api('/supplier-orders/api/board/cards'+(editing?`/${editing.id}`:''),{method:editing?'PUT':'POST',body:JSON.stringify(payload)});
+   await api('/supplier-orders/api/board/cards'+(editing?`/${editing.id}`:''),{method:editing?'PUT':'POST',body:fields.multipart(payload)});
    saving=false;bootstrap.Modal.getInstance($('supplierCardModal')).hide();await reload();
   } catch(error){$('supplierCardError').textContent=error.message;}
   finally{saving=false;$('supplierCardSave').disabled=false;$('supplierCardArchive').disabled=false;}
@@ -114,6 +117,7 @@
   finally {saving=false;$('supplierCardDelete').disabled=false;$('supplierCardSave').disabled=false;$('supplierCardArchive').disabled=false;}
  }
  document.addEventListener('DOMContentLoaded',()=>{
+  fields=SupplierCardFields.create('supplierCard');
   if(new URLSearchParams(location.search).get('archived')==='1')$('supplierArchived').checked=true;
   sectionUi=SupplierBoardSections.create({api,getData:()=>data,reload});
   const cardModal = $('supplierCardModal');

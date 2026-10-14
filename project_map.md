@@ -1,3 +1,10 @@
+## Ordini esterni e allegati fornitori (2026-10-14)
+
+- models.py: metadati ordine/pagamento e is_external_order su SupplierBoardCard; SupplierBoardAttachment con contenuto binario differito. Migrazione v7e8f9a0b1c2.
+- tools/supplier_card_files.py: parsing JSON/multipart, validazione pagamento, contenuto Office/PDF/immagini, limiti allegati e sostituzione. routes/supplier_orders.py: salvataggio atomico, POST gruppi/<id>/external-orders idempotente, GET download allegati protetto, classificazione manual/generated/external. supplier_order_workflow.py impedisce rigenerazione degli esterni.
+- templates/supplier_orders/card_extra_fields.html e static/js/supplier_card_fields.js condividono campi e gestione allegati fra bacheca e modale esterni; supplier_external_orders.js gestisce Rubrica/retry/link alla scheda. supplier_orders.js gestisce filtro persistente e consumo parametri URL; supplier_board.js integra multipart/revisione. Service worker v30 esclude area fornitori dalla cache.
+- tests/test_supplier_external_orders.py: pagamento, formati validi/errati, limiti, download/permessi, revisioni/rollback/retry e migrazione preservante/create_all; test_activity_service_worker.mjs esteso. Uso, API e deploy: docs/supplier_external_orders.md.
+
 ## Creazione manuale delle attività (2026-10-14)
 
 - models.py: OperationalActivity.description/client_key, ActivityTargetUser (destinatari espliciti); migrazione u6d7e8f9a0b1. tools/activities.py unisce visibilità ruoli e utenti, valida destinatari operativi, crea attività manuali e controlla replay coerenti. routes/activities.py aggiunge GET /api/assignees (filtro ruolo/ricerca utenti attivi,100 risultati) e POST /api (creazione idempotente, supervisori40).

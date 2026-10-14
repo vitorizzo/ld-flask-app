@@ -16,6 +16,9 @@ from models import SupplierOrderSubgroup, SupplierOrderSubgroupMatrix
 from models import SupplierBoardOrderLine
 from models import SupplierBoardSection, SupplierBoardCardSection
 from tools.supplier_board_sections import rich_text, validate_section, section_colors
+from tools.supplier_card_files import card_payload, card_metadata, validate_attachments
+from models import SupplierBoardAttachment
+import re
 
 
 supplier_orders_bp = Blueprint("supplier_orders", __name__, template_folder="../templates")
@@ -36,12 +39,19 @@ def _supplier_card_dict(card, supplier_names=None):
     return dict(id=card.id, column_id=card.column_id, supplier_id=card.supplier_id,
                 supplier_name=supplier_names.get(card.supplier_id),
                 title=card.title, notes=card.notes or "", reference=card.reference or "",
+                order_text=card.order_text or '', transmission_notes=card.transmission_notes or '',
+                cash_on_delivery=card.cash_on_delivery, payment_terms=card.payment_terms or '',
+                payment_terms_other=card.payment_terms_other or '',
+                payment_date=card.payment_date.isoformat() if card.payment_date else '',
+                order_kind='external' if card.is_external_order else ('generated' if card.order_group_id or card.order_pdf_filename or card.order_lines or card.is_draft or card.order_confirmed_at else 'manual'),
+                attachments=[dict(id=a.id, filename=a.filename, mimetype=a.mimetype, size=a.size,
+                    url=url_for('supplier_orders.card_attachment', card_id=card.id, attachment_id=a.id)) for a in card.attachments],
                 expected_date=card.expected_date.isoformat() if card.expected_date else "",
                 is_archived=card.is_archived,
                 order_group_id=card.order_group_id,is_draft=card.is_draft,order_revision=card.order_revision,
                 sections=[_supplier_section_dict(item)
                           for item in sorted(card.sections, key=lambda item: (item.section.order_index, item.section_id))],
-                order_edit_url=url_for('supplier_orders.index',group_id=card.order_group_id,order_id=card.id,modal='order') if card.order_group_id else None,
+                order_edit_url=url_for('supplier_orders.index',group_id=card.order_group_id,order_id=card.id,modal='order') if card.order_group_id and not card.is_external_order else None,
                 order_pdf_url=url_for('supplier_orders.order_pdf', card_id=card.id) if card.order_pdf_filename and not card.is_draft else None,
                 order_pdf_filename=card.order_pdf_filename if not card.is_draft else None,
                 order_lines=[dict(matrix_code=line.matrix_code, description=line.description,
@@ -144,19 +154,27 @@ def _validated_card_sections(payload):
 @supplier_orders_bp.route("/api/board/cards/<int:card_id>", methods=["PUT"])
 @role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
 def board_save_card(card_id=None):
-    payload = request.get_json(silent=True)
-    if not isinstance(payload, dict):
-        return jsonify(ok=False, error="Dati scheda non validi"), 400
+    return _save_card(card_id)
+
+
+def _save_card(card_id=None, external_group=None, external_key=None):
     try:
+        payload = card_payload()
         section_texts = _validated_card_sections(payload)
     except ValueError as exc:
+        db.session.rollback()
         return jsonify(ok=False, error=str(exc)), 400
     card = SupplierBoardCard.query.filter_by(id=card_id).with_for_update().first() if card_id else SupplierBoardCard()
     if card_id and card is None:
         return jsonify(ok=False, error="Scheda non trovata"), 404
-    if card_id and 'revision' in payload and (type(payload['revision']) is not int or payload['revision'] != card.order_revision):
+    protected_change = request.mimetype == 'multipart/form-data' or any(key in payload for key in (
+        'order_text', 'transmission_notes', 'cash_on_delivery', 'payment_terms', 'payment_terms_other', 'payment_date', 'remove_attachment_ids'))
+    if card_id and (('revision' in payload or protected_change) and (type(payload.get('revision')) is not int or payload['revision'] != card.order_revision)):
+        db.session.rollback()
         return jsonify(ok=False, error='La scheda e\' stata modificata. Riaprila dalla bacheca aggiornata.'), 409
     try:
+        metadata = card_metadata(payload, card)
+        retained, additions = validate_attachments(payload, card)
         title = payload.get("title", card.title or "")
         notes = payload.get("notes", card.notes or "")
         reference = payload.get("reference", card.reference or "")
@@ -175,10 +193,18 @@ def board_save_card(card_id=None):
         archived = payload.get("is_archived", card.is_archived or False)
         if type(archived) is not bool:
             raise ValueError("Archiviazione non valida.")
-        if card.order_group_id and card.title != title.strip():
+        if (card.order_group_id or card.order_pdf_filename or card.order_lines) and not card.is_external_order and card.title != title.strip():
             raise ValueError('Usa Modifica ordine per cambiare il titolo e aggiornare il PDF.')
     except (ValueError, TypeError) as exc:
+        db.session.rollback()
         return jsonify(ok=False, error=str(exc) if isinstance(exc, ValueError) else "Dati scheda non validi"), 400
+    for key, value in metadata.items():
+        setattr(card, key, value)
+    card.attachments = retained + additions
+    if external_group:
+        card.is_external_order = True
+        card.order_group_id = external_group.id
+        card.order_key = external_key
     card.title = title.strip(); card.notes = notes.strip(); card.reference = reference.strip()
     card.column_id = column_id; card.supplier_id = supplier_id; card.expected_date = expected_date; card.is_archived = archived
     if section_texts is not None:
@@ -196,8 +222,51 @@ def board_save_card(card_id=None):
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
+        if external_key:
+            existing = SupplierBoardCard.query.filter_by(order_key=external_key).first()
+            if existing and existing.is_external_order and existing.order_group_id == external_group.id:
+                return jsonify(ok=True, card=_supplier_card_dict(existing), replayed=True,
+                               board_url=url_for('supplier_orders.board', card_id=existing.id)), 200
         return jsonify(ok=False, error='Le sezioni sono cambiate durante il salvataggio. Aggiorna la bacheca.'), 409
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception('Salvataggio scheda fornitore non riuscito')
+        return jsonify(ok=False, error='Salvataggio non riuscito. Riprova: i dati precedenti restano disponibili.'), 500
+    if external_group:
+        return jsonify(ok=True, card=_supplier_card_dict(card), replayed=False,
+                       board_url=url_for('supplier_orders.board', card_id=card.id)), 201
     return jsonify(ok=True, card=_supplier_card_dict(card)), 200 if card_id else 201
+
+
+@supplier_orders_bp.post('/groups/<int:group_id>/external-orders')
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def external_order(group_id):
+    group = SupplierOrderGroup.query.get_or_404(group_id)
+    try:
+        payload = card_payload()
+        key = payload.get('client_key')
+        if not isinstance(key, str) or not re.fullmatch(r'[a-zA-Z0-9-]{16,64}', key):
+            raise ValueError('Chiave richiesta non valida.')
+    except ValueError as exc:
+        return jsonify(ok=False, error=str(exc)), 400
+    existing = SupplierBoardCard.query.filter_by(order_key=key).first()
+    if existing:
+        if not existing.is_external_order or existing.order_group_id != group.id:
+            return jsonify(ok=False, error='Chiave richiesta gia\' utilizzata per un altro ordine.'), 409
+        return jsonify(ok=True, card=_supplier_card_dict(existing), replayed=True,
+                       board_url=url_for('supplier_orders.board', card_id=existing.id)), 200
+    return _save_card(external_group=group, external_key=key)
+
+
+@supplier_orders_bp.get('/api/board/cards/<int:card_id>/attachments/<int:attachment_id>')
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def card_attachment(card_id, attachment_id):
+    attachment = SupplierBoardAttachment.query.filter_by(id=attachment_id, card_id=card_id).first_or_404()
+    response = send_file(BytesIO(attachment.content), mimetype=attachment.mimetype,
+                         download_name=attachment.filename, as_attachment=True, max_age=0)
+    response.headers['Cache-Control'] = 'private, no-store'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
 
 
 @supplier_orders_bp.get('/api/board/cards/<int:card_id>/order-pdf')
@@ -390,6 +459,7 @@ def group_order_editor(group_id):
     card_id=request.args.get('card_id',type=int)
     if card_id:
         card=SupplierBoardCard.query.get_or_404(card_id)
+        if card.is_external_order:return jsonify(ok=False,error='Modifica questo ordine esterno dalla scheda della bacheca.'),400
         if card.order_group_id!=group.id:return jsonify(ok=False,error='Ordine appartenente a un altro gruppo.'),400
     else:
         card=SupplierBoardCard.query.filter_by(order_group_id=group.id,is_draft=True,is_archived=False).order_by(SupplierBoardCard.updated_at.desc(),SupplierBoardCard.id.desc()).first()

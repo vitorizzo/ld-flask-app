@@ -1,3 +1,10 @@
+## Bacheca: ordini esterni, pagamento e allegati (2026-10-14)
+
+- Campo Ordine facoltativo e Note da trasmettere separate, contrassegno/termini/data pagamento, allegati multipli con download protetto e sostituzione atomica. PDF generato separato; ordini esterni collegati al gruppo e modificabili dalla scheda, Rubrica facoltativa e colonna obbligatoria.
+- Filtro gruppi immediato su nome e note, conteggio e ricerca persistente nella scheda browser. Parametri URL di apertura consumati una volta: salvataggio prodotti e chiusura ricaricano senza riaprire la modale.
+- Migrazione v7e8f9a0b1c2 dopo u6d7e8f9a0b1, compatibile create_all. Nuova dipendenza olefile 0.47. API JSON compatibili, multipart transazionale con revisioni, chiave univoca per retry esterni. Area fornitori esclusa dalla cache PWA (v30).
+- Verifiche: 52 test fornitori/PDF/migrazioni/nuovi allegati e pagamento + 13 regressioni attivita, test cache PWA online/offline, browser a 320/1440 px con template reali e API simulate (salvataggio/chiusura/ricaricamento, filtro, modali, multipart). Produzione da aggiornare successivamente: pull, installazione requirements, db upgrade e riavvio web; istruzioni in docs/supplier_external_orders.md.
+
 ## Attività manuali e destinatari multipli (2026-10-14)
 
 - Pulsante Nuova attività per ufficio/supervisori (peso >=40), titolo e istruzioni, uno o più ruoli e/o utenti. Filtro utenti a partire da un ruolo, ricerca nome/cognome e selezione multipla; selezioni conservate cambiando filtro. Ruoli dinamici secondo appartenenze attive; utenti espliciti restano destinatari anche cambiando ruolo. Una sola attività condivisa, stesso workflow/presa in carico/storico delle attività esistenti.

@@ -8,16 +8,16 @@ const context={URL,Response,Request,console,Promise,
  fetch:async(request,options)=>{counts.fetch++;assert.equal(options.cache,'no-store');return new Response('current authorized data')},
 };
 vm.createContext(context);vm.runInContext(fs.readFileSync('static/service-worker.js','utf8'),context);
-for(const path of ['/activities','/activities?activity=1','/activities/api/summary','/activities/api/photos/1']){
+for(const path of ['/activities','/activities?activity=1','/activities/api/summary','/activities/api/photos/1','/supplier-orders','/supplier-orders/board','/supplier-orders/api/board','/supplier-orders/api/board/cards/7/attachments/11','/supplier-orders/api/board/cards/7/order-pdf']){
  let result;handlers.fetch({request:new Request('https://example.invalid'+path),respondWith:value=>result=value});
  assert.equal(await (await result).text(),'current authorized data');
 }
 assert.equal(counts.cache,0,'Sensitive pages, JSON and photos must not enter Cache Storage');
 context.fetch=async()=>{throw Error('offline')};
-for(const path of ['/activities','/activities/api/photos/1']){
+for(const path of ['/activities','/activities/api/photos/1','/supplier-orders/api/board/cards/7/attachments/11','/supplier-orders/board']){
  let result;handlers.fetch({request:new Request('https://example.invalid'+path),respondWith:value=>result=value});
  const response=await result;assert.equal(response.status,503);assert.match(response.headers.get('Cache-Control'),/no-store/);
  assert.doesNotMatch(await response.text(),/stale/);
 }
 assert.equal(counts.cache,0,'Offline requests must never return a cached previous user response');
-console.log('PASS: activity pages, JSON and photos bypass PWA caches online and offline');
+console.log('PASS: activities and supplier pages, JSON, PDFs and attachments bypass PWA caches online and offline');

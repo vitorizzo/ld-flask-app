@@ -13,6 +13,7 @@ class OrderConflict(ValueError):
 def order_rows(group, current_rows, card=None):
     rows={row['root']:dict(row) for row in current_rows}
     if card:
+        if card.is_external_order:raise ValueError('Modifica questo ordine esterno dalla scheda della bacheca.')
         for line in card.order_lines:
             if line.matrix_code in rows and line.supplier_code is not None:
                 rows[line.matrix_code]['supplier_code']=line.supplier_code

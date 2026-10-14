@@ -29,6 +29,7 @@
    <a id="supplierCardArrival" class="btn btn-info mb-3" hidden>Merce arrivata · crea attività</a>
    <div id="supplierCardOrderLines" class="supplier-order-lines" hidden></div>
    <div id="supplierCardPdf" class="supplier-card-pdf" hidden><h6>PDF ordine allegato</h6><a id="supplierCardPdfOpen" class="btn btn-outline-secondary" target="_blank" rel="noopener">Apri PDF</a> <a id="supplierCardPdfDownload" class="btn btn-info">Scarica PDF</a></div>
+   {% set field_prefix = 'supplierCard' %}{% include 'supplier_orders/card_extra_fields.html' %}
    <label class="form-label" for="supplierCardNotes">Note generali</label><textarea id="supplierCardNotes" class="form-control" rows="6" maxlength="40000"></textarea>
    </div>
    <section class="supplier-card-sections" aria-labelledby="supplierCardSectionsTitle">
@@ -82,7 +83,8 @@
 </div>
 {% endblock %}
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/supplier_card_fields.js', v=app_version ~ '-external1') }}"></script>
 <script src="{{ url_for('static', filename='js/ld_modal.js', v=app_version ~ '-supplier1') }}"></script>
 <script src="{{ url_for('static', filename='js/supplier_board_sections.js', v=app_version ~ '-sections2') }}"></script>
-<script src="{{ url_for('static', filename='js/supplier_board.js', v=app_version ~ '-activities1') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_board.js', v=app_version ~ '-external1') }}"></script>
 {% endblock %}

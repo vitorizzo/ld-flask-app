@@ -1195,6 +1195,14 @@ class SupplierBoardCard(db.Model):
     title = db.Column(db.String(200), nullable=False)
     notes = db.Column(db.Text, nullable=True)
     order_pdf = db.deferred(db.Column(db.LargeBinary, nullable=True))
+    order_text = db.Column(db.Text, nullable=True)
+    transmission_notes = db.Column(db.Text, nullable=True)
+    cash_on_delivery = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    payment_terms = db.Column(db.String(20), nullable=True)
+    payment_terms_other = db.Column(db.String(500), nullable=True)
+    payment_date = db.Column(db.Date, nullable=True)
+    is_external_order = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
+    attachments = db.relationship('SupplierBoardAttachment', cascade='all, delete-orphan', backref='card', lazy='selectin')
     order_pdf_filename = db.Column(db.String(200), nullable=True)
     order_group_id = db.Column(db.Integer, db.ForeignKey('supplier_order_groups.id', ondelete='SET NULL',name='fk_supplier_card_order_group'), nullable=True)
     is_draft = db.Column(db.Boolean, nullable=False, default=False, server_default=db.false())
@@ -1208,6 +1216,16 @@ class SupplierBoardCard(db.Model):
     updated_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
     column = db.relationship("SupplierBoardColumn")
     supplier = db.relationship("BusinessRegistry")
+
+
+class SupplierBoardAttachment(db.Model):
+    __tablename__ = 'supplier_board_attachments'
+    id = db.Column(db.Integer, primary_key=True)
+    card_id = db.Column(db.Integer, db.ForeignKey('supplier_board_cards.id', ondelete='CASCADE'), nullable=False, index=True)
+    filename = db.Column(db.String(200), nullable=False)
+    mimetype = db.Column(db.String(100), nullable=False)
+    size = db.Column(db.Integer, nullable=False)
+    content = db.deferred(db.Column(db.LargeBinary, nullable=False))
 
 
 class SupplierBoardSection(db.Model):
