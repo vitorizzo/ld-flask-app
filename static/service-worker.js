@@ -1,4 +1,4 @@
-const CACHE_NAME = "ldapp-cache-v28";
+const CACHE_NAME = "ldapp-cache-v29";
 const MAX_PUSH_AGE_MS = 10 * 60 * 1000;
 
 function supportedNotificationActions(actions) {
@@ -129,6 +129,15 @@ self.addEventListener("fetch", (event) => {
   if (url.protocol !== "http:" && url.protocol !== "https:") return;
 
   // API interne e manifest: sempre rete, mai cache forzata
+  if (url.pathname === "/activities" || url.pathname.startsWith("/activities/")) {
+    // Role-protected work and photos must never be served from another login's
+    // offline cache, including when the network is unavailable.
+    event.respondWith(fetch(req, { cache: "no-store" }).catch(() => new Response(
+      "Connessione necessaria per consultare le attività.",
+      { status: 503, headers: { "Content-Type": "text/plain; charset=utf-8", "Cache-Control": "no-store" } }
+    )));
+    return;
+  }
   if (url.pathname.startsWith("/trello/") || url.pathname.startsWith("/pwa/") || url.pathname.endsWith("/manifest.json") || url.pathname.endsWith("/app-version.json")) {
     event.respondWith(
       fetch(req, { cache: "no-store" }).catch(() => caches.match(req))

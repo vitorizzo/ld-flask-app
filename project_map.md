@@ -1,3 +1,11 @@
+## Area Attività e arrivi fornitori (2026-10-14)
+
+- models.py: SupplierArrival (event_key/snapshot scheda/data/parziale), OperationalActivity (stato/incaricato/revisione/ciclo), ActivityTargetRole, ActivityEvent e ActivityPhoto. Migrazione t5c6d7e8f9a0 crea5 tabelle/menu30; FK scheda/utenti SET NULL preservano storico, vincolo arrivo/tipologia evita duplicati.
+- tools/activities.py: query di visibilità per ruoli attivi, supervisione40, serializzazione, macchina stati e creazione delle3 attività all'arrivo. AppPreference activities.supplier_arrival.routing contiene regole/revisione; destinatari fotografati come relazioni ruolo sulle attività. tools/activity_photos.py usa Pillow esistente per normalizzare foto e percorsi privati Flask.instance_path/activity_photos.
+- routes/activities.py/activities_bp registrata in app_factory: GET /activities, /api (filtri/paginazione), /api/summary, /api/<id>, POST /api/<id>/actions, GET/PUT /api/routing, GET /api/source-card/<id>, POST /api/supplier-arrivals, POST /api/<id>/photos, GET/DELETE /api/photos/<id>. Login richiesto, controllo ruolo/ownership/revisione per risorse e mutatori; eventi persistenti, annulla/riapri riservati40.
+- templates/activities/index.html + static/css/activities.css + static/js/activities.js: elenco raggruppato, dettaglio con azioni/foto/storico, configurazione destinatari e conferma arrivo. Home integra home_activities.js e preview sopra le azioni rapide; board.html/supplier_board.js aggiungono link Merce arrivata e apertura scheda da URL. Modali standard body-mounted con rebind shown/hidden; cache activities1.
+- static/service-worker.js v29 esclude completamente area/API/foto dal caching; tests/test_activity_service_worker.mjs verifica rete/offline. tests/test_activities.py10 casi + QA .codex_tmp/test_activities_ui.py14 casi e screenshot_activities.py; deployment/backup descritti in docs/deploy.md. Prima fase: inbox operativa, avvisi push e altre sorgenti da collegare successivamente.
+
 ## Bacheca fornitori: colori badge (2026-10-13)
 
 - SupplierBoardSection aggiunge badge_fill/badge_text/badge_border nullable String7; migrazione s4b5c6d7e8f9, valori null = tema corrente. tools/supplier_board_sections.py/section_colors valida/normalizza tre colori indipendenti, preserva campi omessi; routes/supplier_orders.py li espone nel catalogo e nelle sezioni delle schede.

@@ -1104,6 +1104,69 @@ class SocialEventPost(db.Model):
     created_by = db.relationship("User", backref="created_social_event_posts")
 
 
+class SupplierArrival(db.Model):
+    __tablename__ = 'supplier_arrivals'
+    id = db.Column(db.Integer, primary_key=True)
+    event_key = db.Column(db.String(64), nullable=False, unique=True)
+    card_id = db.Column(db.Integer, db.ForeignKey('supplier_board_cards.id', ondelete='SET NULL'), nullable=True, index=True)
+    label = db.Column(db.String(200), nullable=False)
+    reference = db.Column(db.String(160), nullable=False, default='')
+    received_on = db.Column(db.Date, nullable=False)
+    partial = db.Column(db.Boolean, nullable=False, default=False)
+    note = db.Column(db.Text, nullable=False, default='')
+    created_by_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+class OperationalActivity(db.Model):
+    __tablename__ = 'operational_activities'
+    __table_args__ = (db.UniqueConstraint('arrival_id','kind',name='uq_activity_arrival_kind'),)
+    id = db.Column(db.Integer, primary_key=True)
+    arrival_id = db.Column(db.Integer, db.ForeignKey('supplier_arrivals.id', ondelete='SET NULL'), nullable=True, index=True)
+    kind = db.Column(db.String(40), nullable=False)
+    title = db.Column(db.String(200), nullable=False)
+    status = db.Column(db.String(20), nullable=False, default='pending', index=True)
+    owner_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    revision = db.Column(db.Integer, nullable=False, default=1)
+    cycle = db.Column(db.Integer, nullable=False, default=1)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime, nullable=True)
+    arrival = db.relationship('SupplierArrival')
+    owner = db.relationship('User', foreign_keys=[owner_id])
+
+
+class ActivityTargetRole(db.Model):
+    __tablename__ = 'activity_target_roles'
+    activity_id = db.Column(db.Integer, db.ForeignKey('operational_activities.id', ondelete='CASCADE'), primary_key=True)
+    role_id = db.Column(db.Integer, db.ForeignKey('roles.id', ondelete='CASCADE'), primary_key=True)
+    role = db.relationship('Role')
+    activity = db.relationship('OperationalActivity', backref=db.backref('targets', cascade='all, delete-orphan'))
+
+
+class ActivityEvent(db.Model):
+    __tablename__ = 'activity_events'
+    id = db.Column(db.Integer, primary_key=True)
+    activity_id = db.Column(db.Integer, db.ForeignKey('operational_activities.id', ondelete='CASCADE'), nullable=False, index=True)
+    actor_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    action = db.Column(db.String(30), nullable=False)
+    note = db.Column(db.Text, nullable=False, default='')
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    actor = db.relationship('User', foreign_keys=[actor_id])
+    activity = db.relationship('OperationalActivity', backref=db.backref('events', cascade='all, delete-orphan', order_by='ActivityEvent.id'))
+
+
+class ActivityPhoto(db.Model):
+    __tablename__ = 'activity_photos'
+    id = db.Column(db.Integer, primary_key=True)
+    activity_id = db.Column(db.Integer, db.ForeignKey('operational_activities.id', ondelete='CASCADE'), nullable=False, index=True)
+    cycle = db.Column(db.Integer, nullable=False)
+    storage_name = db.Column(db.String(64), nullable=False, unique=True)
+    label = db.Column(db.String(200), nullable=False)
+    actor_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    activity = db.relationship('OperationalActivity', backref=db.backref('photos', cascade='all, delete-orphan', order_by='ActivityPhoto.id'))
+
+
 class SupplierBoardColumn(db.Model):
     __tablename__ = "supplier_board_columns"
     id = db.Column(db.Integer, primary_key=True)

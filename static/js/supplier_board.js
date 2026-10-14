@@ -2,6 +2,7 @@
  const $ = id => document.getElementById(id);
  const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  let data = {columns:[],cards:[],sections:[]}, editing = null, saving = false, generation = 0, searchTimer, searchGeneration = 0, dragId = null, sectionUi;
+ let initialCard=Number(new URLSearchParams(location.search).get('card_id'))||null;
  async function api(url, options={}) {
   const res = await fetch(url, {credentials:'same-origin',cache:'no-store',headers:{'Content-Type':'application/json'},...options});
   const json = await res.json().catch(()=>({}));
@@ -44,7 +45,7 @@
  }
  async function reload() {
   const request = ++generation;
-  try {const result=await api('/supplier-orders/api/board'+($('supplierArchived').checked?'?archived=1':''));if(request!==generation)return;data=result;render();$('supplierFeedback').textContent='';}
+  try {const result=await api('/supplier-orders/api/board'+($('supplierArchived').checked?'?archived=1':''));if(request!==generation)return;data=result;render();$('supplierFeedback').textContent='';if(initialCard){const card=data.cards.find(row=>row.id===initialCard);initialCard=null;if(card)openCard(card);}}
   catch(error){if(request===generation)$('supplierFeedback').textContent=error.message;}
  }
  async function moveCard(id,columnId) {
@@ -54,6 +55,8 @@
  function openCard(card=null) {
   SupplierBoardSections.hideHints();
   editing = card;
+  $('supplierCardArrival').hidden=!card||card.is_draft||card.is_archived;
+  if(card)$('supplierCardArrival').href='/activities?arrival_card='+card.id;else $('supplierCardArrival').removeAttribute('href');
   $('supplierCardDelete').hidden = !card;
   $('supplierCardEditOrder').hidden = !card?.order_edit_url || card.is_archived;
   if (card?.order_edit_url) $('supplierCardEditOrder').href = card.order_edit_url;
@@ -111,6 +114,7 @@
   finally {saving=false;$('supplierCardDelete').disabled=false;$('supplierCardSave').disabled=false;$('supplierCardArchive').disabled=false;}
  }
  document.addEventListener('DOMContentLoaded',()=>{
+  if(new URLSearchParams(location.search).get('archived')==='1')$('supplierArchived').checked=true;
   sectionUi=SupplierBoardSections.create({api,getData:()=>data,reload});
   const cardModal = $('supplierCardModal');
   if (cardModal.parentElement !== document.body) document.body.appendChild(cardModal);

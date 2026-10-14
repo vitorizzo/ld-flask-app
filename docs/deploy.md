@@ -1,5 +1,38 @@
 # LD-Flask-App — Deployment & System Services
 
+## Area Attività (2026-10-14)
+
+La prima versione dell'area richiede la migrazione `t5c6d7e8f9a0`, successiva
+a `s4b5c6d7e8f9`. Dopo il pull, prima del normale riavvio web:
+
+```bash
+venv/bin/flask --app app db upgrade
+```
+
+La migrazione aggiunge cinque tabelle e la voce menu Attività. Non sono richiesti
+pacchetti nuovi: le foto usano Pillow già presente. Il servizio web deve poter
+scrivere nella directory `activity_photos` sotto `Flask.instance_path`, creata
+al primo upload. **Includere questa directory e il database nei backup**:
+le foto sono file privati, i loro metadati e le autorizzazioni sono nel DB.
+
+Aggiornare anche la PWA: service worker v29 mantiene attività e foto fuori
+dalla cache offline. Dopo il deploy verificare dal browser/PWA il nuovo menu,
+il riepilogo Home e il caricamento di una foto. Gli altri servizi si riavviano
+secondo la procedura ordinaria; questa versione non aggiunge task Celery.
+
+Primo uso: `Attività > Ruoli destinatari`, poi aprire una scheda fornitore e
+scegliere `Merce arrivata · crea attività`. Il ruolo Staff viene proposto solo
+se esiste; in assenza occorre scegliere i ruoli operativi. Solo la conferma
+dell'arrivo effettivo genera la checklist, non la creazione dell'ordine.
+Ogni arrivo successivo/parziale è separato; ripetere la medesima richiesta
+con la stessa chiave non genera duplicati.
+
+Gli utenti vedono le attività dei ruoli attivi; l'ufficio (peso almeno40)
+supervisiona e configura. Riapertura/annullamento richiedono motivazione.
+Le foto dei cicli precedenti restano nello storico e non chiudono una nuova
+lavorazione. La prima fase offre attività persistenti nell'app; push,
+promemoria e ulteriori sorgenti evento sono il collegamento successivo.
+
 ## Bacheca fornitori: migrazione sezioni (2026-10-13)
 
 Il deploy delle sezioni configurabili richiede la migrazione `r3a4b5c6d7e8`

@@ -536,6 +536,7 @@ def create_app():
     from routes.customer_orders import customer_orders_bp
     from routes.customer_account import customer_account_bp
     from routes.supplier_orders import supplier_orders_bp
+    from routes.activities import activities_bp
     from routes.developer import developer_bp
     from routes.mailing_list import mailing_list_bp
     from routes.administration import administration_bp
@@ -568,6 +569,7 @@ def create_app():
     app.register_blueprint(customer_orders_bp, url_prefix="/customer-orders")
     app.register_blueprint(customer_account_bp, url_prefix="/customer-account")
     app.register_blueprint(supplier_orders_bp, url_prefix="/supplier-orders")
+    app.register_blueprint(activities_bp, url_prefix="/activities")
     app.register_blueprint(developer_bp, url_prefix="/developer")
     app.register_blueprint(mailing_list_bp, url_prefix="/mailing-list")
     app.register_blueprint(administration_bp, url_prefix="/administration")

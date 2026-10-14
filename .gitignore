@@ -31,6 +31,8 @@ migrations/__pycache__/
 
 # === STATIC/UPLOADS ===
 static/uploads/
+instance/activity_photos/
+tools/instance/activity_photos/
 
 # === CHIAVI E SEGRETI ===
 *.pem
