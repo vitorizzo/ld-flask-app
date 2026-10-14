@@ -51,3 +51,5 @@ body.activity-modal-open .modal-backdrop.show { z-index: 12100 !important; }
  .activity-modal .modal-footer .btn { flex: 1; width: auto; margin: 0; white-space: normal; }
  .activity-actions .btn { flex: 1; white-space: normal; }
 }
+
+.activity-recipient-list{max-height:180px;overflow-y:auto;border:1px solid #bbb;border-radius:6px;padding:8px}.activity-description{white-space:pre-wrap;overflow-wrap:anywhere}.activity-modal fieldset{min-width:0}

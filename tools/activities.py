@@ -4,7 +4,7 @@ from flask import current_app
 from sqlalchemy import func
 from sqlalchemy.orm import selectinload
 from extensions import db
-from models import (AppPreference, Role, OperationalActivity, ActivityTargetRole,
+from models import (AppPreference, Role, User, UserRole, OperationalActivity, ActivityTargetRole, ActivityTargetUser,
                     ActivityEvent, ActivityPhoto, SupplierArrival)
 
 KINDS = {'check_goods':'Controllare la merce', 'lots':'Inviare i lotti', 'store_goods':'Sistemare i prodotti in magazzino'}
@@ -22,13 +22,15 @@ def visible_query(user):
         ids = [role.id for role in user.active_roles]
         query = query.filter(db.session.query(ActivityTargetRole.activity_id).filter(
             ActivityTargetRole.activity_id == OperationalActivity.id,
-            ActivityTargetRole.role_id.in_(ids)).exists())
+            ActivityTargetRole.role_id.in_(ids)).exists() | db.session.query(ActivityTargetUser.activity_id).filter(
+            ActivityTargetUser.activity_id == OperationalActivity.id, ActivityTargetUser.user_id == user.id).exists())
     return query
 
 
 def activity_query(user, detail=False):
     query = visible_query(user).options(selectinload(OperationalActivity.arrival), selectinload(OperationalActivity.owner),
-        selectinload(OperationalActivity.targets).selectinload(ActivityTargetRole.role))
+        selectinload(OperationalActivity.targets).selectinload(ActivityTargetRole.role),
+        selectinload(OperationalActivity.user_targets).selectinload(ActivityTargetUser.user))
     if detail:
         query = query.options(selectinload(OperationalActivity.events).selectinload(ActivityEvent.actor), selectinload(OperationalActivity.photos))
     return query
@@ -40,6 +42,7 @@ def actor_name(user): return ' '.join(filter(None,[getattr(user,'name',''),getat
 def activity_data(row, user, detail=False):
     arrival = row.arrival
     data = dict(id=row.id,title=row.title,kind=row.kind,status=row.status,revision=row.revision,cycle=row.cycle,
+        description=row.description,users=[dict(id=target.user_id,name=actor_name(target.user)) for target in row.user_targets if target.user],
         owner_id=row.owner_id,owner=actor_name(row.owner) if row.owner_id else None,
         roles=[target.role.name for target in row.targets if target.role], created_at=row.created_at.isoformat(),
         completed_at=row.completed_at.isoformat() if row.completed_at else None,
@@ -60,6 +63,47 @@ def routing_data():
     rules = stored.get('rules') or {kind:defaults for kind in KINDS}
     return dict(revision=stored.get('revision',0),rules=rules,
         roles=[dict(id=role.id,name=role.name) for role in roles],kinds=KINDS)
+
+
+def operational_users():
+    now = datetime.now()
+    return User.query.join(UserRole, UserRole.user_id == User.id).join(Role, Role.id == UserRole.role_id).filter(
+        Role.weight >= 30, (UserRole.valid_from.is_(None) | (UserRole.valid_from <= now)),
+        (UserRole.valid_until.is_(None) | (UserRole.valid_until >= now))).distinct()
+
+
+def manual_payload(payload):
+    import re
+    if not isinstance(payload, dict): raise ValueError('Dati non validi.')
+    title, description, key = payload.get('title'), payload.get('description', ''), payload.get('client_key')
+    if not isinstance(title, str) or not title.strip() or len(title) > 200: raise ValueError('Inserisci un titolo di massimo 200 caratteri.')
+    if not isinstance(description, str) or len(description) > 5000: raise ValueError('Descrizione: massimo 5.000 caratteri.')
+    if not isinstance(key, str) or not re.fullmatch(r'[a-zA-Z0-9_-]{8,64}', key): raise ValueError('Identificativo richiesta non valido.')
+    targets = []
+    for field in ('role_ids', 'user_ids'):
+        values = payload.get(field, [])
+        if not isinstance(values, list) or len(values) > 200 or any(type(value) is not int for value in values): raise ValueError('Destinatari non validi.')
+        targets.append(sorted(set(values)))
+    roles, users = targets
+    if not roles and not users: raise ValueError('Scegli almeno un ruolo o un utente.')
+    return dict(title=title.strip(), description=description.strip(), client_key=key, role_ids=roles, user_ids=users)
+
+
+def manual_matches(row, payload):
+    return row.title == payload['title'] and row.description == payload['description'] and sorted(t.role_id for t in row.targets) == payload['role_ids'] and sorted(t.user_id for t in row.user_targets) == payload['user_ids']
+
+
+def create_manual(payload, user):
+    roles, users = payload['role_ids'], payload['user_ids']
+    valid_roles = {role.id for role in Role.query.filter(Role.weight >= 30, Role.id.in_(roles)).all()}
+    valid_users = {row.id for row in operational_users().filter(User.id.in_(users)).all()}
+    if set(roles) != valid_roles or set(users) != valid_users: raise ValueError('Scegli ruoli e utenti operativi attivi. Aggiorna i destinatari.')
+    row = OperationalActivity(kind='manual', title=payload['title'], description=payload['description'], client_key=payload['client_key'])
+    row.targets = [ActivityTargetRole(role_id=value) for value in roles]
+    row.user_targets = [ActivityTargetUser(user_id=value) for value in users]
+    add_event(row, user, 'created')
+    db.session.add(row)
+    return row
 
 
 def validate_rules(payload):

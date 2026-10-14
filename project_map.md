@@ -1,3 +1,8 @@
+## Creazione manuale delle attività (2026-10-14)
+
+- models.py: OperationalActivity.description/client_key, ActivityTargetUser (destinatari espliciti); migrazione u6d7e8f9a0b1. tools/activities.py unisce visibilità ruoli e utenti, valida destinatari operativi, crea attività manuali e controlla replay coerenti. routes/activities.py aggiunge GET /api/assignees (filtro ruolo/ricerca utenti attivi,100 risultati) e POST /api (creazione idempotente, supervisori40).
+- templates/activities/index.html: pulsante Nuova attività e modale con titolo/istruzioni, checkbox ruoli e utenti, filtro per ruolo. static/js/activity_create.js mantiene selezioni tra filtri e chiave retry; activities.js aggiorna elenco/dettaglio/completamento generico. Asset activities2; tests/test_activities.py copre destinatari combinati, permessi, ricerca, idempotenza e migrazione.
+
 ## Area Attività e arrivi fornitori (2026-10-14)
 
 - models.py: SupplierArrival (event_key/snapshot scheda/data/parziale), OperationalActivity (stato/incaricato/revisione/ciclo), ActivityTargetRole, ActivityEvent e ActivityPhoto. Migrazione t5c6d7e8f9a0 crea5 tabelle/menu30; FK scheda/utenti SET NULL preservano storico, vincolo arrivo/tipologia evita duplicati.

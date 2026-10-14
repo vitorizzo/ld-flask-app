@@ -2,13 +2,13 @@
 {% block title %}Attività{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static',filename='css/ld_modal.css',v=app_version) }}">
-<link rel="stylesheet" href="{{ url_for('static',filename='css/activities.css',v=app_version ~ '-activities1') }}">
+<link rel="stylesheet" href="{{ url_for('static',filename='css/activities.css',v=app_version ~ '-activities2') }}">
 {% endblock %}
 {% block content %}
 <section class="ld-page ld-page-standard activity-page" id="activityPage" data-manager="{{ '1' if activity_manager else '0' }}">
- <header class="activity-head"><div><h1>Attività</h1><p>Il lavoro da prendere in carico e completare, condiviso con il tuo team.</p></div><div class="activity-buttons"><button id="activityRefresh" class="btn btn-outline-secondary" type="button">Aggiorna</button>{% if activity_manager %}<button id="activityRouting" class="btn btn-outline-secondary" type="button">Ruoli destinatari</button><a class="btn btn-info" href="/supplier-orders/board">Bacheca fornitori</a>{% endif %}</div></header>
+ <header class="activity-head"><div><h1>Attività</h1><p>Il lavoro da prendere in carico e completare, condiviso con il tuo team.</p></div><div class="activity-buttons"><button id="activityRefresh" class="btn btn-outline-secondary" type="button">Aggiorna</button>{% if activity_manager %}<button id="activityNew" class="btn btn-info" type="button">Nuova attività</button><button id="activityRouting" class="btn btn-outline-secondary" type="button">Ruoli destinatari</button><a class="btn btn-info" href="/supplier-orders/board">Bacheca fornitori</a>{% endif %}</div></header>
  <div id="activityCounts" class="activity-counts" aria-live="polite"></div>
- <div class="activity-filters ld-panel"><div><label class="form-label" for="activityStatus">Mostra</label><select id="activityStatus" class="form-select"><option value="active">Da fare e in corso</option><option value="pending">Da prendere in carico</option><option value="in_progress">In corso</option><option value="completed">Completate / non necessarie</option><option value="cancelled">Annullate</option><option value="all">Tutte</option></select></div><div><label class="form-label" for="activitySearch">Fornitore o riferimento</label><input id="activitySearch" class="form-control" type="search" placeholder="Cerca un arrivo"></div></div>
+ <div class="activity-filters ld-panel"><div><label class="form-label" for="activityStatus">Mostra</label><select id="activityStatus" class="form-select"><option value="active">Da fare e in corso</option><option value="pending">Da prendere in carico</option><option value="in_progress">In corso</option><option value="completed">Completate / non necessarie</option><option value="cancelled">Annullate</option><option value="all">Tutte</option></select></div><div><label class="form-label" for="activitySearch">Attività, fornitore o riferimento</label><input id="activitySearch" class="form-control" type="search" placeholder="Cerca nelle attività"></div></div>
  <div id="activityFeedback" role="status" aria-live="polite"></div><div id="activityList" class="activity-list"></div>
  <nav class="activity-pagination" aria-label="Pagine attività"><button id="activityPrevious" class="btn btn-outline-secondary" type="button">Precedente</button><span id="activityPageLabel"></span><button id="activityNext" class="btn btn-outline-secondary" type="button">Successiva</button></nav>
 </section>
@@ -18,6 +18,20 @@
  <div class="modal-footer"><button id="activityDetailRefresh" class="btn btn-outline-secondary" type="button">Aggiorna dettaglio</button><button class="btn btn-info" type="button" data-bs-dismiss="modal">Chiudi</button></div>
 </div></div></div>
 {% if activity_manager %}
+<div class="modal fade ld-modal ld-modal-standard activity-modal" id="activityCreateModal" tabindex="-1" aria-labelledby="activityCreateTitle" aria-hidden="true"><div class="modal-dialog"><div class="modal-content">
+ <div class="modal-header"><h5 class="modal-title" id="activityCreateTitle">Nuova attività</h5><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+ <div class="modal-body">
+  <label for="activityNewTitle" class="form-label">Titolo *</label><input id="activityNewTitle" class="form-control" maxlength="200" required>
+  <label for="activityNewDescription" class="form-label mt-3">Descrizione / istruzioni</label><textarea id="activityNewDescription" class="form-control" maxlength="5000" rows="3"></textarea>
+  <fieldset class="mt-3"><legend class="fs-6">Assegna a uno o più ruoli</legend><p class="small">Tutti gli utenti con questi ruoli attivi potranno vedere e prendere in carico l’attività.</p><div id="activityNewRoles" class="activity-recipient-list"></div></fieldset>
+  <fieldset class="mt-3"><legend class="fs-6">Assegna a uno o più utenti</legend><p class="small">Filtra per ruolo per scegliere le persone. Questa scelta assegna l’attività agli utenti selezionati, anche se cambiano ruolo.</p>
+   <label for="activityUserRole" class="form-label">Parti da un ruolo</label><select id="activityUserRole" class="form-select"><option value="">Tutti i ruoli operativi</option></select>
+   <label for="activityUserSearch" class="form-label mt-2">Cerca utenti</label><input id="activityUserSearch" class="form-control" type="search" placeholder="Nome o cognome">
+   <button id="activityUsersSelect" class="btn btn-outline-secondary my-2" type="button">Seleziona gli utenti mostrati</button>
+   <div id="activityNewUsers" class="activity-recipient-list"></div><div id="activitySelectedUsers" class="mt-2"></div><p id="activityUsersHint" class="small" role="status"></p>
+  </fieldset><p class="small mt-3">Scegli almeno un destinatario. L’attività è unica e condivisa: la prima persona che la prende in carico diventa responsabile.</p><div id="activityCreateError" class="activity-error" role="alert"></div>
+ </div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button id="activityCreateSave" type="button" class="btn btn-info">Crea attività</button></div>
+</div></div></div>
 <div class="modal fade ld-modal ld-modal-standard activity-modal" id="activityRoutingModal" tabindex="-1" aria-labelledby="activityRoutingTitle" aria-hidden="true"><div class="modal-dialog"><div class="modal-content">
  <div class="modal-header"><h5 class="modal-title" id="activityRoutingTitle">Ruoli destinatari</h5><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
  <div class="modal-body"><p>Per ogni nuovo arrivo, scegli chi vede le tre attività. Le attività già create mantengono i destinatari assegnati.</p><div id="activityRoutingFields"></div><div id="activityRoutingError" class="activity-error" role="alert"></div></div>
@@ -30,4 +44,4 @@
 </div></div></div>
 {% endif %}
 {% endblock %}
-{% block extra_js %}<script src="{{ url_for('static',filename='js/ld_modal.js',v=app_version) }}"></script><script src="{{ url_for('static',filename='js/activities.js',v=app_version ~ '-activities1') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static',filename='js/ld_modal.js',v=app_version) }}"></script><script src="{{ url_for('static',filename='js/activity_create.js',v=app_version ~ '-activities2') }}"></script><script src="{{ url_for('static',filename='js/activities.js',v=app_version ~ '-activities2') }}"></script>{% endblock %}

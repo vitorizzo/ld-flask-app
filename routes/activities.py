@@ -5,9 +5,10 @@ from flask_login import current_user, login_required
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from extensions import db
-from models import (AppPreference, OperationalActivity, ActivityPhoto, SupplierArrival, SupplierBoardCard)
+from models import (AppPreference, OperationalActivity, ActivityPhoto, SupplierArrival, SupplierBoardCard, Role, User, UserRole)
 from tools.activities import (ACTIVE,CLOSED,CONFIG_KEY,manager,visible_query,activity_query,activity_data,
-                              routing_data,validate_rules,transition,create_arrival,add_event)
+                              routing_data,validate_rules,transition,create_arrival,add_event,
+                              operational_users,actor_name,manual_payload,manual_matches,create_manual)
 from tools.activity_photos import store_photo, photo_path
 
 activities_bp=Blueprint('activities',__name__)
@@ -44,13 +45,53 @@ def activity_list():
     query=query.filter(OperationalActivity.status.in_(statuses[status]))
     search=(request.args.get('q') or '').strip()[:120]
     if search:
-        query=query.join(SupplierArrival).filter(SupplierArrival.label.ilike('%'+search+'%')|SupplierArrival.reference.ilike('%'+search+'%'))
+        query=query.outerjoin(SupplierArrival).filter(SupplierArrival.label.ilike('%'+search+'%')|SupplierArrival.reference.ilike('%'+search+'%')|OperationalActivity.title.ilike('%'+search+'%')|OperationalActivity.description.ilike('%'+search+'%'))
     if request.args.get('arrival'):
         try: query=query.filter(OperationalActivity.arrival_id==int(request.args['arrival']))
         except ValueError: return error('Arrivo non valido.')
     total=query.count();rows=query.order_by(OperationalActivity.created_at,OperationalActivity.id).offset((page-1)*30).limit(30).all()
     counts=dict(visible_query(current_user).with_entities(OperationalActivity.status,func.count(OperationalActivity.id)).group_by(OperationalActivity.status).all())
     return jsonify(ok=True,rows=[activity_data(row,current_user) for row in rows],counts=counts,total=total,page=page,pages=(total+29)//30,manager=manager(current_user))
+
+
+@activities_bp.get('/api/assignees')
+@login_required
+def assignees():
+    office()
+    roles = Role.query.filter(Role.weight >= 30).order_by(Role.weight, Role.name).all()
+    query = operational_users()
+    if request.args.get('role_id'):
+        try: role_id = int(request.args['role_id'])
+        except ValueError: return error('Ruolo non valido.')
+        if role_id not in {role.id for role in roles}: return error('Ruolo non valido.')
+        query = query.filter(UserRole.role_id == role_id)
+    search = (request.args.get('q') or '').strip()[:120]
+    if search: query = query.filter((User.name + ' ' + User.surname).ilike('%' + search + '%'))
+    total = query.count()
+    users = query.order_by(User.name, User.surname, User.id).limit(100).all()
+    return jsonify(ok=True, roles=[dict(id=role.id, name=role.name) for role in roles],
+                   users=[dict(id=user.id, name=actor_name(user)) for user in users], total=total)
+
+
+@activities_bp.post('/api')
+@login_required
+def manual_create():
+    office()
+    try: payload = manual_payload(request.get_json(silent=True))
+    except ValueError as exc: return error(str(exc))
+    row = OperationalActivity.query.filter_by(client_key=payload['client_key']).first()
+    replayed = row is not None
+    if row and not manual_matches(row, payload): return error('La richiesta è già stata usata con dati diversi.', 409)
+    if not row:
+        try: row = create_manual(payload, current_user)
+        except ValueError as exc: return error(str(exc))
+        try: db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            row = OperationalActivity.query.filter_by(client_key=payload['client_key']).first()
+            if not row or not manual_matches(row, payload): return error('Richiesta in conflitto. Riprova.', 409)
+            replayed = True
+    return jsonify(ok=True, activity=activity_data(row, current_user, True), replayed=replayed), 200 if replayed else 201
 
 
 @activities_bp.get('/api/summary')

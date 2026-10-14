@@ -11,7 +11,7 @@ from sqlalchemy import create_engine,text,inspect
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from extensions import db
-from models import (User,Role,UserRole,AppPreference,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityEvent,ActivityPhoto)
+from models import (User,Role,UserRole,AppPreference,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto)
 from routes.activities import activities_bp
 from tools.activity_photos import photo_path
 import test_supplier_board as board
@@ -24,7 +24,7 @@ class ActivityTests(unittest.TestCase):
         self.app.register_blueprint(activities_bp,url_prefix='/activities')
         login=LoginManager(self.app)
         login.user_loader(lambda value:db.session.get(User,int(value)))
-        names=[Role,User,UserRole,AppPreference,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityEvent,ActivityPhoto]
+        names=[Role,User,UserRole,AppPreference,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto]
         db.metadata.create_all(db.engine,tables=[model.__table__ for model in names])
         db.session.add_all([Role(id=1,name='Staff',weight=30),Role(id=2,name='Ufficio',weight=40),Role(id=3,name='Altro',weight=30)])
         for user_id,role_id in [(1,2),(2,1),(3,1),(4,3),(5,1)]:
@@ -173,10 +173,63 @@ class ActivityTests(unittest.TestCase):
         with engine.begin() as conn:
             for name in ['supplier_board_cards','user','roles']:conn.execute(text(f'CREATE TABLE {name} (id INTEGER PRIMARY KEY)'))
             conn.execute(text('CREATE TABLE menus (name TEXT,weight INTEGER,sort_order INTEGER,parent_id INTEGER,route TEXT,is_active BOOLEAN,is_visible BOOLEAN,item_type TEXT)'))
-            models=[SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityEvent,ActivityPhoto]
+            models=[SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto]
             db.metadata.create_all(conn,tables=[model.__table__ for model in models])
             with Operations.context(MigrationContext.configure(conn)):
                 migration.upgrade();migration.upgrade()
                 self.assertEqual(conn.execute(text("SELECT count(*) FROM menus WHERE route='/activities'")).scalar(),1)
                 migration.downgrade()
             self.assertNotIn('operational_activities',inspect(conn).get_table_names())
+
+    def test_manual_combined_targets_visibility_claim_and_retry(self):
+        body=dict(title='Inventario',description='Contare scaffale A\nContare scaffale B',role_ids=[1,1],user_ids=[4,4],client_key='manual-request-123')
+        response=self.client.post('/activities/api',json=body)
+        self.assertEqual(response.status_code,201,response.json)
+        row=response.json['activity'];self.assertEqual(row['kind'],'manual');self.assertIsNone(row['source'])
+        self.assertEqual(row['roles'],['Staff']);self.assertEqual(row['users'][0]['id'],4)
+        self.assertEqual(self.client.post('/activities/api',json=body).json['activity']['id'],row['id'])
+        self.assertEqual(OperationalActivity.query.count(),1)
+        body['title']='Diverso';self.assertEqual(self.client.post('/activities/api',json=body).status_code,409)
+        self.login(4);self.assertEqual(len(self.rows()),1)
+        claimed=self.act(row,'claim').json['activity'];self.assertEqual(claimed['owner_id'],4)
+        self.login(2);self.assertEqual(len(self.rows()),1);self.assertEqual(self.act(claimed,'complete').status_code,403)
+        self.login(5);self.assertEqual(self.rows(),[])
+        self.login(4);self.assertEqual(self.act(claimed,'complete').json['activity']['status'],'completed')
+
+    def test_manual_users_from_role_and_validation(self):
+        response=self.client.get('/activities/api/assignees?role_id=1')
+        self.assertEqual({user['id'] for user in response.json['users']},{2,3})
+        self.assertEqual(self.client.get('/activities/api/assignees?role_id=1&q=User2').json['total'],1)
+        self.assertEqual(self.client.get('/activities/api/assignees?role_id=bad').status_code,400)
+        body=dict(title='Pulizia',description='Magazzino',role_ids=[],user_ids=[2],client_key='manual-user-123')
+        for changes in [dict(title=''),dict(user_ids=[]),dict(user_ids=[5]),dict(user_ids=[999]),dict(role_ids=[True]),dict(description='a'*5001)]:
+            self.assertEqual(self.client.post('/activities/api',json={**body,**changes}).status_code,400)
+        row=self.client.post('/activities/api',json=body).json['activity']
+        self.assertEqual(self.client.get('/activities/api?q=Magazzino').json['total'],1)
+        self.login(3);self.assertEqual(self.rows(),[])
+        self.assertEqual(self.client.get(f"/activities/api/{row['id']}").status_code,404)
+        self.assertEqual(self.client.get('/activities/api/assignees').status_code,403)
+        self.assertEqual(self.client.post('/activities/api',json=body).status_code,403)
+        self.login(2);self.assertEqual(len(self.rows()),1)
+
+    def test_manual_migration_existing_rows_and_repeat(self):
+        path=Path(__file__).resolve().parents[1]/'migrations/versions/u6d7e8f9a0b1_manual_activities.py'
+        spec=importlib.util.spec_from_file_location('manual_migration',path)
+        migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(migration)
+        engine=create_engine('sqlite://')
+        with engine.begin() as conn:
+            conn.execute(text('CREATE TABLE user (id INTEGER PRIMARY KEY)'))
+            conn.execute(text('CREATE TABLE operational_activities (id INTEGER PRIMARY KEY, title VARCHAR(200))'))
+            conn.execute(text("INSERT INTO operational_activities(id,title) VALUES(1,'Esistente')"))
+            with Operations.context(MigrationContext.configure(conn)):
+                migration.upgrade();migration.upgrade()
+                self.assertEqual(conn.execute(text('SELECT description FROM operational_activities WHERE id=1')).scalar(),'')
+                conn.execute(text("INSERT INTO operational_activities(id,title,client_key) VALUES(2,'Nuova','same-key')"))
+                migration.downgrade()
+            self.assertNotIn('client_key',{column['name'] for column in inspect(conn).get_columns('operational_activities')})
+        engine=create_engine('sqlite://')
+        with engine.begin() as conn:
+            for name in ['user','supplier_arrivals']: conn.execute(text(f'CREATE TABLE {name} (id INTEGER PRIMARY KEY)'))
+            db.metadata.create_all(conn,tables=[OperationalActivity.__table__,ActivityTargetUser.__table__])
+            with Operations.context(MigrationContext.configure(conn)):
+                migration.upgrade();migration.upgrade();migration.downgrade()

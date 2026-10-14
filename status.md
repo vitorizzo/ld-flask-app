@@ -1,3 +1,9 @@
+## Attività manuali e destinatari multipli (2026-10-14)
+
+- Pulsante Nuova attività per ufficio/supervisori (peso >=40), titolo e istruzioni, uno o più ruoli e/o utenti. Filtro utenti a partire da un ruolo, ricerca nome/cognome e selezione multipla; selezioni conservate cambiando filtro. Ruoli dinamici secondo appartenenze attive; utenti espliciti restano destinatari anche cambiando ruolo. Una sola attività condivisa, stesso workflow/presa in carico/storico delle attività esistenti.
+- OperationalActivity.description/client_key e ActivityTargetUser; migrazione u6d7e8f9a0b1 dopo t5c6d7e8f9a0, preserva le attività precedenti e compatibile con create_all. POST /activities/api idempotente; GET /api/assignees riservato40, solo utenti operativi attivi (ruoli >=30), massimo100 risultati per ricerca. Visibilità unione ruoli/utenti senza duplicati; ricerca elenco estesa a titolo e istruzioni.
+- Verifiche:13 test attività e migrazioni +44 regressioni fornitori, PWA,14 casi browser (due temi,320-1440px,ufficio/staff/Home), inclusi filtri utenti, destinatari combinati, retry e dettaglio manuale. Produzione non modificata: pull, venv/bin/flask --app app db upgrade e riavvio web; nuova head u6d7e8f9a0b1.
+
 ## Area Attività: prima versione operativa (2026-10-14)
 
 - Nuova pagina /activities e voce menu interna peso30; riepilogo Da fare prima delle azioni rapide della Home, fino a5 attività aperte raggruppate per arrivo e link diretto al dettaglio. Filtri stato/fornitore/riferimento, conteggi, paginazione30 e aggiornamento leggero solo a pagina visibile, senza sovrascrivere le modali aperte.

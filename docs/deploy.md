@@ -1,5 +1,16 @@
 # LD-Flask-App — Deployment & System Services
 
+## Attività manuali (2026-10-14)
+
+La creazione manuale richiede la migrazione `u6d7e8f9a0b1` (dopo `t5c6d7e8f9a0`).
+Dopo il pull eseguire `venv/bin/flask --app app db upgrade` e riavviare il web.
+La migrazione aggiunge descrizione, chiave richiesta univoca e destinatari utenti;
+preserva le attività e gli arrivi precedenti. Non richiede modifiche Celery.
+Gli utenti ufficio/supervisori (peso >=40) trovano `Attività > Nuova attività`:
+ruoli interi, utenti individuali o utenti scelti filtrando per ruolo, anche combinati.
+L'attività rimane unica e condivisa; gli utenti espliciti restano assegnati anche
+se successivamente cambiano ruolo. Le assegnazioni per ruolo seguono i ruoli attivi.
+
 ## Area Attività (2026-10-14)
 
 La prima versione dell'area richiede la migrazione `t5c6d7e8f9a0`, successiva

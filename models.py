@@ -1120,11 +1120,14 @@ class SupplierArrival(db.Model):
 
 class OperationalActivity(db.Model):
     __tablename__ = 'operational_activities'
-    __table_args__ = (db.UniqueConstraint('arrival_id','kind',name='uq_activity_arrival_kind'),)
+    __table_args__ = (db.UniqueConstraint('arrival_id','kind',name='uq_activity_arrival_kind'),
+                     db.Index('uq_activity_client_key', 'client_key', unique=True))
     id = db.Column(db.Integer, primary_key=True)
     arrival_id = db.Column(db.Integer, db.ForeignKey('supplier_arrivals.id', ondelete='SET NULL'), nullable=True, index=True)
     kind = db.Column(db.String(40), nullable=False)
     title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=False, default='', server_default='')
+    client_key = db.Column(db.String(64), nullable=True)
     status = db.Column(db.String(20), nullable=False, default='pending', index=True)
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
     revision = db.Column(db.Integer, nullable=False, default=1)
@@ -1141,6 +1144,14 @@ class ActivityTargetRole(db.Model):
     role_id = db.Column(db.Integer, db.ForeignKey('roles.id', ondelete='CASCADE'), primary_key=True)
     role = db.relationship('Role')
     activity = db.relationship('OperationalActivity', backref=db.backref('targets', cascade='all, delete-orphan'))
+
+
+class ActivityTargetUser(db.Model):
+    __tablename__ = 'activity_target_users'
+    activity_id = db.Column(db.Integer, db.ForeignKey('operational_activities.id', ondelete='CASCADE'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
+    user = db.relationship('User')
+    activity = db.relationship('OperationalActivity', backref=db.backref('user_targets', cascade='all, delete-orphan'))
 
 
 class ActivityEvent(db.Model):
