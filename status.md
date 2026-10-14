@@ -1,3 +1,9 @@
+## Visibilita attivita per utente, ruolo e peso (2026-10-14)
+
+- Corretto il bypass globale degli utenti ufficio (peso >=40): solo Admin/Dev (peso >=900) vedono tutte le attivita. Gli altri vedono l'unione di destinatari personali, ruoli esatti attivi e soglia minima esplicitamente assegnata. Stesso filtro per Home/conteggi/dettaglio/azioni/foto; nessuna visibilita automatica per chi crea.
+- Nuova scelta Assegna per peso minimo, indipendente da ruoli/utenti. Assegnazioni etichettate nell'elenco e dettaglio, anche nella Home Admin/Dev. Migrazione w8f9a0b1c2d3 dopo v7e8f9a0b1c2: soglia nullable, preserva le attivita precedenti; compatibile create_all.
+- Verifiche: 18 test attivita e 16 casi browser (due temi,320-1440px,ufficio/staff/Home Admin). Produzione da aggiornare tramite pull, db upgrade e riavvio web. Dettagli in docs/activity_visibility.md.
+
 ## Bacheca: ordini esterni, pagamento e allegati (2026-10-14)
 
 - Campo Ordine facoltativo e Note da trasmettere separate, contrassegno/termini/data pagamento, allegati multipli con download protetto e sostituzione atomica. PDF generato separato; ordini esterni collegati al gruppo e modificabili dalla scheda, Rubrica facoltativa e colonna obbligatoria.

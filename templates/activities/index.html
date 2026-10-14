@@ -24,6 +24,7 @@
   <label for="activityNewTitle" class="form-label">Titolo *</label><input id="activityNewTitle" class="form-control" maxlength="200" required>
   <label for="activityNewDescription" class="form-label mt-3">Descrizione / istruzioni</label><textarea id="activityNewDescription" class="form-control" maxlength="5000" rows="3"></textarea>
   <fieldset class="mt-3"><legend class="fs-6">Assegna a uno o più ruoli</legend><p class="small">Tutti gli utenti con questi ruoli attivi potranno vedere e prendere in carico l’attività.</p><div id="activityNewRoles" class="activity-recipient-list"></div></fieldset>
+  <fieldset class="mt-3"><legend class="fs-6">Assegna per peso minimo</legend><p class="small">Tutti gli utenti con almeno un ruolo attivo di peso uguale o superiore alla soglia potranno vedere l’attività.</p><label for="activityMinWeight" class="form-label">A partire dal peso</label><select id="activityMinWeight" class="form-select"><option value="">Nessuna assegnazione per peso</option></select></fieldset>
   <fieldset class="mt-3"><legend class="fs-6">Assegna a uno o più utenti</legend><p class="small">Filtra per ruolo per scegliere le persone. Questa scelta assegna l’attività agli utenti selezionati, anche se cambiano ruolo.</p>
    <label for="activityUserRole" class="form-label">Parti da un ruolo</label><select id="activityUserRole" class="form-select"><option value="">Tutti i ruoli operativi</option></select>
    <label for="activityUserSearch" class="form-label mt-2">Cerca utenti</label><input id="activityUserSearch" class="form-control" type="search" placeholder="Nome o cognome">
@@ -44,4 +45,4 @@
 </div></div></div>
 {% endif %}
 {% endblock %}
-{% block extra_js %}<script src="{{ url_for('static',filename='js/ld_modal.js',v=app_version) }}"></script><script src="{{ url_for('static',filename='js/activity_create.js',v=app_version ~ '-activities2') }}"></script><script src="{{ url_for('static',filename='js/activities.js',v=app_version ~ '-activities2') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static',filename='js/ld_modal.js',v=app_version) }}"></script><script src="{{ url_for('static',filename='js/activity_recipients.js',v=app_version ~ '-activities3') }}"></script><script src="{{ url_for('static',filename='js/activity_create.js',v=app_version ~ '-activities3') }}"></script><script src="{{ url_for('static',filename='js/activities.js',v=app_version ~ '-activities3') }}"></script>{% endblock %}

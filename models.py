@@ -1128,6 +1128,7 @@ class OperationalActivity(db.Model):
     title = db.Column(db.String(200), nullable=False)
     description = db.Column(db.Text, nullable=False, default='', server_default='')
     client_key = db.Column(db.String(64), nullable=True)
+    target_min_weight = db.Column(db.Integer, nullable=True)
     status = db.Column(db.String(20), nullable=False, default='pending', index=True)
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
     revision = db.Column(db.Integer, nullable=False, default=1)

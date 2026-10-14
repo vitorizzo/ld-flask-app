@@ -26,8 +26,9 @@ class ActivityTests(unittest.TestCase):
         login.user_loader(lambda value:db.session.get(User,int(value)))
         names=[Role,User,UserRole,AppPreference,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto]
         db.metadata.create_all(db.engine,tables=[model.__table__ for model in names])
-        db.session.add_all([Role(id=1,name='Staff',weight=30),Role(id=2,name='Ufficio',weight=40),Role(id=3,name='Altro',weight=30)])
-        for user_id,role_id in [(1,2),(2,1),(3,1),(4,3),(5,1)]:
+        db.session.add_all([Role(id=1,name='Staff',weight=30),Role(id=2,name='Ufficio',weight=40),Role(id=3,name='Altro',weight=30),
+                            Role(id=4,name='Admin',weight=900),Role(id=5,name='Dev',weight=1000),Role(id=6,name='Responsabile',weight=50),Role(id=7,name='Altro ufficio',weight=40)])
+        for user_id,role_id in [(1,4),(2,1),(3,1),(4,3),(5,1),(6,2),(7,5),(8,6),(9,7)]:
             db.session.add(User(id=user_id,name=f'User{user_id}',surname='Test',email=f'test{user_id}@example.invalid',password='test'))
             db.session.add(UserRole(user_id=user_id,role_id=role_id,type='period',valid_from=datetime.now()-timedelta(days=10),valid_until=datetime.now()-timedelta(days=1) if user_id==5 else None))
         db.session.commit()
@@ -233,3 +234,79 @@ class ActivityTests(unittest.TestCase):
             db.metadata.create_all(conn,tables=[OperationalActivity.__table__,ActivityTargetUser.__table__])
             with Operations.context(MigrationContext.configure(conn)):
                 migration.upgrade();migration.upgrade();migration.downgrade()
+
+    def test_user_only_private_from_office_and_higher_weight(self):
+        self.login(6)
+        body=dict(title='Solo Alessio',description='Istruzioni private',role_ids=[],user_ids=[2],client_key='private-alessio-123')
+        row=self.client.post('/activities/api',json=body).json['activity']
+        # Creation permissions and authorship do not imply visibility afterward.
+        for user_id in [3,4,5,6,8,9]:
+            self.login(user_id)
+            self.assertEqual(self.rows(),[])
+            self.assertEqual(self.client.get('/activities/api/summary').json['count'],0)
+            self.assertEqual(self.client.get('/activities/api?q=Istruzioni').json['total'],0)
+            self.assertEqual(self.client.get(f"/activities/api/{row['id']}").status_code,404)
+            self.assertEqual(self.act(row,'claim').status_code,404)
+            self.assertEqual(self.upload(row).status_code,404)
+        self.login(2);self.assertEqual([item['id'] for item in self.rows()],[row['id']])
+        self.assertEqual(self.client.get('/activities/api/summary').json['count'],1)
+        for user_id in [1,7]:
+            self.login(user_id);self.assertEqual(len(self.rows()),1)
+            detail=self.client.get(f"/activities/api/{row['id']}").json['activity']
+            self.assertEqual(detail['users'],[dict(id=2,name='User2 Test')]);self.assertEqual(detail['roles'],[])
+            self.assertTrue(self.client.get('/activities/api/summary').json['sees_all'])
+
+    def test_exact_roles_not_all_roles_of_equal_or_higher_weight(self):
+        body=dict(title='Solo ufficio',role_ids=[2],user_ids=[],client_key='exact-office-role-123')
+        row=self.client.post('/activities/api',json=body).json['activity']
+        self.login(6);self.assertEqual(len(self.rows()),1)
+        for user_id in [2,4,5,8,9]:
+            self.login(user_id);self.assertEqual(self.rows(),[])
+        # A user with several active roles sees the union, without duplicate rows.
+        db.session.add(UserRole(user_id=9,role_id=2,type='period'));db.session.commit()
+        self.login(9);self.assertEqual(self.client.get('/activities/api').json['total'],1)
+        self.assertEqual(self.rows()[0]['roles'],['Ufficio'])
+
+    def test_weight_visibility_union_boundary_expiry_and_retry(self):
+        body=dict(title='Da peso 40',role_ids=[1],user_ids=[4],target_min_weight=40,client_key='weight-request-123')
+        row=self.client.post('/activities/api',json=body).json['activity']
+        self.assertEqual(row['target_min_weight'],40)
+        self.assertTrue(self.client.post('/activities/api',json=body).json['replayed'])
+        self.assertEqual(self.client.post('/activities/api',json={**body,'target_min_weight':50}).status_code,409)
+        for user_id in [2,3,4,6,8,9,1,7]:
+            self.login(user_id);self.assertEqual(self.client.get('/activities/api').json['total'],1)
+        self.login(5);self.assertEqual(self.rows(),[])
+        # Weight-only targeting includes same weight and higher, never lower.
+        self.login(1);only=self.client.post('/activities/api',json=dict(title='Soglia',target_min_weight=40,client_key='weight-only-request')).json['activity']
+        for user_id in [2,3,4,5]:
+            self.login(user_id);self.assertEqual(self.client.get(f"/activities/api/{only['id']}").status_code,404)
+        for user_id in [6,8,9]:
+            self.login(user_id);self.assertEqual(self.client.get(f"/activities/api/{only['id']}").status_code,200)
+        db.session.add(UserRole(user_id=5,role_id=5,type='period',valid_until=datetime.now()-timedelta(days=1)))
+        db.session.commit();self.login(5);self.assertEqual(self.rows(),[])
+
+    def test_private_photos_hidden_from_unassigned_office(self):
+        self.arrival();self.login(2);row=next(row for row in self.rows() if row['kind']=='lots')
+        uploaded=self.upload(row).json['activity'];url=uploaded['photos'][0]['url']
+        self.login(6)
+        self.assertEqual(self.client.get(url).status_code,404)
+        self.assertEqual(self.client.delete(url,json={'revision':uploaded['revision']}).status_code,404)
+        self.login(7);response=self.client.get(url);self.assertEqual(response.status_code,200);response.close()
+
+    def test_weight_input_validation_and_migration(self):
+        for weight in [True,'40',29,-1,1001,40.5]:
+            self.assertEqual(self.client.post('/activities/api',json=dict(title='Peso',target_min_weight=weight,client_key='invalid-weight-key')).status_code,400)
+        path=Path(__file__).resolve().parents[1]/'migrations/versions/w8f9a0b1c2d3_activity_weight_visibility.py'
+        spec=importlib.util.spec_from_file_location('weight_migration',path)
+        migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(migration)
+        engine=create_engine('sqlite://')
+        with engine.begin() as conn:
+            conn.execute(text('CREATE TABLE operational_activities (id INTEGER PRIMARY KEY, title TEXT)'))
+            conn.execute(text("INSERT INTO operational_activities VALUES(1,'Alessio')"))
+            with Operations.context(MigrationContext.configure(conn)):
+                migration.upgrade();migration.upgrade()
+                self.assertEqual(tuple(conn.execute(text('SELECT title,target_min_weight FROM operational_activities')).one()),('Alessio',None))
+                migration.downgrade()
+        with db.engine.begin() as conn:
+            with Operations.context(MigrationContext.configure(conn)):
+                migration.upgrade();migration.upgrade()

@@ -8,7 +8,7 @@ from extensions import db
 from models import (AppPreference, OperationalActivity, ActivityPhoto, SupplierArrival, SupplierBoardCard, Role, User, UserRole)
 from tools.activities import (ACTIVE,CLOSED,CONFIG_KEY,manager,visible_query,activity_query,activity_data,
                               routing_data,validate_rules,transition,create_arrival,add_event,
-                              operational_users,actor_name,manual_payload,manual_matches,create_manual)
+                              operational_users,actor_name,manual_payload,manual_matches,create_manual,sees_all)
 from tools.activity_photos import store_photo, photo_path
 
 activities_bp=Blueprint('activities',__name__)
@@ -51,7 +51,7 @@ def activity_list():
         except ValueError: return error('Arrivo non valido.')
     total=query.count();rows=query.order_by(OperationalActivity.created_at,OperationalActivity.id).offset((page-1)*30).limit(30).all()
     counts=dict(visible_query(current_user).with_entities(OperationalActivity.status,func.count(OperationalActivity.id)).group_by(OperationalActivity.status).all())
-    return jsonify(ok=True,rows=[activity_data(row,current_user) for row in rows],counts=counts,total=total,page=page,pages=(total+29)//30,manager=manager(current_user))
+    return jsonify(ok=True,rows=[activity_data(row,current_user) for row in rows],counts=counts,total=total,page=page,pages=(total+29)//30,manager=manager(current_user),sees_all=sees_all(current_user))
 
 
 @activities_bp.get('/api/assignees')
@@ -69,7 +69,7 @@ def assignees():
     if search: query = query.filter((User.name + ' ' + User.surname).ilike('%' + search + '%'))
     total = query.count()
     users = query.order_by(User.name, User.surname, User.id).limit(100).all()
-    return jsonify(ok=True, roles=[dict(id=role.id, name=role.name) for role in roles],
+    return jsonify(ok=True, roles=[dict(id=role.id, name=role.name, weight=role.weight) for role in roles],
                    users=[dict(id=user.id, name=actor_name(user)) for user in users], total=total)
 
 
@@ -98,7 +98,7 @@ def manual_create():
 @login_required
 def summary():
     query=activity_query(current_user).filter(OperationalActivity.status.in_(ACTIVE))
-    return jsonify(ok=True,count=query.count(),rows=[activity_data(row,current_user) for row in query.order_by(OperationalActivity.created_at,OperationalActivity.id).limit(5).all()],manager=manager(current_user))
+    return jsonify(ok=True,count=query.count(),rows=[activity_data(row,current_user) for row in query.order_by(OperationalActivity.created_at,OperationalActivity.id).limit(5).all()],manager=manager(current_user),sees_all=sees_all(current_user))
 
 
 @activities_bp.get('/api/<int:activity_id>')

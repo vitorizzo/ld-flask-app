@@ -16,14 +16,21 @@ CONFIG_KEY = 'activities.supplier_arrival.routing'
 def manager(user): return (user.max_role_weight or 0) >= 40
 
 
+def sees_all(user):
+    """Admin (900) and Dev (1000); office management alone grants no visibility."""
+    return (user.max_role_weight or 0) >= 900
+
+
 def visible_query(user):
     query = OperationalActivity.query
-    if not manager(user):
+    if not sees_all(user):
         ids = [role.id for role in user.active_roles]
         query = query.filter(db.session.query(ActivityTargetRole.activity_id).filter(
             ActivityTargetRole.activity_id == OperationalActivity.id,
             ActivityTargetRole.role_id.in_(ids)).exists() | db.session.query(ActivityTargetUser.activity_id).filter(
-            ActivityTargetUser.activity_id == OperationalActivity.id, ActivityTargetUser.user_id == user.id).exists())
+            ActivityTargetUser.activity_id == OperationalActivity.id, ActivityTargetUser.user_id == user.id).exists() |
+            (OperationalActivity.target_min_weight.isnot(None) &
+             (OperationalActivity.target_min_weight <= (user.max_role_weight or 0))))
     return query
 
 
@@ -43,6 +50,7 @@ def activity_data(row, user, detail=False):
     arrival = row.arrival
     data = dict(id=row.id,title=row.title,kind=row.kind,status=row.status,revision=row.revision,cycle=row.cycle,
         description=row.description,users=[dict(id=target.user_id,name=actor_name(target.user)) for target in row.user_targets if target.user],
+        target_min_weight=row.target_min_weight,
         owner_id=row.owner_id,owner=actor_name(row.owner) if row.owner_id else None,
         roles=[target.role.name for target in row.targets if target.role], created_at=row.created_at.isoformat(),
         completed_at=row.completed_at.isoformat() if row.completed_at else None,
@@ -85,12 +93,15 @@ def manual_payload(payload):
         if not isinstance(values, list) or len(values) > 200 or any(type(value) is not int for value in values): raise ValueError('Destinatari non validi.')
         targets.append(sorted(set(values)))
     roles, users = targets
-    if not roles and not users: raise ValueError('Scegli almeno un ruolo o un utente.')
-    return dict(title=title.strip(), description=description.strip(), client_key=key, role_ids=roles, user_ids=users)
+    weight = payload.get('target_min_weight')
+    if weight is not None and (type(weight) is not int or not 30 <= weight <= 1000):
+        raise ValueError('Scegli un peso minimo operativo da 30 a 1000.')
+    if not roles and not users and weight is None: raise ValueError('Scegli almeno un utente, ruolo o peso minimo.')
+    return dict(title=title.strip(), description=description.strip(), client_key=key, role_ids=roles, user_ids=users, target_min_weight=weight)
 
 
 def manual_matches(row, payload):
-    return row.title == payload['title'] and row.description == payload['description'] and sorted(t.role_id for t in row.targets) == payload['role_ids'] and sorted(t.user_id for t in row.user_targets) == payload['user_ids']
+    return row.title == payload['title'] and row.description == payload['description'] and sorted(t.role_id for t in row.targets) == payload['role_ids'] and sorted(t.user_id for t in row.user_targets) == payload['user_ids'] and row.target_min_weight == payload['target_min_weight']
 
 
 def create_manual(payload, user):
@@ -98,7 +109,7 @@ def create_manual(payload, user):
     valid_roles = {role.id for role in Role.query.filter(Role.weight >= 30, Role.id.in_(roles)).all()}
     valid_users = {row.id for row in operational_users().filter(User.id.in_(users)).all()}
     if set(roles) != valid_roles or set(users) != valid_users: raise ValueError('Scegli ruoli e utenti operativi attivi. Aggiorna i destinatari.')
-    row = OperationalActivity(kind='manual', title=payload['title'], description=payload['description'], client_key=payload['client_key'])
+    row = OperationalActivity(kind='manual', title=payload['title'], description=payload['description'], client_key=payload['client_key'], target_min_weight=payload['target_min_weight'])
     row.targets = [ActivityTargetRole(role_id=value) for value in roles]
     row.user_targets = [ActivityTargetUser(user_id=value) for value in users]
     add_event(row, user, 'created')

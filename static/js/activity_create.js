@@ -15,7 +15,7 @@
    try {
     const query=new URLSearchParams({role_id:$('activityUserRole').value,q:$('activityUserSearch').value});
     const data=await api('/activities/api/assignees?'+query);if(request!==generation||!key)return;
-    if(initial){$('activityNewRoles').innerHTML=data.roles.map(role=>`<label class="activity-checkbox"><input type="checkbox" data-role="${role.id}"> ${esc(role.name)}</label>`).join('');$('activityUserRole').innerHTML='<option value="">Tutti i ruoli operativi</option>'+data.roles.map(role=>`<option value="${role.id}">${esc(role.name)}</option>`).join('');}
+    if(initial){$('activityNewRoles').innerHTML=data.roles.map(role=>`<label class="activity-checkbox"><input type="checkbox" data-role="${role.id}"> ${esc(role.name)}</label>`).join('');$('activityUserRole').innerHTML='<option value="">Tutti i ruoli operativi</option>'+data.roles.map(role=>`<option value="${role.id}">${esc(role.name)}</option>`).join('');const weights=new Map();data.roles.forEach(role=>{if(Number.isInteger(role.weight)){if(!weights.has(role.weight))weights.set(role.weight,[]);weights.get(role.weight).push(role.name);}});$('activityMinWeight').innerHTML='<option value="">Nessuna assegnazione per peso</option>'+[...weights].sort((a,b)=>a[0]-b[0]).map(([weight,names])=>`<option value="${weight}">${weight} — ${esc(names.join(', '))} e superiori</option>`).join('');}
     shown=data.users;$('activityNewUsers').innerHTML=shown.map(user=>`<label class="activity-checkbox"><input type="checkbox" data-user="${user.id}"> ${esc(user.name)}</label>`).join('')||'<p>Nessun utente trovato.</p>';
     loaded=true;selections();$('activityUsersHint').textContent=`${selected.size} utenti selezionati · ${data.total} trovati${data.total>shown.length?' (primi 100: restringi la ricerca)':''}`;
     $('activityCreateError').textContent='';
@@ -23,7 +23,7 @@
   }
   $('activityNew').onclick=()=>{
    selected=new Map();shown=[];key=crypto.randomUUID?crypto.randomUUID():Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('');
-   $('activityNewTitle').value='';$('activityNewDescription').value='';$('activityUserRole').value='';$('activityUserSearch').value='';$('activityNewRoles').innerHTML='';$('activityNewUsers').innerHTML='';$('activitySelectedUsers').innerHTML='';$('activityCreateError').textContent='';
+   $('activityNewTitle').value='';$('activityNewDescription').value='';$('activityMinWeight').value='';$('activityUserRole').value='';$('activityUserSearch').value='';$('activityNewRoles').innerHTML='';$('activityNewUsers').innerHTML='';$('activitySelectedUsers').innerHTML='';$('activityCreateError').textContent='';
    bootstrap.Modal.getOrCreateInstance(modal).show();users(true);
   };
   $('activityUserRole').onchange=()=>users(!loaded);
@@ -33,8 +33,8 @@
   $('activitySelectedUsers').onclick=event=>{const button=event.target.closest('[data-unselect]');if(button){selected.delete(Number(button.dataset.unselect));selections();$('activityUsersHint').textContent=`${selected.size} utenti selezionati`;}};
   $('activityCreateSave').onclick=async()=>{
    if(busy||!loaded)return;
-   const payload={title:$('activityNewTitle').value.trim(),description:$('activityNewDescription').value.trim(),role_ids:[...$('activityNewRoles').querySelectorAll('[data-role]:checked')].map(el=>Number(el.dataset.role)),user_ids:[...selected.keys()],client_key:key};
-   if(!payload.title||(!payload.role_ids.length&&!payload.user_ids.length)){$('activityCreateError').textContent='Inserisci il titolo e scegli almeno un ruolo o un utente.';return;}
+   const payload={title:$('activityNewTitle').value.trim(),description:$('activityNewDescription').value.trim(),role_ids:[...$('activityNewRoles').querySelectorAll('[data-role]:checked')].map(el=>Number(el.dataset.role)),user_ids:[...selected.keys()],target_min_weight:$('activityMinWeight').value?Number($('activityMinWeight').value):null,client_key:key};
+   if(!payload.title||(!payload.role_ids.length&&!payload.user_ids.length&&payload.target_min_weight===null)){$('activityCreateError').textContent='Inserisci il titolo e scegli almeno un utente, ruolo o peso minimo.';return;}
    busy=true;controls();$('activityCreateError').textContent='';
    try{await api('/activities/api',{method:'POST',body:JSON.stringify(payload)});busy=false;controls();bootstrap.Modal.getOrCreateInstance(modal).hide();await onCreated();}
    catch(error){$('activityCreateError').textContent=error.message;}

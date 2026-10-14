@@ -1,3 +1,9 @@
+## Visibilita e soglia peso attivita (2026-10-14)
+
+- tools/activities.py: sees_all riservato a peso >=900, visible_query unisce utenti, ruoli esatti e target_min_weight confrontato coi ruoli attivi; separato da manager >=40. models.py: OperationalActivity.target_min_weight; migrazione w8f9a0b1c2d3.
+- routes/activities.py: APIs elenco/summary aggiungono sees_all, assignees restituisce peso ruoli; creazione/retry validano anche la soglia. Tutte le letture e mutazioni riusano il filtro di visibilita.
+- activity_create.js e template attivita: selezione facoltativa peso minimo. activity_recipients.js condivide etichette utenti/ruoli/peso fra activities.js e home_activities.js; asset activities3. tests/test_activities.py copre privacy utenti anche verso ufficio/pesi superiori, Admin/Dev, ruoli esatti, soglie/expiry/unione, foto e migrazione. Regole e deploy in docs/activity_visibility.md.
+
 ## Ordini esterni e allegati fornitori (2026-10-14)
 
 - models.py: metadati ordine/pagamento e is_external_order su SupplierBoardCard; SupplierBoardAttachment con contenuto binario differito. Migrazione v7e8f9a0b1c2.
