@@ -8,7 +8,7 @@ from sqlalchemy import create_engine, text, inspect
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from extensions import db
-from models import (OperationalActivity,ActivityResultNotice,ActivityAttachment,ActivityResultRole,ActivityResultUser,PushSubscription,UserRole)
+from models import (OperationalActivity,ActivityResultNotice,ActivityAttachment,ActivityResultRole,ActivityResultUser,PushSubscription,UserRole,ActivityEvent)
 from test_activities import ActivityTests
 
 
@@ -36,42 +36,42 @@ class ResultTests(unittest.TestCase):
             enqueue.assert_called_once()
         return response.json['activity']
 
-    def test_result_recipients_read_only_and_private_until_completion(self):
+    def test_event_recipients_read_only_and_unrelated_user_private(self):
         row=self.create()
         self.login(6)
-        self.assertEqual(self.client.get(f"/activities/api/{row['id']}").status_code,404)
-        self.assertEqual(self.client.get('/activities/api/results').json['count'],0)
+        self.assertEqual(self.client.get(f"/activities/api/{row['id']}").status_code,200)
+        self.assertEqual(self.client.get('/activities/api/results').json['count'],1)
         completed=self.complete(row)
         self.login(6)
         detail=self.client.get(f"/activities/api/{row['id']}").json['activity']
         self.assertFalse(detail['can_act']);self.assertFalse(detail['can_manage'])
         self.assertEqual(self.act(completed,'reopen','Nuova verifica').status_code,404)
         results=self.client.get('/activities/api/results').json
-        self.assertEqual(results['count'],1);self.assertEqual(results['rows'][0]['note'],'Scaffale verificato')
-        self.assertEqual(self.client.get('/activities/api/summary').json['results']['count'],1)
+        self.assertEqual(results['count'],2);self.assertEqual(results['rows'][0]['note'],'Scaffale verificato')
+        self.assertEqual(self.client.get('/activities/api/summary').json['results']['count'],2)
         notice=results['rows'][0]['id'];self.login(3)
         self.assertEqual(self.client.post(f'/activities/api/results/{notice}/read').status_code,404)
         self.assertEqual(self.client.get(f"/activities/api/{row['id']}").status_code,404)
         self.login(6);self.assertEqual(self.client.post(f'/activities/api/results/{notice}/read').status_code,200)
-        self.assertEqual(self.client.get('/activities/api/results').json['count'],0)
+        self.assertEqual(self.client.get('/activities/api/results').json['count'],1)
         self.assertEqual(self.client.get(f"/activities/api/{row['id']}").status_code,200)
 
     def test_combined_targets_deduplicated_expired_roles_excluded_and_cycles(self):
         row=self.create(result_recipients=dict(role_ids=[1],user_ids=[6,2],target_min_weight=50))
         done=self.complete(row)
         self.assertEqual({n.user_id for n in ActivityResultNotice.query.all()},{1,2,3,6,7,8})
-        self.assertEqual(ActivityResultNotice.query.count(),6)
+        self.assertEqual(ActivityResultNotice.query.count(),12)
         self.assertEqual(self.act(done,'complete').status_code,400)
         self.login(1);reopened=self.act(done,'reopen','Ripetere').json['activity']
-        self.login(6);self.assertEqual(self.client.get(f"/activities/api/{row['id']}").status_code,404)
-        self.assertEqual(self.client.get('/activities/api/results').json['count'],0)
-        self.complete(reopened);self.assertEqual(ActivityResultNotice.query.count(),12)
-        self.login(6);self.assertEqual(self.client.get('/activities/api/results').json['count'],1)
+        self.login(6);self.assertEqual(self.client.get(f"/activities/api/{row['id']}").status_code,200)
+        self.assertEqual(self.client.get('/activities/api/results').json['count'],3)
+        self.complete(reopened);self.assertEqual(ActivityResultNotice.query.count(),24)
+        self.login(6);self.assertEqual(self.client.get('/activities/api/results').json['count'],4)
 
     def test_result_exact_role_not_same_or_higher_weight(self):
         row=self.create(result_recipients=dict(role_ids=[2]))
         self.complete(row)
-        self.assertEqual({n.user_id for n in ActivityResultNotice.query.all()},{6})
+        self.assertEqual({n.user_id for n in ActivityResultNotice.query.all()},{2,6})
 
     def test_required_validated_and_replay_includes_result_targets(self):
         row=self.create()
@@ -95,7 +95,7 @@ class ResultTests(unittest.TestCase):
         self.assertEqual(file['purpose'],'instructions')
         self.assertEqual(self.multipart(body).status_code,200);self.assertEqual(ActivityAttachment.query.count(),1)
         self.assertEqual(self.multipart(body,filename='renamed.png').status_code,409)
-        self.login(6);self.assertEqual(self.client.get(file['url']).status_code,404)
+        self.login(6);self.assertEqual(self.client.get(file['url']).status_code,200)
         self.login(2);download=self.client.get(file['url']);self.assertEqual(download.status_code,200)
         self.assertIn('attachment',download.headers['Content-Disposition']);self.assertIn('no-store',download.headers['Cache-Control'])
         done=self.complete(row);self.login(6);self.assertEqual(self.client.get(file['url']).status_code,200)
@@ -118,10 +118,14 @@ class ResultTests(unittest.TestCase):
         row=self.create();self.complete(row)
         with patch('tools.push_notifications.is_push_configured',return_value=False):
             self.assertTrue(dispatch_results()['skipped'])
-        self.assertIsNone(ActivityResultNotice.query.one().push_sent_at)
+        pending=ActivityResultNotice.query.join(ActivityEvent).filter(ActivityEvent.action=='complete',ActivityResultNotice.user_id==6).one()
+        for notice in ActivityResultNotice.query.all():
+            if notice.id!=pending.id: notice.push_sent_at=__import__('datetime').datetime.utcnow()
+        db.session.commit()
+        self.assertIsNone(pending.push_sent_at)
         with patch('tools.push_notifications.is_push_configured',return_value=True), patch('tools.push_notifications.send_push_to_subscriptions',side_effect=[dict(sent=0,failed=1),dict(sent=1,failed=0)]) as send:
-            self.assertFalse(dispatch_results()['success']);self.assertIsNone(ActivityResultNotice.query.one().push_sent_at)
-            self.assertTrue(dispatch_results()['success']);self.assertIsNotNone(ActivityResultNotice.query.one().push_sent_at)
+            self.assertFalse(dispatch_results()['success']);self.assertIsNone(pending.push_sent_at)
+            self.assertTrue(dispatch_results()['success']);self.assertIsNotNone(pending.push_sent_at)
             dispatch_results();self.assertEqual(send.call_count,2)
             self.assertEqual(send.call_args.args[1]['url'],f"/activities?activity={row['id']}")
             self.assertFalse(send.call_args.kwargs['commit'])
@@ -149,7 +153,7 @@ class ResultTests(unittest.TestCase):
         with patch('tools.activity_results.enqueue_results',side_effect=RuntimeError('broker offline')):
             response=self.act(row,'cancel','Richiesta superata')
         self.assertEqual(response.status_code,200,response.json)
-        notice=ActivityResultNotice.query.one();self.assertIsNone(notice.push_sent_at)
+        notice=ActivityResultNotice.query.join(ActivityEvent).filter(ActivityEvent.action=='cancel',ActivityResultNotice.user_id==6).one();self.assertIsNone(notice.push_sent_at)
         self.login(6);data=self.client.get('/activities/api/results').json
         self.assertEqual(data['rows'][0]['status'],'cancelled');self.assertEqual(data['rows'][0]['note'],'Richiesta superata')
 

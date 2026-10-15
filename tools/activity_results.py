@@ -1,8 +1,8 @@
-"""Dispatch durable activity outcomes through the existing Web Push service."""
+"""Dispatch durable activity event notifications through the existing Web Push service."""
 from datetime import datetime
 from extensions import db
-from models import ActivityResultNotice, PushSubscription, OperationalActivity
-from tools.activities import CLOSED, logger
+from models import ActivityResultNotice, PushSubscription, OperationalActivity, User
+from tools.activities import EVENT_LABELS, event_message, visible_query, logger
 
 
 def dispatch_results():
@@ -16,12 +16,12 @@ def dispatch_results():
         notice=ActivityResultNotice.query.filter_by(id=notice_id,push_sent_at=None).with_for_update(skip_locked=True).first()
         if not notice: continue
         row=notice.activity
-        if row.cycle!=notice.cycle or row.status not in CLOSED:
-            notice.push_sent_at=datetime.utcnow();db.session.commit();continue
         try:
             subscriptions=PushSubscription.query.filter_by(user_id=notice.user_id,is_active=True).all()
-            result=send_push_to_subscriptions(subscriptions,dict(title='Attività completata modificata' if notice.event.action=='updated' else 'Esito attività',body=row.title+' · '+{'completed':'Completata','not_required':'Non necessario','cancelled':'Annullata'}.get(row.status,row.status),
-                url=f'/activities?activity={row.id}',category='activity',tag=f'activity-result-{notice.id}',
+            user=db.session.get(User,notice.user_id)
+            can_open=user is not None and visible_query(user,include_results=True).filter_by(id=row.id).first() is not None
+            result=send_push_to_subscriptions(subscriptions,dict(title=EVENT_LABELS.get(notice.event.action,'Aggiornamento attività'),body=row.title+' · '+event_message(notice.event)[:500],
+                url=f'/activities?activity={row.id}' if can_open else '/activities',category='activity',tag=f'activity-result-{notice.id}',
                 notification_id=f'activity-result-{notice.id}',icon='/static/icons/icon-192.png'),commit=False)
             if not result['failed']:
                 notice.push_sent_at=datetime.utcnow();sent+=1

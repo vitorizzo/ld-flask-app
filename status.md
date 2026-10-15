@@ -3775,3 +3775,13 @@ Performance apertura giornata Agenda 2026-06-13:
 - Endpoint GET /activities/api/badge autenticato, senza modifiche schema. Asset attività6 / menu support2.
 - Verifica: 41 test Python (13 albero + 28 attività/esiti), quattro suite Node (albero/collasso, badge/aggregazione, creazione, service worker), sintassi JS/Python, Jinja incluso navbar, head Alembic unico e logging dedicato/aggregato: OK. QA visiva browser resta da eseguire per il limite Edge già documentato.
 - Nessun deploy effettuato. Per queste sole modifiche aggiornare codice e riavviare web; resta necessaria la migrazione y0b1c2d3e4f5 se non ancora applicata per le implementazioni precedenti.
+
+
+## 2026-10-15 — Notifiche per tutti gli eventi delle attività
+
+- Ogni evento crea avvisi transazionali per incaricati e destinatari dell’esito: creazione, presa in carico/rilascio, completamento/non necessario, annullamento/riapertura, modifica, sottoattività e allegati/foto aggiunti o rimossi. Stessi criteri utente/ruolo esatto/peso minimo, ruoli attivi e deduplicazione per evento/utente. Le sottoattività avvisano anche gli incaricati della principale.
+- I cambi destinatari notificano vecchio e nuovo insieme di utenti. Retry idempotenti, no-op, errori e rollback non generano avvisi duplicati o orfani.
+- Push accodate dopo risposta riuscita e commit; recupero periodico già esistente in caso di broker/VAPID indisponibili. Testo specifico per evento con autore e nota/esito, senza derivare l’azione dallo stato corrente.
+- Home e Attività mostrano “Notifiche attività”; badge include tutti gli avvisi non letti. Restano consultabili e inviabili anche gli avvisi di cicli precedenti. La ricevuta dà lettura del ciclo corrente, senza nuovi permessi di modifica; un destinatario rimosso non accede ai cicli successivi. Link e URL push rispettano questa visibilità.
+- Nessun backfill degli eventi storici privi di avviso, nessuna nuova migrazione. Asset attività7. Al deploy riavviare web e worker notifiche; mantenere Beat attivo per recupero periodico. Le migrazioni precedenti fino a y0b1c2d3e4f5 restano necessarie se ancora da applicare. Nessun deploy eseguito da questa sessione.
+- Verifica: 48 test Python (28 attività/esiti, 13 albero, 7 nuovi eventi), 5 suite Node (creazione, albero/collasso, badge, notifiche UI, service worker), sintassi, Jinja, head Alembic unico e logging dedicato/aggregato: OK. QA visiva e push su dispositivo reale non eseguite; limite Edge già documentato.

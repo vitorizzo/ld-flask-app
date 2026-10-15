@@ -1,6 +1,6 @@
 """Shared operational work, role visibility and supplier-arrival workflows."""
 from datetime import datetime
-from flask import current_app
+from flask import current_app, g, has_request_context
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 from extensions import db
@@ -67,7 +67,7 @@ def lock_family(activity_id):
 
 
 def result_access(user):
-    return OperationalActivity.status.in_(CLOSED) & db.session.query(ActivityResultNotice.id).filter(
+    return db.session.query(ActivityResultNotice.id).filter(
         ActivityResultNotice.activity_id == OperationalActivity.id,
         ActivityResultNotice.user_id == user.id, ActivityResultNotice.cycle == OperationalActivity.cycle).exists()
 
@@ -209,7 +209,11 @@ def validate_rules(payload):
 
 
 def add_event(row, user, action, note=''):
-    row.events.append(ActivityEvent(actor_id=user.id,action=action,note=note))
+    event=ActivityEvent(actor_id=user.id,action=action,note=note)
+    row.events.append(event)
+    # Notices share the action transaction; do not flush before idempotency checks.
+    create_result_notices(row)
+    if has_request_context(): g.activity_notifications=True
 
 
 def transition(row, user, action, note):
@@ -243,7 +247,6 @@ def transition(row, user, action, note):
             row.owner_id=user.id;row.status='completed' if action=='complete' else 'not_required';row.completed_at=datetime.utcnow()
         else: raise ValueError('Azione non valida.')
     row.revision+=1;add_event(row,user,action,note)
-    if action in ('complete','not_required','cancel'): create_result_notices(row)
     logger.info('Activity action id=%s action=%s actor=%s cycle=%s', row.id, action, user.id, row.cycle)
 
 
@@ -263,41 +266,63 @@ def create_arrival(card, payload, user, received_on):
     return arrival
 
 
-def create_result_notices(row, extra_user_ids=()):
-    """Resolve exact roles, explicit users and minimum weight at completion."""
-    db.session.flush()
-    role_ids = {t.role_id for t in row.result_roles}
-    user_ids = {t.user_id for t in row.result_users} | set(extra_user_ids)
-    if row.parent_id:
-        parent=db.session.get(OperationalActivity,row.parent_id)
-        parent_roles={t.role_id for t in parent.targets}
+def notification_recipients(row):
+    """Snapshot assignees, outcome recipients and the direct parent's assignees."""
+    role_ids={t.role_id for t in row.targets} | {t.role_id for t in row.result_roles}
+    user_ids={t.user_id for t in row.user_targets} | {t.user_id for t in row.result_users}
+    weights=[w for w in (row.target_min_weight,row.result_min_weight) if w is not None]
+    parent=db.session.get(OperationalActivity,row.parent_id) if row.parent_id else None
+    if parent:
+        role_ids.update(t.role_id for t in parent.targets)
         user_ids.update(t.user_id for t in parent.user_targets)
-    else: parent=None;parent_roles=set()
-    now = datetime.now()
-    memberships = db.session.query(UserRole.user_id, UserRole.role_id, Role.weight).join(Role).filter(
-        (UserRole.valid_from.is_(None) | (UserRole.valid_from <= now)),
-        (UserRole.valid_until.is_(None) | (UserRole.valid_until >= now))).all()
-    user_ids.update(uid for uid, rid, weight in memberships if rid in role_ids or (row.result_min_weight is not None and weight >= row.result_min_weight) or rid in parent_roles or (parent is not None and parent.target_min_weight is not None and weight>=parent.target_min_weight))
-    for uid in user_ids:
-        db.session.add(ActivityResultNotice(activity_id=row.id,event_id=row.events[-1].id,user_id=uid,cycle=row.cycle))
-    logger.info('Activity result id=%s event=%s recipients=%s', row.id, row.events[-1].id, len(user_ids))
+        if parent.target_min_weight is not None: weights.append(parent.target_min_weight)
+    now=datetime.now()
+    memberships=db.session.query(UserRole.user_id,UserRole.role_id,Role.weight).join(Role).filter(
+        (UserRole.valid_from.is_(None) | (UserRole.valid_from<=now)),
+        (UserRole.valid_until.is_(None) | (UserRole.valid_until>=now))).all()
+    user_ids.update(uid for uid,rid,weight in memberships if rid in role_ids or any(weight>=w for w in weights))
+    return user_ids
+
+
+def create_result_notices(row, extra_user_ids=()):
+    """One durable notification per recipient and event, committed with the action."""
+    with db.session.no_autoflush:
+        event=row.events[-1]
+        recipients=notification_recipients(row) | set(extra_user_ids)
+        existing={n.user_id for n in row.result_notices if n.event is event or (event.id is not None and n.event_id==event.id)}
+        for uid in recipients-existing:
+            row.result_notices.append(ActivityResultNotice(event=event,user_id=uid,cycle=row.cycle or 1))
+    logger.info('Activity event notice activity=%s action=%s recipients=%s',row.id,event.action,len(recipients))
 
 
 def notices_query(user):
     return ActivityResultNotice.query.join(OperationalActivity).filter(
-        ActivityResultNotice.user_id == user.id, ActivityResultNotice.cycle == OperationalActivity.cycle,
-        OperationalActivity.status.in_(CLOSED))
+        ActivityResultNotice.user_id == user.id)
 
 
 def notices_data(user, limit=30):
-    query = notices_query(user).filter(ActivityResultNotice.read_at.is_(None))
-    return dict(count=query.count(), rows=[dict(id=n.id,activity_id=n.activity_id,title=n.activity.title,
-        status=n.activity.status,action=n.event.action,note=n.event.note,created_at=n.event.created_at.isoformat())
-        for n in query.options(selectinload(ActivityResultNotice.activity),selectinload(ActivityResultNotice.event))
-        .order_by(ActivityResultNotice.id.desc()).limit(limit).all()])
+    query=notices_query(user).filter(ActivityResultNotice.read_at.is_(None))
+    notices=query.options(selectinload(ActivityResultNotice.activity),
+        selectinload(ActivityResultNotice.event).selectinload(ActivityEvent.actor)).order_by(ActivityResultNotice.id.desc()).limit(limit).all()
+    readable={i for i, in visible_query(user,include_results=True).filter(OperationalActivity.id.in_({n.activity_id for n in notices})).with_entities(OperationalActivity.id).all()}
+    return dict(count=query.count(),rows=[dict(id=n.id,activity_id=n.activity_id,title=n.activity.title,
+        can_open=n.activity_id in readable,cycle=n.cycle,status=n.activity.status,action=n.event.action,
+        actor=actor_name(n.event.actor),note=n.event.note,message=event_message(n.event),created_at=n.event.created_at.isoformat()) for n in notices])
 
 
 def badge_count(user):
-    """Open assigned activities plus unread result notices, using the same visibility rules."""
+    """Open assigned activities plus unread event notifications, using the same visibility rules."""
     return (visible_query(user).filter(OperationalActivity.status.in_(ACTIVE)).count()
             + notices_query(user).filter(ActivityResultNotice.read_at.is_(None)).count())
+
+
+EVENT_LABELS = {'created':'Attività creata','claim':'Presa in carico','release':'Attività rilasciata',
+    'complete':'Attività completata','not_required':'Non necessario','cancel':'Attività annullata',
+    'reopen':'Attività riaperta','updated':'Attività modificata','child_created':'Sottoattività creata',
+    'linked':'Collegamento alla principale','photo_added':'Foto aggiunta','photo_removed':'Foto rimossa',
+    'files_added':'Allegati aggiunti','file_removed':'Allegato rimosso'}
+
+
+def event_message(event):
+    label=EVENT_LABELS.get(event.action,event.action)
+    return label+' · '+actor_name(event.actor)+((' · '+event.note) if event.note else '')

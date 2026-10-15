@@ -2,7 +2,7 @@ from datetime import date, datetime
 from io import BytesIO
 import json
 import re
-from flask import Blueprint, jsonify, render_template, request, send_file, abort
+from flask import Blueprint, jsonify, render_template, request, send_file, abort, g
 from flask_login import current_user, login_required
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
@@ -15,6 +15,18 @@ from tools.activity_photos import store_photo, photo_path
 from tools.activity_files import prepare_files, files_digest, attach_files
 
 activities_bp=Blueprint('activities',__name__)
+
+
+@activities_bp.after_request
+def dispatch_event_notifications(response):
+    pending=g.pop('activity_notifications',False)
+    if response.status_code < 300 and pending:
+        try:
+            from tools.activity_results import enqueue_results
+            enqueue_results()
+        except Exception:
+            logger.exception('Activity event enqueue failed; periodic dispatch will retry')
+    return response
 
 
 def office():
@@ -197,12 +209,6 @@ def action(activity_id):
     except PermissionError as exc: return error(str(exc),403)
     except ValueError as exc: return error(str(exc))
     db.session.commit()
-    if payload.get('action') in ('complete','not_required','cancel') and row.result_notices:
-        try:
-            from tools.activity_results import enqueue_results
-            enqueue_results()
-        except Exception:
-            logger.exception('Activity result enqueue failed id=%s; periodic dispatch will retry',row.id)
     return jsonify(ok=True,activity=activity_data(row,current_user,True))
 
 
@@ -397,7 +403,8 @@ def edit_activity(activity_id):
         after=dict(title=normalized['title'],description=normalized['description'],roles=normalized['role_ids'],users=normalized['user_ids'],weight=normalized['target_min_weight'],
             result_roles=normalized['result_recipients']['role_ids'],result_users=normalized['result_recipients']['user_ids'],result_weight=normalized['result_recipients']['target_min_weight'])
         if before==after: return jsonify(ok=True,activity=activity_data(row,current_user,True))
-        previous={n.user_id for n in row.result_notices if n.cycle==row.cycle} if row.status in CLOSED else set()
+        from tools.activities import notification_recipients
+        previous=notification_recipients(row)
         row.title=after['title'];row.description=after['description']
         from models import ActivityTargetRole, ActivityTargetUser, ActivityResultRole, ActivityResultUser
         for relation,model,key,values in [('targets',ActivityTargetRole,'role_id',after['roles']),('user_targets',ActivityTargetUser,'user_id',after['users']),('result_roles',ActivityResultRole,'role_id',after['result_roles']),('result_users',ActivityResultUser,'user_id',after['result_users'])]:
@@ -419,15 +426,9 @@ def edit_activity(activity_id):
                 parts.append(labels[field]+': '+str(value if value is not None else 'Nessuno'))
             return '\n'.join(parts)
         add_event(row,current_user,'updated','Modificati: '+', '.join(labels[k] for k in changes)+'\nPrima:\n'+describe(before)+'\nDopo:\n'+describe(after))
-        if row.status in CLOSED:
-            from tools.activities import create_result_notices
-            create_result_notices(row,previous)
+        from tools.activities import create_result_notices
+        create_result_notices(row,previous)
         db.session.commit()
-        if row.status in CLOSED:
-            try:
-                from tools.activity_results import enqueue_results
-                enqueue_results()
-            except Exception: logger.exception('Activity update push enqueue failed id=%s',row.id)
         logger.info('Activity updated id=%s actor=%s fields=%s',row.id,current_user.id,changes)
         return jsonify(ok=True,activity=activity_data(row,current_user,True))
     except ValueError as exc:

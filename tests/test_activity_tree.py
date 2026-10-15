@@ -46,10 +46,10 @@ class TreeTests(unittest.TestCase):
         summary=self.client.get('/activities/api/summary').json
         self.assertEqual(summary['count'],1)
         self.assertEqual({r['id'] for r in summary['rows']},{parent['id'],child['id']})
-        self.assertEqual(self.client.get('/activities/api/badge').json['count'],2)
+        self.assertEqual(self.client.get('/activities/api/badge').json['count'],6)
         notice=self.client.get('/activities/api/results').json['rows'][0]
         self.client.post(f"/activities/api/results/{notice['id']}/read")
-        self.assertEqual(self.client.get('/activities/api/badge').json['count'],1)
+        self.assertEqual(self.client.get('/activities/api/badge').json['count'],5)
         self.login(8)
         self.assertEqual(self.client.get('/activities/api/badge').json['count'],0)
         self.assertEqual(self.client.get('/activities/api/summary').json['rows'],[])
@@ -74,7 +74,7 @@ class TreeTests(unittest.TestCase):
         self.login(4);self.assertEqual(self.detail(parent).status_code,404)
         self.assertFalse(self.detail(child).json['activity']['parent_visible'])
         self.complete(child)
-        self.assertEqual({n.user_id for n in ActivityResultNotice.query.filter_by(activity_id=child['id']).all()},{2,6,9})
+        self.assertEqual({n.user_id for n in ActivityResultNotice.query.filter_by(activity_id=child['id']).all()},{2,4,6,9})
         self.login(6);self.assertEqual(self.detail(child).status_code,200)
         self.assertTrue(self.detail(child).json['activity']['can_edit'])
         self.login(3);self.assertEqual(self.detail(child).status_code,404)
@@ -117,7 +117,8 @@ class TreeTests(unittest.TestCase):
         self.assertEqual(OperationalActivity.query.count(),1)
         self.assertEqual(changed['events'][-1]['action'],'updated');self.assertIn('Reso Roviano',changed['events'][-1]['note'])
         self.assertEqual(self.client.put(f"/activities/api/{row['id']}",json=self.edit_body(row,title='Stale')).status_code,409)
-        self.login(2);self.assertEqual(self.detail(row).status_code,404)
+        self.login(2);self.assertEqual(self.detail(row).status_code,200)
+        self.assertFalse(self.detail(row).json['activity']['can_act'])
 
     def test_edit_completed_notifies_old_and_new_recipients_without_reopen(self):
         row=self.create();self.login(2);row=self.complete(row);self.login(6)
@@ -126,7 +127,7 @@ class TreeTests(unittest.TestCase):
         self.assertEqual(response.status_code,200,response.json);enqueue.assert_called_once()
         changed=response.json['activity'];self.assertEqual(changed['status'],'completed')
         event=ActivityEvent.query.order_by(ActivityEvent.id.desc()).first()
-        self.assertEqual({n.user_id for n in ActivityResultNotice.query.filter_by(event_id=event.id)},{8,9})
+        self.assertEqual({n.user_id for n in ActivityResultNotice.query.filter_by(event_id=event.id)},{2,6,8,9})
         self.login(9);self.assertEqual(self.client.get('/activities/api/results').json['rows'][0]['action'],'updated')
         self.assertFalse(self.detail(changed).json['activity']['can_edit'])
         self.assertEqual(self.client.put(f"/activities/api/{changed['id']}",json=self.edit_body(changed,title='Forbidden')).status_code,403)

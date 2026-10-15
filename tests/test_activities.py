@@ -19,6 +19,10 @@ import test_supplier_board as board
 
 class ActivityTests(unittest.TestCase):
     def setUp(self):
+        from unittest.mock import patch
+        enqueue_patch=patch('tools.activity_results.enqueue_results')
+        enqueue_patch.start()
+        self.addCleanup(enqueue_patch.stop)
         board.SupplierBoardTests.setUp(self)
         self.app.config['SECRET_KEY']='activity-test-only'
         self.app.register_blueprint(activities_bp,url_prefix='/activities')
