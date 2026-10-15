@@ -424,6 +424,9 @@ def create_app():
                 elif node.route == "/customer-account/office/payment-disputes":
                     own_badge_sources.append("payment_disputes")
                     own_badge_count = payment_dispute_badge_count
+                elif (node.route or '').rstrip('/') == "/activities":
+                    own_badge_sources.append("activities")
+                    own_badge_count = activity_badge_count
                 child_badge_sources = {
                     source
                     for child in children_tree
@@ -439,6 +442,7 @@ def create_app():
                     "is_active": node.is_active,
                     "is_visible": node.is_visible,
                     "item_type": node.item_type,
+                    "activity_badge_count": activity_badge_count if "activities" in badge_sources else 0,
                     "badge_count": own_badge_count + sum(child.get("badge_count", 0) for child in children_tree),
                     "badge_sources": badge_sources,
                     "children": children_tree
@@ -446,6 +450,14 @@ def create_app():
             return result
 
         user_role_weight = current_user.max_role_weight if current_user.is_authenticated else 0
+        activity_badge_count = 0
+        if current_user.is_authenticated:
+            try:
+                from tools.activities import badge_count
+                activity_badge_count = badge_count(current_user)
+            except SQLAlchemyError:
+                db.session.rollback()
+                logger.exception("inject_menus: activity count unavailable")
         support_badge_count = 0
         activation_badge_count = 0
         payment_communication_badge_count = 0

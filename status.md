@@ -3765,3 +3765,13 @@ Performance apertura giornata Agenda 2026-06-13:
 - Migration m8b9c0d1e2f3 (parent l7a8b9c0d1e2): due tabelle, indici, otto colonne iniziali e voce menu. Richiede flask db upgrade al deploy, prima del riavvio/apertura della nuova pagina. Nessuna migrazione eseguita in produzione da Codex.
 - Telefoni: letto in produzione AR SOLITO BAR SNC, registry 2957. Un contatto telefonico attivo Maria Elena Piacentini, numero finale 7412, confermato dall'utente come mancante; anche _phone_contacts di produzione lo restituiva. Il riepilogo mobile nascondeva l'intera cella Contatti: ora i numeri chiamabili sono direttamente nel riepilogo di entrambe le viste Giro/Diretti, con nome/numero distinti e accessibilita' dei link (rimosso aria-hidden). Nessuna modifica ai dati o all'import contatti. CSS Plancia phones2.
 - Verifiche: 5 test API/DB isolato (CRUD, fornitore valido/non cliente, date/input, permessi, archivio/ripristino, upgrade/downgrade e menu/otto colonne), 10 casi browser due temi e 320/360/430/768/1440px, screenshots desktop/mobile ispezionati; telefoni visibili e contenuti nelle celle in entrambe le viste su 320/360/430/1440px, 24 casi regressione modale contatti condivisa passati. Sintassi JS/diff check passati. Dopo deploy+migration rivedere la bozza e verificare il numero sul dispositivo reale.
+
+
+## 2026-10-15 — Albero Home, badge Attività e rami collassabili
+
+- Home carica fino a cinque famiglie complete, con principale e sottoattività autorizzate, incluse le completate pinnate. Il limite non taglia i rami.
+- Titoli dei nodi con figli sono pulsanti accessibili (aria-expanded): aprono/chiudono il ramo in Home e nell’area Attività. Stato conservato durante polling e aggiornamenti della pagina corrente.
+- Menu Attività: badge iniziale lato server e aggiornamento ogni 30 secondi, anche per operativi; somma attività aperte visibili e avvisi di esito non letti della lavorazione corrente. Mantiene gli altri conteggi nei menu antenati.
+- Endpoint GET /activities/api/badge autenticato, senza modifiche schema. Asset attività6 / menu support2.
+- Verifica: 41 test Python (13 albero + 28 attività/esiti), quattro suite Node (albero/collasso, badge/aggregazione, creazione, service worker), sintassi JS/Python, Jinja incluso navbar, head Alembic unico e logging dedicato/aggregato: OK. QA visiva browser resta da eseguire per il limite Edge già documentato.
+- Nessun deploy effettuato. Per queste sole modifiche aggiornare codice e riavviare web; resta necessaria la migrazione y0b1c2d3e4f5 se non ancora applicata per le implementazioni precedenti.

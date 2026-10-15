@@ -2058,3 +2058,13 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - templates/supplier_orders/board.html, static/css/supplier_board.css e static/js/supplier_board.js: pagina ld-page-standard/viewport, layout bacheca condiviso via kiosk_overview.css, ricerca, modale ld-modal-standard, archivio recuperabile, selettore colonna e drag desktop. Fonte dati locale; import Trello e regole operative non implementati nella bozza.
 - Test ripetibile: python -B -m unittest discover -s tests -p test_supplier_board.py -v. Deploy richiede flask db upgrade.
 - Plancia: mobileSummary in templates/route_orders/board.html include customer.phones con link tel: visibili; static/css/route_order_board.css phones2 gestisce contenimento/contrasto. API contatti invariata.
+
+
+## 2026-10-15 — Albero Home, badge Attività e rami collassabili
+
+- Home carica fino a cinque famiglie complete, con principale e sottoattività autorizzate, incluse le completate pinnate. Il limite non taglia i rami.
+- Titoli dei nodi con figli sono pulsanti accessibili (aria-expanded): aprono/chiudono il ramo in Home e nell’area Attività. Stato conservato durante polling e aggiornamenti della pagina corrente.
+- Menu Attività: badge iniziale lato server e aggiornamento ogni 30 secondi, anche per operativi; somma attività aperte visibili e avvisi di esito non letti della lavorazione corrente. Mantiene gli altri conteggi nei menu antenati.
+- Endpoint GET /activities/api/badge autenticato, senza modifiche schema. Asset attività6 / menu support2.
+- Verifica: 41 test Python (13 albero + 28 attività/esiti), quattro suite Node (albero/collasso, badge/aggregazione, creazione, service worker), sintassi JS/Python, Jinja incluso navbar, head Alembic unico e logging dedicato/aggregato: OK. QA visiva browser resta da eseguire per il limite Edge già documentato.
+- Nessun deploy effettuato. Per queste sole modifiche aggiornare codice e riavviare web; resta necessaria la migrazione y0b1c2d3e4f5 se non ancora applicata per le implementazioni precedenti.

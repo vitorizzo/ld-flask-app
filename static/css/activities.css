@@ -60,3 +60,5 @@ body.activity-modal-open .modal-backdrop.show { z-index: 12100 !important; }
 .activity-modal input[type="file"] { width: 100%; max-width: 100%; min-width: 0; }
 
 .activity-tree{list-style:none;padding-left:clamp(.4rem,2vw,1.3rem);margin:0}.activity-tree .activity-tree{border-left:2px solid var(--ld-brand-accent);margin-left:.4em}.activity-tree-node{min-width:0}.activity-tree-node.is-pinned>.activity-row{border-left:3px solid var(--ld-brand-accent);padding-left:.6em}
+
+.activity-tree-title{border:0;background:transparent;color:inherit;font:inherit;font-weight:700;text-align:left;padding:0;cursor:pointer;overflow-wrap:anywhere}.activity-tree-title:focus-visible{outline:2px solid var(--ld-brand-accent);outline-offset:3px}.activity-tree[hidden]{display:none}

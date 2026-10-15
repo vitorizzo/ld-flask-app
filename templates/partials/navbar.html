@@ -17,7 +17,7 @@
             >
                 {{ menu.name }}
                 {% if menu.badge_sources %}
-                    <span class="help-desk-unread-badge" data-menu-badge-sources="{{ menu.badge_sources | join(',') }}" {% if not menu.badge_count %}hidden{% endif %} aria-label="{{ menu.badge_count }} elementi da gestire">{{ menu.badge_count if menu.badge_count < 100 else '99+' }}</span>
+                    <span class="help-desk-unread-badge" data-menu-badge-sources="{{ menu.badge_sources | join(',') }}" data-activity-count="{{ menu.activity_badge_count }}" data-other-count="{{ menu.badge_count - menu.activity_badge_count }}" {% if not menu.badge_count %}hidden{% endif %} aria-label="{{ menu.badge_count }} elementi da gestire">{{ menu.badge_count if menu.badge_count < 100 else '99+' }}</span>
                 {% endif %}
             </a>
             {% if has_children %}
@@ -31,7 +31,7 @@
     {% endif %}
 {% endmacro %}
 
-<nav class="navbar navbar-expand-lg" {% if current_user.is_authenticated and current_user.max_role_weight >= 40 %}data-support-unread-url="{{ url_for('settings.support_tickets_unread_count') }}"{% endif %}>
+<nav class="navbar navbar-expand-lg" {% if current_user.is_authenticated %}data-activity-badge-url="{{ url_for('activities.badge') }}"{% endif %} {% if current_user.is_authenticated and current_user.max_role_weight >= 40 %}data-support-unread-url="{{ url_for('settings.support_tickets_unread_count') }}"{% endif %}>
     <div class="container-fluid">
         <a class="navbar-brand" href="/" title="Torna alla home" aria-label="Torna alla home">
             <img src="{{ url_for('static', filename='images/loghi_azienda/logo-ldenoteca-bianco.png') }}"

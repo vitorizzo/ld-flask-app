@@ -40,3 +40,13 @@ Gli incaricati della principale possono seguire i rami discendenti; gli incarica
 Migrazione y0b1c2d3e4f5 aggiunge parent_id auto-referenziato con indice e FK RESTRICT, senza cambiare le attività precedenti. API PUT /activities/api/<id> per modifica; creazione POST /activities/api estesa con parent_id, parent_revision, share_attachment_ids, share_photo_ids. GET /api/assignees permette la selezione per una sottoattività quando il richiedente è incaricato della principale. Nuovi campi API: parent_id, parent_visible, children, blocked_children, can_edit, can_create_child.
 
 Deploy: backup, pull, flask --app app db upgrade fino a y0b1c2d3e4f5 e riavvio web/tutti i worker/Beat. Test dedicati in test_activity_tree.py e test_activity_tree.mjs; test_activity_create.mjs esteso a precompilazione/modifica/sottoattività. Restano da verificare layout sui dispositivi e push reali dopo deploy; nessuna operazione su dati o notifiche di produzione durante lo sviluppo.
+
+
+## 2026-10-15 — Albero Home, badge Attività e rami collassabili
+
+- Home carica fino a cinque famiglie complete, con principale e sottoattività autorizzate, incluse le completate pinnate. Il limite non taglia i rami.
+- Titoli dei nodi con figli sono pulsanti accessibili (aria-expanded): aprono/chiudono il ramo in Home e nell’area Attività. Stato conservato durante polling e aggiornamenti della pagina corrente.
+- Menu Attività: badge iniziale lato server e aggiornamento ogni 30 secondi, anche per operativi; somma attività aperte visibili e avvisi di esito non letti della lavorazione corrente. Mantiene gli altri conteggi nei menu antenati.
+- Endpoint GET /activities/api/badge autenticato, senza modifiche schema. Asset attività6 / menu support2.
+- Verifica: 41 test Python (13 albero + 28 attività/esiti), quattro suite Node (albero/collasso, badge/aggregazione, creazione, service worker), sintassi JS/Python, Jinja incluso navbar, head Alembic unico e logging dedicato/aggregato: OK. QA visiva browser resta da eseguire per il limite Edge già documentato.
+- Nessun deploy effettuato. Per queste sole modifiche aggiornare codice e riavviare web; resta necessaria la migrazione y0b1c2d3e4f5 se non ancora applicata per le implementazioni precedenti.

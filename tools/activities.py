@@ -295,3 +295,9 @@ def notices_data(user, limit=30):
         status=n.activity.status,action=n.event.action,note=n.event.note,created_at=n.event.created_at.isoformat())
         for n in query.options(selectinload(ActivityResultNotice.activity),selectinload(ActivityResultNotice.event))
         .order_by(ActivityResultNotice.id.desc()).limit(limit).all()])
+
+
+def badge_count(user):
+    """Open assigned activities plus unread result notices, using the same visibility rules."""
+    return (visible_query(user).filter(OperationalActivity.status.in_(ACTIVE)).count()
+            + notices_query(user).filter(ActivityResultNotice.read_at.is_(None)).count())

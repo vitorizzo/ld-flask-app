@@ -55,6 +55,8 @@ document.addEventListener("DOMContentLoaded", function () {
                 if (source === "payment_disputes") return total + Number(payload.payment_dispute_count || 0);
                 return total;
             }, 0);
+            badge.dataset.otherCount = String(value);
+            value += Number(badge.dataset.activityCount || 0);
             badge.textContent = value > 99 ? "99+" : String(value);
             badge.hidden = value <= 0;
             badge.setAttribute("aria-label", value + " elementi da gestire");
@@ -454,3 +456,14 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 
+
+(() => {
+ const nav=document.querySelector('[data-activity-badge-url]');if(!nav)return;
+ let busy=false;
+ async function refresh(){if(busy||document.hidden)return;busy=true;
+  try{const r=await fetch(nav.dataset.activityBadgeUrl,{credentials:'same-origin',cache:'no-store',headers:{Accept:'application/json'}}),data=await r.json();if(!r.ok||!data.ok)return;
+   document.querySelectorAll('[data-menu-badge-sources]').forEach(b=>{if(!(b.dataset.menuBadgeSources||'').split(',').includes('activities'))return;
+    b.dataset.activityCount=String(data.count);const count=data.count+Number(b.dataset.otherCount||0);b.textContent=count>99?'99+':String(count);b.hidden=count<=0;b.setAttribute('aria-label',count+' elementi da gestire: attività, esiti o altre segnalazioni');});
+  }catch(e){console.debug('Conteggio attività non disponibile');}finally{busy=false;}}
+ refresh();const timer=setInterval(refresh,30000);document.addEventListener('visibilitychange',refresh);window.addEventListener('pagehide',()=>clearInterval(timer),{once:true});
+})();

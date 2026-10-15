@@ -38,6 +38,22 @@ class TreeTests(unittest.TestCase):
         body=dict(title=row['title'],description=row['description'],revision=row['revision'],role_ids=row['role_ids'],user_ids=[u['id'] for u in row['users']],target_min_weight=row['target_min_weight'],result_recipients=dict(role_ids=row['result_recipients']['role_ids'],user_ids=[u['id'] for u in row['result_recipients']['users']],target_min_weight=row['result_recipients']['target_min_weight']))
         body.update(extra);return body
 
+    def test_home_families_and_badge_visibility(self):
+        parent=self.create()
+        child=self.child(parent,'Reconta home')
+        self.complete(child)
+        self.login(2)
+        summary=self.client.get('/activities/api/summary').json
+        self.assertEqual(summary['count'],1)
+        self.assertEqual({r['id'] for r in summary['rows']},{parent['id'],child['id']})
+        self.assertEqual(self.client.get('/activities/api/badge').json['count'],2)
+        notice=self.client.get('/activities/api/results').json['rows'][0]
+        self.client.post(f"/activities/api/results/{notice['id']}/read")
+        self.assertEqual(self.client.get('/activities/api/badge').json['count'],1)
+        self.login(8)
+        self.assertEqual(self.client.get('/activities/api/badge').json['count'],0)
+        self.assertEqual(self.client.get('/activities/api/summary').json['rows'],[])
+
     def test_two_children_block_parent_then_allow_complete_and_pin_in_tree(self):
         parent=self.create();self.login(2)
         a=self.child(parent,'Reconta merce');parent=self.detail(parent).json['activity']

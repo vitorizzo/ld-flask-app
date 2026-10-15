@@ -24,7 +24,7 @@
   const done=row=>['completed','not_required'].includes(row.status);
   function branch(row){
    const sub=(children.get(row.id)||[]).sort((a,b)=>Number(done(b))-Number(done(a))||(a.completed_at||'').localeCompare(b.completed_at||'')||a.id-b.id);
-   return `<li class="activity-tree-node ${done(row)&&row.parent_id?'is-pinned':''}"><div class="activity-row"><div><strong>${done(row)&&row.parent_id?'📌 ':''}${esc(row.title)}</strong><br>${status(row)}${row.owner?`<div>In carico a ${esc(row.owner)}</div>`:''}${row.description?`<p class="activity-description">${esc(row.description)}</p>`:''}<small>${esc(ActivityRecipients(row))}</small></div><button type="button" class="btn btn-info" data-open-activity="${row.id}">Apri attività</button></div>${sub.length?'<ul class="activity-tree">'+sub.map(branch).join('')+'</ul>':''}</li>`;
+   return `<li class="activity-tree-node ${done(row)&&row.parent_id?'is-pinned':''}"><div class="activity-row"><div>${ActivityTree.title(row,(done(row)&&row.parent_id?'📌 ':'')+esc(row.title),sub.length)}<br>${status(row)}${row.owner?`<div>In carico a ${esc(row.owner)}</div>`:''}${row.description?`<p class="activity-description">${esc(row.description)}</p>`:''}<small>${esc(ActivityRecipients(row))}</small></div><button type="button" class="btn btn-info" data-open-activity="${row.id}">Apri attività</button></div>${sub.length?'<ul class="activity-tree"'+ActivityTree.hidden(row.id)+'>'+sub.map(branch).join('')+'</ul>':''}</li>`;
   }
   return roots.map(row=>'<article class="activity-group">'+(row.source?`<h2>${esc(row.source.label)}</h2><p>${esc(row.source.reference)} · Ricevuta ${esc(date(row.source.received_on))}</p>`:'')+'<ul class="activity-tree">'+branch(row)+'</ul></article>').join('');
  }

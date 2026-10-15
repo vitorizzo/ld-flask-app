@@ -1,0 +1,14 @@
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const source=readFileSync('static/js/menu.js','utf8');
+const badge={dataset:{menuBadgeSources:'activities,support',activityCount:'2',otherCount:'3'},setAttribute(){}};
+const leaf={dataset:{menuBadgeSources:'activities',activityCount:'2',otherCount:'0'},setAttribute(){}};
+const context={document:{hidden:false,querySelector:()=>({dataset:{activityBadgeUrl:'/activities/api/badge'}}),querySelectorAll:()=>[badge,leaf],addEventListener(){}},window:{addEventListener(){}},fetch:async()=>({ok:true,json:async()=>({ok:true,count:4})}),setInterval(){},clearInterval(){},console};
+vm.createContext(context);
+vm.runInContext(source.slice(source.indexOf('    function updateStaffMenuBadges('),source.indexOf('    async function loadSupportUnreadCount(')),context);
+context.updateStaffMenuBadges({support_count:3});assert.equal(badge.textContent,'5');assert.equal(leaf.textContent,'2');
+vm.runInContext(source.slice(source.lastIndexOf('(() => {')),context);
+await new Promise(resolve=>setImmediate(resolve));assert.equal(badge.textContent,'7');assert.equal(leaf.textContent,'4');
+context.updateStaffMenuBadges({support_count:1});assert.equal(badge.textContent,'5');assert.equal(leaf.textContent,'4');
+console.log('PASS: activity badge polling and ancestor aggregation preserve other menu counts');

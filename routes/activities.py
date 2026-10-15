@@ -159,7 +159,24 @@ def manual_create():
 @login_required
 def summary():
     query=activity_query(current_user).filter(OperationalActivity.status.in_(ACTIVE))
-    return jsonify(ok=True,count=query.count(),rows=[activity_data(row,current_user) for row in query.order_by(OperationalActivity.created_at,OperationalActivity.id).limit(5).all()],manager=manager(current_user),sees_all=sees_all(current_user),results=notices_data(current_user,5))
+    matched={i for i, in query.with_entities(OperationalActivity.id).all()}
+    parents=dict(visible_query(current_user,include_results=True).with_entities(OperationalActivity.id,OperationalActivity.parent_id).all())
+    def root_id(i):
+        visited=set()
+        while parents.get(i) in parents and i not in visited:
+            visited.add(i);i=parents[i]
+        return i
+    roots=set(sorted({root_id(i) for i in matched})[:5])
+    ids=[i for i in parents if root_id(i) in roots]
+    rows=activity_query(current_user).filter(OperationalActivity.id.in_(ids)).order_by(OperationalActivity.created_at,OperationalActivity.id).all()
+    return jsonify(ok=True,count=len(matched),rows=[activity_data(row,current_user) for row in rows],manager=manager(current_user),sees_all=sees_all(current_user),results=notices_data(current_user,5))
+
+
+@activities_bp.get('/api/badge')
+@login_required
+def badge():
+    from tools.activities import badge_count
+    return jsonify(ok=True,count=badge_count(current_user))
 
 
 @activities_bp.get('/api/<int:activity_id>')
