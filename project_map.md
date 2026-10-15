@@ -1,3 +1,10 @@
+## Attività ad albero, archivio e modifica (2026-10-15)
+
+- OperationalActivity.parent_id/parent/children e migrazione y0b1c2d3e4f5: FK auto-referenziata RESTRICT, indice e compatibilità create_all. tools/activities.py: lettura discendente con CTE, permessi edit separati dai soli esiti, lock famiglia e blocco dipendenze; avvisi esito estesi agli incaricati principali e alle correzioni dopo chiusura.
+- routes/activities.py: PUT /api/<id> per titolo/descrizione/incaricati/destinatari con revisione/audit/notifiche; creazione figlia parent_id/parent_revision e copia selettiva allegati/foto; assignees autorizzato per Staff incaricato della principale. Elenco paginato per alberi completi. Dettaglio espone children/blocked_children/parent_visible/can_edit/can_create_child.
+- activity_create.js riusa form e picker per creazione/edit/figlie, mantiene soglie anche personalizzate e serializza transizioni modali; activities.js mostra archivio, modifica, dipendenze e albero con rami completati pinnati. Template activities/index.html e CSS activities5, senza variazioni al tema condiviso. tools/activity_results.py distingue push per correzioni completate.
+- tests/test_activity_tree.py (12casi), test_activity_tree.mjs e test_activity_create.mjs esteso. Uso, permessi e deploy in docs/activity_results.md; nessuna nuova dipendenza.
+
 ## Esiti attività e allegati; codici fornitore facoltativi (2026-10-15)
 
 - models.py: OperationalActivity.result_min_weight/creation_files_digest, ActivityResultRole/User, ActivityAttachment (blob differito), ActivityResultNotice (evento/utente univoco, lettura/push). Migrazione x9a0b1c2d3e4 compatibile create_all. tools/activities.py separa lettura esiti e permessi incaricati, risolve utenti/ruoli/soglia alla chiusura e crea avvisi nella stessa transazione; tools/activity_files.py riusa validatori fornitori per file privati/digest.

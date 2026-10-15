@@ -1,0 +1,11 @@
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+const source=readFileSync('static/js/activities.js','utf8');
+const fn=source.slice(source.indexOf(' function groupRows(rows) {'),source.indexOf(' async function load('));
+const context={esc:s=>String(s).replaceAll('<','&lt;').replaceAll('>','&gt;'),status:r=>r.status,ActivityRecipients:()=>''};
+vm.createContext(context);vm.runInContext(fn,context);
+const html=context.groupRows([{id:1,title:'Reso <script>',status:'pending'},{id:2,parent_id:1,title:'Aperta',status:'in_progress'},{id:3,parent_id:1,title:'Finita',status:'completed',completed_at:'2026-10-15T10:00:00'},{id:4,parent_id:3,title:'Nipote',status:'not_required'}]);
+assert.equal((html.match(/<article/g)||[]).length,1);assert.ok(html.indexOf('Finita')<html.indexOf('Aperta'),'completed subactivities pinned first');assert.ok(html.includes('is-pinned'));assert.ok(html.includes('Nipote'));assert.ok(!html.includes('<script>'));assert.equal((html.match(/data-open-activity/g)||[]).length,4);
+const orphan=context.groupRows([{id:9,parent_id:99,title:'Incarico riservato',status:'pending'}]);assert.ok(orphan.includes('data-open-activity="9"'));assert.ok(!orphan.includes('99'),'hidden parent not rendered');
+console.log('PASS: nested activity tree, completed pins, safe labels and hidden ancestor');

@@ -1131,6 +1131,8 @@ class OperationalActivity(db.Model):
     target_min_weight = db.Column(db.Integer, nullable=True)
     result_min_weight = db.Column(db.Integer, nullable=True)
     creation_files_digest = db.Column(db.String(64), nullable=True)
+    parent_id = db.Column(db.Integer, db.ForeignKey('operational_activities.id', ondelete='RESTRICT',name='fk_activity_parent'), nullable=True, index=True)
+    parent = db.relationship('OperationalActivity', remote_side='OperationalActivity.id', backref='children')
     status = db.Column(db.String(20), nullable=False, default='pending', index=True)
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
     revision = db.Column(db.Integer, nullable=False, default=1)

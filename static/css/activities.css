@@ -58,3 +58,5 @@ body.activity-modal-open .modal-backdrop.show { z-index: 12100 !important; }
 .activity-results h2, .activity-results .btn-link, .home-activities h3 { color: var(--ld-brand-primary); }
 .activity-results p { white-space: pre-wrap; }
 .activity-modal input[type="file"] { width: 100%; max-width: 100%; min-width: 0; }
+
+.activity-tree{list-style:none;padding-left:clamp(.4rem,2vw,1.3rem);margin:0}.activity-tree .activity-tree{border-left:2px solid var(--ld-brand-accent);margin-left:.4em}.activity-tree-node{min-width:0}.activity-tree-node.is-pinned>.activity-row{border-left:3px solid var(--ld-brand-accent);padding-left:.6em}

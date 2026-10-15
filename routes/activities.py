@@ -10,7 +10,7 @@ from extensions import db
 from models import (AppPreference, OperationalActivity, ActivityPhoto, SupplierArrival, SupplierBoardCard, Role, User, UserRole, ActivityAttachment, ActivityResultNotice)
 from tools.activities import (ACTIVE,CLOSED,CONFIG_KEY,manager,visible_query,activity_query,activity_data,
                               routing_data,validate_rules,transition,create_arrival,add_event,
-                              operational_users,actor_name,manual_payload,manual_matches,create_manual,sees_all,notices_data,notices_query,logger)
+                              operational_users,actor_name,manual_payload,manual_matches,create_manual,sees_all,notices_data,notices_query,logger,lock_family,can_edit)
 from tools.activity_photos import store_photo, photo_path
 from tools.activity_files import prepare_files, files_digest, attach_files
 
@@ -27,8 +27,9 @@ def error(message,status=400):
 
 
 def locked_activity(activity_id,revision):
-    row=visible_query(current_user).filter_by(id=activity_id).with_for_update().first()
-    if row is None: abort(404)
+    lock_family(activity_id)
+    row=visible_query(current_user,include_results=manager(current_user)).filter_by(id=activity_id).populate_existing().with_for_update().first()
+    if row is None or (not visible_query(current_user).filter_by(id=activity_id).first() and not can_edit(row,current_user)): abort(404)
     if type(revision) is not int or revision!=row.revision: return row,error('L’attività è cambiata. Aggiorna il dettaglio.',409)
     return row,None
 
@@ -54,7 +55,17 @@ def activity_list():
     if request.args.get('arrival'):
         try: query=query.filter(OperationalActivity.arrival_id==int(request.args['arrival']))
         except ValueError: return error('Arrivo non valido.')
-    total=query.count();rows=query.order_by(OperationalActivity.created_at,OperationalActivity.id).offset((page-1)*30).limit(30).all()
+    matched={i for i, in query.with_entities(OperationalActivity.id).all()}
+    parents=dict(visible_query(current_user,include_results=True).with_entities(OperationalActivity.id,OperationalActivity.parent_id).all())
+    def root_id(i):
+        visited=set()
+        while parents.get(i) in parents and i not in visited:
+            visited.add(i);i=parents[i]
+        return i
+    roots=sorted({root_id(i) for i in matched})
+    total=len(roots);selected_roots=set(roots[(page-1)*30:page*30])
+    ids=[i for i in parents if root_id(i) in selected_roots]
+    rows=activity_query(current_user).filter(OperationalActivity.id.in_(ids)).order_by(OperationalActivity.created_at,OperationalActivity.id).all()
     counts=dict(visible_query(current_user).with_entities(OperationalActivity.status,func.count(OperationalActivity.id)).group_by(OperationalActivity.status).all())
     return jsonify(ok=True,rows=[activity_data(row,current_user) for row in rows],counts=counts,total=total,page=page,pages=(total+29)//30,manager=manager(current_user),sees_all=sees_all(current_user))
 
@@ -62,7 +73,11 @@ def activity_list():
 @activities_bp.get('/api/assignees')
 @login_required
 def assignees():
-    office()
+    if not manager(current_user):
+        try: parent_id=int(request.args.get('parent_id',''))
+        except ValueError: abort(403)
+        parent=visible_query(current_user).filter_by(id=parent_id).first()
+        if not parent or parent.status not in ACTIVE: abort(403)
     roles = Role.query.filter(Role.weight >= 30).order_by(Role.weight, Role.name).all()
     query = operational_users()
     if request.args.get('role_id'):
@@ -81,23 +96,53 @@ def assignees():
 @activities_bp.post('/api')
 @login_required
 def manual_create():
-    office()
+    parent=None
     try:
         if request.mimetype == 'multipart/form-data':
             if request.headers.get('X-Requested-With') != 'XMLHttpRequest': return error('Usa l’area Attività.',403)
             raw = json.loads(request.form.get('data',''))
         else: raw = request.get_json(silent=True)
         payload = manual_payload(raw)
+        parent_id=raw.get('parent_id')
+        if parent_id is not None:
+            if type(parent_id) is not int: raise ValueError('Attività principale non valida.')
+            lock_family(parent_id)
+            parent=visible_query(current_user,include_results=manager(current_user)).filter_by(id=parent_id).populate_existing().with_for_update().first()
+            if not parent or (not visible_query(current_user).filter_by(id=parent_id).first() and not can_edit(parent,current_user)): abort(404)
+            if parent.status not in ACTIVE: raise ValueError('Riapri l’attività principale prima di aggiungere sottoattività.')
+            if parent.owner_id and parent.owner_id!=current_user.id and not manager(current_user): abort(403)
+            depth=0;ancestor=parent
+            while ancestor:
+                depth+=1
+                ancestor=db.session.get(OperationalActivity,ancestor.parent_id) if ancestor.parent_id else None
+            if depth>=8: raise ValueError('Massimo otto livelli di sottoattività.')
+            payload['parent_id']=parent_id
+        else: office()
         files = prepare_files(request.files.getlist('files'))
+        shared=raw.get('share_attachment_ids',[]);photos=raw.get('share_photo_ids',[])
+        if any(not isinstance(values,list) or len(values)>10 or any(type(v) is not int for v in values) or len(set(values))!=len(values) for values in [shared,photos]):
+            raise ValueError('Allegati condivisi non validi.')
+        if (shared or photos) and not parent: raise ValueError('La condivisione richiede un’attività principale.')
+        if parent:
+            available={f.id:f for f in parent.attachments};available_photos={f.id:f for f in parent.photos}
+            if not set(shared)<=available.keys() or not set(photos)<=available_photos.keys(): raise ValueError('Allegato non appartenente all’attività principale.')
+            files.extend(dict(filename=available[i].filename,mimetype=available[i].mimetype,size=available[i].size,content=available[i].content) for i in shared)
+            for i in photos:
+                content=photo_path(available_photos[i].storage_name).read_bytes()
+                files.append(dict(filename=f'foto-lotto-{i}.jpg',mimetype='image/jpeg',size=len(content),content=content))
         payload['files_digest'] = files_digest(files)
     except (ValueError, TypeError) as exc: return error(str(exc))
     row = OperationalActivity.query.filter_by(client_key=payload['client_key']).first()
     replayed = row is not None
     if row and not manual_matches(row, payload): return error('La richiesta è già stata usata con dati diversi.', 409)
     if not row:
+        if parent and (type(raw.get('parent_revision')) is not int or raw['parent_revision']!=parent.revision): return error('Attività principale cambiata. Aggiorna la scheda.',409)
         try:
             row = create_manual(payload, current_user)
             attach_files(row, files, 'instructions')
+            if parent:
+                parent.revision+=1;add_event(parent,current_user,'child_created',payload['title'])
+                add_event(row,current_user,'linked',f'Sottoattività di #{parent.id}; allegati condivisi: {len(shared)+len(photos)}')
         except ValueError as exc:
             db.session.rollback();return error(str(exc))
         try: db.session.commit()
@@ -314,3 +359,59 @@ def delete_attachment(attachment_id):
     db.session.expire(row,['attachments'])
     logger.info('Activity file removed id=%s attachment=%s actor=%s',row.id,attachment_id,current_user.id)
     return jsonify(ok=True,activity=activity_data(row,current_user,True))
+
+
+@activities_bp.put('/api/<int:activity_id>')
+@login_required
+def edit_activity(activity_id):
+    payload=request.get_json(silent=True)
+    if not isinstance(payload,dict): return error('Dati non validi.')
+    lock_family(activity_id)
+    row=visible_query(current_user,include_results=True).filter_by(id=activity_id).populate_existing().with_for_update().first_or_404()
+    if not can_edit(row,current_user): abort(403)
+    if type(payload.get('revision')) is not int or payload['revision']!=row.revision: return error('Attività cambiata. Aggiorna il dettaglio.',409)
+    try:
+        # Use the creation validator and the same active recipient validation.
+        normalized=manual_payload({**payload,'client_key':'edit-validation-key'})
+        from tools.activities import validate_manual_targets
+        validate_manual_targets(normalized)
+        before=dict(title=row.title,description=row.description,roles=sorted(t.role_id for t in row.targets),users=sorted(t.user_id for t in row.user_targets),weight=row.target_min_weight,
+            result_roles=sorted(t.role_id for t in row.result_roles),result_users=sorted(t.user_id for t in row.result_users),result_weight=row.result_min_weight)
+        after=dict(title=normalized['title'],description=normalized['description'],roles=normalized['role_ids'],users=normalized['user_ids'],weight=normalized['target_min_weight'],
+            result_roles=normalized['result_recipients']['role_ids'],result_users=normalized['result_recipients']['user_ids'],result_weight=normalized['result_recipients']['target_min_weight'])
+        if before==after: return jsonify(ok=True,activity=activity_data(row,current_user,True))
+        previous={n.user_id for n in row.result_notices if n.cycle==row.cycle} if row.status in CLOSED else set()
+        row.title=after['title'];row.description=after['description']
+        from models import ActivityTargetRole, ActivityTargetUser, ActivityResultRole, ActivityResultUser
+        for relation,model,key,values in [('targets',ActivityTargetRole,'role_id',after['roles']),('user_targets',ActivityTargetUser,'user_id',after['users']),('result_roles',ActivityResultRole,'role_id',after['result_roles']),('result_users',ActivityResultUser,'user_id',after['result_users'])]:
+            existing={getattr(item,key):item for item in getattr(row,relation)}
+            getattr(row,relation)[:]=[existing[v] if v in existing else model(**{key:v}) for v in values]
+        row.target_min_weight=after['weight'];row.result_min_weight=after['result_weight'];row.revision+=1
+        changes=[name for name in before if before[name]!=after[name]]
+        labels=dict(title='Titolo',description='Descrizione',roles='Ruoli incaricati',users='Utenti incaricati',weight='Peso minimo incaricati',result_roles='Ruoli destinatari',result_users='Utenti destinatari',result_weight='Peso minimo destinatari')
+        role_ids=set(before['roles']+before['result_roles']+after['roles']+after['result_roles'])
+        user_ids=set(before['users']+before['result_users']+after['users']+after['result_users'])
+        role_names={r.id:r.name for r in Role.query.filter(Role.id.in_(role_ids)).all()}
+        user_names={u.id:actor_name(u) for u in User.query.filter(User.id.in_(user_ids)).all()}
+        def describe(data):
+            parts=[]
+            for field in changes:
+                value=data[field]
+                if field in ('roles','result_roles'): value=', '.join(role_names.get(i,str(i)) for i in value) or 'Nessuno'
+                if field in ('users','result_users'): value=', '.join(user_names.get(i,str(i)) for i in value) or 'Nessuno'
+                parts.append(labels[field]+': '+str(value if value is not None else 'Nessuno'))
+            return '\n'.join(parts)
+        add_event(row,current_user,'updated','Modificati: '+', '.join(labels[k] for k in changes)+'\nPrima:\n'+describe(before)+'\nDopo:\n'+describe(after))
+        if row.status in CLOSED:
+            from tools.activities import create_result_notices
+            create_result_notices(row,previous)
+        db.session.commit()
+        if row.status in CLOSED:
+            try:
+                from tools.activity_results import enqueue_results
+                enqueue_results()
+            except Exception: logger.exception('Activity update push enqueue failed id=%s',row.id)
+        logger.info('Activity updated id=%s actor=%s fields=%s',row.id,current_user.id,changes)
+        return jsonify(ok=True,activity=activity_data(row,current_user,True))
+    except ValueError as exc:
+        db.session.rollback();return error(str(exc))

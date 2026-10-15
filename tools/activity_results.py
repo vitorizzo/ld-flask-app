@@ -20,7 +20,7 @@ def dispatch_results():
             notice.push_sent_at=datetime.utcnow();db.session.commit();continue
         try:
             subscriptions=PushSubscription.query.filter_by(user_id=notice.user_id,is_active=True).all()
-            result=send_push_to_subscriptions(subscriptions,dict(title='Esito attività',body=row.title+' · '+{'completed':'Completata','not_required':'Non necessario','cancelled':'Annullata'}.get(row.status,row.status),
+            result=send_push_to_subscriptions(subscriptions,dict(title='Attività completata modificata' if notice.event.action=='updated' else 'Esito attività',body=row.title+' · '+{'completed':'Completata','not_required':'Non necessario','cancelled':'Annullata'}.get(row.status,row.status),
                 url=f'/activities?activity={row.id}',category='activity',tag=f'activity-result-{notice.id}',
                 notification_id=f'activity-result-{notice.id}',icon='/static/icons/icon-192.png'),commit=False)
             if not result['failed']:

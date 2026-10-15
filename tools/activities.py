@@ -1,7 +1,7 @@
 """Shared operational work, role visibility and supplier-arrival workflows."""
 from datetime import datetime
 from flask import current_app
-from sqlalchemy import func
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 from extensions import db
 from models import (AppPreference, Role, User, UserRole, OperationalActivity, ActivityTargetRole, ActivityTargetUser,
@@ -24,7 +24,7 @@ def sees_all(user):
     return (user.max_role_weight or 0) >= 900
 
 
-def visible_query(user, include_results=False):
+def assigned_query(user):
     query = OperationalActivity.query
     if not sees_all(user):
         ids = [role.id for role in user.active_roles]
@@ -34,9 +34,36 @@ def visible_query(user, include_results=False):
             ActivityTargetUser.activity_id == OperationalActivity.id, ActivityTargetUser.user_id == user.id).exists() |
             (OperationalActivity.target_min_weight.isnot(None) &
              (OperationalActivity.target_min_weight <= (user.max_role_weight or 0))))
-    if include_results and not sees_all(user):
-        return OperationalActivity.query.filter(OperationalActivity.id.in_(query.with_entities(OperationalActivity.id)) | result_access(user))
     return query
+
+
+def family_ids(user):
+    tree=assigned_query(user).with_entities(OperationalActivity.id).cte(name='readable_family',recursive=True)
+    tree=tree.union_all(select(OperationalActivity.id).where(OperationalActivity.parent_id==tree.c.id))
+    return select(tree.c.id)
+
+
+def visible_query(user, include_results=False):
+    if not include_results: return assigned_query(user)
+    if sees_all(user): return OperationalActivity.query
+    return OperationalActivity.query.filter(OperationalActivity.id.in_(family_ids(user)) | result_access(user))
+
+
+def can_edit(row,user):
+    return manager(user) and (sees_all(user) or OperationalActivity.query.filter(OperationalActivity.id==row.id,OperationalActivity.id.in_(family_ids(user))).first() is not None)
+
+
+def lock_family(activity_id):
+    row=db.session.get(OperationalActivity,activity_id)
+    if row is None: return
+    chain=[]
+    while row is not None:
+        if row.id in chain: raise ValueError('Gerarchia attività non valida.')
+        chain.append(row.id)
+        row=db.session.get(OperationalActivity,row.parent_id) if row.parent_id else None
+    # One root lock serializes creation, completion and reopening throughout a tree.
+    OperationalActivity.query.filter_by(id=chain[-1]).populate_existing().with_for_update().first()
+
 
 
 def result_access(user):
@@ -63,17 +90,26 @@ def activity_data(row, user, detail=False):
     arrival = row.arrival
     active_role_ids = {role.id for role in user.active_roles}
     executor = sees_all(user) or any(t.role_id in active_role_ids for t in row.targets) or any(t.user_id == user.id for t in row.user_targets) or (row.target_min_weight is not None and row.target_min_weight <= (user.max_role_weight or 0))
+    editable=can_edit(row,user)
     data = dict(id=row.id,title=row.title,kind=row.kind,status=row.status,revision=row.revision,cycle=row.cycle,
+        parent_id=row.parent_id,can_edit=editable,
+        can_create_child=(executor or editable) and row.status in ACTIVE and (not row.owner_id or row.owner_id==user.id or manager(user)),
         description=row.description,users=[dict(id=target.user_id,name=actor_name(target.user)) for target in row.user_targets if target.user],
         target_min_weight=row.target_min_weight,
         result_recipients=dict(roles=[t.role.name for t in row.result_roles if t.role], users=[dict(id=t.user_id,name=actor_name(t.user)) for t in row.result_users if t.user], target_min_weight=row.result_min_weight),
         owner_id=row.owner_id,owner=actor_name(row.owner) if row.owner_id else None,
         roles=[target.role.name for target in row.targets if target.role], created_at=row.created_at.isoformat(),
         completed_at=row.completed_at.isoformat() if row.completed_at else None,
-        can_manage=executor and manager(user),can_act=executor and (not row.owner_id or row.owner_id==user.id or manager(user)),
+        can_manage=editable,can_act=(executor or editable) and (not row.owner_id or row.owner_id==user.id or manager(user)),
         source=dict(id=arrival.id,label=arrival.label,reference=arrival.reference,received_on=arrival.received_on.isoformat(),
                     partial=arrival.partial,note=arrival.note,card_id=arrival.card_id) if arrival else None)
     if detail:
+        data['role_ids'] = [t.role_id for t in row.targets]
+        data['result_recipients']['role_ids'] = [t.role_id for t in row.result_roles]
+        child_rows=visible_query(user,include_results=True).filter_by(parent_id=row.id).order_by(OperationalActivity.completed_at.desc(),OperationalActivity.id).all()
+        data['children']=[dict(id=c.id,title=c.title,status=c.status,completed_at=c.completed_at.isoformat() if c.completed_at else None) for c in child_rows]
+        data['blocked_children']=OperationalActivity.query.filter_by(parent_id=row.id).filter(~OperationalActivity.status.in_(('completed','not_required'))).count()
+        data['parent_visible']=bool(row.parent_id and visible_query(user,include_results=True).filter_by(id=row.parent_id).first())
         data['attachments'] = [dict(id=f.id,filename=f.filename,mimetype=f.mimetype,size=f.size,cycle=f.cycle,purpose=f.purpose,url=f'/activities/api/attachments/{f.id}') for f in row.attachments]
         data['events'] = [dict(id=event.id,action=event.action,note=event.note,actor=actor_name(event.actor),created_at=event.created_at.isoformat()) for event in row.events]
         data['photos'] = [dict(id=photo.id,label=photo.label,cycle=photo.cycle,url=f'/activities/api/photos/{photo.id}') for photo in row.photos]
@@ -131,17 +167,22 @@ def manual_payload(payload):
 
 
 def manual_matches(row, payload):
-    return row.title == payload['title'] and row.description == payload['description'] and sorted(t.role_id for t in row.targets) == payload['role_ids'] and sorted(t.user_id for t in row.user_targets) == payload['user_ids'] and row.target_min_weight == payload['target_min_weight'] and sorted(t.role_id for t in row.result_roles) == payload['result_recipients']['role_ids'] and sorted(t.user_id for t in row.result_users) == payload['result_recipients']['user_ids'] and row.result_min_weight == payload['result_recipients']['target_min_weight'] and row.creation_files_digest == payload.get('files_digest')
+    return row.title == payload['title'] and row.description == payload['description'] and sorted(t.role_id for t in row.targets) == payload['role_ids'] and sorted(t.user_id for t in row.user_targets) == payload['user_ids'] and row.target_min_weight == payload['target_min_weight'] and sorted(t.role_id for t in row.result_roles) == payload['result_recipients']['role_ids'] and sorted(t.user_id for t in row.result_users) == payload['result_recipients']['user_ids'] and row.result_min_weight == payload['result_recipients']['target_min_weight'] and row.creation_files_digest == payload.get('files_digest') and row.parent_id == payload.get('parent_id')
 
 
-def create_manual(payload, user):
+def validate_manual_targets(payload):
     result = payload['result_recipients']
     roles = sorted(set(payload['role_ids'] + result['role_ids']))
     users = sorted(set(payload['user_ids'] + result['user_ids']))
     valid_roles = {role.id for role in Role.query.filter(Role.weight >= 30, Role.id.in_(roles)).all()}
     valid_users = {row.id for row in operational_users().filter(User.id.in_(users)).all()}
     if set(roles) != valid_roles or set(users) != valid_users: raise ValueError('Scegli ruoli e utenti operativi attivi. Aggiorna i destinatari.')
-    row = OperationalActivity(kind='manual', title=payload['title'], description=payload['description'], client_key=payload['client_key'], target_min_weight=payload['target_min_weight'])
+
+
+def create_manual(payload, user):
+    validate_manual_targets(payload)
+    result=payload['result_recipients']
+    row = OperationalActivity(parent_id=payload.get('parent_id'),kind='manual', title=payload['title'], description=payload['description'], client_key=payload['client_key'], target_min_weight=payload['target_min_weight'])
     row.targets = [ActivityTargetRole(role_id=value) for value in payload['role_ids']]
     row.user_targets = [ActivityTargetUser(user_id=value) for value in payload['user_ids']]
     row.result_roles = [ActivityResultRole(role_id=value) for value in result['role_ids']]
@@ -177,6 +218,10 @@ def transition(row, user, action, note):
     if action in ('reopen','cancel') and not manager(user): raise PermissionError('Operazione riservata all’ufficio.')
     if action not in ('reopen','cancel') and row.owner_id and row.owner_id != user.id and not manager(user):
         raise PermissionError('L’attività è già in carico a un’altra persona.')
+    if action=='reopen' and row.parent_id and db.session.get(OperationalActivity,row.parent_id).status in CLOSED:
+        raise ValueError('Riapri prima l’attività principale.')
+    if action in ('complete','not_required') and OperationalActivity.query.filter_by(parent_id=row.id).filter(~OperationalActivity.status.in_(('completed','not_required'))).first():
+        raise ValueError('Attendi gli esiti di tutte le sottoattività prima di completare questa attività.')
     if action=='reopen':
         if row.status not in CLOSED or not note: raise ValueError('Motiva la riapertura di un’attività chiusa.')
         row.status='pending';row.owner_id=None;row.completed_at=None;row.cycle+=1
@@ -218,16 +263,21 @@ def create_arrival(card, payload, user, received_on):
     return arrival
 
 
-def create_result_notices(row):
+def create_result_notices(row, extra_user_ids=()):
     """Resolve exact roles, explicit users and minimum weight at completion."""
     db.session.flush()
     role_ids = {t.role_id for t in row.result_roles}
-    user_ids = {t.user_id for t in row.result_users}
+    user_ids = {t.user_id for t in row.result_users} | set(extra_user_ids)
+    if row.parent_id:
+        parent=db.session.get(OperationalActivity,row.parent_id)
+        parent_roles={t.role_id for t in parent.targets}
+        user_ids.update(t.user_id for t in parent.user_targets)
+    else: parent=None;parent_roles=set()
     now = datetime.now()
     memberships = db.session.query(UserRole.user_id, UserRole.role_id, Role.weight).join(Role).filter(
         (UserRole.valid_from.is_(None) | (UserRole.valid_from <= now)),
         (UserRole.valid_until.is_(None) | (UserRole.valid_until >= now))).all()
-    user_ids.update(uid for uid, rid, weight in memberships if rid in role_ids or (row.result_min_weight is not None and weight >= row.result_min_weight))
+    user_ids.update(uid for uid, rid, weight in memberships if rid in role_ids or (row.result_min_weight is not None and weight >= row.result_min_weight) or rid in parent_roles or (parent is not None and parent.target_min_weight is not None and weight>=parent.target_min_weight))
     for uid in user_ids:
         db.session.add(ActivityResultNotice(activity_id=row.id,event_id=row.events[-1].id,user_id=uid,cycle=row.cycle))
     logger.info('Activity result id=%s event=%s recipients=%s', row.id, row.events[-1].id, len(user_ids))
@@ -242,6 +292,6 @@ def notices_query(user):
 def notices_data(user, limit=30):
     query = notices_query(user).filter(ActivityResultNotice.read_at.is_(None))
     return dict(count=query.count(), rows=[dict(id=n.id,activity_id=n.activity_id,title=n.activity.title,
-        status=n.activity.status,note=n.event.note,created_at=n.event.created_at.isoformat())
+        status=n.activity.status,action=n.event.action,note=n.event.note,created_at=n.event.created_at.isoformat())
         for n in query.options(selectinload(ActivityResultNotice.activity),selectinload(ActivityResultNotice.event))
         .order_by(ActivityResultNotice.id.desc()).limit(limit).all()])
