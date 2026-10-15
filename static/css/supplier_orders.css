@@ -551,3 +551,15 @@ html[data-responsive-mode="mobile"] .supplier-product-list { min-height: 10em; m
 html[data-responsive-mode="mobile"] .supplier-product-panel-header { flex-wrap: wrap; }
 html[data-responsive-mode="mobile"] .supplier-operational-row, html[data-responsive-mode="mobile"] .supplier-variant-row { gap: .6em; }
 .supplier-group-row[hidden] { display: none !important; }
+
+/* Product settings remain a readable table, with horizontal scrolling on small screens. */
+.supplier-settings-table-wrap { max-width:100%; overflow-x:auto; }
+.supplier-settings-table { width:100%; min-width:42em; table-layout:fixed; --bs-table-color:var(--ld-brand-primary); --bs-table-bg:var(--ld-surface); --bs-table-border-color:color-mix(in srgb,var(--ld-brand-primary) 20%,var(--ld-surface)); }
+.supplier-settings-table th { background:var(--ld-brand-primary); color:var(--ld-text); }
+.supplier-settings-table th:nth-child(1) { width:40%; }
+.supplier-settings-table th:nth-child(2) { width:20%; }
+.supplier-settings-table th:nth-child(3) { width:25%; }
+.supplier-settings-table th:nth-child(4) { width:15%; }
+.supplier-settings-table td { vertical-align:top; overflow-wrap:anywhere; }
+.supplier-settings-table label { display:block; width:100%; }
+.supplier-settings-table input { width:100%; min-width:0; }

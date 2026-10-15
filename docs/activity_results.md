@@ -60,3 +60,13 @@ Deploy: backup, pull, flask --app app db upgrade fino a y0b1c2d3e4f5 e riavvio w
 - Home e Attività mostrano “Notifiche attività”; badge include tutti gli avvisi non letti. Restano consultabili e inviabili anche gli avvisi di cicli precedenti. La ricevuta dà lettura del ciclo corrente, senza nuovi permessi di modifica; un destinatario rimosso non accede ai cicli successivi. Link e URL push rispettano questa visibilità.
 - Nessun backfill degli eventi storici privi di avviso, nessuna nuova migrazione. Asset attività7. Al deploy riavviare web e worker notifiche; mantenere Beat attivo per recupero periodico. Le migrazioni precedenti fino a y0b1c2d3e4f5 restano necessarie se ancora da applicare. Nessun deploy eseguito da questa sessione.
 - Verifica: 48 test Python (28 attività/esiti, 13 albero, 7 nuovi eventi), 5 suite Node (creazione, albero/collasso, badge, notifiche UI, service worker), sintassi, Jinja, head Alembic unico e logging dedicato/aggregato: OK. QA visiva e push su dispositivo reale non eseguite; limite Edge già documentato.
+
+
+## 2026-10-15 — Modale tabellare codici fornitore
+
+- In Gestisci prodotti, “Definisci codice fornitore / descrizione” apre una modale dedicata al posto della fisarmonica con selezione a tendina.
+- Tabella: descrizione prodotto (con descrizione PDF facoltativa), codice interno/matrice con elenco varianti, codice fornitore facoltativo e Salva per riga. Una riga per matrice, coerente con la condivisione dei dati tra varianti. Salvataggio tramite endpoint product-settings esistente, senza modifiche backend/schema.
+- Passaggio fra modali serializzato dopo hidden.bs.modal, entrambe montate nel body; ritorno al gruppo corrente senza reload intermedio. Handler e pulsanti ripristinati alla riapertura, chiusura bloccata durante salvataggio e conferma per scartare modifiche reali non salvate. Il salvataggio di una riga conserva gli altri campi modificati.
+- Tabella con scorrimento orizzontale su schermi piccoli, colori e dimensioni del tema condiviso; asset settings2.
+- Verifica: suite Node dedicata (raggruppamento varianti, codice vuoto, salvataggio, errori, modifiche pendenti, chiusura/riapertura), 7 test Python workflow ordini, sintassi JS, Jinja/ID univoco e git diff --check: OK. Verifica visiva nel browser non eseguita per il limite Edge già documentato.
+- Nessuna migrazione o deploy eseguito. Aggiornare codice e riavviare web per attivare questa modifica.

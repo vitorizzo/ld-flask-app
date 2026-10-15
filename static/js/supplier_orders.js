@@ -186,22 +186,59 @@
     option.setAttribute("aria-selected", selected ? "true" : "false");
   }
 
-  const settingsPanel=document.getElementById('supplierProductSettings'),settingsMatrix=document.getElementById('supplierSettingsMatrix'),settingsSave=document.getElementById('supplierProductSettingsSave');
-  function settingsFields(){const row=groupItems.find(item=>item.root===settingsMatrix.value);document.getElementById('supplierSettingsCode').value=row?.supplier_code||'';document.getElementById('supplierSettingsDescription').value=row?.order_description||'';settingsSave.disabled=subgroupBusy||!row;}
-  settingsMatrix.onchange=settingsFields;
-  document.getElementById('supplierProductSettingsOpen').onclick=()=>{settingsPanel.hidden=!settingsPanel.hidden;if(!settingsPanel.hidden)settingsFields();};
-  async function saveProductSettings(){
-   if(subgroupBusy||!settingsMatrix.value)return;
-   const data={matrix_code:settingsMatrix.value,supplier_code:document.getElementById('supplierSettingsCode').value,order_description:document.getElementById('supplierSettingsDescription').value};
-   settingsPanel.disabled=true;
-   try{await subgroupRequest('product-settings','POST',data);}finally{settingsPanel.disabled=false;settingsSave.disabled=subgroupBusy||!settingsMatrix.value;}
+  const settingsNode=document.getElementById('supplierProductSettingsModal');
+  const settingsModal=modals.get('#supplierProductSettingsModal');
+  const settingsRows=document.getElementById('supplierSettingsRows');
+  const settingsStatus=document.getElementById('supplierSettingsStatus');
+  let settingsTransition=false,settingsBusy=false,settingsEditors=[];
+  function settingsChanged(editor){return editor.code.value!==editor.savedCode||editor.description.value!==editor.savedDescription;}
+  function renderSettings(){
+    settingsRows.replaceChildren();settingsEditors=[];settingsStatus.textContent='';
+    document.getElementById('supplierSettingsGroupName').textContent=currentGroup.name;
+    const matrices=new Map();
+    sortItems(groupItems).forEach(item=>{if(!matrices.has(item.root))matrices.set(item.root,{...item,codes:[]});matrices.get(item.root).codes.push(item.cod_art);});
+    for(const item of matrices.values()){
+      const row=document.createElement('tr'),descriptionCell=document.createElement('td'),internalCell=document.createElement('td'),codeCell=document.createElement('td'),actionCell=document.createElement('td');
+      const name=document.createElement('strong');name.textContent=item.description||item.root;descriptionCell.append(name);
+      const label=document.createElement('label');label.className='form-label small mt-2';label.textContent='Descrizione PDF (facoltativa)';
+      const description=document.createElement('input');description.className='form-control';description.maxLength=200;description.value=item.order_description||'';description.setAttribute('aria-label','Descrizione PDF: '+(item.description||item.root));description.placeholder='Usa la descrizione del prodotto';
+      label.append(description);descriptionCell.append(label);
+      const internal=document.createElement('strong');internal.textContent=item.root;internalCell.append(internal);
+      const variants=item.codes.filter(code=>code!==item.root);
+      if(variants.length){const small=document.createElement('small');small.className='d-block text-muted';small.textContent='Varianti: '+variants.join(', ');internalCell.append(small);}
+      const code=document.createElement('input');code.className='form-control';code.maxLength=80;code.value=item.supplier_code||'';code.placeholder='Facoltativo';code.setAttribute('aria-label','Codice fornitore: '+(item.description||item.root));codeCell.append(code);
+      const save=document.createElement('button');save.className='btn btn-info';save.type='button';save.textContent='Salva';
+      const status=document.createElement('small');status.className='d-block mt-2';status.setAttribute('role','status');status.setAttribute('aria-live','polite');actionCell.append(save,status);
+      const editor={code,description,save,status,savedCode:code.value,savedDescription:description.value};settingsEditors.push(editor);
+      save.onclick=async()=>{
+        if(settingsBusy||subgroupBusy)return;
+        settingsBusy=true;settingsStatus.textContent='Salvataggio…';status.textContent='';
+        settingsEditors.forEach(e=>{e.save.disabled=true;e.code.disabled=true;e.description.disabled=true;});
+        try{
+          const ok=await subgroupRequest('product-settings','POST',{matrix_code:item.root,supplier_code:code.value,order_description:description.value});
+          if(ok){code.value=code.value.trim();description.value=description.value.trim();editor.savedCode=code.value;editor.savedDescription=description.value;status.textContent='Salvato.';settingsStatus.textContent='Dati prodotto salvati.';}
+          else{status.textContent='Non salvato.';settingsStatus.textContent=managerStatus.textContent||'Salvataggio non riuscito. Riprova.';}
+        }finally{settingsBusy=false;settingsEditors.forEach(e=>{e.save.disabled=false;e.code.disabled=false;e.description.disabled=false;});}
+      };
+      row.append(descriptionCell,internalCell,codeCell,actionCell);settingsRows.append(row);
+    }
+    if(!settingsEditors.length){const row=document.createElement('tr'),cell=document.createElement('td');cell.colSpan=4;cell.textContent='Nessun prodotto associato al gruppo.';row.append(cell);settingsRows.append(row);}
   }
-  managerModalNode.addEventListener('shown.bs.modal',()=>{settingsSave.onclick=saveProductSettings;settingsFields();});
-  managerModalNode.addEventListener('hidden.bs.modal',()=>{settingsSave.onclick=null;settingsPanel.hidden=true;});
+  document.getElementById('supplierProductSettingsOpen').onclick=()=>{
+    if(subgroupBusy||settingsTransition||!currentGroup)return;
+    renderSettings();settingsTransition=true;
+    managerModalNode.addEventListener('hidden.bs.modal',()=>settingsModal.show(),{once:true});managerModal.hide();
+  };
+  settingsNode.addEventListener('shown.bs.modal',()=>{settingsBusy=false;settingsEditors.forEach(e=>{e.save.disabled=false;e.code.disabled=false;e.description.disabled=false;});settingsEditors[0]?.code.focus();});
+  settingsNode.addEventListener('hide.bs.modal',event=>{
+    if(settingsBusy){event.preventDefault();return;}
+    if(settingsEditors.some(settingsChanged)&&!window.confirm('Ci sono modifiche non salvate. Tornare ai prodotti e scartarle?'))event.preventDefault();
+  });
+  settingsNode.addEventListener('hidden.bs.modal',()=>{
+    settingsEditors.forEach(e=>{e.save.onclick=null;});settingsEditors=[];settingsRows.replaceChildren();settingsStatus.textContent='';settingsBusy=false;settingsTransition=false;managerModal.show();
+  });
   function renderManager() {
-    const previous=settingsMatrix.value,matrices=new Map(groupItems.map(row=>[row.root,row]));
-    settingsMatrix.replaceChildren(...[...matrices.values()].map(row=>new Option(row.description+' ('+row.root+')',row.root)));
-    if(matrices.has(previous))settingsMatrix.value=previous;settingsFields();
+
     const assigned = new Set(groupItems.map((item) => item.cod_art));
     const available = sortItems(catalogItems.filter((item) => !assigned.has(item.cod_art)));
     catalogList.replaceChildren(...available.map((item) => productOption(item, false)));
@@ -301,7 +338,7 @@
 
   managerModalNode.addEventListener("shown.bs.modal", () => { updateSubgroupActions(); filterInput.focus(); });
   managerModalNode.addEventListener("hidden.bs.modal", () => {
-    if (managerDirty) window.location.reload();
+    if (managerDirty && !settingsTransition) window.location.reload();
   });
   document.querySelectorAll("[data-group-manage]").forEach((button) => button.addEventListener("click", (event) => {
     event.stopPropagation();

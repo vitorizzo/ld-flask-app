@@ -4,7 +4,7 @@
 
 {% block extra_css %}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-engine1') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_orders.css', v=app_version ~ '-draft1') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_orders.css', v=app_version ~ '-settings2') }}">
 {% endblock %}
 
 {% block content %}
@@ -119,19 +119,24 @@
             <p class="form-text mb-0">Le varianti dello stesso codice matrice vengono organizzate insieme. Eliminare un sottogruppo conserva i prodotti.</p>
           </div>
           <button class="btn btn-outline-info my-2" type="button" id="supplierProductSettingsOpen">Definisci codice fornitore / descrizione</button>
-          <fieldset id="supplierProductSettings" hidden class="supplier-subgroup-controls"><legend class="fs-6">Dati prodotto per gli ordini</legend>
-           <label class="form-label" for="supplierSettingsMatrix">Prodotto / matrice</label><select id="supplierSettingsMatrix" class="form-select"></select>
-           <label class="form-label" for="supplierSettingsCode">Codice articolo del fornitore (facoltativo)</label><input id="supplierSettingsCode" class="form-control" maxlength="80">
-           <label class="form-label" for="supplierSettingsDescription">Descrizione sul PDF (facoltativa)</label><input id="supplierSettingsDescription" class="form-control" maxlength="200">
-           <p class="form-text">Il codice vuoto non impedisce l’ordine e non viene sostituito con il codice interno. Le varianti condividono questi dati.</p>
-           <button class="btn btn-info" id="supplierProductSettingsSave" type="button">Salva dati prodotto</button>
-          </fieldset>
           <div class="supplier-product-list" id="supplierSelectedList" role="listbox" aria-multiselectable="true"></div>
         </section>
       </div>
       <div class="modal-footer"><span class="text-muted me-auto" id="supplierManagerStatus"></span><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Chiudi</button></div>
     </div>
   </div>
+</div>
+
+<div class="modal fade supplier-orders-modal ld-modal ld-modal-standard" id="supplierProductSettingsModal" tabindex="-1" aria-labelledby="supplierProductSettingsTitle" aria-hidden="true">
+ <div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content">
+  <div class="modal-header"><div><h5 class="modal-title" id="supplierProductSettingsTitle">Codici fornitore e descrizioni</h5><div class="small text-muted" id="supplierSettingsGroupName"></div></div><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
+  <div class="modal-body">
+   <p class="form-text">Una riga per codice matrice: le varianti condividono codice fornitore e descrizione PDF. Entrambi sono facoltativi; il codice interno non viene stampato sull’ordine.</p>
+   <div class="supplier-settings-table-wrap"><table class="table supplier-settings-table"><caption class="visually-hidden">Prodotti del gruppo e dati per gli ordini al fornitore</caption><thead><tr><th scope="col">Descrizione</th><th scope="col">Codice interno</th><th scope="col">Codice fornitore</th><th scope="col">Salvataggio</th></tr></thead><tbody id="supplierSettingsRows"></tbody></table></div>
+   <div id="supplierSettingsStatus" role="status" aria-live="polite"></div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Torna ai prodotti</button></div>
+ </div></div>
 </div>
 
 {% for card in group_cards %}
@@ -163,6 +168,6 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/supplier_card_fields.js', v=app_version ~ '-external2') }}"></script>
 <script src="{{ url_for('static', filename='js/supplier_order_editor.js', v=app_version ~ '-external2') }}"></script>
-<script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-external2') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-settings2') }}"></script>
 <script src="{{ url_for('static', filename='js/supplier_external_orders.js', v=app_version ~ '-external2') }}"></script>
 {% endblock %}
