@@ -118,6 +118,14 @@
             <div class="supplier-subgroup-actions"><button class="btn btn-info" id="supplierSubgroupAssign" type="button">Assegna selezionati</button><button class="btn btn-outline-secondary" id="supplierSubgroupRename" type="button">Rinomina</button><button class="btn btn-outline-danger" id="supplierSubgroupDelete" type="button">Elimina sottogruppo</button></div>
             <p class="form-text mb-0">Le varianti dello stesso codice matrice vengono organizzate insieme. Eliminare un sottogruppo conserva i prodotti.</p>
           </div>
+          <button class="btn btn-outline-info my-2" type="button" id="supplierProductSettingsOpen">Definisci codice fornitore / descrizione</button>
+          <fieldset id="supplierProductSettings" hidden class="supplier-subgroup-controls"><legend class="fs-6">Dati prodotto per gli ordini</legend>
+           <label class="form-label" for="supplierSettingsMatrix">Prodotto / matrice</label><select id="supplierSettingsMatrix" class="form-select"></select>
+           <label class="form-label" for="supplierSettingsCode">Codice articolo del fornitore (facoltativo)</label><input id="supplierSettingsCode" class="form-control" maxlength="80">
+           <label class="form-label" for="supplierSettingsDescription">Descrizione sul PDF (facoltativa)</label><input id="supplierSettingsDescription" class="form-control" maxlength="200">
+           <p class="form-text">Il codice vuoto non impedisce l’ordine e non viene sostituito con il codice interno. Le varianti condividono questi dati.</p>
+           <button class="btn btn-info" id="supplierProductSettingsSave" type="button">Salva dati prodotto</button>
+          </fieldset>
           <div class="supplier-product-list" id="supplierSelectedList" role="listbox" aria-multiselectable="true"></div>
         </section>
       </div>
@@ -136,7 +144,7 @@
           <div><label class="form-label" for="supplierOrderTitle{{ group.id }}">Titolo ordine</label><input class="form-control" id="supplierOrderTitle{{ group.id }}" data-order-title maxlength="200" value="Ordine - {{ group.name }}"></div>
           <div><label class="form-label" for="supplierOrderColumn{{ group.id }}">Colonna della bacheca</label><select class="form-select" id="supplierOrderColumn{{ group.id }}" data-order-column>{% for column in order_columns %}<option value="{{ column.id }}">{{ column.name }}</option>{% endfor %}</select></div>
         </div>
-        <p class="form-text">Apri un prodotto per impostare codice fornitore e descrizione breve del PDF. I codici interni non vengono stampati.</p><button class="btn btn-sm btn-outline-secondary mb-2" type="button" data-order-reload>Ricarica versione salvata</button><div class="supplier-operational-list">
+        <p class="form-text">Codice fornitore e descrizione PDF sono facoltativi: puoi definirli anche in Gestisci prodotti. I codici interni non vengono stampati.</p><button class="btn btn-sm btn-outline-secondary mb-2" type="button" data-order-reload>Ricarica versione salvata</button><div class="supplier-operational-list">
         {% for section in card.stock_sections %}
           {% if section.name %}<h6 class="supplier-subgroup-heading">{{ section.name }} <span>{{ section.stock }} pezzi</span></h6>{% endif %}
         {% for groupage in section.rows %}
@@ -153,8 +161,8 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/supplier_card_fields.js', v=app_version ~ '-external1') }}"></script>
-<script src="{{ url_for('static', filename='js/supplier_order_editor.js', v=app_version ~ '-external1') }}"></script>
-<script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-external1') }}"></script>
-<script src="{{ url_for('static', filename='js/supplier_external_orders.js', v=app_version ~ '-external1') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_card_fields.js', v=app_version ~ '-external2') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_order_editor.js', v=app_version ~ '-external2') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_orders.js', v=app_version ~ '-external2') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_external_orders.js', v=app_version ~ '-external2') }}"></script>
 {% endblock %}

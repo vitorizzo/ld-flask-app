@@ -47,9 +47,11 @@ class SupplierWorkflowTests(unittest.TestCase):
         self.assertEqual(db.session.get(SupplierBoardCard,card['id']).order_revision,card['order_revision'])
         self.assertEqual(SupplierOrderProductSettings.query.filter_by(group_id=1,matrix_code='COFFEE').first().supplier_code,'V-COFFEE')
 
-    def test_missing_supplier_code_draft_allowed_confirmation_rejected(self):
+    def test_optional_supplier_code_confirmation_and_later_configuration(self):
         setting=SupplierOrderProductSettings.query.filter_by(group_id=1,matrix_code='COFFEE').first();setting.supplier_code='';db.session.commit()
-        self.assertEqual(self.post().status_code,400)
+        confirmed=self.post();self.assertEqual(confirmed.status_code,201,confirmed.json)
+        self.assertEqual(confirmed.json['card']['order_lines'][0]['supplier_code'],'')
+        self.assertTrue(self.client.get(confirmed.json['card']['order_pdf_url']).data.startswith(b'%PDF'))
         draft=self.post(draft=True).json['card']
         response=self.post(card_id=draft['id'],revision=draft['order_revision'],product_details=[dict(matrix_code='COFFEE',supplier_code='2947',order_description='Don Carlo Nera 100pz')])
         self.assertEqual(response.status_code,200)
@@ -91,3 +93,19 @@ class SupplierWorkflowTests(unittest.TestCase):
         output=StringIO()
         with Operations.context(MigrationContext.configure(dialect_name='postgresql',opts={'as_sql':True,'output_buffer':output})):module.upgrade()
         self.assertIn('uq_supplier_card_order_key',output.getvalue());self.assertIn('CREATE TABLE supplier_order_product_settings',output.getvalue())
+
+    def test_product_settings_from_group_manager_optional_and_persistent(self):
+        from types import SimpleNamespace
+        path='/supplier-orders/groups/1/product-settings'
+        with patch('routes.supplier_orders.current_user',SimpleNamespace(id=1)):
+            response=self.client.post(path,json=dict(matrix_code='COFFEE',supplier_code='',order_description='Descrizione per ordine'))
+            self.assertEqual(response.status_code,200,response.json)
+            items=self.client.get('/supplier-orders/groups/1/items').json['items']
+            variants=[item for item in items if item['root']=='COFFEE']
+            self.assertTrue(variants);self.assertTrue(all(item['supplier_code']=='' and item['order_description']=='Descrizione per ordine' for item in variants))
+            confirmed=self.post();self.assertEqual(confirmed.status_code,201,confirmed.json)
+            self.assertEqual(confirmed.json['card']['order_lines'][0]['order_description'],'Descrizione per ordine')
+            self.assertEqual(self.client.post(path,json=dict(matrix_code='FOREIGN',supplier_code='X')).status_code,400)
+            self.assertEqual(self.client.post(path,json=dict(matrix_code='COFFEE',supplier_code='x'*81)).status_code,400)
+        with patch('tools.role_required.get_current_user',return_value=SimpleNamespace(active_roles=[],max_role_weight=30)):
+            self.assertEqual(self.client.post(path,json=dict(matrix_code='COFFEE')).status_code,403)

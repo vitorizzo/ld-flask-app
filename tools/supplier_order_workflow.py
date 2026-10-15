@@ -28,8 +28,6 @@ def order_rows(group, current_rows, card=None):
 
 def regenerate_order_pdf(card, rows, subgroup_names):
     from tools.supplier_order_pdf import generate_supplier_order_pdf
-    if any(not (line.supplier_code or '').strip() for line in card.order_lines):
-        raise ValueError('Inserisci il codice fornitore per tutti i prodotti da ordinare.')
     pdf_rows=[dict(row) for row in rows.values()]
     saved={line.matrix_code:line for line in card.order_lines}
     for row in pdf_rows:
@@ -95,8 +93,6 @@ def save_order(group,payload,current_rows):
         changes[detail['matrix_code']]=(code.strip(),description.strip())
         rows[detail['matrix_code']]['supplier_code']=code.strip()
         rows[detail['matrix_code']]['order_description']=description.strip()
-    if not draft and any(not rows[code].get('supplier_code') for code in quantities):
-        raise ValueError('Inserisci il codice fornitore per tutti i prodotti da ordinare.')
     settings={setting.matrix_code:setting for setting in group.product_settings}
     for code,(supplier_code,description) in changes.items():
         setting=settings.get(code)

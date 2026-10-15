@@ -186,7 +186,22 @@
     option.setAttribute("aria-selected", selected ? "true" : "false");
   }
 
+  const settingsPanel=document.getElementById('supplierProductSettings'),settingsMatrix=document.getElementById('supplierSettingsMatrix'),settingsSave=document.getElementById('supplierProductSettingsSave');
+  function settingsFields(){const row=groupItems.find(item=>item.root===settingsMatrix.value);document.getElementById('supplierSettingsCode').value=row?.supplier_code||'';document.getElementById('supplierSettingsDescription').value=row?.order_description||'';settingsSave.disabled=subgroupBusy||!row;}
+  settingsMatrix.onchange=settingsFields;
+  document.getElementById('supplierProductSettingsOpen').onclick=()=>{settingsPanel.hidden=!settingsPanel.hidden;if(!settingsPanel.hidden)settingsFields();};
+  async function saveProductSettings(){
+   if(subgroupBusy||!settingsMatrix.value)return;
+   const data={matrix_code:settingsMatrix.value,supplier_code:document.getElementById('supplierSettingsCode').value,order_description:document.getElementById('supplierSettingsDescription').value};
+   settingsPanel.disabled=true;
+   try{await subgroupRequest('product-settings','POST',data);}finally{settingsPanel.disabled=false;settingsSave.disabled=subgroupBusy||!settingsMatrix.value;}
+  }
+  managerModalNode.addEventListener('shown.bs.modal',()=>{settingsSave.onclick=saveProductSettings;settingsFields();});
+  managerModalNode.addEventListener('hidden.bs.modal',()=>{settingsSave.onclick=null;settingsPanel.hidden=true;});
   function renderManager() {
+    const previous=settingsMatrix.value,matrices=new Map(groupItems.map(row=>[row.root,row]));
+    settingsMatrix.replaceChildren(...[...matrices.values()].map(row=>new Option(row.description+' ('+row.root+')',row.root)));
+    if(matrices.has(previous))settingsMatrix.value=previous;settingsFields();
     const assigned = new Set(groupItems.map((item) => item.cod_art));
     const available = sortItems(catalogItems.filter((item) => !assigned.has(item.cod_art)));
     catalogList.replaceChildren(...available.map((item) => productOption(item, false)));

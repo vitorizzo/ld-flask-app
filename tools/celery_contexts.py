@@ -12,7 +12,7 @@ ALIASES = {
 }
 NOTIFICATIONS = {PREFIX + name for name in (
     "notify_customer_payment_case_task", "send_administration_payment_link_task",
-    "dispatch_customer_route_order_reminders_task",
+    "dispatch_customer_route_order_reminders_task", "dispatch_activity_results_task",
 )}
 SHIPPING = {PREFIX + name for name in (
     "import_poleepo_orders_task", "sync_poleepo_shipments_task", "refresh_open_shipments_task",

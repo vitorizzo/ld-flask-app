@@ -62,7 +62,7 @@ def is_push_configured():
     return bool(cfg["public_key"] and cfg["private_key"])
 
 
-def send_push_to_subscriptions(subscriptions: Iterable[PushSubscription], payload: dict):
+def send_push_to_subscriptions(subscriptions: Iterable[PushSubscription], payload: dict, *, commit=True):
     if not is_push_configured():
         raise RuntimeError("Chiavi VAPID mancanti")
 
@@ -144,7 +144,8 @@ def send_push_to_subscriptions(subscriptions: Iterable[PushSubscription], payloa
                 prepared_payload["notification_id"],
                 exc,
             )
-    db.session.commit()
+    if commit:
+        db.session.commit()
     return {"sent": sent, "failed": failed, "errors": errors}
 
 

@@ -1,15 +1,18 @@
-from datetime import date
+from datetime import date, datetime
+from io import BytesIO
+import json
 import re
 from flask import Blueprint, jsonify, render_template, request, send_file, abort
 from flask_login import current_user, login_required
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from extensions import db
-from models import (AppPreference, OperationalActivity, ActivityPhoto, SupplierArrival, SupplierBoardCard, Role, User, UserRole)
+from models import (AppPreference, OperationalActivity, ActivityPhoto, SupplierArrival, SupplierBoardCard, Role, User, UserRole, ActivityAttachment, ActivityResultNotice)
 from tools.activities import (ACTIVE,CLOSED,CONFIG_KEY,manager,visible_query,activity_query,activity_data,
                               routing_data,validate_rules,transition,create_arrival,add_event,
-                              operational_users,actor_name,manual_payload,manual_matches,create_manual,sees_all)
+                              operational_users,actor_name,manual_payload,manual_matches,create_manual,sees_all,notices_data,notices_query,logger)
 from tools.activity_photos import store_photo, photo_path
+from tools.activity_files import prepare_files, files_digest, attach_files
 
 activities_bp=Blueprint('activities',__name__)
 
@@ -18,7 +21,9 @@ def office():
     if not manager(current_user): abort(403)
 
 
-def error(message,status=400): return jsonify(ok=False,error=message),status
+def error(message,status=400):
+    logger.warning('Activity request rejected status=%s reason=%s',status,message)
+    return jsonify(ok=False,error=message),status
 
 
 def locked_activity(activity_id,revision):
@@ -77,20 +82,31 @@ def assignees():
 @login_required
 def manual_create():
     office()
-    try: payload = manual_payload(request.get_json(silent=True))
-    except ValueError as exc: return error(str(exc))
+    try:
+        if request.mimetype == 'multipart/form-data':
+            if request.headers.get('X-Requested-With') != 'XMLHttpRequest': return error('Usa l’area Attività.',403)
+            raw = json.loads(request.form.get('data',''))
+        else: raw = request.get_json(silent=True)
+        payload = manual_payload(raw)
+        files = prepare_files(request.files.getlist('files'))
+        payload['files_digest'] = files_digest(files)
+    except (ValueError, TypeError) as exc: return error(str(exc))
     row = OperationalActivity.query.filter_by(client_key=payload['client_key']).first()
     replayed = row is not None
     if row and not manual_matches(row, payload): return error('La richiesta è già stata usata con dati diversi.', 409)
     if not row:
-        try: row = create_manual(payload, current_user)
-        except ValueError as exc: return error(str(exc))
+        try:
+            row = create_manual(payload, current_user)
+            attach_files(row, files, 'instructions')
+        except ValueError as exc:
+            db.session.rollback();return error(str(exc))
         try: db.session.commit()
         except IntegrityError:
             db.session.rollback()
             row = OperationalActivity.query.filter_by(client_key=payload['client_key']).first()
             if not row or not manual_matches(row, payload): return error('Richiesta in conflitto. Riprova.', 409)
             replayed = True
+    logger.info('Activity created id=%s actor=%s replayed=%s files=%s',row.id,current_user.id,replayed,len(files))
     return jsonify(ok=True, activity=activity_data(row, current_user, True), replayed=replayed), 200 if replayed else 201
 
 
@@ -98,7 +114,7 @@ def manual_create():
 @login_required
 def summary():
     query=activity_query(current_user).filter(OperationalActivity.status.in_(ACTIVE))
-    return jsonify(ok=True,count=query.count(),rows=[activity_data(row,current_user) for row in query.order_by(OperationalActivity.created_at,OperationalActivity.id).limit(5).all()],manager=manager(current_user),sees_all=sees_all(current_user))
+    return jsonify(ok=True,count=query.count(),rows=[activity_data(row,current_user) for row in query.order_by(OperationalActivity.created_at,OperationalActivity.id).limit(5).all()],manager=manager(current_user),sees_all=sees_all(current_user),results=notices_data(current_user,5))
 
 
 @activities_bp.get('/api/<int:activity_id>')
@@ -119,6 +135,12 @@ def action(activity_id):
     except PermissionError as exc: return error(str(exc),403)
     except ValueError as exc: return error(str(exc))
     db.session.commit()
+    if payload.get('action') in ('complete','not_required','cancel') and row.result_notices:
+        try:
+            from tools.activity_results import enqueue_results
+            enqueue_results()
+        except Exception:
+            logger.exception('Activity result enqueue failed id=%s; periodic dispatch will retry',row.id)
     return jsonify(ok=True,activity=activity_data(row,current_user,True))
 
 
@@ -207,7 +229,7 @@ def upload_photo(activity_id):
 @login_required
 def photo(photo_id):
     item=db.session.get(ActivityPhoto,photo_id)
-    if not item or not visible_query(current_user).filter_by(id=item.activity_id).first(): abort(404)
+    if not item or not visible_query(current_user,include_results=True).filter_by(id=item.activity_id).first(): abort(404)
     path=photo_path(item.storage_name)
     if not path.is_file(): abort(404)
     response=send_file(path,mimetype='image/jpeg',max_age=0)
@@ -228,4 +250,67 @@ def delete_photo(photo_id):
     if row.owner_id!=current_user.id and not manager(current_user): return error('Foto riservata alla persona incaricata.',403)
     name=item.storage_name;add_event(row,current_user,'photo_removed',item.label);db.session.delete(item);row.revision+=1;db.session.commit()
     photo_path(name).unlink(missing_ok=True);db.session.expire(row,['photos'])
+    return jsonify(ok=True,activity=activity_data(row,current_user,True))
+
+
+@activities_bp.get('/api/results')
+@login_required
+def results():
+    return jsonify(ok=True,**notices_data(current_user))
+
+
+@activities_bp.post('/api/results/<int:notice_id>/read')
+@login_required
+def read_result(notice_id):
+    row=notices_query(current_user).filter(ActivityResultNotice.id==notice_id).first_or_404()
+    row.read_at=datetime.utcnow();db.session.commit()
+    return jsonify(ok=True)
+
+
+@activities_bp.post('/api/<int:activity_id>/attachments')
+@login_required
+def upload_attachments(activity_id):
+    if request.headers.get('X-Requested-With')!='XMLHttpRequest': return error('Usa l’area Attività.',403)
+    try: revision=int(request.form.get('revision',''))
+    except ValueError: return error('Revisione non valida.')
+    row,conflict=locked_activity(activity_id,revision)
+    if conflict: return conflict
+    if row.status not in ACTIVE: return error('L’attività è chiusa.')
+    if row.owner_id and row.owner_id!=current_user.id and not manager(current_user): return error('Attività in carico a un’altra persona.',403)
+    try:
+        files=prepare_files(request.files.getlist('files'))
+        if not files: raise ValueError('Scegli almeno un file o una foto.')
+        attach_files(row,files,'result')
+        row.revision+=1;add_event(row,current_user,'files_added',', '.join(item['filename'] for item in files))
+        db.session.commit()
+    except ValueError as exc:
+        db.session.rollback();return error(str(exc))
+    logger.info('Activity files added id=%s actor=%s count=%s',row.id,current_user.id,len(files))
+    return jsonify(ok=True,activity=activity_data(row,current_user,True)),201
+
+
+@activities_bp.get('/api/attachments/<int:attachment_id>')
+@login_required
+def download_attachment(attachment_id):
+    item=db.session.get(ActivityAttachment,attachment_id)
+    if not item or not visible_query(current_user,include_results=True).filter_by(id=item.activity_id).first(): abort(404)
+    response=send_file(BytesIO(item.content),mimetype=item.mimetype,download_name=item.filename,as_attachment=True,max_age=0)
+    response.headers['Cache-Control']='private, no-store';response.headers['X-Content-Type-Options']='nosniff'
+    return response
+
+
+@activities_bp.delete('/api/attachments/<int:attachment_id>')
+@login_required
+def delete_attachment(attachment_id):
+    item=db.session.get(ActivityAttachment,attachment_id)
+    if not item: abort(404)
+    payload=request.get_json(silent=True)
+    if not isinstance(payload,dict): return error('Dati non validi.')
+    row,conflict=locked_activity(item.activity_id,payload.get('revision'))
+    if conflict: return conflict
+    if row.status not in ACTIVE or item.cycle!=row.cycle or item.purpose!='result': return error('Gli allegati delle istruzioni e dello storico sono conservati.')
+    if row.owner_id and row.owner_id!=current_user.id and not manager(current_user): return error('Attività in carico a un’altra persona.',403)
+    add_event(row,current_user,'file_removed',item.filename);db.session.delete(item);row.revision+=1;db.session.commit()
+    db.session.expire(row,['attachments'])
+    logger.info('Activity file removed id=%s attachment=%s actor=%s',row.id,attachment_id,current_user.id)
     return jsonify(ok=True,activity=activity_data(row,current_user,True))

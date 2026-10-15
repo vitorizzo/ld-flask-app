@@ -13,6 +13,9 @@ from models import Articoli, Giacenza, SupplierOrderGroup, SupplierOrderGroupIte
 from tools.role_required import role_required
 from models import SupplierBoardColumn, SupplierBoardCard, BusinessRegistry
 from models import SupplierOrderSubgroup, SupplierOrderSubgroupMatrix
+from models import SupplierOrderProductSettings
+from tools.log_utils import get_logger
+supplier_logger = get_logger("supplier_orders")
 from models import SupplierBoardOrderLine
 from models import SupplierBoardSection, SupplierBoardCardSection
 from tools.supplier_board_sections import rich_text, validate_section, section_colors
@@ -528,12 +531,15 @@ def delete_group(group_id):
 def group_items(group_id):
     group = SupplierOrderGroup.query.get_or_404(group_id)
     subgroup_map = {row.matrix_code: row.subgroup_id for row in group.subgroup_matrices}
+    product_settings = {row.matrix_code:row for row in group.product_settings}
     items = sorted(
         (
             {
                 "cod_art": item.cod_art,
                 "description": _article_label(item.article, item.cod_art),
                 "root": _variant_root(item.cod_art),
+                "supplier_code": product_settings[_variant_root(item.cod_art)].supplier_code if _variant_root(item.cod_art) in product_settings else "",
+                "order_description": product_settings[_variant_root(item.cod_art)].order_description if _variant_root(item.cod_art) in product_settings else "",
                 "subgroup_id": subgroup_map.get(_variant_root(item.cod_art)),
             }
             for item in group.items
@@ -699,3 +705,21 @@ def search_articles():
             for row in rows
         ],
     })
+
+
+@supplier_orders_bp.post('/groups/<int:group_id>/product-settings')
+@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+def product_settings(group_id):
+    group=SupplierOrderGroup.query.filter_by(id=group_id).with_for_update().first_or_404()
+    payload=request.get_json(silent=True)
+    if not isinstance(payload,dict): return jsonify(ok=False,error='Dati non validi.'),400
+    code=payload.get('matrix_code');supplier_code=payload.get('supplier_code','');description=payload.get('order_description','')
+    if not isinstance(code,str) or code not in {_variant_root(item.cod_art) for item in group.items}:
+        return jsonify(ok=False,error='Seleziona un prodotto del gruppo.'),400
+    if not isinstance(supplier_code,str) or len(supplier_code.strip())>80 or not isinstance(description,str) or len(description.strip())>200:
+        return jsonify(ok=False,error='Codice massimo 80 caratteri; descrizione massimo 200.'),400
+    row=SupplierOrderProductSettings.query.filter_by(group_id=group.id,matrix_code=code).first()
+    if not row: row=SupplierOrderProductSettings(group_id=group.id,matrix_code=code);db.session.add(row)
+    row.supplier_code=supplier_code.strip();row.order_description=description.strip();db.session.commit()
+    supplier_logger.info('Product settings saved group=%s matrix=%s actor=%s',group.id,code,current_user.id)
+    return jsonify(ok=True)

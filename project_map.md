@@ -1,3 +1,10 @@
+## Esiti attività e allegati; codici fornitore facoltativi (2026-10-15)
+
+- models.py: OperationalActivity.result_min_weight/creation_files_digest, ActivityResultRole/User, ActivityAttachment (blob differito), ActivityResultNotice (evento/utente univoco, lettura/push). Migrazione x9a0b1c2d3e4 compatibile create_all. tools/activities.py separa lettura esiti e permessi incaricati, risolve utenti/ruoli/soglia alla chiusura e crea avvisi nella stessa transazione; tools/activity_files.py riusa validatori fornitori per file privati/digest.
+- routes/activities.py: creazione JSON/multipart con destinatari esito obbligatori, GET /api/results e POST /api/results/<id>/read, POST /api/<id>/attachments e GET/DELETE /api/attachments/<id>. Download foto esteso ai soli destinatari di esiti conclusi, mutazioni restano sugli incaricati. activity_create.js riusa due selettori indipendenti; activities.js e home_activities.js mostrano esiti/allegati e stato letto; asset activities4.
+- tools/activity_results.py e config.tasks.dispatch_activity_results_task: outbox persistente, invio via helper push esistente senza commit implicito, accodamento dopo chiusura e recupero Beat ogni minuto. Routing notifiche e metadati pannello Celery aggiornati. docs/activity_results.md descrive API, limiti e deploy. tests/test_activity_results.py e test_activity_create.mjs coprono autorizzazioni, file, retry, cicli, dispatch e migrazione.
+- tools/supplier_order_workflow.py non impone più supplier_code; PDF già supporta codice vuoto. routes/supplier_orders.py aggiunge POST /groups/<id>/product-settings e campi configurati in GET items. supplier_orders/index.html e supplier_orders.js aggiungono editor facoltativo nel gestore prodotti; supplier_order_editor.js mostra Facoltativo. Nessuna nuova migrazione fornitori; test_supplier_order_workflow.py esteso, cache external2.
+
 ## Visibilita e soglia peso attivita (2026-10-14)
 
 - tools/activities.py: sees_all riservato a peso >=900, visible_query unisce utenti, ruoli esatti e target_min_weight confrontato coi ruoli attivi; separato da manager >=40. models.py: OperationalActivity.target_min_weight; migrazione w8f9a0b1c2d3.

@@ -11,7 +11,7 @@ from sqlalchemy import create_engine,text,inspect
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from extensions import db
-from models import (User,Role,UserRole,AppPreference,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto)
+from models import (User,Role,UserRole,AppPreference,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto,ActivityResultRole,ActivityResultUser,ActivityAttachment,ActivityResultNotice)
 from routes.activities import activities_bp
 from tools.activity_photos import photo_path
 import test_supplier_board as board
@@ -24,7 +24,7 @@ class ActivityTests(unittest.TestCase):
         self.app.register_blueprint(activities_bp,url_prefix='/activities')
         login=LoginManager(self.app)
         login.user_loader(lambda value:db.session.get(User,int(value)))
-        names=[Role,User,UserRole,AppPreference,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto]
+        names=[Role,User,UserRole,AppPreference,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto,ActivityResultRole,ActivityResultUser,ActivityAttachment,ActivityResultNotice]
         db.metadata.create_all(db.engine,tables=[model.__table__ for model in names])
         db.session.add_all([Role(id=1,name='Staff',weight=30),Role(id=2,name='Ufficio',weight=40),Role(id=3,name='Altro',weight=30),
                             Role(id=4,name='Admin',weight=900),Role(id=5,name='Dev',weight=1000),Role(id=6,name='Responsabile',weight=50),Role(id=7,name='Altro ufficio',weight=40)])
@@ -183,7 +183,7 @@ class ActivityTests(unittest.TestCase):
             self.assertNotIn('operational_activities',inspect(conn).get_table_names())
 
     def test_manual_combined_targets_visibility_claim_and_retry(self):
-        body=dict(title='Inventario',description='Contare scaffale A\nContare scaffale B',role_ids=[1,1],user_ids=[4,4],client_key='manual-request-123')
+        body=dict(title='Inventario',description='Contare scaffale A\nContare scaffale B',role_ids=[1,1],user_ids=[4,4],result_recipients=dict(user_ids=[1]),client_key='manual-request-123')
         response=self.client.post('/activities/api',json=body)
         self.assertEqual(response.status_code,201,response.json)
         row=response.json['activity'];self.assertEqual(row['kind'],'manual');self.assertIsNone(row['source'])
@@ -202,7 +202,7 @@ class ActivityTests(unittest.TestCase):
         self.assertEqual({user['id'] for user in response.json['users']},{2,3})
         self.assertEqual(self.client.get('/activities/api/assignees?role_id=1&q=User2').json['total'],1)
         self.assertEqual(self.client.get('/activities/api/assignees?role_id=bad').status_code,400)
-        body=dict(title='Pulizia',description='Magazzino',role_ids=[],user_ids=[2],client_key='manual-user-123')
+        body=dict(title='Pulizia',description='Magazzino',role_ids=[],user_ids=[2],result_recipients=dict(user_ids=[1]),client_key='manual-user-123')
         for changes in [dict(title=''),dict(user_ids=[]),dict(user_ids=[5]),dict(user_ids=[999]),dict(role_ids=[True]),dict(description='a'*5001)]:
             self.assertEqual(self.client.post('/activities/api',json={**body,**changes}).status_code,400)
         row=self.client.post('/activities/api',json=body).json['activity']
@@ -237,7 +237,7 @@ class ActivityTests(unittest.TestCase):
 
     def test_user_only_private_from_office_and_higher_weight(self):
         self.login(6)
-        body=dict(title='Solo Alessio',description='Istruzioni private',role_ids=[],user_ids=[2],client_key='private-alessio-123')
+        body=dict(title='Solo Alessio',description='Istruzioni private',role_ids=[],user_ids=[2],result_recipients=dict(user_ids=[1]),client_key='private-alessio-123')
         row=self.client.post('/activities/api',json=body).json['activity']
         # Creation permissions and authorship do not imply visibility afterward.
         for user_id in [3,4,5,6,8,9]:
@@ -257,7 +257,7 @@ class ActivityTests(unittest.TestCase):
             self.assertTrue(self.client.get('/activities/api/summary').json['sees_all'])
 
     def test_exact_roles_not_all_roles_of_equal_or_higher_weight(self):
-        body=dict(title='Solo ufficio',role_ids=[2],user_ids=[],client_key='exact-office-role-123')
+        body=dict(title='Solo ufficio',role_ids=[2],user_ids=[],result_recipients=dict(user_ids=[1]),client_key='exact-office-role-123')
         row=self.client.post('/activities/api',json=body).json['activity']
         self.login(6);self.assertEqual(len(self.rows()),1)
         for user_id in [2,4,5,8,9]:
@@ -268,7 +268,7 @@ class ActivityTests(unittest.TestCase):
         self.assertEqual(self.rows()[0]['roles'],['Ufficio'])
 
     def test_weight_visibility_union_boundary_expiry_and_retry(self):
-        body=dict(title='Da peso 40',role_ids=[1],user_ids=[4],target_min_weight=40,client_key='weight-request-123')
+        body=dict(title='Da peso 40',role_ids=[1],user_ids=[4],target_min_weight=40,result_recipients=dict(user_ids=[1]),client_key='weight-request-123')
         row=self.client.post('/activities/api',json=body).json['activity']
         self.assertEqual(row['target_min_weight'],40)
         self.assertTrue(self.client.post('/activities/api',json=body).json['replayed'])
@@ -277,7 +277,7 @@ class ActivityTests(unittest.TestCase):
             self.login(user_id);self.assertEqual(self.client.get('/activities/api').json['total'],1)
         self.login(5);self.assertEqual(self.rows(),[])
         # Weight-only targeting includes same weight and higher, never lower.
-        self.login(1);only=self.client.post('/activities/api',json=dict(title='Soglia',target_min_weight=40,client_key='weight-only-request')).json['activity']
+        self.login(1);only=self.client.post('/activities/api',json=dict(title='Soglia',target_min_weight=40,result_recipients=dict(user_ids=[1]),client_key='weight-only-request')).json['activity']
         for user_id in [2,3,4,5]:
             self.login(user_id);self.assertEqual(self.client.get(f"/activities/api/{only['id']}").status_code,404)
         for user_id in [6,8,9]:
@@ -295,7 +295,7 @@ class ActivityTests(unittest.TestCase):
 
     def test_weight_input_validation_and_migration(self):
         for weight in [True,'40',29,-1,1001,40.5]:
-            self.assertEqual(self.client.post('/activities/api',json=dict(title='Peso',target_min_weight=weight,client_key='invalid-weight-key')).status_code,400)
+            self.assertEqual(self.client.post('/activities/api',json=dict(title='Peso',target_min_weight=weight,result_recipients=dict(user_ids=[1]),client_key='invalid-weight-key')).status_code,400)
         path=Path(__file__).resolve().parents[1]/'migrations/versions/w8f9a0b1c2d3_activity_weight_visibility.py'
         spec=importlib.util.spec_from_file_location('weight_migration',path)
         migration=importlib.util.module_from_spec(spec);spec.loader.exec_module(migration)

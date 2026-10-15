@@ -53,3 +53,8 @@ body.activity-modal-open .modal-backdrop.show { z-index: 12100 !important; }
 }
 
 .activity-recipient-list{max-height:180px;overflow-y:auto;border:1px solid #bbb;border-radius:6px;padding:8px}.activity-description{white-space:pre-wrap;overflow-wrap:anywhere}.activity-modal fieldset{min-width:0}
+
+.activity-results { padding: 1em; color: var(--ld-brand-primary); background: var(--ld-surface); overflow-wrap: anywhere; }
+.activity-results h2, .activity-results .btn-link, .home-activities h3 { color: var(--ld-brand-primary); }
+.activity-results p { white-space: pre-wrap; }
+.activity-modal input[type="file"] { width: 100%; max-width: 100%; min-width: 0; }

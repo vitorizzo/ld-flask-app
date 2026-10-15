@@ -31,3 +31,8 @@ Produzione da aggiornare successivamente:
 La migrazione preserva schede, ordini e PDF esistenti, inizializza contrassegno e indicatore esterno a false e aggiunge campi vuoti; è compatibile con tabelle già create da `create_all`. Gli allegati hanno contenuto binario differito nel database. Il limite HTTP deve consentire 50 MiB più il multipart: il default applicativo `MAX_UPLOAD_MB=64` è sufficiente; allineare eventuali limiti del proxy.
 
 Verifiche: `venv/Scripts/python.exe -m unittest discover -s tests -p "test_supplier*.py"` e `node tests/test_activity_service_worker.mjs`. I controlli browser locali usano template e script reali con API simulate e ricaricamento HTTP a 320/1440 px.
+
+
+## Codice fornitore facoltativo (2026-10-15)
+
+Gli ordini da gruppo possono essere confermati anche senza codice articolo del fornitore. Il PDF lascia vuota la colonna Codice e non usa il codice interno come sostituto. In Gestisci prodotti è disponibile Definisci codice fornitore / descrizione: scegliere una matrice, impostare i valori facoltativi e salvare. Le varianti condividono questi dati; gli ordini già confermati restano invariati. La configurazione resta modificabile anche nell’editor ordine. API POST /supplier-orders/groups/<id>/product-settings, ruolo minimo40, validazione appartenenza e lunghezze. Nessuna migrazione aggiuntiva per questa modifica.

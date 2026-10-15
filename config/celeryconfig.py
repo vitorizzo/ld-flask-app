@@ -13,6 +13,11 @@ worker_prefetch_multiplier = 1
 logger.info(f"Configurazione Celery: broker_url={broker_url}, result_backend={result_backend}")
 
 DEFAULT_BEAT_SCHEDULE = {
+    'activity-results-every-minute': {
+        'task': 'config.tasks.dispatch_activity_results_task',
+        'schedule': crontab(minute='*'),
+        'options': {'expires': 55},
+    },
     'dispatch-due-mailing-schedules-every-minute': {
         'task': 'config.tasks.dispatch_due_mailing_schedules_task',
         'schedule': crontab(minute='*'),

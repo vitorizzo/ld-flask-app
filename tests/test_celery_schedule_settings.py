@@ -59,10 +59,10 @@ class CelerySettingsTests(unittest.TestCase):
         return self.client.post('/settings/celery-tasks/' + name, json=dict(action=action, revision=revision, **kw))
 
     def test_existing_defaults_and_paused_environment_preserved(self):
-        self.assertEqual(len(self.client.get('/settings/celery-tasks/data').json['tasks']), 13)
+        self.assertEqual(len(self.client.get('/settings/celery-tasks/data').json['tasks']), 14)
         with patch.dict(os.environ, {PAUSE_ENV: 'true'}):
             doc = read_document()
-            self.assertEqual(len(effective_schedule(doc)), 8)
+            self.assertEqual(len(effective_schedule(doc)), 9)
             self.assertEqual(pause_reason('config.tasks.import_giacenze_matrixws_task', doc), 'schedule_paused')
             response = self.mutate(name='support-mailbox-sync', action='frequency', frequency=dict(kind='interval', seconds=600))
             self.assertEqual(response.status_code, 200, response.json)

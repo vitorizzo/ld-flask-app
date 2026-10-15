@@ -10,6 +10,7 @@ from tools.import_pause import IMPORT_TASKS, imports_paused
 PREFERENCE_KEY = "celery.periodic_tasks"
 CRON_FIELDS = ("minute", "hour", "day_of_week", "day_of_month", "month_of_year")
 LABELS = {
+    "activity-results-every-minute": ("Invio esiti attività", "Notifiche"),
     "dispatch-due-mailing-schedules-every-minute": ("Invio campagne programmate", "Email / mailing"),
     "import-articoli": ("Import articoli", "Import MATRIXWS"),
     "import-giacenze": ("Import giacenze", "Import MATRIXWS"),

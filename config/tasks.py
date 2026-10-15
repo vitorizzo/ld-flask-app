@@ -407,3 +407,10 @@ def dispatch_due_mailing_schedules_task(self):
 def sync_support_mailbox_task(self, limit=100):
     from tools.support_mailbox import sync_support_mailbox
     return sync_support_mailbox(limit=limit)
+
+
+@celery.task(bind=True)
+@log_task(get_logger('activities'))
+def dispatch_activity_results_task(self):
+    from tools.activity_results import dispatch_results
+    return dispatch_results()

@@ -1129,6 +1129,8 @@ class OperationalActivity(db.Model):
     description = db.Column(db.Text, nullable=False, default='', server_default='')
     client_key = db.Column(db.String(64), nullable=True)
     target_min_weight = db.Column(db.Integer, nullable=True)
+    result_min_weight = db.Column(db.Integer, nullable=True)
+    creation_files_digest = db.Column(db.String(64), nullable=True)
     status = db.Column(db.String(20), nullable=False, default='pending', index=True)
     owner_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='SET NULL'), nullable=True)
     revision = db.Column(db.Integer, nullable=False, default=1)
@@ -1153,6 +1155,49 @@ class ActivityTargetUser(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
     user = db.relationship('User')
     activity = db.relationship('OperationalActivity', backref=db.backref('user_targets', cascade='all, delete-orphan'))
+
+
+class ActivityResultRole(db.Model):
+    __tablename__ = 'activity_result_roles'
+    activity_id = db.Column(db.Integer, db.ForeignKey('operational_activities.id', ondelete='CASCADE'), primary_key=True)
+    role_id = db.Column(db.Integer, db.ForeignKey('roles.id', ondelete='CASCADE'), primary_key=True)
+    role = db.relationship('Role')
+    activity = db.relationship('OperationalActivity', backref=db.backref('result_roles', cascade='all, delete-orphan'))
+
+
+class ActivityResultUser(db.Model):
+    __tablename__ = 'activity_result_users'
+    activity_id = db.Column(db.Integer, db.ForeignKey('operational_activities.id', ondelete='CASCADE'), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), primary_key=True)
+    user = db.relationship('User')
+    activity = db.relationship('OperationalActivity', backref=db.backref('result_users', cascade='all, delete-orphan'))
+
+
+class ActivityAttachment(db.Model):
+    __tablename__ = 'activity_attachments'
+    id = db.Column(db.Integer, primary_key=True)
+    activity_id = db.Column(db.Integer, db.ForeignKey('operational_activities.id', ondelete='CASCADE'), nullable=False, index=True)
+    cycle = db.Column(db.Integer, nullable=False)
+    purpose = db.Column(db.String(20), nullable=False)
+    filename = db.Column(db.String(200), nullable=False)
+    mimetype = db.Column(db.String(100), nullable=False)
+    size = db.Column(db.Integer, nullable=False)
+    content = db.deferred(db.Column(db.LargeBinary, nullable=False))
+    activity = db.relationship('OperationalActivity', backref=db.backref('attachments', cascade='all, delete-orphan', order_by='ActivityAttachment.id'))
+
+
+class ActivityResultNotice(db.Model):
+    __tablename__ = 'activity_result_notices'
+    __table_args__ = (db.UniqueConstraint('event_id', 'user_id', name='uq_activity_result_event_user'),)
+    id = db.Column(db.Integer, primary_key=True)
+    activity_id = db.Column(db.Integer, db.ForeignKey('operational_activities.id', ondelete='CASCADE'), nullable=False, index=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('activity_events.id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id', ondelete='CASCADE'), nullable=False, index=True)
+    cycle = db.Column(db.Integer, nullable=False)
+    read_at = db.Column(db.DateTime, nullable=True)
+    push_sent_at = db.Column(db.DateTime, nullable=True)
+    event = db.relationship('ActivityEvent')
+    activity = db.relationship('OperationalActivity', backref=db.backref('result_notices', cascade='all, delete-orphan'))
 
 
 class ActivityEvent(db.Model):
