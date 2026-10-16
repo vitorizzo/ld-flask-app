@@ -2088,3 +2088,13 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - Tabella con scorrimento orizzontale su schermi piccoli, colori e dimensioni del tema condiviso; asset settings2.
 - Verifica: suite Node dedicata (raggruppamento varianti, codice vuoto, salvataggio, errori, modifiche pendenti, chiusura/riapertura), 7 test Python workflow ordini, sintassi JS, Jinja/ID univoco e git diff --check: OK. Verifica visiva nel browser non eseguita per il limite Edge già documentato.
 - Nessuna migrazione o deploy eseguito. Aggiornare codice e riavviare web per attivare questa modifica.
+
+
+## 2026-10-16 — Spese contanti fuori cassa e totale versabile
+
+- Verifica produzione eseguita solo in lettura: giornata 15/10/2026 (cash_day 237), pagamento spesa 125, contanti, flag *, fuori cassa, EUR 86,40. Il versabile giornaliero calcolato era EUR 497,35; con la correzione locale sugli stessi dati è EUR 410,95. Nessun movimento, chiusura o snapshot di produzione modificato dalla sessione.
+- Formule Python e SQL rapide: le spese contanti aziendali fuori cassa (* e **) riducono versabile giornaliero/residuo e saldo progressivo; non riducono cassetto, incasso fisico o quadratura. Le spese in cassa continuano a essere sottratte una sola volta.
+- Progressivo SQL e dettaglio versabile allineati (riga negativa “Spesa contanti fuori cassa”).
+- Snapshot: soglia minima 3 e marcatore esplicito off_cash_versabile_calculation_version=1 nei totali. Revisioni alte di snapshot vecchi non bastano a considerarli aggiornati. Le basi del progressivo prive del marcatore vengono ignorate e ricostruite dai movimenti; preview/report archiviati obsoleti ricalcolano i totali correnti senza riscrivere il vault.
+- Verifica: 18 test Python di cassa, 8 casi Node report, diff --check: OK. Coperti flag, metodi, spesa mista dentro/fuori cassa, depositi intermedi, centesimi, saldo negativo, progressivo e snapshot vecchi/nuovi, dettaglio e giornata chiusa.
+- Nessuna nuova migrazione. Per attivare aggiornare il codice e riavviare web; deploy non eseguito in questa sessione. Dettagli: docs/cash_off_cash_expenses.md.

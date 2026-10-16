@@ -18,6 +18,7 @@ from models import (
 )
 
 AZIENDA_CASH_FLAGS = ["*", "**"]
+OFF_CASH_VERSABILE_CALCULATION_VERSION = 1
 
 
 def _easter_sunday_gregorian(year: int) -> date:
@@ -525,7 +526,7 @@ def calculate_closure_pure(
     # i corrispettivi sono già dentro totale_incassi_lordi
     # =========================
     versabile_giornata = (incassi_cash_azienda + assegni_odierni + pos_in + total_corrispettivi
-                          - spese_cash_azienda - storni_pos - totale_pos - spese_pos_personali)
+                          - spese_cash_azienda - spese_fuori_cassa - storni_pos - totale_pos - spese_pos_personali)
 
     massimo_contanti_incasso = saldo_versabile_precedente - assegni_in_pancia
     if massimo_contanti_incasso < Decimal("0.00"):
@@ -625,6 +626,7 @@ def calculate_closure_pure(
         "anomalia": anomalia,
 
         # versabile
+        "off_cash_versabile_calculation_version": OFF_CASH_VERSABILE_CALCULATION_VERSION,
         "versabile_giornata": versabile_giornata,
         "versabile_residuo": versabile_residuo,
         "saldo_versabile": saldo_versabile,

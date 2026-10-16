@@ -30,7 +30,7 @@ from models import CashDay, CashSale, CashExpense, CashMove, PosMove, CashCheck,
     CashDrawerCount, CashDrawerCountLine, CashEcommerce, CashCheckEvent, CashCheckPayment, CashOwnerTake, CashOwnerTakeCheck, \
     CashReceiptClosure, CashSalePaymentPosMove, CashRowCheck, CashIssuedCheck, CashDepositCheck, CompanyCreditCard, BusinessRegistry, \
     BusinessRegistryContact, CashCustomerRegistryLink, CashClosure, CashDeposit, CashDayAuditEvent
-from tools.cash_math import calculate_closure_pure, next_banking_day, _sum_amount, apply_intermediate_drawer_totals, current_drawer_preview_payload
+from tools.cash_math import OFF_CASH_VERSABILE_CALCULATION_VERSION, calculate_closure_pure, next_banking_day, _sum_amount, apply_intermediate_drawer_totals, current_drawer_preview_payload
 
 _ALLOWED_FLAGS = {"*", "**", "+", "x", "#", "!"}
 
@@ -53,7 +53,12 @@ logger = get_logger("cassa", level=logging.INFO)
 MIN_AGENDA_WEIGHT = 40
 # Incrementare quando cambia la logica del totale versabile: gli snapshot
 # precedenti non devono nascondere il nuovo calcolo nella preview.
-VERSABILE_SNAPSHOT_VERSION = 2
+VERSABILE_SNAPSHOT_VERSION = 3
+
+
+def _current_versabile_preview(payload):
+    return (isinstance(payload, dict) and isinstance(payload.get("totals"), dict)
+            and payload["totals"].get("off_cash_versabile_calculation_version") == OFF_CASH_VERSABILE_CALCULATION_VERSION)
 
 
 def _resolve_company_card_payment(payload):
@@ -2009,6 +2014,7 @@ def _latest_fiscal_snapshot_before(target_date: date):
             CashDay.status == "closed",
             CashClosure.fiscal_snapshot_stale.is_(False),
             CashClosure.fiscal_snapshot_version >= VERSABILE_SNAPSHOT_VERSION,
+            CashClosure.fiscal_snapshot["payload"]["totals"]["off_cash_versabile_calculation_version"].as_integer() == OFF_CASH_VERSABILE_CALCULATION_VERSION,
             CashClosure.saldo_versabile_finale.isnot(None),
         )
         .order_by(CashDay.day_date.desc(), CashClosure.created_at.desc())
@@ -2117,6 +2123,7 @@ def _calculate_progressive_saldo_versabile_fast(target_date: date) -> tuple[Deci
               AND cd.status = 'closed'
               AND cc.fiscal_snapshot_stale = FALSE
               AND COALESCE(cc.fiscal_snapshot_version, 0) >= :snapshot_version
+              AND COALESCE(CAST(cc.fiscal_snapshot -> 'payload' -> 'totals' ->> 'off_cash_versabile_calculation_version' AS INTEGER), 0) = :off_cash_version
               AND cc.saldo_versabile_finale IS NOT NULL
             ORDER BY cd.day_date DESC, cc.created_at DESC
             LIMIT 1
@@ -2161,7 +2168,6 @@ def _calculate_progressive_saldo_versabile_fast(target_date: date) -> tuple[Deci
                     WHEN p.direction = 'out'
                      AND p.method = 'cash'
                      AND p.flag IN ('*', '**')
-                     AND p.off_cash = FALSE
                     THEN p.amount ELSE 0 END), 0) AS spese_cash_azienda,
                 COALESCE(SUM(CASE
                     WHEN p.method = 'pos'
@@ -2238,7 +2244,7 @@ def _calculate_progressive_saldo_versabile_fast(target_date: date) -> tuple[Deci
         CROSS JOIN receipt_sums rs
         CROSS JOIN deposit_sums ds
     """)
-    row = db.session.execute(sql, {"target_date": target_date, "snapshot_version": VERSABILE_SNAPSHOT_VERSION}).mappings().first()
+    row = db.session.execute(sql, {"target_date": target_date, "snapshot_version": VERSABILE_SNAPSHOT_VERSION, "off_cash_version": OFF_CASH_VERSABILE_CALCULATION_VERSION}).mappings().first()
     snapshot_day = row["snapshot_day"] if row else None
     return _to_dec(row["saldo"] if row else 0), {
         "source": "snapshot_plus_aggregate" if snapshot_day else "aggregate_from_start",
@@ -2434,6 +2440,7 @@ def _calculate_closure_fast_from_db(
         + pos_in
         + total_corrispettivi
         - spese_cash_azienda
+        - spese_fuori_cassa
         - storni_pos
         - totale_pos
         - spese_pos_personali
@@ -2518,6 +2525,7 @@ def _calculate_closure_fast_from_db(
         "valore_atteso_cassetto": valore_atteso_cassetto,
         "delta_quadratura": delta_quadratura,
         "anomalia": anomalia,
+        "off_cash_versabile_calculation_version": OFF_CASH_VERSABILE_CALCULATION_VERSION,
         "versabile_giornata": versabile_giornata,
         "versabile_residuo": versabile_residuo,
         "saldo_versabile": saldo_attuale,
@@ -2826,7 +2834,8 @@ def api_cash_day_preview(day_date):
     closure = getattr(cash_day, "closure", None)
     if (cash_day.status == "closed" and closure and closure.fiscal_snapshot
             and not closure.fiscal_snapshot_stale
-            and int(closure.fiscal_snapshot_version or 0) >= VERSABILE_SNAPSHOT_VERSION):
+            and int(closure.fiscal_snapshot_version or 0) >= VERSABILE_SNAPSHOT_VERSION
+            and _current_versabile_preview(closure.fiscal_snapshot.get("payload"))):
         if view == "complete" and session.get("pri_vault_unlocked"):
             try:
                 vault_report_payload = _load_private_vault_day_closure_snapshot(d.year, d)
@@ -2838,7 +2847,7 @@ def api_cash_day_preview(day_date):
                 if isinstance(vault_report_payload, dict)
                 else None
             )
-            if isinstance(vault_preview_payload, dict):
+            if _current_versabile_preview(vault_preview_payload):
                 return jsonify(current_drawer_preview_payload(vault_preview_payload))
         else:
             snapshot_payload = closure.fiscal_snapshot.get("payload") if isinstance(closure.fiscal_snapshot, dict) else None
@@ -3343,6 +3352,12 @@ def api_day_closure_snapshot(day_date):
         fiscal_payload = closure.fiscal_snapshot.get("payload")
         fiscal_report_payload = closure.fiscal_snapshot.get("report_payload")
 
+    def current_report(payload, report_view):
+        result=current_drawer_preview_payload(payload)
+        if not _current_versabile_preview(result.get("preview")):
+            result["preview"]=_json_safe(_build_cash_day_preview_payload(cash_day,view=report_view))
+        return result
+
     vault_payload = None
     if session.get("pri_vault_unlocked"):
         try:
@@ -3352,21 +3367,21 @@ def api_day_closure_snapshot(day_date):
 
     if view == "complete":
         if isinstance(vault_payload, dict):
-            return jsonify({"ok": True, "snapshot": current_drawer_preview_payload(vault_payload), "source": "vault"})
+            return jsonify({"ok": True, "snapshot": current_report(vault_payload, "complete"), "source": "vault"})
         return jsonify({"ok": False, "error": "Snapshot completo non disponibile"}), 404
 
     if isinstance(vault_payload, dict):
         combined = dict(vault_payload)
         if isinstance(fiscal_payload, dict):
             combined["preview"] = fiscal_payload
-        return jsonify({"ok": True, "snapshot": current_drawer_preview_payload(combined), "source": "vault+db"})
+        return jsonify({"ok": True, "snapshot": current_report(combined, "fiscal"), "source": "vault+db"})
 
     if isinstance(fiscal_report_payload, dict):
-        return jsonify({"ok": True, "snapshot": current_drawer_preview_payload(fiscal_report_payload), "source": "db"})
+        return jsonify({"ok": True, "snapshot": current_report(fiscal_report_payload, "fiscal"), "source": "db"})
 
     if isinstance(fiscal_payload, dict):
         rebuilt = _build_cash_day_report_snapshot_payload(d, "fiscal", fiscal_payload, None)
-        return jsonify({"ok": True, "snapshot": current_drawer_preview_payload(rebuilt), "source": "db-rebuilt"})
+        return jsonify({"ok": True, "snapshot": current_report(rebuilt, "fiscal"), "source": "db-rebuilt"})
 
     return jsonify({"ok": False, "error": "Snapshot non disponibile"}), 404
 
@@ -5979,8 +5994,8 @@ def api_versabile_detail(day_date):
         for payment in expense.payments:
             flag = (payment.flag or "*").strip()
             amount = _to_dec(payment.amount)
-            if payment.direction == "out" and payment.method == "cash" and not payment.off_cash and flag in {"*", "**"}:
-                add("Spesa contanti", payment.description or expense.supplier, -amount, "spesa", payment.id)
+            if payment.direction == "out" and payment.method == "cash" and flag in {"*", "**"}:
+                add("Spesa contanti fuori cassa" if payment.off_cash else "Spesa contanti", payment.description or expense.supplier, -amount, "spesa", payment.id)
             if payment.method == "pos" and payment.pos_is_personal:
                 add("POS personale", payment.description or expense.supplier, -amount, "spesa_pos", payment.id)
 
