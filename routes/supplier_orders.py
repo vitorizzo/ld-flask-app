@@ -26,7 +26,7 @@ import re
 
 supplier_orders_bp = Blueprint("supplier_orders", __name__, template_folder="../templates")
 
-MIN_SUPPLIER_ORDERS_WEIGHT = 40
+MIN_SUPPLIER_ORDERS_ROLE = "office"
 
 
 def _supplier_section_dict(item):
@@ -64,13 +64,13 @@ def _supplier_card_dict(card, supplier_names=None):
 
 
 @supplier_orders_bp.get("/board")
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def board():
     return render_template("supplier_orders/board.html")
 
 
 @supplier_orders_bp.get("/api/board")
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def board_data():
     columns = SupplierBoardColumn.query.order_by(SupplierBoardColumn.order_index, SupplierBoardColumn.id).all()
     query = SupplierBoardCard.query.options(selectinload(SupplierBoardCard.order_lines),
@@ -94,7 +94,7 @@ def _section_definitions():
 
 @supplier_orders_bp.route('/api/board/sections', methods=['GET', 'POST'])
 @supplier_orders_bp.route('/api/board/sections/<int:section_id>', methods=['PUT', 'DELETE'])
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def board_sections(section_id=None):
     if request.method == 'GET': return jsonify(ok=True, sections=_section_definitions())
     payload = request.get_json(silent=True)
@@ -155,7 +155,7 @@ def _validated_card_sections(payload):
 
 @supplier_orders_bp.route("/api/board/cards", methods=["POST"])
 @supplier_orders_bp.route("/api/board/cards/<int:card_id>", methods=["PUT"])
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def board_save_card(card_id=None):
     return _save_card(card_id)
 
@@ -242,7 +242,7 @@ def _save_card(card_id=None, external_group=None, external_key=None):
 
 
 @supplier_orders_bp.post('/groups/<int:group_id>/external-orders')
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def external_order(group_id):
     group = SupplierOrderGroup.query.get_or_404(group_id)
     try:
@@ -262,7 +262,7 @@ def external_order(group_id):
 
 
 @supplier_orders_bp.get('/api/board/cards/<int:card_id>/attachments/<int:attachment_id>')
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def card_attachment(card_id, attachment_id):
     attachment = SupplierBoardAttachment.query.filter_by(id=attachment_id, card_id=card_id).first_or_404()
     response = send_file(BytesIO(attachment.content), mimetype=attachment.mimetype,
@@ -273,7 +273,7 @@ def card_attachment(card_id, attachment_id):
 
 
 @supplier_orders_bp.get('/api/board/cards/<int:card_id>/order-pdf')
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def order_pdf(card_id):
     card = SupplierBoardCard.query.get_or_404(card_id)
     if card.is_draft or not card.order_pdf_filename or not card.order_pdf:
@@ -397,7 +397,7 @@ def _expanded_articles_for_group(group: SupplierOrderGroup) -> list[dict]:
 
 
 @supplier_orders_bp.get("/")
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def index():
     active_group_id = request.args.get("group_id", type=int)
     modal_action = (request.args.get("modal") or "").strip()
@@ -431,7 +431,7 @@ def index():
 
 
 @supplier_orders_bp.post("/groups/<int:group_id>/orders")
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def create_group_order(group_id):
     from tools.supplier_order_workflow import save_order,OrderConflict
     group = SupplierOrderGroup.query.get_or_404(group_id)
@@ -454,7 +454,7 @@ def create_group_order(group_id):
 
 
 @supplier_orders_bp.get('/groups/<int:group_id>/order-editor')
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def group_order_editor(group_id):
     from tools.supplier_order_workflow import order_rows
     from models import Importazione
@@ -474,7 +474,7 @@ def group_order_editor(group_id):
 
 
 @supplier_orders_bp.delete('/api/board/cards/<int:card_id>')
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def board_delete_card(card_id):
     card=SupplierBoardCard.query.get_or_404(card_id)
     db.session.delete(card);db.session.commit()
@@ -482,7 +482,7 @@ def board_delete_card(card_id):
 
 
 @supplier_orders_bp.post("/groups")
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def create_group():
     name = (request.form.get("name") or "").strip()
     notes = (request.form.get("notes") or "").strip() or None
@@ -507,7 +507,7 @@ def create_group():
 
 
 @supplier_orders_bp.post("/groups/<int:group_id>/update")
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def update_group(group_id):
     group = SupplierOrderGroup.query.get_or_404(group_id)
     group.name = (request.form.get("name") or group.name).strip()
@@ -518,7 +518,7 @@ def update_group(group_id):
 
 
 @supplier_orders_bp.post("/groups/<int:group_id>/delete")
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def delete_group(group_id):
     group = SupplierOrderGroup.query.get_or_404(group_id)
     db.session.delete(group)
@@ -527,7 +527,7 @@ def delete_group(group_id):
 
 
 @supplier_orders_bp.get("/groups/<int:group_id>/items")
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def group_items(group_id):
     group = SupplierOrderGroup.query.get_or_404(group_id)
     subgroup_map = {row.matrix_code: row.subgroup_id for row in group.subgroup_matrices}
@@ -552,7 +552,7 @@ def group_items(group_id):
 
 @supplier_orders_bp.route("/groups/<int:group_id>/subgroups", methods=["POST"])
 @supplier_orders_bp.route("/groups/<int:group_id>/subgroups/<int:subgroup_id>", methods=["PUT", "DELETE"])
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def save_subgroup(group_id, subgroup_id=None):
     group = SupplierOrderGroup.query.get_or_404(group_id)
     subgroup = SupplierOrderSubgroup.query.filter_by(group_id=group.id, id=subgroup_id).first_or_404() if subgroup_id else None
@@ -576,7 +576,7 @@ def save_subgroup(group_id, subgroup_id=None):
 
 
 @supplier_orders_bp.post("/groups/<int:group_id>/subgroup-assignment")
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def assign_subgroup(group_id):
     group = SupplierOrderGroup.query.get_or_404(group_id)
     payload = request.get_json(silent=True)
@@ -606,7 +606,7 @@ def assign_subgroup(group_id):
 
 
 @supplier_orders_bp.post("/groups/<int:group_id>/items/batch")
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def update_group_items(group_id):
     group = SupplierOrderGroup.query.get_or_404(group_id)
     payload = request.get_json(silent=True) or {}
@@ -630,7 +630,7 @@ def update_group_items(group_id):
 
 
 @supplier_orders_bp.post("/groups/<int:group_id>/matrix-name")
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def update_matrix_name(group_id):
     group = SupplierOrderGroup.query.get_or_404(group_id)
     payload = request.get_json(silent=True) or {}
@@ -653,7 +653,7 @@ def update_matrix_name(group_id):
 
 
 @supplier_orders_bp.post("/groups/<int:group_id>/items")
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def add_item(group_id):
     group = SupplierOrderGroup.query.get_or_404(group_id)
     cod_art = (request.form.get("cod_art") or "").strip()
@@ -672,7 +672,7 @@ def add_item(group_id):
 
 
 @supplier_orders_bp.post("/groups/<int:group_id>/items/<int:item_id>/delete")
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def delete_item(group_id, item_id):
     item = SupplierOrderGroupItem.query.filter_by(group_id=group_id, id=item_id).first_or_404()
     db.session.delete(item)
@@ -681,7 +681,7 @@ def delete_item(group_id, item_id):
 
 
 @supplier_orders_bp.get("/api/articles")
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def search_articles():
     q = (request.args.get("q") or "").strip()
     if len(q) < 2:
@@ -708,7 +708,7 @@ def search_articles():
 
 
 @supplier_orders_bp.post('/groups/<int:group_id>/product-settings')
-@role_required(MIN_SUPPLIER_ORDERS_WEIGHT)
+@role_required("office")
 def product_settings(group_id):
     group=SupplierOrderGroup.query.filter_by(id=group_id).with_for_update().first_or_404()
     payload=request.get_json(silent=True)

@@ -338,7 +338,7 @@ def _customer_filter_config(values):
 
 @mailing_list_bp.route("/")
 @login_required
-@role_required(100)
+@role_required("admin")
 def index():
     _ensure_system_lists()
     mailing_lists = MailingList.query.filter_by(is_active=True).order_by(MailingList.name).all()
@@ -437,7 +437,7 @@ def index():
 
 @mailing_list_bp.post("/lists")
 @login_required
-@role_required(100)
+@role_required("admin")
 def create_list():
     name = (request.form.get("name") or "").strip()
     source_type = (request.form.get("source_type") or "manual").strip()
@@ -463,7 +463,7 @@ def create_list():
 
 @mailing_list_bp.post("/lists/<int:list_id>/sync")
 @login_required
-@role_required(100)
+@role_required("admin")
 def sync_list(list_id):
     mailing_list = MailingList.query.get_or_404(list_id)
     count = _sync_list(mailing_list)
@@ -481,7 +481,7 @@ def sync_list(list_id):
 
 @mailing_list_bp.post("/lists/<int:list_id>/filters")
 @login_required
-@role_required(100)
+@role_required("admin")
 def update_filters(list_id):
     mailing_list = MailingList.query.get_or_404(list_id)
     if mailing_list.source_type == "customers":
@@ -503,7 +503,7 @@ def update_filters(list_id):
 
 @mailing_list_bp.post("/subscribers")
 @login_required
-@role_required(100)
+@role_required("admin")
 def add_subscriber():
     list_id = request.form.get("mailing_list_id", type=int)
     mailing_list = MailingList.query.get_or_404(list_id)
@@ -536,7 +536,7 @@ def add_subscriber():
 
 @mailing_list_bp.post("/subscribers/<int:subscriber_id>/toggle")
 @login_required
-@role_required(100)
+@role_required("admin")
 def toggle_subscriber(subscriber_id):
     subscriber = MailingSubscriber.query.get_or_404(subscriber_id)
     now = datetime.now(timezone.utc)
@@ -561,7 +561,7 @@ def toggle_subscriber(subscriber_id):
 
 @mailing_list_bp.post("/campaigns")
 @login_required
-@role_required(100)
+@role_required("admin")
 def create_campaign():
     from tools.mailing_list import prepare_campaign
 
@@ -612,7 +612,7 @@ def create_campaign():
 
 @mailing_list_bp.post("/templates")
 @login_required
-@role_required(100)
+@role_required("admin")
 def create_template():
     name = (request.form.get("name") or "").strip()
     subject = (request.form.get("subject") or "").strip()
@@ -639,7 +639,7 @@ def create_template():
 
 @mailing_list_bp.post("/templates/<int:template_id>/edit")
 @login_required
-@role_required(100)
+@role_required("admin")
 def edit_template(template_id):
     mailing_template = MailingTemplate.query.get_or_404(template_id)
     name = (request.form.get("name") or "").strip()
@@ -663,7 +663,7 @@ def edit_template(template_id):
 
 @mailing_list_bp.post("/templates/<int:template_id>/delete")
 @login_required
-@role_required(100)
+@role_required("admin")
 def delete_template(template_id):
     mailing_template = MailingTemplate.query.get_or_404(template_id)
     mailing_template.is_active = False
@@ -675,7 +675,7 @@ def delete_template(template_id):
 
 @mailing_list_bp.post("/campaigns/<int:campaign_id>/edit")
 @login_required
-@role_required(100)
+@role_required("admin")
 def edit_campaign(campaign_id):
     from tools.mailing_list import prepare_campaign
 
@@ -735,7 +735,7 @@ def edit_campaign(campaign_id):
 
 @mailing_list_bp.post("/campaigns/<int:campaign_id>/delete")
 @login_required
-@role_required(100)
+@role_required("admin")
 def delete_campaign(campaign_id):
     campaign = MailingCampaign.query.get_or_404(campaign_id)
     if campaign.status in {"queued", "sending"}:
@@ -765,7 +765,7 @@ def delete_campaign(campaign_id):
 
 @mailing_list_bp.post("/campaigns/<int:campaign_id>/attachments/<int:attachment_id>/delete")
 @login_required
-@role_required(100)
+@role_required("admin")
 def delete_campaign_attachment(campaign_id, attachment_id):
     campaign = MailingCampaign.query.get_or_404(campaign_id)
     if campaign.status in {"queued", "sending"}:
@@ -791,7 +791,7 @@ def delete_campaign_attachment(campaign_id, attachment_id):
 
 @mailing_list_bp.post("/campaigns/<int:campaign_id>/schedule/toggle")
 @login_required
-@role_required(100)
+@role_required("admin")
 def toggle_campaign_schedule(campaign_id):
     campaign = MailingCampaign.query.get_or_404(campaign_id)
     schedule = campaign.schedule
@@ -812,7 +812,7 @@ def toggle_campaign_schedule(campaign_id):
 
 @mailing_list_bp.post("/campaigns/<int:campaign_id>/send")
 @login_required
-@role_required(100)
+@role_required("admin")
 def send_campaign(campaign_id):
     from tools.mailing_list import prepare_campaign
 
@@ -856,7 +856,7 @@ def send_campaign(campaign_id):
 
 @mailing_list_bp.post("/campaigns/<int:campaign_id>/reset")
 @login_required
-@role_required(100)
+@role_required("admin")
 def reset_campaign(campaign_id):
     from tools.mailing_list import reset_campaign_delivery_state
 

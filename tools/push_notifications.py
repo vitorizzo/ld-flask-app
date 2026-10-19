@@ -11,6 +11,7 @@ from flask import current_app
 from extensions import db
 from models import PushSubscription, User
 from tools.log_utils import get_logger
+from tools.role_required import meets_minimum_role
 
 logger = get_logger("push_notifications")
 INVALID_SUBSCRIPTION_STATUSES = {400, 401, 403, 404, 410}
@@ -154,9 +155,9 @@ def send_push_to_user(user_id: int, title: str, body: str, url: str = "/", paylo
     return send_push_to_subscriptions(subscriptions, {**(payload or {}), "title": title, "body": body, "url": url})
 
 
-def send_push_to_staff(title: str, body: str, url: str = "/", min_weight: int = 30, payload: dict | None = None):
+def send_push_to_staff(title: str, body: str, url: str = "/", min_role: str = "staff", payload: dict | None = None):
     users = User.query.all()
-    user_ids = [user.id for user in users if (user.max_role_weight or 0) >= min_weight]
+    user_ids = [user.id for user in users if meets_minimum_role(user, min_role)]
     if not user_ids:
         return {"sent": 0, "failed": 0, "errors": []}
     subscriptions = (
@@ -199,13 +200,13 @@ def order_push_payload(order, *, title: str = "Nuovo ordine", body: str | None =
     }
 
 
-def send_order_push_to_staff(order, *, title: str = "Nuovo ordine", body: str | None = None, url: str | None = None, min_weight: int = 30):
+def send_order_push_to_staff(order, *, title: str = "Nuovo ordine", body: str | None = None, url: str | None = None, min_role: str = "staff"):
     payload = order_push_payload(order, title=title, body=body, url=url)
     return send_push_to_staff(
         payload["title"],
         payload["body"],
         payload["url"],
-        min_weight=min_weight,
+        min_role=min_role,
         payload=payload,
     )
 
@@ -234,12 +235,12 @@ def shipment_push_payload(shipment, *, title: str = "Spedizione aggiornata", bod
     }
 
 
-def send_shipment_push_to_staff(shipment, *, title: str = "Spedizione aggiornata", body: str | None = None, url: str | None = None, min_weight: int = 30):
+def send_shipment_push_to_staff(shipment, *, title: str = "Spedizione aggiornata", body: str | None = None, url: str | None = None, min_role: str = "staff"):
     payload = shipment_push_payload(shipment, title=title, body=body, url=url)
     return send_push_to_staff(
         payload["title"],
         payload["body"],
         payload["url"],
-        min_weight=min_weight,
+        min_role=min_role,
         payload=payload,
     )

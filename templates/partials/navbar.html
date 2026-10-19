@@ -31,7 +31,7 @@
     {% endif %}
 {% endmacro %}
 
-<nav class="navbar navbar-expand-lg" {% if current_user.is_authenticated %}data-activity-badge-url="{{ url_for('activities.badge') }}"{% endif %} {% if current_user.is_authenticated and current_user.max_role_weight >= 40 %}data-support-unread-url="{{ url_for('settings.support_tickets_unread_count') }}"{% endif %}>
+<nav class="navbar navbar-expand-lg" {% if current_user.is_authenticated %}data-activity-badge-url="{{ url_for('activities.badge') }}"{% endif %} {% if current_user.is_authenticated and current_user.max_role_weight >= role_weight('office') %}data-support-unread-url="{{ url_for('settings.support_tickets_unread_count') }}"{% endif %}>
     <div class="container-fluid">
         <a class="navbar-brand" href="/" title="Torna alla home" aria-label="Torna alla home">
             <img src="{{ url_for('static', filename='images/loghi_azienda/logo-ldenoteca-bianco.png') }}"
@@ -112,11 +112,11 @@
                         {% if customer_can_request_collaborators %}
                             <li><a class="dropdown-item" href="{{ url_for('customer_collaborators.index') }}">Collaboratori attività</a></li>
                         {% endif %}
-                        {% if current_user.max_role_weight >= 900 %}
+                        {% if current_user.max_role_weight >= role_weight('dev') %}
                             <li><a class="dropdown-item" href="{{ url_for('settings.settings_index') }}">Impostazioni</a></li>
                         {% endif %}
                         <li><button class="dropdown-item" type="button" data-pwa-push-enable>Abilita notifiche</button></li>
-                        {% if current_user.max_role_weight >= 30 %}
+                        {% if current_user.max_role_weight >= role_weight('staff') %}
                             <li><button class="dropdown-item" type="button" data-pwa-push-test-order>Test notifica ordine</button></li>
                         {% endif %}
                         {% set remember_cookie_name = config.get('REMEMBER_COOKIE_NAME', 'remember_token') %}

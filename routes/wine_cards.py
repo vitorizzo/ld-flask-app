@@ -11,6 +11,7 @@ from extensions import db
 from models import Articoli, BusinessRegistry, WineCard, WineCardItem, WineCardSection, WineCardTemplate
 from tools.role_required import role_required
 
+from tools.role_required import meets_minimum_role
 
 wine_cards_bp = Blueprint("wine_cards", __name__, template_folder="../templates")
 
@@ -445,7 +446,7 @@ def _layout_from_form(existing=None):
 
 @wine_cards_bp.get("/")
 @login_required
-@role_required(30)
+@role_required("staff")
 def index():
     q = (request.args.get("q") or "").strip()
     query = WineCard.query.outerjoin(BusinessRegistry, WineCard.customer_registry_id == BusinessRegistry.id)
@@ -464,7 +465,7 @@ def index():
 
 @wine_cards_bp.route("/new", methods=["GET", "POST"])
 @login_required
-@role_required(30)
+@role_required("staff")
 def create():
     if request.method == "POST":
         title = (request.form.get("title") or "").strip()
@@ -499,7 +500,7 @@ def create():
 
 @wine_cards_bp.get("/<int:card_id>")
 @login_required
-@role_required(30)
+@role_required("staff")
 def detail(card_id):
     card = WineCard.query.get_or_404(card_id)
     return render_template(
@@ -517,7 +518,7 @@ def detail(card_id):
 
 @wine_cards_bp.post("/<int:card_id>/update")
 @login_required
-@role_required(30)
+@role_required("staff")
 def update(card_id):
     card = WineCard.query.get_or_404(card_id)
     card.title = (request.form.get("title") or "").strip() or card.title
@@ -536,7 +537,7 @@ def update(card_id):
 
 @wine_cards_bp.post("/<int:card_id>/duplicate")
 @login_required
-@role_required(30)
+@role_required("staff")
 def duplicate(card_id):
     source = WineCard.query.get_or_404(card_id)
     card = WineCard(
@@ -587,7 +588,7 @@ def duplicate(card_id):
 
 @wine_cards_bp.post("/<int:card_id>/items")
 @login_required
-@role_required(30)
+@role_required("staff")
 def add_item(card_id):
     card = WineCard.query.get_or_404(card_id)
     cod_art = (request.form.get("cod_art") or "").strip()
@@ -616,7 +617,7 @@ def add_item(card_id):
 
 @wine_cards_bp.post("/<int:card_id>/items/<int:item_id>/update")
 @login_required
-@role_required(30)
+@role_required("staff")
 def update_item(card_id, item_id):
     item = WineCardItem.query.filter_by(card_id=card_id, id=item_id).first_or_404()
     card = item.card
@@ -637,7 +638,7 @@ def update_item(card_id, item_id):
 
 @wine_cards_bp.post("/<int:card_id>/sections")
 @login_required
-@role_required(30)
+@role_required("staff")
 def add_section(card_id):
     card = WineCard.query.get_or_404(card_id)
     _ensure_section(card, request.form.get("title"))
@@ -647,7 +648,7 @@ def add_section(card_id):
 
 @wine_cards_bp.post("/<int:card_id>/sections/<int:section_id>/update")
 @login_required
-@role_required(30)
+@role_required("staff")
 def update_section(card_id, section_id):
     section = WineCardSection.query.filter_by(card_id=card_id, id=section_id).first_or_404()
     title = (request.form.get("title") or "").strip()
@@ -672,7 +673,7 @@ def update_section(card_id, section_id):
 
 @wine_cards_bp.post("/<int:card_id>/items/<int:item_id>/delete")
 @login_required
-@role_required(30)
+@role_required("staff")
 def delete_item(card_id, item_id):
     item = WineCardItem.query.filter_by(card_id=card_id, id=item_id).first_or_404()
     db.session.delete(item)
@@ -682,7 +683,7 @@ def delete_item(card_id, item_id):
 
 @wine_cards_bp.get("/api/articles")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_articles():
     q = (request.args.get("q") or "").strip()
     query = Articoli.query
@@ -706,10 +707,10 @@ def api_articles():
 
 @wine_cards_bp.get("/view/<token>")
 @login_required
-@role_required(30, roles=["customer_horeca"])
+@role_required("staff", roles=["customer_horeca"])
 def customer_view(token):
     card = WineCard.query.filter_by(customer_view_token=token).first_or_404()
-    if (current_user.max_role_weight or 0) < 30 and not card.customer_view_enabled:
+    if not meets_minimum_role(current_user, "staff") and not card.customer_view_enabled:
         abort(403)
     visible_items = [item for item in card.items if item.is_visible]
     layout_config = _merged_layout_config(card)
@@ -725,5 +726,5 @@ def customer_view(token):
         style_vars=_view_style_vars(layout_config),
         back_url=request.args.get("back") or url_for("wine_cards.detail", card_id=card.id),
         customer_label=_customer_label,
-        customer_mode=(current_user.max_role_weight or 0) < 30,
+        customer_mode=not meets_minimum_role(current_user, "staff"),
     )

@@ -425,35 +425,35 @@ def _task_update(task_id, name, progress, status, exception=None):
 
 @shipping_bp.get("/")
 @login_required
-@role_required(30)
+@role_required("staff")
 def index():
     return redirect(url_for("shipping.shipments"))
 
 
 @shipping_bp.get("/shipments")
 @login_required
-@role_required(30)
+@role_required("staff")
 def shipments():
     return render_template("shipping/shipments.html", couriers=courier_options(), statuses=SHIPMENT_STATUS_OPTIONS)
 
 
 @shipping_bp.get("/accounts")
 @login_required
-@role_required(30)
+@role_required("staff")
 def accounts():
     return render_template("shipping/accounts.html", couriers=courier_options())
 
 
 @shipping_bp.get("/orders")
 @login_required
-@role_required(30)
+@role_required("staff")
 def orders():
     return render_template("shipping/orders.html")
 
 
 @shipping_bp.get("/api/shipments")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_shipments():
     shipments = (
         _shipment_query()
@@ -473,7 +473,7 @@ def api_shipments():
 
 @shipping_bp.get("/api/courier-accounts")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_courier_accounts():
     courier = (request.args.get("courier") or "").strip().lower()
     query = CourierAccount.query
@@ -485,7 +485,7 @@ def api_courier_accounts():
 
 @shipping_bp.post("/api/courier-accounts")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_save_courier_account():
     data = request.get_json(silent=True) or {}
     account_id = _parse_int(data.get("id"))
@@ -525,7 +525,7 @@ def api_save_courier_account():
 
 @shipping_bp.post("/api/shipments")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_create_shipment():
     data = request.get_json(silent=True) or {}
     courier_code = (data.get("courier_code") or "").strip().lower()
@@ -560,7 +560,7 @@ def api_create_shipment():
 
 @shipping_bp.get("/api/shipments/<int:shipment_id>")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_shipment_detail(shipment_id):
     shipment = Shipment.query.get_or_404(shipment_id)
     _enrich_shipment_from_brt_tracking(shipment)
@@ -575,7 +575,7 @@ def api_shipment_detail(shipment_id):
 
 @shipping_bp.post("/api/shipments/<int:shipment_id>/refresh")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_refresh_shipment(shipment_id):
     shipment = Shipment.query.get_or_404(shipment_id)
     try:
@@ -597,7 +597,7 @@ def api_refresh_shipment(shipment_id):
 
 @shipping_bp.post("/api/shipments/refresh-open")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_refresh_open_shipments():
     try:
         return jsonify(run_refresh_open_shipments(request.get_json(silent=True) or {}))
@@ -649,7 +649,7 @@ def run_refresh_open_shipments(data=None, task_id=None):
 
 @shipping_bp.get("/api/external-orders")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_external_orders():
     q = (request.args.get("q") or "").strip()
     query = ExternalOrder.query.filter_by(source="poleepo")
@@ -720,7 +720,7 @@ def run_poleepo_sync_shipments(data=None, task_id=None):
 
 @shipping_bp.post("/api/poleepo/sync-shipments")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_poleepo_sync_shipments():
     data = request.get_json(silent=True) or {}
     if data.get("sync_all") or data.get("background"):
@@ -829,7 +829,7 @@ def run_poleepo_import(data=None, task_id=None):
 
 @shipping_bp.post("/api/poleepo/import")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_poleepo_import():
     data = request.get_json(silent=True) or {}
     if data.get("force_full") or data.get("background"):

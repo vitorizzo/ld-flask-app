@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it" data-tabs-enabled="{{ 1 if current_user.is_authenticated and current_user.max_role_weight >= 30 else 0 }}">
+<html lang="it" data-tabs-enabled="{{ 1 if current_user.is_authenticated and current_user.max_role_weight >= role_weight('staff') else 0 }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">

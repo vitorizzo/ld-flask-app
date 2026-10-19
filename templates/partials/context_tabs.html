@@ -1,8 +1,8 @@
-{% if current_user.is_authenticated and current_user.max_role_weight >= 30 %}
+{% if current_user.is_authenticated and current_user.max_role_weight >= role_weight('staff') %}
   {% set current_path = request.path %}
   <nav class="context-tabs" aria-label="Scorciatoie operative">
     <div class="context-tabs-fixed" aria-label="Pagine fisse">
-      {% if current_user.max_role_weight >= 40 %}
+      {% if current_user.max_role_weight >= role_weight('office') %}
         <a class="context-tab{% if current_path == '/cassa/agenda' %} active{% endif %}" href="/cassa/agenda" title="Agenda">
           <i class="fa-regular fa-calendar-days"></i><span>Agenda</span>
         </a>

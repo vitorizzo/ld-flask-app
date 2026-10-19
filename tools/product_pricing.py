@@ -46,10 +46,10 @@ def selectable_price_lists(user):
     if getattr(user, "has_active_role", lambda *_: False)("customer", "customer_horeca"):
         return []
     weight = int(getattr(user, "max_role_weight", 0) or 0)
-    if weight < 30:
+    if not meets_minimum_role(user, "staff"):
         return []
     keys = ["prezzo1", "prezzo3"]
-    if weight >= 40:
+    if meets_minimum_role(user, "office"):
         keys.append("costo")
     return [(key, PRICE_LIST_LABELS[key]) for key in keys]
 
@@ -74,9 +74,9 @@ def visible_product_price(article, user=None, registry=None):
         selected = "prezzo3"
     else:
         weight = int(getattr(user, "max_role_weight", 0) or 0)
-        if weight >= 40:
+        if meets_minimum_role(user, "office"):
             selected = normalize_price_list(getattr(user, "listino_prezzo", None), allow_cost=True)
-        elif weight >= 30:
+        elif meets_minimum_role(user, "staff"):
             selected = normalize_price_list(getattr(user, "listino_prezzo", None), default="prezzo3")
         else:
             return None, None

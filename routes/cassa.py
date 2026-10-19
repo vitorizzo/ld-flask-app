@@ -50,7 +50,7 @@ _DRAWER_DENOMINATIONS = [
 cassa_bp = Blueprint("cassa", __name__, url_prefix="/cassa")
 logger = get_logger("cassa", level=logging.INFO)
 
-MIN_AGENDA_WEIGHT = 40
+MIN_AGENDA_ROLE = "office"
 # Incrementare quando cambia la logica del totale versabile: gli snapshot
 # precedenti non devono nascondere il nuovo calcolo nella preview.
 VERSABILE_SNAPSHOT_VERSION = 3
@@ -1419,7 +1419,7 @@ def _apply_sale_check_payload(check, payment_data, *, customer_id, amount, recei
 
 @cassa_bp.delete("/api/deposits/<int:deposit_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_delete_deposit(deposit_id):
     from models import CashDeposit, CashDepositCheck
 
@@ -1487,49 +1487,49 @@ def api_delete_deposit(deposit_id):
 
 @cassa_bp.route("/agenda", methods=["GET"])
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def agenda():
     return render_template("agenda.html", company_cards=CompanyCreditCard.query.filter_by(is_active=True).order_by(CompanyCreditCard.name.asc()).all())
 
 
 @cassa_bp.route("/agenda/search/customer", methods=["GET"])
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def agenda_search_customer():
     return render_template("agenda.html")
 
 
 @cassa_bp.route("/agenda/search/amount", methods=["GET"])
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def agenda_search_amount():
     return render_template("agenda.html")
 
 
 @cassa_bp.route("/agenda/report", methods=["GET"])
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def agenda_report():
     return render_template("agenda.html")
 
 
 @cassa_bp.route("/agenda/report/print", methods=["GET"])
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def agenda_report_print():
     return render_template("agenda.html")
 
 
 @cassa_bp.route("/agenda/checks", methods=["GET"])
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def agenda_checks():
     return render_template("agenda.html")
 
 
 @cassa_bp.route("/agenda/issued-checks", methods=["GET"])
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def agenda_issued_checks():
     return render_template("agenda.html")
 
@@ -1540,7 +1540,7 @@ def agenda_issued_checks():
 
 @cassa_bp.route("/api/day", methods=["GET"])
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_get_or_create_day():
     date_str = (request.args.get("date") or "").strip()
 
@@ -1605,7 +1605,7 @@ def api_get_or_create_day():
 
 @cassa_bp.post("/api/day/<day_date>/status")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_update_cash_day_status(day_date):
     data = request.get_json(silent=True) or {}
     target_status = (data.get("status") or "").strip().lower()
@@ -1654,7 +1654,7 @@ def api_update_cash_day_status(day_date):
 
 @cassa_bp.post("/api/private/test-write")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_private_test_write():
     try:
         mount_root, vault_dir, year, year_file = _vault_config()
@@ -1713,7 +1713,7 @@ def api_private_test_write():
 
 @cassa_bp.route("/api/private/status", methods=["GET"])
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_private_status():
     mount_root, vault_dir, year, year_file = _vault_config()
 
@@ -1781,7 +1781,7 @@ def api_private_status():
 
 @cassa_bp.route("/api/private/unlock", methods=["POST"])
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_private_unlock():
     mount_root, vault_dir, year, year_file = _vault_config()
 
@@ -1872,7 +1872,7 @@ def api_private_unlock():
 
 @cassa_bp.route("/api/private/lock", methods=["POST"])
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_private_lock():
     _vault_force_lock()
     return jsonify({"ok": True, "vault": {"unlocked": False}})
@@ -2798,7 +2798,7 @@ def _calculate_progressive_saldo_versabile(cash_day: CashDay) -> Decimal:
 
 
 @cassa_bp.get("/api/day/<day_date>/preview")
-@role_required(40)
+@role_required("office")
 def api_cash_day_preview(day_date):
     """
     Preview live dei totali per la giornata.
@@ -3196,7 +3196,7 @@ def _rebuild_closed_fiscal_snapshots_after(day_date: date) -> int:
 
 @cassa_bp.post("/api/day/<day_date>/close")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_close_cash_day(day_date):
     data = request.get_json(silent=True) or {}
     report_mode = (data.get("view") or data.get("report_mode") or "fiscal").strip().lower()
@@ -3311,7 +3311,7 @@ def api_close_cash_day(day_date):
 
 @cassa_bp.get("/api/day/<day_date>/closure-snapshot")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_day_closure_snapshot(day_date):
     view = (request.args.get("view") or "fiscal").strip().lower()
     if view not in {"fiscal", "complete"}:
@@ -3388,7 +3388,7 @@ def api_day_closure_snapshot(day_date):
 
 @cassa_bp.get("/api/days/active")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_days_active():
     """
     Ritorna i giorni che hanno movimentazioni (sales/expenses/cash_moves/pos_moves).
@@ -3481,7 +3481,7 @@ def _movement_row(kind, kind_label, day_date, movement_id, amount, party="", des
 
 @cassa_bp.get("/api/search/customer")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_search_customer_movements():
     d_from, d_to, err = _parse_search_period()
     if err:
@@ -3598,7 +3598,7 @@ def api_search_customer_movements():
 
 @cassa_bp.get("/api/search/amount")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_search_amount_movements():
     d_from, d_to, err = _parse_search_period()
     if err:
@@ -3726,7 +3726,7 @@ def api_search_amount_movements():
 
 @cassa_bp.post("/api/customers")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_create_customer():
     """
     Crea una nuova anagrafica cliente con eventuali alias.
@@ -3821,7 +3821,7 @@ def api_create_customer():
 
 @cassa_bp.post("/api/customers/resolve-registry")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_resolve_customer_registry():
     data = request.get_json(silent=True) or {}
     registry_id = data.get("registry_id")
@@ -3854,7 +3854,7 @@ def api_resolve_customer_registry():
 
 @cassa_bp.get("/api/customers/suggest")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_customers_suggest():
     """
     Ricerca progressiva clienti.
@@ -4167,7 +4167,7 @@ def _get_effective_closing_cash_drawer_for_day(cash_day: CashDay) -> Decimal:
 
 @cassa_bp.get("/api/checks/due")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_checks_due():
     """
     Ritorna assegni "versabili dalla giornata selezionata":
@@ -4293,7 +4293,7 @@ def _remove_issued_check_receipt_file(relative_path):
 
 @cassa_bp.post("/api/issued-checks/<int:check_id>/receipt")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_upload_issued_check_receipt(check_id):
     row = CashIssuedCheck.query.filter_by(id=check_id).first()
     if not row:
@@ -4339,7 +4339,7 @@ def api_upload_issued_check_receipt(check_id):
 
 @cassa_bp.get("/api/issued-checks/<int:check_id>/receipt")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_get_issued_check_receipt(check_id):
     row = CashIssuedCheck.query.filter_by(id=check_id).first()
     if not row or not row.receipt_scan_path:
@@ -4360,7 +4360,7 @@ def api_get_issued_check_receipt(check_id):
 
 @cassa_bp.delete("/api/issued-checks/<int:check_id>/receipt")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_delete_issued_check_receipt(check_id):
     row = CashIssuedCheck.query.filter_by(id=check_id).first()
     if not row:
@@ -4430,7 +4430,7 @@ def _remove_card_payment_receipt_file(relative_path):
 
 @cassa_bp.post("/api/expense-payments/<int:payment_id>/receipt")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_upload_card_payment_receipt(payment_id):
     row = CashExpensePayment.query.filter_by(id=payment_id, method="pos").first()
     if not row:
@@ -4471,7 +4471,7 @@ def api_upload_card_payment_receipt(payment_id):
 
 @cassa_bp.get("/api/expense-payments/<int:payment_id>/receipt")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_get_card_payment_receipt(payment_id):
     row = CashExpensePayment.query.filter_by(id=payment_id, method="pos").first()
     if not row or not row.receipt_scan_path:
@@ -4492,7 +4492,7 @@ def api_get_card_payment_receipt(payment_id):
 
 @cassa_bp.delete("/api/expense-payments/<int:payment_id>/receipt")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_delete_card_payment_receipt(payment_id):
     row = CashExpensePayment.query.filter_by(id=payment_id, method="pos").first()
     if not row:
@@ -4553,7 +4553,7 @@ def _issued_check_day_date(row: CashIssuedCheck):
 
 @cassa_bp.get("/api/issued-checks/returning")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_issued_checks_returning():
     date_str = (request.args.get("date") or "").strip()
 
@@ -4602,7 +4602,7 @@ def api_issued_checks_returning():
 
 @cassa_bp.put("/api/issued-checks/<int:check_id>/registered")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_set_issued_check_registered(check_id):
     row = CashIssuedCheck.query.filter_by(id=check_id).first()
     if not row:
@@ -4639,7 +4639,7 @@ def api_set_issued_check_registered(check_id):
 
 @cassa_bp.get("/api/issued-checks")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_list_issued_checks():
     try:
         q_text = (request.args.get("q") or "").strip()
@@ -4732,7 +4732,7 @@ def api_list_issued_checks():
 
 @cassa_bp.put("/api/issued-checks/<int:check_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_update_issued_check(check_id):
     row = (
         CashIssuedCheck.query
@@ -4774,7 +4774,7 @@ def api_update_issued_check(check_id):
 
 @cassa_bp.delete("/api/issued-checks/<int:check_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_delete_issued_check(check_id):
     row = CashIssuedCheck.query.options(selectinload(CashIssuedCheck.expense)).filter_by(id=check_id).first()
     if not row:
@@ -4799,7 +4799,7 @@ def api_delete_issued_check(check_id):
 
 @cassa_bp.get("/api/checks")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_list_checks():
     q_text = (request.args.get("q") or "").strip()
     status = (request.args.get("status") or "").strip()
@@ -4886,7 +4886,7 @@ def api_list_checks():
 
 @cassa_bp.post("/api/checks")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_create_check():
     data = request.get_json(silent=True) or {}
 
@@ -4918,7 +4918,7 @@ def api_create_check():
 
 @cassa_bp.get("/api/checks/<int:check_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_get_check(check_id):
     check = CashCheck.query.options(selectinload(CashCheck.customer)).filter_by(id=check_id).first()
     if not check:
@@ -4928,7 +4928,7 @@ def api_get_check(check_id):
 
 @cassa_bp.put("/api/checks/<int:check_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_update_check(check_id):
     check = CashCheck.query.filter_by(id=check_id).first()
     if not check:
@@ -4967,7 +4967,7 @@ def api_update_check(check_id):
 
 @cassa_bp.post("/api/checks/<int:check_id>/events")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_create_check_event(check_id):
     check = CashCheck.query.options(selectinload(CashCheck.customer)).filter_by(id=check_id).first()
     if not check:
@@ -5036,7 +5036,7 @@ def api_create_check_event(check_id):
 
 @cassa_bp.put("/api/checks/<int:check_id>/events/<int:event_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_update_check_event(check_id, event_id):
     check = CashCheck.query.filter_by(id=check_id).first()
     event_item = CashCheckEvent.query.filter_by(id=event_id, check_id=check_id).first()
@@ -5072,7 +5072,7 @@ def api_update_check_event(check_id, event_id):
 
 @cassa_bp.delete("/api/checks/<int:check_id>/events/<int:event_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_delete_check_event(check_id, event_id):
     check = CashCheck.query.filter_by(id=check_id).first()
     event_item = CashCheckEvent.query.filter_by(id=event_id, check_id=check_id).first()
@@ -5097,7 +5097,7 @@ def api_delete_check_event(check_id, event_id):
 
 @cassa_bp.put("/api/checks/<int:check_id>/settlement")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_update_check_settlement(check_id):
     check = CashCheck.query.filter_by(id=check_id).first()
     if not check:
@@ -5130,7 +5130,7 @@ def _parse_check_payment_payload(data):
 
 @cassa_bp.post("/api/checks/<int:check_id>/payments")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_create_check_payment(check_id):
     check = CashCheck.query.filter_by(id=check_id).first()
     if not check:
@@ -5148,7 +5148,7 @@ def api_create_check_payment(check_id):
 
 @cassa_bp.put("/api/checks/<int:check_id>/payments/<int:payment_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_update_check_payment(check_id, payment_id):
     check = CashCheck.query.filter_by(id=check_id).first()
     payment = CashCheckPayment.query.filter_by(id=payment_id, check_id=check_id).first()
@@ -5166,7 +5166,7 @@ def api_update_check_payment(check_id, payment_id):
 
 @cassa_bp.delete("/api/checks/<int:check_id>/payments/<int:payment_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_delete_check_payment(check_id, payment_id):
     check = CashCheck.query.filter_by(id=check_id).first()
     payment = CashCheckPayment.query.filter_by(id=payment_id, check_id=check_id).first()
@@ -5404,7 +5404,7 @@ def _remove_check_scan_file(relative_path):
 
 @cassa_bp.post("/api/checks/<int:check_id>/scan")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_upload_check_scan(check_id):
     check = CashCheck.query.filter_by(id=check_id).first()
     if not check:
@@ -5440,7 +5440,7 @@ def api_upload_check_scan(check_id):
 
 @cassa_bp.post("/api/checks/scan/crop-preview")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_crop_check_scan_preview():
     try:
         content, _, _ = _read_valid_check_scan(request.files.get("scan"))
@@ -5475,7 +5475,7 @@ def api_crop_check_scan_preview():
 
 @cassa_bp.get("/api/checks/<int:check_id>/scan")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_get_check_scan(check_id):
     check = CashCheck.query.filter_by(id=check_id).first()
     if not check or not check.scan_path:
@@ -5490,7 +5490,7 @@ def api_get_check_scan(check_id):
 
 @cassa_bp.delete("/api/checks/<int:check_id>/scan")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_delete_check_scan(check_id):
     check = CashCheck.query.filter_by(id=check_id).first()
     if not check:
@@ -5506,7 +5506,7 @@ def api_delete_check_scan(check_id):
 
 @cassa_bp.delete("/api/checks/<int:check_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_delete_check(check_id):
     check = CashCheck.query.filter_by(id=check_id).first()
     if not check:
@@ -5534,7 +5534,7 @@ def api_delete_check(check_id):
 
 @cassa_bp.post("/api/day/<day_date>/sales")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_create_sale(day_date):
     try:
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
@@ -5801,7 +5801,7 @@ def api_create_sale(day_date):
 
 @cassa_bp.get("/api/day/<day_date>/sales")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_list_sales(day_date):
     try:
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
@@ -5944,7 +5944,7 @@ def api_list_sales(day_date):
 
 @cassa_bp.get("/api/day/<day_date>/versabile-detail")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_versabile_detail(day_date):
     """Return the individual entries composing the day's versable amount."""
     try:
@@ -6017,7 +6017,7 @@ def api_versabile_detail(day_date):
 
 @cassa_bp.delete("/api/sales/<sale_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_delete_sale(sale_id):
 
     # =========================
@@ -6122,7 +6122,7 @@ def api_delete_sale(sale_id):
 
 @cassa_bp.put("/api/sales/<sale_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_update_sale(sale_id):
 
     data = request.get_json(silent=True) or {}
@@ -6711,7 +6711,7 @@ def api_update_sale(sale_id):
 
 @cassa_bp.delete("/api/pos_moves/<int:pos_move_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_delete_pos_move(pos_move_id):
     pos_move = PosMove.query.filter_by(id=pos_move_id).first()
 
@@ -6751,7 +6751,7 @@ def api_delete_pos_move(pos_move_id):
 
 @cassa_bp.post("/api/day/<day_date>/expenses")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_create_expense(day_date):
     try:
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
@@ -6956,7 +6956,7 @@ def api_create_expense(day_date):
 
 @cassa_bp.get("/api/day/<day_date>/expenses")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_list_expenses(day_date):
     try:
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
@@ -7081,7 +7081,7 @@ def api_list_expenses(day_date):
 
 @cassa_bp.delete("/api/expenses/<expense_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_delete_expense(expense_id):
 
     # =========================
@@ -7174,7 +7174,7 @@ def api_delete_expense(expense_id):
 
 @cassa_bp.put("/api/expenses/<expense_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_update_expense(expense_id):
     data = request.get_json(silent=True) or {}
 
@@ -7700,7 +7700,7 @@ def api_update_expense(expense_id):
 
 @cassa_bp.post("/api/day/<day_date>/pos_moves", endpoint="api_create_pos_move")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_create_pos_move(day_date):
     """
     Payload:
@@ -7783,7 +7783,7 @@ def api_create_pos_move(day_date):
 
 @cassa_bp.put("/api/pos_moves/<int:pos_move_id>", endpoint="api_update_pos_move")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_update_pos_move(pos_move_id):
     """
     Payload:
@@ -7871,7 +7871,7 @@ def api_update_pos_move(pos_move_id):
 
 @cassa_bp.get("/api/day/<day_date>/pos_moves", endpoint="api_list_pos_moves")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_list_pos_moves(day_date):
     try:
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
@@ -7928,7 +7928,7 @@ def api_list_pos_moves(day_date):
 
 @cassa_bp.get("/api/banks", endpoint="api_list_cash_banks")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_list_cash_banks():
     banks = (
         CashBank.query
@@ -7960,7 +7960,7 @@ def api_list_cash_banks():
 
 @cassa_bp.post("/api/day/<day_date>/cash_moves", endpoint="api_create_cash_move")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_create_cash_move(day_date):
     """
     Inserimento movimento di cassa.
@@ -8075,7 +8075,7 @@ def api_create_cash_move(day_date):
 
 @cassa_bp.get("/api/day/<day_date>/cash_moves", endpoint="api_list_cash_moves")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_list_cash_moves(day_date):
     """
     Lista movimenti di cassa della giornata.
@@ -8166,7 +8166,7 @@ def api_list_cash_moves(day_date):
 
 @cassa_bp.get("/api/private/debug-read")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_private_debug_read():
     try:
         if not session.get("pri_vault_unlocked"):
@@ -8188,7 +8188,7 @@ def api_private_debug_read():
 
 @cassa_bp.put("/api/cash_moves/<cash_move_id>", endpoint="api_update_cash_move")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_update_cash_move(cash_move_id):
     """
     Modifica movimento di cassa.
@@ -8306,7 +8306,7 @@ def api_update_cash_move(cash_move_id):
 
 @cassa_bp.delete("/api/cash_moves/<cash_move_id>", endpoint="api_delete_cash_move")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_delete_cash_move(cash_move_id):
 
     # =========================
@@ -8386,7 +8386,7 @@ def api_delete_cash_move(cash_move_id):
 
 @cassa_bp.get("/api/coins/balance", endpoint="api_coins_vault_balance")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_coins_vault_balance():
     """
     Saldo spicci in armadio (cumulativo fino alla data inclusa).
@@ -8504,7 +8504,7 @@ def api_pos_device_circuits(device_id):
 
 @cassa_bp.get("/api/day/<day_date>/drawer-count")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_get_drawer_count(day_date):
     cash_day, error_response = _get_cash_day_by_date_or_404(day_date)
     if error_response:
@@ -8526,7 +8526,7 @@ def api_get_drawer_count(day_date):
 
 @cassa_bp.post("/api/day/<day_date>/drawer-count")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_save_drawer_count(day_date):
     cash_day, error_response = _get_cash_day_by_date_or_404(day_date)
     if error_response:
@@ -8636,7 +8636,7 @@ def api_save_drawer_count(day_date):
 
 @cassa_bp.delete("/api/day/<day_date>/drawer-count")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_delete_drawer_count(day_date):
     cash_day, error_response = _get_cash_day_by_date_or_404(day_date)
     if error_response:
@@ -8666,7 +8666,7 @@ def api_delete_drawer_count(day_date):
 
 @cassa_bp.get("/api/day/<day_date>/ecommerce")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_list_ecommerce(day_date):
     try:
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
@@ -8703,7 +8703,7 @@ def api_list_ecommerce(day_date):
 
 @cassa_bp.post("/api/day/<day_date>/ecommerce")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_create_ecommerce(day_date):
     try:
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
@@ -8753,7 +8753,7 @@ def api_create_ecommerce(day_date):
 
 @cassa_bp.delete("/api/ecommerce/<int:ecommerce_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_delete_ecommerce(ecommerce_id):
     row = CashEcommerce.query.filter_by(id=ecommerce_id).first()
     if not row:
@@ -8782,7 +8782,7 @@ def api_delete_ecommerce(ecommerce_id):
 
 @cassa_bp.put("/api/ecommerce/<int:ecommerce_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_update_ecommerce(ecommerce_id):
     row = CashEcommerce.query.filter_by(id=ecommerce_id).first()
     if not row:
@@ -8828,7 +8828,7 @@ def api_update_ecommerce(ecommerce_id):
 
 @cassa_bp.get("/api/day/<day_date>/deposit-available-checks")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_available_checks_for_deposit(day_date):
     try:
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
@@ -8907,7 +8907,7 @@ def api_available_checks_for_deposit(day_date):
 
 @cassa_bp.post("/api/day/<day_date>/deposits")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_create_deposit(day_date):
     from models import CashDeposit, CashDepositCheck
 
@@ -9007,7 +9007,7 @@ def api_create_deposit(day_date):
 
 @cassa_bp.get("/api/day/<day_date>/deposits")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_list_deposits(day_date):
     from models import CashDeposit, CashDepositCheck
 
@@ -9094,7 +9094,7 @@ def api_list_deposits(day_date):
 
 @cassa_bp.put("/api/deposits/<int:deposit_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_update_deposit(deposit_id):
     from models import CashDeposit, CashDepositCheck
 
@@ -9312,7 +9312,7 @@ def create_receipt_closure(day_date):
 
 @cassa_bp.delete("/api/receipt-closures/<int:receipt_closure_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_delete_receipt_closure(receipt_closure_id):
     row = CashReceiptClosure.query.filter_by(id=receipt_closure_id).first()
 
@@ -9344,7 +9344,7 @@ def api_delete_receipt_closure(receipt_closure_id):
 
 @cassa_bp.put("/api/receipt-closures/<int:receipt_closure_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_update_receipt_closure(receipt_closure_id):
     data = request.get_json(silent=True) or {}
 
@@ -9398,7 +9398,7 @@ def api_update_receipt_closure(receipt_closure_id):
 
 @cassa_bp.get("/api/day/<day_date>/owner-take-available-checks")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_owner_take_available_checks(day_date):
     try:
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
@@ -9454,7 +9454,7 @@ def api_owner_take_available_checks(day_date):
 
 @cassa_bp.get("/api/day/<day_date>/owner-takes")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_list_owner_takes(day_date):
     try:
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
@@ -9533,7 +9533,7 @@ def api_list_owner_takes(day_date):
 
 @cassa_bp.post("/api/day/<day_date>/owner-takes")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_create_owner_take(day_date):
     try:
         d = datetime.strptime(day_date, "%Y-%m-%d").date()
@@ -9653,7 +9653,7 @@ def api_create_owner_take(day_date):
 
 @cassa_bp.delete("/api/owner-takes/<int:owner_take_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_delete_owner_take(owner_take_id):
     row = (
         CashOwnerTake.query
@@ -9697,7 +9697,7 @@ def api_delete_owner_take(owner_take_id):
 
 @cassa_bp.put("/api/owner-takes/<int:owner_take_id>")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_update_owner_take(owner_take_id):
     row = (
         CashOwnerTake.query
@@ -9814,7 +9814,7 @@ def api_update_owner_take(owner_take_id):
 
 @cassa_bp.post("/api/row-check/toggle")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_toggle_row_check():
     data = request.get_json(silent=True) or {}
 
@@ -9956,7 +9956,7 @@ def api_toggle_row_check():
 
 @cassa_bp.get("/api/row-checks")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_get_row_checks():
     cash_day_id = request.args.get("cash_day_id")
     entity_type = (request.args.get("entity_type") or "").strip()
@@ -9991,7 +9991,7 @@ def api_get_row_checks():
 
 @cassa_bp.get("/api/day/<day_date>/version")
 @login_required
-@role_required(min_weight=MIN_AGENDA_WEIGHT)
+@role_required("office")
 def api_day_version(day_date):
     try:
         d = datetime.strptime(day_date, "%Y-%m-%d").date()

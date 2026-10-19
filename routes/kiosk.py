@@ -1495,7 +1495,7 @@ def kiosk_api_statuses():
 
 @kiosk_bp.route("/api/status-config", methods=["GET", "PUT"])
 @login_required
-@role_required(30)
+@role_required("staff")
 def kiosk_status_config():
     statuses = OrderStatus.query.order_by(OrderStatus.order_index.asc(), OrderStatus.id.asc()).all()
     existing = {s.code: s for s in statuses}

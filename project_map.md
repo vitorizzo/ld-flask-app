@@ -2117,3 +2117,11 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - Ruoli e Autorizzazioni: la modale “Nuovo ruolo” e tutte le modali della pagina usano il nuovo componente e il contenitore non intercetta più l’area della pagina; rimosso il punto di fragilità dei modali legati allo stacking/overflow della schermata.
 - Verifica: nessun test automatizzato eseguito in questo intervento. Revisione statica del diff e dei riferimenti a CSS/JS; nessuna migrazione DB.
 - 2026-10-19 follow-up: apertura della modale “Nuovo ruolo” collegata a un handler esplicito dopo il mount nel `body`, con fallback Bootstrap attivo (`backdrop`, tastiera, focus); forzata la separazione z-index backdrop/modale e rinnovato il cache-buster degli asset settings.
+
+
+## Autorizzazioni per ruolo live (2026-10-19)
+
+- `tools/role_required.py`: resolver centralizzato per ruolo minimo e helper `meets_minimum_role`; decoratori server basati su nomi di ruolo e confronto con il peso corrente. `tools/auth_manager.py` usa lo stesso resolver.
+- Route in `routes/`: soglie numeriche migrate a ruoli nominati; controlli inline di accesso e tile impostazioni confrontano i pesi live.
+- `tools/app_factory.py`, `routes/tools.py`, template Home/navbar/tabs: visibilità e menu aggiornati dinamicamente; `role_weight` viene esposto ai template. `tools/activities.py` risolve i destinatari minimi legacy con i ruoli correnti.
+- `tools/product_pricing.py` e `tools/push_notifications.py`: accesso ai listini e selezione destinatari push basati su ruolo minimo nominato.

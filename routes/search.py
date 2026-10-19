@@ -28,6 +28,7 @@ from models import (
     InventarioExport,
 )
 from routes.tools import clean_text
+from tools.role_required import meets_minimum_role
 from tools.ps_util import (
     create_product as prestashop_create_product,
     delete_product_image as prestashop_delete_product_image,
@@ -59,7 +60,7 @@ PRODUCT_IMAGE_PLATFORMS = {
     "ldapp": {"label": "LDApp", "enabled": True, "icon": "fa-solid fa-folder-open"},
 }
 ALLOWED_PRODUCT_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp"}
-OFFICE_ROLE_WEIGHT = 40
+OFFICE_ROLE_NAME = "office"
 POLEEPO_CATEGORY_OPTIONS_CACHE = {"loaded_at": None, "options": []}
 PRODUCT_PUBLICATION_SCHEMAS = {
     "prestashop": {
@@ -119,7 +120,7 @@ PRODUCT_PUBLICATION_SCHEMAS = {
 
 
 def _can_manage_product_images():
-    return bool(current_user.is_authenticated and (current_user.max_role_weight or 0) >= OFFICE_ROLE_WEIGHT)
+    return bool(current_user.is_authenticated and meets_minimum_role(current_user, OFFICE_ROLE_NAME))
 
 
 def _can_publish_product_to_platform(platform_key, platform_links):
@@ -2173,7 +2174,7 @@ def _warehouse_price_columns():
 
 @search_bp.get('/elenco-prodotti')
 @login_required
-@role_required(30)
+@role_required("staff")
 def elenco_prodotti():
     price_columns = _warehouse_price_columns()
     _value, selected_price = visible_product_price(None, current_user)
@@ -2209,7 +2210,7 @@ def _warehouse_price_limits():
 
 @search_bp.get('/elenco-prodotti/dati')
 @login_required
-@role_required(30)
+@role_required("staff")
 def elenco_prodotti_dati():
     """Filtered warehouse product list used by the Elenco prodotti view."""
     filtro = (request.args.get('filter') or '').strip()

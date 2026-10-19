@@ -26,6 +26,7 @@ from tools.customer_memberships import (
     user_has_customer_capability,
 )
 
+from tools.role_required import meets_minimum_role
 
 customer_orders_bp = Blueprint("customer_orders", __name__)
 
@@ -371,7 +372,7 @@ def _delivery_options():
 
 
 def _order_access(order):
-    if (current_user.max_role_weight or 0) >= 30:
+    if meets_minimum_role(current_user, "staff"):
         return True
     return customer_registry_for_user(
         current_user,
@@ -656,7 +657,7 @@ def revise(order_id):
 
 @customer_orders_bp.get("/manage")
 @login_required
-@role_required(30)
+@role_required("staff")
 def manage():
     orders = (
         CustomerOrder.query

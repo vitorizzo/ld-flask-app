@@ -25,6 +25,7 @@ from tools.contact_imports import (
 )
 from tools.role_required import role_required
 
+from tools.role_required import meets_minimum_role
 
 registry_bp = Blueprint("registry", __name__)
 
@@ -178,35 +179,35 @@ def _sync_contact_points(contact, points, replace=True):
 
 def _contact_import_access(intent_id):
     intent = RegistryContactImportIntent.query.filter_by(id=intent_id).first_or_404()
-    if intent.user_id != current_user.id and (current_user.max_role_weight or 0) < 100:
+    if intent.user_id != current_user.id and not meets_minimum_role(current_user, "admin"):
         return None
     return intent
 
 
 @registry_bp.get("/customer-routes")
 @login_required
-@role_required(30)
+@role_required("staff")
 def customer_routes_page():
     return render_template("registry/customer_routes.html")
 
 
 @registry_bp.get("/customers")
 @login_required
-@role_required(30)
+@role_required("staff")
 def customers_book_page():
     return render_template("registry/registry_book.html", kind="customer", title="Rubrica clienti")
 
 
 @registry_bp.get("/suppliers")
 @login_required
-@role_required(40)
+@role_required("office")
 def suppliers_book_page():
     return render_template("registry/registry_book.html", kind="supplier", title="Rubrica fornitori")
 
 
 @registry_bp.post("/api/contact-imports")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_contact_import_create():
     upload = request.files.get("file")
     if not upload or not is_vcard_upload(upload):
@@ -231,7 +232,7 @@ def api_contact_import_create():
 
 @registry_bp.get("/contact-imports/<int:intent_id>")
 @login_required
-@role_required(30)
+@role_required("staff")
 def contact_import_review(intent_id):
     intent = db.session.get(RegistryContactImportIntent, intent_id)
     if not intent:
@@ -244,7 +245,7 @@ def contact_import_review(intent_id):
             return "Importazione scaduta o non valida", 403
         clean_url = url_for("registry.contact_import_review", intent_id=intent_id)
         claimed = True
-    elif intent.user_id != current_user.id and (current_user.max_role_weight or 0) < 100:
+    elif intent.user_id != current_user.id and not meets_minimum_role(current_user, "admin"):
         return "Accesso negato", 403
     if intent.status == "completed":
         supplier = intent.suggested_registry and intent.suggested_registry.kind == "supplier"
@@ -262,7 +263,7 @@ def contact_import_review(intent_id):
 
 @registry_bp.get("/contact-imports/<int:intent_id>/photo")
 @login_required
-@role_required(30)
+@role_required("staff")
 def contact_import_photo(intent_id):
     intent = _contact_import_access(intent_id)
     if not intent:
@@ -275,7 +276,7 @@ def contact_import_photo(intent_id):
 
 @registry_bp.get("/api/contacts/<int:contact_id>/photo")
 @login_required
-@role_required(30)
+@role_required("staff")
 def registry_contact_photo(contact_id):
     contact = RegistryContact.query.filter_by(id=contact_id, is_active=True).first_or_404()
     path = resolve_photo_path(contact.photo_path)
@@ -286,7 +287,7 @@ def registry_contact_photo(contact_id):
 
 @registry_bp.post("/api/contact-imports/<int:intent_id>/confirm")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_contact_import_confirm(intent_id):
     intent = _contact_import_access(intent_id)
     if not intent:
@@ -332,7 +333,7 @@ def api_contact_import_confirm(intent_id):
 
 @registry_bp.get("/api/routes/customers")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_route_customers_index():
     q = (request.args.get("q") or "").strip()
     routes = (
@@ -379,7 +380,7 @@ def api_route_customers_index():
 
 @registry_bp.post("/api/routes")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_routes_create():
     data = request.get_json(silent=True) or {}
     name = (data.get("name") or "").strip()
@@ -412,7 +413,7 @@ def api_routes_create():
 
 @registry_bp.post("/api/routes/<int:route_id>/customers")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_route_customers_replace(route_id):
     route = DeliveryRoute.query.filter_by(id=route_id).first()
     if not route:
@@ -458,7 +459,7 @@ def api_route_customers_replace(route_id):
 
 @registry_bp.post("/api/routes/<int:route_id>/customers/<int:registry_id>")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_route_customer_assign(route_id, registry_id):
     route = DeliveryRoute.query.filter_by(id=route_id, is_active=True).first()
     if not route:
@@ -500,7 +501,7 @@ def api_route_customer_assign(route_id, registry_id):
 
 @registry_bp.delete("/api/routes/<int:route_id>/customers/<int:registry_id>")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_route_customer_delete(route_id, registry_id):
     link = DeliveryRouteCustomer.query.filter_by(route_id=route_id, registry_id=registry_id, is_active=True).first()
     if not link:
@@ -512,7 +513,7 @@ def api_route_customer_delete(route_id, registry_id):
 
 @registry_bp.get("/api/registries")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_registries_index():
     kind = (request.args.get("kind") or "customer").strip().lower()
     if kind not in {"customer", "supplier"}:
@@ -538,7 +539,7 @@ def api_registries_index():
 
 @registry_bp.post("/api/registries/<int:registry_id>/contacts")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_registry_contact_link(registry_id):
     registry = BusinessRegistry.query.filter_by(id=registry_id).first()
     if not registry:
@@ -578,7 +579,7 @@ def api_registry_contact_link(registry_id):
 
 @registry_bp.put("/api/contacts/<int:contact_id>")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_registry_contact_update(contact_id):
     contact = RegistryContact.query.filter_by(id=contact_id).first()
     if not contact:
@@ -601,7 +602,7 @@ def api_registry_contact_update(contact_id):
 
 @registry_bp.delete("/api/registries/<int:registry_id>/contacts/<int:contact_id>")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_registry_contact_unlink(registry_id, contact_id):
     link = BusinessRegistryContactLink.query.filter_by(registry_id=registry_id, contact_id=contact_id).first()
     if not link:

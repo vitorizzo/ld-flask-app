@@ -39,6 +39,7 @@ from tools.role_required import role_required
 from tools.slack_api import SlackAPI, SlackAPIConfig
 from tools.slack_processor import SlackProcessor
 
+from tools.role_required import meets_minimum_role
 
 pwa_bp = Blueprint("pwa", __name__)
 logger = get_logger("pwa", level=logging.DEBUG)
@@ -99,7 +100,7 @@ def _shared_attachments(intent):
 
 def _intent_access_or_404(intent_id):
     intent = SharedOrderIntent.query.get_or_404(intent_id)
-    if intent.user_id and intent.user_id != current_user.id and (current_user.max_role_weight or 0) < 100:
+    if intent.user_id and intent.user_id != current_user.id and not meets_minimum_role(current_user, "admin"):
         return None
     return intent
 
@@ -214,7 +215,7 @@ def share_target():
     )
     vcard = next((item for item in files if item and is_vcard_upload(item)), None)
     if vcard:
-        if current_user.is_authenticated and (current_user.max_role_weight or 0) < 30:
+        if current_user.is_authenticated and not meets_minimum_role(current_user, "staff"):
             return share_error("Il tuo profilo non puo' associare contatti alle anagrafiche clienti.", 403)
         try:
             if current_user.is_authenticated:
@@ -284,7 +285,7 @@ def share_target():
 
 @pwa_bp.get("/share/<int:intent_id>")
 @login_required
-@role_required(30)
+@role_required("staff")
 def share_review(intent_id):
     intent = _intent_access_or_404(intent_id)
     if not intent:
@@ -294,7 +295,7 @@ def share_review(intent_id):
 
 @pwa_bp.get("/api/share/<int:intent_id>/options")
 @login_required
-@role_required(30)
+@role_required("staff")
 def share_options(intent_id):
     intent = _intent_access_or_404(intent_id)
     if not intent:
@@ -310,7 +311,7 @@ def share_options(intent_id):
 
 @pwa_bp.get("/api/share/<int:intent_id>/customers")
 @login_required
-@role_required(30)
+@role_required("staff")
 def share_customers(intent_id):
     intent = _intent_access_or_404(intent_id)
     if not intent:
@@ -356,7 +357,7 @@ def share_customers(intent_id):
 
 @pwa_bp.post("/api/share/<int:intent_id>/files")
 @login_required
-@role_required(30)
+@role_required("staff")
 def share_add_files(intent_id):
     intent = _intent_access_or_404(intent_id)
     if not intent:
@@ -392,7 +393,7 @@ def share_add_files(intent_id):
 
 @pwa_bp.post("/api/share/<int:intent_id>/send")
 @login_required
-@role_required(30)
+@role_required("staff")
 def share_send_order(intent_id):
     from routes.route_orders import (
         _ensure_slack_order,
@@ -619,7 +620,7 @@ def push_test():
 
 @pwa_bp.post("/api/push/test-order")
 @login_required
-@role_required(30)
+@role_required("staff")
 def push_test_order():
     order = SlackOrder.query.order_by(SlackOrder.id.desc()).first()
     if not order:

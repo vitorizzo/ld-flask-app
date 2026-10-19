@@ -15,6 +15,7 @@ from urllib.parse import quote, unquote, urlparse
 from dotenv import dotenv_values, set_key, unset_key
 
 from extensions import db
+from tools.role_required import meets_minimum_role
 from tools.mail_accounts import (
     SYSTEM_EMAIL_ACCOUNTS,
     assistance_mail_sender,
@@ -298,8 +299,8 @@ def _save_ticket_attachments(message, files):
 
 def _can_handle_ticket(ticket):
     if (ticket.ticket_type or "support") == "support":
-        return (current_user.max_role_weight or 0) >= 900
-    return (current_user.max_role_weight or 0) >= 40
+        return meets_minimum_role(current_user, "dev")
+    return meets_minimum_role(current_user, "office")
 
 
 def _ticket_email_body(ticket, body):
@@ -316,7 +317,7 @@ def _send_mail(message):
 
 @settings_bp.get("/circuit-logos/<path:logo_path>")
 @login_required
-@role_required(40)
+@role_required("office")
 def pos_circuit_logo(logo_path):
     relative = (logo_path or "").lstrip("/").replace("\\", "/")
     if relative.startswith("static/"):
@@ -331,7 +332,7 @@ def pos_circuit_logo(logo_path):
 
 @settings_bp.get("/bank-logos/<path:logo_path>")
 @login_required
-@role_required(40)
+@role_required("office")
 def bank_logo(logo_path):
     relative = (logo_path or "").lstrip("/").replace("\\", "/")
     if relative.startswith("static/"):
@@ -368,7 +369,7 @@ def _promote_default_device():
 
 @settings_bp.route("/", methods=["GET"])
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def settings_index():
     all_entries = [
@@ -378,7 +379,7 @@ def settings_index():
             "route": url_for("settings.celery_tasks_settings"),
             "icon": "fa-solid fa-clock",
             "icon_class": "text-bg-primary",
-            "min_weight": 999,
+            "min_role": "dev",
         },
         {
             "title": "Utenti",
@@ -386,7 +387,7 @@ def settings_index():
             "route": url_for("settings.users_index"),
             "icon": "fa-solid fa-users",
             "icon_class": "text-bg-info",
-            "min_weight": 40,
+            "min_role": "office",
         },
         {
             "title": "Aspetto grafico",
@@ -394,7 +395,7 @@ def settings_index():
             "route": url_for("settings.appearance"),
             "icon": "fa-solid fa-palette",
             "icon_class": "text-bg-primary",
-            "min_weight": 40,
+            "min_role": "office",
         },
         {
             "title": "Banche",
@@ -402,7 +403,7 @@ def settings_index():
             "route": url_for("settings.banks_index"),
             "icon": "fa-solid fa-building-columns",
             "icon_class": "text-bg-danger",
-            "min_weight": 40,
+            "min_role": "office",
         },
         {
             "title": "Circuiti Carte",
@@ -410,7 +411,7 @@ def settings_index():
             "route": url_for("settings.pos_circuits_index"),
             "icon": "fa-solid fa-credit-card",
             "icon_class": "text-bg-info",
-            "min_weight": 40,
+            "min_role": "office",
         },
         {
             "title": "Carte aziendali",
@@ -418,7 +419,7 @@ def settings_index():
             "route": url_for("settings.company_cards_index"),
             "icon": "fa-solid fa-credit-card",
             "icon_class": "text-bg-primary",
-            "min_weight": 40,
+            "min_role": "office",
         },
         {
             "title": "Dispositivi POS",
@@ -426,7 +427,7 @@ def settings_index():
             "route": url_for("settings.pos_devices_index"),
             "icon": "fa-solid fa-cash-register",
             "icon_class": "text-bg-warning",
-            "min_weight": 40,
+            "min_role": "office",
         },
         {
             "title": "Chiavi API",
@@ -434,7 +435,7 @@ def settings_index():
             "route": url_for("settings.api_keys"),
             "icon": "fa-solid fa-key",
             "icon_class": "text-bg-secondary",
-            "min_weight": 900,
+            "min_role": "dev",
         },
         {
             "title": "Database",
@@ -442,7 +443,7 @@ def settings_index():
             "route": url_for("settings.database_config"),
             "icon": "fa-solid fa-database",
             "icon_class": "text-bg-success",
-            "min_weight": 900,
+            "min_role": "dev",
         },
         {
             "title": "Email",
@@ -450,7 +451,7 @@ def settings_index():
             "route": url_for("settings.email_config"),
             "icon": "fa-solid fa-envelope",
             "icon_class": "text-bg-info",
-            "min_weight": 40,
+            "min_role": "office",
         },
         {
             "title": "Ruoli e Autorizzazioni",
@@ -458,7 +459,7 @@ def settings_index():
             "route": url_for("settings.roles_permissions"),
             "icon": "fa-solid fa-shield-halved",
             "icon_class": "text-bg-info",
-            "min_weight": 900,
+            "min_role": "dev",
         },
         {
             "title": "Gestione menù",
@@ -466,7 +467,7 @@ def settings_index():
             "route": url_for("settings.manage_menus"),
             "icon": "fa-solid fa-bars",
             "icon_class": "text-bg-dark",
-            "min_weight": 900,
+            "min_role": "dev",
         },
         {
             "title": "Conflitti import",
@@ -474,7 +475,7 @@ def settings_index():
             "route": url_for("settings.import_conflicts_page"),
             "icon": "fa-solid fa-triangle-exclamation",
             "icon_class": "text-bg-warning",
-            "min_weight": 40,
+            "min_role": "office",
         },
         {
             "title": "Tracciati importazione",
@@ -482,7 +483,7 @@ def settings_index():
             "route": url_for("settings.import_transfer_definitions"),
             "icon": "fa-solid fa-file-import",
             "icon_class": "text-bg-success",
-            "min_weight": 900,
+            "min_role": "dev",
         },
         {
             "title": "Opzioni consegna Horeca",
@@ -490,7 +491,7 @@ def settings_index():
             "route": url_for("settings.customer_order_options"),
             "icon": "fa-solid fa-truck-fast",
             "icon_class": "text-bg-info",
-            "min_weight": 40,
+            "min_role": "office",
         },
         {
             "title": "Associazione Utente-Cliente",
@@ -498,24 +499,23 @@ def settings_index():
             "route": url_for("settings.customer_order_links"),
             "icon": "fa-solid fa-user-link",
             "icon_class": "text-bg-info",
-            "min_weight": 40,
+            "min_role": "office",
         },
     ]
-    max_weight = current_user.max_role_weight or 0
-    entries = [entry for entry in all_entries if max_weight >= entry["min_weight"]]
+    entries = [entry for entry in all_entries if meets_minimum_role(current_user, entry["min_role"])]
     return render_template("settings/index.html", entries=entries)
 
 
 @settings_bp.route("/celery-tasks", methods=["GET"])
 @login_required
-@role_required(999)
+@role_required("dev")
 def celery_tasks_settings():
     return render_template("settings/celery_tasks.html")
 
 
 @settings_bp.route("/celery-tasks/data", methods=["GET"])
 @login_required
-@role_required(999)
+@role_required("dev")
 def celery_tasks_data():
     from tools.celery_schedule_settings import read_document, document_rows, beat_status
     from tools.celery_contexts import contexts_enabled
@@ -531,7 +531,7 @@ def celery_tasks_data():
 
 @settings_bp.route("/celery-tasks/<name>", methods=["POST"])
 @login_required
-@role_required(999)
+@role_required("dev")
 def celery_tasks_update(name):
     from tools.celery_schedule_settings import update_document, document_rows, beat_status, ScheduleConflict
     from tools.celery_contexts import contexts_enabled
@@ -570,7 +570,7 @@ def celery_tasks_update(name):
 
 @settings_bp.route("/appearance", methods=["GET", "POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def appearance():
     if request.method == "POST":
@@ -631,7 +631,7 @@ def appearance():
 
 @settings_bp.get("/appearance/divider-image/<path:filename>")
 @login_required
-@role_required(40)
+@role_required("office")
 def appearance_divider_image(filename):
     folder = os.path.join(current_app.instance_path, "ui_theme_dividers")
     return send_from_directory(folder, filename, conditional=True, max_age=0)
@@ -639,7 +639,7 @@ def appearance_divider_image(filename):
 
 @settings_bp.route("/import-transfer-definitions", methods=["GET", "POST"])
 @login_required
-@role_required(900)
+@role_required("dev")
 @log_task(logger)
 def import_transfer_definitions():
     if request.method == "POST":
@@ -667,7 +667,7 @@ def import_transfer_definitions():
 
 @settings_bp.get("/support-tickets")
 @login_required
-@role_required(900)
+@role_required("dev")
 def support_tickets():
     status = (request.args.get("status") or "").strip()
     query = SupportTicket.query.options(selectinload(SupportTicket.messages)).filter(SupportTicket.ticket_type == "support")
@@ -692,7 +692,7 @@ def support_tickets():
 
 @settings_bp.get("/support-tickets/unread-count")
 @login_required
-@role_required(40)
+@role_required("office")
 def support_tickets_unread_count():
     support_count = support_unread_count()
     activation_count = SupportTicket.query.filter(
@@ -721,7 +721,7 @@ def support_tickets_unread_count():
 
 @settings_bp.route("/support-tickets/<int:ticket_id>", methods=["GET", "POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 def support_ticket_detail(ticket_id):
     ticket = (
         SupportTicket.query
@@ -819,7 +819,7 @@ def support_ticket_detail(ticket_id):
 
 @settings_bp.get("/api/customer-registries/search")
 @login_required
-@role_required(40)
+@role_required("office")
 def customer_registries_search():
     query_text = (request.args.get("q") or "").strip()
     query = BusinessRegistry.query.filter(
@@ -853,7 +853,7 @@ def customer_registries_search():
 
 @settings_bp.get("/horeca-activations")
 @login_required
-@role_required(40)
+@role_required("office")
 def horeca_activations():
     tickets = (
         SupportTicket.query
@@ -877,7 +877,7 @@ def horeca_activations():
 
 @settings_bp.post("/horeca-activations/<int:ticket_id>/activate")
 @login_required
-@role_required(40)
+@role_required("office")
 def activate_horeca(ticket_id):
     ticket = SupportTicket.query.get_or_404(ticket_id)
     is_collaborator = ticket.ticket_type == "horeca_collaborator_activation"
@@ -990,7 +990,7 @@ def activate_horeca(ticket_id):
 
 @settings_bp.route("/customer-order-options", methods=["GET", "POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 def customer_order_options():
     if request.method == "POST":
         action = (request.form.get("action") or "").strip()
@@ -1027,7 +1027,7 @@ def customer_order_options():
 
 @settings_bp.route("/customer-order-links", methods=["GET", "POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 def customer_order_links():
     if request.method == "POST":
         action = (request.form.get("action") or "add").strip()
@@ -1143,7 +1143,7 @@ def customer_order_links():
 
 @settings_bp.route("/users", methods=["GET"])
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def users_index():
     try:
@@ -1179,7 +1179,7 @@ def users_index():
 
 @settings_bp.post("/users/<int:user_id>/update")
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def user_update(user_id):
     user = User.query.get_or_404(user_id)
@@ -1210,7 +1210,7 @@ def user_update(user_id):
 
 @settings_bp.post("/users/<int:user_id>/delete")
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def user_delete(user_id):
     user = User.query.get_or_404(user_id)
@@ -1233,7 +1233,7 @@ def user_delete(user_id):
 
 @settings_bp.post("/users/<int:user_id>/role")
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def user_change_role(user_id):
     user = User.query.get_or_404(user_id)
@@ -1265,7 +1265,7 @@ def user_change_role(user_id):
 
 @settings_bp.post("/users/<int:user_id>/special-authorizations")
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def user_add_special_authorization(user_id):
     user = User.query.get_or_404(user_id)
@@ -1316,7 +1316,7 @@ def user_add_special_authorization(user_id):
 
 @settings_bp.post("/users/<int:user_id>/reset-password")
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def user_reset_password(user_id):
     user = User.query.get_or_404(user_id)
@@ -1361,7 +1361,7 @@ def user_reset_password(user_id):
 
 @settings_bp.route("/company-cards", methods=["GET", "POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def company_cards_index():
     if request.method == "POST":
@@ -1394,7 +1394,7 @@ def company_cards_index():
 
 @settings_bp.post("/company-cards/<int:card_id>/delete")
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def company_card_delete(card_id):
     card = CompanyCreditCard.query.get_or_404(card_id)
@@ -1413,7 +1413,7 @@ def company_card_delete(card_id):
 
 @settings_bp.route("/banks", methods=["GET", "POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def banks_index():
     try:
@@ -1458,7 +1458,7 @@ def banks_index():
 
 @settings_bp.route("/banks/<int:bank_id>/toggle", methods=["POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def bank_toggle_active(bank_id):
     bank = CashBank.query.get_or_404(bank_id)
@@ -1473,7 +1473,7 @@ def bank_toggle_active(bank_id):
 
 @settings_bp.route("/banks/<int:bank_id>/delete", methods=["POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def bank_delete(bank_id):
     bank = CashBank.query.get_or_404(bank_id)
@@ -1498,7 +1498,7 @@ def bank_delete(bank_id):
 
 @settings_bp.route("/pos-circuits", methods=["GET", "POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def pos_circuits_index():
     try:
@@ -1606,7 +1606,7 @@ def pos_circuits_index():
 
 @settings_bp.route("/pos-circuits/<int:circuit_id>/toggle", methods=["POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def pos_circuit_toggle_active(circuit_id):
     circuit = PosCircuit.query.get_or_404(circuit_id)
@@ -1618,7 +1618,7 @@ def pos_circuit_toggle_active(circuit_id):
 
 @settings_bp.route("/pos-circuits/<int:circuit_id>/delete", methods=["POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def pos_circuit_delete(circuit_id):
     circuit = PosCircuit.query.get_or_404(circuit_id)
@@ -1640,7 +1640,7 @@ def pos_circuit_delete(circuit_id):
 
 @settings_bp.route("/pos-devices", methods=["GET", "POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def pos_devices_index():
     try:
@@ -1726,7 +1726,7 @@ def pos_devices_index():
 
 @settings_bp.route("/pos-devices/<int:device_id>/toggle", methods=["POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def pos_device_toggle_active(device_id):
     device = PosDevice.query.get_or_404(device_id)
@@ -1741,7 +1741,7 @@ def pos_device_toggle_active(device_id):
 
 @settings_bp.route("/pos-devices/<int:device_id>/delete", methods=["POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def pos_device_delete(device_id):
     device = PosDevice.query.get_or_404(device_id)
@@ -1973,7 +1973,7 @@ def _build_database_config():
 
 @settings_bp.route("/database", methods=["GET", "POST"])
 @login_required
-@role_required(900)
+@role_required("dev")
 @log_task(logger)
 def database_config():
     if request.method == "POST":
@@ -2125,7 +2125,7 @@ def _save_email_account_from_form():
 
 @settings_bp.route("/email", methods=["GET", "POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def email_config():
     if request.method == "POST":
@@ -2159,7 +2159,7 @@ def email_config():
 
 @settings_bp.post("/email/sync-support-mailbox")
 @login_required
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 def sync_support_mailbox_now():
     try:
@@ -2328,7 +2328,7 @@ def _build_api_key_rows(sections):
 
 @settings_bp.route("/api-keys", methods=["GET", "POST"])
 @login_required
-@role_required(900)
+@role_required("dev")
 @log_task(logger)
 def api_keys():
     if request.method == "POST":
@@ -2424,7 +2424,7 @@ def api_keys():
 
 @settings_bp.route("/api-keys/matrixws/test", methods=["GET", "POST"])
 @login_required
-@role_required(900)
+@role_required("dev")
 @log_task(logger)
 def matrixws_test():
     if request.method == "GET":
@@ -2486,7 +2486,7 @@ def matrixws_test():
 
 @settings_bp.route("/api-keys/matrixws/test/<task_id>", methods=["GET"])
 @login_required
-@role_required(900)
+@role_required("dev")
 def matrixws_test_status(task_id):
     if not re.fullmatch(r"[a-fA-F0-9-]{20,64}", str(task_id or "")):
         return jsonify({"ok": False, "message": "Identificativo task non valido."}), 400
@@ -2524,7 +2524,7 @@ def matrixws_test_status(task_id):
 
 @settings_bp.route("/api-keys/matrixws/test-status/<task_id>", methods=["GET"])
 @login_required
-@role_required(900)
+@role_required("dev")
 def matrixws_test_status_alias(task_id):
     """Alias esplicito per il polling, separato dalla route di avvio del test."""
     return matrixws_test_status(task_id)
@@ -2532,7 +2532,7 @@ def matrixws_test_status_alias(task_id):
 
 @settings_bp.route("/roles-permissions", methods=["GET", "POST"])
 @login_required
-@role_required(900)
+@role_required("dev")
 @log_task(logger)
 def roles_permissions():
     if request.method == "POST":
@@ -2682,7 +2682,7 @@ def roles_permissions():
 
 @settings_bp.route("/preferences", methods=["GET", "POST"])
 @login_required
-@role_required(900)
+@role_required("dev")
 @log_task(logger)
 def preferences():
     flash("Configurazione e' stata sostituita dai widget dedicati.", "info")
@@ -2691,7 +2691,7 @@ def preferences():
 
 @settings_bp.route('/update_menu', methods=['POST'])
 @login_required
-@role_required(500)
+@role_required("dev")
 @log_task(logger)
 def update_menu():
     try:
@@ -2731,7 +2731,7 @@ def get_menu_data(menu_id):
 
 @settings_bp.route('/menus', methods=['GET', 'POST'])
 @login_required
-@role_required(900)
+@role_required("dev")
 @log_task(logger)
 def manage_menus():
     if request.method == 'POST':
@@ -2768,7 +2768,7 @@ def manage_menus():
 
 @settings_bp.route('/import_articoli', methods=['GET', 'POST'])
 @login_required
-@role_required(100)
+@role_required("admin")
 @log_task(logger)
 def lancia_import_articoli():
     logger.info("Importazione articoli richiesta.")
@@ -2780,7 +2780,7 @@ def lancia_import_articoli():
 
 @settings_bp.route('/preview_matrixws_articoli', methods=['POST'])
 @login_required
-@role_required(100)
+@role_required("admin")
 @log_task(logger)
 def lancia_verifica_articoli_matrixws():
     """Avvia la verifica completa 500004/1 senza persistere articoli."""
@@ -2793,7 +2793,7 @@ def lancia_verifica_articoli_matrixws():
 
 @settings_bp.route('/import_barcode_matrixws', methods=['POST'])
 @login_required
-@role_required(100)
+@role_required("admin")
 @log_task(logger)
 def lancia_import_barcode_matrixws():
     task = import_barcode_matrixws_task.delay()
@@ -2804,7 +2804,7 @@ def lancia_import_barcode_matrixws():
 
 @settings_bp.route('/import_giacenze_matrixws', methods=['POST'])
 @login_required
-@role_required(100)
+@role_required("admin")
 @log_task(logger)
 def lancia_import_giacenze_matrixws():
     task = import_giacenze_matrixws_task.delay()
@@ -2815,7 +2815,7 @@ def lancia_import_giacenze_matrixws():
 
 @settings_bp.route('/compare_import_sources_matrixws', methods=['POST'])
 @login_required
-@role_required(100)
+@role_required("admin")
 @log_task(logger)
 def lancia_confronto_import_matrixws():
     task = compare_file_matrixws_sources_task.delay()
@@ -2826,7 +2826,7 @@ def lancia_confronto_import_matrixws():
 
 @settings_bp.route('/import_ps_data', methods=['GET', 'POST'])
 @login_required
-@role_required(500)
+@role_required("dev")
 @log_task(logger)
 def lancia_import_prestashop():
     logger.info("Importazione Prestashop richiesta.")
@@ -2838,7 +2838,7 @@ def lancia_import_prestashop():
 
 @settings_bp.route('/import_poleepo_products', methods=['GET', 'POST'])
 @login_required
-@role_required(500)
+@role_required("dev")
 @log_task(logger)
 def lancia_import_prodotti_poleepo():
     logger.info("Importazione prodotti Poleepo richiesta.")
@@ -2850,7 +2850,7 @@ def lancia_import_prodotti_poleepo():
 
 @settings_bp.route("/reorder_menus", methods=["POST"])
 @login_required
-@role_required(900)
+@role_required("dev")
 @log_task(logger)
 def reorder_menus():
     data = request.get_json(silent=True) or {}
@@ -2911,7 +2911,7 @@ def reorder_menus():
 
 @settings_bp.route('/import_art_descr', methods=['GET', 'POST'])
 @login_required
-@role_required(500)
+@role_required("dev")
 @log_task(logger)
 def lancia_import_descr_prestashop():
     logger.info("Importazione descrizione articolo da Prestashop richiesta (hardcoded).")
@@ -2921,7 +2921,7 @@ def lancia_import_descr_prestashop():
 
 @settings_bp.route('/import_giacenze', methods=['GET', 'POST'])
 @login_required
-@role_required(100)
+@role_required("admin")
 @log_task(logger)
 def lancia_import_giacenze():
     logger.info("Importazione giacenze richiesta.")
@@ -2933,7 +2933,7 @@ def lancia_import_giacenze():
 
 @settings_bp.route('/import_barcode', methods=['GET', 'POST'])
 @login_required
-@role_required(100)
+@role_required("admin")
 @log_task(logger)
 def lancia_import_barcode():
     logger.info("Importazione codici a barre richiesta.")
@@ -2945,7 +2945,7 @@ def lancia_import_barcode():
 
 @settings_bp.route('/import_anagrafiche', methods=['GET', 'POST'])
 @login_required
-@role_required(100)
+@role_required("admin")
 @log_task(logger)
 def lancia_import_anagrafiche():
     logger.info("Importazione anagrafiche richiesta.")
@@ -2960,7 +2960,7 @@ def lancia_import_anagrafiche():
 
 @settings_bp.route('/import_estratti_conto_clienti', methods=['GET', 'POST'])
 @login_required
-@role_required(100)
+@role_required("admin")
 @log_task(logger)
 def lancia_import_estratti_conto_clienti():
     logger.info("Importazione estratti conto clienti richiesta.")
@@ -2975,14 +2975,14 @@ def lancia_import_estratti_conto_clienti():
 
 @settings_bp.route("/import_conflicts", methods=["GET"])
 @login_required
-@role_required(40)
+@role_required("office")
 def import_conflicts_page():
     return render_template("settings/import_conflicts.html")
 
 
 @settings_bp.route("/next_conflict", methods=["GET"])
 @login_required
-@role_required(40)
+@role_required("office")
 def api_import_conflicts_next():
     ctype = request.args.get("type")
 
@@ -3052,7 +3052,7 @@ def _sha256_text(value) -> str | None:
 
 @settings_bp.route("/resolve_conflict", methods=["POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 def resolve_conflict():
     data = request.get_json(silent=True) or {}
     conflict_id = data.get("id")
@@ -3146,7 +3146,7 @@ def resolve_conflict():
 
 @settings_bp.route("/get_menu_structure", methods=["GET"])
 @login_required
-@role_required(900)
+@role_required("dev")
 @log_task(logger)
 def get_menu_structure():
     menus = (
@@ -3159,7 +3159,7 @@ def get_menu_structure():
 
 @settings_bp.route("/create_menu", methods=["POST"])
 @login_required
-@role_required(900)
+@role_required("dev")
 @log_task(logger)
 def create_menu():
     data = request.get_json(silent=True) or {}
@@ -3209,7 +3209,7 @@ def create_menu():
 
 @settings_bp.route("/update_menu_json", methods=["POST"])
 @login_required
-@role_required(900)
+@role_required("dev")
 @log_task(logger)
 def update_menu_json():
     data = request.get_json(silent=True) or {}
@@ -3262,7 +3262,7 @@ def update_menu_json():
 
 @settings_bp.route("/delete_menu/<int:menu_id>", methods=["POST"])
 @login_required
-@role_required(900)
+@role_required("dev")
 @log_task(logger)
 def delete_menu(menu_id):
     data = request.get_json(silent=True) or {}
@@ -3303,7 +3303,7 @@ def delete_menu(menu_id):
 
 @settings_bp.route("/toggle_menu_active/<int:menu_id>", methods=["POST"])
 @login_required
-@role_required(900)
+@role_required("dev")
 @log_task(logger)
 def toggle_menu_active(menu_id):
     m = Menu.query.get_or_404(menu_id)
@@ -3316,7 +3316,7 @@ def toggle_menu_active(menu_id):
 
 @settings_bp.route("/toggle_menu_visible/<int:menu_id>", methods=["POST"])
 @login_required
-@role_required(900)
+@role_required("dev")
 @log_task(logger)
 def toggle_menu_visible(menu_id):
     m = Menu.query.get_or_404(menu_id)

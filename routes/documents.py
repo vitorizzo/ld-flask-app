@@ -1,6 +1,7 @@
 from flask import Blueprint, abort, render_template, url_for
 from flask_login import login_required, current_user
 
+from tools.role_required import meets_minimum_role
 
 documents_bp = Blueprint("documents", __name__)
 
@@ -32,7 +33,7 @@ def _ld_selection_view_key() -> str | None:
     active_roles = _active_role_names()
     max_weight = current_user.max_role_weight or 0
 
-    if max_weight >= 30:
+    if meets_minimum_role(current_user, "staff"):
         return "horeca"
     if "customer_horeca" in active_roles:
         return "horeca"
@@ -43,9 +44,9 @@ def _ld_selection_view_key() -> str | None:
 
 def _ld_selection_share_keys() -> list[str]:
     max_weight = current_user.max_role_weight or 0
-    if max_weight >= 100:
+    if meets_minimum_role(current_user, "admin"):
         return ["standard", "horeca", "top"]
-    if max_weight >= 30:
+    if meets_minimum_role(current_user, "staff"):
         return ["standard", "horeca"]
     return []
 
@@ -88,7 +89,7 @@ def ld_selection():
         pdf_url=pdf_url,
         pdf_filename=pdf_filename.rsplit("/", 1)[-1],
         pdf_title=_ld_selection_title(),
-        can_open_external=(current_user.max_role_weight or 0) >= 30,
+        can_open_external=meets_minimum_role(current_user, "staff"),
         can_share=can_share,
         share_versions=share_versions,
     )

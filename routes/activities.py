@@ -7,6 +7,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from extensions import db
+from tools.role_required import resolve_minimum_weight
 from models import (AppPreference, OperationalActivity, ActivityPhoto, SupplierArrival, SupplierBoardCard, Role, User, UserRole, ActivityAttachment, ActivityResultNotice)
 from tools.activities import (ACTIVE,CLOSED,CONFIG_KEY,manager,visible_query,activity_query,activity_data,
                               routing_data,validate_rules,transition,create_arrival,add_event,
@@ -90,7 +91,7 @@ def assignees():
         except ValueError: abort(403)
         parent=visible_query(current_user).filter_by(id=parent_id).first()
         if not parent or parent.status not in ACTIVE: abort(403)
-    roles = Role.query.filter(Role.weight >= 30).order_by(Role.weight, Role.name).all()
+    roles = Role.query.filter(Role.weight >= resolve_minimum_weight("staff")).order_by(Role.weight, Role.name).all()
     query = operational_users()
     if request.args.get('role_id'):
         try: role_id = int(request.args['role_id'])

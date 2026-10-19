@@ -782,14 +782,14 @@ def publish_customer_order(order):
 
 @route_orders_bp.get("/board")
 @login_required
-@role_required(30)
+@role_required("staff")
 def board_page():
     return render_template("route_orders/board.html", statuses=BOARD_STATUSES)
 
 
 @route_orders_bp.get("/history")
 @login_required
-@role_required(30)
+@role_required("staff")
 def order_history_page():
     today = date.today()
     default_from = today - timedelta(days=30)
@@ -1068,7 +1068,7 @@ def order_history_page():
 
 @route_orders_bp.get("/history/detail/<string:kind>/<int:record_id>")
 @login_required
-@role_required(30)
+@role_required("staff")
 def order_history_detail(kind, record_id):
     """Return a read-only, source-independent order detail for the history modal."""
     if kind not in {"console", "slack"}:
@@ -1179,7 +1179,7 @@ def order_history_detail(kind, record_id):
 
 @route_orders_bp.get("/api/board")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_board():
     route_id = request.args.get("route_id", type=int)
     only_with_orders = request.args.get("only_with_orders") in {"1", "true", "yes"}
@@ -1257,7 +1257,7 @@ def api_board():
 
 @route_orders_bp.post("/api/entries")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_save_entry():
     data = request.get_json(silent=True) or {}
     route = DeliveryRoute.query.filter_by(id=data.get("route_id"), is_active=True).first()
@@ -1308,7 +1308,7 @@ def api_save_entry():
 
 @route_orders_bp.get("/api/customers")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_customers():
     q = (request.args.get("q") or "").strip()
     query = BusinessRegistry.query.filter(BusinessRegistry.kind == "customer", BusinessRegistry.is_active.is_(True))
@@ -1336,7 +1336,7 @@ def api_customers():
 
 @route_orders_bp.post("/api/entries/<int:entry_id>/attachments")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_entry_attachments(entry_id):
     entry = RouteOrderBoardEntry.query.get_or_404(entry_id)
     saved = _save_uploaded_files(_files_from_request())
@@ -1349,7 +1349,7 @@ def api_entry_attachments(entry_id):
 
 @route_orders_bp.post("/api/orders/<int:order_id>/attachments")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_order_attachments(order_id):
     order = SlackOrder.query.get_or_404(order_id)
     saved = _save_uploaded_files(_files_from_request())
@@ -1370,7 +1370,7 @@ def api_order_attachments(order_id):
 
 @route_orders_bp.post("/api/orders/<int:order_id>/document")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_order_document(order_id):
     order = SlackOrder.query.get_or_404(order_id)
     data = request.get_json(silent=True) or {}
@@ -1389,7 +1389,7 @@ def api_order_document(order_id):
 
 @route_orders_bp.post("/api/orders/<int:order_id>/status")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_order_status(order_id):
     order = SlackOrder.query.get_or_404(order_id)
     data = request.get_json(silent=True) or {}
@@ -1424,7 +1424,7 @@ def api_order_status(order_id):
 
 @route_orders_bp.post("/api/orders/<int:order_id>/delivery")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_order_delivery(order_id):
     order = SlackOrder.query.get_or_404(order_id)
     data = request.get_json(silent=True) or {}
@@ -1448,7 +1448,7 @@ def api_order_delivery(order_id):
 
 @route_orders_bp.post("/api/orders/<int:order_id>/customer")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_order_customer(order_id):
     order = SlackOrder.query.get_or_404(order_id)
     data = request.get_json(silent=True) or {}
@@ -1504,7 +1504,7 @@ def api_order_customer(order_id):
 
 @route_orders_bp.post("/api/orders/bulk-status")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_orders_bulk_status():
     data = request.get_json(silent=True) or {}
     ids = [int(value) for value in (data.get("order_ids") or []) if str(value).isdigit()]
@@ -1538,7 +1538,7 @@ def api_orders_bulk_status():
 
 @route_orders_bp.get("/api/manual-order-destinations")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_manual_order_destinations():
     direct_route, _ = _direct_order_route()
     routes = (
@@ -1575,7 +1575,7 @@ def api_manual_order_destinations():
 @route_orders_bp.post("/api/manual-orders")
 @route_orders_bp.post("/api/direct-orders")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_direct_order_create():
     registry_id = request.form.get("registry_id", type=int)
     registry = None
@@ -1688,7 +1688,7 @@ def api_direct_order_create():
 
 @route_orders_bp.get("/api/direct-orders")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_direct_orders():
     direct_route, channel_id = _direct_order_route()
     if not channel_id:
@@ -1751,7 +1751,7 @@ def api_direct_orders():
 
 @route_orders_bp.post("/api/routes/<int:route_id>/delivery-date")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_route_delivery_date(route_id):
     route = DeliveryRoute.query.filter_by(id=route_id, is_active=True).first()
     if not route:
@@ -1785,7 +1785,7 @@ def api_route_delivery_date(route_id):
 
 @route_orders_bp.post("/api/entries/<int:entry_id>/send-slack")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_send_slack(entry_id):
     entry = RouteOrderBoardEntry.query.get_or_404(entry_id)
     registry = entry.registry
@@ -1831,7 +1831,7 @@ def api_send_slack(entry_id):
 
 @route_orders_bp.post("/api/entries/<int:entry_id>/cancel")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_cancel_order(entry_id):
     entry = RouteOrderBoardEntry.query.get_or_404(entry_id)
     if not entry.slack_channel_id or not entry.slack_message_ts:
@@ -1868,7 +1868,7 @@ def api_cancel_order(entry_id):
 
 @route_orders_bp.delete("/api/entries/<int:entry_id>")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_delete_order(entry_id):
     entry = RouteOrderBoardEntry.query.get_or_404(entry_id)
     channel_id = entry.slack_channel_id
@@ -1933,7 +1933,7 @@ def api_delete_order(entry_id):
 
 @route_orders_bp.get("/api/registries/<int:registry_id>/phone-contacts")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_registry_phone_contacts(registry_id):
     registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first()
     if not registry:
@@ -1943,7 +1943,7 @@ def api_registry_phone_contacts(registry_id):
 
 @route_orders_bp.post("/api/registries/<int:registry_id>/phone-contacts")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_registry_phone_contact_create(registry_id):
     registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first()
     if not registry:
@@ -1965,7 +1965,7 @@ def api_registry_phone_contact_create(registry_id):
 
 @route_orders_bp.put("/api/phone-contacts/<source>/<int:item_id>")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_registry_phone_contact_update(source, item_id):
     data = request.get_json(silent=True) or {}
     value = (data.get("value") or "").strip()
@@ -1996,7 +1996,7 @@ def api_registry_phone_contact_update(source, item_id):
 
 @route_orders_bp.delete("/api/phone-contacts/<source>/<int:item_id>")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_registry_phone_contact_delete(source, item_id):
     registry = None
     if source == "legacy":
@@ -2019,7 +2019,7 @@ def api_registry_phone_contact_delete(source, item_id):
 
 @route_orders_bp.get("/api/registries/<int:registry_id>/alerts")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_registry_alerts(registry_id):
     alerts = (
         BusinessRegistryAlert.query
@@ -2032,7 +2032,7 @@ def api_registry_alerts(registry_id):
 
 @route_orders_bp.post("/api/registries/<int:registry_id>/alerts")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_registry_alert_create(registry_id):
     registry = BusinessRegistry.query.filter_by(id=registry_id, kind="customer", is_active=True).first()
     if not registry:
@@ -2054,7 +2054,7 @@ def api_registry_alert_create(registry_id):
 
 @route_orders_bp.delete("/api/alerts/<int:alert_id>")
 @login_required
-@role_required(30)
+@role_required("staff")
 def api_registry_alert_delete(alert_id):
     alert = BusinessRegistryAlert.query.get_or_404(alert_id)
     alert.is_active = False

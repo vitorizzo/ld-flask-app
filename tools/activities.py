@@ -1,9 +1,10 @@
 """Shared operational work, role visibility and supplier-arrival workflows."""
 from datetime import datetime
 from flask import current_app, g, has_request_context
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.orm import selectinload
 from extensions import db
+from tools.role_required import meets_minimum_role, resolve_minimum_weight
 from models import (AppPreference, Role, User, UserRole, OperationalActivity, ActivityTargetRole, ActivityTargetUser,
                     ActivityEvent, ActivityPhoto, SupplierArrival, ActivityResultRole, ActivityResultUser, ActivityAttachment, ActivityResultNotice)
 
@@ -16,16 +17,22 @@ logger = get_logger('activities')
 CONFIG_KEY = 'activities.supplier_arrival.routing'
 
 
-def manager(user): return (user.max_role_weight or 0) >= 40
+def manager(user): return meets_minimum_role(user, "office")
 
 
 def sees_all(user):
     """Admin (900) and Dev (1000); office management alone grants no visibility."""
-    return (user.max_role_weight or 0) >= 900
+    return meets_minimum_role(user, "dev")
 
 
 def assigned_query(user):
     query = OperationalActivity.query
+    customer = select(Role.weight).where(func.lower(Role.name) == "customer").scalar_subquery()
+    staff = select(Role.weight).where(func.lower(Role.name) == "staff").scalar_subquery()
+    office = select(Role.weight).where(func.lower(Role.name) == "office").scalar_subquery()
+    admin = select(Role.weight).where(func.lower(Role.name) == "admin").scalar_subquery()
+    dev = select(Role.weight).where(func.lower(Role.name).in_(("dev", "developer"))).order_by(Role.weight).limit(1).scalar_subquery()
+    target_minimum = case((OperationalActivity.target_min_weight <= 20, customer), (OperationalActivity.target_min_weight <= 30, staff), (OperationalActivity.target_min_weight <= 40, office), (OperationalActivity.target_min_weight <= 100, admin), else_=dev)
     if not sees_all(user):
         ids = [role.id for role in user.active_roles]
         query = query.filter(db.session.query(ActivityTargetRole.activity_id).filter(
@@ -33,7 +40,7 @@ def assigned_query(user):
             ActivityTargetRole.role_id.in_(ids)).exists() | db.session.query(ActivityTargetUser.activity_id).filter(
             ActivityTargetUser.activity_id == OperationalActivity.id, ActivityTargetUser.user_id == user.id).exists() |
             (OperationalActivity.target_min_weight.isnot(None) &
-             (OperationalActivity.target_min_weight <= (user.max_role_weight or 0))))
+             (target_minimum <= (user.max_role_weight or 0))))
     return query
 
 
@@ -89,7 +96,7 @@ def actor_name(user): return ' '.join(filter(None,[getattr(user,'name',''),getat
 def activity_data(row, user, detail=False):
     arrival = row.arrival
     active_role_ids = {role.id for role in user.active_roles}
-    executor = sees_all(user) or any(t.role_id in active_role_ids for t in row.targets) or any(t.user_id == user.id for t in row.user_targets) or (row.target_min_weight is not None and row.target_min_weight <= (user.max_role_weight or 0))
+    executor = sees_all(user) or any(t.role_id in active_role_ids for t in row.targets) or any(t.user_id == user.id for t in row.user_targets) or (row.target_min_weight is not None and (resolve_minimum_weight(row.target_min_weight) or float("inf")) <= (user.max_role_weight or 0))
     editable=can_edit(row,user)
     data = dict(id=row.id,title=row.title,kind=row.kind,status=row.status,revision=row.revision,cycle=row.cycle,
         parent_id=row.parent_id,can_edit=editable,
@@ -119,7 +126,7 @@ def activity_data(row, user, detail=False):
 def routing_data():
     pref = AppPreference.query.filter_by(key=CONFIG_KEY).first()
     stored = pref.value_json if pref and isinstance(pref.value_json,dict) else {}
-    roles = Role.query.filter(Role.weight >= 30).order_by(Role.weight,Role.name).all()
+    roles = Role.query.filter(Role.weight >= resolve_minimum_weight("staff")).order_by(Role.weight,Role.name).all()
     defaults = [role.id for role in roles if str(role.name or '').strip().lower()=='staff']
     rules = stored.get('rules') or {kind:defaults for kind in KINDS}
     return dict(revision=stored.get('revision',0),rules=rules,
@@ -129,7 +136,7 @@ def routing_data():
 def operational_users():
     now = datetime.now()
     return User.query.join(UserRole, UserRole.user_id == User.id).join(Role, Role.id == UserRole.role_id).filter(
-        Role.weight >= 30, (UserRole.valid_from.is_(None) | (UserRole.valid_from <= now)),
+        Role.weight >= resolve_minimum_weight("staff"), (UserRole.valid_from.is_(None) | (UserRole.valid_from <= now)),
         (UserRole.valid_until.is_(None) | (UserRole.valid_until >= now))).distinct()
 
 
@@ -147,8 +154,8 @@ def manual_payload(payload):
         targets.append(sorted(set(values)))
     roles, users = targets
     weight = payload.get('target_min_weight')
-    if weight is not None and (type(weight) is not int or not 30 <= weight <= 1000):
-        raise ValueError('Scegli un peso minimo operativo da 30 a 1000.')
+    if weight is not None and (type(weight) is not int or weight < (resolve_minimum_weight("staff") or 0)):
+        raise ValueError('Scegli un ruolo minimo operativo uguale o superiore a staff.')
     if not roles and not users and weight is None: raise ValueError('Scegli almeno un utente, ruolo o peso minimo.')
     result = payload.get('result_recipients')
     if result is None: raise ValueError('Scegli i destinatari dell’esito.')
@@ -159,7 +166,7 @@ def manual_payload(payload):
         if not isinstance(values, list) or len(values)>200 or any(type(v) is not int for v in values): raise ValueError('Destinatari esito non validi.')
         normalized[field] = sorted(set(values))
     minimum = result.get('target_min_weight')
-    if minimum is not None and (type(minimum) is not int or not 30 <= minimum <= 1000): raise ValueError('Peso minimo esito non valido.')
+    if minimum is not None and (type(minimum) is not int or minimum < (resolve_minimum_weight("staff") or 0)): raise ValueError('Soglia minima esito non valida.')
     normalized['target_min_weight'] = minimum
     if 'result_recipients' in payload and not normalized['role_ids'] and not normalized['user_ids'] and minimum is None:
         raise ValueError('Scegli almeno un destinatario dell’esito.')
@@ -174,7 +181,7 @@ def validate_manual_targets(payload):
     result = payload['result_recipients']
     roles = sorted(set(payload['role_ids'] + result['role_ids']))
     users = sorted(set(payload['user_ids'] + result['user_ids']))
-    valid_roles = {role.id for role in Role.query.filter(Role.weight >= 30, Role.id.in_(roles)).all()}
+    valid_roles = {role.id for role in Role.query.filter(Role.weight >= resolve_minimum_weight("staff"), Role.id.in_(roles)).all()}
     valid_users = {row.id for row in operational_users().filter(User.id.in_(users)).all()}
     if set(roles) != valid_roles or set(users) != valid_users: raise ValueError('Scegli ruoli e utenti operativi attivi. Aggiorna i destinatari.')
 
@@ -198,7 +205,7 @@ def validate_rules(payload):
     if not isinstance(payload,dict) or type(payload.get('revision')) is not int or not isinstance(payload.get('rules'),dict):
         raise ValueError('Configurazione non valida.')
     if set(payload['rules']) != set(KINDS): raise ValueError('Configura i destinatari delle tre attività.')
-    valid = {role.id for role in Role.query.filter(Role.weight>=30).all()}
+    valid = {role.id for role in Role.query.filter(Role.weight>=resolve_minimum_weight("staff")).all()}
     rules = {}
     for kind,title in KINDS.items():
         ids = payload['rules'][kind]

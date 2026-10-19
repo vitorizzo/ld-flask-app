@@ -12,13 +12,14 @@ from tools.social_events import create_social_event_post
 from tools.meta_social import publish_social_event_post
 from tools.role_required import role_required
 
+from tools.role_required import meets_minimum_role
 
 events_bp = Blueprint("events", __name__)
 ALLOWED_POSTER_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".pdf"}
 
 
 def _can_manage_events():
-    return current_user.is_authenticated and (current_user.max_role_weight or 0) >= 40
+    return current_user.is_authenticated and meets_minimum_role(current_user, "office")
 
 
 def _parse_event_datetime(value):
@@ -213,7 +214,7 @@ def public_index():
 
 @events_bp.route("/manage", methods=["GET"])
 @login_required
-@role_required(40)
+@role_required("office")
 def manage():
     managed_events = (
         Event.query
@@ -230,7 +231,7 @@ def manage():
 
 @events_bp.route("/social-posts", methods=["GET"])
 @login_required
-@role_required(40)
+@role_required("office")
 def social_posts():
     posts = (
         SocialEventPost.query
@@ -247,7 +248,7 @@ def social_posts():
 
 @events_bp.route("/social-posts", methods=["POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 def create_social_post():
     kind = (request.form.get("kind") or "week").strip().lower()
     if kind not in {"week", "weekend"}:
@@ -259,7 +260,7 @@ def create_social_post():
 
 @events_bp.route("/social-posts/<int:post_id>/delete", methods=["POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 def delete_social_post(post_id):
     post = SocialEventPost.query.get_or_404(post_id)
     db.session.delete(post)
@@ -270,7 +271,7 @@ def delete_social_post(post_id):
 
 @events_bp.route("/social-posts/<int:post_id>/publish", methods=["POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 def publish_social_post(post_id):
     post = SocialEventPost.query.get_or_404(post_id)
     destinations = [name for name in request.form.getlist("destinations") if name in {"facebook", "instagram"}]
@@ -289,7 +290,7 @@ def publish_social_post(post_id):
 
 @events_bp.route("/", methods=["POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 def create():
     try:
         data = _event_form_data()
@@ -308,7 +309,7 @@ def create():
 
 @events_bp.route("/<int:event_id>/update", methods=["POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 def update(event_id):
     event = Event.query.get_or_404(event_id)
     try:
@@ -327,7 +328,7 @@ def update(event_id):
 
 @events_bp.route("/<int:event_id>/delete", methods=["POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 def delete(event_id):
     event = Event.query.get_or_404(event_id)
     db.session.delete(event)
@@ -338,7 +339,7 @@ def delete(event_id):
 
 @events_bp.route("/<int:event_id>/posters", methods=["POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 def upload_posters(event_id):
     event = Event.query.get_or_404(event_id)
     try:
@@ -356,7 +357,7 @@ def upload_posters(event_id):
 
 @events_bp.route("/<int:event_id>/posters/<int:poster_id>/delete", methods=["POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 def delete_poster(event_id, poster_id):
     poster = EventPoster.query.filter_by(id=poster_id, event_id=event_id).first_or_404()
     event = poster.event

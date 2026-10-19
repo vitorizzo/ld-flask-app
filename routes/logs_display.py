@@ -44,7 +44,7 @@ def _available_log_files() -> list[str]:
 
 @logs_bp.route("/view")
 @login_required
-@role_required(999)
+@role_required("dev")
 def visualizza_logs():
     logger.info(f"chiamata route visualizza logs")
     files = _available_log_files()

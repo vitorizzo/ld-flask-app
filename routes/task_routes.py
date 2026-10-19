@@ -29,7 +29,7 @@ def clear_errors():
 
 @task_bp.route("/clear_all_tasks", methods=["GET", "POST"])
 @login_required  # se hai login richiesto
-@role_required(500)  # opzionale, se vuoi che solo admin lo faccia
+@role_required("dev")  # opzionale, se vuoi che solo admin lo faccia
 def clear_all_tasks():
     from tools.redis_utils import clear_all_task_statuses
     clear_all_task_statuses()

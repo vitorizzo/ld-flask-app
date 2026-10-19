@@ -1590,7 +1590,7 @@ def nexi_notification():
 @login_required
 def download_payment_evidence(evidence_id):
     evidence = CustomerPaymentEvidence.query.get_or_404(evidence_id)
-    if current_user.max_role_weight < 40:
+    if not meets_minimum_role(current_user, "office"):
         _, is_developer = _role_context()
         if _authorized_registry(evidence.payment_case.registry_id, is_developer) is None:
             abort(403)
@@ -1907,7 +1907,7 @@ def _render_office_cases(queue_code, case_types, title, description):
 
 @customer_account_bp.get("/office/payment-communications")
 @login_required
-@role_required(40)
+@role_required("office")
 def office_payment_communications():
     return _render_office_cases(
         "payments", ("bank_transfer", "online_payment"), "Comunicazioni di pagamento",
@@ -1917,7 +1917,7 @@ def office_payment_communications():
 
 @customer_account_bp.get("/office/payment-disputes")
 @login_required
-@role_required(40)
+@role_required("office")
 def office_payment_disputes():
     return _render_office_cases(
         "disputes", ("payment_claim",), "Contestazioni partite aperte",
@@ -1927,7 +1927,7 @@ def office_payment_disputes():
 
 @customer_account_bp.route("/office/cases/<int:case_id>", methods=["GET", "POST"])
 @login_required
-@role_required(40)
+@role_required("office")
 def office_case_detail(case_id):
     payment_case = (
         _office_case_query(("bank_transfer", "online_payment", "payment_claim"))

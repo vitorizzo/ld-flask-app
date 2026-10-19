@@ -8,7 +8,7 @@ from tools.log_utils import get_logger
 logger = get_logger("auth_manager")
 
 
-def has_min_role(required_weight: int) -> bool:
+def has_min_role(minimum_role: str) -> bool:
     """
     Verifica che l'utente attuale abbia un ruolo con weight >= required_weight.
     Registra nel log tutti i dettagli utili per debug.
@@ -17,12 +17,16 @@ def has_min_role(required_weight: int) -> bool:
         user = get_current_user()
     except Unauthorized:
         logger.warning(
-            f"Verifica ruolo fallita: utente non autenticato. Richiesto >= {required_weight}"
+            f"Verifica ruolo fallita: utente non autenticato. Ruolo minimo richiesto: {minimum_role}"
         )
         return False
 
     try:
-        user_weight = user.role.weight
+        from tools.role_required import resolve_minimum_weight
+        user_weight = user.max_role_weight or 0
+        required_weight = resolve_minimum_weight(minimum_role)
+        if required_weight is None:
+            return False
     except Exception as e:
         logger.exception(
             f"Errore nel leggere il ruolo dell'utente ID {user.id}: {e}"
@@ -66,7 +70,7 @@ def is_authenticated():
     return current_user.is_authenticated
 
 
-def role_required(min_role: int):
+def role_required(min_role: str):
     """
     Decoratore per proteggere una route in base al ruolo minimo richiesto.
     Usa logging dettagliato per capire ogni passaggio.
@@ -100,7 +104,9 @@ def role_required(min_role: int):
                 raise Forbidden("Ruolo utente non definito.")
 
             # 4. Confronto dei ruoli
-            if int(user_role) < int(min_role):
+            from tools.role_required import resolve_minimum_weight
+            required_weight = resolve_minimum_weight(min_role)
+            if required_weight is None or (current_user.max_role_weight or 0) < required_weight:
                 logger.warning(
                     f"[role_required] Accesso negato: ruolo_utente={user_role} "
                     f"< ruolo_minimo={min_role}"

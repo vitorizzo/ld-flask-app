@@ -178,14 +178,14 @@ ACCOUNTING_ITEM_STATUS_LABELS = {
 
 @administration_bp.route("/cash-flow", methods=["GET"])
 @login_required
-@role_required(min_weight=40)
+@role_required("office")
 def cash_flow():
     return render_template("administration/cash_flow.html")
 
 
 @administration_bp.route("/api/cash-flow", methods=["GET"])
 @login_required
-@role_required(min_weight=40)
+@role_required("office")
 def cash_flow_api():
     today = date.today()
     default_start = today - timedelta(days=30)
@@ -433,7 +433,7 @@ def _credit_account_available(code):
 
 @administration_bp.route("/customer-credit", methods=["GET"])
 @login_required
-@role_required(40, roles=["office"])
+@role_required("office", roles=["office"])
 @log_task(logger)
 def customer_credit():
     current_import = _latest_statement_import()
@@ -578,7 +578,7 @@ def customer_credit():
 
 @administration_bp.route("/customer-credit/customers", methods=["GET"])
 @login_required
-@role_required(40, roles=["office"])
+@role_required("office", roles=["office"])
 @log_task(logger)
 def customer_credit_customers():
     current_import = _latest_statement_import()
@@ -617,7 +617,7 @@ def customer_credit_customers():
 
 @administration_bp.route("/customer-credit/<source_customer_code>", methods=["GET"])
 @login_required
-@role_required(40, roles=["office"])
+@role_required("office", roles=["office"])
 @log_task(logger)
 def customer_credit_detail(source_customer_code):
     current_import = _latest_statement_import()
@@ -705,7 +705,7 @@ def customer_credit_detail(source_customer_code):
 
 @administration_bp.post("/customer-credit/<source_customer_code>/item-status")
 @login_required
-@role_required(40, roles=["office"])
+@role_required("office", roles=["office"])
 @log_task(logger)
 def update_customer_credit_item_status(source_customer_code):
     requested_status = str(request.form.get("status") or "").strip()
@@ -870,7 +870,7 @@ def _redirect_customer_credit_detail(source_customer_code):
 
 @administration_bp.route('/customer-credit/templates', methods=['GET', 'POST'])
 @login_required
-@role_required(40, roles=['office'])
+@role_required("office", roles=['office'])
 def customer_credit_templates():
     if request.method == 'GET':
         return jsonify(ok=True, templates=[template_data(row) for row in template_rows().all()])
@@ -895,7 +895,7 @@ def customer_credit_templates():
 
 @administration_bp.delete('/customer-credit/templates/<template_id>')
 @login_required
-@role_required(40, roles=['office'])
+@role_required("office", roles=['office'])
 def delete_customer_credit_template(template_id):
     row = AppPreference.query.filter_by(key=CREDIT_TEMPLATE_PREFIX + template_id).first_or_404()
     db.session.delete(row)
@@ -905,7 +905,7 @@ def delete_customer_credit_template(template_id):
 
 @administration_bp.post("/customer-credit/<source_customer_code>/communications")
 @login_required
-@role_required(40, roles=["office"])
+@role_required("office", roles=["office"])
 @log_task(logger)
 def send_customer_credit_communication(source_customer_code):
     payload = request.get_json(silent=True) or {}
@@ -1151,7 +1151,7 @@ def _queue_payment_link_delivery(payment_link, recipient):
 
 @administration_bp.get("/payment-links")
 @login_required
-@role_required(40, roles=["office"])
+@role_required("office", roles=["office"])
 @log_task(logger)
 def payment_links():
     expired_count = AdministrationPaymentLink.query.filter(
@@ -1193,7 +1193,7 @@ def payment_link_cancelled():
 
 @administration_bp.get("/payment-links/recipients")
 @login_required
-@role_required(40, roles=["office"])
+@role_required("office", roles=["office"])
 def payment_link_recipients():
     recipient_type = str(request.args.get("type") or "").strip().lower()
     search = str(request.args.get("q") or "").strip()[:100]
@@ -1238,7 +1238,7 @@ def payment_link_recipients():
 
 @administration_bp.post("/payment-links")
 @login_required
-@role_required(40, roles=["office"])
+@role_required("office", roles=["office"])
 @log_task(logger)
 def create_payment_link():
     classic_configured = _nexi_classic_configured()
@@ -1360,7 +1360,7 @@ def create_payment_link():
 
 @administration_bp.post("/payment-links/<int:payment_link_id>/send")
 @login_required
-@role_required(40, roles=["office"])
+@role_required("office", roles=["office"])
 @log_task(logger)
 def send_payment_link(payment_link_id):
     payment_link = AdministrationPaymentLink.query.get_or_404(payment_link_id)

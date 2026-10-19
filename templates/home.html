@@ -13,7 +13,7 @@
 {% block content %}
 {% include 'partials/install_banner.html' %}
 
-{% if current_user.is_authenticated and current_user.max_role_weight >= 999 and (request.endpoint == 'developer.responsive' or request.args.get('responsive_debug') == '1') %}
+{% if current_user.is_authenticated and current_user.max_role_weight >= role_weight('dev') and (request.endpoint == 'developer.responsive' or request.args.get('responsive_debug') == '1') %}
 <details id="responsiveDiagnostics" open style="position: fixed; bottom: 8px; left: 8px; z-index: 13000; box-sizing: border-box; width: calc(100% - 16px); max-width: 640px; max-height: 70dvh; overflow: auto; padding: 12px; background: white; color: #222; font: 16px/1.4 sans-serif;">
     <summary>Diagnostica responsive — Home reale</summary>
     <p>Apri questa Home nello stesso browser o PWA usato normalmente, senza zoom. Aggiorna le misure dopo aver chiuso la tastiera.</p>
@@ -29,14 +29,14 @@
     <h1>LDApp</h1>
     <p>Azioni rapide operative della Web App.</p>
     {% if current_user.is_authenticated %}
-    <section id="homeActivities" class="home-activities ld-panel" hidden data-operational="{{ '1' if current_user.max_role_weight >= 30 else '0' }}">
+    <section id="homeActivities" class="home-activities ld-panel" hidden data-operational="{{ '1' if current_user.max_role_weight >= role_weight('staff') else '0' }}">
      <header><h2>Da fare <span id="homeActivityCount"></span></h2><a class="btn btn-info" href="/activities">Apri Attività</a></header>
      <div id="homeActivitySummary" role="status" aria-live="polite"></div>
     </section>
     {% endif %}
     <div class="quick-actions ld-panel ld-action-grid"
          data-home-tutorial-role="{% if current_user.is_authenticated %}{{ (current_user.active_roles | map(attribute='name') | join(', ')) or 'utente autenticato' }}{% else %}visitatore{% endif %}">
-        {% if current_user.is_authenticated and current_user.max_role_weight >= 30 %}
+        {% if current_user.is_authenticated and current_user.max_role_weight >= role_weight('staff') %}
             <button class="quick-action ld-action" type="button" data-manual-order-open data-tutorial-description="Apre direttamente la modale per scegliere giro o ordine diretto, cliente e consegna."><i class="fa-solid fa-plus"></i><span>Inserisci ordine</span></button>
             <a class="quick-action" href="/registry/customers" data-tutorial-description="Consulta le anagrafiche e i contatti della clientela."><i class="fa-regular fa-address-book"></i><span>Rubrica clienti</span></a>
             <a class="quick-action" href="/kiosk" data-tutorial-description="Controlla a colpo d'occhio lo stato degli ordini in lavorazione."><i class="fa-solid fa-table-columns"></i><span>Bacheca ordini</span></a>
@@ -57,12 +57,12 @@
             <i class="fa-solid fa-qrcode"></i>
             <span>QR App</span>
         </button>
-        {% if current_user.is_authenticated and current_user.max_role_weight >= 20 %}
+        {% if current_user.is_authenticated and current_user.max_role_weight >= role_weight('customer') %}
             <a class="quick-action" href="{{ url_for('documents.ld_selection') }}" data-tutorial-description="Consulta la selezione editoriale LD in formato digitale."><i class="fa-regular fa-file-pdf"></i><span>LD Selection</span></a>
         {% else %}
             <span class="quick-action quick-action--disabled" aria-disabled="true" data-tutorial-description="La selezione editoriale LD è disponibile dopo l'accesso con un profilo abilitato."><i class="fa-regular fa-file-pdf"></i><span>LD Selection</span></span>
         {% endif %}
-        {% if current_user.is_authenticated and current_user.max_role_weight >= 40 %}
+        {% if current_user.is_authenticated and current_user.max_role_weight >= role_weight('office') %}
             <a class="quick-action" href="/cassa/agenda" data-tutorial-description="Organizza appuntamenti, attività e scadenze operative."><i class="fa-regular fa-calendar-days"></i><span>Agenda</span></a>
         {% endif %}
     </div>

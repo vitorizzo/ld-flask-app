@@ -3,6 +3,7 @@ from bs4 import BeautifulSoup
 import html
 from models import Menu
 from tools.log_utils import get_logger
+from tools.role_required import resolve_minimum_weight
 
 logger = get_logger('tools')
 
@@ -13,7 +14,7 @@ def get_user_menu():
             role_weight = current_user.max_role_weight
             menus = Menu.query.filter(Menu.is_visible == True, Menu.item_type == "link").all()
             user_menu = {
-                menu.name: "enabled" if role_weight >= menu.weight and menu.is_active else "disabled"
+                menu.name: "enabled" if role_weight >= (resolve_minimum_weight(menu.weight) or float("inf")) and menu.is_active else "disabled"
                 for menu in menus
             }
             logger.debug(f"Generato menu per utente autenticato: peso ruolo {role_weight}")

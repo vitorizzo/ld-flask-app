@@ -16,7 +16,7 @@ logger = get_logger("developer")
 
 @developer_bp.get("/responsive")
 @login_required
-@role_required(999)
+@role_required("dev")
 def responsive():
     logger.info("Apertura diagnostica responsive sulla Home")
     return current_app.view_functions["home"]()
@@ -39,7 +39,7 @@ def _active_user_role_condition(now):
 
 @developer_bp.get("/dashboard")
 @login_required
-@role_required(999)
+@role_required("dev")
 def dashboard():
     now = datetime.now()
     active_condition = _active_user_role_condition(now)

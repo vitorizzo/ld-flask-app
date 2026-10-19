@@ -3824,3 +3824,10 @@ Performance apertura giornata Agenda 2026-06-13:
 - Ruoli e Autorizzazioni: la modale “Nuovo ruolo” e tutte le modali della pagina usano il nuovo componente e il contenitore non intercetta più l’area della pagina; rimosso il punto di fragilità dei modali legati allo stacking/overflow della schermata.
 - Verifica: nessun test automatizzato eseguito in questo intervento. Revisione statica del diff e dei riferimenti a CSS/JS; nessuna migrazione DB.
 - 2026-10-19 follow-up: apertura della modale “Nuovo ruolo” collegata a un handler esplicito dopo il mount nel `body`, con fallback Bootstrap attivo (`backdrop`, tastiera, focus); forzata la separazione z-index backdrop/modale e rinnovato il cache-buster degli asset settings.
+
+
+## Soglie autorizzative associate ai ruoli (2026-10-19)
+
+- I controlli delle route, delle viste, dei prezzi e delle notifiche usano ora il peso corrente del ruolo minimo richiesto (staff, office, admin, dev o customer), con risoluzione centralizzata in `tools/role_required.py`. La mappatura legacy 20/30/40/100 e 500+ viene gestita solo dal resolver centrale; tutti i controlli applicativi che prima confrontavano direttamente numeri sono stati convertiti a nomi di ruolo.
+- Visibilità dei menu e soglie persistite delle attività risolvono i valori legacy attraverso il ruolo corrispondente corrente, così una modifica del peso del ruolo si riflette nei controlli. Le soglie delle attività operative usano la mappatura dei ruoli customer/staff/office/admin/dev.
+- Verifica statica: parsing AST dei 43 moduli Python interessati e `git diff --check`, entrambi superati.

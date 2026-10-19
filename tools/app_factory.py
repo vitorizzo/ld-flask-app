@@ -19,6 +19,7 @@ from routes.kiosk import kiosk_bp
 from tools.log_utils import get_logger
 from models import CustomerPaymentCase, User, Menu, PasswordResetToken, SupportTicket
 from routes.tools import get_user_menu
+from tools.role_required import meets_minimum_role, resolve_minimum_weight
 from tools.preferences import PREFERENCE_DEFINITIONS, load_preferences_into_app_config
 from tools.ui_theme import load_theme, theme_css_vars
 from tools.customer_memberships import (
@@ -368,6 +369,7 @@ def create_app():
         )
         return {
             "user_menu": get_user_menu(),
+            "role_weight": resolve_minimum_weight,
             "app_version": app.config.get("APP_VERSION", "dev"),
             "customer_can_request_collaborators": can_administer_customers,
         }
@@ -462,7 +464,7 @@ def create_app():
         activation_badge_count = 0
         payment_communication_badge_count = 0
         payment_dispute_badge_count = 0
-        if current_user.is_authenticated and user_role_weight >= 40:
+        if current_user.is_authenticated and meets_minimum_role(current_user, "office"):
             try:
                 activation_badge_count = SupportTicket.query.filter(
                     SupportTicket.ticket_type.in_(("horeca_activation", "horeca_collaborator_activation")),
@@ -484,7 +486,7 @@ def create_app():
             except SQLAlchemyError:
                 db.session.rollback()
                 logger.exception("inject_menus: payment queue counts unavailable")
-        if current_user.is_authenticated and user_role_weight >= 900:
+        if current_user.is_authenticated and meets_minimum_role(current_user, "dev"):
             try:
                 from tools.support_tickets import support_unread_count
 

@@ -100,7 +100,7 @@ def calcola_sconto_combinazione(acquistati, omaggio):
     return round(sconto_combinazione, 2)
 
 
-@role_required(40)
+@role_required("office")
 @log_task(logger)
 @sconti_bp.route('/elaborazione-sconti')
 def elaborazione_sconti():
@@ -109,12 +109,12 @@ def elaborazione_sconti():
 
 
 @sconti_bp.route("/test-roles")
-@rr.role_required(min_weight=40, roles=["staff"])
+@rr.role_required(min_weight="office", roles=["staff"])
 def test_roles():
     return "Accesso consentito alla route di test"
 
 
-@role_required(40)
+@role_required("office")
 @sconti_bp.route('/test-log')
 def test_log_sconti():
     logger.debug("ðŸ”¥ Questo Ã¨ un log di DEBUG dal server Flask")

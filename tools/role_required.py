@@ -3,76 +3,50 @@ from datetime import datetime
 from flask import redirect, url_for, request, flash
 from tools.auth_manager import get_current_user
 from tools.log_utils import get_logger
+from models import Role
 
 logger = get_logger("role_required")
 
+def resolve_minimum_weight(minimum_role):
+    """Return the current weight for a role-name authorization threshold."""
+    if isinstance(minimum_role, str):
+        role = Role.query.filter(Role.name.ilike(minimum_role.strip())).first()
+        return role.weight if role else None
+    # Legacy numeric callers are mapped centrally while callers are migrated.
+    legacy_roles = ((20, "customer"), (30, "staff"), (40, "office"), (100, "admin"), (500, "dev"))
+    role_name = next((name for limit, name in legacy_roles if minimum_role <= limit), "dev")
+    role = Role.query.filter(Role.name.ilike(role_name)).first()
+    return role.weight if role else None
 
-def role_required(min_weight=0, roles=None):
-    """
-    Autorizzazione basata su:
-    - min_weight: peso minimo richiesto
-    - roles: wildcard di ruoli ammessi anche se sotto min_weight
-    """
-    allowed_roles = roles or []
+def meets_minimum_role(user, minimum_role):
+    """Compare the active user weight with the live weight of a named role."""
+    minimum_weight = resolve_minimum_weight(minimum_role)
+    return minimum_weight is not None and (user.max_role_weight or 0) >= minimum_weight
 
+def role_required(min_weight=None, roles=None):
+    """Authorize against the live weight of the named minimum role."""
+    minimum_role = min_weight
+    allowed_roles = {str(role).casefold() for role in (roles or [])}
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
-
-            logger.info(
-                f"[role_required] Entrata nel decoratore per {func.__name__} "
-                f"| min_weight={min_weight}, roles={allowed_roles}"
-            )
-
-            # 1) Recupero utente
             try:
                 user = get_current_user()
             except Exception:
-                logger.warning("[role_required] Utente non autenticato")
                 return _deny_access()
-
-            # 2) Recupero ruoli attivi
-            active_roles = user.active_roles
-
-            if not active_roles:
-                logger.warning("[role_required] Nessun ruolo attivo per l'utente")
-                return _deny_access()
-
-            logger.info(
-                "[role_required] Ruoli attivi utente: "
-                f"{[(r.name, r.weight) for r in active_roles]}"
-            )
-
-            # Ricavo peso massimo e nomi ruoli utente
-            max_weight = user.max_role_weight
-            user_role_names = [r.name for r in active_roles]
-
-            # 3) Controllo peso minimo
-            if max_weight >= min_weight:
-                logger.info("[role_required] Accesso consentito (peso sufficiente)")
+            active_roles = user.active_roles or []
+            user_role_names = {r.name.casefold() for r in active_roles}
+            minimum_weight = resolve_minimum_weight(minimum_role) if minimum_role is not None else 0
+            if minimum_weight is not None and (user.max_role_weight or 0) >= minimum_weight:
                 return func(*args, **kwargs)
-
-            # 4) Controllo wildcard roles (bypass peso)
-            if allowed_roles and any(r in user_role_names for r in allowed_roles):
-                logger.info("[role_required] Accesso consentito tramite wildcard roles")
+            if allowed_roles and user_role_names.intersection(allowed_roles):
                 return func(*args, **kwargs)
-
-            # 5) Accesso negato
-            logger.warning(
-                "[role_required] Accesso negato: peso insufficiente "
-                "e nessun ruolo nella wildcard"
-            )
             return _deny_access()
-
         return wrapper
-
     return decorator
 
-
 def _deny_access():
-    """Risposta uniforme per accesso negato."""
     if request.method == "POST" or request.is_json:
         return {"error": "Accesso negato"}, 403
-
     flash("Accesso negato", "danger")
     return redirect(url_for("auth.login"))
