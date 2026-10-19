@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 import html
 from models import Menu
 from tools.log_utils import get_logger
-from tools.role_required import menu_minimum_weight
+from tools.role_required import menu_minimum_weight, load_navigation_menus
 
 logger = get_logger('tools')
 
@@ -12,7 +12,7 @@ def get_user_menu():
     try:
         if current_user.is_authenticated:
             role_weight = current_user.max_role_weight
-            menus = Menu.query.filter(Menu.is_visible == True, Menu.item_type == "link").all()
+            menus = [menu for menu in load_navigation_menus() if menu.item_type == "link"]
             user_menu = {
                 menu.name: "enabled" if role_weight >= (menu_minimum_weight(menu) if menu_minimum_weight(menu) is not None else float("inf")) and menu.is_active else "disabled"
                 for menu in menus
@@ -21,7 +21,7 @@ def get_user_menu():
         else:
             user_menu = {
                 menu.name: "disabled"
-                for menu in Menu.query.filter(Menu.is_visible == True, Menu.item_type == "link").all()
+                for menu in [item for item in load_navigation_menus() if item.item_type == "link"]
             }
             logger.debug("Generato menu per utente non autenticato (tutti disabilitati)")
         return user_menu

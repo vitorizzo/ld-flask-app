@@ -951,6 +951,19 @@ class Role(db.Model):
     user_roles = db.relationship('UserRole', backref='role', lazy=True)
 
 
+class FunctionAccessPolicy(db.Model):
+    __tablename__ = "function_access_policies"
+    id = db.Column(db.Integer, primary_key=True)
+    function_key = db.Column(db.String(200), nullable=False, unique=True, index=True)
+    label = db.Column(db.String(200), nullable=False)
+    category = db.Column(db.String(100), nullable=False, default="app")
+    mode = db.Column(db.String(20), nullable=False, default="minimum")
+    minimum_role_id = db.Column(db.Integer, db.ForeignKey("roles.id", ondelete="SET NULL"), nullable=True)
+    minimum_role = db.relationship("Role", foreign_keys=[minimum_role_id])
+    allowed_role_ids = db.Column(db.JSON, nullable=False, default=list)
+    updated_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+
 class User(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(150), nullable=False)

@@ -31,6 +31,7 @@ from tools.support_tickets import (
 )
 from models import (
     Menu,
+    FunctionAccessPolicy,
     AppPreference,
     EmailAccount,
     Role,
@@ -379,6 +380,14 @@ def settings_index():
             "route": url_for("settings.celery_tasks_settings"),
             "icon": "fa-solid fa-clock",
             "icon_class": "text-bg-primary",
+            "min_role": "dev",
+        },
+        {
+            "title": "Accessi alle funzioni",
+            "description": "Definisci per ogni funzione il ruolo minimo o i ruoli ammessi.",
+            "route": url_for("settings.function_access"),
+            "icon": "fa-solid fa-shield-halved",
+            "icon_class": "text-bg-warning",
             "min_role": "dev",
         },
         {
@@ -2528,6 +2537,86 @@ def matrixws_test_status(task_id):
 def matrixws_test_status_alias(task_id):
     """Alias esplicito per il polling, separato dalla route di avvio del test."""
     return matrixws_test_status(task_id)
+
+
+@settings_bp.get("/function-access")
+@login_required
+@role_required("dev", configurable=False)
+def function_access():
+    from tools.role_required import _access_policy
+    functions = _registered_access_functions()
+    policies = {}
+    try:
+        policies = {row.function_key: row for row in FunctionAccessPolicy.query.all()}
+    except SQLAlchemyError:
+        db.session.rollback()
+    for item in functions:
+        item["policy"] = policies.get(item["key"])
+    roles = Role.query.order_by(Role.weight.desc(), Role.name.asc()).all()
+    return render_template("settings/function_access.html", functions=functions, roles=roles)
+
+
+@settings_bp.post("/api/function-access")
+@login_required
+@role_required("dev", configurable=False)
+def save_function_access():
+    payload = request.get_json(silent=True) or {}
+    function_key = str(payload.get("function_key") or "").strip()
+    item = next((row for row in _registered_access_functions() if row["key"] == function_key), None)
+    if not item:
+        return jsonify(ok=False, error="Funzione non configurabile"), 404
+    mode = str(payload.get("mode") or "").strip()
+    role_ids = payload.get("allowed_role_ids") or []
+    try:
+        role_ids = sorted({int(value) for value in role_ids})
+    except (TypeError, ValueError):
+        return jsonify(ok=False, error="Ruoli non validi"), 400
+    valid_ids = {role.id for role in Role.query.filter(Role.id.in_(role_ids)).all()} if role_ids else set()
+    if valid_ids != set(role_ids):
+        return jsonify(ok=False, error="Uno o più ruoli non esistono"), 400
+    policy = FunctionAccessPolicy.query.filter_by(function_key=function_key).first()
+    if not policy:
+        policy = FunctionAccessPolicy(function_key=function_key)
+        db.session.add(policy)
+    policy.label = item["label"]
+    policy.category = item["category"]
+    if mode == "minimum":
+        minimum_role_id = _parse_int(payload.get("minimum_role_id"))
+        role = db.session.get(Role, minimum_role_id) if minimum_role_id else None
+        if not role:
+            return jsonify(ok=False, error="Seleziona un ruolo minimo"), 400
+        policy.mode = "minimum"
+        policy.minimum_role_id = role.id
+        policy.allowed_role_ids = role_ids
+    elif mode == "roles":
+        if not role_ids:
+            return jsonify(ok=False, error="Seleziona almeno un ruolo ammesso"), 400
+        policy.mode = "roles"
+        policy.minimum_role_id = None
+        policy.allowed_role_ids = role_ids
+    else:
+        return jsonify(ok=False, error="Modalità non valida"), 400
+    try:
+        db.session.commit()
+    except SQLAlchemyError:
+        db.session.rollback()
+        return jsonify(ok=False, error="Aggiorna il database con flask db upgrade"), 503
+    return jsonify(ok=True)
+
+
+def _registered_access_functions():
+    rows = {}
+    for rule in current_app.url_map.iter_rules():
+        endpoint = rule.endpoint
+        view = current_app.view_functions.get(endpoint)
+        if not view or not getattr(view, "_access_configurable", False):
+            continue
+        if getattr(view, "_access_default_minimum_role", None) is None and not getattr(view, "_access_default_allowed_roles", []):
+            continue
+        methods = sorted((rule.methods or set()) - {"HEAD", "OPTIONS"})
+        label = endpoint.rsplit(".", 1)[-1].replace("_", " ").capitalize()
+        rows[endpoint] = {"key": endpoint, "label": label, "category": endpoint.split(".", 1)[0], "path": rule.rule, "methods": ", ".join(methods), "default_minimum_role": getattr(view, "_access_default_minimum_role", None), "default_allowed_roles": getattr(view, "_access_default_allowed_roles", [])}
+    return sorted(rows.values(), key=lambda row: (row["category"], row["label"], row["path"]))
 
 
 @settings_bp.route("/roles-permissions", methods=["GET", "POST"])

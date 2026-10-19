@@ -19,7 +19,7 @@ from routes.kiosk import kiosk_bp
 from tools.log_utils import get_logger
 from models import CustomerPaymentCase, User, Menu, PasswordResetToken, SupportTicket
 from routes.tools import get_user_menu
-from tools.role_required import meets_minimum_role, resolve_minimum_weight, menu_minimum_weight
+from tools.role_required import meets_minimum_role, menu_minimum_weight, load_navigation_menus
 from tools.preferences import PREFERENCE_DEFINITIONS, load_preferences_into_app_config
 from tools.ui_theme import load_theme, theme_css_vars
 from tools.customer_memberships import (
@@ -500,12 +500,7 @@ def create_app():
 
         # Carichiamo TUTTI i menu ordinati in modo deterministico
         try:
-            all_menus = (
-                Menu.query
-                .filter(Menu.is_visible.is_(True))
-                .order_by(asc(Menu.parent_id), asc(Menu.sort_order), asc(Menu.id))
-                .all()
-            )
+            all_menus = load_navigation_menus()
         except OperationalError:
             logger.exception("inject_menus: menu query unavailable, returning empty menu tree")
             return {"menu_tree": []}

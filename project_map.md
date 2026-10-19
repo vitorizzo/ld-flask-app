@@ -2131,3 +2131,9 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 
 - `Menu.minimum_role_id` collega ogni voce al record `Role`; `migrations/versions/z1c2d3e4f5a6_menu_minimum_role.py` converte i valori storici standard. La schermata `templates/settings/menus.html` e `static/js/menu_management.js` scelgono e inviano il ruolo per ID.
 - `tools/role_required.py:menu_minimum_weight`, `tools/app_factory.py` e `routes/tools.py` confrontano l’utente col peso live del ruolo associato. Le API menu persistono il riferimento e `routes/settings.py` conta le voci per FK.
+
+
+## Criteri di accesso alle funzioni (2026-10-19)
+
+- `FunctionAccessPolicy` registra per endpoint protetto una soglia minima collegata a `Role` (peso live) oppure una lista di ruoli ammessi. `@role_required` applica il criterio configurato, mantenendo i default del decoratore fino alla configurazione.
+- Il tile “Accessi alle funzioni” in Impostazioni apre la matrice `templates/settings/function_access.html`; la schermata scopre le funzioni protette, consente soglia dinamica, ruoli aggiuntivi o allowlist esatta. Migrazione `z2d3e4f5a6b7_function_access_policies`.

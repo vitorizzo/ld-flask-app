@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Accessi alle funzioni{% endblock %}
+{% block content %}
+<section class="page-shell ld-page ld-page-standard">
+  <div class="container-fluid">
+    <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+      <div><h1 class="mb-1">Accessi alle funzioni</h1><p class="text-muted mb-0">Scegli se ogni funzione segue il peso del ruolo minimo oppure ammette solo ruoli selezionati.</p></div>
+      <a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">Torna alle impostazioni</a>
+    </div>
+    <div class="alert alert-info">La soglia minima confronta i pesi attuali dei ruoli. La modalità “Ruoli ammessi” usa invece una lista esatta; i ruoli aggiuntivi nella modalità soglia sono eccezioni esplicite.</div>
+    <div class="mb-3"><input id="functionAccessSearch" class="form-control" type="search" placeholder="Filtra per funzione o percorso"></div>
+    <div id="functionAccessList" class="d-grid gap-3">
+      {% for fn in functions %}{% set policy = fn.policy %}
+      <article class="card shadow-sm function-access-row" data-search="{{ (fn.key ~ ' ' ~ fn.path ~ ' ' ~ fn.label)|lower }}" data-function-key="{{ fn.key }}">
+        <div class="card-body">
+          <div class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3"><div><h2 class="h5 mb-1">{{ fn.label }}</h2><div class="small text-muted"><code>{{ fn.key }}</code> · {{ fn.methods }} {{ fn.path }}</div></div><span class="badge text-bg-light">{{ fn.category }}</span></div>
+          <div class="row g-3 align-items-end">
+            <div class="col-12 col-lg-3"><label class="form-label">Criterio</label><select class="form-select policy-mode"><option value="minimum" {% if not policy or policy.mode == 'minimum' %}selected{% endif %}>Ruolo minimo (peso dinamico)</option><option value="roles" {% if policy and policy.mode == 'roles' %}selected{% endif %}>Ruoli ammessi (lista esatta)</option></select></div>
+            <div class="col-12 col-lg-3 minimum-controls"><label class="form-label">Ruolo minimo</label><select class="form-select minimum-role">{% for role in roles %}<option value="{{ role.id }}" {% if policy and policy.minimum_role_id == role.id %}selected{% elif not policy and fn.default_minimum_role and role.name|lower == fn.default_minimum_role|lower %}selected{% endif %}>{{ role.name }} (peso {{ role.weight }})</option>{% endfor %}</select></div>
+            <div class="col-12 col-lg-6 role-controls"><label class="form-label roles-label">{% if policy and policy.mode == 'minimum' %}Ruoli aggiuntivi ammessi{% else %}Ruoli ammessi{% endif %}</label><select class="form-select allowed-roles" multiple size="4">{% for role in roles %}<option value="{{ role.id }}" {% if policy and role.id in (policy.allowed_role_ids or []) %}selected{% elif not policy and role.name|lower in fn.default_allowed_roles %}selected{% endif %}>{{ role.name }} (peso {{ role.weight }})</option>{% endfor %}</select><div class="form-text">Usa Ctrl/Cmd per selezionare più ruoli.</div></div>
+            <div class="col-12 d-flex justify-content-end"><button class="btn btn-primary save-policy">Salva criterio</button></div>
+          </div>
+          <div class="save-feedback small mt-2 text-end" aria-live="polite"></div>
+        </div>
+      </article>{% endfor %}
+    </div>
+  </div>
+</section>
+<script>
+(() => {
+ const rows = [...document.querySelectorAll('.function-access-row')];
+ const sync = row => { const exact = row.querySelector('.policy-mode').value === 'roles'; row.querySelector('.minimum-controls').classList.toggle('d-none', exact); row.querySelector('.roles-label').textContent = exact ? 'Ruoli ammessi' : 'Ruoli aggiuntivi ammessi'; };
+ rows.forEach(row => { sync(row); row.querySelector('.policy-mode').addEventListener('change', () => sync(row)); row.querySelector('.save-policy').addEventListener('click', async event => { const button=event.currentTarget, feedback=row.querySelector('.save-feedback'); button.disabled=true; feedback.textContent='Salvataggio…'; const mode=row.querySelector('.policy-mode').value; const body={function_key:row.dataset.functionKey,mode,minimum_role_id:row.querySelector('.minimum-role').value,allowed_role_ids:[...row.querySelector('.allowed-roles').selectedOptions].map(o=>Number(o.value))}; try { const response=await fetch('{{ url_for("settings.save_function_access") }}',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); const result=await response.json(); if(!response.ok) throw new Error(result.error||'Errore di salvataggio'); feedback.textContent='Criterio salvato'; feedback.className='save-feedback small mt-2 text-end text-success'; } catch(error) { feedback.textContent=error.message; feedback.className='save-feedback small mt-2 text-end text-danger'; } finally {button.disabled=false;} }); });
+ document.getElementById('functionAccessSearch').addEventListener('input', event => { const q=event.target.value.trim().toLowerCase(); rows.forEach(row => row.classList.toggle('d-none', !row.dataset.search.includes(q))); });
+})();
+</script>
+{% endblock %}

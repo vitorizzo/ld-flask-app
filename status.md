@@ -3838,3 +3838,9 @@ Performance apertura giornata Agenda 2026-06-13:
 - Le voci menu salvano ora `minimum_role_id` e la visibilità confronta il peso corrente dell’utente col peso corrente del ruolo selezionato. La modale usa l’ID ruolo e non accetta pesi liberi; i menu esistenti vengono associati dal valore storico tramite la migrazione `z1c2d3e4f5a6`.
 - Risolto il percorso residuo in `tools/app_factory.py` che filtrava ancora menu e sotto-menu con `Menu.weight <= user_role_weight`; ora carica i menu visibili e filtra con la soglia associata.
 - Verifiche statiche: parsing dei moduli Python modificati, `node --check` sul JS menu e `git diff --check`.
+
+
+## Accessi configurabili per funzione (2026-10-19)
+
+- Aggiunti tile Impostazioni, schermata e API per scegliere soglia minima dinamica o ruoli ammessi per ogni endpoint protetto con `@role_required`. Le soglie usano sempre il peso aggiornato del ruolo selezionato; gli endpoint mantengono i default se non configurati.
+- Aggiunta migrazione `z2d3e4f5a6b7_function_access_policies`. Il caricamento navbar usa un percorso compatibile con lo schema precedente alla migrazione menu per evitare che la nuova colonna FK lasci il menu vuoto durante il rollout.
