@@ -1,5 +1,4 @@
 import functools
-from datetime import datetime
 from flask import redirect, url_for, request, flash
 from tools.auth_manager import get_current_user
 from tools.log_utils import get_logger
@@ -9,14 +8,29 @@ logger = get_logger("role_required")
 
 def resolve_minimum_weight(minimum_role):
     """Return the current weight for a role-name authorization threshold."""
+    if minimum_role is None:
+        return None
     if isinstance(minimum_role, str):
-        role = Role.query.filter(Role.name.ilike(minimum_role.strip())).first()
+        role_name = minimum_role.strip().casefold()
+        if role_name in ("dev", "developer"):
+            role = Role.query.filter(Role.name.ilike("dev")).first() or Role.query.filter(Role.name.ilike("developer")).first()
+        else:
+            role = Role.query.filter(Role.name.ilike(role_name)).first()
         return role.weight if role else None
     # Legacy numeric callers are mapped centrally while callers are migrated.
     legacy_roles = ((20, "customer"), (30, "staff"), (40, "office"), (100, "admin"), (500, "dev"))
     role_name = next((name for limit, name in legacy_roles if minimum_role <= limit), "dev")
     role = Role.query.filter(Role.name.ilike(role_name)).first()
     return role.weight if role else None
+
+def menu_minimum_weight(menu):
+    """Use the menu role foreign key; translate untouched legacy rows centrally."""
+    role = getattr(menu, "minimum_role", None)
+    if role is not None:
+        return role.weight
+    if getattr(menu, "item_type", "link") == "separator":
+        return 0
+    return resolve_minimum_weight(getattr(menu, "weight", None))
 
 def meets_minimum_role(user, minimum_role):
     """Compare the active user weight with the live weight of a named role."""

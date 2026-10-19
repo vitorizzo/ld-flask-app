@@ -19,7 +19,7 @@ from routes.kiosk import kiosk_bp
 from tools.log_utils import get_logger
 from models import CustomerPaymentCase, User, Menu, PasswordResetToken, SupportTicket
 from routes.tools import get_user_menu
-from tools.role_required import meets_minimum_role, resolve_minimum_weight
+from tools.role_required import meets_minimum_role, resolve_minimum_weight, menu_minimum_weight
 from tools.preferences import PREFERENCE_DEFINITIONS, load_preferences_into_app_config
 from tools.ui_theme import load_theme, theme_css_vars
 from tools.customer_memberships import (
@@ -402,12 +402,15 @@ def create_app():
             for node in nodes:
                 if not node.is_visible:
                     continue
-                if node.weight > user_role_weight:
+                minimum_weight = menu_minimum_weight(node)
+                if minimum_weight is None or minimum_weight > user_role_weight:
                     continue
 
                 children = [
                     m for m in all_menus
-                    if m.parent_id == node.id and m.is_visible and m.weight <= user_role_weight
+                    if m.parent_id == node.id and m.is_visible
+                    and menu_minimum_weight(m) is not None
+                    and menu_minimum_weight(m) <= user_role_weight
                 ]
 
                 children_tree = build_menu_tree(children, all_menus, user_role_weight)
@@ -499,7 +502,7 @@ def create_app():
         try:
             all_menus = (
                 Menu.query
-                .filter(Menu.is_visible.is_(True), Menu.weight <= user_role_weight)
+                .filter(Menu.is_visible.is_(True))
                 .order_by(asc(Menu.parent_id), asc(Menu.sort_order), asc(Menu.id))
                 .all()
             )

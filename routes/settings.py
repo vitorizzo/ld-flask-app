@@ -2652,7 +2652,7 @@ def roles_permissions():
             for role in roles
         }
         role_function_usage = {
-            role.id: Menu.query.filter(Menu.weight == (role.weight or 0)).count()
+            role.id: Menu.query.filter(Menu.minimum_role_id == role.id).count()
             for role in roles
         }
         permission_usage = {
@@ -2708,7 +2708,13 @@ def update_menu():
         menu.name = request.form.get('name')
         menu.route = request.form.get('route')
         menu.is_active = request.form.get('is_active') == 'true'
-        menu.weight = request.form.get('weight')
+        role_id = request.form.get('minimum_role_id')
+        if role_id:
+            role = Role.query.get(int(role_id))
+            if not role:
+                return jsonify({'success': False, 'error': 'Ruolo minimo non valido'}), 400
+            menu.minimum_role = role
+            menu.weight = role.weight
         menu.parent_id = request.form.get('parent_id')
         menu.sort_order = int(request.form.get("sort_order") or 0)
         db.session.commit()
@@ -2738,10 +2744,13 @@ def manage_menus():
         name = request.form['name']
         route = request.form['route']
         parent_id = request.form.get('parent_id', None)
-        weight = request.form.get('weight', 0)
         parent_id = request.form.get('parent_id') or None
         parent_id_int = int(parent_id) if parent_id is not None else None
-        weight = int(request.form.get('weight') or 0)
+        minimum_role = Role.query.get(int(request.form.get('minimum_role_id') or 0))
+        if not minimum_role:
+            flash('Seleziona un ruolo minimo valido.', 'danger')
+            return redirect(url_for('settings.manage_menus'))
+        weight = minimum_role.weight
 
         max_sort = (db.session.query(db.func.max(Menu.sort_order))
                     .filter(Menu.parent_id == parent_id_int)
@@ -2753,6 +2762,7 @@ def manage_menus():
             route=route or None,
             parent_id=parent_id_int,
             weight=weight,
+            minimum_role=minimum_role,
             sort_order=next_sort,
             is_active=True
         )
@@ -3178,7 +3188,15 @@ def create_menu():
     if parent_id is not None and not Menu.query.get(parent_id):
         return jsonify(ok=False, error="Menu padre non trovato"), 404
 
-    weight = int(data.get("weight") or 0)
+    minimum_role = None
+    if item_type != "separator":
+        try:
+            minimum_role = Role.query.get(int(data.get("minimum_role_id") or 0))
+        except (TypeError, ValueError):
+            minimum_role = None
+        if minimum_role is None:
+            return jsonify(ok=False, error="Seleziona un ruolo minimo valido"), 400
+    weight = minimum_role.weight if minimum_role else 0
     route = data.get("route") or None
     is_active = bool(data.get("is_active", True))
     is_visible = bool(data.get("is_visible", True))
@@ -3196,6 +3214,7 @@ def create_menu():
         route=route,
         parent_id=parent_id,
         weight=weight,
+        minimum_role=minimum_role,
         sort_order=sort_order,
         is_active=is_active,
         is_visible=is_visible,
@@ -3229,7 +3248,16 @@ def update_menu_json():
         return jsonify(ok=False, error="Nome obbligatorio"), 400
 
     m.route = data.get("route") or None
-    m.weight = int(data.get("weight") or 0)
+    minimum_role = None
+    if item_type != "separator":
+        try:
+            minimum_role = Role.query.get(int(data.get("minimum_role_id") or 0))
+        except (TypeError, ValueError):
+            minimum_role = None
+        if minimum_role is None:
+            return jsonify(ok=False, error="Seleziona un ruolo minimo valido"), 400
+    m.minimum_role = minimum_role
+    m.weight = minimum_role.weight if minimum_role else 0
     m.is_active = bool(data.get("is_active", True))
     m.is_visible = bool(data.get("is_visible", True))
     if m.is_active:

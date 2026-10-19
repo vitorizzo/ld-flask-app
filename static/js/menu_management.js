@@ -161,7 +161,7 @@ if (window.__menuMgmtInitDone) {
               <span class="menu-title-text">${title}</span>
             </span>
             <span class="menu-meta">
-              <span class="badge text-bg-light">peso ${n.weight ?? 0}</span>
+              <span class="badge text-bg-light">minimo: ${escapeHtml(n.minimum_role_name || "ruolo legacy")}</span>
               ${childCount ? `<span class="badge text-bg-light">${childCount} sotto-menu</span>` : ""}
               ${route ? `<span class="menu-route">${route}</span>` : ""}
               ${statusBadges}
@@ -361,10 +361,9 @@ if (window.__menuMgmtInitDone) {
     document.getElementById("mm_item_type").value = menu?.item_type ?? "link";
     document.getElementById("mm_name").value = menu?.name ?? "";
     document.getElementById("mm_route").value = menu?.route ?? "";
-    document.getElementById("mm_weight").value = menu?.weight ?? 0;
     document.getElementById("mm_is_active").checked = (menu?.is_active ?? true) === true;
     document.getElementById("mm_is_visible").checked = (menu?.is_visible ?? true) === true;
-    syncRoleSelectFromWeight(menu?.weight ?? 0);
+    document.getElementById("mm_role_weight").value = menu?.minimum_role_id ? String(menu.minimum_role_id) : "";
     updateTypeFields();
     updateVisibilityFields();
 
@@ -377,40 +376,14 @@ if (window.__menuMgmtInitDone) {
     bootstrap.Modal.getOrCreateInstance(document.getElementById("menuModal")).show();
   }
 
-  function syncRoleSelectFromWeight(weight) {
-    const roleSelect = document.getElementById("mm_role_weight");
-    const customWrap = document.getElementById("mm_weight_custom_wrap");
-    const weightInput = document.getElementById("mm_weight");
-    if (!roleSelect || !customWrap || !weightInput) return;
-    const value = String(Number(weight || 0));
-    const hasOption = Array.from(roleSelect.options).some(opt => opt.value === value);
-    roleSelect.value = hasOption ? value : "__custom__";
-    customWrap.style.display = hasOption ? "none" : "";
-    weightInput.value = value;
-  }
-
-  function bindRoleWeight() {
-    const roleSelect = document.getElementById("mm_role_weight");
-    const customWrap = document.getElementById("mm_weight_custom_wrap");
-    const weightInput = document.getElementById("mm_weight");
-    if (!roleSelect || !customWrap || !weightInput) return;
-    roleSelect.addEventListener("change", () => {
-      if (roleSelect.value === "__custom__") {
-        customWrap.style.display = "";
-        weightInput.focus();
-        return;
-      }
-      customWrap.style.display = "none";
-      weightInput.value = roleSelect.value || "0";
-    });
-  }
-
   function updateTypeFields() {
     const typeSelect = document.getElementById("mm_item_type");
     const routeInput = document.getElementById("mm_route");
     const nameInput = document.getElementById("mm_name");
     if (!typeSelect || !routeInput || !nameInput) return;
     const isSeparator = typeSelect.value === "separator";
+    const roleSelect = document.getElementById("mm_role_weight");
+    if (roleSelect) { roleSelect.disabled = isSeparator; roleSelect.required = !isSeparator; }
     routeInput.disabled = isSeparator;
     routeInput.value = isSeparator ? "" : routeInput.value;
     nameInput.required = !isSeparator;
@@ -457,7 +430,7 @@ if (window.__menuMgmtInitDone) {
       const payload = {
         name: (document.getElementById("mm_name").value || "").trim(),
         route: itemType === "separator" ? null : ((document.getElementById("mm_route").value || "").trim() || null),
-        weight: Number(document.getElementById("mm_weight").value || 0),
+        minimum_role_id: document.getElementById("mm_role_weight").value || null,
         is_active: document.getElementById("mm_is_active").checked,
         is_visible: document.getElementById("mm_is_active").checked || document.getElementById("mm_is_visible").checked,
         item_type: itemType,
@@ -466,6 +439,8 @@ if (window.__menuMgmtInitDone) {
 
       try {
         if (!payload.name && payload.item_type !== "separator") throw new Error("Nome obbligatorio");
+        if (!payload.minimum_role_id && payload.item_type !== "separator") throw new Error("Seleziona un ruolo minimo");
+        if (payload.minimum_role_id) payload.minimum_role_id = Number(payload.minimum_role_id);
         if (id) await updateMenuJson({ id: Number(id), ...payload });
         else await createMenu(payload);
         bootstrap.Modal.getOrCreateInstance(document.getElementById("menuModal")).hide();
@@ -516,7 +491,6 @@ if (window.__menuMgmtInitDone) {
 
     bindActions(host);
     bindModalSubmit(renderAll);
-    bindRoleWeight();
     bindItemType();
     bindVisibilityRules();
 

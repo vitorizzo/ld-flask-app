@@ -3831,3 +3831,10 @@ Performance apertura giornata Agenda 2026-06-13:
 - I controlli delle route, delle viste, dei prezzi e delle notifiche usano ora il peso corrente del ruolo minimo richiesto (staff, office, admin, dev o customer), con risoluzione centralizzata in `tools/role_required.py`. La mappatura legacy 20/30/40/100 e 500+ viene gestita solo dal resolver centrale; tutti i controlli applicativi che prima confrontavano direttamente numeri sono stati convertiti a nomi di ruolo.
 - Visibilità dei menu e soglie persistite delle attività risolvono i valori legacy attraverso il ruolo corrispondente corrente, così una modifica del peso del ruolo si riflette nei controlli. Le soglie delle attività operative usano la mappatura dei ruoli customer/staff/office/admin/dev.
 - Verifica statica: parsing AST dei 43 moduli Python interessati e `git diff --check`, entrambi superati.
+
+
+## Correzione soglia del menu per ruolo associato (2026-10-19)
+
+- Le voci menu salvano ora `minimum_role_id` e la visibilità confronta il peso corrente dell’utente col peso corrente del ruolo selezionato. La modale usa l’ID ruolo e non accetta pesi liberi; i menu esistenti vengono associati dal valore storico tramite la migrazione `z1c2d3e4f5a6`.
+- Risolto il percorso residuo in `tools/app_factory.py` che filtrava ancora menu e sotto-menu con `Menu.weight <= user_role_weight`; ora carica i menu visibili e filtra con la soglia associata.
+- Verifiche statiche: parsing dei moduli Python modificati, `node --check` sul JS menu e `git diff --check`.

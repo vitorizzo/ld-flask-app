@@ -2125,3 +2125,9 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - Route in `routes/`: soglie numeriche migrate a ruoli nominati; controlli inline di accesso e tile impostazioni confrontano i pesi live.
 - `tools/app_factory.py`, `routes/tools.py`, template Home/navbar/tabs: visibilità e menu aggiornati dinamicamente; `role_weight` viene esposto ai template. `tools/activities.py` risolve i destinatari minimi legacy con i ruoli correnti.
 - `tools/product_pricing.py` e `tools/push_notifications.py`: accesso ai listini e selezione destinatari push basati su ruolo minimo nominato.
+
+
+## Soglia ruolo dei menu
+
+- `Menu.minimum_role_id` collega ogni voce al record `Role`; `migrations/versions/z1c2d3e4f5a6_menu_minimum_role.py` converte i valori storici standard. La schermata `templates/settings/menus.html` e `static/js/menu_management.js` scelgono e inviano il ruolo per ID.
+- `tools/role_required.py:menu_minimum_weight`, `tools/app_factory.py` e `routes/tools.py` confrontano l’utente col peso live del ruolo associato. Le API menu persistono il riferimento e `routes/settings.py` conta le voci per FK.

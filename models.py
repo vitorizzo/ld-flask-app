@@ -21,6 +21,8 @@ class Menu(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(50), nullable=False)
     weight = db.Column(db.Integer, default=0)
+    minimum_role_id = db.Column(db.Integer, db.ForeignKey("roles.id"), nullable=True, index=True)
+    minimum_role = db.relationship("Role", foreign_keys=[minimum_role_id])
     sort_order = db.Column(db.Integer, nullable=False, default=0)
     parent_id = db.Column(db.Integer, db.ForeignKey('menus.id'), nullable=True)
     route = db.Column(db.String(100), nullable=True)
@@ -34,6 +36,8 @@ class Menu(db.Model):
             'id': self.id,
             'name': self.name,
             'weight': self.weight,
+            'minimum_role_id': self.minimum_role_id,
+            'minimum_role_name': self.minimum_role.name if self.minimum_role else None,
             'parent_id': self.parent_id,
             'route': self.route,
             'sort_order': self.sort_order,
