@@ -19,7 +19,7 @@ from routes.kiosk import kiosk_bp
 from tools.log_utils import get_logger
 from models import CustomerPaymentCase, User, Menu, PasswordResetToken, SupportTicket
 from routes.tools import get_user_menu
-from tools.role_required import meets_minimum_role, menu_minimum_weight, load_navigation_menus
+from tools.role_required import meets_minimum_role, resolve_minimum_weight, menu_minimum_weight, load_navigation_menus
 from tools.preferences import PREFERENCE_DEFINITIONS, load_preferences_into_app_config
 from tools.ui_theme import load_theme, theme_css_vars
 from tools.customer_memberships import (
