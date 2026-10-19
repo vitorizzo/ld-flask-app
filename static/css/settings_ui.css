@@ -34,3 +34,8 @@
   .settings-page-modal .modal-footer { display: grid; grid-template-columns: 1fr; gap: .5rem; }
   .settings-page-modal .modal-footer .btn { width: 100%; }
 }
+
+/* Forza il livello interattivo delle modali settings sopra il backdrop Bootstrap. */
+body.app-shell .modal-backdrop { z-index: 2090; }
+.settings-page-modal.modal { pointer-events: auto; }
+.settings-page-modal .modal-dialog, .settings-page-modal .modal-content { pointer-events: auto; }

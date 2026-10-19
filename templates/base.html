@@ -51,7 +51,7 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-512.png') }}">
     {% block extra_css %}{% endblock %}
     <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive_profile.css', v=app_version ~ '-viewport5') }}">
-    {% if request.path.startswith('/settings') %}<link rel="stylesheet" href="{{ url_for('static', filename='css/settings_ui.css', v=app_version ~ '-settings1') }}">{% endif %}
+    {% if request.path.startswith('/settings') %}<link rel="stylesheet" href="{{ url_for('static', filename='css/settings_ui.css', v=app_version ~ '-settings2') }}">{% endif %}
 
 </head>
 <body class="app-shell" data-theme-navbar-divider="{{ ui_theme.navbar_divider|default(1) }}" data-theme-footer-divider="{{ ui_theme.footer_divider|default(1) }}" data-theme-navbar-divider-style="{{ ui_theme.navbar_divider_style|default('brush') }}" data-theme-footer-divider-style="{{ ui_theme.footer_divider_style|default('brush') }}" style="{{ ui_theme_css_vars|default('') }}">
@@ -101,7 +101,7 @@
         {% endif %}
         <script src="{{ url_for('static', filename='js/base.js', v=app_version ~ '-device-scale9') }}"></script>
         <script src="{{ url_for('static', filename='js/ld_modal.js', v=app_version ~ '-order1') }}"></script>
-        {% if request.path.startswith('/settings') %}<script src="{{ url_for('static', filename='js/settings_ui.js', v=app_version ~ '-settings1') }}"></script>{% endif %}
+        {% if request.path.startswith('/settings') %}<script src="{{ url_for('static', filename='js/settings_ui.js', v=app_version ~ '-settings2') }}"></script>{% endif %}
         <script src="{{ url_for('static', filename='js/pwa_push.js', v=app_version) }}"></script>
         <script src="{{ url_for('static', filename='js/app_update.js', v=app_version ~ '-safe-refresh1') }}"></script>
 
