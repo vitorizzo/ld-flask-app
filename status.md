@@ -3805,3 +3805,15 @@ Performance apertura giornata Agenda 2026-06-13:
 - Snapshot: soglia minima 3 e marcatore esplicito off_cash_versabile_calculation_version=1 nei totali. Revisioni alte di snapshot vecchi non bastano a considerarli aggiornati. Le basi del progressivo prive del marcatore vengono ignorate e ricostruite dai movimenti; preview/report archiviati obsoleti ricalcolano i totali correnti senza riscrivere il vault.
 - Verifica: 18 test Python di cassa, 8 casi Node report, diff --check: OK. Coperti flag, metodi, spesa mista dentro/fuori cassa, depositi intermedi, centesimi, saldo negativo, progressivo e snapshot vecchi/nuovi, dettaglio e giornata chiusa.
 - Nessuna nuova migrazione. Per attivare aggiornare il codice e riavviare web; deploy non eseguito in questa sessione. Dettagli: docs/cash_off_cash_expenses.md.
+
+
+## 2026-10-19 — Registrazione: errori visibili e salvataggio affidabile
+
+- Riprodotto localmente un blocco: DateField senza Optional rifiutava la data di nascita vuota, benché non fosse dichiarata obbligatoria. register.html non mostrava alcun errore di validazione: invii non validi sembravano non fare nulla.
+- Data di nascita ora esplicitamente facoltativa. Riepilogo e messaggi vicino ai campi (in italiano, incluso CSRF scaduto), conservazione dei dati non sensibili, istruzioni sui campi obbligatori/password e link recupero password.
+- Spazi esterni normalizzati nei dati; email normalizzata e confronto senza distinzione maiuscole/minuscole per registrazione e login. Lunghezza email limitata ai 150 caratteri del modello; duplicati gestiti nel modulo. Nessun account preesistente modificato.
+- Utente/ruolo customer/richiesta Horeca/ticket salvati atomicamente prima dell’email. Un guasto SMTP o della configurazione mittente non annulla l’account e la richiesta resta nella coda staff; errori DB annullano l’intera transazione con messaggio comprensibile.
+- Rimossa la registrazione dell’HTML completo della pagina tramite log_task per register: diagnostica auth con soli nomi dei campi falliti, identificativi e tipi di errore; nessuna password, token o dato del form nei nuovi log.
+- Log produzione letti esclusivamente in forma aggregata: nessuna eccezione di registrazione registrata nei log recenti consultati. Il vecchio flusso non tracciava gli errori di validazione; non è quindi possibile attribuire con certezza i casi segnalati. Nessun utente creato e nessuna email reale inviata in produzione.
+- Verifica: 14 test isolati con modulo/template reali, DB SQLite e SMTP simulato; coperti data vuota/valida/non valida, errori visibili e dati conservati, email duplicate/lunghe, login normalizzato, Horeca e fallimenti SMTP/mittente/DB, ruolo mancante, CSRF e logging senza valori sensibili. Sintassi Python/Jinja e diff --check: OK. Verifica visiva browser non eseguita (limite Edge già noto).
+- Nessuna migrazione; aggiornare codice e riavviare web. Deploy non eseguito in questa sessione. Dettagli: docs/registration.md.

@@ -5,6 +5,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from extensions import db
 from forms.forms import LoginForm, RegistrationForm, EditProfileForm, ForgotPasswordForm, ResetPasswordForm
 from tools.auth_manager import get_current_user, get_current_user_id
@@ -94,106 +96,77 @@ def _send_mail(message):
 
 
 @auth_bp.route('/register', methods=['GET', 'POST'])
-@log_task(logger)
 def register():
-    form = RegistrationForm()
-    if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
-        if user:
-            flash("Email già registrata. Usa un'altra email.", 'danger')
-            return redirect(url_for('auth.register'))
-        customer_role = Role.query.filter_by(name="customer").first()
+    form=RegistrationForm()
+    if not form.validate_on_submit():
+        if request.method=='POST':
+            # Field names only: never log form values, passwords, tokens or rendered HTML.
+            logger.warning('Registration validation failed fields=%s',','.join(sorted(form.errors)))
+        return render_template('register.html',form=form)
+
+    try:
+        if User.query.filter(func.lower(User.email)==form.email.data).first():
+            form.email.errors.append('Email già registrata. Accedi oppure recupera la password.')
+            logger.info('Registration rejected reason=duplicate_email')
+            return render_template('register.html',form=form)
+        customer_role=Role.query.filter_by(name='customer').first()
         if customer_role is None:
-            logger.error("Registrazione interrotta: ruolo base customer non configurato")
-            flash("Registrazione momentaneamente non disponibile: ruolo cliente non configurato.", "danger")
-            return redirect(url_for("auth.register"))
-        hashed_password = generate_password_hash(form.password.data)
-        new_user = User(
-            name=form.name.data,
-            surname=form.surname.data,
-            email=form.email.data,
-            password=hashed_password,
-            phone=form.phone.data,
-            birth_date=form.birth_date.data,
-            city=form.city.data,
-            province=form.province.data,
-            sex=int(form.sex.data)
-        )
-        db.session.add(new_user)
-        db.session.flush()
-        db.session.add(UserRole(
-            user_id=new_user.id,
-            role_id=customer_role.id,
-            type="lifetime",
-            notes="Ruolo base assegnato automaticamente alla registrazione.",
-        ))
+            logger.error('Registration unavailable reason=missing_customer_role')
+            flash('Registrazione momentaneamente non disponibile. Riprova più tardi o contatta l’assistenza.','danger')
+            return render_template('register.html',form=form)
+        new_user=User(name=form.name.data,surname=form.surname.data,email=form.email.data,
+            password=generate_password_hash(form.password.data),phone=form.phone.data,
+            birth_date=form.birth_date.data,city=form.city.data,province=form.province.data,sex=int(form.sex.data))
+        db.session.add(new_user);db.session.flush()
+        db.session.add(UserRole(user_id=new_user.id,role_id=customer_role.id,type='lifetime',
+            notes='Ruolo base assegnato automaticamente alla registrazione.'))
+        ticket=None
         if form.merchant_request.data:
-            activation_request = RoleActivationRequest(
-                user_id=new_user.id,
-                requested_role="customer_horeca",
-                notes="Richiesta esercente inviata dal form di registrazione.",
-            )
-            db.session.add(activation_request)
-            db.session.flush()
-            ticket = SupportTicket(
-                ticket_type="horeca_activation",
-                status="open",
-                subject="attivazione cliente horeca",
-                reply_email=new_user.email,
-                user_id=new_user.id,
-                role_activation_request_id=activation_request.id,
-            )
-            db.session.add(ticket)
-            db.session.flush()
-            db.session.add(SupportTicketMessage(
-                ticket_id=ticket.id,
-                sender_type="user",
-                sender_user_id=new_user.id,
-                email_from=new_user.email,
-                email_to=ASSISTANCE_EMAIL,
-                body=(
-                    "Richiesta esercente inviata dal form di registrazione.\n\n"
-                    f"Nome: {new_user.name}\n"
-                    f"Cognome: {new_user.surname}\n"
-                    f"Email: {new_user.email}\n"
-                    f"Telefono: {new_user.phone or '-'}\n"
-                    f"Citta di residenza: {new_user.city or '-'}\n"
-                    f"Provincia: {new_user.province or '-'}"
-                ),
-            ))
-            activation_msg = Message(
-                subject="attivazione cliente horeca",
-                sender=assistance_mail_sender(),
-                recipients=[ASSISTANCE_EMAIL],
-                reply_to=new_user.email,
-                body=(
-                    "Nuova richiesta di attivazione cliente Horeca.\n\n"
-                    f"ID utente: {new_user.id}\n"
-                    f"Nome: {new_user.name}\n"
-                    f"Cognome: {new_user.surname}\n"
-                    f"Email: {new_user.email}\n"
-                    f"Telefono: {new_user.phone or '-'}\n"
-                    f"Data di nascita: {new_user.birth_date or '-'}\n"
-                    f"Citta di residenza: {new_user.city or '-'}\n"
-                    f"Provincia: {new_user.province or '-'}\n"
-                    f"Ticket: #{ticket.id}\n\n"
-                    "Rispondere a questa email dopo aver assegnato il ruolo cliente horeca."
-                ),
-            )
-            try:
-                send_assistance_mail(activation_msg)
-            except Exception as exc:
-                db.session.rollback()
-                logger.exception("Errore invio email attivazione cliente horeca")
-                flash(f"Impossibile inviare la richiesta esercente: {exc}", "danger")
-                return redirect(url_for('auth.register'))
+            activation_request=RoleActivationRequest(user_id=new_user.id,requested_role='customer_horeca',
+                notes='Richiesta esercente inviata dal form di registrazione.')
+            db.session.add(activation_request);db.session.flush()
+            ticket=SupportTicket(ticket_type='horeca_activation',status='open',subject='attivazione cliente horeca',
+                reply_email=new_user.email,user_id=new_user.id,role_activation_request_id=activation_request.id)
+            db.session.add(ticket);db.session.flush()
+            db.session.add(SupportTicketMessage(ticket_id=ticket.id,sender_type='user',sender_user_id=new_user.id,
+                email_from=new_user.email,email_to=ASSISTANCE_EMAIL,
+                body=('Richiesta esercente inviata dal form di registrazione.\n\n'
+                    f'Nome: {new_user.name}\nCognome: {new_user.surname}\nEmail: {new_user.email}\n'
+                    f'Telefono: {new_user.phone or "-"}\nCittà di residenza: {new_user.city or "-"}\nProvincia: {new_user.province or "-"}')))
+        # The account and staff-visible request survive a failure of the email notification.
         db.session.commit()
-        if form.merchant_request.data:
-            flash("Registrazione completata. La richiesta esercente e' stata inviata e verra' valutata dallo staff.", 'success')
+    except IntegrityError:
+        db.session.rollback()
+        if User.query.filter(func.lower(User.email)==form.email.data).first():
+            form.email.errors.append('Email già registrata. Accedi oppure recupera la password.')
+            logger.info('Registration rejected reason=concurrent_duplicate_email')
         else:
-            flash('Registrazione completata! Ora puoi effettuare il login.', 'success')
-        return redirect(url_for('auth.login'))
-    return render_template('register.html', form=form)
+            logger.error('Registration persistence failed error_type=IntegrityError')
+            flash('Registrazione non completata. Riprova o contatta l’assistenza.','danger')
+        return render_template('register.html',form=form)
+    except SQLAlchemyError as exc:
+        db.session.rollback()
+        logger.error('Registration persistence failed error_type=%s',type(exc).__name__)
+        flash('Registrazione momentaneamente non disponibile. Riprova più tardi.','danger')
+        return render_template('register.html',form=form)
+
+    logger.info('Registration completed user_id=%s merchant_request=%s',new_user.id,bool(form.merchant_request.data))
+    if ticket is not None:
+        try:
+            activation_msg=Message(subject='attivazione cliente horeca',sender=assistance_mail_sender(),
+                recipients=[ASSISTANCE_EMAIL],reply_to=new_user.email,
+                body=('Nuova richiesta di attivazione cliente Horeca.\n\n'
+                    f'ID utente: {new_user.id}\nNome: {new_user.name}\nCognome: {new_user.surname}\n'
+                    f'Email: {new_user.email}\nTelefono: {new_user.phone or "-"}\nData di nascita: {new_user.birth_date or "-"}\n'
+                    f'Città di residenza: {new_user.city or "-"}\nProvincia: {new_user.province or "-"}\nTicket: #{ticket.id}\n\n'
+                    'Rispondere a questa email dopo aver assegnato il ruolo cliente horeca.'))
+            send_assistance_mail(activation_msg)
+        except Exception as exc:
+            logger.error('Registration email notification failed ticket_id=%s error_type=%s; request saved for staff',ticket.id,type(exc).__name__)
+        flash('Registrazione completata. La richiesta esercente è stata salvata e verrà valutata dallo staff.','success')
+    else:
+        flash('Registrazione completata! Ora puoi effettuare il login.','success')
+    return redirect(url_for('auth.login'))
 
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
@@ -201,7 +174,7 @@ def register():
 def login():
     form = LoginForm()
     if form.validate_on_submit():
-        user = User.query.filter_by(email=form.email.data).first()
+        user = User.query.filter(func.lower(User.email)==form.email.data).first()
         if user and check_password_hash(user.password, form.password.data):
             login_user(user, remember=bool(form.remember.data))
 

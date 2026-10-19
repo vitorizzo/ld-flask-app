@@ -171,8 +171,19 @@
       margin-top: 34px;
     }
   }
+  .register-card .invalid-feedback { color: var(--ld-error, #ffb4b4); }
+  .register-card .alert-danger a { color: inherit; text-decoration: underline; }
 </style>
 {% endblock %}
+
+{% macro registration_error_text(field_name, error) -%}
+  {%- if field_name == 'csrf_token' -%}La sessione del modulo è scaduta. Controlla i dati e invia nuovamente la registrazione.
+  {%- elif field_name == 'birth_date' -%}Scegli una data valida oppure lascia il campo vuoto.
+  {%- else -%}{{ error }}{%- endif -%}
+{%- endmacro %}
+{% macro field_errors(field) -%}
+  {% if field.errors %}<ul class="invalid-feedback d-block" id="{{ field.id }}-errors">{% for error in field.errors %}<li>{{ registration_error_text(field.name,error) }}</li>{% endfor %}</ul>{% endif %}
+{%- endmacro %}
 
 {% block content %}
 <section class="welcome-section register-page">
@@ -184,56 +195,75 @@
 
     <form method="POST" action="{{ url_for('auth.register') }}" novalidate>
       {{ form.hidden_tag() }}
+      {% if form.errors %}
+      <div class="alert alert-danger" id="registrationErrors" role="alert" tabindex="-1">
+        <strong>Registrazione non completata. Correggi i campi indicati:</strong>
+        <ul class="mb-0">{% for field_name, errors in form.errors.items() %}{% for error in errors %}<li>{% if field_name != 'csrf_token' %}<a href="#{{ form[field_name].id }}">{{ form[field_name].label.text }}</a>: {% endif %}{{ registration_error_text(field_name,error) }}</li>{% endfor %}{% endfor %}</ul>
+      </div>
+      {% endif %}
+      <p class="small">Tutti i campi sono obbligatori, tranne la data di nascita e la richiesta Esercente.</p>
 
       <div class="register-grid">
         <div>
           {{ form.name.label(class="form-label") }}
-          {{ form.name(class="form-control", placeholder="Nome", autocomplete="given-name") }}
+          {{ form.name(class="form-control" ~ (" is-invalid" if form.name.errors else ""), placeholder="Nome", autocomplete="given-name", aria_invalid="true" if form.name.errors else "false", aria_describedby="name-errors" if form.name.errors else "") }}
+          {{ field_errors(form.name) }}
         </div>
 
         <div>
           {{ form.surname.label(class="form-label") }}
-          {{ form.surname(class="form-control", placeholder="Cognome", autocomplete="family-name") }}
+          {{ form.surname(class="form-control" ~ (" is-invalid" if form.surname.errors else ""), placeholder="Cognome", autocomplete="family-name", aria_invalid="true" if form.surname.errors else "false", aria_describedby="surname-errors" if form.surname.errors else "") }}
+          {{ field_errors(form.surname) }}
         </div>
 
         <div class="register-field--full">
           {{ form.email.label(class="form-label") }}
-          {{ form.email(class="form-control", placeholder="nome@azienda.it", autocomplete="email") }}
+          {{ form.email(class="form-control" ~ (" is-invalid" if form.email.errors else ""), placeholder="nome@azienda.it", autocomplete="email", type="email", aria_invalid="true" if form.email.errors else "false", aria_describedby="email-errors" if form.email.errors else "") }}
+          {{ field_errors(form.email) }}
         </div>
 
         <div>
           {{ form.phone.label(class="form-label") }}
-          {{ form.phone(class="form-control", placeholder="Telefono", autocomplete="tel") }}
+          {{ form.phone(class="form-control" ~ (" is-invalid" if form.phone.errors else ""), placeholder="Telefono", autocomplete="tel", type="tel", aria_invalid="true" if form.phone.errors else "false", aria_describedby="phone-errors" if form.phone.errors else "") }}
+          {{ field_errors(form.phone) }}
         </div>
 
         <div>
           {{ form.birth_date.label(class="form-label") }}
-          {{ form.birth_date(class="form-control", autocomplete="bday") }}
+          {{ form.birth_date(class="form-control" ~ (" is-invalid" if form.birth_date.errors else ""), autocomplete="bday", aria_invalid="true" if form.birth_date.errors else "false", aria_describedby="birth_date-errors" if form.birth_date.errors else "birth_date-help") }}
+          {{ field_errors(form.birth_date) }}
+          <div class="small mt-1" id="birth_date-help">Puoi lasciare vuota la data di nascita.</div>
         </div>
 
         <div>
           {{ form.city.label(class="form-label") }}
-          {{ form.city(class="form-control", placeholder="Citta di residenza", autocomplete="address-level2") }}
+          {{ form.city(class="form-control" ~ (" is-invalid" if form.city.errors else ""), placeholder="Citta di residenza", autocomplete="address-level2", aria_invalid="true" if form.city.errors else "false", aria_describedby="city-errors" if form.city.errors else "") }}
+          {{ field_errors(form.city) }}
         </div>
 
         <div>
           {{ form.province.label(class="form-label") }}
-          {{ form.province(class="form-control", placeholder="Provincia", autocomplete="address-level1") }}
+          {{ form.province(class="form-control" ~ (" is-invalid" if form.province.errors else ""), placeholder="Provincia", autocomplete="address-level1", aria_invalid="true" if form.province.errors else "false", aria_describedby="province-errors" if form.province.errors else "") }}
+          {{ field_errors(form.province) }}
         </div>
 
         <div class="register-field--full">
           {{ form.sex.label(class="form-label") }}
-          {{ form.sex(class="form-select") }}
+          {{ form.sex(class="form-select" ~ (" is-invalid" if form.sex.errors else ""), aria_invalid="true" if form.sex.errors else "false", aria_describedby="sex-errors" if form.sex.errors else "") }}
+          {{ field_errors(form.sex) }}
         </div>
 
         <div>
           {{ form.password.label(class="form-label") }}
-          {{ form.password(class="form-control", placeholder="Password", autocomplete="new-password") }}
+          {{ form.password(class="form-control" ~ (" is-invalid" if form.password.errors else ""), placeholder="Password", autocomplete="new-password", aria_invalid="true" if form.password.errors else "false", aria_describedby="password-errors" if form.password.errors else "") }}
+          {{ field_errors(form.password) }}
+          <div class="small mt-1">Almeno 6 caratteri.</div>
         </div>
 
         <div>
           {{ form.confirm_password.label(class="form-label") }}
-          {{ form.confirm_password(class="form-control", placeholder="Conferma password", autocomplete="new-password") }}
+          {{ form.confirm_password(class="form-control" ~ (" is-invalid" if form.confirm_password.errors else ""), placeholder="Conferma password", autocomplete="new-password", aria_invalid="true" if form.confirm_password.errors else "false", aria_describedby="confirm_password-errors" if form.confirm_password.errors else "") }}
+          {{ field_errors(form.confirm_password) }}
         </div>
 
         <div class="register-field--full form-check">
@@ -243,6 +273,7 @@
         </div>
       </div>
 
+      <p class="small mt-3">Hai già un account? <a href="{{ url_for('auth.forgot_password') }}">Recupera la password</a>.</p>
       <div class="register-card__actions">
         {{ form.submit(class="btn btn-info fw-semibold") }}
         <div class="register-card__links">
