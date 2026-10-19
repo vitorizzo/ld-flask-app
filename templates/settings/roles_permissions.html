@@ -121,7 +121,7 @@
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section page-shell roles-permissions-page">
+<section class="welcome-section page-shell roles-permissions-page ld-page ld-page-standard settings-page">
   <div class="container-fluid">
     <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
       <div>
@@ -267,7 +267,7 @@
   </div>
 </section>
 
-<div class="modal fade settings-config-modal" id="roleCreateModal" tabindex="-1" aria-labelledby="roleCreateTitle" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="roleCreateModal" tabindex="-1" aria-labelledby="roleCreateTitle" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <form method="post">
@@ -299,7 +299,7 @@
   </div>
 </div>
 
-<div class="modal fade settings-config-modal" id="permissionCreateModal" tabindex="-1" aria-labelledby="permissionCreateTitle" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="permissionCreateModal" tabindex="-1" aria-labelledby="permissionCreateTitle" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <form method="post">
@@ -333,7 +333,7 @@
 
 {% for role in roles %}
   {% set role_users = role_usage.get(role.id, 0) %}
-  <div class="modal fade settings-config-modal" id="roleModal-{{ role.id }}" tabindex="-1" aria-labelledby="roleModalTitle-{{ role.id }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="roleModal-{{ role.id }}" tabindex="-1" aria-labelledby="roleModalTitle-{{ role.id }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post">
@@ -361,7 +361,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-config-modal" id="roleDeleteModal-{{ role.id }}" tabindex="-1" aria-labelledby="roleDeleteTitle-{{ role.id }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="roleDeleteModal-{{ role.id }}" tabindex="-1" aria-labelledby="roleDeleteTitle-{{ role.id }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post">
@@ -399,7 +399,7 @@
 
 {% for permission in special_permissions %}
   {% set permission_users = permission_usage.get(permission.id, 0) %}
-  <div class="modal fade settings-config-modal" id="permissionModal-{{ permission.id }}" tabindex="-1" aria-labelledby="permissionModalTitle-{{ permission.id }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="permissionModal-{{ permission.id }}" tabindex="-1" aria-labelledby="permissionModalTitle-{{ permission.id }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post">
@@ -437,7 +437,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-config-modal" id="permissionDeleteModal-{{ permission.id }}" tabindex="-1" aria-labelledby="permissionDeleteTitle-{{ permission.id }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="permissionDeleteModal-{{ permission.id }}" tabindex="-1" aria-labelledby="permissionDeleteTitle-{{ permission.id }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post">

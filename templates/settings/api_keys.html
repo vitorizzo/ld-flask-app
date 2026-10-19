@@ -141,7 +141,7 @@
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section page-shell settings-config-page">
+<section class="welcome-section page-shell settings-config-page ld-page ld-page-standard settings-page">
   <div class="container-fluid">
     <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
       <div>
@@ -290,7 +290,7 @@
   </div>
 </section>
 
-<div class="modal fade settings-config-modal" id="envKeyCreateModal" tabindex="-1" aria-labelledby="envKeyCreateTitle" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="envKeyCreateModal" tabindex="-1" aria-labelledby="envKeyCreateTitle" aria-hidden="true">
   <div class="modal-dialog">
     <div class="modal-content">
       <form method="post">
@@ -323,7 +323,7 @@
 </div>
 
 {% for row in api_rows %}
-  <div class="modal fade settings-config-modal" id="apiEditModal-{{ loop.index }}" tabindex="-1" aria-labelledby="apiEditTitle-{{ loop.index }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="apiEditModal-{{ loop.index }}" tabindex="-1" aria-labelledby="apiEditTitle-{{ loop.index }}" aria-hidden="true">
     <div class="modal-dialog modal-lg">
       <div class="modal-content">
         <form method="post">
@@ -373,7 +373,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-config-modal" id="apiDisableModal-{{ loop.index }}" tabindex="-1" aria-labelledby="apiDisableTitle-{{ loop.index }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="apiDisableModal-{{ loop.index }}" tabindex="-1" aria-labelledby="apiDisableTitle-{{ loop.index }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post">
@@ -395,7 +395,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-config-modal" id="apiDeleteModal-{{ loop.index }}" tabindex="-1" aria-labelledby="apiDeleteTitle-{{ loop.index }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="apiDeleteModal-{{ loop.index }}" tabindex="-1" aria-labelledby="apiDeleteTitle-{{ loop.index }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post">
@@ -419,7 +419,7 @@
 {% endfor %}
 
 {% for key in custom_env_keys %}
-  <div class="modal fade settings-config-modal" id="envKeyEditModal-{{ loop.index }}" tabindex="-1" aria-labelledby="envKeyEditTitle-{{ loop.index }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="envKeyEditModal-{{ loop.index }}" tabindex="-1" aria-labelledby="envKeyEditTitle-{{ loop.index }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post">
@@ -451,7 +451,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-config-modal" id="envKeyDeleteModal-{{ loop.index }}" tabindex="-1" aria-labelledby="envKeyDeleteTitle-{{ loop.index }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="envKeyDeleteModal-{{ loop.index }}" tabindex="-1" aria-labelledby="envKeyDeleteTitle-{{ loop.index }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post">
@@ -474,7 +474,7 @@
   </div>
 {% endfor %}
 
-<div class="modal fade settings-config-modal" id="matrixwsTestModal" tabindex="-1" aria-labelledby="matrixwsTestTitle" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="matrixwsTestModal" tabindex="-1" aria-labelledby="matrixwsTestTitle" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header">

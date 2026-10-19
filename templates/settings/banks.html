@@ -78,7 +78,7 @@
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section page-shell">
+<section class="welcome-section page-shell ld-page ld-page-standard settings-page">
   <div class="container-fluid">
     <div class="d-flex align-items-start justify-content-between mb-4">
       <div>
@@ -178,7 +178,7 @@
   </div>
 </section>
 
-<div class="modal fade settings-config-modal" id="bankCreateModal" tabindex="-1" aria-labelledby="bankCreateTitle" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="bankCreateModal" tabindex="-1" aria-labelledby="bankCreateTitle" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <form method="post" enctype="multipart/form-data">
@@ -224,7 +224,7 @@
 </div>
 
 {% for bank in banks %}
-  <div class="modal fade settings-config-modal" id="bankDetailModal-{{ bank.id }}" tabindex="-1" aria-labelledby="bankDetailTitle-{{ bank.id }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="bankDetailModal-{{ bank.id }}" tabindex="-1" aria-labelledby="bankDetailTitle-{{ bank.id }}" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content">
         <form method="post" enctype="multipart/form-data">
@@ -277,7 +277,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-config-modal" id="bankDeleteModal-{{ bank.id }}" tabindex="-1" aria-labelledby="bankDeleteTitle-{{ bank.id }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="bankDeleteModal-{{ bank.id }}" tabindex="-1" aria-labelledby="bankDeleteTitle-{{ bank.id }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post" action="{{ url_for('settings.bank_delete', bank_id=bank.id) }}">

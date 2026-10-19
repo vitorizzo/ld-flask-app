@@ -4,7 +4,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/celery_tasks.css', v=app_version ~ '-celery2') }}">
 {% endblock %}
 {% block content %}
-<section class="ld-page ld-page-standard celery-settings" id="celerySettings" data-api="{{ url_for('settings.celery_tasks_data') }}" data-update="{{ url_for('settings.celery_tasks_update', name='__task__') }}">
+<section class="ld-page ld-page-standard celery-settings settings-page" id="celerySettings" data-api="{{ url_for('settings.celery_tasks_data') }}" data-update="{{ url_for('settings.celery_tasks_update', name='__task__') }}">
   <header><h1>Task Celery</h1><p>Gestisci le task periodiche. Gli orari del calendario seguono Europe/Rome.</p></header>
   <div class="celery-toolbar">
     <a class="btn" href="{{ url_for('settings.settings_index') }}">Impostazioni</a>
@@ -25,7 +25,7 @@
     <p id="celeryEmpty" hidden>Nessuna schedulazione da mostrare.</p>
   </div>
 </section>
-<div class="modal fade ld-modal ld-modal-standard" id="celeryConfirmModal" tabindex="-1" aria-labelledby="celeryConfirmTitle" aria-hidden="true">
+<div class="modal fade settings-page-modal ld-modal ld-modal-standard" id="celeryConfirmModal" tabindex="-1" aria-labelledby="celeryConfirmTitle" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
     <div class="modal-header"><h2 class="modal-title" id="celeryConfirmTitle">Elimina schedulazione</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body"><p id="celeryConfirmText"></p><p id="celeryConfirmError" role="alert"></p></div>

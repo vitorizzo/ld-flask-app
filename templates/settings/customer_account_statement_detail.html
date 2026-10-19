@@ -3,7 +3,7 @@
 {% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_credit_engine.css', v=app_version ~ '-credit-engine1') }}">{% endblock %}
 {% block content %}
-<section class="ld-page ld-page-standard customer-credit-page"><div class="container-fluid">
+<section class="ld-page ld-page-standard customer-credit-page settings-page"><div class="container-fluid">
   <div class="credit-page-heading d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
     <div>
       <div class="text-muted small">Situazione contabile cliente</div><h1 class="mb-1">{{ customer.customer_name }}</h1><div class="text-muted">Codice TeamSystem {{ customer.source_customer_code }}</div>
@@ -112,7 +112,7 @@
   </ul></nav>{% endif %}
 </div></section>
 {% macro communication_modal(modal_id, title, kind, reminder=false) %}
-<div class="modal fade credit-send-modal ld-modal ld-modal-standard" id="{{ modal_id }}" tabindex="-1" aria-hidden="true">
+<div class="modal fade settings-page-modal credit-send-modal ld-modal ld-modal-standard" id="{{ modal_id }}" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header"><h2 class="modal-title fs-5">{{ title }}</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">
@@ -164,7 +164,7 @@
 {% endmacro %}
 {{ communication_modal('creditStatementSendModal', 'Invia estratto conto', 'statement') }}
 {{ communication_modal('creditReminderSendModal', 'Invia sollecito', 'reminder', true) }}
-<div class="modal fade credit-send-modal ld-modal ld-modal-standard" id="creditTemplateModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade settings-page-modal credit-send-modal ld-modal ld-modal-standard" id="creditTemplateModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-scrollable"><div class="modal-content">
     <div class="modal-header"><h2 class="modal-title fs-5">Template delle comunicazioni</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
     <div class="modal-body">

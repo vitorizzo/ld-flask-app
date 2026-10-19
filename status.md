@@ -3817,3 +3817,9 @@ Performance apertura giornata Agenda 2026-06-13:
 - Log produzione letti esclusivamente in forma aggregata: nessuna eccezione di registrazione registrata nei log recenti consultati. Il vecchio flusso non tracciava gli errori di validazione; non è quindi possibile attribuire con certezza i casi segnalati. Nessun utente creato e nessuna email reale inviata in produzione.
 - Verifica: 14 test isolati con modulo/template reali, DB SQLite e SMTP simulato; coperti data vuota/valida/non valida, errori visibili e dati conservati, email duplicate/lunghe, login normalizzato, Horeca e fallimenti SMTP/mittente/DB, ruolo mancante, CSRF e logging senza valori sensibili. Sintassi Python/Jinja e diff --check: OK. Verifica visiva browser non eseguita (limite Edge già noto).
 - Nessuna migrazione; aggiornare codice e riavviare web. Deploy non eseguito in questa sessione. Dettagli: docs/registration.md.
+
+## 2026-10-19 — Migrazione grafica Impostazioni e modali
+- Estesa a tutte le pagine sotto `templates/settings/` la shell grafica condivisa con token dell’app (`settings-page` / `ld-page-standard`) e standardizzato il componente modale `ld-modal-standard`.
+- Aggiunti `static/css/settings_ui.css` e `static/js/settings_ui.js`, caricati dal layout per le rotte `/settings`: layout responsive, colori e dimensioni basati sui token tema, montaggio modali direttamente nel `body` e ripristino dello stato dei pulsanti submit all’apertura/chiusura.
+- Ruoli e Autorizzazioni: la modale “Nuovo ruolo” e tutte le modali della pagina usano il nuovo componente e il contenitore non intercetta più l’area della pagina; rimosso il punto di fragilità dei modali legati allo stacking/overflow della schermata.
+- Verifica: nessun test automatizzato eseguito in questo intervento. Revisione statica del diff e dei riferimenti a CSS/JS; nessuna migrazione DB.

@@ -124,7 +124,7 @@
 {%- endmacro %}
 
 {% block content %}
-<section class="welcome-section page-shell">
+<section class="welcome-section page-shell ld-page ld-page-standard settings-page">
   <div class="container-fluid">
     <div class="d-flex align-items-start justify-content-between mb-4">
       <div>
@@ -224,7 +224,7 @@
   </div>
 </section>
 
-<div class="modal fade settings-config-modal" id="circuitCreateModal" tabindex="-1" aria-labelledby="circuitCreateTitle" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="circuitCreateModal" tabindex="-1" aria-labelledby="circuitCreateTitle" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <form method="post" enctype="multipart/form-data">
@@ -286,7 +286,7 @@
 </div>
 
 {% for circuit in circuits %}
-  <div class="modal fade settings-config-modal" id="circuitDetailModal-{{ circuit.id }}" tabindex="-1" aria-labelledby="circuitDetailTitle-{{ circuit.id }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="circuitDetailModal-{{ circuit.id }}" tabindex="-1" aria-labelledby="circuitDetailTitle-{{ circuit.id }}" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content">
         <form method="post" enctype="multipart/form-data">
@@ -357,7 +357,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-config-modal" id="circuitDeleteModal-{{ circuit.id }}" tabindex="-1" aria-labelledby="circuitDeleteTitle-{{ circuit.id }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="circuitDeleteModal-{{ circuit.id }}" tabindex="-1" aria-labelledby="circuitDeleteTitle-{{ circuit.id }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post" action="{{ url_for('settings.pos_circuit_delete', circuit_id=circuit.id) }}">
@@ -378,7 +378,7 @@
   </div>
 {% endfor %}
 
-<div class="modal fade settings-icon-picker-modal" id="circuitIconPickerModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-icon-picker-modal" id="circuitIconPickerModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
       <div class="modal-header">

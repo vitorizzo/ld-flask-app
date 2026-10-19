@@ -86,7 +86,7 @@
 {%- endmacro %}
 
 {% block content %}
-<section class="welcome-section page-shell">
+<section class="welcome-section page-shell ld-page ld-page-standard settings-page">
   <div class="container-fluid">
     <div class="d-flex align-items-start justify-content-between mb-4">
       <div>
@@ -188,7 +188,7 @@
   </div>
 </section>
 
-<div class="modal fade settings-config-modal" id="deviceCreateModal" tabindex="-1" aria-labelledby="deviceCreateTitle" aria-hidden="true">
+<div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="deviceCreateModal" tabindex="-1" aria-labelledby="deviceCreateTitle" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
       <form method="post">
@@ -262,7 +262,7 @@
 
 {% for device in devices %}
   {% set selected_ids = device.circuits.all() | map(attribute='id') | list %}
-  <div class="modal fade settings-config-modal" id="deviceDetailModal-{{ device.id }}" tabindex="-1" aria-labelledby="deviceDetailTitle-{{ device.id }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="deviceDetailModal-{{ device.id }}" tabindex="-1" aria-labelledby="deviceDetailTitle-{{ device.id }}" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content">
         <form method="post">
@@ -336,7 +336,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-config-modal" id="deviceDeleteModal-{{ device.id }}" tabindex="-1" aria-labelledby="deviceDeleteTitle-{{ device.id }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-config-modal" id="deviceDeleteModal-{{ device.id }}" tabindex="-1" aria-labelledby="deviceDeleteTitle-{{ device.id }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post" action="{{ url_for('settings.pos_device_delete', device_id=device.id) }}">

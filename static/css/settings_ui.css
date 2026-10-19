@@ -1,0 +1,36 @@
+/* Sistema grafico condiviso per il pannello Impostazioni. */
+.settings-page {
+  width: 100%; min-width: 0; min-height: 100%; height: auto; max-height: none;
+  display: block; overflow: auto; padding: var(--ld-page-padding, 18px);
+  color: var(--ld-text, #fff); background: var(--ld-surface-muted, #4a2c2a);
+  border-radius: var(--ld-radius, 10px); box-sizing: border-box;
+}
+.settings-page > .container-fluid { width: 100%; max-width: var(--ld-page-max-width, 1600px); margin-inline: auto; padding: 0; }
+.settings-page h1, .settings-page h2, .settings-page h3, .settings-page h4, .settings-page h5 { color: inherit; }
+.settings-page .card, .settings-page .alert { border-radius: var(--ld-radius, 10px); }
+.settings-page .card { color: var(--ld-brand-primary, #4a2c2a); background: var(--ld-surface, #fff); border: 1px solid color-mix(in srgb, var(--ld-brand-primary, #4a2c2a) 16%, transparent); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+.settings-page .card-header { color: var(--ld-brand-primary, #4a2c2a); background: color-mix(in srgb, var(--ld-surface, #fff) 94%, var(--ld-brand-accent, #0dcaf0)); border-color: color-mix(in srgb, var(--ld-brand-primary, #4a2c2a) 14%, transparent); }
+.settings-page .form-label, .settings-page .form-check-label { color: var(--ld-brand-primary, #4a2c2a); }
+.settings-page .form-control, .settings-page .form-select { min-height: var(--ld-touch-size, 48px); border-radius: var(--ld-radius, 10px); }
+.settings-page .btn { min-height: var(--ld-touch-size, 48px); border-radius: var(--ld-radius, 10px); }
+.settings-page .table { --bs-table-color: var(--ld-brand-primary, #4a2c2a); --bs-table-bg: var(--ld-surface, #fff); }
+.settings-page .text-muted { color: #65717d !important; }
+.settings-page-modal.modal { --bs-modal-zindex: 2100; z-index: 2100; }
+.settings-page-modal .modal-dialog { width: min(var(--ld-modal-width, 720px), calc(100vw - 2rem)); max-width: var(--ld-modal-width, 720px); }
+.settings-page-modal .modal-content { color: var(--ld-brand-primary, #4a2c2a); background: var(--ld-surface, #fff); border: 1px solid color-mix(in srgb, var(--ld-brand-primary, #4a2c2a) 18%, transparent); border-radius: var(--ld-modal-radius, 10px); box-shadow: 0 18px 45px rgba(0,0,0,.28); }
+.settings-page-modal .modal-header { color: var(--ld-text, #fff); background: var(--ld-brand-primary, #4a2c2a); border-color: color-mix(in srgb, var(--ld-text-muted, #f1d9d0) 35%, transparent); }
+.settings-page-modal .modal-title { color: var(--ld-text, #fff); }
+.settings-page-modal .modal-header .btn-close { filter: invert(1) grayscale(1) brightness(2); opacity: .9; }
+.settings-page-modal .modal-body { min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
+.settings-page-modal .modal-footer { background: var(--ld-surface, #fff); border-color: color-mix(in srgb, var(--ld-brand-primary, #4a2c2a) 18%, transparent); }
+.settings-page-modal .form-label, .settings-page-modal .form-check-label { color: var(--ld-brand-primary, #4a2c2a); }
+.settings-page-modal .form-control, .settings-page-modal .form-select { min-height: var(--ld-touch-size, 48px); border-radius: var(--ld-radius, 10px); }
+.settings-page-modal .btn { min-height: var(--ld-touch-size, 48px); border-radius: var(--ld-radius, 10px); }
+.settings-page.roles-permissions-page { height: auto; min-height: 100%; overflow: auto; }
+.settings-page.roles-permissions-page > .container-fluid { overflow: visible; }
+@media (max-width: 700px) {
+  .settings-page { padding: var(--ld-mobile-page-padding, 14px); }
+  .settings-page > .container-fluid > .d-flex.align-items-start.justify-content-between { flex-wrap: wrap; gap: .75rem; }
+  .settings-page-modal .modal-footer { display: grid; grid-template-columns: 1fr; gap: .5rem; }
+  .settings-page-modal .modal-footer .btn { width: 100%; }
+}

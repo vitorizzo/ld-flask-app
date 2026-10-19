@@ -3,7 +3,7 @@
 {% block title %}Ticket #{{ ticket.id }} - LDApp{% endblock %}
 
 {% block content %}
-<section class="welcome-section page-shell support-admin-page">
+<section class="welcome-section page-shell support-admin-page ld-page ld-page-standard settings-page">
   <div class="container-fluid">
     <div class="support-admin-header d-flex align-items-start justify-content-between gap-3 mb-4">
       <div>
@@ -117,7 +117,7 @@ Da questo momento puoi accedere ai servizi Horeca disponibili in LDApp.{% endif 
 </section>
 
 {% if ticket.ticket_type == 'support' %}
-  <div class="modal fade support-reply-modal" id="supportReplyModal" tabindex="-1" aria-labelledby="supportReplyModalLabel" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal support-reply-modal" id="supportReplyModal" tabindex="-1" aria-labelledby="supportReplyModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
       <div class="modal-content">
         <form id="supportReplyForm" method="post" enctype="multipart/form-data">

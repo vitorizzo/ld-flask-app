@@ -158,7 +158,7 @@
 {%- endmacro %}
 
 {% block content %}
-<section class="welcome-section page-shell">
+<section class="welcome-section page-shell ld-page ld-page-standard settings-page">
   <div class="container-fluid">
     <div class="d-flex align-items-start justify-content-between mb-4">
       <div>
@@ -257,7 +257,7 @@
 </section>
 
 {% for user in users %}
-  <div class="modal fade settings-user-modal" id="userDetailModal-{{ user.id }}" tabindex="-1" aria-labelledby="userDetailTitle-{{ user.id }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-user-modal" id="userDetailModal-{{ user.id }}" tabindex="-1" aria-labelledby="userDetailTitle-{{ user.id }}" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content">
         <form method="post" action="{{ url_for('settings.user_update', user_id=user.id) }}">
@@ -329,7 +329,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-user-modal settings-user-action-sheet" id="userActionModal-{{ user.id }}" tabindex="-1" aria-labelledby="userActionTitle-{{ user.id }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-user-modal settings-user-action-sheet" id="userActionModal-{{ user.id }}" tabindex="-1" aria-labelledby="userActionTitle-{{ user.id }}" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
       <div class="modal-content">
         <div class="modal-header">
@@ -360,7 +360,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-user-modal" id="userRoleModal-{{ user.id }}" tabindex="-1" aria-labelledby="userRoleTitle-{{ user.id }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-user-modal" id="userRoleModal-{{ user.id }}" tabindex="-1" aria-labelledby="userRoleTitle-{{ user.id }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post" action="{{ url_for('settings.user_change_role', user_id=user.id) }}">
@@ -389,7 +389,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-user-modal" id="userAuthModal-{{ user.id }}" tabindex="-1" aria-labelledby="userAuthTitle-{{ user.id }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-user-modal" id="userAuthModal-{{ user.id }}" tabindex="-1" aria-labelledby="userAuthTitle-{{ user.id }}" aria-hidden="true">
     <div class="modal-dialog modal-lg modal-dialog-scrollable">
       <div class="modal-content">
         <form method="post" action="{{ url_for('settings.user_add_special_authorization', user_id=user.id) }}">
@@ -492,7 +492,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-user-modal" id="userResetPasswordModal-{{ user.id }}" tabindex="-1" aria-labelledby="userResetPasswordTitle-{{ user.id }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-user-modal" id="userResetPasswordModal-{{ user.id }}" tabindex="-1" aria-labelledby="userResetPasswordTitle-{{ user.id }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post" action="{{ url_for('settings.user_reset_password', user_id=user.id) }}">
@@ -512,7 +512,7 @@
     </div>
   </div>
 
-  <div class="modal fade settings-user-modal" id="userDeleteModal-{{ user.id }}" tabindex="-1" aria-labelledby="userDeleteTitle-{{ user.id }}" aria-hidden="true">
+  <div class="modal fade ld-modal ld-modal-standard settings-page-modal settings-user-modal" id="userDeleteModal-{{ user.id }}" tabindex="-1" aria-labelledby="userDeleteTitle-{{ user.id }}" aria-hidden="true">
     <div class="modal-dialog">
       <div class="modal-content">
         <form method="post" action="{{ url_for('settings.user_delete', user_id=user.id) }}">
