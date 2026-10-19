@@ -2137,3 +2137,9 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 
 - `FunctionAccessPolicy` registra per endpoint protetto una soglia minima collegata a `Role` (peso live) oppure una lista di ruoli ammessi. `@role_required` applica il criterio configurato, mantenendo i default del decoratore fino alla configurazione.
 - Il tile “Accessi alle funzioni” in Impostazioni apre la matrice `templates/settings/function_access.html`; la schermata scopre le funzioni protette, consente soglia dinamica, ruoli aggiuntivi o allowlist esatta. Migrazione `z2d3e4f5a6b7_function_access_policies`.
+
+
+## Diagnostica HTTP 500 post-deploy (2026-10-19)
+
+- Riproduzione locale: app factory avvia e registra 527 route; `/settings/` redirige al login. Le route pubbliche `/` e `/auth/login` rispondono 500 in questo ambiente perché il DB locale è vecchio/non contiene lo schema aggiornato; non è stato possibile leggere il DB o i log di produzione.
+- Resa più tollerante la lettura della policy: ogni eccezione DB durante il caricamento di `FunctionAccessPolicy` ripiega sui permessi del decoratore. Necessario acquisire il traceback del 500 live per identificare eventuali cause specifiche dell’istanza.

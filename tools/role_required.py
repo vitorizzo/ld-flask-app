@@ -97,9 +97,9 @@ def _access_policy(endpoint):
     try:
         from models import FunctionAccessPolicy
         return FunctionAccessPolicy.query.filter_by(function_key=endpoint).first()
-    except SQLAlchemyError:
+    except Exception:
         db.session.rollback()
-        logger.warning("Tabella permessi funzione non disponibile; uso la soglia predefinita.")
+        logger.exception("Lettura policy funzione fallita; uso la soglia predefinita.")
         return None
 
 def _deny_access():

@@ -2550,6 +2550,9 @@ def function_access():
         policies = {row.function_key: row for row in FunctionAccessPolicy.query.all()}
     except SQLAlchemyError:
         db.session.rollback()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Impossibile leggere le policy funzioni")
     for item in functions:
         item["policy"] = policies.get(item["key"])
     roles = Role.query.order_by(Role.weight.desc(), Role.name.asc()).all()

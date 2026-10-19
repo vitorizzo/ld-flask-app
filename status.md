@@ -3844,3 +3844,9 @@ Performance apertura giornata Agenda 2026-06-13:
 
 - Aggiunti tile Impostazioni, schermata e API per scegliere soglia minima dinamica o ruoli ammessi per ogni endpoint protetto con `@role_required`. Le soglie usano sempre il peso aggiornato del ruolo selezionato; gli endpoint mantengono i default se non configurati.
 - Aggiunta migrazione `z2d3e4f5a6b7_function_access_policies`. Il caricamento navbar usa un percorso compatibile con lo schema precedente alla migrazione menu per evitare che la nuova colonna FK lasci il menu vuoto durante il rollout.
+
+
+## Diagnostica HTTP 500 post-deploy (2026-10-19)
+
+- Riproduzione locale: app factory avvia e registra 527 route; `/settings/` redirige al login. Le route pubbliche `/` e `/auth/login` rispondono 500 in questo ambiente perché il DB locale è vecchio/non contiene lo schema aggiornato; non è stato possibile leggere il DB o i log di produzione.
+- Resa più tollerante la lettura della policy: ogni eccezione DB durante il caricamento di `FunctionAccessPolicy` ripiega sui permessi del decoratore. Necessario acquisire il traceback del 500 live per identificare eventuali cause specifiche dell’istanza.
