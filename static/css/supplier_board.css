@@ -90,3 +90,13 @@ html[data-responsive-mode="mobile"] .supplier-board-filters { font-size: .85em; 
  #supplierCardModal .modal-footer .btn { margin: 0; white-space: normal; }
 }
 @media (max-width: 480px) { .supplier-section-definition-row { align-items: flex-start; flex-direction: column; } }
+
+.supplier-activity-badges { display:flex; flex-wrap:wrap; gap:.35rem; margin:.55rem 0; }
+.supplier-activity-badge { display:inline-flex; align-items:center; gap:.3rem; border:1px solid currentColor; border-radius:999px; padding:.15rem .5rem; font-size:.75rem; text-decoration:none; color:var(--ld-text); background:var(--ld-surface); }
+.supplier-activity-badge:hover { filter:brightness(.94); color:inherit; }
+.supplier-activity-badge > span:first-child { font-weight:800; }
+.supplier-activity-badge.completed { color:#146c43; background:#d1e7dd; }
+.supplier-activity-badge.not-required { color:#664d03; background:#fff3cd; }
+.supplier-activity-badge.unclaimed { color:#6c757d; background:#e9ecef; }
+.supplier-activity-badge.incomplete { color:#b02a37; background:#f8d7da; }
+.supplier-card-activity-status:empty { display:none; }

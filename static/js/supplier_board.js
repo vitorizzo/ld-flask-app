@@ -12,6 +12,15 @@
   return json;
  }
  const options = current => data.columns.map(c=>`<option value="${c.id}" ${c.id===current?'selected':''}>${esc(c.name)}</option>`).join('');
+ function activityBadges(card){
+  const tasks=card.activity_tasks||[];if(!tasks.length)return '';
+  return `<div class="supplier-activity-badges" aria-label="Stato attività lanciate">${tasks.map(task=>{
+   const done=task.status==='completed',skip=task.status==='not_required',unclaimed=task.status==='pending'&&!task.owner;
+   const symbol=done?'✓':skip?'–':unclaimed?'●':'×',state=done?'completed':skip?'not-required':unclaimed?'unclaimed':'incomplete';
+   const detail=done?'Eseguita':skip?'Non necessaria':unclaimed?'Non presa in carico':`In corso${task.owner?' · '+task.owner:''}`;
+   return `<a class="supplier-activity-badge ${state}" href="/activities?activity=${task.id}" title="${esc(task.title)} · ${esc(detail)}"><span aria-hidden="true">${symbol}</span><span>${esc(task.title)}</span></a>`;
+  }).join('')}</div>`;
+ }
  function render() {
   SupplierBoardSections.disposeHints();
   const query = $('supplierFilter').value.trim().toLocaleLowerCase();
@@ -24,6 +33,7 @@
     ${card.notes?`<p>${esc(card.notes.slice(0,180))}${card.notes.length>180?'…':''}</p>`:''}${card.is_archived?'<span class="badge bg-secondary">Archiviata</span>':''}
     ${card.is_draft?'<span class="badge bg-warning text-dark">Bozza ordine</span>':''}
     <div class="supplier-section-badges">${SupplierBoardSections.badges(card)}</div>
+    ${activityBadges(card)}
     ${card.order_pdf_url?`<a class="supplier-card-pdf-link" href="${esc(card.order_pdf_url)}" target="_blank" rel="noopener">PDF ordine allegato</a>`:''}
     <div class="supplier-card-footer"><label class="visually-hidden" for="supplierMove${card.id}">Sposta ${esc(card.title)}</label><select class="form-select" id="supplierMove${card.id}" data-move="${card.id}">${options(card.column_id)}</select></div>
    </article>`).join('') || '<div class="kiosk-empty">Nessuna scheda</div>'}</div></div>`).join('');
@@ -59,6 +69,7 @@
   editing = card;
   $('supplierCardArrival').hidden=!card||card.is_draft||card.is_archived;
   if(card)$('supplierCardArrival').href='/activities?arrival_card='+card.id;else $('supplierCardArrival').removeAttribute('href');
+  if($('supplierCardActivityBadges'))$('supplierCardActivityBadges').innerHTML=card?activityBadges(card):'';
   $('supplierCardDelete').hidden = !card;
   $('supplierCardEditOrder').hidden = !card?.order_edit_url || card.is_archived;
   if (card?.order_edit_url) $('supplierCardEditOrder').href = card.order_edit_url;

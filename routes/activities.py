@@ -8,10 +8,13 @@ from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from extensions import db
 from tools.role_required import resolve_minimum_weight
-from models import (AppPreference, OperationalActivity, ActivityPhoto, SupplierArrival, SupplierBoardCard, Role, User, UserRole, ActivityAttachment, ActivityResultNotice)
+from models import (AppPreference, OperationalActivity, ActivityPhoto, SupplierArrival, SupplierBoardCard,
+                    SupplierBoardColumn, ActivityTargetRole, ActivityTargetUser, ActivityResultRole,
+                    ActivityResultUser, Role, User, UserRole, ActivityAttachment, ActivityResultNotice)
 from tools.activities import (ACTIVE,CLOSED,CONFIG_KEY,manager,visible_query,activity_query,activity_data,
                               routing_data,validate_rules,transition,create_arrival,add_event,
-                              operational_users,actor_name,manual_payload,manual_matches,create_manual,sees_all,notices_data,notices_query,logger,lock_family,can_edit)
+                              operational_users,actor_name,manual_payload,manual_matches,create_manual,sees_all,notices_data,notices_query,logger,lock_family,can_edit,
+                              supplier_arrival_activity_specs)
 from tools.activity_photos import store_photo, photo_path
 from tools.activity_files import prepare_files, files_digest, attach_files
 
@@ -206,7 +209,25 @@ def action(activity_id):
     if not isinstance(payload,dict): return error('Dati non validi.')
     row,conflict=locked_activity(activity_id,payload.get('revision'))
     if conflict: return conflict
-    try: transition(row,current_user,payload.get('action'),payload.get('note',''))
+    action_name=payload.get('action')
+    try:
+        transition(row,current_user,action_name,payload.get('note',''))
+        if row.kind=='lots' and action_name=='complete' and row.arrival_id:
+            arrival=SupplierArrival.query.filter_by(id=row.arrival_id).first()
+            card=SupplierBoardCard.query.filter_by(id=arrival.card_id).with_for_update().first() if arrival and arrival.card_id else None
+            if card:
+                columns=SupplierBoardColumn.query.all()
+                by_name={''.join((column.name or '').casefold().split()):column for column in columns}
+                column_by_id={column.id:column for column in columns}
+                current_name=''.join((column_by_id[card.column_id].name or '').casefold().split()) if card.column_id in column_by_id else ''
+                waiting_names={'inattesadeilotti','inattesalotti'}
+                if current_name in waiting_names:
+                    destination=by_name.get('dacaricare')
+                    if not destination:
+                        db.session.rollback()
+                        return error('Impossibile spostare la scheda: manca la colonna «Da Caricare».',409)
+                    card.column_id=destination.id
+                    card.order_revision+=1
     except PermissionError as exc: return error(str(exc),403)
     except ValueError as exc: return error(str(exc))
     db.session.commit()
@@ -250,9 +271,24 @@ def arrival():
     if partial and not note.strip(): return error('Indica i prodotti ricevuti nella consegna parziale.')
     try: received=date.fromisoformat(payload.get('received_on',''))
     except (ValueError,TypeError): return error('Data arrivo non valida.')
+    try: activity_specs=supplier_arrival_activity_specs(payload)
+    except ValueError as exc: return error(str(exc))
     def replay(existing):
         if existing.card_id!=card_id or existing.note!=note.strip() or existing.partial!=partial or existing.received_on!=received:
             return error('Il riferimento dell’arrivo è già usato per dati diversi.',409)
+        if activity_specs is not None:
+            existing_rows={row.kind:row for row in OperationalActivity.query.filter_by(arrival_id=existing.id).all()}
+            if set(existing_rows)!= {spec['kind'] for spec in activity_specs}:
+                return error('Il riferimento dell’arrivo è già usato per attività diverse.',409)
+            for spec in activity_specs:
+                row=existing_rows[spec['kind']];recipients=spec['result_recipients']
+                if (sorted(target.role_id for target in row.targets)!=spec['role_ids']
+                    or sorted(target.user_id for target in row.user_targets)!=spec['user_ids']
+                    or row.target_min_weight!=spec['target_min_weight']
+                    or sorted(target.role_id for target in row.result_roles)!=recipients['role_ids']
+                    or sorted(target.user_id for target in row.result_users)!=recipients['user_ids']
+                    or row.result_min_weight!=recipients['target_min_weight']):
+                    return error('Il riferimento dell’arrivo è già usato per destinatari diversi.',409)
         return jsonify(ok=True,arrival_id=existing.id,replayed=True)
     # Serialize arrivals for the same card, then recheck the idempotency key.
     card=SupplierBoardCard.query.filter_by(id=card_id).with_for_update().first()
@@ -260,7 +296,7 @@ def arrival():
     if existing: return replay(existing)
     if not card or card.is_archived or card.is_draft: return error('Scheda non disponibile per un nuovo arrivo.',404)
     if type(payload.get('revision')) is not int or payload['revision']!=card.order_revision: return error('La scheda è cambiata. Riapri il nuovo arrivo.',409)
-    body=dict(payload,event_key=key,note=note.strip(),partial=partial)
+    body=dict(payload,event_key=key,note=note.strip(),partial=partial,_activity_specs=activity_specs)
     try: result=create_arrival(card,body,current_user,received);db.session.commit()
     except ValueError as exc: db.session.rollback();return error(str(exc),409)
     except IntegrityError:

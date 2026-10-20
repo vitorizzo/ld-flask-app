@@ -3,7 +3,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/kiosk_overview.css', v=app_version ~ '-supplier1') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-supplier1') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_board.css', v=app_version ~ '-sections2') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/supplier_board.css', v=app_version ~ '-sections3') }}">
 {% endblock %}
 {% block content %}
 <section class="ld-page ld-page-standard ld-page-viewport supplier-board-page">
@@ -26,7 +26,8 @@
    <div class="supplier-card-fields"><div><label class="form-label" for="supplierCardColumn">Colonna</label><select id="supplierCardColumn" class="form-select"></select></div><div><label class="form-label" for="supplierCardDate">Arrivo previsto</label><input class="form-control" type="date" id="supplierCardDate"></div></div>
    <label class="form-label mt-3" for="supplierCardReference">Riferimento ordine / documento</label><input class="form-control mb-3" id="supplierCardReference" maxlength="160">
    <a id="supplierCardEditOrder" class="btn btn-info mb-3" hidden>Modifica ordine e PDF</a>
-   <a id="supplierCardArrival" class="btn btn-info mb-3" hidden>Merce arrivata · crea attività</a>
+   <a id="supplierCardArrival" class="btn btn-info mb-3" hidden>Merce arrivata · invia attività</a>
+   <div id="supplierCardActivityBadges" class="supplier-card-activity-status mb-3"></div>
    <div id="supplierCardOrderLines" class="supplier-order-lines" hidden></div>
    <div id="supplierCardPdf" class="supplier-card-pdf" hidden><h6>PDF ordine allegato</h6><a id="supplierCardPdfOpen" class="btn btn-outline-secondary" target="_blank" rel="noopener">Apri PDF</a> <a id="supplierCardPdfDownload" class="btn btn-info">Scarica PDF</a></div>
    {% set field_prefix = 'supplierCard' %}{% include 'supplier_orders/card_extra_fields.html' %}
@@ -86,5 +87,5 @@
 <script src="{{ url_for('static', filename='js/supplier_card_fields.js', v=app_version ~ '-external1') }}"></script>
 <script src="{{ url_for('static', filename='js/ld_modal.js', v=app_version ~ '-supplier1') }}"></script>
 <script src="{{ url_for('static', filename='js/supplier_board_sections.js', v=app_version ~ '-sections2') }}"></script>
-<script src="{{ url_for('static', filename='js/supplier_board.js', v=app_version ~ '-external1') }}"></script>
+<script src="{{ url_for('static', filename='js/supplier_board.js', v=app_version ~ '-external2') }}"></script>
 {% endblock %}

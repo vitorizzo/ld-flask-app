@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 from extensions import db
 from models import Articoli, Giacenza, SupplierOrderGroup, SupplierOrderGroupItem, SupplierOrderMatrixName
 from tools.role_required import role_required
-from models import SupplierBoardColumn, SupplierBoardCard, BusinessRegistry
+from models import SupplierBoardColumn, SupplierBoardCard, SupplierArrival, OperationalActivity, BusinessRegistry
 from models import SupplierOrderSubgroup, SupplierOrderSubgroupMatrix
 from models import SupplierOrderProductSettings
 from tools.log_utils import get_logger
@@ -35,7 +35,7 @@ def _supplier_section_dict(item):
                 **section_colors({}, item.section))
 
 
-def _supplier_card_dict(card, supplier_names=None):
+def _supplier_card_dict(card, supplier_names=None, activity_tasks=None):
     if supplier_names is None:
         row = db.session.query(BusinessRegistry.display_name).filter_by(id=card.supplier_id).first() if card.supplier_id else None
         supplier_names = {card.supplier_id: row[0]} if row else {}
@@ -47,6 +47,7 @@ def _supplier_card_dict(card, supplier_names=None):
                 payment_terms_other=card.payment_terms_other or '',
                 payment_date=card.payment_date.isoformat() if card.payment_date else '',
                 order_kind='external' if card.is_external_order else ('generated' if card.order_group_id or card.order_pdf_filename or card.order_lines or card.is_draft or card.order_confirmed_at else 'manual'),
+                activity_tasks=activity_tasks or [],
                 attachments=[dict(id=a.id, filename=a.filename, mimetype=a.mimetype, size=a.size,
                     url=url_for('supplier_orders.card_attachment', card_id=card.id, attachment_id=a.id)) for a in card.attachments],
                 expected_date=card.expected_date.isoformat() if card.expected_date else "",
@@ -80,8 +81,23 @@ def board_data():
     cards = query.order_by(SupplierBoardCard.expected_date.asc().nullslast(), SupplierBoardCard.id.desc()).all()
     supplier_ids = {card.supplier_id for card in cards if card.supplier_id}
     supplier_names = dict(db.session.query(BusinessRegistry.id, BusinessRegistry.display_name).filter(BusinessRegistry.id.in_(supplier_ids)).all()) if supplier_ids else {}
+    card_ids={card.id for card in cards}
+    arrivals=SupplierArrival.query.filter(SupplierArrival.card_id.in_(card_ids)).order_by(
+        SupplierArrival.created_at.desc(),SupplierArrival.id.desc()).all() if card_ids else []
+    latest_arrival_by_card={}
+    for arrival in arrivals: latest_arrival_by_card.setdefault(arrival.card_id,arrival)
+    arrival_ids={arrival.id for arrival in latest_arrival_by_card.values()}
+    tasks_by_arrival={}
+    if arrival_ids:
+        tasks=OperationalActivity.query.filter(OperationalActivity.arrival_id.in_(arrival_ids)).options(
+            selectinload(OperationalActivity.owner)).order_by(OperationalActivity.id.asc()).all()
+        for task in tasks:
+            tasks_by_arrival.setdefault(task.arrival_id,[]).append(dict(
+                id=task.id,kind=task.kind,title=task.title,status=task.status,
+                owner=' '.join(filter(None,[task.owner.name,task.owner.surname])) if task.owner_id and task.owner else None,
+            ))
     return jsonify(ok=True, columns=[dict(id=c.id, name=c.name, is_terminal=c.is_terminal) for c in columns],
-                   cards=[_supplier_card_dict(card, supplier_names) for card in cards], sections=_section_definitions())
+                   cards=[_supplier_card_dict(card, supplier_names, tasks_by_arrival.get(latest_arrival_by_card.get(card.id).id, []) if card.id in latest_arrival_by_card else []) for card in cards], sections=_section_definitions())
 
 
 def _section_definitions():

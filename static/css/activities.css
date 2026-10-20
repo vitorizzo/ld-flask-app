@@ -62,3 +62,15 @@ body.activity-modal-open .modal-backdrop.show { z-index: 12100 !important; }
 .activity-tree{list-style:none;padding-left:clamp(.4rem,2vw,1.3rem);margin:0}.activity-tree .activity-tree{border-left:2px solid var(--ld-brand-accent);margin-left:.4em}.activity-tree-node{min-width:0}.activity-tree-node.is-pinned>.activity-row{border-left:3px solid var(--ld-brand-accent);padding-left:.6em}
 
 .activity-tree-title{border:0;background:transparent;color:inherit;font:inherit;font-weight:700;text-align:left;padding:0;cursor:pointer;overflow-wrap:anywhere}.activity-tree-title:focus-visible{outline:2px solid var(--ld-brand-accent);outline-offset:3px}.activity-tree[hidden]{display:none}
+
+.activity-arrival-tasks { display:grid; gap:.6rem; margin:1rem 0; }
+.activity-arrival-task { border:1px solid color-mix(in srgb,var(--ld-brand-primary) 28%,transparent); border-radius:var(--ld-radius); padding:.65rem .8rem; }
+.activity-arrival-task-toggle { display:flex; align-items:center; gap:.65rem; }
+.activity-arrival-task details { margin:.2rem 0 0 1.55rem; }
+.activity-arrival-task summary { cursor:pointer; font-size:.9rem; color:var(--ld-text-muted); }
+.activity-arrival-task-config { display:grid; gap:.75rem; margin-top:.65rem; }
+.activity-arrival-picker { min-width:0; margin:0; padding:.65rem; border:1px solid color-mix(in srgb,var(--ld-brand-primary) 18%,transparent); border-radius:var(--ld-radius); }
+.activity-arrival-picker legend { float:none; width:auto; padding:0 .25rem; margin:0; font-size:.9rem; font-weight:600; }
+.activity-arrival-picker-roles,.activity-arrival-users { display:flex; flex-wrap:wrap; gap:0 .8rem; max-height:140px; overflow:auto; }
+.activity-arrival-picker .activity-checkbox { padding:.25rem 0; }
+.activity-arrival-picker small { color:var(--ld-text-muted); }

@@ -186,6 +186,36 @@ def validate_manual_targets(payload):
     if set(roles) != valid_roles or set(users) != valid_users: raise ValueError('Scegli ruoli e utenti operativi attivi. Aggiorna i destinatari.')
 
 
+def supplier_arrival_activity_specs(payload):
+    """Validate the selected arrival tasks and their assignee/result audiences."""
+    if 'activities' not in payload:
+        return None
+    raw_specs = payload.get('activities')
+    if not isinstance(raw_specs, list) or not raw_specs or len(raw_specs) > len(KINDS):
+        raise ValueError('Seleziona almeno un’attività da inviare.')
+    result = []
+    seen = set()
+    for raw in raw_specs:
+        if not isinstance(raw, dict) or raw.get('kind') not in KINDS or raw['kind'] in seen:
+            raise ValueError('Selezione attività non valida.')
+        kind = raw['kind']
+        seen.add(kind)
+        normalized = manual_payload({
+            'title': KINDS[kind],
+            'description': '',
+            'client_key': f"{str(payload.get('event_key') or '')[:50]}-{kind}",
+            'role_ids': raw.get('role_ids', []),
+            'user_ids': raw.get('user_ids', []),
+            'target_min_weight': raw.get('target_min_weight'),
+            'result_recipients': raw.get('result_recipients'),
+        })
+        validate_manual_targets(normalized)
+        result.append(dict(kind=kind, role_ids=normalized['role_ids'], user_ids=normalized['user_ids'],
+                           target_min_weight=normalized['target_min_weight'],
+                           result_recipients=normalized['result_recipients']))
+    return result
+
+
 def create_manual(payload, user):
     validate_manual_targets(payload)
     result=payload['result_recipients']
@@ -258,17 +288,28 @@ def transition(row, user, action, note):
 
 
 def create_arrival(card, payload, user, received_on):
-    routing = routing_data()
-    rules = routing['rules']
-    valid = {role['id'] for role in routing['roles']}
-    if any(not rules.get(kind) or not set(rules[kind]) <= valid for kind in KINDS):
-        raise ValueError('Configura prima i ruoli destinatari nell’area Attività.')
+    specs = payload.get('_activity_specs')
+    if specs is None:
+        routing = routing_data()
+        rules = routing['rules']
+        valid = {role['id'] for role in routing['roles']}
+        if any(not rules.get(kind) or not set(rules[kind]) <= valid for kind in KINDS):
+            raise ValueError('Configura prima i ruoli destinatari nell’area Attività.')
+        specs = [dict(kind=kind, role_ids=sorted(set(rules[kind])), user_ids=[], target_min_weight=None,
+                      result_recipients=dict(role_ids=[], user_ids=[], target_min_weight=resolve_minimum_weight('office')))
+                 for kind in KINDS]
     arrival = SupplierArrival(event_key=payload['event_key'],card_id=card.id,label=card.title,reference=card.reference or '',
         received_on=received_on,partial=payload['partial'],note=payload['note'],created_by_id=user.id)
     db.session.add(arrival);db.session.flush()
-    for kind,title in KINDS.items():
-        row=OperationalActivity(arrival_id=arrival.id,kind=kind,title=title,status='pending',revision=1,cycle=1)
-        row.targets=[ActivityTargetRole(role_id=role_id) for role_id in set(rules[kind])]
+    for spec in specs:
+        kind=spec['kind']
+        recipients=spec['result_recipients']
+        row=OperationalActivity(arrival_id=arrival.id,kind=kind,title=KINDS[kind],status='pending',revision=1,cycle=1,
+            target_min_weight=spec['target_min_weight'],result_min_weight=recipients['target_min_weight'])
+        row.targets=[ActivityTargetRole(role_id=role_id) for role_id in spec['role_ids']]
+        row.user_targets=[ActivityTargetUser(user_id=user_id) for user_id in spec['user_ids']]
+        row.result_roles=[ActivityResultRole(role_id=role_id) for role_id in recipients['role_ids']]
+        row.result_users=[ActivityResultUser(user_id=user_id) for user_id in recipients['user_ids']]
         add_event(row,user,'created',arrival.note);db.session.add(row)
     return arrival
 

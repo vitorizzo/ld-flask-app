@@ -2,7 +2,7 @@
 {% block title %}Attività{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static',filename='css/ld_modal.css',v=app_version) }}">
-<link rel="stylesheet" href="{{ url_for('static',filename='css/activities.css',v=app_version ~ '-activities7') }}">
+<link rel="stylesheet" href="{{ url_for('static',filename='css/activities.css',v=app_version ~ '-activities8') }}">
 {% endblock %}
 {% block content %}
 <section class="ld-page ld-page-standard activity-page" id="activityPage" data-manager="{{ '1' if activity_manager else '0' }}">
@@ -53,9 +53,9 @@
 </div></div></div>
 <div class="modal fade ld-modal ld-modal-standard activity-modal" id="activityArrivalModal" tabindex="-1" aria-labelledby="activityArrivalTitle" aria-hidden="true"><div class="modal-dialog"><div class="modal-content">
  <div class="modal-header"><h5 class="modal-title" id="activityArrivalTitle">Merce arrivata</h5><button class="btn-close" type="button" data-bs-dismiss="modal" aria-label="Chiudi"></button></div>
- <div class="modal-body"><p id="activityArrivalSource"></p><p>Conferma la ricezione effettiva: saranno create le attività per controllo merce, lotti e sistemazione. Ogni nuovo arrivo ha la propria checklist.</p><label for="activityArrivalDate" class="form-label">Data ricezione</label><input id="activityArrivalDate" type="date" class="form-control"><label class="activity-checkbox"><input id="activityArrivalPartial" type="checkbox"> Consegna parziale</label><label for="activityArrivalNote" class="form-label">Prodotti ricevuti / note</label><textarea id="activityArrivalNote" class="form-control" rows="3" maxlength="2000" placeholder="Indica i prodotti o la parte di consegna ricevuta"></textarea><div id="activityArrivalError" class="activity-error" role="alert"></div></div>
- <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button id="activityArrivalSave" type="button" class="btn btn-info">Conferma arrivo e crea attività</button></div>
+ <div class="modal-body"><p id="activityArrivalSource"></p><p>Seleziona le attività da inviare. Incaricati e destinatari dell’esito si possono definire separatamente per ciascuna.</p><div id="activityArrivalTasks" class="activity-arrival-tasks"></div><label for="activityArrivalDate" class="form-label">Data ricezione</label><input id="activityArrivalDate" type="date" class="form-control"><label class="activity-checkbox"><input id="activityArrivalPartial" type="checkbox"> Consegna parziale</label><label for="activityArrivalNote" class="form-label">Prodotti ricevuti / note</label><textarea id="activityArrivalNote" class="form-control" rows="3" maxlength="2000" placeholder="Indica i prodotti o la parte di consegna ricevuta"></textarea><div id="activityArrivalError" class="activity-error" role="alert"></div></div>
+ <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button id="activityArrivalSave" type="button" class="btn btn-info">Conferma arrivo e invia attività</button></div>
 </div></div></div>
 {% endif %}
 {% endblock %}
-{% block extra_js %}<script src="{{ url_for('static',filename='js/ld_modal.js',v=app_version) }}"></script><script src="{{ url_for('static',filename='js/activity_tree.js',v=app_version ~ '-activities7') }}"></script><script src="{{ url_for('static',filename='js/activity_recipients.js',v=app_version ~ '-activities7') }}"></script><script src="{{ url_for('static',filename='js/activity_create.js',v=app_version ~ '-activities7') }}"></script><script src="{{ url_for('static',filename='js/activities.js',v=app_version ~ '-activities7') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static',filename='js/ld_modal.js',v=app_version) }}"></script><script src="{{ url_for('static',filename='js/activity_tree.js',v=app_version ~ '-activities8') }}"></script><script src="{{ url_for('static',filename='js/activity_recipients.js',v=app_version ~ '-activities8') }}"></script><script src="{{ url_for('static',filename='js/activity_create.js',v=app_version ~ '-activities8') }}"></script><script src="{{ url_for('static',filename='js/activities.js',v=app_version ~ '-activities8') }}"></script>{% endblock %}
