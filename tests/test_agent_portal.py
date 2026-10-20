@@ -169,18 +169,18 @@ class AgentPortalTests(unittest.TestCase):
         response = self.client.get("/agent/customers/C1")
         self.assertEqual(response.status_code, 404)
 
-    def test_agent_adds_customer_number_to_agent_and_company_registry(self):
+    def test_agent_adds_contact_to_multiple_assigned_customers_and_company_registry(self):
         response = self.client.post("/agent/api/contacts", json={
-            "registry_id": self.zone_customer_id,
+            "registry_ids": [self.zone_customer_id, self.direct_customer_id],
             "display_name": "Mario Rossi",
             "role": "Referente ordini",
             "points": [{"contact_type": "mobile", "value": "+39 333 1234567", "is_primary": True}],
         })
         self.assertEqual(response.status_code, 201, response.json)
         contact = RegistryContact.query.one()
-        link = BusinessRegistryContactLink.query.one()
-        self.assertEqual(link.registry_id, self.zone_customer_id)
-        self.assertEqual(link.contact_id, contact.id)
+        links = BusinessRegistryContactLink.query.order_by(BusinessRegistryContactLink.registry_id).all()
+        self.assertEqual([link.registry_id for link in links], [self.zone_customer_id, self.direct_customer_id])
+        self.assertTrue(all(link.contact_id == contact.id for link in links))
         self.assertEqual(contact.points[0].value, "+39 333 1234567")
 
         response = self.client.get("/agent/api/contacts")
@@ -190,13 +190,13 @@ class AgentPortalTests(unittest.TestCase):
 
     def test_agent_cannot_add_contact_to_unassigned_customer_or_without_number(self):
         response = self.client.post("/agent/api/contacts", json={
-            "registry_id": self.other_customer_id,
+            "registry_ids": [self.zone_customer_id, self.other_customer_id],
             "display_name": "Contatto esterno",
             "points": [{"contact_type": "mobile", "value": "3331234567"}],
         })
         self.assertEqual(response.status_code, 404)
         response = self.client.post("/agent/api/contacts", json={
-            "registry_id": self.zone_customer_id,
+            "registry_ids": [self.zone_customer_id],
             "display_name": "Senza numero",
             "points": [],
         })

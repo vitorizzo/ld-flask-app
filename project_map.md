@@ -1,6 +1,6 @@
 ## Correzioni Rubrica Agente e leggibilità contabile (2026-10-20)
 
-- La scheda di ogni cliente assegnato consente all’agente di creare un contatto telefonico condiviso (`RegistryContact` + `BusinessRegistryContactLink`); l’API limita la scrittura ai clienti assegnati, per zona o singolarmente. Il contatto è subito visibile nella rubrica aziendale, senza nuove tabelle o migrazioni.
+- La rubrica agente offre un solo pulsante “Aggiungi contatto” per creare un contatto telefonico condiviso (`RegistryContact`) e associarlo a uno o più clienti assegnati; l’API verifica l’assegnazione di ciascun cliente. Il contatto è subito visibile nella rubrica aziendale, senza nuove tabelle o migrazioni.
 - La situazione clienti agente e il dettaglio contabile caricano `customer_credit_engine.css`, usano i token del tema corrente e hanno etichette mobile accessibili.
 
 ## Associazioni Agenti-Clienti (2026-10-20)

@@ -22,8 +22,7 @@
         <button class="btn btn-outline-secondary" type="button" id="registryResetBtn">Tutti</button>
       </div>
     </div>
-    {% if agent_customer_assignment|default(false) %}<form id="agent-add-customer-form" class="card border-0 shadow-sm p-3 mb-3"><label for="agent-company-customer-search" class="form-label fw-semibold">Aggiungi un cliente dalla rubrica aziendale</label><div class="input-group"><input id="agent-company-customer-search" class="form-control" type="search" minlength="2" autocomplete="off" placeholder="Nome, codice o città"><button class="btn btn-outline-primary" type="submit">Cerca</button></div><div class="d-flex gap-2 mt-2"><select id="agent-company-customer-results" class="form-select" aria-label="Clienti aziendali trovati" disabled><option value="">Cerca almeno 2 caratteri</option></select><button id="agent-add-customer-button" class="btn btn-primary text-nowrap" type="button" disabled>Aggiungi alla mia rubrica</button></div><div id="agent-add-customer-feedback" class="small mt-2" role="status" aria-live="polite"></div><div class="form-text">Il cliente è già nell’anagrafica aziendale: aggiungendolo sarà visibile anche nella rubrica agente.</div></form>{% endif %}
-
+    {% if agent_customer_assignment|default(false) %}<div class="d-flex justify-content-end mb-3"><button class="btn btn-primary" type="button" id="agent-add-contact-open"><i class="fa-solid fa-user-plus me-1"></i>Aggiungi contatto</button></div>{% endif %}
     <div class="registry-book-layout flex-grow-1 min-h-0 d-flex gap-3">
       <div class="registry-book-main flex-grow-1 min-h-0">
         <div class="registry-book-list" id="registryBookList">
@@ -41,7 +40,10 @@
   </div>
 </section>
 
-{% if not readonly|default(false) or agent_customer_assignment|default(false) %}{% include 'registry/_contact_modal.html' %}{% endif %}
+{% if not readonly|default(false) %}{% include 'registry/_contact_modal.html' %}{% endif %}
+{% if agent_customer_assignment|default(false) %}
+<div class="modal fade" id="agentContactCreateModal" tabindex="-1" aria-labelledby="agentContactCreateTitle" aria-hidden="true"><div class="modal-dialog modal-dialog-centered modal-lg"><form class="modal-content" id="agent-contact-create-form"><div class="modal-header"><h2 class="modal-title fs-5" id="agentContactCreateTitle">Aggiungi contatto</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div><div class="modal-body"><div class="mb-3"><label class="form-label" for="agent-contact-name">Nome e cognome *</label><input class="form-control" id="agent-contact-name" maxlength="255" required autocomplete="name"></div><div class="mb-3"><label class="form-label" for="agent-contact-role">Ruolo / riferimento</label><input class="form-control" id="agent-contact-role" maxlength="120" placeholder="Es. Referente ordini"></div><div class="mb-3"><label class="form-label" for="agent-contact-phone">Telefono o cellulare *</label><input class="form-control" id="agent-contact-phone" type="tel" maxlength="255" required autocomplete="tel"></div><div class="mb-2"><label class="form-label" for="agent-contact-customers">Associa ai clienti *</label><select class="form-select" id="agent-contact-customers" multiple size="7" required aria-describedby="agent-contact-customer-help"></select><div class="form-text" id="agent-contact-customer-help">Puoi selezionare più clienti tenendo premuto Ctrl (Windows) o Cmd (Mac).</div></div><div class="small" id="agent-contact-feedback" role="status" aria-live="polite"></div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button type="submit" class="btn btn-primary" id="agent-contact-save">Salva contatto</button></div></form></div></div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -179,9 +181,7 @@
                   <span class="registry-card__chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
                 </button>
                 <div class="registry-card__body" hidden>
-                  {% if agent_customer_assignment|default(false) %}<div class="registry-card__actions">
-                    <button class="btn btn-sm btn-info" type="button" data-agent-contact-add="${reg.id}"><i class="fa-solid fa-phone"></i> Aggiungi numero</button>
-                  </div>{% elif not readonly|default(false) %}<div class="registry-card__actions">
+                  {% if agent_customer_assignment|default(false) %}{% elif not readonly|default(false) %}<div class="registry-card__actions">
                     <button class="btn btn-sm btn-info" type="button" data-contact-add="${reg.id}"><i class="fa-solid fa-plus"></i> Contatto</button>
                   </div>{% endif %}
                   <div class="registry-card__section registry-card__section--data">
@@ -224,24 +224,6 @@
     window.LDRegistryContactModal.open({ registryId, contact, onSaved: loadData });
   }
 
-  function openAgentContactModal(registryId) {
-    window.LDRegistryContactModal.open({
-      registryId,
-      phoneOnly: true,
-      hideImports: true,
-      onSaved: loadData,
-      save: async payload => {
-        const response = await fetch("/agent/api/contacts", {
-          method: "POST",
-          credentials: "same-origin",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ registry_id: Number(registryId), ...payload }),
-        });
-        const data = await response.json();
-        if (!response.ok || !data.ok) throw new Error(data.error || "Impossibile aggiungere il contatto.");
-      },
-    });
-  }
 
   async function unlinkContact(registryId, contactId) {
     if (!confirm("Dissociare questo contatto dall'anagrafica?")) return;
@@ -266,11 +248,6 @@
       if (isOpen && window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)").matches) {
         window.setTimeout(() => card.scrollIntoView({ block: "start", behavior: "smooth" }), 60);
       }
-      return;
-    }
-    const agentContactBtn = ev.target.closest("[data-agent-contact-add]");
-    if (agentContactBtn) {
-      openAgentContactModal(agentContactBtn.dataset.agentContactAdd);
       return;
     }
     if (readOnly) return;
@@ -330,48 +307,41 @@
     listEl.innerHTML = `<div class="alert alert-danger mb-0">${esc(err.message)}</div>`;
   });
 
-  const agentAddForm = document.getElementById("agent-add-customer-form");
-  if (agentAddForm) {
-    const customerSearch = document.getElementById("agent-company-customer-search");
-    const customerResults = document.getElementById("agent-company-customer-results");
-    const addCustomer = document.getElementById("agent-add-customer-button");
-    const feedback = document.getElementById("agent-add-customer-feedback");
-    agentAddForm.addEventListener("submit", async ev => {
-      ev.preventDefault();
-      const q = customerSearch.value.trim();
-      if (q.length < 2) { feedback.textContent = "Inserisci almeno 2 caratteri."; return; }
-      feedback.textContent = "Ricerca clienti aziendali…";
-      try {
-        const response = await fetch(`/agent/api/customer-search?q=${encodeURIComponent(q)}`, { credentials: "same-origin" });
-        const data = await response.json();
-        if (!response.ok || !data.ok) throw new Error(data.error || "Errore di ricerca");
-        customerResults.replaceChildren(new Option(data.customers.length ? "Seleziona un cliente" : "Nessun cliente disponibile", ""));
-        for (const customer of data.customers) {
-          customerResults.add(new Option(`${customer.name} · ${customer.code}${customer.city ? ` · ${customer.city}` : ""}`, customer.id));
-        }
-        customerResults.disabled = !data.customers.length;
-        addCustomer.disabled = !data.customers.length;
-        feedback.textContent = data.customers.length ? `${data.customers.length} clienti trovati.` : "Nessun cliente non ancora assegnato trovato.";
-      } catch (error) { feedback.textContent = error.message || "Errore di ricerca."; }
+  const agentAddContactOpen = document.getElementById("agent-add-contact-open");
+  const agentContactModalEl = document.getElementById("agentContactCreateModal");
+  const agentContactForm = document.getElementById("agent-contact-create-form");
+  const agentContactCustomers = document.getElementById("agent-contact-customers");
+  const agentContactFeedback = document.getElementById("agent-contact-feedback");
+  const agentContactSave = document.getElementById("agent-contact-save");
+  if (agentAddContactOpen && agentContactModalEl && agentContactForm) {
+    const agentContactModal = bootstrap.Modal.getOrCreateInstance(agentContactModalEl);
+    agentAddContactOpen.addEventListener("click", () => {
+      agentContactCustomers.replaceChildren();
+      for (const registry of [...registries].sort((a, b) => displayLabel(a).localeCompare(displayLabel(b), "it", { sensitivity: "base" }))) {
+        agentContactCustomers.add(new Option(displayLabel(registry), registry.id));
+      }
+      agentContactFeedback.textContent = "";
+      agentContactForm.reset();
+      agentContactModal.show();
     });
-    customerResults.addEventListener("change", () => { addCustomer.disabled = !customerResults.value; });
-    addCustomer.addEventListener("click", async () => {
-      if (!customerResults.value) return;
-      addCustomer.disabled = true;
-      feedback.textContent = "Aggiunta in corso…";
+    agentContactForm.addEventListener("submit", async ev => {
+      ev.preventDefault();
+      const registryIds = Array.from(agentContactCustomers.selectedOptions, option => Number(option.value));
+      if (!registryIds.length) { agentContactFeedback.textContent = "Seleziona almeno un cliente."; return; }
+      agentContactSave.disabled = true;
+      agentContactFeedback.textContent = "Salvataggio in corso…";
       try {
-        const response = await fetch("/agent/api/customers", {
+        const response = await fetch("/agent/api/contacts", {
           method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ registry_id: Number(customerResults.value) }),
+          body: JSON.stringify({ registry_ids: registryIds, display_name: document.getElementById("agent-contact-name").value.trim(), role: document.getElementById("agent-contact-role").value.trim(), points: [{ contact_type: "phone", value: document.getElementById("agent-contact-phone").value.trim(), is_primary: true }] }),
         });
         const data = await response.json();
-        if (!response.ok || !data.ok) throw new Error(data.error || "Impossibile aggiungere il cliente.");
-        feedback.textContent = data.already_assigned ? "Il cliente è già nella tua rubrica." : "Cliente aggiunto alla tua rubrica.";
-        customerSearch.value = "";
-        customerResults.replaceChildren(new Option("Cerca altri clienti", ""));
-        customerResults.disabled = true;
+        if (!response.ok || !data.ok) throw new Error(data.error || "Impossibile salvare il contatto.");
+        agentContactModal.hide();
         await loadData();
-      } catch (error) { feedback.textContent = error.message || "Impossibile aggiungere il cliente."; addCustomer.disabled = false; }
+      } catch (error) {
+        agentContactFeedback.textContent = error.message || "Impossibile salvare il contatto.";
+      } finally { agentContactSave.disabled = false; }
     });
   }
 })();

@@ -217,14 +217,24 @@ def add_customer_contact_for_agent():
     """Create a customer contact in the shared company registry from the agent book."""
     _require_agent()
     data = request.get_json(silent=True) or {}
+    raw_registry_ids = data.get("registry_ids")
+    if raw_registry_ids is None:
+        raw_registry_ids = [data.get("registry_id")]
+    if not isinstance(raw_registry_ids, list) or not raw_registry_ids:
+        return jsonify(ok=False, error="Seleziona almeno un cliente."), 400
     try:
-        registry_id = int(data.get("registry_id"))
+        registry_ids = list(dict.fromkeys(int(value) for value in raw_registry_ids))
     except (TypeError, ValueError):
-        return jsonify(ok=False, error="Cliente non valido"), 400
-    registry = agent_customer_registry_query(current_user).options(raiseload("*" )).filter(
-        BusinessRegistry.id == registry_id
-    ).first_or_404()
-    registry_id = registry.id
+        return jsonify(ok=False, error="Selezione clienti non valida."), 400
+    if not registry_ids or len(registry_ids) > 100:
+        return jsonify(ok=False, error="Seleziona almeno un cliente."), 400
+    registries = agent_customer_registry_query(current_user).options(raiseload("*" )).filter(
+        BusinessRegistry.id.in_(registry_ids)
+    ).all()
+    if len(registries) != len(registry_ids):
+        abort(404)
+    registry_by_id = {registry.id: registry for registry in registries}
+    registries = [registry_by_id[registry_id] for registry_id in registry_ids]
 
     raw_name = data.get("display_name")
     raw_role = data.get("role")
@@ -262,21 +272,27 @@ def add_customer_contact_for_agent():
             label=label,
             is_primary=index == 0,
         ))
-    link = BusinessRegistryContactLink(
-        registry=registry,
-        contact=contact,
-        role=role or None,
-        is_primary=not BusinessRegistryContactLink.query.filter_by(
+    links = []
+    db.session.add(contact)
+    for registry in registries:
+        has_primary = db.session.query(BusinessRegistryContactLink.id).filter_by(
             registry_id=registry.id, is_active=True, is_primary=True
-        ).first(),
-        is_active=True,
-    )
-    db.session.add_all([contact, link])
+        ).first()
+        link = BusinessRegistryContactLink(
+            registry=registry,
+            contact=contact,
+            role=role or None,
+            is_primary=not has_primary,
+            is_active=True,
+        )
+        db.session.add(link)
+        links.append(link)
+    db.session.add_all(links)
     db.session.flush()
     contact_data = contact.to_dict()
     db.session.commit()
     return jsonify(ok=True, message="Contatto aggiunto alla rubrica agente e alla rubrica aziendale.",
-                   contact=contact_data, registry_id=registry_id), 201
+                   contact=contact_data, registry_ids=registry_ids), 201
 
 
 @agent_portal_bp.get("/api/contacts")
