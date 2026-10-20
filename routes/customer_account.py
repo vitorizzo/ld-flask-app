@@ -41,6 +41,7 @@ from tools.customer_payments import (
     is_valid_iban,
     is_selectable_settlement_item,
 )
+from tools.customer_account_rows import format_customer_document_number
 from tools.log_utils import get_logger
 from tools.nexi_xpay import NexiXPayClassic, NexiXPayClient, NexiXPayError, NexiXPayUncertainError
 from tools.role_required import role_required
@@ -458,7 +459,14 @@ def create_bank_transfer_qr():
     if amount <= 0:
         return jsonify({"ok": False, "error": "Il netto da bonificare deve essere maggiore di zero."}), 400
 
-    document_numbers = [str(entry.document_number or "").strip() for entry in entries]
+    document_numbers = [
+        format_customer_document_number(
+            entry.document_number,
+            (entry.source_payload or {}).get("document_number_suffix")
+            if isinstance(entry.source_payload, dict) else None,
+        )
+        for entry in entries
+    ]
     document_numbers = [value for value in document_numbers if value]
     base_reason = (instructions.payment_reason_template or "Saldo documenti").strip()
     customer_reference = str(registry.source_code or registry.id)

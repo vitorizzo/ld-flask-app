@@ -40,6 +40,7 @@ from tools.matrixws_client import (
     wait_for_async_result as wait_for_matrixws_async_result,
 )
 from tools.preferences import get_definition_map, load_preferences_into_app_config
+from tools.customer_account_rows import customer_statement_row_is_balance_relevant
 
 logger = get_logger('importazioni')
 
@@ -1972,9 +1973,9 @@ def import_estratti_conto_clienti(task_id=None):
                     get_value = lambda name: _teamsystem_text(row, fields[name])
                     accounting_reason = get_value("ECS-CAUSALE") if "ECS-CAUSALE" in fields else None
                     accounting_reference = get_value("ECS-NUMRIF") if "ECS-NUMRIF" in fields else None
-                    is_balance_relevant = not (
-                        accounting_reason == "096"
-                        and (accounting_reference or "").strip("0") == ""
+                    description = get_value("ECS-DESCRIZIONE")
+                    is_balance_relevant = customer_statement_row_is_balance_relevant(
+                        accounting_reason, accounting_reference, description,
                     )
                     if (
                         entry.accounting_reason != accounting_reason
@@ -2054,9 +2055,9 @@ def import_estratti_conto_clienti(task_id=None):
             amount = abs(_teamsystem_decimal(get_value("ECS-IMPORTO-EUR")))
             accounting_reason = get_value("ECS-CAUSALE") if "ECS-CAUSALE" in fields else None
             accounting_reference = get_value("ECS-NUMRIF") if "ECS-NUMRIF" in fields else None
-            is_balance_relevant = not (
-                accounting_reason == "096"
-                and (accounting_reference or "").strip("0") == ""
+            description = get_value("ECS-DESCRIZIONE")
+            is_balance_relevant = customer_statement_row_is_balance_relevant(
+                accounting_reason, accounting_reference, description,
             )
             db.session.add(CustomerAccountEntry(
                 import_id=statement_import.id,
@@ -2068,7 +2069,7 @@ def import_estratti_conto_clienti(task_id=None):
                 document_date=_teamsystem_date(get_value("ECS-DATDOC")),
                 due_date=_teamsystem_date(get_value("ECS-SCADE")),
                 document_number=get_value("ECS-NUMDOC"),
-                description=get_value("ECS-DESCRIZIONE"),
+                description=description,
                 additional_description=get_value("ECS-DESCRIAGG"),
                 accounting_reason=accounting_reason,
                 accounting_reference=accounting_reference,

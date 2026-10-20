@@ -11,7 +11,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.enums import TA_RIGHT
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 
-from tools.customer_account_rows import open_account_entries
+from tools.customer_account_rows import format_customer_document_number, open_account_entries
 from tools.customer_credit_templates import TOKEN
 
 
@@ -54,7 +54,8 @@ def communication_pdf(kind, customer, entries, balance, template=None):
             rows = [[paragraph(label, cell) for label in ('Data', 'Documento', 'Descrizione', 'Importo')]]
             for entry in open_account_entries(entries):
                 ref = entry.document_date or entry.registration_date or entry.due_date
-                rows.append([paragraph(ref.strftime('%d/%m/%Y') if ref else '-', cell), paragraph(entry.document_number or '-', cell),
+                payload = entry.source_payload if isinstance(entry.source_payload, dict) else {}
+                rows.append([paragraph(ref.strftime('%d/%m/%Y') if ref else '-', cell), paragraph(format_customer_document_number(entry.document_number, payload.get('document_number_suffix')) or '-', cell),
                              paragraph(entry.description or '-', cell), paragraph(money(entry.signed_amount), amount_style)])
             if len(rows) == 1:
                 story.append(paragraph('Nessuna partita aperta.'))

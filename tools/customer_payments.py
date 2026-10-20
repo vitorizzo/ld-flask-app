@@ -2,6 +2,8 @@ import hashlib
 import json
 from decimal import Decimal
 
+from tools.customer_account_rows import format_customer_document_number
+
 
 ACTIVE_ITEM_STATUSES = {
     "creating_checkout", "checkout_ready", "provider_authorized", "provider_uncertain",
@@ -44,6 +46,9 @@ def account_entry_snapshot(entry):
         "source_customer_code": entry.source_customer_code,
         "customer_name": entry.customer_name,
         "document_number": entry.document_number,
+        "display_document_number": format_customer_document_number(
+            entry.document_number, payload.get("document_number_suffix"),
+        ),
         "document_number_suffix": payload.get("document_number_suffix"),
         "installment_number": payload.get("installment_number"),
         "registration_date": entry.registration_date.isoformat() if entry.registration_date else None,

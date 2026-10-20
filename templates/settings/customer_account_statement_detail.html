@@ -77,9 +77,9 @@
       <thead><tr><th class="credit-items-table__check">Selezione</th><th>Data</th><th>Documento</th><th>Descrizione</th><th>Stato operativo</th><th>Scadenza</th><th>Segno</th><th class="text-end">Importo</th></tr></thead>
       <tbody>{% for entry in entries.items %}{% set item_state = entry_states.get(entry.id) %}<tr class="{{ 'credit-item-row--pending' if item_state and item_state.status in manual_status_labels else '' }}">
         <td class="credit-items-table__check" data-label="Selezione"><div class="credit-cell-content">
-          {% if entry.id in selectable_entry_ids %}<label class="credit-entry-choice"><input class="form-check-input" type="checkbox" name="entry_ids" value="{{ entry.id }}" data-credit-state-checkbox aria-label="Seleziona documento {{ entry.document_number or entry.id }}" {{ 'disabled' if item_state and item_state.payment_case_id else '' }}></label>{% endif %}
+          {% if entry.id in selectable_entry_ids %}<label class="credit-entry-choice"><input class="form-check-input" type="checkbox" name="entry_ids" value="{{ entry.id }}" data-credit-state-checkbox aria-label="Seleziona documento {{ entry.document_number|customer_document_number(entry.source_payload) or entry.id }}" {{ 'disabled' if item_state and item_state.payment_case_id else '' }}></label>{% endif %}
         </div></td>
-        <td class="text-nowrap" data-label="Data"><div class="credit-cell-content">{{ entry.document_date.strftime("%d/%m/%Y") if entry.document_date else "—" }}</div></td><td data-label="Documento"><div class="credit-cell-content">{{ entry.document_number or "—" }}</div></td>
+        <td class="text-nowrap" data-label="Data"><div class="credit-cell-content">{{ entry.document_date.strftime("%d/%m/%Y") if entry.document_date else "—" }}</div></td><td data-label="Documento"><div class="credit-cell-content">{{ entry.document_number|customer_document_number(entry.source_payload) or "—" }}</div></td>
         <td data-label="Descrizione"><div class="credit-cell-content">
           <div>{{ entry.description or "—" }}{% if not entry.is_balance_relevant %}<span class="badge text-bg-secondary ms-1">riga tecnica esclusa dal saldo</span>{% endif %}</div>
           {% if entry.additional_description %}<div class="small text-muted">{{ entry.additional_description }}</div>{% endif %}

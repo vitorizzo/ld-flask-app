@@ -2,7 +2,11 @@ import unittest
 from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
-from tools.customer_account_rows import open_account_entries
+from tools.customer_account_rows import (
+    customer_statement_row_is_balance_relevant,
+    format_customer_document_number,
+    open_account_entries,
+)
 
 
 def row(id, amount, **changes):
@@ -38,3 +42,29 @@ class OpenAccountEntriesTests(unittest.TestCase):
             entries=[row(1,'100',**delta),row(2,'-100',**delta)]
             self.assertEqual(len(open_account_entries(entries)),2)
         self.assertEqual(len(open_account_entries([row(1,'-100')])),1)
+
+    def test_sdo_generated_credit_is_excluded_but_receipt_remains(self):
+        invoice = row(1, '378.78')
+        receipt = row(2, '-321.22', accounting_reason='096', accounting_reference='00008')
+        generated_sdo = row(3, '-57.56', accounting_reason='096', accounting_reference='00001',
+                            description='S/DO1197+1482+1', is_balance_relevant=False)
+        technical_counterpart = row(4, '57.56', accounting_reason='096', accounting_reference='00000',
+                                    description='S/DO1197+1482+1', is_balance_relevant=False)
+        self.assertFalse(customer_statement_row_is_balance_relevant('096', '00001', 'S/DO1197+1482+1'))
+        self.assertFalse(customer_statement_row_is_balance_relevant('096', '00000', 'RISC. FATTURA'))
+        self.assertTrue(customer_statement_row_is_balance_relevant('096', '00008', 'RISC. FATTURA'))
+        self.assertTrue(customer_statement_row_is_balance_relevant('001', '00001', 'S/DO-like invoice'))
+        self.assertEqual([entry.id for entry in open_account_entries(
+            [invoice, receipt, generated_sdo, technical_counterpart]
+        )], [1, 2])
+        self.assertEqual(sum(entry.signed_amount for entry in open_account_entries(
+            [invoice, receipt, generated_sdo, technical_counterpart]
+        )), Decimal('57.56'))
+
+    def test_fixed_width_document_numbers_render_as_number_and_series(self):
+        self.assertEqual(format_customer_document_number('00238200'), '2382/00')
+        self.assertEqual(format_customer_document_number('00148200', '0000'), '1482/00')
+        self.assertEqual(format_customer_document_number('00238200', {'document_number_suffix': '0000'}), '2382/00')
+        self.assertEqual(format_customer_document_number('0000890'), '890')
+        self.assertEqual(format_customer_document_number('00000000'), '')
+        self.assertEqual(format_customer_document_number('00238200', '0003'), '2382/00 (bis 3)')

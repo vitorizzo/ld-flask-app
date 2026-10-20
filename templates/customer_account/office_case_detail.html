@@ -19,7 +19,7 @@
     </dl></article>
 
     <article class="payment-office-card"><h2>Documenti selezionati</h2><div class="table-responsive"><table class="table align-middle mb-0"><thead><tr><th>Documento</th><th>Data</th><th>Scadenza</th><th>Descrizione</th><th class="text-end">Importo</th></tr></thead><tbody>
-      {% for allocation in payment_case.allocations %}{% set doc = allocation.document_snapshot or {} %}<tr><td data-label="Documento"><strong>{{ doc.get('document_number') or '—' }}</strong></td><td data-label="Data">{{ doc.get('document_date') or '—' }}</td><td data-label="Scadenza">{{ doc.get('due_date') or '—' }}</td><td data-label="Descrizione">{{ doc.get('description') or '—' }}</td><td data-label="Importo" class="text-end fw-semibold">{{ money(allocation.allocated_amount) }}</td></tr>
+      {% for allocation in payment_case.allocations %}{% set doc = allocation.document_snapshot or {} %}<tr><td data-label="Documento"><strong>{{ doc.get('display_document_number') or (doc.get('document_number')|customer_document_number(doc)) or '—' }}</strong></td><td data-label="Data">{{ doc.get('document_date') or '—' }}</td><td data-label="Scadenza">{{ doc.get('due_date') or '—' }}</td><td data-label="Descrizione">{{ doc.get('description') or '—' }}</td><td data-label="Importo" class="text-end fw-semibold">{{ money(allocation.allocated_amount) }}</td></tr>
       {% else %}<tr><td colspan="5" class="text-center text-muted py-4">Nessun documento associato.</td></tr>{% endfor %}
     </tbody></table></div></article>
 

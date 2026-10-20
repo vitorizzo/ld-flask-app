@@ -15,7 +15,7 @@
       <div class="customer-case-edit-documents">
         {% for entry in entries %}{% set source_key = entry_keys.get(entry.id) %}<label class="customer-case-edit-document">
           <input class="form-check-input" type="checkbox" name="entry_ids" value="{{ entry.id }}" data-edit-entry data-amount="{{ entry.signed_amount }}" {{ 'checked' if source_key in selected_keys }}>
-          <span><strong>{{ entry.document_number }}</strong><small>{{ entry.document_date.strftime('%d/%m/%Y') if entry.document_date else '—' }} · {{ entry.description or 'Documento contabile' }}</small></span>
+          <span><strong>{{ entry.document_number|customer_document_number(entry.source_payload) }}</strong><small>{{ entry.document_date.strftime('%d/%m/%Y') if entry.document_date else '—' }} · {{ entry.description or 'Documento contabile' }}</small></span>
           <b class="{{ 'text-success' if entry.signed_amount < 0 }}">{{ money(entry.signed_amount) }}</b>
         </label>{% else %}<p class="text-muted">Non ci sono documenti modificabili nell'ultimo aggiornamento.</p>{% endfor %}
       </div>

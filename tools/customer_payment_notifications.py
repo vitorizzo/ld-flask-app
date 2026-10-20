@@ -8,6 +8,7 @@ from extensions import db
 from models import CustomerPaymentCase, CustomerPaymentEvent
 from tools.log_utils import get_logger
 from tools.mail_accounts import assistance_mail_sender, send_account_mail
+from tools.customer_account_rows import format_customer_document_number
 
 
 logger = get_logger("customer_payment_notifications")
@@ -89,7 +90,10 @@ def notify_customer_payment_case(case_id, notification_kind="created"):
     document_lines = []
     for allocation in payment_case.allocations:
         snapshot = allocation.document_snapshot or {}
-        number = snapshot.get("document_number") or snapshot.get("number") or "senza numero"
+        number = snapshot.get("display_document_number") or format_customer_document_number(
+            snapshot.get("document_number") or snapshot.get("number"),
+            snapshot.get("document_number_suffix"),
+        ) or "senza numero"
         document_lines.append(f"- {number}: {allocation.allocated_amount} {payment_case.currency}")
     body = "\n".join([
         f"{subject_prefix} {body_action} su LDApp.",

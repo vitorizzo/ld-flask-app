@@ -20,6 +20,7 @@ from tools.log_utils import get_logger
 from models import CustomerPaymentCase, User, Menu, PasswordResetToken, SupportTicket
 from routes.tools import get_user_menu
 from tools.role_required import meets_minimum_role, resolve_minimum_weight, menu_minimum_weight, load_navigation_menus
+from tools.customer_account_rows import format_customer_document_number
 from tools.preferences import PREFERENCE_DEFINITIONS, load_preferences_into_app_config
 from tools.ui_theme import load_theme, theme_css_vars
 from tools.customer_memberships import (
@@ -144,6 +145,7 @@ def create_app():
         static_folder=os.path.join(project_root, "static"),
         template_folder=os.path.join(project_root, "templates")
     )
+    app.jinja_env.filters["customer_document_number"] = format_customer_document_number
 
     @app.after_request
     def configure_response_cache(response):
