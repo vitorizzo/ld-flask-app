@@ -3856,3 +3856,8 @@ Performance apertura giornata Agenda 2026-06-13:
 
 - Riproduzione locale: app factory avvia e registra 527 route; `/settings/` redirige al login. Le route pubbliche `/` e `/auth/login` rispondono 500 in questo ambiente perché il DB locale è vecchio/non contiene lo schema aggiornato; non è stato possibile leggere il DB o i log di produzione.
 - Resa più tollerante la lettura della policy: ogni eccezione DB durante il caricamento di `FunctionAccessPolicy` ripiega sui permessi del decoratore. Necessario acquisire il traceback del 500 live per identificare eventuali cause specifiche dell’istanza.
+## Funzioni Agente (2026-10-20)
+
+- Implementate le tre funzioni annotate: switch listino Horeca/Enoteca; riepilogo contabile dei clienti assegnati con apertura delle partite aperte; rubrica contatti limitata agli stessi clienti, in sola lettura.
+- L'ambito è applicato lato server anche a URL/API e foto dei contatti. Sono incluse assegnazioni individuali e per zona. I tre collegamenti sono disponibili nella Home degli utenti Agente.
+- Test mirati: 12 passati (`test_warehouse_price_filters`, `test_agent_customer_assignments`, `test_agent_portal`). Nessuna migrazione nuova; per gli ambienti va già applicata `z3e4f5a6b7c8_agent_customer_assignments`.

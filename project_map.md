@@ -2149,3 +2149,8 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 
 - Riproduzione locale: app factory avvia e registra 527 route; `/settings/` redirige al login. Le route pubbliche `/` e `/auth/login` rispondono 500 in questo ambiente perché il DB locale è vecchio/non contiene lo schema aggiornato; non è stato possibile leggere il DB o i log di produzione.
 - Resa più tollerante la lettura della policy: ogni eccezione DB durante il caricamento di `FunctionAccessPolicy` ripiega sui permessi del decoratore. Necessario acquisire il traceback del 500 live per identificare eventuali cause specifiche dell’istanza.
+## Funzioni portale agente (2026-10-20)
+
+- Home agente: link rapidi a Listino prezzi, Situazione clienti agente e Rubrica clienti agente. `tools/product_pricing.py` abilita solo listino Horeca (`prezzo1`) e Enoteca (`prezzo3`); la scelta usa `User.listino_prezzo` e non espone il costo. Elenco in `routes/search.py`.
+- `tools/agent_customer_access.py` centralizza i controlli su assegnazioni singole e zone. `routes/agent_portal.py` espone elenco saldi, partite aperte e rubrica contatti in sola lettura; dati, dettagli contabili e foto restano limitati ai clienti assegnati. `templates/agent_portal/` ospita le viste. Nessuna nuova tabella/migrazione, dipende da `z3e4f5a6b7c8`.
+- Test in `tests/test_agent_portal.py`, insieme a `tests/test_warehouse_price_filters.py`; eseguire `python -m unittest tests.test_warehouse_price_filters tests.test_agent_customer_assignments tests.test_agent_portal`.

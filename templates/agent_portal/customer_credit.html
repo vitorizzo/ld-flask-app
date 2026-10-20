@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}Situazione clienti agente{% endblock %}
+{% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
+{% block content %}
+<section class="ld-page ld-page-standard customer-credit-page">
+  <div class="container-fluid">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+      <div><div class="small text-muted">Area Agente</div><h1 class="h3 mb-1">Situazione clienti</h1><div class="text-muted">Clienti assegnati a te e relativo saldo contabile.</div></div>
+      <a class="btn btn-outline-secondary" href="{{ url_for('home') }}"><i class="fa-solid fa-arrow-left me-1"></i> Home</a>
+    </div>
+    {% if current_import %}
+      <div class="small text-muted mb-3">Dati aggiornati al {{ current_import.imported_at.strftime("%d/%m/%Y") if current_import.imported_at else "—" }}</div>
+    {% else %}
+      <div class="alert alert-info">La situazione contabile non è ancora disponibile.</div>
+    {% endif %}
+    {% if customers %}
+      <div class="table-responsive card ld-panel border-0 shadow-sm">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr><th>Cliente</th><th>Codice</th><th>Località</th><th class="text-end">Saldo</th><th></th></tr></thead>
+          <tbody>
+            {% for item in customers %}
+              <tr>
+                <td class="fw-semibold">{{ item.registry.display_name or item.registry.legal_name }}</td>
+                <td>{{ item.registry.source_code }}</td>
+                <td>{{ [item.registry.city, item.registry.province]|select|join(" ") or "—" }}</td>
+                <td class="text-end {{ 'text-danger fw-semibold' if item.balance > 0 else '' }}">{{ money(item.balance) }}</td>
+                <td class="text-end">{% if current_import and item.movement_count %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('agent_portal.customer_credit_detail', source_customer_code=item.registry.source_code) }}">Apri scheda</a>{% else %}<span class="small text-muted">Nessun movimento</span>{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% elif current_import %}
+      <div class="alert alert-info">Non hai clienti assegnati.</div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

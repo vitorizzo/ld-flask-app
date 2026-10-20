@@ -2174,7 +2174,7 @@ def _warehouse_price_columns():
 
 @search_bp.get('/elenco-prodotti')
 @login_required
-@role_required("staff")
+@role_required("agente", roles=["staff"])
 def elenco_prodotti():
     price_columns = _warehouse_price_columns()
     _value, selected_price = visible_product_price(None, current_user)
@@ -2210,7 +2210,7 @@ def _warehouse_price_limits():
 
 @search_bp.get('/elenco-prodotti/dati')
 @login_required
-@role_required("staff")
+@role_required("agente", roles=["staff"])
 def elenco_prodotti_dati():
     """Filtered warehouse product list used by the Elenco prodotti view."""
     filtro = (request.args.get('filter') or '').strip()

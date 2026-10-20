@@ -6,8 +6,9 @@ from flask_login import LoginManager
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
 from extensions import db
-from models import Articoli, Giacenza
+from models import Articoli, FunctionAccessPolicy, Giacenza, Role
 from routes.search import search_bp
+from tools.product_pricing import selectable_price_lists, visible_product_price
 
 
 @compiles(JSONB, 'sqlite')
@@ -22,7 +23,7 @@ class WarehousePriceFilterTests(unittest.TestCase):
         db.init_app(app);app.register_blueprint(search_bp,url_prefix='/search')
         self.user=SimpleNamespace(id=1,is_authenticated=True,is_active=True,is_anonymous=False,
             max_role_weight=40,listino_prezzo='prezzo3',has_active_role=lambda *roles:False,
-            active_roles=[SimpleNamespace(name='office',weight=40)])
+            active_roles=[SimpleNamespace(id=1,name='office',weight=40)])
         login=LoginManager(app);login.user_loader(lambda _:self.user)
         self.auth=patch('tools.role_required.get_current_user',side_effect=lambda:self.user);self.auth.start()
         self.ctx=app.app_context();self.ctx.push();self.client=app.test_client()
@@ -30,8 +31,10 @@ class WarehousePriceFilterTests(unittest.TestCase):
         default=Articoli.__table__.c.id_art.server_default
         try:
             Articoli.__table__.c.id_art.server_default=None
-            db.metadata.create_all(db.engine,tables=[Articoli.__table__,Giacenza.__table__])
+            db.metadata.create_all(db.engine,tables=[Role.__table__,FunctionAccessPolicy.__table__,Articoli.__table__,Giacenza.__table__])
         finally:Articoli.__table__.c.id_art.server_default=default
+        db.session.add_all([Role(name='agente',weight=30),Role(name='staff',weight=40),Role(name='office',weight=40)])
+        db.session.commit()
         for index,(code,p3,legacy,p1,cost) in enumerate([
             ('A',0,99,20,3),('B',10.5,99,7,4),('C',20,99,8,5),
             ('D',None,15,9,6),('E',None,None,None,None)],1):
@@ -69,8 +72,16 @@ class WarehousePriceFilterTests(unittest.TestCase):
         self.assertEqual(self.codes(price_min='7',price_max='8',price_list='prezzo1'),['B','C'])
         self.assertEqual(self.codes(price_max='4',price_list='costo'),['A','B'])
         self.user.max_role_weight=30
+        self.user.has_active_role=lambda *roles: 'staff' in roles and any(
+            role.name == 'staff' for role in self.user.active_roles
+        )
         self.assertEqual(self.get(price_list='costo',price_min='0').status_code,400)
         self.assertEqual(self.get(price_list='unknown').status_code,400)
+        # Keep this check on a staff user; agent list selection is covered below.
+        db.session.query(Role).filter_by(name='staff').update({'weight': 30})
+        db.session.query(Role).filter_by(name='office').update({'weight': 40})
+        db.session.commit()
+        self.user.active_roles=[SimpleNamespace(id=2,name='staff',weight=30), SimpleNamespace(id=3,name='office',weight=30)]
         self.assertEqual(self.codes(price_min='10,5',price_max='10,5'),['B'])
 
     def test_invalid_ranges_rejected_and_blank_limits_restore_all(self):
@@ -78,3 +89,16 @@ class WarehousePriceFilterTests(unittest.TestCase):
                        dict(price_min='Infinity'),dict(price_max='abc'),dict(price_min='1,2,3')]:
             self.assertEqual(self.get(**params).status_code,400,params)
         self.assertEqual(self.codes(price_min='',price_max=' '),['A','B','C','D','E'])
+
+    def test_agent_can_switch_only_between_horeca_and_enoteca_prices(self):
+        roles={'agente'}
+        agent=SimpleNamespace(
+            is_authenticated=True,
+            max_role_weight=30,
+            listino_prezzo='prezzo1',
+            has_active_role=lambda *names: bool(roles.intersection(names)),
+        )
+        self.assertEqual(selectable_price_lists(agent),[("prezzo1","Listino Horeca"),("prezzo3","Listino Enoteca")])
+        self.assertEqual(visible_product_price(SimpleNamespace(prezzo_1=12,prezzo_3=14,prezzo=15,costo=8),agent),(12,'prezzo1'))
+        agent.listino_prezzo='prezzo3'
+        self.assertEqual(visible_product_price(SimpleNamespace(prezzo_1=12,prezzo_3=14,prezzo=15,costo=8),agent),(14,'prezzo3'))

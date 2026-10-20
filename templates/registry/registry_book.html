@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-<section class="welcome-section page-shell ld-page ld-page-standard registry-tools-section registry-book-page" data-kind="{{ kind }}">
+<section class="welcome-section page-shell ld-page ld-page-standard registry-tools-section registry-book-page" data-kind="{{ kind }}" data-readonly="{{ '1' if readonly|default(false) else '0' }}" data-api-url="{{ agent_api_url if readonly|default(false) else url_for('registry.api_registries_index') }}">
   <div class="container-fluid h-100 d-flex flex-column">
     <div class="registry-book-header">
       <div>
@@ -40,7 +40,7 @@
   </div>
 </section>
 
-{% include 'registry/_contact_modal.html' %}
+{% if not readonly|default(false) %}{% include 'registry/_contact_modal.html' %}{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -53,6 +53,9 @@
   const searchInput = document.getElementById("registrySearch");
   const searchBtn = document.getElementById("registrySearchBtn");
   const resetBtn = document.getElementById("registryResetBtn");
+  const bookPage = document.querySelector(".registry-book-page");
+  const apiUrl = bookPage?.dataset.apiUrl || "/registry/api/registries";
+  const readOnly = bookPage?.dataset.readonly === "1";
   let registries = [];
   const esc = value => String(value || "").replace(/[&<>"']/g, ch => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
 
@@ -111,10 +114,10 @@
           </div>
           ${link.notes ? `<div class="registry-contact-notes">${esc(link.notes)}</div>` : ""}
         </div>
-        <div class="registry-contact-row__actions">
+        {% if not readonly|default(false) %}<div class="registry-contact-row__actions">
           <button class="btn btn-sm btn-outline-secondary" type="button" data-contact-edit="${registryId}:${c.id}">Modifica</button>
           <button class="btn btn-sm btn-outline-danger" type="button" data-contact-unlink="${registryId}:${c.id}">Dissocia</button>
-        </div>
+        </div>{% endif %}
       </div>
     `;
   }
@@ -175,9 +178,9 @@
                   <span class="registry-card__chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
                 </button>
                 <div class="registry-card__body" hidden>
-                  <div class="registry-card__actions">
+                  {% if not readonly|default(false) %}<div class="registry-card__actions">
                     <button class="btn btn-sm btn-info" type="button" data-contact-add="${reg.id}"><i class="fa-solid fa-plus"></i> Contatto</button>
-                  </div>
+                  </div>{% endif %}
                   <div class="registry-card__section registry-card__section--data">
                     <div class="registry-card__section-title">Dati anagrafici</div>
                     <div class="registry-data-grid">
@@ -207,7 +210,7 @@
   async function loadData() {
     listEl.innerHTML = `<div class="text-muted">Caricamento...</div>`;
     const q = (searchInput.value || "").trim();
-    const res = await fetch(`/registry/api/registries?kind=${encodeURIComponent(kind)}&q=${encodeURIComponent(q)}`, { credentials: "same-origin" });
+    const res = await fetch(`${apiUrl}?kind=${encodeURIComponent(kind)}&q=${encodeURIComponent(q)}`, { credentials: "same-origin" });
     const data = await res.json();
     if (!res.ok || !data.ok) throw new Error(data.error || "Errore caricamento");
     registries = data.registries || [];
@@ -243,6 +246,7 @@
       }
       return;
     }
+    if (readOnly) return;
     const addBtn = ev.target.closest("[data-contact-add]");
     if (addBtn) {
       openContactModal(addBtn.dataset.contactAdd);

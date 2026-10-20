@@ -43,6 +43,11 @@
             <a class="quick-action" href="/wine-cards" data-tutorial-description="Prepara e consulta le carte dei vini disponibili."><i class="fa-solid fa-wine-bottle"></i><span>Carte vini</span></a>
             <a class="quick-action" href="{{ url_for('customer_orders.manage') }}" data-tutorial-description="Gestisci gli ordini inviati dai clienti Horeca."><i class="fa-solid fa-inbox"></i><span>Ordini Horeca</span></a>
         {% endif %}
+        {% if current_user.is_authenticated and current_user.has_active_role('agente', 'agent') %}
+            <a class="quick-action" href="{{ url_for('search.elenco_prodotti') }}" data-tutorial-description="Consulta i prezzi e cambia tra listino Horeca e listino Enoteca."><i class="fa-solid fa-tags"></i><span>Listino prezzi</span></a>
+            <a class="quick-action" href="{{ url_for('agent_portal.customer_credit_index') }}" data-tutorial-description="Consulta i saldi e le schede contabili dei clienti assegnati."><i class="fa-solid fa-file-invoice-dollar"></i><span>Situazione clienti agente</span></a>
+            <a class="quick-action" href="{{ url_for('agent_portal.customer_contacts') }}" data-tutorial-description="Consulta la rubrica dei clienti assegnati."><i class="fa-regular fa-address-book"></i><span>Rubrica clienti agente</span></a>
+        {% endif %}
         {% if customer_can_manage %}
             <a class="quick-action" href="{{ url_for('customer_orders.index') }}" data-tutorial-description="Componi e invia un nuovo ordine per la tua attività."><i class="fa-solid fa-basket-shopping"></i><span>Fai un ordine</span></a>
             <a class="quick-action" href="{{ url_for('customer_orders.status') }}" data-tutorial-description="Segui lo stato e consulta lo storico dei tuoi ordini."><i class="fa-solid fa-clock-rotate-left"></i><span>I miei ordini</span></a>

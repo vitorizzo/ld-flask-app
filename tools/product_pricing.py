@@ -1,6 +1,8 @@
 """Centralized product-price visibility and price-list selection."""
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 
+from tools.role_required import meets_minimum_role
+
 
 PRICE_LIST_LABELS = {
     "prezzo1": "Prezzo 1 (imponibile)",
@@ -45,6 +47,8 @@ def selectable_price_lists(user):
         return []
     if getattr(user, "has_active_role", lambda *_: False)("customer", "customer_horeca"):
         return []
+    if getattr(user, "has_active_role", lambda *_: False)("agente", "agent"):
+        return [("prezzo1", "Listino Horeca"), ("prezzo3", "Listino Enoteca")]
     weight = int(getattr(user, "max_role_weight", 0) or 0)
     if not meets_minimum_role(user, "staff"):
         return []
@@ -72,6 +76,8 @@ def visible_product_price(article, user=None, registry=None):
         selected = normalize_price_list(getattr(registry, "listino_prezzo", None), default="prezzo3")
     elif getattr(user, "has_active_role", lambda *_: False)("customer"):
         selected = "prezzo3"
+    elif getattr(user, "has_active_role", lambda *_: False)("agente", "agent"):
+        selected = normalize_price_list(getattr(user, "listino_prezzo", None), default="prezzo3")
     else:
         weight = int(getattr(user, "max_role_weight", 0) or 0)
         if meets_minimum_role(user, "office"):
