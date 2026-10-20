@@ -1,3 +1,9 @@
+## Associazioni Agenti-Clienti (2026-10-20)
+
+- Aggiunta in Impostazioni una schermata per associare agli utenti con ruolo attivo Agente una o più zone gestionali e/o clienti singoli cercati per nome, codice o P.IVA. Le zone includono anche i clienti futuri della zona; i singoli clienti si possono rimuovere senza cambiare le zone.
+- Tabelle `agent_customer_zones` e `agent_customers`, migrazione `z3e4f5a6b7c8` dopo `z2d3e4f5a6b7`; le API validano agente, zone e clienti e salvano la sostituzione in transazione.
+- Verificati: 3 test API, sintassi AST Python, parsing Jinja e sintassi JavaScript. Produzione non modificata; eseguire `flask db upgrade` dopo il deploy.
+
 ## Archivio attività, modifica e sottoattività ad albero (2026-10-15)
 
 - Pulsanti Attività completate/aperte nella testata. Albero ricorsivo con rami conclusi fissati prima degli aperti, paginazione per alberi interi e filtri che mantengono il contesto. Modifica attività nella scheda riusa il form di creazione, precompila titolo/descrizione/incaricati/destinatari, controlla revisioni e registra prima/dopo. Correzioni dopo chiusura generano nuovi avvisi in-app/push a destinatari precedenti del ciclo e aggiornati; non riaprono implicitamente l’attività.

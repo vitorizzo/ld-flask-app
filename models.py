@@ -2727,6 +2727,42 @@ class CustomerRegistryMembership(db.Model):
     approved_by = db.relationship("User", foreign_keys=[approved_by_user_id])
 
 
+class AgentCustomerZone(db.Model):
+    """Zona assegnata a un agente; include anche i clienti aggiunti in futuro."""
+
+    __tablename__ = "agent_customer_zones"
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "zone_code", name="uq_agent_customer_zone_user_code"),
+        db.Index("ix_agent_customer_zones_user", "user_id"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
+    zone_code = db.Column(db.String(32), nullable=False)
+    zone_description = db.Column(db.String(160), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User", backref=db.backref("agent_customer_zones", cascade="all, delete-orphan"))
+
+
+class AgentCustomer(db.Model):
+    """Cliente assegnato singolarmente a un agente, anche fuori dalle sue zone."""
+
+    __tablename__ = "agent_customers"
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "registry_id", name="uq_agent_customer_user_registry"),
+        db.Index("ix_agent_customers_user", "user_id"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id", ondelete="CASCADE"), nullable=False)
+    registry_id = db.Column(db.Integer, db.ForeignKey("business_registries.id", ondelete="CASCADE"), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    user = db.relationship("User", backref=db.backref("agent_customers", cascade="all, delete-orphan"))
+    registry = db.relationship("BusinessRegistry")
+
+
 class CustomerCollaboratorActivationRequest(db.Model):
     """Richiesta verificata dallo staff per collegare un collaboratore a un cliente."""
 

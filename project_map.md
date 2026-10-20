@@ -1,3 +1,9 @@
+## Associazioni Agenti-Clienti (2026-10-20)
+
+- `AgentCustomerZone` e `AgentCustomer` conservano rispettivamente zone intere e clienti aggiunti singolarmente per gli utenti con ruolo attivo `agente`/`agent`; l'assegnazione di zona copre anche le future anagrafiche di quella zona.
+- Impostazioni: tile `Associazione Agenti-Clienti` e pagina `templates/settings/agent_customers.html`; API GET/search/PUT in `routes/settings.py`, accessibili da office in su. La ricerca seleziona solo anagrafiche cliente attive; il salvataggio valida tutte le selezioni prima della sostituzione atomica.
+- Migrazione `z3e4f5a6b7c8_agent_customer_assignments.py`; test API in `tests/test_agent_customer_assignments.py`. Le due assegnazioni sono configurabili separatamente e il medesimo cliente può essere incluso in zona e in selezione singola.
+
 ## Attività ad albero, archivio e modifica (2026-10-15)
 
 - OperationalActivity.parent_id/parent/children e migrazione y0b1c2d3e4f5: FK auto-referenziata RESTRICT, indice e compatibilità create_all. tools/activities.py: lettura discendente con CTE, permessi edit separati dai soli esiti, lock famiglia e blocco dipendenze; avvisi esito estesi agli incaricati principali e alle correzioni dopo chiusura.

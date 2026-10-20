@@ -5,7 +5,7 @@ from flask_socketio import SocketIO
 from sqlalchemy import and_, asc, inspect, or_, text
 from sqlalchemy.exc import SQLAlchemyError
 from redis.exceptions import RedisError
-from sqlalchemy.orm import selectinload, load_only
+from sqlalchemy.orm import selectinload, load_only, raiseload
 from werkzeug.utils import secure_filename
 import os
 import re
@@ -30,6 +30,8 @@ from tools.support_tickets import (
     support_unread_count,
 )
 from models import (
+    AgentCustomer,
+    AgentCustomerZone,
     Menu,
     FunctionAccessPolicy,
     AppPreference,
@@ -510,9 +512,226 @@ def settings_index():
             "icon_class": "text-bg-info",
             "min_role": "office",
         },
+        {
+            "title": "Associazione Agenti-Clienti",
+            "description": "Assegna agli agenti intere zone e singole anagrafiche cliente.",
+            "route": url_for("settings.agent_customer_assignments"),
+            "icon": "fa-solid fa-user-tag",
+            "icon_class": "text-bg-warning",
+            "min_role": "office",
+        },
     ]
     entries = [entry for entry in all_entries if meets_minimum_role(current_user, entry["min_role"])]
     return render_template("settings/index.html", entries=entries)
+
+
+def _active_agent_users():
+    users = User.query.options(selectinload(User.roles).selectinload(UserRole.role)).order_by(
+        User.surname.asc(), User.name.asc(), User.id.asc()
+    ).all()
+    return [
+        user for user in users
+        if any(
+            (role.name or "").strip().lower() in {"agente", "agent"}
+            for role in user.active_roles
+        )
+    ]
+
+
+@settings_bp.get("/agent-customers")
+@login_required
+@role_required("office")
+def agent_customer_assignments():
+    return render_template("settings/agent_customers.html")
+
+
+@settings_bp.get("/api/agent-customers")
+@login_required
+@role_required("office")
+def agent_customer_assignments_data():
+    agents = _active_agent_users()
+    zones_rows = (
+        db.session.query(BusinessRegistry.zone_code, BusinessRegistry.zone_description)
+        .filter(
+            BusinessRegistry.kind == "customer",
+            BusinessRegistry.is_active.is_(True),
+            BusinessRegistry.zone_code.isnot(None),
+            BusinessRegistry.zone_code != "",
+        )
+        .distinct()
+        .order_by(BusinessRegistry.zone_code.asc(), BusinessRegistry.zone_description.asc())
+        .all()
+    )
+    zones = {}
+    for code, description in zones_rows:
+        zones.setdefault(code, {"code": code, "description": description or "", "customer_count": 0, "available": True})
+    counts = dict(
+        db.session.query(BusinessRegistry.zone_code, db.func.count(BusinessRegistry.id))
+        .filter(
+            BusinessRegistry.kind == "customer",
+            BusinessRegistry.is_active.is_(True),
+            BusinessRegistry.zone_code.in_(list(zones)),
+        )
+        .group_by(BusinessRegistry.zone_code)
+        .all()
+    ) if zones else {}
+    for code, zone in zones.items():
+        zone["customer_count"] = int(counts.get(code, 0))
+
+    user_id = _parse_int(request.args.get("user_id"))
+    agent_ids = {user.id for user in agents}
+    if user_id not in agent_ids:
+        user_id = agents[0].id if agents else None
+    zone_codes = []
+    customer_ids = []
+    assigned_customers = []
+    if user_id:
+        zone_codes = [row.zone_code for row in AgentCustomerZone.query.filter_by(user_id=user_id).all()]
+        for code in zone_codes:
+            if code not in zones:
+                zone_row = AgentCustomerZone.query.filter_by(user_id=user_id, zone_code=code).first()
+                zones[code] = {
+                    "code": code,
+                    "description": zone_row.zone_description if zone_row else "",
+                    "customer_count": 0,
+                    "available": False,
+                }
+        assigned_rows = (
+            db.session.query(AgentCustomer, BusinessRegistry)
+            .join(BusinessRegistry, BusinessRegistry.id == AgentCustomer.registry_id)
+        .options(raiseload("*"))
+            .filter(AgentCustomer.user_id == user_id)
+            .order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc())
+            .all()
+        )
+        customer_ids = [assignment.registry_id for assignment, _registry in assigned_rows]
+        assigned_customers = [{
+            "id": registry.id,
+            "name": registry.display_name or registry.legal_name or registry.source_code,
+            "code": registry.source_code,
+            "zone_code": registry.zone_code or "",
+            "zone_description": registry.zone_description or "",
+        } for _assignment, registry in assigned_rows]
+    return jsonify(
+        ok=True,
+        agents=[{"id": user.id, "name": f"{user.name} {user.surname}".strip()} for user in agents],
+        zones=list(zones.values()),
+        selected_agent_id=user_id,
+        zone_codes=zone_codes,
+        customer_ids=customer_ids,
+        assigned_customers=assigned_customers,
+    )
+
+
+@settings_bp.get("/api/agent-customers/search")
+@login_required
+@role_required("office")
+def agent_customer_assignments_search():
+    query = (request.args.get("q") or "").strip()
+    user_id = _parse_int(request.args.get("user_id"))
+    agent_ids = {user.id for user in _active_agent_users()}
+    if user_id not in agent_ids:
+        return jsonify(error="Agente non valido."), 400
+    if len(query) < 2:
+        return jsonify(ok=True, customers=[])
+    like = f"%{query}%"
+    rows = (
+        BusinessRegistry.query
+        .options(raiseload("*"))
+        .filter(
+            BusinessRegistry.kind == "customer",
+            BusinessRegistry.is_active.is_(True),
+            or_(
+                BusinessRegistry.display_name.ilike(like),
+                BusinessRegistry.legal_name.ilike(like),
+                BusinessRegistry.source_code.ilike(like),
+                BusinessRegistry.vat_number.ilike(like),
+            ),
+        )
+        .order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc())
+        .limit(40)
+        .all()
+    )
+    assigned = set(
+        row[0] for row in db.session.query(AgentCustomer.registry_id)
+        .filter(AgentCustomer.user_id == user_id, AgentCustomer.registry_id.in_([row.id for row in rows]))
+        .all()
+    ) if rows else set()
+    return jsonify(ok=True, customers=[{
+        "id": row.id,
+        "name": row.display_name or row.legal_name or row.source_code,
+        "code": row.source_code,
+        "city": row.city or "",
+        "zone_code": row.zone_code or "",
+        "zone_description": row.zone_description or "",
+        "assigned": row.id in assigned,
+    } for row in rows])
+
+
+@settings_bp.put("/api/agent-customers/<int:user_id>")
+@login_required
+@role_required("office")
+def agent_customer_assignments_save(user_id):
+    if user_id not in {user.id for user in _active_agent_users()}:
+        return jsonify(error="Agente non valido."), 404
+    payload = request.get_json(silent=True)
+    if not isinstance(payload, dict):
+        return jsonify(error="Richiesta non valida."), 400
+    raw_zones = payload.get("zone_codes", [])
+    raw_customers = payload.get("customer_ids", [])
+    if not isinstance(raw_zones, list) or not isinstance(raw_customers, list):
+        return jsonify(error="Selezione zone/clienti non valida."), 400
+    zone_codes = list(dict.fromkeys(str(value).strip() for value in raw_zones if str(value).strip()))
+    customer_ids = list(dict.fromkeys(_parse_int(value) for value in raw_customers))
+    if any(value is None for value in customer_ids):
+        return jsonify(error="Selezione clienti non valida."), 400
+
+    available_zones = dict(
+        db.session.query(BusinessRegistry.zone_code, db.func.max(BusinessRegistry.zone_description))
+        .filter(
+            BusinessRegistry.kind == "customer",
+            BusinessRegistry.is_active.is_(True),
+            BusinessRegistry.zone_code.in_(zone_codes),
+        )
+        .group_by(BusinessRegistry.zone_code)
+        .all()
+    ) if zone_codes else {}
+    existing_zone_rows = {
+        row.zone_code: row.zone_description
+        for row in AgentCustomerZone.query.filter_by(user_id=user_id).all()
+    }
+    if set(zone_codes) - (set(available_zones) | set(existing_zone_rows)):
+        return jsonify(error="Una o più zone selezionate non sono più disponibili."), 409
+    valid_customer_ids = set(
+        row[0] for row in db.session.query(BusinessRegistry.id)
+        .filter(
+            BusinessRegistry.kind == "customer",
+            BusinessRegistry.is_active.is_(True),
+            BusinessRegistry.id.in_(customer_ids),
+        )
+        .all()
+    ) if customer_ids else set()
+    if valid_customer_ids != set(customer_ids):
+        return jsonify(error="Uno o più clienti selezionati non sono più disponibili."), 409
+
+    AgentCustomerZone.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+    AgentCustomer.query.filter_by(user_id=user_id).delete(synchronize_session=False)
+    db.session.add_all([
+        AgentCustomerZone(
+            user_id=user_id,
+            zone_code=code,
+            zone_description=available_zones.get(code) or existing_zone_rows.get(code),
+        )
+        for code in zone_codes
+    ])
+    db.session.add_all([AgentCustomer(user_id=user_id, registry_id=registry_id) for registry_id in customer_ids])
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        logger.exception("Salvataggio assegnazioni clienti-agente fallito per user_id=%s", user_id)
+        return jsonify(error="Non è stato possibile salvare le assegnazioni."), 500
+    return jsonify(ok=True, zone_count=len(zone_codes), customer_count=len(customer_ids))
 
 
 @settings_bp.route("/celery-tasks", methods=["GET"])

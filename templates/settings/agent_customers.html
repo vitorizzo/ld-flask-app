@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Associazione Agenti-Clienti{% endblock %}
+
+{% block extra_css %}
+<style>
+  .agent-scope-page { max-width: 1180px; margin-inline: auto; }
+  .agent-scope-panel { border: 1px solid var(--bs-border-color); border-radius: .75rem; background: var(--bs-body-bg); }
+  .agent-zone-list { max-height: 55vh; overflow: auto; }
+  .agent-zone-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: .7rem .85rem; border-bottom: 1px solid var(--bs-border-color); }
+  .agent-customer-row { display: flex; align-items: center; justify-content: space-between; gap: .75rem; padding: .7rem .85rem; border-bottom: 1px solid var(--bs-border-color); }
+  .agent-customer-row:last-child, .agent-zone-item:last-child { border-bottom: 0; }
+  .agent-customer-meta { min-width: 0; overflow-wrap: anywhere; }
+  .agent-scope-scroll { max-height: 36vh; overflow: auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="welcome-section agent-scope-page">
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+    <div>
+      <h1 class="h4 mb-1">Associazione Agenti-Clienti</h1>
+      <p class="text-muted mb-0">Assegna a ogni agente intere zone e singoli clienti aggiuntivi.</p>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <label for="agentSelect" class="form-label mb-0">Agente</label>
+      <select id="agentSelect" class="form-select" style="min-width: 220px" aria-label="Seleziona agente"></select>
+    </div>
+  </div>
+
+  <div id="agentEmpty" class="alert alert-info d-none">Non ci sono utenti con un ruolo attivo “Agente”.</div>
+  <div id="agentEditor" class="row g-3">
+    <div class="col-12 col-lg-5">
+      <div class="agent-scope-panel p-3 h-100">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <h2 class="h6 mb-1">Zone assegnate</h2>
+            <div class="small text-muted">L’agente riceverà anche i clienti aggiunti in futuro a queste zone.</div>
+          </div>
+          <span class="badge text-bg-secondary" id="zoneCount">0</span>
+        </div>
+        <div id="zoneList" class="agent-zone-list"></div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-7">
+      <div class="agent-scope-panel p-3 mb-3">
+        <h2 class="h6 mb-2">Aggiungi singoli clienti</h2>
+        <div class="input-group">
+          <input id="customerSearch" class="form-control" autocomplete="off" placeholder="Nome, codice o partita IVA">
+          <button id="customerSearchBtn" class="btn btn-outline-secondary" type="button">Cerca</button>
+        </div>
+        <div id="customerSearchResults" class="agent-scope-scroll mt-2" aria-live="polite">
+          <div class="small text-muted py-2">Cerca un cliente per aggiungerlo all’agente.</div>
+        </div>
+      </div>
+      <div class="agent-scope-panel p-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h2 class="h6 mb-0">Clienti assegnati singolarmente</h2>
+          <span class="badge text-bg-secondary" id="customerCount">0</span>
+        </div>
+        <div id="assignedCustomers" class="agent-scope-scroll">
+          <div class="small text-muted py-2">Nessun cliente aggiunto singolarmente.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="saveStatus" class="small text-muted mt-3" role="status" aria-live="polite"></div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(() => {
+  const agentSelect = document.getElementById("agentSelect");
+  const zoneList = document.getElementById("zoneList");
+  const customerSearch = document.getElementById("customerSearch");
+  const customerSearchResults = document.getElementById("customerSearchResults");
+  const assignedCustomers = document.getElementById("assignedCustomers");
+  const saveStatus = document.getElementById("saveStatus");
+  const agentEditor = document.getElementById("agentEditor");
+  const agentEmpty = document.getElementById("agentEmpty");
+  let zones = [];
+  let selectedZones = new Set();
+  let selectedCustomers = new Set();
+  let customerRows = new Map();
+  let saving = Promise.resolve();
+
+  const esc = value => String(value ?? "").replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", "\"":"&quot;", "'":"&#39;" }[ch]));
+
+  function renderZones() {
+    document.getElementById("zoneCount").textContent = String(selectedZones.size);
+    zoneList.innerHTML = zones.length ? zones.map(zone => `
+      <label class="agent-zone-item">
+        <span><span class="fw-semibold">${esc(zone.description || `Zona ${zone.code}`)}</span><span class="small text-muted d-block">Codice ${esc(zone.code)} · ${Number(zone.customer_count) || 0} clienti${zone.available === false ? " · zona non più presente nelle anagrafiche" : ""}</span></span>
+        <input class="form-check-input m-0" type="checkbox" data-zone="${esc(zone.code)}" ${selectedZones.has(String(zone.code)) ? "checked" : ""} aria-label="Assegna zona ${esc(zone.code)}">
+      </label>`).join("") : `<div class="small text-muted py-2">Nessuna zona valorizzata nelle anagrafiche clienti.</div>`;
+  }
+
+  function renderAssignedCustomers() {
+    document.getElementById("customerCount").textContent = String(selectedCustomers.size);
+    const rows = [...selectedCustomers].map(id => customerRows.get(id)).filter(Boolean).sort((a, b) => a.name.localeCompare(b.name, "it"));
+    assignedCustomers.innerHTML = rows.length ? rows.map(row => `
+      <div class="agent-customer-row"><div class="agent-customer-meta"><div class="fw-semibold">${esc(row.name)}</div><div class="small text-muted">${esc(row.code)}${row.zone_code ? ` · Zona ${esc(row.zone_code)}` : ""}</div></div><button class="btn btn-sm btn-outline-danger" type="button" data-remove-customer="${row.id}">Rimuovi</button></div>`).join("") : `<div class="small text-muted py-2">Nessun cliente aggiunto singolarmente.</div>`;
+  }
+
+  async function saveSelection() {
+    const userId = Number(agentSelect.value || 0);
+    if (!userId) return;
+    const zoneCodes = [...selectedZones];
+    const customerIds = [...selectedCustomers].map(Number);
+    saveStatus.textContent = "Salvataggio…";
+    saving = saving.then(async () => {
+      const response = await fetch(`/settings/api/agent-customers/${userId}`, {
+        method: "PUT", credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ zone_codes: zoneCodes, customer_ids: customerIds }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "Salvataggio non riuscito.");
+      saveStatus.classList.remove("text-danger");
+      saveStatus.textContent = `Salvato · ${data.zone_count} zone e ${data.customer_count} clienti singoli.`;
+    }).catch(error => { saveStatus.textContent = error.message; saveStatus.classList.add("text-danger"); });
+    await saving;
+  }
+
+  async function loadAgent(userId = "") {
+    saveStatus.classList.remove("text-danger");
+    const response = await fetch(`/settings/api/agent-customers${userId ? `?user_id=${encodeURIComponent(userId)}` : ""}`, { credentials: "same-origin" });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "Caricamento non riuscito.");
+    zones = data.zones || [];
+    agentSelect.innerHTML = (data.agents || []).map(agent => `<option value="${agent.id}">${esc(agent.name)}</option>`).join("");
+    agentEditor.classList.toggle("d-none", !(data.agents || []).length);
+    agentEmpty.classList.toggle("d-none", Boolean((data.agents || []).length));
+    if (!data.agents?.length) return;
+    agentSelect.value = String(data.selected_agent_id);
+    selectedZones = new Set((data.zone_codes || []).map(String));
+    selectedCustomers = new Set((data.customer_ids || []).map(Number));
+    customerRows = new Map((data.assigned_customers || []).map(row => [Number(row.id), { ...row, id: Number(row.id) }]));
+    renderZones();
+    renderAssignedCustomers();
+  }
+
+  async function searchCustomers() {
+    const q = customerSearch.value.trim();
+    if (q.length < 2) {
+      customerSearchResults.innerHTML = `<div class="small text-muted py-2">Inserisci almeno due caratteri.</div>`;
+      return;
+    }
+    const response = await fetch(`/settings/api/agent-customers/search?user_id=${encodeURIComponent(agentSelect.value)}&q=${encodeURIComponent(q)}`, { credentials: "same-origin" });
+    const data = await response.json();
+    if (!response.ok || !data.ok) throw new Error(data.error || "Ricerca non riuscita.");
+    const rows = data.customers || [];
+    rows.forEach(row => customerRows.set(Number(row.id), { ...row, id: Number(row.id) }));
+    customerSearchResults.innerHTML = rows.length ? rows.map(row => {
+      const isSelected = selectedCustomers.has(Number(row.id));
+      return `<div class="agent-customer-row"><div class="agent-customer-meta"><div class="fw-semibold">${esc(row.name)}</div><div class="small text-muted">${esc(row.code)}${row.city ? ` · ${esc(row.city)}` : ""}${row.zone_code ? ` · Zona ${esc(row.zone_code)}` : ""}</div></div><button class="btn btn-sm ${isSelected ? "btn-outline-secondary" : "btn-outline-primary"}" type="button" data-add-customer="${row.id}" ${isSelected ? "disabled" : ""}>${isSelected ? "Aggiunto" : "Aggiungi"}</button></div>`;
+    }).join("") : `<div class="small text-muted py-2">Nessun cliente trovato.</div>`;
+  }
+
+  zoneList.addEventListener("change", event => {
+    const input = event.target.closest("[data-zone]");
+    if (!input) return;
+    input.checked ? selectedZones.add(input.dataset.zone) : selectedZones.delete(input.dataset.zone);
+    renderZones();
+    saveSelection();
+  });
+  customerSearchResults.addEventListener("click", event => {
+    const button = event.target.closest("[data-add-customer]");
+    if (!button) return;
+    const id = Number(button.dataset.addCustomer);
+    selectedCustomers.add(id);
+    renderAssignedCustomers();
+    searchCustomers().catch(error => { customerSearchResults.textContent = error.message; });
+    saveSelection();
+  });
+  assignedCustomers.addEventListener("click", event => {
+    const button = event.target.closest("[data-remove-customer]");
+    if (!button) return;
+    selectedCustomers.delete(Number(button.dataset.removeCustomer));
+    renderAssignedCustomers();
+    searchCustomers().catch(() => {});
+    saveSelection();
+  });
+  document.getElementById("customerSearchBtn").addEventListener("click", () => searchCustomers().catch(error => { customerSearchResults.textContent = error.message; }));
+  customerSearch.addEventListener("keydown", event => {
+    if (event.key === "Enter") { event.preventDefault(); document.getElementById("customerSearchBtn").click(); }
+  });
+  agentSelect.addEventListener("change", () => loadAgent(agentSelect.value).catch(error => { saveStatus.textContent = error.message; }));
+  loadAgent().catch(error => { saveStatus.textContent = error.message; saveStatus.classList.add("text-danger"); });
+})();
+</script>
+{% endblock %}
