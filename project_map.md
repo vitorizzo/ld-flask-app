@@ -1,3 +1,8 @@
+## Correzioni Rubrica Agente e leggibilità contabile (2026-10-20)
+
+- La scheda di ogni cliente assegnato consente all’agente di creare un contatto telefonico condiviso (`RegistryContact` + `BusinessRegistryContactLink`); l’API limita la scrittura ai clienti assegnati, per zona o singolarmente. Il contatto è subito visibile nella rubrica aziendale, senza nuove tabelle o migrazioni.
+- La situazione clienti agente e il dettaglio contabile caricano `customer_credit_engine.css`, usano i token del tema corrente e hanno etichette mobile accessibili.
+
 ## Associazioni Agenti-Clienti (2026-10-20)
 
 - `AgentCustomerZone` e `AgentCustomer` conservano rispettivamente zone intere e clienti aggiunti singolarmente per gli utenti con ruolo attivo `agente`/`agent`; l'assegnazione di zona copre anche le future anagrafiche di quella zona.

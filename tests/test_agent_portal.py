@@ -12,8 +12,12 @@ from models import (
     AgentCustomer,
     AgentCustomerZone,
     BusinessRegistry,
+    BusinessRegistryContact,
+    BusinessRegistryContactLink,
     CustomerAccountEntry,
     CustomerAccountStatementImport,
+    RegistryContact,
+    RegistryContactPoint,
     User,
 )
 from routes.agent_portal import agent_portal_bp
@@ -31,6 +35,8 @@ class AgentPortalTests(unittest.TestCase):
         self.tables = [
             BusinessRegistry.__table__, User.__table__, AgentCustomer.__table__, AgentCustomerZone.__table__,
             CustomerAccountStatementImport.__table__, CustomerAccountEntry.__table__,
+            BusinessRegistryContact.__table__, RegistryContact.__table__, RegistryContactPoint.__table__,
+            BusinessRegistryContactLink.__table__,
         ]
         db.metadata.create_all(db.engine, tables=self.tables)
         self.agent = User(name="Ada", surname="Agenti", email="agent@example.com", password="hash")
@@ -49,6 +55,9 @@ class AgentPortalTests(unittest.TestCase):
         db.session.add_all([self.agent, self.zone_customer, self.direct_customer, self.other_customer])
         db.session.flush()
         self.agent_id = self.agent.id
+        self.zone_customer_id = self.zone_customer.id
+        self.direct_customer_id = self.direct_customer.id
+        self.other_customer_id = self.other_customer.id
         db.session.add_all([
             AgentCustomerZone(user_id=self.agent.id, zone_code="Z1", zone_description="Zona Uno"),
             AgentCustomer(user_id=self.agent.id, registry_id=self.direct_customer.id),
@@ -159,6 +168,40 @@ class AgentPortalTests(unittest.TestCase):
         self.assertEqual(response.json["balance"], "-10.00")
         response = self.client.get("/agent/customers/C1")
         self.assertEqual(response.status_code, 404)
+
+    def test_agent_adds_customer_number_to_agent_and_company_registry(self):
+        response = self.client.post("/agent/api/contacts", json={
+            "registry_id": self.zone_customer_id,
+            "display_name": "Mario Rossi",
+            "role": "Referente ordini",
+            "points": [{"contact_type": "mobile", "value": "+39 333 1234567", "is_primary": True}],
+        })
+        self.assertEqual(response.status_code, 201, response.json)
+        contact = RegistryContact.query.one()
+        link = BusinessRegistryContactLink.query.one()
+        self.assertEqual(link.registry_id, self.zone_customer_id)
+        self.assertEqual(link.contact_id, contact.id)
+        self.assertEqual(contact.points[0].value, "+39 333 1234567")
+
+        response = self.client.get("/agent/api/contacts")
+        self.assertEqual(response.status_code, 200, response.json)
+        registry = next(row for row in response.json["registries"] if row["id"] == self.zone_customer_id)
+        self.assertEqual(registry["contact_links"][0]["contact"]["display_name"], "Mario Rossi")
+
+    def test_agent_cannot_add_contact_to_unassigned_customer_or_without_number(self):
+        response = self.client.post("/agent/api/contacts", json={
+            "registry_id": self.other_customer_id,
+            "display_name": "Contatto esterno",
+            "points": [{"contact_type": "mobile", "value": "3331234567"}],
+        })
+        self.assertEqual(response.status_code, 404)
+        response = self.client.post("/agent/api/contacts", json={
+            "registry_id": self.zone_customer_id,
+            "display_name": "Senza numero",
+            "points": [],
+        })
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(RegistryContact.query.count(), 0)
 
     def test_agent_only_features_reject_users_without_agent_role(self):
         self.agent_user.active_roles = [SimpleNamespace(name="staff")]

@@ -1,3 +1,8 @@
+## Correzioni Rubrica Agente e situazione contabile (2026-10-20)
+
+- Aggiunta creazione di numeri contatto per i clienti assegnati: contatto condiviso con la rubrica aziendale e protetto da verifica di assegnazione agente. Test coprono visibilità condivisa, numeri richiesti e accesso negato a clienti non assegnati. Nessuna migrazione richiesta.
+- Allineate situazione clienti e scheda contabile al CSS/theme engine condiviso; tabelle leggibili su mobile tramite etichette di cella.
+
 ## Associazioni Agenti-Clienti (2026-10-20)
 
 - Aggiunta in Impostazioni una schermata per associare agli utenti con ruolo attivo Agente una o più zone gestionali e/o clienti singoli cercati per nome, codice o P.IVA. Le zone includono anche i clienti futuri della zona; i singoli clienti si possono rimuovere senza cambiare le zone.

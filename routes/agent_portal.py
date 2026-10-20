@@ -15,6 +15,7 @@ from models import (
     CustomerAccountEntry,
     CustomerAccountStatementImport,
     RegistryContact,
+    RegistryContactPoint,
 )
 from routes.registry import _registry_to_dict
 from tools.agent_customer_access import agent_customer_registry_query, user_is_agent
@@ -208,6 +209,74 @@ def add_company_customer_to_agent():
     return jsonify(ok=True, already_assigned=False, customer={
         **customer_data,
     })
+
+
+@agent_portal_bp.post("/api/contacts")
+@login_required
+def add_customer_contact_for_agent():
+    """Create a customer contact in the shared company registry from the agent book."""
+    _require_agent()
+    data = request.get_json(silent=True) or {}
+    try:
+        registry_id = int(data.get("registry_id"))
+    except (TypeError, ValueError):
+        return jsonify(ok=False, error="Cliente non valido"), 400
+    registry = agent_customer_registry_query(current_user).options(raiseload("*" )).filter(
+        BusinessRegistry.id == registry_id
+    ).first_or_404()
+    registry_id = registry.id
+
+    raw_name = data.get("display_name")
+    raw_role = data.get("role")
+    display_name = raw_name.strip() if isinstance(raw_name, str) else ""
+    role = raw_role.strip() if isinstance(raw_role, str) else ""
+    points = data.get("points")
+    if not display_name or len(display_name) > 255:
+        return jsonify(ok=False, error="Inserisci un nome valido per il contatto."), 400
+    if role and len(role) > 120:
+        return jsonify(ok=False, error="L’etichetta del contatto è troppo lunga."), 400
+    if not isinstance(points, list) or not points:
+        return jsonify(ok=False, error="Inserisci almeno un numero di telefono."), 400
+
+    contact_points = []
+    for point in points[:10]:
+        if not isinstance(point, dict):
+            continue
+        raw_type = point.get("contact_type") or point.get("type") or ""
+        raw_value = point.get("value") or ""
+        raw_label = point.get("label") or ""
+        contact_type = raw_type.strip().lower() if isinstance(raw_type, str) else ""
+        value = raw_value.strip() if isinstance(raw_value, str) else ""
+        label = raw_label.strip()[:80] or None if isinstance(raw_label, str) else None
+        if contact_type not in {"phone", "mobile"} or not value or len(value) > 255 or not any(char.isdigit() for char in value):
+            continue
+        contact_points.append((contact_type, value, label))
+    if not contact_points:
+        return jsonify(ok=False, error="Inserisci un numero di telefono valido."), 400
+
+    contact = RegistryContact(display_name=display_name, role=role or None, is_active=True)
+    for index, (contact_type, value, label) in enumerate(contact_points):
+        contact.points.append(RegistryContactPoint(
+            contact_type=contact_type,
+            value=value,
+            label=label,
+            is_primary=index == 0,
+        ))
+    link = BusinessRegistryContactLink(
+        registry=registry,
+        contact=contact,
+        role=role or None,
+        is_primary=not BusinessRegistryContactLink.query.filter_by(
+            registry_id=registry.id, is_active=True, is_primary=True
+        ).first(),
+        is_active=True,
+    )
+    db.session.add_all([contact, link])
+    db.session.flush()
+    contact_data = contact.to_dict()
+    db.session.commit()
+    return jsonify(ok=True, message="Contatto aggiunto alla rubrica agente e alla rubrica aziendale.",
+                   contact=contact_data, registry_id=registry_id), 201
 
 
 @agent_portal_bp.get("/api/contacts")

@@ -54,6 +54,9 @@
     const { registryId, contact = null } = options;
     generation++; context = options;
     saveBtn.disabled = false; contactPickerBtn.disabled = false; contactVcardBtn.disabled = false; contactVcardInput.value = "";
+    contactPickerPanel.hidden = !contactPickerSupported || options.hideImports === true;
+    document.querySelector(".contact-vcard-panel").hidden = options.hideImports === true;
+    contactPickerUnavailable.hidden = options.hideImports === true || contactPickerSupported || !window.matchMedia("(hover: none), (pointer: coarse)").matches;
     document.getElementById("contactNotesGroup").hidden = options.phoneOnly === true;
     document.getElementById("contactRoleLabel").textContent = options.phoneOnly ? "Etichetta" : "Ruolo";
     document.querySelectorAll("#contactPointType option").forEach(option => { option.hidden = option.disabled = options.phoneOnly && ["email", "pec"].includes(option.value); });

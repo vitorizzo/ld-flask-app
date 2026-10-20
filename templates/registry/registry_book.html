@@ -41,11 +41,11 @@
   </div>
 </section>
 
-{% if not readonly|default(false) %}{% include 'registry/_contact_modal.html' %}{% endif %}
+{% if not readonly|default(false) or agent_customer_assignment|default(false) %}{% include 'registry/_contact_modal.html' %}{% endif %}
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/registry_contact_modal.js', v=app_version ~ '-shared1') }}"></script>
+<script src="{{ url_for('static', filename='js/registry_contact_modal.js', v=app_version ~ '-shared2') }}"></script>
 <script>
 (() => {
   const kind = document.querySelector(".registry-book-page")?.dataset.kind || "customer";
@@ -179,7 +179,9 @@
                   <span class="registry-card__chevron" aria-hidden="true"><i class="fa-solid fa-chevron-down"></i></span>
                 </button>
                 <div class="registry-card__body" hidden>
-                  {% if not readonly|default(false) %}<div class="registry-card__actions">
+                  {% if agent_customer_assignment|default(false) %}<div class="registry-card__actions">
+                    <button class="btn btn-sm btn-info" type="button" data-agent-contact-add="${reg.id}"><i class="fa-solid fa-phone"></i> Aggiungi numero</button>
+                  </div>{% elif not readonly|default(false) %}<div class="registry-card__actions">
                     <button class="btn btn-sm btn-info" type="button" data-contact-add="${reg.id}"><i class="fa-solid fa-plus"></i> Contatto</button>
                   </div>{% endif %}
                   <div class="registry-card__section registry-card__section--data">
@@ -222,6 +224,25 @@
     window.LDRegistryContactModal.open({ registryId, contact, onSaved: loadData });
   }
 
+  function openAgentContactModal(registryId) {
+    window.LDRegistryContactModal.open({
+      registryId,
+      phoneOnly: true,
+      hideImports: true,
+      onSaved: loadData,
+      save: async payload => {
+        const response = await fetch("/agent/api/contacts", {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ registry_id: Number(registryId), ...payload }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || "Impossibile aggiungere il contatto.");
+      },
+    });
+  }
+
   async function unlinkContact(registryId, contactId) {
     if (!confirm("Dissociare questo contatto dall'anagrafica?")) return;
     const res = await fetch(`/registry/api/registries/${registryId}/contacts/${contactId}`, {
@@ -245,6 +266,11 @@
       if (isOpen && window.matchMedia("(max-width: 820px), (hover: none) and (pointer: coarse)").matches) {
         window.setTimeout(() => card.scrollIntoView({ block: "start", behavior: "smooth" }), 60);
       }
+      return;
+    }
+    const agentContactBtn = ev.target.closest("[data-agent-contact-add]");
+    if (agentContactBtn) {
+      openAgentContactModal(agentContactBtn.dataset.agentContactAdd);
       return;
     }
     if (readOnly) return;

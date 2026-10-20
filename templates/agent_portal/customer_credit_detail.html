@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Scheda contabile cliente{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/customer_credit_engine.css', v=app_version ~ '-credit-engine1') }}">{% endblock %}
 {% macro money(value) -%}{{ "{:,.2f}".format(value or 0).replace(",", "X").replace(".", ",").replace("X", ".") }} €{%- endmacro %}
 {% block content %}
 <section class="ld-page ld-page-standard customer-credit-page">
   <div class="container-fluid">
-    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div class="credit-page-heading d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
       <div><div class="small text-muted">Scheda contabile cliente</div><h1 class="h3 mb-1">{{ registry.display_name or customer.customer_name }}</h1><div class="text-muted">Codice {{ registry.source_code }} · dati al {{ current_import.imported_at.strftime("%d/%m/%Y") if current_import.imported_at else "—" }}</div></div>
       <a class="btn btn-outline-secondary" href="{{ back_url }}"><i class="fa-solid fa-arrow-left me-1"></i> Torna ai clienti</a>
     </div>
@@ -14,16 +15,16 @@
       {% endfor %}
     </div>
     {% if entries.items %}
-      <div class="table-responsive card ld-panel border-0 shadow-sm">
-        <table class="table table-hover align-middle mb-0">
+      <div class="table-responsive credit-table-wrap card ld-panel border-0 shadow-sm">
+        <table class="table credit-mobile-table table-hover align-middle mb-0">
           <thead><tr><th>Data</th><th>Documento</th><th>Descrizione</th><th class="text-end">Importo</th></tr></thead>
           <tbody>
             {% for entry in entries.items %}
               <tr>
-                <td class="text-nowrap">{{ entry.document_date.strftime("%d/%m/%Y") if entry.document_date else "—" }}</td>
-                <td>{{ entry.document_number|customer_document_number(entry.source_payload) or "—" }}</td>
-                <td>{{ entry.description or "—" }}{% if entry.additional_description %}<div class="small text-muted">{{ entry.additional_description }}</div>{% endif %}</td>
-                <td class="text-end text-nowrap">{{ money(entry.signed_amount) }}</td>
+                <td class="text-nowrap" data-label="Data">{{ entry.document_date.strftime("%d/%m/%Y") if entry.document_date else "—" }}</td>
+                <td data-label="Documento">{{ entry.document_number|customer_document_number(entry.source_payload) or "—" }}</td>
+                <td data-label="Descrizione">{{ entry.description or "—" }}{% if entry.additional_description %}<div class="small text-muted">{{ entry.additional_description }}</div>{% endif %}</td>
+                <td class="text-end text-nowrap" data-label="Importo">{{ money(entry.signed_amount) }}</td>
               </tr>
             {% endfor %}
           </tbody>
