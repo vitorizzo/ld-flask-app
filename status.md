@@ -1,3 +1,8 @@
+## Invio lotti: upload foto e attività assegnate (2026-10-20)
+
+- Una sola sezione per fotografare il lotto: pulsante “Scatta foto”, campo obbligatorio per il prodotto e caricamento nella tabella foto richiesta al completamento. Nell’area allegati dell’attività lotti sono ammessi documenti, così non si confondono foto senza etichetta con le prove lotto. Versione JS aggiornata; gli errori senza JSON ora riportano lo stato HTTP invece del messaggio generico.
+- Corretto accesso: chi ha preso in carico un’attività resta autorizzato a vederla e lavorarci anche se nel frattempo scade o viene tolto il ruolo destinatario. I destinatari del solo esito accedono ai dettagli solo dopo la chiusura. Admin/Dev sono riconosciuti per ruolo, e le soglie accettano solo pesi di ruolo operativi configurati. Test coprono Home, elenco, detail e upload dopo scadenza; suite attività 19/19. Nessuna migrazione richiesta.
+
 ## Correzioni Rubrica Agente e situazione contabile (2026-10-20)
 
 - Rubrica agente: un solo pulsante “Aggiungi contatto” crea contatto e numero e consente di associarlo a uno o più clienti già assegnati. La finestra nativa ad alto contrasto sostituisce il dialog Bootstrap per evitare problemi di interazione e stacking. Il contatto è condiviso con la rubrica aziendale; l’API verifica l’assegnazione di tutti i clienti selezionati. Nessuna migrazione richiesta.

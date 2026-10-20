@@ -32,6 +32,7 @@ body.activity-modal-open .modal-backdrop.show { z-index: 12100 !important; }
 .activity-photo p { margin: .3em 0; }
 .activity-photo-form { display: grid; gap: .5em; padding: .8em; border: 1px solid var(--ld-brand-primary); border-radius: var(--ld-radius); }
 .activity-photo-form input[type="file"] { max-width: 100%; min-width: 0; width: 100%; }
+.activity-photo-form input[type="file"].visually-hidden { width: 1px; max-width: 1px; }
 .activity-history { padding-left: 1.2em; }
 .activity-history li { margin: .7em 0; white-space: pre-line; }
 .activity-checkbox { display: flex; align-items: center; gap: .6em; padding: .6em 0; }

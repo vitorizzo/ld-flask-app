@@ -24,6 +24,9 @@ class ActivityTests(unittest.TestCase):
         enqueue_patch.start()
         self.addCleanup(enqueue_patch.stop)
         board.SupplierBoardTests.setUp(self)
+        self.auth.stop()
+        login_manager=LoginManager(self.app)
+        login_manager.user_loader(lambda value:db.session.get(User,int(value)))
         self.app.config['SECRET_KEY']='activity-test-only'
         self.app.register_blueprint(activities_bp,url_prefix='/activities')
         login=LoginManager(self.app)
@@ -31,7 +34,7 @@ class ActivityTests(unittest.TestCase):
         names=[Role,User,UserRole,AppPreference,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto,ActivityResultRole,ActivityResultUser,ActivityAttachment,ActivityResultNotice]
         db.metadata.create_all(db.engine,tables=[model.__table__ for model in names])
         db.session.add_all([Role(id=1,name='Staff',weight=30),Role(id=2,name='Ufficio',weight=40),Role(id=3,name='Altro',weight=30),
-                            Role(id=4,name='Admin',weight=900),Role(id=5,name='Dev',weight=1000),Role(id=6,name='Responsabile',weight=50),Role(id=7,name='Altro ufficio',weight=40)])
+                            Role(id=4,name='Admin',weight=900),Role(id=5,name='Dev',weight=1000),Role(id=6,name='Responsabile',weight=50),Role(id=7,name='Altro ufficio',weight=40),Role(id=10,name='office',weight=40)])
         for user_id,role_id in [(1,4),(2,1),(3,1),(4,3),(5,1),(6,2),(7,5),(8,6),(9,7)]:
             db.session.add(User(id=user_id,name=f'User{user_id}',surname='Test',email=f'test{user_id}@example.invalid',password='test'))
             db.session.add(UserRole(user_id=user_id,role_id=role_id,type='period',valid_from=datetime.now()-timedelta(days=10),valid_until=datetime.now()-timedelta(days=1) if user_id==5 else None))
@@ -39,7 +42,7 @@ class ActivityTests(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory();self.app.instance_path=self.temp.name
         self.login(1)
         response=self.client.post('/supplier-orders/api/board/cards',json={'title':'Scarico Rossi','column_id':1,'reference':'DDT 123'})
-        self.card=response.json['card']
+        self.assertEqual(response.status_code,201,response.json);self.card=response.json['card']
 
     def tearDown(self):
         self.temp.cleanup();board.SupplierBoardTests.tearDown(self)
@@ -129,6 +132,21 @@ class ActivityTests(unittest.TestCase):
         reopened=self.act(done,'reopen','Controllare un altro lotto').json['activity']
         self.assertEqual(self.act(reopened,'complete').status_code,400)
         self.assertEqual(self.client.delete(photo['url'],json={'revision':reopened['revision']}).status_code,400)
+
+    def test_owner_retains_activity_visibility_and_photo_upload_if_role_expires(self):
+        self.arrival();self.login(2);row=next(row for row in self.rows() if row['kind']=='lots')
+        claimed=self.act(row,'claim').json['activity']
+        assignment=UserRole.query.filter_by(user_id=2,role_id=1).one()
+        assignment.valid_until=datetime.now()-timedelta(minutes=1);db.session.commit()
+        self.assertIn(claimed['id'],[item['id'] for item in self.rows()])
+        self.assertIn(claimed['id'],[item['id'] for item in self.client.get('/activities/api/summary').json['rows']])
+        self.assertIn(claimed['id'],[item['id'] for item in self.client.get('/activities/api?status=active').json['rows']])
+        detail=self.client.get(f"/activities/api/{claimed['id']}")
+        self.assertEqual(detail.status_code,200,detail.json)
+        self.assertTrue(detail.json['activity']['can_act'])
+        uploaded=self.upload(claimed)
+        self.assertEqual(uploaded.status_code,201,uploaded.json)
+        self.assertEqual(len(uploaded.json['activity']['photos']),1)
 
     def test_photo_invalid_type_revision_and_remove(self):
         self.arrival();self.login(2);row=next(row for row in self.rows() if row['kind']=='lots')

@@ -1,3 +1,7 @@
+## Invio lotti e visibilità attività (2026-10-20)
+
+- `tools/activities.py` conserva accesso e capacità d’azione per l’owner anche se scade l’assegnazione; i soli destinatari di esito ottengono accesso ai dettagli quando l’attività è chiusa. Home, elenco e upload usano la stessa visibilità. L’area lotti ha un solo flusso foto con etichetta prodotto, mentre gli allegati generici espongono solo documenti. Nessuna migrazione richiesta.
+
 ## Correzioni Rubrica Agente e leggibilità contabile (2026-10-20)
 
 - La rubrica agente offre un solo pulsante “Aggiungi contatto” per creare un contatto telefonico condiviso (`RegistryContact`) e associarlo a uno o più clienti assegnati; l’API verifica l’assegnazione di ciascun cliente. La creazione usa un dialog nativo con campi ad alto contrasto, isolato dallo stacking e dai blocchi di interazione Bootstrap. Il contatto è subito visibile nella rubrica aziendale, senza nuove tabelle o migrazioni.

@@ -21,8 +21,9 @@ def manager(user): return meets_minimum_role(user, "office")
 
 
 def sees_all(user):
-    """Admin (900) and Dev (1000); office management alone grants no visibility."""
-    return meets_minimum_role(user, "dev")
+    """Only the named Admin and Dev roles can see every activity."""
+    return any(str(role.name or '').strip().casefold() in {'admin', 'dev', 'developer'}
+               for role in (user.active_roles or []))
 
 
 def assigned_query(user):
@@ -39,6 +40,7 @@ def assigned_query(user):
             ActivityTargetRole.activity_id == OperationalActivity.id,
             ActivityTargetRole.role_id.in_(ids)).exists() | db.session.query(ActivityTargetUser.activity_id).filter(
             ActivityTargetUser.activity_id == OperationalActivity.id, ActivityTargetUser.user_id == user.id).exists() |
+            (OperationalActivity.owner_id == user.id) |
             (OperationalActivity.target_min_weight.isnot(None) &
              (target_minimum <= (user.max_role_weight or 0))))
     return query
@@ -76,7 +78,8 @@ def lock_family(activity_id):
 def result_access(user):
     return db.session.query(ActivityResultNotice.id).filter(
         ActivityResultNotice.activity_id == OperationalActivity.id,
-        ActivityResultNotice.user_id == user.id, ActivityResultNotice.cycle == OperationalActivity.cycle).exists()
+        ActivityResultNotice.user_id == user.id, ActivityResultNotice.cycle == OperationalActivity.cycle).exists() & \
+        OperationalActivity.status.in_(('completed', 'not_required', 'cancelled'))
 
 
 def activity_query(user, detail=False):
@@ -96,7 +99,7 @@ def actor_name(user): return ' '.join(filter(None,[getattr(user,'name',''),getat
 def activity_data(row, user, detail=False):
     arrival = row.arrival
     active_role_ids = {role.id for role in user.active_roles}
-    executor = sees_all(user) or any(t.role_id in active_role_ids for t in row.targets) or any(t.user_id == user.id for t in row.user_targets) or (row.target_min_weight is not None and (resolve_minimum_weight(row.target_min_weight) or float("inf")) <= (user.max_role_weight or 0))
+    executor = sees_all(user) or row.owner_id == user.id or any(t.role_id in active_role_ids for t in row.targets) or any(t.user_id == user.id for t in row.user_targets) or (row.target_min_weight is not None and (resolve_minimum_weight(row.target_min_weight) or float("inf")) <= (user.max_role_weight or 0))
     editable=can_edit(row,user)
     data = dict(id=row.id,title=row.title,kind=row.kind,status=row.status,revision=row.revision,cycle=row.cycle,
         parent_id=row.parent_id,can_edit=editable,
@@ -153,8 +156,9 @@ def manual_payload(payload):
         if not isinstance(values, list) or len(values) > 200 or any(type(value) is not int for value in values): raise ValueError('Destinatari non validi.')
         targets.append(sorted(set(values)))
     roles, users = targets
+    valid_minimum_weights = {role.weight for role in Role.query.filter(Role.weight >= resolve_minimum_weight("staff")).all()}
     weight = payload.get('target_min_weight')
-    if weight is not None and (type(weight) is not int or weight < (resolve_minimum_weight("staff") or 0)):
+    if weight is not None and (type(weight) is not int or weight not in valid_minimum_weights):
         raise ValueError('Scegli un ruolo minimo operativo uguale o superiore a staff.')
     if not roles and not users and weight is None: raise ValueError('Scegli almeno un utente, ruolo o peso minimo.')
     result = payload.get('result_recipients')
@@ -166,7 +170,7 @@ def manual_payload(payload):
         if not isinstance(values, list) or len(values)>200 or any(type(v) is not int for v in values): raise ValueError('Destinatari esito non validi.')
         normalized[field] = sorted(set(values))
     minimum = result.get('target_min_weight')
-    if minimum is not None and (type(minimum) is not int or minimum < (resolve_minimum_weight("staff") or 0)): raise ValueError('Soglia minima esito non valida.')
+    if minimum is not None and (type(minimum) is not int or minimum not in valid_minimum_weights): raise ValueError('Soglia minima esito non valida.')
     normalized['target_min_weight'] = minimum
     if 'result_recipients' in payload and not normalized['role_ids'] and not normalized['user_ids'] and minimum is None:
         raise ValueError('Scegli almeno un destinatario dell’esito.')
