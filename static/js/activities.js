@@ -15,7 +15,7 @@
    const response=await fetch(url,{credentials:'same-origin',cache:'no-store',...options,signal:controller.signal,headers:{Accept:'application/json','X-Requested-With':'XMLHttpRequest',...(multipart?{}:{'Content-Type':'application/json'}),...(options.headers||{})}});
    const result=await response.json().catch(()=>({}));
    if(response.redirected)throw Error('Sessione scaduta. Accedi di nuovo.');
-   if(!response.ok||result.ok!==true)throw Error(result.error||`Errore ${response.status} durante il caricamento delle attività. Aggiorna e riprova.`);return result;
+   if(!response.ok||result.ok!==true)throw Error(result.error||(response.status===413?'La richiesta supera il limite di caricamento del server. La foto è stata ridotta automaticamente: se l’errore continua, prova uno scatto a risoluzione più bassa.':`Errore ${response.status} durante il caricamento delle attività. Aggiorna e riprova.`));return result;
   } catch(error){if(error.name==='AbortError')throw Error('La richiesta ha impiegato troppo tempo. Aggiorna e riprova.');throw error;}
   finally{clearTimeout(timer);}
  }
@@ -78,13 +78,31 @@
   catch(error){$('activityError').textContent=error.message;}
   finally{setDetailBusy(false);}
  }
+ async function preparePhoto(file) {
+  if(!file.type.startsWith('image/')) throw Error('Il file selezionato non è un’immagine valida.');
+  if(!window.createImageBitmap) return file;
+  let bitmap;
+  try { bitmap=await createImageBitmap(file); } catch { return file; }
+  try {
+   const maxSide=2048,scale=Math.min(1,maxSide/Math.max(bitmap.width,bitmap.height));
+   const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*scale));canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+   const context=canvas.getContext('2d',{alpha:false});context.drawImage(bitmap,0,0,canvas.width,canvas.height);
+   const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/jpeg',0.82));
+   if(!blob) return file;
+   const base=file.name.replace(/\.[^.]+$/,'')||'lotto';
+   return new File([blob],base+'.jpg',{type:'image/jpeg',lastModified:Date.now()});
+  } finally { bitmap.close?.(); }
+ }
  async function upload() {
   if(busy||!activity)return;const file=$('activityPhotoFile').files[0],label=$('activityPhotoLabel').value.trim(),note=$('activityNote')?.value||'';
   if(!file||!label){$('activityError').textContent='Indica il prodotto e scegli una foto.';return;}
-  if(file.size>8*1024*1024){$('activityError').textContent='La foto supera 8 MB.';return;}
-  const body=new FormData();body.set('photo',file);body.set('label',label);body.set('revision',String(activity.revision));setDetailBusy(true);$('activityError').textContent='';
-  try {const result=await api(`/activities/api/${activity.id}/photos`,{method:'POST',body});activity=result.activity;renderDetail(note);await load();}
-  catch(error){$('activityError').textContent=error.message;}
+  setDetailBusy(true);$('activityError').textContent='';
+  try {
+   const photo=await preparePhoto(file);
+   if(photo.size>8*1024*1024){$('activityError').textContent='La foto resta superiore a 8 MB anche dopo la compressione. Riduci la risoluzione e riprova.';return;}
+   const body=new FormData();body.set('photo',photo);body.set('label',label);body.set('revision',String(activity.revision));
+   const result=await api(`/activities/api/${activity.id}/photos`,{method:'POST',body});activity=result.activity;renderDetail(note);await load();
+  } catch(error){$('activityError').textContent=error.message;}
   finally{setDetailBusy(false);}
  }
  $('activityDetail').addEventListener('change',event=>{if(event.target.id==='activityPhotoFile')$('activityPhotoName').textContent=event.target.files[0]?.name||'Nessuna foto selezionata';});
