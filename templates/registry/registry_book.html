@@ -3,8 +3,7 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/ld_modal.css', v=app_version ~ '-standard2') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_contact_modal.css', v=app_version ~ '-shared1') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/registry_contact_modal.css', v=app_version ~ '-shared3') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/registry_tools.css', v=app_version ~ '-book5') }}">
 {% endblock %}
 
@@ -43,7 +42,7 @@
 
 {% if not readonly|default(false) %}{% include 'registry/_contact_modal.html' %}{% endif %}
 {% if agent_customer_assignment|default(false) %}
-<div class="modal fade ld-modal ld-modal-standard" id="agentContactCreateModal" tabindex="-1" aria-labelledby="agentContactCreateTitle" aria-hidden="true" style="--ld-modal-width: 760px;"><div class="modal-dialog modal-dialog-centered"><form class="modal-content" id="agent-contact-create-form"><div class="modal-header"><h2 class="modal-title fs-5" id="agentContactCreateTitle">Aggiungi contatto</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Chiudi"></button></div><div class="modal-body"><div class="mb-3"><label class="form-label" for="agent-contact-name">Nome e cognome *</label><input class="form-control" id="agent-contact-name" maxlength="255" required autocomplete="name"></div><div class="mb-3"><label class="form-label" for="agent-contact-role">Ruolo / riferimento</label><input class="form-control" id="agent-contact-role" maxlength="120" placeholder="Es. Referente ordini"></div><div class="mb-3"><label class="form-label" for="agent-contact-phone">Telefono o cellulare *</label><input class="form-control" id="agent-contact-phone" type="tel" maxlength="255" required autocomplete="tel"></div><div class="mb-2"><label class="form-label" for="agent-contact-customers">Associa ai clienti *</label><select class="form-select" id="agent-contact-customers" multiple size="7" required aria-describedby="agent-contact-customer-help"></select><div class="form-text" id="agent-contact-customer-help">Puoi selezionare più clienti tenendo premuto Ctrl (Windows) o Cmd (Mac).</div></div><div class="small" id="agent-contact-feedback" role="status" aria-live="polite"></div></div><div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annulla</button><button type="submit" class="btn btn-primary" id="agent-contact-save">Salva contatto</button></div></form></div></div>
+<dialog class="agent-contact-dialog" id="agentContactCreateModal" aria-labelledby="agentContactCreateTitle"><form class="agent-contact-dialog__content" id="agent-contact-create-form"><div class="agent-contact-dialog__header"><h2 id="agentContactCreateTitle">Aggiungi contatto</h2><button type="button" class="agent-contact-dialog__close" data-agent-contact-close aria-label="Chiudi">×</button></div><div class="agent-contact-dialog__body"><div class="mb-3"><label class="form-label" for="agent-contact-name">Nome e cognome *</label><input class="form-control" id="agent-contact-name" maxlength="255" required autocomplete="name"></div><div class="mb-3"><label class="form-label" for="agent-contact-role">Ruolo / riferimento</label><input class="form-control" id="agent-contact-role" maxlength="120" placeholder="Es. Referente ordini"></div><div class="mb-3"><label class="form-label" for="agent-contact-phone">Telefono o cellulare *</label><input class="form-control" id="agent-contact-phone" type="tel" maxlength="255" required autocomplete="tel"></div><div class="mb-2"><label class="form-label" for="agent-contact-customers">Associa ai clienti *</label><select class="form-select" id="agent-contact-customers" multiple size="7" required aria-describedby="agent-contact-customer-help"></select><div class="form-text" id="agent-contact-customer-help">Seleziona uno o più clienti. Su computer, usa Ctrl (Windows) o Cmd (Mac) per selezionare più righe.</div></div><div class="small" id="agent-contact-feedback" role="status" aria-live="polite"></div></div><div class="agent-contact-dialog__footer"><button type="button" class="btn btn-outline-secondary" data-agent-contact-close>Annulla</button><button type="submit" class="btn btn-primary" id="agent-contact-save">Salva contatto</button></div></form></dialog>
 {% endif %}
 {% endblock %}
 
@@ -310,13 +309,15 @@
 
   const agentAddContactOpen = document.getElementById("agent-add-contact-open");
   const agentContactModalEl = document.getElementById("agentContactCreateModal");
-  if (agentContactModalEl && agentContactModalEl.parentElement !== document.body) document.body.append(agentContactModalEl);
+
   const agentContactForm = document.getElementById("agent-contact-create-form");
   const agentContactCustomers = document.getElementById("agent-contact-customers");
   const agentContactFeedback = document.getElementById("agent-contact-feedback");
   const agentContactSave = document.getElementById("agent-contact-save");
   if (agentAddContactOpen && agentContactModalEl && agentContactForm) {
-    const agentContactModal = bootstrap.Modal.getOrCreateInstance(agentContactModalEl);
+    const agentContactModal = agentContactModalEl;
+    agentContactModalEl.querySelectorAll("[data-agent-contact-close]").forEach(button => button.addEventListener("click", () => agentContactModal.close()));
+    agentContactModalEl.addEventListener("click", event => { if (event.target === agentContactModalEl) agentContactModal.close(); });
     agentAddContactOpen.addEventListener("click", () => {
       agentContactCustomers.replaceChildren();
       for (const registry of [...registries].sort((a, b) => displayLabel(a).localeCompare(displayLabel(b), "it", { sensitivity: "base" }))) {
@@ -324,7 +325,7 @@
       }
       agentContactFeedback.textContent = "";
       agentContactForm.reset();
-      agentContactModal.show();
+      agentContactModal.showModal();
     });
     agentContactForm.addEventListener("submit", async ev => {
       ev.preventDefault();
@@ -339,7 +340,7 @@
         });
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.error || "Impossibile salvare il contatto.");
-        agentContactModal.hide();
+        agentContactModal.close();
         await loadData();
       } catch (error) {
         agentContactFeedback.textContent = error.message || "Impossibile salvare il contatto.";

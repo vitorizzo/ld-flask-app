@@ -1,6 +1,6 @@
 ## Correzioni Rubrica Agente e situazione contabile (2026-10-20)
 
-- Rubrica agente: un solo pulsante “Aggiungi contatto” crea contatto e numero e consente di associarlo a uno o più clienti già assegnati. Il contatto è condiviso con la rubrica aziendale; l’API verifica l’assegnazione di tutti i clienti selezionati. Nessuna migrazione richiesta.
+- Rubrica agente: un solo pulsante “Aggiungi contatto” crea contatto e numero e consente di associarlo a uno o più clienti già assegnati. La finestra nativa ad alto contrasto sostituisce il dialog Bootstrap per evitare problemi di interazione e stacking. Il contatto è condiviso con la rubrica aziendale; l’API verifica l’assegnazione di tutti i clienti selezionati. Nessuna migrazione richiesta.
 - Allineate situazione clienti e scheda contabile al CSS/theme engine condiviso; tabelle leggibili su mobile tramite etichette di cella.
 
 ## Associazioni Agenti-Clienti (2026-10-20)
