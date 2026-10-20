@@ -2154,3 +2154,9 @@ Stato: modulo Agenda/Cassa operativo con CRUD principali attivi, versamenti ed e
 - Home agente: link rapidi a Listino prezzi, Situazione clienti agente e Rubrica clienti agente. `tools/product_pricing.py` abilita solo listino Horeca (`prezzo1`) e Enoteca (`prezzo3`); la scelta usa `User.listino_prezzo` e non espone il costo. Elenco in `routes/search.py`.
 - `tools/agent_customer_access.py` centralizza i controlli su assegnazioni singole e zone. `routes/agent_portal.py` espone elenco saldi, partite aperte e rubrica contatti in sola lettura; dati, dettagli contabili e foto restano limitati ai clienti assegnati. `templates/agent_portal/` ospita le viste. Nessuna nuova tabella/migrazione, dipende da `z3e4f5a6b7c8`.
 - Test in `tests/test_agent_portal.py`, insieme a `tests/test_warehouse_price_filters.py`; eseguire `python -m unittest tests.test_warehouse_price_filters tests.test_agent_customer_assignments tests.test_agent_portal`.
+
+## Interfaccia agente: listino, credito e rubrica (2026-10-20)
+
+- Elenco prodotti: selettore Tabella/Catalogo persistito nel browser; API include immagine locale e la vista catalogo mostra prezzi autorizzati, aliquota e giacenze. Placeholder IVA corretti; formato esplicito distingue importi zero dai valori assenti.
+- Situazione agente: aggrega i movimenti contabili assegnati per `registry_id` e codice cliente, mostra anche saldi negativi/zero, calcola scoperto positivo complessivo e consente ricerca per nome/codice/città più filtro scoperti; il nome cliente apre sempre la scheda, anche vuota.
+- Rubrica agente: ricerca anagrafiche clienti attive aziendali e aggiunta a `AgentCustomer`; i dati restano nell’anagrafica aziendale condivisa e si rendono disponibili nella vista agente senza duplicazione. Route/API in `routes/agent_portal.py`, UI nella rubrica standard. Nessuna nuova migrazione. Test in `tests/test_agent_portal.py` e `tests/test_warehouse_price_filters.py`.

@@ -98,7 +98,7 @@ class AgentPortalTests(unittest.TestCase):
                     "name": item["registry"].display_name,
                     "balance": str(item["balance"]),
                     "movement_count": item["movement_count"],
-                } for item in context["customers"]])
+                } for item in context["customers"]], total_exposure=str(context["total_exposure"]))
             if template_name == "agent_portal/customer_credit_detail.html":
                 return jsonify(
                     code=context["registry"].source_code,
@@ -122,6 +122,35 @@ class AgentPortalTests(unittest.TestCase):
         self.assertEqual({row["code"] for row in response.json["customers"]}, {"A1", "B1"})
         balances = {row["code"]: row["balance"] for row in response.json["customers"]}
         self.assertEqual(balances, {"A1": "50.00", "B1": "-10.00"})
+        self.assertEqual(response.json["total_exposure"], "50.00")
+
+    def test_credit_search_and_outstanding_filter_include_city_and_total(self):
+        response = self.client.get("/agent/customers?q=zona&outstanding=1")
+        self.assertEqual(response.status_code, 200, response.json)
+        self.assertEqual([row["code"] for row in response.json["customers"]], ["A1"])
+        self.assertEqual(response.json["total_exposure"], "50.00")
+
+    def test_agent_can_add_existing_company_customer_to_personal_registry(self):
+        response = self.client.get("/agent/api/customer-search?q=non assegnato")
+        self.assertEqual(response.status_code, 200, response.json)
+        match = next(item for item in response.json["customers"] if item["code"] == "C1")
+        response = self.client.post("/agent/api/customers", json={"registry_id": match["id"]})
+        self.assertEqual(response.status_code, 200, response.json)
+        self.assertFalse(response.json["already_assigned"])
+        response = self.client.post("/agent/api/customers", json={"registry_id": match["id"]})
+        self.assertTrue(response.json["already_assigned"])
+        self.assertEqual(AgentCustomer.query.filter_by(user_id=self.agent_id, registry_id=match["id"]).count(), 1)
+        empty_customer = BusinessRegistry(
+            kind="customer", source="teamsystem", source_code="D1", display_name="Cliente senza movimenti",
+            zone_code="Z3", zone_description="Zona Tre", is_active=True,
+        )
+        db.session.add(empty_customer)
+        db.session.flush()
+        db.session.add(AgentCustomer(user_id=self.agent_id, registry_id=empty_customer.id))
+        db.session.commit()
+        response = self.client.get("/agent/customers/D1")
+        self.assertEqual(response.status_code, 200, response.json)
+        self.assertEqual(response.json["visible_entries"], 0)
 
     def test_detail_opens_assigned_customer_and_rejects_unassigned_customer(self):
         response = self.client.get("/agent/customers/B1")

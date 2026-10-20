@@ -6,7 +6,7 @@ from flask_login import LoginManager
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
 from extensions import db
-from models import Articoli, FunctionAccessPolicy, Giacenza, Role
+from models import Articoli, FunctionAccessPolicy, Giacenza, Immagini, Role
 from routes.search import search_bp
 from tools.product_pricing import selectable_price_lists, visible_product_price
 
@@ -31,7 +31,7 @@ class WarehousePriceFilterTests(unittest.TestCase):
         default=Articoli.__table__.c.id_art.server_default
         try:
             Articoli.__table__.c.id_art.server_default=None
-            db.metadata.create_all(db.engine,tables=[Role.__table__,FunctionAccessPolicy.__table__,Articoli.__table__,Giacenza.__table__])
+            db.metadata.create_all(db.engine,tables=[Role.__table__,FunctionAccessPolicy.__table__,Articoli.__table__,Giacenza.__table__,Immagini.__table__])
         finally:Articoli.__table__.c.id_art.server_default=default
         db.session.add_all([Role(name='agente',weight=30),Role(name='staff',weight=40),Role(name='office',weight=40)])
         db.session.commit()
@@ -54,7 +54,12 @@ class WarehousePriceFilterTests(unittest.TestCase):
         return [row['cod_art'] for row in response.json['prodotti']]
 
     def test_bounds_inclusive_fallback_zero_and_missing_price(self):
-        self.assertEqual(self.codes(),['A','B','C','D','E'])
+        response = self.get()
+        self.assertEqual(response.status_code, 200, response.json)
+        self.assertEqual([row['cod_art'] for row in response.json['prodotti']],['A','B','C','D','E'])
+        zero_product = next(row for row in response.json['prodotti'] if row['cod_art'] == 'A')
+        self.assertEqual(zero_product['prezzi']['prezzo3']['formatted'], '€. 0,000')
+        self.assertTrue(zero_product['image_url'].endswith('/images/no_image.png'))
         self.assertEqual(self.codes(price_min='10,5',price_max='20'),['B','C','D'])
         self.assertEqual(self.codes(price_min='0',price_max='0'),['A'])
         self.assertEqual(self.codes(price_min='15'),['C','D'])

@@ -6,6 +6,11 @@
   .warehouse-page { max-width: 1600px; margin: 0 auto; }
   .warehouse-page .table-wrap { overflow-x: auto; }
   .warehouse-page table { min-width: 980px; }
+  .warehouse-catalog { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1rem; }
+  .warehouse-product-card { overflow: hidden; cursor: pointer; transition: transform .12s ease, box-shadow .12s ease; }
+  .warehouse-product-card:hover { transform: translateY(-2px); box-shadow: 0 .5rem 1.25rem rgba(0,0,0,.14); }
+  .warehouse-product-card__image { width: 100%; height: 190px; object-fit: contain; background: #fff; padding: .75rem; }
+  .warehouse-product-card__price { font-size: 1.2rem; font-weight: 700; }
   .warehouse-page th { white-space: nowrap; }
   .warehouse-page tbody tr { cursor: pointer; }
   .warehouse-page tbody tr:focus { outline: 2px solid var(--bs-primary); outline-offset: -2px; }
@@ -104,7 +109,7 @@
         <h1 class="h3 mb-1">Elenco prodotti</h1>
         <p class="text-muted mb-0">Ricerca di magazzino con giacenze, prezzi e aliquota IVA.</p>
       </div>
-      <span class="badge text-bg-secondary align-self-center" id="warehouse-total">0 prodotti</span>
+      <div class="d-flex flex-wrap align-items-center gap-2"><div class="btn-group" role="group" aria-label="Visualizzazione prodotti"><button class="btn btn-outline-primary active" id="warehouse-view-table" type="button" aria-pressed="true">Tabella</button><button class="btn btn-outline-primary" id="warehouse-view-catalog" type="button" aria-pressed="false">Catalogo</button></div><span class="badge text-bg-secondary" id="warehouse-total">0 prodotti</span></div>
     </div>
 
     <form id="warehouse-filters" class="filters p-3 mb-3">
@@ -151,6 +156,7 @@
         <tbody id="warehouse-body"></tbody>
       </table>
     </div>
+    <div id="warehouse-catalog" class="warehouse-catalog" hidden></div>
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
       <small class="text-muted" id="warehouse-page-info"></small>
       <div class="btn-group" role="group" aria-label="Paginazione">
@@ -173,12 +179,28 @@
   const priceMax = document.getElementById('warehouse-price-max');
   const head = document.getElementById('warehouse-head');
   const body = document.getElementById('warehouse-body');
+  const tableWrap = document.querySelector('.warehouse-page .table-wrap');
+  const catalog = document.getElementById('warehouse-catalog');
+  const tableViewBtn = document.getElementById('warehouse-view-table');
+  const catalogViewBtn = document.getElementById('warehouse-view-catalog');
   const feedback = document.getElementById('warehouse-feedback');
   const total = document.getElementById('warehouse-total');
   const pageInfo = document.getElementById('warehouse-page-info');
   let page = 1;
   let timer;
   let requestId = 0;
+  let viewMode = localStorage.getItem('warehouse-product-view') === 'catalog' ? 'catalog' : 'table';
+
+  function setViewMode(mode) {
+    viewMode = mode;
+    localStorage.setItem('warehouse-product-view', mode);
+    tableWrap.hidden = mode !== 'table';
+    catalog.hidden = mode !== 'catalog';
+    tableViewBtn.classList.toggle('active', mode === 'table');
+    catalogViewBtn.classList.toggle('active', mode === 'catalog');
+    tableViewBtn.setAttribute('aria-pressed', String(mode === 'table'));
+    catalogViewBtn.setAttribute('aria-pressed', String(mode === 'catalog'));
+  }
 
   const esc = (value) => String(value ?? '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   const showError = (message) => { feedback.textContent = message; feedback.className = 'alert alert-danger'; };
@@ -207,15 +229,25 @@
         if (currentRequest !== requestId) return;
         const columns = data.price_columns || [];
         const labels = data.price_labels || {};
+        const displayPrice = value => value !== null && value !== undefined && value !== '' ? esc(value) : '—';
+        catalog.innerHTML = (data.prodotti || []).map(product => {
+          const description = [product.descrizione, product.descrizione_aggiuntiva].filter(Boolean).join(' / ');
+          const price = product.prezzi?.[priceList.value] || {};
+          const allPrices = columns.map(key => `<div class="d-flex justify-content-between gap-2 small"><span>${esc(labels[key] || key)}</span><strong>${displayPrice(product.prezzi?.[key]?.formatted)}</strong></div>`).join('');
+          return `<article class="card warehouse-product-card" tabindex="0" data-href="${esc('{{ url_for('search.scheda_articolo', cod_art='__CODE__') }}'.replace('__CODE__', encodeURIComponent(product.cod_art)))}"><img class="warehouse-product-card__image" src="${esc(product.image_url)}" alt="${esc(description || product.cod_art)}" loading="lazy"><div class="card-body"><div class="small text-muted">${esc(product.cod_art)}</div><h2 class="h6 mt-1">${esc(description)}</h2><div class="warehouse-product-card__price mb-2">${displayPrice(price.formatted)}</div><div class="border-top pt-2">${allPrices}</div><div class="small text-muted mt-2">IVA ${product.aliquota_iva == null ? '—' : `${Number(product.aliquota_iva).toLocaleString('it-IT', {minimumFractionDigits: 0, maximumFractionDigits: 3})}%`} · Negozio ${esc(product.giacenza_negozio)} · Online ${esc(product.giacenza_online)}</div></div></article>`;
+        }).join('');
+        catalog.querySelectorAll('[data-href]').forEach(card => {
+          const open = () => { window.location.href = card.dataset.href; };
+          card.addEventListener('click', open);
+          card.addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); open(); } });
+        });
         head.innerHTML = '<th>Codice</th><th>Descrizione</th><th class="text-end">Negozio</th><th class="text-end">Online</th>' +
           columns.map(key => `<th class="text-end">${esc(labels[key] || key)}</th>`).join('') + '<th class="text-end">IVA</th>';
         body.innerHTML = (data.prodotti || []).map(product => {
           const description = [product.descrizione, product.descrizione_aggiuntiva].filter(Boolean).join(' / ');
-          const prices = columns.map(key => `<td class="text-end text-nowrap">${esc((product.prezzi[key] || {}).formatted || 'â€”')}` +
-            ((key === 'prezzo1' && product.prezzi[key] && product.prezzi[key].iva_compresa) ? `<br><small class="text-muted">IVA comp. ${esc(product.prezzi[key].iva_compresa)}</small>` : '') + '</td>').join('');
-          const iva = product.aliquota_iva == null ? 'â€”' : `${Number(product.aliquota_iva).toLocaleString('it-IT', {minimumFractionDigits: 0, maximumFractionDigits: 3})}%`;
-          const priceCells = columns.map(key => `<td class="text-end text-nowrap" data-label="${esc(labels[key] || key)}">${esc((product.prezzi[key] || {}).formatted || 'â€”')}` +
-            ((key === 'prezzo1' && product.prezzi[key] && product.prezzi[key].iva_compresa) ? `<br><small class="text-muted">IVA comp. ${esc(product.prezzi[key].iva_compresa)}</small>` : '') + '</td>').join('');
+          const iva = product.aliquota_iva == null ? '—' : `${Number(product.aliquota_iva).toLocaleString('it-IT', {minimumFractionDigits: 0, maximumFractionDigits: 3})}%`;
+          const priceCells = columns.map(key => `<td class="text-end text-nowrap" data-label="${esc(labels[key] || key)}">${displayPrice(product.prezzi?.[key]?.formatted)}` +
+            ((key === 'prezzo1' && product.prezzi?.[key]?.iva_compresa != null) ? `<br><small class="text-muted">IVA comp. ${displayPrice(product.prezzi[key].iva_compresa)}</small>` : '') + '</td>').join('');
           return `<tr tabindex="0" data-href="${esc('{{ url_for('search.scheda_articolo', cod_art='__CODE__') }}'.replace('__CODE__', encodeURIComponent(product.cod_art)))}"><td class="text-nowrap" data-label="Codice">${esc(product.cod_art)}</td><td class="description" data-label="Descrizione">${esc(description)}</td><td class="text-end" data-label="Giacenza negozio">${esc(product.giacenza_negozio)}</td><td class="text-end" data-label="Giacenza online">${esc(product.giacenza_online)}</td>${priceCells}<td class="text-end" data-label="IVA">${esc(iva)}</td></tr>`;
         }).join('');
         total.textContent = `${data.totale_prodotti || 0} prodotti`;
@@ -231,12 +263,15 @@
       .catch(error => { if (currentRequest === requestId) showError(error.message || 'Impossibile caricare i prodotti.'); });
   }
   form.addEventListener('submit', event => { event.preventDefault(); page = 1; load(); });
+  tableViewBtn.addEventListener('click', () => setViewMode('table'));
+  catalogViewBtn.addEventListener('click', () => setViewMode('catalog'));
   stock.addEventListener('change', () => { page = 1; load(); });
   priceList.addEventListener('change', () => { page = 1; load(); });
   document.getElementById('warehouse-reset').addEventListener('click', () => { filter.value = ''; stock.value = 'all'; priceMin.value = ''; priceMax.value = ''; priceList.value = priceList.dataset.default; page = 1; load(); });
   document.getElementById('warehouse-prev').addEventListener('click', () => { if (page > 1) { page--; load(); } });
   document.getElementById('warehouse-next').addEventListener('click', () => { page++; load(); });
   [filter, priceMin, priceMax].forEach(input => input.addEventListener('input', () => { requestId++; clearTimeout(timer); timer = setTimeout(() => { page = 1; load(); }, 350); }));
+  setViewMode(viewMode);
   load();
 })();
 </script>

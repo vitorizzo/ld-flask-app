@@ -3861,3 +3861,10 @@ Performance apertura giornata Agenda 2026-06-13:
 - Implementate le tre funzioni annotate: switch listino Horeca/Enoteca; riepilogo contabile dei clienti assegnati con apertura delle partite aperte; rubrica contatti limitata agli stessi clienti, in sola lettura.
 - L'ambito è applicato lato server anche a URL/API e foto dei contatti. Sono incluse assegnazioni individuali e per zona. I tre collegamenti sono disponibili nella Home degli utenti Agente.
 - Test mirati: 12 passati (`test_warehouse_price_filters`, `test_agent_customer_assignments`, `test_agent_portal`). Nessuna migrazione nuova; per gli ambienti va già applicata `z3e4f5a6b7c8_agent_customer_assignments`.
+
+## Migliorie portale agente (2026-10-20)
+
+- Listino prodotti con passaggio Tabella/Catalogo e immagini, valori zero distinti dai mancanti; placeholder danneggiati in IVA e prezzi sostituiti con trattino corretto.
+- Situazione clienti allineata all’aggregazione contabile per cliente/codice e `registry_id`, inclusi saldi negativi; totale scoperto, ricerca nome/codice/città, filtro solo saldi positivi e accesso diretto alla scheda cliente.
+- Rubrica agente: ricerca e assegnazione di anagrafiche esistenti della rubrica aziendale al singolo agente, poi condivise in entrambe le viste; validazione server-side e protezione duplicati. Nessuna nuova migrazione.
+- Verificati 14 test mirati, parsing Jinja/JavaScript e registrazione route app factory.

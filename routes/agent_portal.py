@@ -1,4 +1,5 @@
 from decimal import Decimal
+from types import SimpleNamespace
 
 from flask import Blueprint, abort, jsonify, render_template, request, send_file, url_for
 from flask_login import current_user, login_required
@@ -7,6 +8,7 @@ from sqlalchemy.orm import raiseload, selectinload
 
 from extensions import db
 from models import (
+    AgentCustomer,
     BusinessRegistry,
     BusinessRegistryContact,
     BusinessRegistryContactLink,
@@ -44,42 +46,53 @@ def customer_credit_index():
         BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc()
     ).all()
     balances_by_code = {}
+    balances_by_registry = {}
     if current_import and registries:
-        registry_ids = [registry.id for registry in registries]
-        source_codes = list({registry.source_code for registry in registries if registry.source_code})
-        filters = []
-        if registry_ids:
-            filters.append(CustomerAccountEntry.registry_id.in_(registry_ids))
-        if source_codes:
-            filters.append(CustomerAccountEntry.source_customer_code.in_(source_codes))
-        account_rows = (
-            db.session.query(
-                CustomerAccountEntry.source_customer_code,
-                func.max(CustomerAccountEntry.customer_name).label("customer_name"),
-                func.sum(CustomerAccountEntry.signed_amount).label("balance"),
-                func.count(CustomerAccountEntry.id).label("movement_count"),
-            )
-            .filter(
-                CustomerAccountEntry.import_id == current_import.id,
-                CustomerAccountEntry.is_balance_relevant.is_(True),
-                or_(*filters),
-            )
-            .group_by(CustomerAccountEntry.source_customer_code)
-            .all()
-        )
+        assigned_ids = {registry.id for registry in registries}
+        assigned_codes = {registry.source_code for registry in registries if registry.source_code}
+        filters = [CustomerAccountEntry.registry_id.in_(assigned_ids)]
+        if assigned_codes:
+            filters.append(CustomerAccountEntry.source_customer_code.in_(assigned_codes))
+        account_rows = db.session.query(
+            CustomerAccountEntry.source_customer_code.label("source_customer_code"),
+            func.max(CustomerAccountEntry.registry_id).label("registry_id"),
+            func.sum(CustomerAccountEntry.signed_amount).label("balance"),
+            func.count(CustomerAccountEntry.id).label("movement_count"),
+        ).filter(
+            CustomerAccountEntry.import_id == current_import.id,
+            CustomerAccountEntry.is_balance_relevant.is_(True),
+            or_(*filters),
+        ).group_by(CustomerAccountEntry.source_customer_code).all()
         balances_by_code = {row.source_customer_code: row for row in account_rows}
+        balances_by_registry = {row.registry_id: row for row in account_rows}
     customers = []
     for registry in registries:
-        account = balances_by_code.get(registry.source_code)
+        account = balances_by_registry.get(registry.id) or balances_by_code.get(registry.source_code)
         customers.append({
             "registry": registry,
             "balance": Decimal(str(account.balance or 0)) if account else Decimal("0"),
             "movement_count": int(account.movement_count or 0) if account else 0,
         })
+    customers.sort(key=lambda item: (item["registry"].display_name or item["registry"].legal_name or "").casefold())
+    total_exposure = sum((item["balance"] for item in customers if item["balance"] > 0), Decimal("0"))
+    search = (request.args.get("q") or "").strip()
+    only_outstanding = request.args.get("outstanding") == "1"
+    if search:
+        folded = search.casefold()
+        customers = [item for item in customers if any(
+            folded in str(value or "").casefold()
+            for value in (item["registry"].display_name, item["registry"].legal_name,
+                          item["registry"].source_code, item["registry"].city)
+        )]
+    if only_outstanding:
+        customers = [item for item in customers if item["balance"] > 0]
     return render_template(
         "agent_portal/customer_credit.html",
         current_import=current_import,
         customers=customers,
+        total_exposure=total_exposure,
+        search=search,
+        only_outstanding=only_outstanding,
     )
 
 
@@ -95,11 +108,11 @@ def customer_credit_detail(source_customer_code):
         abort(404)
     base_query = CustomerAccountEntry.query.filter_by(
         import_id=current_import.id,
-        source_customer_code=source_customer_code,
-    )
+    ).filter(or_(
+        CustomerAccountEntry.registry_id == registry.id,
+        CustomerAccountEntry.source_customer_code == source_customer_code,
+    ))
     all_entries = base_query.order_by(CustomerAccountEntry.row_number.asc()).all()
-    if not all_entries:
-        abort(404)
     visible_ids = [entry.id for entry in open_account_entries(all_entries)]
     entries = base_query.filter(CustomerAccountEntry.id.in_(visible_ids)).order_by(
         CustomerAccountEntry.document_date.desc().nullslast(),
@@ -111,14 +124,18 @@ def customer_credit_detail(source_customer_code):
         func.sum(CustomerAccountEntry.signed_amount).label("balance"),
     ).filter(
         CustomerAccountEntry.import_id == current_import.id,
-        CustomerAccountEntry.source_customer_code == source_customer_code,
+        or_(CustomerAccountEntry.registry_id == registry.id,
+            CustomerAccountEntry.source_customer_code == source_customer_code),
         CustomerAccountEntry.is_balance_relevant.is_(True),
     ).one()
     return render_template(
         "agent_portal/customer_credit_detail.html",
         current_import=current_import,
         registry=registry,
-        customer=all_entries[0],
+        customer=all_entries[0] if all_entries else SimpleNamespace(
+            customer_name=registry.display_name or registry.legal_name,
+            source_customer_code=source_customer_code,
+        ),
         entries=entries,
         totals=totals,
         back_url=url_for("agent_portal.customer_credit_index"),
@@ -134,8 +151,63 @@ def customer_contacts():
         kind="customer",
         title="Rubrica clienti agente",
         readonly=True,
+        agent_customer_assignment=True,
         agent_api_url=url_for("agent_portal.customer_contacts_data"),
     )
+
+
+@agent_portal_bp.get("/api/customer-search")
+@login_required
+def search_company_customers_for_agent():
+    _require_agent()
+    search = (request.args.get("q") or "").strip()
+    if len(search) < 2:
+        return jsonify(ok=True, customers=[])
+    pattern = f"%{search}%"
+    assigned_ids = agent_customer_registry_query(current_user).with_entities(BusinessRegistry.id)
+    rows = BusinessRegistry.query.options(raiseload("*")).filter(
+        BusinessRegistry.kind == "customer",
+        BusinessRegistry.is_active.is_(True),
+        or_(
+            BusinessRegistry.display_name.ilike(pattern),
+            BusinessRegistry.legal_name.ilike(pattern),
+            BusinessRegistry.source_code.ilike(pattern),
+            BusinessRegistry.city.ilike(pattern),
+        ),
+        ~BusinessRegistry.id.in_(assigned_ids),
+    ).order_by(BusinessRegistry.display_name.asc(), BusinessRegistry.id.asc()).limit(30).all()
+    return jsonify(ok=True, customers=[{
+        "id": item.id,
+        "code": item.source_code,
+        "name": item.display_name or item.legal_name or item.source_code,
+        "city": item.city,
+    } for item in rows])
+
+
+@agent_portal_bp.post("/api/customers")
+@login_required
+def add_company_customer_to_agent():
+    _require_agent()
+    data = request.get_json(silent=True) or {}
+    try:
+        registry_id = int(data.get("registry_id"))
+    except (TypeError, ValueError):
+        return jsonify(ok=False, error="Cliente non valido"), 400
+    registry = BusinessRegistry.query.options(raiseload("*")).filter_by(
+        id=registry_id, kind="customer", is_active=True
+    ).first_or_404()
+    customer_data = {
+        "id": registry.id,
+        "code": registry.source_code,
+        "name": registry.display_name or registry.legal_name or registry.source_code,
+    }
+    if agent_customer_registry_query(current_user).options(raiseload("*")).filter(BusinessRegistry.id == registry.id).first():
+        return jsonify(ok=True, already_assigned=True, customer={"id": registry.id})
+    db.session.add(AgentCustomer(user_id=current_user.id, registry_id=registry.id))
+    db.session.commit()
+    return jsonify(ok=True, already_assigned=False, customer={
+        **customer_data,
+    })
 
 
 @agent_portal_bp.get("/api/contacts")

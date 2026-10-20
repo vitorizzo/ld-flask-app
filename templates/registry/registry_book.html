@@ -22,6 +22,7 @@
         <button class="btn btn-outline-secondary" type="button" id="registryResetBtn">Tutti</button>
       </div>
     </div>
+    {% if agent_customer_assignment|default(false) %}<form id="agent-add-customer-form" class="card border-0 shadow-sm p-3 mb-3"><label for="agent-company-customer-search" class="form-label fw-semibold">Aggiungi un cliente dalla rubrica aziendale</label><div class="input-group"><input id="agent-company-customer-search" class="form-control" type="search" minlength="2" autocomplete="off" placeholder="Nome, codice o città"><button class="btn btn-outline-primary" type="submit">Cerca</button></div><div class="d-flex gap-2 mt-2"><select id="agent-company-customer-results" class="form-select" aria-label="Clienti aziendali trovati" disabled><option value="">Cerca almeno 2 caratteri</option></select><button id="agent-add-customer-button" class="btn btn-primary text-nowrap" type="button" disabled>Aggiungi alla mia rubrica</button></div><div id="agent-add-customer-feedback" class="small mt-2" role="status" aria-live="polite"></div><div class="form-text">Il cliente è già nell’anagrafica aziendale: aggiungendolo sarà visibile anche nella rubrica agente.</div></form>{% endif %}
 
     <div class="registry-book-layout flex-grow-1 min-h-0 d-flex gap-3">
       <div class="registry-book-main flex-grow-1 min-h-0">
@@ -302,6 +303,51 @@
   loadData().catch(err => {
     listEl.innerHTML = `<div class="alert alert-danger mb-0">${esc(err.message)}</div>`;
   });
+
+  const agentAddForm = document.getElementById("agent-add-customer-form");
+  if (agentAddForm) {
+    const customerSearch = document.getElementById("agent-company-customer-search");
+    const customerResults = document.getElementById("agent-company-customer-results");
+    const addCustomer = document.getElementById("agent-add-customer-button");
+    const feedback = document.getElementById("agent-add-customer-feedback");
+    agentAddForm.addEventListener("submit", async ev => {
+      ev.preventDefault();
+      const q = customerSearch.value.trim();
+      if (q.length < 2) { feedback.textContent = "Inserisci almeno 2 caratteri."; return; }
+      feedback.textContent = "Ricerca clienti aziendali…";
+      try {
+        const response = await fetch(`/agent/api/customer-search?q=${encodeURIComponent(q)}`, { credentials: "same-origin" });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || "Errore di ricerca");
+        customerResults.replaceChildren(new Option(data.customers.length ? "Seleziona un cliente" : "Nessun cliente disponibile", ""));
+        for (const customer of data.customers) {
+          customerResults.add(new Option(`${customer.name} · ${customer.code}${customer.city ? ` · ${customer.city}` : ""}`, customer.id));
+        }
+        customerResults.disabled = !data.customers.length;
+        addCustomer.disabled = !data.customers.length;
+        feedback.textContent = data.customers.length ? `${data.customers.length} clienti trovati.` : "Nessun cliente non ancora assegnato trovato.";
+      } catch (error) { feedback.textContent = error.message || "Errore di ricerca."; }
+    });
+    customerResults.addEventListener("change", () => { addCustomer.disabled = !customerResults.value; });
+    addCustomer.addEventListener("click", async () => {
+      if (!customerResults.value) return;
+      addCustomer.disabled = true;
+      feedback.textContent = "Aggiunta in corso…";
+      try {
+        const response = await fetch("/agent/api/customers", {
+          method: "POST", credentials: "same-origin", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ registry_id: Number(customerResults.value) }),
+        });
+        const data = await response.json();
+        if (!response.ok || !data.ok) throw new Error(data.error || "Impossibile aggiungere il cliente.");
+        feedback.textContent = data.already_assigned ? "Il cliente è già nella tua rubrica." : "Cliente aggiunto alla tua rubrica.";
+        customerSearch.value = "";
+        customerResults.replaceChildren(new Option("Cerca altri clienti", ""));
+        customerResults.disabled = true;
+        await loadData();
+      } catch (error) { feedback.textContent = error.message || "Impossibile aggiungere il cliente."; addCustomer.disabled = false; }
+    });
+  }
 })();
 </script>
 {% endblock %}

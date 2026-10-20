@@ -2260,6 +2260,12 @@ def elenco_prodotti_dati():
         Articoli.cod_art.asc(),
     ).paginate(page=page, per_page=per_page, error_out=False)
 
+    image_by_code = {}
+    page_codes = [article.cod_art for article in paginated.items]
+    if page_codes:
+        for image in Immagini.query.filter(Immagini.cod_art.in_(page_codes)).order_by(Immagini.file_img.asc()).all():
+            image_by_code.setdefault(image.cod_art, image)
+
     products = []
     for article in paginated.items:
         stock = Giacenza.query.filter_by(cod_art=article.cod_art).first()
@@ -2279,6 +2285,11 @@ def elenco_prodotti_dati():
             'cod_art': article.cod_art,
             'descrizione': article.descrizione or '',
             'descrizione_aggiuntiva': article.descrizione_aggiuntiva or '',
+            'image_url': url_for(
+                'static',
+                filename=f'images/products/{image_by_code[article.cod_art].file_img}'
+                if article.cod_art in image_by_code else 'images/no_image.png',
+            ),
             'giacenza_negozio': stock.giac_neg if stock else 0,
             'giacenza_online': stock.giac_www if stock else 0,
             'aliquota_iva': float(article.aliquota_iva) if article.aliquota_iva is not None else None,
