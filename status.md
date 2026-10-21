@@ -1,3 +1,8 @@
+## Fix target ruolo minimo per le attività (2026-10-21)
+
+- Le soglie delle attività manuali ora conservano l’ID del ruolo scelto, e lista, dettaglio, azioni e notifiche leggono il suo peso corrente. Gli incaricati dei ruoli espliciti mantengono accesso per ruolo; i destinatari dell’esito possono aprire il dettaglio solo quando l’attività è chiusa.
+- Modifica il form attività per inviare il ruolo soglia, non solo il suo peso. Aggiunta migrazione `z4f5a6b7c8d9` per i riferimenti soglia. I record già presenti mantengono il comportamento numerico precedente finché non vengono modificati: il peso storico non identifica con certezza il ruolo selezionato.
+
 ## Accesso ai dettagli delle attività completate (2026-10-21)
 
 - L’endpoint di dettaglio ora usa gli stessi criteri di visibilità della lista e delle notifiche, includendo le attività concluse assegnate all’utente o ai suoi ruoli. Gli incaricati non devono più aprire solo le notifiche per consultare l’esito.

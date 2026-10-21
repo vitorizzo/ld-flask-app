@@ -35,7 +35,7 @@ class TreeTests(unittest.TestCase):
         return response.json['activity']
 
     def edit_body(self,row,**extra):
-        body=dict(title=row['title'],description=row['description'],revision=row['revision'],role_ids=row['role_ids'],user_ids=[u['id'] for u in row['users']],target_min_weight=row['target_min_weight'],result_recipients=dict(role_ids=row['result_recipients']['role_ids'],user_ids=[u['id'] for u in row['result_recipients']['users']],target_min_weight=row['result_recipients']['target_min_weight']))
+        body=dict(title=row['title'],description=row['description'],revision=row['revision'],role_ids=row['role_ids'],user_ids=[u['id'] for u in row['users']],target_min_weight=row['target_min_weight'],target_min_role_id=row.get('target_min_role_id'),result_recipients=dict(role_ids=row['result_recipients']['role_ids'],user_ids=[u['id'] for u in row['result_recipients']['users']],target_min_weight=row['result_recipients']['target_min_weight'],target_min_role_id=row['result_recipients'].get('target_min_role_id')))
         body.update(extra);return body
 
     def test_home_families_and_badge_visibility(self):
@@ -110,15 +110,15 @@ class TreeTests(unittest.TestCase):
 
     def test_edit_open_fields_targets_and_revision_audit(self):
         row=self.create();self.login(6)
-        response=self.client.put(f"/activities/api/{row['id']}",json=self.edit_body(row,title='Reso corretto',description='Verificare dettagli',user_ids=[6],result_recipients=dict(role_ids=[2],target_min_weight=50)))
+        response=self.client.put(f"/activities/api/{row['id']}",json=self.edit_body(row,title='Reso corretto',description='Verificare dettagli',user_ids=[6],result_recipients=dict(role_ids=[2],target_min_role_id=6,target_min_weight=50)))
         self.assertEqual(response.status_code,200,response.json)
         changed=response.json['activity'];self.assertEqual(changed['title'],'Reso corretto')
         self.assertEqual(changed['users'][0]['id'],6);self.assertEqual(changed['result_recipients']['target_min_weight'],50)
         self.assertEqual(OperationalActivity.query.count(),1)
         self.assertEqual(changed['events'][-1]['action'],'updated');self.assertIn('Reso Roviano',changed['events'][-1]['note'])
         self.assertEqual(self.client.put(f"/activities/api/{row['id']}",json=self.edit_body(row,title='Stale')).status_code,409)
-        self.login(2);self.assertEqual(self.detail(row).status_code,200)
-        self.assertFalse(self.detail(row).json['activity']['can_act'])
+        self.login(6);self.assertEqual(self.detail(row).status_code,200)
+        self.assertTrue(self.detail(row).json['activity']['can_act'])
 
     def test_edit_completed_notifies_old_and_new_recipients_without_reopen(self):
         row=self.create();self.login(2);row=self.complete(row);self.login(6)

@@ -72,14 +72,14 @@ class EventTests(unittest.TestCase):
         self.assertEqual({n.user_id for n in self.notices('file_removed')},{2,9})
         self.login(1);self.arrival()
         lots=next(r for r in self.rows() if r['kind']=='lots')
-        self.assertEqual({n.user_id for n in self.notices('created') if n.activity_id==lots['id']},{2,3})
+        self.assertEqual({n.user_id for n in self.notices('created') if n.activity_id==lots['id']},{1,2,3,6,7,8,9})
         self.login(2);photo=self.upload(lots).json['activity']
-        self.assertEqual({n.user_id for n in self.notices('photo_added')},{2,3})
+        self.assertEqual({n.user_id for n in self.notices('photo_added')},{1,2,3,6,7,8,9})
         self.assertEqual(self.client.delete(photo['photos'][0]['url'],json=dict(revision=photo['revision'])).status_code,200)
-        self.assertEqual({n.user_id for n in self.notices('photo_removed')},{2,3})
+        self.assertEqual({n.user_id for n in self.notices('photo_removed')},{1,2,3,6,7,8,9})
         current=self.detail(lots).json['activity']
         self.assertEqual(self.act(current,'not_required','Lotti non necessari').status_code,200)
-        self.assertEqual({n.user_id for n in self.notices('not_required')},{2,3})
+        self.assertEqual({n.user_id for n in self.notices('not_required')},{1,2,3,6,7,8,9})
         self.login(1);current=self.detail(row).json['activity']
         self.assertEqual(self.act(current,'cancel','Annullamento richiesto').status_code,200)
         self.assertEqual({n.user_id for n in self.notices('cancel')},{2,9})
@@ -93,7 +93,7 @@ class EventTests(unittest.TestCase):
         count=ActivityResultNotice.query.count();new=result.json['activity']
         self.client.put(f"/activities/api/{row['id']}",json=self.edit_body(new))
         self.assertEqual(ActivityResultNotice.query.count(),count)
-        self.login(2);self.assertFalse(self.detail(row).json['activity']['can_act'])
+        self.login(2);self.assertEqual(self.detail(row).status_code,404)
 
     def test_reopening_keeps_older_notices_without_access_to_new_cycle(self):
         row=self.complete(self.create(user_ids=[2],result_recipients=dict(user_ids=[6])))

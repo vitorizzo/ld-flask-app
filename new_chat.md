@@ -43,6 +43,10 @@ hai pushato un nuovo commit, oppure
 
 stai lavorando localmente senza push.
 
+Regola generale al termine di ogni modifica
+
+Quando una modifica richiesta è completata e verificata, ChatGPT deve aggiornare i file di stato/mappa pertinenti, creare un commit Git e fare push sul branch main del repository. Il commit deve includere solo i file pertinenti alla modifica, mai artefatti generati accidentalmente (per esempio __pycache__ o file temporanei). Prima del commit eseguire i controlli appropriati e verificare git diff/status; dopo il push verificare che il branch remoto sia aggiornato. Se commit o push falliscono, comunicarlo chiaramente e lasciare il lavoro locale pronto senza dichiarare completata la sincronizzazione.
+
 Quando scrivi “rileggi” significa:
 → ho pushato su main
 → devi ricaricare i file dal repo aggiornato

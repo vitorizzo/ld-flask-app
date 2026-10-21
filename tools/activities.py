@@ -1,7 +1,7 @@
 """Shared operational work, role visibility and supplier-arrival workflows."""
 from datetime import datetime
 from flask import current_app, g, has_request_context
-from sqlalchemy import case, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 from extensions import db
 from tools.role_required import meets_minimum_role, resolve_minimum_weight
@@ -28,23 +28,28 @@ def sees_all(user):
 
 def assigned_query(user):
     query = OperationalActivity.query
-    customer = select(Role.weight).where(func.lower(Role.name) == "customer").scalar_subquery()
-    staff = select(Role.weight).where(func.lower(Role.name) == "staff").scalar_subquery()
-    office = select(Role.weight).where(func.lower(Role.name) == "office").scalar_subquery()
-    admin = select(Role.weight).where(func.lower(Role.name) == "admin").scalar_subquery()
-    dev = select(Role.weight).where(func.lower(Role.name).in_(("dev", "developer"))).order_by(Role.weight).limit(1).scalar_subquery()
-    target_minimum = case((OperationalActivity.target_min_weight <= 20, customer), (OperationalActivity.target_min_weight <= 30, staff), (OperationalActivity.target_min_weight <= 40, office), (OperationalActivity.target_min_weight <= 100, admin), else_=dev)
+    target_minimum = func.coalesce(
+        select(Role.weight).where(Role.id == OperationalActivity.target_min_role_id).scalar_subquery(),
+        OperationalActivity.target_min_weight,
+    )
     if not sees_all(user):
         ids = [role.id for role in user.active_roles]
-        query = query.filter(db.session.query(ActivityTargetRole.activity_id).filter(
-            ActivityTargetRole.activity_id == OperationalActivity.id,
-            ActivityTargetRole.role_id.in_(ids)).exists() | db.session.query(ActivityTargetUser.activity_id).filter(
-            ActivityTargetUser.activity_id == OperationalActivity.id, ActivityTargetUser.user_id == user.id).exists() |
-            (OperationalActivity.owner_id == user.id) |
-            (OperationalActivity.target_min_weight.isnot(None) &
-             (target_minimum <= (user.max_role_weight or 0))))
+        assigned_role = db.session.query(ActivityTargetRole.activity_id).filter(
+            ActivityTargetRole.activity_id == OperationalActivity.id, ActivityTargetRole.role_id.in_(ids)).exists()
+        assigned_user = db.session.query(ActivityTargetUser.activity_id).filter(
+            ActivityTargetUser.activity_id == OperationalActivity.id, ActivityTargetUser.user_id == user.id).exists()
+        result_role = db.session.query(ActivityResultRole.activity_id).filter(
+            ActivityResultRole.activity_id == OperationalActivity.id, ActivityResultRole.role_id.in_(ids)).exists()
+        result_user = db.session.query(ActivityResultUser.activity_id).filter(
+            ActivityResultUser.activity_id == OperationalActivity.id, ActivityResultUser.user_id == user.id).exists()
+        query = query.filter(
+            assigned_role | assigned_user | (OperationalActivity.owner_id == user.id)
+            | (OperationalActivity.status.in_(CLOSED) & (result_role | result_user))
+            | (OperationalActivity.target_min_weight.isnot(None) & (target_minimum <= (user.max_role_weight or 0)))
+            | (OperationalActivity.status.in_(CLOSED) & OperationalActivity.result_min_weight.isnot(None) &
+               (func.coalesce(select(Role.weight).where(Role.id == OperationalActivity.result_min_role_id).scalar_subquery(), OperationalActivity.result_min_weight) <= (user.max_role_weight or 0)) )
+        )
     return query
-
 
 def family_ids(user):
     tree=assigned_query(user).with_entities(OperationalActivity.id).cte(name='readable_family',recursive=True)
@@ -99,18 +104,22 @@ def actor_name(user): return ' '.join(filter(None,[getattr(user,'name',''),getat
 def activity_data(row, user, detail=False):
     arrival = row.arrival
     active_role_ids = {role.id for role in user.active_roles}
-    executor = sees_all(user) or row.owner_id == user.id or any(t.role_id in active_role_ids for t in row.targets) or any(t.user_id == user.id for t in row.user_targets) or (row.target_min_weight is not None and (resolve_minimum_weight(row.target_min_weight) or float("inf")) <= (user.max_role_weight or 0))
+    minimum_role_weight = row.target_min_role.weight if row.target_min_role else row.target_min_weight
+    assigned = row.owner_id == user.id or any(t.role_id in active_role_ids for t in row.targets) or any(t.user_id == user.id for t in row.user_targets)
+    result_weight = row.result_min_role.weight if row.result_min_role else row.result_min_weight
+    result_recipient = any(t.user_id == user.id for t in row.result_users) or any(t.role_id in active_role_ids for t in row.result_roles) or (result_weight is not None and result_weight <= (user.max_role_weight or 0))
+    executor = sees_all(user) or assigned or (row.status in CLOSED and result_recipient) or (minimum_role_weight is not None and minimum_role_weight <= (user.max_role_weight or 0))
     editable=can_edit(row,user)
     data = dict(id=row.id,title=row.title,kind=row.kind,status=row.status,revision=row.revision,cycle=row.cycle,
         parent_id=row.parent_id,can_edit=editable,
         can_create_child=(executor or editable) and row.status in ACTIVE and (not row.owner_id or row.owner_id==user.id or manager(user)),
         description=row.description,users=[dict(id=target.user_id,name=actor_name(target.user)) for target in row.user_targets if target.user],
-        target_min_weight=row.target_min_weight,
-        result_recipients=dict(roles=[t.role.name for t in row.result_roles if t.role], users=[dict(id=t.user_id,name=actor_name(t.user)) for t in row.result_users if t.user], target_min_weight=row.result_min_weight),
+        target_min_weight=(row.target_min_role.weight if row.target_min_role else row.target_min_weight),target_min_role_id=row.target_min_role_id,
+        result_recipients=dict(roles=[t.role.name for t in row.result_roles if t.role], users=[dict(id=t.user_id,name=actor_name(t.user)) for t in row.result_users if t.user], target_min_weight=(row.result_min_role.weight if row.result_min_role else row.result_min_weight),target_min_role_id=row.result_min_role_id),
         owner_id=row.owner_id,owner=actor_name(row.owner) if row.owner_id else None,
         roles=[target.role.name for target in row.targets if target.role], created_at=row.created_at.isoformat(),
         completed_at=row.completed_at.isoformat() if row.completed_at else None,
-        can_manage=editable,can_act=(executor or editable) and (not row.owner_id or row.owner_id==user.id or manager(user)),
+        can_manage=editable,can_act=(sees_all(user) or assigned or (minimum_role_weight is not None and minimum_role_weight <= (user.max_role_weight or 0)) or editable) and row.status in ACTIVE and (not row.owner_id or row.owner_id==user.id or manager(user)),
         source=dict(id=arrival.id,label=arrival.label,reference=arrival.reference,received_on=arrival.received_on.isoformat(),
                     partial=arrival.partial,note=arrival.note,card_id=arrival.card_id) if arrival else None)
     if detail:
@@ -174,7 +183,15 @@ def manual_payload(payload):
     normalized['target_min_weight'] = minimum
     if 'result_recipients' in payload and not normalized['role_ids'] and not normalized['user_ids'] and minimum is None:
         raise ValueError('Scegli almeno un destinatario dell’esito.')
-    return dict(title=title.strip(), description=description.strip(), client_key=key, role_ids=roles, user_ids=users, target_min_weight=weight, result_recipients=normalized)
+    target_role_id=payload.get('target_min_role_id')
+    if target_role_id is not None:
+        target_role=Role.query.filter_by(id=target_role_id).first() if type(target_role_id) is int else None
+        if not target_role or target_role.weight < resolve_minimum_weight('staff'): raise ValueError('Scegli un ruolo minimo operativo uguale o superiore a staff.')
+    result_role_id=result.get('target_min_role_id')
+    if result_role_id is not None:
+        result_role=Role.query.filter_by(id=result_role_id).first() if type(result_role_id) is int else None
+        if not result_role or result_role.weight < resolve_minimum_weight('staff'): raise ValueError('Soglia minima esito non valida.')
+    return dict(title=title.strip(), description=description.strip(), client_key=key, role_ids=roles, user_ids=users, target_min_weight=weight, target_min_role_id=target_role_id, result_recipients={**normalized,'target_min_role_id':result_role_id})
 
 
 def manual_matches(row, payload):
@@ -223,12 +240,14 @@ def supplier_arrival_activity_specs(payload):
 def create_manual(payload, user):
     validate_manual_targets(payload)
     result=payload['result_recipients']
-    row = OperationalActivity(parent_id=payload.get('parent_id'),kind='manual', title=payload['title'], description=payload['description'], client_key=payload['client_key'], target_min_weight=payload['target_min_weight'])
+    target_role=db.session.get(Role,payload.get('target_min_role_id')) if payload.get('target_min_role_id') is not None else (Role.query.filter_by(weight=payload['target_min_weight']).order_by(Role.id).first() if payload['target_min_weight'] is not None else None)
+    row = OperationalActivity(parent_id=payload.get('parent_id'),kind='manual', title=payload['title'], description=payload['description'], client_key=payload['client_key'], target_min_weight=payload['target_min_weight'],target_min_role=target_role)
     row.targets = [ActivityTargetRole(role_id=value) for value in payload['role_ids']]
     row.user_targets = [ActivityTargetUser(user_id=value) for value in payload['user_ids']]
     row.result_roles = [ActivityResultRole(role_id=value) for value in result['role_ids']]
     row.result_users = [ActivityResultUser(user_id=value) for value in result['user_ids']]
-    row.result_min_weight = result['target_min_weight']
+    result_role=db.session.get(Role,result.get('target_min_role_id')) if result.get('target_min_role_id') is not None else (Role.query.filter_by(weight=result['target_min_weight']).order_by(Role.id).first() if result['target_min_weight'] is not None else None)
+    row.result_min_weight = result['target_min_weight'];row.result_min_role=result_role
     row.creation_files_digest = payload.get('files_digest')
     add_event(row, user, 'created')
     db.session.add(row)
@@ -299,8 +318,9 @@ def create_arrival(card, payload, user, received_on):
         valid = {role['id'] for role in routing['roles']}
         if any(not rules.get(kind) or not set(rules[kind]) <= valid for kind in KINDS):
             raise ValueError('Configura prima i ruoli destinatari nell’area Attività.')
+        office_role=Role.query.filter(Role.name.ilike('office')).first()
         specs = [dict(kind=kind, role_ids=sorted(set(rules[kind])), user_ids=[], target_min_weight=None,
-                      result_recipients=dict(role_ids=[], user_ids=[], target_min_weight=resolve_minimum_weight('office')))
+                      target_min_role_id=None, result_recipients=dict(role_ids=[], user_ids=[], target_min_weight=office_role.weight if office_role else resolve_minimum_weight('office'),result_min_role_id=office_role.id if office_role else None))
                  for kind in KINDS]
     arrival = SupplierArrival(event_key=payload['event_key'],card_id=card.id,label=card.title,reference=card.reference or '',
         received_on=received_on,partial=payload['partial'],note=payload['note'],created_by_id=user.id)
@@ -309,7 +329,8 @@ def create_arrival(card, payload, user, received_on):
         kind=spec['kind']
         recipients=spec['result_recipients']
         row=OperationalActivity(arrival_id=arrival.id,kind=kind,title=KINDS[kind],status='pending',revision=1,cycle=1,
-            target_min_weight=spec['target_min_weight'],result_min_weight=recipients['target_min_weight'])
+            target_min_weight=spec['target_min_weight'],result_min_weight=recipients['target_min_weight'],
+            target_min_role_id=spec.get('target_min_role_id'),result_min_role_id=recipients.get('result_min_role_id'))
         row.targets=[ActivityTargetRole(role_id=role_id) for role_id in spec['role_ids']]
         row.user_targets=[ActivityTargetUser(user_id=user_id) for user_id in spec['user_ids']]
         row.result_roles=[ActivityResultRole(role_id=role_id) for role_id in recipients['role_ids']]
@@ -322,12 +343,13 @@ def notification_recipients(row):
     """Snapshot assignees, outcome recipients and the direct parent's assignees."""
     role_ids={t.role_id for t in row.targets} | {t.role_id for t in row.result_roles}
     user_ids={t.user_id for t in row.user_targets} | {t.user_id for t in row.result_users}
-    weights=[w for w in (row.target_min_weight,row.result_min_weight) if w is not None]
+    weights=[w for w in (row.target_min_role.weight if row.target_min_role else row.target_min_weight,row.result_min_role.weight if row.result_min_role else row.result_min_weight) if w is not None]
     parent=db.session.get(OperationalActivity,row.parent_id) if row.parent_id else None
     if parent:
         role_ids.update(t.role_id for t in parent.targets)
         user_ids.update(t.user_id for t in parent.user_targets)
-        if parent.target_min_weight is not None: weights.append(parent.target_min_weight)
+        parent_weight=parent.target_min_role.weight if parent.target_min_role else parent.target_min_weight
+        if parent_weight is not None: weights.append(parent_weight)
     now=datetime.now()
     memberships=db.session.query(UserRole.user_id,UserRole.role_id,Role.weight).join(Role).filter(
         (UserRole.valid_from.is_(None) | (UserRole.valid_from<=now)),

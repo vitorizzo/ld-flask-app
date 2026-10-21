@@ -209,7 +209,7 @@ class ActivityTests(unittest.TestCase):
         with engine.begin() as conn:
             for name in ['supplier_board_cards','user','roles']:conn.execute(text(f'CREATE TABLE {name} (id INTEGER PRIMARY KEY)'))
             conn.execute(text('CREATE TABLE menus (name TEXT,weight INTEGER,sort_order INTEGER,parent_id INTEGER,route TEXT,is_active BOOLEAN,is_visible BOOLEAN,item_type TEXT)'))
-            models=[SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto]
+            models=[Role,User,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto]
             db.metadata.create_all(conn,tables=[model.__table__ for model in models])
             with Operations.context(MigrationContext.configure(conn)):
                 migration.upgrade();migration.upgrade()
@@ -265,7 +265,7 @@ class ActivityTests(unittest.TestCase):
             self.assertNotIn('client_key',{column['name'] for column in inspect(conn).get_columns('operational_activities')})
         engine=create_engine('sqlite://')
         with engine.begin() as conn:
-            for name in ['user','supplier_arrivals']: conn.execute(text(f'CREATE TABLE {name} (id INTEGER PRIMARY KEY)'))
+            for name in ['user','supplier_arrivals','roles']: conn.execute(text(f'CREATE TABLE {name} (id INTEGER PRIMARY KEY)'))
             db.metadata.create_all(conn,tables=[OperationalActivity.__table__,ActivityTargetUser.__table__])
             with Operations.context(MigrationContext.configure(conn)):
                 migration.upgrade();migration.upgrade();migration.downgrade()
@@ -301,6 +301,19 @@ class ActivityTests(unittest.TestCase):
         db.session.add(UserRole(user_id=9,role_id=2,type='period'));db.session.commit()
         self.login(9);self.assertEqual(self.client.get('/activities/api').json['total'],1)
         self.assertEqual(self.rows()[0]['roles'],['Ufficio'])
+
+    def test_live_role_minimum_moves_when_staff_weight_changes(self):
+        body=dict(title='Solo soglia Staff',target_min_weight=30,target_min_role_id=1,result_recipients=dict(user_ids=[1]),client_key='live-staff-threshold-123')
+        row=self.client.post('/activities/api',json=body).json['activity']
+        self.assertEqual(row['target_min_weight'],30)
+        db.session.query(Role).filter_by(id=1).update({'weight':40},synchronize_session=False);db.session.commit()
+        # The assignee originally selected as Staff follows that role to 40.
+        self.login(2);self.assertEqual(self.client.get('/activities/api').json['total'],1)
+        self.assertEqual(self.client.get(f"/activities/api/{row['id']}").status_code,200)
+        self.assertEqual(self.client.get(f"/activities/api/{row['id']}").json['activity']['target_min_weight'],40)
+        # Another role remaining at the old numeric weight 30 no longer inherits Staff access.
+        self.login(4);self.assertEqual(self.client.get('/activities/api').json['total'],0)
+        self.assertEqual(self.client.get(f"/activities/api/{row['id']}").status_code,404)
 
     def test_weight_visibility_union_boundary_expiry_and_retry(self):
         body=dict(title='Da peso 40',role_ids=[1],user_ids=[4],target_min_weight=40,result_recipients=dict(user_ids=[1]),client_key='weight-request-123')

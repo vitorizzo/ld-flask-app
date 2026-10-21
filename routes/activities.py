@@ -289,7 +289,8 @@ def arrival():
                     or row.target_min_weight!=spec['target_min_weight']
                     or sorted(target.role_id for target in row.result_roles)!=recipients['role_ids']
                     or sorted(target.user_id for target in row.result_users)!=recipients['user_ids']
-                    or row.result_min_weight!=recipients['target_min_weight']):
+                    or row.result_min_weight!=recipients['target_min_weight']
+            or row.result_min_role_id!=recipients.get('result_min_role_id')):
                     return error('Il riferimento dell’arrivo è già usato per destinatari diversi.',409)
         return jsonify(ok=True,arrival_id=existing.id,replayed=True)
     # Serialize arrivals for the same card, then recheck the idempotency key.
@@ -437,10 +438,10 @@ def edit_activity(activity_id):
         normalized=manual_payload({**payload,'client_key':'edit-validation-key'})
         from tools.activities import validate_manual_targets
         validate_manual_targets(normalized)
-        before=dict(title=row.title,description=row.description,roles=sorted(t.role_id for t in row.targets),users=sorted(t.user_id for t in row.user_targets),weight=row.target_min_weight,
-            result_roles=sorted(t.role_id for t in row.result_roles),result_users=sorted(t.user_id for t in row.result_users),result_weight=row.result_min_weight)
-        after=dict(title=normalized['title'],description=normalized['description'],roles=normalized['role_ids'],users=normalized['user_ids'],weight=normalized['target_min_weight'],
-            result_roles=normalized['result_recipients']['role_ids'],result_users=normalized['result_recipients']['user_ids'],result_weight=normalized['result_recipients']['target_min_weight'])
+        before=dict(title=row.title,description=row.description,roles=sorted(t.role_id for t in row.targets),users=sorted(t.user_id for t in row.user_targets),weight=row.target_min_weight,target_role_id=row.target_min_role_id,
+            result_roles=sorted(t.role_id for t in row.result_roles),result_users=sorted(t.user_id for t in row.result_users),result_weight=row.result_min_weight,result_role_id=row.result_min_role_id)
+        after=dict(title=normalized['title'],description=normalized['description'],roles=normalized['role_ids'],users=normalized['user_ids'],weight=normalized['target_min_weight'],target_role_id=normalized.get('target_min_role_id'),
+            result_roles=normalized['result_recipients']['role_ids'],result_users=normalized['result_recipients']['user_ids'],result_weight=normalized['result_recipients']['target_min_weight'],result_role_id=normalized['result_recipients'].get('target_min_role_id'))
         if before==after: return jsonify(ok=True,activity=activity_data(row,current_user,True))
         from tools.activities import notification_recipients
         previous=notification_recipients(row)
@@ -449,9 +450,12 @@ def edit_activity(activity_id):
         for relation,model,key,values in [('targets',ActivityTargetRole,'role_id',after['roles']),('user_targets',ActivityTargetUser,'user_id',after['users']),('result_roles',ActivityResultRole,'role_id',after['result_roles']),('result_users',ActivityResultUser,'user_id',after['result_users'])]:
             existing={getattr(item,key):item for item in getattr(row,relation)}
             getattr(row,relation)[:]=[existing[v] if v in existing else model(**{key:v}) for v in values]
-        row.target_min_weight=after['weight'];row.result_min_weight=after['result_weight'];row.revision+=1
+        row.target_min_weight=after['weight'];row.result_min_weight=after['result_weight']
+        row.target_min_role=db.session.get(Role,after['target_role_id']) if after['target_role_id'] is not None else (Role.query.filter_by(weight=after['weight']).order_by(Role.id).first() if after['weight'] is not None else None)
+        row.result_min_role=db.session.get(Role,after['result_role_id']) if after['result_role_id'] is not None else (Role.query.filter_by(weight=after['result_weight']).order_by(Role.id).first() if after['result_weight'] is not None else None)
+        row.revision+=1
         changes=[name for name in before if before[name]!=after[name]]
-        labels=dict(title='Titolo',description='Descrizione',roles='Ruoli incaricati',users='Utenti incaricati',weight='Peso minimo incaricati',result_roles='Ruoli destinatari',result_users='Utenti destinatari',result_weight='Peso minimo destinatari')
+        labels=dict(title='Titolo',description='Descrizione',roles='Ruoli incaricati',users='Utenti incaricati',weight='Peso minimo incaricati',result_roles='Ruoli destinatari',result_users='Utenti destinatari',result_weight='Peso minimo destinatari',target_role_id='Ruolo minimo incaricati',result_role_id='Ruolo minimo destinatari')
         role_ids=set(before['roles']+before['result_roles']+after['roles']+after['result_roles'])
         user_ids=set(before['users']+before['result_users']+after['users']+after['result_users'])
         role_names={r.id:r.name for r in Role.query.filter(Role.id.in_(role_ids)).all()}
