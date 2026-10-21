@@ -268,12 +268,17 @@ def validate_rules(payload):
     return rules
 
 
+QUIET_ACTIVITY_ACTIONS = frozenset({'photo_added', 'photo_removed', 'files_added', 'file_removed'})
+
+
 def add_event(row, user, action, note=''):
     event=ActivityEvent(actor_id=user.id,action=action,note=note)
     row.events.append(event)
-    # Notices share the action transaction; do not flush before idempotency checks.
-    create_result_notices(row)
-    if has_request_context(): g.activity_notifications=True
+    # Added/removed materials stay in history but don't notify on each intermediate upload.
+    if action not in QUIET_ACTIVITY_ACTIONS:
+        # Notices share the action transaction; do not flush before idempotency checks.
+        create_result_notices(row)
+        if has_request_context(): g.activity_notifications=True
 
 
 def transition(row, user, action, note):

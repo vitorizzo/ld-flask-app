@@ -125,7 +125,7 @@
 - tools/supplier_order_workflow.py: validazione, bozze persistenti, optimistic revision con lock, chiave idempotente, aggiornamento righe e sostituzione atomica PDF. SupplierBoardCard.order_group_id/is_draft/order_revision/order_key/order_confirmed_at; SupplierBoardOrderLine.supplier_code/order_description; SupplierOrderProductSettings(group_id,matrix_code) per impostazioni prodotto. Migrazione q2f3a4b5c6d7 dopo p1, compatibile con db.create_all e seed di riferimento non distruttivo.
 - routes/supplier_orders.py: POST /groups/<id>/orders esteso a draft/card_id/revision/client_key/product_details, GET /groups/<id>/order-editor per bozza o ordine esplicito con giacenze aggiornate; DELETE /api/board/cards/<id>. Tutti ruolo40. order_edit_url nella API bacheca; PDF protetto con cache no-store, nascosto per bozze.
 - static/js/supplier_order_editor.js controller dedicato, supplier_orders.js mantiene gruppi/configurazione/rename; template index e supplier_orders.css campi SKU/descrizione PDF, Salva bozza e chiudi. supplier_board.js/template comandi edit/elimina e badge bozza. Cache draft1.
-- tools/supplier_order_pdf.py stampa supplier_code + order_description, mai root come SKU; single_page con font adattivo e errore esplicito se non entra. tests/test_supplier_order_workflow.py verifica persistenza/edit/rollback/retry/concorrenza/schema/seed; test_supplier_order_pdf.py verifica39 righe1pagina senza codici interni.
+- tools/supplier_order_pdf.py stampa solo le righe con quantita' positiva, supplier_code + order_description, mai root come SKU; ReportLab aggiunge pagine quando servono. tests/test_supplier_order_workflow.py verifica persistenza/edit/rollback/retry/concorrenza/schema/seed; test_supplier_order_pdf.py verifica filtro righe e ordini multipagina.
 - tools/matrixws_stock_snapshot.py riusato da tools/importazioni.py per import e confronto: ultimo snapshot valido per (articolo,deposito), no somma tra righe duplicate. tests/test_matrixws_stock_snapshot.py: esempi reali ERP, distinti depositi, azzeramenti, negativi e scarti. Serve nuova importazione dopo deploy per correggere dati gia' sommati.
 
 ## Migrazioni fornitori: compatibilita' con db.create_all (2026-10-08)
@@ -140,7 +140,7 @@
 
 ## Ordini fornitori: allegato PDF ordine (2026-10-08)
 
-- `tools/supplier_order_pdf.py`: ReportLab, A4 orizzontale/two-column, gruppi configurati, codici matrice e quantita', totale e data; prodotti non ordinati con quantita' vuota. Reference in docs/transport, nessuna categoria/codice fornitore hardcoded.
+- `tools/supplier_order_pdf.py`: ReportLab, A4 orizzontale/two-column, gruppi configurati, codici matrice e quantita', totale e data; mostra solo prodotti con quantita' positiva e gestisce automaticamente piu' pagine. Reference in docs/transport, nessuna categoria/codice fornitore hardcoded.
 - SupplierBoardCard.order_pdf (LargeBinary deferred) / order_pdf_filename. Migration p1e2f3a4b5c6 dopo o0d1e2f3a4b5, compatibile con schede preesistenti. PDF generato in create_group_order prima del commit, errore rollback. Blob caricato solo sul download.
 - GET /supplier-orders/api/board/cards/<id>/order-pdf protetto da ruolo40; download=1 per allegato, default inline. API card espone URL/filename, non blob. Controller/template bacheca mostrano allegato e comandi; conferma gruppo offre download (cache pdf1). Dipendenza reportlab==4.4.4.
 - Test: test_supplier_group_orders.py e test_supplier_order_pdf.py; verifiche PDF con pypdfium2 gia' presente. Deploy richiede pip install -r requirements.txt e flask db upgrade prima del riavvio.

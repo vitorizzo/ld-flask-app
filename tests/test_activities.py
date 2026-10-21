@@ -69,8 +69,8 @@ class ActivityTests(unittest.TestCase):
     def image(self):
         output=BytesIO();Image.new('RGB',(10,10),'red').save(output,format='PNG');output.seek(0);return output
 
-    def upload(self,row):
-        return self.client.post(f"/activities/api/{row['id']}/photos",data={'revision':str(row['revision']),'label':'Prodotto A, lotto 123','photo':(self.image(),'lotto.png')},content_type='multipart/form-data',headers={'X-Requested-With':'XMLHttpRequest'})
+    def upload(self,row,label='Prodotto A, lotto 123'):
+        return self.client.post(f"/activities/api/{row['id']}/photos",data={'revision':str(row['revision']),'label':label,'photo':(self.image(),'lotto.png')},content_type='multipart/form-data',headers={'X-Requested-With':'XMLHttpRequest'})
 
     def test_arrival_three_activities_idempotent_and_partial_separate(self):
         first=self.arrival()
@@ -132,6 +132,12 @@ class ActivityTests(unittest.TestCase):
         reopened=self.act(done,'reopen','Controllare un altro lotto').json['activity']
         self.assertEqual(self.act(reopened,'complete').status_code,400)
         self.assertEqual(self.client.delete(photo['url'],json={'revision':reopened['revision']}).status_code,400)
+
+    def test_lot_photo_does_not_require_a_product_label(self):
+        self.arrival();self.login(2);row=next(row for row in self.rows() if row['kind']=='lots')
+        response=self.upload(row,label='')
+        self.assertEqual(response.status_code,201,response.json)
+        self.assertEqual(response.json['activity']['photos'][0]['label'],'lotto')
 
     def test_assigned_staff_can_open_completed_lot_activity(self):
         self.arrival();self.login(2);row=next(row for row in self.rows() if row['kind']=='lots')

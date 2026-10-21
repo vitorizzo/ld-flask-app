@@ -10,7 +10,7 @@ from sqlalchemy import create_engine, text, inspect
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from extensions import db
-from models import (Articoli, Giacenza, SupplierOrderGroup, SupplierOrderGroupItem,
+from models import (Articoli, Giacenza, Role, SupplierOrderGroup, SupplierOrderGroupItem,
                     SupplierOrderMatrixName, SupplierOrderSubgroup, SupplierOrderSubgroupMatrix)
 from routes.supplier_orders import supplier_orders_bp, _expanded_articles_for_group
 from models import SupplierBoardColumn, SupplierOrderProductSettings, Importazione
@@ -29,14 +29,14 @@ class SupplierSubgroupTests(unittest.TestCase):
         default=Articoli.__table__.c.id_art.server_default
         try:
             Articoli.__table__.c.id_art.server_default=None
-            db.metadata.create_all(db.engine,tables=[m.__table__ for m in [Articoli,Giacenza,SupplierOrderGroup,SupplierOrderGroupItem,SupplierOrderMatrixName,SupplierOrderSubgroup,SupplierOrderSubgroupMatrix,SupplierBoardColumn,SupplierOrderProductSettings,Importazione]])
+            db.metadata.create_all(db.engine,tables=[m.__table__ for m in [Articoli,Giacenza,Role,SupplierOrderGroup,SupplierOrderGroupItem,SupplierOrderMatrixName,SupplierOrderSubgroup,SupplierOrderSubgroupMatrix,SupplierBoardColumn,SupplierOrderProductSettings,Importazione]])
         finally: Articoli.__table__.c.id_art.server_default=default
         db.session.execute(Articoli.__table__.insert(),[dict(id_art=i,cod_art=code,descrizione=code) for i,code in enumerate(['COFFEE','COFFEE-24','COFFEE-25','POD'],1)])
-        db.session.add_all([SupplierOrderGroup(id=1,name='Caffe'),SupplierOrderGroup(id=2,name='Altro')]);db.session.flush()
+        db.session.add(Role(id=3,name='office',weight=40));db.session.add_all([SupplierOrderGroup(id=1,name='Caffe'),SupplierOrderGroup(id=2,name='Altro')]);db.session.flush()
         db.session.add_all([SupplierOrderGroupItem(group_id=1,cod_art='COFFEE'),SupplierOrderGroupItem(group_id=1,cod_art='COFFEE-24'),SupplierOrderGroupItem(group_id=1,cod_art='POD')])
         db.session.execute(Giacenza.__table__.insert(),[dict(cod_art='COFFEE-24',giac_neg=4,giac_www=0),dict(cod_art='COFFEE-25',giac_neg=7,giac_www=0)])
         db.session.commit()
-        self.auth=patch('tools.role_required.get_current_user',return_value=SimpleNamespace(active_roles=[SimpleNamespace(name='office',weight=40)],max_role_weight=40));self.auth.start()
+        self.auth=patch('tools.role_required.get_current_user',return_value=SimpleNamespace(active_roles=[SimpleNamespace(id=3,name='office',weight=40)],max_role_weight=40));self.auth.start()
 
     def tearDown(self):
         self.auth.stop();db.session.remove();self.ctx.pop()

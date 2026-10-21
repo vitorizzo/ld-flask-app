@@ -37,7 +37,7 @@ def regenerate_order_pdf(card, rows, subgroup_names):
             row['order_description']=line.order_description or line.description
     confirmed=datetime.now(ZoneInfo('Europe/Rome'))
     content=generate_supplier_order_pdf(order_id=card.id,title=card.title,order_date=confirmed.date(),rows=pdf_rows,
-        subgroup_names=subgroup_names,quantities={line.matrix_code:line.quantity for line in card.order_lines},single_page=True)
+        subgroup_names=subgroup_names,quantities={line.matrix_code:line.quantity for line in card.order_lines})
     card.order_pdf=content
     card.order_pdf_filename=f'ordine-fornitore-{card.id}-v{card.order_revision}-{confirmed:%Y%m%d}.pdf'
     card.order_confirmed_at=confirmed.astimezone(ZoneInfo('UTC')).replace(tzinfo=None)

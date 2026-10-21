@@ -101,7 +101,6 @@
         if (!input.validity.valid || !Number.isInteger(quantity) || quantity < 0 || quantity > 1000000) throw Error('Inserisci quantità intere, da 0 a 1000000. La copia sul dispositivo è conservata.');
         if (quantity) {
           lines.push({matrix_code:product.matrix_code,quantity});
-          if (!draft && !product.supplier_code.trim()) { input.closest('details').open = true; input.closest('details').querySelector('[data-supplier-code]').focus(); throw Error('Inserisci il codice fornitore per tutti i prodotti da ordinare.'); }
         }
         const old = baseline[product.matrix_code] || {};
         if (product.supplier_code !== old.supplier_code || product.order_description !== old.order_description) details.push({matrix_code:product.matrix_code,supplier_code:product.supplier_code,order_description:product.order_description});

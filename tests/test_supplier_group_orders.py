@@ -7,7 +7,7 @@ from sqlalchemy import create_engine, text, inspect
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from extensions import db
-from models import SupplierBoardColumn, SupplierBoardCard, SupplierBoardOrderLine, Giacenza, SupplierOrderProductSettings
+from models import SupplierBoardColumn, SupplierBoardCard, SupplierBoardOrderLine, Giacenza, SupplierArrival, SupplierOrderProductSettings
 from models import SupplierBoardSection, SupplierBoardCardSection
 from models import SupplierBoardAttachment
 import test_supplier_subgroups as subgroup_tests
@@ -19,7 +19,7 @@ class SupplierGroupOrderTests(unittest.TestCase):
 
     def setUp(self):
         subgroup_tests.SupplierSubgroupTests.setUp(self)
-        db.metadata.create_all(db.engine,tables=[SupplierBoardCard.__table__,SupplierBoardOrderLine.__table__,
+        db.metadata.create_all(db.engine,tables=[SupplierBoardCard.__table__,SupplierBoardOrderLine.__table__,SupplierArrival.__table__,
                                                SupplierBoardSection.__table__,SupplierBoardCardSection.__table__,SupplierBoardAttachment.__table__])
         db.session.add(SupplierBoardColumn(id=1,name='In Arrivo',order_index=0,is_terminal=False));db.session.commit()
         db.session.add_all([SupplierOrderProductSettings(group_id=1,matrix_code=code,supplier_code='V-'+code,order_description=code) for code in ['COFFEE','POD']]);db.session.commit()

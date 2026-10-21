@@ -11,7 +11,7 @@ from reportlab.platypus import BaseDocTemplate, Frame, PageTemplate, Paragraph, 
 
 
 def generate_supplier_order_pdf(*, order_id, title, order_date, rows, subgroup_names, quantities, single_page=False, _font_size=9):
-    """Return immutable PDF bytes; unselected products keep an empty quantity."""
+    """Return immutable PDF bytes containing only products with positive quantities."""
     output = BytesIO()
     page_width, page_height = landscape(A4)
     margin, gap = 38, 26
@@ -27,11 +27,14 @@ def generate_supplier_order_pdf(*, order_id, title, order_date, rows, subgroup_n
     def paragraph(value, style=text):
         return Paragraph(escape(str(value)), style)
 
+    ordered_rows = [row for row in rows if (quantities.get(row['root']) or 0) > 0]
+    if not ordered_rows:
+        raise ValueError('Inserisci almeno una quantita\' da ordinare per generare il PDF.')
     sections = OrderedDict()
-    for row in rows:
+    for row in ordered_rows:
         name = subgroup_names.get(row.get('subgroup_id'), 'Altri prodotti')
         sections.setdefault(name, []).append(row)
-    total = sum(quantities.values())
+    total = sum(quantities.get(row['root'], 0) for row in ordered_rows)
 
     def page_header_footer(canvas, document):
         canvas.saveState()

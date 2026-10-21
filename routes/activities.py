@@ -6,6 +6,7 @@ from flask import Blueprint, jsonify, render_template, request, send_file, abort
 from flask_login import current_user, login_required
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from werkzeug.utils import secure_filename
 from extensions import db
 from tools.role_required import resolve_minimum_weight
 from models import (AppPreference, OperationalActivity, ActivityPhoto, SupplierArrival, SupplierBoardCard,
@@ -320,7 +321,11 @@ def upload_photo(activity_id):
     if row.kind!='lots' or row.status not in ACTIVE: return error('Foto ammesse solo nei lotti di un’attività aperta.')
     if row.owner_id and row.owner_id!=current_user.id and not manager(current_user): return error('L’attività è in carico a un’altra persona.',403)
     label=(request.form.get('label') or '').strip();upload=request.files.get('photo')
-    if not label or len(label)>200 or upload is None: return error('Indica il prodotto e scegli una foto.')
+    if upload is None: return error('Scegli una foto.')
+    if len(label)>200: return error('Il nome prodotto supera il limite di 200 caratteri.')
+    if not label:
+        filename=secure_filename(upload.filename or '')
+        label=(filename.rsplit('.',1)[0] if '.' in filename else filename)[:200] or 'Foto lotto'
     if ActivityPhoto.query.filter_by(activity_id=row.id,cycle=row.cycle).count()>=20: return error('Sono consentite al massimo 20 foto per questa lavorazione.')
     try: name=store_photo(upload)
     except ValueError as exc: return error(str(exc))

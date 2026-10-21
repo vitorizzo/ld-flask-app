@@ -68,18 +68,31 @@ class EventTests(unittest.TestCase):
         self.assertEqual(uploaded.status_code,201)
         row=uploaded.json['activity'];file=row['attachments'][0]
         self.assertEqual(self.client.delete(file['url'],json=dict(revision=row['revision'])).status_code,200)
-        self.assertEqual({n.user_id for n in self.notices('files_added')},{2,9})
-        self.assertEqual({n.user_id for n in self.notices('file_removed')},{2,9})
+        self.assertEqual(self.notices('files_added'),[])
+        self.assertEqual(self.notices('file_removed'),[])
         self.login(1);self.arrival()
         lots=next(r for r in self.rows() if r['kind']=='lots')
         self.assertEqual({n.user_id for n in self.notices('created') if n.activity_id==lots['id']},{1,2,3,6,7,8,9})
-        self.login(2);photo=self.upload(lots).json['activity']
-        self.assertEqual({n.user_id for n in self.notices('photo_added')},{1,2,3,6,7,8,9})
-        self.assertEqual(self.client.delete(photo['photos'][0]['url'],json=dict(revision=photo['revision'])).status_code,200)
-        self.assertEqual({n.user_id for n in self.notices('photo_removed')},{1,2,3,6,7,8,9})
+        self.login(2);claimed=self.act(lots,'claim').json['activity']
+        with patch('tools.activity_results.enqueue_results') as enqueue:
+            photo=self.upload(claimed).json['activity']
+            enqueue.assert_not_called()
+        self.assertEqual(self.notices('photo_added'),[])
+        self.assertIn('photo_added',[event['action'] for event in photo['events']])
+        with patch('tools.activity_results.enqueue_results') as enqueue:
+            removed=self.client.delete(photo['photos'][0]['url'],json=dict(revision=photo['revision']))
+            self.assertEqual(removed.status_code,200)
+            enqueue.assert_not_called()
+        self.assertEqual(self.notices('photo_removed'),[])
+        self.assertIn('photo_removed',[event['action'] for event in removed.json['activity']['events']])
+        with patch('tools.activity_results.enqueue_results') as enqueue:
+            photo=self.upload(removed.json['activity']).json['activity']
+            enqueue.assert_not_called()
         current=self.detail(lots).json['activity']
-        self.assertEqual(self.act(current,'not_required','Lotti non necessari').status_code,200)
-        self.assertEqual({n.user_id for n in self.notices('not_required')},{1,2,3,6,7,8,9})
+        with patch('tools.activity_results.enqueue_results') as enqueue:
+            self.assertEqual(self.act(current,'complete','Lotti inviati').status_code,200)
+            enqueue.assert_called_once()
+        self.assertEqual({n.user_id for n in self.notices('complete') if n.activity_id==lots['id']},{1,2,3,6,7,8,9})
         self.login(1);current=self.detail(row).json['activity']
         self.assertEqual(self.act(current,'cancel','Annullamento richiesto').status_code,200)
         self.assertEqual({n.user_id for n in self.notices('cancel')},{2,9})
