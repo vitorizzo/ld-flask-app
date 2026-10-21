@@ -211,10 +211,10 @@
    setDetailBusy(busy);$('activityDetailRefresh').onclick=readDetail;
    $('activityDetail').onclick=event=>{const action=event.target.closest('[data-activity-action]'),remove=event.target.closest('[data-remove-photo]');if(action)runAction(action.dataset.activityAction);else if(remove)removePhoto(Number(remove.dataset.removePhoto));else if(event.target.closest('#activityPhotoUpload'))upload();else if(event.target.closest('#activityFilesUpload'))uploadFiles();else if(event.target.closest('[data-remove-file]'))removeFile(Number(event.target.closest('[data-remove-file]').dataset.removeFile));};
   });
-  $('activityArrivalTasks').addEventListener('change',event=>{
+  $('activityArrivalTasks')?.addEventListener('change',event=>{
    const user=event.target.closest('[data-arrival-user]');if(user){const picker=user.closest('[data-arrival-picker]'),key=picker.dataset.arrivalPicker,map=arrivalSelectedUsers.get(key)||new Map(),id=Number(user.dataset.arrivalUser),found=arrivalDirectory.users.find(item=>item.id===id);if(user.checked&&found)map.set(id,found);else map.delete(id);arrivalSelectedUsers.set(key,map);}
   });
-  $('activityArrivalTasks').addEventListener('input',event=>{const input=event.target.closest('[data-arrival-user-search]');if(input){clearTimeout(input._arrivalTimer);input._arrivalTimer=setTimeout(()=>loadArrivalUsers(input),250);}});
+  $('activityArrivalTasks')?.addEventListener('input',event=>{const input=event.target.closest('[data-arrival-user-search]');if(input){clearTimeout(input._arrivalTimer);input._arrivalTimer=setTimeout(()=>loadArrivalUsers(input),250);}});
   $('activityModal').addEventListener('hide.bs.modal',event=>{if(busy)event.preventDefault();});
   $('activityModal').addEventListener('hidden.bs.modal',()=>{selected=null;activity=null;detailGeneration++;$('activityDetail').onclick=null;$('activityDetailRefresh').onclick=null;$('activityError').textContent='';});
   const composer=window.ActivityCreate?.init({api,onCreated:async(saved,context={})=>{if(!context.row&&!context.parent){params.delete('arrival');page=1;$('activityStatus').value='active';$('activitySearch').value='';history.replaceState({},'',location.pathname);}await load();if(context.row||context.parent)openDetail(context.row?.id||context.parent.id);}});
