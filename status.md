@@ -1,3 +1,8 @@
+## Accesso ai dettagli delle attività completate (2026-10-21)
+
+- L’endpoint di dettaglio ora usa gli stessi criteri di visibilità della lista e delle notifiche, includendo le attività concluse assegnate all’utente o ai suoi ruoli. Gli incaricati non devono più aprire solo le notifiche per consultare l’esito.
+- Aggiunto test di regressione: entrambi gli utenti Staff assegnati possono aprire l’attività lotti completata e visualizzarne foto ed esito. Suite attività 20/20; nessuna migrazione richiesta.
+
 ## Invio lotti: upload foto e attività assegnate (2026-10-20)
 
 - Una sola sezione per fotografare il lotto: pulsante “Scatta foto”, campo obbligatorio per il prodotto e caricamento nella tabella foto richiesta al completamento. Nell’area allegati dell’attività lotti sono ammessi documenti, così non si confondono foto senza etichetta con le prove lotto. Versione JS aggiornata; gli errori senza JSON ora riportano lo stato HTTP invece del messaggio generico.

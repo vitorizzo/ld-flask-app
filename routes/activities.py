@@ -198,7 +198,9 @@ def badge():
 @activities_bp.get('/api/<int:activity_id>')
 @login_required
 def detail(activity_id):
-    row=activity_query(current_user,True).filter_by(id=activity_id).first_or_404()
+    # Claimants keep access after an assignment expires, and assigned staff retain
+    # access to a completed result in the activity archive.
+    row=visible_query(current_user,include_results=True).filter_by(id=activity_id).first_or_404()
     return jsonify(ok=True,activity=activity_data(row,current_user,True))
 
 

@@ -133,6 +133,19 @@ class ActivityTests(unittest.TestCase):
         self.assertEqual(self.act(reopened,'complete').status_code,400)
         self.assertEqual(self.client.delete(photo['url'],json={'revision':reopened['revision']}).status_code,400)
 
+    def test_assigned_staff_can_open_completed_lot_activity(self):
+        self.arrival();self.login(2);row=next(row for row in self.rows() if row['kind']=='lots')
+        uploaded=self.upload(row).json['activity']
+        completed=self.act(uploaded,'complete').json['activity']
+        self.assertEqual(completed['status'],'completed')
+        for user_id in [2,3]:
+            self.login(user_id)
+            self.assertIn(completed['id'],[item['id'] for item in self.rows()])
+            detail=self.client.get(f"/activities/api/{completed['id']}")
+            self.assertEqual(detail.status_code,200,detail.json)
+            self.assertEqual(detail.json['activity']['status'],'completed')
+            self.assertEqual(len(detail.json['activity']['photos']),1)
+
     def test_owner_retains_activity_visibility_and_photo_upload_if_role_expires(self):
         self.arrival();self.login(2);row=next(row for row in self.rows() if row['kind']=='lots')
         claimed=self.act(row,'claim').json['activity']
