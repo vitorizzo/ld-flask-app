@@ -1,5 +1,6 @@
 ## Diagnostica immagini MATRIXWS (2026-10-22)
 
+- Confermata dall'utente la versione corretta `20260003`: chiamata asincrona read-only `101001`/schema `4`, ditta `1`, conclusa con HTTP 200/status globale `ok` ma record interno `error`/`000` senza descrizione né immagini. Anche la prova precedente con `20260000` ha lo stesso esito; il problema non è spiegato dalla versione. Nessuna importazione o modifica in MATRIX. Dettagli in `status.md`.
 - routes/settings.py: MATRIXWS_TEST_PROFILES.product_images usa 101001/4, coerente con docs/transport/CONFWS-000.gam; schema 1 e' categorie. Riusato il test asincrono esistente, nessun import immagini aggiunto.
 - Prova remota 101001/4: batch completato con HTTP 200 ma record interno status=error/codice000, descrizione vuota, nessun dato prodotto/immagine. Servono contratti CONFWS Request/Response/versione prima del mapping nell'archivio ProductAsset esistente. Dettagli e ripartenza in status.md.
 - Anche 100003/1 sincrono in formato standard restituisce error/000 senza descrizione. Contratti non reperiti autonomamente; occorre almeno l'export Salva request di 100003/1. Nessun import immagini implementato o eseguito.
