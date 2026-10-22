@@ -3,6 +3,7 @@
 - routes/settings.py: MATRIXWS_TEST_PROFILES.product_images usa 101001/4, coerente con docs/transport/CONFWS-000.gam; schema 1 e' categorie. Riusato il test asincrono esistente, nessun import immagini aggiunto.
 - Prova remota 101001/4: batch completato con HTTP 200 ma record interno status=error/codice000, descrizione vuota, nessun dato prodotto/immagine. Servono contratti CONFWS Request/Response/versione prima del mapping nell'archivio ProductAsset esistente. Dettagli e ripartenza in status.md.
 - Anche 100003/1 sincrono in formato standard restituisce error/000 senza descrizione. Contratti non reperiti autonomamente; occorre almeno l'export Salva request di 100003/1. Nessun import immagini implementato o eseguito.
+- Successivamente acquisiti template100003_1.json e screenshot Parametri/Response: configurazione versione20260000, output TS Commerce con uid (ID Prodotto/Se ID esistente), base64 (Valore ID Immagine), related. Anche versione configurata restituisce error/000. Valori e mapping verso cod_art non ancora verificati; serve leggere Gestione campi per sorgente/adattatore. Stato dettagliato in status.md.
 
 ## Invio lotti e visibilità attività (2026-10-20)
 
