@@ -1,3 +1,9 @@
+## Diagnostica immagini MATRIXWS (2026-10-22)
+
+- Il catalogo repository CONFWS-000.gam elenca 100003/1 (immagini singolo prodotto) e 101001/4 (immagini prodotti); 101001/1 riguarda invece le categorie. Corretto soltanto lo schema del profilo product_images in routes/settings.py da 1 a 4.
+- Lettura diagnostica dal server applicativo, senza importazioni o rinnovo/persistenza del secret: EVWSASYNC ha accettato 101001/4 con versione 20260001, operazione read, ditta 1 e TabellaCampi vuota. Batch 335c1268-cdfd-11f1-a11f-ab418d41b530: iniziale BATCH_NOT_FINISHED, poi HTTP 200/status globale ok, ma dati contiene soltanto status=error/statusCode=000 e descrizione errore vuota. Nessun codice articolo o contenuto immagine restituito; la causa non e' determinata.
+- Non implementato ne' avviato un import immagini; nessun prodotto/asset modificato e nessun deploy eseguito. Verifica AST e controllo profilo 101001/4 superati. Prossimo punto: acquisire da CONFWS i contratti Request/Response e versione di 101001/4 e 100003/1 prima di ulteriori payload o mapping ProductAsset. La correzione del test web richiede deploy e riavvio web.
+
 ## Fix target ruolo minimo per le attività (2026-10-21)
 
 - Le soglie delle attività manuali ora conservano l’ID del ruolo scelto, e lista, dettaglio, azioni e notifiche leggono il suo peso corrente. Gli incaricati dei ruoli espliciti mantengono accesso per ruolo; i destinatari dell’esito possono aprire il dettaglio solo quando l’attività è chiusa.

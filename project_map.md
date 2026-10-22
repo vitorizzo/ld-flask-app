@@ -1,3 +1,8 @@
+## Diagnostica immagini MATRIXWS (2026-10-22)
+
+- routes/settings.py: MATRIXWS_TEST_PROFILES.product_images usa 101001/4, coerente con docs/transport/CONFWS-000.gam; schema 1 e' categorie. Riusato il test asincrono esistente, nessun import immagini aggiunto.
+- Prova remota 101001/4: batch completato con HTTP 200 ma record interno status=error/codice000, descrizione vuota, nessun dato prodotto/immagine. Servono contratti CONFWS Request/Response/versione prima del mapping nell'archivio ProductAsset esistente. Dettagli e ripartenza in status.md.
+
 ## Invio lotti e visibilità attività (2026-10-20)
 
 - `tools/activities.py` conserva accesso e capacità d’azione per l’owner anche se scade l’assegnazione; i soli destinatari di esito ottengono accesso ai dettagli quando l’attività è chiusa. Home, elenco e upload usano la stessa visibilità. L’area lotti ha un solo flusso foto con etichetta prodotto, mentre gli allegati generici espongono solo documenti. Nessuna migrazione richiesta.
