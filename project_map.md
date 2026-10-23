@@ -1,5 +1,6 @@
 ## Diagnostica immagini MATRIXWS (2026-10-22)
 
+- Il servizio `147/1` estrae in asincrono 7928 righe di documenti vendita con intestazione/corpo, ma il filtro `B-CODCLI` provato in `TabellaCampi` non riduce il risultato; non usarlo come feed cliente finché non è verificato il tracciato Request e il mapping dei tipi fattura. Nessun documento è stato importato o mostrato nell'app. Dettagli in `status.md`.
 - Confermata dall'utente la versione corretta `20260003`: chiamata asincrona read-only `101001`/schema `4`, ditta `1`, conclusa con HTTP 200/status globale `ok` ma record interno `error`/`000` senza descrizione né immagini. Anche la prova precedente con `20260000` ha lo stesso esito; il problema non è spiegato dalla versione. Nessuna importazione o modifica in MATRIX. Dettagli in `status.md`.
 - routes/settings.py: MATRIXWS_TEST_PROFILES.product_images usa 101001/4, coerente con docs/transport/CONFWS-000.gam; schema 1 e' categorie. Riusato il test asincrono esistente, nessun import immagini aggiunto.
 - Prova remota 101001/4: batch completato con HTTP 200 ma record interno status=error/codice000, descrizione vuota, nessun dato prodotto/immagine. Servono contratti CONFWS Request/Response/versione prima del mapping nell'archivio ProductAsset esistente. Dettagli e ripartenza in status.md.
