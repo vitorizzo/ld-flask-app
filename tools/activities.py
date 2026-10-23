@@ -207,23 +207,40 @@ def validate_manual_targets(payload):
     if set(roles) != valid_roles or set(users) != valid_users: raise ValueError('Scegli ruoli e utenti operativi attivi. Aggiorna i destinatari.')
 
 
-def supplier_arrival_activity_specs(payload):
+def supplier_arrival_activity_specs(payload, card=None):
     """Validate the selected arrival tasks and their assignee/result audiences."""
     if 'activities' not in payload:
         return None
     raw_specs = payload.get('activities')
-    if not isinstance(raw_specs, list) or not raw_specs or len(raw_specs) > len(KINDS):
+    if not isinstance(raw_specs, list) or not raw_specs or len(raw_specs) > len(KINDS) + 1:
         raise ValueError('Seleziona almeno un’attività da inviare.')
     result = []
     seen = set()
     for raw in raw_specs:
-        if not isinstance(raw, dict) or raw.get('kind') not in KINDS or raw['kind'] in seen:
+        if not isinstance(raw, dict) or (raw.get('kind') not in KINDS and raw.get('kind') != 'custom_1') or raw['kind'] in seen:
             raise ValueError('Selezione attività non valida.')
         kind = raw['kind']
         seen.add(kind)
+        title = KINDS[kind] if kind in KINDS else raw.get('title')
+        description = '' if kind in KINDS else raw.get('description', '')
+        if kind == 'custom_1' and (not isinstance(title, str) or not title.strip() or len(title.strip()) > 200):
+            raise ValueError('Inserisci un titolo per l’attività personalizzata (massimo 200 caratteri).')
+        if kind == 'custom_1' and (not isinstance(description, str) or len(description) > 5000):
+            raise ValueError('La descrizione dell’attività supera il limite di 5.000 caratteri.')
+        attachment_ids = raw.get('attachment_ids', [])
+        if (not isinstance(attachment_ids, list) or len(attachment_ids) > 10
+                or any(type(value) is not int or value <= 0 for value in attachment_ids)
+                or len(set(attachment_ids)) != len(attachment_ids)):
+            raise ValueError('Selezione allegati non valida.')
+        selected = {item.id: item for item in card.attachments} if card is not None else {}
+        if not set(attachment_ids) <= set(selected):
+            raise ValueError('Uno o più allegati non appartengono alla scheda selezionata.')
+        files = [dict(filename=selected[value].filename, mimetype=selected[value].mimetype,
+                       size=selected[value].size, content=selected[value].content) for value in attachment_ids]
+        from tools.activity_files import files_digest
         normalized = manual_payload({
-            'title': KINDS[kind],
-            'description': '',
+            'title': title,
+            'description': description,
             'client_key': f"{str(payload.get('event_key') or '')[:50]}-{kind}",
             'role_ids': raw.get('role_ids', []),
             'user_ids': raw.get('user_ids', []),
@@ -231,9 +248,11 @@ def supplier_arrival_activity_specs(payload):
             'result_recipients': raw.get('result_recipients'),
         })
         validate_manual_targets(normalized)
-        result.append(dict(kind=kind, role_ids=normalized['role_ids'], user_ids=normalized['user_ids'],
+        result.append(dict(kind=kind, title=normalized['title'], description=normalized['description'],
+                           role_ids=normalized['role_ids'], user_ids=normalized['user_ids'],
                            target_min_weight=normalized['target_min_weight'],
-                           result_recipients=normalized['result_recipients']))
+                           result_recipients=normalized['result_recipients'], files=files,
+                           files_digest=files_digest(files)))
     return result
 
 
@@ -333,13 +352,17 @@ def create_arrival(card, payload, user, received_on):
     for spec in specs:
         kind=spec['kind']
         recipients=spec['result_recipients']
-        row=OperationalActivity(arrival_id=arrival.id,kind=kind,title=KINDS[kind],status='pending',revision=1,cycle=1,
+        row=OperationalActivity(arrival_id=arrival.id,kind=kind,title=spec.get('title', KINDS.get(kind, 'Attività')),description=spec.get('description',''),status='pending',revision=1,cycle=1,
             target_min_weight=spec['target_min_weight'],result_min_weight=recipients['target_min_weight'],
             target_min_role_id=spec.get('target_min_role_id'),result_min_role_id=recipients.get('result_min_role_id'))
+        row.creation_files_digest=spec.get('files_digest')
         row.targets=[ActivityTargetRole(role_id=role_id) for role_id in spec['role_ids']]
         row.user_targets=[ActivityTargetUser(user_id=user_id) for user_id in spec['user_ids']]
         row.result_roles=[ActivityResultRole(role_id=role_id) for role_id in recipients['role_ids']]
         row.result_users=[ActivityResultUser(user_id=user_id) for user_id in recipients['user_ids']]
+        if spec.get('files'):
+            from tools.activity_files import attach_files
+            attach_files(row, spec['files'], 'instructions')
         add_event(row,user,'created',arrival.note);db.session.add(row)
     return arrival
 

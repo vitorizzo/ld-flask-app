@@ -11,7 +11,7 @@ from sqlalchemy import create_engine,text,inspect
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
 from extensions import db
-from models import (User,Role,UserRole,AppPreference,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto,ActivityResultRole,ActivityResultUser,ActivityAttachment,ActivityResultNotice)
+from models import (User,Role,UserRole,AppPreference,SupplierArrival,OperationalActivity,ActivityTargetRole,ActivityTargetUser,ActivityEvent,ActivityPhoto,ActivityResultRole,ActivityResultUser,ActivityAttachment,ActivityResultNotice,SupplierBoardAttachment)
 from routes.activities import activities_bp
 from tools.activity_photos import photo_path
 import test_supplier_board as board
@@ -82,6 +82,41 @@ class ActivityTests(unittest.TestCase):
         self.assertNotEqual(self.arrival('second-arrival-123',True),first)
         self.assertEqual(OperationalActivity.query.count(),6)
         self.assertTrue(any(row['source']['partial'] for row in self.rows()))
+
+    def test_arrival_custom_activity_and_independent_card_attachments(self):
+        card=db.session.get(board.SupplierBoardCard,self.card['id'])
+        first=SupplierBoardAttachment(filename='scheda.png',mimetype='image/png',size=5,content=b'first')
+        second=SupplierBoardAttachment(filename='istruzioni.png',mimetype='image/png',size=6,content=b'second')
+        card.attachments.extend([first,second]);db.session.commit()
+        source=self.client.get(f"/activities/api/source-card/{card.id}")
+        self.assertEqual(source.status_code,200)
+        self.assertEqual({item['id'] for item in source.json['card']['attachments']},{first.id,second.id})
+        body=self.arrival_body(activities=[
+            dict(kind='check_goods',role_ids=[1],result_recipients=dict(role_ids=[2]),attachment_ids=[first.id]),
+            dict(kind='custom_1',title='Preparare il reso',description='Usare le istruzioni allegate',role_ids=[1],
+                 result_recipients=dict(role_ids=[2]),attachment_ids=[second.id]),
+        ])
+        created=self.client.post('/activities/api/supplier-arrivals',json=body)
+        self.assertEqual(created.status_code,201,created.json)
+        activities=OperationalActivity.query.order_by(OperationalActivity.id).all()
+        self.assertEqual([(row.kind,row.title,row.description) for row in activities],[
+            ('check_goods','Controllare la merce',''),('custom_1','Preparare il reso','Usare le istruzioni allegate')])
+        self.assertEqual([[item.filename for item in row.attachments] for row in activities],
+                         [['scheda.png'],['istruzioni.png']])
+        replay=self.client.post('/activities/api/supplier-arrivals',json=body)
+        self.assertEqual(replay.status_code,200,replay.json);self.assertTrue(replay.json['replayed'])
+        self.assertEqual(ActivityAttachment.query.count(),2)
+        body['activities'][0]['attachment_ids']=[second.id]
+        self.assertEqual(self.client.post('/activities/api/supplier-arrivals',json=body).status_code,409)
+
+    def test_arrival_rejects_attachment_from_another_card(self):
+        card=self.client.post('/supplier-orders/api/board/cards',json={'title':'Seconda scheda','column_id':1}).json['card']
+        foreign=SupplierBoardAttachment(card_id=card['id'],filename='foreign.png',mimetype='image/png',size=5,content=b'other')
+        db.session.add(foreign);db.session.commit()
+        body=self.arrival_body(activities=[dict(kind='check_goods',role_ids=[1],result_recipients=dict(role_ids=[2]),attachment_ids=[foreign.id])])
+        response=self.client.post('/activities/api/supplier-arrivals',json=body)
+        self.assertEqual(response.status_code,400,response.json)
+        self.assertEqual(SupplierArrival.query.count(),0)
 
     def test_role_visibility_expired_roles_and_authentication(self):
         self.arrival();self.login(2)

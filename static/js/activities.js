@@ -168,8 +168,12 @@
  }
  function renderArrivalTasks() {
   const staffNames=['staff'],officeNames=['office','ufficio'];
-  $('activityArrivalTasks').innerHTML=Object.entries(arrivalKinds).map(([kind,title])=>`<section class="activity-arrival-task" data-arrival-task="${kind}"><label class="activity-arrival-task-toggle"><input type="checkbox" data-arrival-enabled="${kind}" checked><strong>${esc(title)}</strong></label><details><summary>Configura incaricati e destinatari</summary><div class="activity-arrival-task-config">${arrivalPicker(kind,'assignees',staffNames)}${arrivalPicker(kind,'recipients',officeNames)}</div></details></section>`).join('');
+  const attachments=sourceCard.attachments||[];
+  const attachmentPicker=()=>attachments.length?`<fieldset class="activity-arrival-attachments"><legend>Allegati da inviare con questa attività</legend>${attachments.map(file=>`<label class="activity-checkbox"><input type="checkbox" data-arrival-attachment="${file.id}"> ${esc(file.filename)}</label>`).join('')}</fieldset>`:'<p class="activity-arrival-no-files">La scheda non contiene allegati.</p>';
+  const task=(kind,title,custom=false)=>`<section class="activity-arrival-task" data-arrival-task="${kind}"><label class="activity-arrival-task-toggle"><input type="checkbox" data-arrival-enabled="${kind}" ${custom?'':'checked'}><strong>${esc(title)}</strong></label>${custom?`<label class="form-label mt-2" for="arrival-custom-title">Titolo</label><input id="arrival-custom-title" class="form-control" maxlength="200" data-arrival-custom-title placeholder="Es. Preparare la merce per il corriere"><label class="form-label mt-2" for="arrival-custom-description">Descrizione</label><textarea id="arrival-custom-description" class="form-control" rows="2" maxlength="5000" data-arrival-custom-description></textarea>`:''}<details><summary>Configura incaricati, allegati e destinatari</summary><div class="activity-arrival-task-config">${arrivalPicker(kind,'assignees',staffNames)}${attachmentPicker()}${arrivalPicker(kind,'recipients',officeNames)}</div></details></section>`;
+  $('activityArrivalTasks').innerHTML=Object.entries(arrivalKinds).map(([kind,title])=>task(kind,title)).join('')+task('custom_1','Crea un’attività specifica',true);
   for(const [kind] of Object.entries(arrivalKinds))for(const audience of ['assignees','recipients'])renderArrivalUserList(kind,audience,arrivalDirectory.users);
+  for(const audience of ['assignees','recipients'])renderArrivalUserList('custom_1',audience,arrivalDirectory.users);
  }
  async function loadArrivalUsers(input) {
   const picker=input.closest('[data-arrival-picker]'),[kind,audience]=picker.dataset.arrivalPicker.split(':');
@@ -192,7 +196,8 @@
   const activities=[...$('activityArrivalTasks').querySelectorAll('[data-arrival-enabled]:checked')].map(toggle=>{
    const kind=toggle.dataset.arrivalEnabled,readPicker=audience=>{const picker=$(`[data-arrival-picker="${kind}:${audience}"]`),users=arrivalSelectedUsers.get(`${kind}:${audience}`)||new Map(),minimum=picker.querySelector('[data-arrival-minimum]').value;return {role_ids:[...picker.querySelectorAll('[data-arrival-role]:checked')].map(item=>Number(item.dataset.arrivalRole)),user_ids:[...users.keys()],target_min_weight:minimum?Number(minimum):null};};
    const assignees=readPicker('assignees'),recipients=readPicker('recipients');
-   return {kind,...assignees,result_recipients:recipients};
+   const task=toggle.closest('[data-arrival-task]'),attachment_ids=[...task.querySelectorAll('[data-arrival-attachment]:checked')].map(item=>Number(item.dataset.arrivalAttachment));
+   return {kind,...assignees,result_recipients:recipients,attachment_ids,...(kind==='custom_1'?{title:$('[data-arrival-custom-title]').value,description:$('[data-arrival-custom-description]').value}:{})};
   });
   if(!activities.length){arrivalBusy=false;arrivalControls(false);$('activityArrivalError').textContent='Seleziona almeno un’attività da inviare.';return;}
   const incomplete=activities.find(item=>!(item.role_ids.length||item.user_ids.length||item.target_min_weight!==null)||!(item.result_recipients.role_ids.length||item.result_recipients.user_ids.length||item.result_recipients.target_min_weight!==null));

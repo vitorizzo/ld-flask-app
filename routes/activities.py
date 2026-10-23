@@ -260,7 +260,8 @@ def routing():
 def source_card(card_id):
     office();card=db.session.get(SupplierBoardCard,card_id)
     if not card or card.is_archived or card.is_draft: abort(404)
-    return jsonify(ok=True,card=dict(id=card.id,title=card.title,revision=card.order_revision))
+    return jsonify(ok=True,card=dict(id=card.id,title=card.title,revision=card.order_revision,
+        attachments=[dict(id=item.id,filename=item.filename,size=item.size) for item in card.attachments]))
 
 
 @activities_bp.post('/api/supplier-arrivals')
@@ -274,8 +275,6 @@ def arrival():
     if partial and not note.strip(): return error('Indica i prodotti ricevuti nella consegna parziale.')
     try: received=date.fromisoformat(payload.get('received_on',''))
     except (ValueError,TypeError): return error('Data arrivo non valida.')
-    try: activity_specs=supplier_arrival_activity_specs(payload)
-    except ValueError as exc: return error(str(exc))
     def replay(existing):
         if existing.card_id!=card_id or existing.note!=note.strip() or existing.partial!=partial or existing.received_on!=received:
             return error('Il riferimento dell’arrivo è già usato per dati diversi.',409)
@@ -291,11 +290,16 @@ def arrival():
                     or sorted(target.role_id for target in row.result_roles)!=recipients['role_ids']
                     or sorted(target.user_id for target in row.result_users)!=recipients['user_ids']
                     or row.result_min_weight!=recipients['target_min_weight']
-            or row.result_min_role_id!=recipients.get('result_min_role_id')):
-                    return error('Il riferimento dell’arrivo è già usato per destinatari diversi.',409)
+                    or row.result_min_role_id!=recipients.get('target_min_role_id')
+                    or row.title!=spec['title'] or row.description!=spec['description']
+                    or row.creation_files_digest!=spec['files_digest']):
+                    return error('Il riferimento dell’arrivo è già usato per dati diversi.',409)
         return jsonify(ok=True,arrival_id=existing.id,replayed=True)
     # Serialize arrivals for the same card, then recheck the idempotency key.
     card=SupplierBoardCard.query.filter_by(id=card_id).with_for_update().first()
+    if not card: return error('Scheda non disponibile per un nuovo arrivo.',404)
+    try: activity_specs=supplier_arrival_activity_specs(payload, card)
+    except ValueError as exc: return error(str(exc))
     existing=SupplierArrival.query.filter_by(event_key=key).first()
     if existing: return replay(existing)
     if not card or card.is_archived or card.is_draft: return error('Scheda non disponibile per un nuovo arrivo.',404)

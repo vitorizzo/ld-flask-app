@@ -21,6 +21,10 @@
    return `<a class="supplier-activity-badge ${state}" href="/activities?activity=${task.id}" title="${esc(task.title)} · ${esc(detail)}"><span aria-hidden="true">${symbol}</span><span>${esc(task.title)}</span></a>`;
   }).join('')}</div>`;
  }
+ function cardAttachments(card){
+  const attachments=card.attachments||[];if(!attachments.length)return '';
+  return `<div class="supplier-board-attachments" aria-label="Allegati scheda"><strong>Allegati</strong>${attachments.map(file=>`<a href="${esc(file.url)}" download="${esc(file.filename)}" aria-label="Scarica allegato ${esc(file.filename)}">${esc(file.filename)}</a>`).join('')}</div>`;
+ }
  function render() {
   SupplierBoardSections.disposeHints();
   const query = $('supplierFilter').value.trim().toLocaleLowerCase();
@@ -35,6 +39,7 @@
     <div class="supplier-section-badges">${SupplierBoardSections.badges(card)}</div>
     ${activityBadges(card)}
     ${card.order_pdf_url?`<a class="supplier-card-pdf-link" href="${esc(card.order_pdf_url)}" target="_blank" rel="noopener">PDF ordine allegato</a>`:''}
+    ${cardAttachments(card)}
     <div class="supplier-card-footer"><label class="visually-hidden" for="supplierMove${card.id}">Sposta ${esc(card.title)}</label><select class="form-select" id="supplierMove${card.id}" data-move="${card.id}">${options(card.column_id)}</select></div>
    </article>`).join('') || '<div class="kiosk-empty">Nessuna scheda</div>'}</div></div>`).join('');
   $('supplierColumnTabs').querySelectorAll('button').forEach(button=>button.onclick=()=>{

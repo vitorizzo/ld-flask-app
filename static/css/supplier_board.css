@@ -30,6 +30,12 @@ body.supplier-card-modal-open .modal-backdrop.show { z-index: 12100 !important; 
 .supplier-card-pdf { margin-bottom: 1em; color: var(--ld-brand-primary); }
 .supplier-card-pdf h6 { color: var(--ld-brand-primary); }
 .supplier-card-pdf-link { display: inline-block; margin-top: .5em; color: var(--ld-brand-primary); font-weight: 700; text-decoration: underline; }
+.supplier-board-attachments { display:flex; flex-direction:column; align-items:flex-start; gap:.2em; margin-top:.55em; color:var(--ld-brand-primary); font-size:.84em; }
+.supplier-board-attachments a, .supplier-card-attachment-link { color:var(--ld-brand-primary) !important; text-decoration:underline; overflow-wrap:anywhere; }
+.supplier-board-attachments a:hover, .supplier-card-attachment-link:hover { color:var(--ld-brand-accent) !important; }
+.supplier-card-attachment-row { display:flex; align-items:center; gap:.55em; flex-wrap:wrap; margin:.35em 0; padding:.45em .6em; border:1px solid color-mix(in srgb, var(--ld-brand-primary) 24%, var(--ld-surface)); border-radius:var(--ld-radius); background:var(--ld-surface); }
+.supplier-card-attachment-name { color:var(--ld-brand-primary); overflow-wrap:anywhere; }
+.supplier-card-attachment-row .btn { flex:0 0 auto; }
 .supplier-order-lines h6 { color: var(--ld-brand-primary); font-size: 1.1em; }
 .supplier-order-lines p { padding: .6em 0; border-bottom: 1px solid color-mix(in srgb, var(--ld-brand-primary) 25%, transparent); overflow-wrap: anywhere; }
 html[data-responsive-mode="mobile"] .supplier-board-head { align-items: stretch; flex-direction: column; gap: .5em; }

@@ -7,6 +7,11 @@
 - Anche 100003/1 sincrono in formato standard restituisce error/000 senza descrizione. Contratti non reperiti autonomamente; occorre almeno l'export Salva request di 100003/1. Nessun import immagini implementato o eseguito.
 - Successivamente acquisiti template100003_1.json e screenshot Parametri/Response: configurazione versione20260000, output TS Commerce con uid (ID Prodotto/Se ID esistente), base64 (Valore ID Immagine), related. Anche versione configurata restituisce error/000. Valori e mapping verso cod_art non ancora verificati; serve leggere Gestione campi per sorgente/adattatore. Stato dettagliato in status.md.
 
+## Allegati scheda e arrivi fornitori (2026-10-23)
+
+- `routes/supplier_orders.py` serializza gli allegati già presenti della scheda; `static/js/supplier_board.js` li mostra insieme al PDF ordine. `static/js/supplier_card_fields.js` e `static/css/supplier_board.css` mantengono leggibili nomi e collegamenti nel dialog di modifica.
+- `routes/activities.py` espone i metadati degli allegati della scheda sorgente. Da “Merce arrivata”, `static/js/activities.js` permette di selezionare file distinti per ogni attività standard e di creare una singola attività personalizzata; `tools/activities.py` valida l’appartenenza alla scheda, copia i contenuti in `ActivityAttachment` e include selezioni e descrizione nel controllo idempotenza. Nessuna migrazione.
+
 ## Invio lotti e visibilità attività (2026-10-20)
 
 - `tools/activities.py` conserva accesso e capacità d’azione per l’owner anche se scade l’assegnazione; i soli destinatari di esito ottengono accesso ai dettagli quando l’attività è chiusa. Home, elenco e upload usano la stessa visibilità. L’area lotti ha un solo flusso foto con etichetta prodotto, mentre gli allegati generici espongono solo documenti. Nessuna migrazione richiesta.

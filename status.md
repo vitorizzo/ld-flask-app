@@ -3902,3 +3902,10 @@ Performance apertura giornata Agenda 2026-06-13:
 - Situazione clienti allineata all’aggregazione contabile per cliente/codice e `registry_id`, inclusi saldi negativi; totale scoperto, ricerca nome/codice/città, filtro solo saldi positivi e accesso diretto alla scheda cliente.
 - Rubrica agente: ricerca e assegnazione di anagrafiche esistenti della rubrica aziendale al singolo agente, poi condivise in entrambe le viste; validazione server-side e protezione duplicati. Nessuna nuova migrazione.
 - Verificati 14 test mirati, parsing Jinja/JavaScript e registrazione route app factory.
+
+## Bacheca ordini fornitori: allegati e attività all'arrivo (2026-10-23)
+
+- Le card mostrano i file allegati caricati, oltre al PDF ordine generato. Nella modifica della scheda, i nomi dei file hanno colori leggibili sullo sfondo del dialog.
+- In “Merce arrivata”, ogni attività standard consente di includere separatamente uno o più allegati già presenti nella scheda. Aggiunta la possibilità di creare nello stesso passaggio un'attività personalizzata con titolo, descrizione, incaricati, destinatari dell'esito e selezione indipendente degli allegati.
+- L'API accetta soltanto allegati appartenenti alla scheda selezionata e ne copia il contenuto tra gli allegati delle attività; il controllo idempotenza include titolo, descrizione e file. Nessuna migrazione.
+- Verifica: `tests/test_activities.py` (24 test) superato, compresi personalizzata, copia indipendente, retry e rifiuto di allegati di altre schede; `node --check` sui due script UI e `git diff --check` superati. Verifica browser non eseguita.

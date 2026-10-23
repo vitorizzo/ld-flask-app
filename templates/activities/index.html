@@ -2,7 +2,7 @@
 {% block title %}Attività{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static',filename='css/ld_modal.css',v=app_version) }}">
-<link rel="stylesheet" href="{{ url_for('static',filename='css/activities.css',v=app_version ~ '-activities10') }}">
+<link rel="stylesheet" href="{{ url_for('static',filename='css/activities.css',v=app_version ~ '-activities11') }}">
 {% endblock %}
 {% block content %}
 <section class="ld-page ld-page-standard activity-page" id="activityPage" data-manager="{{ '1' if activity_manager else '0' }}">
@@ -58,4 +58,4 @@
 </div></div></div>
 {% endif %}
 {% endblock %}
-{% block extra_js %}<script src="{{ url_for('static',filename='js/ld_modal.js',v=app_version) }}"></script><script src="{{ url_for('static',filename='js/activity_tree.js',v=app_version ~ '-activities8') }}"></script><script src="{{ url_for('static',filename='js/activity_recipients.js',v=app_version ~ '-activities8') }}"></script><script src="{{ url_for('static',filename='js/activity_create.js',v=app_version ~ '-activities11') }}"></script><script src="{{ url_for('static',filename='js/activities.js',v=app_version ~ '-activities11') }}"></script>{% endblock %}
+{% block extra_js %}<script src="{{ url_for('static',filename='js/ld_modal.js',v=app_version) }}"></script><script src="{{ url_for('static',filename='js/activity_tree.js',v=app_version ~ '-activities8') }}"></script><script src="{{ url_for('static',filename='js/activity_recipients.js',v=app_version ~ '-activities8') }}"></script><script src="{{ url_for('static',filename='js/activity_create.js',v=app_version ~ '-activities11') }}"></script><script src="{{ url_for('static',filename='js/activities.js',v=app_version ~ '-activities12') }}"></script>{% endblock %}

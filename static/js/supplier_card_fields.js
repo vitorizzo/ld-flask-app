@@ -7,9 +7,9 @@ window.SupplierCardFields = {
   function render() {
    $('Attachments').replaceChildren();
    for (const item of [...attachments.filter(a => !removed.has(a.id)), ...files.map((f, index) => ({filename:f.name,size:f.size,index}))]) {
-    const row = document.createElement('div'); row.className = 'd-flex gap-2 align-items-center flex-wrap my-2';
-    const label = document.createElement(item.url ? 'a' : 'span'); label.textContent = `${item.filename} (${(item.size/1024/1024).toFixed(2)} MB)`;
-    if (item.url) { label.href=item.url; label.download=item.filename; }
+    const row = document.createElement('div'); row.className = 'supplier-card-attachment-row';
+    const label = document.createElement(item.url ? 'a' : 'span'); label.className = item.url ? 'supplier-card-attachment-link' : 'supplier-card-attachment-name'; label.textContent = `${item.filename} (${(item.size/1024/1024).toFixed(2)} MB)`;
+    if (item.url) { label.href=item.url; label.download=item.filename; label.setAttribute('aria-label','Scarica allegato '+item.filename); }
     const button = document.createElement('button'); button.type='button'; button.className='btn btn-sm btn-outline-danger'; button.textContent='Rimuovi'; button.setAttribute('aria-label', 'Rimuovi '+item.filename);
     button.onclick=()=>{if(item.id)removed.add(item.id);else files.splice(item.index,1);render();};
     row.append(label,button); $('Attachments').append(row);
