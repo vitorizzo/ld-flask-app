@@ -88,13 +88,14 @@ class ActivityTests(unittest.TestCase):
         first=SupplierBoardAttachment(filename='scheda.png',mimetype='image/png',size=5,content=b'first')
         second=SupplierBoardAttachment(filename='istruzioni.png',mimetype='image/png',size=6,content=b'second')
         card.attachments.extend([first,second]);db.session.commit()
+        card.order_pdf=b'%PDF-1.4 prova ordine';card.order_pdf_filename='ordine-fornitore.pdf';db.session.commit()
         source=self.client.get(f"/activities/api/source-card/{card.id}")
         self.assertEqual(source.status_code,200)
-        self.assertEqual({item['id'] for item in source.json['card']['attachments']},{first.id,second.id})
+        self.assertEqual({item['id'] for item in source.json['card']['attachments']},{first.id,second.id,'order_pdf'})
         body=self.arrival_body(activities=[
             dict(kind='check_goods',role_ids=[1],result_recipients=dict(role_ids=[2]),attachment_ids=[first.id]),
             dict(kind='custom_1',title='Preparare il reso',description='Usare le istruzioni allegate',role_ids=[1],
-                 result_recipients=dict(role_ids=[2]),attachment_ids=[second.id]),
+                 result_recipients=dict(role_ids=[2]),attachment_ids=['order_pdf',second.id]),
         ])
         created=self.client.post('/activities/api/supplier-arrivals',json=body)
         self.assertEqual(created.status_code,201,created.json)
@@ -102,10 +103,10 @@ class ActivityTests(unittest.TestCase):
         self.assertEqual([(row.kind,row.title,row.description) for row in activities],[
             ('check_goods','Controllare la merce',''),('custom_1','Preparare il reso','Usare le istruzioni allegate')])
         self.assertEqual([[item.filename for item in row.attachments] for row in activities],
-                         [['scheda.png'],['istruzioni.png']])
+                         [['scheda.png'],['ordine-fornitore.pdf','istruzioni.png']])
         replay=self.client.post('/activities/api/supplier-arrivals',json=body)
         self.assertEqual(replay.status_code,200,replay.json);self.assertTrue(replay.json['replayed'])
-        self.assertEqual(ActivityAttachment.query.count(),2)
+        self.assertEqual(ActivityAttachment.query.count(),3)
         body['activities'][0]['attachment_ids']=[second.id]
         self.assertEqual(self.client.post('/activities/api/supplier-arrivals',json=body).status_code,409)
 

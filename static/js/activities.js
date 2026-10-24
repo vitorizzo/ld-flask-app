@@ -169,7 +169,7 @@
  function renderArrivalTasks() {
   const staffNames=['staff'],officeNames=['office','ufficio'];
   const attachments=sourceCard.attachments||[];
-  const attachmentPicker=()=>attachments.length?`<fieldset class="activity-arrival-attachments"><legend>Allegati da inviare con questa attività</legend>${attachments.map(file=>`<label class="activity-checkbox"><input type="checkbox" data-arrival-attachment="${file.id}"> ${esc(file.filename)}</label>`).join('')}</fieldset>`:'<p class="activity-arrival-no-files">La scheda non contiene allegati.</p>';
+  const attachmentPicker=()=>attachments.length?`<fieldset class="activity-arrival-attachments"><legend>Allegati da inviare con questa attività</legend>${attachments.map(file=>`<label class="activity-checkbox"><input type="checkbox" data-arrival-attachment="${esc(file.id)}"> ${esc(file.filename)} <small>${file.id==='order_pdf'?'PDF ordine':''}</small></label>`).join('')}</fieldset>`:'<p class="activity-arrival-no-files">La scheda non contiene allegati.</p>';
   const task=(kind,title,custom=false)=>`<section class="activity-arrival-task" data-arrival-task="${kind}"><label class="activity-arrival-task-toggle"><input type="checkbox" data-arrival-enabled="${kind}" ${custom?'':'checked'}><strong>${esc(title)}</strong></label>${custom?`<label class="form-label mt-2" for="arrival-custom-title">Titolo</label><input id="arrival-custom-title" class="form-control" maxlength="200" data-arrival-custom-title placeholder="Es. Preparare la merce per il corriere"><label class="form-label mt-2" for="arrival-custom-description">Descrizione</label><textarea id="arrival-custom-description" class="form-control" rows="2" maxlength="5000" data-arrival-custom-description></textarea>`:''}<details><summary>Configura incaricati, allegati e destinatari</summary><div class="activity-arrival-task-config">${arrivalPicker(kind,'assignees',staffNames)}${attachmentPicker()}${arrivalPicker(kind,'recipients',officeNames)}</div></details></section>`;
   $('activityArrivalTasks').innerHTML=Object.entries(arrivalKinds).map(([kind,title])=>task(kind,title)).join('')+task('custom_1','Crea un’attività specifica',true);
   for(const [kind] of Object.entries(arrivalKinds))for(const audience of ['assignees','recipients'])renderArrivalUserList(kind,audience,arrivalDirectory.users);
@@ -190,22 +190,23 @@
   try {const [result,people]=await Promise.all([api('/activities/api/source-card/'+cardId),api('/activities/api/assignees')]);if(key!==arrivalKey)return;sourceCard=result.card;arrivalDirectory=people;arrivalSelectedUsers.clear();arrivalSearchRequests.clear();renderArrivalTasks();$('activityArrivalSource').textContent=sourceCard.title;$('activityArrivalSave').disabled=false;}
   catch(error){if(key===arrivalKey)$('activityArrivalError').textContent=error.message;}
  }
- function arrivalControls(value){arrivalBusy=value;$('activityArrivalModal').querySelectorAll('button,input,textarea').forEach(element=>element.disabled=value);}
+ function arrivalControls(value){arrivalBusy=value;$('activityArrivalModal').querySelectorAll('button,input,textarea,select').forEach(element=>element.disabled=value);}
  async function saveArrival() {
-  if(arrivalBusy||!sourceCard)return;arrivalControls(true);$('activityArrivalError').textContent='';
-  const activities=[...$('activityArrivalTasks').querySelectorAll('[data-arrival-enabled]:checked')].map(toggle=>{
-   const kind=toggle.dataset.arrivalEnabled,readPicker=audience=>{const picker=$(`[data-arrival-picker="${kind}:${audience}"]`),users=arrivalSelectedUsers.get(`${kind}:${audience}`)||new Map(),minimum=picker.querySelector('[data-arrival-minimum]').value;return {role_ids:[...picker.querySelectorAll('[data-arrival-role]:checked')].map(item=>Number(item.dataset.arrivalRole)),user_ids:[...users.keys()],target_min_weight:minimum?Number(minimum):null};};
-   const assignees=readPicker('assignees'),recipients=readPicker('recipients');
-   const task=toggle.closest('[data-arrival-task]'),attachment_ids=[...task.querySelectorAll('[data-arrival-attachment]:checked')].map(item=>Number(item.dataset.arrivalAttachment));
-   return {kind,...assignees,result_recipients:recipients,attachment_ids,...(kind==='custom_1'?{title:$('[data-arrival-custom-title]').value,description:$('[data-arrival-custom-description]').value}:{})};
-  });
-  if(!activities.length){arrivalBusy=false;arrivalControls(false);$('activityArrivalError').textContent='Seleziona almeno un’attività da inviare.';return;}
-  const incomplete=activities.find(item=>!(item.role_ids.length||item.user_ids.length||item.target_min_weight!==null)||!(item.result_recipients.role_ids.length||item.result_recipients.user_ids.length||item.result_recipients.target_min_weight!==null));
-  if(incomplete){arrivalBusy=false;arrivalControls(false);$('activityArrivalError').textContent='Per ogni attività selezionata indica incaricati e destinatari dell’esito.';return;}
-  const payload={card_id:sourceCard.id,revision:sourceCard.revision,event_key:arrivalKey,received_on:$('activityArrivalDate').value,partial:$('activityArrivalPartial').checked,note:$('activityArrivalNote').value,activities};
-  try {const result=await api('/activities/api/supplier-arrivals',{method:'POST',body:JSON.stringify(payload)});arrivalBusy=false;bootstrap.Modal.getInstance($('activityArrivalModal')).hide();params.delete('arrival_card');params.set('arrival',result.arrival_id);history.replaceState({},'',location.pathname+'?'+params);page=1;await load();}
-  catch(error){$('activityArrivalError').textContent=error.message;}
-  finally{arrivalControls(false);}
+  if(arrivalBusy||!sourceCard)return;arrivalControls(true);$('activityArrivalError').textContent='';const save=$('activityArrivalSave'),label=save.textContent;save.textContent='Invio attività…';
+  try {
+   const activities=[...$('activityArrivalTasks').querySelectorAll('[data-arrival-enabled]:checked')].map(toggle=>{
+    const kind=toggle.dataset.arrivalEnabled,readPicker=audience=>{const picker=$(`[data-arrival-picker="${kind}:${audience}"]`),users=arrivalSelectedUsers.get(`${kind}:${audience}`)||new Map(),minimum=picker.querySelector('[data-arrival-minimum]').value;return {role_ids:[...picker.querySelectorAll('[data-arrival-role]:checked')].map(item=>Number(item.dataset.arrivalRole)),user_ids:[...users.keys()],target_min_weight:minimum?Number(minimum):null};};
+    const assignees=readPicker('assignees'),recipients=readPicker('recipients');
+    const task=toggle.closest('[data-arrival-task]'),attachment_ids=[...task.querySelectorAll('[data-arrival-attachment]:checked')].map(item=>/^\d+$/.test(item.dataset.arrivalAttachment)?Number(item.dataset.arrivalAttachment):item.dataset.arrivalAttachment);
+    return {kind,...assignees,result_recipients:recipients,attachment_ids,...(kind==='custom_1'?{title:$('[data-arrival-custom-title]').value,description:$('[data-arrival-custom-description]').value}:{})};
+   });
+   if(!activities.length)throw Error('Seleziona almeno un’attività da inviare.');
+   const incomplete=activities.find(item=>!(item.role_ids.length||item.user_ids.length||item.target_min_weight!==null)||!(item.result_recipients.role_ids.length||item.result_recipients.user_ids.length||item.result_recipients.target_min_weight!==null));
+   if(incomplete)throw Error('Per ogni attività selezionata indica incaricati e destinatari dell’esito.');
+   const payload={card_id:sourceCard.id,revision:sourceCard.revision,event_key:arrivalKey,received_on:$('activityArrivalDate').value,partial:$('activityArrivalPartial').checked,note:$('activityArrivalNote').value,activities};
+   const result=await api('/activities/api/supplier-arrivals',{method:'POST',body:JSON.stringify(payload)});bootstrap.Modal.getInstance($('activityArrivalModal')).hide();params.delete('arrival_card');params.set('arrival',result.arrival_id);history.replaceState({},'',location.pathname+'?'+params);page=1;await load();
+  } catch(error){$('activityArrivalError').textContent=error.message;}
+  finally{save.textContent=label;arrivalControls(false);}
  }
  document.addEventListener('DOMContentLoaded',()=>{
   document.querySelectorAll('.activity-modal').forEach(modal=>{
@@ -220,6 +221,7 @@
    const user=event.target.closest('[data-arrival-user]');if(user){const picker=user.closest('[data-arrival-picker]'),key=picker.dataset.arrivalPicker,map=arrivalSelectedUsers.get(key)||new Map(),id=Number(user.dataset.arrivalUser),found=arrivalDirectory.users.find(item=>item.id===id);if(user.checked&&found)map.set(id,found);else map.delete(id);arrivalSelectedUsers.set(key,map);}
   });
   $('activityArrivalTasks')?.addEventListener('input',event=>{const input=event.target.closest('[data-arrival-user-search]');if(input){clearTimeout(input._arrivalTimer);input._arrivalTimer=setTimeout(()=>loadArrivalUsers(input),250);}});
+  $('activityArrivalTasks')?.addEventListener('input',event=>{if(event.target.matches('[data-arrival-custom-title],[data-arrival-custom-description]'))$('[data-arrival-enabled="custom_1"]').checked=true;});
   $('activityModal').addEventListener('hide.bs.modal',event=>{if(busy)event.preventDefault();});
   $('activityModal').addEventListener('hidden.bs.modal',()=>{selected=null;activity=null;detailGeneration++;$('activityDetail').onclick=null;$('activityDetailRefresh').onclick=null;$('activityError').textContent='';});
   const composer=window.ActivityCreate?.init({api,onCreated:async(saved,context={})=>{if(!context.row&&!context.parent){params.delete('arrival');page=1;$('activityStatus').value='active';$('activitySearch').value='';history.replaceState({},'',location.pathname);}await load();if(context.row||context.parent)openDetail(context.row?.id||context.parent.id);}});

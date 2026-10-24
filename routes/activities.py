@@ -260,8 +260,11 @@ def routing():
 def source_card(card_id):
     office();card=db.session.get(SupplierBoardCard,card_id)
     if not card or card.is_archived or card.is_draft: abort(404)
+    attachments=[dict(id=item.id,filename=item.filename,size=item.size) for item in card.attachments]
+    if card.order_pdf:
+        attachments.append(dict(id='order_pdf',filename=card.order_pdf_filename or 'ordine.pdf',size=len(card.order_pdf)))
     return jsonify(ok=True,card=dict(id=card.id,title=card.title,revision=card.order_revision,
-        attachments=[dict(id=item.id,filename=item.filename,size=item.size) for item in card.attachments]))
+        attachments=attachments))
 
 
 @activities_bp.post('/api/supplier-arrivals')

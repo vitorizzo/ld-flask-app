@@ -229,14 +229,18 @@ def supplier_arrival_activity_specs(payload, card=None):
             raise ValueError('La descrizione dell’attività supera il limite di 5.000 caratteri.')
         attachment_ids = raw.get('attachment_ids', [])
         if (not isinstance(attachment_ids, list) or len(attachment_ids) > 10
-                or any(type(value) is not int or value <= 0 for value in attachment_ids)
+                or any(not ((type(value) is int and value > 0) or value == 'order_pdf') for value in attachment_ids)
                 or len(set(attachment_ids)) != len(attachment_ids)):
             raise ValueError('Selezione allegati non valida.')
         selected = {item.id: item for item in card.attachments} if card is not None else {}
+        if 'order_pdf' in attachment_ids and card is not None and card.order_pdf:
+            selected['order_pdf'] = dict(filename=card.order_pdf_filename or 'ordine.pdf',
+                mimetype='application/pdf',size=len(card.order_pdf),content=card.order_pdf)
         if not set(attachment_ids) <= set(selected):
             raise ValueError('Uno o più allegati non appartengono alla scheda selezionata.')
-        files = [dict(filename=selected[value].filename, mimetype=selected[value].mimetype,
-                       size=selected[value].size, content=selected[value].content) for value in attachment_ids]
+        files = [selected[value] if isinstance(selected[value], dict) else dict(filename=selected[value].filename,
+                 mimetype=selected[value].mimetype,size=selected[value].size,content=selected[value].content)
+                 for value in attachment_ids]
         from tools.activity_files import files_digest
         normalized = manual_payload({
             'title': title,
